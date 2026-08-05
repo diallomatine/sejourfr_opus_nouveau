@@ -92,7 +92,7 @@ class EvaluationPromptBuilderTest {
     }
 
     @Test
-    void userPrompt_EO_injecte_duree_factuelle_sous_objectif() {
+    void userPrompt_EO_n_injecte_jamais_la_duree_dans_le_materiau_de_notation() {
         ProductionTask task = new ProductionTask();
         task.setEpreuve(EpreuveType.TCF_EO);
         task.setTacheNumero((short) 1);
@@ -103,8 +103,124 @@ class EvaluationPromptBuilderTest {
         String user = builder.buildUserPrompt(task, "bonjour je m'appelle samuel", true, 90);
 
         assertThat(user).contains("ÉPREUVE : Expression orale, tâche 1");
-        assertThat(user).contains("DURÉE (indicative) : 90 s (objectif 180 s)");
+        assertThat(user).doesNotContain("DURÉE", "90 s", "objectif 180 s");
         // EO : pas de bloc longueur (specifique EE)
         assertThat(user).doesNotContain("LONGUEUR ATTENDUE");
+    }
+
+    // ------------------------------------------------------------------- v5
+
+    private EvaluationPromptBuilder builderV5() {
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        props.setRubricsVersion("v5");
+        ObjectMapper om = new ObjectMapper();
+        ProductionRubricsProvider provider = new ProductionRubricsProvider(props, om);
+        provider.load();
+        return new EvaluationPromptBuilder(om, provider);
+    }
+
+    /**
+     * La grille envoyee au modele est bien celle du TCF : 4 criteres, poids
+     * 0,25, libelles ACCENTUES (ce sont eux qui remontent ensuite jusqu'a
+     * l'ecran du candidat).
+     */
+    @Test
+    void userPrompt_v5_envoie_les_quatre_criteres_du_tcf() {
+        ProductionTask task = new ProductionTask();
+        task.setEpreuve(EpreuveType.TCF_EE);
+        task.setTacheNumero((short) 1);
+        task.setNiveauCible("A2");
+        task.setConsigne("Annoncez votre demenagement a un ami et invitez-le.");
+        task.setMotsMin(30);
+        task.setMotsMax(60);
+
+        String user = builderV5().buildUserPrompt(task, "Salut Marie, j'ai demenage. Viens samedi !",
+                false, null);
+
+        assertThat(user)
+                .contains("\"communiquer\"").contains("\"interagir\"")
+                .contains("\"lexique\"").contains("\"morphosyntaxe\"")
+                .contains("0.25")
+                .as("libelles accentues, tels qu'affiches au candidat")
+                .contains("Communiquer : accomplir la tâche et enchaîner les idées")
+                .as("les criteres abandonnes ne doivent plus apparaitre")
+                .doesNotContain("realisation_consigne").doesNotContain("coherence\"");
+    }
+
+    // ------------------------------------------------------------------- v8
+
+    private EvaluationPromptBuilder builderV8() {
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        props.setRubricsVersion("v8");
+        ObjectMapper om = new ObjectMapper();
+        ProductionRubricsProvider provider = new ProductionRubricsProvider(props, om);
+        provider.load();
+        return new EvaluationPromptBuilder(om, provider);
+    }
+
+    /**
+     * Le system prompt v8 porte les consignes de RESTITUTION — et garde
+     * intactes celles de notation : c'est tout le contrat de cette version.
+     */
+    @Test
+    void systemPrompt_v8_porte_la_restitution_sans_toucher_a_la_notation() {
+        String system = builderV8().buildSystemPrompt();
+
+        assertThat(system)
+                .as("notation inchangee")
+                .contains("# Du score au niveau : la note EST le niveau (obligatoire)")
+                .contains("10 et plus -> B2 ; 6 a 9 -> B1 ; 2 a 5 -> A2")
+                .contains("GARDE-FOU DE COUPLAGE")
+                .contains("TEST DECISIF A1 vs A2")
+                .contains("TEST DECISIF B1 vs B2")
+                .contains("# Exemples d'ancrage")
+                .as("restitution ajoutee")
+                .contains("# Une erreur, un seul endroit (regle anti-repetition, regle capitale)")
+                .contains("# Ne reproche jamais un moyen que la consigne n'exigeait pas (regle capitale)")
+                .contains("# Version amelioree de la production (taches ECRITES uniquement)")
+                .contains("# Confiance : TA certitude de correcteur, jamais la qualite du candidat")
+                .contains("# Accomplissement de la tache et VERDICT (bloc obligatoire)");
+        assertThat(system).doesNotContain("{MODALITE}").doesNotContain("{CRITERES}");
+    }
+
+    /** Chaque tache ECRITE demande la reecriture, chaque tache orale l'interdit. */
+    @Test
+    void userPrompt_v8_demande_la_version_amelioree_a_l_ecrit_et_l_interdit_a_l_oral() {
+        EvaluationPromptBuilder builder = builderV8();
+
+        ProductionTask ee = new ProductionTask();
+        ee.setEpreuve(EpreuveType.TCF_EE);
+        ee.setTacheNumero((short) 2);
+        ee.setNiveauCible("B1");
+        ee.setConsigne("Racontez un voyage marquant a un ami.");
+        ee.setMotsMin(60);
+        ee.setMotsMax(90);
+        assertThat(builder.buildUserPrompt(ee, "Je suis alle a Lyon avec ma soeur.", false, null))
+                .contains("VERSION AMELIOREE obligatoire")
+                .contains("60 a 90 mots")
+                .contains("accomplissement.objectif");
+
+        ProductionTask eo = new ProductionTask();
+        eo.setEpreuve(EpreuveType.TCF_EO);
+        eo.setTacheNumero((short) 2);
+        eo.setNiveauCible("B1");
+        eo.setConsigne("Reservez une chambre d'hotel.");
+        assertThat(builder.buildUserPrompt(eo, "Candidat : bonjour je voudrais une chambre", true, 200))
+                .contains("AUCUNE version_amelioree sur une tache orale")
+                .doesNotContain("VERSION AMELIOREE obligatoire");
+    }
+
+    /** Le system prompt v5 porte le passage note -> niveau et l'exigence pedagogique. */
+    @Test
+    void systemPrompt_v5_porte_le_passage_note_niveau_et_le_comment() {
+        String system = builderV5().buildSystemPrompt();
+
+        assertThat(system)
+                .contains("# Du score au niveau : la note EST le niveau (obligatoire)")
+                .contains("16 et plus -> B2 ; 13 a 15 -> B1 ; 9 a 12 -> A2 ; 1 a 8 -> A1")
+                .contains("# Preuves litterales et priorites : ENSEIGNER, PAS CONSTATER")
+                .contains("GARDE-FOU DE COUPLAGE")
+                .contains("# Exemples d'ancrage");
+        assertThat(system).doesNotContain("{MODALITE}").doesNotContain("{CRITERES}");
     }
 }

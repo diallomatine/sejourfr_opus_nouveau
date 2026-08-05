@@ -41,7 +41,7 @@ const PATHS: PathInfo[] = [
     tcfLevel: "A2",
     bullets: [
       "Renouvellement 2 à 4 ans",
-      "Examen civique adapté · niveau A1/A2",
+      "Examen civique · mention CSP",
       "Démarches simplifiées",
     ],
     tone: "blue",
@@ -53,7 +53,7 @@ const PATHS: PathInfo[] = [
     tcfLevel: "B1",
     bullets: [
       "Validité 10 ans",
-      "Examen civique · niveau A2/B1",
+      "Examen civique · mention CR",
       "Travail facilité, voyages plus souples",
     ],
     tone: "ink",
@@ -65,7 +65,7 @@ const PATHS: PathInfo[] = [
     tcfLevel: "B2",
     bullets: [
       "Nationalité française",
-      "Examen civique · niveau B1/B2",
+      "Examen civique · mention Naturalisation",
       "Droits civiques + passeport",
     ],
     tone: "red",
@@ -143,7 +143,8 @@ function ParcoursForm() {
           <h1>
             {isOnboarding ? (
               <>
-                Quelle <em>démarche</em> préparez-vous&nbsp;?
+                Quelle <em>démarche</em>{" "}
+                préparez-vous&nbsp;?
               </>
             ) : (
               <>
@@ -182,6 +183,15 @@ function ParcoursForm() {
           );
         })}
       </section>
+
+      <p className="pc-rule">
+        <strong>Sans compensation entre les épreuves.</strong> Le niveau exigé
+        doit être atteint dans les <strong>4 épreuves</strong>{" "}
+        du TCF IRN —
+        compréhension orale, compréhension écrite, expression écrite et
+        expression orale. L&apos;attestation affiche un niveau par épreuve&nbsp;:
+        il n&apos;y a pas de moyenne, et l&apos;épreuve la plus basse décide.
+      </p>
 
       {error && <div className="form-error pc-error">{error}</div>}
 
@@ -645,6 +655,21 @@ const styles = `
   .path-card-blue.is-active .path-check-icon { background: var(--color-blue); color: #fff; }
   .path-card-ink.is-active .path-check-icon { background: var(--color-ink); color: #fff; }
   .path-card-red.is-active .path-check-icon { background: var(--color-red); color: #fff; }
+
+  /* ========== RÈGLE DES 4 ÉPREUVES ========== */
+  .pc-rule {
+    max-width: 100%;
+    border-left: 3px solid var(--color-red);
+    background: var(--color-red-light);
+    border-radius: 0 12px 12px 0;
+    padding: 14px 18px;
+    margin: 22px 0 20px;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--color-ink);
+  }
+  .pc-rule strong { font-weight: 700; }
+  @media (max-width: 560px) { .pc-rule { padding: 12px 14px; font-size: 13px; } }
 
   /* ========== ACTION BAR (sticky bottom) ========== */
   .pc-error { margin-bottom: 18px; }

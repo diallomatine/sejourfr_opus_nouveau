@@ -136,6 +136,15 @@
   color: var(--paper);
 }
 
+.statementCol {
+  width: 40%;
+}
+
+.actionsCol {
+  width: 56px;
+  max-width: 100%;
+}
+
 .rowClickable {
   cursor: pointer;
 }
@@ -202,4 +211,12 @@
 .pageActions {
   display: flex;
   gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .pagination {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
 }

@@ -20,6 +20,7 @@ import type {
   ThemeDto,
 } from "../../types/api";
 import tableStyles from "../../components/ui/DataTable.module.css";
+import styles from "./ExamFormPage.module.css";
 
 // Form values : on stocke "" pour les nullables (HTML <select> impose des
 // strings), puis on transforme "" → null au submit.
@@ -205,6 +206,16 @@ export function ExamFormPage() {
     return <Spinner label="Chargement..." />;
   }
 
+  if (isEdit && existingQuery.isError) {
+    return (
+      <Panel title="Examen introuvable">
+        <div className={styles.error}>
+          Erreur : {(existingQuery.error as Error).message}
+        </div>
+      </Panel>
+    );
+  }
+
   const themes: ThemeDto[] = themesQuery.data ?? [];
 
   return (
@@ -333,25 +344,11 @@ export function ExamFormPage() {
           </FormRow>
 
           <FormRow twoCol>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                paddingTop: 26,
-              }}
-            >
+            <label className={styles.checkbox}>
               <input type="checkbox" {...register("free")} />
               Gratuit (visible sans abonnement)
             </label>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                paddingTop: 26,
-              }}
-            >
+            <label className={styles.checkbox}>
               <input type="checkbox" {...register("published")} />
               Publié (visible côté public)
             </label>
@@ -362,7 +359,7 @@ export function ExamFormPage() {
           title="Composition"
           sub="Règles ordonnées : chaque règle tire un nombre de questions selon thème / difficulté / type"
           actions={
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className={styles.panelActions}>
               <Button
                 type="button"
                 variant="ghost"
@@ -390,13 +387,7 @@ export function ExamFormPage() {
           noPadding
         >
           {fields.length === 0 ? (
-            <div
-              style={{
-                padding: 24,
-                color: "var(--muted)",
-                textAlign: "center",
-              }}
-            >
+            <div className={styles.emptyRules}>
               Aucune règle. Ajoutez-en manuellement ou cliquez « Suggérer une
               composition ».
             </div>
@@ -430,85 +421,87 @@ function RuleTable({
 }) {
   const isTcf = module === "TCF";
   return (
-    <table className={tableStyles.table}>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Thème (optionnel)</th>
-          <th>Difficulté</th>
-          <th>Type de question</th>
-          <th>Nb questions</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {fields.map((field, index) => (
-          <tr key={field.id}>
-            <td>
-              <code style={{ fontSize: 11, color: "var(--muted)" }}>
-                {String(index + 1).padStart(2, "0")}
-              </code>
-            </td>
-            <td>
-              <Select {...register(`rules.${index}.themeId`)}>
-                <option value="">— Tous thèmes —</option>
-                {themes.map((th) => (
-                  <option key={th.id} value={th.id}>
-                    {th.name}
-                  </option>
-                ))}
-              </Select>
-            </td>
-            <td>
-              {isTcf ? (
-                <Select
-                  {...register(`rules.${index}.difficulty`)}
-                  disabled
-                  title="Le TCF est un test unique pour tous, sans filtre A2/B1/B2."
-                  value=""
-                >
-                  <option value="">— Niveau ignoré (TCF) —</option>
-                </Select>
-              ) : (
-                <Select {...register(`rules.${index}.difficulty`)}>
-                  <option value="">— Toutes —</option>
-                  <option value="CSP">CSP</option>
-                  <option value="CR">CR</option>
-                  <option value="NAT">NAT</option>
-                </Select>
-              )}
-            </td>
-            <td>
-              <Select {...register(`rules.${index}.questionType`)}>
-                <option value="">— Tous —</option>
-                <option value="CONNAISSANCE">Connaissance</option>
-                <option value="MISE_SITUATION">Mise en situation</option>
-                <option value="CO">CO</option>
-                <option value="CE">CE</option>
-                <option value="STRUCTURE">Structure</option>
-              </Select>
-            </td>
-            <td style={{ width: 100 }}>
-              <Input
-                type="number"
-                min={1}
-                {...register(`rules.${index}.questionCount`, {
-                  valueAsNumber: true,
-                })}
-              />
-            </td>
-            <td>
-              <button
-                type="button"
-                className={`${tableStyles.iconBtn} ${tableStyles.danger}`}
-                onClick={() => remove(index)}
-              >
-                Retirer
-              </button>
-            </td>
+    <div className={styles.tableWrap}>
+      <table className={`${tableStyles.table} ${styles.ruleTable}`}>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Thème (optionnel)</th>
+            <th>Difficulté</th>
+            <th>Type de question</th>
+            <th>Nb questions</th>
+            <th></th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {fields.map((field, index) => (
+            <tr key={field.id}>
+              <td>
+                <code className={styles.ruleIndex}>
+                  {String(index + 1).padStart(2, "0")}
+                </code>
+              </td>
+              <td>
+                <Select {...register(`rules.${index}.themeId`)}>
+                  <option value="">— Tous thèmes —</option>
+                  {themes.map((th) => (
+                    <option key={th.id} value={th.id}>
+                      {th.name}
+                    </option>
+                  ))}
+                </Select>
+              </td>
+              <td>
+                {isTcf ? (
+                  <Select
+                    {...register(`rules.${index}.difficulty`)}
+                    disabled
+                    title="Le TCF est un test unique pour tous, sans filtre A2/B1/B2."
+                    value=""
+                  >
+                    <option value="">— Niveau ignoré (TCF) —</option>
+                  </Select>
+                ) : (
+                  <Select {...register(`rules.${index}.difficulty`)}>
+                    <option value="">— Toutes —</option>
+                    <option value="CSP">CSP</option>
+                    <option value="CR">CR</option>
+                    <option value="NAT">NAT</option>
+                  </Select>
+                )}
+              </td>
+              <td>
+                <Select {...register(`rules.${index}.questionType`)}>
+                  <option value="">— Tous —</option>
+                  <option value="CONNAISSANCE">Connaissance</option>
+                  <option value="MISE_SITUATION">Mise en situation</option>
+                  <option value="CO">CO</option>
+                  <option value="CE">CE</option>
+                  <option value="STRUCTURE">Structure</option>
+                </Select>
+              </td>
+              <td className={styles.countCell}>
+                <Input
+                  type="number"
+                  min={1}
+                  {...register(`rules.${index}.questionCount`, {
+                    valueAsNumber: true,
+                  })}
+                />
+              </td>
+              <td>
+                <button
+                  type="button"
+                  className={`${tableStyles.iconBtn} ${tableStyles.danger}`}
+                  onClick={() => remove(index)}
+                >
+                  Retirer
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

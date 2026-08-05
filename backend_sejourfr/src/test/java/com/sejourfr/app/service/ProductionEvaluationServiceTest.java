@@ -50,6 +50,7 @@ class ProductionEvaluationServiceTest {
     private ProductionAudioStorageService audioStorage;
     private ProductionPipelineAsyncRunner pipelineRunner;
     private ProductionEvaluationProperties props;
+    private SubscriptionService subscriptionService;
     private ProductionEvaluationService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -66,9 +67,14 @@ class ProductionEvaluationServiceTest {
         audioStorage = mock(ProductionAudioStorageService.class);
         pipelineRunner = mock(ProductionPipelineAsyncRunner.class);
         props = mock(ProductionEvaluationProperties.class);
+        subscriptionService = mock(SubscriptionService.class);
+        // Gardes de session + quota : collaborateur REEL (pur), pour que les
+        // regles verifiees ici soient celles qui tournent en production.
+        ProductionAccessService accessService = new ProductionAccessService(
+                subscriptionService, attemptManager, submissionManager);
         service = new ProductionEvaluationService(
                 taskManager, submissionManager, transcriptionManager, attemptManager,
-                userManager, audioStorage, pipelineRunner, props);
+                userManager, audioStorage, pipelineRunner, accessService, props);
 
         when(props.getMinTextWords()).thenReturn(10);
         when(props.getMaxTextWords()).thenReturn(300);
@@ -85,12 +91,17 @@ class ProductionEvaluationServiceTest {
         return u;
     }
 
-    private Attempt ownedAttempt() {
+    private Attempt ownedAttempt(EpreuveType epreuve) {
         Attempt a = new Attempt();
         a.setId(attemptId);
         a.setUser(user());
+        a.setEpreuve(epreuve);
         a.setStartedAt(Instant.now());
         return a;
+    }
+
+    private Attempt ownedAttempt() {
+        return ownedAttempt(EpreuveType.TCF_EE);
     }
 
     private ProductionTask task(EpreuveType epreuve) {
@@ -167,6 +178,46 @@ class ProductionEvaluationServiceTest {
                 .isInstanceOf(BusinessException.class);
     }
 
+    @Test
+    void submit_tache_orale_dans_une_session_ecrite_refuse() {
+        // Une production ORALE etait acceptee, evaluee et comptee dans une
+        // session d'examen ECRITE (et, en examen complet, auto-finalisait la
+        // mauvaise sous-epreuve avec un niveau CECRL faux).
+        stubCommon(task(EpreuveType.TCF_EO), ownedAttempt(EpreuveType.TCF_EE));
+        MockMultipartFile audio = new MockMultipartFile("audio", "a.mp3", "audio/mpeg", new byte[]{1, 2, 3});
+
+        assertThatThrownBy(() -> service.submitAndEvaluate(userId, taskId, attemptId, audio, null))
+                .isInstanceOf(BusinessException.class);
+        verify(pipelineRunner, never()).runPipelineAsync(any(), anyBoolean());
+        verify(audioStorage, never()).upload(any(), any(), any(), any());
+    }
+
+    @Test
+    void submit_tache_ecrite_dans_une_session_orale_refuse() {
+        stubCommon(task(EpreuveType.TCF_EE), ownedAttempt(EpreuveType.TCF_EO));
+
+        assertThatThrownBy(() -> service.submitAndEvaluate(userId, taskId, attemptId, null, words(20)))
+                .isInstanceOf(BusinessException.class);
+        verify(submissionManager, never()).save(any());
+    }
+
+    @Test
+    void submit_examen_refuse_une_seconde_production_sur_la_meme_tache() {
+        // Un examen, c'est 3 taches, une fois chacune : sans ce plafond, une
+        // session d'examen gratuite acceptait autant d'evaluations IA que le
+        // client en envoyait.
+        Attempt exam = ownedAttempt(EpreuveType.TCF_EE);
+        exam.setSlotNumber(1);
+        ProductionTask t = task(EpreuveType.TCF_EE);
+        t.setTacheNumero((short) 1);
+        stubCommon(t, exam);
+        when(submissionManager.countByAttemptAndTache(attemptId, (short) 1)).thenReturn(1L);
+
+        assertThatThrownBy(() -> service.submitAndEvaluate(userId, taskId, attemptId, null, words(20)))
+                .isInstanceOf(BusinessException.class);
+        verify(pipelineRunner, never()).runPipelineAsync(any(), anyBoolean());
+    }
+
     // ------------------------------------------------------------------------
     // Payload EE / EO
     // ------------------------------------------------------------------------
@@ -180,7 +231,7 @@ class ProductionEvaluationServiceTest {
 
     @Test
     void submit_EO_sans_audio_refuse() {
-        stubCommon(task(EpreuveType.TCF_EO), ownedAttempt());
+        stubCommon(task(EpreuveType.TCF_EO), ownedAttempt(EpreuveType.TCF_EO));
         assertThatThrownBy(() -> service.submitAndEvaluate(userId, taskId, attemptId, null, null))
                 .isInstanceOf(BusinessException.class);
     }
@@ -195,7 +246,7 @@ class ProductionEvaluationServiceTest {
 
     @Test
     void submit_EO_content_type_non_audio_refuse() {
-        stubCommon(task(EpreuveType.TCF_EO), ownedAttempt());
+        stubCommon(task(EpreuveType.TCF_EO), ownedAttempt(EpreuveType.TCF_EO));
         MockMultipartFile bad = new MockMultipartFile("audio", "x.html", "text/html", new byte[]{1, 2, 3});
         assertThatThrownBy(() -> service.submitAndEvaluate(userId, taskId, attemptId, bad, null))
                 .isInstanceOf(BusinessException.class);
@@ -215,12 +266,25 @@ class ProductionEvaluationServiceTest {
     }
 
     @Test
-    void submit_EE_trop_long_au_dela_de_la_tolerance_refuse() {
+    void submit_EE_un_seul_mot_au_dela_du_maximum_refuse() {
         ProductionTask t = task(EpreuveType.TCF_EE);
-        t.setMotsMax(10); // plafond tolere = floor(10*1.2) = 12
+        t.setMotsMax(10);
         stubCommon(t, ownedAttempt());
-        assertThatThrownBy(() -> service.submitAndEvaluate(userId, taskId, attemptId, null, words(20)))
+        assertThatThrownBy(() -> service.submitAndEvaluate(userId, taskId, attemptId, null, words(11)))
                 .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void submit_EE_exactement_au_maximum_est_accepte() {
+        ProductionTask t = task(EpreuveType.TCF_EE);
+        t.setMotsMin(10);
+        t.setMotsMax(10);
+        stubCommon(t, ownedAttempt());
+
+        ProductionSubmission saved = service.submitAndEvaluate(
+                userId, taskId, attemptId, null, words(10));
+
+        assertThat(saved.getMotsCount()).isEqualTo(10);
     }
 
     @Test
@@ -240,7 +304,7 @@ class ProductionEvaluationServiceTest {
 
     @Test
     void submit_EO_valide_uploade_l_audio_avant_de_persister() {
-        stubCommon(task(EpreuveType.TCF_EO), ownedAttempt());
+        stubCommon(task(EpreuveType.TCF_EO), ownedAttempt(EpreuveType.TCF_EO));
         when(audioStorage.upload(any(), any(), any(), any()))
                 .thenReturn(new ProductionAudioStorageService.StoredAudio("submissions/k.mp3", "audio/mpeg"));
         MockMultipartFile audio = new MockMultipartFile("audio", "rec.mp3", "audio/mpeg", new byte[]{1, 2, 3, 4});
@@ -265,19 +329,129 @@ class ProductionEvaluationServiceTest {
 
     @Test
     void realtime_transcript_vide_refuse() {
-        stubCommon(task(EpreuveType.TCF_EO), ownedAttempt());
+        stubCommon(task(EpreuveType.TCF_EO), ownedAttempt(EpreuveType.TCF_EO));
         assertThatThrownBy(() -> service.evaluateRealtimeTranscript(userId, taskId, attemptId, "   ", 90))
                 .isInstanceOf(BusinessException.class);
     }
 
     @Test
     void realtime_valide_persiste_submission_transcription_et_lance_le_pipeline() {
-        stubCommon(task(EpreuveType.TCF_EO), ownedAttempt());
+        stubCommon(task(EpreuveType.TCF_EO), ownedAttempt(EpreuveType.TCF_EO));
 
         service.evaluateRealtimeTranscript(userId, taskId, attemptId, "Examinateur: Bonjour\nCandidat: Bonjour", 90);
 
         verify(transcriptionManager).save(any());
         verify(pipelineRunner).runPipelineAsync(any(), eq(true));
+    }
+
+    // La voie temps réel ne vérifiait NI finishedAt, NI le chrono, NI l'épreuve,
+    // NI le quota — alors que la voie asynchrone vérifie les quatre. Elle était
+    // donc un contournement complet du verrou freemium (une sous-épreuve
+    // pré-terminée acceptait encore des notations).
+
+    @Test
+    void realtime_epreuve_terminee_refuse() {
+        Attempt finished = ownedAttempt(EpreuveType.TCF_EO);
+        finished.setFinishedAt(Instant.now());
+        stubCommon(task(EpreuveType.TCF_EO), finished);
+
+        assertThatThrownBy(() -> service.evaluateRealtimeTranscript(
+                userId, taskId, attemptId, "Candidat : bonjour", 60))
+                .isInstanceOf(BusinessException.class);
+        verify(submissionManager, never()).save(any());
+        verify(pipelineRunner, never()).runPipelineAsync(any(), anyBoolean());
+    }
+
+    @Test
+    void realtime_chrono_ecoule_refuse() {
+        Attempt expired = ownedAttempt(EpreuveType.TCF_EO);
+        expired.setTimeLimitSeconds(900);
+        expired.setStartedAt(Instant.now().minusSeconds(900 + 120));
+        stubCommon(task(EpreuveType.TCF_EO), expired);
+
+        assertThatThrownBy(() -> service.evaluateRealtimeTranscript(
+                userId, taskId, attemptId, "Candidat : bonjour", 60))
+                .isInstanceOf(BusinessException.class);
+        verify(pipelineRunner, never()).runPipelineAsync(any(), anyBoolean());
+    }
+
+    @Test
+    void realtime_attempt_d_une_autre_epreuve_refuse() {
+        stubCommon(task(EpreuveType.TCF_EO), ownedAttempt(EpreuveType.TCF_EE));
+
+        assertThatThrownBy(() -> service.evaluateRealtimeTranscript(
+                userId, taskId, attemptId, "Candidat : bonjour", 60))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void realtime_attempt_d_autrui_refuse() {
+        Attempt foreign = ownedAttempt(EpreuveType.TCF_EO);
+        User other = new User();
+        other.setId(UUID.randomUUID());
+        foreign.setUser(other);
+        stubCommon(task(EpreuveType.TCF_EO), foreign);
+
+        assertThatThrownBy(() -> service.evaluateRealtimeTranscript(
+                userId, taskId, attemptId, "Candidat : bonjour", 60))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void realtime_quota_gratuit_epuise_refuse() {
+        stubCommon(task(EpreuveType.TCF_EO), ownedAttempt(EpreuveType.TCF_EO));
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(attemptManager.countProductionExamSessions(userId)).thenReturn(0L);
+        when(submissionManager.countTrainingByUserAndEpreuve(userId, EpreuveType.TCF_EO)).thenReturn(1L);
+
+        assertThatThrownBy(() -> service.evaluateRealtimeTranscript(
+                userId, taskId, attemptId, "Candidat : bonjour", 60))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(pipelineRunner, never()).runPipelineAsync(any(), anyBoolean());
+    }
+
+    // ------------------------------------------------------------------------
+    // Auto-finalisation d'une sous-épreuve d'examen complet
+    // ------------------------------------------------------------------------
+
+    @Test
+    void autofinish_compte_les_taches_distinctes_de_l_epreuve_pas_les_lignes() {
+        Attempt parent = new Attempt();
+        parent.setId(UUID.randomUUID());
+        parent.setEpreuve(EpreuveType.TCF_COMPLET);
+        Attempt sub = ownedAttempt(EpreuveType.TCF_EE);
+        sub.setParentAttempt(parent);
+        ProductionTask t = task(EpreuveType.TCF_EE);
+        t.setTacheNumero((short) 2);
+        stubCommon(t, sub);
+        when(attemptManager.findByIdWithParent(attemptId)).thenReturn(Optional.of(sub));
+        // 2 tâches distinctes rendues sur 3 → l'épreuve reste ouverte, même si
+        // l'attempt porte davantage de lignes (rejeu, ou soumissions mal aiguillées).
+        when(submissionManager.countDistinctTachesByAttemptAndEpreuve(attemptId, EpreuveType.TCF_EE))
+                .thenReturn(2L);
+
+        service.submitAndEvaluate(userId, taskId, attemptId, null, words(20));
+
+        assertThat(sub.getFinishedAt()).isNull();
+    }
+
+    @Test
+    void autofinish_ferme_la_sous_epreuve_a_3_taches_distinctes() {
+        Attempt parent = new Attempt();
+        parent.setId(UUID.randomUUID());
+        parent.setEpreuve(EpreuveType.TCF_COMPLET);
+        Attempt sub = ownedAttempt(EpreuveType.TCF_EE);
+        sub.setParentAttempt(parent);
+        ProductionTask t = task(EpreuveType.TCF_EE);
+        t.setTacheNumero((short) 3);
+        stubCommon(t, sub);
+        when(attemptManager.findByIdWithParent(attemptId)).thenReturn(Optional.of(sub));
+        when(submissionManager.countDistinctTachesByAttemptAndEpreuve(attemptId, EpreuveType.TCF_EE))
+                .thenReturn(3L);
+
+        service.submitAndEvaluate(userId, taskId, attemptId, null, words(20));
+
+        assertThat(sub.getFinishedAt()).isNotNull();
     }
 
     // ------------------------------------------------------------------------

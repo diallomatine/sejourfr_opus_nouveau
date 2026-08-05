@@ -84,7 +84,8 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
     handleSubmit,
     reset,
     setValue,
-    formState: { errors, isSubmitting },
+    getValues,
+    formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
       themeId: "",
@@ -144,7 +145,7 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
       setPassagePanelOpen(Boolean(question.passageId));
     } else {
       reset({
-        themeId: themesQuery.data?.[0]?.id ?? "",
+        themeId: "",
         difficulty: levels[0],
         questionType: types[0],
         statement: "",
@@ -158,7 +159,15 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
       setMediaPanelOpen(true);
       setPassagePanelOpen(false);
     }
-  }, [open, question, reset, themesQuery.data, levels, types]);
+  }, [open, question, reset, levels, types]);
+
+  const firstThemeId = themesQuery.data?.[0]?.id ?? "";
+
+  useEffect(() => {
+    if (!open || question || !firstThemeId) return;
+    if (getValues("themeId")) return;
+    setValue("themeId", firstThemeId);
+  }, [open, question, firstThemeId, getValues, setValue]);
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
@@ -184,6 +193,7 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["questions"] });
+      queryClient.invalidateQueries({ queryKey: ["themes"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       toast.show(
         question ? "Question mise à jour" : "Question créée",
@@ -224,16 +234,25 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
       size="lg"
       footer={
         <>
-          <Button variant="ghost" type="button" onClick={onClose} disabled={isSubmitting}>
+          <Button
+            variant="ghost"
+            type="button"
+            onClick={onClose}
+            disabled={mutation.isPending}
+          >
             Annuler
           </Button>
           <Button
             variant="red"
             type="submit"
             form="question-form"
-            disabled={isSubmitting}
+            disabled={mutation.isPending}
           >
-            {isSubmitting ? "Enregistrement..." : question ? "Enregistrer" : "Créer"}
+            {mutation.isPending
+              ? "Enregistrement..."
+              : question
+                ? "Enregistrer"
+                : "Créer"}
           </Button>
         </>
       }

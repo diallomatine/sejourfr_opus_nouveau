@@ -29,6 +29,18 @@ public class RateLimitGuard {
         limiter.check("login:account", normalizeEmail(email), props.getLoginPerAccount());
     }
 
+    /**
+     * Authentification reussie : on efface les compteurs IP et compte. Sans ce
+     * reset, quelques connexions legitimes d'affilee (reconnexion, plusieurs
+     * appareils, tests) epuisaient la fenetre et renvoyaient 429 pendant un
+     * quart d'heure. Ce qu'on veut freiner, c'est l'ENCHAINEMENT D'ECHECS.
+     */
+    public void onLoginSuccess(String ip, String email) {
+        if (!props.isEnabled()) return;
+        limiter.reset("login:ip", ip);
+        limiter.reset("login:account", normalizeEmail(email));
+    }
+
     public void checkRegister(String ip) {
         if (!props.isEnabled()) return;
         limiter.check("register", ip, props.getRegister());

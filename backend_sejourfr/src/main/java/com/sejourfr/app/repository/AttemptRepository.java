@@ -27,6 +27,8 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
 
     long countByUserId(UUID userId);
 
+    long countByUserIdAndModule(UUID userId, Module module);
+
     long countByExamTemplateId(UUID examTemplateId);
 
     List<Attempt> findByUserIdOrderByStartedAtDesc(UUID userId);

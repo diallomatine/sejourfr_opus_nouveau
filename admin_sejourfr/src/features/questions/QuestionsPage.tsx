@@ -16,6 +16,7 @@ import type {
   MediaType,
   Module,
   QuestionDto,
+  QuestionMediaFilter,
   QuestionType,
 } from "../../types/api";
 import { QuestionFormModal } from "./QuestionFormModal";
@@ -89,6 +90,13 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
     queryFn: () => themesApi.list(module),
   });
 
+  // Le filtre média n'est proposé que pour le TCF : le laisser partir sur le
+  // module civique restreindrait la recherche sur un critère invisible à l'écran.
+  const mediaParam: QuestionMediaFilter | undefined =
+    supportsMedia && filters.media !== ""
+      ? (filters.media as QuestionMediaFilter)
+      : undefined;
+
   const queryParams = useMemo(
     () => ({
       module,
@@ -96,11 +104,12 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
       difficulty: (filters.difficulty as Difficulty) || undefined,
       type: (filters.type as QuestionType) || undefined,
       active: filters.active === "" ? undefined : filters.active === "true",
+      media: mediaParam,
       search: debouncedSearch || undefined,
       page,
       size: PAGE_SIZE,
     }),
-    [module, filters.themeId, filters.difficulty, filters.type, filters.active, debouncedSearch, page],
+    [module, filters.themeId, filters.difficulty, filters.type, filters.active, mediaParam, debouncedSearch, page],
   );
 
   const questionsQuery = useQuery({
@@ -124,6 +133,7 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
     mutationFn: (id: string) => questionsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["questions"] });
+      queryClient.invalidateQueries({ queryKey: ["themes"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       toast.show("Question supprimée", "success");
     },
@@ -171,13 +181,6 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
   const data = questionsQuery.data;
   const isInitialLoading = questionsQuery.isLoading;
   const isError = questionsQuery.isError;
-
-  const visibleRows = useMemo(() => {
-    if (!data) return [];
-    if (!supportsMedia || !filters.media) return data.content;
-    if (filters.media === "none") return data.content.filter((q) => !q.mediaId);
-    return data.content.filter((q) => q.mediaType === filters.media);
-  }, [data, filters.media, supportsMedia]);
 
   const activeFiltersCount = [
     filters.themeId,
@@ -282,7 +285,7 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
                 <option value="AUDIO">Audio</option>
                 <option value="IMAGE">Image</option>
                 <option value="VIDEO">Vidéo</option>
-                <option value="none">Sans média</option>
+                <option value="NONE">Sans média</option>
               </FilterSelect>
             )}
 
@@ -310,98 +313,100 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
           </div>
         )}
 
-        {data && visibleRows.length === 0 && (
+        {data && data.content.length === 0 && (
           <EmptyState
             title="Aucune question"
             description="Aucune question ne correspond aux filtres sélectionnés."
           />
         )}
 
-        {data && visibleRows.length > 0 && (
-          <table className={tableStyles.table}>
-            <thead>
-              <tr>
-                <th style={{ width: "40%" }}>Énoncé</th>
-                <th>Thématique</th>
-                <th>{module === "CIVIQUE" ? "Mention" : "Niveau"}</th>
-                <th>Type</th>
-                {supportsMedia && <th>Média</th>}
-                <th>Statut</th>
-                <th style={{ width: 56 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleRows.map((q) => (
-                <tr
-                  key={q.id}
-                  className={styles.rowClickable}
-                  onClick={() => handleRowClick(q)}
-                >
-                  <td>
-                    <div className={tableStyles.statement}>
-                      {q.statement}
-                      <span className={tableStyles.statementMeta}>
-                        {q.choices.length} choix · {q.choices.filter((c) => c.correct).length} correct
-                        {q.choices.filter((c) => c.correct).length > 1 ? "s" : ""}
-                      </span>
-                    </div>
-                  </td>
-                  <td>{q.themeName}</td>
-                  <td>
-                    <Tag tone={tagToneForLevel(q.difficulty)}>{q.difficulty}</Tag>
-                  </td>
-                  <td>
-                    <Tag tone={tagToneForType(q.questionType)}>
-                      {QUESTION_TYPE_SHORT[q.questionType]}
-                    </Tag>
-                  </td>
-                  {supportsMedia && (
-                    <td>
-                      {q.mediaType ? (
-                        <span
-                          className={styles.mediaCell}
-                          title={MEDIA_LABEL[q.mediaType]}
-                        >
-                          <span className={styles.mediaIcon}>
-                            {MEDIA_ICON[q.mediaType]}
-                          </span>
-                          <span className={styles.mediaLabel}>
-                            {MEDIA_LABEL[q.mediaType]}
-                          </span>
-                        </span>
-                      ) : (
-                        <span className={styles.mediaNone}>—</span>
-                      )}
-                    </td>
-                  )}
-                  <td>
-                    <Tag tone={q.active ? "active" : "draft"}>
-                      {q.active ? "Active" : "Inactive"}
-                    </Tag>
-                  </td>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <RowMenu
-                      items={[
-                        { label: "Voir le détail", onClick: () => handleRowClick(q) },
-                        { label: "Modifier", onClick: () => handleEdit(q) },
-                        {
-                          label: q.active ? "Désactiver" : "Activer",
-                          onClick: () =>
-                            toggleMutation.mutate({ id: q.id, active: !q.active }),
-                          disabled: toggleMutation.isPending,
-                        },
-                        {
-                          label: "Supprimer",
-                          onClick: () => handleDelete(q),
-                          danger: true,
-                        },
-                      ]}
-                    />
-                  </td>
+        {data && data.content.length > 0 && (
+          <div className={tableStyles.tableWrap}>
+            <table className={`${tableStyles.table} ${tableStyles.cardTable}`}>
+              <thead>
+                <tr>
+                  <th className={styles.statementCol}>Énoncé</th>
+                  <th>Thématique</th>
+                  <th>{module === "CIVIQUE" ? "Mention" : "Niveau"}</th>
+                  <th>Type</th>
+                  {supportsMedia && <th>Média</th>}
+                  <th>Statut</th>
+                  <th className={styles.actionsCol}></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.content.map((q) => (
+                  <tr
+                    key={q.id}
+                    className={styles.rowClickable}
+                    onClick={() => handleRowClick(q)}
+                  >
+                    <td data-label="Énoncé">
+                      <div className={tableStyles.statement}>
+                        {q.statement}
+                        <span className={tableStyles.statementMeta}>
+                          {q.choices.length} choix · {q.choices.filter((c) => c.correct).length} correct
+                          {q.choices.filter((c) => c.correct).length > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    </td>
+                    <td data-label="Thématique">{q.themeName}</td>
+                    <td data-label={module === "CIVIQUE" ? "Mention" : "Niveau"}>
+                      <Tag tone={tagToneForLevel(q.difficulty)}>{q.difficulty}</Tag>
+                    </td>
+                    <td data-label="Type">
+                      <Tag tone={tagToneForType(q.questionType)}>
+                        {QUESTION_TYPE_SHORT[q.questionType]}
+                      </Tag>
+                    </td>
+                    {supportsMedia && (
+                      <td data-label="Média">
+                        {q.mediaType ? (
+                          <span
+                            className={styles.mediaCell}
+                            title={MEDIA_LABEL[q.mediaType]}
+                          >
+                            <span className={styles.mediaIcon}>
+                              {MEDIA_ICON[q.mediaType]}
+                            </span>
+                            <span className={styles.mediaLabel}>
+                              {MEDIA_LABEL[q.mediaType]}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className={styles.mediaNone}>—</span>
+                        )}
+                      </td>
+                    )}
+                    <td data-label="Statut">
+                      <Tag tone={q.active ? "active" : "draft"}>
+                        {q.active ? "Active" : "Inactive"}
+                      </Tag>
+                    </td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <RowMenu
+                        items={[
+                          { label: "Voir le détail", onClick: () => handleRowClick(q) },
+                          { label: "Modifier", onClick: () => handleEdit(q) },
+                          {
+                            label: q.active ? "Désactiver" : "Activer",
+                            onClick: () =>
+                              toggleMutation.mutate({ id: q.id, active: !q.active }),
+                            disabled: toggleMutation.isPending,
+                          },
+                          {
+                            label: "Supprimer",
+                            onClick: () => handleDelete(q),
+                            danger: true,
+                          },
+                        ]}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {data && data.totalPages > 1 && (

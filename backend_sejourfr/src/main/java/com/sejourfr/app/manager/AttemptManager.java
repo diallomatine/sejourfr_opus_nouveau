@@ -40,6 +40,12 @@ public class AttemptManager {
         return repository.countByUserId(userId);
     }
 
+    /** Sessions du user pour un module donne ; {@code module} null = tous modules. */
+    public long countByUserIdAndModule(UUID userId, Module module) {
+        if (module == null) return repository.countByUserId(userId);
+        return repository.countByUserIdAndModule(userId, module);
+    }
+
     public long countByExamTemplateId(UUID examTemplateId) {
         return repository.countByExamTemplateId(examTemplateId);
     }

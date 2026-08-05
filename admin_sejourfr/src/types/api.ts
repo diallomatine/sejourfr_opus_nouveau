@@ -28,6 +28,14 @@ export type MessageSender = "USER" | "ADMIN";
 
 export type MediaType = "AUDIO" | "IMAGE" | "VIDEO";
 
+/**
+ * Miroir de l'enum backend `QuestionMediaFilter` : valeurs du paramètre
+ * `GET /api/admin/questions?media=…`. `NONE` (majuscules, comme tout le reste)
+ * cible les questions sans média — ce n'est pas un type de média, d'où l'enum
+ * distincte de `MediaType`.
+ */
+export type QuestionMediaFilter = MediaType | "NONE";
+
 export type PassageType = "TEXTE" | "AUDIO" | "DIALOGUE";
 
 // ---------------------------------------------------------------------------
@@ -172,21 +180,20 @@ export interface PassageWriteRequest {
 // ---------------------------------------------------------------------------
 // Médias
 // ---------------------------------------------------------------------------
+/**
+ * Miroir exact de `MediaDto` (9 composants côté Java). `url` est null pour les
+ * médias dont l'image vit en SVG inline : le balisage est alors porté par la
+ * question (`QuestionDto.mediaInlineSvg`), jamais par le média lui-même.
+ */
 export interface MediaDto {
   id: string;
   type: MediaType;
-  url: string;
+  url: string | null;
   originalFilename: string | null;
   contentType: string | null;
   sizeBytes: number | null;
   durationSec: number | null;
   altText: string | null;
-  /**
-   * SVG inline. Quand renseigné, l'admin/runner affiche ce balisage SVG
-   * plutôt que de charger url. Utilisé pour les captures TCF compréhension
-   * écrite générées dans les seeds.
-   */
-  inlineSvg: string | null;
   createdAt: string;
 }
 
@@ -580,8 +587,10 @@ export interface ExampleAudioBatchResultDto {
 // Plans + Abonnements (lot 4c admin)
 // ============================================================================
 
-export type BillingCycle = "NONE" | "MONTHLY" | "THREE_MONTHS" | "SIX_MONTHS" | "YEARLY";
-export type ModuleAccess = "NONE" | "CIVIQUE" | "TCF" | "INTEGRAL";
+/** MONTHLY/YEARLY sont conservés côté backend pour les anciens plans récurrents. */
+export type BillingCycle = "NONE" | "MONTHLY" | "THREE_MONTHS" | "YEARLY";
+/** Pas de `TCF` : l'accès au module TCF passe par `INTEGRAL`. */
+export type ModuleAccess = "NONE" | "CIVIQUE" | "INTEGRAL";
 export type SubscriptionSource = "STRIPE" | "APPLE" | "GOOGLE";
 export type SubscriptionStatus =
   | "ACTIVE"
@@ -675,6 +684,252 @@ export interface CancelSubscriptionResponse {
   action: "DONE" | "REDIRECT";
   message: string;
   redirectUrl: string | null;
+}
+
+// ============ ÉVALUATION IA EO/EE (notation v4) ============
+//
+// Miroir de EvaluationResultDto (backend), consommé par `features/calibration/`.
+
+export type NiveauCecrl = "A1_NON_ATTEINT" | "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+
+export type ConfianceEvaluation = "HAUTE" | "MOYENNE" | "FAIBLE";
+
+/** Bande de maîtrise par critère (notation v4). */
+export type BandeCritere =
+  | "TRES_BONNE_MAITRISE"
+  | "SATISFAISANT"
+  | "EN_COURS_ACQUISITION"
+  | "FRAGILE"
+  | "NON_EVALUABLE";
+
+/**
+ * `communiquer` · `interagir` · `lexique` · `morphosyntaxe` sont les 4 codes
+ * de la grille v5 (calquée sur la vraie grille TCF). Les autres codes ont
+ * disparu au fil des versions (v4 puis v3) mais restent portés par les
+ * évaluations antérieures en base — on les garde ici pour ne pas planter sur
+ * l'historique.
+ */
+export type CritereCode =
+  | "communiquer"
+  | "interagir"
+  | "lexique"
+  | "morphosyntaxe"
+  | "realisation_consigne"
+  | "adequation_destinataire"
+  | "chronologie_recit"
+  | "prise_position"
+  | "argumentation"
+  | "developpement_reponses"
+  | "conduite_echange"
+  | "coherence"
+  | "pertinence";
+
+export interface AccomplissementPoint {
+  libelle: string;
+  obligatoire: boolean;
+}
+
+/** Verdict global d'accomplissement de la consigne (v8). */
+export type ObjectifAccomplissement =
+  | "ATTEINT"
+  | "PARTIELLEMENT_ATTEINT"
+  | "NON_ATTEINT";
+
+export interface AccomplissementFeedback {
+  points_traites?: AccomplissementPoint[];
+  points_oublies?: AccomplissementPoint[];
+  /** Absent/null sur les évaluations antérieures à v8 — cas normal. */
+  objectif?: ObjectifAccomplissement | null;
+  objectif_resume?: string;
+}
+
+export interface ScoreCritereFeedback {
+  code: CritereCode;
+  label?: string;
+  note_sur_20?: number;
+  bande?: BandeCritere;
+  commentaire?: string;
+  preuve?: string;
+}
+
+/**
+ * Un passage cité de la production avec sa correction. Objet depuis le premier
+ * schéma d'outil (`production-evaluation-tool-schema-v1.0.json`) : jamais une
+ * simple chaîne, quelle que soit l'ancienneté de l'évaluation en base.
+ * `gain` (v5) est optionnel : ce que la reformulation démontre de plus.
+ */
+export interface ExempleCorrige {
+  original: string;
+  corrige: string;
+  explication: string;
+  gain?: string;
+}
+
+export interface PointAmeliorerExemple {
+  avant: string;
+  apres: string;
+}
+
+/**
+ * Un point à améliorer (v5). Les évaluations déjà en base (~97, grilles
+ * antérieures) portent une simple `string` — l'écran l'affiche alors comme un
+ * `constat` seul, sans `comment` ni `exemple`.
+ */
+export interface PointAmeliorer {
+  constat: string;
+  comment?: string;
+  exemple?: PointAmeliorerExemple;
+}
+
+/**
+ * Structure libre du feedback JSONB — tous les champs sont facultatifs, une
+ * évaluation v3 en base n'en porte qu'une partie (pas de bande, pas de
+ * preuve, pas d'accomplissement). Absence = cas normal, pas une erreur.
+ * `note_globale` porte une décimale depuis la v5 (ex. 12.5).
+ * `points_forts` (≤ 2) et `exemples_corriges` (≤ 3) sont bornés côté serveur
+ * depuis v8 — la longueur n'est pas revalidée côté front, seulement affichée.
+ */
+export interface EvaluationFeedback {
+  note_globale?: number;
+  confiance?: ConfianceEvaluation;
+  confiance_raisons?: string[];
+  accomplissement?: AccomplissementFeedback;
+  scores_criteres?: ScoreCritereFeedback[];
+  points_forts?: string[];
+  /** `string` = format antérieur à v5, encore présent sur les évaluations en base. */
+  points_a_ameliorer?: (string | PointAmeliorer)[];
+  suggestions?: string[];
+  exemples_corriges?: ExempleCorrige[];
+  avertissements?: string[];
+  /**
+   * Production réécrite en entier (v8), EE uniquement — absente en EO (voulu)
+   * et sur toute évaluation antérieure à v8.
+   */
+  version_amelioree?: string | null;
+}
+
+/**
+ * Vue front d'une évaluation IA (EvaluationResultDto backend). `niveauObserve`,
+ * `confiance` et `avertissementNiveau` sont null pour les évaluations
+ * antérieures au schéma v2/v3 — absence normale, aucun front ne doit planter
+ * dessus.
+ */
+export interface EvaluationResultDto {
+  noteSurVingt: number | null;
+  niveauObserve: NiveauCecrl | null;
+  confiance: ConfianceEvaluation | null;
+  avertissementNiveau: string | null;
+  /** Le JSONB persisté peut être absent en base : null est un cas normal. */
+  feedback: EvaluationFeedback | null;
+}
+
+// ============ PRODUCTIONS EO/EE (submissions + sujets) ============
+
+export type EpreuveType =
+  | "CIVIQUE"
+  | "TCF_CO"
+  | "TCF_CE"
+  | "TCF_STRUCTURE"
+  | "TCF_EO"
+  | "TCF_EE"
+  | "TCF_COMPLET";
+
+export type SubmissionStatut =
+  | "SUBMITTED"
+  | "TRANSCRIBING"
+  | "EVALUATING"
+  | "EVALUATED"
+  | "FAILED";
+
+/** Miroir de ProductionTaskDto — catalogue des sujets EO/EE (`GET /api/production-tasks`). */
+export interface ProductionTaskDto {
+  id: string;
+  epreuve: EpreuveType;
+  tacheNumero: number;
+  niveauCible: string | null;
+  consigne: string;
+  contexte: string | null;
+  dureeMaxSec: number | null;
+  dureeMinSec: number | null;
+  motsMin: number | null;
+  motsMax: number | null;
+}
+
+/**
+ * Miroir de ProductionSubmissionDto. `evaluation` est null tant que le pipeline
+ * IA n'a pas abouti ; `transcription` n'est renseignée que pour l'oral. Le DTO
+ * ne porte PAS l'épreuve : elle se retrouve via `productionTaskId` dans le
+ * catalogue des sujets.
+ */
+export interface ProductionSubmissionDto {
+  id: string;
+  attemptId: string | null;
+  productionTaskId: string | null;
+  tacheNumero: number | null;
+  statut: SubmissionStatut;
+  mediaUrl: string | null;
+  texteSoumis: string | null;
+  motsCount: number | null;
+  mediaDurationSec: number | null;
+  retryCount: number;
+  erreurMessage: string | null;
+  submittedAt: string;
+  evaluation: EvaluationResultDto | null;
+  transcription: string | null;
+}
+
+// ============ CALIBRATION DE LA NOTATION IA ============
+
+/**
+ * Une ligne de `GET /api/admin/calibration/submissions` : la soumission plus
+ * les versions de l'évaluation IA. DTO propre à l'admin — la version de grille
+ * n'intéresse que l'écran qui juge la notation, elle n'est pas ajoutée aux DTO
+ * partagés avec le web et le mobile.
+ *
+ * `rubricsVersion` est null pour les évaluations antérieures à la colonne
+ * `ai_evaluations.rubrics_version` : l'écran affiche « inconnue ». Une note
+ * produite avec la grille v3 et une note v4.2 ne se comparent pas.
+ */
+export interface CalibrationSubmissionDto {
+  submission: ProductionSubmissionDto;
+  rubricsVersion: string | null;
+  promptVersion: string | null;
+}
+
+/** Payload et réponse de POST /api/admin/calibration/submissions/{id}/human-note. */
+export interface HumanCalibrationNoteDto {
+  submissionId: string;
+  noteHumaineSurVingt: number;
+  niveauCecrlHumain: NiveauCecrl;
+  commentaires: string | null;
+}
+
+/**
+ * Santé de la notation (`GET /api/admin/calibration/stats`).
+ *
+ * Convention de signe du backend : `ecart = note humaine − note IA`.
+ * `ecartMoyen` est donc un BIAIS signé — négatif = l'IA note au-dessus du
+ * correcteur (trop indulgente), positif = trop sévère. `ecartMoyenAbsolu` est
+ * une DISPERSION : la taille moyenne de l'erreur, quel que soit son sens.
+ */
+export interface CalibrationStatsDto {
+  totalNotes: number;
+  ecartMoyen: number;
+  ecartMoyenAbsolu: number;
+  ecartTypeAbsolu: number;
+  ecartsHorsCible: number;
+  /** Ratio sur 100. */
+  pourcentageHorsCible: number;
+  seuilHorsCible: number;
+  calibre: boolean;
+}
+
+/** Écart entre le niveau brut du LLM et le niveau recalculé serveur. */
+export interface NiveauCalibrationStatsDto {
+  totalAvecNiveau: number;
+  divergents: number;
+  /** Ratio sur 100. */
+  pourcentageDivergents: number;
 }
 
 // ============ AUDIENCE DES LANDINGS (page_views) ============

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../core/api/api_exception.dart';
 import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/enums.dart';
@@ -11,6 +10,7 @@ import '../../core/models/full_tcf_exam.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
+import '../../core/utils/start_failure.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/stat_value_card.dart';
@@ -119,25 +119,12 @@ class TcfFullExamsView extends ConsumerWidget {
               AppRoutes.tcfFullExamProgress
                   .replaceFirst(':parentId', exam.id),
             );
-          } on ApiException catch (e) {
+          } catch (e) {
             if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(e.message),
-                backgroundColor: AppColors.red,
-                duration: const Duration(seconds: 4),
-              ),
-            );
-          } catch (_) {
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                    'Impossible de démarrer l\'examen. Réessaye dans un instant.'),
-                backgroundColor: AppColors.red,
-                duration: Duration(seconds: 4),
-              ),
-            );
+            // Le backend applique le verrou des slots 2+ : un 403 ouvre le
+            // paywall au lieu d'une erreur technique (statut premium périmé
+            // côté client, abonnement expiré en cours de session).
+            showPaywallOrError(context, e);
           }
         },
       );
@@ -209,7 +196,10 @@ class TcfFullExamsView extends ConsumerWidget {
     final level = exam.finalCecrlLevel;
     final subtitle = exam.status == FullTcfExamStatus.pendingEvaluations
         ? 'Évaluation IA en cours'
-        : (level != null ? 'Dernier niveau : ${_shortLevel(level)}' : 'Terminé');
+        : (level != null
+            ? 'Dernier niveau : ${level.shortName}'
+                '${exam.finalLevelPartial ? ' (partiel)' : ''}'
+            : 'Terminé');
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -295,10 +285,15 @@ class _ResultStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Un bilan PARTIEL (épreuve verrouillée par le freemium ou évaluation en
+    // échec) ne porte pas sur les 4 épreuves : il ne peut alimenter ni un
+    // « meilleur niveau », ni un « dernier examen » présentés comme des
+    // résultats d'examen complet.
     final completed = history
         .where((e) =>
             e.status == FullTcfExamStatus.completed &&
-            e.finalCecrlLevel != null)
+            e.finalCecrlLevel != null &&
+            !e.finalLevelPartial)
         .toList();
     NiveauCecrl? best;
     for (final e in completed) {
@@ -313,7 +308,7 @@ class _ResultStats extends StatelessWidget {
       children: [
         Expanded(
           child: StatValueCard(
-            value: best == null ? '—' : _shortLevel(best),
+            value: best?.shortName ?? '—',
             label: 'Meilleur niveau',
             color: AppColors.red,
             valueSize: 20,
@@ -322,7 +317,7 @@ class _ResultStats extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: StatValueCard(
-            value: last == null ? '—' : _shortLevel(last),
+            value: last?.shortName ?? '—',
             label: 'Dernier examen',
             valueSize: 20,
           ),
@@ -340,11 +335,6 @@ class _ResultStats extends StatelessWidget {
     );
   }
 }
-
-String _shortLevel(NiveauCecrl l) => switch (l) {
-      NiveauCecrl.a1NonAtteint => '<A1',
-      _ => l.displayName,
-    };
 
 /// Section principale : 20 slots numérotés, comme l'onglet Examens du
 /// détail TCF QCM/EE/EO. Les examens passés sont triés ASC (le plus ancien
@@ -468,7 +458,7 @@ class _ExamSlotCard extends StatelessWidget {
       slot: slot,
       filled: done,
       accent: _accent,
-      title: 'Épreuve $slot',
+      title: 'Examen $slot',
       subtitle: _subtitle(lockedEmpty: lockedEmpty, level: level),
       subtitleColor: done ? _accent : AppColors.inkFaint,
       trailing: _trailing(lockedEmpty: lockedEmpty),
@@ -483,8 +473,11 @@ class _ExamSlotCard extends StatelessWidget {
       return switch (e.status) {
         FullTcfExamStatus.inProgress => 'En cours · Reprendre',
         FullTcfExamStatus.pendingEvaluations => 'Évaluation IA en cours',
+        // « partiel » : le niveau ne porte pas sur les 4 épreuves (une
+        // verrouillée par le freemium ou sans évaluation exploitable).
         FullTcfExamStatus.completed => level != null
-            ? 'Dernier niveau : ${_shortLevel(level)}'
+            ? 'Dernier niveau : ${level.shortName}'
+                '${e.finalLevelPartial ? ' (partiel)' : ''}'
             : 'Terminé',
       };
     }

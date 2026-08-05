@@ -119,7 +119,7 @@ class ProductionHistoryScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${sessions.length} session${sessions.length > 1 ? "s" : ""} · les plus recentes en premier',
+                        '${sessions.length} session${sessions.length > 1 ? "s" : ""} · les plus récentes en premier',
                         style: AppFonts.ui(size: 12.5, color: AppColors.muted),
                       ),
                       const SizedBox(height: 14),
@@ -216,7 +216,7 @@ class _EmptyState extends StatelessWidget {
                   Text(
                     _isAudio
                         ? "Aucune session orale pour l'instant"
-                        : "Aucune session ecrite pour l'instant",
+                        : "Aucune session écrite pour l'instant",
                     style: AppFonts.display(
                       size: 20,
                       weight: FontWeight.w700,
@@ -227,8 +227,8 @@ class _EmptyState extends StatelessWidget {
                   const SizedBox(height: 10),
                   Text(
                     _isAudio
-                        ? "Enregistrez vous sur 3 taches pour recevoir une evaluation IA detaillee."
-                        : "Redigez 3 textes pour recevoir une evaluation IA detaillee.",
+                        ? "Enregistrez-vous sur 3 tâches pour recevoir une évaluation IA détaillée."
+                        : "Rédigez 3 textes pour recevoir une évaluation IA détaillée.",
                     style: AppFonts.ui(
                       size: 13,
                       color: AppColors.muted,
@@ -250,7 +250,7 @@ class _EmptyState extends StatelessWidget {
           child: SafeArea(
             top: false,
             child: AppButton(
-              label: 'Commencer ma premiere session',
+              label: 'Commencer ma première session',
               icon: _isAudio ? LucideIcons.mic : LucideIcons.penLine,
               onPressed: onStart,
             ),
@@ -292,7 +292,7 @@ class _ErrorBox extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           AppButton(
-            label: 'Reessayer',
+            label: 'Réessayer',
             onPressed: onRetry,
             icon: LucideIcons.refreshCw,
           ),

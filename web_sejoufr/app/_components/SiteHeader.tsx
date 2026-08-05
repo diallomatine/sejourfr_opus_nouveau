@@ -26,6 +26,14 @@ function parseNavHref(href: string): {path: string; module: string | null} {
     return {path, module: query ? new URLSearchParams(query).get("module") : null};
 }
 
+/** Module porté par le chemin lui-même (`/entrainement/tcf/…`), null sur
+ *  `/entrainement` où seul le `?module=` tranche. */
+function moduleFromPath(pathname: string): string | null {
+    if (pathname.startsWith("/entrainement/tcf")) return "TCF";
+    if (pathname.startsWith("/entrainement/civique")) return "CIVIQUE";
+    return null;
+}
+
 type NavVariant = "desktop" | "mobile";
 
 function renderNavLinks(
@@ -73,8 +81,10 @@ function ActiveNavLinks({variant, onNavigate}: {variant: NavVariant; onNavigate?
         const {path, module} = parseNavHref(href);
         if (path === "/") return pathname === "/";
         if (pathname !== path && !pathname.startsWith(`${path}/`)) return false;
-        // /entrainement : on départage TCF / Civique sur le module (défaut = CIVIQUE).
-        if (module) return (currentModule ?? "CIVIQUE") === module;
+        // /entrainement : on départage TCF / Civique. Sur les sous-routes le
+        // module est dans le chemin (/entrainement/tcf/…) — s'en remettre au
+        // `?module=` absent y allumait « Examen civique » sur tout le TCF.
+        if (module) return (moduleFromPath(pathname) ?? currentModule ?? "CIVIQUE") === module;
         return true;
     };
     return <>{renderNavLinks(variant, isActive, onNavigate)}</>;

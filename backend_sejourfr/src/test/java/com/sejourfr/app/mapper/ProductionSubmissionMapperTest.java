@@ -5,7 +5,8 @@ import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
-import com.sejourfr.app.entity.Transcription;
+import com.sejourfr.app.enums.ConfianceEvaluation;
+import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.TranscriptionManager;
@@ -87,11 +88,9 @@ class ProductionSubmissionMapperTest {
         eval.setNoteSur20(new BigDecimal("14.0"));
         eval.setFeedbackJson(feedback);
 
-        Transcription transcription = new Transcription();
-        transcription.setTexte("transcription whisper");
-
         when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.of(eval));
-        when(transcriptionManager.findLatestBySubmissionId(id)).thenReturn(Optional.of(transcription));
+        when(transcriptionManager.findLatestTexteBySubmissionId(id))
+                .thenReturn(Optional.of("transcription whisper"));
 
         ProductionSubmissionDto dto = mapper.toDto(s);
 
@@ -120,6 +119,62 @@ class ProductionSubmissionMapperTest {
     }
 
     @Test
+    void toDto_evalV2_exposeLeNiveauObserveAvecSaConfiance() {
+        UUID id = UUID.randomUUID();
+        ProductionSubmission s = submission(id);
+        s.setAttempt(null);
+        s.setProductionTask(null);
+
+        Map<String, Object> feedback = new LinkedHashMap<>();
+        feedback.put("niveau_cecrl", "B1");
+        feedback.put("confiance", "MOYENNE");
+
+        AiEvaluation eval = new AiEvaluation();
+        eval.setNoteSur20(new BigDecimal("13.0"));
+        eval.setNiveauCecrl(NiveauCecrl.B1);
+        eval.setFeedbackJson(feedback);
+
+        when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.of(eval));
+        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
+
+        ProductionSubmissionDto dto = mapper.toDto(s);
+
+        assertThat(dto.evaluation().niveauObserve()).isEqualTo(NiveauCecrl.B1);
+        assertThat(dto.evaluation().confiance()).isEqualTo(ConfianceEvaluation.MOYENNE);
+        assertThat(dto.evaluation().avertissementNiveau())
+                .isEqualTo(ProductionSubmissionMapper.AVERTISSEMENT_NIVEAU);
+        // Le niveau brut reste hors du feedback : une seule porte d'affichage.
+        assertThat(dto.evaluation().feedback()).doesNotContainKey("niveau_cecrl");
+    }
+
+    @Test
+    void toDto_evalLegacySansConfiance_nExposePasDeNiveau() {
+        UUID id = UUID.randomUUID();
+        ProductionSubmission s = submission(id);
+        s.setAttempt(null);
+        s.setProductionTask(null);
+
+        // Feedback au format v3 : niveau persisté, mais aucune confiance.
+        Map<String, Object> feedback = new LinkedHashMap<>();
+        feedback.put("note_globale", 13);
+
+        AiEvaluation eval = new AiEvaluation();
+        eval.setNoteSur20(new BigDecimal("13.0"));
+        eval.setNiveauCecrl(NiveauCecrl.B1);
+        eval.setFeedbackJson(feedback);
+
+        when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.of(eval));
+        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
+
+        ProductionSubmissionDto dto = mapper.toDto(s);
+
+        assertThat(dto.evaluation().niveauObserve()).isNull();
+        assertThat(dto.evaluation().confiance()).isNull();
+        assertThat(dto.evaluation().avertissementNiveau()).isNull();
+        assertThat(dto.evaluation().noteSurVingt()).isEqualByComparingTo("13.0");
+    }
+
+    @Test
     void toDto_nullEvalAndTranscriptionAndAssociations() {
         UUID id = UUID.randomUUID();
         ProductionSubmission s = submission(id);
@@ -127,7 +182,7 @@ class ProductionSubmissionMapperTest {
         s.setProductionTask(null);
 
         when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
-        when(transcriptionManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
+        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
 
         ProductionSubmissionDto dto = mapper.toDto(s);
 
@@ -151,7 +206,7 @@ class ProductionSubmissionMapperTest {
         eval.setFeedbackJson(null);
 
         when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.of(eval));
-        when(transcriptionManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
+        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
 
         ProductionSubmissionDto dto = mapper.toDto(s);
 
@@ -168,7 +223,7 @@ class ProductionSubmissionMapperTest {
         s.setProductionTask(null);
 
         when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
-        when(transcriptionManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
+        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
         when(audioStorage.presignGet("eo/key.mp3")).thenReturn("https://signed.example/key.mp3?sig=x");
 
         ProductionSubmissionDto dto = mapper.toDtoWithSignedAudio(s);
@@ -187,7 +242,7 @@ class ProductionSubmissionMapperTest {
         s.setMediaUrl("   ");
 
         when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
-        when(transcriptionManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
+        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
 
         ProductionSubmissionDto dto = mapper.toDtoWithSignedAudio(s);
 

@@ -122,6 +122,14 @@ class _PremiumView extends StatelessWidget {
 
   bool get _isIntegral => status.moduleAccess == ModuleAccess.integral;
 
+  String get _passName => _isIntegral ? 'Pass Intégral' : 'Pass Civique';
+
+  /// Nom commercial du plan quand il est encore au catalogue ; sinon le
+  /// libellé dérivé du `moduleAccess` renvoyé par le backend. Un plan retiré
+  /// de `/api/billing/plans` (offre remplacée) ne doit ni faire mentir la
+  /// carte ni la vider — `moduleAccess` reste la donnée autoritaire.
+  String get _formulaLabel => plan?.name ?? _passName;
+
   static const _civiqueFeatures = [
     'Les 5 catégories civiques',
     "Séries d'entraînement illimitées",
@@ -148,7 +156,7 @@ class _PremiumView extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
       children: [
         _PassHeroCard(
-          name: _isIntegral ? 'Pass Intégral' : 'Pass Civique',
+          name: _passName,
           accent: AppColors.blue,
           accentDeep: AppColors.blueDark,
           planLabel: plan?.name,
@@ -182,7 +190,7 @@ class _PremiumView extends StatelessWidget {
           padding: EdgeInsets.zero,
           child: Column(
             children: [
-              _DetailRow(label: 'Formule', value: plan?.name ?? '—'),
+              _DetailRow(label: 'Formule', value: _formulaLabel),
               const Divider(height: 1),
               _DetailRow(
                 label: 'Périmètre',

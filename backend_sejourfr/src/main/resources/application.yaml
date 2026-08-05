@@ -35,6 +35,14 @@ spring:
     multipart:
       max-file-size: 25MB
       max-request-size: 25MB
+  data:
+    web:
+      pageable:
+        # Plafond des listes paginees (?size=). Sans lui, Spring accepte
+        # jusqu'a 2000 elements par page : un `?size=2000` sur les questions
+        # admin renvoyait 2,65 Mo en une requete. 100 couvre tous les usages
+        # de la console (page par defaut : 20).
+        max-page-size: 100
 
 server:
   port: 8080
@@ -54,7 +62,7 @@ management:
 
 sejourfr:
   cors:
-    allowed-origins: http://localhost:3000,http://localhost:5173,http://192.168.1.10:3000
+    allowed-origins: http://localhost:3000,http://localhost:5173,http://192.168.1.11:3000
   stripe:
     # Abonnements récurrents (Checkout Session mode=SUBSCRIPTION) depuis le
     # lot 4. Les Stripe Price IDs vivent en base sur plans.stripe_price_id —
@@ -177,6 +185,17 @@ sejourfr:
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
 
+  # Proxys dont on accepte les en-tetes X-Forwarded-For / X-Real-IP
+  # (cf. util.ClientIpResolver). VIDE PAR DEFAUT : sans configuration, l'IP
+  # retenue est celle de la socket, ce qui rend les compteurs par IP
+  # (rate-limits, attempts invites) reellement efficaces — sinon un simple
+  # en-tete remet le compteur a zero. En production, renseigner les
+  # adresses/CIDR du reverse-proxy reel, separes par des virgules
+  # (ex: 10.0.0.0/8,172.16.0.0/12). Valeur speciale `*` = faire confiance a
+  # tout appelant : uniquement si le port n'est joignable que par le LB.
+  trusted-proxies:
+    ranges: ${TRUSTED_PROXY_RANGES:}
+
   # Pipeline d'evaluation des productions (EO/EE du TCF IRN).
   # Distinct de sejourfr.anthropic (qui sert a generer des questions audio CO).
   # Cles API exclusivement via variables d'environnement.
@@ -196,30 +215,232 @@ sejourfr:
         Conserver les hesitations, les repetitions, et les eventuelles fautes
         grammaticales telles que prononcees.
   production-evaluation:
-    # Provider LLM actif : openai (defaut), anthropic ou deepseek. Pour switcher,
+    # Source unique du LLM correcteur : deepseek (defaut), openai ou anthropic.
+    # Runtime async, fin de session temps reel, seconde passe et banc de
+    # calibration lisent tous cette meme valeur. Pour switcher,
     # changer cette valeur (ou EVAL_LLM_PROVIDER) et redemarrer le backend. Aucune
     # migration ni changement cote mobile : le DTO + le tool schema sont
     # identiques, seule la maniere d'appeler le LLM change.
-    provider: ${EVAL_LLM_PROVIDER:openai}
+    provider: ${EVAL_LLM_PROVIDER:deepseek}
     # Source UNIQUE de TOUTES les instructions d'eval (global + par tache) :
     # prompts/production-rubrics-<v>.json. Le system prompt et le user message
     # sont generes depuis ce fichier (plus de .md system/user-template).
     # prompt-version (ci-dessous) ne gouverne plus que le tool-schema (sortie).
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v3}
+    # v4.1 : v4 (criteres propres a chaque tache) + correction de l'INDULGENCE
+    # du BAS de l'echelle mesuree au banc (ecart global (reference - IA) -1,93
+    # en v4 -> -1,0 en v4.1 ; A2 dans la fourchette 38 % -> 92-100 %).
+    # Defaut v4.2 : le defaut residuel s'etait deplace vers le HAUT (des B1
+    # annonces B2 — l'erreur la plus couteuse, la naturalisation exigeant B2
+    # sans compensation). v4.2 rend la frontiere B1/B2 OPPOSABLE (test decisif
+    # + obligation de citer deux marqueurs B2, plafond a 14/20 a defaut).
+    # Mesure golden-set-v1 (48 cas, DeepSeek), 3 campagnes v4.2 contre une
+    # campagne v4.1 le meme jour : B1 correctement classe 8/12 -> 10-11/12,
+    # B2 6/7 -> 7/7 (3 fois sur 3), accord exact 75,0 % -> 81,25 % (3 fois sur
+    # 3), accord +/-1 85,4 % -> 91,7 %, ecart global -1,05 -> -0,89/-1,03,
+    # sorties invalides 0 % ; A1, A2, hors-sujet et transcriptions bruitees
+    # inchanges. Le plafond v4.2 ne mord qu'au-dessus de 15/20 : il ne peut,
+    # par construction, rien changer sous B1.
+    # v6 : v5 avait adopte les CRITERES du TCF, v6 adopte son ECHELLE.
+    # La note se convertit desormais en niveau par la table OFFICIELLE du TCF
+    # IRN (0 = A1 non atteint, 1 = A1, 2-5 = A2, 6-9 = B1, 10-20 = B2), et
+    # CHAQUE critere est note sur cette meme table. Motif : sous v5 une carte de
+    # resultat pouvait afficher « 12,5/20 » et « proche du B1 », alors que 12,5
+    # vaut B2 sur la grille officielle — deux informations contradictoires.
+    # Ce n'est PAS un simple deplacement de seuils : tous les reperes, tous les
+    # descripteurs et les 16 ancres few-shot ont ete re-scores sur l'echelle du
+    # TCF, et le garde-fou de couplage recalcule (4 -> 1 point, cf. plus bas).
+    # Mesure golden-set-v1 (48 cas, DeepSeek), campagne v6 contre un temoin v5
+    # rejoue le meme jour : accord exact 86,0 % -> 87,0 %, accord +/-1 palier
+    # 88,4 % -> 100 %, pieges evites 6/7 -> 8/8 (le quasi-muet, rate par v5,
+    # passe), « A1 non atteint » 4/8 -> 8/8 (le point faible documente du banc),
+    # B2 6/7 -> 6/6, B1 8/8 -> 10/11, A2 11/12 -> 11/13, 0 sortie invalide.
+    # Seul recul : les productions A1 passent de 8/8 a 5/8, les trois cas
+    # ressortant A2 — un niveau que la reference TOLERE explicitement sur ces
+    # trois cas, et que le modele leur donnait DEJA sous v5 (il y notait leur
+    # langue 7/20, soit la bande A2 de v5) : c'est le decalage entre bandes de
+    # critere et bandes globales de v5 qui affichait A1, pas son jugement.
+    # v7 verrouille le profil TCF_IRN, le plafond B2, les quatre criteres, les
+    # bornes EE 30-60 / 60-90 / 60-90 et le contrat de sortie v4.
+    # v8 (active) NE TOUCHE A AUCUN BAREME : echelle, criteres, seuils, couplage
+    # (+1), plafonds, bandes, tests decisifs et les 16 ancres few-shot sont ceux
+    # de v7, a l'identique. Elle ne corrige que la RESTITUTION, jugee repetitive
+    # et contradictoire : confiance = certitude du correcteur et jamais qualite
+    # du candidat, regle anti-repetition (une erreur, un seul endroit), aucun
+    # reproche sur un moyen que la consigne n'exigeait pas (levier de
+    # progression), coherence accomplissement / reste du rapport, verdict
+    # explicite accomplissement.objectif + objectif_resume, version_amelioree
+    # obligatoire sur les taches ECRITES, points_forts plafonnes a 2 et
+    # exemples_corriges a 3. Aucune campagne de banc n'est requise pour cette
+    # bascule : la notation est inchangee par construction.
+    # Matrice verifiee au demarrage : v3-v4.2 -> schema v2, v5-v6 -> schema v3,
+    # v7 -> schema v4, v8 -> schema v5. Un rollback change donc la paire
+    # EVAL_RUBRICS_VERSION + EVAL_PROMPT_VERSION (v8/v5 -> v7/v4, etc.) ; une
+    # combinaison incoherente bloque le demarrage.
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v8}
     # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
     # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
     # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).
-    # source-criteres : marqueurs de langue/discours porteurs du niveau. La
-    # coherence (organisation du discours) y est incluse — vraie dimension CECRL,
-    # surtout a l'oral. La pertinence reste EXCLUE (completion de tache : un
-    # debutant qui reussit une tache simple ne doit pas etre classe haut). Les
-    # seuils restent cales (la coherence suit lexique/morpho dans les ancres
-    # few-shot, decalage ~0,2 pt) ; recalibrer via le dashboard si besoin.
+    #
+    # /!\ CE BLOC EST LE REGLAGE DES GRILLES v3 / v4 / v4.1 / v4.2 UNIQUEMENT.
+    # Depuis v5, le fichier de rubriques declare LUI-MEME ses criteres porteurs
+    # et ses seuils (bloc `commun.niveau`), et c'est lui qui gagne — cf.
+    # ProductionRubricsProvider#niveauCecrl(). Cela evite une troisieme bascule
+    # de configuration pour les seuils lors d'un rollback : revenir a v4.2 avec
+    # les seuils de v5 en config donnerait des niveaux faux.
+    # Ne pas calibrer v5, v6 ni v7 ici, mais dans production-rubrics-<version>.json.
+    # (v7 active : 10 / 6 / 2 — la table du profil TCF IRN, pas un reglage.)
+    #
+    # source-criteres (v3-v4.2) : marqueurs de langue/discours porteurs du
+    # niveau. La coherence (organisation du discours) y est incluse — vraie
+    # dimension CECRL, surtout a l'oral. La pertinence y restait EXCLUE
+    # (completion de tache). C'est precisement ce que v5 corrige : le TCF donne
+    # 25 % a l'accomplissement de la tache, la v5 le remet dans le niveau et le
+    # protege autrement (descripteurs par niveau + garde-fou de couplage).
     niveau-cecrl:
       source-criteres: [ lexique, morphosyntaxe, coherence ]
       seuil-b2: 15.0
       seuil-b1: 12.0
-      seuil-a2: 7.0
+      # 7.0 -> 8.0 : seul deplacement de seuil mesure comme gratuit par le banc
+      # (balayage hors ligne sur 96 executions v4.1) — accord exact 71,9% ->
+      # 76,0%, A1 correctement classe 62,5% -> 87,5%, A2/B1/B2 inchanges. Monter
+      # seuil-b1 a 13 serait le pire choix teste : A2 passerait a 100% mais B1
+      # s'effondrerait a 33%, donc on annoncerait A2 a de vrais B1.
+      seuil-a2: 8.0
+      # Poids des taches dans la note ET le niveau d'epreuve (index = tache - 1).
+      # EGAUX depuis v5 : le TCF publie UNE note /20 par epreuve et aucune
+      # ponderation par tache ; la difficulte croissante des 3 taches est deja
+      # portee par leurs descripteurs (T3 vise B2), la ponderer une seconde fois
+      # la compterait deux fois. Surtout, la moyenne simple rend le bilan
+      # coherent : la note d'epreuve affichee est la moyenne des 3 notes de
+      # tache, et le niveau d'epreuve se lit sur cette meme note. Revenir a
+      # [1, 2, 3] ne demande aucun redeploiement.
+      poids-taches: [ 1.0, 1.0, 1.0 ]
+    # GARDE-FOU DE COUPLAGE (filet deterministe, v5) : les criteres de
+    # REALISATION (communiquer, interagir) sont ramenes sous
+    # moyenne(lexique, morphosyntaxe) + ecart-max AVANT le calcul de la note.
+    # La regle est deja ecrite dans le prompt v5 ; ce filet la garantit, comme
+    # le plafond des 2 priorites. C'est la contrepartie de la reintroduction de
+    # l'accomplissement dans le niveau : sans lui, cocher tous les points d'une
+    # consigne A2 dans un francais pauvre suffirait a monter d'un palier.
+    # SANS EFFET sur v3/v4/v4.1/v4.2 : leurs grilles ne portent pas ces codes.
+    #
+    # /!\ `ecart-max` ci-dessous est le reglage des grilles ANTERIEURES A v6.
+    # L'ecart n'a pas le meme sens d'une echelle a l'autre : ce qui compte est
+    # le gain qu'il concede a la moyenne des quatre criteres (ecart-max / 2),
+    # qui doit rester sous la largeur d'un palier. v6, dont l'echelle est celle
+    # du TCF (paliers de 4 points, seuils non decales), declare le sien dans son
+    # fichier de rubriques — `commun.couplage.ecart_max` = 1.0 — et c'est lui qui
+    # gagne. `enabled` reste un coupe-circuit de deploiement, jamais surcharge
+    # par la grille.
+    couplage:
+      enabled: ${EVAL_COUPLAGE_ENABLED:true}
+      ecart-max: 4.0
+    # Bandes qualitatives par critere affichees aux candidats A LA PLACE du
+    # nombre (une IA ne distingue pas honnetement un 13 d'un 14). Bornes des
+    # grilles v3 a v5 ; v6/v7 declarent les leurs (10 / 6 / 2) dans
+    # `commun.bandes_criteres` de son fichier de rubriques. Sans ce mecanisme,
+    # un critere v6 a 8 (bon B1) s'afficherait « en cours d'acquisition ».
+    bandes-criteres:
+      tres-bonne-maitrise: 16.0
+      satisfaisant: 11.0
+      en-cours-acquisition: 6.0
+    # Controles DETERMINISTES executes AVANT l'appel LLM (aucune IA) :
+    # langue dominante, recopiage de la consigne, production vide. Un verdict
+    # INVALIDE court-circuite le LLM (note 0 / A1_NON_ATTEINT / confiance
+    # FAIBLE) ; un AVERTISSEMENT laisse l'IA noter mais plafonne la confiance a
+    # MOYENNE et expose ses raisons au candidat. Heuristiques => seuils
+    # ajustables sans redeploiement.
+    validite:
+      min-mots-exploitables: 5
+      mots-min-analyse-langue: 12
+      ratio-mots-outils-invalide: 0.10
+      ratio-mots-outils-avertissement: 0.18
+      ratio-alphabet-non-latin-invalide: 0.30
+      ngram-consigne: 5
+      ratio-recopiage-avertissement: 0.30
+      ratio-recopiage-invalide: 0.60
+    # Plafonds de niveau appliques APRES le calcul du niveau par soumission.
+    # Volontairement peu nombreux : uniquement ce qui est objectivable a partir
+    # des criteres v4. enabled=false pour mesurer avec / sans.
+    # Les SEUILS ci-dessous se lisent sur la note d'un critere : ils suivent donc
+    # l'echelle de la grille. 5.0 = haut de la bande A1 des criteres v3-v5 (1-5).
+    # v6 declare les siens (1.0, haut de la bande A1 sur l'echelle du TCF) dans
+    # `commun.plafonds` de son fichier de rubriques.
+    plafonds:
+      enabled: ${EVAL_PLAFONDS_ENABLED:true}
+      prise-position-seuil: 5.0
+      prise-position-niveau-max: A2
+      conduite-echange-seuil: 5.0
+      conduite-echange-niveau-max: A2
+    # RECOLLAGE DES TOURS d'un transcript dialogue (expression orale TEMPS REEL),
+    # livre ACTIF — c'est une CORRECTION, pas une experimentation.
+    # La transcription temps reel cloture un tour sur le signal de fin de tour du
+    # MODELE, qui n'est pas la fin de la phrase du CANDIDAT : un meme enonce
+    # ressortait scinde en plusieurs tours consecutifs, a une frontiere
+    # arbitraire (« Candidat : … pousse a l'air. Ah. » / « Candidat : aller vers
+    # l'informatique. »). Consequences : une citation a cheval sur deux tours
+    # n'etait JAMAIS retrouvable par EvaluationProofMatcher (un segment par
+    # tour), le correcteur jugeait la morphosyntaxe sur un texte hache et
+    # baissait sa confiance pour une raison qui venait de NOUS, et le candidat
+    # relisait sa phrase coupee en deux bulles.
+    # Non destructif : le recollage se fait A LA LECTURE, en un seul point
+    # (TranscriptionManager + util/TranscriptTurnStitcher), en amont du prompt,
+    # du controle de preuve ET du DTO servi aux fronts — donc le texte cite est
+    # toujours exactement le texte affiche. Rien n'est reecrit en base
+    # (realtime_sessions.transcript et transcriptions.texte restent intacts) :
+    # EVAL_RECOLLAGE_TOURS_ENABLED=false rend le comportement d'avant a
+    # l'identique, sans redeploiement des fronts.
+    # EN CAS DE DOUTE, ON NE FUSIONNE PAS : sur un texte qui fait foi pour la
+    # note ET que le candidat relit, une fusion FAUSSE est pire qu'une fusion
+    # manquee — la seconde ramene au comportement d'avant, la premiere FABRIQUE
+    # de la parole. Trois garde-fous, tous dans ce sens : meme locuteur
+    # seulement ; jamais a travers un tour « Examinateur : » ; jamais quand une
+    # phrase parait terminee et qu'une nouvelle commence (ponctuation forte a
+    # gauche ET majuscule a droite = deux tentatives distinctes, pas une phrase
+    # coupee) ; jamais autour d'un fragment sans aucun caractere alphanumerique
+    # (« . . . . »), qui reste un tour isole et n'est jamais retire du texte
+    # servi (on n'enleve que des FRONTIERES, jamais du contenu).
+    recollage-tours:
+      enabled: ${EVAL_RECOLLAGE_TOURS_ENABLED:true}
+    # --- Phase 3, livree DESACTIVEE : trois changements de comportement produit
+    # --- qui ne s'allument qu'apres mesure au banc. A false, aucun effet.
+    #
+    # Indice de fluidite des productions ORALES : debit (mots/minute) depuis la
+    # duree parlee + les mots de la transcription, et compte de pauses longues
+    # SI la transcription porte des horodatages (format `hh:mm:ss,mmm --> ...`).
+    # Expose comme DONNEE FACTUELLE dans le feedback, jamais comme une note :
+    # rien dans le calcul de la note ni du niveau ne lit ce bloc, meme allume.
+    # Neutre vis-a-vis de l'accent, contrairement a une analyse de prononciation.
+    # Allumer inverse la regle actuelle « ne pas juger le debit ni la duree » :
+    # EVAL_FLUIDITE_ENABLED=true.
+    fluidite:
+      enabled: ${EVAL_FLUIDITE_ENABLED:false}
+      duree-min-sec: 20
+      pause-longue-seuil-sec: 3.0
+    # Seconde passe d'evaluation, UNIQUEMENT en zone floue (confiance FAIBLE, ou
+    # competence a moins de `marge-seuil-niveau` d'un seuil, ou niveau LLM
+    # divergent de plus d'un palier du calcul serveur). On retient la passe la
+    # plus BASSE (le biais mesure est vers l'indulgence) et on abaisse la
+    # confiance quand les deux divergent. Elle reutilise obligatoirement le
+    # provider et le modele principaux : une seule bascule de configuration.
+    seconde-passe:
+      enabled: ${EVAL_SECONDE_PASSE_ENABLED:false}
+      marge-seuil-niveau: 1.0
+    # Coherence du bilan d'epreuve (3 taches) : pas de B2 global si la tache 3
+    # (argumentation) est sous B1. Applique APRES la moyenne ponderee, ne fait
+    # qu'ABAISSER — jamais relever, c'est ce qui le rend sur.
+    # ACTIF par defaut : le niveau d'epreuve est une moyenne des competences des
+    # 3 taches, or elles ne sont pas interchangeables — la tache 3 est la seule
+    # qui demande d'argumenter, donc la seule qui puisse demontrer un B2.
+    # Active sur du RAISONNEMENT, pas sur une mesure : le banc de calibration ne
+    # peut pas trancher ce choix (son corpus a un niveau attendu PAR TACHE, il
+    # n'a aucune reference de niveau d'EPREUVE). Cf. docs/notation-ia-eo-ee.md.
+    # Retour arriere en une variable : EVAL_COHERENCE_BILAN_ENABLED=false rend
+    # strictement les bilans d'avant (moyenne ponderee seule).
+    coherence-bilan:
+      enabled: ${EVAL_COHERENCE_BILAN_ENABLED:true}
+      tache3-niveau-min: B1
+      plafond-si-tache3-faible: B1
     max-audio-duration-seconds: 300
     max-text-words: 300
     min-text-words: 10
@@ -227,6 +448,17 @@ sejourfr:
     cost-tracking-enabled: true
     max-retries-per-submission: 3
     presigned-url-expiry-minutes: 15
+    # PLAFOND DE TOKENS DE SORTIE — 4000, IDENTIQUE SUR LES TROIS PROVIDERS.
+    # Il etait a 2000 depuis mai 2026, avant que le tool-schema strict n'ajoute
+    # QUATRE citations litterales (une par critere) a la sortie. Mesure :
+    # une correction EE tient en ~1500 tokens, une correction EO en 1800-2000 —
+    # donc le plafond etait atteint ou frole sur presque toutes les EO. Une
+    # sortie tronquee arrive en `finish_reason=length` avec un JSON coupe :
+    # `tool_call.arguments non desorialisable`, la soumission ECHOUE, le
+    # candidat ne voit pas sa note. Le meme appel a 4000 passe (~2300 tokens).
+    # C'est un PLAFOND, pas une consommation : on ne paie que ce qui est
+    # reellement produit, le relever ne coute rien sur les corrections courtes.
+    # Ne pas le redescendre sans avoir d'abord retire des champs de la sortie.
     openai:
       # Defaut : reutilise OPENAI_API_KEY (deja config pour Whisper). Surcharge
       # via EVAL_OPENAI_API_KEY si on veut une cle dediee.
@@ -235,11 +467,12 @@ sejourfr:
       model: ${EVAL_OPENAI_MODEL:gpt-4o-mini}
       # 0 = notation déterministe (même texte → mêmes notes d'un run à l'autre).
       temperature: ${EVAL_OPENAI_TEMPERATURE:0}
-      max-tokens: 2000
+      # cf. le bloc « PLAFOND DE TOKENS DE SORTIE » ci-dessus.
+      max-tokens: 4000
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v1.5}
+      prompt-version: ${EVAL_PROMPT_VERSION:v5}
       # Tarification gpt-4o-mini (USD / 1M tokens, mai 2026). A surcharger si
       # on bascule sur gpt-4o ou gpt-5 (cout estime persiste dans ai_evaluations).
       cost-per-million-input-tokens: 0.15
@@ -249,11 +482,12 @@ sejourfr:
       api-url: https://api.anthropic.com/v1/messages
       anthropic-version: "2023-06-01"
       model: ${EVAL_ANTHROPIC_MODEL:claude-sonnet-4-5}
-      max-tokens: 2000
+      # cf. le bloc « PLAFOND DE TOKENS DE SORTIE » ci-dessus.
+      max-tokens: 4000
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v1.5}
+      prompt-version: ${EVAL_PROMPT_VERSION:v5}
       cost-per-million-input-tokens: 3.0
       cost-per-million-output-tokens: 15.0
     # DeepSeek : API compatible OpenAI (meme client). Activer avec
@@ -266,9 +500,10 @@ sejourfr:
       # On l'envoie {"thinking":{"type":"disabled"}} pour un tool_call déterministe.
       disable-thinking: ${EVAL_DEEPSEEK_DISABLE_THINKING:true}
       temperature: ${EVAL_DEEPSEEK_TEMPERATURE:0}
-      max-tokens: 2000
+      # cf. le bloc « PLAFOND DE TOKENS DE SORTIE » ci-dessus.
+      max-tokens: 4000
       timeout-sec: 60
-      prompt-version: ${EVAL_PROMPT_VERSION:v1.5}
+      prompt-version: ${EVAL_PROMPT_VERSION:v5}
       cost-per-million-input-tokens: 0.27
       cost-per-million-output-tokens: 1.10
 
@@ -279,7 +514,10 @@ sejourfr:
   # renseignée, le mode bascule silencieusement en async (jamais bloquant).
   realtime:
     provider: ${REALTIME_PROVIDER:gemini}
-    persona-version: v1
+    # Gabarit de persona chargé (prompts/realtime-personas-<version>.json).
+    # v2 = v1 + rendu de la fiche de scénario T2 (production_tasks.agent_role_card)
+    # quand le sujet en porte une. Repli sur v1 possible par variable d'env.
+    persona-version: ${REALTIME_PERSONA_VERSION:v2}
     gemini:
       # Clé Google AI (Gemini API). Absente -> temps réel désactivé (fallback async).
       api-key: ${GEMINI_API_KEY:}

@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { MediaView } from "./MediaView";
+import { epreuveLevelTone, floorMarks } from "@/lib/exam-levels";
 import { niveauCecrlLabel, orderedChoices } from "@/lib/types";
 import type {
   AttemptQuestionResponse,
@@ -66,6 +67,13 @@ export function ExamReport({
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
   /** Détail par épreuve (examens TCF CO→CE) — niveau global = plancher. */
   const epreuves = attempt.epreuveResults ?? [];
+  /** Quelle épreuve tire le niveau global vers le bas. Signalée **par le
+   *  texte** : la couleur du badge, elle, ne dit que le palier — un candidat au
+   *  même niveau partout n'a pas de point faible à désigner. */
+  const epreuveFloorMarks = floorMarks(
+    epreuves.map((e) => e.cecrlLevel),
+    attempt.cecrlLevel,
+  );
 
   const sorted = useMemo(
     () => [...attempt.questions].sort((a, b) => a.position - b.position),
@@ -247,10 +255,9 @@ export function ExamReport({
           <section className="rpt-card rpt-epreuves">
             <h2 className="rpt-card-title">Votre niveau par épreuve</h2>
             <ul className="rpt-epv-list">
-              {epreuves.map((e) => {
+              {epreuves.map((e, i) => {
                 const meta = EPREUVE_META[e.epreuve] ?? { icon: "📋", label: e.epreuve };
-                const isFloor =
-                  attempt.cecrlLevel != null && e.cecrlLevel === attempt.cecrlLevel;
+                const isFloor = epreuveFloorMarks[i];
                 return (
                   <li key={e.epreuve} className="rpt-epv">
                     <span className="rpt-epv-ico" aria-hidden>
@@ -260,8 +267,12 @@ export function ExamReport({
                     <span className="rpt-epv-meta">
                       {e.correct}/{e.total} bonnes réponses · {e.calibratedScore}/499
                     </span>
-                    <span className={`rpt-epv-level ${isFloor ? "is-floor" : ""}`}>
+                    <span
+                      className="rpt-epv-level"
+                      data-tone={epreuveLevelTone(e.cecrlLevel)}
+                    >
                       {niveauCecrlLabel(e.cecrlLevel)}
+                      {isFloor && <em className="rpt-epv-floor"> · niveau retenu</em>}
                     </span>
                   </li>
                 );
@@ -269,7 +280,8 @@ export function ExamReport({
             </ul>
             <p className="rpt-epv-note">
               Comme au TCF IRN, votre niveau global correspond à votre épreuve
-              la <strong>plus faible</strong> — il faut atteindre le niveau
+              la <strong>plus faible</strong>{" "}
+              — il faut atteindre le niveau
               dans chaque épreuve pour le valider (l&apos;expression écrite et
               orale comptent aussi le jour J). Faites monter votre point
               faible pour faire monter l&apos;ensemble.
@@ -649,15 +661,31 @@ const styles = `
     color: var(--color-muted); letter-spacing: 0.02em;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
+  /* La teinte vient du PALIER (lib/exam-levels), jamais d'une comparaison au
+     plancher : un candidat B2 dans toutes ses épreuves voyait sinon tous ses
+     badges en rouge, alors qu'aucun niveau atteint n'est une faute. */
   .rpt-epv-level {
     flex-shrink: 0;
     font-family: var(--font-mono); font-size: 11px; font-weight: 700;
     letter-spacing: 0.08em;
-    background: var(--color-blue-light); color: var(--color-blue);
+    background: var(--color-line-2); color: var(--color-ink-2);
     padding: 4px 10px; border-radius: 100px;
   }
-  .rpt-epv-level.is-floor {
-    background: var(--color-red-light); color: var(--color-red);
+  .rpt-epv-level[data-tone="green"] {
+    background: color-mix(in srgb, var(--color-green) 12%, transparent);
+    color: var(--color-green);
+  }
+  .rpt-epv-level[data-tone="blue"] {
+    background: var(--color-blue-light); color: var(--color-blue);
+  }
+  .rpt-epv-level[data-tone="amber"] {
+    background: color-mix(in srgb, var(--color-amber) 16%, transparent);
+    color: color-mix(in srgb, var(--color-amber) 72%, var(--color-ink));
+  }
+  /* L'épreuve qui décide du niveau global : dite en toutes lettres. */
+  .rpt-epv-floor {
+    font-style: normal; letter-spacing: 0.02em;
+    text-transform: none; opacity: 0.85;
   }
   .rpt-epv-note {
     margin: 0;

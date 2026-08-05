@@ -6,6 +6,9 @@ import '../theme/app_theme.dart';
 /// double saut de ligne, indentation des listes "- " ou "• ", espacement
 /// homogène entre les paragraphes. Utilisé pour les passages TCF (CE), les
 /// énoncés longs et les explications.
+///
+/// Les contenus rédigés côté admin/IA utilisent `**gras**` : on le rend en
+/// gras au lieu d'afficher les astérisques (cf. [inlineMarkdownSpans]).
 class RichParagraphText extends StatelessWidget {
   const RichParagraphText(
     this.text, {
@@ -88,10 +91,9 @@ class _Paragraph extends StatelessWidget {
 
     // Paragraphe normal : on respecte les sauts de ligne simples comme des
     // sauts de ligne textuels (et non comme de nouveaux paragraphes).
-    return Text(
-      text,
+    return Text.rich(
+      TextSpan(children: inlineMarkdownSpans(text, style)),
       textAlign: textAlign,
-      style: style,
     );
   }
 
@@ -139,9 +141,36 @@ class _BulletLine extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(child: Text(text, style: style)),
+          Expanded(
+            child: Text.rich(
+              TextSpan(children: inlineMarkdownSpans(text, style)),
+            ),
+          ),
         ],
       ),
     );
   }
+}
+
+/// Découpe un texte sur les marqueurs `**gras**` en `TextSpan`. Les contenus
+/// (explications de questions, feedbacks IA) arrivent avec ce balisage : sans
+/// ce découpage, le candidat lit les astérisques à l'écran.
+List<TextSpan> inlineMarkdownSpans(String text, TextStyle style) {
+  final spans = <TextSpan>[];
+  final pattern = RegExp(r'\*\*(.+?)\*\*', dotAll: true);
+  var index = 0;
+  for (final match in pattern.allMatches(text)) {
+    if (match.start > index) {
+      spans.add(TextSpan(text: text.substring(index, match.start), style: style));
+    }
+    spans.add(TextSpan(
+      text: match.group(1),
+      style: style.copyWith(fontWeight: FontWeight.w700),
+    ));
+    index = match.end;
+  }
+  if (index < text.length) {
+    spans.add(TextSpan(text: text.substring(index), style: style));
+  }
+  return spans.isEmpty ? [TextSpan(text: text, style: style)] : spans;
 }

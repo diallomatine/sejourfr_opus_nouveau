@@ -143,6 +143,36 @@ class AttemptServiceReadIT extends AbstractIntegrationTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    /**
+     * Un choiceId volé à une AUTRE question était accepté et persisté dans
+     * {@code answers.selected_choice_ids} : sans effet sur le score, mais la
+     * revue affichait ensuite une sélection introuvable dans la question.
+     */
+    @Test
+    void submitAnswer_choixDuneAutreQuestion_refuse() {
+        Fixture f = premiumWithOwnQuestions(5);
+        AttemptResponse started = service.start(f.user().getId(), training(f.user(), f.theme(), 5));
+        List<AttemptQuestion> aqs = attemptQuestionManager.findByAttemptOrderedByPosition(started.id());
+        AttemptQuestion target = aqs.get(0);
+        UUID foreignChoiceId = correctChoiceId(aqs.get(1));
+
+        assertThatThrownBy(() -> service.submitAnswer(f.user().getId(), started.id(),
+                new SubmitAnswerRequest(target.getId(), List.of(foreignChoiceId))))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void submitAnswer_choixInexistant_refuse() {
+        Fixture f = premiumWithOwnQuestions(3);
+        AttemptResponse started = service.start(f.user().getId(), training(f.user(), f.theme(), 3));
+        AttemptQuestion firstAq = attemptQuestionManager
+                .findByAttemptOrderedByPosition(started.id()).get(0);
+
+        assertThatThrownBy(() -> service.submitAnswer(f.user().getId(), started.id(),
+                new SubmitAnswerRequest(firstAq.getId(), List.of(UUID.randomUUID()))))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     @Test
     void submitAnswer_sessionTerminee_refuse() {
         Fixture f = premiumWithOwnQuestions(3);

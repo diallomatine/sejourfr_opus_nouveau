@@ -12,7 +12,9 @@ import tools.jackson.databind.ObjectMapper;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Source UNIQUE des gabarits de persona de l'examinateur temps reel (couche
@@ -22,10 +24,17 @@ import java.util.List;
  * permet de la reecrire/versionner sans toucher au code et garde les prompts
  * provider-agnostic (la config VAD specifique Gemini vit ailleurs).
  *
- * <p>Le fichier porte trois blocs, chacun une liste de lignes jointes par des
- * retours a la ligne : {@code regles} (communes T1/T2), {@code t1} et {@code t2}.
- * Les placeholders ({@code {niveauCible}}, {@code {dureeSec}}, {@code {contexte}},
- * {@code {consigne}}) sont substitues par {@link RealtimePersonaBuilder}.
+ * <p>Le fichier porte trois blocs obligatoires, chacun une liste de lignes jointes
+ * par des retours a la ligne : {@code regles} (communes T1/T2), {@code t1} et
+ * {@code t2}. Les placeholders ({@code {niveauCible}}, {@code {dureeSec}},
+ * {@code {contexte}}, {@code {consigne}}) sont substitues par
+ * {@link RealtimePersonaBuilder}.
+ *
+ * <p>Depuis la v2, deux blocs OPTIONNELS portent la fiche de scenario T2
+ * ({@code entity/AgentRoleCard}) : {@code t2Fiche} (gabarit du bloc injecte a la
+ * place de {@code {ficheScenario}}) et {@code relations} (libelle de registre par
+ * {@code enums/AgentRelation}). Absents — c'est le cas de la v1 — le builder rend
+ * la T2 exactement comme avant : aucun sujet existant ne se degrade.
  *
  * <p>Fichier absent/illisible = erreur de config bloquante (fail-fast au boot),
  * comme les rubriques : la persona verrouillee dans le token en depend.
@@ -42,6 +51,8 @@ public class RealtimePersonaTemplates {
     private String regles = "";
     private String t1 = "";
     private String t2 = "";
+    private String t2Fiche = "";
+    private Map<String, String> relations = Map.of();
 
     public RealtimePersonaTemplates(RealtimeProperties props, ObjectMapper objectMapper) {
         this.props = props;
@@ -58,8 +69,10 @@ public class RealtimePersonaTemplates {
             this.regles = joinLines(root, "regles");
             this.t1 = joinLines(root, "t1");
             this.t2 = joinLines(root, "t2");
-            log.info("Persona realtime chargee ({}) : regles {} c., t1 {} c., t2 {} c.",
-                    version, regles.length(), t1.length(), t2.length());
+            this.t2Fiche = joinOptionalLines(root, "t2Fiche");
+            this.relations = readMap(root, "relations");
+            log.info("Persona realtime chargee ({}) : regles {} c., t1 {} c., t2 {} c., fiche T2 {} c. ({} registres).",
+                    version, regles.length(), t1.length(), t2.length(), t2Fiche.length(), relations.size());
         } catch (Exception e) {
             throw new IllegalStateException(
                     "Persona realtime introuvable/illisible (" + path
@@ -82,6 +95,19 @@ public class RealtimePersonaTemplates {
         return t2;
     }
 
+    /**
+     * Gabarit du bloc « fiche de scenario » injecte dans la T2. Vide si la version
+     * chargee ne le porte pas (v1) : la T2 est alors rendue sans fiche.
+     */
+    public String t2Fiche() {
+        return t2Fiche;
+    }
+
+    /** Libelle de registre par {@code AgentRelation}. Vide si la version ne le porte pas. */
+    public Map<String, String> relations() {
+        return relations;
+    }
+
     private static String joinLines(JsonNode root, String field) {
         JsonNode node = root.get(field);
         if (node == null || !node.isArray() || node.isEmpty()) {
@@ -90,5 +116,20 @@ public class RealtimePersonaTemplates {
         List<String> lines = new ArrayList<>();
         node.forEach(line -> lines.add(line.asString()));
         return String.join("\n", lines);
+    }
+
+    private static String joinOptionalLines(JsonNode root, String field) {
+        JsonNode node = root.get(field);
+        return (node == null || !node.isArray() || node.isEmpty()) ? "" : joinLines(root, field);
+    }
+
+    private static Map<String, String> readMap(JsonNode root, String field) {
+        JsonNode node = root.get(field);
+        if (node == null || !node.isObject()) {
+            return Map.of();
+        }
+        Map<String, String> out = new LinkedHashMap<>();
+        node.properties().forEach(entry -> out.put(entry.getKey(), entry.getValue().asString()));
+        return Map.copyOf(out);
     }
 }

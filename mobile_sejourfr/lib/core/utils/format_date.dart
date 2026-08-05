@@ -22,6 +22,14 @@ const List<String> _monthsAbbr = [
 String formatLongDate(DateTime d) =>
     '${d.day} ${_monthsAbbr[d.month - 1]} ${d.year}';
 
+/// "12 mars 2026 · 14:05" (heure locale)
+String formatLongDateTime(DateTime d) {
+  final local = d.toLocal();
+  final h = local.hour.toString().padLeft(2, '0');
+  final m = local.minute.toString().padLeft(2, '0');
+  return '${formatLongDate(local)} · $h:$m';
+}
+
 /// "12/03/2026"
 String formatShortDate(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';

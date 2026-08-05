@@ -50,8 +50,11 @@ class ScreenHeader extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
+                      // 2 lignes même hors `large` : les titres de thème
+                      // civique (« Principes et valeurs de la République »)
+                      // ne tiennent pas sur une ligne à 19.
                       title,
-                      maxLines: large ? 2 : 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: AppFonts.display(size: large ? 26 : 19),
                     ),

@@ -243,7 +243,7 @@ function ConversationDetail({
       title={c.subject}
       sub={`${c.userFullName} · ${c.userEmail}`}
       actions={
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className={styles.detailActions}>
           <select
             className={styles.statusSelect}
             value={c.status}

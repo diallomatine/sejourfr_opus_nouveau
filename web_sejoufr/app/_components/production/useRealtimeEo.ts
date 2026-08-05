@@ -21,8 +21,13 @@ export function isRealtimeEligible(mode: "text" | "audio", tacheNumero: number):
  * l'entraînement libre (`ProductionInputPage`) et à l'examen blanc 3 tâches
  * (`ProductionSession`) : compteur de quota + ouverture d'une session pour un
  * `(productionTaskId, attemptId)`. Le quota n'est interrogé que si `enabled`.
- * Le démarrage interprète le descripteur (REALTIME vs bascule async) et le 403
- * (paywall) sans jamais bloquer le candidat.
+ *
+ * Le démarrage n'aboutit plus systématiquement à un descripteur : le backend
+ * valide la session visée avant d'ouvrir l'échange (épreuve terminée, chrono
+ * écoulé, tâche relevant d'une autre épreuve, tâche déjà rendue) et refuse en
+ * 422 ; le quota épuisé ou un broker non configuré renvoient, eux, un
+ * descripteur de bascule asynchrone. Aucun de ces cas ne bloque le candidat :
+ * il lui reste toujours l'enregistrement classique.
  */
 export function useRealtimeEo(enabled: boolean) {
   const [remaining, setRemaining] = useState<number | null>(null);
@@ -59,6 +64,8 @@ export function useRealtimeEo(enabled: boolean) {
         // Quota épuisé / pass non éligible / non configuré : bascule async.
         return {kind: "fallback"};
       } catch (e) {
+        // 403 = accès refusé (session d'un autre compte) ; le paywall reste la
+        // réponse la plus utile côté UI, l'offre étant le seul levier candidat.
         if (e instanceof ApiException && e.status === 403) return {kind: "paywall"};
         return {
           kind: "error",

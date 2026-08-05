@@ -18,7 +18,6 @@ import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.manager.UserManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -46,9 +45,6 @@ import java.util.UUID;
 @Slf4j
 public class ProductionEvaluationService {
 
-    /** Grâce après expiration du chrono d'épreuve (latence de l'auto-soumission front). */
-    private static final int SUBMIT_GRACE_SECONDS = 60;
-
     private final ProductionTaskManager taskManager;
     private final ProductionSubmissionManager submissionManager;
     private final TranscriptionManager transcriptionManager;
@@ -56,6 +52,7 @@ public class ProductionEvaluationService {
     private final UserManager userManager;
     private final ProductionAudioStorageService audioStorage;
     private final ProductionPipelineAsyncRunner pipelineRunner;
+    private final ProductionAccessService accessService;
     private final ProductionEvaluationProperties props;
 
     /**
@@ -78,27 +75,10 @@ public class ProductionEvaluationService {
         Attempt attempt = attemptManager.findById(attemptId)
             .orElseThrow(() -> new NotFoundException("Attempt introuvable : " + attemptId));
 
-        // Vérif d'appartenance (IDOR — audit Vuln 5) : sans ce check, un
-        // attaquant peut deviner un UUID d'attempt actif d'une victime et
-        // y poster ses propres submissions, polluant son examen blanc
-        // TCF_COMPLET (sub-attempt finalisé prématurément, plancher CECRL
-        // calculé sur les productions de l'attaquant).
-        if (attempt.getUser() == null || !attempt.getUser().getId().equals(userId)) {
-            throw new AccessDeniedException("Cette session ne vous appartient pas");
-        }
-
-        // Épreuve déjà finalisée (fin de session, expiration du chrono, ou
-        // sous-attempt auto-fini d'un examen complet) : plus aucune soumission.
-        if (attempt.getFinishedAt() != null) {
-            throw new BusinessException("Cette épreuve est terminée — soumission refusée.");
-        }
-        // Chrono d'épreuve (EE en examen : 30 min). Grâce de 60 s pour couvrir
-        // la latence réseau de l'auto-soumission front à 0:00.
-        if (attempt.getTimeLimitSeconds() != null && attempt.getStartedAt() != null
-                && Instant.now().isAfter(attempt.getStartedAt()
-                        .plusSeconds(attempt.getTimeLimitSeconds() + SUBMIT_GRACE_SECONDS))) {
-            throw new BusinessException("Le temps de l'épreuve est écoulé — soumission refusée.");
-        }
+        // Gardes de session partagées avec la voie temps réel : appartenance
+        // (IDOR), épreuve terminée, chrono, correspondance épreuve tâche ⇄
+        // attempt, plafond d'une soumission par tâche en examen.
+        accessService.assertCanSubmit(userId, attempt, task);
 
         if (!task.isActive()) {
             throw new BusinessException("La tache " + taskId + " n'est pas active.");
@@ -138,8 +118,8 @@ public class ProductionEvaluationService {
             submission = submissionManager.save(submission);
         }
 
-        // Sous-attempt EE/EO d'un examen blanc complet TCF : dès qu'on
-        // atteint 3 submissions, on auto-finalise pour que le hub de
+        // Sous-attempt EE/EO d'un examen blanc complet TCF : dès que les 3
+        // tâches de l'épreuve sont rendues, on auto-finalise pour que le hub de
         // progression côté mobile détecte l'étape comme terminée. Aucune
         // route /finish n'est appelée par le mobile pour les productions.
         finishSubAttemptIfFullExam(attempt.getId());
@@ -182,12 +162,14 @@ public class ProductionEvaluationService {
         Attempt attempt = attemptManager.findById(attemptId)
             .orElseThrow(() -> new NotFoundException("Attempt introuvable : " + attemptId));
 
-        if (attempt.getUser() == null || !attempt.getUser().getId().equals(userId)) {
-            throw new AccessDeniedException("Cette session ne vous appartient pas");
-        }
         if (task.getEpreuve() != EpreuveType.TCF_EO) {
             throw new BusinessException("La notation temps réel ne concerne que l'expression orale (TCF_EO).");
         }
+        // MÊMES gardes que la voie asynchrone : la notation temps réel crée une
+        // submission et déclenche le même pipeline payant, elle ne peut pas être
+        // un chemin de contournement (épreuve terminée, chrono, quota freemium).
+        accessService.assertCanSubmit(userId, attempt, task);
+        accessService.enforceQuota(userId, task.getEpreuve(), attemptId);
         if (dialogueTranscript == null || dialogueTranscript.isBlank()) {
             throw new BusinessException("Transcript vide — rien à noter.");
         }
@@ -228,8 +210,12 @@ public class ProductionEvaluationService {
         if (attempt == null || attempt.getFinishedAt() != null) return;
         Attempt parent = attempt.getParentAttempt();
         if (parent == null || parent.getEpreuve() != EpreuveType.TCF_COMPLET) return;
-        int count = submissionManager.findByAttemptId(attempt.getId()).size();
-        if (count >= 3) {
+        // Tâches DISTINCTES de l'épreuve de ce sous-attempt : compter les lignes
+        // brutes finalisait l'épreuve sur 3 soumissions quelconques (même tâche
+        // rejouée, ou tâches d'une autre épreuve mal aiguillées).
+        long count = submissionManager.countDistinctTachesByAttemptAndEpreuve(
+                attempt.getId(), attempt.getEpreuve());
+        if (count >= ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE) {
             attempt.setFinishedAt(Instant.now());
             attempt.setStatus(com.sejourfr.app.enums.AttemptStatus.TERMINE);
             attemptManager.save(attempt);
@@ -329,10 +315,7 @@ public class ProductionEvaluationService {
      * <ul>
      *   <li>mots &lt; {@code mots_min} → bloque (trop court) ;</li>
      *   <li>{@code mots_min} ≤ mots ≤ {@code mots_max} → OK ;</li>
-     *   <li>{@code mots_max} &lt; mots ≤ {@code mots_max} × 1.2 → toleré (un
-     *       avertissement de depassement modere est ajoute a la correction par
-     *       {@link AiEvaluationService}) ;</li>
-     *   <li>mots &gt; {@code mots_max} × 1.2 → bloque (trop long).</li>
+     *   <li>mots &gt; {@code mots_max} → bloque (trop long).</li>
      * </ul>
      * Contrairement a l'EO (jamais bloquante), l'EE bloque hors-bornes : le
      * front desactive deja le bouton, c'est un garde-fou serveur.
@@ -346,8 +329,7 @@ public class ProductionEvaluationService {
                 + plancher + " pour cette tache.");
         }
         if (task.getMotsMax() != null) {
-            int plafondTolere = (int) Math.floor(task.getMotsMax() * 1.2);
-            if (mots > plafondTolere) {
+            if (mots > task.getMotsMax()) {
                 throw new BusinessException(
                     "Votre texte est trop long : " + mots + " mots pour un maximum de "
                     + task.getMotsMax() + ". Reduisez-le avant de soumettre.");

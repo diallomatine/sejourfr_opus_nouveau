@@ -109,9 +109,11 @@
   border-color: var(--color-blue);
   background: var(--color-blue-soft);
 }
+/* « Fait » est un ÉTAT, pas un résultat : il reste neutre. Le vert appartient
+   au palier B2, pas au fait d'avoir terminé une épreuve. */
 .stepCard.done {
-  border-color: var(--color-green);
-  background: #f0faf5;
+  border-color: var(--color-line);
+  background: var(--color-paper);
 }
 .stepCard.locked {
   opacity: 0.5;
@@ -125,6 +127,11 @@
 .stepBody {
   flex: 1;
   min-width: 0;
+  /* Même correction que `.bilanCardBody` : sans colonne, « Compréhension orale »
+     et « 20 min · 25 questions » se collaient sur la même ligne. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 .stepLabel {
   font-weight: 600;
@@ -146,13 +153,31 @@
   color: var(--color-blue);
   white-space: nowrap;
 }
+/* Badge d'état (« Fait », un score) : neutre. Quand il porte un NIVEAU, il
+   prend la teinte du palier via `data-tone` — même table que le bilan. */
 .stepBadge.done {
-  background: #d1fae5;
+  background: var(--color-line-2);
+  color: var(--color-ink-2);
+}
+.stepBadge[data-tone="green"] {
+  background: color-mix(in srgb, var(--color-green) 12%, transparent);
   color: var(--color-green);
 }
+.stepBadge[data-tone="blue"] {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+.stepBadge[data-tone="amber"] {
+  background: color-mix(in srgb, var(--color-amber) 16%, transparent);
+  color: color-mix(in srgb, var(--color-amber) 72%, var(--color-ink));
+}
 .stepBadge.evaluating {
-  background: #fef9c3;
-  color: #854d0e;
+  background: color-mix(in srgb, var(--color-amber) 16%, transparent);
+  color: color-mix(in srgb, var(--color-amber) 72%, var(--color-ink));
+}
+.stepBadge.alert {
+  background: var(--color-red-light);
+  color: var(--color-red);
 }
 
 /* ---- CTA zone ---- */
@@ -416,6 +441,13 @@
   font-size: 0.85rem;
   opacity: 0.8;
 }
+.bilanRule {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  opacity: 0.88;
+  margin: 0.75rem auto 0;
+  max-width: 42ch;
+}
 .bilanPending {
   display: flex;
   flex-direction: column;
@@ -459,24 +491,31 @@
   gap: 0.75rem;
   margin-bottom: 1.5rem;
 }
+/* L'enveloppe porte la bordure : la carte peut ainsi être suivie d'une bannière
+   de relance sans bouton imbriqué dans un bouton. La bordure dit l'ÉTAT (rien
+   de plus) — le niveau, lui, se lit sur la pastille et sa teinte de palier. */
+.bilanCardWrap {
+  background: #fff;
+  border: 1.5px solid var(--color-line);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.bilanCardWrap:has(button.bilanCard:hover) {
+  border-color: var(--color-blue);
+}
 .bilanCard {
   display: flex;
   align-items: center;
   gap: 1rem;
   padding: 1rem 1.25rem;
-  background: #fff;
-  border: 1.5px solid var(--color-line);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: border-color 0.15s;
+  background: transparent;
+  border: none;
   text-align: left;
   width: 100%;
 }
-.bilanCard:hover {
-  border-color: var(--color-blue);
-}
-.bilanCard.evaluated {
-  border-color: var(--color-green);
+button.bilanCard {
+  cursor: pointer;
 }
 .bilanCardIcon {
   font-size: 1.4rem;
@@ -487,6 +526,11 @@
 .bilanCardBody {
   flex: 1;
   min-width: 0;
+  /* Les enfants sont des <span> : sans colonne, le nom de l'épreuve et son
+     score se collaient sur une seule ligne (« Compréhension oraleScore 0/50 »). */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 .bilanCardLabel {
   font-weight: 600;
@@ -498,16 +542,92 @@
   color: var(--color-muted);
   margin-top: 0.1rem;
 }
+/* La teinte vient du PALIER (`epreuveLevelTone`), jamais de l'état ni d'une
+   comparaison au plancher : aucun niveau atteint n'est une faute, et un
+   candidat B2 partout ne doit pas voir quatre badges d'alerte. */
 .bilanCardLevel {
   font-family: var(--font-mono);
   font-size: 1rem;
   font-weight: 700;
-  color: var(--color-green);
+  color: var(--color-muted);
   flex-shrink: 0;
+}
+.bilanCardLevel[data-tone="green"] {
+  color: var(--color-green);
+}
+.bilanCardLevel[data-tone="blue"] {
+  color: var(--color-blue);
+}
+.bilanCardLevel[data-tone="amber"] {
+  color: color-mix(in srgb, var(--color-amber) 72%, var(--color-ink));
+}
+.bilanCardLevel[data-tone="neutral"] {
+  color: var(--color-muted-2);
+}
+/* L'épreuve qui tire le résultat vers le bas se dit en toutes lettres. */
+.bilanCardFloor {
+  font-weight: 700;
+  color: var(--color-ink-2);
 }
 .bilanCardLevelPending {
   font-size: 0.75rem;
   color: var(--color-muted);
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.bilanCardRefresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+  background: var(--color-blue-soft);
+  color: var(--color-blue);
+  border-radius: 8px;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.bilanCardAlert {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--color-red);
+}
+
+/* Échec d'évaluation : une panne, pas un niveau — c'est le seul rouge légitime
+   de cet écran, et il vient toujours avec une issue. */
+.retryBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 1.25rem 0.7rem;
+  background: var(--color-red-light);
+}
+.retryBannerText {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-red);
+  min-width: 0;
+}
+.retryBtn {
+  flex-shrink: 0;
+  background: var(--color-red);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.35rem 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.retryBtn:disabled {
+  opacity: 0.6;
+  cursor: progress;
 }
 
 /* ---- Loading / error states ---- */

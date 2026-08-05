@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/format_date.dart';
 
 /// Ligne récap d'une tâche dans le bilan d'une session EE/EO.
 ///
@@ -29,11 +30,6 @@ class TacheBilanRow extends StatelessWidget {
   /// Quand `true`, la tâche n'a jamais été rendue (examen terminé / abandonné) :
   /// elle est comptée 0 au bilan et affichée « Non rendue ».
   final bool notRendered;
-
-  String _formatScore(double s) {
-    if (s == s.truncateToDouble()) return s.toInt().toString();
-    return s.toStringAsFixed(1).replaceAll('.', ',');
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +65,7 @@ class TacheBilanRow extends StatelessWidget {
                 _Subtitle(
                   pending: pending,
                   notRendered: notRendered,
-                  score: hasScore ? _formatScore(score!) : null,
+                  score: hasScore ? formatScore(score!) : null,
                 ),
               ],
             ),

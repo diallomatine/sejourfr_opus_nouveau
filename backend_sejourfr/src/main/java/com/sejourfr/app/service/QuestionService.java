@@ -10,6 +10,7 @@ import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionMediaFilter;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
@@ -26,6 +27,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -46,13 +48,14 @@ public class QuestionService {
     @Transactional(readOnly = true)
     public Page<QuestionDto> search(
             Module module, UUID themeId, Difficulty difficulty, QuestionType type,
-            Boolean active, String search, Pageable pageable) {
+            Boolean active, QuestionMediaFilter media, String search, Pageable pageable) {
         Specification<Question> spec = Specification.allOf(
                 QuestionSpecifications.hasModule(module),
                 QuestionSpecifications.hasTheme(themeId),
                 QuestionSpecifications.hasDifficulty(difficulty),
                 QuestionSpecifications.hasType(type),
                 QuestionSpecifications.hasActive(active),
+                QuestionSpecifications.hasMedia(media),
                 QuestionSpecifications.statementContains(search)
         );
         return questionManager.search(spec, pageable).map(mapper::toDto);
@@ -89,7 +92,11 @@ public class QuestionService {
     public QuestionDto setActive(UUID id, boolean active) {
         Question q = loadOrThrow(id);
         q.setActive(active);
-        return mapper.toDto(q);
+        // `updatedAt` est posé par @PreUpdate au flush, donc APRÈS le mapping :
+        // la réponse renvoyait l'ancienne date (et une activation/désactivation
+        // ne se voyait pas dans la colonne « modifiée le » de la console).
+        q.setUpdatedAt(Instant.now());
+        return mapper.toDto(questionManager.save(q));
     }
 
     public void delete(UUID id) {

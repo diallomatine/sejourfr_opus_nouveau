@@ -242,11 +242,7 @@ class _HomeBody extends ConsumerWidget {
             const SizedBox(width: 12),
             Expanded(
               child: StatValueCard(
-                value: level == null
-                    ? '—'
-                    : level == NiveauCecrl.a1NonAtteint
-                        ? '<A1'
-                        : level.displayName,
+                value: level?.shortName ?? '—',
                 label: 'Niveau TCF',
                 color: AppColors.blue,
               ),
@@ -689,8 +685,11 @@ class _AiEntry extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
+                      // Deux entrées côte à côte : « Expression écrite » ne
+                      // tient pas sur une ligne sous ~400 pt, on l'enroule
+                      // plutôt que de la tronquer en « Expression éc… ».
                       title,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: AppFonts.ui(size: 14, weight: FontWeight.w600),
                     ),

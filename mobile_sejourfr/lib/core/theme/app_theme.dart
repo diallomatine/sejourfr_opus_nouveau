@@ -60,6 +60,10 @@ class AppRadii {
 /// **Jamais de rouge** (réservé aux CTA/urgence) : un niveau faible est en
 /// ambre, B1 en bleu, B2+ en vert. Helper canonique partagé par le hub TCF,
 /// le bilan d'examen complet et les résultats EE/EO.
+///
+/// **Seul endroit** qui décide de la teinte d'un niveau : le ton de badge
+/// équivalent (`CecrlTagTone.tagTone`, `core/widgets/app_tag.dart`) en dérive
+/// au lieu de rejouer les mêmes paliers dans un second `switch`.
 extension CecrlColor on NiveauCecrl {
   Color get color => switch (this) {
         NiveauCecrl.a1NonAtteint ||

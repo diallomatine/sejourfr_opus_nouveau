@@ -653,7 +653,10 @@ class _StepCard extends StatelessWidget {
             height: 44,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: isDone ? AppColors.green : accent,
+              // Pastille d'ÉTAT (fait / en cours / à faire) : neutre. Le vert
+              // est réservé aux niveaux hauts ([CecrlColor]) — l'employer pour
+              // « terminé » ferait passer une épreuve ratée pour une réussite.
+              color: accent,
               borderRadius: BorderRadius.circular(12),
             ),
             child: isDone
@@ -739,19 +742,23 @@ class _StepTrailing extends StatelessWidget {
       return const Icon(LucideIcons.lock,
           color: AppColors.muted2, size: 18);
     }
-    if (state == _StepState.done && sub?.cecrlLevel != null) {
+    final level = sub?.cecrlLevel;
+    if (state == _StepState.done && level != null) {
+      // Le badge porte un NIVEAU, pas un état : sa teinte vient de
+      // [CecrlColor] (le vert dit « B2 », pas « terminé ») et son libellé du
+      // helper canonique — « <A1 » pour A1 non atteint, comme le bilan.
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: AppColors.green.withValues(alpha: 0.12),
+          color: level.color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
-          sub!.cecrlLevel!.displayName.replaceAll(' non atteint', ''),
+          level.shortName,
           style: AppFonts.ui(
             size: 11,
             weight: FontWeight.w800,
-            color: AppColors.green,
+            color: level.color,
           ),
         ),
       );

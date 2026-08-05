@@ -90,7 +90,8 @@ export function Hero() {
           </h1>
 
           <p className={styles.heroDefine}>
-            <strong>TCF IRN</strong> — le test de français pour l&apos;Intégration,
+            <strong>TCF IRN</strong>{" "}
+            — le test de français pour l&apos;Intégration,
             la Résidence et la Nationalité.
           </p>
 
@@ -188,7 +189,8 @@ function HeroExamPreview() {
         <div className={styles.examExplain}>
           <CheckCircle2 size={17} className={styles.examExplainIco} aria-hidden />
           <p>
-            <strong>Bonne réponse.</strong> La devise figure à l&apos;article 2 de
+            <strong>Bonne réponse.</strong>{" "}
+            La devise figure à l&apos;article 2 de
             la Constitution.
           </p>
         </div>
@@ -394,7 +396,9 @@ const COMPETENCES = [
   {
     Icon: Mic,
     title: "Expression orale",
-    desc: "Répondez à des questions enregistrées. L'IA analyse prononciation, fluidité et lexique.",
+    // Ni la prononciation ni la fluidité ne sont évaluées (l'évaluation part de
+    // la transcription — cf. docs/notation-ia-eo-ee.md §9). On ne les promet pas.
+    desc: "Répondez à des questions enregistrées. L'IA analyse le contenu, le lexique et la grammaire.",
     ai: true,
   },
   {
@@ -596,7 +600,7 @@ const TEMOIGNAGES = [
   {
     text: "Les examens blancs en conditions réelles m'ont mis en confiance. Le jour J, je connaissais déjà le format — plus de stress sur le chrono.",
     name: "Aïcha B.",
-    role: "Naturalisation · obtenu B1",
+    role: "Naturalisation · objectif B2",
   },
   {
     text: "La correction de l'expression écrite par l'IA est précise : elle pointe les fautes récurrentes et explique. J'ai vraiment progressé semaine après semaine.",

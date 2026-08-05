@@ -94,11 +94,26 @@ pour EE/EO (déjà capable de gérer `parentAttemptId` avec validation `TCF_COMP
 
 - CO/CE : ratio = weightedScore/maxWeightedScore → ≥80% B2 · ≥60% B1 · ≥40% A2 · ≥20% A1 ·
   sinon A1_NON_ATTEINT
-- EE/EO : **moyenne pondérée des compétences des 3 tâches** (poids 1/2/3, cf.
-  `ProductionBilanService.bilanEpreuve`) → seuils → niveau d'épreuve, plafonné B2.
-  (Avant : plancher `min()` des 3 niveaux — abandonné, une seule éval IA basse
-  sur une tâche courte plafonnait l'épreuve.)
-- Final = min ordinal des 4 épreuves (A1_NON_ATTEINT(0) < A1 < A2 < B1 < B2 < C1 < C2)
+- EE/EO : **moyenne pondérée des compétences des 3 tâches** (poids **égaux** depuis les
+  rubriques v5, `poids-taches`, cf. `ProductionBilanService.bilanEpreuve`) → seuils →
+  niveau d'épreuve, plafonné B2. (Avant : plancher `min()` des 3 niveaux — abandonné, une
+  seule éval IA basse sur une tâche courte plafonnait l'épreuve.) Puis **garde-fou de
+  cohérence**, désormais **actif** : pas de B2 d'épreuve si la tâche 3 est sous B1
+  (`coherence-bilan`, n'abaisse jamais l'inverse — cf. `docs/notation-ia-eo-ee.md` §6.5 bis).
+- EE/EO **verrouillée** (freemium, `attempts.production_locked` sur le parent) : **aucun
+  niveau** (`cecrlLevel = null`, `locked = true`). Une épreuve verrouillée n'a pas été
+  passée — la compter `A1_NON_ATTEINT` restituait un verrou commercial comme un verdict de
+  langue. Le verrou lui-même est inchangé.
+- Final = min ordinal des épreuves **réellement passées** (A1_NON_ATTEINT(0) < A1 < A2 <
+  B1 < B2 < C1 < C2). Hors périmètre : épreuve `locked`, et épreuve sans niveau (évals IA
+  en échec ou en vol) — `min()` ignore l'inconnu. Le périmètre effectif est publié :
+  `epreuvesCountedInFinalLevel` (0..4), `epreuvesExpected` (4), `finalLevelPartial`
+  (= `counted < expected`). **Les fronts doivent lire ces champs** au lieu d'écrire « le
+  plus bas de tes 4 épreuves » en dur. Le résumé d'historique
+  (`FullTcfExamSummaryResponse`) porte `finalLevelPartial` pour que les stats « meilleur
+  niveau » / « dernier examen » n'agrègent pas un bilan partiel comme un examen complet.
+  Migration `V024` : les `final_cecrl_level` déjà persistés sur des examens verrouillés
+  sont remis à NULL pour forcer la re-dérivation.
 
 ### Endpoints
 

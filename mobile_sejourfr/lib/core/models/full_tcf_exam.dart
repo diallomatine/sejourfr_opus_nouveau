@@ -86,6 +86,9 @@ class FullTcfExamResponse {
     required this.finalCecrlLevel,
     required this.status,
     required this.subAttempts,
+    this.epreuvesCountedInFinalLevel,
+    this.epreuvesExpected,
+    this.finalLevelPartial = false,
   });
 
   final String id;
@@ -100,6 +103,25 @@ class FullTcfExamResponse {
   final NiveauCecrl? finalCecrlLevel;
   final FullTcfExamStatus status;
   final List<FullTcfExamSubAttempt> subAttempts;
+
+  /// Nombre d'épreuves qui portent un niveau et entrent réellement dans le
+  /// plancher [finalCecrlLevel]. Le backend écarte les épreuves **verrouillées**
+  /// par le freemium (un verrou commercial n'est pas un verdict de langue) et
+  /// celles dont le niveau est resté inconnu (évaluations IA en échec) : dire
+  /// « le plus bas de tes 4 épreuves » devient faux dès qu'il en manque une.
+  ///
+  /// `null` uniquement face à un backend antérieur au champ — l'UI n'affirme
+  /// alors aucun décompte plutôt qu'un chiffre inventé.
+  final int? epreuvesCountedInFinalLevel;
+
+  /// Épreuves attendues dans un examen complet (toujours 4 : CO/CE/EE/EO),
+  /// publié pour que le front ne code pas la constante en dur.
+  final int? epreuvesExpected;
+
+  /// `true` quand le plancher ne porte pas sur toutes les épreuves attendues :
+  /// le bilan ne doit alors pas se présenter comme un résultat d'examen
+  /// complet.
+  final bool finalLevelPartial;
 
   /// Sous-attempt pour une épreuve donnée, ou null s'il n'existe pas (ne devrait
   /// pas arriver côté backend qui en crée 4 atomiquement).
@@ -143,6 +165,10 @@ class FullTcfExamResponse {
           .map((e) =>
               FullTcfExamSubAttempt.fromJson(e as Map<String, dynamic>))
           .toList(),
+      epreuvesCountedInFinalLevel:
+          (json['epreuvesCountedInFinalLevel'] as num?)?.toInt(),
+      epreuvesExpected: (json['epreuvesExpected'] as num?)?.toInt(),
+      finalLevelPartial: json['finalLevelPartial'] as bool? ?? false,
     );
   }
 }
@@ -156,6 +182,7 @@ class FullTcfExamSummary {
     required this.finalCecrlLevel,
     required this.status,
     this.slotNumber,
+    this.finalLevelPartial = false,
   });
 
   final String id;
@@ -166,6 +193,12 @@ class FullTcfExamSummary {
   /// Slot dans la grille « 20 examens TCF complets » (cf. V110). Permet à
   /// l'UI de retrouver le dernier essai par slot.
   final int? slotNumber;
+
+  /// [finalCecrlLevel] ne porte pas sur les 4 épreuves : au moins une était
+  /// verrouillée (freemium) ou sans niveau exploitable. Un tel examen ne peut
+  /// pas alimenter un « meilleur niveau atteint » — ce n'est pas un examen
+  /// complet.
+  final bool finalLevelPartial;
 
   factory FullTcfExamSummary.fromJson(Map<String, dynamic> json) {
     return FullTcfExamSummary(
@@ -178,6 +211,7 @@ class FullTcfExamSummary {
           NiveauCecrl.fromWireNullable(json['finalCecrlLevel'] as String?),
       status: FullTcfExamStatus.fromWire(json['status'] as String),
       slotNumber: (json['slotNumber'] as num?)?.toInt(),
+      finalLevelPartial: json['finalLevelPartial'] as bool? ?? false,
     );
   }
 }

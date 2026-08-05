@@ -9,9 +9,11 @@ import {GuestGateSheet} from "@/app/_components/GuestGateSheet";
 import {ExamsGrid, type ExamSlotData} from "@/app/_components/hub/DetailParts";
 import {ExamIntroSheet} from "@/app/_components/hub/ExamIntroSheet";
 import {examSlotGrid} from "@/lib/exam-slots";
+import {isCompleteExamResult} from "@/lib/exam-levels";
 import {moduleAverage} from "@/lib/dashboard";
 import {TcfFullExamBriefingSheet} from "@/app/examens-blancs/tcf/TcfFullExamBriefingSheet";
 import {ApiException, attemptApi, dashboardApi, fullTcfExamApi, publicAttemptApi, publicExamApi,} from "@/lib/api";
+import {handleStartFailure} from "@/lib/start-failure";
 import {useAuth} from "@/lib/auth-context";
 import {
     type AttemptSummaryResponse,
@@ -182,14 +184,19 @@ function ExamsConnectedHome() {
     // examen complet déjà passé (Refaire relance, Rapport → bilan ou hub si
     // encore en cours). « Démarrer » ouvre le briefing inline. Rangé par slot :
     // refaire l'examen N met à jour la case N (parité mobile, V110).
+    // Un examen dont l'EE/EO était verrouillée (ou dont les évaluations ont
+    // échoué) porte un niveau **partiel** : il est annoté et ne prend pas le
+    // check de réussite — sinon un examen amputé se lit comme un vrai résultat.
     const fullExamSlotData: (ExamSlotData | null)[] = fullExamBySlot.map((e) =>
         e
             ? {
                 id: e.id,
-                passed: e.status === "COMPLETED",
+                passed: isCompleteExamResult(e),
                 metaOverride:
                     e.status === "COMPLETED"
-                        ? niveauCecrlLabel(e.finalCecrlLevel)
+                        ? e.finalLevelPartial
+                            ? `${niveauCecrlLabel(e.finalCecrlLevel)} · partiel`
+                            : niveauCecrlLabel(e.finalCecrlLevel)
                         : e.status === "PENDING_EVALUATIONS"
                             ? "Éval en cours…"
                             : "En cours",
@@ -230,14 +237,14 @@ function ExamsConnectedHome() {
             });
             router.push(`/sessions/${a.id}`);
         } catch (e) {
-            if (e instanceof ApiException && e.status === 403) {
-                setCiviqueSlot(null);
-                setPaywallModule("CIVIQUE");
-            } else {
-                setCiviqueError(
-                    e instanceof ApiException ? e.message : "Impossible de démarrer l'examen.",
-                );
-            }
+            handleStartFailure(e, {
+                onPaywall: () => {
+                    setCiviqueSlot(null);
+                    setPaywallModule("CIVIQUE");
+                },
+                onMessage: setCiviqueError,
+                fallbackMessage: "Impossible de démarrer l'examen.",
+            });
             setCiviqueStarting(false);
         }
     }
@@ -246,7 +253,10 @@ function ExamsConnectedHome() {
     // Tous les comptes passent désormais l'examen complet (le 1ᵉʳ offert aux
     // gratuits) : mêmes stats niveau CECRL pour tous, basées sur fullExams.
     const estimatedTcf = niveauCecrlLabel(summary?.estimatedTcfLevel ?? null);
-    const completedFull = fullExams.filter((e) => e.status === "COMPLETED");
+    // Seuls les examens **complets** alimentent « Meilleur niveau » / « Dernier
+    // examen » : un bilan partiel (EE/EO verrouillée, évaluations échouées) ne
+    // porte pas sur les 4 épreuves et ne vaut pas un résultat d'examen.
+    const completedFull = fullExams.filter(isCompleteExamResult);
     const bestFullLevel = completedFull.reduce<NiveauCecrl | null>(
         (best, e) =>
             best == null || cecrlIndex(e.finalCecrlLevel) > cecrlIndex(best)
@@ -614,9 +624,14 @@ function ExamsGuestHome() {
             });
             router.push(`/sessions/${a.id}`);
         } catch (e) {
-            setDemoError(
-                e instanceof ApiException ? e.message : "Démarrage impossible.",
-            );
+            handleStartFailure(e, {
+                onPaywall: () => {
+                    setIntroModule(null);
+                    setGuestGateOpen(true);
+                },
+                onMessage: setDemoError,
+                fallbackMessage: "Démarrage impossible.",
+            });
             setDemoStarting(false);
         }
     }
@@ -649,7 +664,11 @@ function ExamsGuestHome() {
                     icon={<Waves size={22} strokeWidth={1.8}/>}
                     title="TCF IRN"
                     chip="Tous les modules"
-                    tips={["Conditions réelles", "90 minutes", "Niveau requis . B2", "Tous les modules"]}
+                    // Sans compte, l'épreuve offerte est le diagnostic de
+                    // compréhension (CO + CE, 50 Q / 55 min) : annoncer les
+                    // 90 minutes et 4 épreuves de l'examen complet promettait
+                    // ce que la modale de lancement refuse juste après.
+                    tips={["Conditions réelles", "55 minutes", "50 questions", "Niveau CECRL"]}
                     sub={`${SLOTS} épreuves disponibles · 1 offerte sans compte`}
                 >
                     <ExamsGrid

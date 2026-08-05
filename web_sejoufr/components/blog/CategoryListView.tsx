@@ -48,8 +48,8 @@ export function CategoryListView({
             </p>
           )}
           <div className="blog-cat-grid">
-            {items.map((a) => (
-              <ArticleCard key={a.slug} article={a} />
+            {items.map((a, i) => (
+              <ArticleCard key={a.slug} article={a} priority={i === 0} />
             ))}
           </div>
           <Pagination

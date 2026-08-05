@@ -206,13 +206,13 @@ export const FAQ_DATA: FAQCategory[] = [
         id: "q22-niveau-francais-naturalisation",
         question: "Quel niveau de français est exigé pour la naturalisation ?",
         answer:
-          "Depuis le 1er janvier 2026, le **niveau B2** du Cadre européen commun de référence pour les langues (CECRL) est obligatoire à l'oral et à l'écrit (contre B1 auparavant). Vous devez fournir un certificat valide : **TCF IRN, DELF B2** ou diplôme équivalent.",
+          "Depuis le 1er janvier 2026, le **niveau B2** du Cadre européen commun de référence pour les langues (CECRL) est obligatoire (contre B1 auparavant). Vous devez fournir un certificat valide : **TCF IRN, DELF B2** ou diplôme équivalent.\n\n⚠️ **Le B2 doit être atteint dans les 4 épreuves** — compréhension orale, compréhension écrite, expression écrite, expression orale. L'attestation TCF IRN affiche un niveau **par épreuve** : il n'y a ni moyenne ni compensation. B2 partout sauf B1 en expression orale = **dossier refusé**, quels que soient les autres résultats.",
       },
       {
         id: "q23-niveaux-francais-titres",
         question: "Quels niveaux de français pour les autres titres ?",
         answer:
-          "- Carte de séjour pluriannuelle (CSP) : **niveau A2**\n- Carte de résident (CR) : **niveau B1**\n- Naturalisation : **niveau B2**",
+          "Depuis le 1er janvier 2026 :\n\n- Carte de séjour pluriannuelle (CSP) : **niveau A2**\n- Carte de résident (CR) : **niveau B1** (contre A2 auparavant)\n- Naturalisation : **niveau B2** (contre B1 auparavant)\n\nDans les trois cas, le niveau doit être atteint **dans les 4 épreuves** du test, sans moyenne ni compensation. Le TCF IRN n'évalue pas au-delà de B2.",
       },
       {
         id: "q24-deroulement-entretien",

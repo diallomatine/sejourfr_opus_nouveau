@@ -6,6 +6,7 @@ import com.sejourfr.app.dto.QuestionStatusUpdate;
 import com.sejourfr.app.dto.QuestionWriteRequest;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionMediaFilter;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.service.QuestionImageService;
 import com.sejourfr.app.service.QuestionService;
@@ -48,9 +49,11 @@ public class AdminQuestionController {
             @RequestParam(required = false) Difficulty difficulty,
             @RequestParam(required = false) QuestionType type,
             @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) QuestionMediaFilter media,
             @RequestParam(required = false) String search,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return PageResponse.from(questionService.search(module, themeId, difficulty, type, active, search, pageable));
+        return PageResponse.from(
+                questionService.search(module, themeId, difficulty, type, active, media, search, pageable));
     }
 
     @GetMapping("/{id}")

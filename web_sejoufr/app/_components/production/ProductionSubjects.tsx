@@ -6,8 +6,10 @@ import { useEffect, useState } from "react";
 import { Check, Lock, Mic, PenLine, Play, RotateCcw, Target } from "lucide-react";
 import { ApiException, productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { tcfNoteTone, type TcfNoteTone } from "@/lib/production-feedback";
 import {
   canAccessModule,
+  formatNoteSur20,
   productionTaskSubtitle,
   productionTaskTitle,
   type ProductionExampleDto,
@@ -25,8 +27,22 @@ import prod from "./production.module.css";
 type Tab = "sujets" | "exemples";
 type SubjectFilter = "all" | "todo" | "done";
 
-/** Note /20 façon mobile : toujours une décimale, virgule française. */
-const formatNote = (n: number) => n.toFixed(1).replace(".", ",");
+/** Un sujet fait se teinte par son PALIER TCF (cf. `tcfNoteTone`) : la note
+ *  n'est pas une note scolaire sur 20, et aucun palier ne se peint en rouge.
+ *  `neutral` = fait mais pas encore évalué → le traitement « terminé ». */
+const NUM_TONE_CLASS: Record<TcfNoteTone, string> = {
+  neutral: detail.serieNumDone,
+  amber: detail.serieNumAmber,
+  blue: detail.serieNumBlue,
+  green: detail.serieNumDone,
+};
+
+const BADGE_TONE_CLASS: Record<TcfNoteTone, string> = {
+  neutral: detail.serieBadgeDone,
+  amber: detail.serieBadgeAmber,
+  blue: detail.serieBadgeBlue,
+  green: detail.serieBadgeDone,
+};
 
 /**
  * Une tâche productive (T1/T2/T3) — maquette sejour_fr.html : onglet
@@ -231,16 +247,14 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
                         const locked = !isPremium && i > 0;
                         const done = !!sub;
                         const note = sub?.evaluation?.noteSurVingt ?? null;
-                        const fail = note != null && note <= 12;
+                        // Palier TCF, pas seuil « sur 20 » : 12/20 est un B2, le
+                        // niveau le plus haut de l'examen. « neutral » tant que
+                        // la production n'est pas évaluée → traitée comme
+                        // terminée, jamais comme un échec.
+                        const tone = tcfNoteTone(note);
                         const accentNum =
                           config.mode === "audio" ? detail.serieNumRed : detail.serieNumBlue;
-                        const numClass = locked
-                          ? ""
-                          : done
-                            ? fail
-                              ? detail.serieNumRed
-                              : detail.serieNumDone
-                            : accentNum;
+                        const numClass = locked ? "" : done ? NUM_TONE_CLASS[tone] : accentNum;
                         return (
                           <button
                             key={t.id}
@@ -268,10 +282,10 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
                               <span className={detail.serieSub}>{t.consigne}</span>
                               {done ? (
                                 <span
-                                  className={`${detail.serieBadge} ${fail ? detail.serieBadgeFail : detail.serieBadgeDone}`}
+                                  className={`${detail.serieBadge} ${BADGE_TONE_CLASS[tone]}`}
                                 >
                                   <Check size={12} aria-hidden />{" "}
-                                  {note != null ? `${formatNote(note)}/20` : "Terminé"}
+                                  {note != null ? `${formatNoteSur20(note)}/20` : "Terminé"}
                                 </span>
                               ) : locked ? (
                                 <span className={`${detail.serieBadge} ${detail.serieBadgeLock}`}>

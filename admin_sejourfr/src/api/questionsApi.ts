@@ -4,6 +4,7 @@ import type {
   Module,
   PageResponse,
   QuestionDto,
+  QuestionMediaFilter,
   QuestionType,
   QuestionWriteRequest,
 } from "../types/api";
@@ -14,6 +15,8 @@ export interface QuestionsSearchParams {
   difficulty?: Difficulty;
   type?: QuestionType;
   active?: boolean;
+  /** Filtre serveur : les 3 types de média, ou `NONE` pour « sans média ». */
+  media?: QuestionMediaFilter;
   search?: string;
   page?: number;
   size?: number;

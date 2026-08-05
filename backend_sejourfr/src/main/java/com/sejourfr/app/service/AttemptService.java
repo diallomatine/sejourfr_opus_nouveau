@@ -67,6 +67,23 @@ public class AttemptService {
     /** Chrono global de l'épreuve EE en examen blanc (30 min, comme le vrai TCF IRN). */
     private static final int PRODUCTION_EE_EXAM_SECONDS = 30 * 60;
 
+    /**
+     * Chrono global de l'épreuve EO en examen blanc : 15 min. Les 3 tâches EO
+     * du catalogue plafonnent le temps de parole à 180 + 210 + 210 s = 10 min ;
+     * on ajoute 50 % (5 min) pour la lecture des consignes, les transitions
+     * entre tâches et la latence d'upload. Sans ce chrono, une session d'examen
+     * EO restait ouverte indéfiniment — un compte gratuit pouvait y accumuler
+     * des évaluations IA (Whisper + LLM) jusqu'au plafond du rate-limit.
+     */
+    private static final int PRODUCTION_EO_EXAM_SECONDS = 15 * 60;
+
+    /**
+     * Slots de la grille d'examens blancs QCM (cf. V110) : 20 par module,
+     * aligné sur les fronts (web {@code SLOTS = 20}, mobile
+     * {@code CiviqueFullExamsScreen} / {@code TcfFullExamsScreen}).
+     */
+    static final int MOCK_EXAM_SLOTS = 20;
+
     // Plafond d'entrainement TRAINING pour les comptes gratuits.
     private static final int FREE_TRAINING_MAX_SIZE = 20;
     private static final int PREMIUM_TRAINING_MAX_SIZE = 50;
@@ -134,6 +151,15 @@ public class AttemptService {
                 && req.themeId() != null;
 
         if (req.type() == AttemptType.MOCK_EXAM) {
+            // Verrou freemium des examens blancs QCM — MÊME règle que
+            // startModuleExam et startFromTemplate : slot 1 offert (et
+            // rejouable), slots 2+ réservés aux abonnés du module. Cette
+            // branche (examens civiques globaux 40 Q, examens de thème 20 Q,
+            // examen TCF 60 Q legacy) ne contrôlait rien : le verrou n'existait
+            // que côté client, un compte gratuit pouvait lancer n'importe quel
+            // slot en illimité.
+            enforceMockExamSlotAccess(userId, req.module(), req.slotNumber(),
+                    civicThemeExam ? "de thème " : "");
             if (req.module() == Module.CIVIQUE) {
                 if (civicThemeExam) {
                     size = CIVIQUE_THEME_EXAM_SIZE;
@@ -255,18 +281,65 @@ public class AttemptService {
         if (isExamSession) {
             attempt.setSlotNumber(validateProductionExamSlot(req.slotNumber()));
         }
-        // Session d'examen module EE : chrono global 30 min comme au vrai TCF
-        // IRN (enforcé backend — startedAt = vrai début de session). PAS posé
-        // sur les sous-attempts d'un examen complet : leur startedAt date de
-        // la création de l'examen (avant CO/CE), le décompte EE y est géré
-        // front-side dans l'enveloppe des 90 min du parent. L'EO n'a pas de
-        // chrono d'épreuve — temps de parole borné par tâche (duree_max_sec).
-        if (req.epreuve() == EpreuveType.TCF_EE && isExamSession) {
-            attempt.setTimeLimitSeconds(PRODUCTION_EE_EXAM_SECONDS);
+        // Session d'examen module EE (30 min, comme au vrai TCF IRN) ou EO
+        // (15 min, cf. PRODUCTION_EO_EXAM_SECONDS) : chrono global enforcé
+        // backend — startedAt = vrai début de session. PAS posé sur les
+        // sous-attempts d'un examen complet : leur startedAt date de la
+        // création de l'examen (avant CO/CE), le décompte y est géré front-side
+        // dans l'enveloppe des 90 min du parent.
+        if (isExamSession) {
+            if (req.epreuve() == EpreuveType.TCF_EE) {
+                attempt.setTimeLimitSeconds(PRODUCTION_EE_EXAM_SECONDS);
+            } else if (req.epreuve() == EpreuveType.TCF_EO) {
+                attempt.setTimeLimitSeconds(PRODUCTION_EO_EXAM_SECONDS);
+            }
         }
         // Pas de QCM -> totalQuestions / threshold restent null.
         attempt = attemptManager.save(attempt);
         return mapper.toResponse(attempt, List.of(), false);
+    }
+
+    /**
+     * Verrou freemium commun à TOUS les examens blancs QCM (branche legacy,
+     * examens module CO/CE/STRUCTURE, templates) : le slot 1 est offert et
+     * rejouable à volonté pour tout compte inscrit, les slots 2+ sont réservés
+     * aux abonnés du module concerné (Civique → hasCivique, TCF → hasTcf).
+     *
+     * <p>Valide aussi la borne du slot (1..{@value #MOCK_EXAM_SLOTS}) : sans
+     * ça, {@code slotNumber: 999} ou {@code -3} étaient persistés tels quels et
+     * un slot ≤ 0 passait sous le verrou {@code slot > 1}.
+     *
+     * @param label qualifiant inséré dans le message (« CO », « de thème »…),
+     *              suffixé d'un espace ou vide.
+     */
+    private void enforceMockExamSlotAccess(UUID userId, Module module, Integer requestedSlot, String label) {
+        int slot = validateMockExamSlot(requestedSlot);
+        if (slot <= 1) return;
+        final boolean hasAccess = switch (module) {
+            case CIVIQUE -> subscriptionService.hasCivique(userId);
+            case TCF -> subscriptionService.hasTcf(userId);
+        };
+        if (!hasAccess) {
+            throw new AccessDeniedException(
+                    "Les examens blancs " + label + "au-delà du premier sont réservés aux abonnés "
+                            + moduleLabel(module) + ".");
+        }
+    }
+
+    private static String moduleLabel(Module module) {
+        return switch (module) {
+            case CIVIQUE -> "Civique";
+            case TCF -> "TCF";
+        };
+    }
+
+    /** Slot d'examen blanc QCM : 1..{@value #MOCK_EXAM_SLOTS} ; null → slot 1. */
+    private static int validateMockExamSlot(Integer slot) {
+        if (slot == null) return 1;
+        if (slot < 1 || slot > MOCK_EXAM_SLOTS) {
+            throw new BusinessException("slotNumber doit être entre 1 et " + MOCK_EXAM_SLOTS + ".");
+        }
+        return slot;
     }
 
     private static int validateProductionExamSlot(Integer slot) {
@@ -442,6 +515,8 @@ public class AttemptService {
      * tirage libre dans le module (jamais de doublon intra-attempt).
      */
     private AttemptResponse startFromTemplate(User user, ExamTemplate template, Integer slotNumber) {
+        // Borne du slot (l'accès, lui, est porté par template.isFree()).
+        validateMockExamSlot(slotNumber);
         if (!template.isPublished()) {
             throw new AccessDeniedException("Examen blanc non disponible");
         }
@@ -541,6 +616,11 @@ public class AttemptService {
         attempt.setLotNumero(req.lotNumero());
         attempt.setLotQuestionType(req.questionType());
         attempt.setLotDifficulty(req.difficulty());
+        // Même raison qu'en examen module : sans épreuve explicite, un lot
+        // d'entraînement CE ou STRUCTURE ressortait étiqueté TCF_CO.
+        if (req.questionType() != null) {
+            attempt.setEpreuve(moduleExamEpreuve(req.questionType()));
+        }
         attempt = attemptManager.save(attempt);
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
@@ -612,13 +692,7 @@ public class AttemptService {
         // ProductionSubmissionService). Le front applique déjà ce verrou en UI ;
         // on le double ici par sécurité. Le slotNumber ne pilote pas la
         // composition (cf. composeModuleExam) — c'est un repère de grille (V110).
-        if (!subscriptionService.hasTcf(user.getId())) {
-            final int slot = req.slotNumber() != null ? req.slotNumber() : 1;
-            if (slot > 1) {
-                throw new AccessDeniedException(
-                        "Les examens blancs " + qType + " au-delà du premier sont réservés aux abonnés TCF.");
-            }
-        }
+        enforceMockExamSlotAccess(user.getId(), req.module(), req.slotNumber(), qType + " ");
 
         List<Question> picked = compositionService.composeModuleExam(req.module(), qType);
         if (picked.isEmpty()) {
@@ -636,6 +710,11 @@ public class AttemptService {
         attempt.setUser(user);
         attempt.setType(AttemptType.MOCK_EXAM);
         attempt.setModule(req.module());
+        // Épreuve explicite : sans ça le @PrePersist d'Attempt retombait sur
+        // deriveEpreuveFromModule(TCF) = TCF_CO, et un examen de CE ou de
+        // STRUCTURE était étiqueté « Compréhension orale » partout où les
+        // fronts labellisent sur `epreuve` (/api/me/attempts, historiques).
+        attempt.setEpreuve(moduleExamEpreuve(qType));
         attempt.setModuleExamQuestionType(qType);
         attempt.setTotalQuestions(picked.size());
         attempt.setTimeLimitSeconds(timeLimit);
@@ -649,6 +728,17 @@ public class AttemptService {
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, picked);
         return mapper.toResponse(attempt, aqList, false);
+    }
+
+    /** Épreuve fine portée par un examen module TCF QCM (CO / CE / STRUCTURE). */
+    static EpreuveType moduleExamEpreuve(QuestionType qType) {
+        return switch (qType) {
+            case CO, CO_IMAGE -> EpreuveType.TCF_CO;
+            case CE -> EpreuveType.TCF_CE;
+            case STRUCTURE -> EpreuveType.TCF_STRUCTURE;
+            default -> throw new BusinessException(
+                    "qType sans épreuve d'examen module : " + qType);
+        };
     }
 
     /**

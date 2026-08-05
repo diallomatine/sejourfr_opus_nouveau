@@ -2,11 +2,14 @@ package com.sejourfr.app.manager;
 
 import com.sejourfr.app.entity.Answer;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.repository.AnswerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -42,11 +45,32 @@ public class AnswerManager {
 
     /**
      * IDs des questions ratees par l'utilisateur, erreur la plus recente d'abord,
-     * plafonne a {@code limit} (revision : N par module). Au-dela, les erreurs les
-     * plus anciennes sortent de la liste — rien n'est supprime en base.
+     * plafonne a {@code limit}. Le plafond s'applique APRES les filtres (module /
+     * type / theme) : ce sont les N erreurs les plus recentes <em>correspondant a
+     * la demande</em>, pas les N plus recentes tous criteres confondus.
+     *
+     * <p>Un filtre {@code CO} inclut {@code CO_IMAGE} — meme regle que partout
+     * ailleurs (tirages, examens) : CO_IMAGE est un format de compréhension
+     * orale, pas une epreuve a part.
+     *
+     * @param questionType null = tous types
+     * @param themeId      null = tous themes
      */
-    public List<UUID> findRecentWrongQuestionIds(UUID userId, Module module, int limit) {
-        return repository.findRecentWrongQuestionIds(userId, module, PageRequest.of(0, limit));
+    public List<UUID> findRecentWrongQuestionIds(
+            UUID userId, Module module, QuestionType questionType, UUID themeId, int limit) {
+        return repository.findRecentWrongQuestionIds(
+                userId, module, expandQuestionTypes(questionType), themeId, PageRequest.of(0, limit));
+    }
+
+    /**
+     * Types acceptes par le filtre. Aucun filtre → tous les types (la requete
+     * garde un {@code IN} toujours non vide, plus simple et plus sur qu'un
+     * {@code IS NULL OR} sur une collection).
+     */
+    static Collection<QuestionType> expandQuestionTypes(QuestionType requested) {
+        if (requested == null) return EnumSet.allOf(QuestionType.class);
+        if (requested == QuestionType.CO) return EnumSet.of(QuestionType.CO, QuestionType.CO_IMAGE);
+        return EnumSet.of(requested);
     }
 
     public boolean hasUserAnsweredQuestion(UUID userId, UUID questionId) {

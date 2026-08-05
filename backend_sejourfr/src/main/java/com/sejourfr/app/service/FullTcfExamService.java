@@ -17,7 +17,6 @@ import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.UserManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,10 +30,11 @@ import java.util.UUID;
  * portant {@code epreuve = TCF_COMPLET} et les 4 sous-attempts qui en
  * dépendent — atomique, transactionnel.
  *
- * <p>Le niveau CECRL final est le plancher des 4 sous-épreuves (règle
- * officielle TCF IRN). Il est posé à la {@link #finish finalisation}, à
- * condition que toutes les évaluations IA EE/EO soient remontées
- * {@code EVALUATED}.
+ * <p>Le niveau CECRL final est le plancher des sous-épreuves <b>réellement
+ * passées</b> (règle officielle TCF IRN) : une épreuve verrouillée par le
+ * freemium ou restée sans niveau exploitable en est exclue, jamais comptée au
+ * plus bas. Il est posé à la {@link #finish finalisation}, à condition que
+ * toutes les évaluations IA EE/EO soient remontées {@code EVALUATED}.
  *
  * <p>Les sous-attempts vivent indépendamment :
  * <ul>
@@ -53,6 +53,9 @@ public class FullTcfExamService {
     private static final int FULL_EXAM_TOTAL_SECONDS = 90 * 60;
 
     private static final int HISTORY_LIMIT_MAX = 100;
+
+    /** Nombre de slots de la grille d'examens blancs complets (cf. V110). */
+    static final int EXAM_SLOTS = 20;
 
     private final AttemptManager attemptManager;
     private final UserManager userManager;
@@ -73,12 +76,14 @@ public class FullTcfExamService {
      * abonnés TCF : le PREMIER examen complet inclut l'expression écrite et
      * orale (EE/EO) évaluées par l'IA, offertes une fois. Les examens complets
      * suivants restent rejouables en compréhension (CO+CE) mais leurs épreuves
-     * EE/EO sont verrouillées (pré-terminées, comptées A1_NON_ATTEINT, marquées
-     * {@code production_locked} sur le parent). Les abonnés TCF ont un accès
-     * illimité aux 4 épreuves.
+     * EE/EO sont verrouillées (pré-terminées, marquées {@code production_locked}
+     * sur le parent). Une épreuve verrouillée n'a <b>pas</b> de niveau et sort
+     * du plancher global — le verrou est commercial, pas linguistique. Les
+     * abonnés TCF ont un accès illimité aux 4 épreuves.
      */
     @Transactional
     public FullTcfExamResponse start(UUID userId, Integer slotNumber) {
+        int slot = validateSlot(slotNumber);
         User user = userManager.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
 
@@ -87,7 +92,7 @@ public class FullTcfExamService {
         boolean productionUnlocked = subscriptionService.hasTcf(userId)
                 || !productionSubmissionManager.hasFullExamProductionSubmission(userId);
 
-        Attempt parent = createParent(user, slotNumber, !productionUnlocked);
+        Attempt parent = createParent(user, slot, !productionUnlocked);
 
         // CO + CE : QCM avec questions tirées + chrono propre.
         attemptService.startModuleExamSubAttempt(user, QuestionType.CO, parent);
@@ -103,7 +108,8 @@ public class FullTcfExamService {
         // Compte gratuit ayant déjà consommé son EE/EO offerte : on pré-termine
         // les sous-attempts EE/EO (aucune soumission possible — le garde
         // finishedAt côté ProductionSubmissionService double le verrou) ; le
-        // bilan les comptera A1_NON_ATTEINT, l'examen reste jouable en CO+CE.
+        // bilan les laissera SANS niveau (hors plancher), l'examen reste
+        // jouable en CO+CE.
         if (!productionUnlocked) {
             lockProductionSubAttempts(parent);
         }
@@ -124,6 +130,19 @@ public class FullTcfExamService {
                 attemptManager.save(sub);
             }
         }
+    }
+
+    /**
+     * Slot de la grille « 20 examens blancs complets » : 1..{@value #EXAM_SLOTS},
+     * null → slot 1. Sans cette borne, {@code slotNumber=999} ou {@code -3}
+     * étaient persistés tels quels — même verrou que les MOCK_EXAM QCM.
+     */
+    private static int validateSlot(Integer slotNumber) {
+        if (slotNumber == null) return 1;
+        if (slotNumber < 1 || slotNumber > EXAM_SLOTS) {
+            throw new BusinessException("slotNumber doit être entre 1 et " + EXAM_SLOTS + ".");
+        }
+        return slotNumber;
     }
 
     private Attempt createParent(User user, Integer slotNumber, boolean productionLocked) {
@@ -311,7 +330,10 @@ public class FullTcfExamService {
         Attempt parent = attemptManager.findById(parentAttemptId)
                 .orElseThrow(() -> new NotFoundException("Examen blanc introuvable : " + parentAttemptId));
         if (parent.getUser() == null || !parent.getUser().getId().equals(userId)) {
-            throw new AccessDeniedException("Examen blanc n'appartient pas à l'utilisateur courant.");
+            // 404 et non 403 : un 403 confirmait l'EXISTENCE de l'id à qui ne
+            // le possède pas (énumération). Aligné sur les endpoints voisins
+            // (attempts guest, sous-attempts) qui répondent déjà « introuvable ».
+            throw new NotFoundException("Examen blanc introuvable : " + parentAttemptId);
         }
         if (parent.getEpreuve() != EpreuveType.TCF_COMPLET) {
             throw new BusinessException("Attempt " + parentAttemptId + " n'est pas un examen TCF complet.");

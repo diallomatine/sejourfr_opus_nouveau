@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { pageViewsApi } from "../../api/pageViewsApi";
-import type { PageViewSourceStat, PageViewStatsResponse } from "../../types/api";
+import { PageHeader } from "../../components/ui/PageHeader";
+import type {
+  PageViewDailyStat,
+  PageViewSourceStat,
+  PageViewStatsResponse,
+} from "../../types/api";
 import styles from "./AudiencePage.module.css";
 
 const WINDOWS = [7, 30, 90] as const;
@@ -36,47 +41,52 @@ export function AudiencePage() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <div>
-          <h1 className="page-title">Audience des landings</h1>
-          <p className={styles.subtitle}>
-            Nombre de consultations et de clics sur l&apos;appel à l&apos;action, par
-            réseau de provenance.
-          </p>
-        </div>
-
-        <div className={styles.filters}>
-          {paths.length > 1 && (
-            <select
-              className={styles.select}
-              value={path}
-              onChange={(e) => setPath(e.target.value)}
-            >
-              {paths.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          )}
-          <div className={styles.windows}>
-            {WINDOWS.map((w) => (
-              <button
-                key={w}
-                type="button"
-                className={`${styles.window} ${w === days ? styles.windowActive : ""}`}
-                onClick={() => setDays(w)}
+      <PageHeader
+        eyebrow="§ 01 — Vue d'ensemble"
+        title="Audience des"
+        emphasis="landings"
+        actions={
+          <div className={styles.filters}>
+            {paths.length > 1 && (
+              <select
+                className={styles.select}
+                value={path}
+                onChange={(e) => setPath(e.target.value)}
               >
-                {w} j
-              </button>
-            ))}
+                {paths.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            )}
+            <div className={styles.windows}>
+              {WINDOWS.map((w) => (
+                <button
+                  key={w}
+                  type="button"
+                  className={`${styles.window} ${w === days ? styles.windowActive : ""}`}
+                  onClick={() => setDays(w)}
+                >
+                  {w} j
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      </header>
+        }
+      />
+
+      <p className={styles.subtitle}>
+        Nombre de consultations et de clics sur l&apos;appel à l&apos;action, par
+        réseau de provenance.
+      </p>
 
       {statsQuery.isPending && <p className={styles.state}>Chargement…</p>}
       {statsQuery.isError && (
-        <p className={styles.state}>Impossible de charger l&apos;audience.</p>
+        <p className={styles.state}>
+          Impossible de charger l&apos;audience :{" "}
+          {(statsQuery.error as Error).message}
+        </p>
       )}
 
       {stats && <StatsView stats={stats} />}
@@ -117,13 +127,13 @@ function StatsView({ stats }: { stats: PageViewStatsResponse }) {
       </div>
 
       <section className={styles.panel}>
-        <h2 className="panel-title">Par provenance</h2>
+        <h2 className={styles.panelTitle}>Par provenance</h2>
         <SourceTable sources={stats.sources} maxViews={maxViews(stats.sources)} />
       </section>
 
       <section className={styles.panel}>
-        <h2 className="panel-title">Jour par jour</h2>
-        <DailyChart stats={stats} />
+        <h2 className={styles.panelTitle}>Jour par jour</h2>
+        <DailyChart daily={continuousDaily(stats)} />
       </section>
     </>
   );
@@ -157,7 +167,7 @@ function SourceTable({
             {SOURCE_LABELS[s.source] ?? s.source}
           </span>
           <span className={styles.sourceBar}>
-            <i style={{ width: max > 0 ? `${(s.views * 100) / max}%` : 0 }} />
+            <i style={{ width: max > 0 ? `${(s.views * 100) / max}%` : "0%" }} />
           </span>
           <span className={styles.sourceViews}>
             {s.views.toLocaleString("fr-FR")}
@@ -175,27 +185,80 @@ function SourceTable({
   );
 }
 
+/** Jour courant à Paris (yyyy-MM-dd), même référentiel que le backend. */
+function parisToday(): string {
+  return new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(
+    new Date(),
+  );
+}
+
+function addDays(day: string, delta: number): string {
+  const [year, month, date] = day.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, date + delta))
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
+ * Le backend ne renvoie que les jours ayant au moins un événement. Sans les
+ * jours vides, deux points espacés d'un mois seraient dessinés côte à côte et
+ * la largeur des barres ne voudrait rien dire : on rétablit la série continue
+ * sur toute la fenêtre.
+ */
+function continuousDaily(stats: PageViewStatsResponse): PageViewDailyStat[] {
+  const byDay = new Map(stats.daily.map((d) => [d.day, d]));
+  const observed = stats.daily.map((d) => d.day);
+  const end = [parisToday(), ...observed].reduce((a, b) => (a > b ? a : b));
+
+  const series: PageViewDailyStat[] = [];
+  for (let offset = 1 - stats.days; offset <= 0; offset += 1) {
+    const day = addDays(end, offset);
+    series.push(byDay.get(day) ?? { day, views: 0, ctaClicks: 0 });
+  }
+  return series;
+}
+
+function formatDay(day: string): string {
+  const [year, month, date] = day.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, date)).toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
 /** Barres verticales maison — pas de librairie de graphes dans ce projet. */
-function DailyChart({ stats }: { stats: PageViewStatsResponse }) {
-  const max = stats.daily.reduce((m, d) => Math.max(m, d.views), 0);
+function DailyChart({ daily }: { daily: PageViewDailyStat[] }) {
+  const max = daily.reduce((m, d) => Math.max(m, d.views), 0);
+  const first = daily[0];
+  const last = daily[daily.length - 1];
+
   return (
-    <div className={styles.chart}>
-      {stats.daily.map((d) => (
-        <span
-          key={d.day}
-          className={styles.chartCol}
-          title={`${d.day} — ${d.views} vue${d.views > 1 ? "s" : ""}, ${d.ctaClicks} clic${d.ctaClicks > 1 ? "s" : ""}`}
-        >
-          <i
-            className={styles.chartViews}
-            style={{ height: max > 0 ? `${(d.views * 100) / max}%` : "0%" }}
-          />
-          <i
-            className={styles.chartCta}
-            style={{ height: max > 0 ? `${(d.ctaClicks * 100) / max}%` : "0%" }}
-          />
-        </span>
-      ))}
-    </div>
+    <>
+      <div className={styles.chart}>
+        {daily.map((d) => (
+          <span
+            key={d.day}
+            className={styles.chartCol}
+            title={`${d.day} — ${d.views} vue${d.views > 1 ? "s" : ""}, ${d.ctaClicks} clic${d.ctaClicks > 1 ? "s" : ""}`}
+          >
+            <i
+              className={styles.chartViews}
+              style={{ height: max > 0 ? `${(d.views * 100) / max}%` : "0%" }}
+            />
+            <i
+              className={styles.chartCta}
+              style={{ height: max > 0 ? `${(d.ctaClicks * 100) / max}%` : "0%" }}
+            />
+          </span>
+        ))}
+      </div>
+      {first && last && (
+        <div className={styles.chartAxis}>
+          <span>{formatDay(first.day)}</span>
+          <span>{formatDay(last.day)}</span>
+        </div>
+      )}
+    </>
   );
 }

@@ -10,6 +10,7 @@ import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
+import '../../core/utils/start_failure.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../module_detail/production_exam_briefing_sheet.dart';
 import 'ee_session_controller.dart';
@@ -194,12 +195,7 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(ApiClient.toApiException(e).message),
-          backgroundColor: AppColors.red,
-        ),
-      );
+      showPaywallOrError(context, e);
     } finally {
       if (mounted) setState(() => _starting = false);
     }

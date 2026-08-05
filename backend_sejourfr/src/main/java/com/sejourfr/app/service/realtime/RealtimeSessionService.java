@@ -18,6 +18,7 @@ import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.RealtimeSessionManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
+import com.sejourfr.app.service.ProductionAccessService;
 import com.sejourfr.app.service.ProductionEvaluationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +56,7 @@ public class RealtimeSessionService {
     private final ProductionTaskManager productionTaskManager;
     private final AttemptManager attemptManager;
     private final ProductionEvaluationService productionEvaluationService;
+    private final ProductionAccessService accessService;
     private final UserSubscriptionManager userSubscriptionManager;
     private final RealtimeProperties props;
 
@@ -71,6 +73,15 @@ public class RealtimeSessionService {
         }
         Integer target = task.getDureeMaxSec();
 
+        // Session visée validée AVANT de consommer un slot temps réel : sans
+        // ça, on ouvrait une session sur n'importe quel attempt de
+        // l'utilisateur (y compris une sous-épreuve pré-terminée par le verrou
+        // freemium ou une épreuve écrite), pour finir refusé à la notation.
+        Attempt attempt = resolveAttempt(req.attemptId(), user);
+        if (attempt != null) {
+            accessService.assertCanSubmit(user.getId(), attempt, task);
+        }
+
         RealtimeQuotaService.Quota quota = quotaService.evaluate(user.getId());
         if (!tokenBroker.isConfigured() || !quota.canStartRealtime()) {
             return RealtimeSessionDescriptor.asyncFallback(tache, target, quota.remaining());
@@ -84,8 +95,6 @@ public class RealtimeSessionService {
             log.warn("Mint token realtime echoue, bascule async : {}", e.getMessage());
             return RealtimeSessionDescriptor.asyncFallback(tache, target, quota.remaining());
         }
-
-        Attempt attempt = resolveAttempt(req.attemptId(), user);
 
         RealtimeSession session = new RealtimeSession();
         session.setUser(user);
@@ -180,6 +189,10 @@ public class RealtimeSessionService {
      * consigne « interaction » des rubriques fait noter le candidat tout en
      * s'appuyant sur l'echange pour juger l'adequation et la gestion (T2). Echec
      * de notation non bloquant : la session reste COMPLETED, pas de penalite.
+     *
+     * @return vrai seulement si une submission a bien ete creee. Une garde
+     *         refusee (epreuve terminee, chrono, quota) ne cree rien : annoncer
+     *         « resultat disponible » enverrait le front sur un ecran vide.
      */
     private boolean triggerNotation(User user, RealtimeSession session) {
         if (session.getAttempt() == null || session.getProductionTask() == null) {
@@ -201,6 +214,7 @@ public class RealtimeSessionService {
                     durationSec);
         } catch (RuntimeException e) {
             log.warn("Notation realtime echouee pour session {} : {}", session.getId(), e.getMessage());
+            return false;
         }
         // La submission a été créée (l'éval s'effectue en arrière-plan et peut
         // échouer sans impacter l'existence de la submission) : côté front, il y a

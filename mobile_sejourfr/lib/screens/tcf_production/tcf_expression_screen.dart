@@ -26,6 +26,7 @@ import 'tcf_production_module.dart';
 import 'widgets/exam_filter_chips.dart';
 import 'widgets/preparation_points.dart';
 import 'widgets/task_palette.dart';
+import 'widgets/tcf_note_scale.dart';
 
 // ============================================================================
 // HUB d'épreuve (/tcf/eo, /tcf/ee)
@@ -119,6 +120,9 @@ class _TcfExpressionScreenState extends ConsumerState<TcfExpressionScreen> {
                         error: (_, __) => const SizedBox.shrink(),
                         data: (data) => _History(
                           data: data,
+                          accent: widget.module.isEo
+                              ? AppColors.red
+                              : AppColors.blue,
                           onSeeAll: _openHistory,
                           onExam: _openExamSession,
                           onSingle: _openReport,
@@ -299,12 +303,17 @@ List<Object> _recentMerged(HubData data, int limit) {
 class _History extends StatelessWidget {
   const _History({
     required this.data,
+    required this.accent,
     required this.onSeeAll,
     required this.onExam,
     required this.onSingle,
   });
 
   final HubData data;
+
+  /// Accent du module (EE bleu / EO rouge) : le lien « Tout voir » suivait le
+  /// rouge en dur, y compris sur l'épreuve écrite.
+  final Color accent;
   final VoidCallback onSeeAll;
   final ValueChanged<ExamSession> onExam;
   final ValueChanged<ProductionSubmissionDto> onSingle;
@@ -343,9 +352,7 @@ class _History extends StatelessWidget {
                 onTap: onSeeAll,
                 child: Text('Tout voir',
                     style: AppFonts.ui(
-                        size: 12,
-                        weight: FontWeight.w700,
-                        color: AppColors.red)),
+                        size: 12, weight: FontWeight.w700, color: accent)),
               ),
             ],
           ),
@@ -360,10 +367,10 @@ class _History extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _HubStat(
-                  label: 'Score moyen',
+                  label: 'Moyenne examens',
                   value: moyenneExamens == null
                       ? '—'
-                      : '${_formatNote(moyenneExamens)}/20',
+                      : '${formatScore(moyenneExamens)}/20',
                 ),
               ),
             ],
@@ -478,7 +485,7 @@ class _LastExamCard extends StatelessWidget {
                       decoration: BoxDecoration(
                           color: AppColors.blueLight,
                           borderRadius: BorderRadius.circular(8)),
-                      child: Text(avg != null ? '${_formatNote(avg)}/20' : '…',
+                      child: Text(avg != null ? '${formatScore(avg)}/20' : '…',
                           style: AppFonts.ui(
                               size: 11,
                               weight: FontWeight.w800,
@@ -518,7 +525,7 @@ class _MiniScore extends StatelessWidget {
       decoration: BoxDecoration(
           color: AppColors.bg, borderRadius: BorderRadius.circular(6)),
       child: Text(
-        note != null ? 'T$tache · ${_formatNote(note!)}/20' : 'T$tache · —',
+        note != null ? 'T$tache · ${formatScore(note!)}/20' : 'T$tache · —',
         style: AppFonts.ui(
             size: 11, color: AppColors.muted, weight: FontWeight.w600),
       ),
@@ -582,9 +589,8 @@ class _RecentSingleRow extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                        color: badgeBg,
-                        borderRadius: BorderRadius.circular(8)),
-                    child: Text('${_formatNote(note)}/20',
+                        color: badgeBg, borderRadius: BorderRadius.circular(8)),
+                    child: Text('${formatScore(note)}/20',
                         style: AppFonts.ui(
                             size: 11, weight: FontWeight.w800, color: badgeFg)),
                   ),
@@ -811,7 +817,7 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
                           size: 13, color: AppColors.green),
                       const SizedBox(width: 5),
                       Text(
-                        'Dernière note : ${_formatNote(note)}/20',
+                        'Dernière note : ${formatScore(note)}/20',
                         style: AppFonts.ui(
                             size: 12.5,
                             color: AppColors.green,
@@ -928,7 +934,9 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
 
     // Index d'origine conservé : c'est lui qui pilote le verrou freemium
     // (1er sujet offert, suivants premium), indépendamment du filtre courant.
-    final indexed = [for (int i = 0; i < subjects.length; i++) (i, subjects[i])];
+    final indexed = [
+      for (int i = 0; i < subjects.length; i++) (i, subjects[i])
+    ];
     final doneCount = indexed.where((e) => done[e.$2.id] != null).length;
     final todoCount = indexed.length - doneCount;
     final filtered = indexed.where((e) {
@@ -1376,14 +1384,12 @@ class _ErrorBox extends StatelessWidget {
   }
   return switch (tache) {
     1 => (title: 'Message', subtitle: 'Répondre à un message · 30-60 mots'),
-    2 => (title: 'Récit', subtitle: 'Raconter une expérience · 40-90 mots'),
-    _ => (title: 'Opinion', subtitle: 'Avis argumenté · 40-90 mots'),
+    2 => (title: 'Récit', subtitle: 'Raconter une expérience · 60-90 mots'),
+    _ => (title: 'Opinion', subtitle: 'Avis argumenté · 60-90 mots'),
   };
 }
 
 (Color, Color) _taskColors(int tache) => taskPalette(tache);
-
-String _formatNote(double n) => n.toStringAsFixed(1).replaceAll('.', ',');
 
 // ============================================================================
 // Onglets + contenu de l'écran par tâche
@@ -1416,10 +1422,12 @@ class _ExerciseRow extends StatelessWidget {
     final accent = module.isEo ? AppColors.red : AppColors.blue;
 
     // La carte reste neutre (blanche) ; seul le badge d'état porte une couleur.
-    // Fait : icône ✓ rouge si note <= 12, verte sinon (verte par défaut tant
-    // que la note n'est pas encore évaluée). À faire : pastille accent module.
-    final scoreColor =
-        (note != null && note <= 12) ? AppColors.red : AppColors.green;
+    // La couleur d'une note vient de son PALIER TCF (0 → A1 non atteint, 1 →
+    // A1, 2-5 → A2, 6-9 → B1, 10-20 → B2), jamais d'un seuil scolaire sur 20 :
+    // 12/20 est un B2, le niveau le plus haut de l'examen. Tant que l'IA n'a
+    // pas rendu sa note, on reste neutre-vert « terminé ».
+    final band = note == null ? null : TcfNoteScale.bandFor(note);
+    final scoreColor = band?.tone ?? AppColors.green;
     final pastilleBg = locked
         ? AppColors.surface2
         : done
@@ -1483,11 +1491,9 @@ class _ExerciseRow extends StatelessWidget {
                       if (done)
                         AppTag(
                           label: note != null
-                              ? '${_formatNote(note)}/20'
+                              ? '${formatScore(note)}/20'
                               : 'Terminé',
-                          tone: (note != null && note <= 12)
-                              ? TagTone.red
-                              : TagTone.success,
+                          tone: band?.niveau.tagTone ?? TagTone.success,
                           icon: LucideIcons.check,
                         )
                       else if (locked)

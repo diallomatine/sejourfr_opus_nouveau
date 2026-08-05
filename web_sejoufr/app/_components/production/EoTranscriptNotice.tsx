@@ -15,8 +15,9 @@ export function EoTranscriptNotice() {
       <span>
         <span className={styles.noticeStrong}>Évaluation basée sur la transcription.</span> La note
         porte sur le <strong>contenu</strong> et la <strong>langue</strong> (organisation,
-        vocabulaire, grammaire) de ce que vous dites. La <strong>prononciation</strong> et l&apos;
-        <strong>intonation</strong> ne sont pas évaluées ici — elles compteront le jour de l&apos;examen,
+        vocabulaire, grammaire) de ce que vous dites. La <strong>prononciation</strong>{" "}
+        et l&apos;<strong>intonation</strong>{" "}
+        ne sont pas évaluées ici — elles compteront le jour de l&apos;examen,
         face à un examinateur.
       </span>
     </div>

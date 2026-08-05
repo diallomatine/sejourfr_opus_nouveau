@@ -1,6 +1,10 @@
+/* `minmax(0, 1fr)` et non `1fr` : le minimum implicite d'une piste `1fr` est
+   `auto`, donc un tableau large repousse la grille entière au-delà du viewport
+   (barre de défilement sur toute la page, sidebar comprise) au lieu de défiler
+   dans son propre conteneur. */
 .app {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 240px minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -165,14 +169,21 @@
 .main {
   padding: 28px 36px 80px;
   max-width: 1400px;
+  min-width: 0;
 }
 
 @media (max-width: 1024px) {
   .app {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .sidebar {
     position: relative;
     height: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .main {
+    padding: 22px 16px 64px;
   }
 }

@@ -61,6 +61,7 @@ export function QuestionDetailPage() {
     mutationFn: () => questionsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["questions"] });
+      queryClient.invalidateQueries({ queryKey: ["themes"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       toast.show("Question supprimée", "success");
       navigate(`/questions/${module.toLowerCase()}`);

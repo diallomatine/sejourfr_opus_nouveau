@@ -12,12 +12,14 @@ import {
 } from "@/app/_components/QuestionRunner";
 import { TrainingResultCard } from "@/app/_components/TrainingResultCard";
 import { ExamReport } from "@/app/_components/ExamReport";
+import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import {
   ApiException,
   attemptApi,
   publicAttemptApi,
   userContentApi,
 } from "@/lib/api";
+import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import type { AttemptResponse, Difficulty } from "@/lib/types";
 
@@ -195,6 +197,7 @@ function SessionRunnerInner({ params }: PageProps) {
   const [openedAsFinished, setOpenedAsFinished] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
+  const [retryPaywallOpen, setRetryPaywallOpen] = useState(false);
 
   /** "Refaire" depuis le rapport : relance une session avec les mêmes
    *  paramètres (examen template / thématique / module, ou série). */
@@ -250,9 +253,11 @@ function SessionRunnerInner({ params }: PageProps) {
         `/sessions/${a.id}?lot=${lotNumero}&result=tcfLot&code=${code}&level=${level}`,
       );
     } catch (e) {
-      setRetryError(
-        e instanceof ApiException ? e.message : "Impossible de relancer la session.",
-      );
+      handleStartFailure(e, {
+        onPaywall: () => setRetryPaywallOpen(true),
+        onMessage: setRetryError,
+        fallbackMessage: "Impossible de relancer la session.",
+      });
       setRetrying(false);
     }
   }
@@ -433,6 +438,11 @@ function SessionRunnerInner({ params }: PageProps) {
             {isGuest && <GuestResultCta />}
           </>
         )}
+        <PaywallSheet
+          open={retryPaywallOpen}
+          onClose={() => setRetryPaywallOpen(false)}
+          module={attempt.module === "TCF" ? "INTEGRAL" : "CIVIQUE"}
+        />
         <style>{`
           .sess { background: var(--color-paper); min-height: calc(100vh - 110px); }
           .sess-back-row {

@@ -21,7 +21,8 @@ import {
   Waves,
 } from "lucide-react";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
-import { ApiException, attemptApi, dashboardApi } from "@/lib/api";
+import { attemptApi, dashboardApi } from "@/lib/api";
+import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import { masteryHint } from "@/lib/dashboard";
 import {
@@ -161,7 +162,11 @@ export default function HistoriquePage() {
       });
       router.push(`/sessions/${a.id}`);
     } catch (e) {
-      setError(e instanceof ApiException ? e.message : "Impossible de relancer l'examen.");
+      handleStartFailure(e, {
+        onPaywall: () => setPaywallModule(exam.module === "TCF" ? "INTEGRAL" : "CIVIQUE"),
+        onMessage: setError,
+        fallbackMessage: "Impossible de relancer l'examen.",
+      });
       setRetryingId(null);
     }
   }
@@ -421,7 +426,11 @@ function formatDuration(startedAt: string, finishedAt?: string | null): string {
   );
   if (!Number.isFinite(sec) || sec <= 0) return "—";
   const m = Math.round(sec / 60);
-  return m > 0 ? `${m} min` : `${sec} s`;
+  if (m < 1) return `${sec} s`;
+  if (m < 60) return `${m} min`;
+  // Une session laissée ouverte puis finalisée plus tard produit des durées de
+  // plusieurs heures : « 3036 min » n'est pas lisible.
+  return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}`;
 }
 
 const styles = `

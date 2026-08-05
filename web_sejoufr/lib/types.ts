@@ -407,8 +407,8 @@ export type SubmissionStatut =
     | "EVALUATED"
     | "FAILED";
 
-/** Niveau CECRL d'une éval IA (distinct de TargetLevel : inclut A1/C1/C2 +
- *  plancher A1_NON_ATTEINT). */
+/** Niveau CECRL d'une éval IA. Le contrat TCF IRN actif s'arrête à B2 ;
+ *  C1/C2 restent décodables uniquement pour les évaluations historiques. */
 export type NiveauCecrl =
     | "A1_NON_ATTEINT"
     | "A1"
@@ -465,17 +465,53 @@ export interface ProductionExampleDto {
     niveauIndicatif: string | null;
 }
 
+/** Degré de certitude d'une évaluation IA (schéma de sortie v2, notation v4).
+ *  Null sur les évaluations antérieures — l'absence n'est pas une erreur. */
+export type ConfianceEvaluation = "HAUTE" | "MOYENNE" | "FAIBLE";
+
+/** Bande qualitative d'un critère, dérivée côté serveur de sa note /20. Les
+ *  fronts affichent la BANDE et non le nombre : une IA ne distingue pas
+ *  honnêtement un 13 d'un 14. La note globale /20, elle, reste affichée. */
+export type BandeCritere =
+    | "TRES_BONNE_MAITRISE"
+    | "SATISFAISANT"
+    | "EN_COURS_ACQUISITION"
+    | "FRAGILE"
+    | "NON_EVALUABLE";
+
 /** Résultat IA. `feedback` est le JSONB brut (clés snake_case) — utiliser
- *  {@link parseEeFeedback} pour le normaliser avant affichage. Le niveau CECRL
- *  n'est plus attribué par tâche : il ne vit qu'au niveau du bilan d'épreuve
- *  (cf. {@link ProductionBilanResponse}). */
+ *  {@link parseEeFeedback} pour le normaliser avant affichage.
+ *
+ *  `niveauObserve` est la performance observée SUR CETTE TÂCHE, formulée
+ *  prudemment (« proche du niveau B1 ») : le seul niveau qui fait foi reste
+ *  celui du bilan d'épreuve (cf. {@link ProductionBilanResponse}). Garde-fou
+ *  produit : il n'est JAMAIS affiché sans `confiance` à côté — le backend ne
+ *  le renseigne d'ailleurs pas quand la confiance est inconnue.
+ *
+ *  Les évaluations d'avant la notation v4 laissent `niveauObserve`,
+ *  `confiance` et `avertissementNiveau` à null (et leur `feedback` n'a ni
+ *  `bande`, ni `accomplissement`, ni `preuve`) : cas normal, pas une erreur. */
 export interface EvaluationResultDto {
     noteSurVingt: number | null;
+    niveauObserve: NiveauCecrl | null;
+    confiance: ConfianceEvaluation | null;
+    avertissementNiveau: string | null;
     feedback: Record<string, unknown> | null;
 }
 
+/** Fourchette de note officielle du TCF IRN correspondant à un niveau CECRL, sur
+ *  les épreuves d'expression. Grille officielle (0 → A1 non atteint, 1 → A1,
+ *  2-5 → A2, 6-9 → B1, 10-20 → B2). Nos notes suivent la MÊME échelle : la
+ *  fourchette se lit donc directement, sans conversion. N'accompagne que le
+ *  bilan d'une épreuve entière — au TCF, une tâche isolée n'a pas de note. */
+export interface CorrespondanceTcfDto {
+    niveau: NiveauCecrl;
+    scoreTcfMin: number;
+    scoreTcfMax: number;
+}
+
 /** Bilan d'une épreuve productive (EE/EO) au niveau attempt. Le `niveauGlobal`
- *  n'est calculé (côté backend, moyenne pondérée des 3 tâches) qu'en session
+ *  n'est calculé (côté backend, moyenne des 3 tâches à poids égaux) qu'en session
  *  d'examen blanc (`exam=true`) et seulement quand les 3 tâches sont évaluées —
  *  null en entraînement libre ou éval incomplète. */
 export interface ProductionBilanResponse {
@@ -492,6 +528,9 @@ export interface ProductionBilanResponse {
     /** True quand l'attempt production est finalisé (`finishedAt` posé). Avec
      *  `niveauGlobal` calculé même si < 3 tâches évaluées (les manquantes = 0). */
     finished: boolean;
+    /** Fourchette officielle TCF du `niveauGlobal`. Null exactement quand
+     *  `niveauGlobal` l'est. */
+    correspondanceTcf: CorrespondanceTcfDto | null;
 }
 
 export interface ProductionSubmissionDto {
@@ -607,17 +646,19 @@ export function eeTaskSubtitle(tacheNumero: number): string {
     }
 }
 
-/** Titre éditorial d'une tâche EO (parité mobile). */
+/** Titre éditorial d'une tâche EO (parité `displayTitle` mobile).
+ *  L'ordre suit les tâches réellement servies par le backend
+ *  (`production-rubrics` EO_T2 = conduite de l'échange, EO_T3 = point de vue). */
 export function eoTaskTitle(tacheNumero: number): string {
     switch (tacheNumero) {
         case 1:
-            return "Entretien dirigé ";
+            return "Entretien dirigé";
         case 2:
-            return "Expression d'un point de vue ";
+            return "Jeu de rôle";
         case 3:
-            return "Jeu de rôle ";
+            return "Point de vue";
         default:
-            return `Tâche ${tacheNumero} `;
+            return `Tâche ${tacheNumero}`;
     }
 }
 
@@ -627,9 +668,9 @@ export function eoTaskSubtitle(tacheNumero: number): string {
         case 1:
             return "Se présenter et répondre à des questions";
         case 2:
-            return "Donner et défendre son opinion";
+            return "Interagir et obtenir des informations";
         case 3:
-            return "Interagir dans une situation simulée";
+            return "Donner et défendre son opinion";
         default:
             return "";
     }
@@ -660,8 +701,21 @@ export function niveauCecrlLabel(n: NiveauCecrl | null | undefined): string {
     return n === "A1_NON_ATTEINT" ? "A1 non atteint" : n;
 }
 
-/** Position d'un niveau sur l'échelle affichée [A1, A2, B1, B2, C1, C2] (6
- *  segments). A1_NON_ATTEINT → -1 (sous le seuil A1). */
+/** Phrase de correspondance officielle, à afficher au bilan d'une épreuve
+ *  entière uniquement. Null quand le backend n'a pas de niveau exploitable. */
+export function correspondanceTcfPhrase(
+    c: CorrespondanceTcfDto | null | undefined,
+): string | null {
+    if (!c) return null;
+    const plage =
+        c.scoreTcfMin === c.scoreTcfMax
+            ? `la note de ${c.scoreTcfMin} sur 20`
+            : `une note de ${c.scoreTcfMin} à ${c.scoreTcfMax} sur 20`;
+    return `Au TCF, le niveau ${niveauCecrlLabel(c.niveau)} correspond à ${plage}.`;
+}
+
+/** Position sur l'échelle TCF IRN affichée [A1, A2, B1, B2].
+ *  A1_NON_ATTEINT → -1 ; les anciennes valeurs C1/C2 sont plafonnées à B2. */
 export function cecrlIndex(n: NiveauCecrl | null | undefined): number {
     switch (n) {
         case "A1_NON_ATTEINT":
@@ -675,9 +729,8 @@ export function cecrlIndex(n: NiveauCecrl | null | undefined): number {
         case "B2":
             return 3;
         case "C1":
-            return 4;
         case "C2":
-            return 5;
+            return 3;
         default:
             return -1;
     }
@@ -689,23 +742,91 @@ export interface EeCriterion {
     code: string;
     label: string;
     noteSurVingt: number;
+    /** Null sur une évaluation d'avant la notation v4 : on retombe alors sur
+     *  l'affichage chiffré historique plutôt que d'inventer une bande. */
+    bande: BandeCritere | null;
     commentaire: string | null;
+    /** Citation littérale de la production qui justifie le jugement. */
+    preuve: string | null;
+}
+
+/** Point de la consigne, traité ou non. `obligatoire: false` = simple piste
+ *  suggérée par le sujet : ne pas la traiter n'enlève aucun point. */
+export interface EeAccomplishmentPoint {
+    libelle: string;
+    obligatoire: boolean;
+}
+
+/** Verdict d'ensemble sur la tâche (rubriques v8 / tool-schema v5) : ce que le
+ *  candidat cherche en premier, avant même sa note. Null sur les évaluations
+ *  déjà en base — cas normal, le bandeau n'est alors pas rendu. */
+export type ObjectifAccomplissement = "ATTEINT" | "PARTIELLEMENT_ATTEINT" | "NON_ATTEINT";
+
+export interface EeAccomplishment {
+    /** Null sur les évaluations antérieures à la grille v8. */
+    objectif: ObjectifAccomplissement | null;
+    /** Phrase courte adressée au candidat, qui dit ce qu'il a fait. */
+    objectifResume: string | null;
+    pointsTraites: EeAccomplishmentPoint[];
+    pointsOublies: EeAccomplishmentPoint[];
 }
 
 export interface EeCorrection {
     original: string;
     corrige: string;
     explication: string | null;
+    /** Ce que la reformulation démontre de plus (« emploie une subordonnée
+     *  relative, marqueur attendu au B1 »). Absent des évaluations antérieures
+     *  à la grille TCF : la correction s'affiche alors sans. */
+    gain: string | null;
+}
+
+/** Démonstration d'une technique sur la production du candidat. */
+export interface EePriorityExample {
+    avant: string;
+    apres: string;
+}
+
+/**
+ * Une priorité de progression. Le rapport doit ENSEIGNER : `constat` dit ce qui
+ * ne va pas, `comment` la technique réutilisable à appliquer, `exemple` la
+ * démontre sur une phrase du candidat.
+ *
+ * Le serveur normalise cette forme à l'écriture, mais les évaluations déjà en
+ * base portent de simples chaînes : elles arrivent ici en `constat` seul, sans
+ * `comment` ni `exemple`. Les deux formes sont acceptées à la lecture.
+ */
+export interface EePriority {
+    constat: string;
+    comment: string | null;
+    exemple: EePriorityExample | null;
 }
 
 export interface EeFeedback {
+    /** Note /20 à UNE décimale (12,5 et non 13) : c'est la moyenne des quatre
+     *  critères, recalculée serveur. */
     noteGlobale: number | null;
+    /** Ce que le candidat a traité / oublié de la consigne. Null (et non pas
+     *  listes vides) quand l'évaluation ne porte pas l'information. */
+    accomplissement: EeAccomplishment | null;
+    /** Exactement 4 critères depuis la grille TCF (`communiquer`, `interagir`,
+     *  `lexique`, `morphosyntaxe`) — les évaluations plus anciennes en portent
+     *  5 aux codes propres à chaque tâche. */
     criteres: EeCriterion[];
+    confiance: ConfianceEvaluation | null;
+    confianceRaisons: string[];
+    /** Limité à 2 côté backend. */
     pointsForts: string[];
-    pointsAAmeliorer: string[];
+    /** Limité à 2 côté backend : ce sont des priorités, pas un inventaire. */
+    pointsAAmeliorer: EePriority[];
     suggestions: string[];
+    /** Limité à 3 côté backend. */
     exemplesCorriges: EeCorrection[];
     avertissements: string[];
+    /** Production réécrite en entier, au niveau visé. Présente en EE seulement :
+     *  on ne réécrit pas un oral, l'absence en EO est voulue et n'est pas une
+     *  erreur. Null aussi sur les évaluations antérieures à la grille v8. */
+    versionAmelioree: string | null;
 }
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -731,6 +852,74 @@ function asString(v: unknown): string | null {
     return typeof v === "string" && v.trim().length > 0 ? v : null;
 }
 
+const BANDES: readonly string[] = [
+    "TRES_BONNE_MAITRISE",
+    "SATISFAISANT",
+    "EN_COURS_ACQUISITION",
+    "FRAGILE",
+    "NON_EVALUABLE",
+];
+
+function asBande(v: unknown): BandeCritere | null {
+    const s = asString(v)?.toUpperCase();
+    return s && BANDES.includes(s) ? (s as BandeCritere) : null;
+}
+
+function asConfiance(v: unknown): ConfianceEvaluation | null {
+    const s = asString(v)?.toUpperCase();
+    return s === "HAUTE" || s === "MOYENNE" || s === "FAIBLE" ? s : null;
+}
+
+function asObjectif(v: unknown): ObjectifAccomplissement | null {
+    const s = asString(v)?.toUpperCase();
+    return s === "ATTEINT" || s === "PARTIELLEMENT_ATTEINT" || s === "NON_ATTEINT" ? s : null;
+}
+
+/** `obligatoire` manquant → point traité comme exigé : on ne minimise jamais
+ *  un manque, alors qu'une piste est explicitement marquée `false`. */
+function asAccomplishmentPoints(v: unknown): EeAccomplishmentPoint[] {
+    if (!Array.isArray(v)) return [];
+    return v
+        .map((item): EeAccomplishmentPoint | null => {
+            const r = asRecord(item);
+            const libelle = r ? asString(r.libelle) : null;
+            if (!r || !libelle) return null;
+            return {libelle, obligatoire: r.obligatoire !== false};
+        })
+        .filter((p): p is EeAccomplishmentPoint => p !== null);
+}
+
+/**
+ * Accepte les DEUX formes de `points_a_ameliorer` : l'objet
+ * `{constat, comment, exemple}` de la grille TCF, et la simple chaîne des
+ * évaluations déjà en base (qui devient un `constat` seul). Le serveur
+ * normalise à l'écriture — on ne le présume pas à la lecture d'un ancien
+ * enregistrement.
+ */
+function asPriorities(v: unknown): EePriority[] {
+    if (!Array.isArray(v)) return [];
+    return v
+        .map((item): EePriority | null => {
+            if (typeof item === "string") {
+                const constat = item.trim();
+                return constat ? {constat, comment: null, exemple: null} : null;
+            }
+            const r = asRecord(item);
+            if (!r) return null;
+            const constat = asString(r.constat) ?? asString(r.libelle) ?? asString(r.texte);
+            if (!constat) return null;
+            const ex = asRecord(r.exemple);
+            const avant = ex ? asString(ex.avant) : null;
+            const apres = ex ? asString(ex.apres) : null;
+            return {
+                constat,
+                comment: asString(r.comment),
+                exemple: avant && apres ? {avant, apres} : null,
+            };
+        })
+        .filter((p): p is EePriority => p !== null);
+}
+
 /**
  * Normalise le `feedback` JSONB d'une {@link EvaluationResultDto} en structure
  * typée prête à l'affichage. Tolérant aux variations de clés (`justification`
@@ -742,12 +931,16 @@ export function parseEeFeedback(
 ): EeFeedback {
     const empty: EeFeedback = {
         noteGlobale: evaluation?.noteSurVingt ?? null,
+        accomplissement: null,
         criteres: [],
+        confiance: evaluation?.confiance ?? null,
+        confianceRaisons: [],
         pointsForts: [],
         pointsAAmeliorer: [],
         suggestions: [],
         exemplesCorriges: [],
         avertissements: [],
+        versionAmelioree: null,
     };
     const fb = asRecord(evaluation?.feedback);
     if (!fb) return empty;
@@ -763,10 +956,22 @@ export function parseEeFeedback(
                 code,
                 label: asString(r.label) ?? eeCriterionLabel(code),
                 noteSurVingt: note ?? 0,
+                bande: asBande(r.bande),
                 commentaire: asString(r.justification) ?? asString(r.commentaire),
+                preuve: asString(r.preuve),
             };
         })
         .filter((c): c is EeCriterion => c !== null);
+
+    const accRaw = asRecord(fb.accomplissement);
+    const accomplissement: EeAccomplishment | null = accRaw
+        ? {
+              objectif: asObjectif(accRaw.objectif),
+              objectifResume: asString(accRaw.objectif_resume),
+              pointsTraites: asAccomplishmentPoints(accRaw.points_traites),
+              pointsOublies: asAccomplishmentPoints(accRaw.points_oublies),
+          }
+        : null;
 
     const correctionsRaw = Array.isArray(fb.exemples_corriges) ? fb.exemples_corriges : [];
     const exemplesCorriges: EeCorrection[] = correctionsRaw
@@ -780,32 +985,65 @@ export function parseEeFeedback(
                 original: original ?? "",
                 corrige: corrige ?? "",
                 explication: asString(r.explication),
+                gain: asString(r.gain),
             };
         })
         .filter((e): e is EeCorrection => e !== null);
 
     return {
         noteGlobale: asNumber(fb.note_globale) ?? empty.noteGlobale,
+        accomplissement,
         criteres,
+        confiance: empty.confiance ?? asConfiance(fb.confiance),
+        confianceRaisons: asStringList(fb.confiance_raisons),
         pointsForts: asStringList(fb.points_forts),
-        pointsAAmeliorer: asStringList(fb.points_a_ameliorer),
+        pointsAAmeliorer: asPriorities(fb.points_a_ameliorer),
         suggestions: asStringList(fb.suggestions),
         exemplesCorriges,
         avertissements: asStringList(fb.avertissements),
+        versionAmelioree: asString(fb.version_amelioree),
     };
 }
 
-/** Libellé de repli pour un critère EE si le backend n'a pas fourni `label`. */
+/** Libellé de repli pour un critère EE/EO si le backend n'a pas fourni `label`
+ *  (il le fournit depuis la rubrique de la tâche : cette table n'est qu'un
+ *  filet, jamais la source). Les quatre premiers codes sont ceux de la grille
+ *  réelle du TCF, identiques sur les six tâches ; tous les suivants restent
+ *  portés par les évaluations déjà en base. */
 export function eeCriterionLabel(code: string): string {
     switch (code) {
-        case "pertinence":
-            return "Pertinence et développement du contenu";
+        // --- grille TCF : les 4 critères équipondérés des six tâches ---
+        case "communiquer":
+            return "Communiquer : accomplir la tâche et enchaîner les idées";
+        case "interagir":
+            return "Interagir : adaptation à la situation et au destinataire";
+        case "lexique":
+            return "Lexique : vocabulaire approprié";
+        case "morphosyntaxe":
+            return "Morphosyntaxe : correction grammaticale";
+        // --- codes par tâche, portés par les évaluations antérieures ---
+        case "realisation_consigne":
+            return "Réalisation de la consigne";
+        case "adequation_destinataire":
+            return "Adéquation au destinataire et au registre";
+        case "chronologie_recit":
+            return "Chronologie et repères temporels";
+        case "prise_position":
+            return "Prise de position claire";
+        case "argumentation":
+            return "Justification et développement des arguments";
+        case "conduite_echange":
+            return "Conduite de l'échange";
+        case "developpement_reponses":
+            return "Développement des réponses";
+        case "vocabulaire":
+            return "Étendue et maîtrise du lexique";
         case "coherence":
         case "organisation":
-            return "Organisation et cohérence";
-        case "vocabulaire":
-        case "lexique":
-            return "Richesse et précision du vocabulaire";
+            return "Cohérence et organisation";
+        // --- codes hérités (évaluations antérieures) ---
+        case "pertinence":
+            return "Pertinence et développement du contenu";
         case "grammaire":
             return "Correction grammaticale";
         case "orthographe":
@@ -814,6 +1052,41 @@ export function eeCriterionLabel(code: string): string {
             return "Clarté de l'expression écrite";
         default:
             return code ? code.charAt(0).toUpperCase() + code.slice(1).replace(/_/g, " ") : "Critère";
+    }
+}
+
+/** Libellé affichable d'une bande de critère. */
+export function bandeCritereLabel(b: BandeCritere): string {
+    switch (b) {
+        case "TRES_BONNE_MAITRISE":
+            return "Très bonne maîtrise";
+        case "SATISFAISANT":
+            return "Satisfaisant";
+        case "EN_COURS_ACQUISITION":
+            return "En cours d'acquisition";
+        case "FRAGILE":
+            return "Fragile";
+        case "NON_EVALUABLE":
+            return "Non évaluable";
+    }
+}
+
+/** Note /20 telle qu'on l'affiche partout : les notes portent UNE décimale
+ *  (12,5), rendue à la française et masquée quand elle est nulle (13, pas
+ *  13,0). Un arrondi à l'entier changerait la note affichée. */
+export function formatNoteSur20(n: number): string {
+    return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ",");
+}
+
+/** Libellé affichable d'un degré de confiance. */
+export function confianceLabel(c: ConfianceEvaluation): string {
+    switch (c) {
+        case "HAUTE":
+            return "confiance haute";
+        case "MOYENNE":
+            return "confiance moyenne";
+        case "FAIBLE":
+            return "confiance faible";
     }
 }
 
@@ -1010,6 +1283,18 @@ export interface FullTcfExamResponse {
     finalCecrlLevel: NiveauCecrl | null;
     status: FullTcfExamStatus;
     subAttempts: FullTcfExamSubAttempt[];
+    /** Périmètre réel du plancher `finalCecrlLevel` : nombre d'épreuves qui
+     *  portent un niveau et y entrent vraiment. Une épreuve verrouillée
+     *  (freemium) ou dont les évaluations ont échoué n'en fait pas partie —
+     *  c'est ce qui interdit d'affirmer « le plus bas de tes 4 épreuves » en
+     *  dur. Lu par `floorScope()` (lib/exam-levels.ts). */
+    epreuvesCountedInFinalLevel: number;
+    /** Épreuves attendues dans un examen complet (4 : CO/CE/EE/EO), publié pour
+     *  que les fronts ne codent pas la constante en dur. */
+    epreuvesExpected: number;
+    /** `epreuvesCountedInFinalLevel < epreuvesExpected` : bilan **partiel**, à
+     *  ne pas présenter comme un résultat d'examen complet. */
+    finalLevelPartial: boolean;
 }
 
 export interface FullTcfExamSummaryResponse {
@@ -1019,6 +1304,11 @@ export interface FullTcfExamSummaryResponse {
     finalCecrlLevel: NiveauCecrl | null;
     status: FullTcfExamStatus;
     slotNumber: number | null;
+    /** `finalCecrlLevel` ne porte pas sur les 4 épreuves (EE/EO verrouillée,
+     *  évaluations échouées) : à écarter des stats « meilleur niveau » /
+     *  « dernier examen » et à annoter dans la grille des slots — un examen
+     *  amputé n'est pas un résultat d'examen complet (`isCompleteExamResult`). */
+    finalLevelPartial: boolean;
 }
 
 /** Durée totale de l'examen complet (90 min). Constante backend

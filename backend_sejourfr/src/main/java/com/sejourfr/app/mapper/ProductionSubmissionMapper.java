@@ -4,6 +4,8 @@ import com.sejourfr.app.dto.EvaluationResultDto;
 import com.sejourfr.app.dto.ProductionSubmissionDto;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.ProductionSubmission;
+import com.sejourfr.app.enums.ConfianceEvaluation;
+import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.service.ProductionAudioStorageService;
@@ -17,6 +19,14 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ProductionSubmissionMapper {
 
+    /**
+     * Rappel affiché sous le niveau observé d'une tâche. Le niveau qui fait foi
+     * est celui du bilan d'épreuve, pas celui d'une tâche isolée.
+     */
+    static final String AVERTISSEMENT_NIVEAU =
+        "Estimation pédagogique portant sur cette seule tâche. Le niveau qui fait foi "
+            + "est celui du bilan des trois tâches de l'épreuve.";
+
     private final AiEvaluationManager aiEvaluationManager;
     private final TranscriptionManager transcriptionManager;
     private final ProductionAudioStorageService audioStorage;
@@ -27,10 +37,12 @@ public class ProductionSubmissionMapper {
             .map(this::toEvaluationDto)
             .orElse(null);
 
-        // Transcription Whisper (EO uniquement, null sinon).
+        // Transcription (EO uniquement, null sinon). Le manager rend le texte
+        // RECOLLE : c'est exactement celui qui est envoye au correcteur et sur
+        // lequel les preuves sont verifiees, donc une citation est toujours
+        // relisible telle quelle dans ce champ.
         String transcription = transcriptionManager
-            .findLatestBySubmissionId(s.getId())
-            .map(t -> t.getTexte())
+            .findLatestTexteBySubmissionId(s.getId())
             .orElse(null);
 
         // L'URL signee n'est generee qu'a la demande : on s'epargne un round-trip
@@ -73,19 +85,32 @@ public class ProductionSubmissionMapper {
     }
 
     /**
-     * Le niveau CECRL par tache n'est jamais expose (calibration interne
-     * seulement) : on expurge {@code niveau_cecrl} et
-     * {@code justification_niveau} du feedback avant envoi. Le niveau
-     * n'apparait qu'au bilan d'epreuve en examen blanc.
+     * Le niveau par tache est expose sous une forme PRUDENTE, via des champs
+     * typés — jamais via le feedback brut : {@code niveau_cecrl} et
+     * {@code justification_niveau} en sont expurgés pour qu'il n'existe qu'une
+     * seule source d'affichage.
+     *
+     * <p><b>Garde-fou</b> : pas de niveau sans confiance. Une évaluation
+     * antérieure au schéma v2 (aucune {@code confiance} persistée) sort donc
+     * avec les trois champs à null — exactement le comportement d'avant.
      */
     private EvaluationResultDto toEvaluationDto(AiEvaluation e) {
         Map<String, Object> feedback = e.getFeedbackJson();
+        ConfianceEvaluation confiance = feedback == null
+            ? null
+            : ConfianceEvaluation.parse(feedback.get("confiance"));
         if (feedback != null) {
             Map<String, Object> sanitized = new LinkedHashMap<>(feedback);
             sanitized.remove("niveau_cecrl");
             sanitized.remove("justification_niveau");
             feedback = sanitized;
         }
-        return new EvaluationResultDto(e.getNoteSur20(), feedback);
+        NiveauCecrl niveauObserve = confiance == null ? null : e.getNiveauCecrl();
+        return new EvaluationResultDto(
+            e.getNoteSur20(),
+            niveauObserve,
+            confiance,
+            niveauObserve == null ? null : AVERTISSEMENT_NIVEAU,
+            feedback);
     }
 }

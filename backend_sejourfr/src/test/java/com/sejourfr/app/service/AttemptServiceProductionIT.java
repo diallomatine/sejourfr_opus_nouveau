@@ -78,15 +78,27 @@ class AttemptServiceProductionIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void startProduction_eoExamen_pasDeChronoEpreuve() {
+    void startProduction_eoExamen_poseSlotEtChrono15min() {
         User user = data.user();
 
         AttemptResponse r = service.startProductionAttempt(user.getId(), req(EpreuveType.TCF_EO, null, true, 1));
 
-        // EO : pas de chrono d'épreuve (temps borné par tâche).
-        assertThat(r.timeLimitSeconds()).isNull();
+        // Une session d'examen EO n'avait AUCUN chrono : elle restait ouverte
+        // indéfiniment et acceptait des évaluations IA à la chaîne. 15 min =
+        // 10 min de parole (180+210+210 s) + 50 % de marge.
+        assertThat(r.timeLimitSeconds()).isEqualTo(15 * 60);
         Attempt persisted = attemptManager.findById(r.id()).orElseThrow();
         assertThat(persisted.getSlotNumber()).isEqualTo(1);
+    }
+
+    @Test
+    void startProduction_eoEntrainement_pasDeChrono() {
+        User user = data.user();
+
+        AttemptResponse r = service.startProductionAttempt(user.getId(), req(EpreuveType.TCF_EO, null, null, null));
+
+        // Entraînement libre : temps borné par tâche, pas de chrono d'épreuve.
+        assertThat(r.timeLimitSeconds()).isNull();
     }
 
     @Test

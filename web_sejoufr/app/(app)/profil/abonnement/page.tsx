@@ -149,6 +149,11 @@ function PremiumView({
     const isIntegral = status.moduleAccess === "INTEGRAL";
     const name = isIntegral ? "Pass Intégral" : "Pass Civique";
     const features = isIntegral ? INTEGRAL_FEATURES : CIVIQUE_FEATURES;
+    // `plans` ne contient que les plans actifs : un accès payé sur un plan
+    // retiré du catalogue (plan récurrent dormant, offre arrêtée) n'y est plus.
+    // `moduleAccess` reste la donnée autoritaire du backend — on ne laisse
+    // jamais un client qui a payé devant un libellé vide.
+    const formula = plan?.name ?? name;
 
     const ends = status.expiresAt;
     const remaining = ends ? daysUntil(ends) : null;
@@ -168,7 +173,7 @@ function PremiumView({
                 </div>
                 <h2 className="pass-name">{name}</h2>
                 <p className="pass-formula">
-                    {plan?.name ? `Formule ${plan.name} · payé une fois` : "Payé une fois, sans abonnement"}
+                    {plan?.name ? `Formule ${plan.name} · payé une fois` : "Payé une fois, sans renouvellement"}
                 </p>
 
                 {fraction != null && (
@@ -205,7 +210,7 @@ function PremiumView({
 
             <section className="ab-details">
                 <dl>
-                    <DetailRow label="Formule" value={plan?.name ?? "—"}/>
+                    <DetailRow label="Formule" value={formula}/>
                     <DetailRow
                         label="Périmètre"
                         value={isIntegral ? "Accès complet à tout SejourFR" : "Accès complet au parcours Civique"}

@@ -1,0 +1,123 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.title {
+  font-family: "Fraunces", serif;
+  font-size: 17px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.meta {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.audio {
+  width: 100%;
+  max-width: 100%;
+}
+
+.sourceTag {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+/* Dialogue temps réel : chaque tour est isolé, le candidat est mis en avant
+   puisque c'est lui qu'on note. */
+.turns {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.turn {
+  border-radius: 6px;
+  padding: 10px 14px;
+  border: 1px solid var(--rule-2);
+  min-width: 0;
+}
+
+.turnExaminer {
+  background: var(--paper-2);
+  border-left: 3px solid var(--rule);
+}
+
+.turnCandidate {
+  background: var(--paper);
+  border-left: 3px solid var(--blue);
+}
+
+.speaker {
+  display: block;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.turnExaminer .speaker {
+  color: var(--muted-2);
+}
+
+.turnCandidate .speaker {
+  color: var(--blue);
+}
+
+.turnText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.plain {
+  background: var(--paper);
+  border: 1px solid var(--rule-2);
+  border-radius: 6px;
+  padding: 14px 16px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.plain p {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.plain p:last-child {
+  margin-bottom: 0;
+}
+
+.none {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+}

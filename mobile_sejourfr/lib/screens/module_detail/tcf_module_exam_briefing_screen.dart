@@ -3,7 +3,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
@@ -11,6 +10,7 @@ import '../../core/models/enums.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
+import '../../core/utils/start_failure.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import 'tcf_qcm_detail_screen.dart' show TcfQcmModule;
@@ -83,15 +83,9 @@ class _ModuleExamBriefingSheetState
       );
     } catch (e) {
       if (!mounted) return;
-      final apiErr = ApiClient.toApiException(e);
-      if (apiErr.isForbidden) {
-        Navigator.of(context).pop();
-        showPaywallSheet(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(apiErr.message), backgroundColor: AppColors.red),
-        );
-      }
+      // On ferme le briefing avant le paywall pour éviter deux feuilles empilées.
+      showPaywallOrError(context, e,
+          onForbidden: () => Navigator.of(context).pop());
     } finally {
       if (mounted) setState(() => _starting = false);
     }

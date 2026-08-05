@@ -48,8 +48,11 @@ class ProductionSubmissionManagerIT extends AbstractIntegrationTest {
             t.setDureeMinSec(60);
             t.setDureeMaxSec(180);
         } else {
-            t.setMotsMin(120);
-            t.setMotsMax(180);
+            t.setMotsMin(tache == 1 ? 30 : 60);
+            t.setMotsMax(tache == 1 ? 60 : 90);
+            if (tache > 1) {
+                t.setContexte("Vous répondez aux participants d'un forum de test.");
+            }
         }
         return taskRepository.save(t);
     }
@@ -152,6 +155,45 @@ class ProductionSubmissionManagerIT extends AbstractIntegrationTest {
 
         assertThat(manager.countByUserAndEpreuve(user.getId(), EpreuveType.TCF_EE)).isEqualTo(3);
         assertThat(manager.countTrainingByUserAndEpreuve(user.getId(), EpreuveType.TCF_EE)).isEqualTo(1);
+    }
+
+    @Test
+    void countByAttemptAndTacheIsScopedToThatTaskOfThatAttempt() {
+        User user = testData.user();
+        Attempt attempt = examAttempt(user);
+        ProductionTask tache1 = task(EpreuveType.TCF_EE, (short) 1);
+        ProductionTask tache2 = task(EpreuveType.TCF_EE, (short) 2);
+        Instant now = Instant.now();
+        submission(attempt, tache1, user, now, SubmissionStatut.SUBMITTED);
+        submission(attempt, tache1, user, now, SubmissionStatut.SUBMITTED);
+        submission(attempt, tache2, user, now, SubmissionStatut.SUBMITTED);
+        submission(examAttempt(user), tache1, user, now, SubmissionStatut.SUBMITTED); // autre session
+
+        assertThat(manager.countByAttemptAndTache(attempt.getId(), (short) 1)).isEqualTo(2);
+        assertThat(manager.countByAttemptAndTache(attempt.getId(), (short) 2)).isEqualTo(1);
+        assertThat(manager.countByAttemptAndTache(attempt.getId(), (short) 3)).isZero();
+    }
+
+    @Test
+    void countDistinctTachesIgnoresRepeatsAndOtherEpreuves() {
+        User user = testData.user();
+        Attempt attempt = fullExamChild(user); // épreuve TCF_EE
+        ProductionTask ee1 = task(EpreuveType.TCF_EE, (short) 1);
+        ProductionTask ee2 = task(EpreuveType.TCF_EE, (short) 2);
+        ProductionTask eo1 = task(EpreuveType.TCF_EO, (short) 1);
+        Instant now = Instant.now();
+        submission(attempt, ee1, user, now, SubmissionStatut.SUBMITTED);
+        submission(attempt, ee1, user, now, SubmissionStatut.SUBMITTED); // même tâche rejouée
+        submission(attempt, ee2, user, now, SubmissionStatut.SUBMITTED);
+        submission(attempt, eo1, user, now, SubmissionStatut.SUBMITTED); // épreuve étrangère
+
+        // 4 lignes, mais seulement 2 tâches distinctes de l'épreuve écrite :
+        // l'auto-finalisation ne doit pas se déclencher.
+        assertThat(manager.findByAttemptId(attempt.getId())).hasSize(4);
+        assertThat(manager.countDistinctTachesByAttemptAndEpreuve(attempt.getId(), EpreuveType.TCF_EE))
+                .isEqualTo(2);
+        assertThat(manager.countDistinctTachesByAttemptAndEpreuve(attempt.getId(), EpreuveType.TCF_EO))
+                .isEqualTo(1);
     }
 
     @Test

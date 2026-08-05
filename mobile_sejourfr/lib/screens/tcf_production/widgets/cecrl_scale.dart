@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// Barre A1 -> C2 avec gradient + curseur sur le niveau atteint.
+/// Barre du profil TCF IRN A1 -> B2 avec curseur sur le niveau atteint.
+/// Les anciens niveaux C1/C2, encore lisibles dans l'historique, sont affichés
+/// au plafond B2 de ce profil.
 /// `dark = true` -> rendu pour fond bleu fonce (curseur blanc).
 class CecrlScale extends StatelessWidget {
   const CecrlScale({super.key, required this.level, this.dark = false});
@@ -11,20 +13,19 @@ class CecrlScale extends StatelessWidget {
   final NiveauCecrl level;
   final bool dark;
 
-  static const _labels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  static const _labels = ['A1', 'A2', 'B1', 'B2'];
   static const _gradient = LinearGradient(colors: [
     Color(0xFFF87171), // rose A1
     Color(0xFFFB923C), // orange A2
     Color(0xFFFBBF24), // ambre B1
     Color(0xFF34D399), // vert B2
-    Color(0xFF60A5FA), // bleu C1
-    Color(0xFFA78BFA), // violet C2
   ]);
 
   @override
   Widget build(BuildContext context) {
     final activeColor = dark ? Colors.white : AppColors.blue;
-    final mutedColor = dark ? Colors.white.withValues(alpha: 0.6) : AppColors.muted;
+    final mutedColor =
+        dark ? Colors.white.withValues(alpha: 0.6) : AppColors.muted;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -47,7 +48,8 @@ class CecrlScale extends StatelessWidget {
         const SizedBox(height: 6),
         LayoutBuilder(builder: (context, constraints) {
           final w = constraints.maxWidth;
-          final cursorLeft = (level.scaleIndex / (_labels.length - 1)) * (w - 14);
+          final cursorLeft =
+              (level.scaleIndex / (_labels.length - 1)) * (w - 14);
           return SizedBox(
             height: 14,
             child: Stack(

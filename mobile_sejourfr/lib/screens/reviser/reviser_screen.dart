@@ -195,10 +195,16 @@ class _ModuleCard extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           ProgressRing(
+            // L'anneau porte une information de niveau : il suit la rampe de
+            // maîtrise, jamais l'alternance décorative des pastilles (sinon
+            // une catégorie à 15 % s'affiche en bleu rassurant à côté d'une
+            // catégorie à 19 % en rouge).
             value: (percent ?? 0).toDouble(),
             size: 42,
             stroke: 5,
-            color: iconFg,
+            color: percent == null
+                ? AppColors.inkFaint
+                : masteryColor(percent),
           ),
           const SizedBox(width: 8),
           const Icon(

@@ -13,12 +13,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'ee_session_controller.dart';
-import 'widgets/avertissements_card.dart';
-import 'widgets/correction_example.dart';
-import 'widgets/criterion_row.dart';
-import 'widgets/donut_chart_score.dart';
 import 'widgets/evaluation_loading_view.dart';
-import 'widgets/feedback_block.dart';
+import 'widgets/evaluation_report.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/results_eval_banner.dart';
 
@@ -215,40 +211,13 @@ class _ResultsBody extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
             children: [
               const ResultsEvalBanner(
-                title: 'Evaluation terminée !',
+                title: 'Évaluation terminée !',
                 subtitle: 'Voici votre correction détaillée.',
               ),
-              DonutChartScore(
-                noteSur20: eval.noteSurVingt?.toDouble(),
-              ),
-              AvertissementsCard(
-                avertissements: eval.feedback.avertissements,
-              ),
-              if (eval.feedback.scoresCriteres.isNotEmpty)
-                _CriteresCard(criteres: eval.feedback.scoresCriteres),
-              if (eval.feedback.pointsForts.isNotEmpty)
-                FeedbackBlock(
-                  kind: FeedbackKind.positive,
-                  title: 'Points forts',
-                  items: eval.feedback.pointsForts,
-                ),
-              if (eval.feedback.pointsAAmeliorer.isNotEmpty)
-                FeedbackBlock(
-                  kind: FeedbackKind.improve,
-                  title: 'A améliorer',
-                  items: eval.feedback.pointsAAmeliorer,
-                ),
-              if (eval.feedback.exemplesCorriges.isNotEmpty)
-                _CorrectionsCard(examples: eval.feedback.exemplesCorriges),
-              if (eval.feedback.suggestions.isNotEmpty)
-                FeedbackBlock(
-                  kind: FeedbackKind.suggest,
-                  title: 'Suggestion globale',
-                  items: eval.feedback.suggestions,
-                ),
+              EvaluationReport(evaluation: eval, isOral: false),
               if (submission.texteSoumis != null) ...[
                 const SizedBox(height: 4),
-                _SectionTitle('Votre redaction'),
+                _SectionTitle('Votre rédaction'),
                 const SizedBox(height: 8),
                 _SubmittedTextCard(text: submission.texteSoumis!),
               ],
@@ -311,84 +280,6 @@ class _ResultsBody extends ConsumerWidget {
         SnackBar(content: Text(ApiClient.toApiException(e).message)),
       );
     }
-  }
-}
-
-/// Carte "Detail par criteres" (results-summary-card avec wrapping).
-class _CriteresCard extends StatelessWidget {
-  const _CriteresCard({required this.criteres});
-
-  final List<CriterionScore> criteres;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Detail par critères',
-            style: AppFonts.ui(
-              size: 15,
-              weight: FontWeight.w700,
-              color: AppColors.ink,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...criteres.map((c) => CriterionRow(criterion: c)),
-        ],
-      ),
-    );
-  }
-}
-
-class _CorrectionsCard extends StatelessWidget {
-  const _CorrectionsCard({required this.examples});
-
-  final List<CorrectionExample> examples;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(LucideIcons.lightbulb,
-                  size: 18, color: AppColors.amber),
-              const SizedBox(width: 8),
-              Text(
-                'Exemples et corrections',
-                style: AppFonts.ui(
-                  size: 15,
-                  weight: FontWeight.w700,
-                  color: AppColors.ink,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...examples.map((e) => CorrectionExampleCard(example: e)),
-        ],
-      ),
-    );
   }
 }
 

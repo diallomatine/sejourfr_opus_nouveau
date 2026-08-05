@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Headphones, SpellCheck, Target } from "lucide-react";
 import { ApiException, attemptApi, lotApi, publicAttemptApi, publicLotApi } from "@/lib/api";
+import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import { canAccessModule, type Difficulty, type LotDto, type QuestionType } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
@@ -128,7 +129,11 @@ export default function TcfLevelSeriesPage() {
         `/sessions/${a.id}?lot=${lot.numero}&result=tcfLot&code=${code}&level=${levelKey}`,
       );
     } catch (e) {
-      setError(e instanceof ApiException ? e.message : "Impossible de démarrer la série.");
+      handleStartFailure(e, {
+        onPaywall: () => (isGuest ? setGuestGateOpen(true) : setPaywallOpen(true)),
+        onMessage: setError,
+        fallbackMessage: "Impossible de démarrer la série.",
+      });
       setStarting(false);
     }
   }

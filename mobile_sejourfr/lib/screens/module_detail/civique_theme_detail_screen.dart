@@ -15,6 +15,7 @@ import '../../core/providers/lots_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
+import '../../core/utils/start_failure.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/fixed_action_bar.dart';
@@ -129,15 +130,7 @@ class _CiviqueThemeDetailScreenState
       context.push('$runnerPath?from=civiqueLot&themeId=${theme.id}');
     } catch (e) {
       if (!mounted) return;
-      final apiErr = ApiClient.toApiException(e);
-      if (apiErr.isForbidden) {
-        showPaywallSheet(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(apiErr.message), backgroundColor: AppColors.red),
-        );
-      }
+      showPaywallOrError(context, e);
     } finally {
       if (mounted) setState(() => _starting = false);
     }
@@ -171,15 +164,7 @@ class _CiviqueThemeDetailScreenState
       context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
     } catch (e) {
       if (!mounted) return;
-      final apiErr = ApiClient.toApiException(e);
-      if (apiErr.isForbidden) {
-        showPaywallSheet(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(apiErr.message), backgroundColor: AppColors.red),
-        );
-      }
+      showPaywallOrError(context, e);
     } finally {
       if (mounted) setState(() => _starting = false);
     }

@@ -245,7 +245,7 @@ class _EeBriefingWritingScreenState
   }
 
   /// Chrono d'examen écoulé (30:00). On auto-soumet le texte courant **s'il est
-  /// recevable** (mots dans [motsMin, motsMax×1.2]), sinon on ne soumet rien ;
+  /// recevable** (mots dans [motsMin, motsMax]), sinon on ne soumet rien ;
   /// puis on finalise (module → `/finish`, full exam → `markSubDone`) et on
   /// navigue vers le bilan. Idempotent contre un double-déclenchement.
   bool _timedOut = false;
@@ -253,10 +253,7 @@ class _EeBriefingWritingScreenState
     if (_timedOut || !mounted) return;
     _timedOut = true;
     final wordCount = _countWords(_controller.text);
-    final recevable = task.motsMin != null &&
-        task.motsMax != null &&
-        wordCount >= task.motsMin! &&
-        wordCount <= (task.motsMax! * 1.2).floor();
+    final recevable = isEeWordCountWithinBounds(task, wordCount);
 
     final goState = GoRouterState.of(context);
     final fullExamId = goState.uri.queryParameters['fullExamId'];
@@ -502,11 +499,7 @@ class _Content extends StatelessWidget {
   /// Chrono décompte d'examen (non-null en session d'examen blanc EE).
   final Widget? examTimer;
 
-  bool get _inRange =>
-      task.motsMin != null &&
-      task.motsMax != null &&
-      wordCount >= task.motsMin! &&
-      wordCount <= (task.motsMax! * 1.2).floor();
+  bool get _inRange => isEeWordCountWithinBounds(task, wordCount);
 
   @override
   Widget build(BuildContext context) {
@@ -516,7 +509,10 @@ class _Content extends StatelessWidget {
           current: taskIndex + 1,
           total: session.totalTasks,
           niveau: task.niveauCible,
-          subtitle: task.displayTitle,
+          // En entraînement libre le bandeau n'affiche que ce sous-titre :
+          // le répéter dupliquerait le titre de la ConsigneCard juste en
+          // dessous. On garde alors le libellé de mode par défaut.
+          subtitle: session.totalTasks <= 1 ? null : task.displayTitle,
           trailing: examTimer,
         ),
         Expanded(
@@ -604,14 +600,12 @@ class _InlineError extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(LucideIcons.circleAlert,
-              size: 18, color: AppColors.red),
+          const Icon(LucideIcons.circleAlert, size: 18, color: AppColors.red),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style:
-                  AppFonts.ui(size: 13, color: AppColors.red, height: 1.4),
+              style: AppFonts.ui(size: 13, color: AppColors.red, height: 1.4),
             ),
           ),
         ],
@@ -633,8 +627,7 @@ class _ErrorBox extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(LucideIcons.circleAlert,
-              size: 32, color: AppColors.red),
+          const Icon(LucideIcons.circleAlert, size: 32, color: AppColors.red),
           const SizedBox(height: 8),
           Text(
             'Impossible de démarrer la session.',

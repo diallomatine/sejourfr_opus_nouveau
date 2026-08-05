@@ -50,6 +50,9 @@ src/
 │   │                        (userId/authorId null → coordonnées dans
 │   │                        userEmail/userFullName). « Répondre » envoie un
 │   │                        email au contact (MailService, Reply-To support).
+│   ├── calibration/         Calibration de la notation IA EO/EE : bandeau de
+│   │                        santé (biais vs dispersion), liste des productions
+│   │                        évaluées, fiche de détail + annotation humaine
 │   ├── audioQuestions/      Génération assistée TCF CO : form + preview + audit
 │   │                        (modes WRITTEN_QUESTION / FULL_AUDIO — cf CLAUDE.md racine)
 │   └── exampleAudio/        Génération batch + validation des audios des exemples
@@ -87,6 +90,50 @@ Endpoints utilisés actuellement :
   Stripe → DONE ; Apple/Google → REDIRECT (l'admin copie l'URL pour la transmettre).
 - `PATCH /api/admin/subscriptions/{id}/realtime-sessions` `{ remaining }` — pose le
   solde de sessions EO temps réel du pass (support : offrir/corriger des sessions).
+- `GET|POST|PUT|PATCH|DELETE /api/admin/questions[…]` — la liste accepte
+  `?media=AUDIO|IMAGE|VIDEO|NONE` (majuscules), **filtre serveur** : ne jamais
+  refiltrer la page courante côté navigateur, le compteur et la pagination
+  deviendraient faux.
+- `GET /api/admin/calibration/submissions?status=evaluated&hasHumanNote=…&limit=…`,
+  `GET|POST /api/admin/calibration/submissions/{id}/human-note`,
+  `GET /api/admin/calibration/stats`, `GET /api/admin/calibration/stats/niveau`
+  (feature `calibration/`)
+- `GET /api/production-tasks?epreuve=TCF_EE|TCF_EO` — catalogue des sujets, utilisé
+  pour retrouver l'épreuve et la consigne d'une soumission (le DTO submission ne
+  porte que `productionTaskId`). Route authentifiée, pas `/api/admin/**`.
+
+### Calibration de la notation IA (`features/calibration/`)
+
+Écran qui répond à « est-ce que l'IA note juste ? ». Un correcteur annote de
+vraies productions, le bandeau mesure l'écart avec l'IA.
+
+- **Convention de signe du backend** : `écart = note humaine − note IA`. Donc
+  `ecartMoyen` **négatif** = l'IA note au-dessus du correcteur = **trop
+  indulgente**. Contre-intuitif : l'écran l'écrit toujours en toutes lettres,
+  jamais en brut. `ecartMoyen` = biais (dans quel sens), `ecartMoyenAbsolu` =
+  dispersion (de combien) — deux cartes distinctes, avec la formule affichée.
+- `hasHumanNote=true|false` filtre réellement côté backend (annotées /
+  non-annotées) ; l'écran appelle chaque onglet avec le bon paramètre, sans
+  reconstitution côté front. `GET .../submissions/{id}/human-note` relit la
+  **dernière** note humaine d'une soumission (404 = jamais annotée, traité
+  comme `null`, pas comme une erreur) : à l'ouverture d'une production le
+  formulaire d'annotation se pré-remplit avec cette note et l'écart IA/humain
+  s'affiche immédiatement. Réenregistrer **ajoute** une observation (pas de
+  contrainte d'unicité en base) au lieu de remplacer — le tableau de bord ne
+  compte que la plus récente par soumission, donc réannoter ne fausse pas la
+  statistique.
+- **Version de grille** : la liste renvoie des `CalibrationSubmissionDto`
+  (`{ submission, rubricsVersion, promptVersion }`), pas des
+  `ProductionSubmissionDto` bruts. Une note produite avec la grille v3 et une
+  note v4.2 ne se comparent pas, donc la fiche affiche « Grille v4.2 » à côté
+  du badge de format ; `rubricsVersion` null (colonne ajoutée en V022) donne
+  « Grille inconnue », pas une erreur. Ces deux versions vivent dans un DTO
+  **admin** : ne pas les remonter dans `ProductionSubmissionDto` /
+  `EvaluationResultDto`, partagés avec le web et le mobile.
+- **Rétrocompatibilité v3** : `niveauObserve` / `confiance` / `avertissementNiveau`
+  à null, pas de `bande`, `preuve` ni `accomplissement`, code de critère
+  `pertinence` disparu en v4. Chaque bloc se masque si absent — l'absence est un
+  cas normal. `isLegacyEvaluation()` pose un badge « format v3 ».
 
 **Authentification** : JWT Bearer dans l'en-tête `Authorization`. Le refresh est automatique côté `http.ts` quand une requête prend un 401 — pas besoin de le gérer dans les composants.
 
@@ -118,6 +165,15 @@ Endpoints utilisés actuellement :
 - Les couleurs sont dans `:root` de `styles/global.css`. **Ne jamais hardcoder une couleur** dans un module — toujours utiliser `var(--blue)`, `var(--red)`, `var(--ink)`, etc.
 - Polices fixées : `Fraunces` pour les titres (`.page-title`, `.panel-title`), `Inter` partout ailleurs, `JetBrains Mono` pour les labels techniques (eyebrows, badges, tags).
 - Le style général s'inspire du template `admin__1_.html` fourni en début de projet — typographique, fait main, sans framework UI.
+- **Tableaux** : envelopper la `<table>` dans `<div className={tableStyles.tableWrap}>` et
+  ajouter `tableStyles.cardTable` à la table, tous deux dans
+  `components/ui/DataTable.module.css`. `tableWrap` donne le défilement horizontal (les
+  `Panel` sont en `overflow: hidden`, sans lui les colonnes de droite sont rognées) ;
+  `cardTable` bascule chaque ligne en fiche empilée sous 720 px, chaque cellule étant
+  préfixée par l'intitulé de sa colonne — donc **chaque `<td>` porte un `data-label`**
+  (sauf la 1ʳᵉ colonne, titre de la fiche, et la dernière, actions de ligne). Ne pas
+  redupliquer ce bloc dans un module de feature : il y était recopié 5 fois avant d'être
+  remonté.
 
 **Hygiène (rappel transverse, cf. CLAUDE.md racine)**
 - Toute nouvelle feature prend son dossier dans `features/` (jamais à côté d'une feature voisine). Si un sous-composant n'a de sens que dans une feature, il vit dans `features/<feature>/components/`, pas dans `components/ui/`.
@@ -130,7 +186,7 @@ Endpoints utilisés actuellement :
 
 ```bash
 npm install
-npm run dev
+npm run dev-admin   # ⚠️ le script s'appelle "dev-admin", pas "dev"
 ```
 
 Par défaut, le client tape sur `http://localhost:8080`. Pour pointer ailleurs :

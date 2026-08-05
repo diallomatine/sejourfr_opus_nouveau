@@ -13,11 +13,28 @@ class FeedbackBlock extends StatelessWidget {
     required this.kind,
     required this.title,
     required this.items,
-  });
+    this.subtitle,
+  }) : blocks = const [];
+
+  /// Meme habillage (teinte, titre, intention), mais un contenu compose a la
+  /// place des puces : une priorite ne tient pas sur une ligne, elle porte une
+  /// technique et sa demonstration.
+  const FeedbackBlock.rich({
+    super.key,
+    required this.kind,
+    required this.title,
+    required this.blocks,
+    this.subtitle,
+  }) : items = const [];
 
   final FeedbackKind kind;
   final String title;
   final List<String> items;
+  final List<Widget> blocks;
+
+  /// Ligne d'intention sous le titre (ex: cadrer les priorites plutot que de
+  /// les lire comme une liste de reproches).
+  final String? subtitle;
 
   ({Color bg, Color accent, IconData icon}) get _palette {
     switch (kind) {
@@ -34,9 +51,11 @@ class FeedbackBlock extends StatelessWidget {
           icon: LucideIcons.circleAlert,
         );
       case FeedbackKind.suggest:
+        // Bleu France : la suggestion n'a pas de sémantique propre, elle suit
+        // la marque (le violet hors palette venait de la maquette HTML).
         return (
-          bg: const Color(0xFFF3EEFE),
-          accent: const Color(0xFF6D28D9),
+          bg: AppColors.blue.withValues(alpha: 0.07),
+          accent: AppColors.blue,
           icon: LucideIcons.lightbulb,
         );
     }
@@ -44,7 +63,7 @@ class FeedbackBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const SizedBox.shrink();
+    if (items.isEmpty && blocks.isEmpty) return const SizedBox.shrink();
     final p = _palette;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
@@ -71,6 +90,17 @@ class FeedbackBlock extends StatelessWidget {
               ),
             ],
           ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle!,
+              style: AppFonts.ui(
+                size: 12,
+                color: AppColors.muted,
+                height: 1.4,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           ...items.map(
             (e) => Padding(
@@ -103,6 +133,7 @@ class FeedbackBlock extends StatelessWidget {
               ),
             ),
           ),
+          ...blocks,
         ],
       ),
     );

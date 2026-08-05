@@ -44,7 +44,7 @@ class _ExamReportScreenState extends ConsumerState<ExamReportScreen> {
     final qp = GoRouterState.of(context).uri.queryParameters;
     final fromCiviqueLot = qp['from'] == 'civiqueLot';
     final themeId = qp['themeId'];
-    final title = fromCiviqueLot ? 'Bilan du lot' : 'Rapport d\'examen';
+    final title = fromCiviqueLot ? 'Bilan de la série' : 'Rapport d\'examen';
 
     void onBack() {
       // Prefère un vrai `pop` (préserve la stack en aval — quand on est

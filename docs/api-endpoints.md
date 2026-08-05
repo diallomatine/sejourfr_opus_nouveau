@@ -33,17 +33,25 @@ automatique** dans le client HTTP de chaque front.
 ## Examen blanc TCF complet
 
 - `POST /api/full-tcf-exams` (premium TCF requis)
-- `GET /api/full-tcf-exams/{id}`
+- `GET /api/full-tcf-exams/{id}` — l'examen d'un autre utilisateur répond
+  **404** (et non 403 : un 403 confirmerait l'existence de l'id).
+- `POST /api/full-tcf-exams/{id}/begin?epreuve=TCF_CO|TCF_CE|TCF_EE|TCF_EO`
+  — `epreuve` est **requis** (400 s'il manque).
 - `POST /api/full-tcf-exams/{id}/finish`
 - `GET /api/me/full-tcf-exams?limit=N`
+- `POST /api/full-tcf-exams?slotNumber=N` — `slotNumber` borné à 1..20.
 
 Cf. `exams-tcf.md`.
 
 ## Me / utilisateur
 
 - `GET /api/me/questions/favorites?module=...`
-- `GET /api/me/questions/wrong?module=...[&questionType=CO|CE]`
-- `GET /api/me/stats?module=...`
+- `GET /api/me/questions/wrong?module=...[&questionType=CO|CE][&themeId=<uuid>]`
+  → **tous les filtres sont appliqués en base, avant le plafond de 30 erreurs** :
+  ce sont les 30 erreurs les plus récentes *correspondant à la demande*. Un
+  filtre `CO` inclut `CO_IMAGE` (règle transverse du projet).
+- `GET /api/me/stats?module=...` — toute la réponse est scopée au module,
+  `attemptsTotal` compris.
 - `GET /api/me/dashboard` — agrégat unique du tableau de bord + hubs web :
   streak de jours d'activité (courant + record, fuseau Europe/Paris), nb
   d'examens blancs finis (global + `civiqueMockExams`/`tcfMockExams` par
@@ -105,6 +113,41 @@ visiteurs uniques. Cf. migration V020.
 ## Admin
 
 - `/api/admin/{dashboard,questions,themes,conversations,media,passages,audio-questions,calibration/{submissions,stats},page-views}`
+- `GET /api/admin/questions?module=&themeId=&difficulty=&type=&active=&media=&search=&page=&size=`
+  — `media` vaut `AUDIO | IMAGE | VIDEO | NONE` (`NONE` = questions sans média
+  principal ; le filtre porte sur `question.media`, pas sur l'audio secondaire
+  d'une `CO_IMAGE`). **Filtre serveur** : la console ne doit plus filtrer la
+  page affichée dans le navigateur.
+- `GET /api/admin/calibration/submissions?status=evaluated&hasHumanNote=&limit=`
+  — renvoie des `CalibrationSubmissionDto`
+  `{ submission, rubricsVersion, promptVersion }` : la soumission au format
+  partagé, plus les versions de la dernière évaluation IA. `rubricsVersion` est
+  `null` pour une évaluation antérieure à la colonne
+  `ai_evaluations.rubrics_version` (V022). DTO propre à l'admin — ces versions
+  ne sont PAS ajoutées à `ProductionSubmissionDto` / `EvaluationResultDto`, que
+  le web et le mobile consomment aussi.
+
+**Pagination** : `?size=` est plafonné à **100** sur toutes les listes paginées
+(`spring.data.web.pageable.max-page-size`), défaut 20.
+
+## Contrat d'erreur
+
+Toute réponse d'erreur a la même forme :
+`{timestamp, status, error, message, path[, fieldErrors]}`.
+
+| Situation | Statut |
+|---|---|
+| Paramètre de requête au mauvais type (enum inconnu, UUID malformé) | **400**, message nommant le paramètre (+ valeurs acceptées pour un enum) |
+| Paramètre de requête requis absent | **400**, message nommant le paramètre |
+| Corps JSON absent / mal formé | **400**, message générique (aucun détail interne) |
+| Validation de DTO (`@Valid`) | **400** + `fieldErrors` |
+| Segment de chemin au mauvais type (`/api/attempts/mine`) | **404** |
+| Chemin inexistant | **404** |
+| Mauvaise méthode HTTP sur une route existante | **405** |
+| Règle métier violée (`BusinessException`) | **422** |
+
+Les 4xx sont loguées en `warn` sur une ligne, sans stack trace ; seules les 5xx
+partent en `error` avec la stack.
 
 ## À implémenter
 

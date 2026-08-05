@@ -115,8 +115,10 @@ function Hero() {
             </h1>
 
             <p className={styles.lead} data-rv>
-              Depuis janvier&nbsp;2026, le <strong>TCF&nbsp;IRN</strong> et
-              l&apos;<strong>examen civique</strong> conditionnent ta carte de séjour, ta
+              Depuis janvier&nbsp;2026, le <strong>TCF&nbsp;IRN</strong>{" "}
+              et
+              l&apos;<strong>examen civique</strong>{" "}
+              conditionnent ta carte de séjour, ta
               carte de résident ou ta naturalisation. SejourFR t&apos;entraîne jusqu&apos;au
               niveau exact qu&apos;on te demande&nbsp;— et te dit quand tu y es.
             </p>
@@ -241,7 +243,8 @@ function LiveSessionCard() {
           ))}
         </span>
         <span className={styles.quotaLbl}>
-          Simulation <b>3</b> sur <b>60</b> · pass Intégral 3&nbsp;mois
+          Simulation <b>3</b> sur <b>60</b>{" "}
+          · pass Intégral 3&nbsp;mois
         </span>
       </p>
     </div>
@@ -281,11 +284,14 @@ function Waveform() {
 // ② L'EXAMINATEUR IA
 // ============================================================================
 
+// Critères réellement notés à l'oral. La prononciation n'en fait pas partie :
+// l'évaluation part de la transcription (cf. docs/notation-ia-eo-ee.md §9), et
+// l'annoncer ici promettait ce que le produit refuse explicitement de faire.
 const CRITERIA: { label: string; note: string; width: number; amber?: boolean }[] = [
   { label: "Lexique", note: "17,0", width: 86 },
   { label: "Grammaire", note: "14,5", width: 72, amber: true },
   { label: "Cohérence du discours", note: "18,0", width: 90 },
-  { label: "Prononciation", note: "15,5", width: 79 },
+  { label: "Développement des arguments", note: "15,5", width: 79 },
 ];
 
 function AiSection() {
@@ -313,10 +319,12 @@ function AiSection() {
 
             <div className={styles.limitNote} data-rv>
               <span className={styles.limitHead}>
-                <InfoIcon /> Ce qui est compté, ce qui ne l&apos;est pas
+                <InfoIcon />{" "}
+                Ce qui est compté, ce qui ne l&apos;est pas
               </span>
               <p>
-                <b>Simulations orales en direct&nbsp;:</b> au forfait — le nombre inclus
+                <b>Simulations orales en direct&nbsp;:</b>{" "}
+                au forfait — le nombre inclus
                 est indiqué sur chaque pass ci-dessous. Une simulation, c&apos;est un
                 entretien complet avec l&apos;examinateur.
               </p>
@@ -325,7 +333,8 @@ function AiSection() {
                 illimitée pendant toute la durée de ton pass.
               </p>
               <p>
-                Les pass <b>Examen civique</b> ne donnent pas accès aux simulations
+                Les pass <b>Examen civique</b>{" "}
+                ne donnent pas accès aux simulations
                 orales&nbsp;— l&apos;oral, c&apos;est du TCF.
               </p>
             </div>
@@ -360,8 +369,10 @@ function AiSection() {
               </div>
 
               <p className={styles.feedback}>
-                <b>Ce qui marche&nbsp;:</b> vous argumentez sans hésiter et votre projet
-                est clair, c&apos;est du niveau&nbsp;B2. <b>À travailler&nbsp;:</b> les
+                <b>Ce qui marche&nbsp;:</b>{" "}
+                vous argumentez sans hésiter et votre projet
+                est clair, c&apos;est du niveau&nbsp;B2. <b>À travailler&nbsp;:</b>{" "}
+                les
                 temps du passé («&nbsp;j&apos;ai venu&nbsp;» → «&nbsp;je suis
                 venu&nbsp;») et les connecteurs pour lier vos idées.
               </p>
@@ -395,21 +406,21 @@ const LEVELS: {
     procedure: "Carte de séjour pluriannuelle",
     pitch:
       "Le premier renouvellement après le visa long séjour. Le palier le plus accessible des trois.",
-    foot: "Examen civique · niveau A1/A2 · validité 2 à 4 ans",
+    foot: "Examen civique mention CSP · validité 2 à 4 ans",
   },
   {
     level: "B1",
     procedure: "Carte de résident",
     pitch:
       "Dix ans de validité, travail facilité, démarches allégées. Le palier intermédiaire.",
-    foot: "Examen civique · niveau A2/B1 · validité 10 ans",
+    foot: "Examen civique mention CR · validité 10 ans",
   },
   {
     level: "B2",
     procedure: "Naturalisation française",
     pitch:
       "Devenir français. Le niveau de langue le plus haut : à l'oral, il faut argumenter, nuancer, réagir. C'est là que la préparation compte le plus.",
-    foot: "Examen civique · niveau B1/B2 · nationalité + droits civiques",
+    foot: "Examen civique mention Naturalisation · nationalité + droits civiques",
     hi: true,
   },
 ];
@@ -580,7 +591,7 @@ function MockExamSection() {
                 CO&nbsp;<b>B2</b>
               </span>
               <span>
-                CE&nbsp;<b>C1</b>
+                CE&nbsp;<b>B2</b>
               </span>
               <span data-floor>
                 EE&nbsp;<b>B2</b>

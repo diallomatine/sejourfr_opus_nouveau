@@ -14,7 +14,6 @@ import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.UserManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Instant;
 import java.util.List;
@@ -110,14 +109,44 @@ class FullTcfExamServiceTest {
         assertThatThrownBy(() -> service.get(userId, id)).isInstanceOf(NotFoundException.class);
     }
 
+    /**
+     * L'examen d'autrui répond « introuvable », pas « interdit » : un 403
+     * confirmait l'EXISTENCE de l'id à qui ne le possède pas. Aligné sur les
+     * endpoints voisins.
+     */
     @Test
-    void get_parentAutreUtilisateur_lanceAccessDenied() {
+    void get_parentAutreUtilisateur_lanceNotFound() {
         UUID id = UUID.randomUUID();
         Attempt p = parent(id);
         p.getUser().setId(UUID.randomUUID()); // un autre user
         when(attemptManager.findById(id)).thenReturn(Optional.of(p));
 
-        assertThatThrownBy(() -> service.get(userId, id)).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> service.get(userId, id)).isInstanceOf(NotFoundException.class);
+    }
+
+    /** Même réponse que pour un id inexistant : rien ne distingue les deux cas. */
+    @Test
+    void get_parentAutreUtilisateur_memeReponseQuUnIdInexistant() {
+        UUID mien = UUID.randomUUID();
+        UUID autrui = UUID.randomUUID();
+        Attempt p = parent(autrui);
+        p.getUser().setId(UUID.randomUUID());
+        when(attemptManager.findById(mien)).thenReturn(Optional.empty());
+        when(attemptManager.findById(autrui)).thenReturn(Optional.of(p));
+
+        Class<?> inexistant = catchClass(() -> service.get(userId, mien));
+        Class<?> dAutrui = catchClass(() -> service.get(userId, autrui));
+
+        assertThat(dAutrui).isEqualTo(inexistant);
+    }
+
+    private static Class<?> catchClass(Runnable r) {
+        try {
+            r.run();
+            throw new AssertionError("Exception attendue");
+        } catch (RuntimeException e) {
+            return e.getClass();
+        }
     }
 
     @Test

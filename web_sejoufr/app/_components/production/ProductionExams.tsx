@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Flame, GraduationCap, LayoutGrid, Target, Trophy } from "lucide-react";
-import { ApiException, productionApi } from "@/lib/api";
+import { productionApi } from "@/lib/api";
+import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import {
   canAccessModule,
   cecrlIndex,
+  formatNoteSur20,
   type NiveauCecrl,
   niveauCecrlLabel,
   type ProductionSubmissionDto,
@@ -95,8 +97,10 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
           drafts.push({
             attemptId,
             date,
+            // Une décimale, comme les notes elles-mêmes : arrondir à l'entier
+            // afficherait 13 là où la session vaut 12,5.
             avgNote: notes.length
-              ? Math.round(notes.reduce((s, v) => s + v, 0) / notes.length)
+              ? Math.round((notes.reduce((s, v) => s + v, 0) / notes.length) * 10) / 10
               : null,
           });
         }
@@ -166,8 +170,11 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
       });
       router.push(`${config.base}/session/${attempt.id}`);
     } catch (e) {
-      if (e instanceof ApiException && e.status === 403) setPaywallOpen(true);
-      else setError(e instanceof ApiException ? e.message : "Impossible de démarrer l'examen.");
+      handleStartFailure(e, {
+        onPaywall: () => setPaywallOpen(true),
+        onMessage: setError,
+        fallbackMessage: "Impossible de démarrer l'examen.",
+      });
       setStarting(false);
     }
   }
@@ -230,7 +237,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
           <DetailStatCard
             icon={<Flame size={20} />}
             tone="red"
-            value={bestNote != null ? `${bestNote}/20` : "—"}
+            value={bestNote != null ? `${formatNoteSur20(bestNote)}/20` : "—"}
             label="Meilleure note"
             sub="moyenne des 3 tâches"
           />

@@ -9,13 +9,21 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.core.MethodParameter;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.List;
@@ -127,6 +135,93 @@ public class GlobalExceptionHandler {
                 fieldErrors,
                 e
         );
+    }
+
+    // ------------------------------------------------------------------------
+    // Requêtes mal formées : ce sont des erreurs CLIENT (400/404/405), pas des
+    // bugs serveur. Sans ces handlers, elles tombaient dans handleAny → 500 +
+    // stack trace en ERROR à chaque paramètre mal typé, et les fronts recevaient
+    // « Erreur interne du serveur » là où le vrai problème était leur requête
+    // (cf. le ?epreuve= manquant sur /api/full-tcf-exams/{id}/begin).
+    // Les messages nomment le paramètre fautif SANS exposer d'interne (pas de
+    // type Java, pas de message Jackson, pas de nom de classe).
+    // ------------------------------------------------------------------------
+
+    /**
+     * Paramètre présent mais non convertible (enum inconnu, UUID malformé,
+     * entier non numérique).
+     *
+     * <p>Dans un segment de CHEMIN, une valeur non convertible veut dire que la
+     * ressource demandée n'existe pas : on répond 404, comme pour un id valide
+     * mais inconnu ({@code GET /api/attempts/mine} ne doit pas révéler qu'il
+     * existe une route {@code /api/attempts/{uuid}}). Dans un paramètre de
+     * requête, c'est bien une requête malformée : 400.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleTypeMismatch(
+            MethodArgumentTypeMismatchException e, WebRequest req) {
+        if (isPathVariable(e)) {
+            return build(HttpStatus.NOT_FOUND, "Ressource introuvable.", req, null, e);
+        }
+        String message = "Paramètre « " + e.getName() + " » invalide";
+        String allowed = allowedValues(e);
+        if (allowed != null) {
+            message += " : valeurs acceptées " + allowed;
+        }
+        return build(HttpStatus.BAD_REQUEST, message + ".", req, null, e);
+    }
+
+    private boolean isPathVariable(MethodArgumentTypeMismatchException e) {
+        MethodParameter parameter = e.getParameter();
+        return parameter != null && parameter.hasParameterAnnotation(PathVariable.class);
+    }
+
+    /** Paramètre de requête obligatoire absent. */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<Map<String, Object>> handleMissingParam(
+            MissingServletRequestParameterException e, WebRequest req) {
+        return build(HttpStatus.BAD_REQUEST,
+                "Paramètre « " + e.getParameterName() + " » requis.", req, null, e);
+    }
+
+    /**
+     * Corps de requête illisible : JSON tronqué / invalide, body absent, ou
+     * valeur non désérialisable. Message volontairement générique — les
+     * messages Jackson exposent des noms de classes internes.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleUnreadableBody(
+            HttpMessageNotReadableException e, WebRequest req) {
+        return build(HttpStatus.BAD_REQUEST,
+                "Corps de requête absent ou mal formé (JSON attendu).", req, null, e);
+    }
+
+    /** Chemin inexistant : 404, pas 500 (et pas de fuite sur le routage interne). */
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    public ResponseEntity<Map<String, Object>> handleNoHandler(Exception e, WebRequest req) {
+        return build(HttpStatus.NOT_FOUND, "Ressource introuvable.", req, null, e);
+    }
+
+    /** Bonne route, mauvaise méthode HTTP. */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodNotSupported(
+            HttpRequestMethodNotSupportedException e, WebRequest req) {
+        return build(HttpStatus.METHOD_NOT_ALLOWED,
+                "Méthode " + e.getMethod() + " non autorisée sur cette ressource.", req, null, e);
+    }
+
+    /**
+     * Valeurs acceptées d'un paramètre enum, pour rendre le 400 actionnable
+     * côté front. {@code null} pour les autres types (un UUID n'a pas de liste).
+     */
+    private String allowedValues(MethodArgumentTypeMismatchException e) {
+        Class<?> required = e.getRequiredType();
+        if (required == null || !required.isEnum()) return null;
+        Object[] constants = required.getEnumConstants();
+        if (constants == null || constants.length == 0) return null;
+        return java.util.Arrays.stream(constants)
+                .map(Object::toString)
+                .collect(Collectors.joining(", "));
     }
 
     @ExceptionHandler(Exception.class)

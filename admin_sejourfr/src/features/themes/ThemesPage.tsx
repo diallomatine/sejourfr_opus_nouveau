@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { themesApi } from "../../api/themesApi";
 import { Button } from "../../components/ui/Button";
@@ -12,6 +12,7 @@ import { useToast } from "../../components/ui/Toast";
 import type { ThemeDto, ThemeWriteRequest } from "../../types/api";
 import { useForm } from "react-hook-form";
 import tableStyles from "../../components/ui/DataTable.module.css";
+import styles from "./ThemesPage.module.css";
 
 export function ThemesPage() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -52,7 +53,7 @@ export function ThemesPage() {
 
       {themesQuery.isError && (
         <Panel>
-          <div style={{ padding: 24, color: "var(--red)" }}>
+          <div className={styles.errorBlock}>
             Erreur : {(themesQuery.error as Error).message}
           </div>
         </Panel>
@@ -107,67 +108,69 @@ function ThemeTable({
   }
 
   return (
-    <table className={tableStyles.table}>
-      <thead>
-        <tr>
-          <th>Nom</th>
-          <th>Code</th>
-          <th>Description</th>
-          <th>Questions</th>
-          <th>Ordre</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {themes.map((t) => (
-          <tr key={t.id}>
-            <td>
-              <strong>{t.name}</strong>
-            </td>
-            <td>
-              <code style={{ fontSize: 11, color: "var(--muted)" }}>{t.code}</code>
-            </td>
-            <td style={{ color: "var(--muted)", maxWidth: 380 }}>
-              {t.description}
-            </td>
-            <td>
-              <Tag tone="muted">{t.questionCount}</Tag>
-            </td>
-            <td>{t.displayOrder}</td>
-            <td>
-              <div className={tableStyles.rowActions}>
-                <button
-                  type="button"
-                  className={tableStyles.iconBtn}
-                  onClick={() => onEdit(t)}
-                >
-                  Modifier
-                </button>
-                <button
-                  type="button"
-                  className={`${tableStyles.iconBtn} ${tableStyles.danger}`}
-                  onClick={() => {
-                    if (
-                      window.confirm(`Supprimer la thématique "${t.name}" ?`)
-                    ) {
-                      deleteMutation.mutate(t.id);
-                    }
-                  }}
-                  disabled={t.questionCount > 0}
-                  title={
-                    t.questionCount > 0
-                      ? "Impossible : des questions sont rattachées"
-                      : "Supprimer"
-                  }
-                >
-                  Supprimer
-                </button>
-              </div>
-            </td>
+    <div className={tableStyles.tableWrap}>
+      <table className={`${tableStyles.table} ${tableStyles.cardTable}`}>
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Code</th>
+            <th>Description</th>
+            <th>Questions</th>
+            <th>Ordre</th>
+            <th></th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {themes.map((t) => (
+            <tr key={t.id}>
+              <td data-label="Nom">
+                <strong>{t.name}</strong>
+              </td>
+              <td data-label="Code">
+                <code className={styles.code}>{t.code}</code>
+              </td>
+              <td data-label="Description" className={styles.description}>
+                {t.description}
+              </td>
+              <td data-label="Questions">
+                <Tag tone="muted">{t.questionCount}</Tag>
+              </td>
+              <td data-label="Ordre">{t.displayOrder}</td>
+              <td>
+                <div className={tableStyles.rowActions}>
+                  <button
+                    type="button"
+                    className={tableStyles.iconBtn}
+                    onClick={() => onEdit(t)}
+                  >
+                    Modifier
+                  </button>
+                  <button
+                    type="button"
+                    className={`${tableStyles.iconBtn} ${tableStyles.danger}`}
+                    onClick={() => {
+                      if (
+                        window.confirm(`Supprimer la thématique "${t.name}" ?`)
+                      ) {
+                        deleteMutation.mutate(t.id);
+                      }
+                    }}
+                    disabled={t.questionCount > 0}
+                    title={
+                      t.questionCount > 0
+                        ? "Impossible : des questions sont rattachées"
+                        : "Supprimer"
+                    }
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -189,7 +192,7 @@ function ThemeFormModal({
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
       module: "CIVIQUE",
@@ -240,16 +243,24 @@ function ThemeFormModal({
       eyebrow="Thématiques"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
+          <Button
+            variant="ghost"
+            onClick={onClose}
+            disabled={mutation.isPending}
+          >
             Annuler
           </Button>
           <Button
             variant="red"
             type="submit"
             form="theme-form"
-            disabled={isSubmitting}
+            disabled={mutation.isPending}
           >
-            {isSubmitting ? "Enregistrement..." : theme ? "Enregistrer" : "Créer"}
+            {mutation.isPending
+              ? "Enregistrement..."
+              : theme
+                ? "Enregistrer"
+                : "Créer"}
           </Button>
         </>
       }
@@ -296,7 +307,6 @@ function ThemeFormModal({
 }
 
 // petit helper pour reset le form chaque fois que la modale s'ouvre
-import { useEffect } from "react";
 function useEffectOnOpen(open: boolean, fn: () => void) {
   useEffect(() => {
     if (open) fn();

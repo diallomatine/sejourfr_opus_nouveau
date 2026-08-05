@@ -12,7 +12,7 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Selectionne le bean {@link EvaluationLlmClient} actif en fonction de
- * {@code sejourfr.production-evaluation.provider} (defaut {@code openai}).
+ * {@code sejourfr.production-evaluation.provider} (defaut {@code deepseek}).
  *
  * <p>Les providers compatibles OpenAI (OpenAI, DeepSeek, ...) partagent un seul
  * client {@link OpenAiCompatibleEvalClient}, instancie une fois par provider
@@ -48,17 +48,27 @@ public class EvaluationLlmConfig {
             @Qualifier("evaluationAnthropicClient") EvaluationLlmClient anthropic,
             @Qualifier("evaluationOpenAiClient") EvaluationLlmClient openai,
             @Qualifier("evaluationDeepSeekClient") EvaluationLlmClient deepseek) {
-        String provider = props.getProvider() == null ? "" : props.getProvider().trim().toLowerCase();
-        EvaluationLlmClient selected = switch (provider) {
+        EvaluationLlmClient selected = select(
+            props.getProvider(), "sejourfr.production-evaluation.provider",
+            anthropic, openai, deepseek);
+        log.info("Provider LLM eval actif : {} (modele {})",
+            props.getProvider(), selected.getModelName());
+        return selected;
+    }
+
+    private static EvaluationLlmClient select(String provider, String cleConfig,
+                                              EvaluationLlmClient anthropic,
+                                              EvaluationLlmClient openai,
+                                              EvaluationLlmClient deepseek) {
+        String p = provider == null ? "" : provider.trim().toLowerCase();
+        return switch (p) {
             case "openai" -> openai;
             case "anthropic" -> anthropic;
             case "deepseek" -> deepseek;
             default -> throw new IllegalStateException(
-                "sejourfr.production-evaluation.provider invalide : '" + props.getProvider()
+                cleConfig + " invalide : '" + provider
                     + "'. Valeurs supportees : openai, anthropic, deepseek."
             );
         };
-        log.info("Provider LLM eval actif : {} (modele {})", provider, selected.getModelName());
-        return selected;
     }
 }

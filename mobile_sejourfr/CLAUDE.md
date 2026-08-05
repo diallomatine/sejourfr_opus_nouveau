@@ -78,7 +78,7 @@ lib/
     ├── tcf/
     │   ├── tcf_screen.dart                    Home TCF (single scroll : header + hero + 5 épreuves + CECRL + stats)
     │   └── widgets/
-    │       ├── cecrl_progress_card.dart       Niveau global estimé + objectif + barre 6 segments A1→C2
+    │       ├── cecrl_progress_card.dart       Niveau global estimé + objectif (hors production)
     │       └── stats_row.dart                 3 mini-cards stats (Séances / Pratique / Jours actifs)
     ├── module_detail/             Écran détail intermédiaire entre hub et runner / sujets de tâche
     │   ├── civique_theme_detail_screen.dart   Hub d'un thème civique (single scroll, pattern QCM)
@@ -118,9 +118,15 @@ lib/
     │   ├── history_session_screen.dart  Bilan détaillé d'une session (live ou historique) :
     │   │                                hero CECRL + détail par tâche tappable, polling
     │   │                                automatique sur les évals IA quand `?live=1`
-    │   └── widgets/                     production_app_header, donut_chart_score,
-    │                                    consigne_card, writing_zone, criterion_row,
-    │                                    feedback_block, transcription_section, etc.
+    │   └── widgets/                     production_app_header, consigne_card,
+    │                                    writing_zone, criterion_row, feedback_block,
+    │                                    transcript_dialogue (transcription EO,
+    │                                    ouverte en `showAppSheet`),
+    │                                    evaluation_report (corps partagé EE/EO) +
+    │                                    ses 6 blocs : objective_card,
+    │                                    production_score_hero / tcf_note_scale,
+    │                                    priority_card, improved_version_card,
+    │                                    accomplishment_card, etc.
     ├── review/                    Favoris + erreurs récentes (tabs)
     └── profile/                   Compte + paramètres + logout + suppression de compte
 ```
@@ -140,8 +146,20 @@ L'app suit la maquette mobile autonome (design « bleu-blanc-rouge discret »). 
   bordures `line` / `lineSoft`
 - Sémantique parcours : **TCF = rouge, Civique = bleu** (toggles, héros, icônes de parcours)
 - `masteryColor(0-100)` : rampe rouge → corail → ardoise → bleu → Bleu France pour les barres
-  de maîtrise ; `masteryLabel()` pour le libellé qualitatif. `CecrlColor` inchangé (jamais de
-  rouge pour un niveau).
+  de maîtrise ; `masteryLabel()` pour le libellé qualitatif. `CecrlColor` (jamais de rouge
+  pour un niveau) est la **seule** table qui décide de la teinte d'un niveau : le badge
+  `CecrlTagTone` (`core/widgets/app_tag.dart`, `niveau.tagTone`) en **dérive** via
+  `tagToneForAccent(Color)`. Ne pas réécrire un second `switch` sur `NiveauCecrl`.
+  Même règle pour le **libellé** : `NiveauCecrl.shortName` (`core/models/enums.dart`)
+  est la seule forme courte — « A1 non atteint » s'y rend **`<A1`**, jamais tronqué
+  en « A1 ». Une teinte de niveau vient **toujours** de `CecrlColor` : le vert dit
+  « B2 », pas « terminé » (une pastille d'état reste neutre).
+  **Une note de production se colore par son palier TCF** (`TcfNoteScale.bandFor(note)`,
+  `null` si la note n'est pas un nombre → pas de palier inventé, pas de curseur), jamais par
+  un seuil scolaire sur 20 : 12/20 vaut B2, le palier le plus haut de l'examen. Un critère
+  d'évaluation antérieur au contrat v4 (sans `bande`) relit sa note avec la même table
+  (`TcfNoteScale.bandeFor`, mêmes correspondances que `BandeCritere.of` côté serveur) et se
+  rend comme un critère moderne — aucun critère ne s'affiche plus en chiffres.
 - Rayons standard : `AppRadii.sm/md/lg/xl/pill` (8/12/18/26/999). Ombres : `AppShadows.card` (douce) / `.md`.
 
 Typographies :
@@ -229,6 +247,12 @@ change un DTO, mettre à jour le model Dart correspondant.
 - Les repositories prennent l'`ApiClient` en injection, exposé via `apiClientProvider`.
 - Pour traiter une erreur, utiliser `ApiClient.toApiException(e)` qui mappe les `DioException` en
   `ApiException` propre avec status code + message + fieldErrors.
+- **Échec de démarrage d'un attempt** (série, examen blanc QCM, session EE/EO) : passer par
+  `core/utils/start_failure.dart` — `showPaywallOrError(context, e)` ouvre le paywall sur un **403**
+  (verrou freemium appliqué par le backend : statut premium en cache périmé, abonnement expiré en
+  cours de session) et affiche le message backend sinon. `onForbidden:` sert à fermer un briefing
+  avant d'empiler le paywall. **Ne pas réécrire ce `if (isForbidden)` dans un écran** : la règle vit à
+  un seul endroit, et `classifyStartFailure` la verrouille en test.
 
 **Formulaires**
 
@@ -420,7 +444,8 @@ et leurs widgets n'existent plus. `/civique` et `/tcf` sont des **redirects** ve
   (compteur « X/N séries faites » via `lotsProvider`) + historique des examens du module
   en dessous + bouton **« Examens blancs » fixé en bas** (`FixedActionBar`) → page des
   examens du module. Tap niveau → `TcfLevelLotsScreen` (« Séries » = les lots, cartes
-  `SerieCard` partagées avec badge meilleur score) + même bouton fixe.
+  `SerieCard` partagées avec badge « Dernier X/Y » — `LotDto.lastScore` est le
+  **dernier** score, pas le meilleur) + même bouton fixe.
 - Civique (`/civique/theme/:themeId` → `CiviqueThemeDetailScreen`) : pas de niveaux —
   séries directes (cap 6 + « Voir plus ») + historique + bouton fixe → 10 examens du thème.
 - `widgets/serie_card.dart` est la carte série partagée TCF/Civique ;
@@ -461,7 +486,8 @@ Sections successives (mêmes briques sur les 2 hubs) :
 - `SectionLabel('Ma progression')` + `SectionLink('Détails')` → push `/progress`.
 - TCF : `CecrlProgressCard` (niveau actuel = `progression.lastFullExam.finalLevel` du dernier
   examen blanc complet ; objectif = `progression.tcf.targetLevel`, fallback dérivé de
-  `targetProcedure`). Barre 6 segments A1→C2 colorée jusqu'au niveau courant.
+  `targetProcedure`). Cette carte de profil général est distincte de la notation
+  production TCF IRN, dont l'échelle de bilan s'arrête à B2.
 - TCF uniquement : `StatsRow` (3 mini-cards). Seules les Séances sont branchées
   (`stats.attemptsTotal`) — Pratique (minutes) et Jours actifs sont en `—` tant que le backend
   ne les expose pas (TODO).
@@ -473,6 +499,15 @@ l'écran unique des 20 slots, atteint depuis le hero du hub TCF, le hero Progres
 et le bilan. `TcfFullExamsView` est le corps réutilisable qu'il enveloppe avec une topbar back.
 L'ancien `civique_exam_blanc_view.dart` a été **supprimé** (plus utilisé après la refonte sans
 onglets) ; pour Civique, le tap du hero démarre directement un MOCK_EXAM via le briefing modal.
+
+**Périmètre du niveau final (examen complet)** : le plancher `finalCecrlLevel` ne porte que
+sur les épreuves **réellement passées** — une EE/EO verrouillée par le freemium n'a plus de
+niveau du tout (`cecrlLevel` null + cadenas), et une évaluation en échec est écartée. Le
+backend publie le périmètre : `epreuvesCountedInFinalLevel` / `epreuvesExpected` /
+`finalLevelPartial` (résumé d'historique : `finalLevelPartial` seul). Conséquences côté
+mobile, à ne pas défaire : le bilan **ne dit jamais « tes 4 épreuves » en dur** (phrase
+dérivée du décompte, et sans chiffre si le champ manque), et un examen partiel n'alimente
+pas « meilleur niveau » / « dernier examen » — il est annoté « partiel ».
 
 **Modules affichés :**
 - **Civique** = les 5 thèmes officiels chargés via `/api/themes?module=CIVIQUE` (Principes &
@@ -627,7 +662,8 @@ contiennent que du texte, mais l'architecture est prête pour le TCF complet.
 ## TCF Expression orale + écrite (`screens/tcf_production/`)
 
 Module distinct du runner QCM : l'utilisateur **produit** un audio (EO) ou un texte (EE), envoyé au backend
-qui le transcrit (Whisper) + le note (Claude) en 10-15 s. Cf. `CLAUDE.md` racine pour le pipeline backend.
+qui le transcrit (Whisper) + le note via le correcteur unique configuré dans
+`sejourfr.production-evaluation` (DeepSeek par défaut) en 10-15 s. Cf. `CLAUDE.md` racine.
 
 **Deux écrans** (`tcf_expression_screen.dart`, remplacent l'ancien couple
 `TcfProductionDetailScreen` + `TcfProductionTaskSubjectsScreen` supprimés). Accents refonte
@@ -671,6 +707,80 @@ entre T1/T2/T3** ; après T3 → bilan détaillé (`HistorySessionScreen` `?live
   submission (correction IA complète) — push en single-task après soumission, ou depuis le
   bilan en tap d'une ligne.
 
+**Correction IA affichée (profil TCF IRN, rubriques v8 / schéma v5, maximum B2)** — le corps des deux écrans de
+résultats (EE + EO) est le widget partagé `widgets/evaluation_report.dart` : un seul endroit
+décide de l'ordre et de la forme de la correction, **y compris la note**. Le rapport prend un
+`isOral` (et plus un titre de corrections) : c'est lui qui en déduit le wording des exemples
+**et** la limite de l'évaluation orale. **6 blocs, dans cet ordre** :
+
+1. **Objectif de la tâche** (`objective_card.dart`) — verdict `accomplissement.objectif`
+   (`ATTEINT` / `PARTIELLEMENT_ATTEINT` / `NON_ATTEINT`, 3 traitements visuels) +
+   `objectif_resume`. Le champ est **absent des ~100 évaluations legacy** → le bloc disparaît.
+2. **Note + échelle TCF** (`production_score_hero.dart` + `tcf_note_scale.dart`) — note,
+   niveau observé et **règle de lecture** (A1 non atteint 0 · A1 1 · A2 2-5 · B1 6-9 ·
+   B2 10-20) avec un curseur sur la note, dans **un seul bloc**.
+3. **Points forts** (≤ 2).
+4. **Priorités** (≤ 2, `priority_card.dart`).
+5. **Version améliorée** (`improved_version_card.dart`) — `version_amelioree`, **EE
+   uniquement** (absente en EO par contrat, pas par bug).
+6. **« Voir l'analyse complète »** — section **repliée par défaut** qui contient tout le
+   reste, dans l'ordre du web : avertissements → détail par critère → accomplissement
+   détaillé → exemples corrigés → suggestions.
+
+Aucune information n'a disparu : elle est soit remontée dans les blocs 1-5, soit rangée dans
+le bloc 6. La transcription EO et « Votre rédaction » (EE) restent dans leurs écrans.
+
+- **La note est celle du TCF, et son échelle est affichée avec elle** : séparées, la note se
+  lisait comme une note scolaire française — « 4,5/20 » n'est pas une catastrophe, c'est un
+  A2. `donut_chart_score.dart` (arc = un pourcentage de 20, exactement la lecture qu'on
+  corrige) et `niveau_observe_card.dart` sont **supprimés**, fusionnés dans
+  `ProductionScoreHero`. Les paliers de `TcfNoteScale` sont à **largeur égale** (pas
+  proportionnelle) et prennent leur teinte de `CecrlColor` : la barre dit le même palier que
+  la pastille.
+- **La confiance ne s'affiche QUE si elle n'est pas `HAUTE`** (avec ses `confianceRaisons`) :
+  une confiance haute est le cas normal, l'annoncer n'apprend rien et inquiète.
+- **Limite de l'évaluation orale** : le correcteur la renvoie normalement dans
+  `avertissements` ; quand la liste arrive **vide sur une tâche orale**, le rapport affiche le
+  repli `kOralEvaluationLimitNotice` (texte mot pour mot de `docs/notation-ia-eo-ee.md` §9,
+  même repli que le web). Jamais à l'écrit.
+- **Une priorité ENSEIGNE** : `points_a_ameliorer[]` est un **objet**
+  `{constat, comment?, exemple?{avant, apres}}` (`PointAAmeliorer`), rendu par
+  `priority_card.dart` — `comment` = la technique réutilisable, mise en avant dans un encadré
+  « COMMENT FAIRE » ; `exemple` = la démonstration avant/après sur la phrase du candidat.
+  ⚠ **Les deux formes coexistent en base** : les évaluations antérieures portent de simples
+  **chaînes** — `PointAAmeliorer.fromJsonNullable` les accepte et les rend comme un `constat`
+  seul (aucun encadré vide). Ne jamais retirer cette tolérance.
+- `exemples_corriges[].gain` (facultatif) = ce que la reformulation démontre de plus, rendu en
+  ligne verte sous l'explication.
+- **Par critère on affiche la bande, pas la note** : `CriterionScore.bande` (`BandeCritere`,
+  calculée côté serveur) → « Très bonne maîtrise / Satisfaisant / En cours d'acquisition /
+  Fragile / Non évaluable », plus la `preuve` (citation littérale) sous le commentaire. La
+  **note globale /20 reste affichée** (bloc 2) et porte désormais **une décimale** (12,5) :
+  tout affichage de note passe par `formatScore` (`core/utils/format_date.dart`), jamais par
+  un arrondi local. La grille active n'a que **4 codes équipondérés** (`communiquer`, `interagir`,
+  `lexique`, `morphosyntaxe`), mais la table icône↔libellé de `criterion_row.dart` garde
+  **tous** les codes des grilles précédentes (`realisation_consigne`,
+  `adequation_destinataire`, `chronologie_recit`, `developpement_reponses`, `prise_position`,
+  `argumentation`, `conduite_echange`, `coherence`, `pertinence`) — sinon l'historique
+  retombe sur l'icône et le libellé par défaut. Un test le verrouille.
+- **Garde-fou non négociable** : jamais de niveau sans sa confiance
+  (`EvaluationResult.hasNiveauObserve`). Le **bilan d'épreuve** reste le seul niveau qui fait
+  foi.
+- **La note /20 suit l'échelle TCF IRN** : 0 = A1 non atteint, 1 = A1, 2-5 = A2,
+  6-9 = B1 et 10-20 = B2 (plafond du profil, jamais C1/C2). Une tâche isolée n'a
+  toutefois pas de note officielle : aucune correspondance de bilan n'y est affichée. La
+  correspondance (`ProductionBilan.correspondanceTcf` → `CorrespondanceTcf.phrase`) ne
+  s'affiche qu'au **bilan d'épreuve** (`BilanHero`), au même wording que le web.
+  Cf. `docs/notation-ia-eo-ee.md` §6.6.
+- `CecrlScale` affiche uniquement les quatre paliers du profil A1→B2. Les valeurs
+  C1/C2 restent décodables pour l'historique mais sont rabattues visuellement sur B2.
+- **Rétrocompatibilité (une centaine d'évaluations en base)** : `niveauObserve` / `confiance` /
+  `avertissementNiveau` / `bande` / `accomplissement` / `objectif` / `objectif_resume` /
+  `version_amelioree` / `preuve` / `gain` absents, et
+  `points_a_ameliorer` en chaînes = cas **normal** → les blocs concernés disparaissent et
+  l'écran reste cohérent. Couvert par `test/production_models_test.dart` +
+  `test/evaluation_report_test.dart`.
+
 **Modélisation (sémantique clé)** : `production_tasks` = les **SUJETS** d'entraînement —
 plusieurs lignes par (épreuve, tacheNumero), chacune un sujet concret (ex. « Vous êtes
 mécanicien, présentez-vous »). Le candidat en choisit un et produit sa réponse, corrigée par
@@ -696,7 +806,7 @@ réutilise le flux briefing → enregistrement (EO) / `ee_briefing_writing_scree
   que `PUBLISHED` (bouton « ▶ Écouter » dans le modal exemple).
 - Endpoints lecture : `GET /api/production-tasks?epreuve=…&tacheNumero=…` (sujets),
   `GET /api/production-tasks/{id}` (détail sujet), `GET /api/production-examples?epreuve=…&tacheNumero=…` (modèles).
-- La correction IA réutilise le pipeline existant (Whisper + Claude).
+- La correction IA réutilise le pipeline existant (Whisper + correcteur configuré).
 
 **Flow EO (2 écrans + résultats)** — single-task : le SessionController a juste 1 tâche. Les écrans
 suivent le « studio » du template `SejourFR_Mobile_Autonome.html` : **consigne épinglée en haut,
@@ -720,9 +830,10 @@ page intermédiaire pour capturer — le tap sur le micro lance la capture sur p
      `PopScope`/flèche retour passent par une confirmation d'abandon pendant la capture.
 2. **Finished** (`eo_finished_screen.dart`) : `ConsigneCard` rouge compacte (`maxLines: 2`) +
    check vert + mini-player just_audio sur le fichier local + CTA "Voir mon évaluation" → swap vers
-   `EvaluationLoadingView(includeTranscription: true)` pendant l'upload R2 + Whisper + Claude
+   `EvaluationLoadingView(includeTranscription: true)` pendant l'upload R2 + Whisper + correcteur
    (~15 s), puis push résultats.
-4. **Résultats** (`eo_results_screen.dart`) : score donut violet + critères + feedback + **transcription
+4. **Résultats** (`eo_results_screen.dart`) : score donut (couleur = rampe `masteryColor`,
+   plus de violet hors palette) + critères + feedback + **transcription
    Whisper**. Atteint en single-task après soumission, ou depuis le bilan en tap d'une ligne, ou
    depuis l'historique des sessions passées (mode `isHistory`). En 3-tâches, `eo_finished_screen`
    **bypasse** ce screen entre les tâches : il push direct le briefing suivant, et après T3 le
@@ -773,10 +884,19 @@ flag `isExam` + le `slotNumber`. Points d'entrée :
 (`screens/question_runner/widgets/exam_timer.dart`, réutilisé) dans le `trailing` du
 `ProductionProgressStrip`, ancré sur `attempt.startedAt` + `timeLimitSeconds` (module ; survit à un
 kill/reprise) ou 1800 s côté front (examen complet, pas de `timeLimitSeconds` backend). À 0:00 :
-auto-soumission du texte courant **s'il est recevable** (mots ∈ [motsMin, motsMax×1.2]), sinon rien ;
-puis `finish` (module) / `markSubDone` (complet) ; puis bilan. L'EO n'a pas de chrono global : pendant
-l'enregistrement, `_TimerBig` passe en **décompte** (`countdown:true`, `dureeMaxSec` → 0) en mode
-examen au lieu du chrono croissant.
+auto-soumission du texte courant **s'il est recevable** (mots ∈ [motsMin, motsMax],
+bornes strictes TCF IRN : 30–60 / 60–90 / 60–90), sinon rien ;
+puis `finish` (module) / `markSubDone` (complet) ; puis bilan.
+
+**Chrono d'examen EO (15:00)** : `eo_briefing_screen` rend le même `ExamTimer` dans le `trailing` du
+`ProductionProgressStrip` **dès que l'attempt porte un `timeLimitSeconds`** (900 s posées par le
+backend sur une session d'examen module EO). Ancré sur `startedAt`, il court à travers les 3 tâches et
+survit à un kill/reprise. À 0:00 : `_handleExamTimeout` pose `_navigated` **avant** de stopper la
+capture (sinon `_onCaptureFinished` enchaînerait la tâche suivante en parallèle), soumet l'audio
+capturé en best-effort, puis `finish` + bilan. Absent en entraînement libre et sur le sous-attempt EO
+d'un examen complet (attempt fabriqué côté client, sans `timeLimitSeconds` — le temps global y est
+tenu par le `_GlobalTimer` du hub). En plus de ce chrono global, `_TimerBig` passe en **décompte**
+(`countdown:true`, `dureeMaxSec` → 0) pendant l'enregistrement en mode examen.
 
 **EO en examen** : au stop (manuel OU auto-stop), pas d'écran `eo_finished_screen` entre les tâches —
 le briefing soumet immédiatement (`_submitExamAndAdvance`) et enchaîne la tâche suivante (ou le bilan

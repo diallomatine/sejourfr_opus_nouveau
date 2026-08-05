@@ -6,7 +6,7 @@ import com.sejourfr.app.dto.StartAttemptRequest;
 import com.sejourfr.app.dto.SubmitAnswerRequest;
 import com.sejourfr.app.ratelimit.RateLimitGuard;
 import com.sejourfr.app.service.PublicAttemptService;
-import com.sejourfr.app.util.ClientIpExtractor;
+import com.sejourfr.app.util.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,18 +33,19 @@ public class PublicAttemptController {
 
     private final PublicAttemptService publicAttemptService;
     private final RateLimitGuard rateLimitGuard;
+    private final ClientIpResolver clientIpResolver;
 
     @PostMapping("/demo")
     @ResponseStatus(HttpStatus.CREATED)
     public AttemptResponse startDemo(@Valid @RequestBody StartAttemptRequest req, HttpServletRequest httpReq) {
-        String ip = ClientIpExtractor.extract(httpReq);
+        String ip = clientIpResolver.resolve(httpReq);
         rateLimitGuard.checkDemo(ip);
         return publicAttemptService.startDemo(req, ip);
     }
 
     @GetMapping("/{id}")
     public AttemptResponse get(@PathVariable UUID id, HttpServletRequest httpReq) {
-        return publicAttemptService.getDemoById(id, ClientIpExtractor.extract(httpReq));
+        return publicAttemptService.getDemoById(id, clientIpResolver.resolve(httpReq));
     }
 
     @PostMapping("/{id}/answers")
@@ -52,11 +53,11 @@ public class PublicAttemptController {
             @PathVariable UUID id,
             @Valid @RequestBody SubmitAnswerRequest req,
             HttpServletRequest httpReq) {
-        return publicAttemptService.submitDemoAnswer(id, ClientIpExtractor.extract(httpReq), req);
+        return publicAttemptService.submitDemoAnswer(id, clientIpResolver.resolve(httpReq), req);
     }
 
     @PostMapping("/{id}/finish")
     public AttemptResponse finish(@PathVariable UUID id, HttpServletRequest httpReq) {
-        return publicAttemptService.finishDemo(id, ClientIpExtractor.extract(httpReq));
+        return publicAttemptService.finishDemo(id, clientIpResolver.resolve(httpReq));
     }
 }

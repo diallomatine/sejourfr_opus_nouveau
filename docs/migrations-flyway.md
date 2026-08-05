@@ -53,6 +53,11 @@ db/migration-dev/                    V900+       seeds dev uniquement (comptes s
 - **`00_schema/` = DDL uniquement** : `CREATE TABLE`/`INDEX`/contraintes/`COMMENT`, aucun
   INSERT. Chaque table est créée dans sa **forme finale** (toutes les évolutions intégrées),
   ordre des fichiers respectant les dépendances de clés étrangères.
+  - **Exception : les correctifs de données** (`UPDATE` de réalignement après un bug
+    d'écriture, ex. `V023__fix_attempt_epreuve_tcf.sql`) vivent aussi ici, faute d'autre
+    plage adaptée — `100_reference/` sert aux données de référence et `200/300` au contenu.
+    Ils doivent être **déterministes, bornés par une clause `WHERE` explicite, et
+    idempotents** (rejouables sans effet). Jamais de `DELETE` d'historique utilisateur.
 - **`100_reference/` à `300_tcf/` = INSERT propres** régénérés depuis l'état final de la
   base (déterministes, UUID explicites → rejouables à l'identique sur dev **et** recette).
 - L'ordre d'exécution suit le **numéro V**, jamais le dossier. Respecter les plages

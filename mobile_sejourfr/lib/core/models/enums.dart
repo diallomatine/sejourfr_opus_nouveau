@@ -1,5 +1,5 @@
-/// Mappings 1-1 avec les enums Java du backend.
-/// On garde des string raw pour faciliter (de)serialization et matchs réseau.
+// Mappings 1-1 avec les enums Java du backend.
+// On garde des string raw pour faciliter (de)serialization et matchs réseau.
 
 enum AppModule {
   civique('CIVIQUE'),
@@ -22,8 +22,7 @@ enum AuthProvider {
   const AuthProvider(this.wire);
   final String wire;
 
-  static AuthProvider fromWire(String value) =>
-      AuthProvider.values.firstWhere(
+  static AuthProvider fromWire(String value) => AuthProvider.values.firstWhere(
         (e) => e.wire == value,
         orElse: () => AuthProvider.local,
       );
@@ -159,13 +158,14 @@ enum EpreuveType {
   static EpreuveType fromWire(String value) =>
       EpreuveType.values.firstWhere((e) => e.wire == value);
 
-  bool get isProduction => this == EpreuveType.tcfEo || this == EpreuveType.tcfEe;
+  bool get isProduction =>
+      this == EpreuveType.tcfEo || this == EpreuveType.tcfEe;
   bool get isAudio => this == EpreuveType.tcfEo;
   bool get isWriting => this == EpreuveType.tcfEe;
 }
 
-/// Niveau CECRL renvoyé par l'évaluation IA EO/EE. Distinct de `TargetLevel`
-/// qui représente le palier visé par l'utilisateur (limité à A2/B1/B2).
+/// Niveau CECRL renvoyé par l'évaluation IA EO/EE. Le contrat TCF IRN actif
+/// s'arrête à B2 ; C1/C2 sont conservés uniquement pour décoder l'historique.
 enum NiveauCecrl {
   a1NonAtteint('A1_NON_ATTEINT'),
   a1('A1'),
@@ -194,14 +194,124 @@ enum NiveauCecrl {
         NiveauCecrl.c2 => 'C2',
       };
 
-  /// Index 0..5 pour positionner un curseur sur la barre A1→C2.
+  /// Forme courte pour les pastilles et badges étroits. `A1_NON_ATTEINT` se
+  /// rend **« <A1 »** : le tronquer en « A1 » annoncerait au candidat un
+  /// niveau qu'il n'a justement pas atteint. Helper canonique — tout écran qui
+  /// affiche un niveau dans un badge passe par ici, jamais par un `switch`
+  /// local ni par un `replaceAll(' non atteint', '')`.
+  String get shortName => switch (this) {
+        NiveauCecrl.a1NonAtteint => '<A1',
+        NiveauCecrl.a1 => 'A1',
+        NiveauCecrl.a2 => 'A2',
+        NiveauCecrl.b1 => 'B1',
+        NiveauCecrl.b2 => 'B2',
+        NiveauCecrl.c1 => 'C1',
+        NiveauCecrl.c2 => 'C2',
+      };
+
+  /// Index 0..3 sur la barre TCF IRN A1→B2. Les valeurs historiques C1/C2
+  /// sont rabattues sur le plafond B2.
   int get scaleIndex => switch (this) {
         NiveauCecrl.a1NonAtteint || NiveauCecrl.a1 => 0,
         NiveauCecrl.a2 => 1,
         NiveauCecrl.b1 => 2,
         NiveauCecrl.b2 => 3,
-        NiveauCecrl.c1 => 4,
-        NiveauCecrl.c2 => 5,
+        NiveauCecrl.c1 || NiveauCecrl.c2 => 3,
+      };
+}
+
+/// Degré de certitude d'une évaluation IA (contrat de notation v4). Un niveau
+/// par tâche n'est JAMAIS affiché sans sa confiance à côté.
+enum ConfianceEvaluation {
+  haute('HAUTE'),
+  moyenne('MOYENNE'),
+  faible('FAIBLE');
+
+  const ConfianceEvaluation(this.wire);
+  final String wire;
+
+  static ConfianceEvaluation? fromWireNullable(String? value) {
+    if (value == null) return null;
+    final normalized = value.trim().toUpperCase();
+    for (final c in ConfianceEvaluation.values) {
+      if (c.wire == normalized) return c;
+    }
+    return null;
+  }
+
+  String get displayName => switch (this) {
+        ConfianceEvaluation.haute => 'confiance haute',
+        ConfianceEvaluation.moyenne => 'confiance moyenne',
+        ConfianceEvaluation.faible => 'confiance faible',
+      };
+}
+
+/// Bande qualitative d'un critère, calculée côté serveur depuis sa note /20.
+/// Les fronts affichent la bande, plus le nombre : une IA ne distingue pas
+/// honnêtement un 13 d'un 14. La note globale /20 reste, elle, affichée.
+/// Absente des évaluations antérieures au contrat v4.
+enum BandeCritere {
+  tresBonneMaitrise('TRES_BONNE_MAITRISE'),
+  satisfaisant('SATISFAISANT'),
+  enCoursAcquisition('EN_COURS_ACQUISITION'),
+  fragile('FRAGILE'),
+  nonEvaluable('NON_EVALUABLE');
+
+  const BandeCritere(this.wire);
+  final String wire;
+
+  static BandeCritere? fromWireNullable(String? value) {
+    if (value == null) return null;
+    final normalized = value.trim().toUpperCase();
+    for (final b in BandeCritere.values) {
+      if (b.wire == normalized) return b;
+    }
+    return null;
+  }
+
+  String get displayName => switch (this) {
+        BandeCritere.tresBonneMaitrise => 'Très bonne maîtrise',
+        BandeCritere.satisfaisant => 'Satisfaisant',
+        BandeCritere.enCoursAcquisition => "En cours d'acquisition",
+        BandeCritere.fragile => 'Fragile',
+        BandeCritere.nonEvaluable => 'Non évaluable',
+      };
+
+  /// Remplissage 0..1 de la barre du critère (5 crans, pas une note).
+  double get fillRatio => switch (this) {
+        BandeCritere.tresBonneMaitrise => 1.0,
+        BandeCritere.satisfaisant => 0.75,
+        BandeCritere.enCoursAcquisition => 0.5,
+        BandeCritere.fragile => 0.25,
+        BandeCritere.nonEvaluable => 0.0,
+      };
+}
+
+/// Verdict d'accomplissement de la tâche (rubriques v8) : la question que le
+/// candidat se pose en premier — « est-ce que j'ai fait ce qu'on me demandait ? ».
+/// Absent des évaluations antérieures : le bloc disparaît alors entièrement,
+/// il n'y a rien à deviner.
+enum ObjectifAccomplissement {
+  atteint('ATTEINT'),
+  partiellementAtteint('PARTIELLEMENT_ATTEINT'),
+  nonAtteint('NON_ATTEINT');
+
+  const ObjectifAccomplissement(this.wire);
+  final String wire;
+
+  static ObjectifAccomplissement? fromWireNullable(String? value) {
+    if (value == null) return null;
+    final normalized = value.trim().toUpperCase();
+    for (final o in ObjectifAccomplissement.values) {
+      if (o.wire == normalized) return o;
+    }
+    return null;
+  }
+
+  String get displayName => switch (this) {
+        ObjectifAccomplissement.atteint => 'Atteint',
+        ObjectifAccomplissement.partiellementAtteint => 'Partiellement atteint',
+        ObjectifAccomplissement.nonAtteint => 'Non atteint',
       };
 }
 
@@ -219,7 +329,8 @@ enum SubmissionStatut {
   static SubmissionStatut fromWire(String value) =>
       SubmissionStatut.values.firstWhere((e) => e.wire == value);
 
-  bool get isFinal => this == SubmissionStatut.evaluated || this == SubmissionStatut.failed;
+  bool get isFinal =>
+      this == SubmissionStatut.evaluated || this == SubmissionStatut.failed;
   bool get isInProgress => !isFinal;
 }
 

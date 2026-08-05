@@ -330,7 +330,7 @@ class _WritingZoneState extends State<WritingZone>
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '${widget.wordCount} mots',
+              '${widget.wordCount} ${widget.wordCount > 1 ? "mots" : "mot"}',
               style: AppFonts.ui(
                 size: 12,
                 weight: FontWeight.w700,
@@ -486,7 +486,7 @@ class _WritingZoneState extends State<WritingZone>
               children: [
                 _StatChip(
                   icon: LucideIcons.type,
-                  label: '${widget.wordCount} mots',
+                  label: '${widget.wordCount} ${widget.wordCount > 1 ? "mots" : "mot"}',
                 ),
                 _StatChip(
                   icon: LucideIcons.text,

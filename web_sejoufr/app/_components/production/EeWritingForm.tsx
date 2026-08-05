@@ -3,16 +3,8 @@
 import {useEffect, useRef, useState} from "react";
 import {Clock, FileText} from "lucide-react";
 import type {ProductionTaskDto} from "@/lib/types";
+import {ProductionCriteriaCard} from "./ProductionCriteriaCard";
 import styles from "./production.module.css";
-
-/** Les 5 critères d'évaluation EE (affichés avant rédaction, parité mobile). */
-const EE_CRITERIA = [
-  "Pertinence et développement du contenu",
-  "Organisation et cohérence du texte",
-  "Richesse et précision du vocabulaire",
-  "Correction grammaticale",
-  "Orthographe et ponctuation",
-];
 
 const DRAFT_PREFIX = "sejourfr.ee.draft.";
 
@@ -49,7 +41,7 @@ export function EeWritingForm({
   /** Incrémenté par le parent (chrono examen à 0:00) pour déclencher une
    *  auto-soumission du texte courant si recevable. */
   autoSubmitSignal?: number;
-  /** Reçoit le texte courant + s'il est recevable (mots ∈ [motsMin, motsMax×1.2]).
+  /** Reçoit le texte courant + s'il est recevable (mots ∈ [motsMin, motsMax]).
    *  Au parent de décider quoi en faire (soumettre ou finir à vide). */
   onAutoSubmit?: (texte: string, recevable: boolean) => void;
   onSubmit: (texte: string) => void;
@@ -86,23 +78,34 @@ export function EeWritingForm({
   const max = task.motsMax;
   const inRange =
     (min == null || words >= min) && (max == null || words <= max);
+  const submittable =
+    words > 0 &&
+    (min == null || words >= min) &&
+    (max == null || words <= max);
+  const lengthHint =
+    words === 0 || submittable
+      ? null
+      : min != null && words < min
+        ? `Encore ${min - words} mot${min - words > 1 ? "s" : ""} avant de pouvoir soumettre (${min} minimum).`
+        : `Texte trop long de ${words - (max ?? words)} mot${
+            words - (max ?? words) > 1 ? "s" : ""
+          } : raccourcissez-le pour pouvoir soumettre (${max} mots attendus).`;
 
-  // Auto-soumission examen (chrono à 0:00). Recevable = mots ∈ [motsMin,
-  // motsMax×1.2] — on tolère 20 % au-dessus de la borne haute. Le parent décide.
+  // Auto-soumission examen (chrono à 0:00). Les bornes TCF IRN sont strictes.
   const lastSignalRef = useRef(0);
   useEffect(() => {
     if (autoSubmitSignal <= 0 || autoSubmitSignal === lastSignalRef.current) return;
     lastSignalRef.current = autoSubmitSignal;
     const recevable =
       (min == null || words >= min) &&
-      (max == null || words <= Math.floor(max * 1.2));
+      (max == null || words <= max);
     onAutoSubmit?.(text.trim(), recevable);
   }, [autoSubmitSignal, words, min, max, text, onAutoSubmit]);
   const wordClass = words === 0 ? "" : inRange ? styles.wordOk : styles.wordWarn;
   const rangeLabel =
     min != null && max != null ? `${min}–${max} mots` : min != null ? `≥ ${min} mots` : "";
 
-  const canSubmit = words > 0 && !submitting;
+  const canSubmit = submittable && !submitting;
 
   return (
     <>
@@ -124,17 +127,7 @@ export function EeWritingForm({
         </div>
       </div>
 
-      <div className={styles.card}>
-        <p className={styles.cardLabel}>Vous serez évalué sur</p>
-        <ul className={styles.criteriaList}>
-          {EE_CRITERIA.map((c) => (
-            <li key={c} className={styles.criteriaItem}>
-              <span className={styles.criteriaDot} />
-              {c}
-            </li>
-          ))}
-        </ul>
-      </div>
+      <ProductionCriteriaCard />
 
       <div className={styles.writeZone}>
         <div className={styles.writeHead}>
@@ -158,6 +151,8 @@ export function EeWritingForm({
           Brouillon enregistré automatiquement sur cet appareil.
         </p>
       </div>
+
+      {lengthHint && <p className={styles.lengthHint}>{lengthHint}</p>}
 
       {error && <div className={styles.error}>{error}</div>}
 

@@ -76,15 +76,24 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
   au start (`ProductionAttemptStartRequest.exam`) ; ses soumissions bypassent
   le quota d'entraînement. Refaire l'examen 1 = toléré une fois mais consomme
   les essais d'entraînement restants ; une session ne compte que si ≥ 1 tâche
-  soumise. Règles dans `ProductionSubmissionService` /
-  `AttemptService.startProductionAttempt`. QCM entraînement : série 1
-  gratuite, 2+ premium. **Examens blancs module QCM** (CO / CE / STRUCTURE,
-  `MOCK_EXAM` + `moduleExamQuestionType`) : **slot 1 offert ET rejouable à
-  volonté** pour tout compte inscrit, slots 2+ premium. Verrou côté backend
-  (`AttemptService.startModuleExam`) basé sur le `slotNumber` (≠ EE/EO qui ont
-  un freebie consommable), miroir des 3 fronts (web `ExamsGrid freeSlots=1`,
-  mobile briefing + page examens). Le `slotNumber` ne pilote pas la
-  composition (questions tirées du même pool).
+  soumise. Règles dans `ProductionAccessService` (quota, partagé avec la voie
+  temps réel) / `AttemptService.startProductionAttempt`. Une **session d'examen
+  production est bornée** : chrono d'épreuve (EE 30 min, EO 15 min = 600 s de
+  parole + 50 % de marge) et **une seule soumission par (attempt, tacheNumero)**
+  — un examen, c'est 3 tâches, une fois chacune. QCM entraînement : série 1
+  gratuite, 2+ premium. **Tous les examens blancs QCM** (`MOCK_EXAM`) :
+  **slot 1 offert ET rejouable à volonté** pour tout compte inscrit, slots 2+
+  réservés aux abonnés **du module** (Civique → `hasCivique`, TCF → `hasTcf`).
+  Vaut pour les examens module TCF (CO / CE / STRUCTURE via
+  `moduleExamQuestionType`), les examens civiques globaux (40 Q) et les examens
+  de thème (20 Q) — ces deux derniers passent par la branche « legacy » de
+  `AttemptService.start`, qui **ne contrôlait rien avant le 2026-08-03** (verrou
+  purement client). Verrou unique côté backend :
+  `AttemptService.enforceMockExamSlotAccess`, basé sur le `slotNumber` (≠ EE/EO
+  qui ont un freebie consommable), miroir des 3 fronts (web `ExamsGrid
+  freeSlots=1`, mobile briefing + pages examens). Le `slotNumber` est validé
+  **1..20** (`AttemptService.MOCK_EXAM_SLOTS`, aligné sur les grilles des
+  fronts) et ne pilote pas la composition (questions tirées du même pool).
 - **Compte gratuit, examen blanc TCF complet** (`/api/full-tcf-exams`,
   orchestré CO→CE→EE→EO) : **examen 1 offert** (slot 1, même grille que les
   abonnés) avec **EE + EO évaluées une seule fois à vie**. Au-delà, l'examen 1
@@ -99,6 +108,26 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
   (le verrou `startModuleExam` ignore les sous-attempts d'un complet). Examens
   complets 2-20 → premium. `start` n'exige plus `hasTcf` ; soumettre vers une
   épreuve déjà terminée est refusé (`enforceQuota`).
+
+### Gardes des soumissions EE/EO (`ProductionAccessService`)
+
+Les **deux** voies de notation d'une production — asynchrone
+(`ProductionEvaluationService.submitAndEvaluate`) et temps réel
+(`evaluateRealtimeTranscript`, déclenchée par `RealtimeSessionService.finish`) —
+passent par le **même** garde `ProductionAccessService.assertCanSubmit` :
+propriété de l'attempt (IDOR), `finishedAt`, chrono d'épreuve (+ 60 s de grâce),
+**correspondance `attempt.epreuve == task.epreuve`**, et plafond « une
+soumission par tâche » en session d'examen. Le quota freemium
+(`enforceQuota`) y vit aussi. `RealtimeSessionService.start` applique le même
+garde **avant** de consommer un slot de simulation.
+
+Invariants à ne pas casser :
+- une tâche EO ne peut pas être notée dans une session EE (et inversement) —
+  sinon l'auto-finalisation d'un examen complet clôt la mauvaise sous-épreuve
+  avec un `cecrlLevel` faux, or c'est ce niveau qui fait foi ;
+- « épreuve terminée ⇒ plus aucune soumission », y compris temps réel ;
+- l'auto-finalisation compte les **tâches distinctes de l'épreuve**
+  (`countDistinctTachesByAttemptAndEpreuve`), jamais les lignes brutes.
 
 ### ⏳ À gérer plus tard — garde-fou attempts guest (`user IS NULL`)
 
@@ -123,6 +152,29 @@ l'ouverture publique / montée en trafic**, pas avant :
 
 Plus tard encore (vrai volume) : rétention via **partitionnement par date** ou
 archivage des `TERMINE` anciens — surtout pas de suppression d'historique user.
+
+## Identité IP des appelants (rate-limits, attempts invités)
+
+Tout ce qui se compte « par IP » — rate-limits anti-abus (login, inscription,
+mot de passe oublié, contact, démo) et `attempts.client_ip` des sessions
+invitées — passe par `util/ClientIpResolver`.
+
+- **`X-Forwarded-For` / `X-Real-IP` ne sont lus que si la connexion vient d'un
+  proxy déclaré de confiance** (`sejourfr.trusted-proxies.ranges`, env
+  `TRUSTED_PROXY_RANGES`, adresses ou CIDR séparés par des virgules).
+  **Vide par défaut** → en dev et sans configuration, c'est l'IP de la socket
+  qui fait foi. Sans ce garde-fou, n'importe qui remettait ses compteurs à zéro
+  en changeant un en-tête, et un invité se fabriquait autant d'identités qu'il
+  voulait.
+- En production, y mettre les plages du reverse-proxy réel. La valeur spéciale
+  `*` fait confiance à tout appelant : à réserver aux hébergements dont le port
+  applicatif n'est joignable que par le load balancer.
+- Quand le proxy est de confiance, on retient la **dernière adresse non-proxy**
+  de la chaîne `X-Forwarded-For` (les valeurs forgées par le client sont à
+  gauche de celle ajoutée par notre proxy, donc ignorées).
+- Le rate-limit de connexion **se réinitialise sur authentification réussie**
+  (`RateLimitGuard.onLoginSuccess`) : on freine l'enchaînement d'échecs, pas
+  l'utilisateur qui se reconnecte.
 
 ## Mesure d'audience des landings (sans traceur)
 
@@ -155,6 +207,353 @@ cliquent son CTA, découpé par réseau de provenance.
   bot peut gonfler un compteur — donnée fausse, mais ni fuite ni inflation de
   stockage.
 
+## Notation IA des productions EE/EO — repères
+
+Le « quoi » et le « pourquoi » vivent dans `docs/notation-ia-eo-ee.md` (référence
+grand public, **à tenir exhaustive et à jour dans la même passe** — cf. la règle
+dédiée plus bas). Ici, uniquement de quoi se repérer.
+
+- **Versions actives** : rubriques `production-rubrics-v8.json`, tool-schema de
+  sortie `production-evaluation-tool-schema-v5.json`, persona vocale
+  `realtime-personas-v2.json`. **v7/v4, v6/v3, v5/v3, v4.2/v2, v4.1/v2, v4/v2 et
+  v3/v2 restent chargeables et validées** : un retour arrière change la paire
+  `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION`, aucune migration. **On
+  versionne, on ne réécrit jamais** une rubrique livrée.
+- **v4** = critères propres à chaque tâche (5 par tâche, fini les 4 universels),
+  obligatoires vs pistes, bloc accomplissement, confiance, preuve littérale,
+  2 priorités max. **v4.1** = correction de l'indulgence du **bas** d'échelle
+  mesurée au banc, sans supprimer aucune tolérance (plafonds A1/A2 + test
+  décisif A1 vs A2 avec obligation de citation). **v4.2** = même technique
+  appliquée au **haut** : `TEST DECISIF B1 vs B2` opposable — deux marqueurs B2
+  à citer littéralement, dont un pris dans « objection envisagée puis traitée »
+  ou « lexique précis ».
+- **v5 = la grille RÉELLE du TCF**, en remplacement de la grille maison :
+  **4 critères équipondérés à 0,25**, **codes identiques sur les 6 tâches** —
+  `communiquer` (accomplir la tâche + enchaîner les idées), `interagir`
+  (adéquation à la situation et au destinataire), `lexique`, `morphosyntaxe`.
+  Ce qui distingue les tâches, ce sont les **descripteurs et consignes**, plus
+  les critères. Absorptions : `realisation_consigne`, `chronologie_recit`,
+  `prise_position`, `argumentation`, `conduite_echange`,
+  `developpement_reponses` **et `coherence`** → `communiquer` ;
+  `adequation_destinataire` → `interagir`.
+  - **L'accomplissement compte enfin dans le niveau** (il en était explicitement
+    exclu jusqu'à v4.2 — d'où des cartes « 11/20 » + « proche du A2 »). Le
+    niveau **dérive de la note** : `seuils 16 / 13 / 9` déclarés **dans le
+    fichier de rubriques** (`commun.niveau`), lus par
+    `ProductionRubricsProvider.niveauCecrl()`, qui l'emporte sur
+    `sejourfr.production-evaluation.niveau-cecrl` (celui-ci ne sert plus qu'aux
+    grilles v3→v4.2). C'est ce qui garde le retour arrière à **une seule
+    variable**.
+  - **Garde-fou de couplage** (ce qui remplace l'exclusion) : `communiquer` et
+    `interagir` ne dépassent jamais de plus de **4 points** la moyenne de
+    `lexique`+`morphosyntaxe`. Écrit dans le prompt **et** appliqué serveur
+    (`AiEvaluationService.applyCouplage`, `sejourfr.production-evaluation.couplage`,
+    no-op sur les grilles antérieures). Conséquence : langue A2 → note ≤ 12 → A2,
+    un `communiquer` élevé ne peut pas fabriquer un B2.
+  - **`note_globale` a UNE décimale** (avant : entier). Avec 4 critères à 0,25 la
+    moyenne tombe sur des quarts de point ; arrondir affichait « 13/20 » à côté
+    d'un A2 calculé sur 12,5. Arrondir le niveau au lieu de la note a été **mesuré
+    comme pire** (38 → 35 classements exacts).
+  - **Bilan d'épreuve** : poids des 3 tâches **égaux** (`poids-taches [1,1,1]`,
+    réglable) — le TCF publie une seule note d'épreuve et aucune pondération, et
+    la difficulté croissante est déjà dans les descripteurs. `noteEpreuve` et
+    `bilanEpreuve` partagent le même périmètre (tâches manquantes à 0 des deux
+    côtés sur une épreuve terminée), donc note et niveau du bilan racontent la
+    même histoire ; `correspondanceTcf` en découle.
+  - **Tool-schema v3** (contrat à répercuter sur les 3 fronts) :
+    `points_a_ameliorer[]` passe de `string` à **objet**
+    `{constat, comment, exemple:{avant, apres}}` — le serveur **normalise
+    toujours** vers cette forme, même sur une sortie v2 ou une production
+    invalide, pour que les fronts n'aient qu'un seul contrat ;
+    `exemples_corriges[]` gagne **`gain`** (ce que la reformulation démontre de
+    plus) ; `scores_criteres` est fixé à exactement 4 items énumérés.
+  - Mesure (témoin v4.2 rejoué le même jour, même modèle, 5 cas v5 perdus par
+    rate-limit du fournisseur) : A1 6/8 → **8/8**, A2 11/13 → 11/13, B1 9/9 et
+    B2 6/6 sur les cas mesurés, accord exact 81,3 % → **88,4 % des cas mesurés**
+    (79,2 % en comptant les cas perdus), 0 % de sortie invalide, pièges
+    identiques. La part de notes dans la fourchette du corpus baisse (83,3 % →
+    76,7 %) : **changement d'échelle**, les fourchettes du corpus ont été écrites
+    pour une note qui n'incluait pas l'accomplissement. Corpus **jamais**
+    retouché.
+- **v6 = l'ÉCHELLE réelle du TCF** (v5 avait pris ses critères, v6 prend son
+  barème). Les seuils `commun.niveau` sont la **table officielle** : `10 → B2`,
+  `6-9 → B1`, `2-5 → A2`, `1 → A1`, `0 → A1 non atteint`. **Chaque critère** se
+  note sur cette même table, donc plus aucun décalage critère ⇄ note globale.
+  Motif : une carte affichait « 12,5/20 » **et** « proche du B1 », alors que
+  12,5 vaut B2 au TCF — deux informations contradictoires.
+  - ⚠️ **Ce n'est pas un déplacement de seuils.** Déplacer les seuils seuls
+    aurait basculé en B2 une masse de B1. Tous les repères, tous les
+    descripteurs et **les 16 ancres few-shot ont été re-scorés** sur la nouvelle
+    échelle (un B2 vaut 12-16, plus 16-20 ; un très bon B1 vaut 9, plus 14).
+  - **Tout ce qui se lit sur une note est déclaré PAR LA GRILLE** depuis v6, plus
+    seulement les seuils : `commun.couplage.ecart_max`, `commun.plafonds`,
+    `commun.bandes_criteres`. Résolus par `ProductionRubricsProvider.couplage()`
+    / `.plafonds()` / `.bandesCriteres()`, qui l'emportent sur la config. Sans
+    ça, le retour arrière demanderait une troisième bascule de seuils en plus
+    de la paire rubriques + tool-schema.
+  - **Garde-fou de couplage recalculé : 4 → 1 point.** Ce qui se conserve n'est
+    pas l'écart mais le **gain maximal concédé à la moyenne** (`ecartMax / 2`).
+    À 1 point ce gain plafonne à 0,5 : une langue au **haut** de son palier (5
+    pour A2, 9 pour B1) ne peut jamais franchir le seuil suivant. Sous v5,
+    l'écart de 4 donnait le même effet parce que les seuils globaux y étaient
+    décalés de 2-3 points ; ce décalage n'existe plus.
+  - **Seuils des plafonds 5 → 1** (haut de la bande A1 de l'échelle en vigueur,
+    même règle transposée) ; **bandes `BandeCritere` 16/11/6 → 10/6/2**
+    (`BandeCritere.of(note, bornes)`), sinon un B1 à 8 s'afficherait « en cours
+    d'acquisition ». `applyBandesCriteres` est passé **après** `applyCouplage` :
+    la bande décrivait la note d'avant plafonnement.
+  - **Corpus** : `note_min`/`note_max` **régénérés** depuis `attendu.niveau` par
+    la table officielle (verrouillé par `GoldenSetTest`). Niveaux, tolérances,
+    confiances, pièges et productions **inchangés** — on ré-exprime la référence,
+    on ne l'ajuste pas. Corollaire : `note dans la fourchette` ≈ `accord exact`,
+    et la colonne note d'un témoin v5 n'est **pas comparable**.
+  - Mesure (témoin v5 rejoué le même jour, même modèle) : accord exact
+    86,0 % → **87,0 %**, accord ±1 palier 88,4 % → **100 %**, pièges 6/7 → **8/8**
+    (quasi-muet réparé), **A1 non atteint 4/8 → 8/8** (le point faible documenté
+    du banc), B2 6/7 → 6/6, B1 8/8 → 10/11, A2 11/12 → 11/13, 0 sortie invalide.
+    Seul recul : **A1 8/8 → 5/8**, les 3 cas ressortant A2 — niveau *toléré* par
+    la référence sur ces 3 cas, et que le modèle leur donnait **déjà** sous v5
+    (langue notée 7/20 = bande A2 de v5) ; c'est le décalage bandes/seuils de v5
+    qui affichait A1, pas son jugement. Le palier A1 ne vaut qu'**une valeur**
+    sur la grille officielle : c'est la nouvelle zone fragile.
+  - ⚠️ **Texte d'interface à corriger côté fronts** (aucun DTO ne change) : la
+    mention « notre échelle est plus fine que celle du TCF » est devenue fausse.
+    Web `ProductionScoreHero.tsx`, `ProductionSession.tsx`, `lib/types.ts` ;
+    mobile `donut_chart_score.dart`, `bilan_hero.dart`,
+    `production_models.dart`.
+- **v8 = la RESTITUTION, version active (rubriques v8 / tool-schema v5).** Elle
+  ne touche à **rien** de ce qui note : échelle, quatre critères, seuils,
+  `couplage.ecart_max=1`, plafonds, bandes, tests décisifs A1/A2 et B1/B2 et les
+  **16 ancres few-shot** sont ceux de v7, au bit près (verrouillé par
+  `ProductionEvaluationContractTest`) — **aucune campagne de banc n'est requise
+  pour cette bascule**. Elle corrige le rapport rendu au candidat, jugé
+  répétitif, scolaire et contradictoire :
+  - **confiance = certitude du correcteur, jamais qualité du candidat** : elle ne
+    baisse plus parce que la production est faible ou fautive (EE lisible et
+    complète → `HAUTE`), uniquement sur un obstacle à l'**observation**. Les deux
+    interdits historiques (confiance ⇏ note ; confiance faible ⇏ hors-sujet) sont
+    conservés ;
+  - **une erreur, un seul endroit** : `commentaire` caractérise, `points_a_ameliorer`
+    enseigne, `exemples_corriges` démontre sur d'**autres** phrases, `suggestions`
+    ne reprend rien, `version_amelioree` montre sans réexpliquer ;
+  - **aucun reproche sur un moyen que la consigne n'exigeait pas** → « levier de
+    progression ». ⚠️ Règle de **formulation** : `justification_niveau` (expurgé
+    avant le front) applique la règle de preuve et les plafonds à l'identique ;
+  - **cohérence accomplissement ⇄ rapport** : un point demandé mais mal formulé
+    est PRÉSENT (`points_traites` + réserve de forme) ; interdit de le déclarer
+    absent ailleurs ;
+  - **nouveau contrat exposé aux fronts** : `accomplissement.objectif`
+    (`ATTEINT|PARTIELLEMENT_ATTEINT|NON_ATTEINT`, enum `ObjectifTache`) +
+    `accomplissement.objectif_resume` (phrase candidat), et `version_amelioree`
+    (string racine) **obligatoire en EE, absente en EO** (retirée serveur). Le
+    verdict ne regarde que les points **obligatoires**, est indépendant de la
+    note, et le serveur l'**abaisse** à `PARTIELLEMENT_ATTEINT` s'il vaut
+    `ATTEINT` malgré un `points_oublies` `obligatoire=true` (jamais l'inverse,
+    même philosophie que `applyConfiance`) ;
+  - **plafonds de restitution** : `points_forts` ≤ 2 et `exemples_corriges` ≤ 3,
+    `maxItems` schéma + refus validateur + **troncature serveur** (`capListe`),
+    comme les 2 priorités ;
+  - **legacy non migré** : les ~100 évaluations sans `objectif` restent telles
+    quelles, le champ est absent et les fronts n'affichent pas le bloc.
+- **v7 = profil TCF IRN strict.** Elle conserve l'échelle et les
+  quatre critères de v6, retire C1/C2 de tout ce qui est envoyé au correcteur et
+  déclare explicitement `profile=TCF_IRN`, `niveau_max=B2` et
+  `tool_schema_version=v4`. Le schéma v4 impose exactement les quatre critères,
+  les niveaux `A1_NON_ATTEINT|A1|A2|B1|B2`, toutes les structures requises et
+  `additionalProperties=false`. Le serveur valide la sortie **brute avant toute
+  normalisation** : note finie dans `[0,20]`, quatre codes exacts sans doublon,
+  structure complète et aucun niveau au-dessus de B2. Une sortie invalide est
+  rejouée **une seule fois** avec les violations. Après ce retry, l'unique repli
+  accepté est une seule preuve non vide mais non rattachable, tous les autres champs et les
+  trois autres preuves étant valides : elle est retirée, la confiance plafonnée à
+  `MOYENNE` et un avertissement serveur est ajouté. Deux preuves, une preuve vide ou toute
+  autre violation font échouer la submission sans note partielle. Sur un retry réparé ou
+  dégradé, tokens d'entrée, tokens de sortie et coût des deux appels sont additionnés.
+- **Preuves opposables (schémas v4 et v5)** : chaque critère porte une citation non vide. Le
+  serveur privilégie le passage contigu exact, puis ne tolère, à partir de 4
+  tokens, qu'une seule édition de token : insertion/suppression réservée à une liste
+  fermée de mots-outils ; la seule substitution admise est la flexion
+  `telle/tels/telles`, explicitement reconnue. Toute autre substitution est refusée.
+  Elle exige au moins 3 tokens significatifs identiques, un match unique et aucun écart de
+  nombre/négation ; tout token contenant un chiffre est immuable. Les variantes
+  Unicode, ligatures, apostrophes, tirets et espaces sont neutralisées. En
+  dialogue EO, seuls les tours `Candidat :` sont cherchés. Toute preuve acceptée
+  est remplacée avant persistance par la sous-chaîne originale exacte ; une
+  preuve inventée ou ambiguë déclenche le retry sémantique. Si une unique preuve
+  demeure non rattachable après ce retry, elle n'est jamais persistée : le mode
+  dégradé documenté ci-dessus conserve seulement les trois preuves sûres.
+  **Élision des disfluences, sens production → citation uniquement**
+  (`EvaluationProofMatcher.DISFLUENCES`, liste fermée `euh|heu|hum`, tirée de
+  `NON_SIGNIFICANT`) : la production peut porter ces tokens en nombre quelconque
+  sans que la citation ait à les recopier. **Aucun token porteur de sens n'est
+  dispensé** — une citation contenant un mot absent de la production reste
+  refusée, la contiguïté et la tolérance d'une seule édition sont inchangées, une
+  disfluence ne peut ni ouvrir ni fermer le passage restitué (qui reste la
+  sous-chaîne originale exacte, disfluences comprises). Motif : la transcription
+  Whisper est littérale, et le prompt interdit par ailleurs d'évaluer les
+  hésitations — sans cette élision, le correcteur ne pouvait pas satisfaire les
+  deux consignes.
+- **Message de réessai** (`EvaluationRepairPrompt`) : le retry ne renvoie plus la
+  seule liste brute des violations (mesuré : **0 preuve réparée sur 8**, le
+  modèle resoumettait la même citation). Il rappelle **la citation refusée,
+  critère par critère**, énonce la règle (passage contigu, recopié tel qu'il
+  apparaît, pas d'ellipse, pas de recomposition, un seul tour `Candidat :` en EO)
+  et suggère de re-citer plus court. **Aucun contrôle serveur n'est relâché** :
+  on aide le correcteur à respecter la vérification.
+- **Plafond de tokens de SORTIE = 4000**, identique sur les trois providers
+  (`sejourfr.production-evaluation.{openai,anthropic,deepseek}.max-tokens`,
+  figé par `EvaluationTokenBudgetTest`). À 2000 — valeur d'avant les quatre
+  citations littérales du tool-schema — les corrections EO (1800-2000 tokens)
+  arrivaient en `finish_reason=length`, JSON tronqué, submission perdue. C'est un
+  plafond, pas une consommation : le relever ne coûte rien sur les sorties
+  courtes. Ne pas redescendre sans retirer des champs de la sortie.
+- **Transaction du pipeline async** : `ProductionPipelineAsyncRunner` reste
+  volontairement **sans transaction englobante**. Whisper et l'évaluation ont
+  leurs propres transactions ; `ProductionPipelineFailureRecorder` conserve
+  `REQUIRES_NEW` pour rendre `FAILED` durable. Le runner charge la task par
+  `findByIdWithTask` avant détachement. Ne pas réintroduire de transaction
+  externe : une exception d'un service `REQUIRED` la marquerait rollback-only et
+  provoquerait un `UnexpectedRollbackException` après le `catch`.
+- **Garde-fou EO opposable** : le correcteur ne reçoit plus la durée et sa sortie
+  est rejetée si un champ évaluatif fonde la note ou les conseils sur les
+  hésitations, répétitions, faux départs, aisance, fluidité, débit,
+  prononciation, accent, intonation, orthographe/ponctuation de la transcription
+  ou durée. Seules les `confiance_raisons` peuvent expliquer une transcription
+  incertaine.
+- **Bornes EE strictes TCF IRN** : T1 `30–60`, T2/T3 `60–90`. La tolérance
+  historique de 20 % est supprimée : serveur, web, mobile et auto-soumission
+  appliquent exactement les bornes DB. Les tâches T2/T3 ont un contexte/destinataire et les neuf exemples
+  livrés restent dans la fourchette. Les anciennes submissions sont préservées.
+- **Un seul correcteur configurable** : `sejourfr.production-evaluation.provider`
+  dans `application.yaml` (défaut `deepseek`, modèle `deepseek-v4-flash`) pilote
+  l'async, la fin de session temps réel, la seconde passe et le banc. La seconde
+  passe réutilise obligatoirement le même bean provider/modèle. Gemini reste
+  uniquement l'examinateur vocal et le transcripteur temps réel ; il ne note pas.
+- **Banc de mesure** (`src/test/java/.../calibration/`, corpus
+  `src/test/resources/calibration/golden-set-v1.json`, 48 cas synthétiques) :
+  **opt-in strict**, jamais dans `./mvnw verify` (appelle un LLM payant).
+  `./mvnw -q test -Dtest=CalibrationBenchTest -DfailIfNoTests=false
+  -Dcalibration.enabled=true -Dcalibration.rubrics=v8 -Dcalibration.prompt=v5
+  -Dcalibration.label=<nom>` → rapport JSON dans `target/calibration/`. Le banc
+  lit obligatoirement le provider et le modèle du runtime dans
+  `application.yaml`/`.env` : il n'existe plus de surcharge
+  `calibration.provider`, afin d'éviter de mesurer un autre correcteur par erreur.
+  Parallélisme ≤ 3 : au-delà le fournisseur renvoie des 429 et des cas se
+  perdent (mesuré : 5 cas perdus à 4 en vol, 2 à 2 en vol avec `retries=10`).
+  **Ne jamais ajuster le corpus** pour faire passer une version : on corrige le
+  système, jamais la référence. Une campagne ≈ 0,45 € ; comparer une nouvelle
+  version à un **rerun de l'ancienne le même jour** (le bruit inter-campagnes
+  vaut ~1 pt de note / ~2 pts de pourcentage, et un seul cas qui bascule sur 12
+  ne prouve rien).
+  Convention de signe partout : **écart = référence − IA** (négatif = IA trop
+  indulgente). **Toute modif d'une consigne de notation ou d'un seuil se mesure
+  avant/après** — sinon c'est un pari. La contrainte de preuve littérale a été la
+  seule exception à cette règle (livrée sans campagne, sans témoin rejoué) : son
+  coût en soumissions perdues est resté invisible des mois. Consigné dans
+  `docs/notation-ia-eo-ee.md` §12.3 bis, à ne pas effacer.
+  **Motif de perte ventilé** (`CalibrationMetrics.MotifPerte` : troncature JSON /
+  rejet de preuve / garde-fou oral / fournisseur indisponible / sortie incomplète
+  / autre) : le rapport affiche le **taux de cas perdus à côté du taux de sortie
+  invalide**. Avant, un rejet de preuve tombait dans `erreurAppel` et la doc
+  affichait « 0 % de sortie invalide » pendant qu'un tiers des cas se perdait.
+- **Une seule échelle depuis v6** (0 → A1 non atteint, 1 → A1, 2-5 → A2,
+  6-9 → B1, **10-20 → B2**) : notre note **est** celle du TCF. La table
+  officielle vit toujours dans l'enum `BandeNoteTcf` (code, pas config — donnée
+  officielle, pas réglage) ; la grille active la reprend telle quelle dans
+  `commun.niveau`. On ne **convertit** toujours rien : `correspondanceTcf`
+  (`{niveau, scoreTcfMin, scoreTcfMax}`, `ProductionBilanResponse`) part du
+  **niveau** et n'est affichée qu'au **bilan d'une épreuve entière**. **Jamais
+  sur une tâche isolée** — au TCF la note /20 porte sur les 3 tâches ; ce qui
+  diffère là n'est plus l'échelle mais le **périmètre**. Détail grand public :
+  `docs/notation-ia-eo-ee.md` §6.6.
+- **Console de calibration admin** (`features/calibration/` +
+  `AdminCalibrationService`) : annotation humaine de vraies productions, biais et
+  dispersion vs IA. C'est elle qui doit faire grossir le corpus réel.
+- **Fiche de scénario EO T2** : `production_tasks.agent_role_card` (migration
+  V743, les 20 sujets couverts), rendue par `RealtimePersonaBuilder` via le
+  gabarit `t2Fiche` de la persona v2. Jamais exposée à un client, jamais envoyée
+  à l'IA correctrice — **ce n'est pas une check-list de notation**.
+- **Recollage des tours EO temps réel** (`util/TranscriptTurnStitcher`, drapeau
+  `sejourfr.production-evaluation.recollage-tours.enabled`, livré **ACTIF** —
+  c'est une correction, pas une expérimentation). La transcription temps réel
+  clôt un tour sur le signal de fin de tour **du modèle**, pas sur la fin de la
+  phrase du candidat : un même énoncé ressortait scindé en tours consécutifs.
+  Conséquences corrigées : `EvaluationProofMatcher.searchableSegments` construit
+  un segment par tour, donc une citation à cheval sur deux tours était
+  **introuvable** (et deux preuves refusées = submission en échec sous v7+) ;
+  le correcteur jugeait la langue sur un texte haché et baissait sa confiance
+  pour une raison venant de nous ; le candidat relisait sa phrase en deux bulles.
+  - **Non destructif, un seul point d'application** : rien n'est réécrit
+    (`realtime_sessions.transcript` et `transcriptions.texte` intacts), le
+    recollage se fait **à la lecture** dans
+    `TranscriptionManager.findLatestTexteBySubmissionId` — l'unique accesseur au
+    texte, volontairement le seul (aucune méthode ne rend plus l'entité
+    `Transcription`). Prompt, contrôle de preuve et DTO servi aux 3 fronts en
+    héritent sans une ligne de code côté web/mobile.
+  - **Invariant à ne pas casser** : le texte cité par le correcteur EST celui
+    affiché au candidat. Deux points d'application = preuves inopposables.
+  - **Règle — en cas de doute, on ne fusionne pas.** Le sens de l'erreur est
+    assumé : une fusion **fausse** fabrique de la parole, une fusion **manquée**
+    ne fait que ramener au comportement d'avant. Trois garde-fous, tous dans ce
+    sens : (1) même locuteur uniquement ; (2) **jamais** à travers un tour
+    `Examinateur :` ; (3) **jamais** quand une phrase paraît terminée et qu'une
+    nouvelle commence — ponctuation forte à gauche **ET** majuscule à droite
+    (les deux conditions ; la fragmentation qu'on corrige laisse presque toujours
+    le second morceau en minuscule) ; (4) **jamais** autour d'un fragment sans
+    aucun caractère alphanumérique (`. . . .`), qui reste un **tour isolé** et
+    n'est jamais retiré du texte servi — le recollage n'enlève que des
+    *frontières*, jamais du contenu. Jonction : un **espace simple**, aucune
+    ponctuation ajoutée ni retirée (une ponctuation forte de fin de fragment est
+    **conservée** — elle vient du transcripteur, et le matcher ne tokenise pas la
+    ponctuation) ; pas d'espace devant `,.…)]}%` ni après une élision/trait
+    d'union. Les **mots** coupés en deux (bug corrigé le 2026-07-04) ne sont
+    **jamais** réparés, et les transcriptions ratées de bout en bout (`stanno
+    mal.`, marqueurs contenant des lettres comme `<noise>`) ne sont **pas**
+    rattrapées : notre découpage ne les a pas cassées.
+  - Mesure sur les 35 sessions réelles : 749 → 398 tours (-46,9 %), tours
+    candidat 461 → 183 (-60,3 %), médiane 6 → 14 tokens par tour candidat,
+    tours candidat sous 4 tokens 26,9 % → 15,3 %. Sur 388 frontières « même
+    locuteur », **37 sont refusées** par les garde-fous 3 et 4 (34 + 3).
+- **Deux drapeaux livrés ÉTEINTS** (`sejourfr.production-evaluation`) :
+  `fluidite.enabled` (débit/pauses, informatif) et `seconde-passe.enabled` (2ᵉ
+  lecture en zone floue, même provider/modèle). À `false`, ils ne changent
+  **rien**. Les `plafonds`, eux, sont **actifs**.
+- **`coherence-bilan.enabled` est ACTIF depuis le 2026-08-05** (défaut `true`
+  dans `application.yaml` **et** dans le POJO, pour qu'ils ne divergent pas) :
+  pas de B2 au bilan d'épreuve si T3 < B1. Motif : le niveau d'une épreuve est
+  la **moyenne pondérée des compétences** des 3 tâches
+  (`ProductionBilanService.compute`, qui a remplacé un ancien `min()`), or les
+  tâches ne sont pas interchangeables — T3 est la seule qui demande
+  d'argumenter, donc la seule qui puisse démontrer un B2. Le garde-fou ne peut
+  qu'**abaisser**, jamais relever : c'est ce qui le rend sûr. Généralisable
+  palier par palier (liste de couples `tache3-min`/`plafond`) sans réécrire le
+  calcul — forme proposée dans le javadoc de `CoherenceBilan`, **non
+  implémentée**. ⚠️ **Activé sur du raisonnement, pas sur une mesure** : le
+  corpus du banc porte un niveau attendu **par tâche**, il n'a aucune référence
+  de niveau d'**épreuve** — il ne peut structurellement pas arbitrer ce choix.
+  Le vérifier demanderait un jeu de cas « 3 tâches + niveau d'épreuve attendu »,
+  qui n'existe pas. Détail : `docs/notation-ia-eo-ee.md` §6.5 bis.
+- **Niveau d'un examen blanc TCF complet** : `finalCecrlLevel` est le **plancher
+  ordinal des 4 épreuves** (`FullTcfExamResponseBuilder.floorOfCecrls`), plafonné
+  B2 — à ne pas confondre avec le niveau d'une **épreuve**, qui est une moyenne
+  (d'où « Niveau global » au bilan d'épreuve, « plancher » au bilan d'examen
+  complet ; les deux libellés sont exacts, chacun chez lui). Sont **hors
+  périmètre** du plancher une épreuve `locked` (verrou freemium — elle n'a pas
+  été passée, la compter `A1_NON_ATTEINT` revenait à dire à un compte gratuit
+  qu'il n'atteint pas le A1 parce qu'il n'a pas payé) et une épreuve à
+  `cecrlLevel` null (évals FAILED ou en vol) : **null = inconnu, jamais mauvais**.
+  Une épreuve **abandonnée sans verrou** (chrono écoulé, rien rendu) reste,
+  elle, comptée `A1_NON_ATTEINT` — elle a été passée et ratée. Partialité
+  exposée aux fronts par `epreuvesCountedInFinalLevel` / `epreuvesExpected` /
+  `finalLevelPartial` (+ `finalLevelPartial` sur le résumé) : aucun front ne doit
+  plus écrire « le plus bas de tes 4 épreuves » en dur, ni agréger un examen
+  partiel dans un « meilleur niveau » sans l'annoter. V024 a remis à NULL les
+  `final_cecrl_level` déjà persistés à tort sur les examens verrouillés.
+- **Incohérence de règle connue, non tranchée** : `TcfProfileService`
+  (profil par épreuve) applique un **plancher** là où `ProductionBilanService`
+  (bilan d'épreuve) applique une **moyenne**. Les deux décrivent pourtant « le
+  niveau de l'épreuve ». À arbitrer.
+
 ## Identité visuelle (résumé)
 
 - Bleu France `#1E3A8C` + Rouge France `#E1372F` (CTAs critiques seulement).
@@ -178,7 +577,7 @@ Liste complète des endpoints → `docs/api-endpoints.md`.
 ```bash
 # Backend (depuis backend_sejourfr/)
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
-# DB : Postgres local, db = sejourfr_nouveau, user = diallomatine (cf. application-dev.yaml)
+# DB : Postgres local, db = sejourfr_db, user = diallomatine (cf. application-dev.yaml)
 # Mail : MailHog sur localhost:1025 (UI http://localhost:8025)
 # Tests : ./mvnw verify  (unitaires *Test via surefire + intégration *IT via failsafe).
 #   Les *IT tournent sur un Postgres EMBARQUÉ (Zonky, pas de Docker) qui applique les
@@ -186,7 +585,7 @@ Liste complète des endpoints → `docs/api-endpoints.md`.
 #   TestData. Détails + gabarits : docs/plan-tests-backend.md.
 
 # Admin (depuis admin_sejourfr/)
-npm install && npm run dev
+npm install && npm run dev-admin   # ⚠️ script "dev-admin", pas "dev"
 
 # Web (depuis web_sejoufr/)
 npm install && npm run dev-web   # ⚠️ script "dev-web", pas "dev"
@@ -262,6 +661,43 @@ avant de toucher.
   (jamais `Navigator.push`), `withValues(alpha:)` (pas `withOpacity`).
 - **Tous** : TypeScript/Dart strict, pas de `any`/`dynamic`, imports relatifs, pas de
   commentaire qui paraphrase le code.
+
+### Mode agent par défaut — Claude est l'ORCHESTRATEUR (non négociable)
+
+**Toute demande de travail part dans un agent, jamais exécutée inline.** Claude principal ne
+code pas, ne fouille pas, ne lit pas les fichiers en masse : il **délègue, suit et
+synthétise**. Le but est que l'utilisateur puisse **enchaîner les demandes sans attendre**.
+
+**Règle de dispatch — à appliquer à chaque nouveau message :**
+
+1. **Nouvelle demande ⇒ nouvel agent.** On lance immédiatement, sans demander confirmation.
+2. **Avant de lancer, vérifier les collisions** avec les agents **en cours** : même
+   sous-projet ? mêmes fichiers ? même surface partagée (DTO, endpoint, règle métier, enum,
+   rubrique de notation, migration) ?
+   - **Aucune collision** → lancer **en parallèle** tout de suite. Plusieurs agents
+     indépendants se lancent dans **un seul message** (appels d'outils groupés).
+   - **Collision possible** → **file d'attente**. Ne pas lancer, annoncer explicitement à
+     l'utilisateur : *« mis en attente, dépend de l'agent X en cours »*. Démarrer dès que
+     l'agent bloquant a rendu.
+   - **Dans le doute, on met en attente.** Deux agents qui éditent le même fichier =
+     conflit silencieux, c'est le pire cas.
+3. **Toujours annoncer l'état** en fin de réponse : ce qui tourne, ce qui attend et pourquoi.
+4. **Isolation `worktree`** dès que deux agents écrivent en parallèle sur le même
+   sous-projet et qu'on ne peut pas les séquencer.
+5. **Modèle** : `opus` par défaut pour tout agent qui touche à une refonte, une règle métier
+   ou plusieurs fichiers. `sonnet` acceptable pour les petits agents UI ciblés ou une
+   recherche simple.
+6. **Restitution** : le rapport d'un agent n'est pas montré à l'utilisateur. Claude en
+   extrait **la conclusion utile**, pas les dumps de fichiers.
+
+**Ce qui reste chez Claude principal** (ne pas déléguer) : les réponses conversationnelles et
+les demandes de clarification, les **arbitrages et décisions** (on ne délègue pas un choix
+produit), la synthèse des retours d'agents, et la mise à jour de ce fichier.
+
+**Ce qui ne change pas** : un agent hérite de **toutes** les règles de ce CLAUDE.md et du
+CLAUDE.md local de son sous-projet — parité web ⇄ mobile ⇄ admin, tests dans la même passe,
+hygiène d'architecture, pas de `.md` non demandé. C'est à Claude principal de le rappeler
+dans le prompt de l'agent et de **vérifier à la restitution** que ça a été respecté.
 
 ### Hygiène d'architecture (non négociable)
 
@@ -695,14 +1131,18 @@ Référence à consulter quand le contexte le demande — pas chargé par défau
 - `docs/auth-social.md` — Google/Apple sign-in (backend + front, config env)
 - `docs/setup-paiement-one-time.md` — passes achat unique (lot 5) : setup Stripe/Apple/Google pas-à-pas + SKU
 - `docs/pipeline-audio-co.md` — génération audio TCF CO (Claude → Azure Speech → R2)
-- `docs/pipeline-evaluation-eo-ee.md` — éval EO/EE (Whisper → Claude/OpenAI → R2 privé)
+- `docs/pipeline-evaluation-eo-ee.md` — éval EO/EE (audio/transcription → correcteur configuré → R2 privé)
 - `docs/notation-ia-eo-ee.md` — **explication grand public** (non technique) de la notation
-  IA de TOUTES les tâches EE/EO : les 6 tâches, critères + poids, barème /20, règles spéciales
-  (tolérance transcription temps réel, examinateur = témoin de compréhension, pas d'exigence
-  d'exhaustivité, hors-sujet), examinateur vocal, feedback, niveau CECRL au bilan. **À TENIR À
-  JOUR À CHAQUE CHANGEMENT** de règle de notation, barème, critère, consigne IA, tâche, ou
+  IA de TOUTES les tâches EE/EO : les 6 tâches, critères propres à chaque tâche + poids,
+  barème /20 et bandes affichées, obligatoires vs pistes, accomplissement, confiance,
+  contrôles automatiques, plafonds, niveau par tâche et bilan, limite assumée de l'oral,
+  examinateur vocal + fiche de scénario T2, **banc de mesure et ses chiffres réels (y compris
+  ce qui reste faible)**, console de calibration, drapeaux éteints. **À TENIR À JOUR À CHAQUE
+  CHANGEMENT** de règle de notation, barème, critère, consigne IA, tâche, seuil, ou
   comportement de l'examinateur vocal — dans la même passe que le changement — et à garder
   **toujours compréhensible par un non-informaticien** (voir aussi la règle dédiée ci-dessous).
+- `docs/ia/ANALYSE_SPEC_EVALUATION_IA.md` — décisions produit de la refonte de notation et
+  leurs raisons (ce qu'on a retenu de la spec externe, ce qu'on a refusé, et pourquoi)
 - `docs/refonte-entrainement.md` — statut refonte hubs Civique/TCF (mobile + web)
 - `docs/roadmap.md` — roadmap commune (Stripe, refresh JWT web, tests, etc.)
 - `docs/audio-pipeline/` — spec exhaustive du pipeline audio CO (10 fichiers)

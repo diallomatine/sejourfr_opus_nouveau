@@ -93,6 +93,12 @@
   margin-top: 7px;
   flex-shrink: 0;
 }
+.criteriaFoot {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
 
 /* ---------- Zone de rédaction ---------- */
 .writeZone {
@@ -143,6 +149,16 @@
 .draftNote {
   font-size: 11.5px;
   color: var(--color-muted-2);
+  margin: 0;
+}
+.lengthHint {
+  background: color-mix(in srgb, var(--color-amber) 14%, transparent);
+  color: color-mix(in srgb, var(--color-amber) 55%, var(--color-ink));
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
   margin: 0;
 }
 .submitRow {
@@ -196,53 +212,459 @@
   line-height: 1.5;
 }
 
-/* ---------- Donut note /20 (sans niveau) ---------- */
+/* ---------- Objectif de la tâche (bandeau de tête) ----------
+   Avant la note : ce qu'un candidat cherche d'abord, c'est s'il a fait ce qu'on
+   lui demandait. Trois verdicts, trois traitements lisibles sans lire. */
+.objBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid;
+}
+.objBanner[data-tone="done"] {
+  background: color-mix(in srgb, var(--color-green) 9%, #fff);
+  border-color: color-mix(in srgb, var(--color-green) 32%, transparent);
+}
+.objBanner[data-tone="partial"] {
+  background: color-mix(in srgb, var(--color-amber) 12%, #fff);
+  border-color: color-mix(in srgb, var(--color-amber) 38%, transparent);
+}
+.objBanner[data-tone="missed"] {
+  background: color-mix(in srgb, var(--color-red) 8%, #fff);
+  border-color: color-mix(in srgb, var(--color-red) 30%, transparent);
+}
+.objIcon { display: flex; flex-shrink: 0; margin-top: 1px; }
+.objBanner[data-tone="done"] .objIcon { color: var(--color-green); }
+.objBanner[data-tone="partial"] .objIcon { color: #8a5a00; }
+.objBanner[data-tone="missed"] .objIcon { color: var(--color-red); }
+.objBody { flex: 1; min-width: 0; }
+/* Eyebrow + verdict seul : en tête d'écran, le verdict doit se lire d'un coup
+   d'œil, pas se chercher au milieu d'une phrase. */
+.objEyebrow {
+  margin: 0 0 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+.objVerdict {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(19px, 4.4vw, 24px);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--color-ink);
+}
+.objBanner[data-tone="done"] .objVerdict { color: var(--color-green); }
+.objBanner[data-tone="partial"] .objVerdict { color: #8a5a00; }
+.objBanner[data-tone="missed"] .objVerdict { color: var(--color-red); }
+.objResume {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-ink-2);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Note + échelle du TCF ----------
+   Ni pourcentage, ni jauge « sur 20 points » : notre note EST celle du TCF,
+   dont l'échelle est comprimée (10/20 = B2). Un remplissage à 22 % ferait lire
+   un A2 comme un naufrage — c'est précisément ce que cette carte corrige. */
 .scoreCard {
   background: #fff;
   border: 1px solid var(--color-line);
   border-radius: 18px;
-  padding: 28px 24px;
+  padding: 22px 24px;
+}
+.scoreCardLevel {
+  border-color: var(--color-blue-light);
+  background: linear-gradient(180deg, var(--color-blue-soft) 0%, #fff 62%);
+}
+@media (max-width: 760px) {
+  .scoreCard { padding: 18px 16px; }
+}
+.scoreHead {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 18px;
 }
-@media (max-width: 560px) {
-  .scoreCard { flex-direction: column; text-align: center; gap: 16px; }
+@media (max-width: 420px) {
+  .scoreHead { gap: 12px; }
 }
-.donut { position: relative; width: 128px; height: 128px; flex-shrink: 0; }
-.donutLabel {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-.donutScore {
+.scoreNote {
+  flex-shrink: 0;
+  margin: 0;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 30px;
-  color: var(--color-ink);
+  font-size: clamp(36px, 10.5vw, 52px);
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  color: var(--color-ink);
 }
-.donutOf { font-size: 0.45em; color: var(--color-muted-2); }
-.donutPct { font-family: var(--font-mono); font-size: 12px; color: var(--color-muted); margin-top: 4px; }
+.scoreNote[data-tone="green"] { color: var(--color-green); }
+.scoreNote[data-tone="blue"] { color: var(--color-blue); }
+.scoreNote[data-tone="amber"] { color: #8a5a00; }
+/* Pas encore évalué : gris neutre (parité mobile). Une production sans note
+   n'est pas un échec — aucun verdict de production n'est rouge. */
+.scoreNote[data-tone="neutral"] { color: var(--color-muted-2); }
+.scoreNoteOf { font-size: 0.4em; color: var(--color-muted-2); margin-left: 2px; }
 .scoreSide { flex: 1; min-width: 0; }
-.scoreNoteLabel {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  font-weight: 700;
-  margin: 0 0 6px;
-}
 .scoreNoteHint {
   font-size: 13.5px;
   line-height: 1.5;
   color: var(--color-muted);
   margin: 0;
+}
+
+/* Bandes à largeur ÉGALE : à l'échelle réelle « B2 » prendrait la moitié de la
+   barre et « A1 non atteint » serait invisible. Le curseur, lui, est placé
+   proportionnellement DANS sa bande (cf. lib/production-feedback.ts). */
+.scale { margin-top: 20px; }
+.scaleTitle {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-muted);
+  margin: 0 0 8px;
+}
+.scaleTrack {
+  position: relative;
+  display: flex;
+  gap: 3px;
+  height: 10px;
+}
+.scaleSeg {
+  flex: 1;
+  min-width: 0;
+  border-radius: 3px;
+  background: var(--color-line-2);
+}
+.scaleSeg[data-tone="amber"][data-active] { background: var(--color-amber); }
+.scaleSeg[data-tone="blue"][data-active] { background: var(--color-blue); }
+.scaleSeg[data-tone="green"][data-active] { background: var(--color-green); }
+.scaleCursor {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  background: var(--color-ink);
+  box-shadow: 0 1px 6px -1px rgba(15, 24, 57, 0.45);
+}
+.scaleCursor[data-tone="amber"] { background: var(--color-amber); }
+.scaleCursor[data-tone="blue"] { background: var(--color-blue); }
+.scaleCursor[data-tone="green"] { background: var(--color-green); }
+.scaleLabels {
+  display: flex;
+  gap: 3px;
+  margin-top: 8px;
+}
+.scaleLabel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  text-align: center;
+  color: var(--color-muted-2);
+}
+.scaleLabelRange {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.scaleLabelLvl {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.scaleLabel[data-active] { color: var(--color-ink); }
+.scaleLabel[data-active] .scaleLabelRange { font-weight: 700; }
+.scaleFoot {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+/* ---------- Niveau observé sur la tâche + confiance ----------
+   Garde-fou produit : le niveau n'est jamais affiché sans sa confiance. */
+.heroEyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-blue);
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+.heroLevel {
+  font-family: var(--font-display);
+  font-size: clamp(19px, 4.6vw, 27px);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--color-ink);
+  margin: 0;
+}
+.heroConf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 0;
+}
+.heroConfWhy {
+  flex: 1;
+  min-width: 180px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+.heroFoot {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+.confChip {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--color-green) 14%, transparent);
+  color: var(--color-green);
+}
+.confChip[data-confiance="MOYENNE"] {
+  background: color-mix(in srgb, var(--color-amber) 18%, transparent);
+  color: #8a5a00;
+}
+.confChip[data-confiance="FAIBLE"] {
+  background: color-mix(in srgb, var(--color-muted) 16%, transparent);
+  color: var(--color-muted);
+}
+
+/* ---------- « À savoir » (limites de l'évaluation) ----------
+   Volontairement neutre : ce sont des informations de transparence, pas des
+   alertes — d'où le fond papier plutôt qu'un bandeau d'erreur. */
+.limitsBox {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-left: 3px solid var(--color-blue);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.limitsTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--color-ink);
+}
+.limitsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+
+/* ---------- Check-list de la consigne (dans l'analyse complète) ----------
+   Trois groupes (parité mobile) : traités / manques obligatoires / pistes non
+   abordées. Mélanger les deux derniers ferait paniquer pour des points qui
+   n'enlèvent rien. */
+.accGroups { display: flex; flex-direction: column; gap: 16px; }
+.accGroupTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+.accGroupTitle[data-state="done"] { color: var(--color-green); }
+.accGroupTitle[data-state="missing"] { color: var(--color-red); }
+.accGroupCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-line-2);
+  color: var(--color-muted);
+  font-size: 10px;
+  letter-spacing: 0;
+}
+.accList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.accItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.accIcon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--color-green);
+}
+.accIcon[data-state="missing"] {
+  background: transparent;
+  border: 2px solid var(--color-red);
+}
+.accIcon[data-state="skipped"] {
+  background: transparent;
+  border: 2px solid var(--color-muted-2);
+}
+.accLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-ink);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.accTag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-green) 12%, transparent);
+  color: var(--color-green);
+}
+.accTag[data-state="missing"] {
+  background: color-mix(in srgb, var(--color-red) 10%, transparent);
+  color: var(--color-red);
+}
+.accTag[data-state="skipped"] {
+  background: var(--color-line-2);
+  color: var(--color-muted);
+}
+.accFoot {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-line-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+/* ---------- Analyse complète (repliée par défaut) ----------
+   Rien de ce que l'évaluation contient n'est perdu : ce qui n'aide pas
+   immédiatement est rangé ici, au lieu d'écraser les cinq blocs du haut. */
+.details {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+}
+.detailsSummary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 16px;
+}
+.detailsSummary::-webkit-details-marker { display: none; }
+.detailsSummary:hover { background: var(--color-paper); }
+.detailsSummaryText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.detailsSummaryTitle { font-weight: 700; font-size: 14px; color: var(--color-ink); }
+.detailsSummaryHint { font-size: 12.5px; line-height: 1.45; color: var(--color-muted); }
+.detailsChevron {
+  flex-shrink: 0;
+  color: var(--color-muted);
+  transition: transform 0.18s ease;
+}
+.details[open] .detailsChevron { transform: rotate(180deg); }
+.detailsBody {
+  padding: 4px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+@media (max-width: 760px) {
+  .detailsSummary { padding: 14px 16px; }
+  .detailsBody { padding: 4px 16px 18px; }
+}
+.subBlock {
+  border-top: 1px solid var(--color-line-2);
+  padding-top: 18px;
+}
+/* Le premier bloc n'a pas de séparateur — sauf s'il est précédé du bandeau
+   « à savoir », qui n'est pas un .subBlock et garde son propre padding. */
+.subBlock:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+.subTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-ink);
+}
+
+/* ---------- Version améliorée (EE uniquement) ---------- */
+.improved {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--color-blue-soft);
+  border: 1px solid var(--color-blue-light);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--color-ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* ---------- Critères notés (feedback) ---------- */
@@ -254,42 +676,15 @@
   border-top: 1px solid var(--color-line-2);
 }
 .critRow:first-child { border-top: none; }
-.critBubble {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 11px;
-  color: #fff;
-}
 .critBody { flex: 1; min-width: 0; }
 .critTop {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
+  gap: 6px 10px;
 }
 .critLabel { font-weight: 700; font-size: 13.5px; color: var(--color-ink); }
-.critNote {
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
-}
-.critTrack {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--color-line-2);
-  margin: 7px 0 6px;
-  overflow: hidden;
-}
-.critFill { height: 100%; border-radius: 2px; }
 .critComment {
   font-size: 12.5px;
   color: var(--color-muted);
@@ -297,8 +692,71 @@
   margin: 0;
 }
 
+/* ---------- Bande qualitative d'un critère (remplace la note chiffrée) ----------
+   4 segments : Fragile 1 · En cours 2 · Satisfaisant 3 · Très bonne maîtrise 4.
+   Non évaluable : aucun segment allumé. */
+.critBande {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--color-green) 14%, transparent);
+  color: var(--color-green);
+}
+.critBande[data-band="SATISFAISANT"] {
+  background: color-mix(in srgb, var(--color-blue) 12%, transparent);
+  color: var(--color-blue);
+}
+.critBande[data-band="EN_COURS_ACQUISITION"] {
+  background: color-mix(in srgb, var(--color-amber) 20%, transparent);
+  color: #8a5a00;
+}
+.critBande[data-band="FRAGILE"] {
+  background: color-mix(in srgb, var(--color-red) 10%, transparent);
+  color: var(--color-red);
+}
+.critBande[data-band="NON_EVALUABLE"] {
+  background: var(--color-line-2);
+  color: var(--color-muted);
+}
+.critSteps {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0 6px;
+}
+.critSteps span {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-line-2);
+}
+.critSteps[data-band="TRES_BONNE_MAITRISE"] span:nth-child(-n + 4) { background: var(--color-green); }
+.critSteps[data-band="SATISFAISANT"] span:nth-child(-n + 3) { background: var(--color-blue); }
+.critSteps[data-band="EN_COURS_ACQUISITION"] span:nth-child(-n + 2) { background: var(--color-amber); }
+.critSteps[data-band="FRAGILE"] span:nth-child(-n + 1) { background: var(--color-red); }
+.critProof {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--color-paper);
+  border-left: 2px solid var(--color-line);
+  font-size: 12.5px;
+  line-height: 1.5;
+  font-style: italic;
+  color: var(--color-ink-2);
+}
+.critProof svg { flex-shrink: 0; margin-top: 3px; color: var(--color-muted-2); }
+.critProof span { min-width: 0; overflow-wrap: anywhere; }
+
 /* ---------- Blocs feedback (listes) ---------- */
-.fbBlock { margin-top: 4px; }
 .fbTitle {
   display: flex;
   align-items: center;
@@ -307,6 +765,12 @@
   font-size: 14px;
   color: var(--color-ink);
   margin: 0 0 10px;
+}
+.fbHint {
+  margin: -4px 0 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
 }
 .fbList {
   list-style: none;
@@ -326,8 +790,115 @@
 }
 .fbBullet { margin-top: 7px; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .fbGood { background: var(--color-green); }
-.fbWarn { background: var(--color-amber); }
 .fbInfo { background: var(--color-blue); }
+
+/* ---------- Priorités (constat → technique → avant/après) ----------
+   Le rapport doit enseigner : la technique et sa démonstration sont du contenu
+   principal, jamais une note de bas de page. */
+.prioList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.prio {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.prio + .prio {
+  border-top: 1px solid var(--color-line-2);
+  padding-top: 14px;
+}
+.prioRank {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--color-amber);
+}
+.prioBody { flex: 1; min-width: 0; }
+.prioConstat {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--color-ink);
+}
+.prioHow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-ink-2);
+}
+.prioHowTag,
+.prioExampleTag,
+.corrGainTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.prioHowTag {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+.prioExample {
+  margin-top: 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.prioBefore,
+.prioAfter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.prioBefore {
+  background: var(--color-paper);
+  color: var(--color-muted);
+}
+.prioAfter {
+  background: color-mix(in srgb, var(--color-green) 8%, #fff);
+  border-top: 1px solid var(--color-line);
+  color: var(--color-ink);
+  font-weight: 600;
+}
+.prioBefore .prioExampleTag {
+  background: color-mix(in srgb, var(--color-muted) 14%, transparent);
+  color: var(--color-muted);
+}
+.prioAfter .prioExampleTag {
+  background: color-mix(in srgb, var(--color-green) 16%, transparent);
+  color: var(--color-green);
+}
 
 /* corrections */
 .correction {
@@ -341,16 +912,19 @@
 .corrOrig { color: var(--color-red); text-decoration: line-through; }
 .corrFix { color: var(--color-green); font-weight: 600; }
 .corrExpl { font-size: 12.5px; color: var(--color-muted); font-style: italic; margin: 6px 0 0; }
-
-/* avertissements */
-.warnBox {
-  background: rgba(232, 163, 23, 0.12);
-  border: 1px solid rgba(232, 163, 23, 0.4);
-  border-radius: 12px;
-  padding: 12px 14px;
-  font-size: 13px;
+.corrGain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: 12.5px;
   line-height: 1.5;
-  color: #8a5a00;
+  color: var(--color-ink-2);
+}
+.corrGainTag {
+  background: color-mix(in srgb, var(--color-green) 14%, transparent);
+  color: var(--color-green);
 }
 
 /* ---------- Texte soumis (rappel) ---------- */
@@ -430,28 +1004,6 @@
   font-variant-numeric: tabular-nums;
 }
 .rowChevron { color: var(--color-muted-2); flex-shrink: 0; }
-
-/* onglets (sujets / exemples) */
-.tabs {
-  display: inline-flex;
-  background: var(--color-paper-2);
-  border-radius: 12px;
-  padding: 4px;
-  gap: 4px;
-}
-.tab {
-  border: none;
-  background: transparent;
-  font-family: var(--font-sans);
-  font-weight: 700;
-  font-size: 13px;
-  color: var(--color-muted);
-  padding: 8px 16px;
-  border-radius: 9px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.tabActive { background: #fff; color: var(--color-ink); box-shadow: 0 2px 8px -4px rgba(15, 24, 57, 0.2); }
 
 /* carte exemple */
 .example {
@@ -811,6 +1363,27 @@
   color: rgba(255, 255, 255, 0.7); margin-top: 6px;
 }
 
+/* Correspondance avec la grille officielle du TCF IRN. Uniquement au bilan
+   d'une épreuve entière : une tâche isolée n'a pas de note TCF. */
+.sessTcf {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+}
+.sessTcfPhrase {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  font-weight: 600;
+  color: #fff;
+}
+.sessTcfSource {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.78);
+}
+
 .sessSectionLabel {
   font-family: var(--font-mono); font-size: 10px; font-weight: 700;
   letter-spacing: 0.14em; color: var(--color-muted); margin-bottom: 4px;
@@ -834,17 +1407,11 @@
   font-family: var(--font-mono); font-weight: 700; font-size: 13px;
 }
 .sessTacheNumDone { background: var(--color-green); color: #fff; }
-.sessTacheBody { flex: 1; min-width: 0; }
+.sessTacheBody { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .sessTacheTitle { font-weight: 700; font-size: 14px; color: var(--color-ink); }
 .sessTacheSub { font-size: 12.5px; color: var(--color-muted); margin-top: 2px; }
 .sessTacheSubPending { color: var(--color-blue); font-weight: 600; }
 .sessTacheSubFail { color: var(--color-red); font-weight: 600; }
-.sessTachePill {
-  flex-shrink: 0;
-  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
-  padding: 4px 10px; border-radius: 999px;
-  background: var(--color-blue-light); color: var(--color-blue);
-}
 .sessTacheChevron { color: var(--color-muted-2); flex-shrink: 0; }
 
 .sessNext {

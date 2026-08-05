@@ -1,9 +1,9 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.CalibrationStatsDto;
+import com.sejourfr.app.dto.CalibrationSubmissionDto;
 import com.sejourfr.app.dto.HumanCalibrationNoteDto;
 import com.sejourfr.app.dto.NiveauCalibrationStatsDto;
-import com.sejourfr.app.dto.ProductionSubmissionDto;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.HumanCalibrationNote;
 import com.sejourfr.app.entity.ProductionSubmission;
@@ -16,6 +16,7 @@ import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.HumanCalibrationNoteManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.mapper.CalibrationSubmissionMapper;
 import com.sejourfr.app.mapper.HumanCalibrationNoteMapper;
 import com.sejourfr.app.mapper.ProductionSubmissionMapper;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -58,6 +61,7 @@ public class AdminCalibrationService {
     private final HumanCalibrationNoteManager humanNoteManager;
     private final UserManager userManager;
     private final ProductionSubmissionMapper submissionMapper;
+    private final CalibrationSubmissionMapper calibrationMapper;
     private final HumanCalibrationNoteMapper noteMapper;
 
     // ------------------------------------------------------------------------
@@ -65,12 +69,19 @@ public class AdminCalibrationService {
     // ------------------------------------------------------------------------
 
     /**
-     * Liste les submissions evaluees. Si {@code hasHumanNote} est true, retourne
-     * toutes les evaluees ; sinon, restreint a celles encore non annotees.
-     * Seul {@code status=evaluated} est supporte pour l'instant.
+     * Liste les submissions evaluees. {@code hasHumanNote=true} ne retourne que
+     * les submissions DEJA annotees ; {@code false} ou absent, que celles encore
+     * vierges. Seul {@code status=evaluated} est supporte pour l'instant.
+     *
+     * <p>Les ids annotes sont charges en UNE requete (et non par une lecture des
+     * notes submission par submission) : la liste peut monter a
+     * {@value #LIMIT_MAX} lignes.
+     *
+     * <p>Chaque ligne porte la version de grille de sa derniere evaluation IA :
+     * comparer une note IA a une note humaine n'a de sens qu'a bareme connu.
      */
     @Transactional(readOnly = true)
-    public List<ProductionSubmissionDto> listSubmissions(String status, Boolean hasHumanNote, int limit) {
+    public List<CalibrationSubmissionDto> listSubmissions(String status, Boolean hasHumanNote, int limit) {
         if (!"evaluated".equalsIgnoreCase(status)) {
             throw new BusinessException("status=evaluated est le seul filtre supporte pour l'instant.");
         }
@@ -79,14 +90,34 @@ public class AdminCalibrationService {
         List<ProductionSubmission> base = submissionManager
                 .findByStatutOrderedBySubmittedAt(SubmissionStatut.EVALUATED);
 
-        List<ProductionSubmission> filtered = Boolean.TRUE.equals(hasHumanNote)
-                ? base.stream().limit(safe).toList()
-                : base.stream()
-                  .filter(s -> humanNoteManager.findBySubmissionOrderedByCreatedAtDesc(s.getId()).isEmpty())
-                  .limit(safe)
-                  .toList();
+        Set<UUID> annotees = humanNoteManager.findAnnotatedSubmissionIds(
+                base.stream().map(ProductionSubmission::getId).toList());
+        boolean veutAnnotees = Boolean.TRUE.equals(hasHumanNote);
 
-        return filtered.stream().map(submissionMapper::toDtoWithSignedAudio).toList();
+        List<ProductionSubmission> filtered = base.stream()
+                .filter(s -> annotees.contains(s.getId()) == veutAnnotees)
+                .limit(safe)
+                .toList();
+
+        return filtered.stream()
+                .map(s -> calibrationMapper.toDto(
+                        submissionMapper.toDtoWithSignedAudio(s),
+                        aiEvaluationManager.findLatestBySubmissionId(s.getId()).orElse(null)))
+                .toList();
+    }
+
+    /**
+     * Derniere note humaine d'une submission, pour reafficher le formulaire
+     * d'annotation pre-rempli. 404 si la submission n'a jamais ete annotee : la
+     * console admin distingue ainsi "pas encore annotee" de "annotee avec ces
+     * valeurs", sans avoir a deduire quoi que ce soit d'une difference de listes.
+     */
+    @Transactional(readOnly = true)
+    public HumanCalibrationNoteDto latestHumanNote(UUID submissionId) {
+        return humanNoteManager.findLatestBySubmission(submissionId)
+                .map(noteMapper::toDto)
+                .orElseThrow(() -> new NotFoundException(
+                        "Aucune note humaine pour la submission " + submissionId));
     }
 
     // ------------------------------------------------------------------------
@@ -123,12 +154,17 @@ public class AdminCalibrationService {
      * On parcourt toutes les notes pour calculer moyenne + ecart-type. A
      * l'echelle attendue (50-200 notes, max), ca reste negligeable. Si la
      * table explose, il faudra basculer sur des agregats SQL.
+     *
+     * <p><b>Une submission ne compte qu'une fois</b> : seule sa DERNIERE note
+     * humaine entre dans l'agregat (cf. {@link #derniereNoteParSubmission}).
+     * Les notes sont historisees — sans ce filtre, une production reannotee
+     * trois fois pesait trois fois et biaisait silencieusement la mesure censee
+     * nous dire si l'IA note juste.
      */
     @Transactional(readOnly = true)
     public CalibrationStatsDto stats() {
-        List<HumanCalibrationNote> notes = humanNoteManager.findAll();
         List<BigDecimal> ecarts = new ArrayList<>();
-        for (HumanCalibrationNote n : notes) {
+        for (HumanCalibrationNote n : derniereNoteParSubmission()) {
             if (n.getEcartNote() != null) ecarts.add(n.getEcartNote());
         }
         long total = ecarts.size();
@@ -191,6 +227,23 @@ public class AdminCalibrationService {
     // ------------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------------
+
+    /**
+     * Derniere note de chaque submission. Le manager renvoie deja les notes de
+     * la plus recente a la plus ancienne : la premiere rencontree pour une
+     * submission donnee est donc la bonne. Une note orpheline (submission nulle)
+     * est ignoree — elle ne peut pas etre dedupliquee, donc elle ne peut pas
+     * etre comptee sans risque de doublon.
+     */
+    private List<HumanCalibrationNote> derniereNoteParSubmission() {
+        Set<UUID> vues = new HashSet<>();
+        List<HumanCalibrationNote> out = new ArrayList<>();
+        for (HumanCalibrationNote n : humanNoteManager.findAllOrderedByCreatedAtDesc()) {
+            if (n.getSubmission() == null || n.getSubmission().getId() == null) continue;
+            if (vues.add(n.getSubmission().getId())) out.add(n);
+        }
+        return out;
+    }
 
     private void validateNotePayload(HumanCalibrationNoteDto dto) {
         if (dto == null) throw new BusinessException("Payload manquant.");

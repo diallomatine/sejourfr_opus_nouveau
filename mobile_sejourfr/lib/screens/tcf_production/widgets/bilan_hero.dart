@@ -1,30 +1,39 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/enums.dart';
+import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/format_date.dart';
 import 'cecrl_scale.dart';
 
 /// Carte "Bilan global" sur fond bleu dégradé : eyebrow mono + moyenne /20
-/// à gauche, niveau CECRL plancher à droite (règle TCF IRN), barre A1→C2
+/// à gauche, niveau CECRL **global** de l'épreuve à droite, barre A1→B2
 /// en bas. Alignée sur le pattern hero des autres écrans bilan (TCF complet,
 /// EE/EO results).
+///
+/// ⚠ Ce niveau n'est **pas** un plancher : le backend
+/// (`ProductionBilanService.compute`) fait une moyenne pondérée des
+/// compétences des 3 tâches, précisément pour qu'une seule évaluation basse ne
+/// plafonne pas l'épreuve entière. Le plancher `min()` ne survit que pour le
+/// bilan d'un **examen complet** (le plus bas des 4 épreuves).
 class BilanHero extends StatelessWidget {
   const BilanHero({
     super.key,
     required this.moyenneSur20,
     required this.niveauGlobal,
+    this.correspondanceTcf,
   });
 
   /// Moyenne des notes /20 (null tant qu'aucune submission n'a été évaluée).
   final double? moyenneSur20;
 
-  /// Niveau CECRL plancher des évaluations disponibles (règle TCF IRN).
+  /// Niveau CECRL global de l'épreuve, calculé par le backend en moyenne
+  /// pondérée des compétences des tâches évaluées (pas un plancher).
   final NiveauCecrl? niveauGlobal;
 
-  String _formatScore(double s) {
-    if (s == s.truncateToDouble()) return s.toInt().toString();
-    return s.toStringAsFixed(1).replaceAll('.', ',');
-  }
+  /// Fourchette de note officielle du TCF pour ce niveau (backend). Null tant
+  /// qu'aucun niveau n'est exploitable — le bloc n'est alors pas rendu.
+  final CorrespondanceTcf? correspondanceTcf;
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +89,9 @@ class BilanHero extends StatelessWidget {
                       text: TextSpan(
                         children: [
                           TextSpan(
-                            text: moyenneSur20 == null ? '—' : _formatScore(moyenneSur20!),
+                            text: moyenneSur20 == null
+                                ? '—'
+                                : formatScore(moyenneSur20!),
                             style: AppFonts.display(
                               size: 44,
                               weight: FontWeight.w700,
@@ -106,7 +117,7 @@ class BilanHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      'Niveau plancher',
+                      'Niveau global',
                       style: AppFonts.ui(
                         size: 12,
                         color: Colors.white.withValues(alpha: 0.78),
@@ -114,7 +125,8 @@ class BilanHero extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 9),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
@@ -136,10 +148,45 @@ class BilanHero extends StatelessWidget {
             const SizedBox(height: 18),
             CecrlScale(level: niveauGlobal!, dark: true),
           ],
+          if (correspondanceTcf != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.only(top: 14),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Colors.white.withValues(alpha: 0.22)),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    correspondanceTcf!.phrase,
+                    style: AppFonts.ui(
+                      size: 13.5,
+                      weight: FontWeight.w600,
+                      color: Colors.white,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Grille officielle du TCF IRN. Notre note ci-dessus utilise la '
+                    'même échelle et porte, comme au TCF, sur l\'épreuve entière.',
+                    style: AppFonts.ui(
+                      size: 12,
+                      color: Colors.white.withValues(alpha: 0.78),
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (!hasResult) ...[
             const SizedBox(height: 12),
             Text(
-              'L\'évaluation IA est en cours sur tes productions.',
+              'L\'évaluation IA est en cours sur vos productions.',
               style: AppFonts.ui(
                 size: 13,
                 color: Colors.white.withValues(alpha: 0.85),

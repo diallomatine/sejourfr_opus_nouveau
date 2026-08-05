@@ -18,7 +18,9 @@ import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.RealtimeSessionManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
+import com.sejourfr.app.service.ProductionAccessService;
 import com.sejourfr.app.service.ProductionEvaluationService;
+import com.sejourfr.app.service.SubscriptionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,6 +55,8 @@ class RealtimeSessionServiceTest {
     @Mock private ProductionTaskManager productionTaskManager;
     @Mock private AttemptManager attemptManager;
     @Mock private ProductionEvaluationService productionEvaluationService;
+    @Mock private SubscriptionService subscriptionService;
+    @Mock private com.sejourfr.app.manager.ProductionSubmissionManager productionSubmissionManager;
     @Mock private UserSubscriptionManager userSubscriptionManager;
 
     private final RealtimeProperties props = new RealtimeProperties();
@@ -64,9 +68,13 @@ class RealtimeSessionServiceTest {
 
     @BeforeEach
     void setUp() {
+        // Gardes de session : collaborateur REEL (pur) pour exercer les regles
+        // reellement appliquees a l'ouverture d'une session temps reel.
+        ProductionAccessService accessService = new ProductionAccessService(
+                subscriptionService, attemptManager, productionSubmissionManager);
         service = new RealtimeSessionService(sessionManager, quotaService, personaBuilder,
                 tokenBroker, productionTaskManager, attemptManager, productionEvaluationService,
-                userSubscriptionManager, props);
+                accessService, userSubscriptionManager, props);
         user = new User();
         user.setId(UUID.randomUUID());
     }
@@ -186,11 +194,6 @@ class RealtimeSessionServiceTest {
     @Test
     void start_attempt_d_autrui_404() {
         when(productionTaskManager.findActiveById(taskId)).thenReturn(Optional.of(eoTask((short) 1)));
-        when(quotaService.evaluate(user.getId())).thenReturn(quota(true, 2));
-        when(tokenBroker.isConfigured()).thenReturn(true);
-        when(personaBuilder.build(any())).thenReturn("persona");
-        when(tokenBroker.mint("persona"))
-            .thenReturn(new RealtimeTokenBroker.MintedSession("tok", "wss://g", "model-x"));
         UUID attemptId = UUID.randomUUID();
         Attempt other = new Attempt();
         User someoneElse = new User();
@@ -200,6 +203,59 @@ class RealtimeSessionServiceTest {
 
         assertThatThrownBy(() -> service.start(user, new StartRealtimeSessionRequest(taskId, attemptId)))
             .isInstanceOf(NotFoundException.class);
+        // La session visee est validee AVANT de mobiliser le broker / le quota.
+        verify(tokenBroker, never()).mint(any());
+    }
+
+    /** Attempt EO du user, non termine, chrono ouvert : le cas nominal. */
+    private Attempt ownEoAttempt() {
+        Attempt a = new Attempt();
+        a.setId(UUID.randomUUID());
+        a.setUser(user);
+        a.setEpreuve(EpreuveType.TCF_EO);
+        a.setStartedAt(Instant.now());
+        return a;
+    }
+
+    @Test
+    void start_refuse_une_sous_epreuve_deja_terminee() {
+        // Sous-epreuve EE/EO pre-terminee par le verrou freemium d'un examen
+        // complet : l'invariant « epreuve terminee => plus aucune soumission »
+        // etait faux sur la voie temps reel.
+        when(productionTaskManager.findActiveById(taskId)).thenReturn(Optional.of(eoTask((short) 1)));
+        Attempt locked = ownEoAttempt();
+        locked.setFinishedAt(Instant.now());
+        when(attemptManager.findById(locked.getId())).thenReturn(Optional.of(locked));
+
+        assertThatThrownBy(() -> service.start(user, new StartRealtimeSessionRequest(taskId, locked.getId())))
+            .isInstanceOf(BusinessException.class);
+        verify(sessionManager, never()).save(any());
+        verify(tokenBroker, never()).mint(any());
+    }
+
+    @Test
+    void start_refuse_une_session_d_une_autre_epreuve() {
+        when(productionTaskManager.findActiveById(taskId)).thenReturn(Optional.of(eoTask((short) 1)));
+        Attempt ecrite = ownEoAttempt();
+        ecrite.setEpreuve(EpreuveType.TCF_EE);
+        when(attemptManager.findById(ecrite.getId())).thenReturn(Optional.of(ecrite));
+
+        assertThatThrownBy(() -> service.start(user, new StartRealtimeSessionRequest(taskId, ecrite.getId())))
+            .isInstanceOf(BusinessException.class);
+        verify(sessionManager, never()).save(any());
+    }
+
+    @Test
+    void start_refuse_une_tache_deja_rendue_dans_l_examen() {
+        when(productionTaskManager.findActiveById(taskId)).thenReturn(Optional.of(eoTask((short) 1)));
+        Attempt exam = ownEoAttempt();
+        exam.setSlotNumber(1);
+        when(attemptManager.findById(exam.getId())).thenReturn(Optional.of(exam));
+        when(productionSubmissionManager.countByAttemptAndTache(exam.getId(), (short) 1)).thenReturn(1L);
+
+        assertThatThrownBy(() -> service.start(user, new StartRealtimeSessionRequest(taskId, exam.getId())))
+            .isInstanceOf(BusinessException.class);
+        verify(sessionManager, never()).save(any());
     }
 
     // ----- appendTranscript -----
@@ -392,8 +448,10 @@ class RealtimeSessionServiceTest {
         RealtimeSessionStateResponse resp = service.finish(user, session.getId());
 
         assertThat(resp.status()).isEqualTo(RealtimeSessionStatus.COMPLETED);
-        // Submission créée (le candidat a parlé) même si le pipeline d'éval a
-        // échoué : evaluated=true, le front ouvre le résultat (statut rejouable).
-        assertThat(resp.evaluated()).isTrue();
+        // evaluateRealtimeTranscript CREE la submission puis delegue l'eval a un
+        // runner async : si elle leve (garde refusee, quota epuise), rien n'a ete
+        // cree. Annoncer evaluated=true enverrait le front sur un ecran de
+        // resultat vide.
+        assertThat(resp.evaluated()).isFalse();
     }
 }

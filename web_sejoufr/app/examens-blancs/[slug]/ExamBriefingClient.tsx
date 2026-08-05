@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
-import { ApiException, attemptApi, publicAttemptApi } from "@/lib/api";
+import { attemptApi, publicAttemptApi } from "@/lib/api";
+import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import {
   canAccessModule,
@@ -131,11 +132,11 @@ function ExamBriefingInner({
           });
       router.push(`/sessions/${a.id}`);
     } catch (e) {
-      if (e instanceof ApiException && e.status === 403) {
-        setShowPaywall(true);
-      } else {
-        setError(e instanceof ApiException ? e.message : "Démarrage impossible.");
-      }
+      handleStartFailure(e, {
+        onPaywall: () => setShowPaywall(true),
+        onMessage: setError,
+        fallbackMessage: "Démarrage impossible.",
+      });
       setStarting(false);
     }
   }
@@ -241,7 +242,8 @@ function ExamBriefingInner({
                 {isGuest ? (
                   <p className="brf-mobile-note">
                     Sans compte, cet examen couvre les épreuves de{" "}
-                    <strong>compréhension</strong> (orale puis écrite).
+                    <strong>compréhension</strong>{" "}
+                    (orale puis écrite).
                     L&apos;<strong>expression écrite et orale</strong>, évaluées
                     par l&apos;IA, ne sont pas disponibles en démo —{" "}
                     <Link href="/inscription?next=/examens-blancs">

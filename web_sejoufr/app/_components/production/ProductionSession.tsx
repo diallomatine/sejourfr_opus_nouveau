@@ -8,6 +8,8 @@ import { ApiException, attemptApi, fullTcfExamApi, productionApi } from "@/lib/a
 import { useAuth } from "@/lib/auth-context";
 import {
   cecrlIndex,
+  correspondanceTcfPhrase,
+  formatNoteSur20,
   isSubmissionPending,
   niveauCecrlLabel,
   type NiveauCecrl,
@@ -84,6 +86,10 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   const [activeDescriptor, setActiveDescriptor] = useState<RealtimeSessionDescriptor | null>(null);
   const [rtStarting, setRtStarting] = useState(false);
   const [rtError, setRtError] = useState<string | null>(null);
+  /** Le temps réel a été refusé sur cette tâche (quota, broker indisponible,
+   *  session refusée) : on ne repropose plus le choix, le prochain tap sur le
+   *  micro enregistre directement. Remis à zéro à la tâche suivante. */
+  const [rtRefused, setRtRefused] = useState(false);
 
   /** Entre dans la tâche `n` : on affiche d'abord le sujet (mode "classic" =
    *  EoRecordingForm). Le choix du mode EO T1/T2 est proposé sur le bouton
@@ -93,6 +99,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       setCurrentTache(n);
       setActiveDescriptor(null);
       setRtError(null);
+      setRtRefused(false);
       setTaskMode("classic");
     },
     [],
@@ -102,8 +109,8 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
    *  attempt pas encore chargé). */
   const [deadline, setDeadline] = useState<number | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
-  /** Signal d'auto-soumission EE envoyé à `EeWritingForm` quand le chrono tombe
-   *  à 0. Incrémenter déclenche la lecture du texte courant. */
+  /** Signal d'expiration envoyé au formulaire de la tâche courante quand le
+   *  chrono tombe à 0 : EE lit son texte, EO coupe sa capture. */
   const [autoSubmitSignal, setAutoSubmitSignal] = useState(0);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -170,17 +177,21 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         setTasks(ordered);
         setSubsByTache(subs);
 
-        // Chrono EE :
-        // - Examen module : ancré sur `startedAt + timeLimitSeconds` backend
-        //   (survit au refresh, source de vérité).
+        // Chrono d'épreuve :
+        // - Examen module EE (30 min) ou EO (15 min) : ancré sur
+        //   `startedAt + timeLimitSeconds` backend (survit au refresh, source
+        //   de vérité — c'est lui qui refuse les soumissions hors délai).
         // - Sous-épreuve EE d'examen complet : le backend ne pose pas
         //   `timeLimitSeconds` et ne réaligne pas `startedAt` à l'entrée EE → on
         //   démarre un décompte 30 min côté front à l'arrivée dans l'épreuve.
-        if (config.mode === "text" && attempt && !attempt.finishedAt) {
+        // - Sous-épreuve EO d'examen complet : AUCUN chrono local, le temps y
+        //   est tenu par le compteur global des 90 min du hub (deux décomptes
+        //   concurrents finiraient par se contredire).
+        if (attempt && !attempt.finishedAt) {
           if (attempt.timeLimitSeconds != null) {
             const start = new Date(attempt.startedAt).getTime();
             setDeadline(start + attempt.timeLimitSeconds * 1000);
-          } else {
+          } else if (config.mode === "text") {
             setDeadline(Date.now() + EE_FALLBACK_LIMIT_SEC * 1000);
           }
         }
@@ -221,7 +232,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, attemptId, config.epreuve, config.mode]);
 
-  // Tick du chrono EE (1 s). On dérive la valeur affichée de la deadline pour
+  // Tick du chrono d'épreuve (1 s). On dérive la valeur affichée de la deadline pour
   // survivre à un refresh ; à 0 on déclenche l'auto-soumission une seule fois.
   useEffect(() => {
     if (deadline == null || phase !== "writing") return;
@@ -322,12 +333,18 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         setActiveDescriptor(res.descriptor);
         setTaskMode("realtime");
       } else if (res.kind === "paywall") {
+        setRtRefused(true);
         setPaywallOpen(true);
         setTaskMode("classic");
       } else if (res.kind === "error") {
+        // Refus du backend (épreuve terminée, temps écoulé, tâche déjà rendue)
+        // ou panne de connexion : on montre le message dans la feuille et on
+        // laisse l'enregistrement classique comme seule voie.
+        setRtRefused(true);
         setRtError(res.message);
       } else {
         // Quota épuisé / non éligible : bascule silencieuse en classique.
+        setRtRefused(true);
         setTaskMode("classic");
       }
     } finally {
@@ -386,10 +403,11 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     }
   }
 
-  /** Chrono EE à 0:00 (examen entier) : auto-soumet le texte de la tâche
-   *  courante s'il est recevable, puis finalise l'épreuve — quelle que soit la
+  /** Chrono à 0:00 (examen entier) : auto-soumet la production de la tâche
+   *  courante si elle est recevable, puis finalise l'épreuve — quelle que soit la
    *  tâche en cours (les tâches non rendues sont comptées 0). */
   const finalizeExam = useCallback(async () => {
+    if (finishedRef.current) return;
     finishedRef.current = true;
     if (timerRef.current) clearTimeout(timerRef.current);
     if (fullExamId) {
@@ -425,6 +443,32 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     [submitting, currentTask, attemptId, finalizeExam],
   );
 
+  /** Idem côté oral : la capture coupée à 0:00 part quand même en évaluation
+   *  (le backend tolère 60 s de grâce), puis l'épreuve est finalisée. */
+  const onEoTimeout = useCallback(
+    async (audio: Blob | null) => {
+      if (audio && audio.size > 0 && currentTask && !submitting) {
+        setSubmitting(true);
+        try {
+          await productionApi.submitAudio(currentTask.id, attemptId, audio);
+        } catch {
+          // best-effort : les tâches non rendues sont comptées 0 par le bilan
+        } finally {
+          setSubmitting(false);
+        }
+      }
+      await finalizeExam();
+    },
+    [submitting, currentTask, attemptId, finalizeExam],
+  );
+
+  // Expiration pendant un échange avec l'examinateur temps réel : le runner ne
+  // reçoit pas de signal (il n'a rien à rendre), on finalise directement.
+  useEffect(() => {
+    if (autoSubmitSignal <= 0 || taskMode !== "realtime") return;
+    void finalizeExam();
+  }, [autoSubmitSignal, taskMode, finalizeExam]);
+
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`${config.base}/session/${attemptId}`} />;
 
@@ -435,7 +479,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         ? "Valider et passer à l'épreuve suivante"
         : "Valider et terminer";
 
-  const chronoActive = config.mode === "text" && deadline != null && phase === "writing";
+  const chronoActive = deadline != null && phase === "writing";
   const chronoSec = remaining ?? 0;
   const chronoUrgent = chronoActive && chronoSec <= 300;
 
@@ -460,10 +504,12 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             ? "Le niveau global est calculé sur vos 3 tâches une fois évaluées."
             : config.mode === "text"
               ? "3 tâches enchaînées en 30 minutes — évaluation IA à la fin."
-              : "3 tâches enchaînées, chronométrées par tâche — évaluation IA à la fin."
+              : chronoActive
+                ? "3 tâches enchaînées en 15 minutes, chacune limitée en temps de parole — évaluation IA à la fin."
+                : "3 tâches enchaînées, chronométrées par tâche — évaluation IA à la fin."
         }
       >
-        {/* Chrono EE permanent (examen 30:00) */}
+        {/* Chrono d'épreuve permanent (EE 30:00, EO 15:00) */}
         {chronoActive && (
           <div className={`${prod.examChrono} ${chronoUrgent ? prod.examChronoUrgent : ""}`}>
             <span className={prod.examChronoLabel}>
@@ -523,8 +569,11 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                   error={rtError}
                   submitLabel={submitLabel}
                   examMode
+                  timeoutSignal={autoSubmitSignal}
+                  onTimeout={onEoTimeout}
                   onModeChoice={
-                    currentTask.tacheNumero === 1 || currentTask.tacheNumero === 2
+                    !rtRefused &&
+                    (currentTask.tacheNumero === 1 || currentTask.tacheNumero === 2)
                       ? askMode
                       : undefined
                   }
@@ -611,19 +660,20 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   );
 }
 
-const CECRL_SCALE: NiveauCecrl[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
+const CECRL_SCALE: NiveauCecrl[] = ["A1", "A2", "B1", "B2"];
 
 /** Conseil « prochaines étapes » selon le niveau plancher (calqué mobile). */
 function nextStepsMessage(level: NiveauCecrl | null): string {
   switch (level) {
     case "C2":
     case "C1":
+      return "Bravo, votre français est avancé. Le TCF IRN, lui, s'arrête à B2 : vous êtes au-dessus du palier le plus haut demandé.";
     case "B2":
-      return "Excellent niveau. Vous visez le haut du TCF IRN — continuez à soigner la nuance et l'argumentation.";
+      return "Excellent — niveau B2 sur cette épreuve, le palier demandé pour la naturalisation. Il se juge dans les 4 épreuves sans moyenne : gardez ce niveau partout.";
     case "B1":
-      return "Niveau solide, suffisant pour la carte de résident. Travaillez la richesse du vocabulaire pour viser B2.";
+      return "Niveau B1 sur cette épreuve — le palier demandé pour la carte de résident, à condition de l'atteindre aussi dans les 3 autres épreuves. Travaillez la richesse du vocabulaire pour viser B2.";
     case "A2":
-      return "Niveau suffisant pour la carte de séjour. Renforcez la grammaire et la longueur de vos productions pour viser B1.";
+      return "Niveau A2 sur cette épreuve — le palier demandé pour la carte de séjour pluriannuelle, à condition de l'atteindre aussi dans les 3 autres épreuves. Renforcez la grammaire et la longueur de vos productions pour viser B1.";
     case "A1":
       return "Les bases sont là. Entraînez-vous régulièrement sur des phrases plus complètes pour progresser vers A2.";
     case "A1_NON_ATTEINT":
@@ -667,6 +717,7 @@ function BilanView({
   const avgNote = bilan?.moyenneSur20 ?? null;
   const niveauGlobal = bilan?.niveauGlobal ?? null;
   const targetIdx = niveauGlobal != null ? cecrlIndex(niveauGlobal) : -1;
+  const correspondance = correspondanceTcfPhrase(bilan?.correspondanceTcf);
 
   return (
     <>
@@ -677,7 +728,7 @@ function BilanView({
           <div>
             <div className={prod.sessHeroNoteLabel}>Note moyenne</div>
             <div className={prod.sessHeroNote}>
-              {avgNote != null ? formatNote(avgNote) : "—"}
+              {avgNote != null ? formatNoteSur20(avgNote) : "—"}
               <span className={prod.sessHeroNoteOf}>/20</span>
             </div>
           </div>
@@ -712,6 +763,15 @@ function BilanView({
               ))}
             </div>
           </>
+        )}
+        {correspondance && (
+          <div className={prod.sessTcf}>
+            <p className={prod.sessTcfPhrase}>{correspondance}</p>
+            <p className={prod.sessTcfSource}>
+              Grille officielle du TCF IRN. Notre note ci-dessus utilise la même
+              échelle et porte, comme au TCF, sur l&apos;épreuve entière.
+            </p>
+          </div>
         )}
       </div>
 
@@ -763,13 +823,13 @@ function BilanView({
                       : pending
                         ? "Évaluation IA en cours…"
                         : note != null
-                          ? `Note ${formatNote(note)}/20`
+                          ? `Note ${formatNoteSur20(note)}/20`
                           : "Évaluée"}
                 </span>
               </span>
-              {evaluatedOk && note != null && (
-                <span className={prod.sessTachePill}>{formatNote(note)}/20</span>
-              )}
+              {/* La note vit dans le sous-titre (« Note 10/20 »), comme sur
+                  mobile : la pastille la répétait mot pour mot sur la même
+                  ligne. */}
               {s && !pending && (
                 <ChevronRight size={18} className={prod.sessTacheChevron} aria-hidden />
               )}
@@ -800,8 +860,4 @@ function BilanView({
       </div>
     </>
   );
-}
-
-function formatNote(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ",");
 }

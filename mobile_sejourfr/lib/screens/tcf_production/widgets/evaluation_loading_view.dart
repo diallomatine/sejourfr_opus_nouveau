@@ -42,8 +42,8 @@ class _EvaluationLoadingViewState extends State<EvaluationLoadingView>
       const _Step(label: 'Envoi de votre production', icon: LucideIcons.cloudUpload),
       if (widget.includeTranscription)
         const _Step(label: 'Transcription audio', icon: LucideIcons.audioLines),
-      const _Step(label: 'Analyse pedagogique', icon: LucideIcons.brain),
-      const _Step(label: 'Preparation de votre bilan', icon: LucideIcons.clipboardCheck),
+      const _Step(label: 'Analyse pédagogique', icon: LucideIcons.brain),
+      const _Step(label: 'Préparation de votre bilan', icon: LucideIcons.clipboardCheck),
     ];
     // Cadences indicatives (en secondes), recalibrees selon la vitesse reelle
     // si jamais on bascule en async un jour. Total ~18 s avec transcription,
@@ -97,7 +97,7 @@ class _EvaluationLoadingViewState extends State<EvaluationLoadingView>
               Text(
                 _stepIndex == _steps.length - 1
                     ? 'Encore quelques secondes…'
-                    : 'Votre evaluation arrive juste apres.',
+                    : 'Votre évaluation arrive juste après.',
                 style: AppFonts.ui(size: 13, color: AppColors.muted),
               ),
               const SizedBox(height: 28),

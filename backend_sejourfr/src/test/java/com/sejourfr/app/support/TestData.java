@@ -24,6 +24,7 @@ import com.sejourfr.app.entity.Plan;
 import com.sejourfr.app.entity.ProcessedExternalEvent;
 import com.sejourfr.app.entity.ProductionExample;
 import com.sejourfr.app.entity.ProductionSubmission;
+import com.sejourfr.app.entity.AgentRoleCard;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.RealtimeSession;
@@ -358,14 +359,35 @@ public class TestData {
             t.setDureeMinSec(60);
             t.setDureeMaxSec(180);
         } else {
-            t.setMotsMin(120);
-            t.setMotsMax(180);
+            // TCF IRN EE tâche 1 : volume officiel de 30 à 60 mots.
+            t.setMotsMin(30);
+            t.setMotsMax(60);
         }
         return productionTaskRepository.save(t);
     }
 
     public ProductionTask productionTask() {
         return productionTask(EpreuveType.TCF_EE);
+    }
+
+    /**
+     * Tâche EO n°2 (jeu de rôle), seule combinaison autorisée à porter une fiche
+     * de scénario (contrainte {@code chk_prod_task_agent_role_card}). {@code card}
+     * peut être null pour représenter un sujet non encore doté d'une fiche.
+     * {@code saveAndFlush} pour que la contrainte parle tout de suite.
+     */
+    public ProductionTask productionTaskEoT2(AgentRoleCard card) {
+        ProductionTask t = new ProductionTask();
+        t.setEpreuve(EpreuveType.TCF_EO);
+        t.setTacheNumero((short) 2);
+        t.setNiveauCible("B1");
+        t.setConsigne("Consigne de jeu de rôle de test " + next());
+        t.setContexte("L'examinateur joue le conseiller de test.");
+        t.setDureeMinSec(120);
+        t.setDureeMaxSec(210);
+        t.setAgentRoleCard(card);
+        t.setActive(true);
+        return productionTaskRepository.saveAndFlush(t);
     }
 
     public ProductionSubmission productionSubmission(Attempt attempt, ProductionTask task, User user) {

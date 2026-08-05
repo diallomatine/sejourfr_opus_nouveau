@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/format_date.dart';
 import 'task_palette.dart';
 
 /// Pastille circulaire en tête de carte d'historique : numéro de tâche (T1
@@ -68,22 +69,6 @@ class HistorySessionCard extends StatelessWidget {
     return submissions
         .map((s) => s.submittedAt)
         .reduce((a, b) => a.isAfter(b) ? a : b);
-  }
-
-  String _formatDate(DateTime dt) {
-    const months = [
-      'janv.', 'fevr.', 'mars', 'avr.', 'mai', 'juin',
-      'juil.', 'aout', 'sept.', 'oct.', 'nov.', 'dec.'
-    ];
-    final local = dt.toLocal();
-    final h = local.hour.toString().padLeft(2, '0');
-    final m = local.minute.toString().padLeft(2, '0');
-    return '${local.day} ${months[local.month - 1]} ${local.year} · $h:$m';
-  }
-
-  String _formatScore(double s) {
-    if (s == s.truncateToDouble()) return s.toInt().toString();
-    return s.toStringAsFixed(1).replaceAll('.', ',');
   }
 
   String _title() => submissions.length >= 2
@@ -164,7 +149,7 @@ class HistorySessionCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        _formatDate(date),
+                        formatLongDateTime(date),
                         style: AppFonts.ui(
                           size: 11.5,
                           color: AppColors.muted,
@@ -175,7 +160,7 @@ class HistorySessionCard extends StatelessWidget {
                         text: TextSpan(
                           children: [
                             TextSpan(
-                              text: avg == null ? '—' : _formatScore(avg),
+                              text: avg == null ? '—' : formatScore(avg),
                               style: AppFonts.display(
                                 size: 24,
                                 weight: FontWeight.w700,

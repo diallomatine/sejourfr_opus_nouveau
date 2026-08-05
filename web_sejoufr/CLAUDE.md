@@ -133,6 +133,8 @@ lib/
 │                                 #   header/footer/bandeau marketing, la sidebar porte tout)
 ├── dashboard.ts                  # helpers catégories dashboard : categoryHref (CTA Réviser),
 │                                 #   barTone (vert ≥80 / ambre <60 / bleu), moduleAverage
+├── start-failure.ts              # classifyStartFailure / handleStartFailure : un 403 au
+│                                 #   démarrage d'un attempt = paywall, pas erreur technique
 └── types.ts                      # DTOs miroirs Java + helper canAccessModule()
 ```
 
@@ -166,7 +168,11 @@ quand présent, le score brut sinon. **Examens multi-épreuves** : le backend
 expose `AttemptResponse.epreuveResults` (score + niveau par épreuve, CO_IMAGE
 sous CO) et le `cecrlLevel` global est le PLANCHER des épreuves (règle TCF
 IRN : il faut le niveau partout) ; `ExamReport` rend la card « Votre niveau
-par épreuve » (badge rouge sur l'épreuve plancher) + note expliquant le min.
+par épreuve » + note expliquant le min. **Aucun niveau ne se colore en rouge** :
+le badge prend la teinte de son PALIER (`epreuveLevelTone`, `lib/exam-levels.ts`,
+qui dérive de l'unique table `tcfNiveauTone`) et l'épreuve plancher est signalée
+**par le texte** (« · niveau retenu »), seulement quand elle se distingue des
+autres (`floorMarks`) — un candidat B2 partout n'a pas de point faible.
 Miroirs `AttemptEpreuveResult` dans lib/types.ts et attempt_models.dart. **CO en examen = conditions réelles** : audio
 autoplay à écoute unique sans contrôles (`MediaView` prop `examAudio`,
 fallback bouton one-shot si l'autoplay est bloqué). **Retour arrière interdit
@@ -282,6 +288,15 @@ standard 36px, variante `.cocarde.lg` à 56px.
 Le client `apiFetch` lève une `ApiException` avec `{ status, message, payload }`. Le `payload` peut contenir
 `fieldErrors: Record<string, string>` que les pages d'auth concatènent pour affichage. Les pages traitent
 spécifiquement le 401 (mauvais credentials sur connexion, "créez un compte" sur examen blanc).
+
+**Échec de démarrage d'un attempt** (série, examen blanc QCM, session EE/EO, « Refaire ») : passer par
+`lib/start-failure.ts` — `handleStartFailure(e, {onPaywall, onMessage, fallbackMessage})` ouvre l'offre sur
+un **403** et affiche le message backend sinon. Le paywall des examens blancs est appliqué **par le
+backend** (`AttemptService.enforceMockExamSlotAccess`, slot 1 offert / 2+ abonnés) : un écran dont le statut
+premium en cache est périmé reçoit un 403 là où son UI croyait le slot ouvert — c'est un refus attendu, pas
+une panne, il ne doit jamais s'afficher en erreur technique. **Ne pas réécrire ce `if (status === 403)` dans
+une page** : la règle vit à un seul endroit (miroir de `core/utils/start_failure.dart` côté mobile). Les
+écrans duals guest/connecté routent le 403 vers `GuestGateSheet` en guest, `PaywallSheet` sinon.
 
 ## Examen blanc — flux
 
@@ -533,11 +548,30 @@ Chantier découpé en vagues :
       `POST /api/full-tcf-exams/{id}/begin?epreuve=TCF_CO|TCF_CE` + migration V013
       `attempts.timer_started_at`. `startedAt` (création) reste l'ancre de tri /
       dédup par slot des grilles. Parité mobile faite (`beginEpreuve` côté
-      `tcf_full_exam_progress_screen`). EE/EO inchangés (chrono front 30 min /
-      par-tâche).),
+      `tcf_full_exam_progress_screen`). Sous-épreuves EE/EO du complet :
+      **pas** de `timeLimitSeconds` backend → repli front 30 min pour l'EE,
+      **aucun chrono local pour l'EO** (le temps y est tenu par le compteur
+      global des 90 min du hub ; un second décompte se contredirait).),
       `tcf/[id]/bilan/page.tsx` (CECRL plancher + polling 3 s rapide 30 s puis 8 s,
       max 5 min, sur `status === COMPLETED`), `tcf/TcfFullExamBriefingSheet.tsx`
       (lancement + 403 → paywall, ouvert **inline** depuis la carte TCF).
+    - **Règles de lecture du bilan** → `lib/exam-levels.ts` (pures, testées) :
+      `subAttemptView` (état d'une épreuve : verrouillée / non terminée /
+      évaluée / en cours / **en échec** / **stale**), `examIsStale` (examen
+      finalisé depuis > 2 min sans être COMPLETED ⇒ plus rien ne tourne : on
+      coupe le spinner et on propose « Actualiser », parité mobile),
+      `epreuveLevelTone` / `floorMarks` (couleur = palier, plancher = texte),
+      `floorScope` + `floorRuleSentence` (la phrase du plancher dit le
+      **périmètre réel**), `isCompleteExamResult`. Une épreuve dont
+      `failedSubmissionIds` n'est pas vide affiche une bannière rouge +
+      « Réessayer » (`productionApi.retrySubmission` sur chaque id) au lieu de
+      tourner à vide. **Bilan partiel** (`finalLevelPartial`, aussi porté par le
+      résumé) : le niveau ne porte pas sur les 4 épreuves (EE/EO verrouillée,
+      évaluations échouées) → phrase « Bilan partiel : … N épreuves sur 4 », et
+      l'examen est **écarté** des stats « Meilleur niveau » / « Dernier examen »
+      de `/examens-blancs` + annoté « · partiel » dans sa carte de slot (pas de
+      check de réussite). Miroirs `epreuvesCountedInFinalLevel`,
+      `epreuvesExpected`, `finalLevelPartial` dans `lib/types.ts`.
     - **Évaluation IA en arrière-plan (parité mobile)** : EE/EO soumettent T1/T2
       sans attendre l'éval (`SUBMITTED` ~500 ms) ; après T3, `fullTcfExamApi.markSubDone`
       pose `finishedAt` et débloque l'épreuve suivante au hub sans attendre l'IA.
@@ -752,15 +786,26 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
       (`startAttempt({exam:true, slotNumber})`) ; la grille est **indexée par
       slot** via `bilan.slotNumber` (anciennes sessions sans slot → slot 1).
       Difficulté progressive par slot (1-3 A2 / 4-6 B1 / 7-10 B2), légende
-      `bandLegend`. **Chrono EE 30:00** ancré sur
-      `startedAt + timeLimitSeconds` backend (survit au refresh ; repli
-      30 min front pour les sous-épreuves EE d'examen complet où
-      `timeLimitSeconds` est null) ; alerte rouge sous 5 min ; à 0:00
-      auto-soumission du texte courant si recevable
-      (mots ∈ [`motsMin`, `motsMax`×1.2]) puis `attemptApi.finish` puis bilan.
-      **EO en examen** (`EoRecordingForm examMode`) : décompte par tâche
-      (`dureeMaxSec`), auto-stop à 0, soumission immédiate au stop (pas de
-      réécoute). Fin normale (T3) et abandon (navigation sortante) →
+      `bandLegend`. **Chrono d'épreuve (EE 30:00, EO 15:00)** ancré sur
+      `startedAt + timeLimitSeconds` backend — c'est le backend qui l'impose
+      (`AttemptService.PRODUCTION_E{E,O}_EXAM_SECONDS`, 60 s de grâce à la
+      soumission), le front ne fait que l'afficher ; survit au refresh ;
+      alerte rouge sous 5 min. Repli front 30 min **pour l'EE seule** quand
+      `timeLimitSeconds` est null (sous-épreuve d'examen complet) ; l'EO n'a
+      alors **aucun** chrono local. À 0:00 : EE auto-soumet le texte courant
+      s'il est recevable (mots ∈ [`motsMin`, `motsMax`] strictement : T1
+      30–60, T2/T3 60–90), EO coupe la
+      capture en cours et l'envoie en best-effort (`timeoutSignal` /
+      `onTimeout` sur `EoRecordingForm`, pendant de `autoSubmitSignal` /
+      `onAutoSubmit` côté EE) ; puis `attemptApi.finish` puis bilan.
+      **EO en examen** (`EoRecordingForm examMode`) : en plus du chrono
+      d'épreuve, décompte par tâche (`dureeMaxSec`), auto-stop à 0, soumission
+      immédiate au stop (pas de réécoute). **Une tâche rendue ne se refait pas
+      en session d'examen** (règle backend `ProductionAccessService`) : la
+      tâche courante est toujours `TACHES.find(n => !subs.has(n))`, le bouton
+      micro est désactivé après le stop et « Refaire » n'existe qu'hors examen ;
+      relancer l'évaluation IA d'une soumission (`retrySubmission`) reste
+      légitime. Fin normale (T3) et abandon (navigation sortante) →
       `attemptApi.finish`. `ProductionBilanResponse` gagne `slotNumber` +
       `finished` : en `finished` avec < 3 tâches évaluées, le bilan affiche
       « Non rendue » (pas de polling infini) et le niveau global dès qu'il
@@ -866,16 +911,121 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
     `EvaluationResultDto`, `ProductionExampleDto`, `SubmissionStatut`, `NiveauCecrl`
     + helpers (`productionTaskTitle/Subtitle(epreuve,n)`, `niveauCecrlLabel`,
     `cecrlIndex`, `formatDurationSec`, `resolveTcfLevel`, `parseEeFeedback`).
-  - **Composants partagés** `app/_components/production/` : `CecrlScoreDonut`,
-    `ProductionFeedbackView` (critères + points forts/à améliorer/suggestions/
-    corrections), `SubmissionRow`, `EeWritingForm`, `EoRecordingForm` +
-    `production.module.css`.
+  - **Composants partagés** `app/_components/production/` : `ProductionFeedbackView`
+    (orchestre les 6 blocs de l'écran de résultat, cf. section dédiée) avec
+    `ProductionObjectiveBanner`, `ProductionScoreHero` (note + échelle TCF),
+    `ProductionFullAnalysis` (le repli) et `FeedbackList` ;
+    `ProductionCriteriaCard` (les 4 critères annoncés avant de produire),
+    `SubmissionRow`, `EeWritingForm`, `EoRecordingForm` + `production.module.css`.
   - **Gating** (source backend) : entraînement par tâche = **2 essais gratuits à
     vie** par épreuve pour non-abonnés (403 au-delà → `PaywallSheet` Intégral) ;
     examen blanc 3-tâches = **premium-only**. Premium TCF (Intégral) = illimité.
   - **Fix backend lié** : `ProductionTaskManager.findActive` filtrait mal par
     `tacheNumero` seul (sans niveau) → renvoyait toute l'épreuve. Branche ajoutée +
     query `findByEpreuveAndTacheNumeroAndActiveTrueOrderByNiveauCibleAscCreatedAtAsc`.
+
+### Écran de résultat d'une production (6 blocs, parité mobile)
+
+`ProductionFeedbackView` (rendu par `ProductionResults`, routes
+`/entrainement/tcf/{ee,eo}/resultats/[submissionId]`) n'est **pas un rapport
+d'expertise pour un professeur** : c'est ce dont un candidat a besoin, dans
+l'ordre où il en a besoin, et une même erreur n'est expliquée qu'**une** fois.
+Six blocs, dans cet ordre exact (miroir mobile) :
+
+1. **Objectif de la tâche** (`ProductionObjectiveBanner`) — `accomplissement.
+   objectif` (`ATTEINT | PARTIELLEMENT_ATTEINT | NON_ATTEINT`) +
+   `objectif_resume`, trois traitements visuels distincts. **Absent des ~100
+   évaluations legacy → le bandeau n'est pas rendu du tout**, l'écran commence
+   à la note.
+2. **Note + échelle du TCF** (`ProductionScoreHero`) — la note, le niveau
+   observé, et **l'échelle officielle dessinée avec un curseur sur la note**.
+   Aucun pourcentage, aucune jauge « sur 20 points » : notre note EST celle du
+   TCF, un 4,5/20 vaut A2 et doit se lire comme tel.
+3. **Points forts** (≤ 2 côté backend).
+4. **Priorités** (≤ 2) — constat → « Comment faire » → avant/après (✗ / ✓).
+5. **Version améliorée** — `version_amelioree`, la production réécrite en
+   entier. **EE uniquement** : absente en EO par construction, sans trou visuel.
+6. **« Voir l'analyse complète »** (`ProductionFullAnalysis`, `<details>`
+   **replié par défaut**) — tout le reste, sans rien perdre, dans l'ordre
+   avertissements → **Détail par critère** → accomplissement → exemples
+   corrigés → **Suggestions**. La transcription EO / le texte soumis EE restent
+   en `<details>` séparés dans `ProductionResults`.
+
+Règles à ne pas défaire :
+
+- **Les règles de lecture vivent dans `lib/production-feedback.ts`** (pures,
+  testées par `lib/production-feedback.test.ts`, `npm test` = runner natif de
+  Node, aucune dépendance ajoutée) : `TCF_NOTE_BANDS` (la table officielle),
+  `tcfScalePosition`, `canShowNiveau`, `shouldShowConfiance`,
+  `objectifPresentation`, `groupAccomplishment`. Ne pas réimplémenter ces
+  décisions dans un composant.
+- **L'échelle du TCF est dessinée à bandes de largeur ÉGALE**, pas à l'échelle
+  réelle (B2 = la moitié des notes, « A1 non atteint » = une seule valeur :
+  proportionnelles, elles seraient illisibles). Le curseur, lui, est placé
+  proportionnellement DANS sa bande, avec 10 % d'inset de chaque côté pour
+  qu'une note pile au seuil (2/20) ne tombe pas sur une frontière. Une note à
+  décimale entre deux bandes (5,5) reste dans la bande **basse**, comme le
+  niveau calculé serveur.
+- **Le niveau n'est JAMAIS affiché sans sa confiance** (`EvaluationResultDto.
+  niveauObserve` + `confiance` + `avertissementNiveau`, tous fournis par le
+  backend) — `canShowNiveau`, appliqué dans `ProductionScoreHero` : sans
+  confiance, l'en-tête retombe sur le repli « Note de la tâche ». Le seul
+  niveau qui fait foi reste celui du bilan d'épreuve — dit dans le pied.
+- **Une confiance HAUTE ne s'affiche PAS** (`shouldShowConfiance`) : c'est le
+  cas normal, l'écrire n'apprend rien et fait douter d'un résultat qui ne le
+  mérite pas. Elle n'apparaît, avec ses `confiance_raisons`, que lorsqu'elle
+  nuance vraiment.
+- **L'accomplissement se rend en TROIS groupes** (parité mobile) : points
+  traités / manques obligatoires / pistes non abordées. Mélanger les deux
+  derniers fait paniquer pour des points qui n'enlèvent rien
+  (`obligatoire: false` = simple piste suggérée par le sujet).
+- **Un critère s'affiche en bande, pas en note** (`scores_criteres[].bande`,
+  calculée serveur) : une IA ne distingue pas honnêtement un 13 d'un 14. La
+  note **globale** /20, elle, reste chiffrée. La `preuve` (citation littérale)
+  s'affiche sous le commentaire.
+- **Quatre critères, les mêmes sur les six tâches** (`communiquer`, `interagir`,
+  `lexique`, `morphosyntaxe`, à poids égaux) : c'est la grille réelle du TCF. Les
+  codes par tâche des évaluations antérieures restent dans la table de repli
+  `eeCriterionLabel` — elles sont toujours en base et doivent s'afficher.
+  `ProductionCriteriaCard` annonce cette même liste avant la production (ne plus
+  la faire varier par tâche : ce sont les attentes qui changent, pas les
+  critères).
+- **Les notes portent UNE décimale** (12,5 et non 13). Un seul formateur,
+  `formatNoteSur20` (`lib/types.ts`) — ne pas réintroduire de copie locale ni
+  d'arrondi à l'entier (la moyenne d'examen de `ProductionExams` inclus).
+- **Une priorité ENSEIGNE** (`points_a_ameliorer[]` =
+  `{constat, comment?, exemple?{avant,apres}}`) : le `comment` (technique
+  réutilisable) et l'`exemple` avant/après sont du contenu principal, jamais une
+  note de bas de page. `parseEeFeedback` accepte **les deux formes** — les
+  évaluations déjà en base portent de simples chaînes, rendues en `constat` seul.
+  Ne pas présumer que le serveur normalise à la lecture d'un ancien
+  enregistrement.
+- `exemples_corriges[].gain` (ce que la reformulation démontre de plus) s'affiche
+  sous l'explication quand il est là, absent sur les anciennes évaluations.
+- **Plafonds backend** : `points_forts` ≤ 2, `points_a_ameliorer` ≤ 2 (titre
+  « Vos priorités »), `exemples_corriges` ≤ 3. Ne pas rajouter de « voir plus ».
+- **La note /20 suit l'échelle du profil TCF IRN** : 0 = A1 non atteint, 1 = A1,
+  2-5 = A2, 6-9 = B1, 10-20 = B2 ; la notation active v7/v4 est plafonnée à B2
+  et ne renvoie jamais C1/C2. On n'affiche **aucune** correspondance TCF sur une tâche — une tâche
+  isolée n'a pas de note officielle. La correspondance
+  (`ProductionBilanResponse.correspondanceTcf` → `correspondanceTcfPhrase`) ne
+  s'affiche qu'au **bilan d'épreuve** (`BilanView` dans `ProductionSession.tsx`),
+  au même wording que le mobile. Cf. `docs/notation-ia-eo-ee.md` §6.6.
+- L'échelle du bilan affiche uniquement A1→B2. C1/C2 restent acceptés dans les
+  types pour relire l'historique, mais sont rabattus visuellement sur le plafond B2.
+- **Rétrocompatibilité (~100 évaluations en base)** : les plus anciennes n'ont ni
+  verdict d'objectif, ni version améliorée, ni niveau, ni confiance, ni
+  accomplissement, ni bandes, ni preuves, leurs critères portent d'autres codes
+  et leurs priorités sont de simples chaînes. Les blocs concernés ne sont pas
+  rendus, les critères retombent sur l'affichage chiffré historique.
+  `parseEeFeedback` tolère l'absence de tous ces champs. C'est un cas normal,
+  jamais une erreur — vérifier les deux formes à l'écran avant de fermer une
+  modif de cet écran.
+- L'avertissement « évaluation fondée sur la transcription, la voix n'est pas
+  analysée » vient désormais du backend en tête de `feedback.avertissements`
+  (EO), et se lit dans le bloc 6. `EoTranscriptNotice` ne sert plus qu'**avant**
+  l'enregistrement (`EoRecordingForm`) ; le résultat garde un repli statique du
+  même message si l'évaluation ne porte aucun avertissement (éval v3).
 
 ### Endpoints backend manquants (à créer si besoin)
 

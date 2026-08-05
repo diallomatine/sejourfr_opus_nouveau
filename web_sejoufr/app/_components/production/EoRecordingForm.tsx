@@ -4,16 +4,8 @@ import {useEffect, useRef, useState} from "react";
 import {Clock, Mic, RotateCcw, Square} from "lucide-react";
 import {formatDurationSec, type ProductionTaskDto} from "@/lib/types";
 import {EoTranscriptNotice} from "./EoTranscriptNotice";
+import {ProductionCriteriaCard} from "./ProductionCriteriaCard";
 import styles from "./production.module.css";
-
-/** Les 5 critères d'évaluation EO (affichés avant l'enregistrement). */
-const EO_CRITERIA = [
-  "Pertinence et richesse du contenu",
-  "Aisance et fluidité",
-  "Correction grammaticale",
-  "Lexique et précision",
-  "Prononciation et intonation",
-];
 
 /** Choisit un conteneur audio supporté par le navigateur (Chrome/FF: webm,
  *  Safari: mp4). Whisper accepte ces formats. */
@@ -66,6 +58,8 @@ export function EoRecordingForm({
   error,
   submitLabel = "Soumettre à l'évaluation",
   examMode = false,
+  timeoutSignal = 0,
+  onTimeout,
   onModeChoice,
   onSubmit,
 }: {
@@ -76,6 +70,12 @@ export function EoRecordingForm({
   /** En examen blanc : décompte par tâche (dureeMaxSec), auto-stop à 0 et
    *  soumission immédiate au stop (manuel ou auto) — pas d'étape de réécoute. */
   examMode?: boolean;
+  /** Incrémenté par le parent quand le chrono de l'épreuve tombe à 0:00 :
+   *  coupe la capture en cours et remonte l'audio via `onTimeout`. */
+  timeoutSignal?: number;
+  /** Reçoit l'audio capturé jusqu'à l'expiration (null si rien n'était en
+   *  cours). Au parent de le soumettre en best-effort puis de finaliser. */
+  onTimeout?: (audio: Blob | null) => void;
   /** EO T1/T2 : appelé au 1ᵉʳ tap « démarrer » (une fois le sujet lu) pour
    *  choisir le mode — examinateur temps réel vs enregistrement seul. « classic »
    *  → on enregistre ici ; « realtime »/« cancel » → le parent prend la main
@@ -105,6 +105,10 @@ export function EoRecordingForm({
   // au moment de l'arrêt (l'`onstop` du MediaRecorder est asynchrone).
   const submitOnStopRef = useRef(false);
   const stopElapsedRef = useRef(0);
+  // Expiration du chrono d'épreuve : l'audio remonte à `onTimeout`, pas à
+  // `onSubmit` (le parent finalise l'épreuve au lieu d'enchaîner la tâche).
+  const timeoutOnStopRef = useRef(false);
+  const lastTimeoutSignalRef = useRef(0);
 
   // Nettoyage : stoppe le flux micro + révoque l'URL à la destruction.
   useEffect(() => {
@@ -164,6 +168,20 @@ export function EoRecordingForm({
     };
   }, []);
 
+  // Chrono d'épreuve à 0:00 : on coupe la capture en cours (l'audio déjà
+  // enregistré part quand même en évaluation) et on rend la main au parent.
+  useEffect(() => {
+    if (timeoutSignal <= 0 || timeoutSignal === lastTimeoutSignalRef.current) return;
+    lastTimeoutSignalRef.current = timeoutSignal;
+    if (phase !== "recording") {
+      onTimeout?.(null);
+      return;
+    }
+    if (timerRef.current) clearInterval(timerRef.current);
+    timeoutOnStopRef.current = true;
+    recorderRef.current?.stop();
+  }, [timeoutSignal, phase, onTimeout]);
+
   /** Tap sur le bouton micro. Pour EO T1/T2 (`onModeChoice` fourni), on propose
    *  d'abord le mode maintenant que le sujet a été lu ; « seul » → capture ici,
    *  « temps réel »/annulé → le parent gère. Sinon capture directe. */
@@ -198,6 +216,12 @@ export function EoRecordingForm({
         blobRef.current = blob;
         streamRef.current?.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
+        if (timeoutOnStopRef.current) {
+          timeoutOnStopRef.current = false;
+          setPhase("recorded");
+          onTimeout?.(blob);
+          return;
+        }
         if (submitOnStopRef.current) {
           // Examen : soumission immédiate (manuel ou auto-stop), pas de réécoute.
           submitOnStopRef.current = false;
@@ -325,17 +349,7 @@ export function EoRecordingForm({
         </div>
       </div>
 
-      <div className={styles.card}>
-        <p className={styles.cardLabel}>Vous serez évalué sur</p>
-        <ul className={styles.criteriaList}>
-          {EO_CRITERIA.map((c) => (
-            <li key={c} className={styles.criteriaItem}>
-              <span className={styles.criteriaDot} />
-              {c}
-            </li>
-          ))}
-        </ul>
-      </div>
+      <ProductionCriteriaCard />
 
       <EoTranscriptNotice />
 

@@ -96,8 +96,8 @@ export function BlogIndexView({ data }: { data: PagedArticles }) {
                 )}
               </div>
               <div className="blog-index-grid">
-                {items.map((a) => (
-                  <ArticleCard key={a.slug} article={a} />
+                {items.map((a, i) => (
+                  <ArticleCard key={a.slug} article={a} priority={!featured && i === 0} />
                 ))}
               </div>
               <Pagination

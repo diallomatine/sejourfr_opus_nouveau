@@ -137,7 +137,6 @@ class TcfLotResultScreen extends ConsumerWidget {
                   errors: errors,
                   duration: duration,
                   levelLabel: levelLabel,
-                  accent: tier.accent,
                 ),
                 const SizedBox(height: 12),
                 _AdviceCard(
@@ -153,7 +152,7 @@ class TcfLotResultScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 AppButton(
-                  label: 'Retour aux lots',
+                  label: 'Retour aux séries',
                   variant: AppButtonVariant.ghost,
                   onPressed: backToLots,
                 ),
@@ -170,10 +169,10 @@ class TcfLotResultScreen extends ConsumerWidget {
       return 'Excellent ! Tu es solide sur ce niveau, attaque le suivant.';
     }
     if (percent >= 60) {
-      return 'Tu es sur une bonne progression. Continue à enchaîner les lots.';
+      return 'Tu es sur une bonne progression. Continue à enchaîner les séries.';
     }
     if (percent >= 40) {
-      return 'Encore quelques erreurs à corriger — revois et repasse ce lot ou un voisin.';
+      return 'Encore quelques erreurs à corriger — revois et repasse cette série ou une voisine.';
     }
     return 'Il reste du travail. Reviens sur les explications avant de repasser.';
   }
@@ -376,14 +375,12 @@ class _SummaryCard extends StatelessWidget {
     required this.errors,
     required this.duration,
     required this.levelLabel,
-    required this.accent,
   });
 
   final int correctAnswers;
   final int errors;
   final Duration duration;
   final String levelLabel;
-  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -407,17 +404,24 @@ class _SummaryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
+          // L'accent du palier est rouge quand le score est bas : l'utiliser
+          // sur « Bonnes réponses » peignait le bon chiffre en rouge et
+          // laissait les erreurs en neutre. On code la sémantique, pas le palier.
           _Row(
             label: 'Bonnes réponses',
             value: '$correctAnswers',
-            valueColor: accent,
+            valueColor: AppColors.green,
           ),
           const SizedBox(height: 8),
-          _Row(label: 'Erreurs', value: '$errors'),
+          _Row(
+            label: 'Erreurs',
+            value: '$errors',
+            valueColor: errors > 0 ? AppColors.red : null,
+          ),
           const SizedBox(height: 8),
           _Row(label: 'Temps', value: _formatDuration(duration)),
           const SizedBox(height: 8),
-          _Row(label: 'Niveau du lot', value: levelLabel),
+          _Row(label: 'Niveau de la série', value: levelLabel),
         ],
       ),
     );
@@ -485,8 +489,8 @@ class _AdviceCard extends StatelessWidget {
         : percent >= 60
             ? 'Revois les questions ratées pour combler les petits écarts.'
             : percent >= 40
-                ? 'Reprends les explications des questions ratées avant de relancer un lot.'
-                : 'Travaille en profondeur les questions de ce lot : lis les explications et repasse-le.';
+                ? 'Reprends les explications des questions ratées avant de relancer une série.'
+                : 'Travaille en profondeur les questions de cette série : lis les explications et repasse-la.';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),

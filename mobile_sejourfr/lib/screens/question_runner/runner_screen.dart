@@ -381,27 +381,33 @@ class _QuestionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final typeLabel = question.questionType.displayLabel;
+    // Sur les épreuves TCF le thème porte le même intitulé que le type de
+    // question (« Compréhension orale ») : on ne répète pas l'information
+    // dans un libellé de droite qui, en plus, se tronque.
+    final showTheme =
+        question.themeName.trim().toLowerCase() != typeLabel.toLowerCase();
+
     return Row(
       children: [
         AppTag(label: question.difficulty.wire, tone: TagTone.red),
         const SizedBox(width: 6),
-        AppTag(
-          label: question.questionType.displayLabel,
-          tone: TagTone.blue,
-        ),
-        const Spacer(),
-        Flexible(
-          child: Text(
-            question.themeName,
-            textAlign: TextAlign.end,
-            overflow: TextOverflow.ellipsis,
-            style: AppFonts.mono(
-              size: 10,
-              color: AppColors.muted,
-              letterSpacing: 1.2,
+        AppTag(label: typeLabel, tone: TagTone.blue),
+        if (showTheme) ...[
+          const Spacer(),
+          Flexible(
+            child: Text(
+              question.themeName,
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+              style: AppFonts.ui(
+                size: 11,
+                weight: FontWeight.w600,
+                color: AppColors.muted,
+              ),
             ),
           ),
-        ),
+        ],
       ],
     );
   }

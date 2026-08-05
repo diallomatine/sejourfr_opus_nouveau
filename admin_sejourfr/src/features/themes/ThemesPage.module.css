@@ -1,0 +1,21 @@
+.errorBlock {
+  padding: 24px;
+  color: var(--red);
+}
+
+.code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.description {
+  color: var(--muted);
+  max-width: 380px;
+}
+
+@media (max-width: 720px) {
+  .description {
+    max-width: 100%;
+  }
+}

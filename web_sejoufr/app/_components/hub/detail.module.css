@@ -428,10 +428,17 @@
   color: var(--color-blue-dark);
 }
 
-/* Note insuffisante (<= 12/20) : badge rouge (pendant du badge ✓ vert). */
-.serieBadgeFail {
-  background: var(--color-red-light);
-  color: var(--color-red);
+/* Badges d'une note de production, teintés par PALIER TCF (jamais par un seuil
+   « sur 20 ») : A2 ambre, B1 bleu, B2 vert = .serieBadgeDone. Pas de variante
+   rouge — aucun palier atteint ne se lit comme un échec. */
+.serieBadgeBlue {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.serieBadgeAmber {
+  background: color-mix(in srgb, var(--color-amber) 18%, #fff);
+  color: color-mix(in srgb, var(--color-amber) 75%, var(--color-ink));
 }
 
 /* ===== filtre Tout / À faire / Fait (pages sujets EE/EO) ===== */

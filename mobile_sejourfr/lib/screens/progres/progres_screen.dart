@@ -141,12 +141,14 @@ class _ProgresBody extends StatelessWidget {
           label: 'TCF IRN',
           color: AppColors.red,
           stats: orderedTcfCategories(summary.tcf),
+          examOutOf: 25,
         ),
         const SizedBox(height: 20),
         _ParcoursSection(
           label: 'Examen civique',
           color: AppColors.blue,
           stats: summary.civique,
+          examOutOf: 20,
         ),
         const SizedBox(height: 20),
         AppCard(
@@ -232,11 +234,17 @@ class _ParcoursSection extends StatelessWidget {
     required this.label,
     required this.color,
     required this.stats,
+    required this.examOutOf,
   });
 
   final String label;
   final Color color;
   final List<DashboardCategoryStat> stats;
+
+  /// Nombre de questions d'un examen blanc de ce parcours : 25 pour un examen
+  /// module TCF (CO / CE / Structure), 20 pour un examen de thème civique.
+  /// Sans ça un record de 25 bonnes réponses s'affichait « 25/20 ».
+  final int examOutOf;
 
   @override
   Widget build(BuildContext context) {
@@ -261,7 +269,8 @@ class _ParcoursSection extends StatelessWidget {
         const SizedBox(height: 10),
         ListGroup(
           children: [
-            for (final stat in stats) _CategoryRow(stat: stat),
+            for (final stat in stats)
+              _CategoryRow(stat: stat, examOutOf: examOutOf),
           ],
         ),
       ],
@@ -270,9 +279,10 @@ class _ParcoursSection extends StatelessWidget {
 }
 
 class _CategoryRow extends StatelessWidget {
-  const _CategoryRow({required this.stat});
+  const _CategoryRow({required this.stat, required this.examOutOf});
 
   final DashboardCategoryStat stat;
+  final int examOutOf;
 
   @override
   Widget build(BuildContext context) {
@@ -285,7 +295,9 @@ class _CategoryRow extends StatelessWidget {
           ? 'Niveau estimé ${stat.level!.displayName}'
           : 'Pas encore évalué';
     } else if (stat.mockExams > 0 && stat.bestMockScore != null) {
-      sub = '${stat.mockExams} examen(s) · record ${stat.bestMockScore}/20';
+      final n = stat.mockExams;
+      sub = '$n examen${n > 1 ? 's' : ''} · record '
+          '${stat.bestMockScore}/$examOutOf';
     } else {
       sub = 'Aucun examen passé';
     }

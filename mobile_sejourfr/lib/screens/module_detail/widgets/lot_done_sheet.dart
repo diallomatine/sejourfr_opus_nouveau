@@ -48,7 +48,9 @@ class LotDoneSheet extends StatelessWidget {
                 ),
               ),
               Text(
-                'Lot ${lot.numero}',
+                // « Lot » est le vocabulaire backend ; côté candidat on ne
+                // parle que de séries (comme les cartes de la liste).
+                'Série ${lot.numero}',
                 style: AppFonts.ui(
                     size: 18, weight: FontWeight.w800, color: AppColors.ink),
               ),

@@ -6,7 +6,8 @@
     "dev-web": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test 'lib/*.test.ts'"
   },
   "dependencies": {
     "dompurify": "^3.4.11",

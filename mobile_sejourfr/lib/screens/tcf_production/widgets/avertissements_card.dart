@@ -3,7 +3,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
-/// Encart "À noter" affiché avant les autres sections de feedback quand
+/// Encart "À savoir sur cette évaluation" affiché avant les autres sections de
+/// feedback quand
 /// l'IA renvoie des avertissements (durée trop courte, dépassement de mots…).
 /// Renvoie [SizedBox.shrink] si la liste est vide.
 class AvertissementsCard extends StatelessWidget {
@@ -33,12 +34,14 @@ class AvertissementsCard extends StatelessWidget {
                 color: AppColors.amber,
               ),
               const SizedBox(width: 8),
-              Text(
-                'À noter',
-                style: AppFonts.ui(
-                  size: 13,
-                  weight: FontWeight.w800,
-                  color: AppColors.ink,
+              Expanded(
+                child: Text(
+                  'À savoir sur cette évaluation',
+                  style: AppFonts.ui(
+                    size: 13,
+                    weight: FontWeight.w800,
+                    color: AppColors.ink,
+                  ),
                 ),
               ),
             ],
