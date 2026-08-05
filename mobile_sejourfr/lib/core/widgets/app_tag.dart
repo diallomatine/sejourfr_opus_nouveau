@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/enums.dart';
 import '../theme/app_theme.dart';
 
 enum TagTone { blue, red, neutral, success, amber, ghost }
@@ -79,4 +80,34 @@ class AppTag extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Ton de badge portant [accent] comme teinte pleine.
+///
+/// Pont entre les deux representations d'une meme couleur : une [Color] pour
+/// les barres, icones et gros chiffres ; un [TagTone] pour les pills. Sans lui,
+/// chaque regle « telle valeur vaut telle teinte » devrait etre ecrite deux
+/// fois et tenue synchrone a la main.
+TagTone tagToneForAccent(Color accent) {
+  if (accent == AppColors.blue || accent == AppColors.blueDark) {
+    return TagTone.blue;
+  }
+  if (accent == AppColors.red || accent == AppColors.redDark) {
+    return TagTone.red;
+  }
+  if (accent == AppColors.green) return TagTone.success;
+  if (accent == AppColors.amber) return TagTone.amber;
+  return TagTone.neutral;
+}
+
+/// Ton d'un badge portant un niveau CECRL. **Derive de [CecrlColor]** : les
+/// paliers ne sont declares qu'une fois, dans `core/theme/app_theme.dart` ; ici
+/// on ne fait que traduire la teinte obtenue dans le vocabulaire des badges.
+///
+/// **Jamais de rouge pour un niveau** : une note de production se lit sur
+/// l'echelle du TCF, pas comme une note scolaire. 12/20 vaut B2, le palier le
+/// plus haut de l'examen ; le peindre en rouge dirait l'inverse de ce qu'il
+/// vaut. La regle tient parce qu'aucun niveau n'est teinte `AppColors.red`.
+extension CecrlTagTone on NiveauCecrl {
+  TagTone get tagTone => tagToneForAccent(color);
 }

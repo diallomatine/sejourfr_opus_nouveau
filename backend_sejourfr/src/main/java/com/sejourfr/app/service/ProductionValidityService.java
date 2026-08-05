@@ -2,6 +2,7 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.config.ProductionEvaluationProperties;
 import com.sejourfr.app.entity.ProductionTask;
+import com.sejourfr.app.enums.DouteValidite;
 import com.sejourfr.app.enums.ValiditeProduction;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -41,6 +43,12 @@ import java.util.regex.Pattern;
  * <p>Le verdict le plus severe l'emporte, toutes les raisons sont conservees.
  * Les raisons sont redigees pour etre lues <b>par le candidat</b> (francais
  * simple, sans jargon).
+ *
+ * <p>Chaque avertissement porte en plus sa {@link DouteValidite nature} : un
+ * doute d'<b>observation</b> (on ne lit pas bien la langue produite) n'a pas les
+ * memes consequences qu'un doute d'<b>authenticite</b> (on lit tres bien, mais
+ * une partie des mots vient de l'enonce). Seul le premier plafonne la confiance
+ * de la correction — cf. {@code AiEvaluationService.applyConfiance}.
  */
 @Service
 @RequiredArgsConstructor
@@ -88,11 +96,16 @@ public class ProductionValidityService {
      *
      * @param statut  severite maximale rencontree
      * @param raisons explications lisibles PAR LE CANDIDAT (jamais de jargon)
+     * @param doutes  nature des doutes rencontres. Un avertissement de langue
+     *                traduit un obstacle a l'{@link DouteValidite#OBSERVATION},
+     *                un recopiage de consigne un doute d'
+     *                {@link DouteValidite#AUTHENTICITE} : seul le premier
+     *                justifie de plafonner la confiance de la correction.
      */
-    public record Verdict(ValiditeProduction statut, List<String> raisons) {
+    public record Verdict(ValiditeProduction statut, List<String> raisons, Set<DouteValidite> doutes) {
 
         public static Verdict valide() {
-            return new Verdict(ValiditeProduction.VALIDE, List.of());
+            return new Verdict(ValiditeProduction.VALIDE, List.of(), Set.of());
         }
 
         public boolean invalide() {
@@ -101,6 +114,15 @@ public class ProductionValidityService {
 
         public boolean avertissement() {
             return statut == ValiditeProduction.AVERTISSEMENT;
+        }
+
+        /**
+         * Vrai quand un avertissement traduit un obstacle reel a l'observation
+         * de la langue produite — le seul motif qui autorise le serveur a
+         * abaisser la confiance annoncee par le correcteur.
+         */
+        public boolean douteObservation() {
+            return avertissement() && doutes.contains(DouteValidite.OBSERVATION);
         }
     }
 
@@ -113,6 +135,7 @@ public class ProductionValidityService {
     public Verdict evaluer(ProductionTask task, String production) {
         ProductionEvaluationProperties.Validite cfg = props.getValidite();
         List<String> raisons = new ArrayList<>();
+        Set<DouteValidite> doutes = EnumSet.noneOf(DouteValidite.class);
         ValiditeProduction statut = ValiditeProduction.VALIDE;
 
         String texte = production == null ? "" : production.strip();
@@ -126,7 +149,7 @@ public class ProductionValidityService {
                 ? "Nous n'avons trouvé aucune prise de parole exploitable de votre part dans cet échange."
                 : "Votre production est vide ou trop courte pour être évaluée.");
             // Rien d'exploitable : inutile de pousser les autres controles.
-            return new Verdict(ValiditeProduction.INVALIDE, List.copyOf(raisons));
+            return new Verdict(ValiditeProduction.INVALIDE, List.copyOf(raisons), Set.of());
         }
 
         // 2. Langue dominante.
@@ -143,6 +166,9 @@ public class ProductionValidityService {
             } else if (ratioOutils < cfg.getRatioMotsOutilsAvertissement()) {
                 raisons.add("Une partie importante de votre production ne semble pas être en français. "
                     + "L'évaluation est donc moins fiable.");
+                // On ne lit qu'a moitie ce que le candidat produit en francais :
+                // obstacle a l'OBSERVATION, donc plafond de confiance legitime.
+                doutes.add(DouteValidite.OBSERVATION);
                 statut = pire(statut, ValiditeProduction.AVERTISSEMENT);
             }
         }
@@ -156,13 +182,18 @@ public class ProductionValidityService {
         } else if (recopiage >= cfg.getRatioRecopiageAvertissement()) {
             raisons.add("Une partie importante de votre production recopie l'énoncé de la consigne. "
                 + "Seuls vos propres mots sont pris en compte.");
+            // Doute sur l'ORIGINE des mots, pas sur leur lisibilite : ce qui
+            // reste est parfaitement observable. On avertit le candidat, on ne
+            // plafonne PAS la confiance de la correction.
+            doutes.add(DouteValidite.AUTHENTICITE);
             statut = pire(statut, ValiditeProduction.AVERTISSEMENT);
         }
 
         if (statut != ValiditeProduction.VALIDE) {
-            log.info("Controle de validite : statut={} raisons={}", statut, raisons.size());
+            log.info("Controle de validite : statut={} raisons={} doutes={}",
+                statut, raisons.size(), doutes);
         }
-        return new Verdict(statut, List.copyOf(raisons));
+        return new Verdict(statut, List.copyOf(raisons), Set.copyOf(doutes));
     }
 
     /** Vrai si le texte porte au moins un marqueur de tour de parole. */

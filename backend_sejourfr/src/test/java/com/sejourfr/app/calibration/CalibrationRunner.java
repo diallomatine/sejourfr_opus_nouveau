@@ -4,7 +4,6 @@ import com.sejourfr.app.config.ProductionEvaluationProperties;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
-import com.sejourfr.app.entity.Transcription;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.ProductionSubmissionSource;
 import com.sejourfr.app.enums.SubmissionStatut;
@@ -20,6 +19,7 @@ import com.sejourfr.app.service.ProductionFluiditeService;
 import com.sejourfr.app.service.ProductionRubricsProvider;
 import com.sejourfr.app.service.ProductionSecondePasseService;
 import com.sejourfr.app.service.ProductionValidityService;
+import com.sejourfr.app.util.TranscriptTurnStitcher;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
@@ -132,9 +132,12 @@ final class CalibrationRunner {
         when(submissionManager.findById(sub.getId())).thenReturn(Optional.of(sub));
         when(aiEvaluationManager.save(any())).thenAnswer(inv -> inv.getArgument(0));
         if (task.getEpreuve() == EpreuveType.TCF_EO) {
-            Transcription t = new Transcription();
-            t.setTexte(cas.production());
-            when(transcriptionManager.findLatestBySubmissionId(sub.getId())).thenReturn(Optional.of(t));
+            // Meme chemin de lecture qu'en production : le manager rend le
+            // texte RECOLLE. Le corpus ne porte aucun tour consecutif d'un
+            // meme locuteur, c'est donc un no-op mesurable — mais le banc ne
+            // doit pas pouvoir diverger du runtime sur ce point.
+            when(transcriptionManager.findLatestTexteBySubmissionId(sub.getId()))
+                .thenReturn(Optional.of(new TranscriptTurnStitcher(props).stitch(cas.production())));
         }
 
         RecordingClient recorder = new RecordingClient(client);

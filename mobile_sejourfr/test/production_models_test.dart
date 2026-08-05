@@ -122,6 +122,89 @@ void main() {
     });
   });
 
+  group('rubriques v8 : verdict d\'objectif et version améliorée', () {
+    EvaluationFeedback parse(Map<String, dynamic> feedback) =>
+        EvaluationResult.fromJson(<String, dynamic>{'feedback': feedback})
+            .feedback;
+
+    test('mappe le verdict, son résumé et la version réécrite', () {
+      final feedback = parse(<String, dynamic>{
+        'accomplissement': <String, dynamic>{
+          'objectif': 'PARTIELLEMENT_ATTEINT',
+          'objectif_resume': 'Vous annoncez la nouvelle sans inviter.',
+          'points_traites': [
+            {'libelle': 'Nouvelle annoncée', 'obligatoire': true},
+          ],
+        },
+        'version_amelioree': 'Bonjour Marie, je viens de déménager.',
+      });
+
+      final acc = feedback.accomplissement!;
+      expect(acc.objectif, ObjectifAccomplissement.partiellementAtteint);
+      expect(acc.objectifResume, 'Vous annoncez la nouvelle sans inviter.');
+      expect(acc.hasObjectif, isTrue);
+      expect(feedback.versionAmelioree, 'Bonjour Marie, je viens de déménager.');
+    });
+
+    test('les trois verdicts du contrat sont reconnus', () {
+      for (final (wire, expected) in [
+        ('ATTEINT', ObjectifAccomplissement.atteint),
+        ('PARTIELLEMENT_ATTEINT', ObjectifAccomplissement.partiellementAtteint),
+        ('NON_ATTEINT', ObjectifAccomplissement.nonAtteint),
+      ]) {
+        final acc = parse(<String, dynamic>{
+          'accomplissement': <String, dynamic>{'objectif': wire},
+        }).accomplissement!;
+        expect(acc.objectif, expected);
+      }
+    });
+
+    test('une évaluation legacy n\'invente ni verdict ni réécriture', () {
+      final feedback = parse(<String, dynamic>{
+        'accomplissement': <String, dynamic>{
+          'points_traites': [
+            {'libelle': 'Nouvelle annoncée', 'obligatoire': true},
+          ],
+        },
+      });
+
+      final acc = feedback.accomplissement!;
+      expect(acc.objectif, isNull);
+      expect(acc.objectifResume, isNull);
+      expect(acc.hasObjectif, isFalse);
+      // La check-list, elle, reste lisible : les deux niveaux sont independants.
+      expect(acc.isEmpty, isFalse);
+      expect(feedback.versionAmelioree, isNull);
+    });
+
+    test('un verdict illisible ou vide ne casse pas le parsing', () {
+      for (final raw in <Object?>[null, '', '   ', 'PEUT_MIEUX_FAIRE', 42]) {
+        final acc = parse(<String, dynamic>{
+          'accomplissement': <String, dynamic>{'objectif': raw},
+        }).accomplissement!;
+        expect(acc.objectif, isNull, reason: 'objectif = $raw');
+      }
+    });
+
+    test('une version améliorée vide vaut absente : pas de bloc à blanc', () {
+      expect(parse(<String, dynamic>{'version_amelioree': '   '})
+          .versionAmelioree, isNull);
+      expect(parse(<String, dynamic>{'version_amelioree': 12})
+          .versionAmelioree, isNull);
+    });
+
+    test('un feedback sans aucun champ du contrat courant reste parsable', () {
+      final feedback = parse(const <String, dynamic>{});
+
+      expect(feedback.accomplissement, isNull);
+      expect(feedback.versionAmelioree, isNull);
+      expect(feedback.pointsForts, isEmpty);
+      expect(feedback.pointsAAmeliorer, isEmpty);
+      expect(feedback.scoresCriteres, isEmpty);
+      expect(feedback.avertissements, isEmpty);
+    });
+  });
+
   group('points_a_ameliorer : les deux formes portées en base', () {
     EvaluationFeedback feedbackWith(List<Object?> points) =>
         EvaluationResult.fromJson(<String, dynamic>{

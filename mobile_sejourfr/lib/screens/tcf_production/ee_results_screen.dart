@@ -214,7 +214,7 @@ class _ResultsBody extends ConsumerWidget {
                 title: 'Évaluation terminée !',
                 subtitle: 'Voici votre correction détaillée.',
               ),
-              EvaluationReport(evaluation: eval),
+              EvaluationReport(evaluation: eval, isOral: false),
               if (submission.texteSoumis != null) ...[
                 const SizedBox(height: 4),
                 _SectionTitle('Votre rédaction'),

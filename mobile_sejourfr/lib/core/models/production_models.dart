@@ -225,6 +225,7 @@ class EvaluationFeedback {
     this.confiance,
     this.confianceRaisons = const [],
     this.accomplissement,
+    this.versionAmelioree,
     this.scoresCriteres = const [],
     this.pointsForts = const [],
     this.pointsAAmeliorer = const [],
@@ -247,6 +248,12 @@ class EvaluationFeedback {
   /// les evaluations anterieures au contrat v4.
   final Accomplissement? accomplissement;
 
+  /// Production reecrite en entier, telle qu'elle aurait pu etre rendue.
+  /// Presente en expression ECRITE uniquement : a l'oral, reecrire le discours
+  /// du candidat n'aurait pas de sens (on ne lui demande pas de reciter un
+  /// texte). Absente aussi des evaluations anterieures.
+  final String? versionAmelioree;
+
   final List<CriterionScore> scoresCriteres;
   final List<String> pointsForts;
 
@@ -268,6 +275,7 @@ class EvaluationFeedback {
       accomplissement: accomplissement is Map<String, dynamic>
           ? Accomplissement.fromJson(accomplissement)
           : null,
+      versionAmelioree: _trimmedOrNull(json['version_amelioree']),
       scoresCriteres: ((json['scores_criteres'] as List?) ?? const [])
           .map((e) => CriterionScore.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -350,17 +358,34 @@ class ExempleReecriture {
 }
 
 /// Check-list « accomplissement » : ce que le candidat a traite ou non par
-/// rapport a la consigne. Affichee AVANT le detail de langue.
+/// rapport a la consigne.
+///
+/// Deux niveaux de lecture, volontairement separes a l'ecran : le **verdict**
+/// (`objectif` + `objectifResume`) ouvre le rapport, la **check-list** detaillee
+/// vit dans l'analyse complete. Les evaluations deja en base n'ont ni l'un ni
+/// l'autre : chaque bloc disparait de son cote sans laisser de trou.
 class Accomplissement {
   Accomplissement({
+    this.objectif,
+    this.objectifResume,
     this.pointsTraites = const [],
     this.pointsOublies = const [],
   });
 
+  /// Verdict d'ensemble. Null sur les evaluations anterieures aux rubriques v8.
+  final ObjectifAccomplissement? objectif;
+
+  /// Phrase courte adressee au candidat, qui dit ce qu'il a fait.
+  final String? objectifResume;
+
   final List<AccomplissementPoint> pointsTraites;
   final List<AccomplissementPoint> pointsOublies;
 
+  /// Vrai quand la check-list detaillee n'a rien a montrer. Le verdict, lui,
+  /// se teste avec [hasObjectif] : il peut exister sans check-list.
   bool get isEmpty => pointsTraites.isEmpty && pointsOublies.isEmpty;
+
+  bool get hasObjectif => objectif != null;
 
   /// Manques reels : seuls les points obligatoires non traites pesent sur la
   /// note. Les pistes non abordees sont informatives.
@@ -379,6 +404,10 @@ class Accomplissement {
 
   factory Accomplissement.fromJson(Map<String, dynamic> json) =>
       Accomplissement(
+        objectif: ObjectifAccomplissement.fromWireNullable(
+          _trimmedOrNull(json['objectif']),
+        ),
+        objectifResume: _trimmedOrNull(json['objectif_resume']),
         pointsTraites: _points(json['points_traites']),
         pointsOublies: _points(json['points_oublies']),
       );

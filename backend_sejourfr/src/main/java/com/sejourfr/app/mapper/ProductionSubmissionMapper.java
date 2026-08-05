@@ -37,10 +37,12 @@ public class ProductionSubmissionMapper {
             .map(this::toEvaluationDto)
             .orElse(null);
 
-        // Transcription Whisper (EO uniquement, null sinon).
+        // Transcription (EO uniquement, null sinon). Le manager rend le texte
+        // RECOLLE : c'est exactement celui qui est envoye au correcteur et sur
+        // lequel les preuves sont verifiees, donc une citation est toujours
+        // relisible telle quelle dans ce champ.
         String transcription = transcriptionManager
-            .findLatestBySubmissionId(s.getId())
-            .map(t -> t.getTexte())
+            .findLatestTexteBySubmissionId(s.getId())
             .orElse(null);
 
         // L'URL signee n'est generee qu'a la demande : on s'epargne un round-trip

@@ -118,11 +118,15 @@ lib/
     │   ├── history_session_screen.dart  Bilan détaillé d'une session (live ou historique) :
     │   │                                hero CECRL + détail par tâche tappable, polling
     │   │                                automatique sur les évals IA quand `?live=1`
-    │   └── widgets/                     production_app_header, donut_chart_score,
-    │                                    consigne_card, writing_zone, criterion_row,
-    │                                    feedback_block, transcription_section,
-    │                                    evaluation_report (corps partagé EE/EO),
-    │                                    accomplishment_card, niveau_observe_card, etc.
+    │   └── widgets/                     production_app_header, consigne_card,
+    │                                    writing_zone, criterion_row, feedback_block,
+    │                                    transcript_dialogue (transcription EO,
+    │                                    ouverte en `showAppSheet`),
+    │                                    evaluation_report (corps partagé EE/EO) +
+    │                                    ses 6 blocs : objective_card,
+    │                                    production_score_hero / tcf_note_scale,
+    │                                    priority_card, improved_version_card,
+    │                                    accomplishment_card, etc.
     ├── review/                    Favoris + erreurs récentes (tabs)
     └── profile/                   Compte + paramètres + logout + suppression de compte
 ```
@@ -142,8 +146,16 @@ L'app suit la maquette mobile autonome (design « bleu-blanc-rouge discret »). 
   bordures `line` / `lineSoft`
 - Sémantique parcours : **TCF = rouge, Civique = bleu** (toggles, héros, icônes de parcours)
 - `masteryColor(0-100)` : rampe rouge → corail → ardoise → bleu → Bleu France pour les barres
-  de maîtrise ; `masteryLabel()` pour le libellé qualitatif. `CecrlColor` inchangé (jamais de
-  rouge pour un niveau).
+  de maîtrise ; `masteryLabel()` pour le libellé qualitatif. `CecrlColor` (jamais de rouge
+  pour un niveau) est la **seule** table qui décide de la teinte d'un niveau : le badge
+  `CecrlTagTone` (`core/widgets/app_tag.dart`, `niveau.tagTone`) en **dérive** via
+  `tagToneForAccent(Color)`. Ne pas réécrire un second `switch` sur `NiveauCecrl`.
+  **Une note de production se colore par son palier TCF** (`TcfNoteScale.bandFor(note)`,
+  `null` si la note n'est pas un nombre → pas de palier inventé, pas de curseur), jamais par
+  un seuil scolaire sur 20 : 12/20 vaut B2, le palier le plus haut de l'examen. Un critère
+  d'évaluation antérieur au contrat v4 (sans `bande`) relit sa note avec la même table
+  (`TcfNoteScale.bandeFor`, mêmes correspondances que `BandeCritere.of` côté serveur) et se
+  rend comme un critère moderne — aucun critère ne s'affiche plus en chiffres.
 - Rayons standard : `AppRadii.sm/md/lg/xl/pill` (8/12/18/26/999). Ombres : `AppShadows.card` (douce) / `.md`.
 
 Typographies :
@@ -682,20 +694,42 @@ entre T1/T2/T3** ; après T3 → bilan détaillé (`HistorySessionScreen` `?live
   submission (correction IA complète) — push en single-task après soumission, ou depuis le
   bilan en tap d'une ligne.
 
-**Correction IA affichée (profil TCF IRN, rubriques v7 / schéma v4, maximum B2)** — le corps des deux écrans de
+**Correction IA affichée (profil TCF IRN, rubriques v8 / schéma v5, maximum B2)** — le corps des deux écrans de
 résultats (EE + EO) est le widget partagé `widgets/evaluation_report.dart` : un seul endroit
-décide de l'ordre et de la forme de la correction, **y compris la note** (`DonutChartScore`
-est rendu par le rapport, plus par chaque écran). Ordre imposé : **niveau observé** sur la
-tâche (`niveau_observe_card.dart`) → **note /20** → **avertissements** (dont la limite
-« évaluation fondée sur la transcription » à l'oral, jamais enterrée en bas d'écran) →
-**accomplissement** (`accomplishment_card.dart`, check-list de la consigne, **avant** la
-langue) → détail par critère → points forts → **priorités** (`points_a_ameliorer`, 2 max côté
-backend) → corrections → suggestion.
+décide de l'ordre et de la forme de la correction, **y compris la note**. Le rapport prend un
+`isOral` (et plus un titre de corrections) : c'est lui qui en déduit le wording des exemples
+**et** la limite de l'évaluation orale. **6 blocs, dans cet ordre** :
 
-- **Le niveau observé ouvre l'écran, pas la note** : pastille pleine du niveau + « Proche du
-  niveau B1 » + pilule de confiance, avant toute précaution. C'est l'information que le
-  candidat cherche ; l'avertissement « le niveau qui fait foi est celui du bilan des trois
-  tâches » reste présent, en second plan sous la pastille.
+1. **Objectif de la tâche** (`objective_card.dart`) — verdict `accomplissement.objectif`
+   (`ATTEINT` / `PARTIELLEMENT_ATTEINT` / `NON_ATTEINT`, 3 traitements visuels) +
+   `objectif_resume`. Le champ est **absent des ~100 évaluations legacy** → le bloc disparaît.
+2. **Note + échelle TCF** (`production_score_hero.dart` + `tcf_note_scale.dart`) — note,
+   niveau observé et **règle de lecture** (A1 non atteint 0 · A1 1 · A2 2-5 · B1 6-9 ·
+   B2 10-20) avec un curseur sur la note, dans **un seul bloc**.
+3. **Points forts** (≤ 2).
+4. **Priorités** (≤ 2, `priority_card.dart`).
+5. **Version améliorée** (`improved_version_card.dart`) — `version_amelioree`, **EE
+   uniquement** (absente en EO par contrat, pas par bug).
+6. **« Voir l'analyse complète »** — section **repliée par défaut** qui contient tout le
+   reste, dans l'ordre du web : avertissements → détail par critère → accomplissement
+   détaillé → exemples corrigés → suggestions.
+
+Aucune information n'a disparu : elle est soit remontée dans les blocs 1-5, soit rangée dans
+le bloc 6. La transcription EO et « Votre rédaction » (EE) restent dans leurs écrans.
+
+- **La note est celle du TCF, et son échelle est affichée avec elle** : séparées, la note se
+  lisait comme une note scolaire française — « 4,5/20 » n'est pas une catastrophe, c'est un
+  A2. `donut_chart_score.dart` (arc = un pourcentage de 20, exactement la lecture qu'on
+  corrige) et `niveau_observe_card.dart` sont **supprimés**, fusionnés dans
+  `ProductionScoreHero`. Les paliers de `TcfNoteScale` sont à **largeur égale** (pas
+  proportionnelle) et prennent leur teinte de `CecrlColor` : la barre dit le même palier que
+  la pastille.
+- **La confiance ne s'affiche QUE si elle n'est pas `HAUTE`** (avec ses `confianceRaisons`) :
+  une confiance haute est le cas normal, l'annoncer n'apprend rien et inquiète.
+- **Limite de l'évaluation orale** : le correcteur la renvoie normalement dans
+  `avertissements` ; quand la liste arrive **vide sur une tâche orale**, le rapport affiche le
+  repli `kOralEvaluationLimitNotice` (texte mot pour mot de `docs/notation-ia-eo-ee.md` §9,
+  même repli que le web). Jamais à l'écrit.
 - **Une priorité ENSEIGNE** : `points_a_ameliorer[]` est un **objet**
   `{constat, comment?, exemple?{avant, apres}}` (`PointAAmeliorer`), rendu par
   `priority_card.dart` — `comment` = la technique réutilisable, mise en avant dans un encadré
@@ -708,7 +742,7 @@ backend) → corrections → suggestion.
 - **Par critère on affiche la bande, pas la note** : `CriterionScore.bande` (`BandeCritere`,
   calculée côté serveur) → « Très bonne maîtrise / Satisfaisant / En cours d'acquisition /
   Fragile / Non évaluable », plus la `preuve` (citation littérale) sous le commentaire. La
-  **note globale /20 reste affichée** (donut) et porte désormais **une décimale** (12,5) :
+  **note globale /20 reste affichée** (bloc 2) et porte désormais **une décimale** (12,5) :
   tout affichage de note passe par `formatScore` (`core/utils/format_date.dart`), jamais par
   un arrondi local. La grille active n'a que **4 codes équipondérés** (`communiquer`, `interagir`,
   `lexique`, `morphosyntaxe`), mais la table icône↔libellé de `criterion_row.dart` garde
@@ -728,9 +762,10 @@ backend) → corrections → suggestion.
 - `CecrlScale` affiche uniquement les quatre paliers du profil A1→B2. Les valeurs
   C1/C2 restent décodables pour l'historique mais sont rabattues visuellement sur B2.
 - **Rétrocompatibilité (une centaine d'évaluations en base)** : `niveauObserve` / `confiance` /
-  `avertissementNiveau` / `bande` / `accomplissement` / `preuve` / `gain` absents, et
+  `avertissementNiveau` / `bande` / `accomplissement` / `objectif` / `objectif_resume` /
+  `version_amelioree` / `preuve` / `gain` absents, et
   `points_a_ameliorer` en chaînes = cas **normal** → les blocs concernés disparaissent et
-  l'écran redevient celui d'avant. Couvert par `test/production_models_test.dart` +
+  l'écran reste cohérent. Couvert par `test/production_models_test.dart` +
   `test/evaluation_report_test.dart`.
 
 **Modélisation (sémantique clé)** : `production_tasks` = les **SUJETS** d'entraînement —

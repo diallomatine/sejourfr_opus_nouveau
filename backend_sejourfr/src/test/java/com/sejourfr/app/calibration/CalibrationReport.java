@@ -41,7 +41,7 @@ final class CalibrationReport {
         racine.put("pieges", CalibrationMetrics.pieges(runs));
         racine.put("confiance", CalibrationMetrics.confiance(runs));
         racine.put("accomplissement", CalibrationMetrics.accomplissement(runs));
-        racine.put("conformite", CalibrationMetrics.conformite(runs));
+        racine.put("conformite", conformiteJson(CalibrationMetrics.conformite(runs)));
         racine.put("stabilite", CalibrationMetrics.stabilite(runs));
         racine.put("cout_total_centimes", CalibrationMetrics.coutTotalCentimes(runs));
         racine.put("runs", runs);
@@ -55,6 +55,32 @@ final class CalibrationReport {
         } catch (Exception e) {
             throw new IllegalStateException("Ecriture du rapport de calibration impossible", e);
         }
+    }
+
+    /**
+     * Conformite serialisee AVEC ses taux et la ventilation des pertes : le
+     * lecteur du JSON doit voir le taux de cas perdus a cote du taux de sortie
+     * invalide, et savoir POURQUOI chaque cas s'est perdu.
+     */
+    static Map<String, Object> conformiteJson(CalibrationMetrics.Conformite c) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("total", c.total());
+        m.put("ok", c.ok());
+        m.put("validite_serveur", c.validiteServeur());
+        m.put("appels", c.appels());
+        m.put("appels_rates", c.appelsRates());
+        m.put("appels_rates_pct", arrondi(c.pctAppelsRates()));
+        m.put("cas_avec_reessai", c.casAvecReessai());
+        m.put("criteres_manquants", c.criteresManquants());
+        m.put("sortie_invalide", c.sortieInvalide());
+        m.put("sortie_invalide_pct", arrondi(c.pctSortieInvalide()));
+        m.put("cas_perdus", c.casPerdus());
+        m.put("cas_perdus_pct", arrondi(c.pctCasPerdus()));
+        m.put("cas_non_mesures", c.casNonMesures());
+        m.put("cas_non_mesures_pct", arrondi(c.pctCasNonMesures()));
+        m.put("motifs_perte", c.motifsPerte());
+        m.put("motifs_perte_lisible", motifs(c));
+        return m;
     }
 
     private static Map<String, Object> agregatJson(CalibrationMetrics.Agregat a) {
@@ -90,10 +116,21 @@ final class CalibrationReport {
             "Runs %d — OK %d · court-circuit validite %d · champ requis manquant %d · cas perdus %d%n",
             c.total(), c.ok(), c.validiteServeur(), c.sortieInvalide(), c.erreurAppel()));
         sb.append(String.format(
-            "Sorties invalides : %d appels rates sur %d (%.1f %%) — %d cas ont exige un reessai, "
-                + "%d cas irrecuperables (%.1f %%) · criteres manquants sur %d run(s)%n",
+            "Sorties invalides : %d appels rates sur %d (%.1f %%) — %d cas ont exige un reessai · "
+                + "criteres manquants sur %d run(s)%n",
             c.appelsRates(), c.appels(), c.pctAppelsRates(), c.casAvecReessai(),
-            c.casPerdus(), c.pctCasPerdus(), c.criteresManquants()));
+            c.criteresManquants()));
+        // Les deux taux cote a cote, et le MOTIF de chaque perte : un cas perdu
+        // coute autant a un utilisateur qu'une sortie invalide, et annoncer
+        // « 0 % de sortie invalide » pendant qu'un tiers des cas se perd rendait
+        // le defaut invisible.
+        sb.append(String.format(
+            "Sortie invalide %d/%d (%.1f %%) · CAS PERDUS %d/%d (%.1f %%) · non mesures au total "
+                + "%d/%d (%.1f %%)%n",
+            c.sortieInvalide(), c.total(), c.pctSortieInvalide(),
+            c.casPerdus(), c.total(), c.pctCasPerdus(),
+            c.casNonMesures(), c.total(), c.pctCasNonMesures()));
+        sb.append("  motifs : ").append(motifs(c)).append('\n');
         sb.append(String.format("Cout estime : %d centimes%n%n", CalibrationMetrics.coutTotalCentimes(runs)));
         sb.append(CONVENTION).append("\n\n");
 
@@ -167,6 +204,30 @@ final class CalibrationReport {
 
         sb.append("Rapport JSON : ").append(fichier.toAbsolutePath()).append('\n');
         System.out.println(sb);
+    }
+
+    /** Ventilation lisible des cas non mesures : « troncature JSON 8 · rejet de preuve 3 ». */
+    static String motifs(CalibrationMetrics.Conformite c) {
+        if (c.casNonMesures() == 0) return "aucun cas perdu";
+        StringBuilder sb = new StringBuilder();
+        for (CalibrationMetrics.MotifPerte motif : CalibrationMetrics.MotifPerte.values()) {
+            int n = c.motif(motif);
+            if (n == 0) continue;
+            if (!sb.isEmpty()) sb.append(" · ");
+            sb.append(libelle(motif)).append(' ').append(n);
+        }
+        return sb.toString();
+    }
+
+    private static String libelle(CalibrationMetrics.MotifPerte motif) {
+        return switch (motif) {
+            case TRONCATURE_JSON -> "troncature JSON (plafond de tokens)";
+            case REJET_PREUVE -> "rejet de preuve";
+            case GARDE_FOU_ORAL -> "garde-fou oral";
+            case FOURNISSEUR_INDISPONIBLE -> "fournisseur indisponible (429/5xx/timeout)";
+            case SORTIE_INCOMPLETE -> "sortie incomplete";
+            case AUTRE -> "autre";
+        };
     }
 
     private static String entete() {

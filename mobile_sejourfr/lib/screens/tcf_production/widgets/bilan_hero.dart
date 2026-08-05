@@ -179,7 +179,7 @@ class BilanHero extends StatelessWidget {
           if (!hasResult) ...[
             const SizedBox(height: 12),
             Text(
-              'L\'évaluation IA est en cours sur tes productions.',
+              'L\'évaluation IA est en cours sur vos productions.',
               style: AppFonts.ui(
                 size: 13,
                 color: Colors.white.withValues(alpha: 0.85),

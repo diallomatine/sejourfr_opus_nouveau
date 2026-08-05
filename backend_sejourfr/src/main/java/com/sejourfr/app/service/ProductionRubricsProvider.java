@@ -49,8 +49,15 @@ public class ProductionRubricsProvider {
         "v4.2", "v2",
         "v5", "v3",
         "v6", "v3",
-        "v7", "v4"
+        "v7", "v4",
+        "v8", "v5"
     );
+
+    /**
+     * Versions qui declarent le profil strict TCF IRN : {@code profile} et
+     * {@code niveau_max} y sont verifies au chargement.
+     */
+    private static final java.util.Set<String> PROFILS_TCF_IRN = java.util.Set.of("v7", "v8");
 
     private final ProductionEvaluationProperties props;
     private final ObjectMapper objectMapper;
@@ -129,7 +136,7 @@ public class ProductionRubricsProvider {
     /**
      * Verifie la paire rubriques/tool-schema avant la premiere evaluation.
      * Les fichiers historiques ne declaraient pas ce lien, donc la matrice
-     * reste explicite ici : v3-v4.2 -> v2, v5-v6 -> v3, v7 -> v4.
+     * reste explicite ici : v3-v4.2 -> v2, v5-v6 -> v3, v7 -> v4, v8 -> v5.
      */
     private void validateDeclaredContract(Map<String, Object> root, String configuredVersion) {
         if (!configuredVersion.equals(String.valueOf(root.get("rubrics-version")))) {
@@ -149,7 +156,7 @@ public class ProductionRubricsProvider {
                 + configuredVersion + " -> " + declaredSchema + ", matrice -> " + expectedSchema);
         }
 
-        if ("v7".equals(configuredVersion)) {
+        if (PROFILS_TCF_IRN.contains(configuredVersion)) {
             Object profile = root.get("profile");
             if (!"TCF_IRN".equals(String.valueOf(profile))) {
                 throw new IllegalStateException("profil de rubriques non supporte : " + profile);

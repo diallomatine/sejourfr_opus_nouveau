@@ -890,11 +890,12 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
     `EvaluationResultDto`, `ProductionExampleDto`, `SubmissionStatut`, `NiveauCecrl`
     + helpers (`productionTaskTitle/Subtitle(epreuve,n)`, `niveauCecrlLabel`,
     `cecrlIndex`, `formatDurationSec`, `resolveTcfLevel`, `parseEeFeedback`).
-  - **Composants partagés** `app/_components/production/` : `ProductionScoreHero`
-    (niveau observé + note /20), `ProductionFeedbackView` (critères + points
-    forts/priorités/suggestions/corrections), `ProductionCriteriaCard` (les 4
-    critères annoncés avant de produire), `SubmissionRow`, `EeWritingForm`,
-    `EoRecordingForm` + `production.module.css`.
+  - **Composants partagés** `app/_components/production/` : `ProductionFeedbackView`
+    (orchestre les 6 blocs de l'écran de résultat, cf. section dédiée) avec
+    `ProductionObjectiveBanner`, `ProductionScoreHero` (note + échelle TCF),
+    `ProductionFullAnalysis` (le repli) et `FeedbackList` ;
+    `ProductionCriteriaCard` (les 4 critères annoncés avant de produire),
+    `SubmissionRow`, `EeWritingForm`, `EoRecordingForm` + `production.module.css`.
   - **Gating** (source backend) : entraînement par tâche = **2 essais gratuits à
     vie** par épreuve pour non-abonnés (403 au-delà → `PaywallSheet` Intégral) ;
     examen blanc 3-tâches = **premium-only**. Premium TCF (Intégral) = illimité.
@@ -902,22 +903,61 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
     `tacheNumero` seul (sans niveau) → renvoyait toute l'épreuve. Branche ajoutée +
     query `findByEpreuveAndTacheNumeroAndActiveTrueOrderByNiveauCibleAscCreatedAtAsc`.
 
-### Écran de résultat d'une production (grille TCF)
+### Écran de résultat d'une production (6 blocs, parité mobile)
 
 `ProductionFeedbackView` (rendu par `ProductionResults`, routes
-`/entrainement/tcf/{ee,eo}/resultats/[submissionId]`) suit l'ordre :
-**niveau observé + confiance + note /20 (`ProductionScoreHero`) → « À savoir » →
-check-list d'accomplissement → critères en bandes → points forts → priorités →
-suggestions → corrections**. Règles à ne pas défaire :
+`/entrainement/tcf/{ee,eo}/resultats/[submissionId]`) n'est **pas un rapport
+d'expertise pour un professeur** : c'est ce dont un candidat a besoin, dans
+l'ordre où il en a besoin, et une même erreur n'est expliquée qu'**une** fois.
+Six blocs, dans cet ordre exact (miroir mobile) :
 
-- **Le niveau passe AVANT tout le reste** : c'est l'information que le candidat
-  vient chercher. Il ouvre l'écran, en grand (`--font-display`), la note /20 à
-  côté en donut. Les précautions viennent APRÈS, en second plan.
+1. **Objectif de la tâche** (`ProductionObjectiveBanner`) — `accomplissement.
+   objectif` (`ATTEINT | PARTIELLEMENT_ATTEINT | NON_ATTEINT`) +
+   `objectif_resume`, trois traitements visuels distincts. **Absent des ~100
+   évaluations legacy → le bandeau n'est pas rendu du tout**, l'écran commence
+   à la note.
+2. **Note + échelle du TCF** (`ProductionScoreHero`) — la note, le niveau
+   observé, et **l'échelle officielle dessinée avec un curseur sur la note**.
+   Aucun pourcentage, aucune jauge « sur 20 points » : notre note EST celle du
+   TCF, un 4,5/20 vaut A2 et doit se lire comme tel.
+3. **Points forts** (≤ 2 côté backend).
+4. **Priorités** (≤ 2) — constat → « Comment faire » → avant/après (✗ / ✓).
+5. **Version améliorée** — `version_amelioree`, la production réécrite en
+   entier. **EE uniquement** : absente en EO par construction, sans trou visuel.
+6. **« Voir l'analyse complète »** (`ProductionFullAnalysis`, `<details>`
+   **replié par défaut**) — tout le reste, sans rien perdre, dans l'ordre
+   avertissements → **Détail par critère** → accomplissement → exemples
+   corrigés → **Suggestions**. La transcription EO / le texte soumis EE restent
+   en `<details>` séparés dans `ProductionResults`.
+
+Règles à ne pas défaire :
+
+- **Les règles de lecture vivent dans `lib/production-feedback.ts`** (pures,
+  testées par `lib/production-feedback.test.ts`, `npm test` = runner natif de
+  Node, aucune dépendance ajoutée) : `TCF_NOTE_BANDS` (la table officielle),
+  `tcfScalePosition`, `canShowNiveau`, `shouldShowConfiance`,
+  `objectifPresentation`, `groupAccomplishment`. Ne pas réimplémenter ces
+  décisions dans un composant.
+- **L'échelle du TCF est dessinée à bandes de largeur ÉGALE**, pas à l'échelle
+  réelle (B2 = la moitié des notes, « A1 non atteint » = une seule valeur :
+  proportionnelles, elles seraient illisibles). Le curseur, lui, est placé
+  proportionnellement DANS sa bande, avec 10 % d'inset de chaque côté pour
+  qu'une note pile au seuil (2/20) ne tombe pas sur une frontière. Une note à
+  décimale entre deux bandes (5,5) reste dans la bande **basse**, comme le
+  niveau calculé serveur.
 - **Le niveau n'est JAMAIS affiché sans sa confiance** (`EvaluationResultDto.
   niveauObserve` + `confiance` + `avertissementNiveau`, tous fournis par le
-  backend). Le garde-fou vit dans `ProductionScoreHero` et nulle part ailleurs :
-  sans confiance, l'en-tête retombe sur la note seule. Le seul niveau qui fait
-  foi reste celui du bilan d'épreuve — dit dans le pied de l'en-tête.
+  backend) — `canShowNiveau`, appliqué dans `ProductionScoreHero` : sans
+  confiance, l'en-tête retombe sur le repli « Note de la tâche ». Le seul
+  niveau qui fait foi reste celui du bilan d'épreuve — dit dans le pied.
+- **Une confiance HAUTE ne s'affiche PAS** (`shouldShowConfiance`) : c'est le
+  cas normal, l'écrire n'apprend rien et fait douter d'un résultat qui ne le
+  mérite pas. Elle n'apparaît, avec ses `confiance_raisons`, que lorsqu'elle
+  nuance vraiment.
+- **L'accomplissement se rend en TROIS groupes** (parité mobile) : points
+  traités / manques obligatoires / pistes non abordées. Mélanger les deux
+  derniers fait paniquer pour des points qui n'enlèvent rien
+  (`obligatoire: false` = simple piste suggérée par le sujet).
 - **Un critère s'affiche en bande, pas en note** (`scores_criteres[].bande`,
   calculée serveur) : une IA ne distingue pas honnêtement un 13 d'un 14. La
   note **globale** /20, elle, reste chiffrée. La `preuve` (citation littérale)
@@ -941,10 +981,8 @@ suggestions → corrections**. Règles à ne pas défaire :
   enregistrement.
 - `exemples_corriges[].gain` (ce que la reformulation démontre de plus) s'affiche
   sous l'explication quand il est là, absent sur les anciennes évaluations.
-- **L'accomplissement passe avant la langue** et distingue les points
-  **obligatoires** des **pistes** (`obligatoire: false`) : une piste non
-  traitée n'enlève aucun point et doit être présentée comme telle.
-- `points_a_ameliorer` est plafonné à 2 côté backend → titre « Vos priorités ».
+- **Plafonds backend** : `points_forts` ≤ 2, `points_a_ameliorer` ≤ 2 (titre
+  « Vos priorités »), `exemples_corriges` ≤ 3. Ne pas rajouter de « voir plus ».
 - **La note /20 suit l'échelle du profil TCF IRN** : 0 = A1 non atteint, 1 = A1,
   2-5 = A2, 6-9 = B1, 10-20 = B2 ; la notation active v7/v4 est plafonnée à B2
   et ne renvoie jamais C1/C2. On n'affiche **aucune** correspondance TCF sur une tâche — une tâche
@@ -955,16 +993,18 @@ suggestions → corrections**. Règles à ne pas défaire :
 - L'échelle du bilan affiche uniquement A1→B2. C1/C2 restent acceptés dans les
   types pour relire l'historique, mais sont rabattus visuellement sur le plafond B2.
 - **Rétrocompatibilité (~100 évaluations en base)** : les plus anciennes n'ont ni
-  niveau, ni confiance, ni accomplissement, ni bandes, ni preuves, leurs critères
-  portent d'autres codes et leurs priorités sont de simples chaînes. Les blocs
-  concernés ne sont pas rendus, les critères retombent sur l'affichage chiffré
-  historique. C'est un cas normal, jamais une erreur — vérifier les deux formes
-  à l'écran avant de fermer une modif de cet écran.
+  verdict d'objectif, ni version améliorée, ni niveau, ni confiance, ni
+  accomplissement, ni bandes, ni preuves, leurs critères portent d'autres codes
+  et leurs priorités sont de simples chaînes. Les blocs concernés ne sont pas
+  rendus, les critères retombent sur l'affichage chiffré historique.
+  `parseEeFeedback` tolère l'absence de tous ces champs. C'est un cas normal,
+  jamais une erreur — vérifier les deux formes à l'écran avant de fermer une
+  modif de cet écran.
 - L'avertissement « évaluation fondée sur la transcription, la voix n'est pas
   analysée » vient désormais du backend en tête de `feedback.avertissements`
-  (EO). `EoTranscriptNotice` ne sert plus qu'**avant** l'enregistrement
-  (`EoRecordingForm`) ; le résultat garde un repli statique du même message si
-  l'évaluation ne porte aucun avertissement (éval v3).
+  (EO), et se lit dans le bloc 6. `EoTranscriptNotice` ne sert plus qu'**avant**
+  l'enregistrement (`EoRecordingForm`) ; le résultat garde un repli statique du
+  même message si l'évaluation ne porte aucun avertissement (éval v3).
 
 ### Endpoints backend manquants (à créer si besoin)
 

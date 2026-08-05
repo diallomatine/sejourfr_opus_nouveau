@@ -26,6 +26,7 @@ import 'tcf_production_module.dart';
 import 'widgets/exam_filter_chips.dart';
 import 'widgets/preparation_points.dart';
 import 'widgets/task_palette.dart';
+import 'widgets/tcf_note_scale.dart';
 
 // ============================================================================
 // HUB d'épreuve (/tcf/eo, /tcf/ee)
@@ -1421,10 +1422,12 @@ class _ExerciseRow extends StatelessWidget {
     final accent = module.isEo ? AppColors.red : AppColors.blue;
 
     // La carte reste neutre (blanche) ; seul le badge d'état porte une couleur.
-    // Fait : icône ✓ rouge si note <= 12, verte sinon (verte par défaut tant
-    // que la note n'est pas encore évaluée). À faire : pastille accent module.
-    final scoreColor =
-        (note != null && note <= 12) ? AppColors.red : AppColors.green;
+    // La couleur d'une note vient de son PALIER TCF (0 → A1 non atteint, 1 →
+    // A1, 2-5 → A2, 6-9 → B1, 10-20 → B2), jamais d'un seuil scolaire sur 20 :
+    // 12/20 est un B2, le niveau le plus haut de l'examen. Tant que l'IA n'a
+    // pas rendu sa note, on reste neutre-vert « terminé ».
+    final band = note == null ? null : TcfNoteScale.bandFor(note);
+    final scoreColor = band?.tone ?? AppColors.green;
     final pastilleBg = locked
         ? AppColors.surface2
         : done
@@ -1490,9 +1493,7 @@ class _ExerciseRow extends StatelessWidget {
                           label: note != null
                               ? '${formatScore(note)}/20'
                               : 'Terminé',
-                          tone: (note != null && note <= 12)
-                              ? TagTone.red
-                              : TagTone.success,
+                          tone: band?.niveau.tagTone ?? TagTone.success,
                           icon: LucideIcons.check,
                         )
                       else if (locked)

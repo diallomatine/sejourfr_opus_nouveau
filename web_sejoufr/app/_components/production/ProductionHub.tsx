@@ -30,9 +30,14 @@ const TASK_TONES = { 1: "blue", 2: "amber", 3: "red" } as const;
 
 /**
  * Page d'entraînement d'une épreuve productive (EE/EO), maquette
- * sejour_fr.html : « Choisissez votre tâche » — 3 cards T1/T2/T3 (donut =
- * dernière note /20 ramenée sur 100) + historique récent. Les examens blancs
- * vivent sur la page dédiée (bouton en header), comme pour CO/CE.
+ * sejour_fr.html : « Choisissez votre tâche » — 3 cards T1/T2/T3 + historique
+ * récent. Les examens blancs vivent sur la page dédiée (bouton en header),
+ * comme pour CO/CE.
+ *
+ * **Pas de donut de progression sur ces cards** : la seule donnée disponible
+ * est une note sur l'échelle du TCF, et la ramener sur 100 la relit en
+ * pourcentage — un 4,5/20, qui vaut A2, y dessinerait un anneau vide à 22 %.
+ * La note s'écrit donc telle quelle (« Dernière note 4,5/20 »).
  */
 export function ProductionHub({ config }: { config: ProductionConfig }) {
   const router = useRouter();
@@ -155,7 +160,6 @@ export function ProductionHub({ config }: { config: ProductionConfig }) {
                 chipTone={TASK_TONES[n]}
                 title={productionTaskTitle(config.epreuve, n)}
                 desc={productionTaskSubtitle(config.epreuve, n)}
-                percent={note != null ? Math.round(note * 5) : null}
                 footLabel={
                   note != null
                     ? `Dernière note ${formatNoteSur20(note)}/20`

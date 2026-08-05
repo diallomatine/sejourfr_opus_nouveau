@@ -2,6 +2,7 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.config.ProductionEvaluationProperties;
 import com.sejourfr.app.entity.ProductionTask;
+import com.sejourfr.app.enums.DouteValidite;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.ValiditeProduction;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,27 @@ class ProductionValidityServiceTest {
     private static final String CONSIGNE =
         "Vous venez d'emménager dans un nouvel appartement. Vous écrivez à un ami "
             + "pour lui annoncer la nouvelle, décrire votre logement et l'inviter à venir vous voir.";
+
+    /** ~34 % de l'énoncé recopié, le reste en français personnel : AUTHENTICITE seule. */
+    private static final String RECOPIAGE_PARTIEL =
+        "Vous venez d'emménager dans un nouvel appartement. Vous écrivez à un ami "
+            + "pour lui annoncer la nouvelle. Salut Paul, mon logement est clair et calme, il y a "
+            + "deux chambres et une cuisine. Passe me voir dimanche si tu es libre, on mangera ensemble.";
+
+    /** Français très minoritaire (~15 % de mots-outils), rien de recopié : OBSERVATION seule. */
+    private static final String LANGUE_DOUTEUSE =
+        "Hello Paul, I write you today about mon new apartment. Very nice place, big kitchen, "
+            + "two bedrooms, small garden behind. Come visit next Saturday, we eat together, "
+            + "je suis très content de la nouvelle.";
+
+    /** Énoncé recopié PUIS poursuivi en anglais : les deux doutes à la fois. */
+    private static final String RECOPIAGE_ET_LANGUE_DOUTEUSE =
+        "Vous venez d'emménager dans un nouvel appartement. Vous écrivez à un ami "
+            + "pour lui annoncer la nouvelle, décrire votre logement et l'inviter à venir vous voir. "
+            + "Hello Paul, I moved last week to a new apartment near the station, very bright, "
+            + "two bedrooms, big kitchen and a small garden behind the building. Come visit soon, "
+            + "we will cook together and my neighbours are really friendly people, everything works "
+            + "perfectly well here now in this city.";
 
     private final ProductionEvaluationProperties props = new ProductionEvaluationProperties();
     private final ProductionValidityService service = new ProductionValidityService(props);
@@ -150,15 +172,60 @@ class ProductionValidityServiceTest {
 
     @Test
     void recopiage_partiel_de_la_consigne_declenche_un_avertissement() {
-        // ~40 % de la production recopie l'enonce : evaluable, mais signale.
-        String texte = "Vous venez d'emménager dans un nouvel appartement. Vous écrivez à un ami "
-            + "pour lui annoncer la nouvelle. Salut Paul, mon logement est clair et calme, il y a "
-            + "deux chambres et une cuisine. Passe me voir dimanche si tu es libre, on mangera ensemble.";
-
-        var verdict = service.evaluer(task(EpreuveType.TCF_EE, 1), texte);
+        // ~34 % de la production recopie l'enonce : evaluable, mais signale.
+        var verdict = service.evaluer(task(EpreuveType.TCF_EE, 1), RECOPIAGE_PARTIEL);
 
         assertThat(verdict.statut()).isEqualTo(ValiditeProduction.AVERTISSEMENT);
         assertThat(verdict.raisons()).anyMatch(r -> r.contains("recopie l'énoncé"));
+    }
+
+    // ------------------------------------------------------- nature du doute
+
+    /**
+     * LA distinction : recopier l'énoncé n'empêche pas d'observer la langue du
+     * candidat (on écarte les mots recopiés, le reste se lit très bien). C'est
+     * un doute d'AUTHENTICITE, jamais d'observation — donc il ne plafonne pas
+     * la confiance de la correction (cf. {@code AiEvaluationService}).
+     */
+    @Test
+    void le_recopiage_est_un_doute_d_authenticite_pas_d_observation() {
+        var verdict = service.evaluer(task(EpreuveType.TCF_EE, 1), RECOPIAGE_PARTIEL);
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.AVERTISSEMENT);
+        assertThat(verdict.doutes()).containsExactly(DouteValidite.AUTHENTICITE);
+        assertThat(verdict.douteObservation()).isFalse();
+    }
+
+    /** Une langue à moitié étrangère, elle, empêche vraiment d'observer. */
+    @Test
+    void une_langue_douteuse_est_un_doute_d_observation() {
+        var verdict = service.evaluer(task(EpreuveType.TCF_EE, 1), LANGUE_DOUTEUSE);
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.AVERTISSEMENT);
+        assertThat(verdict.doutes()).containsExactly(DouteValidite.OBSERVATION);
+        assertThat(verdict.douteObservation()).isTrue();
+    }
+
+    /** Les deux à la fois : l'obstacle à l'observation reste, donc il compte. */
+    @Test
+    void les_deux_doutes_cumules_gardent_l_obstacle_a_l_observation() {
+        var verdict = service.evaluer(task(EpreuveType.TCF_EE, 1), RECOPIAGE_ET_LANGUE_DOUTEUSE);
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.AVERTISSEMENT);
+        assertThat(verdict.doutes())
+            .containsExactlyInAnyOrder(DouteValidite.OBSERVATION, DouteValidite.AUTHENTICITE);
+        assertThat(verdict.douteObservation()).isTrue();
+    }
+
+    @Test
+    void une_production_valide_ne_porte_aucun_doute() {
+        String texte = "Salut Paul ! J'ai une bonne nouvelle : j'ai enfin déménagé la semaine "
+            + "dernière. Mon logement se trouve près de la gare, il est lumineux et calme.";
+
+        var verdict = service.evaluer(task(EpreuveType.TCF_EE, 1), texte);
+
+        assertThat(verdict.doutes()).isEmpty();
+        assertThat(verdict.douteObservation()).isFalse();
     }
 
     @Test

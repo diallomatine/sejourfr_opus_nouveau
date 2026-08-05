@@ -41,6 +41,7 @@ public class ProductionEvaluationProperties {
     private Fluidite fluidite = new Fluidite();
     private SecondePasse secondePasse = new SecondePasse();
     private CoherenceBilan coherenceBilan = new CoherenceBilan();
+    private RecollageTours recollageTours = new RecollageTours();
     /**
      * Plafond audio accepte pour une submission EO (defaut: 5 min).
      */
@@ -172,6 +173,14 @@ public class ProductionEvaluationProperties {
 
     public void setCoherenceBilan(CoherenceBilan coherenceBilan) {
         this.coherenceBilan = coherenceBilan;
+    }
+
+    public RecollageTours getRecollageTours() {
+        return recollageTours;
+    }
+
+    public void setRecollageTours(RecollageTours recollageTours) {
+        this.recollageTours = recollageTours;
     }
 
     public int getMaxAudioDurationSeconds() {
@@ -1040,6 +1049,43 @@ public class ProductionEvaluationProperties {
 
         public void setMargeSeuilNiveau(double margeSeuilNiveau) {
             this.margeSeuilNiveau = margeSeuilNiveau;
+        }
+    }
+
+    /**
+     * RECOLLAGE DES TOURS CONSECUTIFS d'un meme locuteur dans un transcript
+     * dialogue (expression orale TEMPS REEL). Livre <b>ACTIF</b> : c'est une
+     * CORRECTION, pas une experimentation — a l'inverse de {@code fluidite},
+     * {@code seconde-passe} et {@code coherence-bilan}, livres eteints.
+     *
+     * <p><b>Le probleme</b> : la transcription temps reel cloture un tour sur le
+     * signal de fin de tour du MODELE, qui n'est pas la fin de la phrase du
+     * CANDIDAT. Un meme enonce ressort donc scinde en plusieurs tours
+     * consecutifs, a une frontiere arbitraire (« Candidat : … pousse a l'air.
+     * Ah. » / « Candidat : aller vers l'informatique. »). Consequences : une
+     * citation a cheval sur deux tours n'est jamais retrouvable par
+     * {@code EvaluationProofMatcher} (un segment par tour), le correcteur juge
+     * la morphosyntaxe sur un texte hache et baisse sa confiance pour une
+     * raison qui vient de NOUS, et le candidat relit sa phrase coupee en deux.
+     *
+     * <p><b>Non destructif</b> : le recollage s'applique A LA LECTURE. Ni
+     * {@code realtime_sessions.transcript} ni {@code transcriptions.texte} ne
+     * sont reecrits ; a {@code false}, la sortie est rigoureusement celle
+     * d'avant, sans redeploiement des fronts.
+     *
+     * <p>Regle et point d'application uniques :
+     * {@code util/TranscriptTurnStitcher} + {@code TranscriptionManager}.
+     */
+    public static class RecollageTours {
+        /** Coupe-circuit. false → transcript brut, comportement historique. */
+        private boolean enabled = true;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
         }
     }
 

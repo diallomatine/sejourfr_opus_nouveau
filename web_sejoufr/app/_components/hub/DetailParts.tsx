@@ -84,6 +84,10 @@ export function DetailShell({
 /**
  * Card de niveau CECRL : chip A2/B1/B2 + donut (moyenne des séries faites),
  * libellé, description et compteur "x/y séries faites".
+ *
+ * Le donut ne se rend que si `percent` est **passé** : une carte dont la seule
+ * donnée est une note sur l'échelle du TCF (EE/EO) n'a aucun pourcentage à
+ * montrer, et un donut y transformerait la note en taux de remplissage.
  */
 const LEVEL_CHIP_TONES = {
   blue: "",
@@ -108,8 +112,9 @@ export function LevelChoiceCard({
   chipTone?: keyof typeof LEVEL_CHIP_TONES;
   title: string;
   desc: string;
-  /** Moyenne des derniers scores sur les séries faites (0-100), null si aucune. */
-  percent: number | null;
+  /** Moyenne des derniers scores sur les séries faites (0-100), `null` si
+   *  aucune (le donut affiche « — »). Prop omise = pas de donut du tout. */
+  percent?: number | null;
   done?: number;
   total?: number | null;
   /** Remplace le compteur "x/y séries faites" (ex: "Dernière note 14/20"). */
@@ -120,7 +125,7 @@ export function LevelChoiceCard({
     <button type="button" className={styles.levelCard} onClick={onClick}>
       <div className={styles.levelTop}>
         <span className={`${styles.levelChip} ${LEVEL_CHIP_TONES[chipTone]}`}>{chip}</span>
-        <ProgressDonut percent={percent} />
+        {percent !== undefined && <ProgressDonut percent={percent} />}
       </div>
       <div>
         <h3 className={styles.levelTitle}>{title}</h3>

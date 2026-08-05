@@ -13,7 +13,7 @@ class CalibrationEnvTest {
 
         assertThat(props.getProvider()).isEqualTo("deepseek");
         assertThat(props.getDeepseek().getModel()).isEqualTo("deepseek-v4-flash");
-        assertThat(props.getDeepseek().getPromptVersion()).isEqualTo("v4");
-        assertThat(props.getRubricsVersion()).isEqualTo("v7");
+        assertThat(props.getDeepseek().getPromptVersion()).isEqualTo("v5");
+        assertThat(props.getRubricsVersion()).isEqualTo("v8");
     }
 }

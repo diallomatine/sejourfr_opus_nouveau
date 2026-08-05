@@ -8,6 +8,11 @@ import '../../../core/theme/app_theme.dart';
 /// detail de langue : le candidat doit voir tout de suite s'il a oublie un
 /// point demande.
 ///
+/// Rendue en **trois groupes titres et comptes** — points traites, manques
+/// obligatoires, pistes non abordees — et non en liste plate : melanger un
+/// manque qui coute des points et une piste qui n'en coute aucun fait paniquer
+/// pour rien, et un tag en bout de ligne ne suffit pas a les separer.
+///
 /// Distinction capitale : un point **obligatoire** oublie pese sur la note ;
 /// une **piste** non abordee est informative et ne coute rien. Le libelle le
 /// dit explicitement pour qu'aucune piste ne soit lue comme une faute.
@@ -56,41 +61,31 @@ class AccomplishmentCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          for (final point in traites)
-            _PointRow(
-              libelle: point.libelle,
+          const SizedBox(height: 14),
+          if (traites.isNotEmpty)
+            _PointGroup(
+              title: 'Points traités',
+              points: traites,
               icon: LucideIcons.circleCheck,
               color: AppColors.green,
-              tag: point.obligatoire ? null : 'piste abordée',
             ),
-          for (final point in manques)
-            _PointRow(
-              libelle: point.libelle,
+          if (manques.isNotEmpty)
+            _PointGroup(
+              title: 'Manques obligatoires',
+              points: manques,
               icon: LucideIcons.circleX,
               color: AppColors.red,
-              tag: 'demandé',
             ),
-          for (final point in pistes)
-            _PointRow(
-              libelle: point.libelle,
+          if (pistes.isNotEmpty)
+            _PointGroup(
+              title: 'Pistes non abordées',
+              points: pistes,
               icon: LucideIcons.circleDashed,
               color: AppColors.muted2,
-              tag: 'piste',
               muted: true,
+              foot: 'Les pistes sont des idées proposées par le sujet : '
+                  "ne pas les traiter n'enlève aucun point.",
             ),
-          if (pistes.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Les pistes étaient facultatives : ne pas les traiter '
-              "n'enlève aucun point.",
-              style: AppFonts.ui(
-                size: 12,
-                color: AppColors.muted,
-                height: 1.4,
-              ),
-            ),
-          ],
           if (manques.isEmpty && traites.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
@@ -103,6 +98,87 @@ class AccomplishmentCard extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Un des trois groupes, avec son compteur : le candidat voit « 2 manques »
+/// avant de lire lesquels.
+class _PointGroup extends StatelessWidget {
+  const _PointGroup({
+    required this.title,
+    required this.points,
+    required this.icon,
+    required this.color,
+    this.muted = false,
+    this.foot,
+  });
+
+  final String title;
+  final List<AccomplissementPoint> points;
+  final IconData icon;
+  final Color color;
+  final bool muted;
+  final String? foot;
+
+  @override
+  Widget build(BuildContext context) {
+    final footText = foot;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  title,
+                  style: AppFonts.ui(
+                    size: 12,
+                    weight: FontWeight.w800,
+                    color: muted ? AppColors.muted : color,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadii.pill),
+                ),
+                child: Text(
+                  '${points.length}',
+                  style: AppFonts.ui(
+                    size: 11,
+                    weight: FontWeight.w800,
+                    color: muted ? AppColors.muted : color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (final point in points)
+            _PointRow(
+              libelle: point.libelle,
+              icon: icon,
+              color: color,
+              tag: point.obligatoire ? 'demandé par la consigne' : 'piste',
+              muted: muted,
+            ),
+          if (footText != null)
+            Text(
+              footText,
+              style: AppFonts.ui(
+                size: 12,
+                color: AppColors.muted,
+                height: 1.4,
+              ),
+            ),
         ],
       ),
     );

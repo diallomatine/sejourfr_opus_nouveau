@@ -307,14 +307,63 @@ final class CalibrationMetrics {
     // ------------------------------------------------------------------ conformite
 
     /**
+     * MOTIF pour lequel un cas n'a pas pu etre mesure. Sans cette ventilation,
+     * toute perte tombait indistinctement dans {@code erreurAppel} pendant que
+     * le rapport annoncait « 0 % de sortie invalide » : la metrique publiee
+     * rendait son propre defaut invisible.
+     */
+    enum MotifPerte {
+        /** Sortie coupee par le plafond de tokens : JSON tronque, illisible. */
+        TRONCATURE_JSON,
+        /** Une citation n'a pas pu etre rattachee a la production, meme apres reessai. */
+        REJET_PREUVE,
+        /** Le feedback oral se fondait sur un element non evaluable (hesitations, debit...). */
+        GARDE_FOU_ORAL,
+        /**
+         * 429, 5xx ou timeout du fournisseur, retries epuises : perte SUBIE, pas
+         * un defaut de notation. A distinguer des autres motifs, sinon un banc
+         * bride par le fournisseur se lit comme une regression de qualite.
+         */
+        FOURNISSEUR_INDISPONIBLE,
+        /** Reponse structurellement incomplete : un champ requis du contrat manque. */
+        SORTIE_INCOMPLETE,
+        AUTRE
+    }
+
+    /** Motif de perte d'un cas non mesure, {@code null} si le cas a bien ete mesure. */
+    static MotifPerte motifPerte(CaseRun run) {
+        if (run.exploitable()) return null;
+        if ("SORTIE_INVALIDE".equals(run.statut())) return MotifPerte.SORTIE_INCOMPLETE;
+        String erreur = run.erreur() == null ? "" : run.erreur().toLowerCase(Locale.ROOT);
+        if (erreur.contains("non desorialisable") || erreur.contains("finish_reason=length")
+            || erreur.contains("tool_call.arguments vide")) {
+            return MotifPerte.TRONCATURE_JSON;
+        }
+        if (erreur.contains("doit citer un passage reel")) return MotifPerte.REJET_PREUVE;
+        if (erreur.contains("element non evaluable")) return MotifPerte.GARDE_FOU_ORAL;
+        if (erreur.contains("429") || erreur.contains("rate-limited")
+            || erreur.contains("indisponible apres") || erreur.contains("timeout")
+            || erreur.contains("5xx")) {
+            return MotifPerte.FOURNISSEUR_INDISPONIBLE;
+        }
+        return MotifPerte.AUTRE;
+    }
+
+    /**
      * @param appels          appels LLM reellement emis (retries compris)
      * @param appelsRates     appels dont la reponse etait inexploitable — en
      *                        production, chacun fait echouer une soumission
      * @param casPerdus       cas qu'aucune tentative n'a permis de mesurer
+     * @param casNonMesures   cas absents des agregats, quelle qu'en soit la
+     *                        cause ({@code casPerdus} + sorties incompletes)
+     * @param motifsPerte     ventilation des {@code casNonMesures} par cause,
+     *                        dans l'ordre de {@link MotifPerte}. Un cas perdu
+     *                        coute exactement autant qu'une sortie invalide a un
+     *                        utilisateur : les deux taux se lisent cote a cote.
      */
     record Conformite(int total, int ok, int validiteServeur, int sortieInvalide, int erreurAppel,
                       int criteresManquants, int appels, int appelsRates, int casPerdus,
-                      int casAvecReessai) {
+                      int casAvecReessai, int casNonMesures, Map<String, Integer> motifsPerte) {
 
         /** Taux de sorties invalides du modele, par appel. */
         double pctAppelsRates() {
@@ -324,6 +373,20 @@ final class CalibrationMetrics {
         /** Taux de cas irrecuperables meme apres reessai. */
         double pctCasPerdus() {
             return pct(casPerdus, total);
+        }
+
+        /** Taux de runs dont la sortie etait structurellement incomplete. */
+        double pctSortieInvalide() {
+            return pct(sortieInvalide, total);
+        }
+
+        /** Taux de cas absents des agregats, toutes causes confondues. */
+        double pctCasNonMesures() {
+            return pct(casNonMesures, total);
+        }
+
+        int motif(MotifPerte motif) {
+            return motifsPerte.getOrDefault(motif.name(), 0);
         }
     }
 
@@ -336,6 +399,9 @@ final class CalibrationMetrics {
         int appels = 0;
         int rates = 0;
         int reessais = 0;
+        Map<String, Integer> motifs = new LinkedHashMap<>();
+        for (MotifPerte motif : MotifPerte.values()) motifs.put(motif.name(), 0);
+        int nonMesures = 0;
         for (CaseRun r : runs) {
             switch (r.statut()) {
                 case "OK" -> ok++;
@@ -343,13 +409,19 @@ final class CalibrationMetrics {
                 case "SORTIE_INVALIDE" -> invalide++;
                 default -> erreur++;
             }
+            MotifPerte motif = motifPerte(r);
+            if (motif != null) {
+                motifs.merge(motif.name(), 1, Integer::sum);
+                nonMesures++;
+            }
             if (!r.criteresManquants().isEmpty()) criteres++;
             appels += r.tentatives();
             rates += r.tentativesRatees();
             if (r.tentativesRatees() > 0) reessais++;
         }
         return new Conformite(runs.size(), ok, validite, invalide, erreur, criteres,
-            appels, rates, erreur, reessais);
+            appels, rates, erreur, reessais, nonMesures,
+            java.util.Collections.unmodifiableMap(motifs));
     }
 
     static int coutTotalCentimes(List<CaseRun> runs) {

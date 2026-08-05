@@ -51,6 +51,30 @@ final class EvaluationProofMatcher {
     private static final Set<String> TEL_INFLECTIONS = Set.of(
         "tels", "telle", "telles");
 
+    /**
+     * Marques d'HESITATION, elidables du cote PRODUCTION avant appariement, en
+     * nombre non borne. Liste fermee, tiree de {@link #NON_SIGNIFICANT} : ce
+     * sont les seuls tokens que le pipeline produit et qui ne portent aucun
+     * sens (Whisper transcrit en mode litteral, donc il les conserve).
+     *
+     * <p><b>Pourquoi cette elision ne fragilise pas la garantie « une preuve
+     * inventee ou ambigue ne passe pas »</b> : elle ne dispense d'AUCUN token
+     * porteur de sens. Tous les autres mots de la citation restent exiges a
+     * l'identique, dans le meme ordre, dans un passage contigu et unique. Une
+     * citation qui contiendrait un mot absent de la production reste refusee.
+     *
+     * <p><b>Pourquoi elle etait necessaire</b> : le prompt interdit au
+     * correcteur de fonder quoi que ce soit sur les hesitations, et lui demande
+     * en meme temps de recopier la production « exactement ». Sans cette
+     * elision, trois « euh » intercales suffisaient a faire echouer une
+     * citation parfaitement fidele — le correcteur ne pouvait pas satisfaire
+     * les deux consignes a la fois.
+     *
+     * <p><b>Sens unique</b> : production -> citation. On ne retire jamais rien
+     * de la citation.
+     */
+    private static final Set<String> DISFLUENCES = Set.of("euh", "heu", "hum");
+
     private static final Set<String> NON_SIGNIFICANT = Set.of(
         "a", "ai", "au", "aux", "avec", "c", "ce", "ces", "cet", "cette", "d",
         "dans", "de", "des", "du", "elle", "elles", "en", "est", "et", "eux",
@@ -99,6 +123,14 @@ final class EvaluationProofMatcher {
         Set<SourceMatch> fuzzyMatches = new LinkedHashSet<>();
         for (Segment segment : segments) {
             collectFuzzy(segment.tokens(), needle, fuzzyMatches);
+            // Seconde lecture du meme segment, hesitations retirees : la
+            // tolerance d'UNE edition reste entiere, elle n'est simplement plus
+            // consommee par un « euh ». Les offsets restant ceux du texte brut,
+            // le passage restitue contient toujours la production originale.
+            List<Token> sansHesitations = withoutDisfluences(segment.tokens());
+            if (sansHesitations.size() != segment.tokens().size()) {
+                collectFuzzy(sansHesitations, needle, fuzzyMatches);
+            }
         }
         if (fuzzyMatches.size() != 1) return Optional.empty();
         return Optional.of(fuzzyMatches.iterator().next().extract(production));
@@ -165,15 +197,47 @@ final class EvaluationProofMatcher {
                                      Set<SourceMatch> matches) {
         if (source.size() < needle.size()) return;
         for (int start = 0; start <= source.size() - needle.size(); start++) {
-            boolean equal = true;
-            for (int i = 0; i < needle.size(); i++) {
-                if (!source.get(start + i).normalized().equals(needle.get(i).normalized())) {
-                    equal = false;
-                    break;
-                }
-            }
-            if (equal) addMatch(source, start, needle.size(), matches);
+            int end = alignFrom(source, start, needle);
+            if (end > start) addMatch(source, start, end - start, matches);
         }
+    }
+
+    /**
+     * Aligne la citation sur la production a partir de {@code start} et retourne
+     * l'index de fin (exclusif) du passage, ou {@code -1}.
+     *
+     * <p>Chaque token de la citation doit trouver son identique ; seule la
+     * PRODUCTION peut fournir des tokens en trop, et uniquement s'ils sont des
+     * {@link #DISFLUENCES}. Le passage commence et se termine donc toujours sur
+     * un token reellement cite : une hesitation ne peut ni ouvrir ni fermer une
+     * preuve, ce qui garde un seul span possible par point de depart.
+     */
+    private static int alignFrom(List<Token> source, int start, List<Token> needle) {
+        int i = start;
+        int j = 0;
+        while (j < needle.size()) {
+            if (i >= source.size()) return -1;
+            String s = source.get(i).normalized();
+            if (s.equals(needle.get(j).normalized())) {
+                i++;
+                j++;
+                continue;
+            }
+            if (i > start && DISFLUENCES.contains(s)) {
+                i++;
+                continue;
+            }
+            return -1;
+        }
+        return i;
+    }
+
+    private static List<Token> withoutDisfluences(List<Token> tokens) {
+        List<Token> out = new ArrayList<>(tokens.size());
+        for (Token token : tokens) {
+            if (!DISFLUENCES.contains(token.normalized())) out.add(token);
+        }
+        return List.copyOf(out);
     }
 
     private static void collectFuzzy(List<Token> source, List<Token> needle,

@@ -729,9 +729,18 @@ export interface AccomplissementPoint {
   obligatoire: boolean;
 }
 
+/** Verdict global d'accomplissement de la consigne (v8). */
+export type ObjectifAccomplissement =
+  | "ATTEINT"
+  | "PARTIELLEMENT_ATTEINT"
+  | "NON_ATTEINT";
+
 export interface AccomplissementFeedback {
   points_traites?: AccomplissementPoint[];
   points_oublies?: AccomplissementPoint[];
+  /** Absent/null sur les évaluations antérieures à v8 — cas normal. */
+  objectif?: ObjectifAccomplissement | null;
+  objectif_resume?: string;
 }
 
 export interface ScoreCritereFeedback {
@@ -777,6 +786,8 @@ export interface PointAmeliorer {
  * évaluation v3 en base n'en porte qu'une partie (pas de bande, pas de
  * preuve, pas d'accomplissement). Absence = cas normal, pas une erreur.
  * `note_globale` porte une décimale depuis la v5 (ex. 12.5).
+ * `points_forts` (≤ 2) et `exemples_corriges` (≤ 3) sont bornés côté serveur
+ * depuis v8 — la longueur n'est pas revalidée côté front, seulement affichée.
  */
 export interface EvaluationFeedback {
   note_globale?: number;
@@ -790,6 +801,11 @@ export interface EvaluationFeedback {
   suggestions?: string[];
   exemples_corriges?: ExempleCorrige[];
   avertissements?: string[];
+  /**
+   * Production réécrite en entier (v8), EE uniquement — absente en EO (voulu)
+   * et sur toute évaluation antérieure à v8.
+   */
+  version_amelioree?: string | null;
 }
 
 /**

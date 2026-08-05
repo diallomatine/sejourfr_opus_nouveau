@@ -8,8 +8,10 @@ package com.sejourfr.app.enums;
  *   <li>{@code VALIDE} : rien a signaler, evaluation IA normale ;</li>
  *   <li>{@code AVERTISSEMENT} : la production est evaluable mais un doute
  *       serieux pese dessus (langue partiellement non francaise, recopiage
- *       partiel de la consigne). On appelle le LLM, on expose les raisons au
- *       candidat et on <b>plafonne la confiance</b> ;</li>
+ *       partiel de la consigne). On appelle le LLM et on expose les raisons au
+ *       candidat. La confiance n'est plafonnee que si le doute est un obstacle
+ *       a l'observation ({@link DouteValidite#OBSERVATION}) ; un doute
+ *       d'{@link DouteValidite#AUTHENTICITE} ne la touche pas ;</li>
  *   <li>{@code INVALIDE} : la production ne peut pas etre notee (texte vide,
  *       pas en francais, consigne recopiee). On <b>n'appelle pas le LLM</b> :
  *       note 0, niveau {@code A1_NON_ATTEINT}, confiance {@code FAIBLE}.</li>

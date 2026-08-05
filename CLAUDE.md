@@ -213,9 +213,9 @@ Le « quoi » et le « pourquoi » vivent dans `docs/notation-ia-eo-ee.md` (réf
 grand public, **à tenir exhaustive et à jour dans la même passe** — cf. la règle
 dédiée plus bas). Ici, uniquement de quoi se repérer.
 
-- **Versions actives** : rubriques `production-rubrics-v7.json`, tool-schema de
-  sortie `production-evaluation-tool-schema-v4.json`, persona vocale
-  `realtime-personas-v2.json`. **v6/v3, v5/v3, v4.2/v2, v4.1/v2, v4/v2 et
+- **Versions actives** : rubriques `production-rubrics-v8.json`, tool-schema de
+  sortie `production-evaluation-tool-schema-v5.json`, persona vocale
+  `realtime-personas-v2.json`. **v7/v4, v6/v3, v5/v3, v4.2/v2, v4.1/v2, v4/v2 et
   v3/v2 restent chargeables et validées** : un retour arrière change la paire
   `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION`, aucune migration. **On
   versionne, on ne réécrit jamais** une rubrique livrée.
@@ -321,7 +321,41 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     Web `ProductionScoreHero.tsx`, `ProductionSession.tsx`, `lib/types.ts` ;
     mobile `donut_chart_score.dart`, `bilan_hero.dart`,
     `production_models.dart`.
-- **v7 = profil TCF IRN strict, version active.** Elle conserve l'échelle et les
+- **v8 = la RESTITUTION, version active (rubriques v8 / tool-schema v5).** Elle
+  ne touche à **rien** de ce qui note : échelle, quatre critères, seuils,
+  `couplage.ecart_max=1`, plafonds, bandes, tests décisifs A1/A2 et B1/B2 et les
+  **16 ancres few-shot** sont ceux de v7, au bit près (verrouillé par
+  `ProductionEvaluationContractTest`) — **aucune campagne de banc n'est requise
+  pour cette bascule**. Elle corrige le rapport rendu au candidat, jugé
+  répétitif, scolaire et contradictoire :
+  - **confiance = certitude du correcteur, jamais qualité du candidat** : elle ne
+    baisse plus parce que la production est faible ou fautive (EE lisible et
+    complète → `HAUTE`), uniquement sur un obstacle à l'**observation**. Les deux
+    interdits historiques (confiance ⇏ note ; confiance faible ⇏ hors-sujet) sont
+    conservés ;
+  - **une erreur, un seul endroit** : `commentaire` caractérise, `points_a_ameliorer`
+    enseigne, `exemples_corriges` démontre sur d'**autres** phrases, `suggestions`
+    ne reprend rien, `version_amelioree` montre sans réexpliquer ;
+  - **aucun reproche sur un moyen que la consigne n'exigeait pas** → « levier de
+    progression ». ⚠️ Règle de **formulation** : `justification_niveau` (expurgé
+    avant le front) applique la règle de preuve et les plafonds à l'identique ;
+  - **cohérence accomplissement ⇄ rapport** : un point demandé mais mal formulé
+    est PRÉSENT (`points_traites` + réserve de forme) ; interdit de le déclarer
+    absent ailleurs ;
+  - **nouveau contrat exposé aux fronts** : `accomplissement.objectif`
+    (`ATTEINT|PARTIELLEMENT_ATTEINT|NON_ATTEINT`, enum `ObjectifTache`) +
+    `accomplissement.objectif_resume` (phrase candidat), et `version_amelioree`
+    (string racine) **obligatoire en EE, absente en EO** (retirée serveur). Le
+    verdict ne regarde que les points **obligatoires**, est indépendant de la
+    note, et le serveur l'**abaisse** à `PARTIELLEMENT_ATTEINT` s'il vaut
+    `ATTEINT` malgré un `points_oublies` `obligatoire=true` (jamais l'inverse,
+    même philosophie que `applyConfiance`) ;
+  - **plafonds de restitution** : `points_forts` ≤ 2 et `exemples_corriges` ≤ 3,
+    `maxItems` schéma + refus validateur + **troncature serveur** (`capListe`),
+    comme les 2 priorités ;
+  - **legacy non migré** : les ~100 évaluations sans `objectif` restent telles
+    quelles, le champ est absent et les fronts n'affichent pas le bloc.
+- **v7 = profil TCF IRN strict.** Elle conserve l'échelle et les
   quatre critères de v6, retire C1/C2 de tout ce qui est envoyé au correcteur et
   déclare explicitement `profile=TCF_IRN`, `niveau_max=B2` et
   `tool_schema_version=v4`. Le schéma v4 impose exactement les quatre critères,
@@ -335,7 +369,7 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   `MOYENNE` et un avertissement serveur est ajouté. Deux preuves, une preuve vide ou toute
   autre violation font échouer la submission sans note partielle. Sur un retry réparé ou
   dégradé, tokens d'entrée, tokens de sortie et coût des deux appels sont additionnés.
-- **Preuves v4 opposables** : chaque critère porte une citation non vide. Le
+- **Preuves opposables (schémas v4 et v5)** : chaque critère porte une citation non vide. Le
   serveur privilégie le passage contigu exact, puis ne tolère, à partir de 4
   tokens, qu'une seule édition de token : insertion/suppression réservée à une liste
   fermée de mots-outils ; la seule substitution admise est la flexion
@@ -348,6 +382,31 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   preuve inventée ou ambiguë déclenche le retry sémantique. Si une unique preuve
   demeure non rattachable après ce retry, elle n'est jamais persistée : le mode
   dégradé documenté ci-dessus conserve seulement les trois preuves sûres.
+  **Élision des disfluences, sens production → citation uniquement**
+  (`EvaluationProofMatcher.DISFLUENCES`, liste fermée `euh|heu|hum`, tirée de
+  `NON_SIGNIFICANT`) : la production peut porter ces tokens en nombre quelconque
+  sans que la citation ait à les recopier. **Aucun token porteur de sens n'est
+  dispensé** — une citation contenant un mot absent de la production reste
+  refusée, la contiguïté et la tolérance d'une seule édition sont inchangées, une
+  disfluence ne peut ni ouvrir ni fermer le passage restitué (qui reste la
+  sous-chaîne originale exacte, disfluences comprises). Motif : la transcription
+  Whisper est littérale, et le prompt interdit par ailleurs d'évaluer les
+  hésitations — sans cette élision, le correcteur ne pouvait pas satisfaire les
+  deux consignes.
+- **Message de réessai** (`EvaluationRepairPrompt`) : le retry ne renvoie plus la
+  seule liste brute des violations (mesuré : **0 preuve réparée sur 8**, le
+  modèle resoumettait la même citation). Il rappelle **la citation refusée,
+  critère par critère**, énonce la règle (passage contigu, recopié tel qu'il
+  apparaît, pas d'ellipse, pas de recomposition, un seul tour `Candidat :` en EO)
+  et suggère de re-citer plus court. **Aucun contrôle serveur n'est relâché** :
+  on aide le correcteur à respecter la vérification.
+- **Plafond de tokens de SORTIE = 4000**, identique sur les trois providers
+  (`sejourfr.production-evaluation.{openai,anthropic,deepseek}.max-tokens`,
+  figé par `EvaluationTokenBudgetTest`). À 2000 — valeur d'avant les quatre
+  citations littérales du tool-schema — les corrections EO (1800-2000 tokens)
+  arrivaient en `finish_reason=length`, JSON tronqué, submission perdue. C'est un
+  plafond, pas une consommation : le relever ne coûte rien sur les sorties
+  courtes. Ne pas redescendre sans retirer des champs de la sortie.
 - **Transaction du pipeline async** : `ProductionPipelineAsyncRunner` reste
   volontairement **sans transaction englobante**. Whisper et l'évaluation ont
   leurs propres transactions ; `ProductionPipelineFailureRecorder` conserve
@@ -374,7 +433,7 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   `src/test/resources/calibration/golden-set-v1.json`, 48 cas synthétiques) :
   **opt-in strict**, jamais dans `./mvnw verify` (appelle un LLM payant).
   `./mvnw -q test -Dtest=CalibrationBenchTest -DfailIfNoTests=false
-  -Dcalibration.enabled=true -Dcalibration.rubrics=v7 -Dcalibration.prompt=v4
+  -Dcalibration.enabled=true -Dcalibration.rubrics=v8 -Dcalibration.prompt=v5
   -Dcalibration.label=<nom>` → rapport JSON dans `target/calibration/`. Le banc
   lit obligatoirement le provider et le modèle du runtime dans
   `application.yaml`/`.env` : il n'existe plus de surcharge
@@ -388,7 +447,15 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   ne prouve rien).
   Convention de signe partout : **écart = référence − IA** (négatif = IA trop
   indulgente). **Toute modif d'une consigne de notation ou d'un seuil se mesure
-  avant/après** — sinon c'est un pari.
+  avant/après** — sinon c'est un pari. La contrainte de preuve littérale a été la
+  seule exception à cette règle (livrée sans campagne, sans témoin rejoué) : son
+  coût en soumissions perdues est resté invisible des mois. Consigné dans
+  `docs/notation-ia-eo-ee.md` §12.3 bis, à ne pas effacer.
+  **Motif de perte ventilé** (`CalibrationMetrics.MotifPerte` : troncature JSON /
+  rejet de preuve / garde-fou oral / fournisseur indisponible / sortie incomplète
+  / autre) : le rapport affiche le **taux de cas perdus à côté du taux de sortie
+  invalide**. Avant, un rejet de preuve tombait dans `erreurAppel` et la doc
+  affichait « 0 % de sortie invalide » pendant qu'un tiers des cas se perdait.
 - **Une seule échelle depuis v6** (0 → A1 non atteint, 1 → A1, 2-5 → A2,
   6-9 → B1, **10-20 → B2**) : notre note **est** celle du TCF. La table
   officielle vit toujours dans l'enum `BandeNoteTcf` (code, pas config — donnée
@@ -406,6 +473,47 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   V743, les 20 sujets couverts), rendue par `RealtimePersonaBuilder` via le
   gabarit `t2Fiche` de la persona v2. Jamais exposée à un client, jamais envoyée
   à l'IA correctrice — **ce n'est pas une check-list de notation**.
+- **Recollage des tours EO temps réel** (`util/TranscriptTurnStitcher`, drapeau
+  `sejourfr.production-evaluation.recollage-tours.enabled`, livré **ACTIF** —
+  c'est une correction, pas une expérimentation). La transcription temps réel
+  clôt un tour sur le signal de fin de tour **du modèle**, pas sur la fin de la
+  phrase du candidat : un même énoncé ressortait scindé en tours consécutifs.
+  Conséquences corrigées : `EvaluationProofMatcher.searchableSegments` construit
+  un segment par tour, donc une citation à cheval sur deux tours était
+  **introuvable** (et deux preuves refusées = submission en échec sous v7+) ;
+  le correcteur jugeait la langue sur un texte haché et baissait sa confiance
+  pour une raison venant de nous ; le candidat relisait sa phrase en deux bulles.
+  - **Non destructif, un seul point d'application** : rien n'est réécrit
+    (`realtime_sessions.transcript` et `transcriptions.texte` intacts), le
+    recollage se fait **à la lecture** dans
+    `TranscriptionManager.findLatestTexteBySubmissionId` — l'unique accesseur au
+    texte, volontairement le seul (aucune méthode ne rend plus l'entité
+    `Transcription`). Prompt, contrôle de preuve et DTO servi aux 3 fronts en
+    héritent sans une ligne de code côté web/mobile.
+  - **Invariant à ne pas casser** : le texte cité par le correcteur EST celui
+    affiché au candidat. Deux points d'application = preuves inopposables.
+  - **Règle — en cas de doute, on ne fusionne pas.** Le sens de l'erreur est
+    assumé : une fusion **fausse** fabrique de la parole, une fusion **manquée**
+    ne fait que ramener au comportement d'avant. Trois garde-fous, tous dans ce
+    sens : (1) même locuteur uniquement ; (2) **jamais** à travers un tour
+    `Examinateur :` ; (3) **jamais** quand une phrase paraît terminée et qu'une
+    nouvelle commence — ponctuation forte à gauche **ET** majuscule à droite
+    (les deux conditions ; la fragmentation qu'on corrige laisse presque toujours
+    le second morceau en minuscule) ; (4) **jamais** autour d'un fragment sans
+    aucun caractère alphanumérique (`. . . .`), qui reste un **tour isolé** et
+    n'est jamais retiré du texte servi — le recollage n'enlève que des
+    *frontières*, jamais du contenu. Jonction : un **espace simple**, aucune
+    ponctuation ajoutée ni retirée (une ponctuation forte de fin de fragment est
+    **conservée** — elle vient du transcripteur, et le matcher ne tokenise pas la
+    ponctuation) ; pas d'espace devant `,.…)]}%` ni après une élision/trait
+    d'union. Les **mots** coupés en deux (bug corrigé le 2026-07-04) ne sont
+    **jamais** réparés, et les transcriptions ratées de bout en bout (`stanno
+    mal.`, marqueurs contenant des lettres comme `<noise>`) ne sont **pas**
+    rattrapées : notre découpage ne les a pas cassées.
+  - Mesure sur les 35 sessions réelles : 749 → 398 tours (-46,9 %), tours
+    candidat 461 → 183 (-60,3 %), médiane 6 → 14 tokens par tour candidat,
+    tours candidat sous 4 tokens 26,9 % → 15,3 %. Sur 388 frontières « même
+    locuteur », **37 sont refusées** par les garde-fous 3 et 4 (34 + 3).
 - **Trois drapeaux livrés ÉTEINTS** (`sejourfr.production-evaluation`) :
   `fluidite.enabled` (débit/pauses, informatif), `seconde-passe.enabled` (2ᵉ
   lecture en zone floue, même provider/modèle), `coherence-bilan.enabled`

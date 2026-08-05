@@ -4,7 +4,6 @@ import com.sejourfr.app.config.ProductionEvaluationProperties;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
-import com.sejourfr.app.entity.Transcription;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.ProductionSubmissionSource;
@@ -126,10 +125,9 @@ class AiEvaluationServiceV4Test {
         s.setStatut(SubmissionStatut.SUBMITTED);
         s.setSource(source);
         s.setMediaDurationSec(210);
-        Transcription t = new Transcription();
-        t.setTexte(transcript);
         when(submissionManager.findById(s.getId())).thenReturn(Optional.of(s));
-        when(transcriptionManager.findLatestBySubmissionId(s.getId())).thenReturn(Optional.of(t));
+        when(transcriptionManager.findLatestTexteBySubmissionId(s.getId()))
+                .thenReturn(Optional.of(transcript));
         return s;
     }
 
@@ -269,14 +267,18 @@ class AiEvaluationServiceV4Test {
         assertThat(eval.getFeedbackJson().get("confiance")).isEqualTo("MOYENNE");
     }
 
+    /**
+     * Seul un obstacle a l'OBSERVATION plafonne la confiance : ici une langue
+     * a moitie etrangere, qu'on ne lit qu'a moitie.
+     */
     @Test
     @SuppressWarnings("unchecked")
-    void confiance_degradee_par_un_verdict_avertissement() {
+    void confiance_degradee_par_un_doute_sur_la_langue() {
         ProductionTask task = task(EpreuveType.TCF_EE, 1);
-        // Recopiage partiel de la consigne -> AVERTISSEMENT -> plafond MOYENNE.
         ProductionSubmission sub = submission(task,
-            "Vous venez d'emménager. Écrivez à un ami pour annoncer la nouvelle, décrire votre "
-                + "logement et l'inviter. Salut Paul, mon logement est clair et calme, viens me voir.");
+            "Hello Paul, I write you today about mon new apartment. Very nice place, big kitchen, "
+                + "two bedrooms, small garden behind. Come visit next Saturday, we eat together, "
+                + "je suis très content de la nouvelle.");
         stubLlm(feedbackEeT1(13));
 
         AiEvaluation eval = service.evaluate(sub.getId());
@@ -284,6 +286,25 @@ class AiEvaluationServiceV4Test {
         assertThat(eval.getFeedbackJson().get("confiance")).isEqualTo("MOYENNE");
         assertThat((List<String>) eval.getFeedbackJson().get("confiance_raisons"))
             .anyMatch(r -> r.contains("vérifications automatiques"));
+        assertThat(avertissements(eval)).anyMatch(a -> a.contains("ne semble pas être en français"));
+    }
+
+    /**
+     * Un recopiage partiel de la consigne est un doute d'AUTHENTICITE : le
+     * candidat est averti, ses mots recopies sont ecartes, mais ce qui reste
+     * s'observe parfaitement — la confiance de la correction n'y touche pas.
+     */
+    @Test
+    void confiance_intacte_sur_un_recopiage_de_consigne() {
+        ProductionTask task = task(EpreuveType.TCF_EE, 1);
+        ProductionSubmission sub = submission(task,
+            "Vous venez d'emménager. Écrivez à un ami pour annoncer la nouvelle, décrire votre "
+                + "logement et l'inviter. Salut Paul, mon logement est clair et calme, viens me voir.");
+        stubLlm(feedbackEeT1(13));
+
+        AiEvaluation eval = service.evaluate(sub.getId());
+
+        assertThat(eval.getFeedbackJson().get("confiance")).isEqualTo("HAUTE");
         assertThat(avertissements(eval)).anyMatch(a -> a.contains("recopie l'énoncé"));
     }
 

@@ -68,7 +68,7 @@ public class ProductionPipelineAsyncRunner {
         try {
             if (estOral) {
                 boolean hasTranscription = transcriptionManager
-                        .findLatestBySubmissionId(submission.getId()).isPresent();
+                        .existsBySubmissionId(submission.getId());
                 if (!hasTranscription) {
                     whisperService.transcribe(submission.getId());
                 } else {

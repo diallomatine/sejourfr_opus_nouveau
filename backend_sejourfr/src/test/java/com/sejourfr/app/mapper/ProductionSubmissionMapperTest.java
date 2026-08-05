@@ -5,7 +5,6 @@ import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
-import com.sejourfr.app.entity.Transcription;
 import com.sejourfr.app.enums.ConfianceEvaluation;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.SubmissionStatut;
@@ -89,11 +88,9 @@ class ProductionSubmissionMapperTest {
         eval.setNoteSur20(new BigDecimal("14.0"));
         eval.setFeedbackJson(feedback);
 
-        Transcription transcription = new Transcription();
-        transcription.setTexte("transcription whisper");
-
         when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.of(eval));
-        when(transcriptionManager.findLatestBySubmissionId(id)).thenReturn(Optional.of(transcription));
+        when(transcriptionManager.findLatestTexteBySubmissionId(id))
+                .thenReturn(Optional.of("transcription whisper"));
 
         ProductionSubmissionDto dto = mapper.toDto(s);
 
@@ -138,7 +135,7 @@ class ProductionSubmissionMapperTest {
         eval.setFeedbackJson(feedback);
 
         when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.of(eval));
-        when(transcriptionManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
+        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
 
         ProductionSubmissionDto dto = mapper.toDto(s);
 
@@ -167,7 +164,7 @@ class ProductionSubmissionMapperTest {
         eval.setFeedbackJson(feedback);
 
         when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.of(eval));
-        when(transcriptionManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
+        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
 
         ProductionSubmissionDto dto = mapper.toDto(s);
 
@@ -185,7 +182,7 @@ class ProductionSubmissionMapperTest {
         s.setProductionTask(null);
 
         when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
-        when(transcriptionManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
+        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
 
         ProductionSubmissionDto dto = mapper.toDto(s);
 
@@ -209,7 +206,7 @@ class ProductionSubmissionMapperTest {
         eval.setFeedbackJson(null);
 
         when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.of(eval));
-        when(transcriptionManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
+        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
 
         ProductionSubmissionDto dto = mapper.toDto(s);
 
@@ -226,7 +223,7 @@ class ProductionSubmissionMapperTest {
         s.setProductionTask(null);
 
         when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
-        when(transcriptionManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
+        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
         when(audioStorage.presignGet("eo/key.mp3")).thenReturn("https://signed.example/key.mp3?sig=x");
 
         ProductionSubmissionDto dto = mapper.toDtoWithSignedAudio(s);
@@ -245,7 +242,7 @@ class ProductionSubmissionMapperTest {
         s.setMediaUrl("   ");
 
         when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
-        when(transcriptionManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
+        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
 
         ProductionSubmissionDto dto = mapper.toDtoWithSignedAudio(s);
 

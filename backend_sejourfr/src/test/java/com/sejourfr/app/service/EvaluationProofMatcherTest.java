@@ -1,6 +1,8 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.config.ProductionEvaluationProperties;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.util.TranscriptTurnStitcher;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -250,10 +252,168 @@ class EvaluationProofMatcherTest {
     }
 
     @Test
+    void hesitations_de_la_production_elidees_meme_en_nombre() {
+        // Citation parfaitement fidele au propos du candidat : sans elision, trois
+        // « euh » suffisaient a la faire echouer, alors que le prompt interdit par
+        // ailleurs de fonder quoi que ce soit sur les hesitations.
+        String production = "Je euh travaille euh dans une euh entreprise de transport.";
+
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            production, "je travaille dans une entreprise de transport", EpreuveType.TCF_EO))
+            .contains("Je euh travaille euh dans une euh entreprise de transport");
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Heu je hum pense heu que c'est utile.", "je pense que c'est utile",
+            EpreuveType.TCF_EO))
+            .contains("je hum pense heu que c'est utile");
+    }
+
+    @Test
+    void une_citation_qui_conserve_les_hesitations_reste_acceptee() {
+        String production = "Je euh travaille dans une entreprise de transport.";
+
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            production, "je euh travaille dans une entreprise", EpreuveType.TCF_EO))
+            .contains("Je euh travaille dans une entreprise");
+    }
+
+    @Test
+    void l_elision_ne_vaut_que_de_la_production_vers_la_citation() {
+        // Une hesitation ABSENTE de la production ne peut pas etre ajoutee par la
+        // citation : l'elision est a sens unique.
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Je travaille dans une entreprise de transport.",
+            "je euh travaille dans une entreprise", EpreuveType.TCF_EO))
+            .isEmpty();
+    }
+
+    @Test
+    void l_elision_n_autorise_aucun_mot_absent_de_la_production() {
+        String production = "Je euh travaille euh dans une entreprise.";
+
+        // Mot porteur invente.
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            production, "je travaille dans une grande entreprise", EpreuveType.TCF_EO))
+            .isEmpty();
+        // Mot porteur substitue.
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            production, "je travaille dans une usine", EpreuveType.TCF_EO))
+            .isEmpty();
+        // Ordre recompose.
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            production, "dans une entreprise je travaille", EpreuveType.TCF_EO))
+            .isEmpty();
+    }
+
+    @Test
+    void une_preuve_qui_enjambe_deux_tours_candidat_reste_refusee_malgre_les_hesitations() {
+        String dialogue = "Candidat : Je euh travaille dans une entreprise.\n"
+            + "Examinateur : Depuis combien de temps ?\n"
+            + "Candidat : Depuis euh trois ans maintenant.";
+
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            dialogue, "Candidat : je travaille dans une entreprise depuis trois ans maintenant",
+            EpreuveType.TCF_EO))
+            .isEmpty();
+        // Chaque tour reste citable separement.
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            dialogue, "Candidat : je travaille dans une entreprise", EpreuveType.TCF_EO))
+            .contains("Je euh travaille dans une entreprise");
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            dialogue, "Candidat : depuis trois ans maintenant", EpreuveType.TCF_EO))
+            .contains("Depuis euh trois ans maintenant");
+    }
+
+    @Test
+    void une_hesitation_n_ouvre_ni_ne_ferme_jamais_un_passage_restitue() {
+        String production = "Euh je travaille ici euh depuis euh trois ans euh.";
+
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            production, "je travaille ici depuis trois ans", EpreuveType.TCF_EO))
+            .contains("je travaille ici euh depuis euh trois ans");
+    }
+
+    @Test
+    void la_liste_des_hesitations_est_fermee() {
+        // « bon », « alors », « voila » sont des mots ordinaires : les elider
+        // laisserait une citation sauter un mot du candidat.
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Je bon travaille dans une entreprise de transport.",
+            "je travaille dans une entreprise de transport", EpreuveType.TCF_EO))
+            .isEmpty();
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Je alors travaille dans une entreprise de transport.",
+            "je travaille dans une entreprise de transport", EpreuveType.TCF_EO))
+            .isEmpty();
+    }
+
+    @Test
+    void l_elision_laisse_la_tolerance_d_une_edition_intacte_sans_l_elargir() {
+        String production = "Les solutions euh proposées restent telles dans ce dossier.";
+
+        // Une hesitation + la flexion explicitement admise : accepte.
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            production, "les solutions proposées restent tels dans ce dossier",
+            EpreuveType.TCF_EE))
+            .contains("Les solutions euh proposées restent telles dans ce dossier");
+        // Une hesitation + DEUX editions : toujours refuse.
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            production, "les mesures proposées restent tels dans ce dossier",
+            EpreuveType.TCF_EE))
+            .isEmpty();
+    }
+
+    @Test
     void eo_monologue_sans_marqueur_est_entierement_attribue_au_candidat() {
         assertThat(EvaluationProofMatcher.canonicalPassage(
             "Je présente mon travail et mon quartier préféré.",
             "je présente mon travail et mon quartier préféré", EpreuveType.TCF_EO))
             .contains("Je présente mon travail et mon quartier préféré");
+    }
+
+    /**
+     * Transcript temps reel FRAGMENTE : le meme enonce du candidat est scinde en
+     * deux tours consecutifs a une frontiere arbitraire. Tant que la frontiere
+     * est la, {@code searchableSegments} construit deux segments et la citation
+     * n'est retrouvable dans AUCUN des deux — alors que le candidat a bien
+     * prononce la phrase. Recollee, elle l'est.
+     */
+    @Test
+    void une_preuve_a_cheval_sur_deux_tours_est_trouvee_apres_recollage() {
+        String fragmente = """
+            Examinateur : Bonjour, je vous écoute.
+            Candidat : Bonjour, j'aimerais louer une voiture
+            Candidat : si vous en avez s'il vous plaît.""";
+        String citation = "j'aimerais louer une voiture si vous en avez s'il vous plaît";
+
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            fragmente, citation, EpreuveType.TCF_EO))
+            .isEmpty();
+
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        String recolle = new TranscriptTurnStitcher(props).stitch(fragmente);
+
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            recolle, citation, EpreuveType.TCF_EO))
+            .contains("j'aimerais louer une voiture si vous en avez s'il vous plaît");
+    }
+
+    /**
+     * Le recollage ne fusionne jamais a travers un tour de l'examinateur : une
+     * citation qui enjambe une relance reste refusee, sinon on validerait une
+     * phrase que personne n'a dite d'un trait.
+     */
+    @Test
+    void le_recollage_ne_rend_pas_citable_une_phrase_a_cheval_sur_une_relance() {
+        String dialogue = """
+            Candidat : je voudrais une voiture
+            Examinateur : Pour combien de jours ?
+            Candidat : pour trois jours""";
+
+        String recolle = new TranscriptTurnStitcher(new ProductionEvaluationProperties())
+            .stitch(dialogue);
+
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            recolle, "je voudrais une voiture pour trois jours", EpreuveType.TCF_EO))
+            .isEmpty();
     }
 }

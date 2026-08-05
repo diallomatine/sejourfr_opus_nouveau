@@ -157,6 +157,97 @@ class CalibrationMetricsTest {
             List.of("Invitation formulée"))).isFalse();
     }
 
+    /** Cas non mesure, avec le message d'erreur que le pipeline aurait produit. */
+    private static CaseRun perdu(String id, String erreur) {
+        return new CaseRun(id, "EO_T2", 1, "ERREUR_APPEL", erreur, "B1", List.of("B1"),
+            null, null, null, Map.of(), 6, 9, "HAUTE", null, true, null, List.of(), List.of(),
+            List.of(), List.of(), List.of(), true, 3, 3, "m", null, null, null, 5);
+    }
+
+    @Test
+    void chaque_cas_perdu_est_rattache_a_son_motif() {
+        assertThat(CalibrationMetrics.motifPerte(perdu("c1",
+            "AiEvaluationException : tool_call.arguments non desorialisable : Unexpected end-of-input")))
+            .isEqualTo(CalibrationMetrics.MotifPerte.TRONCATURE_JSON);
+        assertThat(CalibrationMetrics.motifPerte(perdu("c2",
+            "AiEvaluationException : Pas de tool_calls dans la reponse DeepSeek (finish_reason=length)")))
+            .isEqualTo(CalibrationMetrics.MotifPerte.TRONCATURE_JSON);
+        assertThat(CalibrationMetrics.motifPerte(perdu("c3",
+            "AiEvaluationException : Sortie LLM invalide apres une tentative de reparation : "
+                + "preuve[lexique] doit citer un passage reel de la production")))
+            .isEqualTo(CalibrationMetrics.MotifPerte.REJET_PREUVE);
+        assertThat(CalibrationMetrics.motifPerte(perdu("c4",
+            "AiEvaluationException : Sortie LLM invalide apres une tentative de reparation : "
+                + "suggestions fonde le feedback oral sur un element non evaluable")))
+            .isEqualTo(CalibrationMetrics.MotifPerte.GARDE_FOU_ORAL);
+        assertThat(CalibrationMetrics.motifPerte(perdu("c5",
+            "AiEvaluationException : DeepSeek eval indisponible apres plusieurs tentatives")))
+            .isEqualTo(CalibrationMetrics.MotifPerte.FOURNISSEUR_INDISPONIBLE);
+        assertThat(CalibrationMetrics.motifPerte(perdu("c6", "IllegalStateException : bizarre")))
+            .isEqualTo(CalibrationMetrics.MotifPerte.AUTRE);
+    }
+
+    @Test
+    void un_cas_mesure_ne_porte_aucun_motif_de_perte() {
+        assertThat(CalibrationMetrics.motifPerte(
+            run("c1", "EE_T1", 1, "B1", List.of("B1"), "B1", 8.0, 6, 9))).isNull();
+    }
+
+    @Test
+    void la_conformite_ventile_les_pertes_et_expose_les_deux_taux() {
+        // Le defaut que cette ventilation rend visible : trois cas perdus par
+        // troncature JSON tombaient dans « erreur d'appel » pendant que le
+        // rapport annoncait 0 % de sortie invalide.
+        List<CaseRun> runs = List.of(
+            run("ok1", "EE_T1", 1, "B1", List.of("B1"), "B1", 8.0, 6, 9),
+            run("ok2", "EE_T1", 1, "B1", List.of("B1"), "B1", 8.0, 6, 9),
+            perdu("t1", "AiEvaluationException : tool_call.arguments non desorialisable"),
+            perdu("t2", "AiEvaluationException : tool_call.arguments non desorialisable"),
+            perdu("p1", "AiEvaluationException : preuve[lexique] doit citer un passage reel "
+                + "de la production"));
+
+        CalibrationMetrics.Conformite c = CalibrationMetrics.conformite(runs);
+
+        assertThat(c.casPerdus()).isEqualTo(3);
+        assertThat(c.casNonMesures()).isEqualTo(3);
+        assertThat(c.pctCasPerdus()).isEqualTo(60.0);
+        assertThat(c.pctSortieInvalide()).isZero();
+        assertThat(c.motif(CalibrationMetrics.MotifPerte.TRONCATURE_JSON)).isEqualTo(2);
+        assertThat(c.motif(CalibrationMetrics.MotifPerte.REJET_PREUVE)).isEqualTo(1);
+        assertThat(c.motif(CalibrationMetrics.MotifPerte.AUTRE)).isZero();
+        assertThat(CalibrationReport.motifs(c))
+            .isEqualTo("troncature JSON (plafond de tokens) 2 · rejet de preuve 1");
+    }
+
+    @Test
+    void une_sortie_structurellement_incomplete_compte_dans_les_cas_non_mesures() {
+        CaseRun incomplet = new CaseRun("c1", "EE_T1", 1, "SORTIE_INVALIDE", null, "B1",
+            List.of("B1"), "B1", "B1", 8.0, Map.of(), 6, 9, "HAUTE", "HAUTE", true, true,
+            List.of(), List.of(), List.of(), List.of("confiance"), List.of(), true, 1, 0,
+            "m", 1, 1, 1, 1);
+
+        CalibrationMetrics.Conformite c = CalibrationMetrics.conformite(List.of(incomplet));
+
+        assertThat(c.sortieInvalide()).isEqualTo(1);
+        assertThat(c.pctSortieInvalide()).isEqualTo(100.0);
+        assertThat(c.casPerdus()).isZero();
+        assertThat(c.casNonMesures()).isEqualTo(1);
+        assertThat(c.motif(CalibrationMetrics.MotifPerte.SORTIE_INCOMPLETE)).isEqualTo(1);
+    }
+
+    @Test
+    void le_rapport_json_porte_les_deux_taux_et_la_ventilation() {
+        Map<String, Object> json = CalibrationReport.conformiteJson(
+            CalibrationMetrics.conformite(List.of(
+                run("ok1", "EE_T1", 1, "B1", List.of("B1"), "B1", 8.0, 6, 9),
+                perdu("t1", "AiEvaluationException : tool_call.arguments non desorialisable"))));
+
+        assertThat(json).containsKeys("sortie_invalide_pct", "cas_perdus_pct",
+            "cas_non_mesures_pct", "motifs_perte", "motifs_perte_lisible");
+        assertThat(json.get("cas_perdus_pct")).isEqualTo(50.0);
+        assertThat(json.get("sortie_invalide_pct")).isEqualTo(0.0);
+    }
+
     @Test
     void le_corpus_de_reference_est_lisible_et_complet() {
         List<GoldenSet.Cas> corpus = GoldenSet.load();

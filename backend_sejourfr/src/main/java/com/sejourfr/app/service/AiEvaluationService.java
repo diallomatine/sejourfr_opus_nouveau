@@ -4,11 +4,11 @@ import com.sejourfr.app.config.ProductionEvaluationProperties;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
-import com.sejourfr.app.entity.Transcription;
 import com.sejourfr.app.enums.BandeCritere;
 import com.sejourfr.app.enums.ConfianceEvaluation;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.ObjectifTache;
 import com.sejourfr.app.enums.ProductionSubmissionSource;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.exception.AiEvaluationException;
@@ -68,6 +68,10 @@ public class AiEvaluationService {
 
     static final String RAISON_CONFIANCE_PREUVE_RETIREE =
         "une citation justificative n'a pas pu être vérifiée et a été retirée";
+
+    /** Resume du verdict quand la production n'a pas pu etre exploitee du tout. */
+    static final String RESUME_OBJECTIF_PRODUCTION_INVALIDE =
+        "Votre production n'a pas pu être exploitée : la consigne n'a pas été traitée.";
 
     /** Trace du modele quand aucun LLM n'a ete appele (production jugee inevaluable). */
     static final String MODELE_VALIDATION_SERVEUR = "validation-serveur";
@@ -303,15 +307,18 @@ public class AiEvaluationService {
 
         log.warn("Sortie LLM invalide submission={} modele={} — retry semantique unique : {}",
                 submissionId, client.getModelName(), violations);
-        String repairPrompt = userPrompt
-            + "\n\nTA SORTIE PRECEDENTE A ETE REJETEE PAR LE SERVEUR. "
-            + "Corrige exactement ces violations et rappelle l'outil submit_evaluation :\n- "
-            + String.join("\n- ", violations);
+        // Le reessai rappelle la citation refusee critere par critere et enonce
+        // la regle de la preuve : sans cela il ne reparait rien (cf.
+        // EvaluationRepairPrompt). Aucun controle n'est relache pour autant.
+        String repairPrompt = EvaluationRepairPrompt.build(
+                userPrompt, violations, first.feedback(),
+                task == null ? null : task.getEpreuve());
         EvaluationLlmClient.Outcome repaired = client.evaluate(systemPrompt, repairPrompt);
         List<String> remaining = EvaluationOutputValidator.violations(
                 repaired.feedback(), task, rubrics, client.getPromptVersion(), production);
         if (!remaining.isEmpty()) {
-            var unmatchedProof = "v4".equals(client.getPromptVersion())
+            String promptVersion = client.getPromptVersion();
+            var unmatchedProof = "v4".equals(promptVersion) || "v5".equals(promptVersion)
                 ? EvaluationOutputValidator.singleUnmatchedProofCode(remaining)
                 : java.util.Optional.<String>empty();
             if (unmatchedProof.isPresent()) {
@@ -427,6 +434,17 @@ public class AiEvaluationService {
         // Aucun point `obligatoire: false` (une simple piste du sujet) n'entre
         // dans un quelconque calcul de note — c'est une regle produit.
         normalizeAccomplissement(feedback);
+        // VERDICT (schema v5) : le serveur ne l'invente pas, il le corrige dans
+        // le sens PRUDENT quand il se contredit lui-meme — jamais l'inverse,
+        // exactement comme la confiance, qu'il peut abaisser mais pas relever.
+        applyObjectifCoherence(feedback, submissionId);
+        // EO : `version_amelioree` (schema v5) n'a aucun sens sur un echange
+        // oral — on ne rend pas au candidat un dialogue modele, et le garde-fou
+        // oral interdit de parler de la forme orale. La rubrique l'interdit
+        // deja ; ce filet garantit qu'aucune sortie orale n'en porte.
+        if (task.getEpreuve() == EpreuveType.TCF_EO) {
+            feedback.remove(CHAMP_VERSION_AMELIOREE);
+        }
         // Le contrat v4 rejette une preuve absente/ambigue avant ce
         // post-traitement, sauf l'unique preuve retiree explicitement apres un
         // second appel autrement valide. Les passages acceptes sont remplaces
@@ -450,10 +468,13 @@ public class AiEvaluationService {
         // Forme unique de points_a_ameliorer pour les fronts (objets
         // {constat, comment, exemple}), quelle que soit la version de schema.
         feedback.put("points_a_ameliorer", normalizePointsAAmeliorer(feedback.get("points_a_ameliorer")));
-        // « Au plus 2 points a ameliorer » : regle produit, donc garantie
-        // SERVEUR. Le prompt et le maxItems du tool-schema la demandent, ils ne
-        // la tiennent pas (83 evaluations sur 109 depassaient 2 en base).
+        // « Au plus 2 points a ameliorer », « au plus 2 points forts », « au
+        // plus 3 exemples corriges » : regles produit, donc garanties SERVEUR.
+        // Le prompt et les `maxItems` du tool-schema les demandent, ils ne les
+        // tiennent pas (83 evaluations sur 109 depassaient 2 priorites en base).
         capPointsAAmeliorer(feedback);
+        capListe(feedback, "points_forts", MAX_POINTS_FORTS);
+        capListe(feedback, "exemples_corriges", MAX_EXEMPLES_CORRIGES);
         // GARDE-FOU DE COUPLAGE, AVANT le calcul de la note : les criteres de
         // realisation (communiquer / interagir) ne depassent pas de plus de
         // `ecart-max` la moyenne des criteres de langue. Depuis v5 ils pesent la
@@ -503,9 +524,15 @@ public class AiEvaluationService {
         feedback.put("niveau_cecrl", NiveauCecrl.A1_NON_ATTEINT.name());
         feedback.put("confiance", ConfianceEvaluation.FAIBLE.name());
         feedback.put("confiance_raisons", List.copyOf(raisons));
-        feedback.put("accomplissement", Map.of(
-            "points_traites", List.of(),
-            "points_oublies", List.of()));
+        // Verdict explicite (schema v5) : une production inexploitable ne repond
+        // pas a la consigne. On le dit en une phrase, sans jargon, plutot que de
+        // laisser le front deviner.
+        Map<String, Object> accomplissement = new LinkedHashMap<>();
+        accomplissement.put("objectif", ObjectifTache.NON_ATTEINT.name());
+        accomplissement.put("objectif_resume", RESUME_OBJECTIF_PRODUCTION_INVALIDE);
+        accomplissement.put("points_traites", List.of());
+        accomplissement.put("points_oublies", List.of());
+        feedback.put("accomplissement", accomplissement);
         feedback.put("scores_criteres", scoresNonEvaluables(task));
         feedback.put("points_forts", List.of());
         feedback.put("points_a_ameliorer", normalizePointsAAmeliorer(
@@ -564,13 +591,21 @@ public class AiEvaluationService {
      * Confiance finale = {@code min(confiance IA, plafond serveur)} — on peut
      * abaisser la certitude annoncee par l'IA, jamais la relever. Plafonds :
      * <ul>
-     *   <li>verdict {@code AVERTISSEMENT} (langue douteuse, consigne recopiee)
-     *       → {@code MOYENNE} ;</li>
+     *   <li>avertissement traduisant un obstacle a l'OBSERVATION (langue
+     *       partiellement non francaise) → {@code MOYENNE} : on ne lit pas bien
+     *       ce que le candidat produit, la correction est donc moins sure ;</li>
      *   <li>production issue d'un dialogue TEMPS REEL → {@code MOYENNE} : la
      *       transcription y est produite au fil de l'eau, elle est
      *       structurellement moins fiable qu'un texte rendu.</li>
      * </ul>
-     * Une confiance absente ou hors enum vaut {@code MOYENNE} (+ log warn) :
+     * <p>Un avertissement d'AUTHENTICITE (consigne partiellement recopiee) ne
+     * plafonne <b>rien</b> : le candidat est prevenu, seuls ses propres mots
+     * sont notes, et ce qui reste est parfaitement observable. Convertir un
+     * soupcon d'origine en incertitude de correction est exactement ce que les
+     * rubriques v8 interdisent au correcteur — le serveur ne se l'autorise pas
+     * davantage.
+     *
+     * <p>Une confiance absente ou hors enum vaut {@code MOYENNE} (+ log warn) :
      * l'absence d'information n'est pas une certitude.
      */
     private void applyConfiance(Map<String, Object> feedback, ProductionSubmission sub,
@@ -584,7 +619,7 @@ public class AiEvaluationService {
 
         List<String> raisonsServeur = new ArrayList<>();
         ConfianceEvaluation plafond = null;
-        if (verdict.avertissement()) {
+        if (verdict.douteObservation()) {
             plafond = ConfianceEvaluation.min(plafond, ConfianceEvaluation.MOYENNE);
             raisonsServeur.add("des vérifications automatiques ont signalé un doute sur cette production");
         }
@@ -632,6 +667,49 @@ public class AiEvaluationService {
         feedback.put("accomplissement", acc);
     }
 
+    /**
+     * COHERENCE DEFENSIVE DU VERDICT (schema v5). Le contrat dit :
+     * {@code objectif = ATTEINT} si et seulement si aucun {@code points_oublies}
+     * n'est marque {@code obligatoire=true}. Quand le LLM se contredit — verdict
+     * ATTEINT alors qu'il liste lui-meme un manque obligatoire — le serveur
+     * tranche dans le sens PRUDENT et abaisse a {@code PARTIELLEMENT_ATTEINT}.
+     *
+     * <p>Il n'abaisse QUE : jamais de remontee automatique vers ATTEINT, jamais
+     * de verdict fabrique quand le LLM n'en donne pas (evaluations anterieures a
+     * v5 : le champ reste simplement absent, les fronts n'affichent pas le
+     * bloc). Meme philosophie que {@code applyConfiance}.
+     */
+    @SuppressWarnings("unchecked")
+    private void applyObjectifCoherence(Map<String, Object> feedback, UUID submissionId) {
+        if (!(feedback.get("accomplissement") instanceof Map<?, ?> rawAcc)) return;
+        Map<String, Object> acc = (Map<String, Object>) rawAcc;
+        ObjectifTache declare = ObjectifTache.parse(acc.get("objectif"));
+        if (declare == null) {
+            // Absent (contrat v4 et anterieurs) ou hors enum : on ne fabrique
+            // rien. Une valeur hors enum est deja bloquee par le validateur sur
+            // le contrat v5.
+            return;
+        }
+        if (declare != ObjectifTache.ATTEINT || !aUnManqueObligatoire(acc.get("points_oublies"))) {
+            acc.put("objectif", declare.name());
+            return;
+        }
+        log.info("Verdict incoherent submission={} : ATTEINT alors qu'un point obligatoire "
+            + "est liste comme oublie — abaisse a PARTIELLEMENT_ATTEINT.", submissionId);
+        acc.put("objectif", ObjectifTache.PARTIELLEMENT_ATTEINT.name());
+    }
+
+    /** Vrai si {@code points_oublies} contient au moins une entree {@code obligatoire=true}. */
+    private static boolean aUnManqueObligatoire(Object pointsOublies) {
+        if (!(pointsOublies instanceof List<?> points)) return false;
+        for (Object point : points) {
+            if (point instanceof Map<?, ?> p && Boolean.TRUE.equals(p.get("obligatoire"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Canonicalise les preuves valides et retire celles sans passage unique. */
     @SuppressWarnings("unchecked")
     private void canonicalizePreuves(Map<String, Object> feedback, String production,
@@ -660,6 +738,27 @@ public class AiEvaluationService {
 
     /** Nombre maximum de points a ameliorer rendus au candidat. */
     static final int MAX_POINTS_A_AMELIORER = 2;
+
+    /** Nombre maximum de points forts rendus au candidat (schema v5). */
+    static final int MAX_POINTS_FORTS = 2;
+
+    /** Nombre maximum d'exemples corriges rendus au candidat (schema v5). */
+    static final int MAX_EXEMPLES_CORRIGES = 3;
+
+    /** Cle du champ v5 « ta production reecrite au palier au-dessus » (EE seulement). */
+    static final String CHAMP_VERSION_AMELIOREE = "version_amelioree";
+
+    /**
+     * Tronque une liste de restitution a {@code max} entrees, dans l'ordre rendu
+     * par le LLM (les plus importantes d'abord, comme demande dans la consigne).
+     * Meme raison que {@link #capPointsAAmeliorer} : une liste trop longue noie
+     * ce qui compte, et le prompt seul ne tient pas la regle.
+     */
+    private void capListe(Map<String, Object> feedback, String cle, int max) {
+        if (!(feedback.get(cle) instanceof List<?> valeurs) || valeurs.size() <= max) return;
+        log.info("{} tronque : {} -> {}", cle, valeurs.size(), max);
+        feedback.put(cle, valeurs.stream().limit(max).toList());
+    }
 
     /**
      * Tronque {@code points_a_ameliorer} a {@value #MAX_POINTS_A_AMELIORER}
@@ -1054,12 +1153,16 @@ public class AiEvaluationService {
 
     private ProductionInput loadInput(ProductionSubmission sub, ProductionTask task) {
         if (task.getEpreuve() == EpreuveType.TCF_EO) {
-            Transcription t = transcriptionManager
-                    .findLatestBySubmissionId(sub.getId())
+            // Texte deja recolle par le manager (tours consecutifs d'un meme
+            // locuteur fusionnes) : c'est le MEME que celui servi aux fronts,
+            // sans quoi une preuve a cheval sur une frontiere serait citee sans
+            // etre visible a l'ecran.
+            String texte = transcriptionManager
+                    .findLatestTexteBySubmissionId(sub.getId())
                     .orElseThrow(() -> new AiEvaluationException(
                             "Submission EO " + sub.getId() + " sans transcription : Whisper a echoue ou n'a pas tourne."
                     ));
-            return new ProductionInput(t.getTexte(), true);
+            return new ProductionInput(texte, true);
         }
         // EE : texte rendu directement par l'utilisateur.
         if (sub.getTexteSoumis() == null || sub.getTexteSoumis().isBlank()) {

@@ -4,6 +4,7 @@ import type {
   BandeCritere,
   EvaluationResultDto,
   ExempleCorrige,
+  ObjectifAccomplissement,
   PointAmeliorer,
   ScoreCritereFeedback,
 } from "../../../types/api";
@@ -12,6 +13,7 @@ import {
   CONFIANCE_LABEL,
   CRITERES_OBSOLETES,
   NIVEAU_LABEL,
+  OBJECTIF_LABEL,
   critereLabel,
   formatDecimal,
   isLegacyEvaluation,
@@ -26,6 +28,12 @@ const BANDE_CLASS: Record<BandeCritere, string> = {
   EN_COURS_ACQUISITION: styles.bandeMoyenne,
   FRAGILE: styles.bandeFragile,
   NON_EVALUABLE: styles.bandeNeutre,
+};
+
+const OBJECTIF_CLASS: Record<ObjectifAccomplissement, string> = {
+  ATTEINT: styles.objectifAtteint,
+  PARTIELLEMENT_ATTEINT: styles.objectifPartiel,
+  NON_ATTEINT: styles.objectifNonAtteint,
 };
 
 export function EvaluationReport({
@@ -47,6 +55,8 @@ export function EvaluationReport({
 
   const traites = accomplissement?.points_traites ?? [];
   const oublies = accomplissement?.points_oublies ?? [];
+  const objectif = accomplissement?.objectif ?? null;
+  const objectifResume = accomplissement?.objectif_resume;
 
   return (
     <section className={styles.wrap}>
@@ -126,20 +136,34 @@ export function EvaluationReport({
         </Block>
       )}
 
-      {(traites.length > 0 || oublies.length > 0) && (
+      {(traites.length > 0 || oublies.length > 0 || objectif || objectifResume) && (
         <Block title="Accomplissement de la consigne">
-          <div className={styles.accomplissement}>
-            <PointsColumn
-              heading={`Points traités (${traites.length})`}
-              points={traites}
-              treated
-            />
-            <PointsColumn
-              heading={`Points oubliés (${oublies.length})`}
-              points={oublies}
-              treated={false}
-            />
-          </div>
+          {(objectif || objectifResume) && (
+            <div className={styles.objectifRow}>
+              {objectif ? (
+                <span className={`${styles.objectif} ${OBJECTIF_CLASS[objectif]}`}>
+                  {OBJECTIF_LABEL[objectif]}
+                </span>
+              ) : (
+                <span className={styles.none}>Verdict non renseigné (évaluation antérieure à v8)</span>
+              )}
+              {objectifResume && <p className={styles.objectifResume}>{objectifResume}</p>}
+            </div>
+          )}
+          {(traites.length > 0 || oublies.length > 0) && (
+            <div className={styles.accomplissement}>
+              <PointsColumn
+                heading={`Points traités (${traites.length})`}
+                points={traites}
+                treated
+              />
+              <PointsColumn
+                heading={`Points oubliés (${oublies.length})`}
+                points={oublies}
+                treated={false}
+              />
+            </div>
+          )}
         </Block>
       )}
 
@@ -237,12 +261,14 @@ function WrittenFeedback({ evaluation }: { evaluation: EvaluationResultDto }) {
   const suggestions = feedback?.suggestions ?? [];
   const ameliorations = (feedback?.points_a_ameliorer ?? []).map(normalizePointAmeliorer);
   const exemples = feedback?.exemples_corriges ?? [];
+  const versionAmelioree = feedback?.version_amelioree;
 
   if (
     pointsForts.length === 0 &&
     ameliorations.length === 0 &&
     suggestions.length === 0 &&
-    exemples.length === 0
+    exemples.length === 0 &&
+    !versionAmelioree
   ) {
     return null;
   }
@@ -291,6 +317,15 @@ function WrittenFeedback({ evaluation }: { evaluation: EvaluationResultDto }) {
                 <ExempleRow key={index} exemple={exemple} />
               ))}
             </ul>
+          </div>
+        )}
+
+        {versionAmelioree && (
+          <div className={styles.versionAmelioreeBlock}>
+            <div className={styles.writtenHeading}>
+              Version améliorée (réécriture complète — EE uniquement)
+            </div>
+            <p className={styles.versionAmelioree}>{versionAmelioree}</p>
           </div>
         )}
       </div>

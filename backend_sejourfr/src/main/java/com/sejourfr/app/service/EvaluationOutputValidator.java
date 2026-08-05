@@ -29,6 +29,20 @@ final class EvaluationOutputValidator {
         "points_forts", "points_a_ameliorer", "suggestions", "exemples_corriges",
         "confiance", "confiance_raisons", "accomplissement");
 
+    /**
+     * Champ v5 : la production ECRITE reecrite en entier au palier au-dessus.
+     * Obligatoire en EE, interdit d'usage en EO (une tache orale ne se reecrit
+     * pas en dialogue modele) — cf. {@code AiEvaluationService}, qui le retire
+     * defensivement des sorties orales.
+     */
+    private static final String CHAMP_VERSION_AMELIOREE = "version_amelioree";
+
+    /** Versions de tool-schema dont la STRUCTURE est verifiee champ par champ. */
+    private static final Set<String> SCHEMAS_STRICTS = Set.of("v4", "v5");
+
+    private static final Set<String> OBJECTIFS =
+        Set.of("ATTEINT", "PARTIELLEMENT_ATTEINT", "NON_ATTEINT");
+
     private static final Pattern MOTIFS_ORAUX_INTERDITS = Pattern.compile(
         "\\b(hesitation(?:s)?|repetition(?:s)?|faux[ -]?depart(?:s)?|hache(?:e|es|s)?|"
             + "(?:vous |tu )?(?:hesitez|repetez)|(?:vous |tu )?parl(?:ez|es) (?:trop )?"
@@ -62,17 +76,21 @@ final class EvaluationOutputValidator {
         if (niveau == null || !NIVEAUX_TCF_IRN.contains(niveau.toString())) {
             errors.add("niveau_cecrl doit appartenir au profil TCF IRN et ne jamais depasser B2");
         }
-        boolean strictV4 = "v4".equals(promptVersion);
-        if (strictV4) {
+        // La structure n'est verifiee champ par champ que sur les contrats
+        // stricts (v4, v5). Les schemas anterieurs restent volontairement
+        // tolerants : un rollback ne doit rien casser.
+        boolean strict = SCHEMAS_STRICTS.contains(promptVersion);
+        boolean v5 = "v5".equals(promptVersion);
+        if (strict) {
             requireText(feedback.get("justification_niveau"), "justification_niveau", errors);
         }
 
         Set<String> expected = expectedCodes(task, rubrics, errors);
-        validateScores(feedback.get("scores_criteres"), expected, strictV4, production,
+        validateScores(feedback.get("scores_criteres"), expected, strict, production,
             task == null ? null : task.getEpreuve(), errors);
 
-        if (strictV4) {
-            validateV4Structure(feedback, errors);
+        if (strict) {
+            validateStructure(feedback, v5, task, errors);
         }
         if (task != null && task.getEpreuve() == EpreuveType.TCF_EO) {
             validateOralFeedback(feedback, errors);
@@ -102,7 +120,7 @@ final class EvaluationOutputValidator {
         return out;
     }
 
-    private static void validateScores(Object raw, Set<String> expected, boolean strictV4,
+    private static void validateScores(Object raw, Set<String> expected, boolean strict,
                                        String production, EpreuveType epreuve,
                                        List<String> errors) {
         if (!(raw instanceof List<?> scores)) {
@@ -119,7 +137,7 @@ final class EvaluationOutputValidator {
                 errors.add("scores_criteres[" + i + "] doit etre un objet");
                 continue;
             }
-            if (strictV4) {
+            if (strict) {
                 validateKeys(score, Set.of("code", "note_sur_20", "commentaire", "preuve"),
                     "scores_criteres[" + i + "]", errors);
             }
@@ -132,7 +150,7 @@ final class EvaluationOutputValidator {
             }
             validateNumber(score.get("note_sur_20"), "note_sur_20[" + code + "]", errors);
             requireText(score.get("commentaire"), "commentaire[" + code + "]", errors);
-            if (strictV4) {
+            if (strict) {
                 Object preuve = score.get("preuve");
                 requireText(preuve, "preuve[" + code + "]", errors);
                 if (preuve instanceof String citation && !citation.isBlank() && production != null) {
@@ -167,12 +185,45 @@ final class EvaluationOutputValidator {
         return code.isBlank() ? Optional.empty() : Optional.of(code);
     }
 
+    /**
+     * Codes de critere dont la citation n'a pas pu etre rattachee, dans l'ordre
+     * des violations. Sert a construire un message de reessai qui rappelle au
+     * correcteur LA citation refusee, critere par critere : la liste brute des
+     * violations ne lui dit ni laquelle, ni pourquoi.
+     */
+    static List<String> unmatchedProofCodes(List<String> violations) {
+        if (violations == null) return List.of();
+        List<String> out = new ArrayList<>();
+        for (String violation : violations) {
+            if (violation == null || !violation.startsWith(UNMATCHED_PROOF_PREFIX)
+                    || !violation.endsWith(UNMATCHED_PROOF_SUFFIX)) {
+                continue;
+            }
+            String code = violation.substring(
+                UNMATCHED_PROOF_PREFIX.length(),
+                violation.length() - UNMATCHED_PROOF_SUFFIX.length());
+            if (!code.isBlank()) out.add(code);
+        }
+        return List.copyOf(out);
+    }
+
     private static String unmatchedProofViolation(String code) {
         return UNMATCHED_PROOF_PREFIX + code + UNMATCHED_PROOF_SUFFIX;
     }
 
-    private static void validateV4Structure(Map<String, Object> feedback, List<String> errors) {
-        validateKeys(feedback, Set.copyOf(CHAMPS_V4), "racine", errors);
+    /**
+     * Structure d'une sortie sur contrat strict. {@code v5} ajoute — et exige —
+     * ce que v4 ne connait pas : le verdict {@code accomplissement.objectif} et
+     * son resume, {@code version_amelioree} sur les taches ECRITES, et les
+     * plafonds de restitution (2 points forts, 3 exemples corriges). Un
+     * rollback vers v4 ne doit voir aucune de ces regles s'appliquer, d'ou le
+     * drapeau plutot qu'une validation aveugle.
+     */
+    private static void validateStructure(Map<String, Object> feedback, boolean v5,
+                                          ProductionTask task, List<String> errors) {
+        Set<String> autorises = new LinkedHashSet<>(CHAMPS_V4);
+        if (v5) autorises.add(CHAMP_VERSION_AMELIOREE);
+        validateKeys(feedback, autorises, "racine", errors);
         for (String field : CHAMPS_V4) {
             if (!feedback.containsKey(field) || feedback.get(field) == null) {
                 errors.add("champ obligatoire absent : " + field);
@@ -186,17 +237,57 @@ final class EvaluationOutputValidator {
         if (confiance == null || !Set.of("HAUTE", "MOYENNE", "FAIBLE").contains(confiance.toString())) {
             errors.add("confiance invalide");
         }
-        validateAccomplissement(feedback.get("accomplissement"), errors);
+        validateAccomplissement(feedback.get("accomplissement"), v5, errors);
         validatePointsAAmeliorer(feedback.get("points_a_ameliorer"), errors);
-        validateExemples(feedback.get("exemples_corriges"), errors);
+        validateExemples(feedback.get("exemples_corriges"), v5, errors);
+        if (v5) {
+            validatePointsForts(feedback.get("points_forts"), errors);
+            validateVersionAmelioree(feedback.get(CHAMP_VERSION_AMELIOREE), task, errors);
+        }
     }
 
-    private static void validateAccomplissement(Object raw, List<String> errors) {
+    /**
+     * « Deux points forts, pas un inventaire » : meme regle produit que les deux
+     * priorites, meme garantie. Une liste de cinq reussites dilue les deux qui
+     * comptent.
+     */
+    private static void validatePointsForts(Object raw, List<String> errors) {
+        if (raw instanceof List<?> points && points.size() > AiEvaluationService.MAX_POINTS_FORTS) {
+            errors.add("points_forts contient plus de "
+                + AiEvaluationService.MAX_POINTS_FORTS + " entrees");
+        }
+    }
+
+    /**
+     * {@code version_amelioree} : obligatoire et non vide sur une tache ECRITE
+     * (c'est le dernier bloc de l'ecran du candidat), jamais exigee ailleurs.
+     * Sur une tache ORALE, sa presence n'est pas une violation — elle est
+     * simplement retiree par le serveur : reecrire un dialogue n'a aucun sens
+     * pedagogique, mais cela ne vaut pas de perdre une evaluation entiere.
+     */
+    private static void validateVersionAmelioree(Object raw, ProductionTask task,
+                                                 List<String> errors) {
+        if (task == null || task.getEpreuve() != EpreuveType.TCF_EE) return;
+        requireText(raw, CHAMP_VERSION_AMELIOREE, errors);
+    }
+
+    private static void validateAccomplissement(Object raw, boolean v5, List<String> errors) {
         if (!(raw instanceof Map<?, ?> map)) {
             errors.add("accomplissement doit etre un objet");
             return;
         }
-        validateKeys(map, Set.of("points_traites", "points_oublies"), "accomplissement", errors);
+        Set<String> autorises = new LinkedHashSet<>(List.of("points_traites", "points_oublies"));
+        if (v5) {
+            autorises.add("objectif");
+            autorises.add("objectif_resume");
+            Object objectif = map.get("objectif");
+            if (objectif == null || !OBJECTIFS.contains(objectif.toString())) {
+                errors.add("accomplissement.objectif doit valoir " + String.join(" | ",
+                    "ATTEINT", "PARTIELLEMENT_ATTEINT", "NON_ATTEINT"));
+            }
+            requireText(map.get("objectif_resume"), "accomplissement.objectif_resume", errors);
+        }
+        validateKeys(map, autorises, "accomplissement", errors);
         for (String key : List.of("points_traites", "points_oublies")) {
             Object value = map.get(key);
             if (!(value instanceof List<?> points)) {
@@ -244,10 +335,14 @@ final class EvaluationOutputValidator {
         }
     }
 
-    private static void validateExemples(Object raw, List<String> errors) {
+    private static void validateExemples(Object raw, boolean v5, List<String> errors) {
         if (!(raw instanceof List<?> exemples)) {
             errors.add("exemples_corriges doit etre une liste");
             return;
+        }
+        if (v5 && exemples.size() > AiEvaluationService.MAX_EXEMPLES_CORRIGES) {
+            errors.add("exemples_corriges contient plus de "
+                + AiEvaluationService.MAX_EXEMPLES_CORRIGES + " entrees");
         }
         for (Object exemple : exemples) {
             if (!(exemple instanceof Map<?, ?> e)) {

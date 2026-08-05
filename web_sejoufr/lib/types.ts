@@ -757,7 +757,16 @@ export interface EeAccomplishmentPoint {
     obligatoire: boolean;
 }
 
+/** Verdict d'ensemble sur la tâche (rubriques v8 / tool-schema v5) : ce que le
+ *  candidat cherche en premier, avant même sa note. Null sur les évaluations
+ *  déjà en base — cas normal, le bandeau n'est alors pas rendu. */
+export type ObjectifAccomplissement = "ATTEINT" | "PARTIELLEMENT_ATTEINT" | "NON_ATTEINT";
+
 export interface EeAccomplishment {
+    /** Null sur les évaluations antérieures à la grille v8. */
+    objectif: ObjectifAccomplissement | null;
+    /** Phrase courte adressée au candidat, qui dit ce qu'il a fait. */
+    objectifResume: string | null;
     pointsTraites: EeAccomplishmentPoint[];
     pointsOublies: EeAccomplishmentPoint[];
 }
@@ -806,12 +815,18 @@ export interface EeFeedback {
     criteres: EeCriterion[];
     confiance: ConfianceEvaluation | null;
     confianceRaisons: string[];
+    /** Limité à 2 côté backend. */
     pointsForts: string[];
     /** Limité à 2 côté backend : ce sont des priorités, pas un inventaire. */
     pointsAAmeliorer: EePriority[];
     suggestions: string[];
+    /** Limité à 3 côté backend. */
     exemplesCorriges: EeCorrection[];
     avertissements: string[];
+    /** Production réécrite en entier, au niveau visé. Présente en EE seulement :
+     *  on ne réécrit pas un oral, l'absence en EO est voulue et n'est pas une
+     *  erreur. Null aussi sur les évaluations antérieures à la grille v8. */
+    versionAmelioree: string | null;
 }
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -853,6 +868,11 @@ function asBande(v: unknown): BandeCritere | null {
 function asConfiance(v: unknown): ConfianceEvaluation | null {
     const s = asString(v)?.toUpperCase();
     return s === "HAUTE" || s === "MOYENNE" || s === "FAIBLE" ? s : null;
+}
+
+function asObjectif(v: unknown): ObjectifAccomplissement | null {
+    const s = asString(v)?.toUpperCase();
+    return s === "ATTEINT" || s === "PARTIELLEMENT_ATTEINT" || s === "NON_ATTEINT" ? s : null;
 }
 
 /** `obligatoire` manquant → point traité comme exigé : on ne minimise jamais
@@ -920,6 +940,7 @@ export function parseEeFeedback(
         suggestions: [],
         exemplesCorriges: [],
         avertissements: [],
+        versionAmelioree: null,
     };
     const fb = asRecord(evaluation?.feedback);
     if (!fb) return empty;
@@ -945,6 +966,8 @@ export function parseEeFeedback(
     const accRaw = asRecord(fb.accomplissement);
     const accomplissement: EeAccomplishment | null = accRaw
         ? {
+              objectif: asObjectif(accRaw.objectif),
+              objectifResume: asString(accRaw.objectif_resume),
               pointsTraites: asAccomplishmentPoints(accRaw.points_traites),
               pointsOublies: asAccomplishmentPoints(accRaw.points_oublies),
           }
@@ -978,6 +1001,7 @@ export function parseEeFeedback(
         suggestions: asStringList(fb.suggestions),
         exemplesCorriges,
         avertissements: asStringList(fb.avertissements),
+        versionAmelioree: asString(fb.version_amelioree),
     };
 }
 

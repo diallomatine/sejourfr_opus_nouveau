@@ -1,6 +1,15 @@
 "use client";
 
 import {
+  TCF_NOTE_BANDS,
+  canShowNiveau,
+  shouldShowConfiance,
+  tcfBandRange,
+  tcfNiveauTone,
+  tcfNoteTone,
+  tcfScalePosition,
+} from "@/lib/production-feedback";
+import {
   confianceLabel,
   formatNoteSur20,
   niveauCecrlLabel,
@@ -10,27 +19,27 @@ import {
 import styles from "./production.module.css";
 
 /**
- * En-tête du résultat d'une production : le NIVEAU OBSERVÉ d'abord — c'est
- * l'information que le candidat cherche — avec sa note /20 à côté.
+ * La note et **l'échelle sur laquelle elle se lit**.
  *
- * Deux règles portées ici, et nulle part ailleurs :
+ * Notre note EST celle du TCF (0 → A1 non atteint, 1 → A1, 2-5 → A2, 6-9 → B1,
+ * 10-20 → B2). Sans cette échelle sous les yeux, un 4,5/20 se lit comme une
+ * catastrophe scolaire alors qu'il vaut A2 : c'est exactement ce que cette
+ * carte corrige. D'où l'absence de tout pourcentage et de toute jauge « sur 20
+ * points » — ce serait redire l'échelle française qu'on cherche à désamorcer.
  *
- * 1. **Le niveau ne s'affiche jamais sans sa confiance.** Le garde-fou vit dans
- *    ce composant : sans `confiance`, on retombe sur la note seule plutôt que
- *    d'annoncer un niveau sans dire ce qu'il vaut.
- * 2. **Le niveau qui fait foi reste celui du bilan des trois tâches** — dit en
- *    second plan (`avertissementNiveau`, fourni par le backend), après
- *    l'information principale et non avant.
+ * Deux règles vivent ici, et nulle part ailleurs :
  *
- * La note est celle du TCF, sur la MÊME échelle que l'examen officiel
- * (10-20 = B2, 6-9 = B1, 2-5 = A2, 1 = A1, 0 = hors sujet). Elle est donc
- * directement lisible — d'où la teinte par palier CECRL et non par pourcentage :
- * cette échelle est comprimée, et 7/20 (un B1, le niveau exigé pour la carte de
- * résident) ne doit pas s'afficher comme un « 35 % » rouge.
+ * 1. **Le niveau ne s'affiche jamais sans sa confiance**
+ *    ({@link canShowNiveau}) : sans elle, on retombe sur la note seule plutôt
+ *    que d'annoncer un niveau sans dire ce qu'il vaut.
+ * 2. **Une confiance HAUTE ne s'affiche pas** ({@link shouldShowConfiance}) :
+ *    c'est le cas normal, l'écrire n'apprend rien et fait douter d'un résultat
+ *    qui ne le mérite pas. Elle n'apparaît, avec ses raisons, que lorsqu'elle
+ *    nuance vraiment le résultat.
  *
- * Ce qui reste vrai, et ce que dit le texte : la note porte sur CETTE tâche,
- * alors qu'au TCF la note sur 20 est celle de l'épreuve entière (les 3 tâches),
- * et c'est elle qui donne le niveau officiel.
+ * Le niveau qui fait foi reste celui du bilan des trois tâches
+ * (`avertissementNiveau`, fourni par le backend) — dit en second plan, après
+ * l'information principale.
  */
 export function ProductionScoreHero({
   noteSurVingt,
@@ -45,87 +54,133 @@ export function ProductionScoreHero({
   avertissementNiveau: string | null;
   confianceRaisons: string[];
 }) {
-  const showLevel = niveau != null && confiance != null;
-  const note = noteSurVingt ?? 0;
-  const pct = Math.max(0, Math.min(100, Math.round((note / 20) * 100)));
-  // Teinte par palier de la grille TCF, jamais par pourcentage : sur cette
-  // échelle 10/20 est déjà un B2, et 7/20 un B1 — les seuils scolaires (70/40)
-  // peindraient en rouge des notes qui valent le niveau exigé.
-  const color =
-    note >= 10
-      ? "var(--color-green)"
-      : note >= 6
-        ? "var(--color-blue)"
-        : note >= 2
-          ? "var(--color-amber)"
-          : "var(--color-red)";
-
-  const r = 52;
-  const c = 2 * Math.PI * r;
-  const offset = c * (1 - pct / 100);
+  const showLevel = canShowNiveau(niveau, confiance);
+  const showConfiance = shouldShowConfiance(confiance);
+  const position = tcfScalePosition(noteSurVingt);
+  // Le verdict ne se peint jamais en rouge : ni un palier bas (un A1 reste un
+  // résultat), ni une production pas encore évaluée (« — » gris neutre).
+  const tone = tcfNoteTone(noteSurVingt);
 
   return (
     <div className={`${styles.scoreCard} ${showLevel ? styles.scoreCardLevel : ""}`}>
-      <div className={styles.scoreSide}>
-        {showLevel ? (
-          <>
-            <p className={styles.heroEyebrow}>Niveau observé sur cette tâche</p>
-            <p className={styles.heroLevel}>
-              {niveau === "A1_NON_ATTEINT"
-                ? "Niveau A1 non atteint"
-                : `Proche du niveau ${niveauCecrlLabel(niveau)}`}
-            </p>
-            <p className={styles.heroConf}>
-              <span className={styles.confChip} data-confiance={confiance}>
-                {confianceLabel(confiance)}
-              </span>
-              {confianceRaisons.length > 0 && (
-                <span className={styles.heroConfWhy}>{confianceRaisons.join(" · ")}</span>
-              )}
-            </p>
-            <p className={styles.heroFoot}>
-              {avertissementNiveau ??
-                "Estimation pédagogique portant sur cette seule tâche. Le niveau qui fait foi est celui du bilan des trois tâches de l'épreuve."}{" "}
-              La note ci-contre est sur l&apos;échelle du TCF : 10 et plus
-              correspond à B2, 6 à 9 à B1, 2 à 5 à A2.
-            </p>
-          </>
-        ) : (
-          <>
-            <p className={styles.scoreNoteLabel}>Note de la tâche</p>
-            <p className={styles.scoreNoteHint}>
-              Note sur 20 attribuée par l&apos;IA sur l&apos;échelle du TCF : 10 et
-              plus correspond à B2, 6 à 9 à B1, 2 à 5 à A2. Elle porte sur cette
-              seule tâche — au TCF, la note sur 20 est celle de l&apos;épreuve
-              entière, vos trois tâches.
-            </p>
-          </>
-        )}
-      </div>
-
-      <div className={styles.donut}>
-        <svg viewBox="0 0 128 128" width="100%" height="100%">
-          <circle cx="64" cy="64" r={r} fill="none" stroke="var(--color-line-2)" strokeWidth="10" />
-          <circle
-            cx="64"
-            cy="64"
-            r={r}
-            fill="none"
-            stroke={color}
-            strokeWidth="10"
-            strokeLinecap="round"
-            strokeDasharray={c}
-            strokeDashoffset={offset}
-            transform="rotate(-90 64 64)"
-          />
-        </svg>
-        <div className={styles.donutLabel}>
-          <span className={styles.donutScore}>
-            {noteSurVingt != null ? formatNoteSur20(note) : "—"}
-            <span className={styles.donutOf}>/20</span>
-          </span>
+      <div className={styles.scoreHead}>
+        <p className={styles.scoreNote} data-tone={tone}>
+          {noteSurVingt != null ? formatNoteSur20(noteSurVingt) : "—"}
+          <span className={styles.scoreNoteOf}>/20</span>
+        </p>
+        <div className={styles.scoreSide}>
+          {showLevel ? (
+            <>
+              <p className={styles.heroEyebrow}>Niveau observé sur cette tâche</p>
+              <p className={styles.heroLevel}>
+                {niveau === "A1_NON_ATTEINT"
+                  ? "Niveau A1 non atteint"
+                  : `Proche du niveau ${niveauCecrlLabel(niveau)}`}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className={styles.heroEyebrow}>Note de la tâche</p>
+              <p className={styles.scoreNoteHint}>
+                Note attribuée par l&apos;IA sur l&apos;échelle du TCF, celle de
+                l&apos;examen officiel.
+              </p>
+            </>
+          )}
         </div>
       </div>
+
+      <TcfScale
+        percent={position?.percent ?? null}
+        activeIndex={position?.bandIndex ?? null}
+        note={noteSurVingt}
+      />
+
+      {showConfiance && confiance && (
+        <p className={styles.heroConf}>
+          <span className={styles.confChip} data-confiance={confiance}>
+            {confianceLabel(confiance)}
+          </span>
+          <span className={styles.heroConfWhy}>
+            {confianceRaisons.length > 0
+              ? confianceRaisons.join(" · ")
+              : "Une partie de votre production était difficile à analyser : cette note est à prendre avec prudence."}
+          </span>
+        </p>
+      )}
+
+      <p className={styles.heroFoot}>
+        {avertissementNiveau ??
+          "Estimation portant sur cette seule tâche. Le niveau qui fait foi est celui du bilan des trois tâches de l'épreuve."}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * L'échelle officielle, dessinée à bandes de largeur égale et non à l'échelle
+ * réelle : « B2 » vaut la moitié des notes possibles et « A1 non atteint » une
+ * seule — proportionnelles, elles seraient illisibles. Le curseur, lui, est
+ * placé proportionnellement DANS sa bande (cf. `tcfScalePosition`).
+ */
+function TcfScale({
+  percent,
+  activeIndex,
+  note,
+}: {
+  percent: number | null;
+  activeIndex: number | null;
+  note: number | null;
+}) {
+  const activeBand = activeIndex != null ? TCF_NOTE_BANDS[activeIndex] : null;
+
+  return (
+    <div className={styles.scale}>
+      <p className={styles.scaleTitle}>Échelle du TCF</p>
+      <div
+        className={styles.scaleTrack}
+        role="img"
+        aria-label={
+          note != null && activeBand
+            ? `Votre note, ${formatNoteSur20(note)} sur 20, se situe dans la bande ${activeBand.label} de l'échelle du TCF.`
+            : "Échelle de notation du TCF."
+        }
+      >
+        {TCF_NOTE_BANDS.map((band, i) => (
+          <span
+            key={band.niveau}
+            className={styles.scaleSeg}
+            data-tone={tcfNiveauTone(band.niveau)}
+            data-active={i === activeIndex ? "" : undefined}
+          />
+        ))}
+        {percent != null && (
+          <span
+            className={styles.scaleCursor}
+            style={{left: `${percent}%`}}
+            data-tone={activeBand ? tcfNiveauTone(activeBand.niveau) : undefined}
+            aria-hidden
+          />
+        )}
+      </div>
+      <div className={styles.scaleLabels} aria-hidden>
+        {TCF_NOTE_BANDS.map((band, i) => (
+          <span
+            key={band.niveau}
+            className={styles.scaleLabel}
+            data-active={i === activeIndex ? "" : undefined}
+          >
+            {/* Plage en premier : « A1 non atteint » passe sur deux lignes sous
+                360 px, et les plages doivent rester alignées entre elles. */}
+            <span className={styles.scaleLabelRange}>{tcfBandRange(band)}</span>
+            <span className={styles.scaleLabelLvl}>{band.label}</span>
+          </span>
+        ))}
+      </div>
+      <p className={styles.scaleFoot}>
+        Notre note est celle du TCF : elle se lit sur cette échelle, pas comme
+        une note scolaire sur 20.
+      </p>
     </div>
   );
 }

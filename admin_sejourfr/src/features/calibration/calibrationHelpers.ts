@@ -5,6 +5,7 @@ import type {
   EpreuveType,
   EvaluationResultDto,
   NiveauCecrl,
+  ObjectifAccomplissement,
   PointAmeliorer,
 } from "../../types/api";
 
@@ -32,6 +33,13 @@ export const CONFIANCE_LABEL: Record<ConfianceEvaluation, string> = {
   HAUTE: "Confiance haute",
   MOYENNE: "Confiance moyenne",
   FAIBLE: "Confiance faible",
+};
+
+/** Verdict global d'accomplissement de la consigne (v8), absent avant. */
+export const OBJECTIF_LABEL: Record<ObjectifAccomplissement, string> = {
+  ATTEINT: "Objectif atteint",
+  PARTIELLEMENT_ATTEINT: "Objectif partiellement atteint",
+  NON_ATTEINT: "Objectif non atteint",
 };
 
 export const BANDE_LABEL: Record<BandeCritere, string> = {

@@ -259,12 +259,24 @@ sejourfr:
     # trois cas, et que le modele leur donnait DEJA sous v5 (il y notait leur
     # langue 7/20, soit la bande A2 de v5) : c'est le decalage entre bandes de
     # critere et bandes globales de v5 qui affichait A1, pas son jugement.
-    # v7 (active) verrouille le profil TCF_IRN, le plafond B2, les quatre
-    # criteres, les bornes EE 30-60 / 60-90 / 60-90 et le contrat de sortie v4.
+    # v7 verrouille le profil TCF_IRN, le plafond B2, les quatre criteres, les
+    # bornes EE 30-60 / 60-90 / 60-90 et le contrat de sortie v4.
+    # v8 (active) NE TOUCHE A AUCUN BAREME : echelle, criteres, seuils, couplage
+    # (+1), plafonds, bandes, tests decisifs et les 16 ancres few-shot sont ceux
+    # de v7, a l'identique. Elle ne corrige que la RESTITUTION, jugee repetitive
+    # et contradictoire : confiance = certitude du correcteur et jamais qualite
+    # du candidat, regle anti-repetition (une erreur, un seul endroit), aucun
+    # reproche sur un moyen que la consigne n'exigeait pas (levier de
+    # progression), coherence accomplissement / reste du rapport, verdict
+    # explicite accomplissement.objectif + objectif_resume, version_amelioree
+    # obligatoire sur les taches ECRITES, points_forts plafonnes a 2 et
+    # exemples_corriges a 3. Aucune campagne de banc n'est requise pour cette
+    # bascule : la notation est inchangee par construction.
     # Matrice verifiee au demarrage : v3-v4.2 -> schema v2, v5-v6 -> schema v3,
-    # v7 -> schema v4. Un rollback change donc la paire EVAL_RUBRICS_VERSION +
-    # EVAL_PROMPT_VERSION ; une combinaison incoherente bloque le demarrage.
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v7}
+    # v7 -> schema v4, v8 -> schema v5. Un rollback change donc la paire
+    # EVAL_RUBRICS_VERSION + EVAL_PROMPT_VERSION (v8/v5 -> v7/v4, etc.) ; une
+    # combinaison incoherente bloque le demarrage.
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v8}
     # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
     # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
     # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).
@@ -360,6 +372,36 @@ sejourfr:
       prise-position-niveau-max: A2
       conduite-echange-seuil: 5.0
       conduite-echange-niveau-max: A2
+    # RECOLLAGE DES TOURS d'un transcript dialogue (expression orale TEMPS REEL),
+    # livre ACTIF — c'est une CORRECTION, pas une experimentation.
+    # La transcription temps reel cloture un tour sur le signal de fin de tour du
+    # MODELE, qui n'est pas la fin de la phrase du CANDIDAT : un meme enonce
+    # ressortait scinde en plusieurs tours consecutifs, a une frontiere
+    # arbitraire (« Candidat : … pousse a l'air. Ah. » / « Candidat : aller vers
+    # l'informatique. »). Consequences : une citation a cheval sur deux tours
+    # n'etait JAMAIS retrouvable par EvaluationProofMatcher (un segment par
+    # tour), le correcteur jugeait la morphosyntaxe sur un texte hache et
+    # baissait sa confiance pour une raison qui venait de NOUS, et le candidat
+    # relisait sa phrase coupee en deux bulles.
+    # Non destructif : le recollage se fait A LA LECTURE, en un seul point
+    # (TranscriptionManager + util/TranscriptTurnStitcher), en amont du prompt,
+    # du controle de preuve ET du DTO servi aux fronts — donc le texte cite est
+    # toujours exactement le texte affiche. Rien n'est reecrit en base
+    # (realtime_sessions.transcript et transcriptions.texte restent intacts) :
+    # EVAL_RECOLLAGE_TOURS_ENABLED=false rend le comportement d'avant a
+    # l'identique, sans redeploiement des fronts.
+    # EN CAS DE DOUTE, ON NE FUSIONNE PAS : sur un texte qui fait foi pour la
+    # note ET que le candidat relit, une fusion FAUSSE est pire qu'une fusion
+    # manquee — la seconde ramene au comportement d'avant, la premiere FABRIQUE
+    # de la parole. Trois garde-fous, tous dans ce sens : meme locuteur
+    # seulement ; jamais a travers un tour « Examinateur : » ; jamais quand une
+    # phrase parait terminee et qu'une nouvelle commence (ponctuation forte a
+    # gauche ET majuscule a droite = deux tentatives distinctes, pas une phrase
+    # coupee) ; jamais autour d'un fragment sans aucun caractere alphanumerique
+    # (« . . . . »), qui reste un tour isole et n'est jamais retire du texte
+    # servi (on n'enleve que des FRONTIERES, jamais du contenu).
+    recollage-tours:
+      enabled: ${EVAL_RECOLLAGE_TOURS_ENABLED:true}
     # --- Phase 3, livree DESACTIVEE : trois changements de comportement produit
     # --- qui ne s'allument qu'apres mesure au banc. A false, aucun effet.
     #
@@ -398,6 +440,17 @@ sejourfr:
     cost-tracking-enabled: true
     max-retries-per-submission: 3
     presigned-url-expiry-minutes: 15
+    # PLAFOND DE TOKENS DE SORTIE — 4000, IDENTIQUE SUR LES TROIS PROVIDERS.
+    # Il etait a 2000 depuis mai 2026, avant que le tool-schema strict n'ajoute
+    # QUATRE citations litterales (une par critere) a la sortie. Mesure :
+    # une correction EE tient en ~1500 tokens, une correction EO en 1800-2000 —
+    # donc le plafond etait atteint ou frole sur presque toutes les EO. Une
+    # sortie tronquee arrive en `finish_reason=length` avec un JSON coupe :
+    # `tool_call.arguments non desorialisable`, la soumission ECHOUE, le
+    # candidat ne voit pas sa note. Le meme appel a 4000 passe (~2300 tokens).
+    # C'est un PLAFOND, pas une consommation : on ne paie que ce qui est
+    # reellement produit, le relever ne coute rien sur les corrections courtes.
+    # Ne pas le redescendre sans avoir d'abord retire des champs de la sortie.
     openai:
       # Defaut : reutilise OPENAI_API_KEY (deja config pour Whisper). Surcharge
       # via EVAL_OPENAI_API_KEY si on veut une cle dediee.
@@ -406,11 +459,12 @@ sejourfr:
       model: ${EVAL_OPENAI_MODEL:gpt-4o-mini}
       # 0 = notation déterministe (même texte → mêmes notes d'un run à l'autre).
       temperature: ${EVAL_OPENAI_TEMPERATURE:0}
-      max-tokens: 2000
+      # cf. le bloc « PLAFOND DE TOKENS DE SORTIE » ci-dessus.
+      max-tokens: 4000
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v4}
+      prompt-version: ${EVAL_PROMPT_VERSION:v5}
       # Tarification gpt-4o-mini (USD / 1M tokens, mai 2026). A surcharger si
       # on bascule sur gpt-4o ou gpt-5 (cout estime persiste dans ai_evaluations).
       cost-per-million-input-tokens: 0.15
@@ -420,11 +474,12 @@ sejourfr:
       api-url: https://api.anthropic.com/v1/messages
       anthropic-version: "2023-06-01"
       model: ${EVAL_ANTHROPIC_MODEL:claude-sonnet-4-5}
-      max-tokens: 2000
+      # cf. le bloc « PLAFOND DE TOKENS DE SORTIE » ci-dessus.
+      max-tokens: 4000
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v4}
+      prompt-version: ${EVAL_PROMPT_VERSION:v5}
       cost-per-million-input-tokens: 3.0
       cost-per-million-output-tokens: 15.0
     # DeepSeek : API compatible OpenAI (meme client). Activer avec
@@ -437,9 +492,10 @@ sejourfr:
       # On l'envoie {"thinking":{"type":"disabled"}} pour un tool_call déterministe.
       disable-thinking: ${EVAL_DEEPSEEK_DISABLE_THINKING:true}
       temperature: ${EVAL_DEEPSEEK_TEMPERATURE:0}
-      max-tokens: 2000
+      # cf. le bloc « PLAFOND DE TOKENS DE SORTIE » ci-dessus.
+      max-tokens: 4000
       timeout-sec: 60
-      prompt-version: ${EVAL_PROMPT_VERSION:v4}
+      prompt-version: ${EVAL_PROMPT_VERSION:v5}
       cost-per-million-input-tokens: 0.27
       cost-per-million-output-tokens: 1.10
 

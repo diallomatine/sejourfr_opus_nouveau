@@ -40,6 +40,21 @@ import java.util.Map;
  * {@code points_a_ameliorer[]} (2 max), {@code suggestions[]},
  * {@code exemples_corriges[]}, {@code avertissements[]}. Tous ces champs sont
  * facultatifs cote front : une evaluation v3 en base n'en porte qu'une partie.
+ *
+ * <p><b>Ajouts du schema v5</b> (rubriques v8), tout aussi facultatifs — les
+ * evaluations anterieures ne les portent pas et rien n'a ete migre :
+ * <ul>
+ *   <li>{@code accomplissement.objectif} : {@code ATTEINT} |
+ *       {@code PARTIELLEMENT_ATTEINT} | {@code NON_ATTEINT} (cf.
+ *       {@link com.sejourfr.app.enums.ObjectifTache}) — verdict de la tache, a
+ *       afficher EN TETE d'ecran ;</li>
+ *   <li>{@code accomplissement.objectif_resume} : une phrase adressee au
+ *       candidat, qui dit ce qu'il a fait ;</li>
+ *   <li>{@code version_amelioree} : chaine a la RACINE du feedback, sa
+ *       production reecrite au palier au-dessus. Presente sur les taches
+ *       ECRITES uniquement, absente en EO (retiree cote serveur).</li>
+ * </ul>
+ * {@code points_forts[]} est plafonne a 2 et {@code exemples_corriges[]} a 3.
  */
 public record EvaluationResultDto(
         BigDecimal noteSurVingt,

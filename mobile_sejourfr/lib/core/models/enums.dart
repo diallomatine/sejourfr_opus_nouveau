@@ -272,6 +272,34 @@ enum BandeCritere {
       };
 }
 
+/// Verdict d'accomplissement de la tâche (rubriques v8) : la question que le
+/// candidat se pose en premier — « est-ce que j'ai fait ce qu'on me demandait ? ».
+/// Absent des évaluations antérieures : le bloc disparaît alors entièrement,
+/// il n'y a rien à deviner.
+enum ObjectifAccomplissement {
+  atteint('ATTEINT'),
+  partiellementAtteint('PARTIELLEMENT_ATTEINT'),
+  nonAtteint('NON_ATTEINT');
+
+  const ObjectifAccomplissement(this.wire);
+  final String wire;
+
+  static ObjectifAccomplissement? fromWireNullable(String? value) {
+    if (value == null) return null;
+    final normalized = value.trim().toUpperCase();
+    for (final o in ObjectifAccomplissement.values) {
+      if (o.wire == normalized) return o;
+    }
+    return null;
+  }
+
+  String get displayName => switch (this) {
+        ObjectifAccomplissement.atteint => 'Atteint',
+        ObjectifAccomplissement.partiellementAtteint => 'Partiellement atteint',
+        ObjectifAccomplissement.nonAtteint => 'Non atteint',
+      };
+}
+
 /// Cycle de vie d'une `production_submissions` côté backend.
 enum SubmissionStatut {
   submitted('SUBMITTED'),

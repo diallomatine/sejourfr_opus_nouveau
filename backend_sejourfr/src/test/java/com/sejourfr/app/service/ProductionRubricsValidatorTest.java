@@ -680,6 +680,138 @@ class ProductionRubricsValidatorTest {
         return "A1";
     }
 
+    // ------------------------------------------------------------------- v8
+
+    /** v8 (restitution) doit demarrer, comme toutes les versions precedentes. */
+    @Test
+    void validate_realV8File_noThrow() {
+        when(taskManager.findAllActive()).thenReturn(List.of());
+        ProductionRubricsValidator v =
+                new ProductionRubricsValidator(realProvider("v8"), taskManager);
+
+        assertThatCode(v::validate).doesNotThrowAnyException();
+    }
+
+    /** ...et v7 doit continuer de demarrer : le rollback est une bascule de paire. */
+    @Test
+    void validate_realV7File_stillNoThrow() {
+        when(taskManager.findAllActive()).thenReturn(List.of());
+        ProductionRubricsValidator v =
+                new ProductionRubricsValidator(realProvider("v7"), taskManager);
+
+        assertThatCode(v::validate).doesNotThrowAnyException();
+    }
+
+    /**
+     * LE contrat de v8 : elle ne touche a RIEN de ce qui note. Criteres, poids,
+     * seuils, couplage, plafonds et bandes sont ceux de v7, au bit pres.
+     */
+    @Test
+    void v8File_neChangeAucunReglageDeNotation() {
+        ProductionRubricsProvider v8 = realProvider("v8");
+        ProductionRubricsProvider v7 = realProvider("v7");
+
+        for (String cle : v8.all().keySet()) {
+            assertThat(codes(v8.all(), cle)).as(cle)
+                    .containsExactly("communiquer", "interagir", "lexique", "morphosyntaxe");
+            assertThat(poidsTotal(v8.all(), cle)).as(cle + " : somme des poids")
+                    .isEqualTo(1.0, org.assertj.core.data.Offset.offset(0.0001));
+        }
+        assertThat(v8.niveauCecrl().getSeuilB2()).isEqualTo(v7.niveauCecrl().getSeuilB2()).isEqualTo(10.0);
+        assertThat(v8.niveauCecrl().getSeuilB1()).isEqualTo(v7.niveauCecrl().getSeuilB1()).isEqualTo(6.0);
+        assertThat(v8.niveauCecrl().getSeuilA2()).isEqualTo(v7.niveauCecrl().getSeuilA2()).isEqualTo(2.0);
+        assertThat(v8.couplage().getEcartMax()).isEqualTo(v7.couplage().getEcartMax()).isEqualTo(1.0);
+        assertThat(v8.plafonds().getPrisePositionSeuil()).isEqualTo(v7.plafonds().getPrisePositionSeuil());
+        assertThat(v8.plafonds().getConduiteEchangeSeuil()).isEqualTo(v7.plafonds().getConduiteEchangeSeuil());
+        assertThat(v8.bandesCriteres().getTresBonneMaitrise())
+                .isEqualTo(v7.bandesCriteres().getTresBonneMaitrise()).isEqualTo(10.0);
+        assertThat(v8.getCommun().get("few_shot"))
+                .as("les 16 ancres few-shot sont reprises telles quelles")
+                .isEqualTo(v7.getCommun().get("few_shot"));
+    }
+
+    /** Tous les garde-fous de notation de v4.1/v4.2/v6 sont encore la, mot pour mot. */
+    @Test
+    void v8File_keepsEveryToleranceAndAnchorsBothEnds() {
+        String texte = String.valueOf(realProvider("v8").getCommun().get("sections"));
+
+        assertThat(texte)
+                .contains("Ne penalise donc JAMAIS une production pour sa longueur")
+                .contains("n'evalue PAS l'orthographe sur de l'oral transcrit")
+                .contains("n'exige JAMAIS l'exhaustivite")
+                .contains("L'EXAMINATEUR EST TON TEMOIN DE COMPREHENSION")
+                .contains("BENEFICE DU DOUTE")
+                .contains("Ne conclus JAMAIS que le candidat est 'incomprehensible'")
+                .contains("PLAFOND A1").contains("PLAFOND A2").contains("TEST DECISIF A1 vs A2")
+                .contains("TEST DECISIF B1 vs B2")
+                .contains("CITER LITTERALEMENT au moins DEUX de ces marqueurs")
+                .contains("POINTS OBLIGATOIRES").contains("PISTES SUGGEREES")
+                .contains("GARDE-FOU DE COUPLAGE")
+                .contains("ne depassent donc JAMAIS de plus de 1 point la moyenne de lexique et")
+                .contains("10 et plus -> B2 ; 6 a 9 -> B1 ; 2 a 5 -> A2");
+    }
+
+    /** Les cinq consignes de restitution que v8 apporte, et rien d'autre. */
+    @Test
+    void v8File_portsTheFiveRestitutionRules() {
+        String texte = String.valueOf(realProvider("v8").getCommun().get("sections"));
+
+        assertThat(texte)
+                .as("1. la confiance mesure la certitude du correcteur, jamais la qualite")
+                .contains("LA CONFIANCE MESURE TA CERTITUDE DE CORRECTEUR, JAMAIS LA QUALITE")
+                .contains("UN NIVEAU BAS EST UNE OBSERVATION, PAS UN DOUTE")
+                .contains("Tu ne baisses la confiance QUE si quelque chose t'a empeche d'OBSERVER")
+                .as("les deux interdits historiques de la confiance sont conserves")
+                .contains("la confiance ne fait JAMAIS bouger la note")
+                .contains("n'autorise JAMAIS a conclure au hors-sujet ni a l'incomprehensibilite")
+                .as("2. anti-repetition")
+                .contains("n'est traite QU'A UN SEUL ENDROIT dans tout le rapport")
+                .contains("ne REEXPLIQUE PAS dans 'comment' ce qui est deja dit dans 'constat'")
+                .contains("n'utilise PAS la meme phrase du candidat dans une priorite")
+                .as("3. levier de progression, jamais reproche")
+                .contains("C'est un LEVIER DE PROGRESSION")
+                .contains("CETTE REGLE EST UNE REGLE DE FORMULATION")
+                .contains("Il ne lit PAS justification_niveau")
+                .as("la regle de preuve n'est pas assouplie")
+                .contains("C'est la production qui doit DEMONTRER le niveau")
+                .as("4. coherence accomplissement / reste du rapport")
+                .contains("UN POINT MAL FORMULE EST UN POINT PRESENT")
+                .as("5. verdict explicite")
+                .contains("objectif = ATTEINT si et seulement si points_oublies ne contient AUCUNE entree")
+                .contains("PARTIELLEMENT_ATTEINT").contains("NON_ATTEINT")
+                .contains("le verdict est INDEPENDANT de la note et du niveau")
+                .as("6. plafonds de restitution")
+                .contains("POINTS FORTS : AU MAXIMUM 2 entrees")
+                .as("7. version amelioree, ecrit seulement")
+                .contains("Version amelioree de la production (taches ECRITES uniquement)")
+                .contains("LE PALIER JUSTE AU-DESSUS, pas l'excellence")
+                .contains("tache 1 : 30 a 60 mots ; taches 2 et 3 : 60 a 90 mots");
+    }
+
+    /** Chaque tache rappelle la restitution ; seules les taches ECRITES demandent la reecriture. */
+    @Test
+    void v8File_eachTaskRecallsRestitutionRules() {
+        Map<String, Map<String, Object>> all = realProvider("v8").all();
+
+        for (Map.Entry<String, Map<String, Object>> e : all.entrySet()) {
+            String consignes = String.valueOf(e.getValue().get("consignes_correcteur"));
+            assertThat(consignes).as(e.getKey())
+                    .contains("ANCRAGE BAS D'ECHELLE")
+                    .contains("TEST DECISIF B1 vs B2")
+                    .contains("RESTITUTION v8")
+                    .contains("accomplissement.objectif")
+                    .contains("un point mal formule est un point PRESENT");
+            if (e.getKey().startsWith("EE_")) {
+                assertThat(consignes).as(e.getKey())
+                        .contains("VERSION AMELIOREE obligatoire")
+                        .contains(e.getKey().equals("EE_T1") ? "30 a 60 mots" : "60 a 90 mots");
+            } else {
+                assertThat(consignes).as(e.getKey())
+                        .contains("AUCUNE version_amelioree sur une tache orale");
+            }
+        }
+    }
+
     /** v4 = criteres PROPRES A CHAQUE TACHE (le defaut corrige) + socle commun conserve. */
     @Test
     void v4File_hasTaskSpecificCriteria() {

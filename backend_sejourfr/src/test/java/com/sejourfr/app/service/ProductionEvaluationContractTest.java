@@ -79,6 +79,107 @@ class ProductionEvaluationContractTest {
         assertAllObjectsClosed(v4, "root");
     }
 
+    /**
+     * v8 = v7 pour TOUT ce qui note, v5 = v4 pour tout ce qui note. Ce test est
+     * le verrou de cette promesse : si une future retouche de restitution
+     * deplacait un seuil, une pondération, un critere ou une borne, il casse.
+     */
+    @Test
+    void v8NeChangeQueLaRestitution_paseLeBareme() throws Exception {
+        Map<String, Object> v7 = resource("prompts/production-rubrics-v7.json");
+        Map<String, Object> v8 = resource("prompts/production-rubrics-v8.json");
+
+        assertThat(v8)
+            .containsEntry("rubrics-version", "v8")
+            .containsEntry("profile", "TCF_IRN")
+            .containsEntry("tool_schema_version", "v5")
+            .containsEntry("niveau_max", "B2");
+        assertThat(resourceText("prompts/production-rubrics-v8.json")).doesNotContain("\"C1\"", "\"C2\"");
+
+        Map<String, Object> communV7 = map(v7.get("commun"));
+        Map<String, Object> communV8 = map(v8.get("commun"));
+        for (String bloc : List.of("niveau", "couplage", "plafonds", "bandes_criteres", "few_shot")) {
+            assertThat(communV8.get(bloc))
+                .as("v8 ne touche pas a commun." + bloc + " : la notation est celle de v7")
+                .isEqualTo(communV7.get(bloc));
+        }
+
+        Map<String, Object> rubricsV7 = map(v7.get("rubrics"));
+        Map<String, Object> rubricsV8 = map(v8.get("rubrics"));
+        assertThat(rubricsV8.keySet()).isEqualTo(rubricsV7.keySet());
+        for (String cle : rubricsV7.keySet()) {
+            Map<String, Object> taskV7 = map(rubricsV7.get(cle));
+            Map<String, Object> taskV8 = map(rubricsV8.get(cle));
+            for (String champ : taskV7.keySet()) {
+                if ("consignes_correcteur".equals(champ)) continue;
+                assertThat(taskV8.get(champ)).as(cle + "." + champ).isEqualTo(taskV7.get(champ));
+            }
+            // Les consignes ne font que S'ETOFFER d'un rappel de restitution.
+            assertThat(taskV8.get("consignes_correcteur").toString())
+                .as(cle + " : rappel de restitution ajoute, consignes de notation intactes")
+                .startsWith(taskV7.get("consignes_correcteur").toString().stripTrailing())
+                .contains("RESTITUTION v8")
+                .contains("accomplissement.objectif");
+            assertThat(taskV8.get("consignes_correcteur").toString())
+                .as(cle + " : la version amelioree n'existe qu'a l'ecrit")
+                .contains(cle.startsWith("EE_")
+                    ? "VERSION AMELIOREE obligatoire"
+                    : "AUCUNE version_amelioree sur une tache orale");
+        }
+    }
+
+    /** Le contrat de sortie v5 : celui de v4, plus les seules cles de restitution. */
+    @Test
+    void v5AjouteLeVerdictLaVersionAmelioreeEtLesPlafondsDeRestitution() throws Exception {
+        Map<String, Object> v4 = resource("prompts/production-evaluation-tool-schema-v4.json");
+        Map<String, Object> v5 = resource("prompts/production-evaluation-tool-schema-v5.json");
+
+        assertThat(strings(v5.get("required")))
+            .as("les champs obligatoires a la racine ne bougent pas : "
+                + "version_amelioree n'est exigee que sur les taches ecrites, cote serveur")
+            .containsExactlyElementsOf(strings(v4.get("required")));
+
+        Map<String, Object> props = map(v5.get("properties"));
+        assertThat(props.keySet())
+            .containsAll(map(v4.get("properties")).keySet())
+            .contains("version_amelioree");
+        assertThat(map(props.get("version_amelioree")))
+            .containsEntry("type", "string")
+            .containsEntry("minLength", 1);
+
+        Map<String, Object> accomplissement = map(props.get("accomplissement"));
+        assertThat(strings(accomplissement.get("required")))
+            .containsExactlyInAnyOrder("objectif", "objectif_resume", "points_traites", "points_oublies");
+        assertThat(strings(map(map(accomplissement.get("properties")).get("objectif")).get("enum")))
+            .containsExactly("ATTEINT", "PARTIELLEMENT_ATTEINT", "NON_ATTEINT");
+        assertThat(map(map(accomplissement.get("properties")).get("objectif_resume")))
+            .containsEntry("minLength", 1);
+
+        assertThat(map(props.get("points_forts"))).containsEntry("maxItems", 2);
+        assertThat(map(props.get("points_a_ameliorer"))).containsEntry("maxItems", 2);
+        assertThat(map(props.get("exemples_corriges"))).containsEntry("maxItems", 3);
+
+        // Rien de ce qui porte la NOTE n'a bouge entre v4 et v5 : seules les
+        // consignes de restitution (commentaire, confiance, suggestions...) ont
+        // ete reecrites.
+        Map<String, Object> propsV4 = map(v4.get("properties"));
+        for (String champ : List.of("note_globale", "niveau_cecrl")) {
+            assertThat(props.get(champ)).as(champ).isEqualTo(propsV4.get(champ));
+        }
+        Map<String, Object> scoresV5 = map(props.get("scores_criteres"));
+        Map<String, Object> scoresV4 = map(propsV4.get("scores_criteres"));
+        assertThat(scoresV5).containsEntry("minItems", 4).containsEntry("maxItems", 4);
+        Map<String, Object> itemsV5 = map(scoresV5.get("items"));
+        Map<String, Object> itemsV4 = map(scoresV4.get("items"));
+        assertThat(strings(itemsV5.get("required"))).containsExactlyElementsOf(strings(itemsV4.get("required")));
+        for (String champ : List.of("code", "note_sur_20", "preuve")) {
+            assertThat(map(itemsV5.get("properties")).get(champ)).as("scores_criteres." + champ)
+                .isEqualTo(map(itemsV4.get("properties")).get(champ));
+        }
+        assertThat(v5.get("additionalProperties")).isEqualTo(false);
+        assertAllObjectsClosed(v5, "root");
+    }
+
     @Test
     void v7RefusesAnOldToolSchemaAtLoadTime() {
         var props = new com.sejourfr.app.config.ProductionEvaluationProperties();
@@ -101,7 +202,8 @@ class ProductionEvaluationContractTest {
         "v4.2, v2",
         "v5, v3",
         "v6, v3",
-        "v7, v4"
+        "v7, v4",
+        "v8, v5"
     })
     void chaqueVersionDeRubriquesAccepteUniquementSonToolSchema(
             String rubricsVersion, String toolSchemaVersion) {
@@ -121,7 +223,8 @@ class ProductionEvaluationContractTest {
         "v4.2, v3, v2",
         "v5, v2, v3",
         "v6, v4, v3",
-        "v7, v3, v4"
+        "v7, v3, v4",
+        "v8, v4, v5"
     })
     void unePaireRubriquesToolSchemaIncompatibleEchoueAuChargement(
             String rubricsVersion, String activeSchema, String expectedSchema) {

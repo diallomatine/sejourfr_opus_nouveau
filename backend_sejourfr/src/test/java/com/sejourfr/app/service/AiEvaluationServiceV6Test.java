@@ -4,7 +4,6 @@ import com.sejourfr.app.config.ProductionEvaluationProperties;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
-import com.sejourfr.app.entity.Transcription;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.SubmissionStatut;
@@ -127,10 +126,9 @@ class AiEvaluationServiceV6Test {
         s.setProductionTask(task);
         s.setStatut(SubmissionStatut.SUBMITTED);
         s.setMediaDurationSec(210);
-        Transcription t = new Transcription();
-        t.setTexte(transcript);
         when(submissionManager.findById(s.getId())).thenReturn(Optional.of(s));
-        when(transcriptionManager.findLatestBySubmissionId(s.getId())).thenReturn(Optional.of(t));
+        when(transcriptionManager.findLatestTexteBySubmissionId(s.getId()))
+                .thenReturn(Optional.of(transcript));
         return s;
     }
 

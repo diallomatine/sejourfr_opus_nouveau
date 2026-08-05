@@ -214,11 +214,140 @@ class EvaluationOutputValidatorTest {
             .anyMatch(v -> v.contains("preuve[communiquer] doit citer un passage reel"));
     }
 
+    // ------------------------------------------------------- contrat v5 (v8)
+
+    @Test
+    void accepte_une_sortie_v5_complete_avec_verdict_et_version_amelioree() {
+        assertThat(EvaluationOutputValidator.violations(
+            validFeedbackV5(), task(EpreuveType.TCF_EE), rubrics, "v5")).isEmpty();
+    }
+
+    @Test
+    void v5_exige_le_verdict_et_son_resume() {
+        Map<String, Object> feedback = validFeedbackV5();
+        feedback.put("accomplissement", Map.of(
+            "points_traites", List.of(Map.of("libelle", "Consigne traitée", "obligatoire", true)),
+            "points_oublies", List.of()));
+
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubrics, "v5"))
+            .anyMatch(v -> v.contains("accomplissement.objectif doit valoir"))
+            .anyMatch(v -> v.contains("accomplissement.objectif_resume"));
+    }
+
+    @Test
+    void v5_rejette_un_verdict_hors_enum() {
+        Map<String, Object> feedback = validFeedbackV5();
+        feedback.put("accomplissement", accomplissement("PRESQUE_ATTEINT", List.of()));
+
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubrics, "v5"))
+            .anyMatch(v -> v.contains("accomplissement.objectif doit valoir"));
+    }
+
+    @Test
+    void v5_refuse_plus_de_deux_points_forts_et_plus_de_trois_exemples() {
+        Map<String, Object> feedback = validFeedbackV5();
+        feedback.put("points_forts", List.of("un", "deux", "trois"));
+        feedback.put("exemples_corriges", List.of(
+            exemple(), exemple(), exemple(), exemple()));
+
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubrics, "v5"))
+            .anyMatch(v -> v.contains("points_forts contient plus de 2 entrees"))
+            .anyMatch(v -> v.contains("exemples_corriges contient plus de 3 entrees"));
+    }
+
+    /** Le plafond de points forts est une regle v5 : v4 doit rester tolerante. */
+    @Test
+    void v4_ne_plafonne_ni_les_points_forts_ni_les_exemples() {
+        Map<String, Object> feedback = validFeedback();
+        feedback.put("points_forts", List.of("un", "deux", "trois"));
+        feedback.put("exemples_corriges", List.of(exemple(), exemple(), exemple(), exemple()));
+
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubrics, "v4")).isEmpty();
+    }
+
+    @Test
+    void v5_exige_la_version_amelioree_sur_une_tache_ecrite() {
+        Map<String, Object> feedback = validFeedbackV5();
+        feedback.remove("version_amelioree");
+
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubrics, "v5"))
+            .anyMatch(v -> v.contains("version_amelioree doit etre une chaine non vide"));
+
+        feedback.put("version_amelioree", "  ");
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubrics, "v5"))
+            .anyMatch(v -> v.contains("version_amelioree doit etre une chaine non vide"));
+    }
+
+    /**
+     * A l'oral, la version amelioree n'est ni exigee ni bloquante : le serveur
+     * la retire. Faire echouer une evaluation entiere pour ce champ couterait
+     * au candidat sa note, pour rien.
+     */
+    @Test
+    void v5_n_exige_pas_la_version_amelioree_a_l_oral_et_en_tolere_la_presence() {
+        Map<String, Object> feedback = validFeedbackV5();
+        feedback.remove("version_amelioree");
+
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EO), rubrics, "v5")).isEmpty();
+
+        feedback.put("version_amelioree", "Bonjour madame, je voudrais des renseignements.");
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EO), rubrics, "v5")).isEmpty();
+    }
+
+    /**
+     * Non-regression : les champs v5 sont INCONNUS du contrat v4. Un rollback
+     * v8/v5 -> v7/v4 doit continuer de rejeter tout ce qui deborde de v4.
+     */
+    @Test
+    void v4_rejette_les_champs_de_restitution_v5() {
+        Map<String, Object> feedback = validFeedbackV5();
+
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubrics, "v4"))
+            .anyMatch(v -> v.contains("racine contient un champ inattendu : version_amelioree"))
+            .anyMatch(v -> v.contains("accomplissement contient un champ inattendu : objectif"));
+    }
+
     private static ProductionTask task(EpreuveType epreuve) {
         ProductionTask task = new ProductionTask();
         task.setEpreuve(epreuve);
         task.setTacheNumero((short) 1);
         return task;
+    }
+
+    private static Map<String, Object> validFeedbackV5() {
+        Map<String, Object> feedback = validFeedback();
+        feedback.put("accomplissement", accomplissement("ATTEINT", List.of()));
+        feedback.put("version_amelioree",
+            "Salut Marie, j'ai déménagé samedi dernier parce que mon ancien logement était "
+                + "trop petit. Mon nouvel appartement est lumineux et proche de la gare. "
+                + "Viens le voir dimanche, tu peux apporter un dessert.");
+        return feedback;
+    }
+
+    private static Map<String, Object> accomplissement(String objectif, List<Object> oublies) {
+        Map<String, Object> acc = new LinkedHashMap<>();
+        acc.put("objectif", objectif);
+        acc.put("objectif_resume", "Tu annonces ton déménagement, tu décris le logement et tu invites ton amie.");
+        acc.put("points_traites", List.of(Map.of("libelle", "Consigne traitée", "obligatoire", true)));
+        acc.put("points_oublies", oublies);
+        return acc;
+    }
+
+    private static Map<String, Object> exemple() {
+        return Map.of(
+            "original", "Je travaille ici.",
+            "corrige", "Je travaille ici parce que ce poste me plaît.",
+            "explication", "La raison développe le message.",
+            "gain", "La subordination montre une structure plus variée.");
     }
 
     private static Map<String, Object> validFeedback() {

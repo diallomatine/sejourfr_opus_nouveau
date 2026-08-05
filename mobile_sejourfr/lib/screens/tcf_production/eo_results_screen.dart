@@ -229,10 +229,7 @@ class _Body extends ConsumerWidget {
                 title: 'Évaluation terminée !',
                 subtitle: 'Voici votre évaluation détaillée.',
               ),
-              EvaluationReport(
-                evaluation: eval,
-                correctionsTitle: 'Reformulations pour plus de clarté',
-              ),
+              EvaluationReport(evaluation: eval, isOral: true),
               if (submission.transcription != null &&
                   submission.transcription!.isNotEmpty) ...[
                 const SizedBox(height: 4),

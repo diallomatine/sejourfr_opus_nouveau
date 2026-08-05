@@ -147,6 +147,69 @@ class EvaluationPromptBuilderTest {
                 .doesNotContain("realisation_consigne").doesNotContain("coherence\"");
     }
 
+    // ------------------------------------------------------------------- v8
+
+    private EvaluationPromptBuilder builderV8() {
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        props.setRubricsVersion("v8");
+        ObjectMapper om = new ObjectMapper();
+        ProductionRubricsProvider provider = new ProductionRubricsProvider(props, om);
+        provider.load();
+        return new EvaluationPromptBuilder(om, provider);
+    }
+
+    /**
+     * Le system prompt v8 porte les consignes de RESTITUTION — et garde
+     * intactes celles de notation : c'est tout le contrat de cette version.
+     */
+    @Test
+    void systemPrompt_v8_porte_la_restitution_sans_toucher_a_la_notation() {
+        String system = builderV8().buildSystemPrompt();
+
+        assertThat(system)
+                .as("notation inchangee")
+                .contains("# Du score au niveau : la note EST le niveau (obligatoire)")
+                .contains("10 et plus -> B2 ; 6 a 9 -> B1 ; 2 a 5 -> A2")
+                .contains("GARDE-FOU DE COUPLAGE")
+                .contains("TEST DECISIF A1 vs A2")
+                .contains("TEST DECISIF B1 vs B2")
+                .contains("# Exemples d'ancrage")
+                .as("restitution ajoutee")
+                .contains("# Une erreur, un seul endroit (regle anti-repetition, regle capitale)")
+                .contains("# Ne reproche jamais un moyen que la consigne n'exigeait pas (regle capitale)")
+                .contains("# Version amelioree de la production (taches ECRITES uniquement)")
+                .contains("# Confiance : TA certitude de correcteur, jamais la qualite du candidat")
+                .contains("# Accomplissement de la tache et VERDICT (bloc obligatoire)");
+        assertThat(system).doesNotContain("{MODALITE}").doesNotContain("{CRITERES}");
+    }
+
+    /** Chaque tache ECRITE demande la reecriture, chaque tache orale l'interdit. */
+    @Test
+    void userPrompt_v8_demande_la_version_amelioree_a_l_ecrit_et_l_interdit_a_l_oral() {
+        EvaluationPromptBuilder builder = builderV8();
+
+        ProductionTask ee = new ProductionTask();
+        ee.setEpreuve(EpreuveType.TCF_EE);
+        ee.setTacheNumero((short) 2);
+        ee.setNiveauCible("B1");
+        ee.setConsigne("Racontez un voyage marquant a un ami.");
+        ee.setMotsMin(60);
+        ee.setMotsMax(90);
+        assertThat(builder.buildUserPrompt(ee, "Je suis alle a Lyon avec ma soeur.", false, null))
+                .contains("VERSION AMELIOREE obligatoire")
+                .contains("60 a 90 mots")
+                .contains("accomplissement.objectif");
+
+        ProductionTask eo = new ProductionTask();
+        eo.setEpreuve(EpreuveType.TCF_EO);
+        eo.setTacheNumero((short) 2);
+        eo.setNiveauCible("B1");
+        eo.setConsigne("Reservez une chambre d'hotel.");
+        assertThat(builder.buildUserPrompt(eo, "Candidat : bonjour je voudrais une chambre", true, 200))
+                .contains("AUCUNE version_amelioree sur une tache orale")
+                .doesNotContain("VERSION AMELIOREE obligatoire");
+    }
+
     /** Le system prompt v5 porte le passage note -> niveau et l'exigence pedagogique. */
     @Test
     void systemPrompt_v5_porte_le_passage_note_niveau_et_le_comment() {

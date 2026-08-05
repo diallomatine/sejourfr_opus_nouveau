@@ -7,55 +7,98 @@ import 'accomplishment_card.dart';
 import 'avertissements_card.dart';
 import 'correction_example.dart';
 import 'criterion_row.dart';
-import 'donut_chart_score.dart';
 import 'feedback_block.dart';
-import 'niveau_observe_card.dart';
+import 'improved_version_card.dart';
+import 'objective_card.dart';
 import 'priority_card.dart';
+import 'production_score_hero.dart';
+
+/// Limite de l'evaluation orale, mot pour mot (cf. `docs/notation-ia-eo-ee.md`
+/// §9). Le correcteur la renvoie normalement dans ses `avertissements` ; ce
+/// texte est le REPLI quand la liste arrive vide sur une tache orale — le
+/// candidat doit savoir dans tous les cas que sa voix n'a pas ete ecoutee.
+const String kOralEvaluationLimitNotice =
+    'Cette évaluation est fondée sur la transcription écrite de votre '
+    'production : nous n\'analysons pas votre voix. L\'aisance, la fluidité, '
+    'le débit et la prononciation ne sont donc pas évalués ici — c\'est une '
+    'limite technique de notre correction, pas un choix pédagogique. '
+    'À l\'examen officiel, ces dimensions comptent.';
 
 /// Corps commun des ecrans de resultats EE et EO : meme correction, meme ordre,
 /// un seul endroit a faire evoluer.
 ///
-/// Ordre voulu :
-/// 1. niveau observe sur la tache (avec sa confiance, jamais sans) — c'est
-///    l'information que le candidat cherche, elle passe AVANT la note et avant
-///    toute precaution ;
-/// 2. note /20, sur l'echelle du TCF ;
-/// 3. avertissements — dont la limite de l'evaluation orale, visible et non
-///    enterree en bas d'ecran ;
-/// 4. accomplissement de la consigne, AVANT la langue : le candidat voit
-///    d'abord s'il a oublie un point demande ;
-/// 5. detail par critere en bandes qualitatives ;
-/// 6. points forts, puis priorites (2 max), corrections, suggestion.
+/// L'ecran repond a trois questions, dans cet ordre, et range le reste :
+/// 1. **ai-je fait ce qu'on me demandait ?** — le verdict d'objectif, avant
+///    tout le reste ;
+/// 2. **combien, et ca vaut quoi ?** — la note AVEC l'echelle du TCF, dans un
+///    seul bloc : notre note EST celle du TCF, 4,5/20 vaut A2 ;
+/// 3. **que faire maintenant ?** — deux points forts, deux priorites, puis la
+///    version amelioree quand elle existe (ecrit uniquement).
 ///
-/// Tout est optionnel : une evaluation ancienne n'expose ni niveau, ni
-/// accomplissement, ni bandes — les blocs concernes disparaissent et l'ecran
-/// reste celui d'avant.
+/// Tout le reste — avertissements, detail par critere, check-list de la
+/// consigne, exemples corriges, suggestions — vit dans « Voir l'analyse
+/// complete », **replie par defaut**. Rien n'est perdu : c'est range.
+///
+/// Chaque bloc est optionnel : une evaluation ancienne n'expose ni objectif, ni
+/// niveau, ni accomplissement — les blocs concernes disparaissent et l'ecran
+/// reste coherent.
 class EvaluationReport extends StatelessWidget {
   const EvaluationReport({
     super.key,
     required this.evaluation,
-    this.correctionsTitle = 'Exemples et corrections',
+    required this.isOral,
   });
 
   final EvaluationResult evaluation;
 
-  /// Titre du bloc d'exemples corriges : l'oral parle de reformulations, pas
-  /// de corrections d'ecriture.
-  final String correctionsTitle;
+  /// Tache orale : la limite de l'evaluation orale s'applique, les exemples
+  /// sont des reformulations et non des corrections d'ecriture, et aucune
+  /// version amelioree n'est attendue.
+  final bool isOral;
+
+  String get _correctionsTitle =>
+      isOral ? 'Reformulations pour plus de clarté' : 'Corrections';
+
+  /// Une tache orale porte toujours la limite de l'oral, meme si le correcteur
+  /// a rendu une liste vide.
+  List<String> get _avertissements {
+    final fromAi = evaluation.feedback.avertissements;
+    if (fromAi.isNotEmpty) return fromAi;
+    return isOral ? const [kOralEvaluationLimitNotice] : const [];
+  }
 
   @override
   Widget build(BuildContext context) {
     final feedback = evaluation.feedback;
     final priorites = feedback.pointsAAmeliorer;
+    final accomplissement = feedback.accomplissement;
+    final avertissements = _avertissements;
+
+    final analyse = <Widget>[
+      if (avertissements.isNotEmpty)
+        AvertissementsCard(avertissements: avertissements),
+      if (feedback.scoresCriteres.isNotEmpty)
+        _CriteresCard(criteres: feedback.scoresCriteres),
+      if (accomplissement != null && !accomplissement.isEmpty)
+        AccomplishmentCard(accomplissement: accomplissement),
+      if (feedback.exemplesCorriges.isNotEmpty)
+        _CorrectionsCard(
+          examples: feedback.exemplesCorriges,
+          title: _correctionsTitle,
+        ),
+      if (feedback.suggestions.isNotEmpty)
+        FeedbackBlock(
+          kind: FeedbackKind.suggest,
+          title: 'Suggestions',
+          items: feedback.suggestions,
+        ),
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        NiveauObserveCard(evaluation: evaluation),
-        DonutChartScore(noteSur20: evaluation.noteSurVingt),
-        AvertissementsCard(avertissements: feedback.avertissements),
-        AccomplishmentCard(accomplissement: feedback.accomplissement),
-        if (feedback.scoresCriteres.isNotEmpty)
-          _CriteresCard(criteres: feedback.scoresCriteres),
+        ObjectiveCard(accomplissement: accomplissement),
+        ProductionScoreHero(evaluation: evaluation),
         if (feedback.pointsForts.isNotEmpty)
           FeedbackBlock(
             kind: FeedbackKind.positive,
@@ -73,23 +116,79 @@ class EvaluationReport extends StatelessWidget {
                 PriorityCard(priorite: priorite, rang: index + 1),
             ],
           ),
-        if (feedback.exemplesCorriges.isNotEmpty)
-          _CorrectionsCard(
-            examples: feedback.exemplesCorriges,
-            title: correctionsTitle,
-          ),
-        if (feedback.suggestions.isNotEmpty)
-          FeedbackBlock(
-            kind: FeedbackKind.suggest,
-            title: 'Suggestion globale',
-            items: feedback.suggestions,
-          ),
+        ImprovedVersionCard(texte: feedback.versionAmelioree),
+        if (analyse.isNotEmpty) _FullAnalysis(children: analyse),
       ],
     );
   }
 }
 
-/// Carte « Détail par critères » : une bande qualitative par critere, plus une
+/// Le detail exhaustif, **replie par defaut** : un rapport de correction n'est
+/// pas une expertise a lire d'un bout a l'autre. Ce qui est deplie sur demande
+/// n'est pas perdu, il est range.
+class _FullAnalysis extends StatefulWidget {
+  const _FullAnalysis({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  State<_FullAnalysis> createState() => _FullAnalysisState();
+}
+
+class _FullAnalysisState extends State<_FullAnalysis> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Material(
+          color: AppColors.surface2,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => setState(() => _open = !_open),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  const Icon(
+                    LucideIcons.listChecks,
+                    size: 18,
+                    color: AppColors.blue,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "Voir l'analyse complète",
+                      style: AppFonts.ui(
+                        size: 14,
+                        weight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    _open ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+                    size: 18,
+                    color: AppColors.muted,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (_open) ...[
+          const SizedBox(height: 14),
+          ...widget.children,
+        ],
+      ],
+    );
+  }
+}
+
+/// Carte « Détail par critère » : une bande qualitative par critere, plus une
 /// note chiffree (cf. [CriterionRow]).
 class _CriteresCard extends StatelessWidget {
   const _CriteresCard({required this.criteres});
@@ -111,7 +210,7 @@ class _CriteresCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Détail par critères',
+            'Détail par critère',
             style: AppFonts.ui(
               size: 15,
               weight: FontWeight.w700,
