@@ -623,6 +623,14 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
 
 }
 
+/// Contrainte de durée en pastille courte (« 3 min », « 3 min 30 »).
+String _durationChip(int sec) {
+  final mins = sec ~/ 60;
+  final remain = sec % 60;
+  if (mins == 0) return '$sec s';
+  return remain == 0 ? '$mins min' : '$mins min $remain';
+}
+
 String _durationLabel(int? sec) {
   if (sec == null || sec <= 0) return 'Durée libre';
   final mins = sec ~/ 60;
@@ -649,6 +657,11 @@ class _IdleView extends StatelessWidget {
           subtitle: _durationLabel(task.dureeMaxSec),
           accent: AppColors.red,
           soft: AppColors.redLight,
+          contexte: task.contexte,
+          requirements: [
+            if (task.dureeMaxSec != null) _durationChip(task.dureeMaxSec!),
+            task.niveauCible,
+          ],
         ),
       ],
     );

@@ -1,0 +1,1248 @@
+{
+  "taskCode": "EE2",
+  "section": "EE",
+  "taskTitle": "Raconter une expérience",
+  "taskTargetLevel": "B1",
+  "skills": [
+    {
+      "code": "EE2-C1",
+      "title": "Situer le moment et le lieu",
+      "description": "Vous apprenez à dire quand et où se passe votre histoire, dès les premiers mots. Au TCF, un correcteur qui sait tout de suite le moment et l'endroit suit votre récit sans effort.",
+      "targetLevel": "B1",
+      "displayOrder": 1,
+      "prompts": [
+        {
+          "code": "EE2-C1-S1",
+          "title": "Une sortie au marché",
+          "context": "Le week-end dernier, vous êtes allé(e) au marché de votre ville avec un ami.",
+          "instruction": "Écrivez la première phrase de votre récit. Dites quand cette sortie a eu lieu et où vous étiez.",
+          "uniqueCriterion": "La première phrase donne un repère de temps et un repère de lieu.",
+          "recommendedMinWords": 15,
+          "recommendedMaxWords": 35,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je suis allé faire des courses avec un ami et nous avons acheté beaucoup de fruits et des légumes.",
+              "pedagogicalNote": "Le récit démarre sans dire quand ni où cela s'est passé."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Samedi dernier, je suis allé au marché de mon quartier avec un ami pour acheter des légumes.",
+              "pedagogicalNote": "Le jour et l'endroit sont donnés dès le début : c'est l'essentiel."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Samedi dernier, vers dix heures du matin, je me suis promené avec un ami au marché de la place Gambetta, près de chez moi.",
+              "pedagogicalNote": "L'heure et le nom du lieu rendent la scène immédiatement précise."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C1-S2",
+          "title": "Le premier jour de travail",
+          "context": "Vous avez commencé un nouvel emploi il y a quelques semaines.",
+          "instruction": "Écrivez la phrase qui ouvre le récit de ce premier jour. Indiquez quand c'était et où vous vous trouviez.",
+          "uniqueCriterion": "La phrase indique la période et le lieu de travail.",
+          "recommendedMinWords": 15,
+          "recommendedMaxWords": 35,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'ai commencé un nouveau travail il y a quelques semaines et j'étais très stressé pendant toute la première journée.",
+              "pedagogicalNote": "Le lecteur ne sait ni quand ni dans quel endroit vous avez commencé."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le mois dernier, j'ai commencé à travailler dans une boulangerie du centre-ville de Tours, tout près de chez moi.",
+              "pedagogicalNote": "La période et le lieu apparaissent clairement dès la première phrase."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le premier lundi de septembre, à six heures du matin, je suis entré pour la première fois dans la boulangerie du centre-ville où je travaille aujourd'hui.",
+              "pedagogicalNote": "Un jour précis et une heure ancrent le récit dans un moment réel."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C1-S3",
+          "title": "Un rendez-vous à la préfecture",
+          "context": "Vous racontez à une amie votre rendez-vous à la préfecture pour renouveler votre titre de séjour.",
+          "instruction": "Écrivez les deux premières phrases de ce récit. Situez le jour, l'heure et l'endroit où vous étiez.",
+          "uniqueCriterion": "Le début du récit donne un repère de temps précis et un lieu identifiable.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'avais un rendez-vous à la préfecture pour mon titre de séjour. Il y avait beaucoup de monde et j'ai attendu très longtemps avant mon tour.",
+              "pedagogicalNote": "Le lieu apparaît, mais le lecteur ignore complètement quand c'était."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Mardi dernier, j'avais rendez-vous à la préfecture de Lyon pour renouveler mon titre de séjour. Je suis arrivée à huit heures devant l'entrée principale, avec mon dossier sous le bras.",
+              "pedagogicalNote": "Jour, heure et lieu : le décor temporel est posé en deux phrases."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Mardi 12 mars, j'avais rendez-vous à la préfecture de Lyon pour renouveler mon titre de séjour. À huit heures du matin, j'attendais déjà devant l'entrée principale, dans le froid.",
+              "pedagogicalNote": "La date exacte et le lieu détaillé installent le récit très nettement."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C1-S4",
+          "title": "Un matin de grève",
+          "context": "Un jour de grève, vous n'avez pas pu prendre votre train comme prévu.",
+          "instruction": "Commencez ce récit en deux phrases. Le lecteur doit savoir tout de suite quand et où vous étiez.",
+          "uniqueCriterion": "Les deux premières phrases situent le récit dans le temps et dans un lieu précis.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Il y avait une grève ce jour-là et mon train n'est pas parti. J'ai dû attendre très longtemps sur le quai, avec ma valise et mon billet à la main.",
+              "pedagogicalNote": "On devine une gare, mais ni le jour ni la ville ne sont donnés."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Jeudi dernier, j'étais à la gare de Bordeaux à sept heures du matin. Une grève des trains avait commencé pendant la nuit et tous les départs étaient annulés.",
+              "pedagogicalNote": "Le jour, l'heure et la gare permettent de suivre le récit sans effort."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Jeudi dernier, à sept heures du matin, j'étais sur le quai numéro trois de la gare de Bordeaux. Une grève des trains avait commencé pendant la nuit et presque personne ne le savait.",
+              "pedagogicalNote": "Le quai nommé transforme un lieu général en endroit vraiment précis."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C1-S5",
+          "title": "Le jour de l'emménagement",
+          "context": "Vous avez emménagé dans un nouvel appartement il y a quelques mois.",
+          "instruction": "Écrivez le début de ce récit en deux phrases. Situez le moment et le lieu, puis reliez-les à ce que vous étiez en train de faire.",
+          "uniqueCriterion": "Le moment et le lieu sont précis et introduisent directement l'action du récit.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je suis arrivé dans mon nouvel appartement avec toutes mes valises et mes cartons. C'était vraiment une journée très fatigante pour moi et pour mes amis.",
+              "pedagogicalNote": "Sans date ni ville, le récit commence dans le flou."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Au début du mois de juin, j'ai emménagé dans un appartement à Nantes. Ce matin-là, je montais mes cartons au troisième étage avec mon frère.",
+              "pedagogicalNote": "Le moment et le lieu conduisent naturellement vers l'action."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le 3 juin, en fin de matinée, je suis arrivé devant mon nouvel immeuble, rue des Acacias, à Nantes. Il faisait déjà très chaud et je montais mes cartons au troisième étage.",
+              "pedagogicalNote": "L'adresse et l'heure servent l'action au lieu d'être ajoutées à côté."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Donner un repère temporel et spatial clair dès le début du récit."
+    },
+    {
+      "code": "EE2-C2",
+      "title": "Présenter la situation initiale",
+      "description": "Vous apprenez à planter le décor avant l'événement principal : où vous étiez, avec qui, et ce que vous étiez en train de faire. Au TCF, ce début rend toute la suite du récit facile à suivre.",
+      "targetLevel": "B1",
+      "displayOrder": 2,
+      "prompts": [
+        {
+          "code": "EE2-C2-S1",
+          "title": "Une fête dans le quartier",
+          "context": "Votre quartier a organisé une fête un samedi de juin.",
+          "instruction": "Présentez en deux phrases le début de cette soirée : où vous étiez, avec qui, et ce que vous faisiez.",
+          "uniqueCriterion": "Le début du récit dit le lieu, les personnes présentes et l'activité en cours.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "La fête du quartier était vraiment très réussie cette année encore. Tout le monde a beaucoup aimé la musique, les plats et l'ambiance de la soirée.",
+              "pedagogicalNote": "C'est un avis général : ni lieu, ni personnes, ni activité de départ."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "J'étais dans la cour de mon immeuble avec mes voisins et leurs enfants. Nous préparions les tables et les chaises pour le repas du soir.",
+              "pedagogicalNote": "Lieu, personnes et activité : la situation initiale est complète."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ce samedi-là, j'étais dans la cour de mon immeuble avec ma voisine Fatou et son fils. Nous installions les tables et nous coupions des fruits pendant que la musique commençait.",
+              "pedagogicalNote": "Les prénoms et les gestes précis rendent la scène facile à imaginer."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C2-S2",
+          "title": "Un cours du soir",
+          "context": "Vous suivez des cours de français le soir, deux fois par semaine.",
+          "instruction": "Racontez le début d'une de ces soirées en deux phrases : où vous étiez, avec qui et ce que vous faisiez avant le début du cours.",
+          "uniqueCriterion": "La situation de départ précise le lieu, les personnes et l'activité en cours.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le cours de français est très intéressant et la professeure explique toujours très bien. J'apprends beaucoup de choses nouvelles chaque semaine avec mes camarades de classe.",
+              "pedagogicalNote": "Vous décrivez le cours en général, pas le moment qui ouvre le récit."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "J'étais assis dans la salle 4 de l'association avec cinq autres élèves. Nous relisions nos exercices de grammaire en attendant l'arrivée de la professeure de français.",
+              "pedagogicalNote": "Le lecteur voit tout de suite où vous êtes et ce que vous faites."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Mardi soir, j'étais assis au fond de la salle 4 de l'association avec cinq autres élèves. Nous comparions nos exercices à voix basse pendant que la professeure installait le tableau.",
+              "pedagogicalNote": "La place dans la salle et le détail sonore donnent une vraie scène."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C2-S3",
+          "title": "Dans la salle d'attente",
+          "context": "Vous accompagnez votre fille chez le médecin pour une visite de contrôle.",
+          "instruction": "Présentez en deux phrases la situation avant d'entrer dans le cabinet : où vous étiez, avec qui, ce que vous faisiez.",
+          "uniqueCriterion": "Le lecteur sait où vous êtes, qui vous accompagne et ce que vous faites avant l'événement.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Nous avons attendu très longtemps dans le couloir avant de voir le médecin. Ensuite, la visite s'est très bien passée et nous sommes rentrés à la maison.",
+              "pedagogicalNote": "Le récit avance déjà alors que la situation de départ n'est pas posée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "J'étais dans la salle d'attente du cabinet médical avec ma fille et son carnet de santé. Elle dessinait tranquillement et je remplissais un formulaire pour la mutuelle.",
+              "pedagogicalNote": "Trois informations utiles en deux phrases : c'est exactement la cible."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Mercredi après-midi, j'étais assise dans la petite salle d'attente du cabinet, avec ma fille Awa sur les genoux. Elle regardait un livre d'images et je remplissais tranquillement le formulaire de la mutuelle.",
+              "pedagogicalNote": "Chaque personne a une activité propre : la scène devient vivante."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C2-S4",
+          "title": "Un départ en covoiturage",
+          "context": "Vous êtes parti(e) en covoiturage pour rendre visite à votre famille dans une autre ville.",
+          "instruction": "Écrivez trois phrases pour présenter le début du trajet : où vous étiez, avec qui, ce que vous faisiez.",
+          "uniqueCriterion": "Les trois phrases posent le lieu, les personnes et l'activité avant le départ.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le voyage a duré presque quatre heures sur l'autoroute, avec un seul arrêt. Le conducteur roulait assez vite et il écoutait la radio pendant tout le trajet. Je suis arrivé très fatigué chez ma sœur, en fin d'après-midi, avec mal au dos.",
+              "pedagogicalNote": "Ces phrases racontent déjà le trajet sans installer le point de départ."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Samedi matin, j'étais devant la gare de Rennes, à côté d'une voiture grise. Le conducteur et deux autres passagers m'attendaient déjà sur le trottoir, avec leurs valises. Nous rangions nos sacs et nos manteaux dans le grand coffre avant de partir.",
+              "pedagogicalNote": "Le décor est en place avant que le voyage ne commence."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Samedi matin, j'attendais devant la gare de Rennes avec mon sac à dos. Une voiture grise s'est arrêtée : le conducteur, Marc, voyageait avec deux autres passagers. Pendant que nous rangions les bagages dans le coffre, nous parlions de la route à faire.",
+              "pedagogicalNote": "L'activité partagée relie naturellement les personnes au lieu."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C2-S5",
+          "title": "Juste avant l'incident",
+          "context": "Un jour, un incident est arrivé pendant votre service au travail. Vous racontez d'abord ce qui se passait juste avant.",
+          "instruction": "Écrivez trois phrases qui présentent la situation initiale : le lieu, les personnes et votre activité, sans raconter encore l'incident.",
+          "uniqueCriterion": "Les trois phrases décrivent la situation d'avant l'incident, sans le raconter.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Un client s'est énervé à la caisse numéro deux et j'ai appelé mon responsable tout de suite. Après quelques minutes de discussion, tout est redevenu calme dans le magasin. C'était vraiment une journée très difficile pour toute l'équipe et pour moi.",
+              "pedagogicalNote": "L'incident est déjà raconté ; la situation de départ reste absente."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "C'était un vendredi soir, dans le grand magasin où je travaille depuis un an. J'étais à la caisse avec ma collègue Sonia. Il y avait beaucoup de clients dans les rayons et nous étions toutes les deux très occupées ce soir-là.",
+              "pedagogicalNote": "Le décor est complet et l'incident n'est pas encore dévoilé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ce vendredi-là, vers dix-huit heures, le magasin était plein de clients pressés. J'étais à la caisse numéro deux et ma collègue Sonia rangeait les rayons juste à côté de moi. Nous travaillions vite, sans nous parler, mais tout se passait normalement.",
+              "pedagogicalNote": "La dernière phrase crée une attente sans rien révéler : c'est habile."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Expliquer où l'on était, avec qui et ce que l'on faisait avant l'événement principal."
+    },
+    {
+      "code": "EE2-C3",
+      "title": "Utiliser les temps du passé de manière compréhensible",
+      "description": "Vous apprenez à employer le passé composé pour les actions terminées et l'imparfait pour le décor. Au TCF, un récit écrit au présent ou aux temps mélangés devient vite difficile à suivre.",
+      "targetLevel": "B1",
+      "displayOrder": 3,
+      "prompts": [
+        {
+          "code": "EE2-C3-S1",
+          "title": "Les courses de samedi",
+          "context": "Samedi, vous avez fait vos courses de la semaine.",
+          "instruction": "Racontez en une phrase une action que vous avez terminée pendant ces courses.",
+          "uniqueCriterion": "L'action terminée est écrite au passé composé.",
+          "recommendedMinWords": 15,
+          "recommendedMaxWords": 35,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je fais mes courses au supermarché du quartier et j'achète du riz, des légumes et du poisson.",
+              "pedagogicalNote": "L'action est au présent alors qu'elle appartient clairement au passé."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Samedi matin, j'ai acheté du riz, des légumes et du poisson au supermarché de mon quartier.",
+              "pedagogicalNote": "Le passé composé montre bien que l'action est terminée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Samedi matin, j'ai fait toutes mes courses en une heure et j'ai même trouvé le poisson frais que je cherchais depuis deux semaines.",
+              "pedagogicalNote": "Deux actions terminées s'enchaînent, avec un imparfait bien placé pour le contexte."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C3-S2",
+          "title": "La journée d'école d'hier",
+          "context": "Votre enfant vous a raconté sa journée d'hier à l'école et vous la rapportez à une amie.",
+          "instruction": "Racontez en deux phrases deux choses qui se sont passées hier à l'école.",
+          "uniqueCriterion": "Les deux actions passées sont écrites au passé composé, pas au présent.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Mon fils va à l'école tous les matins et il mange à la cantine avec ses camarades. Après le repas, il joue toujours au ballon avec ses amis dans la cour.",
+              "pedagogicalNote": "Tout est au présent : rien n'indique que cela s'est passé hier."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Hier, mon fils a mangé à la cantine avec ses camarades de classe. Ensuite, il a joué au ballon dans la cour pendant toute la récréation.",
+              "pedagogicalNote": "Le passé composé situe correctement les deux actions dans la journée d'hier."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Hier, mon fils a mangé à la cantine, puis il a joué au ballon toute la récréation. Le soir, il m'a montré le dessin qu'il a fait en classe.",
+              "pedagogicalNote": "Trois actions terminées s'enchaînent sans jamais glisser vers le présent."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C3-S3",
+          "title": "Pendant que j'attendais le bus",
+          "context": "Un matin, vous attendiez le bus pour aller travailler quand quelque chose est arrivé.",
+          "instruction": "Racontez en deux phrases une action terminée qui s'est produite pendant que vous attendiez.",
+          "uniqueCriterion": "L'imparfait décrit l'attente et le passé composé marque l'action terminée.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'ai attendu le bus à l'arrêt pendant plus de dix minutes ce matin-là. Une dame m'a demandé son chemin et je lui ai répondu avant l'arrivée du bus.",
+              "pedagogicalNote": "Tout est au passé composé : le décor ne se distingue plus de l'action."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "J'attendais le bus depuis dix minutes, à l'arrêt près de chez moi, quand une dame m'a demandé son chemin. Je lui ai expliqué la direction de la mairie.",
+              "pedagogicalNote": "L'imparfait installe l'attente, le passé composé apporte l'événement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Il pleuvait et j'attendais le bus depuis dix minutes lorsqu'une dame perdue m'a demandé son chemin. Je lui ai expliqué la direction de la mairie et elle m'a remercié deux fois.",
+              "pedagogicalNote": "Deux imparfaits pour le décor, trois passés composés pour les actions : c'est net."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C3-S4",
+          "title": "Une coupure d'eau le soir",
+          "context": "Un soir, l'eau s'est coupée dans votre immeuble.",
+          "instruction": "Racontez en trois phrases ce qui se passait chez vous et ce que vous avez fait ensuite.",
+          "uniqueCriterion": "Le contexte est à l'imparfait et les actions terminées au passé composé.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "L'eau se coupe dans tout l'immeuble pendant que je prépare le dîner pour mes enfants. Je descends tout de suite voir la gardienne, qui habite au rez-de-chaussée. Elle appelle un plombier et elle me dit d'attendre chez moi jusqu'au soir.",
+              "pedagogicalNote": "Le récit est au présent : les actions ne semblent pas terminées."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je préparais le dîner dans la cuisine quand l'eau s'est arrêtée d'un coup. Je suis descendu voir la gardienne au rez-de-chaussée pour lui expliquer le problème. Elle a appelé un plombier tout de suite et elle m'a promis une réparation rapide.",
+              "pedagogicalNote": "Le décor et les actions se répartissent correctement entre les deux temps."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je préparais le dîner et mes enfants faisaient leurs devoirs quand l'eau s'est arrêtée d'un coup. Je suis descendu voir la gardienne, qui téléphonait déjà au syndic. Le plombier est passé une heure plus tard et a rouvert la vanne.",
+              "pedagogicalNote": "Les temps alternent avec souplesse, même à l'intérieur d'une phrase."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C3-S5",
+          "title": "Le jour de l'entretien",
+          "context": "Vous avez passé un entretien pour un emploi il y a quelques semaines.",
+          "instruction": "Racontez cet entretien en trois phrases : le décor, ce que vous avez fait, et la fin du rendez-vous.",
+          "uniqueCriterion": "Le récit alterne l'imparfait pour le décor et le passé composé pour les actions.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'étais un peu stressé en arrivant dans les bureaux de l'entreprise. La recruteuse était gentille et souriante, et la salle était très grande. Il y avait beaucoup de questions sur mon parcours et sur mes diplômes, et c'était assez long.",
+              "pedagogicalNote": "Tout reste à l'imparfait : aucune action terminée n'apparaît."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "J'étais un peu stressé parce que la salle était grande et très silencieuse. La recruteuse m'a posé plusieurs questions sur mon expérience et sur mes horaires. J'ai répondu calmement à toutes ses questions et je suis sorti du bureau après trente minutes d'entretien.",
+              "pedagogicalNote": "Le décor est à l'imparfait, les trois actions au passé composé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Il faisait chaud dans la salle et j'attendais depuis dix minutes quand la recruteuse est entrée. Elle m'a posé des questions sur mon expérience et j'ai expliqué mon travail précédent. Nous nous sommes serré la main et je suis sorti, plus rassuré qu'à l'arrivée.",
+              "pedagogicalNote": "Le passage d'un temps à l'autre suit exactement le rythme du récit."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Employer le passé composé et, lorsque nécessaire, l'imparfait pour distinguer les actions et le contexte."
+    },
+    {
+      "code": "EE2-C4",
+      "title": "Introduire un événement déclencheur",
+      "description": "Vous apprenez à faire apparaître le moment où tout change : un problème, une surprise, un imprévu. Au TCF, un récit sans déclencheur reste plat et ne raconte pas vraiment une histoire.",
+      "targetLevel": "B1",
+      "displayOrder": 4,
+      "prompts": [
+        {
+          "code": "EE2-C4-S1",
+          "title": "Un retrait au distributeur",
+          "context": "Vous vouliez retirer de l'argent au distributeur près de chez vous.",
+          "instruction": "Écrivez la phrase qui montre le moment précis où un problème est apparu.",
+          "uniqueCriterion": "Une phrase marque nettement l'instant où le problème survient.",
+          "recommendedMinWords": 15,
+          "recommendedMaxWords": 35,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je suis allé au distributeur près de chez moi, puis je suis rentré tranquillement à la maison.",
+              "pedagogicalNote": "Rien ne change dans le récit : aucun événement ne se produit."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Soudain, l'écran s'est éteint et le distributeur a gardé ma carte bancaire à l'intérieur de la machine.",
+              "pedagogicalNote": "Le mot « soudain » et l'action inattendue créent une vraie rupture."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "J'ai tapé mon code et attendu les billets quand, tout à coup, l'écran s'est éteint et la machine a avalé ma carte.",
+              "pedagogicalNote": "L'attente juste avant rend la surprise beaucoup plus forte."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C4-S2",
+          "title": "L'orage pendant le match",
+          "context": "Vous êtes allé(e) voir un match de football avec des amis, un dimanche après-midi.",
+          "instruction": "Écrivez une ou deux phrases qui introduisent l'événement inattendu de cet après-midi.",
+          "uniqueCriterion": "L'événement inattendu est introduit par une expression de rupture comme « soudain » ou « tout à coup ».",
+          "recommendedMinWords": 20,
+          "recommendedMaxWords": 45,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Nous avons regardé le match avec mes amis et il a plu un peu pendant la deuxième mi-temps, sur le stade.",
+              "pedagogicalNote": "L'imprévu est noyé dans la phrase : on ne sent aucune rupture."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Tout à coup, un orage très fort a éclaté sur le stade et l'arbitre a arrêté le match pendant vingt minutes.",
+              "pedagogicalNote": "L'expression de rupture annonce clairement le changement de situation."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "À la vingtième minute, le ciel est devenu tout noir ; soudain, un orage a éclaté et l'arbitre a arrêté le match.",
+              "pedagogicalNote": "Le ciel qui s'assombrit prépare le déclencheur : l'effet est plus fort."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C4-S3",
+          "title": "Un incident dans le bus",
+          "context": "Vous rentriez du travail en bus, un soir de semaine.",
+          "instruction": "Racontez en deux phrases le moment où la situation a changé dans ce bus.",
+          "uniqueCriterion": "Le récit indique clairement l'instant où la situation bascule.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le trajet était normal ce soir-là et le bus n'était pas trop plein. Une personne ne se sentait pas bien et le bus s'est arrêté un moment sur le côté.",
+              "pedagogicalNote": "L'événement arrive sans marque : on ne voit pas le basculement."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le bus roulait tranquillement sur l'avenue quand, tout à coup, un passager s'est senti mal. Le chauffeur s'est arrêté immédiatement et a ouvert les portes.",
+              "pedagogicalNote": "La rupture est marquée et une conséquence suit tout de suite."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le bus roulait tranquillement et je lisais mes messages quand, brusquement, un passager assis devant moi a demandé de l'aide. Le chauffeur a garé le bus sur le côté et a appelé les secours.",
+              "pedagogicalNote": "Le calme d'avant fait ressortir le déclencheur avec beaucoup de netteté."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C4-S4",
+          "title": "Le train supprimé",
+          "context": "Vous attendiez votre train pour partir en week-end.",
+          "instruction": "Racontez en deux phrases l'annonce qui a tout changé et ce qu'elle a provoqué.",
+          "uniqueCriterion": "L'annonce fonctionne comme un déclencheur et entraîne un effet immédiat.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Mon train de 14 heures était supprimé ce jour-là à cause d'un problème technique. J'ai pris un autre train un peu plus tard dans l'après-midi.",
+              "pedagogicalNote": "L'information est donnée, mais rien ne montre l'effet de surprise."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Soudain, une voix a annoncé dans le haut-parleur que le train de 14 heures était supprimé. Tous les voyageurs se sont dirigés vers le guichet.",
+              "pedagogicalNote": "L'annonce déclenche une réaction visible : le récit avance."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "J'étais assis sur un banc quand une annonce a résonné dans toute la gare : le train de 14 heures était supprimé. En quelques secondes, une longue file s'est formée devant le guichet.",
+              "pedagogicalNote": "La vitesse de la réaction montre la force du déclencheur."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C4-S5",
+          "title": "Un document qui manque",
+          "context": "Au guichet d'une administration, votre dossier a posé un problème.",
+          "instruction": "Racontez en trois phrases le moment où l'employée vous a annoncé le problème et ce que cela a provoqué.",
+          "uniqueCriterion": "Le déclencheur est nettement marqué et entraîne une conséquence immédiate.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "L'employée a regardé mon dossier au guichet pendant quelques minutes, sans rien dire. Il manquait un papier important, le justificatif de domicile, pour terminer ma demande. Je suis donc revenu une autre fois avec le document, quinze jours plus tard.",
+              "pedagogicalNote": "Les faits sont exacts, mais la rupture n'est pas mise en valeur."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "J'ai posé mon dossier sur le comptoir et l'employée l'a ouvert devant moi. Soudain, elle m'a annoncé qu'il manquait mon justificatif de domicile de moins de trois mois. J'ai dû quitter le guichet et reprendre un rendez-vous pour le mois suivant.",
+              "pedagogicalNote": "L'annonce coupe le récit en deux et provoque une conséquence claire."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "J'attendais depuis une heure quand mon numéro est enfin apparu à l'écran. L'employée a feuilleté mon dossier, puis elle a levé les yeux d'un coup : il manquait mon justificatif de domicile. En une minute, mon rendez-vous était terminé et j'ai dû en reprendre un autre pour le mois suivant.",
+              "pedagogicalNote": "L'attente longue puis la bascule en une minute rendent le choc sensible."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Faire apparaître clairement le changement, le problème ou l'événement inattendu."
+    },
+    {
+      "code": "EE2-C5",
+      "title": "Raconter les actions dans l'ordre",
+      "description": "Vous apprenez à enchaîner les événements avec des mots simples comme « d'abord », « ensuite », « finalement ». Au TCF, un récit bien ordonné se lit sans effort et montre que vous maîtrisez la chronologie.",
+      "targetLevel": "B1",
+      "displayOrder": 5,
+      "prompts": [
+        {
+          "code": "EE2-C5-S1",
+          "title": "Une inscription à la bibliothèque",
+          "context": "Vous vous êtes inscrit(e) à la bibliothèque de votre ville.",
+          "instruction": "Racontez cette inscription en trois phrases : ce que vous avez fait d'abord, ensuite et finalement.",
+          "uniqueCriterion": "Les trois étapes se suivent dans l'ordre et sont reliées par des connecteurs de temps.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'ai reçu ma carte de bibliothèque à la fin de la visite. Je suis allé au guichet avec mes papiers d'identité et un justificatif de domicile. J'ai choisi deux livres dans le rayon des romans avant de partir chez moi.",
+              "pedagogicalNote": "Les étapes sont justes mais mélangées, sans mot pour guider le lecteur."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "D'abord, je suis allé au guichet de la bibliothèque avec ma pièce d'identité et un justificatif de domicile. Ensuite, l'employée a créé mon compte de lecteur dans l'ordinateur. Finalement, j'ai emprunté deux livres et un magazine pour une durée de deux semaines.",
+              "pedagogicalNote": "Trois connecteurs, trois étapes dans le bon ordre : c'est très lisible."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "D'abord, je me suis présenté au guichet avec ma pièce d'identité et un justificatif de domicile. Ensuite, l'employée a rempli ma fiche et m'a remis une carte bleue à mon nom. Finalement, j'ai emprunté deux romans et je suis reparti très content.",
+              "pedagogicalNote": "L'ordre est net et chaque étape porte une information utile."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C5-S2",
+          "title": "Le chauffage en panne",
+          "context": "En plein hiver, le chauffage de votre logement est tombé en panne.",
+          "instruction": "Racontez en trois phrases ce que vous avez fait, dans l'ordre, pour régler ce problème.",
+          "uniqueCriterion": "Les actions se suivent dans un ordre logique marqué par des connecteurs.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le technicien est venu réparer le chauffage un matin de la semaine suivante, vers neuf heures. J'ai envoyé un message et une photo à mon propriétaire. J'ai remarqué que l'appartement était vraiment très froid depuis deux ou trois jours déjà.",
+              "pedagogicalNote": "Le récit remonte le temps : l'ordre des actions est inversé."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "D'abord, un matin, j'ai vu que tous les radiateurs de l'appartement restaient froids malgré le thermostat. Ensuite, j'ai téléphoné à mon propriétaire pour lui expliquer la panne. Finalement, un technicien est venu le lendemain matin pour réparer la chaudière collective.",
+              "pedagogicalNote": "L'enchaînement suit l'ordre réel et se comprend du premier coup."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le matin, j'ai d'abord remarqué que les radiateurs restaient froids malgré le thermostat. J'ai ensuite envoyé une photo de la chaudière à mon propriétaire, qui a appelé une entreprise. Le technicien est finalement venu le lendemain et a changé une pièce.",
+              "pedagogicalNote": "Les connecteurs sont placés à l'intérieur des phrases, ce qui est plus naturel."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C5-S3",
+          "title": "Le jour du test de français",
+          "context": "Vous avez passé un test de français dans un centre d'examen.",
+          "instruction": "Racontez le déroulement de cette journée en trois phrases, dans l'ordre.",
+          "uniqueCriterion": "Le récit suit l'ordre réel des étapes de la journée, avec des connecteurs.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'ai passé l'oral avec l'examinatrice vers midi, dans une petite salle. Avant, il y avait les épreuves écrites avec tous les autres candidats. Je suis arrivé à huit heures le matin et j'ai montré ma convocation à l'accueil du centre.",
+              "pedagogicalNote": "L'ordre se reconstruit en cours de route, ce qui gêne la lecture."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "D'abord, j'ai présenté ma convocation et ma pièce d'identité à l'accueil, à huit heures. Ensuite, j'ai passé les épreuves écrites pendant deux heures dans une grande salle. Finalement, je suis passé à l'oral en fin de matinée, avec une examinatrice.",
+              "pedagogicalNote": "La chronologie est respectée et facile à suivre du début à la fin."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "D'abord, je suis arrivé à huit heures et j'ai montré ma convocation à l'accueil. On nous a ensuite installés dans une grande salle pour les épreuves écrites, qui ont duré deux heures. Finalement, je suis passé à l'oral vers midi et je suis sorti soulagé.",
+              "pedagogicalNote": "Les durées ajoutées renforcent la chronologie sans l'alourdir."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C5-S4",
+          "title": "Une carte bancaire perdue",
+          "context": "Vous avez perdu votre carte bancaire dans la rue.",
+          "instruction": "Racontez en trois phrases les étapes que vous avez suivies après cette perte.",
+          "uniqueCriterion": "Les étapes sont racontées dans l'ordre chronologique avec des connecteurs variés.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'ai appelé ma banque pour faire opposition sur ma carte bancaire. Ma carte n'était plus dans mon portefeuille quand j'ai voulu payer mes courses. Après, j'ai cherché partout dans mes poches et dans mon sac à dos, pendant dix minutes.",
+              "pedagogicalNote": "Les actions sont vraies, mais leur ordre ne correspond pas à la réalité."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "D'abord, j'ai remarqué que ma carte n'était plus dans mon portefeuille, en sortant du magasin. Ensuite, j'ai téléphoné à ma banque pour faire opposition tout de suite. Finalement, j'ai reçu une nouvelle carte à mon adresse une semaine plus tard.",
+              "pedagogicalNote": "Trois étapes claires, dans l'ordre où elles se sont réellement produites."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "En sortant du supermarché, j'ai d'abord remarqué que ma carte n'était plus dans mon portefeuille. J'ai aussitôt appelé ma banque pour faire opposition, puis je suis passé à l'agence signer un papier. Une semaine plus tard, j'ai finalement reçu une nouvelle carte à mon adresse.",
+              "pedagogicalNote": "Quatre étapes s'enchaînent avec des connecteurs différents, sans répétition."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C5-S5",
+          "title": "Un déménagement en une journée",
+          "context": "Vous avez déménagé d'un studio vers un appartement plus grand.",
+          "instruction": "Racontez ce déménagement en trois phrases. Faites apparaître au moins quatre étapes dans l'ordre.",
+          "uniqueCriterion": "Au moins quatre étapes s'enchaînent dans l'ordre, sans répéter le même connecteur.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "D'abord, j'ai fait tous les cartons du studio pendant le week-end, avec ma sœur. Ensuite, j'ai déménagé le samedi avec un ami et sa vieille camionnette. Ensuite, j'ai rangé toutes mes affaires dans le nouvel appartement pendant plusieurs jours, sans me presser.",
+              "pedagogicalNote": "Les étapes sont trop peu nombreuses et le même connecteur revient."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "D'abord, j'ai fait mes cartons pendant deux soirées, après le travail. Ensuite, un ami est venu avec sa camionnette et nous avons chargé les meubles. Puis nous avons tout monté au deuxième étage et j'ai enfin rangé la cuisine avant la nuit.",
+              "pedagogicalNote": "Quatre étapes distinctes, avec des connecteurs qui ne se répètent pas."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "D'abord, j'ai trié mes affaires et rempli une dizaine de cartons pendant la semaine. Le samedi matin, un ami est arrivé avec une camionnette ; nous avons chargé les meubles, puis traversé la ville en une demi-heure. Nous avons ensuite tout monté au deuxième étage et j'ai finalement installé la cuisine avant la nuit.",
+              "pedagogicalNote": "Six étapes s'enchaînent et le récit garde un rythme très clair."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Organiser les événements avec des connecteurs temporels simples et naturels."
+    },
+    {
+      "code": "EE2-C6",
+      "title": "Ajouter des détails utiles",
+      "description": "Vous apprenez à ajouter des précisions concrètes — un lieu, une personne, un objet, une heure — qui rendent le récit vivant sans vous éloigner du sujet. Au TCF, un récit trop vague donne l'impression d'un texte pauvre.",
+      "targetLevel": "B1",
+      "displayOrder": 6,
+      "prompts": [
+        {
+          "code": "EE2-C6-S1",
+          "title": "Le train raté de justesse",
+          "context": "Un matin, vous êtes arrivé(e) à la gare trop tard et votre train est parti sans vous.",
+          "instruction": "Racontez ce moment en deux phrases et ajoutez un détail concret sur la gare ou sur le voyage.",
+          "uniqueCriterion": "Le récit contient au moins un détail concret sur le lieu ou le voyage.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je suis arrivé en retard à la gare ce matin-là et j'ai raté mon train. C'était vraiment dommage parce que j'avais un rendez-vous important à Paris.",
+              "pedagogicalNote": "Le récit reste général : aucun détail ne permet d'imaginer la scène."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je suis arrivé à la gare de Lille à 7 h 35, cinq minutes trop tard. Mon train pour Paris partait du quai 12 et il roulait déjà.",
+              "pedagogicalNote": "L'heure et le numéro de quai suffisent à rendre la scène concrète."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je suis arrivé à la gare de Lille à 7 h 35, essoufflé, avec ma valise à roulettes. Sur le grand panneau jaune, mon train de 7 h 30 pour Paris était déjà indiqué « parti », quai 12.",
+              "pedagogicalNote": "Le panneau et la valise ancrent le récit sans le faire dévier."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C6-S2",
+          "title": "Un repas chez les voisins",
+          "context": "Vos voisins vous ont invité(e) à partager un repas chez eux.",
+          "instruction": "Racontez un moment de ce repas en deux phrases, avec un détail précis sur les plats ou sur les invités.",
+          "uniqueCriterion": "Au moins un détail précis décrit les plats, la table ou les personnes.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le repas était vraiment très bon et tous les invités étaient sympathiques avec moi. Nous avons passé une excellente soirée ensemble, chez mes voisins du deuxième étage.",
+              "pedagogicalNote": "Ce sont des impressions ; rien de concret n'apparaît dans le texte."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Ma voisine avait préparé un couscous aux légumes et un gâteau au citron pour le dessert. Nous étions huit autour d'une grande table, dans le salon.",
+              "pedagogicalNote": "Les plats nommés et le nombre d'invités rendent la scène réelle."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ma voisine Nadia avait préparé un couscous aux légumes et un gâteau au citron encore tiède. Nous étions huit, serrés autour d'une table un peu trop petite, dans son salon décoré de guirlandes.",
+              "pedagogicalNote": "Trois détails choisis, tous au service du même moment de la soirée."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C6-S3",
+          "title": "Avant l'entretien d'embauche",
+          "context": "Vous êtes arrivé(e) en avance pour un entretien d'embauche.",
+          "instruction": "Racontez ces minutes d'attente en trois phrases, avec deux détails concrets sur le lieu ou sur les personnes.",
+          "uniqueCriterion": "Deux détails concrets rendent la scène d'attente précise.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je suis arrivé assez en avance et j'ai attendu un long moment avant l'heure du rendez-vous. Il y avait une salle d'attente au rez-de-chaussée de l'immeuble, comme partout. Ensuite, l'entretien a commencé et tout s'est passé assez normalement pour moi.",
+              "pedagogicalNote": "Le décor est nommé mais jamais décrit : la scène reste vide."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je suis arrivé vingt minutes en avance devant un immeuble en verre. Dans le hall, une hôtesse m'a demandé mon nom et m'a donné un badge. J'ai attendu sur un canapé noir, mon dossier posé sur les genoux, pendant dix minutes.",
+              "pedagogicalNote": "Deux détails visuels suffisent à installer clairement le lieu."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je suis arrivé vingt minutes en avance devant un immeuble en verre, juste à côté de l'arrêt de tramway. Dans le hall, une hôtesse en veste bleue a noté mon nom et m'a donné un badge. J'ai attendu sur un canapé noir, mon dossier serré sur les genoux, en écoutant l'ascenseur monter et descendre.",
+              "pedagogicalNote": "Chaque détail sert l'attente : rien n'est décoratif ni hors sujet."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C6-S4",
+          "title": "Un passage à la pharmacie",
+          "context": "Vous êtes allé(e) à la pharmacie chercher un médicament pour un proche.",
+          "instruction": "Racontez ce passage en deux phrases et ajoutez un détail utile sur l'échange avec le pharmacien.",
+          "uniqueCriterion": "Un détail précis décrit l'échange, le médicament ou l'attente.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je suis allé à la pharmacie près de chez moi et j'ai acheté le médicament. C'était assez rapide finalement et je suis rentré tout de suite.",
+              "pedagogicalNote": "Le lecteur ne voit ni le produit, ni l'échange, ni le moment."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "À la pharmacie de la place, j'ai donné l'ordonnance de ma mère au pharmacien. Il m'a expliqué de lui donner un comprimé le matin et un le soir.",
+              "pedagogicalNote": "L'explication du pharmacien donne un contenu concret à l'échange."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Vers dix-huit heures, la pharmacie de la place était pleine et j'ai attendu derrière trois personnes. Le pharmacien a lu l'ordonnance de ma mère, a entouré la posologie au stylo et m'a répété de donner un comprimé matin et soir.",
+              "pedagogicalNote": "Le geste du stylo rend l'échange vivant en très peu de mots."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C6-S5",
+          "title": "La visite de l'appartement",
+          "context": "Vous avez visité un appartement que vous vouliez louer.",
+          "instruction": "Racontez cette visite en trois phrases, avec deux détails concrets qui aident à comprendre votre décision.",
+          "uniqueCriterion": "Deux détails concrets éclairent la visite sans sortir du sujet.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "L'appartement était plutôt bien mais vraiment un peu trop cher pour mon petit budget. J'ai visité pendant une demi-heure avec l'agent immobilier de l'agence du quartier. J'ai réfléchi ensuite pendant deux ou trois jours avant de donner ma réponse à l'agence.",
+              "pedagogicalNote": "Les jugements remplacent les détails : rien ne se voit dans le texte."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "L'agence m'a fait visiter un deux-pièces au quatrième étage, dans un immeuble sans ascenseur. La cuisine était petite, mais le salon donnait sur une cour très calme. Le loyer était de 650 euros par mois, charges comprises, et sans travaux à prévoir.",
+              "pedagogicalNote": "Chaque détail donné pèse vraiment dans la décision de louer."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "L'agent m'a ouvert un deux-pièces au quatrième étage, dans un immeuble sans ascenseur. La cuisine tenait dans trois mètres carrés, mais le salon donnait sur une cour calme et recevait le soleil du matin. À 650 euros charges comprises, j'ai compris que j'accepterais les escaliers.",
+              "pedagogicalNote": "Les détails s'opposent entre eux et expliquent le choix final."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Préciser les personnes, les actions, l'environnement ou les circonstances sans s'éloigner du sujet."
+    },
+    {
+      "code": "EE2-C7",
+      "title": "Exprimer une réaction ou un ressenti",
+      "description": "Vous apprenez à dire ce que vous avez ressenti et à relier ce sentiment à ce qui venait de se passer. Au TCF, un récit sans réaction reste une simple liste de faits.",
+      "targetLevel": "B1",
+      "displayOrder": 7,
+      "prompts": [
+        {
+          "code": "EE2-C7-S1",
+          "title": "Les clés introuvables",
+          "context": "Un soir, vous êtes rentré(e) chez vous et vos clés n'étaient plus dans votre sac.",
+          "instruction": "Expliquez en deux phrases ce que vous avez ressenti à ce moment-là et pourquoi.",
+          "uniqueCriterion": "Un sentiment est nommé et relié à la situation vécue.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'ai cherché mes clés dans tout mon sac et dans mes poches, sans les trouver. J'ai attendu devant la porte de mon appartement pendant presque une heure.",
+              "pedagogicalNote": "Les faits sont clairs, mais le ressenti n'apparaît nulle part."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Quand j'ai compris que mes clés étaient vraiment perdues, j'ai eu très peur. Je pensais que je ne pourrais pas dormir chez moi cette nuit-là.",
+              "pedagogicalNote": "Le sentiment est nommé et sa cause est immédiatement expliquée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Devant ma porte fermée, j'ai d'abord senti la panique monter : il était vingt-deux heures et je ne savais qui appeler. Puis je me suis souvenu du double chez ma voisine et je me suis calmé tout de suite.",
+              "pedagogicalNote": "Le ressenti change avec la situation : c'est ce qui rend le récit vrai."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C7-S2",
+          "title": "Le permis enfin obtenu",
+          "context": "Vous avez appris que vous aviez réussi votre permis de conduire.",
+          "instruction": "Racontez en deux phrases votre réaction au moment où vous avez appris la nouvelle.",
+          "uniqueCriterion": "La réaction est exprimée et rattachée à la nouvelle reçue.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'ai reçu le résultat de mon permis de conduire sur le site Internet de l'auto-école. Il était positif et j'ai appelé ma famille le soir même.",
+              "pedagogicalNote": "L'émotion manque alors que le moment s'y prête vraiment."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Quand j'ai vu le résultat sur le site, j'étais tellement heureuse que j'ai crié dans la cuisine. J'ai téléphoné à ma sœur tout de suite.",
+              "pedagogicalNote": "La joie est exprimée et directement liée à la lecture du résultat."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Quand le mot « favorable » est apparu sur l'écran, je suis restée immobile deux secondes, puis j'ai éclaté de rire toute seule. Après deux échecs, ce petit mot valait tous les efforts de l'année.",
+              "pedagogicalNote": "La réaction physique et le passé difficile donnent du poids à la joie."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C7-S3",
+          "title": "Ma première démarche seul",
+          "context": "Vous avez fait une démarche administrative seul(e) pour la première fois, sans accompagnant ni traducteur.",
+          "instruction": "Racontez en trois phrases comment vous vous êtes senti(e) avant, pendant et après ce rendez-vous.",
+          "uniqueCriterion": "Le ressenti évolue et reste relié à chaque moment du rendez-vous.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'étais très stressé avant le rendez-vous à la mairie de mon quartier. Le rendez-vous s'est bien passé avec l'employée du guichet et il n'a pas duré longtemps. J'étais vraiment content après, en rentrant chez moi à pied ce jour-là, avec mes papiers.",
+              "pedagogicalNote": "Les émotions sont là, mais jamais expliquées par la situation."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Avant le rendez-vous, j'avais peur de ne pas comprendre les questions de l'employée. Pendant l'entretien, elle a parlé lentement et je me suis senti beaucoup plus calme. En sortant de la mairie, j'étais fier d'avoir réussi cette démarche tout seul.",
+              "pedagogicalNote": "Chaque sentiment a une cause précise et l'ensemble progresse bien."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "En montant les marches de la mairie, j'avais le cœur qui battait vite : je craignais de ne pas comprendre les questions. L'employée a parlé lentement et a répété deux fois ; petit à petit, ma voix est devenue plus sûre. En sortant avec mon récépissé, j'étais fier, parce que c'était la première fois que je faisais tout sans aide.",
+              "pedagogicalNote": "Le corps, la voix et la fierté racontent l'émotion sans la répéter."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C7-S4",
+          "title": "Un coup de main du voisin",
+          "context": "Un voisin vous a aidé(e) alors que vous étiez en difficulté.",
+          "instruction": "Racontez en deux phrases ce que ce geste a provoqué chez vous.",
+          "uniqueCriterion": "Le sentiment exprimé est clairement lié au geste du voisin.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Mon voisin du dessus m'a aidée à porter mes courses jusqu'au troisième étage, un jour de pluie. C'était vraiment très gentil de sa part de faire ça.",
+              "pedagogicalNote": "« Gentil » qualifie le voisin sans dire ce que vous avez ressenti."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Mon voisin est descendu m'aider à porter mes courses sous la pluie, sans hésiter. J'ai été très touchée par son geste, parce que je le connaissais à peine.",
+              "pedagogicalNote": "Le sentiment est nommé et sa raison est donnée en quelques mots."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Quand mon sac s'est déchiré dans l'escalier, mon voisin du dessus est descendu ramasser mes courses sans que je demande rien. J'ai été touchée par ce geste si simple : ce jour-là, je me suis vraiment sentie chez moi dans cet immeuble.",
+              "pedagogicalNote": "Le ressenti dépasse l'instant et dit quelque chose de plus large."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C7-S5",
+          "title": "Un entretien décevant",
+          "context": "Vous avez passé un entretien pour un emploi et vous avez compris assez vite que cela ne se passait pas bien.",
+          "instruction": "Racontez en trois phrases comment votre ressenti a changé pendant et après cet entretien.",
+          "uniqueCriterion": "Deux sentiments différents apparaissent, chacun expliqué par la situation.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "L'entretien pour ce poste de vendeur n'a pas bien marché ce jour-là, malgré ma longue préparation. J'étais vraiment déçu en sortant du bureau de l'entreprise, en fin de matinée. Je cherche un autre travail maintenant, dans le même domaine, près de chez moi.",
+              "pedagogicalNote": "Un seul sentiment est cité, sans lien clair avec ce qui s'est passé."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Au début, j'étais confiant parce que je connaissais bien le métier. Quand le recruteur m'a dit que mon expérience ne suffisait pas, je me suis senti découragé. Le soir, j'étais plus calme et j'ai décidé de mieux me préparer pour la prochaine fois.",
+              "pedagogicalNote": "Trois moments, trois états : le lecteur suit toute l'évolution."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je suis entré confiant : j'avais préparé mes réponses et je connaissais le métier. Mais quand le recruteur a répété que mon expérience française était trop courte, ma gorge s'est serrée et je n'ai plus trouvé mes mots. Le soir, la déception était encore là, pourtant j'y ai vu une chose utile : je sais maintenant quelle question me met en difficulté.",
+              "pedagogicalNote": "La déception débouche sur une prise de recul, sans discours tout fait."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Dire ce que l'on a pensé ou ressenti et relier ce ressenti à la situation vécue."
+    },
+    {
+      "code": "EE2-C8",
+      "title": "Terminer par le résultat ou la conséquence",
+      "description": "Vous apprenez à terminer votre récit par un résultat clair et par ce que la situation a changé pour vous. Au TCF, un texte qui s'arrête sans conclusion donne l'impression d'être inachevé.",
+      "targetLevel": "B1",
+      "displayOrder": 8,
+      "prompts": [
+        {
+          "code": "EE2-C8-S1",
+          "title": "Le colis enfin retrouvé",
+          "context": "Un colis important n'était jamais arrivé chez vous et vous avez contacté le transporteur.",
+          "instruction": "Écrivez la fin de ce récit en deux phrases : dites comment le problème s'est terminé.",
+          "uniqueCriterion": "La fin dit clairement comment le problème s'est résolu.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'ai appelé le service client plusieurs fois et j'ai expliqué mon problème à chaque nouvel interlocuteur. C'était vraiment très long et très fatigant pour moi.",
+              "pedagogicalNote": "Le récit s'arrête avant la fin : on ne sait pas comment cela se termine."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Finalement, le transporteur a retrouvé mon colis dans un autre dépôt, près de Lyon. Je l'ai reçu chez moi trois jours plus tard, en bon état.",
+              "pedagogicalNote": "Le résultat est net : le lecteur sait exactement comment cela finit."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Après trois appels, le transporteur a retrouvé mon colis dans un dépôt voisin. Je l'ai reçu le vendredi suivant et, depuis, je fais toujours livrer mes commandes en point relais.",
+              "pedagogicalNote": "Au résultat s'ajoute une habitude nouvelle : la fin est complète."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C8-S2",
+          "title": "La fin des cours du soir",
+          "context": "Vous avez terminé une année de cours de français dans une association.",
+          "instruction": "Racontez la fin de cette année en deux phrases : le résultat et ce que cela a changé pour vous.",
+          "uniqueCriterion": "Le résultat est donné et une conséquence concrète est indiquée.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Les cours étaient très intéressants et la professeure était toujours patiente avec nous. J'ai beaucoup aimé cette année passée dans cette association, avec mes camarades.",
+              "pedagogicalNote": "Le bilan reste au niveau du plaisir ; le résultat concret manque."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "À la fin de l'année, j'ai obtenu mon attestation de niveau A2. Maintenant, je peux téléphoner à l'école de mes enfants sans demander de l'aide à personne.",
+              "pedagogicalNote": "Un résultat précis, puis un changement visible dans la vie quotidienne."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "En juin, j'ai obtenu mon attestation de niveau A2 avec une bonne note à l'oral. Depuis, je téléphone moi-même à l'école de mes enfants et j'ai osé m'inscrire au cours suivant.",
+              "pedagogicalNote": "Deux conséquences concrètes montrent l'effet réel de cette année."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C8-S3",
+          "title": "La fuite d'eau réparée",
+          "context": "Une fuite d'eau a abîmé le plafond de votre salle de bains.",
+          "instruction": "Racontez la fin de cette histoire en trois phrases : la réparation, le résultat et la conséquence pour vous.",
+          "uniqueCriterion": "Le récit se termine par un résultat net suivi d'une conséquence.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le plombier est venu et il a regardé le plafond de la salle de bains pendant un moment. Il a dit que la fuite venait de l'appartement du dessus, au quatrième étage. J'ai attendu des nouvelles de l'assurance pendant plusieurs jours.",
+              "pedagogicalNote": "Le récit s'interrompt : ni réparation terminée, ni suite pour vous."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le plombier est venu réparer le tuyau du voisin du dessus dès le lendemain. Les travaux de peinture ont été faits deux semaines plus tard. Depuis, la salle de bains est bien sèche et le plafond n'a plus aucune trace d'humidité.",
+              "pedagogicalNote": "La réparation, le résultat et l'état actuel sont tous les trois donnés."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le plombier a trouvé la fuite chez le voisin du dessus et a changé le tuyau le jour même. L'assurance de l'immeuble a payé la peinture, refaite deux semaines plus tard. Depuis, le plafond est propre et j'ai appris à prévenir la gardienne dès la première tache.",
+              "pedagogicalNote": "La leçon tirée à la fin donne au récit une vraie conclusion."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C8-S4",
+          "title": "Un gros retard au travail",
+          "context": "Un jour, vous êtes arrivé(e) très en retard à votre travail à cause des transports.",
+          "instruction": "Racontez la fin de cette journée en trois phrases : ce qui s'est passé avec votre responsable et ce que vous avez changé ensuite.",
+          "uniqueCriterion": "La conclusion présente le résultat de l'incident et un changement qui en découle.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je suis arrivé une heure en retard ce matin-là à cause de la grève des trains. Mon responsable n'était pas content du tout quand il m'a vu. La journée a été très longue et très fatigante pour moi et mes collègues.",
+              "pedagogicalNote": "On reste sur l'incident : aucune issue ni suite n'est donnée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Mon responsable a compris la situation parce que la grève était annoncée partout depuis la veille. J'ai rattrapé mon heure de retard le soir même, après la fermeture. Depuis, je pars vingt minutes plus tôt le matin pour être tranquille.",
+              "pedagogicalNote": "L'incident se referme et un changement durable est indiqué."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Mon responsable a d'abord soupiré, puis il a vu l'annonce de la grève sur son téléphone et il a accepté mon explication. J'ai rattrapé mon heure le soir même, sans discuter. Depuis, je regarde l'application des transports avant de me coucher et je pars vingt minutes plus tôt.",
+              "pedagogicalNote": "La conséquence est double et se voit concrètement dans vos habitudes."
+            }
+          ]
+        },
+        {
+          "code": "EE2-C8-S5",
+          "title": "Un dossier qui aboutit",
+          "context": "Après plusieurs mois de démarches, votre dossier administratif a enfin abouti.",
+          "instruction": "Écrivez la fin de ce récit en trois phrases : le résultat, ce que cela change concrètement et ce que vous en retenez.",
+          "uniqueCriterion": "La fin donne le résultat, une conséquence concrète et un bilan personnel.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 80,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Après beaucoup de rendez-vous et beaucoup d'attente, j'ai enfin reçu une réponse à ma demande, au mois d'avril. J'étais vraiment très soulagé ce jour-là, en ouvrant le courrier. C'était une période longue et difficile pour moi et pour ma famille.",
+              "pedagogicalNote": "Le résultat reste flou et rien ne dit ce qui change pour vous."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Au mois d'avril, j'ai reçu ma carte de séjour de deux ans. Je peux maintenant signer un contrat de travail sans expliquer ma situation à chaque employeur. Cette longue attente m'a appris à préparer chaque document à l'avance et à en garder une copie.",
+              "pedagogicalNote": "Résultat, conséquence et bilan : les trois éléments attendus sont là."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Au mois d'avril, après huit mois d'attente, j'ai enfin retiré ma carte de séjour de deux ans au guichet. Depuis, j'ai signé un contrat de travail et j'ai pu déposer un dossier de logement, deux choses impossibles avant. Je retiens surtout une leçon : garder une copie de chaque papier m'a évité de tout recommencer.",
+              "pedagogicalNote": "La leçon finale est précise et sort du bilan général tout fait."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Expliquer comment la situation s'est terminée et ce qu'elle a changé."
+    }
+  ]
+}

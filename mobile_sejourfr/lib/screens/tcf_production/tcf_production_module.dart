@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/models/enums.dart';
+import '../../core/theme/app_theme.dart';
 
 /// Module TCF productif (Expression écrite ou orale). Porte les libellés et
-/// l'icône partagés par l'écran d'entraînement consolidé
-/// (`TcfExpressionScreen`) et le briefing d'examen complet.
+/// l'icône partagés par les écrans du parcours (Compétences, Sujets, Examens)
+/// et le briefing d'examen complet.
 ///
 /// Palette stricte bleu / blanc / rouge SejourFR. EE et EO se distinguent par
 /// leur icône et le libellé du 3ᵉ onglet (Corrections vs Analyses).
@@ -57,4 +58,12 @@ enum TcfProductionModule {
   final String historyTabLabel;
 
   bool get isEo => epreuve == EpreuveType.tcfEo;
+
+  /// Accent du module : **EO rouge, EE bleu** (sémantique de la refonte 2026).
+  /// Déclaré ici et nulle part ailleurs — les écrans du module Compétences
+  /// recopiaient tous le même ternaire.
+  Color get accent => isEo ? AppColors.red : AppColors.blue;
+
+  /// Ton foncé du même accent, pour les dégradés de hero.
+  Color get accentDark => isEo ? AppColors.redDark : AppColors.blueDark;
 }

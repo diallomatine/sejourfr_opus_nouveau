@@ -29,9 +29,9 @@ class ProductionHistoryScreen extends ConsumerWidget {
   String get _moduleTitle =>
       epreuve == EpreuveType.tcfEo ? 'Expression orale' : 'Expression écrite';
 
-  /// Route vers le détail module (parent de cet écran d'historique depuis
-  /// la suppression du `ProductionHubScreen` — la sélection T1/T2/T3 vit
-  /// désormais sur l'onglet Tâches du détail).
+  /// Racine de l'épreuve, utilisée quand la pile est vide (deep link). C'est
+  /// un **alias** : le hub d'épreuve n'existe plus, ces paths redirigent vers
+  /// l'entrée du parcours (mode « Compétences » de la tâche 1).
   String _hubRoute() =>
       epreuve == EpreuveType.tcfEo ? '/tcf/eo' : '/tcf/ee';
 

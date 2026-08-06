@@ -337,18 +337,18 @@ export function RealtimeEoRunner({
                 .rte { position: relative; display: flex; flex-direction: column; gap: 18px; min-height: 60vh; }
                 .rte-strip {
                     display: flex; align-items: center; justify-content: space-between; gap: 12px;
-                    background: #fff; border: 1px solid var(--color-line);
+                    background: white; border: 1px solid var(--color-line);
                     border-radius: 14px; padding: 12px 14px;
                 }
                 .rte-id-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
                 .rte-name { font-family: var(--font-sans); font-weight: 800; font-size: 15px; color: var(--color-ink); }
                 .rte-ia {
                     font-family: var(--font-mono); font-weight: 700; font-size: 10px;
-                    color: var(--color-red-dark, #B5251E); background: #fff;
+                    color: var(--color-red-dark); background: white;
                     border: 1px solid var(--color-red); border-radius: 5px; padding: 1px 5px;
                 }
                 .rte-subject {
-                    background: var(--color-red-light, #FDECEB);
+                    background: var(--color-red-light);
                     border: 1px solid var(--color-red);
                     border-radius: 14px; overflow: hidden;
                 }
@@ -358,9 +358,9 @@ export function RealtimeEoRunner({
                 }
                 .rte-subject-eyebrow {
                     font-family: var(--font-mono); font-weight: 700; font-size: 11px;
-                    letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-red-dark, #B5251E);
+                    letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-red-dark);
                 }
-                .rte-subject-chev { color: var(--color-red-dark, #B5251E); transition: transform 0.18s ease; }
+                .rte-subject-chev { color: var(--color-red-dark); transition: transform 0.18s ease; }
                 .rte-subject-chev.is-open { transform: rotate(180deg); }
                 .rte-subject-body { padding: 0 14px 13px; }
                 .rte-subject-consigne {
@@ -368,7 +368,7 @@ export function RealtimeEoRunner({
                     line-height: 1.5; color: var(--color-ink);
                 }
                 .rte-subject-contexte {
-                    margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: var(--color-ink-2, #1F2950);
+                    margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: var(--color-ink-2);
                 }
                 .rte-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
                 .rte-live {
@@ -378,7 +378,7 @@ export function RealtimeEoRunner({
                 }
                 .rte-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-red); animation: rte-blink 1.4s ease-in-out infinite; }
                 .rte-timer { font-family: var(--font-mono); font-weight: 700; font-size: 20px; color: var(--color-red); line-height: 1; }
-                .rte-timer.is-urgent { color: var(--color-red-dark, #B5251E); }
+                .rte-timer.is-urgent { color: var(--color-red-dark); }
 
                 .rte-stage {
                     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -387,14 +387,14 @@ export function RealtimeEoRunner({
                 .rte-mic { position: relative; width: 180px; height: 180px; display: flex; align-items: center; justify-content: center; }
                 .rte-halo {
                     position: absolute; inset: 0; border-radius: 50%;
-                    background: var(--color-red-light, #FDECEB); opacity: 0.5;
+                    background: var(--color-red-light); opacity: 0.5;
                 }
                 .rte-mic.is-you .rte-halo { animation: rte-pulse 1.6s ease-out infinite; opacity: 1; }
-                .rte-mic.is-exam .rte-halo { background: var(--color-blue-light, #E8ECF8); opacity: 1; }
+                .rte-mic.is-exam .rte-halo { background: var(--color-blue-light); opacity: 1; }
                 .rte-disc {
                     position: relative; width: 108px; height: 108px; border-radius: 50%;
                     display: flex; align-items: center; justify-content: center;
-                    background: var(--color-red); color: #fff;
+                    background: var(--color-red); color: white;
                     box-shadow: 0 10px 30px rgba(225, 55, 47, 0.28);
                 }
                 .rte-mic.is-exam .rte-disc { background: var(--color-blue); box-shadow: 0 10px 30px rgba(30, 58, 140, 0.26); }
@@ -404,7 +404,7 @@ export function RealtimeEoRunner({
                 .rte-stop {
                     align-self: center; display: inline-flex; align-items: center; gap: 8px;
                     border: none; border-radius: 12px; padding: 13px 26px;
-                    background: var(--color-ink); color: #fff;
+                    background: var(--color-ink); color: white;
                     font-family: var(--font-sans); font-weight: 800; font-size: 14px; cursor: pointer;
                 }
                 .rte-stop:disabled { opacity: 0.5; cursor: default; }
@@ -413,14 +413,14 @@ export function RealtimeEoRunner({
                 .rte-see {
                     display: inline-flex; align-items: center; gap: 8px;
                     border: 1px solid var(--color-line); border-radius: 12px;
-                    padding: 10px 18px; background: #fff; color: var(--color-blue);
+                    padding: 10px 18px; background: white; color: var(--color-blue);
                     font-family: var(--font-sans); font-weight: 700; font-size: 13px; cursor: pointer;
                 }
-                .rte-see:hover { background: var(--color-blue-soft, #F4F6FC); }
+                .rte-see:hover { background: var(--color-blue-soft); }
 
                 .rte-sheet {
                     position: absolute; inset: 0; z-index: 5;
-                    background: #fff; border: 1px solid var(--color-line); border-radius: 14px;
+                    background: white; border: 1px solid var(--color-line); border-radius: 14px;
                     display: flex; flex-direction: column; overflow: hidden;
                 }
                 .rte-sheet-head {
@@ -430,7 +430,7 @@ export function RealtimeEoRunner({
                 .rte-sheet-title { font-family: var(--font-display); font-size: 18px; color: var(--color-ink); }
                 .rte-sheet-close {
                     display: inline-flex; border: none; cursor: pointer;
-                    background: var(--color-paper-2, #F2F1EC); border-radius: 9px; padding: 6px; color: var(--color-ink);
+                    background: var(--color-paper-2); border-radius: 9px; padding: 6px; color: var(--color-ink);
                 }
                 .rte-sheet-body {
                     flex: 1; overflow-y: auto; padding: 16px;

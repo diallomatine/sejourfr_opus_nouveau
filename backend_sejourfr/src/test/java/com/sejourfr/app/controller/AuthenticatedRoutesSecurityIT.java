@@ -82,7 +82,21 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/lots"),
                 // BillingController — endpoints authentifiés (hors /plans + /webhook publics)
                 Arguments.of(HttpMethod.GET, "/api/billing/subscription-status"),
-                Arguments.of(HttpMethod.GET, "/api/billing/payment-link"));
+                Arguments.of(HttpMethod.GET, "/api/billing/payment-link"),
+                // SkillController — module compétences (aucune route publique :
+                // toute la progression est nominative)
+                Arguments.of(HttpMethod.GET, "/api/skills/progress?section=EE"),
+                Arguments.of(HttpMethod.GET, "/api/skills/analysis-quota"),
+                Arguments.of(HttpMethod.GET, "/api/skills?taskCode=EE1"),
+                Arguments.of(HttpMethod.GET, "/api/skills/" + RANDOM_ID),
+                Arguments.of(HttpMethod.GET, "/api/skill-prompts/" + RANDOM_ID),
+                Arguments.of(HttpMethod.GET, "/api/skill-prompts/" + RANDOM_ID + "/references"),
+                // SkillAttemptController
+                Arguments.of(HttpMethod.POST, "/api/skill-attempts"),
+                Arguments.of(HttpMethod.GET, "/api/skill-attempts/" + RANDOM_ID),
+                Arguments.of(HttpMethod.POST, "/api/skill-attempts/" + RANDOM_ID + "/analyse"),
+                Arguments.of(HttpMethod.POST, "/api/skill-attempts/" + RANDOM_ID + "/retry"),
+                Arguments.of(HttpMethod.GET, "/api/skill-prompts/" + RANDOM_ID + "/attempts"));
     }
 
     @ParameterizedTest(name = "anonyme {0} {1} -> 401")

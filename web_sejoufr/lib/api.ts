@@ -27,9 +27,19 @@ import type {
   QuestionReviewResponse,
   QuestionType,
   RegisterRequest,
+  SkillAnalysisQuotaDto,
+  SkillAttemptDto,
+  SkillDetailDto,
+  SkillDto,
+  SkillPromptDto,
+  SkillReferenceDto,
+  SkillSection,
+  SkillSelfEvaluation,
+  SkillTaskProgressDto,
   StartAttemptRequest,
   SubmitAnswerRequest,
   SubmitProductionTextRequest,
+  SubmitSkillTextRequest,
   TargetProcedure,
   ThemeUserResponse,
   TokenResponse,
@@ -865,6 +875,116 @@ export const productionApi = {
             `/api/attempts/${attemptId}/production-bilan`,
             {auth: true},
         );
+    },
+};
+
+// ============================================================================
+// COMPÉTENCES TCF — micro-exercices ciblés (voie parallèle aux productions)
+// Toutes les routes sont authentifiées : il n'existe aucun endpoint public.
+// ============================================================================
+
+export const skillApi = {
+    /** Résumé par tâche (3 entrées) pour l'écran de choix de tâche. */
+    progress(section: SkillSection): Promise<SkillTaskProgressDto[]> {
+        return apiFetch<SkillTaskProgressDto[]>(
+            `/api/skills/progress?section=${section}`,
+            {auth: true},
+        );
+    },
+
+    /** Les 8 compétences actives d'une tâche + progression du user courant. */
+    listSkills(taskCode: string): Promise<SkillDto[]> {
+        return apiFetch<SkillDto[]>(`/api/skills?taskCode=${taskCode}`, {auth: true});
+    },
+
+    /** Compétence + ses 5 petits sujets avec leur statut. */
+    getSkill(skillId: string): Promise<SkillDetailDto> {
+        return apiFetch<SkillDetailDto>(`/api/skills/${skillId}`, {auth: true});
+    },
+
+    /** Sujet complet (sans les références — elles ont leur propre appel). */
+    getPrompt(promptId: string): Promise<SkillPromptDto> {
+        return apiFetch<SkillPromptDto>(`/api/skill-prompts/${promptId}`, {auth: true});
+    },
+
+    /** Les 3 références. 403 tant que le user n'a aucune tentative sur ce sujet
+     *  — c'est le garde serveur de la règle « pas de modèle avant de produire ». */
+    listReferences(promptId: string): Promise<SkillReferenceDto[]> {
+        return apiFetch<SkillReferenceDto[]>(
+            `/api/skill-prompts/${promptId}/references`,
+            {auth: true},
+        );
+    },
+
+    /** Soumet une production écrite (section EE). */
+    submitText(body: SubmitSkillTextRequest): Promise<SkillAttemptDto> {
+        return apiFetch<SkillAttemptDto>("/api/skill-attempts", {
+            method: "POST",
+            json: body,
+            auth: true,
+        });
+    },
+
+    /** Soumet une production orale (section EO, multipart). Les identifiants
+     *  passent en query (`@RequestParam` côté backend) : poser `json` écraserait
+     *  le boundary du FormData. */
+    submitAudio(opts: {
+        skillPromptId: string;
+        audio: Blob;
+        durationSec: number;
+        selfEvaluation?: SkillSelfEvaluation | null;
+        requestAnalysis: boolean;
+        filename?: string;
+    }): Promise<SkillAttemptDto> {
+        const fd = new FormData();
+        fd.append("audio", opts.audio, opts.filename ?? audioFilename(opts.audio.type));
+        const qs = new URLSearchParams({
+            skillPromptId: opts.skillPromptId,
+            durationSec: String(opts.durationSec),
+            requestAnalysis: String(opts.requestAnalysis),
+        });
+        if (opts.selfEvaluation) qs.set("selfEvaluation", opts.selfEvaluation);
+        return apiFetch<SkillAttemptDto>(`/api/skill-attempts?${qs.toString()}`, {
+            method: "POST",
+            body: fd,
+            auth: true,
+        });
+    },
+
+    /** Polling du résultat. 404 (pas 403) si la tentative n'est pas au user. */
+    getAttempt(id: string): Promise<SkillAttemptDto> {
+        return apiFetch<SkillAttemptDto>(`/api/skill-attempts/${id}`, {auth: true});
+    },
+
+    /** Historique des tentatives sur un sujet, plus récente d'abord. */
+    listAttempts(promptId: string, limit = 5): Promise<SkillAttemptDto[]> {
+        return apiFetch<SkillAttemptDto[]>(
+            `/api/skill-prompts/${promptId}/attempts?limit=${limit}`,
+            {auth: true},
+        );
+    },
+
+    /** Analyses IA restantes. `remaining === -1` = illimité (jamais affiché tel quel). */
+    analysisQuota(): Promise<SkillAnalysisQuotaDto> {
+        return apiFetch<SkillAnalysisQuotaDto>("/api/skills/analysis-quota", {auth: true});
+    },
+
+    /** Demande l'analyse IA d'une tentative déjà `RECORDED` (produite sans IA).
+     *  Sert au candidat qui produit d'abord et s'abonne ensuite : la production
+     *  est déjà en base, seule l'analyse manque. Consomme un quota. */
+    requestAnalysis(id: string): Promise<SkillAttemptDto> {
+        return apiFetch<SkillAttemptDto>(`/api/skill-attempts/${id}/analyse`, {
+            method: "POST",
+            auth: true,
+        });
+    },
+
+    /** Relance l'analyse d'une tentative FAILED. Ne re-consomme pas le quota. */
+    retryAnalysis(id: string): Promise<SkillAttemptDto> {
+        return apiFetch<SkillAttemptDto>(`/api/skill-attempts/${id}/retry`, {
+            method: "POST",
+            auth: true,
+        });
     },
 };
 

@@ -301,6 +301,8 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
+/// Écho de la production (`.answer-box` du prototype) : ce que le candidat a
+/// réellement rendu, relu à côté de la correction.
 class _SubmittedTextCard extends StatelessWidget {
   const _SubmittedTextCard({required this.text});
 
@@ -309,16 +311,17 @@ class _SubmittedTextCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.bg,
+        borderRadius: BorderRadius.circular(17),
         border: Border.all(color: AppColors.line),
       ),
       child: Text(
         text,
         style: AppFonts.ui(
-          size: 13.5,
+          size: 13,
           color: AppColors.ink,
           height: 1.55,
         ),

@@ -682,8 +682,10 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
 `AttemptService.startProductionAttempt`) :
 
 - **1 essai d'entraînement** par épreuve (EE et EO) à vie (était 2).
-  Modale d'info one-time sur `ProductionHub` (`ConfirmSheet` tone info,
-  localStorage `sejourfr.prodQuotaInfo.<épreuve>`).
+  ⚠️ La modale d'info one-time qui l'annonçait vivait sur `ProductionHub`
+  (supprimé, cf. « Entrée dans une épreuve ») : **plus rien ne l'annonce côté
+  web** — à replacer sur un écran survivant si le besoin est confirmé
+  (localStorage `sejourfr.prodQuotaInfo.<épreuve>`).
 - **1 examen blanc production offert** (examen 1, `ProductionExams`
   `freeSlots=1`). Le start passe `exam: true`
   (`ProductionAttemptStartRequest.exam`) → attempt marqué
@@ -766,6 +768,7 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
       **S'exercer + Examens** (comme CO/CE). `ProductionHub` = « Choisissez
       votre tâche » (3 cards T1/T2/T3 façon LevelChoiceCard, donut = dernière
       note ×5, + carte historique) — l'examen blanc n'y figure plus.
+      ⚠️ **`ProductionHub` est supprimé** (cf. « Entrée dans une épreuve »).
       `ProductionExams` = grille de **10 examens** (3 stat cards : passés /
       meilleure note moyenne / niveau CECRL plancher du meilleur essai ;
       Rapport → `{base}/session/{attemptId}` via `ExamsGrid.reportPath`,
@@ -774,6 +777,10 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
       (cards niveau cible). `ExamsGrid` accepte `ExamSlotData` minimal ;
       `LevelChoiceCard.footLabel` ; HubParts réduit à SectionLabel +
       HubDetailHeader (ExamBlancHero/SectionCounter/SectionLink supprimés).
+      ⚠️ **Périmé pour EE/EO** : ces écrans sont passés sur la maquette client
+      (`skill-ui/`, cf. section « Parcours TCF EE/EO ») — plus de `DetailShell`,
+      plus d'onglets, les exemples ont leur propre page. Le reste de la vague
+      (CO/CE, civique) est inchangé.
 
     - **Examen blanc production EE/EO (composition déterministe + chrono)** :
       la session (`ProductionSession`) ne compose plus les 3 tâches via
@@ -896,8 +903,10 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
   - **Architecture générique** : un seul jeu de composants `Production*` piloté par
     une `ProductionConfig` (`app/_components/production/config.ts` : `EE_CONFIG` /
     `EO_CONFIG` — `epreuve`, `base`, `mode` text/audio, `accent`, `inputSegment`).
-    Les 14 routes (`tcf/ee/*` et `tcf/eo/*`) sont de **fines enveloppes** rendant
-    `<ProductionHub|Subjects|InputPage|Results|Exams|Session|History config={…} />`.
+    Les routes (`tcf/ee/*` et `tcf/eo/*`) sont de **fines enveloppes** rendant
+    `<ProductionSubjects|InputPage|Results|Exams|Session|History config={…} />`
+    (la racine `tcf/{ee,eo}` ne rend rien : elle **redirige**, cf. « Entrée dans
+    une épreuve »).
     Seul l'input diffère selon `mode` : `EeWritingForm` (texte, compteur de mots +
     brouillon localStorage) vs `EoRecordingForm` (micro `MediaRecorder` → blob,
     chrono + durée cible, réécoute/refaire).
@@ -923,6 +932,276 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
   - **Fix backend lié** : `ProductionTaskManager.findActive` filtrait mal par
     `tacheNumero` seul (sans niveau) → renvoyait toute l'épreuve. Branche ajoutée +
     query `findByEpreuveAndTacheNumeroAndActiveTrueOrderByNiveauCibleAscCreatedAtAsc`.
+
+## Parcours TCF EE/EO — briques partagées `app/_components/skill-ui/`
+
+**Tout le parcours productif suit la maquette client**
+(`docs/skills/sejourfr_expression_ecrite_v3_competences.html`), « de la page
+d'accueil de l'épreuve jusqu'au terminus » : écran de tâche,
+réponses-modèles, exercice, résultat, examens blancs, historique — **et** le
+sous-module Compétences. Ce n'est plus un habillage local : les briques vivent
+dans `skill-ui/` et **aucun écran ne les recopie**.
+
+- `skill-ui/SkillLayout.tsx` : `SkillShell`, `SkillAccent`, `SkillHero`,
+  `SkillModeBar`, `TaskPills`, `SectionHead`, `SkillNotice`, `MiniBar`,
+  `RowChevron`, `SkillBadge`, `SkillRowCard`, `SkillFilterRow`, `SkillStats`.
+- `skill-ui/skill.module.css` : la géométrie de la maquette (rayons, paddings,
+  grilles, graisses, survols) avec **les couleurs de l'application**. Un
+  `grep -nE "#[0-9a-fA-F]{3,8}"` sur `production/`, `competences/` et
+  `skill-ui/` doit **rester vide** — `white` / `color-mix()`, jamais un hex.
+- **Un seul accent, `--skill-accent`** (bleu à l'écrit, rouge à l'oral). Il est
+  posé par `SkillShell` **ou** par `SkillAccent`, qui existe précisément pour
+  les blocs rendus hors colonne : `EeWritingForm` / `EoRecordingForm` sont
+  réutilisés par `ProductionSession` (examen blanc) et par `CompetencePrompt`,
+  qui n'ont pas le même conteneur. Sans lui, une carte d'exercice d'expression
+  orale retombait sur du bleu en pleine épreuve rouge.
+- **Le parcours est strictement identique en EE et en EO** : mêmes écrans, même
+  structure, même ordre. Seuls l'accent et la **zone de production** (saisie vs
+  enregistreur) changent.
+
+### Navigation : la barre des trois modes (`SkillModeBar`)
+
+La maquette porte **deux** navigations pour les mêmes trois modes. On ne
+reproduit **pas** la barre d'onglets du haut (`.mode-tabs`) — c'est une redite
+d'un prototype autonome. On reproduit `nav.bottom` : **Compétences · Sujets ·
+Examens**, icône au-dessus du libellé, carte blanche à 3 colonnes.
+
+- Elle est rendue **par `SkillShell`** via sa prop `mode` (+ `taskNumero`),
+  jamais en direct : c'est ce qui garantit qu'elle est au même endroit partout
+  et que la colonne réserve la place nécessaire (`.wrapBar`).
+- **Décision de placement (responsive)** : **fixée en bas sous 900 px** —
+  l'idiome mobile de la maquette, et le point où `DualChromeShell` replie sa
+  barre latérale en tiroir. **Au-delà de 900 px elle repasse dans le flux**, en
+  tête de colonne, en segmenté de 440 px. Une barre flottante en bas d'un écran
+  large entrerait en concurrence avec la navigation latérale de l'application :
+  deux navigations superposées valent moins qu'une seule lisible.
+- Elle n'est **pas** posée sur les écrans de production (exercice, résultat,
+  session d'examen) : l'action principale y vit en bas de page, une barre
+  flottante s'assoirait dessus.
+- Sans `taskNumero` (grille d'examens blancs), « Sujets » comme
+  « Compétences » retombent sur la **tâche 1**. C'est une destination par
+  défaut, **jamais un chiffre affiché** qui serait faux. Il n'y a plus d'écran
+  d'accueil d'épreuve où retomber.
+
+### Entrée dans une épreuve : pas d'écran d'accueil
+
+Demande client : « dès qu'on vient du menu Réviser → EO ou EE, on arrive
+directement sur l'écran comme celui du template ». On ouvre donc l'**espace de
+travail** — le mode « Compétences » de la **tâche 1**,
+`…/tache/1/competences` — et on change de tâche par les pastilles T1/T2/T3, de
+mode par la barre Compétences · Sujets · Examens.
+
+- **Destination déclarée une seule fois** : `PRODUCTION_ENTRY_SUFFIX` /
+  `productionEntryHref(base)` dans `production/config.ts`. `TcfHub` s'en sert
+  pour les cards EE/EO ; les **routes `…/tcf/{ee,eo}` restent servies en
+  `redirect()`**, parce qu'elles sont référencées ailleurs (`lib/dashboard.ts`
+  `categoryHref`, landing `/reussir`, `?back=`, historiques d'URL). Une
+  redirection n'est pas du code mort — c'est ce qui permet de déplacer l'entrée
+  sans repasser sur tous les appelants.
+- **`ProductionHub` est supprimé** (cartes T1/T2/T3 + historique récent +
+  modale de quota). Son écran parent, le hub TCF, est la nouvelle destination de
+  tout retour arrière qui sort de l'épreuve : `TCF_HUB_HREF` / `TCF_HUB_LABEL`
+  (mêmes constantes, même fichier). Ne **jamais** faire pointer un retour sur
+  `config.base` : la redirection ramènerait sur l'espace Compétences, donc en
+  boucle depuis Sujets.
+- **Conséquence non traitée** : `ProductionHistory` (`…/historique`) n'a plus
+  de point d'entrée — le client a demandé d'oublier l'historique « pour
+  l'instant ». La page et sa route existent toujours, joignables seulement par
+  URL directe.
+
+### Les « Exemples » ne sont pas un mode
+
+La barre n'a que trois entrées. Les réponses-modèles sont une **ressource
+d'appoint** : lien discret en tête de la liste des sujets → page dédiée
+`…/tache/[n]/exemples` (`ProductionExamples`). En faire un onglet mettait sur le
+même plan « je produis » et « je lis un modèle ». L'appel
+`productionApi.listExamples` est inchangé — c'est le point d'entrée qui bouge.
+
+### Écrans repris et invariants conservés
+
+`ProductionSubjects` (hero, pastilles de tâche, filtres Tous/À faire/Traités
+avec compteurs, cartes de sujet à liseré de statut), `ProductionExamples`,
+`ProductionInputPage` + le chrome de `EeWritingForm`/`EoRecordingForm` (carte
+d'exercice : badge de contrainte, palier, titre d'intention, consigne, contexte,
+chips de format, zone de production, compteur flottant, actions),
+`ProductionResults` (accusé de traitement → écho de la production → retour IA →
+actions), `ProductionExams` (hero, 3 indicateurs, packs d'examen),
+`ProductionHistory`.
+
+- **Aucun contrat d'API n'a changé, aucun endpoint n'a été ajouté.** Une donnée
+  que les DTO ne portent pas n'est pas affichée : à l'oral, l'écho de la
+  production est la **transcription** — `ProductionSubmissionDto` n'expose pas
+  d'URL audio (contrairement à `SkillAttemptDto`), donc pas de lecteur inventé.
+- **`ProductionFeedbackView` et ses blocs internes ne bougent pas** : leur ordre
+  et leurs règles de lecture sont des décisions de **notation**, pas de mise en
+  page (cf. la section dédiée plus bas).
+- Les props ajoutées aux formulaires partagés (`exerciseTitle`) sont
+  **optionnelles**, comportement actuel par défaut — `ProductionSession` (chrono,
+  auto-soumission, `examMode`, `timeoutSignal`) et le parcours d'examen TCF
+  complet sont inchangés.
+- `production.module.css` a perdu ~440 lignes devenues mortes (carte de
+  consigne, textarea, lignes de liste, cartes d'exemple, chrono, légende de
+  bandes) : la refonte supprime l'ancien, elle ne le laisse pas cohabiter.
+
+## Compétences TCF — micro-exercices EE/EO
+
+Troisième espace d'une tâche productive, **à côté** des sujets TCF complets et
+des exemples (spec `docs/skills/SEJOURFR_SPEC_COMPETENCES_EE_EO.md`, contrat
+gelé partagé backend/mobile/admin). Un petit sujet entraîne **un seul critère**,
+pas une copie entière : 6 tâches × 8 compétences × 5 sujets, chacun livré avec
+3 productions de référence.
+
+**Ce n'est pas la voie de notation des productions.** Un micro-exercice n'a
+**ni note /20 ni niveau CECRL** (interdit par le §9 de la spec — quinze mots ne
+situent personne sur l'échelle du TCF) : le seul verdict est
+`SkillCriterionStatus` (`VALIDATED | PARTIAL | NOT_VALIDATED`) sur le critère du
+sujet. Ne jamais réintroduire `ProductionScoreHero`/`formatNoteSur20` ici.
+
+- **Point d'entrée** : 3ᵉ onglet « Compétences » de `ProductionSubjects`
+  (`Sujets | Compétences | Exemples`) — il **pousse** vers
+  `…/tache/[n]/competences`, ce n'est pas un état d'onglet local.
+- **Routes** (wrappers minces injectant `EE_CONFIG`/`EO_CONFIG`, comme toutes
+  les pages production), sous `/entrainement/tcf/{ee,eo}/tache/[n]/competences` :
+  `/` (les 8 compétences) · `/[skillId]` (5 sujets + filtres) ·
+  `/[skillId]/[promptId]` (production) ·
+  `/[skillId]/[promptId]/resultat/[attemptId]` (retour + références).
+- **Composants** `app/_components/competences/` : `CompetencesList`,
+  `CompetenceDetail`, `CompetencePrompt`, `CompetenceResult`,
+  `CompetenceReferences`, `CompetenceStatusBadge`, `SelfEvaluationPicker`.
+  Les briques de mise en page et leur feuille de style ont été **promues en
+  partagé** dans `app/_components/skill-ui/` (`SkillLayout.tsx` +
+  `skill.module.css`) quand tout le parcours TCF est passé sur la même
+  maquette — cf. la section « Parcours TCF EE/EO » ci-dessus.
+- **Le module suit la maquette client**
+  (`docs/skills/sejourfr_expression_ecrite_v3_competences.html`) et **pas** les
+  briques génériques `DetailShell` / `hub.hub` — c'est une demande explicite du
+  client, avec **sa navigation** : hero en dégradé porteur de la progression de
+  toute la tâche, pastilles T1/T2/T3 pour changer de tâche sans revenir en
+  arrière, intertitres de section, encart « Principe pédagogique ».
+  `skill-ui/SkillLayout.tsx` porte ces briques partagées — les quatre écrans du
+  module les consomment comme le reste du parcours, aucun ne les recopie. **La barre d'onglets du
+  haut de la maquette (« Compétences | Sujets TCF | Examens ») n'est PAS
+  reproduite** : cette navigation existe déjà dans l'application, la maquette la
+  duplique parce qu'elle est autonome.
+  - **Géométrie de la maquette, couleurs de l'application.** Rayons, paddings,
+    grilles, graisses et survols viennent de la maquette ; les couleurs restent
+    `var(--color-*)`. Un `grep -nE "#[0-9a-fA-F]{3,8}"` sur les fichiers du
+    module doit **rester vide** — utiliser `white` / `color-mix()` plutôt qu'un
+    hex, y compris pour les blancs translucides du hero.
+  - **Un seul accent, `--skill-accent`**, posé par `SkillShell` selon
+    `config.accent` (bleu à l'écrit, rouge à l'oral) : aucune brique du module
+    ne choisit sa couleur. Les internes des formulaires partagés
+    (`production.module.css`) restent bleus — ils appartiennent aussi aux écrans
+    de production TCF, les retinter est une décision sur **ces** écrans.
+  - **Même largeur de colonne (880 px) sur les quatre écrans** : la colonne ne
+    doit plus rétrécir au milieu du parcours.
+  - Tokens ajoutés à `globals.css` pour ce module : `--color-amber-dark`
+    (ambre **lisible en texte** ; `--color-amber` est un ambre de remplissage,
+    illisible sur blanc), `--gradient-hero-blue` / `--gradient-hero-red` (2ᵉ
+    butée dérivée de la couleur de marque par `color-mix`, aucune teinte
+    nouvelle) et `--gradient-ink-blue` (bandeau d'analyse IA).
+- **Progression : calculée côté client, dans `lib/skill-progress.ts`** (pur,
+  testé par `skill-progress.test.ts`). Aucun endpoint ne sert « sujets traités »
+  prêt à afficher : le hero somme les 8 compétences de
+  `GET /api/skills?taskCode=`, et la barre « Progression de la compétence » de
+  l'écran d'un sujet retrouve sa compétence dans cette même liste. Ne pas
+  refaire la division dans un JSX — deux écrans finiraient par afficher deux
+  pourcentages pour la même tâche.
+- **Types** `lib/types.ts` (section COMPÉTENCES) : `SkillDto`, `SkillDetailDto`,
+  `SkillPromptDto`, `SkillPromptSummaryDto`, `SkillReferenceDto`,
+  `SkillAttemptDto`, `SkillAnalysisDto`, `SkillAnalysisQuotaDto` + les enums et
+  les tables de libellés FR (`SKILL_PROMPT_STATUS_LABEL`,
+  `SKILL_SELF_EVALUATION_LABEL`, `SKILL_REFERENCE_LEVEL_LABEL`) — **libellés
+  gelés par le contrat, à ne pas reformuler**. ⚠️ `SkillDifficulty`
+  (`EASY|MEDIUM|HARD`) est le **vrai** `enums.Difficulty` Java ; le `Difficulty`
+  historique de ce fichier encode un niveau de cible (CSP/CR/NAT/A2/B1/B2) et
+  n'a rien à voir. Client : namespace `skillApi` dans `lib/api.ts`.
+- **Statut d'un sujet** : `TODO | TREATED | VALIDATED | TO_REINFORCE`, **dérivé
+  par le backend**, jamais recalculé côté front. `TREATED` (« Fait ») est l'état
+  d'une production enregistrée **sans** analyse IA — sans verdict de critère,
+  « Validé » comme « À renforcer » seraient tous les deux faux. Les quatre
+  statuts se distinguent par couleur **et** icône **et** libellé, plus un liseré
+  vertical sur la carte de sujet.
+- **Réutilisation des formulaires** : `EeWritingForm` / `EoRecordingForm` sont
+  employés tels quels via un adaptateur `SkillPromptDto → ProductionTaskDto`
+  (`toProductionTask`, dans `CompetencePrompt`). Des props **optionnelles** ont
+  été ajoutées aux deux formulaires, sans changer leur comportement par défaut :
+  `consigneLabel`, `headerSlot` (tête d'exercice **avant** la consigne :
+  intention + critère du sujet — le critère se lit avant l'énoncé, §13.1),
+  `criteriaSlot` (remplace la carte des 4 critères du TCF — un micro-exercice
+  n'en a qu'un ; sert ici aux repères de format et à « Pourquoi cet
+  exercice ? »), `footerSlot` (auto-évaluation, option d'analyse et rappel ambre,
+  juste au-dessus du bouton de validation) et, côté EE seulement,
+  `lengthAdvisory` + `clearLabel`.
+  - **`lengthAdvisory` (EE) : la fourchette AVERTIT sans bloquer.** `motsMin` /
+    `motsMax` sont désormais **transmis** (ils étaient annulés, ce qui rendait la
+    fourchette purement décorative) ; avec ce drapeau la soumission reste ouverte
+    hors bornes et un message le dit explicitement (spec §8 règle 15 — une
+    production courte qui satisfait le critère est valide). Les tâches TCF, elles,
+    gardent des bornes **strictes** : le drapeau y reste `false`. Ne pas
+    réintroduire de blocage ici, ni annuler les bornes à nouveau.
+  - `clearLabel` ajoute le bouton secondaire « Effacer » à côté de la
+    validation ; absent par défaut (en examen, effacer n'a pas de sens).
+  `niveauCible` reçoit `SkillPromptDto.skillTargetLevel` :
+  le palier est **exigé** sur l'écran d'un petit sujet (spec §3 niveau 5), et
+  supprimer un appel réseau ne doit rien lui coûter. `setEeDraft` (exporté à côté
+  de `clearEeDraft`) alimente « Reprendre ma réponse », appliqué par un
+  changement de `key`.
+- **Deux textes, deux endroits** : `SkillDto.generalCriterion` = le critère
+  général → encart **« Critère travaillé »** de l'écran compétence ;
+  `SkillDto.description` = la courte explication → paragraphe de la carte de
+  résumé (niveau 4) et encart **« Pourquoi cet exercice ? »** de l'écran de
+  sujet (niveau 5). Ne jamais rendre le même texte aux deux places. Le critère
+  du **sujet**, lui, est `SkillPromptDto.uniqueCriterion` — encore un troisième
+  texte.
+- **Un seul appel sur l'écran de sujet** : `SkillPromptDto` porte
+  `skillPromptCount`, `skillDescription`, `skillGeneralCriterion` et
+  `skillTargetLevel`, donc le fil
+  d'Ariane `Tâche › Compétence › Sujet i/5` (`displayOrder` / `skillPromptCount`)
+  et l'encart « Pourquoi cet exercice ? » se rendent **sans** second
+  `GET /api/skills/{skillId}`. Ne pas réintroduire cet aller-retour.
+- **Bandeau « Sujet déjà traité »**, libellés gelés par le contrat (parité mot
+  pour mot avec le mobile) : **une seule** action, `Reprendre ma réponse` en EE
+  (préremplit la zone de saisie depuis `lastAttemptId`) et
+  `Écouter ma dernière réponse` en EO (ouvre l'écran de résultat de
+  `lastAttemptId`). Un enregistrement ne se « reprend » pas — il se réécoute.
+- **Freemium** (§14) : **aucun sujet n'est verrouillé**. Produire, s'auto-évaluer
+  et lire les 3 références sont gratuits partout. Seule **l'analyse IA** est
+  premium, avec **3 analyses offertes à vie** — case « Analyser ma réponse avec
+  l'IA » cochée par défaut, verrouillée à quota épuisé (clic → `PaywallSheet`
+  INTEGRAL). `GET /api/skills/analysis-quota` renvoie `remaining = -1` pour
+  illimité : **cette valeur ne s'affiche jamais telle quelle**.
+  `skillApi.requestAnalysis` (`POST /api/skill-attempts/{id}/analyse`) demande
+  l'analyse d'une tentative déjà `RECORDED` — le cas « produire d'abord,
+  s'abonner ensuite ». Le client existe, **l'UI reste à brancher**.
+- **Ordre imposé de l'écran de résultat** (§13.4) : **accusé de traitement**
+  (« Sujet marqué comme traité » — la progression a bougé, c'est ce que le
+  candidat vient chercher) → `Ta production` → verdict →
+  `Ce qui est réussi` / `À travailler en priorité` → `Proposition améliorée` →
+  **puis seulement** les onglets de références `Insuffisant | Attendu | Très
+  réussi` → les 3 actions (`Retour aux petits sujets`, `Refaire ce sujet`,
+  `Sujet suivant à travailler` via `nextPromptId`, désactivé si null). Les
+  références ne sont **jamais** visibles avant d'avoir produit (§13.2, doublé
+  d'un 403 serveur). Polling 3 s / 40 tirages, comme `ProductionResults`. En EO,
+  le bloc `Ta production` porte le **lecteur audio** (`SkillAttemptDto.audioUrl`,
+  URL R2 présignée 15 min, même `<audio controls preload="metadata">` que
+  `EoRecordingForm`) **et** la durée : se réécouter en lisant le retour est la
+  moitié de la valeur de l'oral.
+- **Le retour IA est replié derrière un bandeau « Analyse IA du critère »**
+  (maquette). Le bandeau est **toujours** rendu — ce qui change, c'est ce que
+  fait son bouton : dépliage « Voir » ⇄ « Masquer » quand l'analyse existe
+  (`aria-expanded` + `aria-controls`, bouton donc pilotable au clavier),
+  ouverture du `PaywallSheet` quand les analyses offertes sont épuisées,
+  relance de l'exercice quand la production a été enregistrée sans analyse alors
+  qu'il en reste. Un bandeau qui disparaîtrait ne dirait jamais au candidat ce
+  qu'il rate — c'est exactement le point premium du module.
+- **Le verdict `NOT_VALIDATED` est ROUGE** (parité mobile, et cohérent avec la
+  référence « Insuffisant ») : c'est un **critère**, pas un niveau CECRL — la
+  règle « jamais de rouge sur un palier » ne s'applique pas ici. Les onglets de
+  références portent le même code : rouge / vert / bleu.
+- **Le liseré vertical d'une carte de sujet ne marque QUE les sujets traités**
+  (3 px, en retrait vertical). Un liseré gris sur les sujets « à faire » lui
+  retirait tout pouvoir de distinction.
 
 ### Écran de résultat d'une production (6 blocs, parité mobile)
 

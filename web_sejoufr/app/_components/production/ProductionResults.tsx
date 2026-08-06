@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {useParams, useSearchParams} from "next/navigation";
 import {useEffect, useState} from "react";
+import {Check} from "lucide-react";
 import {ApiException, productionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
@@ -12,12 +13,11 @@ import {
 } from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
-import {HubDetailHeader} from "@/app/_components/hub/HubParts";
+import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
+import s from "@/app/_components/skill-ui/skill.module.css";
 import {ProductionFeedbackView} from "./ProductionFeedbackView";
 import {TranscriptDialogue} from "./TranscriptDialogue";
-import {type ProductionConfig} from "./config";
-import hub from "@/app/_components/hub/hub.module.css";
-import prod from "./production.module.css";
+import {type ProductionConfig, TCF_HUB_HREF, TCF_HUB_LABEL} from "./config";
 
 const POLL_MS = 3000;
 const MAX_POLLS = 40; // ~2 min
@@ -26,6 +26,12 @@ const MAX_POLLS = 40; // ~2 min
  * Feedback IA d'une production (EE/EO). Poll la submission toutes les 3 s tant
  * que l'évaluation n'a pas abouti (EO passe par TRANSCRIBING), affiche le détail
  * une fois EVALUATED, et propose « Réessayer » si FAILED.
+ *
+ * L'écran suit l'ordre de la maquette : **accusé de traitement** (la production
+ * est enregistrée — c'est ce que le candidat vient vérifier), puis l'**écho de
+ * sa production**, puis le retour détaillé, puis les actions de fin. Le contenu
+ * du retour lui-même (`ProductionFeedbackView`) garde son ordre et ses règles
+ * de lecture : ce sont des décisions de notation, pas de mise en page.
  */
 export function ProductionResults({config}: {config: ProductionConfig}) {
   const params = useParams<{submissionId: string}>();
@@ -34,10 +40,10 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
   const {user, status} = useAuth();
 
   // Écran d'origine (bilan d'examen `…/session/{id}`, historique…) passé en
-  // `?back=` par l'appelant — sans lui, retour au hub de l'épreuve. On
-  // n'accepte qu'un chemin interne (pas d'open redirect).
+  // `?back=` par l'appelant — sans lui, retour au hub TCF (l'épreuve n'a pas
+  // d'écran d'accueil). On n'accepte qu'un chemin interne (pas d'open redirect).
   const backParam = searchParams?.get("back");
-  const backHref = backParam && backParam.startsWith("/") ? backParam : config.base;
+  const backHref = backParam && backParam.startsWith("/") ? backParam : TCF_HUB_HREF;
 
   const [submission, setSubmission] = useState<ProductionSubmissionDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,10 +57,10 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
     let timer: ReturnType<typeof setTimeout> | null = null;
     async function tick() {
       try {
-        const s = await productionApi.getSubmission(id);
+        const sub = await productionApi.getSubmission(id);
         if (cancelled) return;
-        setSubmission(s);
-        if (isSubmissionPending(s) && polls < MAX_POLLS) {
+        setSubmission(sub);
+        if (isSubmissionPending(sub) && polls < MAX_POLLS) {
           polls += 1;
           timer = setTimeout(tick, POLL_MS);
         }
@@ -75,8 +81,8 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
     setError(null);
     setRetrying(true);
     try {
-      const s = await productionApi.retrySubmission(submission.id);
-      setSubmission(s);
+      const sub = await productionApi.retrySubmission(submission.id);
+      setSubmission(sub);
       setPollKey((k) => k + 1);
     } catch (e) {
       setError(e instanceof ApiException ? e.message : "Impossible de relancer l'évaluation.");
@@ -95,49 +101,43 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
 
   return (
     <DualChromeShell>
-      <main className={hub.hub}>
-        <HubDetailHeader
-          backHref={backHref}
-          title="Résultat"
-          subtitle={
-            submission
-              ? `Tâche ${tacheNum} · ${productionTaskTitle(config.epreuve, tacheNum)}`
-              : config.label
-          }
-        />
-
-        {error && <div className={prod.error}>{error}</div>}
+      <SkillShell
+        config={config}
+        backHref={backHref}
+        backLabel={backParam ? "Retour" : TCF_HUB_LABEL}
+      >
+        {error && <div className={s.error}>{error}</div>}
 
         {!submission ? (
-          <div className={prod.pending}>
-            <div className={prod.spinner} />
-            <p className={prod.pendingSub}>Chargement…</p>
+          <div className={s.pending}>
+            <div className={s.spinner} />
+            <p className={s.pendingText}>Chargement…</p>
           </div>
         ) : failed ? (
-          <div className={prod.card}>
-            <p className={prod.cardLabel}>Évaluation échouée</p>
-            <p className={prod.consigne} style={{fontSize: 14}}>
+          <section className={`${s.card} ${s.panel}`}>
+            <h1 className={s.resultHeading}>Évaluation échouée</h1>
+            <p className={s.verdictText}>
               {submission.erreurMessage ??
-                "L'évaluation n'a pas pu aboutir. Vous pouvez relancer."}
+                "L'évaluation n'a pas pu aboutir. Vous pouvez la relancer."}
             </p>
-            <div className={prod.actions} style={{justifyContent: "flex-start", marginTop: 14}}>
+            <div className={s.actionRow}>
               {submission.retryCount < 3 && (
-                <button type="button" className="btn btn-blue" disabled={retrying} onClick={retry}>
+                <button type="button" className={s.primary} disabled={retrying} onClick={retry}>
                   {retrying ? "Relance…" : "Réessayer"}
                 </button>
               )}
-              <Link href={backHref} className="btn btn-ghost">
+              <Link href={backHref} className={s.secondary}>
                 Retour
               </Link>
             </div>
-          </div>
+          </section>
         ) : pending ? (
-          <div className={prod.pending}>
-            <div className={prod.spinner} />
-            <p className={prod.pendingTitle}>
+          <div className={s.pending}>
+            <div className={s.spinner} />
+            <p className={s.resultHeading}>
               {transcribing ? "Transcription en cours…" : "Évaluation en cours…"}
             </p>
-            <p className={prod.pendingSub}>
+            <p className={s.pendingText}>
               {transcribing
                 ? "Votre enregistrement est transcrit avant l'analyse. Encore quelques secondes…"
                 : "L'IA analyse votre production (cohérence, lexique, grammaire…). Cela prend généralement une quinzaine de secondes."}
@@ -145,40 +145,62 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
           </div>
         ) : submission.evaluation ? (
           <>
+            {/* Accusé de traitement : la production est enregistrée. C'est la
+                première chose qu'un candidat vient vérifier — avant même la
+                note. */}
+            <section className={`${s.card} ${s.panel} ${s.result}`}>
+              <div className={s.resultTitle}>
+                <span className={s.check} aria-hidden>
+                  <Check size={22} strokeWidth={3} />
+                </span>
+                <div>
+                  <h1 className={s.resultHeading}>Production évaluée</h1>
+                  <p className={s.resultSub}>
+                    Tâche {tacheNum} · {productionTaskTitle(config.epreuve, tacheNum)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Écho de la production : on relit ce qu'on a rendu en lisant le
+                  retour — à l'oral, on se réécoute. */}
+              {config.mode === "text" && submission.texteSoumis && (
+                <div className={s.answerBox}>
+                  <span className={s.answerLabel}>
+                    Votre production · {submission.motsCount ?? 0} mots
+                  </span>
+                  <p className={s.prodText}>{submission.texteSoumis}</p>
+                </div>
+              )}
+
+              {/* À l'oral, l'écho de la production est la transcription :
+                  `ProductionSubmissionDto` ne porte pas d'URL audio (contrairement
+                  à `SkillAttemptDto`), et on n'invente pas un lecteur sur une
+                  donnée que l'API ne sert pas. */}
+              {config.mode === "audio" && submission.transcription && (
+                <details className={s.answerBox}>
+                  <summary className={s.answerLabel}>Votre production · transcription</summary>
+                  <div className={s.aiPanel}>
+                    <TranscriptDialogue raw={submission.transcription} />
+                  </div>
+                </details>
+              )}
+            </section>
+
             <ProductionFeedbackView
               evaluation={submission.evaluation}
               isOral={config.mode === "audio"}
             />
-            {config.mode === "audio" && submission.transcription && (
-              <details className={prod.card}>
-                <summary className={prod.cardLabel} style={{cursor: "pointer"}}>
-                  Voir ma transcription
-                </summary>
-                <div style={{marginTop: 12, maxHeight: 380, overflowY: "auto"}}>
-                  <TranscriptDialogue raw={submission.transcription} />
-                </div>
-              </details>
-            )}
-            {config.mode === "text" && submission.texteSoumis && (
-              <details className={prod.card}>
-                <summary className={prod.cardLabel} style={{cursor: "pointer"}}>
-                  Voir le texte soumis ({submission.motsCount ?? 0} mots)
-                </summary>
-                <p className={prod.submitted} style={{marginTop: 12}}>
-                  {submission.texteSoumis}
-                </p>
-              </details>
-            )}
-            <div className={prod.actions}>
-              <Link href={backHref} className="btn btn-blue">
+
+            <div className={s.actions}>
+              <Link href={backHref} className={`${s.primary} ${s.actionWide}`}>
                 {backParam ? "Retour" : "Retour aux tâches"}
               </Link>
             </div>
           </>
         ) : (
-          <p className={prod.empty}>Évaluation indisponible.</p>
+          <p className={s.empty}>Évaluation indisponible.</p>
         )}
-      </main>
+      </SkillShell>
     </DualChromeShell>
   );
 }

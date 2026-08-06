@@ -1,0 +1,42 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "verdict",
+    "success_point",
+    "improvement_priority",
+    "improved_version"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["VALIDATED", "PARTIAL", "NOT_VALIDATED"],
+      "description": "Verdict sur le CRITERE UNIQUE du sujet, et sur lui seul. VALIDATED : le critere est visible et comprehensible, meme avec des erreurs de langue qui ne bloquent pas la communication. PARTIAL : le candidat tente le critere mais il manque une information, une precision, un developpement ou un lien. NOT_VALIDATED : le critere est absent, la consigne n'est pas traitee, ou la production est trop difficile a comprendre pour l'identifier."
+    },
+    "verdict": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "UNE phrase courte (20 mots maximum) qui dit si le critere est atteint. Pas de note, pas de niveau, pas de liste."
+    },
+    "success_point": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "description": "UN seul point reussi (30 mots maximum), concret et tire de la production reelle du candidat. Toujours renseigne, meme sur une production faible."
+    },
+    "improvement_priority": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 350,
+      "description": "UNE seule priorite d'amelioration (35 mots maximum), actionnable, liee au critere unique. Si le critere est deja valide, dire qu'il n'y a pas de correction prioritaire pour ce critere — ne jamais inventer un defaut secondaire."
+    },
+    "improved_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1200,
+      "description": "Reformulation courte qui conserve l'IDEE ET L'INTENTION du candidat, de longueur proche de celle demandee par le sujet. Jamais une reponse entierement differente, jamais un modele de substitution."
+    }
+  }
+}

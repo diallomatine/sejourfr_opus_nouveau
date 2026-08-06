@@ -16,6 +16,7 @@ import '../module_detail/production_exam_briefing_sheet.dart';
 import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
 import 'expression_hub_data.dart';
+import 'production_nav.dart';
 import 'tcf_production_module.dart';
 import 'widgets/exam_filter_chips.dart';
 import 'widgets/exam_progress_card.dart';
@@ -23,6 +24,7 @@ import 'widgets/exam_slot/exam_slot_card.dart';
 import 'widgets/exams_error_view.dart';
 import 'widgets/flag_badge.dart';
 import 'widgets/module_screen_header.dart';
+import 'widgets/production_module_bar.dart';
 import 'widgets/production_exam_done_result.dart';
 import 'widgets/production_exams_stats_row.dart';
 
@@ -124,9 +126,17 @@ ExamSlotPill _difficultyPill(_ExamDifficulty d) {
 /// Page « Examens blancs » d'une épreuve EE/EO. Header + stats + barre de
 /// progression + chips de filtre + liste des 10 slots numérotés.
 class ProductionExamsScreen extends ConsumerStatefulWidget {
-  const ProductionExamsScreen({super.key, required this.module});
+  const ProductionExamsScreen({
+    super.key,
+    required this.module,
+    this.tache = 1,
+  });
 
   final TcfProductionModule module;
+
+  /// Tâche d'où l'on vient, pour que la barre du module y renvoie. La page
+  /// elle-même est portée par l'épreuve : cette valeur ne s'affiche nulle part.
+  final int tache;
 
   @override
   ConsumerState<ProductionExamsScreen> createState() =>
@@ -207,13 +217,7 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
     context.push('$base/sessions/${exam.attemptId}');
   }
 
-  void _back() {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go(widget.module.isEo ? '/tcf/eo' : '/tcf/ee');
-    }
-  }
+  void _back() => leaveProductionParcours(context);
 
   @override
   Widget build(BuildContext context) {
@@ -231,16 +235,37 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
               trailing: const FlagBadge(),
             ),
             Expanded(
-              child: async.when(
-                loading: () => const Center(
-                    child: CircularProgressIndicator(color: AppColors.red)),
+              child: Stack(
+                children: [
+                  async.when(
+                loading: () => Center(
+                    child:
+                        CircularProgressIndicator(color: widget.module.accent)),
                 error: (e, _) => ExamsErrorView(
                   message: ApiClient.toApiException(e).message,
                   onRetry: () => ref
                       .invalidate(expressionHubProvider(widget.module.epreuve)),
-                  accent: AppColors.red,
+                  accent: widget.module.accent,
                 ),
-                data: (_) => _buildContent(),
+                    data: (_) => _buildContent(),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: ProductionModuleBar(
+                      active: ProductionModuleTab.examens,
+                      accent: widget.module.accent,
+                      onChanged: (tab) => goProductionTab(
+                        context,
+                        widget.module,
+                        widget.tache,
+                        tab,
+                        current: ProductionModuleTab.examens,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -282,14 +307,15 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
     final todoCount = _examSlotsCount - doneCount - lockedTodo;
 
     return RefreshIndicator(
-      color: AppColors.red,
+      color: widget.module.accent,
       onRefresh: () async {
         ref.invalidate(expressionHubProvider(widget.module.epreuve));
         ref.invalidate(_examBilansProvider(widget.module.epreuve));
         await ref.read(expressionHubProvider(widget.module.epreuve).future);
       },
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
+        padding: const EdgeInsets.fromLTRB(
+            14, 8, 14, ProductionModuleBar.reservedHeight),
         children: [
           ProductionExamsStatsRow(
             doneCount: doneCount,
@@ -302,6 +328,7 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
           const SizedBox(height: 12),
           ExamFilterChips(
             active: _filter,
+            accent: widget.module.accent,
             labels: [
               'Tous · $_examSlotsCount',
               'À faire · $todoCount',
@@ -337,10 +364,12 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
                 icon: Text(
                   'Voir les examens ${visibleIndices.length + 1} à ${filteredIndices.length}',
                   style: AppFonts.ui(
-                      size: 13, weight: FontWeight.w700, color: AppColors.blue),
+                      size: 13,
+                      weight: FontWeight.w700,
+                      color: widget.module.accent),
                 ),
-                label: const Icon(LucideIcons.chevronDown,
-                    size: 18, color: AppColors.blue),
+                label: Icon(LucideIcons.chevronDown,
+                    size: 18, color: widget.module.accent),
               ),
             ),
         ],

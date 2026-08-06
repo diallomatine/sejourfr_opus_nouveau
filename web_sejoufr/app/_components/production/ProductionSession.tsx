@@ -31,6 +31,7 @@ import { useRealtimeEo } from "./useRealtimeEo";
 import { type ProductionConfig } from "./config";
 import detail from "@/app/_components/hub/detail.module.css";
 import prod from "./production.module.css";
+import skill from "@/app/_components/skill-ui/skill.module.css";
 
 const TACHES = [1, 2, 3] as const;
 const POLL_MS = 3000;
@@ -511,12 +512,12 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       >
         {/* Chrono d'épreuve permanent (EE 30:00, EO 15:00) */}
         {chronoActive && (
-          <div className={`${prod.examChrono} ${chronoUrgent ? prod.examChronoUrgent : ""}`}>
-            <span className={prod.examChronoLabel}>
+          <div className={`${skill.chrono} ${chronoUrgent ? skill.chronoUrgent : ""}`}>
+            <span className={skill.chronoLabel}>
               <Timer size={15} strokeWidth={2} aria-hidden />
               Temps restant
             </span>
-            <span className={prod.examChronoTime}>{fmtChrono(chronoSec)}</span>
+            <span className={skill.chronoTime}>{fmtChrono(chronoSec)}</span>
           </div>
         )}
 
@@ -568,6 +569,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                   submitting={submitting}
                   error={rtError}
                   submitLabel={submitLabel}
+                  exerciseTitle={productionTaskTitle(config.epreuve, currentTask.tacheNumero)}
                   examMode
                   timeoutSignal={autoSubmitSignal}
                   onTimeout={onEoTimeout}
@@ -588,6 +590,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                 task={currentTask}
                 submitting={submitting}
                 submitLabel={submitLabel}
+                exerciseTitle={productionTaskTitle(config.epreuve, currentTask.tacheNumero)}
                 autoSubmitSignal={autoSubmitSignal}
                 onAutoSubmit={onEeTimeout}
                 onSubmit={(texte) =>

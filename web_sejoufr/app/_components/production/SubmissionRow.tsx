@@ -1,21 +1,26 @@
 "use client";
 
-import {ChevronRight} from "lucide-react";
 import {
   type EpreuveType,
   formatNoteSur20,
   productionTaskTitle,
   type ProductionSubmissionDto,
 } from "@/lib/types";
-import styles from "./production.module.css";
+import {
+  RowChevron,
+  SkillBadge,
+  SkillRowCard,
+} from "@/app/_components/skill-ui/SkillLayout";
+import s from "@/app/_components/skill-ui/skill.module.css";
 
 /**
  * Ligne d'une soumission de production (EE/EO) : numéro de tâche, titre (selon
  * l'épreuve), état (note si évaluée, sinon « en cours » / « échouée »). Pas de
- * niveau CECRL par tâche. Partagée entre les hubs et les historiques.
+ * niveau CECRL par tâche. Partagée entre le hub et l'historique — c'est la même
+ * carte que celles des sujets, à la géométrie de la maquette.
  */
 export function SubmissionRow({
-  submission: s,
+  submission: sub,
   epreuve,
   onClick,
 }: {
@@ -23,44 +28,35 @@ export function SubmissionRow({
   epreuve: EpreuveType;
   onClick: () => void;
 }) {
-  const note = s.evaluation?.noteSurVingt;
-  const pending = s.statut !== "EVALUATED" && s.statut !== "FAILED";
-  const sub =
-    s.statut === "FAILED"
+  const note = sub.evaluation?.noteSurVingt;
+  const evaluated = sub.statut === "EVALUATED";
+  const pending = !evaluated && sub.statut !== "FAILED";
+  const text =
+    sub.statut === "FAILED"
       ? "Évaluation échouée — relancer"
       : pending
         ? "Évaluation en cours…"
-        : formatDay(s.submittedAt);
-
-  const toneClass =
-    s.tacheNumero === 1
-      ? styles.rowChipT1
-      : s.tacheNumero === 2
-        ? styles.rowChipT2
-        : s.tacheNumero === 3
-          ? styles.rowChipT3
-          : "";
+        : formatDay(sub.submittedAt);
 
   return (
-    <button type="button" className={styles.row} onClick={onClick}>
-      <span className={`${styles.rowChip} ${toneClass}`}>T{s.tacheNumero ?? "?"}</span>
-      <span className={styles.rowBody}>
-        <span className={styles.rowTitle}>{productionTaskTitle(epreuve, s.tacheNumero ?? 0)}</span>
-        <span className={styles.rowSub}>{sub}</span>
-      </span>
-      {note != null && s.statut === "EVALUATED" ? (
-        <span
-          className={styles.rowScore}
-          style={{background: "var(--color-blue-soft)", color: "var(--color-blue)"}}
-        >
-          {formatNoteSur20(note)}/20
-        </span>
-      ) : null}
-      <ChevronRight size={20} className={styles.rowChevron} />
-    </button>
+    <SkillRowCard
+      tile={`T${sub.tacheNumero ?? "?"}`}
+      tileDone={evaluated}
+      mark={evaluated ? "done" : "none"}
+      title={productionTaskTitle(epreuve, sub.tacheNumero ?? 0)}
+      text={text}
+      aside={
+        note != null && evaluated ? (
+          <span className={s.rowAside}>
+            <SkillBadge tone="treated">{formatNoteSur20(note)}/20</SkillBadge>
+            <RowChevron />
+          </span>
+        ) : undefined
+      }
+      onClick={onClick}
+    />
   );
 }
-
 
 function formatDay(iso: string): string {
   const d = new Date(iso);

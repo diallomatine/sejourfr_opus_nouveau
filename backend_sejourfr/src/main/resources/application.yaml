@@ -561,3 +561,42 @@ sejourfr:
     # Le QUOTA de sessions par pass vit désormais en base (colonne
     # plans.realtime_eo_sessions, migrations V018/V113) — éditable côté admin,
     # « adapté selon le pass ». Plus de mapping en config ici.
+
+  # Module « Competences TCF » : micro-entrainement EE/EO, une competence et un
+  # seul critere a la fois. VOIE PARALLELE a la notation des productions
+  # completes — pas de note sur 20, pas de niveau CECRL, pas les 4 criteres du
+  # TCF : un exercice de quelques phrases ne permet ni l'un ni l'autre. D'ou un
+  # namespace a part, pour qu'un retour arriere sur la grille des epreuves
+  # completes (EVAL_RUBRICS_VERSION) n'emporte pas au passage l'analyse des
+  # competences, et inversement.
+  # Le FOURNISSEUR, lui, reste celui de production-evaluation.provider : la
+  # regle « un seul correcteur configurable » vaut aussi ici.
+  # Les valeurs doivent rester identiques a celles de config/CompetenceProperties
+  # (deux sources qui divergent = un comportement different selon qu'une cle est
+  # presente ou non).
+  competences:
+    analysis:
+      # Consignes d'analyse : prompts/competence-analysis-rubrics-<v>.json.
+      rubrics-version: ${COMPETENCE_RUBRICS_VERSION:v1}
+      # Contrat de sortie : prompts/competence-analysis-tool-schema-<v>.json.
+      # Versionne separement des consignes — deux analyses produites avec le
+      # meme schema mais des consignes differentes ne sont pas comparables.
+      tool-schema-version: ${COMPETENCE_TOOL_SCHEMA_VERSION:v1}
+      # Plafond de tokens de SORTIE. 600 suffit largement : la reponse tient en
+      # cinq champs courts (verdict, point reussi, priorite, reformulation).
+      # C'est un plafond, pas une consommation.
+      max-tokens: 600
+      # Zero : sur un verdict de critere on veut de la reproductibilite, pas de
+      # la creativite.
+      temperature: 0
+      # Analyses IA offertes a vie aux comptes gratuits. Produire, s'auto-evaluer
+      # et lire les 3 productions de reference restent gratuits et ILLIMITES sur
+      # tous les sujets : ce quota ne borne QUE l'appel au correcteur.
+      free-analyses: 3
+      # Garde-fou ANTI-ABUS (cout LLM, taille de ligne), pas une regle
+      # pedagogique : les bornes recommandees d'un sujet restent indicatives et
+      # ne bloquent jamais une soumission.
+      max-text-words: 400
+      # Meme nature, cote oral : un micro-exercice se joue en une trentaine de
+      # secondes, 180 s ne cadre pas le candidat, cela coupe l'abus.
+      max-audio-duration-seconds: 180

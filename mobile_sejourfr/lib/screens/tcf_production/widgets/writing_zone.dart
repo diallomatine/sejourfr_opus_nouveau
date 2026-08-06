@@ -32,7 +32,12 @@ class WritingZone extends StatefulWidget {
     this.title = 'Votre rédaction',
     this.hint = 'Écrivez votre rédaction ici…',
     this.readingWpm = 200, // mots par minute pour estimation
+    this.accent = AppColors.blue,
   });
+
+  /// Accent du module appelant (rouge en EO). Bleu par défaut : les appelants
+  /// historiques (briefing EE) gardent leur rendu au pixel près.
+  final Color accent;
 
   final TextEditingController controller;
   final FocusNode? focusNode;
@@ -298,7 +303,7 @@ class _WritingZoneState extends State<WritingZone>
               Icon(
                 LucideIcons.penLine,
                 size: 18,
-                color: focused ? AppColors.blue : AppColors.ink,
+                color: focused ? widget.accent : AppColors.ink,
               ),
               const SizedBox(width: 6),
               Flexible(
@@ -307,7 +312,7 @@ class _WritingZoneState extends State<WritingZone>
                   style: AppFonts.ui(
                     size: 14,
                     weight: FontWeight.w700,
-                    color: focused ? AppColors.blue : AppColors.ink,
+                    color: focused ? widget.accent : AppColors.ink,
                   ),
                 ),
               ),
@@ -412,20 +417,20 @@ class _WritingZoneState extends State<WritingZone>
       duration: const Duration(milliseconds: 150),
       curve: Curves.easeOut,
       decoration: BoxDecoration(
-        color: focused ? AppColors.blueSoft : AppColors.white,
+        color: focused ? widget.accent.withValues(alpha: 0.05) : AppColors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: _overMax
               ? AppColors.red
               : focused
-                  ? AppColors.blue
+                  ? widget.accent
                   : AppColors.line,
           width: (focused || _overMax) ? 1.5 : 1,
         ),
         boxShadow: focused
             ? [
                 BoxShadow(
-                  color: (_overMax ? AppColors.red : AppColors.blue)
+                  color: (_overMax ? AppColors.red : widget.accent)
                       .withValues(alpha: 0.08),
                   blurRadius: 12,
                   offset: const Offset(0, 2),
@@ -444,7 +449,7 @@ class _WritingZoneState extends State<WritingZone>
         minLines: widget.minLines,
         maxLines: null,
         textCapitalization: TextCapitalization.sentences,
-        cursorColor: AppColors.blue,
+        cursorColor: widget.accent,
         cursorWidth: 1.5,
         cursorRadius: const Radius.circular(1),
         style: AppFonts.ui(

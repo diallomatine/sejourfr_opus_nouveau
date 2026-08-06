@@ -29,10 +29,14 @@ import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.RealtimeSession;
 import com.sejourfr.app.entity.RefreshToken;
+import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.entity.SkillPrompt;
+import com.sejourfr.app.entity.SkillReference;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.Transcription;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserQuestionStatus;
+import com.sejourfr.app.entity.UserSkillAttempt;
 import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.AttemptMode;
 import com.sejourfr.app.enums.AttemptStatus;
@@ -52,6 +56,11 @@ import com.sejourfr.app.enums.ProductionSubmissionSource;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.RealtimeSessionStatus;
 import com.sejourfr.app.enums.Role;
+import com.sejourfr.app.enums.SkillAttemptStatut;
+import com.sejourfr.app.enums.SkillDifficulty;
+import com.sejourfr.app.enums.SkillReferenceLevel;
+import com.sejourfr.app.enums.SkillSection;
+import com.sejourfr.app.enums.SkillTaskCode;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
@@ -73,13 +82,17 @@ import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.QuestionManager;
 import com.sejourfr.app.manager.RealtimeSessionManager;
 import com.sejourfr.app.manager.RefreshTokenManager;
+import com.sejourfr.app.manager.SkillManager;
+import com.sejourfr.app.manager.SkillPromptManager;
 import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserQuestionStatusManager;
+import com.sejourfr.app.manager.UserSkillAttemptManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
 import com.sejourfr.app.repository.ProcessedExternalEventRepository;
 import com.sejourfr.app.repository.ProductionTaskRepository;
+import com.sejourfr.app.repository.SkillRepository;
 import com.sejourfr.app.service.social.SocialIdentity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -140,6 +153,10 @@ public class TestData {
     private final TranscriptionManager transcriptionManager;
     private final HumanCalibrationNoteManager humanCalibrationNoteManager;
     private final RealtimeSessionManager realtimeSessionManager;
+    private final SkillManager skillManager;
+    private final SkillRepository skillRepository;
+    private final SkillPromptManager skillPromptManager;
+    private final UserSkillAttemptManager userSkillAttemptManager;
     private final AudioQuestionDraftRepository audioQuestionDraftRepository;
     private final AudioQuestionGenerationLogRepository audioQuestionGenerationLogRepository;
 
@@ -663,6 +680,124 @@ public class TestData {
 
     public AudioQuestionGenerationLog audioQuestionGenerationLog() {
         return audioQuestionGenerationLog(admin());
+    }
+
+    // ------------------------------------------------------------------------
+    // Module competences : Skill / SkillPrompt / SkillReference / UserSkillAttempt
+    // ------------------------------------------------------------------------
+
+    /**
+     * Competence de test rattachee a {@code taskCode}.
+     *
+     * <p><b>Le rang d'affichage se prend AU-DESSUS du seed, jamais dedans.</b>
+     * Le schema impose {@code UNIQUE (task_code, display_order)} et le seed
+     * publie exactement 8 competences par tache, donc les rangs 1..8 sont tous
+     * occupes ; la fabrique se range a la suite. C'est la raison d'etre de la
+     * borne haute a 50 du {@code CHECK} : a 8, la table etait saturee par
+     * construction et aucune competence supplementaire ne pouvait exister — ni
+     * en test, ni via l'admin.
+     *
+     * <p>La regle produit « exactement 8 competences actives par tache » reste
+     * verrouillee, mais par {@code SkillSeedIT}, qui l'exprime la ou elle est
+     * vraie : sur le contenu publie.
+     */
+    public Skill skill(SkillTaskCode taskCode) {
+        Skill s = new Skill();
+        s.setSection(taskCode.getSection());
+        s.setTaskCode(taskCode);
+        s.setCode("TST-C" + next());
+        s.setTitle("Competence de test");
+        s.setDescription("Ce que cette competence apporte au TCF.");
+        s.setGeneralCriterion("Le critere general travaille par cette competence.");
+        s.setTargetLevel(taskCode.getTargetLevel());
+        s.setDisplayOrder(nextSkillDisplayOrder(taskCode));
+        s.setActive(true);
+        return skillRepository.saveAndFlush(s);
+    }
+
+    public Skill skill() {
+        return skill(SkillTaskCode.EE1);
+    }
+
+    /** Rang libre le plus bas au-dessus des competences existantes, desactivees comprises. */
+    private short nextSkillDisplayOrder(SkillTaskCode taskCode) {
+        short max = 0;
+        for (Skill existing : skillRepository.findByTaskCodeOrderByDisplayOrderAsc(taskCode)) {
+            if (existing.getDisplayOrder() > max) max = existing.getDisplayOrder();
+        }
+        return (short) (max + 1);
+    }
+
+    /**
+     * Petit sujet rattache a {@code skill}. La coherence mots / duree exigee par
+     * {@code chk_skill_prompts_ee_eo_coherence} est respectee automatiquement
+     * selon la section de la competence.
+     */
+    public SkillPrompt skillPrompt(Skill skill) {
+        SkillPrompt p = new SkillPrompt();
+        p.setSkill(skill);
+        p.setSection(skill.getSection());
+        p.setCode("TST-S" + next());
+        p.setTitle("Petit sujet de test");
+        p.setContext("Vous ecrivez a votre voisin.");
+        p.setInstruction("Redigez deux phrases.");
+        p.setUniqueCriterion("Adapter le ton au destinataire.");
+        if (skill.getSection() == SkillSection.EE) {
+            p.setRecommendedMinWords(15);
+            p.setRecommendedMaxWords(50);
+        } else {
+            p.setRecommendedDurationSeconds(45);
+        }
+        p.setDifficultyLevel(SkillDifficulty.EASY);
+        p.setDisplayOrder(nextPromptDisplayOrder(skill));
+        p.setActive(true);
+        return skillPromptManager.save(p);
+    }
+
+    public SkillPrompt skillPrompt() {
+        return skillPrompt(skill());
+    }
+
+    /** Premier rang libre dans la competence ({@code UNIQUE (skill_id, display_order)}, borne 1..20). */
+    private short nextPromptDisplayOrder(Skill skill) {
+        short max = 0;
+        for (SkillPrompt existing : skillPromptManager.findActiveBySkillId(skill.getId())) {
+            if (existing.getDisplayOrder() > max) max = existing.getDisplayOrder();
+        }
+        return (short) (max + 1);
+    }
+
+    /** Une production de reference. Un seul niveau par sujet ({@code UNIQUE (prompt, level)}). */
+    public SkillReference skillReference(SkillPrompt prompt, SkillReferenceLevel level) {
+        SkillReference r = new SkillReference();
+        r.setSkillPrompt(prompt);
+        r.setLevel(level);
+        r.setText("Production de reference " + level + " " + next());
+        r.setPedagogicalNote("Ce que cette reference demontre.");
+        return skillPromptManager.saveReference(r);
+    }
+
+    public SkillReference skillReference() {
+        return skillReference(skillPrompt(), SkillReferenceLevel.EXPECTED);
+    }
+
+    /**
+     * Production ecrite d'un candidat, sans analyse IA demandee (statut final
+     * {@code RECORDED}) : c'est le cas nominal du parcours gratuit.
+     */
+    public UserSkillAttempt userSkillAttempt(User user, SkillPrompt prompt) {
+        UserSkillAttempt a = new UserSkillAttempt();
+        a.setUser(user);
+        a.setSkillPrompt(prompt);
+        a.setWrittenProduction("Reponse du candidat " + next());
+        a.setWordsCount(12);
+        a.setStatut(SkillAttemptStatut.RECORDED);
+        a.setAnalysisRequested(false);
+        return userSkillAttemptManager.save(a);
+    }
+
+    public UserSkillAttempt userSkillAttempt() {
+        return userSkillAttempt(user(), skillPrompt());
     }
 
     // ------------------------------------------------------------------------

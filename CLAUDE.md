@@ -39,12 +39,40 @@ mobile. Web : 1 examen blanc + 10 QCM d'entraînement par module pour convertir.
   Tiré dans les mêmes pools que `CO` (un filtre `CO` inclut `CO_IMAGE`). Publié depuis un
   `audio_question_draft` portant une image (`inline_svg` ou `image_url`). Image
   remplaçable côté admin via `POST /api/admin/{questions,audio-drafts}/{id}/image` (R2).
-- **Difficulty** : `EASY` / `MEDIUM` / `HARD`
+- **Difficulty** (questions QCM) : `CSP` / `CR` / `NAT` / `A2` / `B1` / `B2` — c'est l'axe
+  « procédure visée **ou** palier CECRL », **pas** une échelle facile/moyen/difficile. Ne pas y
+  ajouter `EASY/MEDIUM/HARD` : l'enum irrigue tous les DTO de questions, d'examens et de lots,
+  donc les 3 fronts (cf. `SkillDifficulty` ci-dessous, qui existe pour cette raison).
 - **MediaType** : `AUDIO` / `IMAGE` / `VIDEO`
 - **NiveauCecrl** (eval IA EO/EE) : `A1_NON_ATTEINT` / `A1` / `A2` / `B1` / `B2` / `C1` /
   `C2`. Distinct de `TargetLevel` (palier visé par l'utilisateur).
 - **SubmissionStatut** (EO/EE) : `SUBMITTED` → `TRANSCRIBING` (EO) → `EVALUATING` →
   `EVALUATED` | `FAILED`.
+- **Compétences TCF** (module de micro-entraînement EE/EO, voie parallèle aux productions
+  complètes — cf. la section dédiée plus bas) :
+  - **SkillSection** : `EE` / `EO`
+  - **SkillTaskCode** : `EE1` / `EE2` / `EE3` / `EO1` / `EO2` / `EO3`. Référentiel officiel
+    porté par l'**enum** (section, numéro de tâche, titre, palier cible), **pas** par une table.
+  - **SkillDifficulty** : `EASY` / `MEDIUM` / `HARD` (libellés FR *Accessible / Intermédiaire /
+    Exigeant*). Difficulté d'un sujet **à l'intérieur de sa compétence**, purement éditoriale :
+    aucune règle serveur ne s'y appuie et l'IA ne la reçoit pas. Enum **distinct** de
+    `Difficulty`, qui ne contient pas ces valeurs.
+  - **SkillReferenceLevel** : `INSUFFICIENT` / `EXPECTED` / `EXCELLENT` — les 3 références
+    comparatives d'un sujet, servies **seulement après** une production (403 sinon).
+  - **SkillSelfEvaluation** : `REUSSI` / `INCERTAIN` / `DIFFICILE` (« Je pense avoir réussi » /
+    « Je ne suis pas sûr » / « J'ai eu du mal »). Déclarative, facultative, **jamais** envoyée
+    au correcteur et sans effet sur le verdict.
+  - **SkillCriterionStatus** : `VALIDATED` / `PARTIAL` / `NOT_VALIDATED` (« Critère validé » /
+    « Critère partiellement atteint » / « **Critère non atteint** ») — le verdict IA sur le
+    **critère unique** du sujet. C'est tout ce que rend cette voie : **ni note /20, ni niveau
+    CECRL**. `NOT_VALIDATED` ne se dit **pas** « à retravailler » : cette formulation était
+    quasi synonyme du statut de sujet `TO_REINFORCE` et confondait le verdict d'**une
+    tentative** avec l'état d'**un sujet**.
+  - **SkillPromptStatus** : `TODO` / `TREATED` / `VALIDATED` / `TO_REINFORCE` (« À faire » /
+    « Fait » / « Validé » / « À renforcer »). **Dérivé serveur** (`SkillStatusResolver`),
+    jamais persisté, jamais recalculé par un front.
+  - **SkillAttemptStatut** : `RECORDED` (rendu sans analyse — état **final**) · `SUBMITTED` →
+    `TRANSCRIBING` (EO) → `EVALUATING` → `EVALUATED` | `FAILED`.
 - **Role** : `USER` / `ADMIN`
 - **AuthProvider** (exposé dans `/api/auth/me`) : `LOCAL` / `GOOGLE` / `APPLE`. Sur iOS,
   **Google ET Apple côte à côte** (Apple obligatoire d'après les guidelines App Store dès
@@ -553,6 +581,132 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   (profil par épreuve) applique un **plancher** là où `ProductionBilanService`
   (bilan d'épreuve) applique une **moyenne**. Les deux décrivent pourtant « le
   niveau de l'épreuve ». À arbitrer.
+
+## Module « Compétences TCF » (micro-entraînement EE/EO)
+
+Voie **parallèle** aux productions complètes, pas une réutilisation : le candidat
+travaille **une micro-compétence à la fois** sur un « petit sujet » de quelques
+phrases, et l'IA ne rend qu'un **verdict sur le critère unique du sujet** —
+**aucune note /20, aucun niveau CECRL** (le tool-schema ne prévoit aucun champ
+pour les loger). Schéma en `V025`, contenu seedé en `V300..V305`.
+
+**Où ça vit** — tables `skills`, `skill_prompts`, `skill_references`,
+`user_skill_attempts` (DDL `00_schema/V025__schema_competences_tcf.sql`, seed
+`300_tcf/competences/V300..V305`). Backend : `service/competence/` (analyse IA) +
+`SkillService` / `SkillAttemptService` / `SkillStatusResolver` /
+`SkillAnalysisAccessService` / `AdminSkillService`. **12 endpoints utilisateur**
+(`/api/skills*`, `/api/skill-attempts*`, `/api/skill-prompts*`) et **11 endpoints
+admin** (`/api/admin/skills*`, `/api/admin/skill-prompts*`) — détail dans
+`docs/api-endpoints.md`. Fronts : web `app/_components/competences/` + routes
+`…/entrainement/tcf/{ee,eo}/tache/[n]/competences/…`, mobile
+`lib/screens/tcf_production/competences/` + `core/models/skill_models.dart` ;
+point d'entrée = 3ᵉ onglet « Compétences » à côté de « Sujets » et « Exemples »,
+qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
+
+- **Contrat de l'analyse IA** : rubriques
+  `prompts/competence-analysis-rubrics-v1.json` + tool-schema
+  `prompts/competence-analysis-tool-schema-v1.json` (`profile: TCF_IRN`, paire
+  `rubrics-version` ⇄ `tool_schema_version` validée au boot, même convention que
+  les productions complètes — **aucune consigne de notation en dur dans le Java**).
+  Sortie stricte à **5 champs**, `additionalProperties: false` : `status`
+  (`VALIDATED|PARTIAL|NOT_VALIDATED`), `verdict`, `success_point`,
+  `improvement_priority`, `improved_version`. **Une seule** priorité
+  d'amélioration, jamais une liste. Contraintes de longueur **en mots** déclarées
+  par la grille (20 / 30 / 35), doublées de `maxLength` en caractères dans le
+  schéma ; le validateur tolère ×1,2 avant de rejeter. Sortie invalide → **un seul
+  rejeu** avec les violations, puis **échec net** (`FAILED`) — jamais d'analyse
+  partielle.
+- **Config** : `sejourfr.competences.analysis` (`max-tokens: 600`,
+  `temperature: 0`, `free-analyses: 3`, `max-text-words: 400`,
+  `max-audio-duration-seconds: 180`), POJO `CompetenceProperties` **aux mêmes
+  valeurs par défaut que le YAML**. Le **fournisseur LLM n'a pas de réglage
+  propre** : `CompetenceLlmConfig` lit
+  `sejourfr.production-evaluation.provider`, comme tout le reste (règle « un seul
+  correcteur configurable »). Ne pas lui en donner un second.
+- **Volume figé** : 6 tâches (`EE1..EE3`, `EO1..EO3`) × **8 compétences** × **5
+  sujets** × **3 références** (`INSUFFICIENT`/`EXPECTED`/`EXCELLENT`) = 48 / 240 /
+  720. Les 6 tâches sont un référentiel officiel (**enum `SkillTaskCode`, pas de
+  table**). Ce compte est verrouillé par **`SkillSeedIT`**, pas par le DDL : la
+  contrainte `display_order BETWEEN 1 AND 8` gelait le catalogue (les 8 rangs
+  légaux étant tous seedés, l'admin ne pouvait plus rien créer) — elle est passée
+  à **50**, et la règle produit vit désormais dans le test. Ne pas la remettre.
+- **Les seeds sont GÉNÉRÉS**, jamais écrits à la main. Le générateur est
+  **versionné** dans `backend_sejourfr/tools/competences/` (`generer_seed.py` +
+  `contenu/*.json`, une fiche par tâche) et se rejoue par
+  `cd backend_sejourfr && python3 tools/competences/generer_seed.py` (Python 3
+  seul, aucune dépendance). **On édite le JSON puis on régénère, jamais le SQL** :
+  modifier un `V300..V305` à la main désynchronise les deux et la régénération
+  suivante écrase le correctif. Le script valide le contenu (8×5×3, cohérence
+  EE mots / EO durée, unicité des codes) et **refuse de générer** sur du contenu
+  non conforme ; les UUID sont déterministes (uuid5 sur le code métier), donc
+  stables d'un environnement à l'autre.
+  - Il ne sert qu'à **republier depuis une base propre**. Une fois les migrations
+    appliquées, le **contenu vivant s'édite depuis la console d'administration**
+    (`admin/features/skills/`) — c'est la base qui fait foi, pas le JSON.
+  - Le générateur a vécu hors dépôt jusqu'au 2026-08-06 : les six migrations
+    portaient « ne pas éditer à la main » sans que le seul outil autorisé à les
+    produire soit trouvable.
+- **Deux textes distincts sur une compétence**, à ne jamais rendre au même
+  endroit : `skills.description` = la courte explication (encart « Pourquoi cet
+  exercice ? »), `skills.general_criterion` = le critère général travaillé (encart
+  « Critère travaillé »). Et **ni l'un ni l'autre** n'est
+  `skill_prompts.unique_criterion`, qui est le critère précis d'**un** sujet.
+- **Freemium** : produire, s'auto-évaluer et lire les 3 références est **gratuit
+  et illimité** pour tout compte inscrit — **aucun sujet n'est verrouillé**. Seule
+  l'**analyse IA** est premium (`hasTcf`), avec **3 analyses offertes à vie**. Le
+  quota se consomme à l'**acceptation** (`analysis_requested = true`), pas au
+  succès : sinon un retry après échec fournisseur en offrirait davantage.
+- **Statut d'un sujet dérivé serveur**, jamais recalculé par un front
+  (`SkillStatusResolver`) : `TODO` / **`TREATED`** / `VALIDATED` / `TO_REINFORCE`.
+  `TREATED` (« Fait ») est le 4ᵉ statut qu'impose le freemium — une production
+  sans analyse n'a pas de verdict, l'afficher « Validé » ou « À renforcer » serait
+  faux.
+- **Libellés FR = contrat gelé sur les 4 couches.** Ces chaînes ne transitent pas
+  par le réseau : le backend, le web, le mobile et l'admin en tiennent chacun une
+  copie écrite à la main, donc rien n'empêche une couche de dériver — et c'est
+  arrivé (`NOT_VALIDATED` affiché en trois formulations différentes). Elles sont
+  désormais figées par un test **par couche**, sur exactement les mêmes chaînes :
+  `SkillLabelsTest` (backend), `lib/skill-labels.test.ts` (web),
+  `test/skill_models_test.dart` (mobile). Un libellé qui bouge, ce sont **quatre**
+  fichiers à changer dans la même passe. Côté fronts, on lit toujours la constante
+  partagée (`SKILL_*_LABEL` en TS, le `label` de l'enum en Dart) — jamais une
+  chaîne recopiée dans un composant, qui est exactement la façon dont le web avait
+  décroché.
+- **Garde des références** : `GET /api/skill-prompts/{id}/references` exige **au
+  moins une tentative**, jamais « une tentative réussie » — l'écran de résultat
+  d'une tentative `FAILED` est précisément le moment où le candidat en a besoin.
+- **`POST /api/skill-attempts/{id}/analyse`** : demande l'analyse d'une production
+  déjà `RECORDED` (rendue sans IA), pour le candidat qui produit gratuitement puis
+  s'abonne — sans elle, il devait refaire le sujet et **perdait sa production**.
+  Refusé (422) sur tout autre statut, sinon le quota serait contournable.
+- **`POST .../retry`** ne re-consomme pas le quota (l'échec n'est pas du fait du
+  candidat) : c'est ce qui **impose** le plafond persisté `retry_count` ≤ 3,
+  appliqué dans le service (422) **et** en base.
+- **Transcription Whisper seulement si une analyse est demandée** (on ne paie pas
+  pour un audio que personne ne corrigera) ; l'**audio est conservé dans tous les
+  cas** — les deux fronts doivent permettre de se réécouter sur l'écran de
+  résultat EO. Pipeline async **sans transaction englobante**, même invariant que
+  `ProductionPipelineAsyncRunner` (+ `SkillAnalysisFailureRecorder` en
+  `REQUIRES_NEW` pour rendre `FAILED` durable).
+- **Garde-fou EO, identique à celui des productions complètes** : la **durée n'est
+  jamais envoyée** au correcteur, et la grille lui interdit de fonder verdict ou
+  conseils sur la prononciation, l'accent, l'intonation, le débit, la fluidité,
+  l'aisance, les pauses, les hésitations transcrites, l'orthographe ou la
+  ponctuation d'une transcription automatique. Ne pas relâcher d'un côté ce qui
+  est verrouillé de l'autre.
+- **Rate-limit dédié** `RateLimitGuard.checkSkillAttempt` (`skill-attempt:burst`
+  40 / 10 min, `skill-attempt:daily` 400 / jour) : borne le coût LLM **et**
+  l'inflation de `user_skill_attempts`. Bornes anti-abus (≠ règles pédagogiques,
+  les `recommendedMin/MaxWords` restent **indicatifs et jamais bloquants**) :
+  400 mots en EE, 180 s en EO, taille audio max partagée avec
+  `production-evaluation`.
+- **Libellés gelés du bandeau « Sujet déjà traité »**, une seule action par
+  section : EE « Reprendre ma réponse » (préremplit), EO « Écouter ma dernière
+  réponse » (ouvre le résultat).
+- `SkillPromptDto` porte `skillPromptCount` / `skillDescription` /
+  `skillGeneralCriterion` / `skillTargetLevel` **exprès** : l'écran de production
+  affiche le fil d'Ariane « Sujet i/5 », l'encart d'explication et le palier
+  **sans second appel** à `GET /api/skills/{skillId}`.
 
 ## Identité visuelle (résumé)
 
@@ -1143,6 +1297,11 @@ Référence à consulter quand le contexte le demande — pas chargé par défau
   **toujours compréhensible par un non-informaticien** (voir aussi la règle dédiée ci-dessous).
 - `docs/ia/ANALYSE_SPEC_EVALUATION_IA.md` — décisions produit de la refonte de notation et
   leurs raisons (ce qu'on a retenu de la spec externe, ce qu'on a refusé, et pourquoi)
+- `docs/skills/SEJOURFR_SPEC_COMPETENCES_EE_EO.md` — spec fonctionnelle du module Compétences
+  TCF : les 48 compétences rédigées une par une, règles de création des petits sujets,
+  comportement attendu de l'analyse IA. Le contenu publié fait foi (cf. `SkillSeedIT`) ;
+  l'explication grand public de cette voie d'évaluation est dans `docs/notation-ia-eo-ee.md`
+  §11 bis
 - `docs/refonte-entrainement.md` — statut refonte hubs Civique/TCF (mobile + web)
 - `docs/roadmap.md` — roadmap commune (Stripe, refresh JWT web, tests, etc.)
 - `docs/audio-pipeline/` — spec exhaustive du pipeline audio CO (10 fichiers)

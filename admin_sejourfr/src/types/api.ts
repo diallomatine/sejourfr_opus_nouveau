@@ -962,3 +962,172 @@ export interface PageViewStatsResponse {
   sources: PageViewSourceStat[];
   daily: PageViewDailyStat[];
 }
+
+// ============ COMPÉTENCES TCF (EE/EO) — surface admin ============
+// Miroir du §6 du contrat gelé « module Compétences TCF ».
+// Le contenu (48 compétences, 240 sujets, 720 références) est éditorial :
+// il vit en base et s'édite ici, pas en migration Flyway.
+
+export type SkillSection = "EE" | "EO";
+
+export type SkillTaskCode = "EE1" | "EE2" | "EE3" | "EO1" | "EO2" | "EO3";
+
+/**
+ * Difficulté d'un petit sujet — enum backend `SkillDifficulty`. Le contrat
+ * annonçait réutiliser `Difficulty`, mais celui-ci vaut CSP/CR/NAT/A2/B1/B2
+ * (axe procédure/palier des questions QCM) : le backend a créé un enum dédié
+ * plutôt que d'exposer EASY/MEDIUM/HARD à tous les DTO de questions.
+ */
+export type SkillDifficultyLevel = "EASY" | "MEDIUM" | "HARD";
+
+export type SkillReferenceLevel = "INSUFFICIENT" | "EXPECTED" | "EXCELLENT";
+
+/** Palier visé par une compétence. La colonne `skills.target_level` accepte A1, contrairement à `TargetLevel`. */
+export type SkillTargetLevel = "A1" | "A2" | "B1" | "B2";
+
+export interface SkillReferenceDto {
+  level: SkillReferenceLevel;
+  text: string;
+  pedagogicalNote: string;
+}
+
+export interface AdminSkillDto {
+  id: string;
+  section: SkillSection;
+  taskCode: SkillTaskCode;
+  /** Immuable après création : les seeds et les codes de sujets s'appuient dessus. */
+  code: string;
+  title: string;
+  /** Courte explication adressée au candidat : ce qu'il travaille et pourquoi ça compte au TCF. */
+  description: string;
+  /**
+   * Critère général observé dans les 5 petits sujets de la compétence.
+   * Colonne `skills.general_criterion`, NOT NULL. À ne pas confondre avec
+   * `AdminSkillPromptDto.uniqueCriterion`, propre à un seul sujet.
+   */
+  generalCriterion: string;
+  targetLevel: SkillTargetLevel;
+  displayOrder: number;
+  active: boolean;
+  promptCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminSkillPromptDto {
+  id: string;
+  skillId: string;
+  skillCode: string;
+  section: SkillSection;
+  /** Immuable après création. */
+  code: string;
+  title: string;
+  context: string;
+  instruction: string;
+  uniqueCriterion: string;
+  /** Renseigné en section EE uniquement (CHECK en base). */
+  recommendedMinWords: number | null;
+  recommendedMaxWords: number | null;
+  /** Renseigné en section EO uniquement (CHECK en base). */
+  recommendedDurationSeconds: number | null;
+  difficultyLevel: SkillDifficultyLevel;
+  displayOrder: number;
+  active: boolean;
+  references: SkillReferenceDto[];
+  attemptCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminSkillDetailDto {
+  skill: AdminSkillDto;
+  prompts: AdminSkillPromptDto[];
+}
+
+export interface AdminSkillStatsDto {
+  skillId: string;
+  code: string;
+  title: string;
+  section: SkillSection;
+  taskCode: SkillTaskCode;
+  promptCount: number;
+  attemptCount: number;
+  analysedCount: number;
+  /** Ratio 0..1, calculé sur les seules tentatives analysées. Null si aucune. */
+  validatedRate: number | null;
+}
+
+export interface AdminSkillFilters {
+  section?: SkillSection;
+  taskCode?: SkillTaskCode;
+  active?: boolean;
+  q?: string;
+  page?: number;
+  size?: number;
+}
+
+/**
+ * POST : `generalCriterion` est **obligatoire** (colonne NOT NULL). L'omettre
+ * fait échouer la création en 400. `section` est déduite du `taskCode` côté
+ * serveur ; une valeur contradictoire est refusée en 422, d'où l'envoi
+ * systématique de la section calculée depuis le `taskCode`.
+ */
+export interface AdminSkillCreateRequest {
+  section: SkillSection;
+  taskCode: SkillTaskCode;
+  code: string;
+  title: string;
+  description: string;
+  generalCriterion: string;
+  targetLevel: SkillTargetLevel;
+  displayOrder: number;
+  active: boolean;
+}
+
+/**
+ * PATCH : le `code`, la `section` et le `taskCode` ne sont jamais modifiables.
+ * Toutes les colonnes visées sont NOT NULL, donc un champ absent vaut « ne
+ * touche pas » ; le front envoie néanmoins toujours tous les champs.
+ */
+export interface AdminSkillUpdateRequest {
+  title: string;
+  description: string;
+  generalCriterion: string;
+  targetLevel: SkillTargetLevel;
+  displayOrder: number;
+  active: boolean;
+}
+
+export interface AdminSkillPromptCreateRequest {
+  skillId: string;
+  code: string;
+  title: string;
+  context: string;
+  instruction: string;
+  uniqueCriterion: string;
+  recommendedMinWords: number | null;
+  recommendedMaxWords: number | null;
+  recommendedDurationSeconds: number | null;
+  difficultyLevel: SkillDifficultyLevel;
+  displayOrder: number;
+  active: boolean;
+}
+
+/**
+ * PATCH : tous les champs éditables sont envoyés à chaque fois, y compris les
+ * bornes de longueur à `null`. Un `null` vaut « efface », pas « ne touche pas » :
+ * c'est ce qui garantit qu'un sujet EE ne porte jamais de durée et inversement
+ * (CHECK `skill_prompts`). Le `code` et le `skillId` sont absents : immuables.
+ */
+export type AdminSkillPromptUpdateRequest = Omit<
+  AdminSkillPromptCreateRequest,
+  "skillId" | "code"
+>;
+
+/**
+ * PUT atomique des 3 références d'un sujet : les 3 niveaux exactement, sans
+ * doublon. Le backend remplace, il ne fusionne pas.
+ */
+export interface AdminSkillReferencesUpdateRequest {
+  references: SkillReferenceDto[];
+}

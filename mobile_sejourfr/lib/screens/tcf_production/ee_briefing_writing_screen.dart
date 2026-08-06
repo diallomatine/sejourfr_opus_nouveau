@@ -527,6 +527,17 @@ class _Content extends StatelessWidget {
                 subTitleHero: task.displayTitle,
                 subtitle:
                     'Longueur attendue : ${task.motsMin ?? 0} à ${task.motsMax ?? 0} mots',
+                contexte: task.contexte,
+                // Repère de progression : uniquement en session à plusieurs
+                // tâches. En entraînement libre il n'y a pas de rang à annoncer.
+                step: session.totalTasks <= 1
+                    ? null
+                    : 'Tâche ${taskIndex + 1}/${session.totalTasks}',
+                requirements: [
+                  if (task.motsMin != null && task.motsMax != null)
+                    '${task.motsMin}-${task.motsMax} mots',
+                  task.niveauCible,
+                ],
               ),
               WritingZone(
                 key: const ValueKey('ee-writing-zone'),

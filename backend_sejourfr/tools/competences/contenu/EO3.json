@@ -1,0 +1,1248 @@
+{
+  "taskCode": "EO3",
+  "section": "EO",
+  "taskTitle": "Exprimer et développer un point de vue",
+  "taskTargetLevel": "B2",
+  "skills": [
+    {
+      "code": "EO3-C1",
+      "title": "Annoncer une position claire",
+      "description": "Vous apprenez à dire tout de suite ce que vous pensez, sans tourner autour de la question. Au TCF, l'examinateur doit pouvoir identifier votre position dès vos premiers mots.",
+      "targetLevel": "B2",
+      "displayOrder": 1,
+      "prompts": [
+        {
+          "code": "EO3-C1-S1",
+          "title": "Ville ou campagne",
+          "context": "Pendant l'entretien, l'examinateur vous demande où vous préféreriez vivre. Beaucoup de candidats décrivent les deux possibilités sans jamais choisir.",
+          "instruction": "Dites si vous préférez vivre en ville ou à la campagne. Annoncez votre choix dès le début de votre réponse.",
+          "uniqueCriterion": "Votre position est annoncée dès la première phrase et on sait laquelle vous choisissez.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Alors, la ville, il y a beaucoup de choses, les magasins, les transports, c'est pratique. Et la campagne aussi c'est bien, c'est calme, il y a la nature. Les deux ont des avantages, ça dépend vraiment des gens.",
+              "pedagogicalNote": "Les deux options sont décrites, mais votre choix personnel n'apparaît jamais."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Moi, je préfère vivre en ville. C'est mon choix parce que tout est proche : le travail, les magasins, les transports. La campagne est agréable, mais je ne m'y vois pas au quotidien.",
+              "pedagogicalNote": "La position est donnée d'entrée et elle reste la même jusqu'au bout."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Sans hésiter, je préfère la ville. Je sais qu'on vante beaucoup le calme de la campagne, mais pour moi, vivre en ville, c'est avoir tout à portée de main, et c'est ça qui compte dans ma vie de tous les jours.",
+              "pedagogicalNote": "Le choix est net et l'autre option est écartée sans détour."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C1-S2",
+          "title": "Cuisiner ou acheter tout prêt",
+          "context": "Une discussion s'engage sur la façon de se nourrir quand les journées sont chargées. Certains cuisinent chaque soir, d'autres achètent des plats déjà préparés.",
+          "instruction": "Dites ce que vous préférez : cuisiner vous-même ou acheter des plats préparés. Votre préférence doit s'entendre tout de suite.",
+          "uniqueCriterion": "On identifie votre préférence dès les premiers mots, sans avoir à la deviner.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 28,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "C'est une question intéressante. Cuisiner, ça prend du temps, il faut faire les courses, préparer, laver. Les plats préparés, c'est rapide, mais on ne sait pas toujours ce qu'il y a dedans. Voilà, chacun fait comme il peut.",
+              "pedagogicalNote": "Vous pesez le pour et le contre sans jamais dire ce que vous préférez."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je préfère cuisiner moi-même. Ça me prend du temps, c'est vrai, mais je sais ce que je mange et ça me revient moins cher à la fin du mois.",
+              "pedagogicalNote": "La préférence est posée en premier, le reste vient l'appuyer."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Moi, c'est clair : je cuisine moi-même, toujours. Les plats préparés me dépannent une fois de temps en temps, mais ma préférence ne bouge pas, parce que cuisiner, c'est le seul moment calme de ma journée.",
+              "pedagogicalNote": "La position est ferme et l'exception ne l'affaiblit pas."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C1-S3",
+          "title": "Voiture ou vélo en ville",
+          "context": "Votre ville développe des pistes cyclables et réduit les places de stationnement. Le sujet fait beaucoup parler dans le quartier.",
+          "instruction": "Dites si, pour vos trajets quotidiens en ville, vous choisiriez plutôt la voiture ou le vélo. Annoncez votre position avant tout le reste.",
+          "uniqueCriterion": "Votre position est identifiable dès le début, même si vous reconnaissez ensuite un point à l'autre option.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "En fait, ça dépend de la distance, de la météo, de ce qu'on transporte. Il y a des jours où la voiture est plus pratique, d'autres où le vélo passe mieux. Franchement, les deux se défendent selon les situations.",
+              "pedagogicalNote": "Tout reste conditionnel : l'examinateur ne peut retenir aucune position."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Pour mes trajets de tous les jours, je choisis le vélo. En ville, les distances sont courtes et je perds moins de temps qu'en voiture, surtout aux heures de pointe.",
+              "pedagogicalNote": "Le choix est annoncé puis tenu jusqu'à la fin."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Mon choix est fait : le vélo, pour tous mes trajets en ville. La voiture reste utile le week-end pour les grosses courses, ça je ne le nie pas, mais au quotidien, rien ne me fera changer d'avis.",
+              "pedagogicalNote": "La concession est encadrée : elle ne remplace jamais la position annoncée."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C1-S4",
+          "title": "Téléphone au collège",
+          "context": "Un collège de votre quartier envisage d'interdire complètement les téléphones portables pendant toute la journée. Les parents en discutent beaucoup.",
+          "instruction": "Dites si vous êtes pour ou contre cette interdiction. On doit comprendre votre position sans attendre la fin de votre réponse.",
+          "uniqueCriterion": "Vous vous positionnez clairement pour ou contre, dès l'ouverture de votre réponse.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le téléphone, aujourd'hui, tout le monde en a. Les jeunes l'utilisent pour parler avec leurs amis, pour chercher des informations. Bien sûr, en classe, ça peut déranger. Les établissements doivent réfléchir à la meilleure solution.",
+              "pedagogicalNote": "Vous décrivez la situation ; l'avis attendu n'est jamais formulé."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je suis pour cette interdiction. Pendant les cours et les récréations, les élèves ont besoin de se concentrer et de se parler entre eux, pas de regarder un écran.",
+              "pedagogicalNote": "Le « je suis pour » ouvre la réponse : la position est nette."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Personnellement, je suis franchement pour. Je comprends les parents qui veulent joindre leur enfant, c'est légitime, mais ça ne change rien à ma position : sur le temps scolaire, le téléphone reste dans le sac.",
+              "pedagogicalNote": "L'objection est entendue, puis la position est reformulée sans reculer."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C1-S5",
+          "title": "Semaine de quatre jours",
+          "context": "Plusieurs entreprises testent la semaine de quatre jours, à salaire égal mais avec des journées plus longues. Le sujet divise les salariés.",
+          "instruction": "Dites si vous seriez favorable à ce rythme dans votre travail. Votre position doit rester la même du début à la fin.",
+          "uniqueCriterion": "Une seule position est annoncée d'emblée et elle ne change pas au cours de la réponse.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Au départ, je dirais oui, un jour de repos en plus, c'est appréciable. Mais si les journées durent dix heures, ce n'est plus vraiment un cadeau. Donc finalement, je ne sais pas trop, il faudrait tester pour voir.",
+              "pedagogicalNote": "La réponse bascule en cours de route et se termine sans position."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je serais favorable à la semaine de quatre jours. Une journée de plus à la maison, ça change vraiment l'organisation d'une famille, et je suis prêt à faire des journées plus longues pour ça.",
+              "pedagogicalNote": "La position tient du premier au dernier mot."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, je signerais tout de suite. Les journées plus longues me font un peu peur, je l'admets, mais ma réponse reste la même : ce jour libre vaut largement l'effort demandé le reste de la semaine.",
+              "pedagogicalNote": "Une réserve est exprimée sans jamais déplacer la position initiale."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Répondre immédiatement à la question et rendre son opinion identifiable."
+    },
+    {
+      "code": "EO3-C2",
+      "title": "Donner un argument pertinent",
+      "description": "Vous vous entraînez à donner une raison qui soutient vraiment votre position. Au TCF, une opinion sans raison reste une affirmation : l'examinateur attend le « parce que ».",
+      "targetLevel": "B2",
+      "displayOrder": 2,
+      "prompts": [
+        {
+          "code": "EO3-C2-S1",
+          "title": "Une raison pour le télétravail",
+          "context": "Votre entreprise propose deux jours de télétravail par semaine. Un collègue vous demande pourquoi vous trouvez cela intéressant.",
+          "instruction": "Donnez une raison en faveur du télétravail. Une seule raison suffit, mais elle doit soutenir clairement cette position.",
+          "uniqueCriterion": "Vous donnez une raison identifiable qui explique pourquoi le télétravail est un avantage.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le télétravail, c'est bien. Vraiment, je trouve ça très pratique et très agréable. C'est une bonne chose pour les salariés, je pense que beaucoup de gens sont contents avec ça.",
+              "pedagogicalNote": "L'opinion est répétée avec d'autres mots, mais aucune raison n'apparaît."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le télétravail me convient parce que je ne passe pas deux heures dans les transports. Ce temps-là, je le récupère pour mon travail et pour ma famille.",
+              "pedagogicalNote": "Une raison précise est donnée et elle soutient bien la position."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ce qui compte surtout pour moi, c'est le temps de trajet : deux heures par jour, ça fait dix heures par semaine. Le télétravail me rend ces heures-là, et c'est exactement pour ça que j'y tiens.",
+              "pedagogicalNote": "La raison est chiffrée et rattachée explicitement à la position."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C2-S2",
+          "title": "Une raison de bouger",
+          "context": "Un ami vous dit qu'il n'a jamais le temps de faire du sport. Vous voulez lui donner une bonne raison de s'y mettre.",
+          "instruction": "Donnez une raison pour laquelle une activité physique régulière est utile. Une seule raison, mais qui tienne debout.",
+          "uniqueCriterion": "Une raison claire est donnée et elle explique réellement l'intérêt de l'activité physique.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le sport, c'est important, tout le monde le sait. Il faut faire du sport, c'est bon, c'est nécessaire. Moi je pense que chaque personne devrait faire du sport dans sa vie.",
+              "pedagogicalNote": "La phrase tourne sur elle-même : « important » n'explique pas pourquoi."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Une raison simple : quand on bouge trente minutes par jour, on dort beaucoup mieux la nuit. Et quand on dort mieux, la journée de travail est plus facile.",
+              "pedagogicalNote": "La raison est concrète et on voit bien son lien avec le sport."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "La raison qui me convainc le plus, c'est le sommeil. Une demi-heure de marche rapide en fin de journée, et je m'endors sans difficulté. C'est ce qui rend le reste de la semaine tenable.",
+              "pedagogicalNote": "Une seule raison, tenue jusqu'au bout, sans en empiler d'autres."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C2-S3",
+          "title": "Partir hors saison",
+          "context": "Une collègue hésite entre partir en vacances en août ou attendre septembre. Vous lui conseillez de partir hors saison.",
+          "instruction": "Donnez une raison qui justifie ce conseil. Elle doit porter précisément sur le fait de partir hors saison.",
+          "uniqueCriterion": "La raison donnée porte bien sur la période choisie, pas sur le voyage en général.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 38,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Partir en vacances, c'est toujours agréable. On découvre des endroits, on se repose, on rencontre des gens. Je lui conseille vraiment de partir, ça fait du bien à tout le monde.",
+              "pedagogicalNote": "L'argument parle des vacances, pas du choix de la basse saison."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je lui conseille septembre parce que tout coûte moins cher : les billets, l'hébergement, même les activités sur place. Avec le même budget, elle part plus longtemps.",
+              "pedagogicalNote": "La raison est bien centrée sur la période, comme demandé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ce qui fait la différence, c'est le prix de la période : en septembre, le même hôtel se loue parfois moitié moins qu'en août. Voilà pourquoi je lui dis d'attendre trois semaines.",
+              "pedagogicalNote": "La raison colle exactement au conseil et se referme sur lui."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C2-S4",
+          "title": "Les langues dès le primaire",
+          "context": "Dans une réunion de parents, quelqu'un propose de commencer les langues étrangères dès l'école primaire. On vous demande votre avis.",
+          "instruction": "Défendez cette proposition avec une raison. Cette raison doit expliquer pourquoi commencer tôt change quelque chose.",
+          "uniqueCriterion": "La raison explique précisément l'intérêt de commencer tôt, et pas seulement d'apprendre une langue.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Les langues, c'est très utile aujourd'hui. Pour le travail, pour voyager, pour comprendre le monde. Donc oui, je suis d'accord avec cette proposition, les enfants doivent apprendre les langues.",
+              "pedagogicalNote": "L'utilité des langues est dite, mais pas l'intérêt du « tôt »."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je suis d'accord parce qu'un enfant de sept ans n'a pas peur de se tromper. Il répète, il essaie, il ose parler, alors qu'à quinze ans on se bloque devant la classe.",
+              "pedagogicalNote": "L'âge est au cœur de la raison : la consigne est bien respectée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ce qui joue vraiment, c'est le rapport à l'erreur : à sept ans, un enfant se trompe sans en faire une affaire. C'est cette liberté-là qu'on perd plus tard, et c'est pour ça que je dis : le plus tôt possible.",
+              "pedagogicalNote": "La raison vise l'âge et se conclut sur la position défendue."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C2-S5",
+          "title": "Défendre l'achat d'occasion",
+          "context": "Un voisin trouve étrange d'acheter des vêtements ou des meubles de seconde main. Vous, vous le faites régulièrement.",
+          "instruction": "Donnez une raison qui défend l'achat d'occasion. Choisissez une seule raison et rendez-la convaincante.",
+          "uniqueCriterion": "Une seule raison est présentée, clairement rattachée à l'achat d'occasion.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "L'occasion, c'est moins cher, c'est écologique, et puis on trouve des choses originales qu'on ne voit plus en magasin. Et ça évite le gaspillage aussi. Bref, il y a plein de bonnes raisons.",
+              "pedagogicalNote": "Quatre raisons sont énumérées : aucune n'est vraiment posée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Ma raison, c'est la qualité. Un meuble ancien est souvent en bois massif, alors qu'un meuble neuf au même prix ne tiendra pas cinq ans chez moi.",
+              "pedagogicalNote": "Une raison est choisie et développée assez pour convaincre."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Si je dois n'en garder qu'une, c'est la solidité. Une armoire de trente ans a déjà prouvé qu'elle tenait ; celle que j'achèterais neuve au même prix, je ne sais pas si elle passera un déménagement.",
+              "pedagogicalNote": "Une seule raison, assumée comme telle, et défendue jusqu'au bout."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Présenter une première raison directement liée à la position."
+    },
+    {
+      "code": "EO3-C3",
+      "title": "Développer oralement un argument",
+      "description": "Vous apprenez à ne pas laisser une raison toute seule : vous ajoutez la cause, la conséquence ou la précision qui la rendent solide. C'est ce développement qui fait la différence au niveau B2.",
+      "targetLevel": "B2",
+      "displayOrder": 3,
+      "prompts": [
+        {
+          "code": "EO3-C3-S1",
+          "title": "Les transports publics au quotidien",
+          "context": "Une amie affirme que les transports publics facilitent la vie de tous les jours. L'idée est juste, mais elle reste très générale.",
+          "instruction": "Développez cette idée : expliquez comment les transports publics facilitent concrètement le quotidien. L'argument vous est donné, c'est l'explication qui compte.",
+          "uniqueCriterion": "Vous expliquez l'argument par une cause ou une conséquence concrète, sans vous contenter de le répéter.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Oui, c'est vrai, les transports publics facilitent la vie. C'est plus simple, c'est plus pratique pour tout le monde. Vraiment, la vie quotidienne est plus facile avec les transports en commun.",
+              "pedagogicalNote": "L'idée est reformulée trois fois, mais elle n'est jamais expliquée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "C'est vrai, surtout parce qu'on n'a plus besoin de voiture. Sans voiture, pas d'assurance, pas de stationnement à chercher, et ça enlève une grosse dépense chaque mois.",
+              "pedagogicalNote": "Une conséquence est déroulée : l'idée avance au lieu de tourner."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ça tient surtout au fait qu'on peut vivre sans voiture. Et ça, ça se voit sur le budget : plus d'assurance, plus d'essence, plus de parking à payer. Résultat, une famille peut habiter en ville sans que le transport devienne son premier poste de dépense.",
+              "pedagogicalNote": "Cause puis conséquence : l'argument est vraiment déplié."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C3-S2",
+          "title": "Dormir assez pour travailler",
+          "context": "Dans une discussion sur la fatigue au travail, quelqu'un dit qu'il faudrait d'abord dormir assez. L'idée est admise, mais pas expliquée.",
+          "instruction": "Développez cette idée : expliquez pourquoi un sommeil suffisant change quelque chose dans une journée de travail.",
+          "uniqueCriterion": "L'idée est expliquée par un enchaînement cause-conséquence, pas simplement affirmée.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "C'est sûr, il faut dormir. Le sommeil, c'est très important pour la santé. Quand on ne dort pas assez, ce n'est pas bon du tout. Il faut vraiment dormir suffisamment.",
+              "pedagogicalNote": "L'affirmation revient en boucle sans jamais expliquer le mécanisme."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Quand on dort sept heures, on se concentre mieux. Du coup, on fait moins d'erreurs, on ne refait pas deux fois le même travail, et la journée paraît moins longue.",
+              "pedagogicalNote": "L'explication avance par étapes : concentration, erreurs, ressenti."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le lien passe par la concentration : avec sept heures de sommeil, l'attention tient jusqu'en fin d'après-midi. Et comme on fait moins d'erreurs, on ne recommence pas le travail le lendemain. C'est là qu'on gagne vraiment du temps.",
+              "pedagogicalNote": "Chaque étape découle de la précédente jusqu'à une conséquence claire."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C3-S3",
+          "title": "Ce que le bénévolat rapporte",
+          "context": "Une association de quartier cherche des bénévoles. On dit souvent que le bénévolat apporte autant à celui qui donne qu'à celui qui reçoit.",
+          "instruction": "Développez cette idée en expliquant pourquoi le bénévolat apporte quelque chose au bénévole lui-même.",
+          "uniqueCriterion": "Vous expliquez le bénéfice pour le bénévole par une cause ou une conséquence identifiable.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 42,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le bénévolat, c'est une belle chose. Ça aide les gens et ça fait plaisir. C'est bien pour celui qui aide et pour celui qui reçoit, tout le monde y gagne, c'est certain.",
+              "pedagogicalNote": "Le jugement positif remplace l'explication attendue."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le bénévole y gagne parce qu'il rencontre des personnes qu'il n'aurait jamais croisées autrement. Petit à petit, il connaît son quartier, et il se sent beaucoup moins isolé.",
+              "pedagogicalNote": "Une cause est posée, puis sa conséquence : c'est bien développé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ce que le bénévole récupère, c'est un réseau. En donnant deux heures le samedi, il finit par connaître le boulanger, la voisine du dessus, l'animateur du centre social. Et le jour où c'est lui qui a besoin d'un coup de main, il ne le demande plus à des inconnus.",
+              "pedagogicalNote": "La conséquence est poussée jusqu'à un effet concret sur le bénévole."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C3-S4",
+          "title": "Trier ses déchets",
+          "context": "Votre immeuble installe de nouveaux bacs de tri. Un habitant dit que trier ne sert à rien à son échelle.",
+          "instruction": "Développez l'idée que le tri des déchets a un effet réel. Expliquez le mécanisme, ne vous contentez pas de l'affirmer.",
+          "uniqueCriterion": "Un enchaînement explicatif rend visible l'effet du tri, au lieu de le poser comme évident.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Il faut trier, c'est notre devoir à tous. Si tout le monde trie, la planète ira mieux. Ne pas trier, c'est mauvais pour l'environnement et pour les générations futures.",
+              "pedagogicalNote": "Le principe est répété, mais on ne voit pas comment ça marche."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Trier sert parce qu'un carton propre repart à l'usine et redevient un autre carton. S'il est mélangé aux ordures, il finit brûlé et il faut couper de nouveaux arbres.",
+              "pedagogicalNote": "Le mécanisme est expliqué, du bac jusqu'à sa conséquence."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Tout se joue au moment du ramassage : un carton propre repart en usine et redevient du carton, alors qu'un carton taché de gras part à l'incinération. Autrement dit, chaque bac mal rempli oblige à fabriquer du neuf, et c'est ce neuf-là qui coûte des arbres et de l'énergie.",
+              "pedagogicalNote": "La chaîne complète est décrite, du geste à sa conséquence finale."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C3-S5",
+          "title": "Se former en ligne",
+          "context": "Un centre de formation propose des cours du soir entièrement en ligne. Un stagiaire dit que cela permet de reprendre des études quand on travaille.",
+          "instruction": "Développez cette idée en expliquant précisément ce que la formation en ligne rend possible.",
+          "uniqueCriterion": "L'argument est développé par une explication qui va au-delà du mot « pratique ».",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Les cours en ligne, c'est pratique quand on travaille. C'est plus flexible, c'est plus facile. Beaucoup de gens choisissent ça aujourd'hui parce que c'est vraiment plus arrangeant.",
+              "pedagogicalNote": "« Pratique » et « flexible » restent des étiquettes, pas des explications."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Ça change tout parce que le cours reste disponible après. Quelqu'un qui finit à vingt heures peut le suivre à vingt-deux heures, sans demander à changer ses horaires de travail.",
+              "pedagogicalNote": "L'explication montre concrètement ce que la formation rend possible."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "L'élément décisif, c'est que le cours est enregistré. Un salarié qui termine à vingt heures ne demande plus d'aménagement à son employeur : il rattrape le soir même. Et comme il ne touche pas à ses horaires, il ne perd pas de salaire. C'est ça qui rend la reprise d'études possible.",
+              "pedagogicalNote": "L'explication va jusqu'au bout : disponibilité, horaires, salaire."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Expliquer la raison avec une cause, une conséquence ou une précision."
+    },
+    {
+      "code": "EO3-C4",
+      "title": "Donner un exemple concret",
+      "description": "Vous vous entraînez à illustrer une idée par une situation précise, avec un lieu, un moment ou une personne. Au TCF, un exemple bien choisi prouve que vous maîtrisez ce que vous avancez.",
+      "targetLevel": "B2",
+      "displayOrder": 4,
+      "prompts": [
+        {
+          "code": "EO3-C4-S1",
+          "title": "Un exemple pour le sport",
+          "context": "Vous soutenez que le sport aide à tenir le rythme d'une semaine chargée. Votre interlocuteur vous demande de rendre cela concret.",
+          "instruction": "Donnez un exemple, vécu ou vraisemblable, qui illustre cette idée. Une seule situation, mais précise.",
+          "uniqueCriterion": "Vous racontez une situation précise qui illustre l'idée, avec au moins un détail concret.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Oui, il y a beaucoup d'exemples. Par exemple, les gens qui font du sport sont en meilleure forme, on le voit tous les jours. C'est un très bon exemple de ce que je dis.",
+              "pedagogicalNote": "L'exemple est annoncé mais aucune situation n'est réellement racontée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Par exemple, ma sœur travaille de nuit à l'hôpital. Depuis qu'elle nage deux fois par semaine le matin, elle dit qu'elle tient beaucoup mieux ses semaines.",
+              "pedagogicalNote": "Une personne, une activité, un effet : l'exemple existe vraiment."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je pense à ma sœur : infirmière de nuit, elle rentrait épuisée le vendredi. Depuis un an, elle nage une heure les mardis et jeudis matin, et elle a arrêté de dormir tout son samedi. C'est le seul changement qu'elle a fait.",
+              "pedagogicalNote": "Détails situés et effet observable : l'exemple devient une preuve."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C4-S2",
+          "title": "Un samedi au marché",
+          "context": "Vous défendez l'idée qu'acheter au marché change la façon de manger. On vous demande d'illustrer votre propos.",
+          "instruction": "Donnez un exemple concret, tiré de votre expérience ou d'une situation crédible.",
+          "uniqueCriterion": "L'exemple décrit une situation identifiable, avec un lieu, un moment ou une personne.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 38,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Au marché, c'est différent, on trouve de bons produits. Par exemple les fruits et les légumes sont meilleurs, c'est bien connu. Voilà, c'est un exemple parmi d'autres.",
+              "pedagogicalNote": "La généralité est présentée comme un exemple : il manque la scène."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Par exemple, le samedi matin, je vais au marché de ma commune. Le maraîcher me dit ce qui vient d'arriver, et je cuisine ce qu'il me conseille au lieu de suivre ma liste.",
+              "pedagogicalNote": "Lieu, moment et geste : la situation est facile à se représenter."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je pense à un samedi de novembre : je venais pour des tomates, le maraîcher m'a dit qu'il n'en avait plus et m'a montré ses courges. Je suis rentrée avec une courge et j'ai cherché une recette le soir même. Je n'en avais jamais cuisiné.",
+              "pedagogicalNote": "Une scène unique et datée, avec un effet net sur la pratique."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C4-S3",
+          "title": "La colocation au-delà du loyer",
+          "context": "Vous affirmez que la colocation ne se résume pas à un loyer partagé. On vous demande de le montrer par un cas précis.",
+          "instruction": "Donnez un exemple concret qui illustre ce que la colocation apporte au-delà de l'aspect financier.",
+          "uniqueCriterion": "L'exemple est situé et il illustre bien l'aspect non financier annoncé.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Par exemple, la colocation coûte moins cher, on partage le loyer et les charges. C'est un bon exemple, beaucoup d'étudiants font ça pour payer moins tous les mois.",
+              "pedagogicalNote": "L'exemple porte sur l'argent, justement ce qu'il fallait dépasser."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Par exemple, quand je suis arrivée à Lyon, ma colocataire m'a expliqué comment ouvrir un compte et où déposer mes papiers. Toute seule, j'aurais mis des semaines.",
+              "pedagogicalNote": "Une situation datée qui illustre exactement le point demandé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je pense à ma première semaine à Lyon : je ne savais pas où déposer mon dossier de logement. Ma colocataire a sorti son ordinateur un soir et on a rempli le formulaire ensemble. Ce n'est pas de l'argent, ça, c'est du temps : trois semaines gagnées.",
+              "pedagogicalNote": "L'exemple est précis et son lien avec l'idée est explicité."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C4-S4",
+          "title": "Trois semaines de formation",
+          "context": "Vous soutenez qu'une formation courte peut débloquer une situation professionnelle. Votre interlocuteur reste sceptique.",
+          "instruction": "Illustrez votre idée par un exemple concret, vécu ou plausible.",
+          "uniqueCriterion": "Une situation professionnelle précise est racontée et elle appuie l'idée défendue.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 42,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Par exemple, les formations aident beaucoup les salariés. Il y a des gens qui suivent des formations et après ça va mieux pour eux, ils progressent dans leur travail.",
+              "pedagogicalNote": "« Des gens » et « ça va mieux » : rien n'est situé."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Par exemple, un collègue faisait de la manutention depuis dix ans. Il a suivi une formation de trois semaines pour conduire les chariots, et il est passé chef d'équipe l'année suivante.",
+              "pedagogicalNote": "Métier, durée, résultat : l'exemple soutient bien l'idée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je pense à Karim, qui déchargeait des camions depuis dix ans. Trois semaines de formation aux chariots élévateurs, un certificat en poche, et son responsable lui a confié l'équipe du matin six mois plus tard. Trois semaines, après dix ans au même poste.",
+              "pedagogicalNote": "La progression est datée et l'exemple se referme sur l'idée."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C4-S5",
+          "title": "La bibliothèque du quartier",
+          "context": "Vous défendez l'idée qu'une bibliothèque de quartier sert à bien plus qu'emprunter des livres.",
+          "instruction": "Donnez un exemple concret qui montre un autre usage de la bibliothèque. Un seul exemple, mais développé.",
+          "uniqueCriterion": "L'exemple montre un usage précis et différent de l'emprunt de livres.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Par exemple, à la bibliothèque il y a beaucoup de livres, des romans, des documentaires. Les gens viennent lire et emprunter. C'est un lieu très utile pour tout le monde.",
+              "pedagogicalNote": "L'exemple retombe sur les livres, alors qu'il fallait en sortir."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Par exemple, dans ma bibliothèque, il y a un atelier d'écriture de CV le jeudi après-midi. Des personnes viennent avec leur clé USB et repartent avec un document imprimé.",
+              "pedagogicalNote": "L'usage choisi est bien distinct de l'emprunt, et il est situé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je pense au jeudi après-midi chez nous : un bénévole tient un atelier CV au premier étage. Une voisine y est allée avec une feuille écrite à la main ; elle est ressortie avec un CV imprimé et une adresse mail créée le jour même.",
+              "pedagogicalNote": "Une scène complète, avec un avant et un après très nets."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Illustrer l'argument par une situation personnelle ou vraisemblable."
+    },
+    {
+      "code": "EO3-C5",
+      "title": "Ajouter un deuxième argument distinct",
+      "description": "Vous apprenez à enchaîner sur une deuxième raison réellement différente de la première. Au TCF, redire autrement le même argument ne fait pas avancer votre discours.",
+      "targetLevel": "B2",
+      "displayOrder": 5,
+      "prompts": [
+        {
+          "code": "EO3-C5-S1",
+          "title": "Deuxième raison, le travail d'équipe",
+          "context": "Vous avez déjà dit que travailler en équipe permet de terminer un projet plus vite. Votre interlocuteur attend la suite.",
+          "instruction": "Ajoutez un deuxième argument en faveur du travail en équipe. Il doit porter sur autre chose que la rapidité.",
+          "uniqueCriterion": "Le deuxième argument est nettement différent du premier, il ne le reformule pas.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Et puis en équipe, on va plus vite, on avance mieux, le travail se fait plus rapidement parce qu'on est plusieurs. Donc c'est vraiment un gain de temps important.",
+              "pedagogicalNote": "C'est le premier argument redit autrement : rien de nouveau n'apparaît."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Ensuite, il y a autre chose : en équipe, on se corrige mutuellement. Ce qu'un collègue ne voit pas, un autre le repère, et les erreurs sortent avant la fin du projet.",
+              "pedagogicalNote": "Un terrain différent est ouvert : la qualité, plus la vitesse."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Deuxième point, et il n'a rien à voir avec le temps : la qualité. À plusieurs, chacun relit le travail de l'autre, et une erreur qui aurait coûté cher est repérée dès le début, pas à la livraison.",
+              "pedagogicalNote": "La distinction avec le premier argument est annoncée puis tenue."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C5-S2",
+          "title": "Deuxième raison pour le vélo",
+          "context": "Vous avez expliqué que le vélo coûte très peu cher à l'usage. Il vous reste à convaincre autrement.",
+          "instruction": "Ajoutez un deuxième argument en faveur du vélo en ville, sur un autre terrain que l'argent.",
+          "uniqueCriterion": "Un deuxième argument est ajouté et il ne parle plus du coût.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "En plus, le vélo ne coûte presque rien : pas d'essence, pas d'assurance, pas de parking à payer. Financièrement, c'est vraiment la meilleure solution en ville.",
+              "pedagogicalNote": "Le nouvel argument reprend le budget, terrain déjà couvert."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Autre chose : à vélo, on connaît son temps de trajet. Il n'y a pas d'embouteillage, donc on arrive à l'heure même quand la circulation est difficile.",
+              "pedagogicalNote": "La fiabilité horaire est un argument neuf, clairement séparé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Deuxième argument, sur un tout autre plan : la régularité. Un trajet à vélo dure vingt minutes le lundi comme le vendredi soir, alors qu'en voiture le même trajet peut doubler. On ne parle plus de budget là, on parle de fiabilité.",
+              "pedagogicalNote": "Le changement de terrain est signalé : la réponse est très lisible."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C5-S3",
+          "title": "Autre intérêt des sorties scolaires",
+          "context": "Vous avez soutenu que les sorties scolaires motivent les élèves. Un parent vous demande si c'est le seul intérêt.",
+          "instruction": "Ajoutez un deuxième argument en faveur des sorties scolaires, différent de la motivation.",
+          "uniqueCriterion": "Le deuxième argument ouvre un autre aspect que celui déjà évoqué.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 42,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Et puis les élèves aiment ça, ils sont contents de sortir, ça leur donne envie de travailler. Franchement, la motivation, c'est vraiment l'essentiel dans une sortie scolaire.",
+              "pedagogicalNote": "La réponse insiste sur la motivation au lieu d'ouvrir autre chose."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Il y a aussi le groupe : pendant une sortie, des élèves qui ne se parlent jamais en classe passent la journée ensemble. Au retour, l'ambiance n'est plus la même.",
+              "pedagogicalNote": "La vie du groupe est un argument bien distinct du premier."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Un deuxième aspect, qui n'a rien à voir avec l'envie d'apprendre : les relations. Dans le car et pendant le pique-nique, des élèves qui s'ignoraient se découvrent. Et cette journée-là continue de se sentir en classe pendant des semaines.",
+              "pedagogicalNote": "L'argument est neuf, situé, et son effet durable est précisé."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C5-S4",
+          "title": "Au-delà du dépistage",
+          "context": "Vous avez dit qu'un rendez-vous médical de prévention permet de repérer un problème tôt. On vous demande une autre raison d'y aller.",
+          "instruction": "Ajoutez un deuxième argument en faveur de ces rendez-vous, sur un autre aspect que le dépistage précoce.",
+          "uniqueCriterion": "Le deuxième argument porte sur un aspect nouveau, sans revenir au dépistage.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 42,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Et aussi, ça permet de détecter les problèmes rapidement, avant que ce soit grave. Plus on trouve tôt, mieux on soigne, c'est vraiment le plus important.",
+              "pedagogicalNote": "Le dépistage revient : c'est le premier argument, pas un second."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Il y a un autre intérêt : on repart avec des conseils adaptés. Le médecin regarde votre travail, vos horaires, et il vous dit quoi changer concrètement.",
+              "pedagogicalNote": "Le conseil personnalisé est un angle vraiment différent."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Un second intérêt, et il ne concerne pas la maladie : le conseil. En vingt minutes, le médecin regarde vos horaires, votre poste, votre sommeil, et il propose deux ou trois changements réalistes. C'est une consultation qui sert même quand tous les résultats sont normaux.",
+              "pedagogicalNote": "L'argument tient debout seul, y compris si rien n'est détecté."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C5-S5",
+          "title": "Au-delà du lien familial",
+          "context": "Vous avez dit que les messageries permettent de garder le lien avec une famille éloignée. Il vous reste à ouvrir un autre angle.",
+          "instruction": "Ajoutez un deuxième argument en faveur de ces outils, clairement distinct du lien familial.",
+          "uniqueCriterion": "Le deuxième argument aborde un domaine différent du maintien du lien familial.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Et puis ça permet de parler avec sa famille, de voir les enfants, les parents, même très loin. C'est le grand avantage, on garde le contact avec ceux qu'on aime.",
+              "pedagogicalNote": "L'argument familial est simplement redéveloppé, pas remplacé."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Il y a aussi le côté pratique au quotidien : les groupes de voisins ou de parents d'élèves. Une information circule en cinq minutes alors qu'avant il fallait une réunion.",
+              "pedagogicalNote": "L'organisation collective est un domaine neuf, bien séparé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Deuxième argument, sur un terrain complètement différent : l'organisation locale. Dans mon immeuble, le groupe de discussion règle en cinq minutes une panne d'ascenseur ou une clé perdue. Ça n'a plus rien à voir avec la famille, c'est du service entre voisins.",
+              "pedagogicalNote": "Le changement de domaine est explicite et l'exemple le confirme."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Continuer le discours avec une nouvelle raison sans répéter la première."
+    },
+    {
+      "code": "EO3-C6",
+      "title": "Comparer ou présenter avantages et inconvénients",
+      "description": "Vous vous entraînez à mettre deux possibilités en relation sur un même point, au lieu de les décrire l'une après l'autre. Le TCF valorise la comparaison explicite : « alors que », « en revanche », « c'est l'inverse ».",
+      "targetLevel": "B2",
+      "displayOrder": 6,
+      "prompts": [
+        {
+          "code": "EO3-C6-S1",
+          "title": "Acheter en ligne ou en magasin",
+          "context": "Une amie hésite à faire ses achats sur internet plutôt qu'en magasin. Elle vous demande ce qui change vraiment.",
+          "instruction": "Comparez les achats en ligne et les achats en magasin. Mettez-les en relation sur un ou deux points précis.",
+          "uniqueCriterion": "Les deux options sont mises en relation sur un même point, avec un mot de comparaison.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "En ligne, il y a beaucoup de choix, on commande à toute heure, c'est livré à la maison. En magasin, il y a des vendeurs, on peut toucher les produits, l'ambiance est agréable, on sort de chez soi.",
+              "pedagogicalNote": "Deux descriptions se suivent : elles ne se répondent jamais."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Sur le choix, internet gagne : on trouve toutes les tailles, alors qu'en magasin il manque souvent la vôtre. En revanche, pour essayer, le magasin reste imbattable.",
+              "pedagogicalNote": "Deux points de comparaison, chacun tranché entre les deux options."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Tout se joue sur deux points. Le choix, d'abord : en ligne on a toutes les tailles, alors qu'en magasin on repart souvent les mains vides. L'essayage, ensuite : là, c'est l'inverse, on voit tout de suite si ça tombe bien, ce qu'aucune photo ne remplace.",
+              "pedagogicalNote": "Les points sont annoncés, comparés, et l'inversion est soulignée."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C6-S2",
+          "title": "Salle de sport ou plein air",
+          "context": "Un collègue veut se remettre au sport et hésite entre s'inscrire en salle ou courir dehors.",
+          "instruction": "Comparez ces deux possibilités en les mettant en relation sur des points précis.",
+          "uniqueCriterion": "La comparaison porte sur des points communs aux deux options, pas sur deux listes séparées.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "La salle, il y a des machines, un coach, c'est chauffé, on paie un abonnement. Dehors, c'est gratuit, il y a l'air frais, les parcs, on est libre de ses horaires.",
+              "pedagogicalNote": "Chaque option est décrite dans son coin, sans point de rencontre."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Côté prix, courir dehors ne coûte rien, alors que la salle demande trente euros par mois. Par contre, sur la régularité, la salle aide davantage : quand on paie, on y va.",
+              "pedagogicalNote": "Prix puis régularité : deux points traités des deux côtés."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Deux critères suffisent. Le coût : dehors, zéro euro, alors qu'une salle tourne autour de trente euros par mois. La régularité : là c'est l'inverse, l'abonnement pousse à y aller, tandis que dehors, une semaine de pluie suffit à tout arrêter.",
+              "pedagogicalNote": "Chaque critère est traité des deux côtés, avec l'écart expliqué."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C6-S3",
+          "title": "Centre-ville ou périphérie",
+          "context": "Une famille hésite entre un petit appartement en centre-ville et une maison plus grande à vingt kilomètres.",
+          "instruction": "Comparez les deux choix en montrant leurs principales différences.",
+          "uniqueCriterion": "Les deux logements sont comparés sur les mêmes critères, avec des marqueurs de comparaison.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 48,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "L'appartement en centre-ville, c'est petit mais tout est proche. La maison est plus grande, avec un jardin, et c'est plus calme pour les enfants. Les deux solutions ont leurs avantages.",
+              "pedagogicalNote": "Les deux sont décrits, mais aucun critère ne les met face à face."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Sur l'espace, la maison l'emporte largement : le double de surface pour le même loyer. Mais sur les trajets, c'est l'appartement qui gagne, parce qu'on va à l'école à pied alors qu'en périphérie il faut deux voitures.",
+              "pedagogicalNote": "Espace et trajets sont traités pour les deux logements."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je comparerais sur deux choses. La surface : à loyer égal, la maison offre le double, alors que le centre-ville se paie au mètre carré. Les déplacements : là c'est l'inverse, en ville l'école est à pied, tandis qu'à vingt kilomètres il faut deux voitures. Et deux voitures, ça reprend une bonne partie de ce qu'on gagne sur le loyer.",
+              "pedagogicalNote": "La comparaison est bouclée : le second critère répond au premier."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C6-S4",
+          "title": "Voyage organisé ou voyage libre",
+          "context": "Deux amis préparent un voyage : l'un veut réserver un séjour organisé, l'autre veut tout gérer lui-même.",
+          "instruction": "Comparez ces deux façons de voyager sur des points précis.",
+          "uniqueCriterion": "La comparaison relie explicitement les deux formules sur des critères identiques.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 48,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le voyage organisé, tout est prévu, on ne s'occupe de rien, il y a un guide. Le voyage libre, on choisit ses horaires, on va où on veut, on rencontre plus de monde.",
+              "pedagogicalNote": "Deux portraits parallèles : la mise en relation manque."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Sur la préparation, l'organisé gagne : on ne réserve rien soi-même. Mais sur la liberté, c'est l'inverse, parce qu'on suit le programme du groupe alors qu'en voyage libre on change d'avis le matin même.",
+              "pedagogicalNote": "Préparation et liberté sont examinées des deux côtés."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Deux critères les séparent vraiment. L'effort de préparation : quasi nul en séjour organisé, alors qu'en libre il faut y passer des soirées entières. La marge de manœuvre : là c'est l'inverse, le groupe impose ses horaires, tandis qu'en libre on peut rester trois jours de plus dans une ville qu'on aime.",
+              "pedagogicalNote": "Le renversement entre les deux critères est clairement montré."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C6-S5",
+          "title": "Cours du soir ou en ligne",
+          "context": "Un centre de formation propose la même formation en salle le soir ou entièrement en ligne. On vous demande de conseiller un futur stagiaire.",
+          "instruction": "Comparez les deux formules en pesant leurs avantages et leurs inconvénients.",
+          "uniqueCriterion": "Avantages et inconvénients sont mis en balance sur des critères communs aux deux formules.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Les cours en ligne, c'est flexible, on suit quand on veut, on ne se déplace pas. Les cours du soir, il y a un professeur en face, des camarades, un vrai cadre. Chacun choisit selon son caractère.",
+              "pedagogicalNote": "Les avantages s'empilent sans jamais être mis en balance."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "En ligne, l'avantage, c'est l'horaire libre, mais l'inconvénient, c'est qu'on abandonne facilement. En salle, c'est l'inverse : l'horaire est imposé, par contre le groupe vous oblige à revenir chaque semaine.",
+              "pedagogicalNote": "Chaque avantage est accompagné de son revers, des deux côtés."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Les deux formules s'opposent point par point. La souplesse : totale en ligne, nulle en salle. La persévérance : c'est l'inverse, on décroche vite seul devant un écran, alors qu'en salle le professeur remarque une absence dès la deuxième fois. Donc tout dépend de ce qui manque le plus au stagiaire : du temps, ou de la discipline.",
+              "pedagogicalNote": "Chaque critère est retourné, puis la comparaison débouche sur un critère de choix."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Mettre en relation deux situations et expliquer leurs principales différences."
+    },
+    {
+      "code": "EO3-C7",
+      "title": "Nuancer ou reconnaître une limite",
+      "description": "Vous apprenez à reconnaître une limite sans renoncer à votre avis. Au TCF, une nuance bien posée montre que vous maîtrisez le sujet ; mal posée, elle efface votre position.",
+      "targetLevel": "B2",
+      "displayOrder": 7,
+      "prompts": [
+        {
+          "code": "EO3-C7-S1",
+          "title": "Réseaux sociaux, avantage et limite",
+          "context": "Vous défendez l'idée que les réseaux sociaux rendent de vrais services. Votre interlocuteur attend que vous reconnaissiez aussi une limite.",
+          "instruction": "Donnez un avantage des réseaux sociaux, puis ajoutez une limite. Votre position de départ doit rester reconnaissable.",
+          "uniqueCriterion": "Une limite est clairement introduite et la position initiale tient toujours à la fin.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Les réseaux sociaux, c'est utile pour rester en contact. Mais en fait il y a beaucoup de fausses informations, les gens perdent leur temps, ça crée des disputes. Finalement, je me demande si c'est vraiment une bonne chose.",
+              "pedagogicalNote": "La limite emporte tout : la position de départ a disparu."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Les réseaux sociaux permettent de garder le contact avec une famille loin. Cela dit, ils prennent facilement trop de place dans une soirée. Mais globalement, je trouve qu'on y gagne.",
+              "pedagogicalNote": "La réserve est posée, puis la position est reprise en fin de réponse."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Leur vrai apport, c'est le lien avec une famille à l'étranger. Après, je ne vais pas prétendre que tout est parfait : on y passe vite une soirée entière sans s'en rendre compte. Ça reste, pour moi, un problème d'usage, pas une raison de s'en priver.",
+              "pedagogicalNote": "La limite est reconnue puis remise à sa place, sans renoncement."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C7-S2",
+          "title": "Des horaires vraiment flexibles",
+          "context": "Votre entreprise laisse chacun choisir son heure d'arrivée. Vous trouvez cela positif, mais vous voyez aussi une difficulté.",
+          "instruction": "Présentez un avantage des horaires flexibles, puis reconnaissez une limite, sans changer d'avis.",
+          "uniqueCriterion": "Vous introduisez une limite explicite tout en maintenant votre avis favorable.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Les horaires libres, c'est bien pour s'organiser. Le problème, c'est qu'on ne se croise plus, on ne sait plus qui est là, les réunions deviennent impossibles. Bref, ce n'est pas si simple à gérer.",
+              "pedagogicalNote": "L'avis favorable annoncé au début n'est plus défendu à la fin."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "L'avantage, c'est de pouvoir déposer les enfants avant de commencer. Il y a une limite quand même : on se croise moins entre collègues. Mais je reste favorable à ce système.",
+              "pedagogicalNote": "L'avantage, la limite, puis la position : l'ordre est très lisible."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ce que ça change vraiment, c'est de pouvoir déposer les enfants sans courir. Je reconnais une difficulté : il faut fixer une plage commune, sinon plus personne ne se croise. Mais c'est une question d'organisation, pas un défaut du système, et j'y suis toujours favorable.",
+              "pedagogicalNote": "La limite est traitée comme un ajustement, pas comme une objection."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C7-S3",
+          "title": "Se faire livrer un repas",
+          "context": "Vous trouvez que la livraison de repas à domicile dépanne réellement. On vous demande de rester honnête sur ses limites.",
+          "instruction": "Défendez cet avantage puis introduisez une réserve, sans abandonner votre position.",
+          "uniqueCriterion": "Une réserve est formulée et la position initiale reste identifiable en fin de réponse.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 42,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "La livraison, ça dépanne. Mais c'est cher, les plats sont souvent trop gras, et les emballages finissent à la poubelle. Honnêtement, je préfère éviter au maximum.",
+              "pedagogicalNote": "La réserve devient la conclusion : votre position s'est inversée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Se faire livrer dépanne vraiment quand on rentre à vingt et une heures. Il faut reconnaître que ça revient cher si on en abuse. Mais comme solution de dépannage, je continue de trouver ça utile.",
+              "pedagogicalNote": "La réserve est cadrée par un usage : la position reste debout."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Un soir où l'on rentre à vingt et une heures, la livraison sauve un repas, c'est indéniable. J'admets une limite : au-delà d'une fois par semaine, le budget grimpe très vite. Mais cette limite dit surtout comment l'utiliser, elle ne me fait pas changer d'avis sur son utilité.",
+              "pedagogicalNote": "La limite est transformée en règle d'usage, sans céder la position."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C7-S4",
+          "title": "Trottinettes en libre-service",
+          "context": "Votre ville a installé des trottinettes en libre-service. Vous y voyez un intérêt réel malgré les critiques.",
+          "instruction": "Présentez un avantage de ce service, puis reconnaissez une limite sérieuse, tout en gardant votre position.",
+          "uniqueCriterion": "Une limite sérieuse est reconnue sans que votre position de départ soit abandonnée.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "C'est pratique pour les petits trajets. Mais elles sont garées n'importe où, elles gênent les piétons, il y a des accidents. Je pense que la ville devrait revoir tout ça, c'est vraiment problématique.",
+              "pedagogicalNote": "La fin ne défend plus rien de ce qui avait été annoncé."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "L'intérêt, c'est le dernier kilomètre entre la gare et le bureau. Je reconnais que le stationnement sauvage pose un vrai problème sur les trottoirs. Mais je reste favorable au service, avec des emplacements dédiés.",
+              "pedagogicalNote": "La limite est sérieuse, et la position revient avec une condition."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ce service règle le dernier kilomètre, celui que ni le bus ni la marche ne couvrent bien. Cela dit, je ne minimise pas le problème : une trottinette en travers d'un trottoir, pour une personne en fauteuil, c'est bloquant. Ça demande des emplacements marqués, pas la suppression du service.",
+              "pedagogicalNote": "La limite est prise au sérieux et la position se conclut par une solution."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C7-S5",
+          "title": "La voiture électrique en question",
+          "context": "Vous défendez l'intérêt de la voiture électrique. Votre interlocuteur vous rappelle qu'elle n'est pas parfaite.",
+          "instruction": "Défendez un avantage réel de la voiture électrique, puis concédez une limite, sans renoncer à votre avis.",
+          "uniqueCriterion": "La concession est explicite et votre avis initial reste tenu jusqu'à la fin.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "L'électrique ne pollue pas en ville, c'est vrai. Après, la fabrication des batteries pollue beaucoup, l'électricité vient bien de quelque part, et les bornes manquent. Du coup je ne suis pas sûr que ce soit la solution.",
+              "pedagogicalNote": "La concession efface l'avantage : plus aucun avis n'est défendu."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Son intérêt principal, c'est l'air des villes : plus de gaz d'échappement dans les rues où les enfants marchent. Je reconnais que la fabrication des batteries a un coût écologique. Mais sur toute la vie du véhicule, je pense que le bilan reste favorable.",
+              "pedagogicalNote": "La concession est réelle et la position est reprise avec un argument."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ce qu'elle change vraiment, c'est la qualité de l'air là où les gens vivent. Je concède volontiers le point sensible : produire une batterie coûte cher en énergie, ce n'est pas un détail. Simplement, ce coût se rembourse au fil des kilomètres, donc ma position ne bouge pas, même si je comprends qu'on la discute.",
+              "pedagogicalNote": "La concession est franche, puis retournée par un argument précis."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Introduire une réserve, une concession ou une exception sans perdre sa position."
+    },
+    {
+      "code": "EO3-C8",
+      "title": "Organiser un discours continu et conclure",
+      "description": "Vous vous entraînez à tenir une réponse complète du début à la fin : votre avis, une raison, un exemple, puis une conclusion. C'est exactement le format attendu à la tâche 3 du TCF.",
+      "targetLevel": "B2",
+      "displayOrder": 8,
+      "prompts": [
+        {
+          "code": "EO3-C8-S1",
+          "title": "Sport seul ou en club",
+          "context": "On vous demande s'il vaut mieux pratiquer un sport seul ou dans un club. La réponse doit tenir en une seule prise de parole.",
+          "instruction": "Répondez en quatre temps : votre avis, une raison, un exemple, puis une conclusion. Gardez cet ordre.",
+          "uniqueCriterion": "Les quatre étapes sont présentes, dans l'ordre, et reliées par des connecteurs.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le club, c'est bien. Il y a un entraîneur, des horaires, des compétitions, des amis, du matériel. Seul, on est libre, on choisit son moment. Il y a aussi le prix, et puis les déplacements le week-end.",
+              "pedagogicalNote": "Les idées s'accumulent : ni raison suivie, ni exemple, ni conclusion."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je préfère le club. D'abord parce que les horaires fixes m'obligent à y aller. Par exemple, mon cours de volley est le mardi à dix-neuf heures, donc je ne réfléchis plus. Au final, c'est le club qui me fait tenir toute l'année.",
+              "pedagogicalNote": "Avis, raison, exemple, conclusion : les quatre temps sont là."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Pour moi, c'est le club, sans hésitation. La raison principale, c'est que l'horaire est décidé à ma place, donc je ne peux plus me trouver d'excuse. Par exemple, mon volley du mardi à dix-neuf heures : même fatiguée, j'y vais parce que l'équipe m'attend. Au bout du compte, ce qui me fait tenir, ce n'est pas la motivation, c'est le rendez-vous.",
+              "pedagogicalNote": "Chaque étape prépare la suivante et la conclusion apporte une idée."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C8-S2",
+          "title": "Réparer plutôt que racheter",
+          "context": "Un atelier de réparation ouvre dans votre quartier. On vous demande s'il vaut la peine de faire réparer un appareil plutôt que d'en racheter un.",
+          "instruction": "Répondez en enchaînant votre avis, une raison, un exemple et une conclusion.",
+          "uniqueCriterion": "La réponse enchaîne les quatre étapes attendues et se termine par une vraie conclusion.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 52,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Réparer, c'est bien pour la planète, ça coûte moins cher, ça crée du travail, et puis on garde ses affaires. Racheter, c'est rapide mais on jette beaucoup. Voilà, il y a plusieurs choses à dire là-dessus.",
+              "pedagogicalNote": "Beaucoup d'idées, aucune développée, et la réponse s'arrête sans fin."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je pense qu'il faut réparer. La raison, c'est qu'un appareil réparé dure encore des années. Par exemple, ma machine à laver a été réparée pour quatre-vingts euros au lieu de quatre cents. Donc oui, l'atelier du quartier a tout son sens.",
+              "pedagogicalNote": "L'enchaînement est net et la conclusion revient sur la question posée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je suis clairement pour la réparation. Ce qui me convainc, c'est que la panne concerne souvent une seule pièce, pas tout l'appareil. Par exemple, ma machine à laver s'est arrêtée l'hiver dernier : une pompe changée, quatre-vingts euros, contre quatre cents pour une neuve. Au final, un atelier de quartier ne fait pas qu'économiser de l'argent, il évite de jeter une machine qui marche encore.",
+              "pedagogicalNote": "L'exemple sert l'argument et la conclusion élargit sans changer de sujet."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C8-S3",
+          "title": "Vivre ici suffit-il",
+          "context": "On vous demande si vivre en France suffit pour progresser en français, ou s'il faut aussi suivre des cours.",
+          "instruction": "Répondez en une prise de parole continue : avis, raison, exemple, conclusion.",
+          "uniqueCriterion": "Le discours suit les quatre étapes dans l'ordre, sans revenir en arrière.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 55,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Vivre en France, on entend le français partout, à la boulangerie, au travail, à la télévision. Les cours aussi c'est utile, la grammaire, l'écrit, les professeurs. Les deux ensemble, c'est mieux, je crois.",
+              "pedagogicalNote": "L'avis arrive à la fin, sans raison développée ni exemple."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je pense que vivre ici ne suffit pas. Parce que dans la vie courante, on répète toujours les mêmes phrases. Par exemple, j'ai passé deux ans à comprendre mes collègues sans jamais savoir écrire un mail correct. Donc pour moi, les cours restent nécessaires.",
+              "pedagogicalNote": "Les quatre temps s'enchaînent et la conclusion répond à la question."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ma réponse est non, vivre ici ne suffit pas. La raison, c'est que le quotidien fait tourner un vocabulaire très limité : les courses, le travail, les horaires. Par exemple, pendant deux ans j'ai compris tous mes collègues, mais devant un courriel à écrire à l'administration, j'étais bloquée. Donc l'immersion donne l'oreille et le cours donne le reste : il faut les deux, pas l'un à la place de l'autre.",
+              "pedagogicalNote": "La conclusion synthétise au lieu de répéter la position initiale."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C8-S4",
+          "title": "Le repas du midi",
+          "context": "Dans votre entreprise, certains apportent leur repas, d'autres achètent quelque chose à côté. On vous demande ce que vous conseillez.",
+          "instruction": "Donnez votre avis, une raison, un exemple et une conclusion, dans une réponse continue.",
+          "uniqueCriterion": "Les quatre étapes s'enchaînent avec des connecteurs et la réponse se referme clairement.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 55,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Apporter son repas, c'est moins cher et plus sain. Acheter dehors, c'est plus rapide, on sort un peu, on change d'air. Après ça dépend des gens, des horaires, du quartier, de ce qu'on aime manger.",
+              "pedagogicalNote": "La réponse énumère puis se dilue : aucune conclusion n'est prise."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je conseille d'apporter son repas. D'abord parce qu'on maîtrise ce qu'on mange et ce qu'on dépense. Par exemple, je prépare le dimanche pour trois midis, et ça me coûte moins de trois euros par jour. Donc c'est vraiment ce que je recommanderais.",
+              "pedagogicalNote": "L'enchaînement est complet, avec un exemple chiffré bien placé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Mon conseil, c'est d'apporter son repas. La raison principale, c'est le contrôle : sur le contenu de l'assiette comme sur le budget. Par exemple, je cuisine le dimanche pour trois midis, ce qui me revient à moins de trois euros par jour, contre dix à la boulangerie d'en bas. Au final, ce n'est pas seulement une question d'argent : c'est une pause de midi où je ne cours pas.",
+              "pedagogicalNote": "La conclusion ajoute un bénéfice nouveau tout en restant dans le sujet."
+            }
+          ]
+        },
+        {
+          "code": "EO3-C8-S5",
+          "title": "Une ville et ses visiteurs",
+          "context": "Une ville que vous connaissez reçoit beaucoup de visiteurs chaque année. On vous demande si ce tourisme est une bonne chose pour ses habitants.",
+          "instruction": "Répondez de manière continue et organisée : avis, raison, exemple, conclusion. Terminez par une phrase qui referme le propos.",
+          "uniqueCriterion": "La réponse est organisée en quatre étapes reliées et se termine par une conclusion nette.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 58,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le tourisme amène de l'argent, des emplois, des restaurants. Mais les loyers montent, il y a du bruit, les commerces changent. Les habitants sont partagés, il y a du positif et du négatif, c'est compliqué à dire.",
+              "pedagogicalNote": "Deux listes se répondent, mais aucune position n'est tenue ni conclue."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je pense que c'est plutôt une bonne chose, à condition d'encadrer. La raison, c'est que le tourisme fait vivre beaucoup de familles. Par exemple, dans la ville où j'habitais, la moitié des commerces du centre fermait en hiver sans les visiteurs. Donc oui, mais avec des règles sur les locations.",
+              "pedagogicalNote": "Position, raison, exemple, conclusion nuancée : tout est en place."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ma réponse est oui, mais un oui encadré. Ce qui me convainc, c'est que le tourisme maintient une activité toute l'année dans des villes moyennes qui, sinon, se videraient. Par exemple, dans la ville où j'ai vécu, la moitié des commerces du centre baissait le rideau en hiver dès que les visiteurs partaient. Donc le vrai sujet n'est pas d'en avoir moins, c'est de décider ce qu'on en fait, en commençant par le logement.",
+              "pedagogicalNote": "Le propos progresse et la conclusion déplace la question sans la fuir."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Utiliser des connecteurs naturels, éviter l'accumulation d'idées et terminer clairement."
+    }
+  ]
+}

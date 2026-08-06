@@ -80,8 +80,7 @@ class AttemptSummary {
       isFinished && passThreshold != null && score! < passThreshold!;
 
   /// Durée en secondes entre le démarrage et la finalisation (null si pas fini).
-  int? get durationSeconds =>
-      finishedAt == null ? null : finishedAt!.difference(startedAt).inSeconds;
+  int? get durationSeconds => finishedAt?.difference(startedAt).inSeconds;
 
   factory AttemptSummary.fromJson(Map<String, dynamic> json) => AttemptSummary(
         id: json['id'] as String,

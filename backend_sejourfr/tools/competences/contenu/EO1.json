@@ -1,0 +1,1248 @@
+{
+  "taskCode": "EO1",
+  "section": "EO",
+  "taskTitle": "Entretien dirigé : parler de soi",
+  "taskTargetLevel": "A2",
+  "skills": [
+    {
+      "code": "EO1-C1",
+      "title": "Se présenter avec les informations essentielles",
+      "description": "Vous apprenez à vous présenter en donnant les informations vraiment utiles : qui vous êtes, ce que vous faites, où vous vivez. Au TCF, l'entretien commence toujours par là : une présentation complète met l'examinateur en confiance dès les premières secondes.",
+      "targetLevel": "A2",
+      "displayOrder": 1,
+      "prompts": [
+        {
+          "code": "EO1-C1-S1",
+          "title": "Première question de l'examinateur",
+          "context": "L'entretien commence. L'examinateur vous accueille et vous demande de vous présenter.",
+          "instruction": "Répondez à la question : « Bonjour, pouvez-vous vous présenter ? » Donnez votre prénom, votre situation actuelle et la ville où vous habitez.",
+          "uniqueCriterion": "Donner les trois informations demandées : prénom, situation actuelle, ville.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, je m'appelle Amina. Voilà.",
+              "pedagogicalNote": "Seul le prénom est donné : la situation et la ville manquent."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je m'appelle Amina. Je travaille dans un magasin et j'habite à Lyon.",
+              "pedagogicalNote": "Les trois informations demandées sont présentes et claires."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, je m'appelle Amina. Je suis vendeuse dans un magasin de vêtements et j'habite à Lyon, dans le troisième arrondissement.",
+              "pedagogicalNote": "Chaque information est précisée : métier exact et quartier."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C1-S2",
+          "title": "Se présenter à une association",
+          "context": "Vous participez à la première séance d'une association sportive de votre ville. L'animateur demande à chacun de se présenter au groupe.",
+          "instruction": "Répondez à la question : « Et vous, vous pouvez vous présenter en quelques mots ? » Dites votre prénom, ce que vous faites dans la vie et pourquoi vous venez dans cette association.",
+          "uniqueCriterion": "Donner son prénom, son occupation et la raison de sa venue.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je m'appelle Karim et je suis content d'être ici.",
+              "pedagogicalNote": "L'occupation et la raison de la venue ne sont pas données."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je m'appelle Karim. Je suis cuisinier et je viens ici pour faire du sport et rencontrer des gens.",
+              "pedagogicalNote": "Prénom, occupation et raison sont bien présents."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, je m'appelle Karim, je suis cuisinier dans un restaurant du centre. Je viens ici parce que je travaille beaucoup le soir et je veux bouger un peu la journée.",
+              "pedagogicalNote": "La raison est expliquée avec un détail personnel concret."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C1-S3",
+          "title": "Nouveau dans l'équipe",
+          "context": "C'est votre premier jour dans une entreprise. Votre responsable vous demande de vous présenter devant vos nouveaux collègues.",
+          "instruction": "Répondez à la question : « Vous voulez bien vous présenter à l'équipe ? » Donnez votre prénom, votre poste et une information sur votre expérience.",
+          "uniqueCriterion": "Donner son prénom, son poste et une information sur son expérience.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour tout le monde, moi c'est Elena. Je suis très contente de commencer avec vous.",
+              "pedagogicalNote": "Le poste et l'expérience ne sont pas mentionnés."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je m'appelle Elena. Je commence aujourd'hui comme assistante et j'ai déjà travaillé deux ans dans un bureau.",
+              "pedagogicalNote": "Prénom, poste et expérience sont donnés simplement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, je m'appelle Elena, je commence aujourd'hui comme assistante administrative. Avant, j'ai travaillé deux ans dans un bureau à Marseille, surtout pour l'accueil et les dossiers.",
+              "pedagogicalNote": "L'expérience est située et le contenu du poste précisé."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C1-S4",
+          "title": "Inscription à un atelier",
+          "context": "Vous vous inscrivez à un atelier de cuisine organisé par la maison de quartier. La personne à l'accueil vous demande de vous présenter rapidement.",
+          "instruction": "Répondez à la question : « Vous pouvez me dire qui vous êtes et depuis combien de temps vous habitez le quartier ? » Donnez votre prénom, votre situation et depuis quand vous vivez ici.",
+          "uniqueCriterion": "Donner son prénom, sa situation et depuis quand on habite le quartier.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je m'appelle Diego et j'habite ici, pas très loin.",
+              "pedagogicalNote": "La situation et la durée ne sont pas indiquées."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je m'appelle Diego. Je suis étudiant et j'habite dans le quartier depuis un an.",
+              "pedagogicalNote": "Les trois informations attendues sont présentes."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, je m'appelle Diego. Je suis étudiant en informatique et j'habite dans le quartier depuis un an, juste à côté de la place du marché.",
+              "pedagogicalNote": "La situation est détaillée et le lieu rendu concret."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C1-S5",
+          "title": "Présentation pour un stage",
+          "context": "Vous rencontrez la responsable d'une structure qui propose des stages. Elle vous demande de vous présenter avant de parler du poste.",
+          "instruction": "Répondez à la question : « Présentez-vous, s'il vous plaît. » Donnez votre prénom, votre formation, votre expérience et ce que vous cherchez.",
+          "uniqueCriterion": "Donner quatre informations : prénom, formation, expérience et objectif.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je m'appelle Fatou, j'ai vingt-six ans et je cherche un stage.",
+              "pedagogicalNote": "La formation et l'expérience manquent encore."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je m'appelle Fatou. Je suis une formation en comptabilité et j'ai déjà travaillé six mois dans un magasin. Je cherche un stage pour pratiquer.",
+              "pedagogicalNote": "Les quatre informations demandées sont bien données."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, je m'appelle Fatou. Je suis une formation en comptabilité depuis septembre et j'ai travaillé six mois dans un magasin, à la caisse. Je cherche un stage de trois mois pour apprendre à faire les factures.",
+              "pedagogicalNote": "Chaque information porte une précision utile et l'objectif est clair."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Donner une présentation personnelle courte, claire et adaptée à la question."
+    },
+    {
+      "code": "EO1-C2",
+      "title": "Répondre directement à une question personnelle",
+      "description": "Vous apprenez à répondre vraiment à la question posée, au lieu de dire seulement « oui », « non » ou de parler d'autre chose. Au TCF, une réponse directe suivie d'une courte explication montre tout de suite que vous avez compris.",
+      "targetLevel": "A2",
+      "displayOrder": 2,
+      "prompts": [
+        {
+          "code": "EO1-C2-S1",
+          "title": "Aimer son quartier",
+          "context": "L'examinateur vous pose une question simple sur l'endroit où vous vivez.",
+          "instruction": "Répondez à la question : « Est-ce que vous aimez votre quartier ? » Répondez clairement par oui ou par non, puis expliquez brièvement.",
+          "uniqueCriterion": "Répondre clairement à la question posée et donner une raison.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Oui.",
+              "pedagogicalNote": "La réponse est correcte mais trop courte : la raison manque."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, j'aime bien mon quartier parce qu'il est calme.",
+              "pedagogicalNote": "La réponse est directe et une raison est donnée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, j'aime beaucoup mon quartier. Il est calme et il y a un marché le samedi, donc je fais mes courses à pied.",
+              "pedagogicalNote": "La raison est illustrée par un détail de la vie réelle."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C2-S2",
+          "title": "Faire du sport ou non",
+          "context": "L'examinateur s'intéresse à vos activités physiques.",
+          "instruction": "Répondez à la question : « Est-ce que vous faites du sport ? » Répondez directement et dites lequel, ou expliquez pourquoi vous n'en faites pas.",
+          "uniqueCriterion": "Répondre directement par oui ou non et compléter par une information utile.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le sport, c'est très bon pour la santé.",
+              "pedagogicalNote": "L'idée est juste, mais la question personnelle reste sans réponse."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, je fais du sport. Je vais à la piscine.",
+              "pedagogicalNote": "La réponse est directe et l'activité est nommée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, je fais du sport. Je vais à la piscine deux fois par semaine, le mardi et le jeudi soir.",
+              "pedagogicalNote": "L'activité est complétée par la fréquence et les jours."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C2-S3",
+          "title": "Cuisiner ou aller au restaurant",
+          "context": "L'examinateur vous interroge sur vos habitudes alimentaires.",
+          "instruction": "Répondez à la question : « Est-ce que vous préférez cuisiner chez vous ou manger au restaurant ? » Annoncez votre choix et expliquez-le.",
+          "uniqueCriterion": "Annoncer clairement son choix entre les deux possibilités et le justifier.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Les deux sont bien, ça dépend des jours.",
+              "pedagogicalNote": "Aucun choix n'est annoncé : la question reste ouverte."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je préfère cuisiner chez moi parce que c'est moins cher.",
+              "pedagogicalNote": "Le choix est net et une raison le soutient."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je préfère cuisiner chez moi. C'est moins cher et je choisis mes produits. Je vais au restaurant seulement pour les anniversaires.",
+              "pedagogicalNote": "Le choix est justifié deux fois et la limite est précisée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C2-S4",
+          "title": "Les transports en commun",
+          "context": "L'examinateur vous pose une question sur vos déplacements dans la ville.",
+          "instruction": "Répondez à la question : « Est-ce que vous utilisez les transports en commun ? » Répondez directement et expliquez comment vous vous déplacez.",
+          "uniqueCriterion": "Répondre directement à la question et préciser son mode de déplacement.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Dans ma ville, il y a beaucoup de bus et aussi un tramway.",
+              "pedagogicalNote": "On décrit la ville, mais on ne dit pas ce que l'on fait soi-même."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, j'utilise les transports en commun. Je prends le bus pour aller au travail.",
+              "pedagogicalNote": "La réponse est personnelle, directe et complétée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, tous les jours. Je prends le bus le matin pour aller au travail et parfois le tramway le soir quand je passe au marché.",
+              "pedagogicalNote": "Deux trajets réels sont donnés avec leur moment."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C2-S5",
+          "title": "Votre travail vous plaît-il",
+          "context": "L'examinateur vous interroge sur votre activité professionnelle actuelle ou passée.",
+          "instruction": "Répondez à la question : « Est-ce que votre travail vous plaît ? » Prenez position clairement et expliquez ce qui vous plaît ou ce qui est difficile.",
+          "uniqueCriterion": "Prendre position clairement sur la question et expliquer avec au moins deux éléments.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Mon travail, c'est dans un entrepôt. Je commence à sept heures du matin.",
+              "pedagogicalNote": "Le travail est décrit, mais l'avis demandé n'apparaît pas."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, mon travail me plaît. J'aime bien mes collègues et les horaires sont réguliers.",
+              "pedagogicalNote": "La position est claire et deux éléments l'expliquent."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, globalement mon travail me plaît. J'aime bien l'équipe et les horaires sont réguliers, donc je vois mes enfants le soir. Le seul problème, c'est que je porte des choses lourdes.",
+              "pedagogicalNote": "L'avis est net, expliqué, et une limite est reconnue simplement."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Éviter les réponses hors sujet ou limitées à « oui », « non » ou un seul mot."
+    },
+    {
+      "code": "EO1-C3",
+      "title": "Développer une réponse avec une précision",
+      "description": "Vous apprenez à ajouter un détail utile à votre réponse : quand, où, avec qui, à quelle fréquence ou pourquoi. Au TCF, c'est cette petite précision qui transforme une réponse minimale en réponse convaincante.",
+      "targetLevel": "A2",
+      "displayOrder": 3,
+      "prompts": [
+        {
+          "code": "EO1-C3-S1",
+          "title": "Vos week-ends",
+          "context": "L'examinateur vous pose une question sur votre temps libre.",
+          "instruction": "Répondez à la question : « Que faites-vous le week-end ? » Donnez une activité et au moins une précision : quand, où ou avec qui.",
+          "uniqueCriterion": "Donner une activité et au moins une précision.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'aime le sport.",
+              "pedagogicalNote": "L'activité est là, mais aucune précision ne l'accompagne."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le week-end, je fais du sport. Le samedi matin, je joue au football.",
+              "pedagogicalNote": "L'activité est située dans le temps : le critère est atteint."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le week-end, je fais du sport. Le samedi matin, je joue au football avec mes amis dans le parc à côté de chez moi.",
+              "pedagogicalNote": "Trois précisions utiles : le moment, les personnes et le lieu."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C3-S2",
+          "title": "Ce que vous aimez manger",
+          "context": "L'examinateur vous interroge sur vos goûts alimentaires.",
+          "instruction": "Répondez à la question : « Qu'est-ce que vous aimez manger ? » Nommez un plat et ajoutez une précision : quand vous le mangez, avec qui ou pourquoi vous l'aimez.",
+          "uniqueCriterion": "Nommer un plat et ajouter au moins une précision.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'aime beaucoup le poisson.",
+              "pedagogicalNote": "Le plat est donné, mais rien ne vient l'éclairer."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "J'aime beaucoup le poisson. Je le prépare souvent le dimanche.",
+              "pedagogicalNote": "Une précision de fréquence et de moment est ajoutée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "J'aime beaucoup le poisson. Je le prépare le dimanche avec du riz, parce que toute la famille mange ensemble ce jour-là.",
+              "pedagogicalNote": "Le détail et la raison rendent la réponse vivante."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C3-S3",
+          "title": "Aller au travail",
+          "context": "L'examinateur vous pose une question sur vos trajets quotidiens.",
+          "instruction": "Répondez à la question : « Comment allez-vous au travail ? » Donnez votre moyen de transport et au moins une précision : la durée, l'horaire ou le trajet.",
+          "uniqueCriterion": "Donner son moyen de transport et au moins une précision.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je prends le métro.",
+              "pedagogicalNote": "Le moyen de transport est donné sans aucune précision."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je prends le métro. Le trajet dure environ vingt minutes.",
+              "pedagogicalNote": "La durée précise utilement la réponse."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je prends le métro à sept heures et demie et le trajet dure vingt minutes. Après, je marche cinq minutes jusqu'au bureau.",
+              "pedagogicalNote": "L'horaire, la durée et la fin du trajet sont donnés."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C3-S4",
+          "title": "Faire ses courses",
+          "context": "L'examinateur s'intéresse à votre organisation quotidienne.",
+          "instruction": "Répondez à la question : « Où est-ce que vous faites vos courses ? » Nommez l'endroit et ajoutez au moins une précision : quand, à quelle fréquence ou pourquoi là.",
+          "uniqueCriterion": "Nommer l'endroit et ajouter au moins une précision.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je fais mes courses au supermarché.",
+              "pedagogicalNote": "L'endroit est nommé, mais la précision demandée manque."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je fais mes courses au supermarché près de chez moi, le samedi matin.",
+              "pedagogicalNote": "Le lieu est situé et le moment indiqué."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je fais mes courses au supermarché près de chez moi, le samedi matin. J'y vais tôt parce qu'il y a moins de monde et je prends tout pour la semaine.",
+              "pedagogicalNote": "La raison du choix rend la précision très concrète."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C3-S5",
+          "title": "Apprendre quelque chose",
+          "context": "L'examinateur vous interroge sur ce que vous apprenez en ce moment.",
+          "instruction": "Répondez à la question : « Est-ce que vous apprenez quelque chose en ce moment ? » Dites quoi et donnez deux précisions : depuis quand, où, comment ou pourquoi.",
+          "uniqueCriterion": "Nommer ce que l'on apprend et donner au moins deux précisions.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Oui, j'apprends le français en ce moment.",
+              "pedagogicalNote": "La réponse est juste, mais elle reste sans aucune précision."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, j'apprends le français. Je suis des cours depuis six mois dans une association.",
+              "pedagogicalNote": "La durée et le lieu apportent les précisions attendues."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, j'apprends le français. Je suis des cours depuis six mois dans une association du quartier, deux soirs par semaine, et je révise avec une application le matin dans le bus.",
+              "pedagogicalNote": "Durée, lieu, rythme et méthode : la réponse est riche et simple."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Ajouter un détail utile : quand, où, avec qui, à quelle fréquence ou pourquoi."
+    },
+    {
+      "code": "EO1-C4",
+      "title": "Parler de son quotidien",
+      "description": "Vous apprenez à décrire vos habitudes et vos horaires dans un ordre que l'examinateur suit facilement. Au TCF, les mots comme « d'abord », « après », « vers huit heures » rendent votre journée compréhensible sans effort.",
+      "targetLevel": "A2",
+      "displayOrder": 4,
+      "prompts": [
+        {
+          "code": "EO1-C4-S1",
+          "title": "Votre matinée habituelle",
+          "context": "L'examinateur veut savoir comment se passent vos matins.",
+          "instruction": "Répondez à la question : « Que faites-vous habituellement le matin ? » Racontez au moins trois actions dans l'ordre.",
+          "uniqueCriterion": "Enchaîner au moins trois actions habituelles dans un ordre clair.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le matin, je me lève tôt et je pars.",
+              "pedagogicalNote": "Deux actions seulement, et l'ordre reste très vague."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le matin, je me lève à six heures. Je prends mon petit-déjeuner, puis je pars au travail.",
+              "pedagogicalNote": "Trois actions se suivent dans un ordre clair."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le matin, je me lève à six heures. D'abord je prends une douche, ensuite je prends mon petit-déjeuner avec ma fille, et vers sept heures je pars au travail.",
+              "pedagogicalNote": "Les mots d'ordre et les horaires guident bien l'auditeur."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C4-S2",
+          "title": "Vos soirées",
+          "context": "L'examinateur vous interroge sur la fin de votre journée.",
+          "instruction": "Répondez à la question : « Que faites-vous le soir après le travail ? » Racontez vos habitudes du soir dans l'ordre.",
+          "uniqueCriterion": "Décrire au moins trois habitudes du soir dans un ordre compréhensible.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le soir, je suis fatigué, alors je me repose à la maison.",
+              "pedagogicalNote": "On comprend l'ambiance, mais les actions ne sont pas racontées."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le soir, je rentre vers dix-huit heures. Je prépare le dîner, puis je regarde un peu la télévision.",
+              "pedagogicalNote": "Les habitudes se suivent clairement, avec un horaire."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le soir, je rentre vers dix-huit heures. D'abord je prépare le dîner, ensuite nous mangeons tous ensemble, et après je regarde une série ou j'appelle ma sœur.",
+              "pedagogicalNote": "L'enchaînement est net et une variante habituelle est ajoutée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C4-S3",
+          "title": "Un dimanche ordinaire",
+          "context": "L'examinateur veut savoir comment vous occupez votre jour de repos.",
+          "instruction": "Répondez à la question : « Comment se passe un dimanche ordinaire pour vous ? » Racontez votre journée du matin au soir.",
+          "uniqueCriterion": "Couvrir les différents moments de la journée dans l'ordre, du matin au soir.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le dimanche, je me repose et je vois des amis, c'est tout.",
+              "pedagogicalNote": "La journée n'est pas découpée : on ne suit aucun déroulement."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le dimanche, je me lève tard. Le matin, je fais le ménage. L'après-midi, je vois des amis et le soir je prépare mes affaires pour lundi.",
+              "pedagogicalNote": "Les trois moments de la journée sont bien distingués."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le dimanche, je me lève vers neuf heures. Le matin, je fais le ménage et un peu de lessive. L'après-midi, je vais au parc avec des amis quand il fait beau. Et le soir, je prépare mes vêtements pour lundi et je me couche tôt.",
+              "pedagogicalNote": "Chaque moment porte une action précise et une petite condition."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C4-S4",
+          "title": "Votre semaine de travail",
+          "context": "L'examinateur s'intéresse à l'organisation de votre semaine.",
+          "instruction": "Répondez à la question : « Comment est organisée votre semaine ? » Parlez de vos horaires et de vos jours de travail ou de cours.",
+          "uniqueCriterion": "Décrire ses horaires et ses jours de manière ordonnée et compréhensible.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je travaille beaucoup pendant la semaine, c'est un peu fatigant.",
+              "pedagogicalNote": "Ni les jours ni les horaires ne sont donnés."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je travaille du lundi au vendredi, de neuf heures à dix-sept heures. Le samedi, je fais mes courses et le dimanche je me repose.",
+              "pedagogicalNote": "Jours et horaires sont clairs et bien répartis."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je travaille du lundi au vendredi, de neuf heures à dix-sept heures, avec une pause à midi. Le mardi soir, j'ai un cours de français. Le samedi, je fais mes courses le matin, et le dimanche je me repose.",
+              "pedagogicalNote": "La semaine complète est structurée, avec une exception nommée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C4-S5",
+          "title": "Une journée bien remplie",
+          "context": "L'examinateur vous demande de raconter une journée où vous avez beaucoup de choses à faire.",
+          "instruction": "Répondez à la question : « Racontez-moi une journée où vous avez beaucoup de choses à organiser. » Enchaînez vos activités dans l'ordre et dites comment vous vous organisez.",
+          "uniqueCriterion": "Enchaîner au moins cinq activités dans l'ordre en marquant clairement les moments.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 55,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Il y a des jours où j'ai vraiment beaucoup de choses à faire et je cours partout.",
+              "pedagogicalNote": "Aucune activité concrète n'est nommée ni située."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le mercredi, je me lève à six heures. J'emmène les enfants à l'école, après je vais au travail. À midi, je fais les courses, et le soir je récupère les enfants et je prépare le dîner.",
+              "pedagogicalNote": "Cinq activités s'enchaînent dans un ordre facile à suivre."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le mercredi, je me lève à six heures. D'abord j'emmène les enfants à l'école, ensuite je vais au travail jusqu'à midi. Pendant la pause, je fais les courses au magasin d'à côté pour gagner du temps. Après, je retourne au bureau. Enfin, à dix-sept heures, je récupère les enfants et je prépare le dîner.",
+              "pedagogicalNote": "L'ordre est explicite et une stratégie d'organisation apparaît."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Décrire ses habitudes, ses horaires ou une journée habituelle dans un ordre compréhensible."
+    },
+    {
+      "code": "EO1-C5",
+      "title": "Décrire son entourage ou son environnement",
+      "description": "Vous apprenez à décrire votre famille, votre logement, votre quartier ou votre lieu de travail avec des informations concrètes. Au TCF, deux détails réels valent mieux qu'une longue phrase générale comme « c'est très bien ».",
+      "targetLevel": "A2",
+      "displayOrder": 5,
+      "prompts": [
+        {
+          "code": "EO1-C5-S1",
+          "title": "Votre quartier en deux détails",
+          "context": "L'examinateur vous demande de parler de l'endroit où vous habitez.",
+          "instruction": "Répondez à la question : « Pouvez-vous décrire votre quartier ? » Donnez au moins deux informations concrètes : commerces, transports, ambiance, lieux.",
+          "uniqueCriterion": "Donner au moins deux informations concrètes sur le quartier.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Mon quartier est très bien, je l'aime beaucoup.",
+              "pedagogicalNote": "L'avis est donné, mais aucune information concrète n'apparaît."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Mon quartier est calme. Il y a une boulangerie et un arrêt de bus juste en bas de chez moi.",
+              "pedagogicalNote": "Deux éléments concrets décrivent vraiment le lieu."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Mon quartier est calme, surtout le soir. Il y a une boulangerie et un arrêt de bus en bas de chez moi, et un petit parc à cinq minutes où je vais le week-end.",
+              "pedagogicalNote": "Trois détails situés donnent une image précise du quartier."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C5-S2",
+          "title": "Votre logement",
+          "context": "L'examinateur s'intéresse à l'endroit où vous vivez.",
+          "instruction": "Répondez à la question : « Comment est votre logement ? » Donnez au moins deux informations concrètes : type, pièces, étage, luminosité.",
+          "uniqueCriterion": "Donner au moins deux informations concrètes sur le logement.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'habite dans un appartement, c'est confortable.",
+              "pedagogicalNote": "Une seule information générale : le logement reste flou."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "J'habite dans un appartement de deux pièces, au troisième étage.",
+              "pedagogicalNote": "Deux informations précises décrivent bien le logement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "J'habite dans un appartement de deux pièces, au troisième étage. Il y a un petit balcon et la cuisine est très claire le matin.",
+              "pedagogicalNote": "Les détails ajoutés rendent le logement facile à imaginer."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C5-S3",
+          "title": "Une personne proche",
+          "context": "L'examinateur vous demande de parler d'une personne importante pour vous.",
+          "instruction": "Répondez à la question : « Parlez-moi d'une personne proche de vous. » Dites qui c'est et donnez au moins deux informations : ce qu'elle fait, son caractère, ce que vous faites ensemble.",
+          "uniqueCriterion": "Identifier la personne et donner au moins deux informations concrètes sur elle.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je vais parler de ma sœur. Elle est très gentille avec moi.",
+              "pedagogicalNote": "Une seule qualité générale : on ne sait presque rien d'elle."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je vais parler de ma sœur. Elle est infirmière et elle habite à Nantes. On s'appelle souvent le dimanche.",
+              "pedagogicalNote": "Métier, lieu et lien concret : la description est vivante."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je vais parler de ma sœur, Sonia. Elle est infirmière dans un hôpital à Nantes et elle travaille souvent la nuit. Elle est très calme, et on s'appelle le dimanche pour parler de la semaine.",
+              "pedagogicalNote": "Chaque information est précisée et le lien est illustré."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C5-S4",
+          "title": "Votre lieu de travail",
+          "context": "L'examinateur veut se représenter l'endroit où vous travaillez ou étudiez.",
+          "instruction": "Répondez à la question : « Comment est votre lieu de travail ou votre lieu d'études ? » Donnez au moins trois informations concrètes : taille, équipe, ambiance, organisation.",
+          "uniqueCriterion": "Donner au moins trois informations concrètes sur ce lieu.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je travaille dans un magasin. C'est un bon endroit et les gens sont sympas.",
+              "pedagogicalNote": "L'impression domine : il manque des faits concrets."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je travaille dans un magasin de vêtements, dans le centre-ville. Nous sommes six personnes et le magasin ouvre à dix heures.",
+              "pedagogicalNote": "Type, lieu, taille de l'équipe et horaire : c'est précis."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je travaille dans un magasin de vêtements du centre-ville. Nous sommes six et chacun s'occupe d'un rayon. Le magasin ouvre à dix heures et le samedi est notre journée la plus chargée.",
+              "pedagogicalNote": "L'organisation interne du lieu est expliquée, pas seulement listée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C5-S5",
+          "title": "Présenter votre ville à un ami",
+          "context": "L'examinateur vous demande de présenter votre ville comme si un ami venait vous rendre visite pour la première fois.",
+          "instruction": "Répondez à la question : « Comment décririez-vous votre ville à quelqu'un qui ne la connaît pas ? » Donnez au moins trois informations concrètes et dites ce que vous lui feriez découvrir.",
+          "uniqueCriterion": "Donner au moins trois informations concrètes sur la ville et proposer un lieu à découvrir.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Ma ville est agréable et il y a beaucoup de choses à voir, ça lui plairait sûrement.",
+              "pedagogicalNote": "Rien de concret : ni lieu, ni détail, ni proposition."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Ma ville n'est pas très grande. Il y a une rivière, un vieux centre et beaucoup de cafés. Je l'emmènerais au marché du samedi.",
+              "pedagogicalNote": "Trois informations claires et une proposition précise."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ma ville n'est pas très grande, on traverse le centre à pied en vingt minutes. Il y a une rivière avec un chemin pour marcher, un vieux centre avec des cafés, et un marché le samedi matin. Je l'emmènerais d'abord au marché, parce que c'est là qu'on voit vraiment la ville.",
+              "pedagogicalNote": "Les détails sont situés et la proposition est justifiée."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Parler simplement de sa famille, de son logement, de son quartier ou de son lieu de travail."
+    },
+    {
+      "code": "EO1-C6",
+      "title": "Raconter brièvement une expérience passée",
+      "description": "Vous apprenez à raconter un événement court en disant quand c'était et ce qui s'est passé, dans l'ordre. Au TCF, l'examinateur demande souvent un souvenir récent : un petit récit clair vaut mieux qu'une phrase isolée.",
+      "targetLevel": "A2",
+      "displayOrder": 6,
+      "prompts": [
+        {
+          "code": "EO1-C6-S1",
+          "title": "Une sortie récente",
+          "context": "L'examinateur vous interroge sur vos loisirs des dernières semaines.",
+          "instruction": "Répondez à la question : « Parlez-moi d'une sortie que vous avez faite récemment. » Dites quand c'était et racontez au moins deux actions dans l'ordre.",
+          "uniqueCriterion": "Situer le moment de la sortie et raconter au moins deux actions dans l'ordre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je suis allé au cinéma, c'était bien.",
+              "pedagogicalNote": "Le moment manque et une seule action est racontée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Samedi dernier, je suis allé au cinéma avec un ami. Après le film, on a mangé une pizza.",
+              "pedagogicalNote": "Le moment est donné et deux actions se suivent."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Samedi dernier, je suis allé au cinéma avec un ami. On a vu une comédie française, et après le film on a mangé une pizza à côté du cinéma. On est rentrés vers minuit.",
+              "pedagogicalNote": "Le récit se déroule et se termine, avec des détails simples."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C6-S2",
+          "title": "Un repas de fête",
+          "context": "L'examinateur vous demande de parler d'une occasion où vous avez mangé avec d'autres personnes.",
+          "instruction": "Répondez à la question : « Racontez-moi un repas de fête auquel vous avez participé. » Dites quand c'était, avec qui, et racontez deux ou trois moments.",
+          "uniqueCriterion": "Situer le moment et raconter au moins deux moments du repas dans l'ordre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "On a fait un grand repas à la maison, il y avait beaucoup de monde.",
+              "pedagogicalNote": "La scène est posée, mais rien n'est situé ni raconté."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le mois dernier, on a fêté l'anniversaire de ma mère. On a préparé le repas ensemble, puis on a mangé et chanté.",
+              "pedagogicalNote": "Le moment est clair et les étapes s'enchaînent."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le mois dernier, on a fêté l'anniversaire de ma mère chez ma tante. D'abord, on a cuisiné toute la matinée. Ensuite, tout le monde est arrivé vers midi. On a mangé, puis on a apporté le gâteau et on a chanté. Elle était très contente.",
+              "pedagogicalNote": "Le récit est ordonné et se termine sur une réaction."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C6-S3",
+          "title": "Un rendez-vous médical",
+          "context": "L'examinateur vous demande de raconter une démarche liée à votre santé.",
+          "instruction": "Répondez à la question : « Racontez-moi votre dernier rendez-vous chez le médecin. » Dites quand c'était et racontez comment le rendez-vous s'est passé, étape par étape.",
+          "uniqueCriterion": "Situer le moment et raconter au moins trois étapes du rendez-vous dans l'ordre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je suis allée chez le médecin parce que j'avais mal à la gorge.",
+              "pedagogicalNote": "La raison est donnée, mais le déroulement n'est pas raconté."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Il y a deux semaines, j'ai pris rendez-vous chez le médecin. J'ai attendu un peu dans la salle d'attente, puis le médecin m'a examinée et il m'a donné un traitement.",
+              "pedagogicalNote": "Trois étapes claires, situées dans le temps."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Il y a deux semaines, j'ai pris rendez-vous en ligne pour le jeudi matin. Je suis arrivée dix minutes avant et j'ai attendu dans la salle d'attente. Ensuite, le médecin m'a examinée et m'a posé des questions. À la fin, il m'a donné une ordonnance et je suis passée à la pharmacie.",
+              "pedagogicalNote": "Le récit couvre l'avant, le pendant et l'après."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C6-S4",
+          "title": "Un déplacement compliqué",
+          "context": "L'examinateur vous demande de raconter un trajet qui ne s'est pas passé comme prévu.",
+          "instruction": "Répondez à la question : « Racontez-moi un voyage ou un trajet difficile. » Dites quand c'était, ce qui s'est passé et comment cela s'est terminé.",
+          "uniqueCriterion": "Situer le moment, raconter le problème et dire comment la situation s'est terminée.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Une fois, il y a eu un problème avec le train et j'étais très en retard.",
+              "pedagogicalNote": "Le moment et la fin de l'histoire ne sont pas donnés."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "L'hiver dernier, je suis allé à Paris en train. Le train a eu deux heures de retard à cause de la neige. Je suis arrivé tard, mais tout s'est bien terminé.",
+              "pedagogicalNote": "Moment, problème et conclusion sont tous présents."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "L'hiver dernier, je suis allé à Paris en train pour voir un ami. Le matin, il y avait beaucoup de neige et le train a eu deux heures de retard. J'ai attendu sur le quai et j'ai prévenu mon ami par message. Finalement, je suis arrivé le soir et il est venu me chercher à la gare.",
+              "pedagogicalNote": "Le récit progresse, avec une réaction et une fin nette."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C6-S5",
+          "title": "Votre premier jour",
+          "context": "L'examinateur vous demande de raconter un début important pour vous : un premier jour de travail, de formation ou de cours.",
+          "instruction": "Répondez à la question : « Racontez-moi votre premier jour de travail ou de formation. » Dites quand c'était, racontez le déroulement et expliquez ce que vous avez ressenti.",
+          "uniqueCriterion": "Situer le moment, raconter au moins trois étapes dans l'ordre et exprimer un ressenti.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 55,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Mon premier jour, j'étais très stressée, mais après ça a été.",
+              "pedagogicalNote": "Le ressenti est là, mais rien n'est situé ni raconté."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "L'année dernière, j'ai commencé dans une boulangerie. Le premier jour, je suis arrivée à six heures, la responsable m'a montré le travail et j'ai servi les clients. J'étais fatiguée, mais contente.",
+              "pedagogicalNote": "Le récit est situé, ordonné, et le ressenti apparaît."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "L'année dernière, en septembre, j'ai commencé dans une boulangerie. Le premier jour, je suis arrivée à six heures du matin. D'abord, la responsable m'a montré la machine à café et les prix. Ensuite, j'ai servi mes premiers clients et j'ai fait une erreur avec la monnaie. Une collègue m'a aidée tout de suite. Le soir, j'étais fatiguée, mais vraiment contente d'avoir tenu.",
+              "pedagogicalNote": "Récit détaillé, avec un incident, une aide et un ressenti final."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Répondre à une question personnelle en racontant un événement court et compréhensible."
+    },
+    {
+      "code": "EO1-C7",
+      "title": "Parler de ses projets futurs",
+      "description": "Vous apprenez à exprimer une intention ou un objectif et à le rendre concret : quand, comment ou pourquoi. Au TCF, dire « je voudrais travailler » suffit rarement ; une précision montre que votre projet existe vraiment.",
+      "targetLevel": "A2",
+      "displayOrder": 7,
+      "prompts": [
+        {
+          "code": "EO1-C7-S1",
+          "title": "L'année prochaine",
+          "context": "L'examinateur vous interroge sur vos intentions pour la période à venir.",
+          "instruction": "Répondez à la question : « Qu'est-ce que vous aimeriez faire l'année prochaine ? » Donnez un projet et au moins une précision.",
+          "uniqueCriterion": "Exprimer un projet et donner au moins une précision.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "L'année prochaine, je voudrais changer des choses dans ma vie.",
+              "pedagogicalNote": "L'intention reste vague : aucun projet identifiable."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "L'année prochaine, je voudrais passer le permis de conduire. Je vais m'inscrire en janvier.",
+              "pedagogicalNote": "Le projet est nommé et une date le rend concret."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "L'année prochaine, je voudrais passer le permis de conduire. Je vais m'inscrire en janvier dans une auto-école près de mon travail, parce que j'ai besoin de la voiture pour aller sur les chantiers.",
+              "pedagogicalNote": "Le projet est daté, situé et justifié par un besoin réel."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C7-S2",
+          "title": "Vos prochaines vacances",
+          "context": "L'examinateur vous demande de parler de vos projets de vacances.",
+          "instruction": "Répondez à la question : « Qu'allez-vous faire pendant vos prochaines vacances ? » Donnez votre projet et au moins une précision : quand, où ou avec qui.",
+          "uniqueCriterion": "Exprimer un projet de vacances et donner au moins une précision.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je vais me reposer, j'ai vraiment besoin de vacances.",
+              "pedagogicalNote": "Le besoin est exprimé, mais il n'y a ni projet ni précision."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "En août, je vais aller à la mer avec ma famille. On va rester une semaine.",
+              "pedagogicalNote": "Le projet est daté et la durée est indiquée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "En août, je vais aller à la mer avec ma famille. On va rester une semaine dans un petit appartement à Sète. On veut surtout se baigner et marcher le soir.",
+              "pedagogicalNote": "Lieu, durée et activités prévues rendent le projet crédible."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C7-S3",
+          "title": "Une formation à venir",
+          "context": "L'examinateur s'intéresse à ce que vous voulez apprendre.",
+          "instruction": "Répondez à la question : « Est-ce que vous avez un projet de formation ou d'études ? » Dites lequel et donnez deux précisions : quand, où ou pourquoi.",
+          "uniqueCriterion": "Nommer un projet de formation et donner au moins deux précisions.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Oui, je veux faire une formation pour avoir un meilleur travail.",
+              "pedagogicalNote": "La formation n'est pas nommée et rien n'est précisé."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, je veux faire une formation en informatique. Je vais commencer en septembre, dans un centre près de chez moi.",
+              "pedagogicalNote": "Le domaine, la date et le lieu sont donnés."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, je veux faire une formation en informatique, surtout pour la maintenance. Je vais commencer en septembre dans un centre près de chez moi, le soir, parce que je travaille la journée.",
+              "pedagogicalNote": "Le projet est précisé et l'organisation pratique est expliquée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C7-S4",
+          "title": "Changer de logement",
+          "context": "L'examinateur vous demande si vous envisagez de déménager.",
+          "instruction": "Répondez à la question : « Est-ce que vous pensez changer de logement bientôt ? » Donnez votre intention et expliquez avec deux précisions.",
+          "uniqueCriterion": "Exprimer une intention claire sur le logement et donner au moins deux précisions.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Peut-être un jour, on verra bien.",
+              "pedagogicalNote": "Aucune intention claire, donc aucun projet à évaluer."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, je voudrais déménager l'année prochaine. Je cherche un appartement plus grand, avec deux chambres.",
+              "pedagogicalNote": "L'intention est datée et le besoin est précisé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, je voudrais déménager l'année prochaine. Je cherche un appartement avec deux chambres, parce que ma fille grandit. Et si c'est possible, je voudrais rester dans le même quartier, près de son école.",
+              "pedagogicalNote": "Besoin, raison et contrainte de lieu sont bien articulés."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C7-S5",
+          "title": "Votre projet professionnel",
+          "context": "L'examinateur vous demande où vous voulez en être dans quelques années.",
+          "instruction": "Répondez à la question : « Que voudriez-vous faire dans deux ou trois ans ? » Exprimez votre objectif et expliquez au moins deux étapes pour y arriver.",
+          "uniqueCriterion": "Exprimer un objectif à moyen terme et nommer au moins deux étapes pour l'atteindre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Dans deux ou trois ans, j'espère avoir une meilleure situation qu'aujourd'hui.",
+              "pedagogicalNote": "L'objectif reste général et aucune étape n'est proposée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Dans deux ans, je voudrais travailler comme aide-soignante. D'abord, je dois améliorer mon français, ensuite je vais passer le concours d'entrée.",
+              "pedagogicalNote": "L'objectif est clair et deux étapes sont annoncées."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Dans deux ans, je voudrais travailler comme aide-soignante dans un hôpital. D'abord, je dois améliorer mon français, donc je suis des cours le samedi. Ensuite, je vais passer le concours d'entrée au printemps prochain. Et pendant la formation, je continuerai à travailler à mi-temps.",
+              "pedagogicalNote": "Chaque étape est datée ou expliquée : le plan est solide."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Exprimer une intention, un projet ou un objectif et donner une précision."
+    },
+    {
+      "code": "EO1-C8",
+      "title": "Réagir à une relance et maintenir l'échange",
+      "description": "Vous apprenez à comprendre une demande de précision et à compléter votre réponse sans répéter ce que vous venez de dire. Au TCF, l'examinateur relance presque toujours : c'est le moment d'apporter une information nouvelle.",
+      "targetLevel": "A2",
+      "displayOrder": 8,
+      "prompts": [
+        {
+          "code": "EO1-C8-S1",
+          "title": "L'examinateur demande pourquoi",
+          "context": "Vous venez de dire : « J'aime bien mon quartier. » L'examinateur veut en savoir plus.",
+          "instruction": "L'examinateur vous relance : « Pourquoi ? » Répondez en donnant une raison nouvelle, sans répéter votre phrase précédente.",
+          "uniqueCriterion": "Donner une raison qui apporte une information nouvelle.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Parce que je l'aime bien, voilà.",
+              "pedagogicalNote": "La phrase reprend la réponse précédente sans rien ajouter."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Parce qu'il est calme et que tout est près : l'école, la boulangerie, la pharmacie.",
+              "pedagogicalNote": "La raison est nouvelle et appuyée par des exemples."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Parce qu'il est calme et que tout est près. Je vais à l'école de ma fille à pied en cinq minutes, donc je gagne du temps le matin.",
+              "pedagogicalNote": "La raison est illustrée par une conséquence concrète."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C8-S2",
+          "title": "Avec qui faites-vous ça",
+          "context": "Vous venez de dire : « Le dimanche, je fais de la randonnée. » L'examinateur veut une précision.",
+          "instruction": "L'examinateur vous relance : « Avec qui ? » Répondez en apportant une information nouvelle sur les personnes qui vous accompagnent.",
+          "uniqueCriterion": "Répondre à la relance en donnant une information nouvelle sur les personnes.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Oui, je fais de la randonnée le dimanche.",
+              "pedagogicalNote": "La relance n'est pas prise en compte : la question était « avec qui »."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Avec deux amis. On part ensemble en voiture le matin.",
+              "pedagogicalNote": "La question est traitée et une information s'ajoute."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Avec deux amis du travail. On part en voiture vers huit heures, et parfois mon frère vient aussi quand il n'est pas de service.",
+              "pedagogicalNote": "Les personnes sont identifiées et une variante est ajoutée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C8-S3",
+          "title": "Depuis quand",
+          "context": "Vous venez de dire : « Je travaille dans un restaurant. » L'examinateur demande une précision de durée.",
+          "instruction": "L'examinateur vous relance : « Et depuis quand ? » Répondez à la relance et ajoutez une information nouvelle sur cette période.",
+          "uniqueCriterion": "Indiquer la durée demandée et ajouter une information nouvelle.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Depuis un moment, oui, ça fait déjà un certain temps.",
+              "pedagogicalNote": "La durée reste imprécise et rien de nouveau n'est apporté."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Depuis deux ans. J'ai commencé en salle et maintenant je suis en cuisine.",
+              "pedagogicalNote": "La durée est nette et une évolution est racontée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Depuis deux ans, presque jour pour jour. J'ai commencé en salle, et depuis l'hiver dernier je travaille en cuisine, surtout sur les entrées.",
+              "pedagogicalNote": "La durée est précise et l'évolution est bien située."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C8-S4",
+          "title": "Est-ce que c'est facile",
+          "context": "Vous venez de dire : « Je suis des cours de français le soir. » L'examinateur veut savoir comment cela se passe.",
+          "instruction": "L'examinateur vous relance : « Et ce n'est pas trop difficile ? » Répondez clairement et expliquez avec au moins deux éléments nouveaux.",
+          "uniqueCriterion": "Répondre clairement à la relance et apporter au moins deux éléments nouveaux.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Oui, c'est un peu difficile parfois.",
+              "pedagogicalNote": "La réponse est directe, mais aucune explication ne suit."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "C'est un peu difficile parce que je finis le travail à dix-huit heures. Mais le groupe est petit et la professeure explique bien.",
+              "pedagogicalNote": "La difficulté et deux éléments concrets sont exposés."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "C'est un peu difficile, surtout le mardi, parce que je finis le travail à dix-huit heures et le cours commence à dix-neuf heures. Mais le groupe est petit, la professeure explique bien, et je révise dans le bus le matin.",
+              "pedagogicalNote": "Difficulté située, compensations nommées, solution personnelle ajoutée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C8-S5",
+          "title": "Le conseilleriez-vous",
+          "context": "Vous venez de parler d'une activité que vous pratiquez, par exemple un sport ou une activité associative. L'examinateur pousse l'échange un peu plus loin.",
+          "instruction": "L'examinateur vous relance : « Et vous le conseilleriez à quelqu'un ? » Prenez position, justifiez et dites à qui vous le conseilleriez.",
+          "uniqueCriterion": "Prendre position sur la relance, justifier et préciser à qui le conseil s'adresse.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Oui, bien sûr, c'est une très bonne activité.",
+              "pedagogicalNote": "La position est là, mais la justification et le destinataire manquent."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, je le conseillerais, surtout aux personnes qui travaillent assis toute la journée. Ça fait bouger et on rencontre du monde.",
+              "pedagogicalNote": "Position, justification et public visé sont tous présents."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, je le conseillerais, surtout aux personnes qui travaillent assis toute la journée, comme moi avant. Ça fait bouger et on rencontre du monde facilement. Par contre, il faut venir régulièrement, sinon on perd vite l'habitude.",
+              "pedagogicalNote": "Le conseil est ciblé, justifié, et une réserve utile est ajoutée."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Comprendre une demande de précision, compléter sa réponse et continuer naturellement."
+    }
+  ]
+}

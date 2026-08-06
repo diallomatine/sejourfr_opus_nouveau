@@ -1,0 +1,121 @@
+.frozenCode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px dashed var(--rule);
+  border-radius: 3px;
+  background: var(--paper-2);
+}
+
+.frozenCode code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--blue);
+}
+
+.frozenHint {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.help {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ===== Critère unique : le bloc le plus visible du formulaire ===== */
+.criterionBlock {
+  margin: 22px 0;
+  padding: 18px;
+  border: 2px solid var(--blue);
+  border-radius: 4px;
+  background: rgba(30, 58, 143, 0.04);
+}
+
+.criterionEyebrow {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--blue);
+  font-weight: 500;
+}
+
+.criterionTitle {
+  margin: 6px 0 8px;
+  font-family: "Fraunces", serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.criterionIntro {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.criterionInput {
+  background: var(--paper);
+  border-color: var(--blue);
+}
+
+.criterionError {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--red);
+}
+
+/* ===== Bornes de longueur / durée ===== */
+.boundsBlock {
+  margin: 22px 0;
+  padding: 16px 18px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper-2);
+}
+
+.boundsHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.boundsTitle {
+  margin: 0;
+  font-family: "Fraunces", serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.boundsBadge {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: var(--paper);
+}

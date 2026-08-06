@@ -37,10 +37,31 @@ class ExamSession {
 class HubData {
   const HubData(
       {required this.countByTache,
+      required this.doneByTache,
       required this.exams,
       required this.singles});
 
   final Map<int, int> countByTache;
+
+  /// Sujets **distincts déjà produits** par tâche. Calculé côté client depuis
+  /// les soumissions déjà servies par `listMine` (aucun endpoint ajouté) : un
+  /// sujet repris deux fois ne compte qu'une fois, et les soumissions faites
+  /// en examen blanc comptent comme les autres — le candidat a bien traité ce
+  /// sujet.
+  final Map<int, int> doneByTache;
+
+  /// Total des sujets de l'épreuve, toutes tâches confondues.
+  int get totalSubjects =>
+      countByTache.values.fold(0, (sum, value) => sum + value);
+
+  /// Sujets distincts déjà produits, toutes tâches confondues.
+  int get doneSubjects =>
+      doneByTache.values.fold(0, (sum, value) => sum + value);
+
+  /// Progression globale de l'épreuve, 0-100. `0` tant qu'aucun sujet n'est
+  /// publié : on n'affiche jamais une barre pleine sur un contenu vide.
+  double get percent =>
+      totalSubjects == 0 ? 0 : (doneSubjects / totalSubjects) * 100;
 
   /// Sessions d'examen blanc, les plus récentes d'abord.
   final List<ExamSession> exams;
@@ -50,7 +71,8 @@ class HubData {
   final List<ProductionSubmissionDto> singles;
 }
 
-/// Source unique des données du hub EE/EO et de la page « Examens blancs ».
+/// Source unique des données d'épreuve EE/EO. Alimentait le hub d'épreuve
+/// (supprimé) ; sert désormais la page « Examens blancs » du parcours.
 final expressionHubProvider = FutureProvider.autoDispose
     .family<HubData, EpreuveType>((ref, epreuve) async {
   final repo = ref.watch(productionRepositoryProvider);
@@ -61,6 +83,20 @@ final expressionHubProvider = FutureProvider.autoDispose
   }
 
   final subs = await repo.listMine(epreuve: epreuve, limit: 200);
+
+  // Sujets distincts traités, par tâche. On repart des `tasks` (et non du
+  // `tacheNumero` porté par la soumission) pour ne compter que des sujets
+  // encore publiés — sinon un sujet retiré du catalogue gonflerait le
+  // dénominateur d'un côté et le numérateur de l'autre.
+  final treatedTaskIds =
+      subs.map((s) => s.productionTaskId).whereType<String>().toSet();
+  final doneByTache = <int, int>{};
+  for (final t in tasks) {
+    if (treatedTaskIds.contains(t.id)) {
+      doneByTache[t.tacheNumero] = (doneByTache[t.tacheNumero] ?? 0) + 1;
+    }
+  }
+
   final byAttempt = <String, List<ProductionSubmissionDto>>{};
   for (final s in subs) {
     final id = s.attemptId;
@@ -78,5 +114,9 @@ final expressionHubProvider = FutureProvider.autoDispose
   }
   exams.sort((a, b) => b.lastSubmittedAt.compareTo(a.lastSubmittedAt));
   singles.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
-  return HubData(countByTache: countByTache, exams: exams, singles: singles);
+  return HubData(
+      countByTache: countByTache,
+      doneByTache: doneByTache,
+      exams: exams,
+      singles: singles);
 });

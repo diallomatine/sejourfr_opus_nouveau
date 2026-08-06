@@ -16,7 +16,8 @@
 
 **État actuel** : rubriques de notation **v8** (profil **TCF IRN**, plafonné à B2), format de
 réponse strict **v5**, examinateur vocal **v2**. Ce que ces numéros veulent dire, et où ils se
-changent, est expliqué en §15.
+changent, est expliqué en §15. Pour la **seconde voie d'évaluation** — les micro-exercices par
+compétence, sans note ni niveau — les versions sont **v1 / v1** et tout est décrit au §11 bis.
 
 > 🆕 **Ce que change la v8 : le rapport, pas la note.** La façon de **noter** est celle de la
 > v7, à l'identique — mêmes critères, même échelle, mêmes seuils, mêmes garde-fous, mêmes
@@ -66,6 +67,13 @@ une IA joue le rôle d'un correcteur d'examen et attribue une note et des commen
 
 Chaque épreuve a **3 tâches** (T1, T2, T3), de difficulté croissante. Six tâches en tout :
 EE T1, EE T2, EE T3, EO T1, EO T2, EO T3.
+
+> **Deux façons d'être corrigé, à ne pas confondre.** Ce document décrit d'abord la correction
+> d'une **tâche complète** : une production entière, une note sur 20, un niveau. C'est la voie
+> principale, et c'est elle qui est mesurée (§12). Il existe aussi des **micro-exercices par
+> compétence**, où le candidat travaille **une seule capacité à la fois** et où l'IA ne rend
+> qu'un verdict sur cette capacité — **sans aucune note ni niveau**. Cette seconde voie est
+> décrite au **§11 bis**, et n'a **pas** de banc de mesure : c'est dit là-bas sans détour.
 
 ---
 
@@ -1269,6 +1277,190 @@ rendus.
 
 ---
 
+## 11 bis. L'autre voie : les micro-exercices par compétence
+
+Tout ce qui précède décrit la correction d'une **tâche complète** du TCF : le candidat rend un
+texte entier ou une prise de parole entière, et reçoit une note sur 20, un niveau, quatre
+critères, des citations, des priorités. C'est la voie principale, et elle ne change pas.
+
+Il en existe désormais une **seconde**, plus courte, qui ne la remplace pas : l'entraînement
+**par compétence**. Les deux cohabitent dans l'application, côte à côte, et un candidat peut
+n'utiliser que l'une des deux.
+
+### Ce que le candidat fait
+
+Une tâche du TCF, ce n'est pas une capacité unique : « écrire un message court », c'est en
+réalité savoir s'adresser à la bonne personne, annoncer clairement de quoi on parle, donner des
+informations précises, formuler une demande poliment… Chacune de ces capacités est appelée ici
+une **compétence**.
+
+Chaque tâche en compte **8**, et chaque compétence est travaillée sur **5 petits sujets** —
+soit **240 petits sujets** en tout. Un petit sujet tient en quelques phrases : un contexte, une
+consigne, et surtout **un seul critère**, affiché **avant** que le candidat commence à écrire ou
+à parler. On lui dit donc à l'avance exactement ce qui sera regardé, et rien d'autre ne le sera.
+
+C'est toute la différence avec une tâche complète : au lieu d'être jugé sur tout en même temps,
+il travaille **une chose à la fois**, et il sait laquelle.
+
+L'analyse par l'IA n'est d'ailleurs **pas automatique** : le candidat peut très bien produire sa
+réponse, la comparer aux exemples, et s'en tenir là. C'est pour cette raison qu'un sujet peut
+être marqué « **Fait** » plutôt que « Validé » ou « À renforcer » : sans analyse, il n'y a aucun
+verdict — le dire « validé » serait faux, le dire « à renforcer » serait faux **et**
+décourageant. Écrire, s'auto-évaluer et lire les exemples de référence est **gratuit et sans
+limite** sur tous les sujets ; c'est **l'analyse par l'IA** qui est réservée aux abonnés, avec
+**trois analyses offertes** pour essayer.
+
+### Pourquoi il n'y a ni note sur 20 ni niveau ici
+
+**C'est délibéré, et c'est la règle la plus importante de cette voie.**
+
+Une note sur 20 et un niveau CECRL portent, au TCF, sur une **production entière** — et notre
+propre note porte au minimum sur une tâche complète (§6.6). Mettre « 8/20 » ou « niveau A2 » sur
+deux phrases écrites pour travailler *une seule* capacité serait faux de deux façons :
+
+- **ce serait un chiffre sans support.** On ne peut pas déduire le niveau de français d'une
+  personne de trois lignes rédigées pour exercer un point précis. Le chiffre aurait l'air
+  sérieux sans rien mesurer de solide ;
+- **ce serait décourageant sans raison.** Un candidat qui réussit exactement ce qu'on lui
+  demandait — situer le moment et le lieu, par exemple — n'a aucune raison de recevoir « A1 »
+  parce que sa phrase est courte. Elle est courte parce que l'exercice est court.
+
+Le format de réponse imposé à l'IA **ne contient donc aucun champ** où loger une note ou un
+niveau. Ce n'est pas seulement une consigne qu'on lui donne et qu'elle pourrait oublier : il n'y
+a matériellement pas de case pour ça. Et les consignes lui interdisent explicitement d'en
+glisser un dans une phrase.
+
+Le progrès se lit autrement : par le **statut de chaque sujet** (« À faire », « Fait »,
+« Validé », « À renforcer ») et par le compte de sujets réussis dans une compétence. C'est une
+carte de ce qu'on maîtrise, pas une note.
+
+### Ce que l'IA renvoie : un verdict et trois phrases
+
+Le retour est volontairement **court**. Il tient en quatre éléments, et seulement quatre :
+
+| Élément | Ce que c'est |
+|---|---|
+| **Le verdict** | Une phrase qui dit si le critère annoncé est atteint. |
+| **Ce qui est réussi** | **Un seul** point réussi, concret, pris dans la production du candidat — pas un compliment de politesse. |
+| **À travailler en priorité** | **Une seule** amélioration, celle qui compte le plus, formulée de façon réalisable. |
+| **Une proposition améliorée** | Une reformulation courte qui **garde l'idée du candidat**. On améliore sa phrase, on ne la remplace pas par la nôtre. |
+
+Le verdict prend l'une de **trois valeurs**, et rien d'autre :
+
+| Verdict | En clair |
+|---|---|
+| **Critère validé** | La compétence est là, visible et compréhensible — **même s'il reste des fautes**, tant qu'elles ne bloquent pas la compréhension. |
+| **Critère partiellement atteint** | Le candidat a essayé et on voit ce qu'il vise, mais il manque quelque chose : une information, une précision, un développement, un lien logique. |
+| **Critère non atteint** | La compétence est absente, la consigne n'est pas traitée, ou la production est trop difficile à comprendre pour qu'on puisse juger. |
+
+Ces trois formulations sont **les mêmes sur le site et dans l'application** : un candidat qui
+s'entraîne sur son téléphone puis relit son retour sur ordinateur doit lire le même mot. Le
+troisième verdict se dit « non atteint » et non « à retravailler » : cette dernière tournure
+ressemblait trop à « À renforcer », qui désigne, lui, l'état d'un **sujet** dans la liste — pas
+le résultat d'**une** tentative.
+
+Quatre règles encadrent ce retour, et elles vont toutes dans le même sens — **ne pas noyer le
+candidat** :
+
+- **une seule priorité, jamais une liste.** C'est le point le plus important de cette voie. Dix
+  remarques sur un exercice de trois lignes, c'est décourageant et ça n'apprend rien ;
+- **on n'évalue que le critère annoncé.** Si le critère est « situer le moment et le lieu »,
+  l'IA n'a pas à commenter les accords, les accents, le vocabulaire ou la conclusion. Les fautes
+  sans rapport avec le critère ne sont pas sanctionnées ;
+- **si c'est réussi, on le dit franchement**, sans partir en chasse d'un défaut secondaire pour
+  avoir l'air rigoureux. Il est explicitement interdit d'inventer un reproche pour remplir le
+  retour ;
+- **la longueur n'est pas un critère en soi.** Une réponse très courte qui suffit au critère
+  demandé est validée. La longueur ne devient un problème que si elle empêche d'accomplir le
+  critère, ou si le sujet l'exigeait explicitement. Les longueurs conseillées affichées à
+  l'écran sont des **repères, jamais des barrières** : rien n'est refusé parce que c'est trop
+  court ou trop long.
+
+Les mots interdits sont les mêmes qu'ailleurs dans ce document : pas de « très mauvais », pas de
+« niveau faible », pas de « vous ne savez pas écrire ».
+
+### Les trois productions de référence, et pourquoi elles arrivent après
+
+Chaque petit sujet est accompagné de **trois réponses écrites à l'avance** par nous — jamais par
+l'IA — qui montrent la même consigne traitée à trois degrés :
+
+- une réponse **insuffisante** ;
+- une réponse **attendue**, celle qui correspond à ce que le TCF demande ;
+- une réponse **très réussie**.
+
+Chacune porte une note pédagogique très courte qui explique **pourquoi** elle est à ce niveau.
+Cela fait **720 réponses de référence** pour l'ensemble du module. Elles montrent une cible, pas
+un modèle unique à recopier : l'IA a d'ailleurs l'interdiction de comparer mécaniquement la
+production du candidat aux mots de ces références. Plusieurs formulations différentes peuvent
+être également correctes.
+
+**Elles ne s'affichent qu'une fois que le candidat a produit sa propre réponse.** Ce n'est pas
+un détail d'affichage, c'est une garantie tenue par le serveur : tant qu'il n'a rien rendu sur
+ce sujet, la demande est refusée, même si quelqu'un essayait de les récupérer autrement.
+
+La raison est pédagogique. Lire une bonne réponse **avant** d'écrire, c'est la recopier sans s'en
+rendre compte : on croit avoir appris alors qu'on a imité. En écrivant d'abord, puis en
+comparant, le candidat voit **l'écart réel** entre ce qu'il a produit et ce qui était attendu —
+et c'est cet écart qui enseigne. Il suffit d'avoir **essayé** : une tentative dont l'analyse a
+échoué ouvre quand même les références, parce que c'est précisément le moment où on en a besoin.
+
+### À l'oral, exactement la même limite qu'ailleurs
+
+Les compétences orales se travaillent en s'enregistrant. Ce qui est analysé, c'est la
+**transcription automatique** de ce que le candidat a dit — donc **ce qu'il dit, jamais la façon
+dont il le prononce**.
+
+L'IA n'a accès ni à la voix, ni à la durée de l'enregistrement, et il lui est **interdit** de
+fonder son verdict ou son conseil sur la prononciation, l'accent, l'intonation, le débit,
+l'aisance, la fluidité, les pauses, ou sur l'orthographe et la ponctuation d'un texte que le
+candidat n'a jamais écrit. Les hésitations que la transcription conserve (« euh », « heu ») ne
+sont pas comptées comme des erreurs : elles viennent de l'outil de transcription, pas d'une
+faute du candidat.
+
+C'est la même limite, pour les mêmes raisons, que celle expliquée au §9 — et elle est assumée de
+la même façon : mieux vaut ne pas juger la prononciation que la juger mal, en pénalisant
+systématiquement certains accents.
+
+Par économie, l'enregistrement n'est transcrit **que si une analyse est demandée** : on ne fait
+pas travailler la transcription pour un audio que personne ne corrigera. **L'audio, lui, est
+toujours conservé** — le candidat doit pouvoir se réécouter.
+
+### Ce qui n'a pas été mesuré — à dire franchement
+
+**Cette voie n'a pas de banc de mesure.** C'est sa principale faiblesse, et elle est réelle.
+
+Tout le §12 de ce document explique comment la notation sur 20 est vérifiée : un corpus de 48
+productions de référence, un niveau attendu écrit à l'avance pour chacune, des campagnes
+comparées avant/après à chaque changement de consigne, des chiffres publiés y compris quand ils
+sont mauvais. **Rien de tout cela n'existe pour les micro-exercices.**
+
+Concrètement, cela veut dire que :
+
+- **aucun corpus de référence** ne dit ce que « Validé », « Partiellement atteint » ou « Non
+  atteint » devrait valoir sur des productions connues d'avance. Personne n'a écrit, pour un
+  ensemble de réponses, le verdict qu'un correcteur humain aurait rendu ;
+- **aucune campagne n'a mesuré** à quelle fréquence l'IA tombe sur le bon verdict, ni si elle
+  penche vers l'indulgence ou vers la sévérité — alors que c'est justement le biais mesuré, et
+  documenté, sur la notation des tâches complètes ;
+- par conséquent, **une modification des consignes de cette voie serait aujourd'hui un pari**,
+  exactement la situation que le banc de mesure a été construit pour supprimer sur l'autre voie
+  (§12.1).
+
+Ce qui **est** garanti, en revanche, relève de la forme et non de la justesse : le format de
+réponse est strictement contrôlé (les quatre éléments, les trois verdicts, aucun champ
+imprévu, aucune longueur excessive), une réponse mal formée est renvoyée à l'IA **une seule
+fois** pour réparation puis abandonnée plutôt que rendue à moitié, et il est structurellement
+impossible qu'une note ou un niveau apparaisse. Autrement dit : **on sait que le retour aura la
+bonne forme ; on n'a pas encore mesuré qu'il dit juste.**
+
+La suite logique est la même que pour l'autre voie, et elle passe par les mêmes outils : faire
+annoter de vraies productions de candidats par des enseignants, puis en tirer un corpus de
+référence. Tant que ce n'est pas fait, ce module doit être lu comme un **entraînement guidé**,
+pas comme un verdict fiable sur une compétence. Un candidat qui veut savoir où il en est doit
+passer par une tâche complète.
+
+---
+
 ## 12. Comment on sait si l'IA note juste : le banc de mesure
 
 C'est le vrai apport de cette refonte, et le point le plus important de ce document.
@@ -1591,6 +1783,15 @@ Le banc sert autant à mesurer les progrès qu'à nommer ce qui ne va pas.
   celui du diagnostic, pas celui du système corrigé. C'est exactement la dette que le §12.3 bis
   décrit — on la nomme plutôt que de la reproduire.
 
+- **La seconde voie d'évaluation — les micro-exercices par compétence (§11 bis) — n'est pas
+  mesurée du tout.** Le banc décrit ici ne couvre **que** la notation des tâches complètes. Il
+  n'existe, pour les micro-exercices, **ni corpus de référence, ni campagne, ni chiffre** : rien
+  ne dit aujourd'hui à quelle fréquence le verdict « critère validé / partiellement atteint /
+  non validé » tombe juste, ni dans quel sens il se trompe. Ce qui y est contrôlé est **la forme**
+  de la réponse, pas sa justesse. C'est la même dette que celle décrite au §12.3 bis, sur un
+  périmètre neuf — et de loin la plus grosse zone non mesurée du système. Le détail, et ce que
+  cela implique pour le candidat, sont écrits au §11 bis.
+
 - **Le garde-fou de cohérence du bilan (§6.5 bis) est hors de portée de ce banc, par
   construction.** Le corpus porte un niveau attendu **par tâche** et **aucune** référence
   de niveau d'épreuve : il ne peut ni confirmer ni infirmer la règle « pas de B2 si la
@@ -1739,6 +1940,10 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 | **Le recollage des phrases coupées en deux à l'oral en temps réel** (§3.1) | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.recollage-tours.enabled` — livré **actif**, contrairement aux trois réglages du §13. La règle elle-même vit à **un seul endroit**, `backend_sejourfr/src/main/java/com/sejourfr/app/util/TranscriptTurnStitcher.java`, et s'applique en un seul point de lecture, ce qui garantit que le texte cité est le texte affiché |
 | **La patience / réactivité de l'examinateur vocal** (détection de fin de parole) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.realtime.gemini.vad` |
 | **La longueur maximale d'une réponse du correcteur** (§12.3 bis — au-delà, la réponse est coupée et la correction est perdue) | `backend_sejourfr/src/main/resources/application.yaml`, `max-tokens` des trois correcteurs de `sejourfr.production-evaluation` : **la même valeur pour les trois**, verrouillée par un test |
+| **Les consignes des micro-exercices par compétence** (§11 bis — ce que l'IA regarde, les trois verdicts, l'interdiction d'une note ou d'un niveau, la règle « une seule priorité », les limites de l'oral) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-rubrics-v1.json` (version active). Fichier **séparé** de celui des tâches complètes : les deux voies n'ont ni les mêmes règles ni le même but, et on ne veut pas qu'une modification de l'une déborde sur l'autre |
+| **Le format de réponse des micro-exercices** (les quatre éléments rendus, les trois verdicts, les longueurs maximales) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-tool-schema-v1.json` — **aucun champ n'y existe pour une note ou un niveau**, c'est ce qui rend leur apparition impossible plutôt que simplement interdite |
+| **Les réglages des micro-exercices** (longueur maximale acceptée, durée maximale d'un enregistrement, nombre d'analyses offertes) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.competences.analysis`. Le **correcteur**, lui, n'a pas de réglage propre : cette voie utilise le même que tout le reste (`sejourfr.production-evaluation.provider`) |
+| **Le contenu des micro-exercices** (les compétences, les petits sujets, les trois réponses de référence et leurs notes pédagogiques) | migrations `db/migration/300_tcf/competences/` — fichiers **générés**, à ne pas modifier à la main ; le volume publié est figé par un test automatique |
 | **Le corpus de référence du banc de mesure** | `backend_sejourfr/src/test/resources/calibration/golden-set-v1.json` |
 | **La grille officielle du TCF** (niveau → fourchette de note, §6.6) | `backend_sejourfr/src/main/java/com/sejourfr/app/enums/BandeNoteTcf.java` — dans le code et **pas** dans la configuration : c'est une donnée officielle, pas un réglage. Depuis la v6, la grille active la reprend à l'identique comme échelle de notation ; cet enum reste malgré tout la source officielle et sert à **afficher** la fourchette du niveau atteint |
 
@@ -1801,6 +2006,16 @@ note pour autant : au bilan d'une épreuve, on affiche le niveau estimé **et** 
 officielle de ce niveau, parce que notre note porte sur une tâche et celle du TCF sur une
 épreuve entière (§6.6).
 
+**À côté de cette correction complète, une seconde voie** (§11 bis) : des **micro-exercices**
+où le candidat travaille **une seule capacité à la fois**, annoncée avant qu'il écrive. L'IA n'y
+rend qu'un **verdict sur cette capacité** — critère validé, partiellement atteint ou non validé — avec
+un point réussi, **une seule** priorité et une reformulation qui garde son idée. **Aucune note
+sur 20, aucun niveau** : le format de réponse ne comporte même pas de case pour en loger un,
+parce qu'on ne déduit pas le niveau de français d'une personne de trois lignes écrites pour
+exercer un point précis. Trois réponses de référence — insuffisante, attendue, très réussie —
+s'ouvrent **après** sa propre production, jamais avant : lire la bonne réponse d'abord, c'est la
+recopier sans le savoir.
+
 Quatre choses qu'on **ne cache pas** :
 
 - le garde-fou « pas de B2 sans argumentation » (§6.5 bis) est allumé sur un
@@ -1813,4 +2028,8 @@ Quatre choses qu'on **ne cache pas** :
   officielle, le palier A1 ne vaut qu'**une seule valeur**, et 3 productions A1 sur 8
   ressortent A2 ; un cas de frontière B1/B2 résiste toujours ;
 - le corpus qui sert à cette mesure est **écrit à la main** : il doit être remplacé par de
-  vraies productions annotées par des enseignants.
+  vraies productions annotées par des enseignants ;
+- et cette mesure **ne couvre que la notation des tâches complètes**. Les micro-exercices par
+  compétence (§11 bis) n'ont **ni corpus de référence ni campagne** : on y contrôle la **forme**
+  du retour, pas sa justesse. C'est la plus grande zone non mesurée du système, et tant qu'elle
+  le reste, ce module est un **entraînement guidé**, pas un verdict fiable sur une compétence.

@@ -15,6 +15,9 @@ import { ExamsPage } from "./features/exams/ExamsPage";
 import { PlansPage } from "./features/plans/PlansPage";
 import { QuestionDetailPage } from "./features/questions/QuestionDetailPage";
 import { QuestionsPage } from "./features/questions/QuestionsPage";
+import { SkillDetailPage } from "./features/skills/SkillDetailPage";
+import { SkillsPage } from "./features/skills/SkillsPage";
+import { SkillsStatsPage } from "./features/skills/SkillsStatsPage";
 import { SubscriptionsPage } from "./features/subscriptions/SubscriptionsPage";
 import { ThemesPage } from "./features/themes/ThemesPage";
 import { queryClient } from "./lib/queryClient";
@@ -50,6 +53,9 @@ export function App() {
                   element={<QuestionDetailPage />}
                 />
                 <Route path="/themes" element={<ThemesPage />} />
+                <Route path="/skills" element={<SkillsPage />} />
+                <Route path="/skills/stats" element={<SkillsStatsPage />} />
+                <Route path="/skills/:id" element={<SkillDetailPage />} />
                 <Route path="/exams" element={<ExamsPage />} />
                 <Route path="/exams/new" element={<ExamFormPage />} />
                 <Route path="/exams/:id" element={<ExamFormPage />} />

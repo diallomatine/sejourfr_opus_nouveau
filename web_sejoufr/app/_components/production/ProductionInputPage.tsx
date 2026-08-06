@@ -9,14 +9,14 @@ import {productionTaskTitle, type ProductionTaskDto, type RealtimeSessionDescrip
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
-import {HubDetailHeader} from "@/app/_components/hub/HubParts";
+import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
+import s from "@/app/_components/skill-ui/skill.module.css";
 import {EeWritingForm, clearEeDraft} from "./EeWritingForm";
 import {EoRecordingForm} from "./EoRecordingForm";
 import {RealtimeLaunchSheet} from "./RealtimeLaunchSheet";
 import {RealtimeEoRunner} from "./RealtimeEoRunner";
 import {useRealtimeEo} from "./useRealtimeEo";
-import {type ProductionConfig} from "./config";
-import hub from "@/app/_components/hub/hub.module.css";
+import {type ProductionConfig, TCF_HUB_HREF, TCF_HUB_LABEL} from "./config";
 import prod from "./production.module.css";
 
 type UiMode = "loading" | "choosing" | "classic" | "realtime" | "noSpeech";
@@ -53,6 +53,10 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
   const [rtRefused, setRtRefused] = useState(false);
   const [rtDescriptor, setRtDescriptor] = useState<RealtimeSessionDescriptor | null>(null);
   const [rtAttemptId, setRtAttemptId] = useState<string | null>(null);
+
+  /** Écran parent : la tâche d'où vient ce sujet. L'épreuve n'a pas d'écran
+   *  d'accueil — sujet inconnu, on remonte au hub TCF. */
+  const upHref = task ? `${config.base}/tache/${task.tacheNumero}` : TCF_HUB_HREF;
 
   useEffect(() => {
     if (status !== "authenticated" || !taskId) return;
@@ -165,8 +169,9 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
       }
       await new Promise((r) => setTimeout(r, 700));
     }
-    // À défaut : retour au hub (la session est notée en arrière-plan, visible dans l'historique).
-    router.push(config.base);
+    // À défaut : retour à la tâche (la session est notée en arrière-plan,
+    // visible dans l'historique).
+    router.push(upHref);
   }
 
   if (status === "loading") return <div className={ds.gate} />;
@@ -176,16 +181,15 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
 
   return (
     <DualChromeShell>
-      <main className={hub.hub}>
-        <HubDetailHeader
-          backHref={config.base}
-          title={config.label}
-          subtitle={task ? `Tâche ${task.tacheNumero} · ${taskTitle}` : config.label}
-        />
+      <SkillShell
+        config={config}
+        backHref={upHref}
+        backLabel={task ? `${config.label} · Tâche ${task.tacheNumero}` : TCF_HUB_LABEL}
+      >
         {loading ? (
-          <p className={prod.loading}>Chargement du sujet…</p>
+          <p className={s.empty}>Chargement du sujet…</p>
         ) : loadError || !task ? (
-          <p className={prod.empty}>{loadError ?? "Sujet introuvable."}</p>
+          <p className={s.empty}>{loadError ?? "Sujet introuvable."}</p>
         ) : uiMode === "realtime" && rtDescriptor && rtAttemptId ? (
           <RealtimeEoRunner
             descriptor={rtDescriptor}
@@ -201,24 +205,28 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
           />
         ) : uiMode === "noSpeech" ? (
           <div className={prod.rtPrep}>
-            <div className={prod.card}>
-              <p className={prod.cardLabel}>Aucune prise de parole</p>
-              <p className={prod.consigne}>
+            <div className={`${s.card} ${s.panel}`}>
+              <p className={s.answerLabel}>Aucune prise de parole</p>
+              <p className={s.verdictText}>
                 L&apos;examinateur s&apos;est présenté, mais vous n&apos;avez rien dit —
                 il n&apos;y a donc rien à évaluer. Reprenez l&apos;échange quand vous
                 êtes prêt·e à répondre à voix haute.
               </p>
             </div>
-            <div className={prod.rtPrepActions}>
+            <div className={s.actionRow}>
               <button
                 type="button"
-                className="btn-ghost"
-                onClick={() => router.push(config.base)}
+                className={s.primary}
+                onClick={() => setUiMode("classic")}
+              >
+                Réessayer l&apos;oral
+              </button>
+              <button
+                type="button"
+                className={s.secondary}
+                onClick={() => router.push(upHref)}
               >
                 Retour à l&apos;épreuve
-              </button>
-              <button type="button" className="btn" onClick={() => setUiMode("classic")}>
-                Réessayer l&apos;oral
               </button>
             </div>
           </div>
@@ -228,6 +236,7 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
             submitting={submitting}
             error={submitError ?? rtError}
             submitLabel="Soumettre à l'évaluation"
+            exerciseTitle={taskTitle}
             onModeChoice={
               !rtRefused && (task.tacheNumero === 1 || task.tacheNumero === 2)
                 ? askMode
@@ -243,6 +252,7 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
             submitting={submitting}
             error={submitError}
             submitLabel="Soumettre à l'évaluation"
+            exerciseTitle={taskTitle}
             onSubmit={(texte) =>
               finalize((attemptId) =>
                 productionApi.submitText({productionTaskId: task.id, attemptId, texte}),
@@ -289,7 +299,7 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
           title={`Débloquez l'${config.label.toLowerCase()}`}
           message={`Vous avez utilisé votre essai gratuit d'${config.label.toLowerCase()}. L'abonnement Intégral débloque l'entraînement et les examens blancs EE/EO illimités, plus tout le TCF et le civique.`}
         />
-      </main>
+      </SkillShell>
     </DualChromeShell>
   );
 }

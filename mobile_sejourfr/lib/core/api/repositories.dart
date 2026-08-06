@@ -10,6 +10,7 @@ import 'lots_repository.dart';
 import 'production_repository.dart';
 import 'profile_repository.dart';
 import 'realtime_repository.dart';
+import 'skill_repository.dart';
 import 'themes_repository.dart';
 import 'user_content_repository.dart';
 
@@ -35,6 +36,10 @@ final productionRepositoryProvider = Provider<ProductionRepository>(
 
 final realtimeRepositoryProvider = Provider<RealtimeRepository>(
   (ref) => RealtimeRepository(ref.watch(apiClientProvider)),
+);
+
+final skillRepositoryProvider = Provider<SkillRepository>(
+  (ref) => SkillRepository(ref.watch(apiClientProvider)),
 );
 
 final lotsRepositoryProvider = Provider<LotsRepository>(

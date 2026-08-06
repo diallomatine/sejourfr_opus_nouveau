@@ -20,13 +20,17 @@ import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.QuestionManager;
 import com.sejourfr.app.manager.RealtimeSessionManager;
 import com.sejourfr.app.manager.RefreshTokenManager;
+import com.sejourfr.app.manager.SkillManager;
+import com.sejourfr.app.manager.SkillPromptManager;
 import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserQuestionStatusManager;
+import com.sejourfr.app.manager.UserSkillAttemptManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
 import com.sejourfr.app.repository.ProcessedExternalEventRepository;
 import com.sejourfr.app.repository.ProductionTaskRepository;
+import com.sejourfr.app.repository.SkillRepository;
 import com.sejourfr.app.security.JwtService;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -67,6 +71,10 @@ public class TestSupportConfig {
                              TranscriptionManager transcriptionManager,
                              HumanCalibrationNoteManager humanCalibrationNoteManager,
                              RealtimeSessionManager realtimeSessionManager,
+                             SkillManager skillManager,
+                             SkillRepository skillRepository,
+                             SkillPromptManager skillPromptManager,
+                             UserSkillAttemptManager userSkillAttemptManager,
                              AudioQuestionDraftRepository audioQuestionDraftRepository,
                              AudioQuestionGenerationLogRepository audioQuestionGenerationLogRepository) {
         return new TestData(userManager, themeManager, passwordEncoder,
@@ -78,6 +86,7 @@ public class TestSupportConfig {
                 emailChangeTokenManager, processedExternalEventRepository,
                 userQuestionStatusManager, aiEvaluationManager, transcriptionManager,
                 humanCalibrationNoteManager, realtimeSessionManager,
+                skillManager, skillRepository, skillPromptManager, userSkillAttemptManager,
                 audioQuestionDraftRepository, audioQuestionGenerationLogRepository);
     }
 

@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:just_audio/just_audio.dart';
 
-import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/app_card.dart';
+import '../theme/app_theme.dart';
+import 'app_card.dart';
 
-/// Player audio pour les questions de compréhension orale (TCF).
+/// Player audio d'une source distante. Servait d'abord la compréhension orale
+/// (TCF), il est aussi le lecteur des productions orales du candidat : d'où sa
+/// place ici plutôt que dans le runner.
+///
 /// Compte le nombre de lectures pour pouvoir limiter à 2 écoutes côté UI
 /// si on veut imiter les conditions réelles.
 ///
@@ -15,17 +18,29 @@ import '../../../core/widgets/app_card.dart';
 ///   - démarrage automatique 2s après chargement
 ///   - le bouton play ne peut pas être utilisé pour mettre en pause
 ///   - les rejouages manuels restent bloqués par `maxPlays`
+///
+/// `label`, `icon`, `accent` et `background` habillent le lecteur sans le
+/// forker : un document d'examen reste bleu, une production orale prend
+/// l'accent de son épreuve.
 class SejourAudioPlayer extends StatefulWidget {
   const SejourAudioPlayer({
     super.key,
     required this.url,
     this.maxPlays,
     this.examMode = false,
+    this.label = 'Document audio',
+    this.icon = LucideIcons.headphones,
+    this.accent = AppColors.blue,
+    this.background = AppColors.blueSoft,
   });
 
   final String url;
   final int? maxPlays;
   final bool examMode;
+  final String label;
+  final IconData icon;
+  final Color accent;
+  final Color background;
 
   @override
   State<SejourAudioPlayer> createState() => _SejourAudioPlayerState();
@@ -161,21 +176,21 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
 
     return AppCard(
       padding: const EdgeInsets.all(16),
-      color: AppColors.blueSoft,
-      border: Border.all(color: AppColors.blue.withValues(alpha: 0.15)),
+      color: widget.background,
+      border: Border.all(color: widget.accent.withValues(alpha: 0.15)),
       boxShadow: const [],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(LucideIcons.headphones, color: AppColors.blue, size: 18),
+              Icon(widget.icon, color: widget.accent, size: 18),
               const SizedBox(width: 8),
               Text(
-                'Document audio',
+                widget.label,
                 style: AppFonts.mono(
                   size: 10,
-                  color: AppColors.blue,
+                  color: widget.accent,
                   letterSpacing: 1.8,
                 ).copyWith(fontWeight: FontWeight.w700),
               ),
@@ -227,6 +242,7 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
                               remaining == 0 &&
                               !playing) ||
                           (widget.examMode && playing),
+                      accent: widget.accent,
                       onTap: _togglePlay,
                     );
                   },
@@ -251,9 +267,8 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
                               value: progress,
                               minHeight: 5,
                               backgroundColor: AppColors.line,
-                              valueColor: const AlwaysStoppedAnimation(
-                                AppColors.blue,
-                              ),
+                              valueColor:
+                                  AlwaysStoppedAnimation(widget.accent),
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -301,19 +316,19 @@ class _PlayButton extends StatelessWidget {
     required this.loading,
     required this.onTap,
     required this.disabled,
+    required this.accent,
   });
 
   final bool playing;
   final bool loading;
   final VoidCallback onTap;
   final bool disabled;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: disabled
-          ? AppColors.muted2.withValues(alpha: 0.3)
-          : AppColors.blue,
+      color: disabled ? AppColors.muted2.withValues(alpha: 0.3) : accent,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
