@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import {describe, it} from "node:test";
 import {
     TCF_NOTE_BANDS,
+    bilanNiveauPendingLabel,
     canShowNiveau,
     critereBandeFromNote,
     groupAccomplishment,
@@ -427,5 +428,18 @@ describe("parseEeFeedback — contrat v8 / tool-schema v5", () => {
         const eo = parseEeFeedback(evaluation({points_forts: ["Bon rythme d'échange."]}));
         assert.equal(ee.versionAmelioree, "Texte réécrit.");
         assert.equal(eo.versionAmelioree, null);
+    });
+});
+
+describe("bilanNiveauPendingLabel — badge « Niveau global » sans niveau", () => {
+    it("annonce une attente quand le pipeline IA tourne encore", () => {
+        assert.equal(bilanNiveauPendingLabel(false), "Évaluation en cours…");
+    });
+
+    it("annonce une relance quand une correction a échoué", () => {
+        // Le serveur suspend le niveau d'épreuve tant qu'une tâche rendue n'a
+        // pas de note : « en cours » y était faux et sans fin.
+        assert.equal(bilanNiveauPendingLabel(true), "Évaluation à relancer");
+        assert.notEqual(bilanNiveauPendingLabel(true), bilanNiveauPendingLabel(false));
     });
 });

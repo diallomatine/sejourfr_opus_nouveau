@@ -357,6 +357,28 @@ final class EvaluationOutputValidator {
         }
     }
 
+    /**
+     * GARDE-FOU ORAL — <b>la frontiere entre ce qui est FATAL et ce qui est
+     * simplement PURGE</b>.
+     *
+     * <p>Sont scannes ici, et une violation y fait echouer l'evaluation apres
+     * l'unique reessai, les champs qui portent le JUGEMENT : {@code
+     * justification_niveau} (fondement de la note), {@code
+     * scores_criteres[].commentaire} (caracterisation de chaque critere), {@code
+     * points_forts}, {@code points_a_ameliorer}, {@code suggestions} et {@code
+     * accomplissement}. Y laisser passer une remarque fondee sur la
+     * prononciation ou le debit, c'est rendre au candidat une note batie sur ce
+     * que nous n'avons pas entendu.
+     *
+     * <p><b>{@code exemples_corriges} en est volontairement SORTI</b> (2026-08-06).
+     * Ce champ n'entre dans AUCUN calcul : la note est recalculee serveur depuis
+     * {@code scores_criteres}, il est plafonne a trois entrees et peut etre vide.
+     * Le rendre fatal detruisait des evaluations entieres — une tache d'examen
+     * blanc EO a ete perdue pour deux {@code explication} rejetees, alors que le
+     * serveur y jette deja des entrees (corrections orthographiques, mot isole).
+     * Le meme traitement s'y applique donc : {@link EvaluationOralArtifactFilter}
+     * SUPPRIME l'entree fautive, il ne detruit pas le rapport.
+     */
     private static void validateOralFeedback(Map<String, Object> feedback, List<String> errors) {
         scanText(feedback.get("justification_niveau"), "justification_niveau", errors);
         scanTextList(feedback.get("points_forts"), "points_forts", errors);
@@ -383,14 +405,7 @@ final class EvaluationOutputValidator {
                 }
             }
         }
-        if (feedback.get("exemples_corriges") instanceof List<?> exemples) {
-            for (Object item : exemples) {
-                if (item instanceof Map<?, ?> e) {
-                    scanText(e.get("explication"), "exemples_corriges.explication", errors);
-                    scanText(e.get("gain"), "exemples_corriges.gain", errors);
-                }
-            }
-        }
+        // `exemples_corriges` : PURGE, jamais fatal — cf. javadoc ci-dessus.
         if (feedback.get("accomplissement") instanceof Map<?, ?> accomplissement) {
             scanAccomplissement(accomplissement.get("points_traites"), errors);
             scanAccomplissement(accomplissement.get("points_oublies"), errors);
@@ -413,14 +428,50 @@ final class EvaluationOutputValidator {
         for (Object value : list) scanText(value, path, errors);
     }
 
-    private static void scanText(Object raw, String path, List<String> errors) {
-        if (!(raw instanceof String text) || text.isBlank()) return;
-        String normalized = Normalizer.normalize(text, Normalizer.Form.NFD)
+    /**
+     * Vrai si le texte mentionne une NOTION non evaluable a l'oral. Meme
+     * detection que {@link #scanText}, exposee sans construire de violation :
+     * elle sert a la PURGE des champs non fatals ({@code exemples_corriges}),
+     * pour que les deux traitements rejettent exactement les memes notions.
+     */
+    static boolean mentionneMotifOralInterdit(Object raw) {
+        if (!(raw instanceof String text) || text.isBlank()) return false;
+        return MOTIFS_ORAUX_INTERDITS.matcher(normaliserPourScan(text)).find();
+    }
+
+    private static String normaliserPourScan(String text) {
+        return Normalizer.normalize(text, Normalizer.Form.NFD)
             .replaceAll("\\p{M}+", "")
             .toLowerCase(Locale.FRENCH);
-        if (MOTIFS_ORAUX_INTERDITS.matcher(normalized).find()) {
-            errors.add(path + " fonde le feedback oral sur un element non evaluable");
-        }
+    }
+
+    private static void scanText(Object raw, String path, List<String> errors) {
+        if (!(raw instanceof String text) || text.isBlank()) return;
+        String normalized = normaliserPourScan(text);
+        var matcher = MOTIFS_ORAUX_INTERDITS.matcher(normalized);
+        if (!matcher.find()) return;
+        // La NOTION rejetee et le passage exact sont dans le message : sans eux,
+        // le reessai ne dit au correcteur ni quel champ ni quel mot revoir, et il
+        // resoumet la meme phrase (meme pathologie que les preuves refusees, cf.
+        // EvaluationRepairPrompt). C'est aussi ce qui rend le log exploitable.
+        errors.add(path + ORAL_VIOLATION_MARKER
+            + " — notion interdite « " + normalized.substring(matcher.start(), matcher.end())
+            + " », dans : « " + extrait(text) + " »");
+    }
+
+    /** Marqueur stable des violations du garde-fou oral (lu par le reessai). */
+    static final String ORAL_VIOLATION_MARKER = " fonde le feedback oral sur un element non evaluable";
+
+    private static final int EXTRAIT_MAX = 200;
+
+    private static String extrait(String text) {
+        String clean = text.strip().replaceAll("\\s+", " ");
+        return clean.length() <= EXTRAIT_MAX ? clean : clean.substring(0, EXTRAIT_MAX) + "…";
+    }
+
+    /** Violations du garde-fou oral, dans l'ordre, pour construire le reessai. */
+    static List<String> oralViolations(List<String> violations) {
+        return violations.stream().filter(v -> v.contains(ORAL_VIOLATION_MARKER)).toList();
     }
 
     private static void validateStringList(Object raw, String path, List<String> errors) {

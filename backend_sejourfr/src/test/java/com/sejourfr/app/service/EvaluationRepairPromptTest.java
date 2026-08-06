@@ -97,7 +97,51 @@ class EvaluationRepairPromptTest {
         assertThat(prompt)
             .contains("- confiance invalide")
             .doesNotContain("CITATIONS REFUSEES")
-            .doesNotContain("REGLE DE LA PREUVE");
+            .doesNotContain("REGLE DE LA PREUVE")
+            .doesNotContain("GARDE-FOU ORAL");
+    }
+
+    /**
+     * Garde-fou oral : meme diagnostic que pour les preuves. Le 2026-08-06, une
+     * tache d'examen blanc EO a ete perdue apres un reessai qui n'avait repare
+     * AUCUNE des deux violations — le message ne disait ni quel passage ni
+     * quelle notion. Le reessai les rappelle et donne la sortie sure.
+     */
+    @Test
+    void rappelle_le_passage_rejete_et_la_conduite_a_tenir_sur_le_garde_fou_oral() {
+        String violation = "exemples_corriges.explication"
+            + EvaluationOutputValidator.ORAL_VIOLATION_MARKER
+            + " — notion interdite « repetitions », dans : « Cette reformulation évite "
+            + "les répétitions du début. »";
+
+        String prompt = EvaluationRepairPrompt.build(
+            USER_PROMPT, List.of(violation), Map.of(), EpreuveType.TCF_EO);
+
+        assertThat(prompt)
+            .contains("ELEMENTS NON EVALUABLES A L'ORAL")
+            .contains(violation)
+            .contains("TRANSCRIPTION AUTOMATIQUE")
+            .contains("c'est la NOTION qui est interdite, pas le mot")
+            .contains("SUPPRIME cet exemple")
+            .contains("confiance_raisons")
+            // Aucun controle relache : on n'invite jamais a garder la remarque.
+            .doesNotContain("CITATIONS REFUSEES");
+    }
+
+    @Test
+    void cumule_le_garde_fou_oral_et_les_citations_refusees() {
+        String prompt = EvaluationRepairPrompt.build(
+            USER_PROMPT,
+            List.of(VIOLATION_LEXIQUE,
+                "points_forts" + EvaluationOutputValidator.ORAL_VIOLATION_MARKER
+                    + " — notion interdite « fluidite », dans : « Bonne fluidité. »"),
+            feedback(score("lexique", "un passage invente")),
+            EpreuveType.TCF_EO);
+
+        assertThat(prompt)
+            .contains("ELEMENTS NON EVALUABLES A L'ORAL")
+            .contains("CITATIONS REFUSEES")
+            .contains("REGLE DE LA PREUVE");
     }
 
     @Test

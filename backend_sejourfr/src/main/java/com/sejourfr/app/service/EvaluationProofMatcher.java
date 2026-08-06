@@ -349,6 +349,26 @@ final class EvaluationProofMatcher {
         return token.length() > 1 && !NON_SIGNIFICANT.contains(token) && !isSpecial(token);
     }
 
+    /**
+     * Nombre de tokens PORTEURS DE SENS d'un texte : mots-outils, hesitations et
+     * lettres elidees ({@code l'}, {@code qu'}) exclus.
+     *
+     * <p>Sert a {@link EvaluationOralArtifactFilter} pour reconnaitre une
+     * citation qui ne nomme qu'UN SEUL mot ({@code « l'ile »},
+     * {@code « par travers »}) — c'est-a-dire un reproche de niveau MOT, que les
+     * rubriques interdisent deja a l'oral. La tokenisation et la liste de
+     * mots-outils sont celles du controle de preuve, volontairement : les deux
+     * doivent lire un passage de la meme facon.
+     */
+    static int significantTokenCount(String text) {
+        if (text == null || text.isBlank()) return 0;
+        int count = 0;
+        for (Token token : tokens(text, 0)) {
+            if (isSignificant(token.normalized())) count++;
+        }
+        return count;
+    }
+
     private static List<String> specialTokens(List<Token> tokens) {
         List<String> out = new ArrayList<>();
         for (Token token : tokens) {

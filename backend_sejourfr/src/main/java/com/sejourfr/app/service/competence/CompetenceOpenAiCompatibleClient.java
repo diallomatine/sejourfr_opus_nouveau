@@ -4,6 +4,7 @@ import com.sejourfr.app.config.CompetenceProperties;
 import com.sejourfr.app.config.ProductionEvaluationProperties.ChatCompletionSettings;
 import com.sejourfr.app.exception.AiEvaluationException;
 import com.sejourfr.app.exception.AiEvaluationTransientException;
+import com.sejourfr.app.util.ChatCompletionDialect;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,6 +86,8 @@ public class CompetenceOpenAiCompatibleClient implements CompetenceAnalysisLlmCl
             this.toolSchema = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
         }
         log.info("{} analyse competence : tool schema {} charge ({})", label, TOOL_NAME, version);
+        log.info("{} analyse competence : {}", label, ChatCompletionDialect.resume(
+            connection.getMaxTokensParam(), connection.getSendTemperature(), connection.getModel()));
     }
 
     @Override
@@ -156,7 +159,7 @@ public class CompetenceOpenAiCompatibleClient implements CompetenceAnalysisLlmCl
         throw ex;
     }
 
-    private Map<String, Object> buildRequestBody(String systemPrompt, String userPrompt) {
+    Map<String, Object> buildRequestBody(String systemPrompt, String userPrompt) {
         Map<String, Object> function = new LinkedHashMap<>();
         function.put("name", TOOL_NAME);
         function.put("description", TOOL_DESCRIPTION);
@@ -169,8 +172,16 @@ public class CompetenceOpenAiCompatibleClient implements CompetenceAnalysisLlmCl
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", connection.getModel());
         // Budget PROPRE a l'analyse ciblee, pas celui des corrections completes.
-        body.put("max_tokens", analysis.getMaxTokens());
-        body.put("temperature", analysis.getTemperature());
+        // Le NOM du champ, lui, depend du modele : les gpt-5.x refusent
+        // max_tokens en 400 (cf. ChatCompletionDialect). L'analyse ciblee et les
+        // corrections completes partagent le meme provider (regle « un seul
+        // correcteur configurable ») : elles doivent parler le meme dialecte.
+        body.put(
+            ChatCompletionDialect.maxTokensParam(connection.getMaxTokensParam(), connection.getModel()),
+            analysis.getMaxTokens());
+        if (ChatCompletionDialect.sendTemperature(connection.getSendTemperature(), connection.getModel())) {
+            body.put("temperature", analysis.getTemperature());
+        }
         body.put("messages", List.of(
             Map.of("role", "system", "content", systemPrompt),
             Map.of("role", "user", "content", userPrompt)));

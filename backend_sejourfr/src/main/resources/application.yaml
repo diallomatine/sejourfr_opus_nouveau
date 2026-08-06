@@ -272,11 +272,43 @@ sejourfr:
     # obligatoire sur les taches ECRITES, points_forts plafonnes a 2 et
     # exemples_corriges a 3. Aucune campagne de banc n'est requise pour cette
     # bascule : la notation est inchangee par construction.
+    # v9 (ACTIVE) : MEME CONTRAT DE SORTIE (v5), aucun champ ajoute ni retire.
+    # Elle ne modifie que les DEUX SECTIONS ORALES du prompt (les six rubriques
+    # par tache, les seuils, le couplage, les plafonds, les bandes et les 16
+    # ancres few-shot sont ceux de v8, verrouilles par
+    # ProductionEvaluationContractTest) :
+    #  (a) le correcteur sait qu'il lit une TRANSCRIPTION AUTOMATIQUE et evalue
+    #      le SENS voulu ; un mot inexistant en francais, ou dont une relecture
+    #      proche par le son rend la phrase coherente, est un ARTEFACT et ne doit
+    #      etre cite NULLE PART. Aucune echappatoire : une vraie erreur de langue
+    #      reste une erreur et la regle de preuve litterale est inchangee ;
+    #  (b) en dialogue, le DEROULE DE L'ECHANGE (l'examinateur a-t-il repondu a
+    #      propos, a-t-il du faire repeter, l'echange s'est-il maintenu) devient
+    #      un element d'appreciation de communiquer et interagir — le garde-fou
+    #      oral reste entier, une relance n'est pas une hesitation, la preuve
+    #      reste prise dans un tour « Candidat : ».
+    # Motif : incident du 2026-08-06 (submission EO T3), trois artefacts de
+    # transcription imputes au candidat dans cinq champs, sans qu'aucun mot du
+    # garde-fou lexical n'apparaisse.
+    # Mesure (banc golden-set-v1, 48 cas, deepseek-v4-flash ; temoin v8 rejoue
+    # le MEME JOUR, meme modele, parallelisme 3) : accord exact 74,5 % -> 81,3 %,
+    # accord +/-1 palier 93,6 % -> 97,9 %, pieges evites 4/8 -> 8/8 (les deux
+    # transcriptions bruitees, le hors-sujet, le memorise et l'autre-langue),
+    # « A1 non atteint » 5/8 -> 8/8, A2 8/12 -> 10/13, B1 12/12 -> 12/12,
+    # 0 % de sortie invalide des deux cotes, cas perdus 2,1 % -> 0 %, ecart de
+    # severite (reference - IA) -0,57 -> -0,38. Deux reculs a dire : B2 7/7 ->
+    # 6/7 (un B2 ressorti B1, sens prudent, n=7) et l'accord de CONFIANCE
+    # 53,2 % -> 45,8 %, le correcteur se declarant plus sur qu'il ne devrait sur
+    # les transcriptions bruitees — consequence directe de la regle d'artefact,
+    # a surveiller. Le prompt est plus long : 62 -> 91 centimes la campagne.
+    # /!\ Toute nouvelle version de CONSIGNES DE NOTATION se mesure de la meme
+    # facon avant d'etre activee : campagne + temoin de la version precedente
+    # rejoue le MEME JOUR.
     # Matrice verifiee au demarrage : v3-v4.2 -> schema v2, v5-v6 -> schema v3,
-    # v7 -> schema v4, v8 -> schema v5. Un rollback change donc la paire
+    # v7 -> schema v4, v8 et v9 -> schema v5. Un rollback change donc la paire
     # EVAL_RUBRICS_VERSION + EVAL_PROMPT_VERSION (v8/v5 -> v7/v4, etc.) ; une
     # combinaison incoherente bloque le demarrage.
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v8}
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v9}
     # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
     # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
     # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).
@@ -464,19 +496,40 @@ sejourfr:
       # via EVAL_OPENAI_API_KEY si on veut une cle dediee.
       api-key: ${EVAL_OPENAI_API_KEY:${OPENAI_API_KEY:}}
       api-url: https://api.openai.com/v1/chat/completions
-      model: ${EVAL_OPENAI_MODEL:gpt-4o-mini}
+      # gpt-5.4 : moderne ET compatible temperature 0 (gpt-5.5 refuse toute
+      # temperature autre que son defaut — voir send-temperature ci-dessous).
+      model: ${EVAL_OPENAI_MODEL:gpt-5.4}
       # 0 = notation déterministe (même texte → mêmes notes d'un run à l'autre).
       temperature: ${EVAL_OPENAI_TEMPERATURE:0}
-      # cf. le bloc « PLAFOND DE TOKENS DE SORTIE » ci-dessus.
+      # `auto` = déduit du modèle. Un modèle à température figée (mesuré sur
+      # gpt-5.5 : « Only the default (1) value is supported ») fait OMETTRE le
+      # champ — envoyer 1 reviendrait à choisir, sans le dire, une notation non
+      # déterministe. `true` / `false` pour forcer.
+      send-temperature: ${EVAL_OPENAI_SEND_TEMPERATURE:auto}
+      # Nom du champ de plafond de sortie. `auto` = déduit du modèle
+      # (ChatCompletionDialect) : les gpt-5.x / o-series REFUSENT `max_tokens`
+      # en 400 et exigent `max_completion_tokens`, les gpt-4.x et DeepSeek font
+      # l'inverse. La détection est le défaut parce que la SEULE clé qu'on change
+      # en pratique est EVAL_OPENAI_MODEL, dans le .env : changer de modèle ne
+      # doit jamais obliger à toucher au code ni à ce fichier. Forcer
+      # `max_tokens` / `max_completion_tokens` reste possible pour un endpoint
+      # OpenAI-compatible exotique.
+      max-tokens-param: ${EVAL_OPENAI_MAX_TOKENS_PARAM:auto}
+      # cf. le bloc « PLAFOND DE TOKENS DE SORTIE » ci-dessus. La VALEUR ne change
+      # pas avec le nom du champ.
       max-tokens: 4000
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
       prompt-version: ${EVAL_PROMPT_VERSION:v5}
-      # Tarification gpt-4o-mini (USD / 1M tokens, mai 2026). A surcharger si
-      # on bascule sur gpt-4o ou gpt-5 (cout estime persiste dans ai_evaluations).
-      cost-per-million-input-tokens: 0.15
-      cost-per-million-output-tokens: 0.60
+      # Tarification gpt-5.4 (USD / 1M tokens, relevée sur la page tarifaire
+      # OpenAI le 2026-08-07 : 2,50 en entrée / 15,00 en sortie).
+      # ⚠ Ces deux valeurs vont AVEC `model` ci-dessus : le coût estimé est
+      # PERSISTÉ dans ai_evaluations.cout_centimes, un tarif faux y reste faux
+      # pour toujours. Changer de modèle = changer les deux tarifs dans la même
+      # passe (EvaluationPricingTest fait échouer le build sinon).
+      cost-per-million-input-tokens: ${EVAL_OPENAI_COST_INPUT:2.50}
+      cost-per-million-output-tokens: ${EVAL_OPENAI_COST_OUTPUT:15.00}
     anthropic:
       api-key: ${EVAL_ANTHROPIC_API_KEY:${ANTHROPIC_API_KEY:}}
       api-url: https://api.anthropic.com/v1/messages

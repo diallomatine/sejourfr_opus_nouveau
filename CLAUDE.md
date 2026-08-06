@@ -397,6 +397,18 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   `MOYENNE` et un avertissement serveur est ajouté. Deux preuves, une preuve vide ou toute
   autre violation font échouer la submission sans note partielle. Sur un retry réparé ou
   dégradé, tokens d'entrée, tokens de sortie et coût des deux appels sont additionnés.
+- **Une sortie LLM malformée est TRANSITOIRE, donc rejouée** (`@Retryable` des deux
+  clients) : absence de `tool_calls`, `finish_reason=length`, arguments vides,
+  JSON illisible, réponse vide. Seuls la configuration absente et les 4xx sont
+  terminaux. Motif : un unique échantillon corrompu (mesuré : du texte arabe
+  glissé au milieu de `scores_criteres`) détruisait la tâche sans recours. Le
+  `@Recover` **conserve la cause** dans le message, sinon la ventilation
+  `MotifPerte` du banc reclasse une troncature en « fournisseur indisponible ».
+- **Un message de réessai ne vaut que s'il est actionnable** — vrai pour les
+  preuves (cf. `EvaluationRepairPrompt`) **comme pour le garde-fou oral** :
+  une violation orale nomme désormais la notion interdite et cite le passage
+  rejeté, et le prompt de réparation donne la sortie sûre. Renvoyer le seul
+  libellé brut de la violation ne répare rien (mesuré : 0/8 sur les preuves).
 - **Preuves opposables (schémas v4 et v5)** : chaque critère porte une citation non vide. Le
   serveur privilégie le passage contigu exact, puis ne tolère, à partir de 4
   tokens, qu'une seule édition de token : insertion/suppression réservée à une liste

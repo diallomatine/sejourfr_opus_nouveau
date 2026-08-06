@@ -35,6 +35,8 @@ final class EvaluationRepairPrompt {
             .append("Corrige exactement ces violations et rappelle l'outil submit_evaluation :\n- ")
             .append(String.join("\n- ", violations));
 
+        appendGardeFouOral(sb, violations);
+
         List<String> codes = EvaluationOutputValidator.unmatchedProofCodes(violations);
         if (codes.isEmpty()) return sb.toString();
 
@@ -62,6 +64,48 @@ final class EvaluationRepairPrompt {
             .append("relire lettre a lettre dans la production ci-dessus, puis recopie-la.")
             .append("\nReprends tes autres champs a l'identique : ne change QUE ce qui est signale.");
         return sb.toString();
+    }
+
+    /**
+     * GARDE-FOU ORAL. Meme diagnostic que pour les preuves : le message ne
+     * portait que le libelle brut ({@code exemples_corriges.explication fonde le
+     * feedback oral sur un element non evaluable}), sans dire quel passage ni
+     * quelle notion. Mesure du 2026-08-06 sur une tache d'examen blanc EO :
+     * <b>zero violation reparee</b> sur deux, le correcteur resoumettant les
+     * memes explications — la tache a ete perdue.
+     *
+     * <p><b>Aucun controle n'est relache</b> : le serveur rejette exactement les
+     * memes notions. On dit au correcteur ce qu'il ne pouvait pas deviner, et on
+     * lui donne la sortie sure — supprimer la remarque, ou la ramener sur ce qui
+     * est observable dans une transcription.
+     */
+    private static void appendGardeFouOral(StringBuilder sb, List<String> violations) {
+        List<String> orales = EvaluationOutputValidator.oralViolations(violations);
+        if (orales.isEmpty()) return;
+
+        sb.append("\n\nELEMENTS NON EVALUABLES A L'ORAL — le serveur a rejete ces passages ")
+            .append("de ta sortie :");
+        for (String violation : orales) {
+            sb.append("\n- ").append(violation);
+        }
+        sb.append("\n\nREGLE DU GARDE-FOU ORAL (le serveur la verifie sur chaque champ ")
+            .append("evaluatif) :")
+            .append("\n- tu ne disposes que d'une TRANSCRIPTION AUTOMATIQUE : tu n'as jamais ")
+            .append("entendu le candidat, tu ne peux donc rien conclure de sa facon de parler ;")
+            .append("\n- INTERDIT partout (verdict, commentaires, conseils, explications, ")
+            .append("exemples) : hesitations, repetitions, faux departs, discours hache, ")
+            .append("pauses, debit, rythme, fluidite, aisance, prononciation, accent, ")
+            .append("intonation, orthographe, ponctuation, duree ou temps de parole ;")
+            .append("\n- c'est la NOTION qui est interdite, pas le mot : reformuler ")
+            .append("« il hesite » en « il marque des arrets » ne passe pas davantage ;")
+            .append("\n- CE QU'IL FAUT FAIRE : supprimer la remarque, ou la ramener sur ce qui ")
+            .append("est visible dans le texte — choix et precision du lexique, construction ")
+            .append("des phrases, enchainement des idees, adequation au destinataire, reponse ")
+            .append("a la consigne ;")
+            .append("\n- si un exemple corrige ne tient que par une remarque interdite, ")
+            .append("SUPPRIME cet exemple : `exemples_corriges` peut etre une liste vide ;")
+            .append("\n- seul `confiance_raisons` peut mentionner une transcription incertaine.")
+            .append("\nReprends tes autres champs a l'identique : ne change QUE ce qui est signale.");
     }
 
     /** Citation telle que le correcteur l'avait rendue, ou une mention explicite. */

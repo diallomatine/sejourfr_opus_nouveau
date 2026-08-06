@@ -128,6 +128,71 @@ class ProductionEvaluationContractTest {
         }
     }
 
+    /**
+     * v9 = v8 pour TOUT, sauf les DEUX SECTIONS ORALES. Ce test est le verrou de
+     * cette promesse : elle est ce qui rend la campagne de banc interpretable —
+     * si un seuil, une ponderation, un critere, une borne, une ancre few-shot ou
+     * une consigne de tache bougeait en meme temps, on ne saurait plus ce que la
+     * mesure attribue a quoi.
+     */
+    @Test
+    void v9NeChangeQueLesDeuxSectionsOrales() throws Exception {
+        Map<String, Object> v8 = resource("prompts/production-rubrics-v8.json");
+        Map<String, Object> v9 = resource("prompts/production-rubrics-v9.json");
+
+        assertThat(v9)
+            .containsEntry("rubrics-version", "v9")
+            .containsEntry("profile", "TCF_IRN")
+            .containsEntry("tool_schema_version", "v5")
+            .containsEntry("niveau_max", "B2");
+        assertThat(resourceText("prompts/production-rubrics-v9.json"))
+            .doesNotContain("\"C1\"", "\"C2\"");
+
+        // Les six rubriques par tache : identiques au champ pres.
+        assertThat(v9.get("rubrics"))
+            .as("v9 ne touche a aucune rubrique de tache")
+            .isEqualTo(v8.get("rubrics"));
+
+        Map<String, Object> communV8 = map(v8.get("commun"));
+        Map<String, Object> communV9 = map(v9.get("commun"));
+        for (String bloc : List.of("niveau", "couplage", "plafonds", "bandes_criteres", "few_shot")) {
+            assertThat(communV9.get(bloc))
+                .as("v9 ne touche pas a commun." + bloc + " : la notation est celle de v8")
+                .isEqualTo(communV8.get(bloc));
+        }
+
+        List<?> sectionsV8 = list(communV8.get("sections"));
+        List<?> sectionsV9 = list(communV9.get("sections"));
+        assertThat(sectionsV9).hasSameSizeAs(sectionsV8);
+        List<Integer> modifiees = new java.util.ArrayList<>();
+        for (int i = 0; i < sectionsV8.size(); i++) {
+            if (!sectionsV8.get(i).equals(sectionsV9.get(i))) modifiees.add(i);
+        }
+        assertThat(modifiees)
+            .as("exactement deux sections changent, et ce sont les deux sections orales")
+            .hasSize(2);
+        for (int index : modifiees) {
+            assertThat(map(sectionsV8.get(index)).get("titre").toString())
+                .as("section " + index)
+                .contains("orale");
+        }
+
+        String orale = map(sectionsV9.get(modifiees.get(0))).get("contenu").toString();
+        String interaction = map(sectionsV9.get(modifiees.get(1))).get("contenu").toString();
+
+        // (a) artefacts de transcription : opposable, et sans echappatoire.
+        assertThat(orale)
+            .contains("ARTEFACT")
+            .contains("L'ECHAPPATOIRE EST FERMEE")
+            .contains("LA REGLE DE PREUVE NE CHANGE PAS");
+        // (b) le deroule de l'echange compte, sans toucher au garde-fou oral.
+        assertThat(interaction)
+            .contains("LE DEROULE DE L'ECHANGE EST UN ELEMENT D'APPRECIATION")
+            .contains("UNE RELANCE DE L'EXAMINATEUR N'EST PAS UNE HESITATION DU CANDIDAT")
+            .contains("communiquer ET interagir")
+            .contains("'Candidat :'");
+    }
+
     /** Le contrat de sortie v5 : celui de v4, plus les seules cles de restitution. */
     @Test
     void v5AjouteLeVerdictLaVersionAmelioreeEtLesPlafondsDeRestitution() throws Exception {
@@ -203,7 +268,8 @@ class ProductionEvaluationContractTest {
         "v5, v3",
         "v6, v3",
         "v7, v4",
-        "v8, v5"
+        "v8, v5",
+        "v9, v5"
     })
     void chaqueVersionDeRubriquesAccepteUniquementSonToolSchema(
             String rubricsVersion, String toolSchemaVersion) {
@@ -224,7 +290,8 @@ class ProductionEvaluationContractTest {
         "v5, v2, v3",
         "v6, v4, v3",
         "v7, v3, v4",
-        "v8, v4, v5"
+        "v8, v4, v5",
+        "v9, v4, v5"
     })
     void unePaireRubriquesToolSchemaIncompatibleEchoueAuChargement(
             String rubricsVersion, String activeSchema, String expectedSchema) {

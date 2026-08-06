@@ -324,6 +324,12 @@ class _Body extends StatelessWidget {
   int get _evaluatedCount =>
       _submissions.where((s) => s.evaluation != null).length;
 
+  /// Productions rendues dont l'évaluation IA a échoué : le candidat a une
+  /// action à faire (relancer depuis l'écran de résultat), on ne peut pas les
+  /// laisser passer pour de simples « non évaluées ».
+  int get _failedCount =>
+      _submissions.where((s) => s.statut == SubmissionStatut.failed).length;
+
   /// Moyenne locale de secours quand le backend n'a pas (encore) renvoyé de
   /// `moyenneSur20` dans le bilan.
   double? get _moyenneLocale {
@@ -387,6 +393,7 @@ class _Body extends StatelessWidget {
                 moyenneSur20: bilan?.moyenneSur20 ?? _moyenneLocale,
                 niveauGlobal: _niveauGlobal,
                 correspondanceTcf: bilan?.correspondanceTcf,
+                needsRetry: _failedCount > 0 && _niveauGlobal == null,
               ),
               if (liveMode && hasPending) ...[
                 _EvaluatingBanner(
@@ -409,9 +416,12 @@ class _Body extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                allEvaluated
-                    ? 'Touche une tâche pour revoir l\'évaluation détaillée.'
-                    : 'Touche une tâche évaluée pour ouvrir son évaluation détaillée.',
+                _failedCount > 0
+                    ? 'Une évaluation n\'a pas abouti : touche la tâche en rouge '
+                        'pour la relancer.'
+                    : allEvaluated
+                        ? 'Touche une tâche pour revoir l\'évaluation détaillée.'
+                        : 'Touche une tâche évaluée pour ouvrir son évaluation détaillée.',
                 style: AppFonts.ui(
                   size: 12.5,
                   color: AppColors.muted,
@@ -429,6 +439,8 @@ class _Body extends StatelessWidget {
                     pending: slots[i].submission != null &&
                         !slots[i].submission!.statut.isFinal,
                     notRendered: slots[i].submission == null,
+                    failed: slots[i].submission?.statut ==
+                        SubmissionStatut.failed,
                   ),
                 ),
               const SizedBox(height: 16),

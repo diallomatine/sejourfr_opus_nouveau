@@ -195,8 +195,10 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
             descriptor={rtDescriptor}
             task={task}
             taskTitle={taskTitle}
-            onFinished={(evaluated) =>
-              evaluated ? goToRealtimeResult(rtAttemptId) : setUiMode("noSpeech")
+            onFinished={(result) =>
+              result.kind === "evaluated"
+                ? goToRealtimeResult(rtAttemptId)
+                : setUiMode("noSpeech")
             }
             onFatalError={(m) => {
               setRtError(m);

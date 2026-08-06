@@ -7,8 +7,8 @@ référence pédagogique exhaustive reste [`notation-ia-eo-ee.md`](notation-ia-e
 
 - Profil : **TCF IRN uniquement**.
 - Niveau de sortie maximal : **B2** ; C1 et C2 ne font pas partie du contrat actif.
-- Rubriques : `prompts/production-rubrics-v7.json`.
-- Tool-schema : `prompts/production-evaluation-tool-schema-v4.json`.
+- Rubriques : `prompts/production-rubrics-v9.json`.
+- Tool-schema : `prompts/production-evaluation-tool-schema-v5.json`.
 - Correcteur par défaut : **DeepSeek `deepseek-v4-flash`**.
 - Examinateur vocal temps réel : **Gemini Live**. Il conduit/transcrit l'échange mais ne
   note jamais ; le transcript final revient dans le même pipeline correcteur.

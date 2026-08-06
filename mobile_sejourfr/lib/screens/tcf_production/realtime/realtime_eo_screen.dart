@@ -13,6 +13,7 @@ import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../widgets/transcript_dialogue.dart';
 import 'realtime_eo_controller.dart';
+import 'realtime_finish.dart';
 
 /// Écran d'une session EO en temps réel (examinateur vocal IA). Volontairement
 /// DISTINCT de l'enregistrement solo : marqueur « IA · En direct », minuteur, et
@@ -188,6 +189,74 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     );
   }
 
+  /// Panneau d'issue à acquitter : la clôture n'a pas abouti (relance possible
+  /// ou production perdue), ou une partie du dialogue ne nous est pas parvenue.
+  /// On ne quitte JAMAIS cet écran sans que le candidat ait vu ce qui s'est
+  /// passé — c'est tout l'objet du correctif.
+  Widget _buildFinishNotice(
+    BuildContext context,
+    ProductionTaskDto task,
+    RealtimeEoState state,
+    RealtimeFinishResult result,
+  ) {
+    final notice = realtimeFinishNotice(result);
+    final controller =
+        ref.read(realtimeEoControllerProvider(widget.args).notifier);
+    final actions = <Widget>[];
+    if (result.kind == RealtimeFinishKind.evaluated) {
+      actions.add(AppButton(
+        label: kRtFinishSeeResultAction,
+        icon: LucideIcons.arrowRight,
+        onPressed: _goToResult,
+      ));
+    } else {
+      if (result.kind == RealtimeFinishKind.retryable) {
+        actions.add(AppButton(
+          label: kRtFinishRetryAction,
+          icon: LucideIcons.refreshCw,
+          isLoading: state.retryingFinish,
+          onPressed: controller.retryFinish,
+        ));
+        actions.add(const SizedBox(height: 10));
+      }
+      actions.add(AppButton(
+        label: kRtFinishGiveUpAction,
+        variant: AppButtonVariant.outline,
+        onPressed: _exitFailed,
+      ));
+    }
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            ScreenHeader(
+              title: 'Oral avec un examinateur',
+              sub: task.displayTitle,
+              onBack: _exitFailed,
+            ),
+            Expanded(
+              child: _Centered(
+                icon: result.kind == RealtimeFinishKind.evaluated
+                    ? LucideIcons.triangleAlert
+                    : LucideIcons.cloudOff,
+                title: notice.title,
+                sub: notice.message,
+              ),
+            ),
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: Column(mainAxisSize: MainAxisSize.min, children: actions),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final args = widget.args;
@@ -198,10 +267,15 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     ref.listen<RealtimeEoState>(realtimeEoControllerProvider(args),
         (prev, next) {
       if (next.phase != RealtimePhase.done) return;
+      final result = next.finishResult;
+      if (result == null) return;
+      // Issue à acquitter (envoi raté, production perdue, transmission
+      // partielle) : on ne navigue pas, `build` rend le panneau.
+      if (needsRealtimeAcknowledgement(result)) return;
       // En examen (popOnDone) on rend la main même sans réponse (tâche sautée,
       // comptée non rendue au bilan). En entraînement isolé sans prise de parole,
       // rien à évaluer → écran d'explication plutôt qu'un bilan vide.
-      if (next.evaluated || widget.args.popOnDone) {
+      if (result.isEvaluated || widget.args.popOnDone) {
         _goToResult();
       } else if (mounted) {
         setState(() => _noSpeech = true);
@@ -209,6 +283,10 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     });
     final state = ref.watch(realtimeEoControllerProvider(args));
 
+    final pending = state.finishResult;
+    if (pending != null && needsRealtimeAcknowledgement(pending)) {
+      return _buildFinishNotice(context, task, state, pending);
+    }
     if (_noSpeech) return _buildNoSpeech(context, task);
 
     return PopScope(

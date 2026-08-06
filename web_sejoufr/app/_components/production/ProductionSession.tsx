@@ -19,6 +19,7 @@ import {
   type ProductionTaskDto,
   type RealtimeSessionDescriptor,
 } from "@/lib/types";
+import { bilanNiveauPendingLabel } from "@/lib/production-feedback";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
@@ -556,7 +557,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                   descriptor={activeDescriptor}
                   task={currentTask}
                   taskTitle={productionTaskTitle(config.epreuve, currentTask.tacheNumero)}
-                  onFinished={(evaluated) => advanceAfterRealtime(evaluated)}
+                  onFinished={(result) => advanceAfterRealtime(result.kind === "evaluated")}
                   onFatalError={(m) => {
                     setRtError(m);
                     setTaskMode("classic");
@@ -717,6 +718,12 @@ function BilanView({
       return s && isSubmissionPending(s);
     });
 
+  // Une évaluation en échec suspend le niveau d'épreuve côté serveur (il n'est
+  // pas calculé sur des tâches comptées 0 : la production a été rendue, c'est
+  // notre correction qui a échoué). Le dire « en cours » était donc faux et
+  // sans fin — le candidat doit relancer la tâche en rouge.
+  const anyFailed = TACHES.some((n) => subsByTache.get(n)?.statut === "FAILED");
+
   const avgNote = bilan?.moyenneSur20 ?? null;
   const niveauGlobal = bilan?.niveauGlobal ?? null;
   const targetIdx = niveauGlobal != null ? cecrlIndex(niveauGlobal) : -1;
@@ -740,7 +747,9 @@ function BilanView({
             {niveauGlobal != null ? (
               <span className={prod.sessHeroBadge}>{niveauCecrlLabel(niveauGlobal)}</span>
             ) : (
-              <span className={prod.sessHeroBadgePending}>Évaluation en cours…</span>
+              <span className={prod.sessHeroBadgePending}>
+                {bilanNiveauPendingLabel(anyFailed)}
+              </span>
             )}
           </div>
         </div>

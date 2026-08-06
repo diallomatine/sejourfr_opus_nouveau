@@ -115,6 +115,69 @@ class EvaluationOutputValidatorTest {
             .anyMatch(v -> v.contains("points_a_ameliorer"));
     }
 
+    /**
+     * Le libelle brut ne suffisait pas : sur l'incident du 2026-08-06 le reessai
+     * n'a repare AUCUNE des deux violations orales, faute de savoir quel passage
+     * et quelle notion etaient rejetes. La violation porte desormais les deux.
+     */
+    @Test
+    void nomme_la_notion_interdite_et_le_passage_rejete() {
+        Map<String, Object> feedback = validFeedback();
+        feedback.put("suggestions", List.of("Cette reformulation évite les répétitions du début."));
+
+        List<String> violations = EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EO), rubrics, "v4");
+
+        List<String> orales = EvaluationOutputValidator.oralViolations(violations);
+        assertThat(orales).hasSize(1);
+        assertThat(orales.get(0))
+            .contains("suggestions")
+            .contains("element non evaluable")
+            .contains("« repetitions »")
+            .contains("Cette reformulation évite les répétitions du début.");
+    }
+
+    /**
+     * FRONTIERE DU GARDE-FOU ORAL (2026-08-06). {@code exemples_corriges} n'entre
+     * dans AUCUN calcul de note : une violation orale y est PURGEE par
+     * {@link EvaluationOralArtifactFilter}, elle ne detruit plus l'evaluation.
+     * Avant ce changement, deux {@code explication} rejetees ont fait perdre une
+     * tache d'examen blanc EO entiere.
+     */
+    @Test
+    void une_violation_orale_dans_un_exemple_corrige_n_est_plus_fatale() {
+        Map<String, Object> feedback = validFeedback();
+        feedback.put("exemples_corriges", List.of(Map.of(
+            "original", "je je voulais dire ça",
+            "corrige", "je voulais dire cela",
+            "explication", "Cette reformulation évite les répétitions du début.",
+            "gain", "un propos plus direct")));
+
+        assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EO), rubrics, "v4"))).isEmpty();
+    }
+
+    /** Les champs qui portent le JUGEMENT, eux, restent fatals. */
+    @Test
+    void les_champs_evaluatifs_restent_fatals() {
+        for (String champ : List.of("justification_niveau", "points_forts", "suggestions")) {
+            Map<String, Object> feedback = validFeedback();
+            String fautif = "La prononciation reste difficile à suivre.";
+            feedback.put(champ, "justification_niveau".equals(champ) ? fautif : List.of(fautif));
+
+            assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+                feedback, task(EpreuveType.TCF_EO), rubrics, "v4")))
+                .as(champ)
+                .hasSize(1);
+        }
+    }
+
+    @Test
+    void aucune_violation_orale_sur_une_sortie_conforme() {
+        assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+            validFeedback(), task(EpreuveType.TCF_EO), rubrics, "v4"))).isEmpty();
+    }
+
     @Test
     void autorise_la_transcription_incertaine_uniquement_dans_la_confiance() {
         Map<String, Object> feedback = validFeedback();

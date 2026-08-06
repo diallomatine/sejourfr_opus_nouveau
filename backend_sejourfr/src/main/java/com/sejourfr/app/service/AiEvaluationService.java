@@ -460,6 +460,24 @@ public class AiEvaluationService {
         // de prompt. EE : intact (l'orthographe compte a l'ecrit).
         if (task.getEpreuve() == EpreuveType.TCF_EO) {
             stripOrthographicCorrections(feedback);
+            // MEME LOGIQUE, ETENDUE AUX AUTRES CHAMPS DE RESTITUTION
+            // (commentaires de critere, priorites, suggestions) : un reproche
+            // adosse a UN SEUL mot de la transcription est un artefact de
+            // reconnaissance vocale, pas une erreur du candidat. Purge egalement
+            // les exemples corriges qui se fondent sur une notion orale
+            // interdite — ce champ n'entre dans aucun calcul, le rejeter
+            // detruisait des evaluations entieres. Aucun effet sur la note :
+            // tout ceci est de la restitution, appliquee avant le calcul mais
+            // sur des champs qu'aucun calcul ne lit.
+            var purge = EvaluationOralArtifactFilter.purge(feedback, production);
+            if (purge.aPurge()) {
+                log.info("Restitution orale purgee submission={} : {} remarque(s) de niveau mot, "
+                        + "{} exemple(s) corrige(s) fondes sur un element non evaluable.",
+                    submissionId, purge.remarquesRetirees(), purge.exemplesRetires());
+            }
+            if (purge.remarquesRetirees() > 0) {
+                addAvertissement(feedback, EvaluationOralArtifactFilter.AVERTISSEMENT_ARTEFACT);
+            }
         }
         // Joint le `label` des criteres a chaque score (le LLM ne renvoie que le
         // `code`). Source = la rubrique de la tache (fallback DB) : evite au mobile
