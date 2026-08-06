@@ -7,9 +7,14 @@ import 'package:just_audio/just_audio.dart';
 import '../theme/app_theme.dart';
 import 'app_card.dart';
 
-/// Player audio d'une source distante. Servait d'abord la compréhension orale
-/// (TCF), il est aussi le lecteur des productions orales du candidat : d'où sa
-/// place ici plutôt que dans le runner.
+/// Player audio d'une source **distante ou locale**. Servait d'abord la
+/// compréhension orale (TCF), il est aussi le lecteur des productions orales du
+/// candidat : d'où sa place ici plutôt que dans le runner.
+///
+/// [url] accepte indifféremment une URL `http(s)` (média R2 présigné), une URI
+/// `file://` ou un **chemin de fichier brut** — la réécoute d'une capture qui
+/// n'est pas encore partie sur le réseau passe par là. C'est ce qui évite un
+/// second lecteur pour trois lignes de différence.
 ///
 /// Compte le nombre de lectures pour pouvoir limiter à 2 écoutes côté UI
 /// si on veut imiter les conditions réelles.
@@ -107,9 +112,22 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
     await _load();
   }
 
+  /// `setUrl` ne sait pas ouvrir un chemin de fichier local (pas de schéma) :
+  /// on route vers `setFilePath` dès que la source n'est pas une vraie URL.
+  Future<void> _setSource() async {
+    final uri = Uri.tryParse(widget.url);
+    if (uri != null && uri.hasScheme && uri.scheme != 'file') {
+      await _player.setUrl(widget.url);
+      return;
+    }
+    await _player.setFilePath(
+      uri != null && uri.scheme == 'file' ? uri.toFilePath() : widget.url,
+    );
+  }
+
   Future<void> _load() async {
     try {
-      await _player.setUrl(widget.url);
+      await _setSource();
       if (!mounted) return;
       setState(() => _ready = true);
       // Examen module : on déclenche la lecture automatique 0,5s après le

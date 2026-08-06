@@ -548,6 +548,48 @@
   align-items: flex-start;
 }
 
+/* Colonne centrale du résumé : min-width 0 pour que le titre passe à la ligne
+   au lieu de repousser le bouton d'information hors de la carte à 360 px. */
+.summaryBody {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Bouton d'information : pastille discrète, mais zone cliquable 44 × 44. */
+.infoBtn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  margin: -6px -8px 0 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.infoDot {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--skill-accent) 10%, transparent);
+  color: var(--skill-accent);
+  transition: background 0.15s ease;
+}
+
+.infoBtn:hover .infoDot {
+  background: color-mix(in srgb, var(--skill-accent) 18%, transparent);
+}
+
+.infoBtn:focus-visible {
+  outline: 2px solid var(--skill-accent);
+  outline-offset: -4px;
+  border-radius: 14px;
+}
+
 .summaryTitle {
   font-family: var(--font-display);
   font-size: 19px;
@@ -916,7 +958,7 @@
 
 /* ------------------------------------------------ zone de production (M6) */
 
-/* Carte « Votre réponse » : icône + titre, champ (ou enregistreur), puis un
+/* Carte « Ta réponse » : icône + titre, champ (ou enregistreur), puis un
    pied qui porte l'astuce à gauche et le compteur à droite. Même coquille à
    l'écrit et à l'oral — le parcours est identique, seule la zone change. */
 .answerCard {
@@ -1000,7 +1042,7 @@
   white-space: nowrap;
 }
 
-/* Sur un téléphone, chaque pixel gagné au-dessus de la carte « Votre réponse »
+/* Sur un téléphone, chaque pixel gagné au-dessus de la carte « Ta réponse »
    est un pixel de champ visible sans défiler — c'est le critère de réussite de
    cet écran. On resserre le rythme, jamais la taille du texte : le guidage doit
    rester lisible, sinon on n'a fait que déplacer le problème. */

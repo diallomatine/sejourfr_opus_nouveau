@@ -26,7 +26,17 @@ import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
 
 const POLL_MS = 3000;
-const MAX_POLLS = 40; // ~2 min
+/**
+ * Plafond de polling **partagé mot pour mot avec le mobile : 3 s de cadence,
+ * 120 s de budget**. Il est déclaré en **durée**, pas en nombre de tirages :
+ * c'est la durée qui est la valeur de parité, et c'est en la traduisant chacun
+ * de son côté (« 40 tirages » ici, « timeout 90 s » là-bas) que les deux fronts
+ * avaient divergé — une analyse qui aboutit à 100 s aboutissait sur le web et
+ * échouait sur le mobile. Abandonner une analyse qui allait aboutir est le pire
+ * des deux défauts : on retient la valeur la plus généreuse.
+ */
+const POLL_BUDGET_MS = 120_000;
+const MAX_POLLS = Math.floor(POLL_BUDGET_MS / POLL_MS);
 
 /** Habillage du verdict du critère unique.
  *
@@ -195,7 +205,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
             </div>
 
             <div className={s.answerBox}>
-              <span className={s.answerLabel}>Votre production</span>
+              <span className={s.answerLabel}>Ta production</span>
               {/* L'oral conserve son audio : se réécouter en lisant le retour
                   est la moitié de la valeur de l'exercice. Même lecteur que
                   l'enregistreur (`EoRecordingForm`) — l'URL R2 est présignée
@@ -234,7 +244,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                   )}
                   {attempt.selfEvaluation && (
                     <span className={s.chip}>
-                      Votre ressenti : {SKILL_SELF_EVALUATION_LABEL[attempt.selfEvaluation]}
+                      Ton ressenti : {SKILL_SELF_EVALUATION_LABEL[attempt.selfEvaluation]}
                     </span>
                   )}
                 </div>
@@ -246,8 +256,8 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                 <div className={s.spinner} />
                 <p className={s.pendingText}>
                   {attempt.statut === "TRANSCRIBING"
-                    ? "Transcription de votre enregistrement…"
-                    : "Analyse de votre réponse…"}
+                    ? "Transcription de ton enregistrement…"
+                    : "Analyse de ta réponse…"}
                 </p>
               </div>
             ) : failed ? (
@@ -256,7 +266,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                   <p className={s.inviteTitle}>L&apos;analyse n&apos;a pas abouti</p>
                   <p className={s.inviteSub}>
                     {attempt.errorMessage ??
-                      "Votre production est bien enregistrée. Vous pouvez relancer l'analyse."}
+                      "Ta production est bien enregistrée. Tu peux relancer l'analyse."}
                   </p>
                 </div>
                 <button
@@ -315,7 +325,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
           title="Analyses IA illimitées"
-          message="Vos analyses offertes ont été utilisées. L'abonnement Intégral ouvre l'analyse ciblée sur tous les petits sujets. Produire, s'auto-évaluer et lire les trois références restent gratuits."
+          message="Tes analyses offertes ont été utilisées. L'abonnement Intégral ouvre l'analyse ciblée sur tous les petits sujets. Produire, t'auto-évaluer et lire les trois références restent gratuits."
         />
       </SkillShell>
     </DualChromeShell>
@@ -359,8 +369,8 @@ function AnalysisPanel({
             {analysis
               ? "Verdict, point réussi, priorité et reformulation courte."
               : locked
-                ? "Vos analyses offertes ont été utilisées. Vos références restent accessibles."
-                : "Votre production a été enregistrée sans analyse. Refaites le sujet en cochant l'analyse."}
+                ? "Tes analyses offertes ont été utilisées. Tes références restent accessibles."
+                : "Ta production a été enregistrée sans analyse. Refais le sujet en cochant l'analyse."}
           </span>
         </div>
         <button
@@ -420,7 +430,7 @@ function AnalysisPanel({
             <strong className={s.rewriteLabel}>Proposition améliorée</strong>
             <p className={s.rewriteText}>{analysis.improvedVersion}</p>
             <small className={s.rewriteNote}>
-              Exemple de reformulation : ce n&apos;est pas la seule bonne réponse, et votre
+              Exemple de reformulation : ce n&apos;est pas la seule bonne réponse, et ton
               idée doit être conservée.
             </small>
           </div>

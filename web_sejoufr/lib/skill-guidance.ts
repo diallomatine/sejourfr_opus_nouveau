@@ -21,6 +21,25 @@ import type {SkillConstraintTagDto} from "./types";
 export const MAX_CHECKLIST_ITEMS = 4;
 export const MAX_CONSTRAINT_TAGS = 3;
 
+/**
+ * Plafonds **durs** d'une production de micro-exercice, tels que le serveur les
+ * applique (`sejourfr.competences.analysis.*`). Ce ne sont pas des repères de
+ * confort : au-delà, la soumission est refusée et la production est perdue —
+ * donc on les annonce avant, et on borne la capture audio.
+ *
+ * ⚠️ Aucun DTO ne les expose : ce sont des réglages serveur **recopiés** ici et
+ * sur le mobile, qui divergeront à la première modification d'`application.yaml`
+ * (point C2 de l'audit de parité). La vraie solution est de les publier, par
+ * exemple sur `SkillAnalysisQuotaDto`. En attendant, les deux fronts doivent
+ * porter les mêmes valeurs.
+ *
+ * À ne pas confondre avec `recommendedMinWords` / `recommendedMaxWords` /
+ * `recommendedDurationSeconds`, qui restent **conseillés et non bloquants**
+ * (spec §8 règle 15).
+ */
+export const SKILL_ANALYSIS_MAX_WORDS = 400;
+export const SKILL_ANALYSIS_MAX_AUDIO_SEC = 180;
+
 /** Sous-ensemble de `SkillPromptDto` dont dépend le guidage. Volontairement
  *  minimal : les tests n'ont pas à fabriquer un DTO complet pour vérifier une
  *  règle de dégradation. */

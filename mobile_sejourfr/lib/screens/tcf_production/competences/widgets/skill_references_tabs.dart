@@ -44,8 +44,10 @@ class _SkillReferencesTabsState extends State<SkillReferencesTabs> {
   void initState() {
     super.initState();
     // On ouvre sur « Attendu » : c'est la cible, pas le contre-exemple.
-    _level = widget.references
-            .any((r) => r.level == SkillReferenceLevel.expected)
+    // Liste vide = le widget ne rend rien (l'appelant retire déjà la section
+    // avec son titre) : pas de `.first` sur du vide.
+    _level = widget.references.isEmpty ||
+            widget.references.any((r) => r.level == SkillReferenceLevel.expected)
         ? SkillReferenceLevel.expected
         : widget.references.first.level;
   }

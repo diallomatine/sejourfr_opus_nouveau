@@ -34,20 +34,55 @@ IconData skillConstraintIcon(SkillConstraintIcon icon) => switch (icon) {
       SkillConstraintIcon.unknown => LucideIcons.circleDot,
     };
 
+/// Plafonds du contrat gelé, identiques au web (`skill-guidance.ts`). Le
+/// contenu publié les respecte déjà ; on les applique quand même, pour qu'une
+/// saisie d'administration trop généreuse déborde **en base et non à l'écran**.
+const int kMaxChecklistItems = 4;
+const int kMaxConstraintTags = 3;
+
+/// Les gestes à accomplir, plafonnés. Vide = pas de check-list : l'appelant
+/// retombe sur la consigne du sujet. Le nettoyage (chaînes blanches) est déjà
+/// fait au décodage du DTO.
+List<String> skillChecklist(SkillPromptDto prompt) =>
+    prompt.checklist.take(kMaxChecklistItems).toList(growable: false);
+
+/// Les étiquettes de contrainte, plafonnées. Au-delà de trois, la rangée passe
+/// sur une deuxième ligne et pousse la zone de production sous la ligne de
+/// flottaison.
+List<SkillConstraintTag> skillConstraintTags(SkillPromptDto prompt) =>
+    prompt.constraintTags.take(kMaxConstraintTags).toList(growable: false);
+
+/// Une durée en toutes lettres : `45 secondes`, `1 min 30`, `2 minutes`.
+///
+/// Au-delà de 60 s, « ≈ 90 secondes » se compte de tête ; « ≈ 1 min 30 » se
+/// lit. Même règle que le web (`spellDuration`).
+String _spellDuration(int seconds) {
+  if (seconds < 60) return '$seconds secondes';
+  final minutes = seconds ~/ 60;
+  final rest = seconds % 60;
+  if (rest == 0) return minutes == 1 ? '1 minute' : '$minutes minutes';
+  return '$minutes min $rest';
+}
+
 /// La puce de **longueur**, générée depuis les bornes déjà en base — jamais
 /// portée par une étiquette de contrainte, jamais dupliquée.
 ///
-/// `null` quand le sujet n'a pas de borne : on n'invente pas une consigne de
-/// longueur. Indicatif, **jamais bloquant** (règle 15 de la spec).
+/// `null` quand le sujet n'a aucune borne : on n'invente pas une consigne de
+/// longueur. Une **seule** borne suffit en revanche à écrire un repère
+/// (« ≈ 15 mots minimum ») : la taire, c'était perdre une consigne réellement
+/// posée en base. Indicatif, **jamais bloquant** (règle 15 de la spec).
 String? skillLengthHint(SkillPromptDto prompt) {
   if (prompt.section.isEo) {
     final seconds = prompt.recommendedDurationSeconds;
-    return seconds == null ? null : '≈ $seconds secondes';
+    if (seconds == null || seconds <= 0) return null;
+    return '≈ ${_spellDuration(seconds)}';
   }
   final min = prompt.recommendedMinWords;
   final max = prompt.recommendedMaxWords;
-  if (min == null || max == null) return null;
-  return '≈ $min–$max mots';
+  if (min != null && max != null) return '≈ $min–$max mots';
+  if (min != null) return '≈ $min mots minimum';
+  if (max != null) return '≈ $max mots maximum';
+  return null;
 }
 
 /// Coque commune des cartes de guidage : pastille d'icône teintée de l'accent,

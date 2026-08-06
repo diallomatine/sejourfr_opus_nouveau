@@ -1102,8 +1102,10 @@ verbeux et pas du tout intuitif »). Référence :
 de production doit être **visible sans défiler** sur un téléphone standard
 (`test/competence_prompt_layout_test.dart`, qui pompe le vrai écran à 390×844
 et 375×812 et compare la position du champ au haut du `FixedActionBar`). Tout
-ce qu'on ajoute au-dessus de la carte « Votre réponse » se paie en défilement
-et fera tomber ces tests — c'est le but, ne pas les assouplir.
+ce qu'on ajoute au-dessus de la carte « Ta réponse » se paie en défilement
+et fera tomber ces tests — c'est le but, ne pas les assouplir. Ce qu'on ajoute
+**sous** la zone (lecteur de réécoute, avertissement de transcription) ne les
+concerne pas : c'est là qu'on met la matière nouvelle.
 
 Structure, de haut en bas (`competence_prompt_screen.dart`) :
 1. en-tête (`ScreenHeader`) ;
@@ -1112,10 +1114,12 @@ Structure, de haut en bas (`competence_prompt_screen.dart`) :
 4. `SkillChecklistCard` « Ce qu'il faut faire » ;
 5. `SkillSituationCard` « Situation » ;
 6. `SkillConstraintRow` — puce de longueur **puis** étiquettes de contrainte ;
-7. `SkillAnswerCard` « Votre réponse » — zone de production + pied de carte
-   (astuce à gauche, compteur/durée à droite) ;
-8. **sous** la zone : auto-évaluation, bascule d'analyse IA, tipline ;
-9. `FixedActionBar` : `Valider et comparer` · `Effacer`.
+7. `SkillAnswerCard` « Ta réponse » — icône **crayon à l'écrit, micro à
+   l'oral** — zone de production + pied de carte (astuce à gauche,
+   compteur/durée à droite) ;
+8. à l'oral seulement : `SkillTranscriptNotice`, **sous** l'enregistreur ;
+9. **sous** la zone : auto-évaluation, bascule d'analyse IA, tipline ;
+10. `FixedActionBar` : `Valider et comparer` · `Effacer`.
 
 **Ont été supprimés** (et leurs widgets avec — `criterion_highlight.dart`
 n'existe plus) : le fil d'Ariane sur deux lignes, les badges « Une compétence ·
@@ -1138,7 +1142,16 @@ compteur. **Jamais de carte vide, jamais de « null » à l'écran.**
 
 - La **puce de longueur** est générée par le front depuis les bornes en base
   (`skillLengthHint`) — `≈ 15–35 mots` à l'écrit, `≈ 45 secondes` à l'oral.
-  Une étiquette de contrainte ne doit **jamais** la dupliquer.
+  Une étiquette de contrainte ne doit **jamais** la dupliquer. Règles alignées
+  au mot près sur le web (`lib/skill-guidance.ts`) : **au-delà de 60 s on écrit
+  en minutes** (`≈ 1 min 30`, jamais « 90 secondes »), et **une seule borne de
+  mots reste une consigne** (`≈ 15 mots minimum` / `≈ 35 mots maximum`) au lieu
+  de disparaître.
+- **Plafonds de guidage appliqués à l'affichage** : `skillChecklist` (4 gestes)
+  et `skillConstraintTags` (3 étiquettes), mêmes valeurs que le web. Le DTO
+  reste fidèle au serveur ; c'est le rendu qui tronque, pour qu'une saisie
+  d'administration trop généreuse déborde en base et non à l'écran (une 2ᵉ ligne
+  d'étiquettes coûte la ligne de flottaison).
 - La table **icône ↔ code d'étiquette** est unique et exhaustive
   (`skillConstraintIcon`, `prompt_guidance.dart`), avec
   `SkillConstraintIcon.unknown` comme repli d'un code non prévu. Ne pas
@@ -1150,6 +1163,23 @@ compteur. **Jamais de carte vide, jamais de « null » à l'écran.**
 - `SkillRecorderPanel` **ne porte pas son propre cadre** : il vit dans
   `SkillAnswerCard`, là où l'écrit met son champ. Lui rendre une bordure
   blanche referait une carte dans une carte.
+- **Réécoute AVANT de valider** (parité web) : capture terminée ⇒ le panneau
+  monte le `SejourAudioPlayer` partagé sur le fichier **local** (rien n'est
+  encore parti sur le réseau) + l'invite « Réécoute ta réponse, refais-la ou
+  envoie-la à l'évaluation. ». Une coche et « Réenregistrer » faisaient envoyer
+  à l'évaluation une production que le candidat n'avait pas entendue. Le lecteur
+  partagé accepte désormais une URL `http(s)`, une URI `file://` **ou un chemin
+  brut** (`_setSource` route vers `setFilePath`) — c'est ce qui évite un second
+  lecteur pour trois lignes d'écart.
+- **Compteur du pied de carte** : format du web (`0:12 / 0:45` à l'oral —
+  écoulé / durée conseillée ; `20 / 35 mots` à l'écrit) et **trois teintes**
+  (`SkillMetaTone`) — neutre tant que rien n'est produit, **vert dans la
+  cible**, `amberDark` au-delà. Sans le vert, le candidat n'a que « rien » ou
+  « trop » et n'apprend jamais qu'il est bon.
+- **`SkillTranscriptNotice` (spec §15)** : la note se fonde sur la
+  transcription ; prononciation, accent et intonation ne sont **pas** évalués.
+  C'est le garde-fou central de l'oral — rendu sous l'enregistreur, jamais
+  au-dessus (le micro ne recule pas).
 - `SkillWritingField` est volontairement **distinct de `WritingZone`** (le gros
   éditeur des sujets TCF complets, avec stats, barre de progression et
   confirmation d'effacement) : ici le compteur et l'astuce vivent dans le pied
@@ -1176,7 +1206,14 @@ Points de comportement à ne pas défaire :
 - **Couleurs des références** : `Insuffisant` rouge, `Attendu` vert,
   `Très réussi` bleu (`skillReferenceColor`, `skill_references_tabs.dart`).
   Ce n'est **pas** un niveau CECRL : la règle « jamais de rouge sur un niveau »
-  ne s'y applique pas, le rouge y dit « contre-exemple ».
+  ne s'y applique pas, le rouge y dit « contre-exemple ». Le verdict `PARTIEL`,
+  lui, prend **`amberDark`** (`skillCriterionColor`) : cette couleur habille
+  aussi le **libellé**, et `amber` est un ambre de remplissage illisible en
+  lettres.
+- **Le titre des références part avec son contenu** (`_ReferencesSection`) :
+  aucune référence ⇒ ni intertitre « Compare avec les niveaux de référence », ni
+  widget vide dessous. Il reste pendant le chargement et sur erreur — là, il y a
+  bien quelque chose à annoncer.
 - **La validation reste dans un `FixedActionBar`** (§13.10), désormais avec le
   bouton secondaire « Effacer » à côté.
 
@@ -1209,10 +1246,17 @@ critère, l'afficher « Validé » ou « À renforcer » serait faux. `skill_sta
 le **seul** endroit qui décide de la teinte d'un statut — badge, liseré vertical de carte et
 pastille de numéro en dérivent tous.
 
-**Deux textes de compétence, deux endroits** : `skill.description` (« une courte
-explication ») nourrit l'encart **« Pourquoi cet exercice ? »**, `skill.generalCriterion`
-(« le critère général travaillé ») l'encart **« Critère travaillé »**. Ne pas les rendre au
-même endroit, et ne confondre ni l'un ni l'autre avec `SkillPromptDto.uniqueCriterion`, le
+**Deux textes de compétence, deux endroits** : `skill.generalCriterion` (« le critère
+général travaillé ») reste **toujours visible** dans l'encart **« Critère travaillé »** de la
+carte de résumé ; `skill.description` (« une courte explication ») n'est **plus dans le corps
+de la carte** — six lignes y repoussaient le critère et la liste des sujets (verdict client :
+« elle prend trop de place »). Elle vit derrière la **pastille d'information** en haut à
+droite de la carte (`_SkillInfoButton`, `competence_detail_screen.dart`) : dessin 30×30, zone
+tactile 44×44, libellé « À quoi sert cette compétence ? » en `Semantics` **et** en `Tooltip`,
+tap → `showAppSheet` (titre = nom de la compétence, corps = l'explication). **Description
+vide ou absente ⇒ pas de pastille du tout** — jamais un bouton qui ouvre une feuille vide.
+Verrouillé par `test/competence_detail_summary_test.dart` ; même geste côté web. Ne pas les
+rendre au même endroit, et ne confondre ni l'un ni l'autre avec `SkillPromptDto.uniqueCriterion`, le
 critère précis d'UN petit sujet. L'écran de sujet lit `skillDescription`,
 `skillGeneralCriterion`, `skillPromptCount` et `skillTargetLevel` **portés par le sujet
 lui-même** : le fil d'Ariane « Sujet i/N », le palier et l'encart n'entraînent **aucun**
@@ -1224,7 +1268,9 @@ tentative EO monte `SejourAudioPlayer` (`core/widgets/audio_player.dart`, dépla
 `question_runner/` le jour où un 3ᵉ domaine en a eu besoin) sur `attempt.audioUrl` — URL R2
 présignée 15 min. Le lecteur s'habille via `label`/`icon`/`accent`/`background` ; on ne le
 forke pas. La durée seule ne suffit pas : se réécouter en lisant l'analyse fait la moitié de
-la valeur pédagogique de l'oral.
+la valeur pédagogique de l'oral. **Le même lecteur sert la réécoute d'avant validation** sur
+l'écran de saisie, monté sur le fichier local — deux lecteurs pour un même geste finiraient
+par diverger.
 
 **Libellés du bandeau « Sujet déjà traité »** (identiques au web, mot pour mot) : EE →
 **« Reprendre ma réponse »** (recharge la dernière production dans la zone d'écriture via
@@ -1260,9 +1306,18 @@ serveur — la durée conseillée du sujet reste indicative et ne coupe jamais l
 pour rien) : une tentative EO `RECORDED` n'a donc pas de texte à relire, et l'écran de
 résultat le dit au lieu d'afficher un vide.
 
-**Polling du résultat** : 3 s, arrêt sur `statut.isFinal` ou au bout de 90 s — même contrat
-que `ee_results_screen.dart`. `RECORDED` et `FAILED` sont des statuts **finaux** : on saute
-le bloc IA et on va droit aux références.
+**Polling du résultat** : 3 s, arrêt sur `statut.isFinal` ou au bout de **120 s**.
+`RECORDED` et `FAILED` sont des statuts **finaux** : on saute le bloc IA et on va droit aux
+références. ⚠ **Le plafond est partagé avec le web** (`CompetenceResult`) et vaut désormais
+120 s des deux côtés : les deux fronts avaient suivi des contrats différents (90 s ici,
+40 tirages là-bas), donc une analyse aboutissant en 100 s réussissait sur le web et échouait
+sur mobile. On retient la plus généreuse — échouer une analyse qui allait aboutir est le pire
+des deux défauts. Le changer d'un seul côté rouvre l'écart.
+
+**Libellés figés par le contrat sur l'écran de résultat** (mot pour mot avec le web) :
+**« Ce qui est réussi »** / **« À travailler en priorité »** pour les deux blocs de retour, et
+**« Retour aux petits sujets »** pour l'action de sortie — « Retour aux sujets » se confondait
+avec le mode « Sujets » TCF, qui est un tout autre écran (spec §4).
 
 ## Examen blanc TCF complet (orchestration des 4 épreuves)
 

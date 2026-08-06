@@ -3,7 +3,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/audio_player.dart';
 import '../../audio_recorder_service.dart';
+import '../../widgets/production_blocks.dart';
 import '../../widgets/recording_waveform.dart';
 
 /// Zone de production **orale** d'un petit sujet : micro au repos, capture en
@@ -31,10 +33,16 @@ class SkillRecorderPanel extends StatelessWidget {
   final VoidCallback onStop;
   final VoidCallback onReset;
 
-  static String formatDuration(Duration d) {
-    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$m:$s';
+  /// `0:12` — **même format que le web** (`fmtTimer`) : minutes sans zéro de
+  /// tête, secondes sur deux chiffres. Sert le gros chrono de la capture et le
+  /// compteur du pied de la carte de réponse, qui affiche en plus la cible.
+  static String formatDuration(Duration d) =>
+      formatSeconds(d.inSeconds < 0 ? 0 : d.inSeconds);
+
+  static String formatSeconds(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -43,7 +51,8 @@ class SkillRecorderPanel extends StatelessWidget {
       width: double.infinity,
       child: switch (state.phase) {
         RecordingPhase.recording || RecordingPhase.paused => _recording(),
-        RecordingPhase.finished when state.filePath != null => _finished(),
+        RecordingPhase.finished when state.filePath != null =>
+          _finished(state.filePath!),
         RecordingPhase.requestingPermission => const Padding(
             padding: EdgeInsets.symmetric(vertical: 28),
             child: Center(child: CircularProgressIndicator()),
@@ -144,7 +153,13 @@ class SkillRecorderPanel extends StatelessWidget {
     );
   }
 
-  Widget _finished() {
+  /// Capture terminée : on **réécoute avant de valider**.
+  ///
+  /// Une coche et un bouton « Réenregistrer » ne suffisaient pas — sans
+  /// réécoute, le candidat envoie à l'évaluation une production qu'il n'a pas
+  /// entendue. Le lecteur est le `SejourAudioPlayer` partagé, monté sur le
+  /// fichier **local** encore sur l'appareil (rien n'est envoyé à ce stade).
+  Widget _finished(String filePath) {
     return Column(
       children: [
         Container(
@@ -165,6 +180,21 @@ class SkillRecorderPanel extends StatelessWidget {
         // La durée est affichée par le pied de la carte, à la place exacte du
         // compteur de mots de l'écrit — parité, et pas de doublon.
         const SizedBox(height: 12),
+        SejourAudioPlayer(
+          key: ValueKey(filePath),
+          url: filePath,
+          label: 'TA RÉPONSE',
+          icon: LucideIcons.headphones,
+          accent: accent,
+          background: accent.withValues(alpha: 0.06),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Réécoute ta réponse, refais-la ou envoie-la à l\'évaluation.',
+          textAlign: TextAlign.center,
+          style: AppFonts.ui(size: 12, height: 1.4, color: AppColors.inkSoft),
+        ),
+        const SizedBox(height: 12),
         AppButton(
           label: 'Réenregistrer',
           icon: LucideIcons.refreshCw,
@@ -174,6 +204,30 @@ class SkillRecorderPanel extends StatelessWidget {
           onPressed: onReset,
         ),
       ],
+    );
+  }
+}
+
+/// L'avertissement de transcription de l'oral (spec §15), rendu **sous** le
+/// panneau d'enregistrement pour ne pas repousser le micro.
+///
+/// C'est le garde-fou central de l'oral dans ce projet : la note se fonde sur
+/// ce que la transcription contient, et le correcteur a interdiction d'évaluer
+/// la prononciation, l'accent ou l'intonation. Le dire ici évite qu'un candidat
+/// lise un retour « sur sa langue » en croyant qu'on a jugé sa voix.
+class SkillTranscriptNotice extends StatelessWidget {
+  const SkillTranscriptNotice({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const ProductionNotice(
+      title: 'Évaluation basée sur la transcription',
+      body: 'La note porte sur le contenu et la langue (organisation, '
+          'vocabulaire, grammaire) de ce que tu dis. La prononciation, '
+          'l\'accent et l\'intonation ne sont pas évalués ici — ils compteront '
+          'le jour de l\'examen, face à un examinateur.',
+      tone: AppColors.blue,
+      toneSoft: AppColors.blueLight,
     );
   }
 }

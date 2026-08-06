@@ -130,7 +130,7 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
         <SkillHero
           eyebrow="Parcours TCF"
           title={productionTaskTitle(config.epreuve, n)}
-          text="Travaillez une compétence à la fois, puis réutilisez-la dans un sujet complet."
+          text="Travaille une compétence à la fois, puis réutilise-la dans un sujet complet."
           level={level}
           attempted={overall.attempted}
           total={overall.total}
@@ -138,7 +138,7 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
         />
 
         <SectionHead
-          title="Choisissez une tâche"
+          title="Choisis une tâche"
           text="Chaque tâche développe des compétences différentes."
         />
         <TaskPills
@@ -183,9 +183,9 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
         )}
 
         <SkillNotice title="Principe pédagogique">
-          Vous produisez directement, sans modèle sous les yeux. Chaque petit sujet travaille
+          Tu produis directement, sans modèle sous les yeux. Chaque petit sujet travaille
           un seul critère attendu au TCF, et les références n&apos;apparaissent qu&apos;après
-          votre réponse.
+          ta réponse.
         </SkillNotice>
       </SkillShell>
     </DualChromeShell>

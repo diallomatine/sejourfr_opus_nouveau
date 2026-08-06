@@ -8,6 +8,7 @@ import '../../../core/models/skill_models.dart';
 import '../../../core/router/route_observer.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/app_tag.dart';
 import '../../../core/widgets/fixed_action_bar.dart';
 import '../../../core/widgets/progress_track.dart';
@@ -92,12 +93,12 @@ class _CompetenceDetailScreenState
         child: Column(
           children: [
             ScreenHeader(
-              title: detail?.skill.title ?? 'Compétence',
+              title: 'diallo ${detail?.skill.title }'?? 'Compétence',
               sub: detail == null
                   ? widget.module.title
                   : '${detail.skill.code} · ${widget.module.title}',
               onBack: _back,
-            ),
+            ), /// Diallo
             Expanded(
               child: async.when(
                 skipLoadingOnReload: true,
@@ -208,8 +209,13 @@ class _CompetenceDetailScreenState
 }
 
 /// Carte de résumé de la compétence (`.skill-summary` du prototype) : icône
-/// 48×48 en tête, pilule de palier, titre, explication, puis l'encart
-/// « Critère travaillé » et la progression en sujets traités.
+/// 48×48 en tête, pilule de palier, titre, puis l'encart « Critère travaillé »
+/// et la progression en sujets traités.
+///
+/// L'explication de la compétence (`skill.description`) ne vit **pas** dans le
+/// corps de la carte : six lignes de texte y repoussaient le critère et la
+/// liste des sujets. Elle est derrière la pastille d'information en haut à
+/// droite, qui disparaît quand il n'y a rien à expliquer.
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
     required this.skill,
@@ -266,23 +272,18 @@ class _SummaryCard extends StatelessWidget {
                       skill.title,
                       style: AppFonts.display(size: 19, height: 1.2),
                     ),
-                    // Deux textes, deux endroits : l'explication dit à quoi la
-                    // compétence sert au TCF, le critère général dit ce qui est
-                    // travaillé.
-                    if (skill.description.trim().isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        skill.description,
-                        style: AppFonts.ui(
-                          size: 12,
-                          color: AppColors.inkSoft,
-                          height: 1.45,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
+              // Deux textes, deux endroits : l'explication dit à quoi la
+              // compétence sert au TCF (ici, à la demande), le critère général
+              // dit ce qui est travaillé (dans la carte, toujours visible).
+              if (skill.description.trim().isNotEmpty)
+                _SkillInfoButton(
+                  title: skill.title,
+                  description: skill.description,
+                  accent: accent,
+                ),
             ],
           ),
           if (skill.generalCriterion.trim().isNotEmpty) ...[
@@ -324,6 +325,79 @@ class _SummaryCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Pastille d'information de la carte de résumé : ouvre l'explication de la
+/// compétence dans une feuille. Visuel discret (30×30) mais zone tactile de
+/// 44×44 — la cible minimale, pas la taille du dessin.
+class _SkillInfoButton extends StatelessWidget {
+  const _SkillInfoButton({
+    required this.title,
+    required this.description,
+    required this.accent,
+  });
+
+  static const String _label = 'À quoi sert cette compétence ?';
+
+  final String title;
+  final String description;
+  final Color accent;
+
+  void _open(BuildContext context) {
+    showAppSheet<void>(
+      context,
+      icon: LucideIcons.info,
+      iconBg: accent.withValues(alpha: 0.10),
+      iconColor: accent,
+      title: title,
+      children: [
+        Text(
+          description,
+          style: AppFonts.ui(
+            size: 13.5,
+            color: AppColors.inkSoft,
+            height: 1.55,
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: _label,
+      child: Tooltip(
+        message: _label,
+        child: InkWell(
+          onTap: () => _open(context),
+          customBorder: const CircleBorder(),
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Center(
+              child: Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.surface2,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.line),
+                ),
+                child: Icon(
+                  LucideIcons.info,
+                  size: 15,
+                  color: AppColors.inkSoft,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

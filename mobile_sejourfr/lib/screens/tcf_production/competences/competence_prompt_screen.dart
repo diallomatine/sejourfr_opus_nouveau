@@ -361,7 +361,7 @@ class _PromptViewState extends ConsumerState<_PromptView> {
               // Ce qu'il faut faire — la check-list remplace le critère
               // abstrait. Sans check-list, elle retombe sur la consigne.
               SkillChecklistCard(
-                checklist: prompt.checklist,
+                checklist: skillChecklist(prompt),
                 fallback: prompt.instruction,
                 accent: _accent,
               ),
@@ -376,9 +376,10 @@ class _PromptViewState extends ConsumerState<_PromptView> {
               _ConstraintRowSlot(prompt: prompt),
               SkillAnswerCard(
                 accent: _accent,
+                icon: _isEo ? LucideIcons.mic : LucideIcons.penLine,
                 tip: prompt.tip,
                 meta: _answerMeta(prompt, recording),
-                metaHighlighted: overCap,
+                metaTone: _metaTone(prompt, recording, overCap: overCap),
                 child: _isEo
                     ? Column(
                         children: [
@@ -422,6 +423,13 @@ class _PromptViewState extends ConsumerState<_PromptView> {
                     color: AppColors.amberDark,
                   ),
                 ),
+              ],
+              // Spec §15 — le garde-fou central de l'oral : la note se fonde
+              // sur la transcription, jamais sur la voix. Rendu SOUS le
+              // panneau d'enregistrement pour ne pas repousser le micro.
+              if (_isEo) ...[
+                const SizedBox(height: 10),
+                const SkillTranscriptNotice(),
               ],
               // Tout ce qui suit vit SOUS la zone de production : y remonter
               // quoi que ce soit la ferait passer sous la ligne de flottaison.
@@ -484,12 +492,48 @@ class _PromptViewState extends ConsumerState<_PromptView> {
 
   /// La donnée du pied de la carte de réponse : compteur de mots à l'écrit,
   /// durée capturée à l'oral. Même place, même rôle — c'est la parité.
+  ///
+  /// À l'oral on affiche **écoulé / conseillé** (`0:12 / 0:45`, format du web) :
+  /// un chrono sans cible ne dit pas au candidat s'il est court ou long.
   String _answerMeta(SkillPromptDto prompt, RecordingState recording) {
-    if (_isEo) return SkillRecorderPanel.formatDuration(recording.elapsed);
+    if (_isEo) {
+      final elapsed = SkillRecorderPanel.formatDuration(recording.elapsed);
+      final target = prompt.recommendedDurationSeconds;
+      if (target == null || target <= 0) return elapsed;
+      return '$elapsed / ${SkillRecorderPanel.formatSeconds(target)}';
+    }
     final max = prompt.recommendedMaxWords;
     // La borne haute est indicative : elle s'affiche, elle ne bloque pas.
     if (max == null) return '$_wordCount ${_wordCount > 1 ? "mots" : "mot"}';
     return '$_wordCount / $max mots';
+  }
+
+  /// La teinte du compteur : vert **dans** la cible, ambre au-delà, neutre tant
+  /// que rien n'a été produit. Sans le vert, le candidat n'apprend jamais qu'il
+  /// est bon — il n'a que « rien » ou « trop ».
+  SkillMetaTone _metaTone(
+    SkillPromptDto prompt,
+    RecordingState recording, {
+    required bool overCap,
+  }) {
+    if (_isEo) {
+      if (recording.phase == RecordingPhase.idle ||
+          recording.elapsed == Duration.zero) {
+        return SkillMetaTone.neutral;
+      }
+      final target = prompt.recommendedDurationSeconds;
+      return target == null || recording.elapsed.inSeconds <= target
+          ? SkillMetaTone.inTarget
+          : SkillMetaTone.outOfTarget;
+    }
+    if (_wordCount == 0) return SkillMetaTone.neutral;
+    final min = prompt.recommendedMinWords;
+    final max = prompt.recommendedMaxWords;
+    final inRange = (min == null || _wordCount >= min) &&
+        (max == null || _wordCount <= max);
+    return inRange && !overCap
+        ? SkillMetaTone.inTarget
+        : SkillMetaTone.outOfTarget;
   }
 }
 
@@ -505,7 +549,7 @@ class _ConstraintRowSlot extends StatelessWidget {
   Widget build(BuildContext context) {
     final row = SkillConstraintRow(
       lengthHint: skillLengthHint(prompt),
-      tags: prompt.constraintTags,
+      tags: skillConstraintTags(prompt),
       isEo: prompt.section.isEo,
     );
     if (row.isEmpty) return const SizedBox.shrink();

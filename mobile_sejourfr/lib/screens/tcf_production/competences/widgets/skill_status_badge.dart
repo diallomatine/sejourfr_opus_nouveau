@@ -26,9 +26,14 @@ IconData skillStatusIcon(SkillPromptStatus status) => switch (status) {
     };
 
 /// Teinte d'un verdict IA sur le critère unique.
+///
+/// `PARTIEL` prend **`amberDark`** et non `amber` : cette couleur habille aussi
+/// le libellé du verdict, et `amber` est un ambre de *remplissage*, illisible
+/// en lettres (le CLAUDE.md du module l'interdit en texte). Le web utilise
+/// `--color-amber-dark` au même endroit.
 Color skillCriterionColor(SkillCriterionStatus status) => switch (status) {
       SkillCriterionStatus.validated => AppColors.green,
-      SkillCriterionStatus.partial => AppColors.amber,
+      SkillCriterionStatus.partial => AppColors.amberDark,
       SkillCriterionStatus.notValidated => AppColors.red,
     };
 

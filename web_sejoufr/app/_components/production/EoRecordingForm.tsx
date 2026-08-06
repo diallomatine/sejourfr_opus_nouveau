@@ -5,9 +5,80 @@ import {Clock, Lightbulb, Mic, RotateCcw, Square, Target} from "lucide-react";
 import {formatDurationSec, type ProductionTaskDto} from "@/lib/types";
 import {SkillAccent} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
+import {type ProductionVoice} from "./config";
 import {EoTranscriptNotice} from "./EoTranscriptNotice";
 import {ProductionCriteriaCard} from "./ProductionCriteriaCard";
 import styles from "./production.module.css";
+
+/**
+ * Chrome de l'enregistreur dans les deux voix. Seules figurent ici les phrases
+ * réellement atteignables **hors** mode examen : le mode examen n'existe que
+ * sur les écrans de production TCF, qui vouvoient — dupliquer ses phrases
+ * n'aurait rien apporté qu'une occasion de les voir diverger.
+ */
+const COPY: Record<
+  ProductionVoice,
+  {
+    micSystem: string;
+    micDenied: string;
+    micNotFound: string;
+    micBusy: string;
+    micDefault: string;
+    blockInsecure: string;
+    blockUnsupported: string;
+    blockDenied: string;
+    recording: string;
+    recordingCapped: (cap: string) => string;
+    recorded: string;
+    idle: (range: string, cap: string) => string;
+  }
+> = {
+  vouvoiement: {
+    micSystem:
+      "C'est votre système qui bloque le micro du navigateur (le site, lui, est autorisé). macOS : Réglages Système → Confidentialité et sécurité → Microphone → activez votre navigateur, puis quittez-le et relancez-le.",
+    micDenied:
+      "Accès au micro refusé. Autorisez-le via l'icône à gauche de l'adresse → Microphone, et vérifiez aussi que votre système autorise ce navigateur à utiliser le micro (macOS : Réglages Système → Confidentialité et sécurité → Microphone). Puis réessayez.",
+    micNotFound: "Aucun microphone détecté. Branchez un micro puis réessayez.",
+    micBusy:
+      "Le micro est utilisé par une autre application (visioconférence, dictaphone…). Fermez-la puis réessayez.",
+    micDefault:
+      "Micro inaccessible. Autorisez le microphone dans votre navigateur, puis réessayez.",
+    blockInsecure:
+      "Le micro nécessite une connexion sécurisée (HTTPS) ou localhost. Ouvrez le site en https pour enregistrer.",
+    blockUnsupported:
+      "Votre navigateur ne supporte pas l'enregistrement audio. Essayez Chrome ou Firefox à jour.",
+    blockDenied:
+      "Le navigateur indique que le micro est bloqué pour ce site. Cliquez sur le micro pour réessayer — si rien ne se passe, autorisez-le via l'icône à gauche de l'adresse → Microphone.",
+    recording: "Enregistrement en cours… appuyez sur le carré pour arrêter.",
+    recordingCapped: (cap) =>
+      `Enregistrement en cours… appuyez sur le carré pour arrêter (arrêt automatique à ${cap}).`,
+    recorded: "Réécoutez votre réponse, refaites-la ou envoyez-la à l'évaluation.",
+    idle: (range, cap) =>
+      `Appuyez sur le micro pour autoriser et enregistrer${range}${cap}. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`,
+  },
+  tutoiement: {
+    micSystem:
+      "C'est ton système qui bloque le micro du navigateur (le site, lui, est autorisé). macOS : Réglages Système → Confidentialité et sécurité → Microphone → active ton navigateur, puis quitte-le et relance-le.",
+    micDenied:
+      "Accès au micro refusé. Autorise-le via l'icône à gauche de l'adresse → Microphone, et vérifie aussi que ton système autorise ce navigateur à utiliser le micro (macOS : Réglages Système → Confidentialité et sécurité → Microphone). Puis réessaie.",
+    micNotFound: "Aucun microphone détecté. Branche un micro puis réessaie.",
+    micBusy:
+      "Le micro est utilisé par une autre application (visioconférence, dictaphone…). Ferme-la puis réessaie.",
+    micDefault: "Micro inaccessible. Autorise le microphone dans ton navigateur, puis réessaie.",
+    blockInsecure:
+      "Le micro nécessite une connexion sécurisée (HTTPS) ou localhost. Ouvre le site en https pour enregistrer.",
+    blockUnsupported:
+      "Ton navigateur ne supporte pas l'enregistrement audio. Essaie Chrome ou Firefox à jour.",
+    blockDenied:
+      "Le navigateur indique que le micro est bloqué pour ce site. Clique sur le micro pour réessayer — si rien ne se passe, autorise-le via l'icône à gauche de l'adresse → Microphone.",
+    recording: "Enregistrement en cours… appuie sur le carré pour arrêter.",
+    recordingCapped: (cap) =>
+      `Enregistrement en cours… appuie sur le carré pour arrêter (arrêt automatique à ${cap}).`,
+    recorded: "Réécoute ta réponse, refais-la ou envoie-la à l'évaluation.",
+    idle: (range, cap) =>
+      `Appuie sur le micro pour autoriser et enregistrer${range}${cap}. La 1ʳᵉ fois, ton navigateur te demandera l'accès au micro.`,
+  },
+};
 
 /** Choisit un conteneur audio supporté par le navigateur (Chrome/FF: webm,
  *  Safari: mp4). Whisper accepte ces formats. */
@@ -42,25 +113,24 @@ export interface RecorderCard {
 }
 
 /** Message précis selon le type d'échec de `getUserMedia`. */
-function micErrorMessage(name: string, message: string): string {
+function micErrorMessage(name: string, message: string, voice: ProductionVoice): string {
+  const copy = COPY[voice];
   // Chrome précise "Permission denied by system" quand c'est l'OS (et non le
   // site) qui bloque le navigateur — cas typique : site sur Autoriser mais
   // macOS n'a pas donné le micro à Chrome.
-  if (/system/i.test(message)) {
-    return "C'est votre système qui bloque le micro du navigateur (le site, lui, est autorisé). macOS : Réglages Système → Confidentialité et sécurité → Microphone → activez votre navigateur, puis quittez-le et relancez-le.";
-  }
+  if (/system/i.test(message)) return copy.micSystem;
   switch (name) {
     case "NotAllowedError":
     case "SecurityError":
-      return "Accès au micro refusé. Autorisez-le via l'icône à gauche de l'adresse → Microphone, et vérifiez aussi que votre système autorise ce navigateur à utiliser le micro (macOS : Réglages Système → Confidentialité et sécurité → Microphone). Puis réessayez.";
+      return copy.micDenied;
     case "NotFoundError":
     case "DevicesNotFoundError":
-      return "Aucun microphone détecté. Branchez un micro puis réessayez.";
+      return copy.micNotFound;
     case "NotReadableError":
     case "TrackStartError":
-      return "Le micro est utilisé par une autre application (visioconférence, dictaphone…). Fermez-la puis réessayez.";
+      return copy.micBusy;
     default:
-      return "Micro inaccessible. Autorisez le microphone dans votre navigateur, puis réessayez.";
+      return copy.micDefault;
   }
 }
 
@@ -82,6 +152,9 @@ export function EoRecordingForm({
   criteriaSlot,
   answerCard,
   footerSlot,
+  footerAlwaysVisible = false,
+  maxDurationSec,
+  voice = "vouvoiement",
   examMode = false,
   timeoutSignal = 0,
   onTimeout,
@@ -116,6 +189,29 @@ export function EoRecordingForm({
   /** Inséré juste au-dessus des boutons Refaire / Envoyer, donc visible une fois
    *  la prise enregistrée (auto-évaluation, options de soumission). */
   footerSlot?: ReactNode;
+  /** Rend `footerSlot` **dès l'ouverture de l'écran**, et non plus seulement
+   *  après l'arrêt de l'enregistrement.
+   *
+   *  Ce qu'il porte dans le module « Compétences » — l'auto-évaluation, la
+   *  bascule « Analyser ma réponse avec l'IA » et le rappel « les références
+   *  n'apparaissent qu'après ta production » — est une **décision à prendre
+   *  avant de parler** : arrivée après coup, le candidat avait déjà consommé
+   *  une de ses analyses offertes sans le savoir. Faux par défaut : les écrans
+   *  de production TCF gardent leur pied d'après-prise. */
+  footerAlwaysVisible?: boolean;
+  /** Plafond **dur** de capture, en secondes, hors mode examen : la prise
+   *  s'arrête d'elle-même et la durée transmise est bornée à cette valeur.
+   *
+   *  C'est le reflet d'un garde **serveur** (`sejourfr.competences.analysis`),
+   *  pas un réglage d'affichage : sans lui, un enregistrement de cinq minutes
+   *  partait puis était refusé, production perdue. À ne pas confondre avec
+   *  `task.dureeMaxSec`, qui reste la durée **conseillée** (indicative) et
+   *  pilote seule le décompte du mode examen. Absent = aucune borne, le
+   *  comportement historique. */
+  maxDurationSec?: number | null;
+  /** Voix du chrome de l'enregistreur. Vouvoiement par défaut ; le module
+   *  « Compétences » tutoie. Ne touche jamais au texte du sujet. */
+  voice?: ProductionVoice;
   /** En examen blanc : décompte par tâche (dureeMaxSec), auto-stop à 0 et
    *  soumission immédiate au stop (manuel ou auto) — pas d'étape de réécoute. */
   examMode?: boolean;
@@ -158,6 +254,11 @@ export function EoRecordingForm({
   // `onSubmit` (le parent finalise l'épreuve au lieu d'enchaîner la tâche).
   const timeoutOnStopRef = useRef(false);
   const lastTimeoutSignalRef = useRef(0);
+
+  const copy = COPY[voice];
+  // Plafond dur de capture : hors examen seulement (en examen, c'est
+  // `task.dureeMaxSec` qui borne déjà la prise et déclenche la soumission).
+  const hardCapSec = !examMode && maxDurationSec != null && maxDurationSec > 0 ? maxDurationSec : null;
 
   // Nettoyage : stoppe le flux micro + révoque l'URL à la destruction.
   useEffect(() => {
@@ -295,8 +396,13 @@ export function EoRecordingForm({
             // Examen : auto-stop quand la durée max est atteinte.
             if (examMode && task.dureeMaxSec != null && next >= task.dureeMaxSec) {
               stopExam(next);
+            } else if (hardCapSec != null && next >= hardCapSec) {
+              // Hors examen : plafond dur du serveur. On coupe la capture au
+              // lieu d'envoyer un fichier qui sera refusé — le candidat garde
+              // ce qu'il a dit et peut le réécouter avant d'envoyer.
+              stopAtHardCap();
             }
-            return next;
+            return Math.min(next, hardCapSec ?? next);
           }),
         1000,
       );
@@ -307,7 +413,7 @@ export function EoRecordingForm({
           ? String((e as {message?: unknown}).message)
           : "";
       if (name === "NotAllowedError" || name === "SecurityError") setMicState("denied");
-      setPermError(micErrorMessage(name, message));
+      setPermError(micErrorMessage(name, message, voice));
     }
   }
 
@@ -318,6 +424,16 @@ export function EoRecordingForm({
       return;
     }
     recorderRef.current?.stop();
+  }
+
+  /** Arrête la capture au plafond dur (hors examen) : chemin d'arrêt normal —
+   *  le candidat retrouve sa prise, la réécoute, la refait ou l'envoie. */
+  function stopAtHardCap() {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
   }
 
   /** Arrête l'enregistrement en mode examen → soumission immédiate dans `onstop`. */
@@ -371,16 +487,16 @@ export function EoRecordingForm({
   const blocked = micState === "insecure" || micState === "unsupported";
   const blockMsg =
     micState === "insecure"
-      ? "Le micro nécessite une connexion sécurisée (HTTPS) ou localhost. Ouvrez le site en https pour enregistrer."
+      ? copy.blockInsecure
       : micState === "unsupported"
-        ? "Votre navigateur ne supporte pas l'enregistrement audio. Essayez Chrome ou Firefox à jour."
+        ? copy.blockUnsupported
         : micState === "denied"
-          ? "Le navigateur indique que le micro est bloqué pour ce site. Cliquez sur le micro pour réessayer — si rien ne se passe, autorisez-le via l'icône à gauche de l'adresse → Microphone."
+          ? copy.blockDenied
           : null;
 
   // Corps de l'enregistreur, partagé par les deux présentations (panneau
-  // historique et carte « Votre réponse ») : le dupliquer serait la garantie de
-  // voir un correctif n'atterrir que d'un côté.
+  // historique et carte de réponse) : le dupliquer serait la garantie de voir
+  // un correctif n'atterrir que d'un côté.
   const recorder = (
     <div className={styles.recorder}>
       <div className={`${styles.timerBig} ${timerClass}`}>{fmtTimer(shownSec)}</div>
@@ -410,16 +526,19 @@ export function EoRecordingForm({
         {phase === "recording"
           ? examCountdown
             ? "Enregistrement en cours… arrêt automatique à 0:00, ou appuyez sur le carré pour soumettre."
-            : "Enregistrement en cours… appuyez sur le carré pour arrêter."
+            : hardCapSec != null
+              ? copy.recordingCapped(fmtTimer(hardCapSec))
+              : copy.recording
           : phase === "recorded"
             ? examMode
               ? "Réponse envoyée à l'évaluation…"
-              : "Réécoutez votre réponse, refaites-la ou envoyez-la à l'évaluation."
+              : copy.recorded
             : examCountdown
               ? `Appuyez sur le micro : vous avez ${rangeLabel || formatDurationSec(max ?? 0)} et votre réponse est soumise dès l'arrêt. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`
-              : `Appuyez sur le micro pour autoriser et enregistrer${
-                  rangeLabel ? ` (durée conseillée ${rangeLabel})` : ""
-                }. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`}
+              : copy.idle(
+                  rangeLabel ? ` (durée conseillée ${rangeLabel})` : "",
+                  hardCapSec != null ? `, ${formatDurationSec(hardCapSec)} maximum` : "",
+                )}
       </p>
 
       {!examMode && phase === "recorded" && audioUrl && (
@@ -480,7 +599,7 @@ export function EoRecordingForm({
 
       {/* En carte, l'avertissement passe SOUS l'enregistreur : il reste dit, il
           ne repousse plus le micro sous la ligne de flottaison. */}
-      {!answerCard && <EoTranscriptNotice />}
+      {!answerCard && <EoTranscriptNotice voice={voice} />}
 
       {answerCard ? (
         <section className={s.answerCard}>
@@ -514,13 +633,16 @@ export function EoRecordingForm({
         <div className={`${s.card} ${s.panel}`}>{recorder}</div>
       )}
 
-      {answerCard && <EoTranscriptNotice />}
+      {answerCard && <EoTranscriptNotice voice={voice} />}
 
       {(blockMsg || permError || error) && (
         <div className={s.error}>{blockMsg ?? permError ?? error}</div>
       )}
 
-      {!examMode && phase === "recorded" && footerSlot}
+      {/* Ce que porte ce pied — auto-évaluation, option d'analyse IA, rappel
+          sur les références — se décide AVANT de parler : c'est pour ça qu'il
+          peut être rendu dès l'ouverture de l'écran. */}
+      {!examMode && (footerAlwaysVisible || phase === "recorded") && footerSlot}
 
       {!examMode && phase === "recorded" && (
         <div className={s.actionRow}>
@@ -528,7 +650,10 @@ export function EoRecordingForm({
             type="button"
             className={s.primary}
             disabled={submitting}
-            onClick={() => blobRef.current && onSubmit(blobRef.current, elapsed)}
+            onClick={() =>
+              blobRef.current &&
+              onSubmit(blobRef.current, Math.min(elapsed, hardCapSec ?? elapsed))
+            }
           >
             {submitting ? "Envoi en cours…" : submitLabel}
           </button>

@@ -47,7 +47,12 @@ class CompetenceResultScreen extends ConsumerStatefulWidget {
 
 class _CompetenceResultScreenState
     extends ConsumerState<CompetenceResultScreen> {
-  static const Duration _pollMaxDuration = Duration(seconds: 90);
+  /// **Valeur partagée avec le web** (`CompetenceResult`) : 3 s d'intervalle,
+  /// plafond 120 s. Les deux fronts divergeaient (90 s ici, 40 tirages là-bas) :
+  /// une analyse qui aboutissait en 100 s réussissait sur le web et échouait
+  /// sur mobile. On retient la plus généreuse — échouer une analyse qui allait
+  /// aboutir est le pire des deux défauts. À changer des deux côtés.
+  static const Duration _pollMaxDuration = Duration(seconds: 120);
 
   Timer? _poll;
   DateTime _pollStartedAt = DateTime.now();
@@ -71,7 +76,8 @@ class _CompetenceResultScreenState
   }
 
   /// Même contrat que les résultats de production : 3 s d'intervalle, arrêt
-  /// sur statut final ou au bout de 90 s (protège d'une analyse bloquée).
+  /// sur statut final ou au bout de [_pollMaxDuration] (protège d'une analyse
+  /// bloquée).
   void _startPolling() {
     _poll?.cancel();
     _pollStartedAt = DateTime.now();
@@ -200,7 +206,8 @@ class _CompetenceResultScreenState
             _VerdictCard(analysis: analysis),
             const SizedBox(height: 9),
             _FeedbackItem(
-              label: 'Point réussi',
+              // Libellés figés par le contrat, mot pour mot avec le web.
+              label: 'Ce qui est réussi',
               text: analysis.successPoint,
               color: AppColors.green,
               soft: AppColors.greenLight,
@@ -208,7 +215,7 @@ class _CompetenceResultScreenState
             ),
             const SizedBox(height: 9),
             _FeedbackItem(
-              label: 'Priorité pour progresser',
+              label: 'À travailler en priorité',
               text: analysis.improvementPriority,
               color: AppColors.amberDark,
               soft: AppColors.amberLight,
@@ -243,22 +250,13 @@ class _CompetenceResultScreenState
           ),
         ],
         const SizedBox(height: 17),
-        Text(
-          'Compare avec les niveaux de référence',
-          style: AppFonts.display(size: 15),
-        ),
-        const SizedBox(height: 8),
-        referencesAsync.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator()),
-          ),
-          error: (e, _) => ProductionErrorView(
-            message: ApiClient.toApiException(e).message,
-            onRetry: () => ref
-                .invalidate(skillReferencesProvider(attempt.skillPromptId)),
-          ),
-          data: (refs) => SkillReferencesTabs(references: refs),
+        // Le titre part avec son contenu : un sujet sans référence n'affiche
+        // pas « Compare avec… » au-dessus du vide (et n'expose plus les onglets
+        // à une liste vide, qui les faisait échouer à l'initialisation).
+        _ReferencesSection(
+          async: referencesAsync,
+          onRetry: () =>
+              ref.invalidate(skillReferencesProvider(attempt.skillPromptId)),
         ),
         const SizedBox(height: 20),
         _Actions(
@@ -274,6 +272,48 @@ class _CompetenceResultScreenState
 // ---------------------------------------------------------------------------
 // Blocs
 // ---------------------------------------------------------------------------
+
+/// Les trois références comparatives, **titre compris**.
+///
+/// Le titre appartient au contenu : sans référence, la section entière
+/// disparaît au lieu de laisser un intertitre orphelin au-dessus d'un widget
+/// vide. Pendant le chargement et sur erreur, le titre reste — il y a bien
+/// quelque chose à annoncer.
+class _ReferencesSection extends StatelessWidget {
+  const _ReferencesSection({required this.async, required this.onRetry});
+
+  final AsyncValue<List<SkillReferenceDto>> async;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final refs = async.valueOrNull;
+    if (async.hasValue && refs!.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Compare avec les niveaux de référence',
+          style: AppFonts.display(size: 15),
+        ),
+        const SizedBox(height: 8),
+        async.when(
+          skipLoadingOnReload: true,
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (e, _) => ProductionErrorView(
+            message: ApiClient.toApiException(e).message,
+            onRetry: onRetry,
+          ),
+          data: (list) => SkillReferencesTabs(references: list),
+        ),
+      ],
+    );
+  }
+}
 
 /// `.result-title` du prototype : pastille verte 38×38 à coche, « Sujet marqué
 /// comme traité », puis la conséquence sur la progression.
@@ -806,7 +846,9 @@ class _Actions extends StatelessWidget {
           children: [
             Expanded(
               child: AppButton(
-                label: 'Retour aux sujets',
+                // « Retour aux sujets » se confondait avec le mode « Sujets »
+                // TCF, qui est un tout autre écran (spec §4).
+                label: 'Retour aux petits sujets',
                 variant: AppButtonVariant.outline,
                 height: 46,
                 onPressed: onBackToList,

@@ -1130,6 +1130,57 @@ sujet. Ne jamais réintroduire `ProductionScoreHero`/`formatNoteSur20` ici.
   « Validé » comme « À renforcer » seraient tous les deux faux. Les quatre
   statuts se distinguent par couleur **et** icône **et** libellé, plus un liseré
   vertical sur la carte de sujet.
+
+### Le candidat est TUTOYÉ dans tout le module (décision client)
+
+Règle de langue du module « Compétences », des deux côtés (web ⇄ mobile), à ne
+pas laisser redériver.
+
+- **Périmètre : le chrome, et rien d'autre** — titres de cartes, libellés de
+  champs, boutons, aides, messages d'état, d'erreur et d'encouragement.
+  « Votre réponse » → « **Ta réponse** », « Votre ressenti » → « **Ton
+  ressenti** », « Comparez avec les niveaux de référence » → « **Compare**
+  avec… », « Rédigez votre réponse ici… » → « **Écris ta réponse ici…** ».
+  Conjugaisons, accords et pronoms suivent : « vous pouvez » → « tu peux »,
+  « Décochez » → « Décoche ».
+- **Ce qui ne change PAS : le texte des sujets** (`context`, `instruction`,
+  `uniqueCriterion`, les 3 références, `checklist`, `tip`, `answerStarter`). Il
+  vient de la base et reproduit une situation d'examen TCF, où l'énoncé vouvoie
+  (« Vous partez trois jours… »). Le retoucher demanderait de régénérer les 240
+  sujets et les rendrait moins fidèles à l'épreuve. Une passe éditoriale à part,
+  à demander explicitement.
+- **Ce qui ne change pas non plus : les écrans hors module.** Les sujets TCF
+  complets, la session d'examen blanc production et `ProductionResults`
+  vouvoient toujours. C'est pourquoi les formulaires partagés
+  (`EeWritingForm`, `EoRecordingForm`, `EoTranscriptNotice`) reçoivent une prop
+  **`voice`** (`ProductionVoice`, dans `production/config.ts`) qui vaut
+  `"vouvoiement"` par défaut : le module pose `"tutoiement"`, personne d'autre.
+  **Ne jamais tutoyer en dur dans un fichier partagé.**
+- **Relecture** : `grep -rniE "vous |votre |vos |-vous" app/_components/competences/
+  app/_components/skill-ui/` doit rester vide, hors commentaires nommant des
+  écrans de production TCF. Un tutoiement à moitié appliqué est pire que pas de
+  tutoiement.
+
+### Plafonds durs de production (400 mots / 180 s)
+
+`SKILL_ANALYSIS_MAX_WORDS` et `SKILL_ANALYSIS_MAX_AUDIO_SEC`
+(`lib/skill-guidance.ts`, figés par `skill-guidance.test.ts`) recopient les
+gardes **serveur** `sejourfr.competences.analysis.*`. Au-delà, la soumission est
+refusée et la production est perdue — donc :
+
+- l'écrit **annonce** la limite au-dessus du bouton de validation (avertissement,
+  pas blocage) ;
+- l'oral **borne la capture** (`maxDurationSec`), au lieu d'envoyer un fichier
+  qui sera refusé ; le candidat garde sa prise, la réécoute, la refait ou
+  l'envoie.
+
+Ils ne remplacent pas `recommendedMinWords` / `recommendedMaxWords` /
+`recommendedDurationSeconds`, qui restent **conseillés et non bloquants** (spec
+§8 règle 15). ⚠️ Aucun DTO ne les publie : ce sont des réglages serveur
+recopiés dans les deux fronts, qui divergeront à la première modification
+d'`application.yaml` (point C2 de l'audit de parité). La vraie solution est de
+les exposer, par exemple sur `SkillAnalysisQuotaDto`.
+
 ### Écran de saisie d'un petit sujet — il fait faire, il n'explique pas
 
 Refonte demandée par le client (« beaucoup trop verbeux et pas du tout
@@ -1144,11 +1195,11 @@ haut : le candidat lisait une leçon au lieu de produire.
 **Structure, de haut en bas** (identique en EE et en EO) : en-tête · ligne
 compacte `Sujet i/N` + pilule de palier · `Progression` + barre · carte **« Ce
 qu'il faut faire »** (la check-list) · carte **« Situation »** · rangée de puces
-(longueur + contraintes) · carte **« Votre réponse »** (champ ou enregistreur,
+(longueur + contraintes) · carte **« Ta réponse »** (champ ou enregistreur,
 astuce et compteur en pied) · auto-évaluation **sous** la zone de production ·
 actions `Valider et comparer` / `Effacer`.
 
-- **Critère de réussite, mesuré** : à 360 px la carte « Votre réponse » commence
+- **Critère de réussite, mesuré** : à 360 px la carte « Ta réponse » commence
   à ~468 px et le champ à ~516 px — visible sans défiler. C'est ce chiffre qui
   justifie le bloc `@media (max-width: 420px)` de `skill.module.css` (rythme
   resserré, puces à 11 px pour tenir sur **une** ligne : une seconde ligne de
@@ -1188,6 +1239,24 @@ actions `Valider et comparer` / `Effacer`.
   EE seulement, `lengthAdvisory` + `clearLabel`. ⚠️ Ces formulaires sont
   partagés avec les écrans de production TCF et la session d'examen blanc :
   **toute prop ajoutée reste optionnelle**, comportement actuel par défaut.
+  - **`voice`** (les deux formulaires, + `EoTranscriptNotice`) : `"vouvoiement"`
+    par défaut, `"tutoiement"` posé par le module — cf. la règle de tutoiement
+    plus bas. Elle ne pilote que le **chrome** (texte grisé du champ,
+    avertissement de longueur non bloquant, aides du micro, messages de
+    permission), jamais le sujet ni l'amorce venus de la base.
+  - **`footerAlwaysVisible`** (EO) : rend `footerSlot` **dès l'ouverture**, au
+    lieu d'attendre l'arrêt de l'enregistrement. Ce que ce pied porte —
+    auto-évaluation, bascule « Analyser ma réponse avec l'IA », rappel sur les
+    références — se décide **avant de parler** : arrivé après coup, le candidat
+    avait déjà consommé une de ses analyses offertes sans le savoir (parité
+    mobile, où ces blocs sont permanents sous la carte de réponse). Faux par
+    défaut : les écrans de production TCF gardent leur pied d'après-prise.
+  - **`maxDurationSec`** (EO) : plafond **dur** de capture hors examen — la
+    prise s'arrête d'elle-même et la durée transmise est bornée. Reflet d'un
+    garde serveur, pas d'un réglage d'affichage : sans lui, un enregistrement de
+    cinq minutes partait puis était refusé, production perdue. À ne pas
+    confondre avec `task.dureeMaxSec`, qui reste la durée **conseillée** et
+    pilote seule le décompte du mode examen. Absent = aucune borne.
   - **`lengthAdvisory` (EE) : la fourchette AVERTIT sans bloquer.** `motsMin` /
     `motsMax` sont désormais **transmis** (ils étaient annulés, ce qui rendait la
     fourchette purement décorative) ; avec ce drapeau la soumission reste ouverte
@@ -1204,8 +1273,16 @@ actions `Valider et comparer` / `Effacer`.
   changement de `key`.
 - **Deux textes, deux endroits** : `SkillDto.generalCriterion` = le critère
   général → encart **« Critère travaillé »** de l'écran compétence ;
-  `SkillDto.description` = la courte explication → paragraphe de la carte de
-  résumé (niveau 4). Ne jamais rendre le même texte aux deux places. Le critère
+  `SkillDto.description` = la courte explication → **derrière le bouton
+  d'information** de la carte de résumé (niveau 4), plus dans son corps : six
+  lignes de texte y repoussaient le critère et la liste des sujets sous la ligne
+  de flottaison (demande client, menée en parité avec le mobile). Le bouton est
+  une pastille `Info` en haut à droite de la carte (`.infoBtn` / `.infoDot`,
+  zone cliquable 44 × 44 pour une pastille de 28), il ouvre la `ConfirmSheet`
+  `tone="info"` — titre = nom de la compétence, corps = la description — et
+  **n'est pas rendu du tout quand `description` est vide** (pas de feuille
+  vide). Le focus revient sur la pastille à la fermeture.
+  Ne jamais rendre le même texte aux deux places. Le critère
   du **sujet**, lui, est `SkillPromptDto.uniqueCriterion` — encore un troisième
   texte. ⚠️ Depuis la refonte de l'écran de saisie, **ni `description` ni
   `uniqueCriterion` ne s'affichent sur l'écran d'un petit sujet** : la
@@ -1239,7 +1316,13 @@ actions `Valider et comparer` / `Effacer`.
   réussi` → les 3 actions (`Retour aux petits sujets`, `Refaire ce sujet`,
   `Sujet suivant à travailler` via `nextPromptId`, désactivé si null). Les
   références ne sont **jamais** visibles avant d'avoir produit (§13.2, doublé
-  d'un 403 serveur). Polling 3 s / 40 tirages, comme `ProductionResults`. En EO,
+  d'un 403 serveur). **Polling 3 s, plafond 120 s — valeur de parité, partagée
+  mot pour mot avec le mobile** et déclarée en **durée** (`POLL_BUDGET_MS`), pas
+  en nombre de tirages : c'est en la traduisant chacun de son côté (« 40
+  tirages » ici, « timeout 90 s » là-bas) que les deux fronts avaient divergé,
+  une analyse de 100 s aboutissant sur le web et échouant sur le mobile. On
+  retient la valeur la plus généreuse — abandonner une analyse qui allait
+  aboutir est le pire des deux défauts. En EO,
   le bloc `Ta production` porte le **lecteur audio** (`SkillAttemptDto.audioUrl`,
   URL R2 présignée 15 min, même `<audio controls preload="metadata">` que
   `EoRecordingForm`) **et** la durée : se réécouter en lisant le retour est la

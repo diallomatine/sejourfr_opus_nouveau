@@ -1,4 +1,4 @@
-/// La carte « Votre réponse » d'un petit sujet.
+/// La carte « Ta réponse » d'un petit sujet.
 ///
 /// **Une seule coque pour l'écrit et pour l'oral** : c'est ce qui garantit la
 /// parité. Ce qui change entre les deux, c'est uniquement la zone de production
@@ -11,20 +11,41 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/app_theme.dart';
 
+/// La teinte du pied de carte : le compteur dit **où on en est** de la cible.
+///
+/// Sans état « dans la cible », le candidat n'a que deux informations — neutre
+/// ou trop long — et rien ne lui confirme qu'il est bon. Miroir du web
+/// (`counterOk` / `counterWarn`).
+enum SkillMetaTone {
+  /// Rien n'a encore été produit : la cible ne veut rien dire.
+  neutral,
+
+  /// Dans la fourchette conseillée.
+  inTarget,
+
+  /// Hors fourchette (ou au-delà du plafond serveur) : on avertit, on ne
+  /// bloque jamais.
+  outOfTarget,
+}
+
 class SkillAnswerCard extends StatelessWidget {
   const SkillAnswerCard({
     super.key,
     required this.accent,
     required this.child,
-    this.title = 'Votre réponse',
+    this.title = 'Ta réponse',
+    this.icon = LucideIcons.penLine,
     this.tip,
     this.meta,
-    this.metaHighlighted = false,
+    this.metaTone = SkillMetaTone.neutral,
   });
 
   final Color accent;
   final Widget child;
   final String title;
+
+  /// Le crayon à l'écrit, le micro à l'oral : l'icône dit l'épreuve.
+  final IconData icon;
 
   /// L'astuce du sujet, **sans** le mot « Astuce : » — il est ajouté ici.
   /// `null` ⇒ le pied de carte n'affiche que [meta].
@@ -34,9 +55,15 @@ class SkillAnswerCard extends StatelessWidget {
   /// à l'astuce.
   final String? meta;
 
-  /// Passe [meta] en couleur d'accent quand la valeur mérite d'être remarquée
-  /// (dépassement du plafond de mots).
-  final bool metaHighlighted;
+  /// Teinte de [meta] : neutre, vert dans la cible, ambre hors cible.
+  final SkillMetaTone metaTone;
+
+  Color get _metaColor => switch (metaTone) {
+        SkillMetaTone.neutral => AppColors.inkSoft,
+        SkillMetaTone.inTarget => AppColors.green,
+        // `amber` est un ambre de remplissage, illisible en lettres.
+        SkillMetaTone.outOfTarget => AppColors.amberDark,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +82,7 @@ class SkillAnswerCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(LucideIcons.penLine, size: 18, color: accent),
+              Icon(icon, size: 18, color: accent),
               const SizedBox(width: 9),
               Expanded(
                 child: Text(
@@ -109,9 +136,7 @@ class SkillAnswerCard extends StatelessWidget {
                     style: AppFonts.ui(
                       size: 11.5,
                       weight: FontWeight.w700,
-                      color: metaHighlighted
-                          ? AppColors.amberDark
-                          : AppColors.inkSoft,
+                      color: _metaColor,
                     ),
                   ),
                 ],
@@ -204,7 +229,7 @@ class _SkillWritingFieldState extends State<SkillWritingField> {
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
-          hintText: widget.starter ?? 'Écrivez votre réponse ici…',
+          hintText: widget.starter ?? 'Écris ta réponse ici…',
           hintStyle: AppFonts.ui(
             size: 14.5,
             height: 1.55,
@@ -236,7 +261,7 @@ class SkillStarterHint extends StatelessWidget {
         TextSpan(
           children: [
             TextSpan(
-              text: 'Commencez par : ',
+              text: 'Commence par : ',
               style: AppFonts.ui(
                 size: 12,
                 height: 1.45,

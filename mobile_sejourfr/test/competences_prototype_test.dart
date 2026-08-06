@@ -10,6 +10,7 @@ import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_hero.d
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_task_pills.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_prompt_card.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_references_tabs.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_status_badge.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/tcf_production_module.dart';
 
 Widget _host(Widget child) => MaterialApp(
@@ -145,7 +146,32 @@ void main() {
     });
   });
 
+  group('verdict du critère unique', () {
+    test('PARTIEL prend l\'ambre LISIBLE — la couleur habille le libellé', () {
+      expect(skillCriterionColor(SkillCriterionStatus.partial),
+          AppColors.amberDark);
+      expect(skillCriterionColor(SkillCriterionStatus.partial),
+          isNot(AppColors.amber));
+      // Les deux autres verdicts ne bougent pas.
+      expect(
+          skillCriterionColor(SkillCriterionStatus.validated), AppColors.green);
+      expect(skillCriterionColor(SkillCriterionStatus.notValidated),
+          AppColors.red);
+    });
+  });
+
   group('références comparatives', () {
+    testWidgets('aucune référence ⇒ le widget ne rend rien (et ne casse pas)',
+        (tester) async {
+      await tester.pumpWidget(_host(const SkillReferencesTabs(references: [])));
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Attendu'), findsNothing);
+      // L'écran de résultat retire le titre avec le contenu : plus d'intertitre
+      // orphelin au-dessus du vide.
+      expect(find.text('Compare avec les niveaux de référence'), findsNothing);
+    });
+
     test('Insuffisant rouge · Attendu vert · Très réussi bleu', () {
       expect(
         skillReferenceColor(SkillReferenceLevel.insufficient),

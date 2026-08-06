@@ -30,7 +30,7 @@ export function SelfEvaluationPicker({
     <div className={s.selfBlock}>
       <span className={s.selfLabel}>Auto-évaluation</span>
       <p className={s.selfHint}>
-        Facultatif. Votre ressenti n&apos;influence pas la correction.
+        Facultatif. Ton ressenti n&apos;influence pas la correction.
       </p>
       <div className={s.selfRow} role="group" aria-label="Auto-évaluation">
         {CHOICES.map((choice) => {

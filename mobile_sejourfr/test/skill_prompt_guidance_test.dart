@@ -141,15 +141,80 @@ void main() {
       expect(skillLengthHint(prompt), '≈ 45 secondes');
     });
 
-    test('sans borne, aucune longueur inventée', () {
-      expect(skillLengthHint(SkillPromptDto.fromJson(_promptJson({}))), isNull);
-      // Une seule borne ne fait pas une fourchette.
+    test('au-delà de 60 s, elle se lit en minutes', () {
+      String? hint(int sec) => skillLengthHint(
+            SkillPromptDto.fromJson(_promptJson({
+              'section': 'EO',
+              'recommendedDurationSeconds': sec,
+            })),
+          );
+
+      // « ≈ 90 secondes » se compte de tête ; « ≈ 1 min 30 » se lit.
+      expect(hint(90), '≈ 1 min 30');
+      expect(hint(60), '≈ 1 minute');
+      expect(hint(120), '≈ 2 minutes');
+      expect(hint(59), '≈ 59 secondes');
+    });
+
+    test('une seule borne de mots reste une consigne, pas un vide', () {
       expect(
         skillLengthHint(
           SkillPromptDto.fromJson(_promptJson({'recommendedMinWords': 15})),
         ),
+        '≈ 15 mots minimum',
+      );
+      expect(
+        skillLengthHint(
+          SkillPromptDto.fromJson(_promptJson({'recommendedMaxWords': 35})),
+        ),
+        '≈ 35 mots maximum',
+      );
+    });
+
+    test('sans borne, aucune longueur inventée', () {
+      expect(skillLengthHint(SkillPromptDto.fromJson(_promptJson({}))), isNull);
+      // Une durée nulle ou absurde ne fabrique pas de repère.
+      expect(
+        skillLengthHint(
+          SkillPromptDto.fromJson(_promptJson({
+            'section': 'EO',
+            'recommendedDurationSeconds': 0,
+          })),
+        ),
         isNull,
       );
+    });
+  });
+
+  group('plafonds du contrat gelé', () {
+    test('4 gestes et 3 étiquettes au maximum, l\'excédent reste en base', () {
+      final prompt = SkillPromptDto.fromJson(_promptJson({
+        'checklist': ['g1', 'g2', 'g3', 'g4', 'g5', 'g6'],
+        'constraintTags': [
+          {'label': 't1', 'icon': 'TONE'},
+          {'label': 't2', 'icon': 'PERSON'},
+          {'label': 't3', 'icon': 'TIME'},
+          {'label': 't4', 'icon': 'PLACE'},
+        ],
+      }));
+
+      expect(skillChecklist(prompt), ['g1', 'g2', 'g3', 'g4']);
+      expect(skillConstraintTags(prompt).map((t) => t.label),
+          ['t1', 't2', 't3']);
+      // Le DTO, lui, reste fidèle à ce que le serveur a envoyé.
+      expect(prompt.checklist, hasLength(6));
+    });
+
+    test('en dessous du plafond, rien n\'est retiré', () {
+      final prompt = SkillPromptDto.fromJson(_promptJson({
+        'checklist': ['g1', 'g2'],
+        'constraintTags': [
+          {'label': 't1', 'icon': 'TONE'},
+        ],
+      }));
+
+      expect(skillChecklist(prompt), hasLength(2));
+      expect(skillConstraintTags(prompt), hasLength(1));
     });
   });
 
@@ -240,7 +305,7 @@ void main() {
     });
   });
 
-  group('carte « Votre réponse »', () {
+  group('carte « Ta réponse »', () {
     testWidgets('astuce à gauche, compteur à droite', (tester) async {
       await tester.pumpWidget(
         _host(
@@ -253,7 +318,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Votre réponse'), findsOneWidget);
+      expect(find.text('Ta réponse'), findsOneWidget);
       // Le préfixe « Astuce : » est ajouté ici, pas porté par la donnée.
       expect(find.text('Astuce : commencez par bonjour.'), findsOneWidget);
       expect(find.text('0 / 35 mots'), findsOneWidget);
@@ -275,6 +340,54 @@ void main() {
       expect(find.text('0 / 35 mots'), findsOneWidget);
       expect(find.byIcon(LucideIcons.lightbulb), findsNothing);
       expect(find.textContaining('Astuce'), findsNothing);
+    });
+
+    testWidgets('le compteur dit où on en est de la cible', (tester) async {
+      Future<Color> colorFor(SkillMetaTone tone) async {
+        await tester.pumpWidget(
+          _host(
+            SkillAnswerCard(
+              accent: AppColors.blue,
+              meta: '20 / 35 mots',
+              metaTone: tone,
+              child: const SizedBox(height: 40),
+            ),
+          ),
+        );
+        return tester.widget<Text>(find.text('20 / 35 mots')).style!.color!;
+      }
+
+      expect(await colorFor(SkillMetaTone.neutral), AppColors.inkSoft);
+      // Le signal « tu es dans la cible » existe (il manquait au mobile).
+      expect(await colorFor(SkillMetaTone.inTarget), AppColors.green);
+      // Hors cible : l'ambre LISIBLE, jamais l'ambre de remplissage.
+      expect(await colorFor(SkillMetaTone.outOfTarget), AppColors.amberDark);
+      expect(await colorFor(SkillMetaTone.outOfTarget),
+          isNot(AppColors.amber));
+    });
+
+    testWidgets('crayon à l\'écrit, micro à l\'oral', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          const SkillAnswerCard(
+            accent: AppColors.blue,
+            child: SizedBox(height: 40),
+          ),
+        ),
+      );
+      expect(find.byIcon(LucideIcons.penLine), findsOneWidget);
+
+      await tester.pumpWidget(
+        _host(
+          const SkillAnswerCard(
+            accent: AppColors.red,
+            icon: LucideIcons.mic,
+            child: SizedBox(height: 40),
+          ),
+        ),
+      );
+      expect(find.byIcon(LucideIcons.mic), findsOneWidget);
+      expect(find.byIcon(LucideIcons.penLine), findsNothing);
     });
 
     testWidgets('sans astuce ni compteur, aucun pied de carte', (tester) async {
@@ -349,7 +462,7 @@ void main() {
         ),
       );
 
-      expect(find.textContaining('Commencez par'), findsOneWidget);
+      expect(find.textContaining('Commence par'), findsOneWidget);
       expect(
         find.textContaining('Bonjour Madame, je suis votre voisin du…'),
         findsOneWidget,

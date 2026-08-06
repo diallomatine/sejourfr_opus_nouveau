@@ -5,6 +5,7 @@ import {FileText, Lightbulb, Target} from "lucide-react";
 import type {ProductionTaskDto} from "@/lib/types";
 import {SkillAccent} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
+import {type ProductionVoice} from "./config";
 import {ProductionCriteriaCard} from "./ProductionCriteriaCard";
 
 const DRAFT_PREFIX = "sejourfr.ee.draft.";
@@ -29,7 +30,13 @@ function countWords(s: string): number {
   return t ? t.split(/\s+/).length : 0;
 }
 
-const DEFAULT_PLACEHOLDER = "Rédigez votre réponse ici…";
+/** Texte grisé du champ quand le sujet ne propose pas d'amorce. Une des deux
+ *  seules phrases du formulaire écrit qui suit la voix : le reste de son chrome
+ *  est déjà neutre. */
+const DEFAULT_PLACEHOLDER: Record<ProductionVoice, string> = {
+  vouvoiement: "Rédigez votre réponse ici…",
+  tutoiement: "Écris ta réponse ici…",
+};
 
 /**
  * Zone de production présentée en **carte** (icône + titre, champ, pied
@@ -67,6 +74,7 @@ export function EeWritingForm({
   footerSlot,
   lengthAdvisory = false,
   clearLabel,
+  voice = "vouvoiement",
   autoSubmitSignal = 0,
   onAutoSubmit,
   onSubmit,
@@ -108,6 +116,10 @@ export function EeWritingForm({
   /** Ajoute un bouton secondaire qui vide la zone de saisie (et son brouillon).
    *  Absent par défaut : sur une tâche d'examen, effacer n'a pas de sens. */
   clearLabel?: string;
+  /** Voix du chrome du formulaire (texte grisé du champ, avertissement de
+   *  longueur). Vouvoiement par défaut ; le module « Compétences » tutoie. Ne
+   *  touche jamais au texte du sujet, ni à l'amorce fournie par la base. */
+  voice?: ProductionVoice;
   /** Incrémenté par le parent (chrono examen à 0:00) pour déclencher une
    *  auto-soumission du texte courant si recevable. */
   autoSubmitSignal?: number;
@@ -160,7 +172,9 @@ export function EeWritingForm({
     words === 0 || inRange
       ? null
       : lengthAdvisory
-        ? `Longueur conseillée : ${rangeLabel}. Votre réponse en compte ${words} — vous pouvez valider quand même.`
+        ? voice === "tutoiement"
+          ? `Longueur conseillée : ${rangeLabel}. Ta réponse en compte ${words} — tu peux valider quand même.`
+          : `Longueur conseillée : ${rangeLabel}. Votre réponse en compte ${words} — vous pouvez valider quand même.`
         : min != null && words < min
           ? `Encore ${min - words} mot${min - words > 1 ? "s" : ""} avant de pouvoir soumettre (${min} minimum).`
           : `Texte trop long de ${words - (max ?? words)} mot${
@@ -243,7 +257,7 @@ export function EeWritingForm({
             className={`${s.textarea} ${s.textareaBare}`}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={answerCard.placeholder || DEFAULT_PLACEHOLDER}
+            placeholder={answerCard.placeholder || DEFAULT_PLACEHOLDER[voice]}
             disabled={submitting}
             spellCheck
           />
@@ -272,7 +286,7 @@ export function EeWritingForm({
               className={s.textarea}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={DEFAULT_PLACEHOLDER}
+              placeholder={DEFAULT_PLACEHOLDER[voice]}
               disabled={submitting}
               spellCheck
             />

@@ -5,7 +5,12 @@ import {useCallback, useEffect, useState} from "react";
 import {Check, Lock, Mic, PenLine, Sparkles} from "lucide-react";
 import {ApiException, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
-import {answerStarterOf, tipOf} from "@/lib/skill-guidance";
+import {
+  answerStarterOf,
+  SKILL_ANALYSIS_MAX_AUDIO_SEC,
+  SKILL_ANALYSIS_MAX_WORDS,
+  tipOf,
+} from "@/lib/skill-guidance";
 import {findSkillProgress, type SkillProgress} from "@/lib/skill-progress";
 import {handleStartFailure} from "@/lib/start-failure";
 import {
@@ -65,8 +70,8 @@ function AnalysisCopy({allowed}: {allowed: boolean}) {
       </span>
       <span className={s.analysisHint}>
         {allowed
-          ? "Un retour court sur le seul critère de ce sujet. Décochez pour enregistrer votre production sans analyse : les trois références resteront accessibles."
-          : "Vos analyses offertes ont été utilisées. Vous pouvez toujours produire, vous auto-évaluer et lire les trois références."}
+          ? "Un retour court sur le seul critère de ce sujet. Décoche pour enregistrer ta production sans analyse : les trois références resteront accessibles."
+          : "Tes analyses offertes ont été utilisées. Tu peux toujours produire, t'auto-évaluer et lire les trois références."}
       </span>
     </span>
   );
@@ -85,9 +90,15 @@ function AnalysisCopy({allowed}: {allowed: boolean}) {
  * Structure, de haut en bas (maquette client, **identique à l'écrit et à
  * l'oral**) : ligne compacte `Sujet i/N` + palier · barre de progression ·
  * carte **« Ce qu'il faut faire »** (la check-list du sujet) · carte
- * **« Situation »** · puces de contrainte · carte **« Votre réponse »** (champ
+ * **« Situation »** · puces de contrainte · carte **« Ta réponse »** (champ
  * ou enregistreur, astuce et compteur en pied) · auto-évaluation **sous** la
  * zone de production · actions.
+ *
+ * **Le candidat est tutoyé** dans tout le chrome de cet écran (décision
+ * client) ; le texte du sujet, lui, vient de la base et garde le vouvoiement de
+ * l'énoncé d'examen. Les deux formulaires partagés reçoivent donc
+ * `voice="tutoiement"` — ils vouvoient par défaut, pour les écrans de
+ * production TCF.
  *
  * Rien du **comportement** ne bouge : brouillon local, compteur de mots,
  * auto-soumission, capture micro, quota d'analyses IA et paywall sont ceux des
@@ -216,7 +227,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
         handleStartFailure(e, {
           onPaywall: () => setPaywallOpen(true),
           onMessage: setSubmitError,
-          fallbackMessage: "Impossible d'enregistrer votre réponse.",
+          fallbackMessage: "Impossible d'enregistrer ta réponse.",
         });
         setSubmitting(false);
       }
@@ -235,7 +246,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
         setResumeKey((k) => k + 1);
       }
     } catch {
-      setSubmitError("Impossible de récupérer votre réponse précédente.");
+      setSubmitError("Impossible de récupérer ta réponse précédente.");
     } finally {
       setResuming(false);
     }
@@ -259,6 +270,20 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
 
   const footerSlot = (
     <>
+      {/* Plafond **serveur** de longueur, annoncé avant d'écrire : au-delà, la
+          correction est refusée et la production est perdue. Il ne remplace pas
+          la fourchette conseillée du sujet, qui reste indicative et n'empêche
+          jamais de valider. Muet à l'oral — c'est la capture qui y est bornée. */}
+      {!oral && (
+        <p className={s.tipline}>
+          <b>Longueur maximale :</b>
+          <span>
+            Au-delà de {SKILL_ANALYSIS_MAX_WORDS} mots, la correction peut être refusée. Ce
+            sujet se traite en quelques phrases.
+          </span>
+        </p>
+      )}
+
       <SelfEvaluationPicker value={selfEval} disabled={submitting} onChange={setSelfEval} />
 
       <div className={s.analysisBlock}>
@@ -297,7 +322,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
       <p className={s.tipline}>
         <b>Important :</b>
         <span>
-          Les exemples de référence et l&apos;analyse apparaissent seulement après votre
+          Les exemples de référence et l&apos;analyse apparaissent seulement après ta
           production.
         </span>
       </p>
@@ -355,7 +380,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
                   <strong className={s.previousTitle}>Sujet déjà traité</strong>
                   <span className={s.previousText}>
                     {prompt.attemptCount} tentative{prompt.attemptCount > 1 ? "s" : ""}. Le
-                    refaire n&apos;efface rien : chaque essai s&apos;ajoute à votre
+                    refaire n&apos;efface rien : chaque essai s&apos;ajoute à ton
                     historique.
                   </span>
                 </div>
@@ -399,12 +424,18 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
                   promptSlot={promptSlot}
                   criteriaSlot={null}
                   answerCard={{
-                    title: "Votre réponse",
+                    title: "Ta réponse",
                     icon: <Mic size={16} strokeWidth={2.2} />,
                     starter,
                     tip,
                   }}
                   footerSlot={footerSlot}
+                  /* Ces trois blocs se décident AVANT de parler : l'analyse IA
+                     consomme un des essais offerts, et le rappel sur les
+                     références n'a plus d'objet une fois la prise faite. */
+                  footerAlwaysVisible
+                  maxDurationSec={SKILL_ANALYSIS_MAX_AUDIO_SEC}
+                  voice="tutoiement"
                   onSubmit={(audio, durationSec) => void submit({audio, durationSec})}
                 />
               ) : (
@@ -417,12 +448,13 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
                   promptSlot={promptSlot}
                   criteriaSlot={null}
                   answerCard={{
-                    title: "Votre réponse",
+                    title: "Ta réponse",
                     icon: <PenLine size={16} strokeWidth={2.2} />,
                     placeholder: starter,
                     tip,
                   }}
                   footerSlot={footerSlot}
+                  voice="tutoiement"
                   lengthAdvisory
                   clearLabel="Effacer"
                   onSubmit={(texte) => void submit({texte})}
@@ -437,7 +469,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
           title="Analyses IA illimitées"
-          message="Vos analyses offertes ont été utilisées. L'abonnement Intégral ouvre l'analyse ciblée sur tous les petits sujets. Produire, s'auto-évaluer et lire les trois références restent gratuits."
+          message="Tes analyses offertes ont été utilisées. L'abonnement Intégral ouvre l'analyse ciblée sur tous les petits sujets. Produire, t'auto-évaluer et lire les trois références restent gratuits."
         />
       </SkillShell>
     </DualChromeShell>

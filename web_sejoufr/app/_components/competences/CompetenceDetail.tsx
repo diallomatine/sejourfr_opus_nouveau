@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import {useParams, useRouter} from "next/navigation";
-import {useEffect, useState} from "react";
-import {Check, Sparkles} from "lucide-react";
+import {useEffect, useRef, useState} from "react";
+import {Check, Info, Sparkles} from "lucide-react";
 import {ApiException, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {progressPercent} from "@/lib/skill-progress";
@@ -16,6 +16,7 @@ import {
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
 import {type ProductionConfig} from "@/app/_components/production/config";
+import {ConfirmSheet} from "@/app/_components/hub/ConfirmSheet";
 import {CompetenceStatusBadge, promptCardToneClass} from "./CompetenceStatusBadge";
 import {MiniBar, RowChevron, SectionHead, SkillShell} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
@@ -50,6 +51,8 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   const [filter, setFilter] = useState<Filter>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const infoButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (status !== "authenticated" || !skillId) return;
@@ -114,11 +117,24 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                 <span className={s.tile} aria-hidden>
                   <Sparkles size={22} strokeWidth={2.2} />
                 </span>
-                <div>
+                <div className={s.summaryBody}>
                   <span className={`${s.badge} ${s.levelPill}`}>{skill.targetLevel}</span>
                   <h1 className={s.summaryTitle}>{skill.title}</h1>
-                  {skill.description && <p className={s.summaryText}>{skill.description}</p>}
                 </div>
+                {skill.description && (
+                  <button
+                    type="button"
+                    ref={infoButtonRef}
+                    className={s.infoBtn}
+                    aria-label="À quoi sert cette compétence ?"
+                    aria-haspopup="dialog"
+                    onClick={() => setInfoOpen(true)}
+                  >
+                    <span className={s.infoDot} aria-hidden>
+                      <Info size={15} strokeWidth={2.4} />
+                    </span>
+                  </button>
+                )}
               </div>
 
               <div className={s.critBox}>
@@ -181,6 +197,17 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
             <Link href={`${config.base}/tache/${n}`} className={s.footLink}>
               ← Revenir aux sujets TCF complets
             </Link>
+
+            <ConfirmSheet
+              open={infoOpen && !!skill.description}
+              tone="info"
+              title={skill.title}
+              message={skill.description ?? ""}
+              onClose={() => {
+                setInfoOpen(false);
+                infoButtonRef.current?.focus();
+              }}
+            />
           </>
         )}
       </SkillShell>

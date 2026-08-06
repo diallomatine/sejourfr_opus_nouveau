@@ -43,7 +43,7 @@ export function CompetenceReferences({references}: {references: SkillReferenceDt
 
   return (
     <section>
-      <h2 className={s.resultSectionTitle}>Comparez avec les niveaux de référence</h2>
+      <h2 className={s.resultSectionTitle}>Compare avec les niveaux de référence</h2>
       <div className={s.refTabs} role="tablist" aria-label="Niveau de référence">
         {available.map((l) => {
           const on = current.level === l;

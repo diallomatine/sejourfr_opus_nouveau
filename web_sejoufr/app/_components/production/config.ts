@@ -23,6 +23,18 @@ export function productionEntryHref(base: string): string {
 }
 
 /**
+ * Voix employée par le **chrome** d'un formulaire de production (libellés,
+ * aides, messages d'état et d'erreur).
+ *
+ * Décision client : le candidat est **tutoyé** dans le module « Compétences ».
+ * Les écrans de production TCF (sujets complets, session d'examen blanc)
+ * vouvoient encore — d'où une valeur par défaut qui ne change rien. Le drapeau
+ * ne touche **jamais** le texte des sujets, qui vient de la base et reproduit
+ * une situation d'examen où l'énoncé vouvoie.
+ */
+export type ProductionVoice = "vouvoiement" | "tutoiement";
+
+/**
  * Config d'une épreuve productive (Expression écrite / orale). Pilote les
  * composants génériques `Production*` : même flux (compétences ⇄ sujets ⇄
  * examens → input → feedback IA → examen blanc 3 tâches → historique), seul

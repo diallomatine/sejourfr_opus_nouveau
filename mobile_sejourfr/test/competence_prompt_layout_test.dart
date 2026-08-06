@@ -10,6 +10,7 @@ import 'package:sejourfr_mobile/core/models/skill_models.dart';
 import 'package:sejourfr_mobile/core/widgets/fixed_action_bar.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/competence_prompt_screen.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_answer_card.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_recorder_panel.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/tcf_production_module.dart';
 
 /// **Le critère de réussite de cet écran est mesurable** : la zone de
@@ -17,7 +18,7 @@ import 'package:sejourfr_mobile/screens/tcf_production/tcf_production_module.dar
 ///
 /// Ces tests le vérifient sur le vrai écran (pas sur une recomposition de ses
 /// blocs), à deux tailles d'écran réelles, à l'écrit **et** à l'oral. Tout
-/// ajout au-dessus de la carte « Votre réponse » les fera tomber : c'est le but.
+/// ajout au-dessus de la carte « Ta réponse » les fera tomber : c'est le but.
 ///
 /// Ils verrouillent aussi ce qui a **disparu** — l'écran fait produire, il
 /// n'explique plus.
@@ -197,6 +198,15 @@ Future<void> _pumpPrompt(
 double _foldOf(WidgetTester tester) =>
     tester.getRect(find.byType(FixedActionBar)).top;
 
+/// La liste construit ses enfants à la demande : pour affirmer qu'un bloc est
+/// **absent**, il faut d'abord l'avoir fait défiler en entier.
+Future<void> _scrollListToEnd(WidgetTester tester) async {
+  for (var i = 0; i < 6; i++) {
+    await tester.drag(find.byType(ListView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+  }
+}
+
 void main() {
   setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
 
@@ -257,7 +267,7 @@ void main() {
         expect(find.text('Saluez votre voisine'), findsOneWidget);
         expect(find.text('Situation'), findsOneWidget,
             reason: '$section : pas de situation');
-        expect(find.text('Votre réponse'), findsOneWidget);
+        expect(find.text('Ta réponse'), findsOneWidget);
         expect(find.text('Vouvoiement'), findsOneWidget,
             reason: '$section : pas d\'étiquette de contrainte');
         expect(find.text('Ton poli'), findsOneWidget);
@@ -281,9 +291,86 @@ void main() {
         })),
       );
       expect(find.text('≈ 45 secondes'), findsOneWidget);
-      // À l'oral le compteur de mots devient la durée.
+      // À l'oral le compteur de mots devient la durée, **avec sa cible** —
+      // un chrono seul ne dit pas si on est court ou long (parité web).
       expect(find.textContaining('mots'), findsNothing);
-      expect(find.text('00:00'), findsOneWidget);
+      expect(find.text('0:00 / 0:45'), findsOneWidget);
+    });
+
+    testWidgets('la puce de durée se lit en minutes au-delà de 60 s',
+        (tester) async {
+      await _pumpPrompt(
+        tester,
+        prompt: SkillPromptDto.fromJson(_promptJson({
+          'section': 'EO',
+          'recommendedDurationSeconds': 90,
+        })),
+      );
+
+      expect(find.text('≈ 1 min 30'), findsOneWidget);
+      expect(find.textContaining('90 secondes'), findsNothing);
+      expect(find.text('0:00 / 1:30'), findsOneWidget);
+    });
+  });
+
+  group('avertissement de transcription (spec §15)', () {
+    testWidgets('rendu à l\'oral, sous le panneau d\'enregistrement',
+        (tester) async {
+      final prompt = SkillPromptDto.fromJson(_promptJson({
+        'section': 'EO',
+        'recommendedDurationSeconds': 45,
+      }));
+      await _pumpPrompt(tester, prompt: prompt);
+
+      final notice = find.byType(SkillTranscriptNotice);
+      // Il vit sous la carte de réponse : il faut défiler pour l'atteindre —
+      // c'est exactement ce qu'on veut, le micro ne recule pas d'un pixel.
+      expect(tester.getRect(find.byType(SkillAnswerCard)).top,
+          lessThan(_foldOf(tester)));
+      await tester.scrollUntilVisible(notice, 240);
+
+      expect(notice, findsOneWidget);
+      expect(
+        find.textContaining('prononciation'),
+        findsOneWidget,
+        reason: 'l\'avertissement ne dit pas ce qui n\'est PAS évalué',
+      );
+      expect(
+        tester.getRect(notice).top,
+        greaterThan(tester.getRect(find.byType(SkillAnswerCard)).top),
+      );
+    });
+
+    testWidgets('absent à l\'écrit', (tester) async {
+      await _pumpPrompt(
+        tester,
+        prompt: SkillPromptDto.fromJson(_promptJson({})),
+      );
+      await _scrollListToEnd(tester);
+      expect(find.byType(SkillTranscriptNotice), findsNothing);
+    });
+  });
+
+  group('plafonds de guidage — une saisie admin trop généreuse ne déborde pas',
+      () {
+    testWidgets('4 gestes et 3 étiquettes au maximum', (tester) async {
+      await _pumpPrompt(
+        tester,
+        prompt: SkillPromptDto.fromJson(_promptJson({
+          'checklist': ['Geste 1', 'Geste 2', 'Geste 3', 'Geste 4', 'Geste 5'],
+          'constraintTags': [
+            {'label': 'Tag 1', 'icon': 'PERSON'},
+            {'label': 'Tag 2', 'icon': 'TONE'},
+            {'label': 'Tag 3', 'icon': 'TIME'},
+            {'label': 'Tag 4', 'icon': 'PLACE'},
+          ],
+        })),
+      );
+
+      expect(find.text('Geste 4'), findsOneWidget);
+      expect(find.text('Geste 5'), findsNothing);
+      expect(find.text('Tag 3'), findsOneWidget);
+      expect(find.text('Tag 4'), findsNothing);
     });
   });
 

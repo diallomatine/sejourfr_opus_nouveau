@@ -17,8 +17,30 @@ import {
     lengthChipLabel,
     MAX_CHECKLIST_ITEMS,
     MAX_CONSTRAINT_TAGS,
+    SKILL_ANALYSIS_MAX_AUDIO_SEC,
+    SKILL_ANALYSIS_MAX_WORDS,
     tipOf,
 } from "./skill-guidance.ts";
+
+describe("plafonds durs de production", () => {
+    // Ce ne sont pas des valeurs de confort : au-delà, le serveur refuse la
+    // soumission. Aucun DTO ne les publie, les deux fronts les recopient — donc
+    // on les fige ici. Faire échouer ce test est le seul signal qui reste quand
+    // `application.yaml` bouge : le corriger veut dire corriger le mobile dans
+    // la même passe (point C2 de l'audit de parité).
+    it("recopient les gardes serveur, à l'identique du mobile", () => {
+        assert.equal(SKILL_ANALYSIS_MAX_WORDS, 400);
+        assert.equal(SKILL_ANALYSIS_MAX_AUDIO_SEC, 180);
+    });
+
+    it("laissent de la marge aux longueurs conseillées des sujets", () => {
+        // Le plus long des petits sujets se traite en quelques phrases : un
+        // plafond qui mordrait sur la fourchette conseillée transformerait un
+        // repère indicatif en blocage, ce que la spec §8 règle 15 interdit.
+        assert.ok(SKILL_ANALYSIS_MAX_WORDS > 100);
+        assert.ok(SKILL_ANALYSIS_MAX_AUDIO_SEC > 120);
+    });
+});
 
 describe("checklistOf", () => {
     it("rend les gestes dans l'ordre du contenu", () => {
