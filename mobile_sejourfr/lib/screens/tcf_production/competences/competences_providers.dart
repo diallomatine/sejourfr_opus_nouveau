@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/api_exception.dart';
 import '../../../core/api/repositories.dart';
 import '../../../core/api/skill_repository.dart';
 import '../../../core/models/skill_models.dart';
@@ -28,11 +29,69 @@ class SkillsKey {
   int get hashCode => Object.hash(section, tacheNumero);
 }
 
-/// Les 8 compétences d'une tâche + la progression du user.
+/// Les **24 compétences d'une épreuve** (3 tâches × 8) + la progression du
+/// user, en **un seul appel** (`GET /api/skills?section=EE|EO`).
+///
+/// Gardé en vie pour la session (`ref.keepAlive`) : c'est du contenu éditorial
+/// stable, la seule part volatile est la progression — invalidée explicitement
+/// par [invalidateSkillsSection] après une soumission ou une analyse. Sans ce
+/// cache, changer de tâche ou de mode refetchait la liste à chaque fois.
+///
+/// L'échec n'est **pas** mis en cache (`link.close()`) : un « Réessayer » doit
+/// pouvoir repartir sur un appel neuf.
+final skillsSectionProvider =
+    FutureProvider.autoDispose.family<List<SkillDto>, SkillSection>(
+        (ref, section) async {
+  final link = ref.keepAlive();
+  try {
+    return await _loadSection(ref.watch(skillRepositoryProvider), section);
+  } catch (_) {
+    link.close();
+    rethrow;
+  }
+});
+
+/// Charge l'épreuve entière. Repli sur les trois `taskCode` tant que le filtre
+/// `section` n'est pas déployé côté backend — **en une passe parallèle**, pas
+/// un appel par bascule de pastille : le contrat « une donnée déjà chargée ne
+/// se recharge pas » tient dans les deux cas.
+Future<List<SkillDto>> _loadSection(
+  SkillRepository repo,
+  SkillSection section,
+) async {
+  try {
+    final all = await repo.listSkillsBySection(section.wire);
+    if (all.isNotEmpty) return all;
+  } on ApiException catch (e) {
+    // Un paramètre inconnu se traduit par un 400 (validation) ou un 404 : tout
+    // le reste (401, 403, réseau) est une vraie erreur, qui doit remonter.
+    if (!e.isValidation && !e.isNotFound) rethrow;
+  }
+  final byTask = await Future.wait(
+    [for (var t = 1; t <= 3; t++) repo.listSkills(section.taskCode(t))],
+  );
+  return [for (final list in byTask) ...list];
+}
+
+/// Les 8 compétences d'une tâche : **filtre local** sur l'épreuve déjà
+/// chargée, aucun réseau. Provider synchrone (et non `FutureProvider`) pour
+/// qu'une bascule de pastille rende les données au premier frame, sans passer
+/// par un état de chargement.
 final skillsListProvider =
-    FutureProvider.autoDispose.family<List<SkillDto>, SkillsKey>(
-  (ref, key) => ref.watch(skillRepositoryProvider).listSkills(key.taskCode),
-);
+    Provider.autoDispose.family<AsyncValue<List<SkillDto>>, SkillsKey>(
+        (ref, key) {
+  return ref.watch(skillsSectionProvider(key.section)).whenData((all) {
+    final list = all.where((s) => s.taskCode == key.taskCode).toList()
+      ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+    return list;
+  });
+});
+
+/// Recharge la progression de l'épreuve. À appeler **après une soumission ou
+/// une analyse** : `attemptedCount` vient de changer, laisser le cache en état
+/// afficherait un « 6/20 sujets traités » périmé.
+void invalidateSkillsSection(WidgetRef ref, SkillSection section) =>
+    ref.invalidate(skillsSectionProvider(section));
 
 /// Une compétence + ses 5 petits sujets avec statut.
 final skillDetailProvider =

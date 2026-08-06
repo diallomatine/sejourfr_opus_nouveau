@@ -144,17 +144,15 @@ void main() {
   });
 
   group('Navigation du module', () {
-    test('les trois modes pointent sur la bonne tâche', () {
+    // Depuis la passe fluidité, une bascule Compétences/Sujets/Examens ne
+    // navigue plus : elle se joue dans `ProductionParcoursScreen`. Ne restent
+    // ici que les chemins réellement empruntés.
+    test('les chemins empruntés portent la bonne tâche', () {
       const mod = TcfProductionModule.eo;
-      expect(productionSubjectsPath(mod, 2), '/tcf/eo/tache/2');
       expect(productionCompetencesPath(mod, 2), '/tcf/eo/tache/2/competences');
       expect(productionExamplesPath(mod, 2), '/tcf/eo/tache/2/exemples');
-      // La page des examens est portée par l'épreuve : la tâche voyage en query
-      // pour savoir où revenir.
-      expect(productionExamsPath(mod, 2),
-          '/tcf/expression-orale/examens?tache=2');
-      expect(productionExamsPath(TcfProductionModule.ee, 1),
-          '/tcf/expression-ecrite/examens?tache=1');
+      expect(productionCompetencesPath(TcfProductionModule.ee, 1),
+          '/tcf/ee/tache/1/competences');
     });
   });
 

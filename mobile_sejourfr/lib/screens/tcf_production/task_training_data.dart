@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
+import 'production_catalog.dart';
 
 /// Clé de lecture d'une tâche : (épreuve, numéro de tâche).
 class TaskTrainingKey {
@@ -43,25 +44,39 @@ class TaskTrainingData {
       subjects.isEmpty ? 0 : (doneCount / subjects.length) * 100;
 }
 
-/// Source unique du contenu d'une tâche — partagée par l'écran d'entraînement
-/// et l'écran des modèles, qui affichaient chacun leur propre chargement.
-final taskTrainingProvider = FutureProvider.autoDispose
-    .family<TaskTrainingData, TaskTrainingKey>((ref, key) async {
-  final repo = ref.watch(productionRepositoryProvider);
-  final all = await repo.listTasks(epreuve: key.epreuve);
-  final subjects = all.where((t) => t.tacheNumero == key.tacheNumero).toList();
-  final examples = await repo.listExamples(
-      epreuve: key.epreuve, tacheNumero: key.tacheNumero);
-  final subs = await repo.listMine(epreuve: key.epreuve, limit: 200);
-  final lastByTaskId = <String, ProductionSubmissionDto>{};
-  for (final s in subs) {
-    final tid = s.productionTaskId;
-    if (tid == null) continue;
-    final cur = lastByTaskId[tid];
-    if (cur == null || s.submittedAt.isAfter(cur.submittedAt)) {
-      lastByTaskId[tid] = s;
-    }
+/// Les modèles corrigés d'une tâche. Seul appel réellement porté par la tâche
+/// (`/api/production-examples` exige `tacheNumero`) — d'où son provider à part,
+/// gardé en vie : c'est du contenu éditorial pur, il ne périme jamais.
+final taskExamplesProvider = FutureProvider.autoDispose
+    .family<List<ProductionExampleDto>, TaskTrainingKey>((ref, key) async {
+  final link = ref.keepAlive();
+  try {
+    return await ref.watch(productionRepositoryProvider).listExamples(
+          epreuve: key.epreuve,
+          tacheNumero: key.tacheNumero,
+        );
+  } catch (_) {
+    link.close();
+    rethrow;
   }
-  return TaskTrainingData(
-      subjects: subjects, examples: examples, lastByTaskId: lastByTaskId);
+});
+
+/// Contenu d'une tâche, **assemblé sans réseau** depuis le catalogue de
+/// l'épreuve. Provider synchrone : changer de pastille T1/T2/T3 rend la liste
+/// au premier frame, sans repasser par un état de chargement.
+///
+/// Les modèles sont lus en `valueOrNull` : leur compteur est un ornement du
+/// lien « Exemples corrigés », il ne doit pas retenir l'affichage des sujets.
+final taskTrainingProvider =
+    Provider.autoDispose.family<AsyncValue<TaskTrainingData>, TaskTrainingKey>(
+        (ref, key) {
+  final examples = ref.watch(taskExamplesProvider(key)).valueOrNull ??
+      const <ProductionExampleDto>[];
+  return ref.watch(productionCatalogProvider(key.epreuve)).whenData(
+        (catalog) => TaskTrainingData(
+          subjects: catalog.tasksForTache(key.tacheNumero),
+          examples: examples,
+          lastByTaskId: catalog.lastByTaskId,
+        ),
+      );
 });

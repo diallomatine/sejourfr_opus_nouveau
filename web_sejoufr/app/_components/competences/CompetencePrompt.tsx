@@ -11,12 +11,14 @@ import {
   SKILL_ANALYSIS_MAX_WORDS,
   tipOf,
 } from "@/lib/skill-guidance";
+import {loadSectionSkills} from "@/lib/skill-catalog";
 import {findSkillProgress, type SkillProgress} from "@/lib/skill-progress";
 import {handleStartFailure} from "@/lib/start-failure";
 import {
   type ProductionTaskDto,
   type SkillAnalysisQuotaDto,
   type SkillPromptDto,
+  skillSectionOf,
 } from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
@@ -152,14 +154,13 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
   }, [status, promptId]);
 
   // Progression de la compétence (« 2/5 »). Aucun DTO ne la porte pour un sujet
-  // isolé : on la dérive de la liste des compétences de la tâche, déjà servie
-  // par l'API. Appel **non bloquant** et hors chemin critique — la barre
-  // apparaît quand elle arrive, l'écran s'affiche sans elle.
+  // isolé : on la dérive de la liste des compétences de l'épreuve, déjà chargée
+  // par l'écran d'où l'on vient — donc **sans appel réseau** dans le cas normal.
+  // Non bloquant : la barre apparaît quand elle arrive, l'écran s'affiche sans elle.
   useEffect(() => {
     if (status !== "authenticated" || !prompt) return;
     let cancelled = false;
-    skillApi
-      .listSkills(prompt.taskCode)
+    void loadSectionSkills(skillApi, skillSectionOf(config.epreuve))
       .then((list) => {
         if (!cancelled) setSkillProgress(findSkillProgress(list, prompt.skillId));
       })
@@ -167,7 +168,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
     return () => {
       cancelled = true;
     };
-  }, [status, prompt]);
+  }, [status, prompt, config.epreuve]);
 
   // Quota d'analyses IA : un compte gratuit en a 3 à vie. Un échec de lecture
   // n'empêche jamais de produire — c'est le backend qui tranche à la soumission.

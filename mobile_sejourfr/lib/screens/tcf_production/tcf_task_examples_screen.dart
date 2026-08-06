@@ -35,7 +35,9 @@ class TcfTaskExamplesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final key = TaskTrainingKey(epreuve: module.epreuve, tacheNumero: tache);
-    final async = ref.watch(taskTrainingProvider(key));
+    // Les modèles ont leur propre provider : ils ne dépendent pas du catalogue
+    // de sujets, et cet écran n'a rien à faire des productions du candidat.
+    final async = ref.watch(taskExamplesProvider(key));
     final meta = productionTaskMeta(module, tache);
 
     return Scaffold(
@@ -56,11 +58,11 @@ class TcfTaskExamplesScreen extends ConsumerWidget {
                 ),
                 error: (e, _) => ProductionErrorView(
                   message: ApiClient.toApiException(e).message,
-                  onRetry: () => ref.invalidate(taskTrainingProvider(key)),
+                  onRetry: () => ref.invalidate(taskExamplesProvider(key)),
                 ),
-                data: (data) => ListView(
+                data: (examples) => ListView(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-                  children: _content(context, ref, data.examples),
+                  children: _content(context, ref, examples),
                 ),
               ),
             ),

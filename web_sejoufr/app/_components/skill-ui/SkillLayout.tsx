@@ -195,23 +195,34 @@ export function SkillHero({
 
 /**
  * Pastilles T1 / T2 / T3 : changer de tâche sans revenir en arrière. Ce sont de
- * vrais liens (le parcours est routé par tâche), donc navigables au clavier et
- * ouvrables dans un onglet ; la rangée défile horizontalement sous 360 px sans
- * jamais élargir la page.
+ * vrais liens (chaque tâche a son URL, partageable et ouvrable directement),
+ * donc navigables au clavier et ouvrables dans un onglet ; la rangée défile
+ * horizontalement sous 360 px sans jamais élargir la page.
  *
  * `hrefOf` dit où va chaque pastille : les sujets TCF pointent la tâche, les
  * micro-exercices pointent son sous-espace « compétences ».
+ *
+ * **`onPick` transforme la pastille en filtre.** Quand l'écran a déjà les trois
+ * tâches en mémoire (c'est le cas depuis qu'on charge l'épreuve entière en un
+ * appel), changer de tâche ne doit ni remonter la page, ni relancer un `fetch` :
+ * le clic simple est intercepté, l'écran filtre, et l'URL est réécrite en
+ * navigation superficielle par l'appelant. Les clics *modifiés* (Ctrl, ⌘, Maj,
+ * clic du milieu) gardent leur comportement natif — sinon « ouvrir dans un
+ * nouvel onglet » cesserait de fonctionner. Sans `onPick`, on navigue comme
+ * avant.
  */
 export function TaskPills({
   config,
   current,
   labelOf,
   hrefOf,
+  onPick,
 }: {
   config: ProductionConfig;
   current: number;
   labelOf: (n: number) => string;
   hrefOf?: (n: number) => string;
+  onPick?: (n: number) => void;
 }) {
   const href = hrefOf ?? ((n: number) => `${config.base}/tache/${n}`);
   return (
@@ -224,6 +235,15 @@ export function TaskPills({
             href={href(n)}
             className={`${s.taskPill} ${on ? s.taskPillOn : ""}`}
             aria-current={on ? "page" : undefined}
+            onClick={
+              onPick
+                ? (e) => {
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                    e.preventDefault();
+                    onPick(n);
+                  }
+                : undefined
+            }
           >
             <span className={s.taskNum} aria-hidden>
               {n}

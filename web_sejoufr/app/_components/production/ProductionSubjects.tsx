@@ -2,19 +2,27 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Check, Lock } from "lucide-react";
-import { ApiException, productionApi } from "@/lib/api";
+import { productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import {
+  latestSubmissionByTask,
+  loadEpreuveTasks,
+  loadMySubmissions,
+  productionMineKey,
+  productionTasksKey,
+  tasksOfTache,
+} from "@/lib/production-catalog";
 import { tcfNoteTone } from "@/lib/production-feedback";
 import { prodQuotaInfoKey, shouldAnnounceFreeTrial } from "@/lib/production-quota-info";
+import { replaceUrlShallow } from "@/lib/shallow-url";
+import { useCachedData } from "@/lib/use-cached-data";
 import {
   canAccessModule,
   formatNoteSur20,
   productionTaskSubtitle,
   productionTaskTitle,
-  type ProductionSubmissionDto,
-  type ProductionTaskDto,
 } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
@@ -69,19 +77,53 @@ const TONE_MARK: Record<ReturnType<typeof tcfNoteTone>, SkillRowMark> = {
  */
 export function ProductionSubjects({ config }: { config: ProductionConfig }) {
   const params = useParams<{ n: string }>();
-  const n = Number(params?.n ?? "0");
-  const valid = n >= 1 && n <= 3;
   const router = useRouter();
   const { user, status } = useAuth();
 
+  // Les sujets des 3 tâches arrivent en un seul appel : une pastille ne fait
+  // donc que **filtrer** (aucun réseau, aucun remontage). La tâche est le choix
+  // local s'il y en a eu un, sinon celle de l'URL — dans cet ordre, pour que
+  // l'accès direct, le lien partagé et le retour navigateur continuent de
+  // décider de la tâche d'arrivée sans jamais écraser un choix.
+  const routeTask = Number(params?.n ?? "0");
+  const [pickedTask, setPickedTask] = useState<number | null>(null);
+  const n = pickedTask ?? routeTask;
+  const valid = n >= 1 && n <= 3;
+
   const [filter, setFilter] = useState<SubjectFilter>("all");
-  const [tasks, setTasks] = useState<ProductionTaskDto[]>([]);
-  // Dernière soumission par sujet (productionTaskId) → distinction fait/à faire.
-  const [doneByTask, setDoneByTask] = useState<Record<string, ProductionSubmissionDto>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [quotaInfoOpen, setQuotaInfoOpen] = useState(false);
+
+  const pickTask = useCallback(
+    (task: number) => {
+      setPickedTask(task);
+      // Les compteurs du filtre portent sur la tâche affichée : garder « Traités »
+      // en changeant de tâche montrerait une liste vide sans dire pourquoi.
+      setFilter("all");
+      replaceUrlShallow(`${config.base}/tache/${task}`);
+    },
+    [config.base],
+  );
+
+  const ready = status === "authenticated" && valid;
+
+  // Catalogue : les 3 tâches en un appel, mémorisé pour la session.
+  const tasksQuery = useCachedData(
+    ready ? productionTasksKey(config.epreuve) : null,
+    () => loadEpreuveTasks(productionApi, config.epreuve),
+    { errorMessage: "Impossible de charger les sujets." },
+  );
+  const tasks = tasksOfTache(tasksQuery.data, n);
+  const loading = tasksQuery.loading;
+  const error = tasksQuery.error;
+
+  // Progression : mise en cache aussi, mais invalidée à chaque soumission
+  // (`lib/api.ts`) — sinon un sujet rendu resterait affiché « à faire ».
+  // Même entrée que la grille des examens blancs : un seul appel pour les deux.
+  const minesQuery = useCachedData(ready ? productionMineKey(config.epreuve) : null, () =>
+    loadMySubmissions(productionApi, config.epreuve),
+  );
+  const doneByTask = latestSubmissionByTask(minesQuery.data);
 
   // EE/EO sont des épreuves TCF → accès gouverné par l'abonnement Intégral.
   // Non-abonné : seul le 1er sujet est ouvert, le reste est cadenassé (parité
@@ -120,56 +162,6 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
       // stockage indisponible (navigation privée) : la modale reviendra.
     }
   }
-
-  useEffect(() => {
-    if (status !== "authenticated" || !valid) return;
-    let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    productionApi
-      .listTasks({ epreuve: config.epreuve, tacheNumero: n })
-      .then((list) => {
-        if (!cancelled) {
-          // Filtre défensif : certains backends ignorent `tacheNumero` sans niveau.
-          setTasks(
-            list
-              .filter((t) => t.tacheNumero === n)
-              .sort((a, b) => a.niveauCible.localeCompare(b.niveauCible)),
-          );
-        }
-      })
-      .catch((e) => {
-        if (!cancelled)
-          setError(e instanceof ApiException ? e.message : "Impossible de charger les sujets.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [status, valid, n, config.epreuve]);
-
-  useEffect(() => {
-    if (status !== "authenticated" || !valid) return;
-    let cancelled = false;
-    productionApi
-      .listMine({ epreuve: config.epreuve })
-      .then((subs) => {
-        if (cancelled) return;
-        // On garde la soumission la plus récente par sujet (submittedAt desc).
-        const map: Record<string, ProductionSubmissionDto> = {};
-        for (const sub of subs) {
-          const prev = map[sub.productionTaskId];
-          if (!prev || sub.submittedAt > prev.submittedAt) map[sub.productionTaskId] = sub;
-        }
-        setDoneByTask(map);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [status, valid, config.epreuve]);
 
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`${config.base}/tache/${n}`} />;
@@ -217,6 +209,7 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
           config={config}
           current={n}
           labelOf={(i) => productionTaskTitle(config.epreuve, i)}
+          onPick={pickTask}
         />
 
         <SectionHead

@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/api/repositories.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
+import 'production_catalog.dart';
 
 /// Session d'examen blanc TCF EE/EO : un attempt avec ses 3 (ou plus)
 /// soumissions. Le niveau global d'une session n'est plus dérivé ici par tâche
@@ -71,18 +71,28 @@ class HubData {
   final List<ProductionSubmissionDto> singles;
 }
 
-/// Source unique des données d'épreuve EE/EO. Alimentait le hub d'épreuve
-/// (supprimé) ; sert désormais la page « Examens blancs » du parcours.
-final expressionHubProvider = FutureProvider.autoDispose
-    .family<HubData, EpreuveType>((ref, epreuve) async {
-  final repo = ref.watch(productionRepositoryProvider);
-  final tasks = await repo.listTasks(epreuve: epreuve);
+/// Vue d'épreuve EE/EO, **dérivée sans réseau** du catalogue déjà chargé.
+/// Alimentait le hub d'épreuve (supprimé) ; sert désormais la page « Examens
+/// blancs » du parcours.
+///
+/// Provider synchrone : arriver sur le mode « Examens » depuis « Sujets » ne
+/// coûte plus les deux appels d'épreuve, ils ont déjà été payés.
+final expressionHubProvider =
+    Provider.autoDispose.family<AsyncValue<HubData>, EpreuveType>(
+  (ref, epreuve) =>
+      ref.watch(productionCatalogProvider(epreuve)).whenData(buildHubData),
+);
+
+/// Agrégation pure du catalogue d'une épreuve. Extraite du provider pour être
+/// réutilisable (les bilans d'examen en ont besoin) et testable sans réseau.
+HubData buildHubData(ProductionCatalog catalog) {
+  final tasks = catalog.tasks;
   final countByTache = <int, int>{};
   for (final t in tasks) {
     countByTache[t.tacheNumero] = (countByTache[t.tacheNumero] ?? 0) + 1;
   }
 
-  final subs = await repo.listMine(epreuve: epreuve, limit: 200);
+  final subs = catalog.submissions;
 
   // Sujets distincts traités, par tâche. On repart des `tasks` (et non du
   // `tacheNumero` porté par la soumission) pour ne compter que des sujets
@@ -119,4 +129,4 @@ final expressionHubProvider = FutureProvider.autoDispose
       doneByTache: doneByTache,
       exams: exams,
       singles: singles);
-});
+}

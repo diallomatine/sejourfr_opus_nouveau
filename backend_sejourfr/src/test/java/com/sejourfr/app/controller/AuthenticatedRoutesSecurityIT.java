@@ -88,6 +88,10 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/skills/progress?section=EE"),
                 Arguments.of(HttpMethod.GET, "/api/skills/analysis-quota"),
                 Arguments.of(HttpMethod.GET, "/api/skills?taskCode=EE1"),
+                Arguments.of(HttpMethod.GET, "/api/skills?section=EE"),
+                // Sans filtre la route repond 422 a un candidat : l'anonyme doit
+                // quand meme se voir opposer 401, pas la validation metier.
+                Arguments.of(HttpMethod.GET, "/api/skills"),
                 Arguments.of(HttpMethod.GET, "/api/skills/" + RANDOM_ID),
                 Arguments.of(HttpMethod.GET, "/api/skill-prompts/" + RANDOM_ID),
                 Arguments.of(HttpMethod.GET, "/api/skill-prompts/" + RANDOM_ID + "/references"),

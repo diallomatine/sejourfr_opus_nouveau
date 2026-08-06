@@ -1,10 +1,12 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Lock } from "lucide-react";
 import { productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { loadExamples, productionExamplesKey } from "@/lib/production-catalog";
+import { useCachedData } from "@/lib/use-cached-data";
 import {
   canAccessModule,
   productionTaskTitle,
@@ -38,28 +40,18 @@ export function ProductionExamples({ config }: { config: ProductionConfig }) {
   const valid = n >= 1 && n <= 3;
   const { user, status } = useAuth();
 
-  const [examples, setExamples] = useState<ProductionExampleDto[]>([]);
-  const [loaded, setLoaded] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
 
   const isPremium = user ? canAccessModule(user, "TCF") : false;
 
-  useEffect(() => {
-    if (status !== "authenticated" || !valid) return;
-    let cancelled = false;
-    productionApi
-      .listExamples(config.epreuve, n)
-      .then((list) => {
-        if (!cancelled) setExamples(list);
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancelled) setLoaded(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [status, valid, n, config.epreuve]);
+  // Contenu éditorial : chargé une fois par tâche et pour la session. Revenir
+  // depuis la liste des sujets ne redemande rien.
+  const examplesQuery = useCachedData(
+    status === "authenticated" && valid ? productionExamplesKey(config.epreuve, n) : null,
+    () => loadExamples(productionApi, config.epreuve, n),
+  );
+  const examples = examplesQuery.data ?? [];
+  const loaded = !examplesQuery.loading;
 
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`${config.base}/tache/${n}/exemples`} />;

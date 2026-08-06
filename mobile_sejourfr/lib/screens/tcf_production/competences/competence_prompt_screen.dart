@@ -289,9 +289,12 @@ class _PromptViewState extends ConsumerState<_PromptView> {
 
     // Le statut du sujet et le quota viennent de changer : on invalide avant
     // de naviguer pour que la liste sous-jacente soit juste au retour (§13.3).
+    // La liste des compétences est en cache pour la session : sans cette
+    // invalidation-ci, elle afficherait un « traités » périmé.
     ref.invalidate(skillAnalysisQuotaProvider);
     ref.invalidate(skillPromptProvider(prompt.id));
     ref.invalidate(skillDetailProvider(prompt.skillId));
+    invalidateSkillsSection(ref, prompt.section);
     if (_isEo) {
       unawaited(ref.read(recordingControllerProvider.notifier).cancel());
     }

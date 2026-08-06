@@ -4,15 +4,21 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Check, Lock } from "lucide-react";
 import { productionApi } from "@/lib/api";
+import {
+  examDrafts,
+  loadBilan,
+  loadMySubmissions,
+  productionMineKey,
+} from "@/lib/production-catalog";
 import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
+import { useCachedData } from "@/lib/use-cached-data";
 import {
   canAccessModule,
   cecrlIndex,
   formatNoteSur20,
   type NiveauCecrl,
   niveauCecrlLabel,
-  type ProductionSubmissionDto,
 } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
@@ -73,66 +79,44 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
   const [retakeWarningOpen, setRetakeWarningOpen] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
 
+  // Historique de l'épreuve : même entrée de cache que l'écran des sujets — un
+  // seul appel sert les deux — et invalidée à chaque soumission (`lib/api.ts`).
+  const minesQuery = useCachedData(
+    status === "authenticated" ? productionMineKey(config.epreuve) : null,
+    () => loadMySubmissions(productionApi, config.epreuve),
+  );
+  // Une session d'examen = un attempt portant ≥ 2 soumissions (les
+  // entraînements par tâche n'en portent qu'une).
+  const drafts = useMemo(() => examDrafts(minesQuery.data), [minesQuery.data]);
+
   useEffect(() => {
-    if (status !== "authenticated") return;
+    if (drafts.length === 0) return;
     let cancelled = false;
-    productionApi
-      .listMine({ epreuve: config.epreuve, limit: 100 })
-      .then(async (list) => {
-        if (cancelled) return;
-        // Une session d'examen = un attempt portant ≥ 2 soumissions (les
-        // entraînements par tâche n'en portent qu'une).
-        const byAttempt = new Map<string, ProductionSubmissionDto[]>();
-        for (const sub of list) {
-          const arr = byAttempt.get(sub.attemptId) ?? [];
-          arr.push(sub);
-          byAttempt.set(sub.attemptId, arr);
-        }
-        const drafts: { attemptId: string; date: string; avgNote: number | null }[] = [];
-        for (const [attemptId, items] of byAttempt) {
-          if (items.length < 2) continue;
-          const date = items.map((i) => i.submittedAt).sort((a, b) => a.localeCompare(b))[0];
-          const notes = items
-            .map((i) => i.evaluation?.noteSurVingt)
-            .filter((v): v is number => v != null);
-          drafts.push({
-            attemptId,
-            date,
-            // Une décimale, comme les notes elles-mêmes : arrondir à l'entier
-            // afficherait 13 là où la session vaut 12,5.
-            avgNote: notes.length
-              ? Math.round((notes.reduce((acc, v) => acc + v, 0) / notes.length) * 10) / 10
-              : null,
-          });
-        }
+    // Le slot UI + le niveau global viennent du bilan backend. Un bilan
+    // **terminé** est mémorisé (une session close ne bouge plus) ; un bilan dont
+    // l'IA évalue encore une tâche est redemandé à chaque visite.
+    void Promise.all(
+      drafts.map((d) => loadBilan(productionApi, d.attemptId).catch(() => null)),
+    ).then((bilans) => {
+      if (cancelled) return;
+      const sessions: PastSession[] = drafts.map((d, i) => ({
+        ...d,
+        slotNumber: bilans[i]?.slotNumber ?? null,
+      }));
+      setPast(sessions);
 
-        // Le slot UI + le niveau global viennent du bilan backend (déjà fetché
-        // ici pour la stat « niveau estimé »). On range chaque session sur son
-        // vrai slot ; un slot null (anciennes sessions) retombe sur le slot 1.
-        const bilans = await Promise.all(
-          drafts.map((d) => productionApi.getBilan(d.attemptId).catch(() => null)),
-        );
-        if (cancelled) return;
-        const sessions: PastSession[] = drafts.map((d, i) => ({
-          ...d,
-          slotNumber: bilans[i]?.slotNumber ?? null,
-        }));
-        sessions.sort((a, b) => a.date.localeCompare(b.date));
-        setPast(sessions);
-
-        let top: NiveauCecrl | null = null;
-        for (const b of bilans) {
-          const niv = b?.niveauGlobal ?? null;
-          if (!niv) continue;
-          if (top === null || cecrlIndex(niv) > cecrlIndex(top)) top = niv;
-        }
-        setBestLevel(top);
-      })
-      .catch(() => undefined);
+      let top: NiveauCecrl | null = null;
+      for (const b of bilans) {
+        const niv = b?.niveauGlobal ?? null;
+        if (!niv) continue;
+        if (top === null || cecrlIndex(niv) > cecrlIndex(top)) top = niv;
+      }
+      setBestLevel(top);
+    });
     return () => {
       cancelled = true;
     };
-  }, [status, config.epreuve]);
+  }, [drafts]);
 
   /** Slot ciblé par le lancement en cours (composition déterministe backend). */
   const [pendingSlot, setPendingSlot] = useState(1);

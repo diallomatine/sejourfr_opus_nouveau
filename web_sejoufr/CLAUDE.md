@@ -991,6 +991,68 @@ Examens**, icône au-dessus du libellé, carte blanche à 3 colonnes.
   défaut, **jamais un chiffre affiché** qui serait faux. Il n'y a plus d'écran
   d'accueil d'épreuve où retomber.
 
+### Navigation fluide : un seul appel, pas de remontage (parité mobile)
+
+Constat client (fait sur le mobile, le web avait le même défaut) : *« quand on
+change de Compétences / Sujets / Examens, ou de Tâche 1 / 2 / 3, j'ai
+l'impression qu'il y a un appel au back, un changement d'écran lourd »*. Chaque
+mode et chaque tâche étant une **route**, la bascule remontait la page et
+relançait les `fetch`. Trois décisions, dans l'ordre du moins coûteux au plus :
+
+1. **Cache mémoire maison, `lib/data-cache.ts`** (aucune dépendance ajoutée : le
+   projet n'a pas de librairie de cache de données et n'en prend pas une pour
+   ça). Une `Map`, un dédoublonnage des chargements en vol, un `peek` synchrone
+   — c'est lui qui supprime le squelette au retour sur un écran déjà visité — et
+   une invalidation **par préfixe**. Rien n'expire tout seul, une erreur n'est
+   jamais mise en cache, et le singleton est **inerte au rendu serveur** (une
+   `Map` de module y serait partagée entre utilisateurs). Vidé par
+   `tokenStorage.clear()`.
+2. **Un loader par donnée, `lib/skill-catalog.ts` et `lib/production-catalog.ts`**
+   (purs, clients injectés, testés). Ils portent la clé de cache **et** le
+   regroupement des appels :
+   - `loadSectionSkills` → `GET /api/skills?section=EE|EO`, **les 24 compétences
+     de l'épreuve en un appel** (repli : les 3 appels `taskCode`, une fois, sous
+     la même clé — les écrans n'ont qu'un contrat, « la liste, c'est l'épreuve ») ;
+   - `loadEpreuveTasks` → `GET /api/production-tasks?epreuve=` **sans**
+     `tacheNumero` : les 3 tâches en un appel ;
+   - `loadMySubmissions` → **une seule** entrée `production:mine:<épreuve>`
+     partagée par l'écran des sujets et la grille des examens blancs
+     (`limit=100`, le défaut backend de 20 ne suffisait pas à la grille) ;
+   - `loadBilan` → mis en cache **seulement si le bilan est final**
+     (`finished` **et** 3 tâches évaluées) : sinon l'IA travaille encore et rien
+     n'invaliderait une note figée trop tôt.
+3. **Les pastilles T1/T2/T3 sont un filtre**, plus une navigation :
+   `TaskPills` accepte `onPick` (le clic simple est intercepté, les clics
+   modifiés gardent « ouvrir dans un nouvel onglet »), l'écran filtre localement
+   et **réécrit l'URL en navigation superficielle** (`replaceUrlShallow`,
+   `lib/shallow-url.ts` → `window.history.replaceState`, API native supportée
+   par l'App Router). Une tâche reste donc une adresse partageable et ouvrable
+   directement ; `replaceState` et non `pushState` parce que **filtrer n'est pas
+   naviguer** — sinon il faudrait trois « précédent » pour sortir de l'épreuve.
+   Les écrans lisent `pickedTask ?? routeTask` : le choix local l'emporte, mais
+   l'URL décide toujours de la tâche d'arrivée.
+
+Les six routes `…/tache/[n]{,/competences,/exemples}` déclarent
+`generateStaticParams` (`PRODUCTION_TASK_PARAMS`) : prérendues, elles sont
+préchargées par les liens de la barre de modes, donc **une bascule de mode ne
+redemande plus rien**, ni au backend ni au serveur Next.
+
+**Ce qui reste frais — le piège de ce cache.** Le catalogue est éditorial, la
+**progression** ne l'est pas. Toute écriture invalide, **à la source dans
+`lib/api.ts`** (jamais dans un écran, qui finirait par l'oublier) :
+soumission / relance d'évaluation de production et **fin de polling**
+(`EVALUATED`/`FAILED`, c'est là que la note apparaît) → `production:mine:` +
+`production:bilan:` ; production ou analyse de compétence → tout `skills:`.
+Un écran qui ajoute une lecture met sa clé sous ces préfixes, sinon il affichera
+une progression mensongère.
+
+**Vérifié par les tests** (`npm test`, runner natif de Node) : un client factice
+**compte les appels**. `lib/parcours-tcf-navigation.test.ts` rejoue les deux
+parcours du constat client — T1 → T2 → T1 (**2 appels à l'arrivée, 0 ensuite**,
+au lieu de 2 par tâche) et le tour des trois modes (**5 appels au premier tour,
+0 au second**, au lieu de 5 par tour) — et vérifie qu'après une soumission
+l'historique, **et lui seul**, est rechargé.
+
 ### Entrée dans une épreuve : pas d'écran d'accueil
 
 Demande client : « dès qu'on vient du menu Réviser → EO ou EE, on arrive

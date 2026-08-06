@@ -104,10 +104,17 @@ lib/
     │       ├── exam_timer.dart    Chrono décompte
     │       └── explanation_box.dart Bloc correction post-réponse
     ├── tcf_production/            EO + EE (productions évaluées par IA)
-    │   ├── tcf_task_training_screen.dart  TcfTaskTrainingScreen (/tcf/{eo,ee}/tache/:n) :
-    │   │                                le mode « Sujets » — pastilles T1/T2/T3 + liste ;
-    │   │                                tap sujet → fiche consigne+plan → Enregistrer/
-    │   │                                Rédiger ou Refaire/Voir le rapport.
+    │   ├── production_parcours_screen.dart  ProductionParcoursScreen — **l'écran
+    │   │                                unique du parcours** : en-tête, barre du module,
+    │   │                                tâche courante, et les 3 modes en IndexedStack.
+    │   │                                Toutes les routes de mode le construisent.
+    │   ├── production_subjects_tab_view.dart  mode « Sujets » (corps seul) :
+    │   │                                pastilles T1/T2/T3 + liste ; tap sujet →
+    │   │                                fiche consigne+plan → Enregistrer/Rédiger
+    │   │                                ou Refaire/Voir le rapport.
+    │   ├── production_exams_tab_view.dart  mode « Examens » (corps seul).
+    │   ├── production_catalog.dart      catalogue d'une épreuve (sujets +
+    │   │                                productions), mis en cache pour la session.
     │   ├── competences/                 Module « Compétences TCF » : 4 écrans (liste,
     │   │                                détail, petit sujet, résultat) + providers + widgets.
     │   │                                Cf. § dédié plus bas.
@@ -239,6 +246,14 @@ change un DTO, mettre à jour le model Dart correspondant.
 - Les controllers métier sont des `StateNotifier<AsyncValue<T>>` ou `StateNotifier<T>` exposés via un
   `StateNotifierProvider`.
 - Pour les listes serveur, utiliser `FutureProvider.autoDispose` + `ref.refresh(...)` pour le pull-to-refresh.
+- **Exception assumée : le contenu de catalogue d'un parcours qu'on parcourt par onglets.**
+  Un `autoDispose` jette ses données dès qu'on quitte l'écran, donc refetche au retour — ce
+  qui rendait le parcours TCF EE/EO lourd (une bascule = un appel). Le remède est
+  `ref.keepAlive()` **dans** le provider (l'erreur, elle, n'est jamais cachée :
+  `link.close()` dans le `catch`), et une **invalidation explicite** aux points où la
+  donnée du candidat change (soumission, analyse). Cf. `production_catalog.dart` et
+  `competences_providers.dart`. Ne pas cacher ce qui mesure la progression sans poser en
+  même temps son point d'invalidation.
 - Family providers pour les controllers paramétrés (ex: `runnerControllerProvider.family(attemptId)`).
 - `autoDispose` par défaut pour les providers liés à un écran — on garde la mémoire propre quand on quitte
   l'écran.
@@ -277,9 +292,9 @@ change un DTO, mettre à jour le model Dart correspondant.
   `didPopNext()`. ⚠ Ne pas se fier au `Future` d'un `context.push` pour ça : un flux qui fait
   des `pushReplacement` (briefing → résultats EE/EO) résout le push d'origine trop tôt, avant
   que la donnée (note d'évaluation) existe. L'observer est typé `PageRoute` → fermer un bottom
-  sheet ne déclenche pas de refetch. Pattern utilisé par `TcfTaskTrainingScreen` (liste des
-  sujets EE/EO). Combiner avec `async.when(skipLoadingOnReload: true)` pour éviter un spinner
-  plein écran au retour.
+  sheet ne déclenche pas de refetch. Pattern utilisé par `ProductionParcoursScreen` (parcours
+  EE/EO), qui n'invalide **que** la donnée du mode actif. Combiner avec
+  `async.when(skipLoadingOnReload: true)` pour éviter un spinner plein écran au retour.
 
 **UI**
 
@@ -559,7 +574,8 @@ bottom nav) :
 - `/tcf/co` et `/tcf/ce` → `TcfQcmDetailScreen` avec l'enum `TcfQcmModule.{co,ce}` qui porte
   l'intitulé, l'icône, le `QuestionType` et le label de durée.
 - `/tcf/eo` et `/tcf/ee` → alias en redirect vers l'entrée du parcours ;
-  `/tcf/{eo,ee}/tache/:n` → `TcfTaskTrainingScreen`. Enum `TcfProductionModule.{eo,ee}` dans
+  `/tcf/{eo,ee}/tache/:n` → `ProductionParcoursScreen` (mode Sujets). Enum
+  `TcfProductionModule.{eo,ee}` dans
   `tcf_production/tcf_production_module.dart` (cf. § TCF Expression).
 
 Layout uniforme (`widgets/module_detail_widgets.dart`) :
@@ -669,7 +685,7 @@ Module distinct du runner QCM : l'utilisateur **produit** un audio (EO) ou un te
 qui le transcrit (Whisper) + le note via le correcteur unique configuré dans
 `sejourfr.production-evaluation` (DeepSeek par défaut) en 10-15 s. Cf. `CLAUDE.md` racine.
 
-**Deux écrans**, un par fichier (`tcf_task_training_screen.dart`,
+**Deux écrans**, un par fichier (`production_subjects_tab_view.dart`,
 `tcf_task_examples_screen.dart`) — le troisième, le hub d'épreuve
 (`tcf_expression_screen.dart`), est **supprimé** (cf. plus bas). Accents refonte 2026 :
 **EO = rouge, EE = bleu**, portés par `TcfProductionModule.accent` / `.accentDark`
@@ -710,20 +726,78 @@ reproduit **pas** `.mode-tabs` (barre du haut, redite) ; on reproduit `nav.botto
 **barre fixe en bas** : carte blanche r22, padding 7, grille 3 colonnes gap 5, boutons
 r16 avec **icône au-dessus du libellé** (10 px, w800), sur un fondu vers le fond.
 Trois entrées : **Compétences · Sujets · Examens**, portées par
-`ProductionModuleTab`. Les chemins vivent dans `production_nav.dart`
-(`goProductionTab`, en `pushReplacement` — un changement de mode n'empile pas).
+`ProductionModuleTab`. Les chemins vivent dans `production_nav.dart` ; **une bascule ne
+navigue plus** — cf. « Un seul écran pour les trois modes » plus bas.
 ⚠ **Aucune double barre** : les écrans du parcours TCF EE/EO sont déclarés **hors
 du `ShellRoute`** (cf. `app_router.dart`), la bottom nav globale n'y est pas rendue.
 Toute liste qui la porte réserve `ProductionModuleBar.reservedHeight` en bas.
 
 ⚠ **Il n'y a plus rien au-dessus des trois modes.** Le hub d'épreuve est
-supprimé : les trois modes sont des **frères** (`pushReplacement` entre eux),
-donc « retour » depuis l'un d'eux veut dire **quitter le parcours**, jamais
-sauter latéralement sur un autre mode. La règle vit à un seul endroit,
-`leaveProductionParcours` (`production_nav.dart`) : on dépile si on peut,
-sinon `/reviser`. Les trois écrans de mode l'appellent — ne pas réécrire un
-`if (canPop)` local, et surtout ne pas y remettre `/tcf/{ee,eo}` en repli
-(ce path redirige vers le mode Compétences : le retour deviendrait une boucle).
+supprimé : les trois modes sont des **frères**, donc « retour » depuis l'un
+d'eux veut dire **quitter le parcours**, jamais sauter latéralement sur un
+autre mode. La règle vit à un seul endroit, `leaveProductionParcours`
+(`production_nav.dart`), appelé par le seul `ProductionParcoursScreen` : on
+dépile si on peut, sinon `/reviser`. Ne pas réécrire un `if (canPop)` local,
+et surtout ne pas y remettre `/tcf/{ee,eo}` en repli (ce path redirige vers le
+mode Compétences : le retour deviendrait une boucle).
+
+### Un seul écran pour les trois modes (passe fluidité 2026-08-06)
+
+Constat client : « changer de Compétences / Sujets / Examens, ou de Tâche 1/2/3,
+donne l'impression d'un appel au back et d'un changement d'écran lourd ». Deux
+causes, corrigées ensemble.
+
+1. **Chaque mode était une route**, et chaque bascule un `pushReplacement` :
+   l'arbre entier était démonté puis reconstruit (défilement perdu, animation de
+   page pour un déplacement latéral). Désormais **`ProductionParcoursScreen`**
+   (`production_parcours_screen.dart`) porte l'en-tête, la barre du module, la
+   tâche courante et le voile d'attente, et rend les trois corps
+   (`CompetencesTabView`, `ProductionSubjectsTabView`, `ProductionExamsTabView`)
+   dans un **`IndexedStack`**. Un mode quitté **reste monté** : filtres, « Voir
+   plus » et position de défilement survivent. Un mode **jamais ouvert n'est pas
+   construit** — on ne paie pas les appels d'un mode que le candidat n'a pas
+   demandé.
+   - Les chemins `/tcf/{ee,eo}/tache/:n{,/competences}` et
+     `/tcf/expression-{orale,ecrite}/examens?tache=N` **restent servis** (liens
+     profonds, retour arrière) : ils construisent tous cet écran avec le bon mode
+     de départ. En revanche **une bascule ne change plus l'URL** — c'est le prix
+     assumé, et c'est ce qui rend le retour arrière exact (une seule route à
+     dépiler = quitter le parcours).
+2. **Tous les providers étaient `autoDispose`**, donc quitter un mode jetait ses
+   données. Le cache est maintenant porté par **l'épreuve**, jamais par la tâche :
+   - `skillsSectionProvider` (`competences_providers.dart`) charge les **24
+     compétences de l'épreuve en un appel** (`GET /api/skills?section=EE|EO`) ;
+     `skillsListProvider` n'est plus qu'un **filtre local synchrone** par
+     `taskCode`. Les pastilles T1/T2/T3 ne touchent plus au réseau. **Repli**
+     conservé tant que le filtre `section` n'est pas déployé : les trois
+     `taskCode` en **une** passe parallèle, jamais un appel par bascule.
+   - `productionCatalogProvider` (`production_catalog.dart`) charge les sujets et
+     les productions de l'épreuve (`listTasks` + `listMine`, tous deux déjà portés
+     par l'épreuve — ils étaient redemandés à chaque tâche). `taskTrainingProvider`
+     et `expressionHubProvider` en **dérivent sans réseau** : arriver sur
+     « Examens » depuis « Sujets » ne coûte plus rien. Seuls les **modèles**
+     (`taskExamplesProvider`) restent portés par la tâche — l'endpoint exige
+     `tacheNumero`.
+   - **Ce qui reste frais.** Le cache ne doit jamais faire mentir la progression :
+     `productionCatalogProvider` et `skillsSectionProvider` sont invalidés
+     explicitement après une **soumission** ou une **analyse**
+     (`competence_prompt_screen`, `competence_result_screen`), au **retour d'un
+     flux poussé** (`ProductionParcoursScreen.didPopNext`, qui ne recharge que la
+     donnée du **mode actif** — un micro-sujet de compétence ne touche pas au
+     catalogue TCF), et au tiré-pour-rafraîchir. Le **quota d'analyses**
+     (`skillAnalysisQuotaProvider`) et les providers de détail
+     (`skillDetailProvider`, `skillPromptProvider`, `skillAttemptProvider`)
+     restent **`autoDispose`** : ils portent l'état du candidat sur un sujet
+     précis, on les veut frais à chaque ouverture.
+   - Les **bilans d'examen** (`examBilansProvider`) dépendent de la *liste d'ids*
+     des sessions, pas du catalogue entier : recharger le catalogue parce que le
+     candidat vient de produire un sujet ne relance pas N appels de bilan.
+   - Coût réseau, aller-retour T1 → T2 → T1 : **9 appels → 1** en Compétences,
+     **9 → 4** en Sujets (2 d'épreuve + 1 modèle par tâche visitée) ; tour des
+     trois modes : **7 → 2 + les bilans**. Verrouillé par
+     `test/production_parcours_caching_test.dart` (faux repositories qui
+     **comptent** les appels + test de widget prouvant que le mode quitté reste
+     monté).
 
 **« Exemples » n'est pas un mode** (la barre n'a que trois entrées) : c'est une
 ressource d'appoint, atteinte par un **bouton discret en tête de la liste des
@@ -754,10 +828,10 @@ réintroduire dans un toggle.
      gonfle ni le numérateur ni le dénominateur, et un sujet repris deux fois ne
      compte qu'une fois. Verrouillé par `test/production_parcours_test.dart`.
 
-2. **`TcfTaskTrainingScreen`** (`/tcf/{eo,ee}/tache/:n`) — le mode « Sujets » :
+2. **`ProductionSubjectsTabView`** (`/tcf/{eo,ee}/tache/:n`) — le mode « Sujets » :
    `ProductionHero` (eyebrow « Tâche N », intention de la tâche, progression de la
-   tâche, pilule de contrainte lue sur le sujet), `ProductionTaskPills`
-   (`pushReplacement`), le bouton **Exemples**, `ProductionSectionHead`,
+   tâche, pilule de contrainte lue sur le sujet), `ProductionTaskPills` (remontées
+   au parcours via `onTacheChanged`), le bouton **Exemples**, `ProductionSectionHead`,
    `ExamFilterChips` **Tous / À faire / Traités** avec compteurs, puis les
    **`ProductionSubjectCard`**. Barre du module en bas, « Sujets » actif.
    **Tap un sujet non fait → l'entraînement démarre directement** (`startSingle` +
@@ -777,8 +851,9 @@ réintroduire dans un toggle.
      l'essai. **Surtout pas sur l'écran d'entrée** (mode « Compétences ») : les
      micro-exercices ne verrouillent aucun sujet et ont leur **propre** quota
      (analyses IA offertes) — l'y afficher annoncerait une règle fausse.
-   - Données : `task_training_data.dart` (`taskTrainingProvider`), **partagé** avec
-     l'écran des exemples — les deux chargeaient la même chose chacun de leur côté.
+   - Données : `taskTrainingProvider` (`task_training_data.dart`), **dérivé sans
+     réseau** de `productionCatalogProvider`. L'écran des exemples lit directement
+     `taskExamplesProvider` : il n'a que faire des productions du candidat.
 
 3. **`TcfTaskExamplesScreen`** (`/tcf/{eo,ee}/tache/:n/exemples`) — les **modèles**
    (`GET /api/production-examples?…`, appel inchangé) : `FeaturedExampleCard` (lecteur
@@ -1085,7 +1160,7 @@ Et deux conventions transverses :
 
 Briques de la maquette, dans `competences/widgets/` :
 `competences_hero.dart` (hero en dégradé + progression globale),
-`competences_task_pills.dart` (T1/T2/T3, `pushReplacement`),
+`competences_task_pills.dart` (T1/T2/T3, filtre local — cf. la passe fluidité),
 `competences_blocks.dart` (intertitre, encart « notice », tipline ambre,
 pastille de numéro **48×48 r16 — une seule forme partout**, chevron 30×30,
 `PressableCard` = ombre douce + enfoncement au toucher, `DashedBox` = la
@@ -1237,7 +1312,8 @@ Points de comportement à ne pas défaire :
   bouton secondaire « Effacer » à côté.
 
 **Routes** (`AppRoutes`, `moduleKey ∈ {ee, eo}`) :
-- `/tcf/:moduleKey/tache/:tacheNumero/competences` → `CompetencesListScreen`
+- `/tcf/:moduleKey/tache/:tacheNumero/competences` → `ProductionParcoursScreen`
+  (mode Compétences ; le corps est `CompetencesTabView`)
 - `/tcf/:moduleKey/competences/:skillId` → `CompetenceDetailScreen`
 - `/tcf/:moduleKey/competences/:skillId/sujet/:promptId` → `CompetencePromptScreen`
 - `/tcf/:moduleKey/competences/resultat/:attemptId` → `CompetenceResultScreen`
@@ -1251,12 +1327,17 @@ porte les paliers CSP/CR/NAT/A2/B1/B2 et **n'est pas** le `Difficulty` EASY/MEDI
 backend : ce dernier vit sous le nom `SkillDifficulty` dans `skill_models.dart`. Ne pas les
 fusionner.
 
-**State** (`competences_providers.dart`) : `FutureProvider.autoDispose.family` pour toutes
-les lectures (`skillsListProvider` sur une clé value-object `SkillsKey`, puis
-`skillDetailProvider` / `skillPromptProvider` / `skillReferencesProvider` /
-`skillAttemptProvider` / `skillAnalysisQuotaProvider`), et un
-`StateNotifierProvider.autoDispose.family` (`skillSubmissionProvider`) pour la soumission.
-Les chemins se construisent dans `competences_nav.dart`, jamais recollés à la main.
+**State** (`competences_providers.dart`) : `skillsSectionProvider` charge **l'épreuve
+entière en un appel** et est **gardé en vie pour la session** (`ref.keepAlive`, erreur non
+cachée) ; `skillsListProvider` est un `Provider` **synchrone** qui filtre par `taskCode`
+(clé value-object `SkillsKey`) — changer de pastille ne coûte rien. Les lectures **par
+sujet** restent `FutureProvider.autoDispose.family` (`skillDetailProvider` /
+`skillPromptProvider` / `skillReferencesProvider` / `skillAttemptProvider` /
+`skillAnalysisQuotaProvider`) : elles portent l'état du candidat sur un sujet précis, on
+les veut fraîches. La soumission passe par un `StateNotifierProvider.autoDispose.family`
+(`skillSubmissionProvider`), après quoi `invalidateSkillsSection` **doit** être appelé —
+sans ça la liste afficherait un « X/N sujets traités » périmé. Les chemins se construisent
+dans `competences_nav.dart`, jamais recollés à la main.
 
 **Statuts d'un petit sujet** (dérivés **côté serveur**, jamais recalculés ici) :
 `TODO` « À faire » · `TREATED` « Fait » · `VALIDATED` « Validé » · `TO_REINFORCE`

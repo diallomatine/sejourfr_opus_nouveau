@@ -23,6 +23,20 @@ export function productionEntryHref(base: string): string {
 }
 
 /**
+ * Les trois tâches d'une épreuve, à prérendre (`generateStaticParams`).
+ *
+ * Une épreuve n'a jamais eu que trois tâches : laisser ces routes en rendu à la
+ * demande faisait payer un aller-retour serveur à chaque bascule de mode
+ * (Compétences · Sujets · Examens), alors que la page est une coquille cliente
+ * identique pour les trois. Prérendues, elles sont préchargées par les liens de
+ * la barre de modes et servies depuis le cache de routage.
+ *
+ * Les autres valeurs de `n` restent servies à la demande (l'écran affiche
+ * « Tâche inconnue ») : on prérend le vrai parcours, on ne ferme rien.
+ */
+export const PRODUCTION_TASK_PARAMS = [{n: "1"}, {n: "2"}, {n: "3"}] as const;
+
+/**
  * Voix employée par le **chrome** d'un formulaire de production (libellés,
  * aides, messages d'état et d'erreur).
  *

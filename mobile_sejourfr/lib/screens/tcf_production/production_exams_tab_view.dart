@@ -16,38 +16,52 @@ import '../module_detail/production_exam_briefing_sheet.dart';
 import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
 import 'expression_hub_data.dart';
-import 'production_nav.dart';
+import 'production_catalog.dart';
 import 'tcf_production_module.dart';
 import 'widgets/exam_filter_chips.dart';
 import 'widgets/exam_progress_card.dart';
 import 'widgets/exam_slot/exam_slot_card.dart';
 import 'widgets/exams_error_view.dart';
-import 'widgets/flag_badge.dart';
-import 'widgets/module_screen_header.dart';
-import 'widgets/production_module_bar.dart';
 import 'widgets/production_exam_done_result.dart';
 import 'widgets/production_exams_stats_row.dart';
+import 'widgets/production_module_bar.dart';
+
+/// Identité des sessions d'examen d'une épreuve, sous forme comparable.
+///
+/// Sert de dépendance aux bilans : recharger le catalogue (le candidat vient de
+/// produire un sujet) ne doit **pas** relancer un bilan par session — seule
+/// l'apparition d'une session nouvelle le justifie. Riverpod compare la valeur
+/// sélectionnée avec `==`, d'où la chaîne plutôt qu'une liste.
+String _examIdsOf(AsyncValue<HubData> async) =>
+    (async.valueOrNull?.exams.map((e) => e.attemptId).toList() ??
+            const <String>[])
+        .join(',');
 
 /// Bilans des sessions d'examen blanc (≥ 3 tâches) d'une épreuve, fetchés en
 /// parallèle. Sert à la fois au niveau estimé (le meilleur `niveauGlobal`) et
 /// au mapping session → slot réel (`bilan.slotNumber`).
-final _examBilansProvider =
-    FutureProvider.autoDispose.family<List<ProductionBilan>, EpreuveType>((ref, epreuve) async {
-  final repo = ref.watch(productionRepositoryProvider);
-  final data = await ref.watch(expressionHubProvider(epreuve).future);
-  if (data.exams.isEmpty) return const [];
-  return Future.wait(
-    data.exams.map((e) => repo.getProductionBilan(e.attemptId)),
-  );
+final examBilansProvider =
+    FutureProvider.autoDispose.family<List<ProductionBilan>, EpreuveType>(
+        (ref, epreuve) async {
+  final ids = ref.watch(expressionHubProvider(epreuve).select(_examIdsOf));
+  if (ids.isEmpty) return const [];
+  final link = ref.keepAlive();
+  try {
+    final repo = ref.watch(productionRepositoryProvider);
+    return await Future.wait(ids.split(',').map(repo.getProductionBilan));
+  } catch (_) {
+    link.close();
+    rethrow;
+  }
 });
 
 /// Niveau estimé d'une épreuve = le plus élevé des `niveauGlobal` des bilans
 /// d'examen blanc. Renvoie null si aucun bilan exposé de niveau.
 final _niveauEstimeProvider =
-    FutureProvider.autoDispose.family<NiveauCecrl?, EpreuveType>((ref, epreuve) async {
-  final bilans = await ref.watch(_examBilansProvider(epreuve).future);
+    Provider.autoDispose.family<NiveauCecrl?, EpreuveType>((ref, epreuve) {
+  final bilans = ref.watch(examBilansProvider(epreuve)).valueOrNull;
   NiveauCecrl? best;
-  for (final b in bilans) {
+  for (final b in bilans ?? const <ProductionBilan>[]) {
     final n = b.niveauGlobal;
     if (n == null) continue;
     if (best == null || n.scaleIndex > best.scaleIndex) best = n;
@@ -59,10 +73,13 @@ final _niveauEstimeProvider =
 /// (`bilan.slotNumber`) au lieu d'un mapping chronologique. Les anciennes
 /// sessions sans slot (toutes slot 1) tombent sur le slot 1 — accepté. En cas
 /// de collision (plusieurs sessions sur le même slot), la plus récente gagne.
-final _sessionsBySlotProvider = FutureProvider.autoDispose
-    .family<Map<int, ExamSession>, EpreuveType>((ref, epreuve) async {
-  final data = await ref.watch(expressionHubProvider(epreuve).future);
-  final bilans = await ref.watch(_examBilansProvider(epreuve).future);
+final _sessionsBySlotProvider =
+    Provider.autoDispose.family<Map<int, ExamSession>, EpreuveType>(
+        (ref, epreuve) {
+  final data = ref.watch(expressionHubProvider(epreuve)).valueOrNull;
+  if (data == null) return const {};
+  final bilans =
+      ref.watch(examBilansProvider(epreuve)).valueOrNull ?? const [];
   final slotByAttempt = <String, int>{
     for (final b in bilans)
       if (b.slotNumber != null) b.attemptId: b.slotNumber!,
@@ -123,30 +140,41 @@ ExamSlotPill _difficultyPill(_ExamDifficulty d) {
   };
 }
 
-/// Page « Examens blancs » d'une épreuve EE/EO. Header + stats + barre de
-/// progression + chips de filtre + liste des 10 slots numérotés.
-class ProductionExamsScreen extends ConsumerStatefulWidget {
-  const ProductionExamsScreen({
+/// Mode « Examens blancs » du parcours EE/EO : stats + barre de progression +
+/// chips de filtre + liste des 10 slots numérotés.
+///
+/// Corps seul — l'en-tête, la barre du module et le voile d'attente sont portés
+/// par [ProductionParcoursScreen], qui garde les trois modes montés côte à côte.
+/// C'est ce qui fait qu'y revenir ne recharge rien et ne perd pas le
+/// défilement.
+class ProductionExamsTabView extends ConsumerStatefulWidget {
+  const ProductionExamsTabView({
     super.key,
     required this.module,
-    this.tache = 1,
+    required this.onBusy,
   });
 
   final TcfProductionModule module;
 
-  /// Tâche d'où l'on vient, pour que la barre du module y renvoie. La page
-  /// elle-même est portée par l'épreuve : cette valeur ne s'affiche nulle part.
-  final int tache;
+  /// Remonte l'attente au parcours : le voile doit couvrir la barre du module,
+  /// sinon on peut changer de mode pendant le démarrage d'un examen.
+  final ValueChanged<bool> onBusy;
 
   @override
-  ConsumerState<ProductionExamsScreen> createState() =>
-      _ProductionExamsScreenState();
+  ConsumerState<ProductionExamsTabView> createState() =>
+      _ProductionExamsTabViewState();
 }
 
-class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
+class _ProductionExamsTabViewState
+    extends ConsumerState<ProductionExamsTabView> {
   bool _starting = false;
   int _filter = 0;
   bool _showAll = false;
+
+  void _setStarting(bool value) {
+    setState(() => _starting = value);
+    widget.onBusy(value);
+  }
 
   bool _isPremium() {
     final auth = ref.read(authControllerProvider);
@@ -191,7 +219,7 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
 
   Future<void> _startExam(int slotNumber) async {
     if (_starting) return;
-    setState(() => _starting = true);
+    _setStarting(true);
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
     try {
       if (widget.module.isEo) {
@@ -207,7 +235,7 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
       if (!mounted) return;
       showPaywallOrError(context, e);
     } finally {
-      if (mounted) setState(() => _starting = false);
+      if (mounted) _setStarting(false);
     }
   }
 
@@ -217,69 +245,28 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
     context.push('$base/sessions/${exam.attemptId}');
   }
 
-  void _back() => leaveProductionParcours(context);
-
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(expressionHubProvider(widget.module.epreuve));
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            ModuleScreenHeader(
-              title: 'Examens blancs',
-              subtitle: '${widget.module.title} · TCF IRN',
-              onBack: _back,
-              trailing: const FlagBadge(),
-            ),
-            Expanded(
-              child: Stack(
-                children: [
-                  async.when(
-                loading: () => Center(
-                    child:
-                        CircularProgressIndicator(color: widget.module.accent)),
-                error: (e, _) => ExamsErrorView(
-                  message: ApiClient.toApiException(e).message,
-                  onRetry: () => ref
-                      .invalidate(expressionHubProvider(widget.module.epreuve)),
-                  accent: widget.module.accent,
-                ),
-                    data: (_) => _buildContent(),
-                  ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: ProductionModuleBar(
-                      active: ProductionModuleTab.examens,
-                      accent: widget.module.accent,
-                      onChanged: (tab) => goProductionTab(
-                        context,
-                        widget.module,
-                        widget.tache,
-                        tab,
-                        current: ProductionModuleTab.examens,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return ref.watch(expressionHubProvider(widget.module.epreuve)).when(
+          // Le catalogue est en cache : un rechargement (retour d'un examen)
+          // garde la grille à l'écran au lieu de la remplacer par un spinner.
+          skipLoadingOnReload: true,
+          loading: () => Center(
+              child: CircularProgressIndicator(color: widget.module.accent)),
+          error: (e, _) => ExamsErrorView(
+            message: ApiClient.toApiException(e).message,
+            onRetry: () =>
+                invalidateProductionCatalog(ref, widget.module.epreuve),
+            accent: widget.module.accent,
+          ),
+          data: (_) => _buildContent(),
+        );
   }
 
   Widget _buildContent() {
     // Mapping session → slot réel (via `bilan.slotNumber`). Tant que les bilans
     // ne sont pas chargés, on retombe sur une map vide → tous les slots libres.
-    final bySlot =
-        ref.watch(_sessionsBySlotProvider(widget.module.epreuve)).valueOrNull ??
-            const <int, ExamSession>{};
+    final bySlot = ref.watch(_sessionsBySlotProvider(widget.module.epreuve));
     final nextSlot = _firstFreeSlot(bySlot);
 
     final filteredIndices = <int>[
@@ -300,8 +287,7 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
             completed.length;
     // Niveau estimé alimenté par le backend (bilans d'examen blanc), pas
     // dérivé localement par tâche.
-    final niveauEstime =
-        ref.watch(_niveauEstimeProvider(widget.module.epreuve)).valueOrNull;
+    final niveauEstime = ref.watch(_niveauEstimeProvider(widget.module.epreuve));
 
     final lockedTodo = _isPremium() ? 0 : (_examSlotsCount - _freeSlots);
     final todoCount = _examSlotsCount - doneCount - lockedTodo;
@@ -309,9 +295,12 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
     return RefreshIndicator(
       color: widget.module.accent,
       onRefresh: () async {
-        ref.invalidate(expressionHubProvider(widget.module.epreuve));
-        ref.invalidate(_examBilansProvider(widget.module.epreuve));
-        await ref.read(expressionHubProvider(widget.module.epreuve).future);
+        // Le tiré-pour-rafraîchir est le seul geste qui redemande tout : le
+        // catalogue ET les bilans, dont la note peut avoir fini d'arriver.
+        invalidateProductionCatalog(ref, widget.module.epreuve);
+        ref.invalidate(examBilansProvider(widget.module.epreuve));
+        await ref.read(
+            productionCatalogProvider(widget.module.epreuve).future);
       },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(

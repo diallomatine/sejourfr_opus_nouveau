@@ -1,6 +1,7 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.SkillDetailDto;
+import com.sejourfr.app.dto.SkillDto;
 import com.sejourfr.app.dto.SkillPromptDto;
 import com.sejourfr.app.dto.SkillReferenceDto;
 import com.sejourfr.app.dto.SkillTaskProgressDto;
@@ -14,6 +15,7 @@ import com.sejourfr.app.enums.SkillPromptStatus;
 import com.sejourfr.app.enums.SkillReferenceLevel;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
+import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.SkillPromptManager;
@@ -216,6 +218,95 @@ class SkillServiceTest {
         assertThat(dto.lastAttemptId()).isEqualTo(latest.getId());
         assertThat(dto.attemptCount()).isEqualTo(3);
         assertThat(dto.status()).isEqualTo(SkillPromptStatus.TREATED);
+    }
+
+    // ------------------------------------------------------------------------
+    // Liste des competences : arbitrage des deux filtres
+    // ------------------------------------------------------------------------
+
+    @Test
+    void listWithoutAnyFilterIsRefused() {
+        // Sans filtre la route rendrait les 48 competences des deux epreuves :
+        // aucun ecran ne consomme cela, on refuse plutot que de le servir.
+        assertThatThrownBy(() -> service.list(null, null))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Précisez l'épreuve");
+    }
+
+    @Test
+    void listWithContradictoryFiltersIsRefused() {
+        // Une liste vide se lirait cote front comme « pas encore de contenu ».
+        assertThatThrownBy(() -> service.list(SkillSection.EE, SkillTaskCode.EO2))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Filtres incompatibles");
+    }
+
+    @Test
+    void listWithBothConsistentFiltersHonoursTheTaskCode() {
+        Skill onlyOfEe1 = skill(SkillTaskCode.EE1);
+        when(skillManager.findActiveByTaskCode(SkillTaskCode.EE1)).thenReturn(List.of(onlyOfEe1));
+        when(promptManager.countActiveBySkillForTaskCodes(List.of(SkillTaskCode.EE1)))
+                .thenReturn(Map.of(onlyOfEe1.getId(), 5L));
+        when(attemptManager.findLatestPerPromptByTaskCodes(userId, List.of(SkillTaskCode.EE1)))
+                .thenReturn(Map.of());
+
+        List<SkillDto> both = service.list(SkillSection.EE, SkillTaskCode.EE1);
+        List<SkillDto> taskOnly = service.list(null, SkillTaskCode.EE1);
+
+        // findActiveBySection n'est jamais stubbe : si la branche epreuve avait
+        // ete prise, la liste serait vide. Le filtre le plus precis l'emporte.
+        assertThat(both).extracting(SkillDto::id).containsExactly(onlyOfEe1.getId());
+        assertThat(both).usingRecursiveComparison().isEqualTo(taskOnly);
+    }
+
+    @Test
+    void listBySectionCoversTheThreeTasksInOneCatalogueRead() {
+        List<SkillTaskCode> scope = SkillTaskCode.of(SkillSection.EE);
+        Skill ee1 = skill(SkillTaskCode.EE1);
+        Skill ee2 = skill(SkillTaskCode.EE2);
+        Skill ee3 = skill(SkillTaskCode.EE3);
+
+        when(skillManager.findActiveBySection(SkillSection.EE)).thenReturn(List.of(ee1, ee2, ee3));
+        when(promptManager.countActiveBySkillForTaskCodes(scope))
+                .thenReturn(Map.of(ee1.getId(), 5L, ee2.getId(), 5L, ee3.getId(), 5L));
+        when(attemptManager.findLatestPerPromptByTaskCodes(userId, scope)).thenReturn(Map.of());
+
+        List<SkillDto> result = service.list(SkillSection.EE, null);
+
+        assertThat(result).extracting(SkillDto::taskCode)
+                .containsExactly(SkillTaskCode.EE1, SkillTaskCode.EE2, SkillTaskCode.EE3);
+        assertThat(result).allMatch(dto -> dto.promptCount() == 5);
+    }
+
+    @Test
+    void listBySectionKeepsEachSkillProgressionAttachedToItsOwnSkill() {
+        List<SkillTaskCode> scope = SkillTaskCode.of(SkillSection.EE);
+        Skill ee1 = skill(SkillTaskCode.EE1);
+        Skill ee2 = skill(SkillTaskCode.EE2);
+        SkillPrompt validatedOfEe1 = prompt(ee1, 1);
+        SkillPrompt toReinforceOfEe2 = prompt(ee2, 1);
+        SkillPrompt retiredOfEe2 = prompt(ee2, 2);
+        retiredOfEe2.setActive(false);
+
+        when(skillManager.findActiveBySection(SkillSection.EE)).thenReturn(List.of(ee1, ee2));
+        when(promptManager.countActiveBySkillForTaskCodes(scope))
+                .thenReturn(Map.of(ee1.getId(), 5L, ee2.getId(), 5L));
+        when(attemptManager.findLatestPerPromptByTaskCodes(userId, scope)).thenReturn(Map.of(
+                validatedOfEe1.getId(), analysed(validatedOfEe1, SkillCriterionStatus.VALIDATED),
+                toReinforceOfEe2.getId(), analysed(toReinforceOfEe2, SkillCriterionStatus.PARTIAL),
+                retiredOfEe2.getId(), recorded(retiredOfEe2)));
+
+        List<SkillDto> result = service.list(SkillSection.EE, null);
+
+        // Le piege de l'elargissement : les tentatives de 3 taches arrivent dans
+        // le meme lot, chacune doit rester rattachee a SA competence.
+        assertThat(result.get(0).validatedCount()).isEqualTo(1);
+        assertThat(result.get(0).toReinforceCount()).isZero();
+        assertThat(result.get(0).attemptedCount()).isEqualTo(1);
+        assertThat(result.get(1).validatedCount()).isZero();
+        assertThat(result.get(1).toReinforceCount()).isEqualTo(1);
+        // Le sujet retire du catalogue ne gonfle pas le compteur de sa competence.
+        assertThat(result.get(1).attemptedCount()).isEqualTo(1);
     }
 
     // ------------------------------------------------------------------------

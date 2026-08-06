@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import {useParams, useRouter} from "next/navigation";
-import {useEffect, useRef, useState} from "react";
+import {useRef, useState} from "react";
 import {Check, Info, Sparkles} from "lucide-react";
-import {ApiException, skillApi} from "@/lib/api";
+import {skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
+import {cached} from "@/lib/data-cache";
+import {skillDetailKey} from "@/lib/skill-catalog";
 import {progressPercent} from "@/lib/skill-progress";
+import {useCachedData} from "@/lib/use-cached-data";
 import {
   SKILL_DIFFICULTY_LABEL,
   SKILL_PROMPT_STATUS_LABEL,
-  type SkillDetailDto,
   type SkillPromptSummaryDto,
 } from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
@@ -47,36 +49,21 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
 
   const base = `${config.base}/tache/${n}/competences`;
 
-  const [data, setData] = useState<SkillDetailDto | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const infoButtonRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (status !== "authenticated" || !skillId) return;
-    let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    skillApi
-      .getSkill(skillId)
-      .then((d) => {
-        if (!cancelled) setData(d);
-      })
-      .catch((e) => {
-        if (!cancelled)
-          setError(
-            e instanceof ApiException ? e.message : "Impossible de charger cette compétence.",
-          );
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [status, skillId]);
+  // Mémorisé pour la session : aller sur un petit sujet puis revenir à la liste
+  // ne recharge pas la compétence. L'entrée est purgée dès qu'une production ou
+  // une analyse change le statut d'un sujet (`lib/api.ts`).
+  const detailQuery = useCachedData(
+    status === "authenticated" && skillId ? skillDetailKey(skillId) : null,
+    () => cached(skillDetailKey(skillId), () => skillApi.getSkill(skillId)),
+    {errorMessage: "Impossible de charger cette compétence."},
+  );
+  const data = detailQuery.data;
+  const loading = detailQuery.loading;
+  const error = detailQuery.error;
 
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`${base}/${skillId}`} />;

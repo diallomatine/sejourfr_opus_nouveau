@@ -128,6 +128,11 @@ class _CompetenceResultScreenState
       await ref.read(skillRepositoryProvider).retryAnalysis(widget.attemptId);
       if (!mounted) return;
       ref.invalidate(skillAttemptProvider(widget.attemptId));
+      // Une analyse relancée peut changer le statut du sujet (donc les
+      // compteurs de la liste, gardée en cache pour la session) et le quota.
+      ref.invalidate(skillAnalysisQuotaProvider);
+      invalidateSkillsSection(
+          ref, widget.module.isEo ? SkillSection.eo : SkillSection.ee);
       _startPolling();
     } catch (e) {
       if (!mounted) return;

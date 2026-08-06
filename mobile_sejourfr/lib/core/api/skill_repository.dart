@@ -6,6 +6,7 @@ import '../models/skill_models.dart';
 import 'api_client.dart';
 
 /// Accès au module « Compétences TCF » :
+///   GET  /api/skills?section=EE   (les 24 compétences d'une épreuve)
 ///   GET  /api/skills?taskCode=EE1
 ///   GET  /api/skills/{skillId}
 ///   GET  /api/skills/analysis-quota
@@ -20,7 +21,22 @@ class SkillRepository {
 
   final ApiClient _client;
 
+  /// Les compétences d'une **épreuve entière** (3 tâches × 8) en un seul
+  /// appel, triées `taskCode` puis `displayOrder`. C'est ce filtre qui permet
+  /// aux pastilles T1/T2/T3 d'être un tri local plutôt qu'un appel réseau.
+  Future<List<SkillDto>> listSkillsBySection(String section) async {
+    final res = await _client.dio.get<List<dynamic>>(
+      '/api/skills',
+      queryParameters: {'section': section},
+    );
+    return (res.data ?? [])
+        .map((e) => SkillDto.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Les 8 compétences actives d'une tâche, avec la progression du user.
+  /// Conservé comme **repli** de [listSkillsBySection] tant que le filtre
+  /// `section` n'est pas déployé côté backend.
   Future<List<SkillDto>> listSkills(String taskCode) async {
     final res = await _client.dio.get<List<dynamic>>(
       '/api/skills',

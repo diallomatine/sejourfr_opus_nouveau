@@ -1,17 +1,25 @@
 "use client";
 
 import {useParams, useRouter} from "next/navigation";
-import {useEffect, useState} from "react";
+import {useCallback, useState} from "react";
 import {Check} from "lucide-react";
-import {ApiException, skillApi} from "@/lib/api";
+import {skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
+import {
+  loadSectionSkills,
+  loadTaskProgress,
+  skillsOfTask,
+  skillsProgressKey,
+  skillsSectionKey,
+} from "@/lib/skill-catalog";
 import {sumProgress} from "@/lib/skill-progress";
+import {replaceUrlShallow} from "@/lib/shallow-url";
+import {useCachedData} from "@/lib/use-cached-data";
 import {
   productionTaskTitle,
   skillSectionOf,
-  skillTaskCodeOf,
   type SkillDto,
-  type SkillTaskProgressDto,
+  skillTaskCodeOf,
 } from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
@@ -44,60 +52,55 @@ import s from "@/app/_components/skill-ui/skill.module.css";
  */
 export function CompetencesList({config}: {config: ProductionConfig}) {
   const params = useParams<{n: string}>();
-  const n = Number(params?.n ?? "0");
-  const valid = n >= 1 && n <= 3;
   const router = useRouter();
   const {user, status} = useAuth();
 
   const section = skillSectionOf(config.epreuve);
+  const hrefOf = useCallback(
+    (task: number) => `${config.base}/tache/${task}/competences`,
+    [config.base],
+  );
+
+  // Les 24 compétences de l'épreuve arrivent en un appel : une pastille ne fait
+  // donc que **filtrer**, sans remonter l'écran ni redemander quoi que ce soit.
+  // La tâche est le choix local s'il y en a eu un, sinon celle de l'URL — dans
+  // cet ordre, pour que l'accès direct, le lien partagé et le retour navigateur
+  // continuent de décider de la tâche d'arrivée sans jamais écraser un choix.
+  const routeTask = Number(params?.n ?? "0");
+  const [pickedTask, setPickedTask] = useState<number | null>(null);
+  const n = pickedTask ?? routeTask;
+  const valid = n >= 1 && n <= 3;
   const taskCode = skillTaskCodeOf(section, n);
-  const base = `${config.base}/tache/${n}/competences`;
+  const base = hrefOf(n);
 
-  const [skills, setSkills] = useState<SkillDto[]>([]);
-  const [taskProgress, setTaskProgress] = useState<SkillTaskProgressDto | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const pickTask = useCallback(
+    (task: number) => {
+      setPickedTask(task);
+      replaceUrlShallow(hrefOf(task));
+    },
+    [hrefOf],
+  );
 
-  useEffect(() => {
-    if (status !== "authenticated" || !valid) return;
-    let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    skillApi
-      .listSkills(taskCode)
-      .then((list) => {
-        if (!cancelled) setSkills([...list].sort((a, b) => a.displayOrder - b.displayOrder));
-      })
-      .catch((e) => {
-        if (!cancelled)
-          setError(
-            e instanceof ApiException ? e.message : "Impossible de charger les compétences.",
-          );
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [status, valid, taskCode]);
+  const ready = status === "authenticated" && valid;
 
-  // Palier de la tâche, servi par l'agrégat par tâche. Best-effort : le hero
+  // Un seul appel pour toute l'épreuve, mémorisé pour la session : revenir sur
+  // cet écran depuis « Sujets » ou « Examens » ne redemande rien.
+  const skillsQuery = useCachedData(
+    ready ? skillsSectionKey(section) : null,
+    () => loadSectionSkills(skillApi, section),
+    {errorMessage: "Impossible de charger les compétences."},
+  );
+  const skills = skillsOfTask(skillsQuery.data, taskCode);
+  const loading = skillsQuery.loading;
+  const error = skillsQuery.error;
+
+  // Palier de la tâche, servi par l'agrégat par épreuve. Best-effort : le hero
   // sait s'afficher sans sa pilule, et la progression, elle, se recalcule
   // toujours à partir des compétences déjà chargées (une seule source).
-  useEffect(() => {
-    if (status !== "authenticated" || !valid) return;
-    let cancelled = false;
-    skillApi
-      .progress(section)
-      .then((rows) => {
-        if (!cancelled) setTaskProgress(rows.find((r) => r.taskCode === taskCode) ?? null);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [status, valid, section, taskCode]);
+  const progressQuery = useCachedData(ready ? skillsProgressKey(section) : null, () =>
+    loadTaskProgress(skillApi, section),
+  );
+  const taskProgress = progressQuery.data?.find((r) => r.taskCode === taskCode) ?? null;
 
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={base} />;
@@ -145,7 +148,8 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
           config={config}
           current={n}
           labelOf={(i) => productionTaskTitle(config.epreuve, i)}
-          hrefOf={(i) => `${config.base}/tache/${i}/competences`}
+          hrefOf={hrefOf}
+          onPick={pickTask}
         />
 
         <SectionHead

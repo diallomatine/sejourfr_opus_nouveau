@@ -186,6 +186,10 @@ class FakeSkillRepository implements SkillRepository {
       SkillAttemptDto.fromJson(attempt);
 
   @override
+  Future<List<SkillDto>> listSkillsBySection(String section) async =>
+      throw UnimplementedError();
+
+  @override
   Future<List<SkillDto>> listSkills(String taskCode) async =>
       throw UnimplementedError();
 

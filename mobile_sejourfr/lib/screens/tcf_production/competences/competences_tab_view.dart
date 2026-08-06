@@ -4,10 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/models/skill_models.dart';
-import '../../../core/router/route_observer.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/screen_header.dart';
-import '../production_nav.dart';
 import '../tcf_production_module.dart';
 import 'competences_nav.dart';
 import 'competences_providers.dart';
@@ -18,7 +14,7 @@ import '../widgets/production_module_bar.dart';
 import '../widgets/production_state_views.dart';
 import '../widgets/production_task_pills.dart';
 
-/// Niveau 4 du parcours : les 8 compétences d'une tâche EE/EO.
+/// Mode « Compétences » du parcours : les 8 compétences d'une tâche EE/EO.
 ///
 /// Reprend la structure de l'accueil du prototype : hero en dégradé portant la
 /// progression globale, pastilles de tâche T1/T2/T3, intertitres, liste des
@@ -27,23 +23,28 @@ import '../widgets/production_task_pills.dart';
 /// Espace **distinct** des sujets TCF complets (§13.9 de la spec) : on
 /// travaille ici un critère à la fois sur de petits sujets, pas une production
 /// d'examen entière.
-class CompetencesListScreen extends ConsumerStatefulWidget {
-  const CompetencesListScreen({
+///
+/// Corps seul — l'en-tête et la barre du module sont portés par
+/// [ProductionParcoursScreen]. Les pastilles T1/T2/T3 ne sont plus une
+/// navigation : les 24 compétences de l'épreuve arrivent en un appel, le
+/// changement de tâche est un tri local.
+class CompetencesTabView extends ConsumerStatefulWidget {
+  const CompetencesTabView({
     super.key,
     required this.module,
     required this.tache,
+    required this.onTacheChanged,
   });
 
   final TcfProductionModule module;
   final int tache;
+  final ValueChanged<int> onTacheChanged;
 
   @override
-  ConsumerState<CompetencesListScreen> createState() =>
-      _CompetencesListScreenState();
+  ConsumerState<CompetencesTabView> createState() => _CompetencesTabViewState();
 }
 
-class _CompetencesListScreenState extends ConsumerState<CompetencesListScreen>
-    with RouteAware {
+class _CompetencesTabViewState extends ConsumerState<CompetencesTabView> {
   SkillsKey get _key => SkillsKey(
         section: widget.module.isEo ? SkillSection.eo : SkillSection.ee,
         tacheNumero: widget.tache,
@@ -51,40 +52,8 @@ class _CompetencesListScreenState extends ConsumerState<CompetencesListScreen>
 
   Color get _accent => widget.module.accent;
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final route = ModalRoute.of(context);
-    if (route is PageRoute) {
-      appRouteObserver.subscribe(this, route);
-    }
-  }
-
-  @override
-  void dispose() {
-    appRouteObserver.unsubscribe(this);
-    super.dispose();
-  }
-
-  /// Retour depuis une compétence : la progression a pu bouger, on refetch
-  /// sans démonter la liste (`skipLoadingOnReload` côté build).
-  @override
-  void didPopNext() {
-    ref.invalidate(skillsListProvider(_key));
-  }
-
-  void _back() => leaveProductionParcours(context);
-
   void _open(SkillDto skill) =>
       context.push(competenceDetailPath(widget.module, skill.id));
-
-  /// Change de tâche sans repasser par l'écran précédent (la navigation du
-  /// prototype). `pushReplacement` : on remplace l'écran courant au lieu
-  /// d'empiler une tâche par tap.
-  void _openTask(int tache) {
-    if (tache == widget.tache) return;
-    context.pushReplacement(competencesListPath(widget.module, tache));
-  }
 
   /// « Continuer » ouvre la première compétence dont tous les sujets n'ont pas
   /// encore été traités ; si tout a été vu, on rouvre la première.
@@ -108,55 +77,15 @@ class _CompetencesListScreenState extends ConsumerState<CompetencesListScreen>
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(skillsListProvider(_key));
-
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            ScreenHeader(
-              title: 'Compétences',
-              sub: 'Tâche ${widget.tache} · ${widget.module.title}',
-              onBack: _back,
-            ),
-            Expanded(
-              child: Stack(
-                children: [
-                  async.when(
-                    skipLoadingOnReload: true,
-                    loading: () => Center(
-                        child: CircularProgressIndicator(color: _accent)),
-                    error: (e, _) => ProductionErrorView(
-                      message: ApiClient.toApiException(e).message,
-                      onRetry: () => ref.invalidate(skillsListProvider(_key)),
-                    ),
-                    data: _body,
-                  ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: ProductionModuleBar(
-                      active: ProductionModuleTab.competences,
-                      accent: _accent,
-                      onChanged: (tab) => goProductionTab(
-                        context,
-                        widget.module,
-                        widget.tache,
-                        tab,
-                        current: ProductionModuleTab.competences,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return ref.watch(skillsListProvider(_key)).when(
+          skipLoadingOnReload: true,
+          loading: () => Center(child: CircularProgressIndicator(color: _accent)),
+          error: (e, _) => ProductionErrorView(
+            message: ApiClient.toApiException(e).message,
+            onRetry: () => invalidateSkillsSection(ref, _key.section),
+          ),
+          data: _body,
+        );
   }
 
   Widget _body(List<SkillDto> skills) {
@@ -167,8 +96,8 @@ class _CompetencesListScreenState extends ConsumerState<CompetencesListScreen>
       );
     }
     final resume = _resumeTarget(skills);
-    // Agrégat calculé côté client : `GET /api/skills?taskCode=` sert déjà les
-    // compteurs par compétence, aucun endpoint à inventer pour la barre.
+    // Agrégat calculé côté client : `GET /api/skills` sert déjà les compteurs
+    // par compétence, aucun endpoint à inventer pour la barre.
     final treated = skills.fold<int>(0, (sum, s) => sum + s.attemptedCount);
     final total = skills.fold<int>(0, (sum, s) => sum + s.promptCount);
     final percent = total == 0 ? 0.0 : treated / total * 100;
@@ -176,10 +105,13 @@ class _CompetencesListScreenState extends ConsumerState<CompetencesListScreen>
     return RefreshIndicator(
       color: _accent,
       onRefresh: () async {
-        ref.invalidate(skillsListProvider(_key));
-        await ref.read(skillsListProvider(_key).future);
+        invalidateSkillsSection(ref, _key.section);
+        await ref.read(skillsSectionProvider(_key.section).future);
       },
       child: ListView(
+        // Une clé par tâche : changer de pastille repart en haut de liste au
+        // lieu de garder le défilement d'une autre tâche.
+        key: PageStorageKey<int>(widget.tache),
         padding: const EdgeInsets.fromLTRB(
             16, 12, 16, ProductionModuleBar.reservedHeight),
         children: [
@@ -203,7 +135,7 @@ class _CompetencesListScreenState extends ConsumerState<CompetencesListScreen>
           ProductionTaskPills(
             active: widget.tache,
             accent: _accent,
-            onChanged: _openTask,
+            onChanged: widget.onTacheChanged,
           ),
           const SizedBox(height: 21),
           ProductionSectionHead(

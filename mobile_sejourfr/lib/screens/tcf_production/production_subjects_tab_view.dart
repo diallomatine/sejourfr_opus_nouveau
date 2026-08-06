@@ -8,16 +8,15 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 import '../../core/providers/shared_prefs_provider.dart';
-import '../../core/router/route_observer.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/format_date.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_sheet.dart';
 import '../../core/widgets/paywall_sheet.dart';
-import '../../core/widgets/screen_header.dart';
 import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
+import 'production_catalog.dart';
 import 'production_nav.dart';
 import 'production_quota_info.dart';
 import 'task_training_data.dart';
@@ -31,35 +30,42 @@ import 'widgets/production_module_bar.dart';
 import 'widgets/production_state_views.dart';
 import 'widgets/production_task_pills.dart';
 
-/// Écran d'une tâche (`/tcf/{ee,eo}/tache/:n`) — le mode « Sujets TCF » de la
-/// maquette : hero, pastilles T1/T2/T3, filtres avec compteurs, puis les
-/// sujets en cartes.
+/// Mode « Sujets TCF » du parcours EE/EO : hero, pastilles T1/T2/T3, filtres
+/// avec compteurs, puis les sujets en cartes.
 ///
 /// **Écrit et oral suivent exactement le même écran** : seuls l'accent (bleu /
 /// rouge) et la zone de production en aval changent.
 ///
-/// La navigation du module (Compétences / Sujets / Examens) vit dans la
-/// **barre fixe du bas** (`ProductionModuleBar`, `nav.bottom` de la maquette),
-/// pas dans un segment en haut de page. Les modèles n'en font pas partie : ce
-/// n'est pas un mode mais une ressource d'appoint, atteinte par un bouton
-/// discret posé au-dessus de la liste des sujets.
-class TcfTaskTrainingScreen extends ConsumerStatefulWidget {
-  const TcfTaskTrainingScreen({
+/// Corps seul — l'en-tête, la barre du module (Compétences / Sujets / Examens)
+/// et le voile d'attente sont portés par [ProductionParcoursScreen]. Les
+/// modèles ne sont pas un mode : c'est une ressource d'appoint, atteinte par un
+/// bouton discret posé au-dessus de la liste des sujets.
+class ProductionSubjectsTabView extends ConsumerStatefulWidget {
+  const ProductionSubjectsTabView({
     super.key,
     required this.module,
     required this.tache,
+    required this.onTacheChanged,
+    required this.onBusy,
   });
 
   final TcfProductionModule module;
   final int tache;
 
+  /// Les pastilles T1/T2/T3 changent la tâche **du parcours entier**, pas
+  /// seulement celle de ce mode : c'est le parcours qui porte l'état.
+  final ValueChanged<int> onTacheChanged;
+
+  /// Remonte l'attente au parcours : le voile doit couvrir la barre du module.
+  final ValueChanged<bool> onBusy;
+
   @override
-  ConsumerState<TcfTaskTrainingScreen> createState() =>
-      _TcfTaskTrainingScreenState();
+  ConsumerState<ProductionSubjectsTabView> createState() =>
+      _ProductionSubjectsTabViewState();
 }
 
-class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
-    with RouteAware {
+class _ProductionSubjectsTabViewState
+    extends ConsumerState<ProductionSubjectsTabView> {
   bool _starting = false;
   int _filter = 0; // 0 = Tous, 1 = À faire, 2 = Traités
   bool _showAll = false;
@@ -69,19 +75,15 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
         tacheNumero: widget.tache,
       );
 
+  void _setStarting(bool value) {
+    setState(() => _starting = value);
+    widget.onBusy(value);
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowQuotaInfo());
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final route = ModalRoute.of(context);
-    if (route is PageRoute) {
-      appRouteObserver.subscribe(this, route);
-    }
   }
 
   /// Info one-time pour les comptes gratuits : 1 essai d'entraînement offert
@@ -136,19 +138,6 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
     );
   }
 
-  @override
-  void dispose() {
-    appRouteObserver.unsubscribe(this);
-    super.dispose();
-  }
-
-  /// Retour sur la liste des sujets après un flux poussé au-dessus
-  /// (entraînement d'un sujet → rapport). Le provider `autoDispose` est resté
-  /// en cache : on l'invalide pour que le sujet qu'on vient de traiter
-  /// s'affiche « fait » avec sa note, sans quitter puis revenir sur l'écran.
-  @override
-  void didPopNext() => ref.invalidate(taskTrainingProvider(_key));
-
   /// EE/EO sont des épreuves TCF → accès gouverné par l'abonnement Intégral
   /// (`hasTcf`). Non-abonné : seul le 1er sujet est ouvert, le reste est
   /// cadenassé (parité avec les séries CO/CE/Structure).
@@ -158,27 +147,12 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
         auth.user.canAccessModule(AppModule.tcf);
   }
 
-  void _onTabChanged(ProductionModuleTab tab) => goProductionTab(
-        context,
-        widget.module,
-        widget.tache,
-        tab,
-        current: ProductionModuleTab.sujets,
-      );
-
-  void _openTask(int tache) {
-    if (tache == widget.tache) return;
-    // `pushReplacement` : les pastilles servent à changer de tâche, pas à
-    // empiler des écrans qu'il faudra dépiler un par un.
-    context.pushReplacement('/tcf/${widget.module.routeKey}/tache/$tache');
-  }
-
   void _openExamples() =>
       context.push(productionExamplesPath(widget.module, widget.tache));
 
   Future<void> _practice(ProductionTaskDto task) async {
     if (_starting) return;
-    setState(() => _starting = true);
+    _setStarting(true);
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
     try {
       // On ouvre TOUJOURS le briefing (lecture du sujet). Le choix du mode EO
@@ -194,10 +168,11 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
       // On retire le voile AVANT le push : sinon l'écran sortant le garde
       // pendant l'animation de slide → flash d'un écran sombre avant le
       // briefing.
-      setState(() => _starting = false);
-      // Le rafraîchissement de la liste au retour est géré par `didPopNext`
-      // (RouteAware) : on ne peut pas se fier au `Future` du push, le flux
-      // fait des `pushReplacement` et se résout avant que la note existe.
+      _setStarting(false);
+      // Le rafraîchissement de la liste au retour est géré par le parcours
+      // (`RouteAware.didPopNext`) : on ne peut pas se fier au `Future` du push,
+      // le flux fait des `pushReplacement` et se résout avant que la note
+      // existe.
       context.push(widget.module.isEo
           ? '/tcf/expression-orale/t/0'
           : '/tcf/expression-ecrite/t/0');
@@ -212,7 +187,7 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
         );
       }
     } finally {
-      if (mounted) setState(() => _starting = false);
+      if (mounted) _setStarting(false);
     }
   }
 
@@ -298,62 +273,31 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
   Widget build(BuildContext context) {
     final mod = widget.module;
     final meta = productionTaskMeta(mod, widget.tache);
-    final async = ref.watch(taskTrainingProvider(_key));
 
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                ScreenHeader(
-                  title: meta.title,
-                  sub: 'Tâche ${widget.tache} · ${meta.subtitle}',
-                  onBack: () => _back(context),
-                ),
-                Expanded(
-                  child: async.when(
-                    // Au retour d'un entraînement (didPopNext → invalidate), on
-                    // garde la liste affichée pendant le refetch au lieu de
-                    // flasher un spinner plein écran.
-                    skipLoadingOnReload: true,
-                    loading: () => Center(
-                      child: CircularProgressIndicator(color: mod.accent),
-                    ),
-                    error: (e, _) => ProductionErrorView(
-                      message: ApiClient.toApiException(e).message,
-                      onRetry: () => ref.invalidate(taskTrainingProvider(_key)),
-                    ),
-                    data: (data) => ListView(
-                      padding: const EdgeInsets.fromLTRB(
-                        16,
-                        16,
-                        16,
-                        ProductionModuleBar.reservedHeight,
-                      ),
-                      children: _content(mod, meta, data),
-                    ),
-                  ),
-                ),
-              ],
+    return ref.watch(taskTrainingProvider(_key)).when(
+          // Au retour d'un entraînement (le parcours invalide le catalogue), on
+          // garde la liste affichée pendant le refetch au lieu de flasher un
+          // spinner plein écran.
+          skipLoadingOnReload: true,
+          loading: () =>
+              Center(child: CircularProgressIndicator(color: mod.accent)),
+          error: (e, _) => ProductionErrorView(
+            message: ApiClient.toApiException(e).message,
+            onRetry: () => invalidateProductionCatalog(ref, mod.epreuve),
+          ),
+          data: (data) => ListView(
+            // Une clé par tâche : changer de pastille repart en haut de liste
+            // au lieu de garder le défilement d'une autre tâche.
+            key: PageStorageKey<int>(widget.tache),
+            padding: const EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              ProductionModuleBar.reservedHeight,
             ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: ProductionModuleBar(
-                active: ProductionModuleTab.sujets,
-                accent: mod.accent,
-                onChanged: _onTabChanged,
-              ),
-            ),
-            if (_starting) const Positioned.fill(child: BusyOverlay()),
-          ],
-        ),
-      ),
-    );
+            children: _content(mod, meta, data),
+          ),
+        );
   }
 
   List<Widget> _content(
@@ -377,7 +321,7 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
       ProductionTaskPills(
         active: widget.tache,
         accent: mod.accent,
-        onChanged: _openTask,
+        onChanged: widget.onTacheChanged,
       ),
       const SizedBox(height: 17),
       _ExamplesLink(
@@ -499,8 +443,6 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
     if (min == null || max == null) return null;
     return '$min-$max mots';
   }
-
-  void _back(BuildContext context) => leaveProductionParcours(context);
 }
 
 /// Bouton discret vers les modèles corrigés, posé **au-dessus** de la liste

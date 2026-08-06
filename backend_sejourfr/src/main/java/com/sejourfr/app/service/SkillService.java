@@ -12,6 +12,7 @@ import com.sejourfr.app.entity.UserSkillAttempt;
 import com.sejourfr.app.enums.SkillPromptStatus;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
+import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.SkillPromptManager;
@@ -116,11 +117,39 @@ public class SkillService {
         return out;
     }
 
-    /** Les competences actives d'une tache, avec la progression du candidat. */
+    /**
+     * Les competences actives d'<b>une tache</b> ({@code taskCode}) ou d'une
+     * <b>epreuve entiere</b> ({@code section}), avec la progression du candidat.
+     *
+     * <p><b>Pourquoi les deux filtres.</b> L'ecran candidat presente les 3 taches
+     * d'une epreuve sous forme de pastilles, sans changement d'ecran : filtrer
+     * par tache obligeait a un appel reseau par pastille, ressenti comme un
+     * chargement de page. Le filtre par epreuve rend les 24 competences (3 x 8)
+     * d'un coup, triees par tache puis par rang, et le front n'a plus qu'a les
+     * regrouper — {@code SkillDto} porte deja {@code section} et {@code taskCode}.
+     *
+     * <p><b>Un filtre est exige.</b> Les deux parametres sont facultatifs
+     * individuellement mais pas ensemble : sans filtre la route rendrait les 48
+     * competences des deux epreuves, ce qu'aucun ecran ne consomme. Fournis
+     * ensemble et coherents, c'est {@code taskCode} — le plus precis — qui est
+     * honore ; contradictoires, on refuse plutot que de rendre une liste vide
+     * qu'un front lirait comme « pas encore de contenu ».
+     *
+     * <p><b>Une requete par ecran, pas une par tache</b> : l'elargissement du
+     * perimetre passe par {@code findActiveBySection} et par le chargement en
+     * lot des sujets et des tentatives sur les 3 taches. La progression reste
+     * calculee competence par competence pour le candidat courant : elargir le
+     * perimetre change les lignes lues, pas la facon de les compter.
+     */
     @Transactional(readOnly = true)
-    public List<SkillDto> listByTaskCode(SkillTaskCode taskCode) {
+    public List<SkillDto> list(SkillSection section, SkillTaskCode taskCode) {
+        SkillTaskCode task = resolveScopeFilter(section, taskCode);
         UUID userId = currentUser.getId();
-        List<SkillTaskCode> scope = List.of(taskCode);
+
+        List<SkillTaskCode> scope = task != null ? List.of(task) : SkillTaskCode.of(section);
+        List<Skill> skills = task != null
+                ? skillManager.findActiveByTaskCode(task)
+                : skillManager.findActiveBySection(section);
 
         Map<UUID, Long> promptCountBySkill = promptManager.countActiveBySkillForTaskCodes(scope);
         Map<UUID, UserSkillAttempt> latestByPrompt =
@@ -134,8 +163,8 @@ public class SkillService {
                     .add(statusResolver.resolve(attempt));
         }
 
-        List<SkillDto> out = new ArrayList<>();
-        for (Skill skill : skillManager.findActiveByTaskCode(taskCode)) {
+        List<SkillDto> out = new ArrayList<>(skills.size());
+        for (Skill skill : skills) {
             Tally tally = tallyBySkill.getOrDefault(skill.getId(), new Tally());
             out.add(skillMapper.toDto(
                     skill,
@@ -231,6 +260,31 @@ public class SkillService {
     // ------------------------------------------------------------------------
     // Interne
     // ------------------------------------------------------------------------
+
+    /**
+     * Arbitre les deux filtres de {@link #list(SkillSection, SkillTaskCode)} et
+     * renvoie la tache retenue, ou {@code null} quand le perimetre est l'epreuve
+     * entiere.
+     *
+     * <p>Les deux refus sont volontairement des {@link BusinessException} (422)
+     * et non des listes vides : un catalogue vide se lit cote front comme « pas
+     * encore de contenu publie », un contresens qu'aucune journalisation ne
+     * rattrape.
+     */
+    private static SkillTaskCode resolveScopeFilter(SkillSection section, SkillTaskCode taskCode) {
+        if (section == null && taskCode == null) {
+            throw new BusinessException(
+                    "Précisez l'épreuve (section=EE ou EO) ou la tâche (taskCode=EE1 à EO3) : "
+                            + "le catalogue des deux épreuves à la fois n'a aucun usage.");
+        }
+        if (section != null && taskCode != null && taskCode.getSection() != section) {
+            throw new BusinessException(
+                    "Filtres incompatibles : la tâche " + taskCode + " appartient à l'épreuve "
+                            + taskCode.getSection() + ", pas à " + section + ".");
+        }
+        // Les deux filtres coherents : la tache l'emporte, c'est la plus precise.
+        return taskCode;
+    }
 
     /**
      * Premier sujet encore {@code TODO} de la competence, sujet courant exclu.

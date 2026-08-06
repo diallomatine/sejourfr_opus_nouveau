@@ -22,9 +22,9 @@ import '../../screens/module_detail/tcf_lot_result_screen.dart';
 import '../../screens/tcf_production/competences/competence_detail_screen.dart';
 import '../../screens/tcf_production/competences/competence_prompt_screen.dart';
 import '../../screens/tcf_production/competences/competence_result_screen.dart';
-import '../../screens/tcf_production/competences/competences_list_screen.dart';
+import '../../screens/tcf_production/production_parcours_screen.dart';
+import '../../screens/tcf_production/widgets/production_module_bar.dart';
 import '../../screens/tcf_production/tcf_task_examples_screen.dart';
-import '../../screens/tcf_production/tcf_task_training_screen.dart';
 import '../../screens/tcf_production/tcf_production_module.dart';
 import '../../screens/module_detail/tcf_qcm_detail_screen.dart';
 import '../../screens/module_detail/tcf_qcm_exams_screen.dart';
@@ -53,7 +53,6 @@ import '../../screens/tcf_production/eo_briefing_screen.dart';
 import '../../screens/tcf_production/eo_finished_screen.dart';
 import '../../screens/tcf_production/eo_results_screen.dart';
 import '../../screens/tcf_production/history_session_screen.dart';
-import '../../screens/tcf_production/production_exams_screen.dart';
 import '../../screens/tcf_production/production_history_screen.dart';
 import '../../screens/tcf_production/realtime/realtime_eo_controller.dart';
 import '../../screens/tcf_production/realtime/realtime_eo_screen.dart';
@@ -506,18 +505,24 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.tcfEeDetail,
         redirect: (_, __) => AppRoutes.tcfEeEntry,
       ),
-      // Entraînement d'une tâche (sujets + exemples).
+      // Les trois modes du parcours (Sujets ici, Compétences plus bas, Examens
+      // sous `/tcf/expression-*`) sont servis par **un seul écran** : c'est lui
+      // qui garde les modes montés côte à côte et les données en cache. Les
+      // chemins restent distincts pour les liens profonds et le retour arrière
+      // — seule la bascule cesse d'être une navigation.
       GoRoute(
         path: AppRoutes.tcfEoTaskTraining,
-        builder: (_, state) => TcfTaskTrainingScreen(
+        builder: (_, state) => ProductionParcoursScreen(
           module: TcfProductionModule.eo,
+          tab: ProductionModuleTab.sujets,
           tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1).clamp(1, 3),
         ),
       ),
       GoRoute(
         path: AppRoutes.tcfEeTaskTraining,
-        builder: (_, state) => TcfTaskTrainingScreen(
+        builder: (_, state) => ProductionParcoursScreen(
           module: TcfProductionModule.ee,
+          tab: ProductionModuleTab.sujets,
           tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1).clamp(1, 3),
         ),
       ),
@@ -536,8 +541,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       // `resultat` est un littéral.
       GoRoute(
         path: AppRoutes.tcfCompetences,
-        builder: (_, state) => CompetencesListScreen(
+        builder: (_, state) => ProductionParcoursScreen(
           module: _productionModuleFromKey(state.pathParameters['moduleKey']),
+          tab: ProductionModuleTab.competences,
           tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1)
               .clamp(1, 3),
         ),
@@ -651,8 +657,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             // `?tache=` : la page des examens est portée par l'épreuve, pas par
             // une tâche — on garde d'où l'on vient pour que la barre du module
             // renvoie sur la bonne tâche. Absent (entrée par le hub) → tâche 1.
-            builder: (_, state) => ProductionExamsScreen(
+            builder: (_, state) => ProductionParcoursScreen(
               module: TcfProductionModule.eo,
+              tab: ProductionModuleTab.examens,
               tache: (int.tryParse(state.uri.queryParameters['tache'] ?? '1') ?? 1)
                   .clamp(1, 3),
             ),
@@ -723,8 +730,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             // `?tache=` : la page des examens est portée par l'épreuve, pas par
             // une tâche — on garde d'où l'on vient pour que la barre du module
             // renvoie sur la bonne tâche. Absent (entrée par le hub) → tâche 1.
-            builder: (_, state) => ProductionExamsScreen(
+            builder: (_, state) => ProductionParcoursScreen(
               module: TcfProductionModule.ee,
+              tab: ProductionModuleTab.examens,
               tache: (int.tryParse(state.uri.queryParameters['tache'] ?? '1') ?? 1)
                   .clamp(1, 3),
             ),

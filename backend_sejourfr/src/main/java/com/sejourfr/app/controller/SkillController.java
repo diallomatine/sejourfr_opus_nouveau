@@ -55,10 +55,20 @@ public class SkillController {
         return analysisAccessService.quota(currentUser.getId());
     }
 
-    /** Les competences actives d'une tache, avec la progression du candidat. */
+    /**
+     * Les competences actives d'une tache ({@code taskCode}) ou d'une epreuve
+     * entiere ({@code section}), avec la progression du candidat.
+     *
+     * <p>Les deux parametres sont facultatifs <b>individuellement</b> ; en
+     * fournir au moins un est obligatoire, et l'arbitrage (tache prioritaire,
+     * refus des filtres contradictoires) appartient au service — c'est une
+     * regle metier, pas une contrainte de transport, et elle doit valoir aussi
+     * pour un appelant qui ne passerait pas par HTTP.
+     */
     @GetMapping("/api/skills")
-    public List<SkillDto> list(@RequestParam SkillTaskCode taskCode) {
-        return skillService.listByTaskCode(taskCode);
+    public List<SkillDto> list(@RequestParam(required = false) SkillSection section,
+                               @RequestParam(required = false) SkillTaskCode taskCode) {
+        return skillService.list(section, taskCode);
     }
 
     /** Detail d'une competence : sa fiche et ses petits sujets avec leur statut. */
