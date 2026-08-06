@@ -117,8 +117,10 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                 <span className={s.tile} aria-hidden>
                   <Sparkles size={22} strokeWidth={2.2} />
                 </span>
+                {/* Pas de pastille de niveau ici (parité mobile) : le palier
+                    est celui de toute la tâche, il est déjà porté par le hero
+                    de la liste des compétences et par l'écran d'un sujet. */}
                 <div className={s.summaryBody}>
-                  <span className={`${s.badge} ${s.levelPill}`}>{skill.targetLevel}</span>
                   <h1 className={s.summaryTitle}>{skill.title}</h1>
                 </div>
                 {skill.description && (
@@ -226,9 +228,11 @@ function PromptCard({prompt, onOpen}: {prompt: SkillPromptSummaryDto; onOpen: ()
       <span className={`${s.tile} ${done ? s.tileDone : ""}`} aria-hidden>
         {done ? <Check size={22} strokeWidth={2.8} /> : prompt.displayOrder}
       </span>
+      {/* Le critère unique ne s'affiche plus sous le titre (parité mobile) : il
+          est répété par la check-list de l'écran de saisie, et il faisait de
+          chaque carte un pavé de texte. */}
       <span className={s.rowBody}>
         <span className={s.rowTitle}>{prompt.title}</span>
-        <span className={s.rowText}>{prompt.uniqueCriterion}</span>
         {done && (
           <span className={s.rowMeta}>
             <CompetenceStatusBadge status={prompt.status} />

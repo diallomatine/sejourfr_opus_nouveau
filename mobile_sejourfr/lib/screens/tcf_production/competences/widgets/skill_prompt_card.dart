@@ -63,17 +63,6 @@ class SkillPromptCard extends StatelessWidget {
                           height: 1.25,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        prompt.uniqueCriterion,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppFonts.ui(
-                          size: 12,
-                          color: AppColors.inkSoft,
-                          height: 1.38,
-                        ),
-                      ),
                       const SizedBox(height: 8),
                       SkillStatusBadgeRow(prompt: prompt),
                     ],

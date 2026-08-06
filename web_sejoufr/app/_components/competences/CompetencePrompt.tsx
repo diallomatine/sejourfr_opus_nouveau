@@ -2,7 +2,7 @@
 
 import {useParams, useRouter} from "next/navigation";
 import {useCallback, useEffect, useState} from "react";
-import {Check, Lock, Mic, PenLine, Sparkles} from "lucide-react";
+import {Check, Mic, PenLine} from "lucide-react";
 import {ApiException, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
@@ -17,7 +17,6 @@ import {
   type ProductionTaskDto,
   type SkillAnalysisQuotaDto,
   type SkillPromptDto,
-  type SkillSelfEvaluation,
 } from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
@@ -26,7 +25,6 @@ import {clearEeDraft, EeWritingForm, setEeDraft} from "@/app/_components/product
 import {EoRecordingForm} from "@/app/_components/production/EoRecordingForm";
 import {type ProductionConfig} from "@/app/_components/production/config";
 import {PromptGuidance} from "./PromptGuidance";
-import {SelfEvaluationPicker} from "./SelfEvaluationPicker";
 import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
 
@@ -59,24 +57,6 @@ function toProductionTask(prompt: SkillPromptDto, tacheNumero: number): Producti
   };
 }
 
-/** Libellé de l'option d'analyse IA, identique que la case soit ouverte ou
- *  verrouillée — seul le contrôle qui la porte change. */
-function AnalysisCopy({allowed}: {allowed: boolean}) {
-  return (
-    <span className={s.analysisBody}>
-      <span className={s.analysisTitle}>
-        <Sparkles size={13} strokeWidth={2.4} aria-hidden />
-        Analyser ma réponse avec l&apos;IA
-      </span>
-      <span className={s.analysisHint}>
-        {allowed
-          ? "Un retour court sur le seul critère de ce sujet. Décoche pour enregistrer ta production sans analyse : les trois références resteront accessibles."
-          : "Tes analyses offertes ont été utilisées. Tu peux toujours produire, t'auto-évaluer et lire les trois références."}
-      </span>
-    </span>
-  );
-}
-
 /**
  * Niveau 5 de la spec — un petit sujet.
  *
@@ -91,8 +71,20 @@ function AnalysisCopy({allowed}: {allowed: boolean}) {
  * l'oral**) : ligne compacte `Sujet i/N` + palier · barre de progression ·
  * carte **« Ce qu'il faut faire »** (la check-list du sujet) · carte
  * **« Situation »** · puces de contrainte · carte **« Ta réponse »** (champ
- * ou enregistreur, astuce et compteur en pied) · auto-évaluation **sous** la
- * zone de production · actions.
+ * ou enregistreur, astuce et compteur en pied) · actions.
+ *
+ * **L'analyse IA n'est pas une option** (décision client) : il n'y a plus de
+ * case à cocher, elle est demandée dès que le candidat y a droit — abonné, ou
+ * compte gratuit avec des analyses offertes restantes. Quand le quota est
+ * épuisé, la production part **sans** analyse au lieu d'échouer en 403, et
+ * c'est l'écran de résultat qui invite à s'abonner. Seule subsiste une
+ * information sobre du reliquat : sans elle, un compte gratuit consommerait
+ * un de ses essais sans le savoir.
+ *
+ * **L'auto-évaluation est supprimée** (parité mobile) : elle était
+ * déclarative et sans effet, et elle coûtait une décision de plus avant de
+ * produire. Le champ `selfEvaluation` reste optionnel côté API — on ne
+ * l'envoie simplement plus.
  *
  * **Le candidat est tutoyé** dans tout le chrome de cet écran (décision
  * client) ; le texte du sujet, lui, vient de la base et garde le vouvoiement de
@@ -100,8 +92,8 @@ function AnalysisCopy({allowed}: {allowed: boolean}) {
  * `voice="tutoiement"` — ils vouvoient par défaut, pour les écrans de
  * production TCF.
  *
- * Rien du **comportement** ne bouge : brouillon local, compteur de mots,
- * auto-soumission, capture micro, quota d'analyses IA et paywall sont ceux des
+ * Rien du **comportement** des formulaires ne bouge : brouillon local,
+ * compteur de mots, auto-soumission, capture micro et paywall sont ceux des
  * formulaires partagés, pilotés par des props **optionnelles** dont les écrans
  * de production TCF n'ont pas connaissance.
  *
@@ -126,8 +118,6 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [selfEval, setSelfEval] = useState<SkillSelfEvaluation | null>(null);
-  const [wantAnalysis, setWantAnalysis] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
@@ -187,9 +177,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
     skillApi
       .analysisQuota()
       .then((q) => {
-        if (cancelled) return;
-        setQuota(q);
-        if (q.remaining === 0) setWantAnalysis(false);
+        if (!cancelled) setQuota(q);
       })
       .catch(() => undefined);
     return () => {
@@ -197,14 +185,27 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
     };
   }, [status]);
 
+  /* Le droit à l'analyse, et rien d'autre : `remaining === -1` vaut illimité,
+     un quota non chargé laisse trancher le backend. Quand il vaut faux, la
+     production part quand même — sans analyse, jamais en erreur. */
   const analysisAllowed = quota == null || quota.remaining !== 0;
+
+  /* Reliquat à annoncer : seulement à un compte gratuit qui a encore des
+     analyses. À zéro, on ne dit rien ici — c'est l'écran de résultat qui
+     porte l'invitation à s'abonner, une fois la production faite. */
+  const freeAnalysesLeft =
+    quota && !quota.unlimited && quota.remaining > 0 ? quota.remaining : null;
 
   const submit = useCallback(
     async (payload: {texte?: string; audio?: Blob; durationSec?: number}) => {
       if (submitting) return;
       setSubmitError(null);
       setSubmitting(true);
-      const requestAnalysis = wantAnalysis && analysisAllowed;
+      // L'analyse est le comportement naturel : on la demande dès que le
+      // candidat y a droit. Quota épuisé ⇒ on soumet quand même, sans elle —
+      // demander une analyse interdite renverrait un 403 et ferait perdre la
+      // production, alors que l'écran de résultat sait inviter à s'abonner.
+      const requestAnalysis = analysisAllowed;
       try {
         const attempt =
           payload.audio != null
@@ -212,13 +213,11 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
                 skillPromptId: promptId,
                 audio: payload.audio,
                 durationSec: payload.durationSec ?? 0,
-                selfEvaluation: selfEval,
                 requestAnalysis,
               })
             : await skillApi.submitText({
                 skillPromptId: promptId,
                 texte: payload.texte ?? "",
-                selfEvaluation: selfEval,
                 requestAnalysis,
               });
         if (!oral) clearEeDraft(promptId);
@@ -232,7 +231,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
         setSubmitting(false);
       }
     },
-    [submitting, wantAnalysis, analysisAllowed, promptId, selfEval, oral, router, base, skillId],
+    [submitting, analysisAllowed, promptId, oral, router, base, skillId],
   );
 
   /** Recharge la production précédente dans la zone de saisie (§13.5, EE). */
@@ -284,38 +283,16 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
         </p>
       )}
 
-      <SelfEvaluationPicker value={selfEval} disabled={submitting} onChange={setSelfEval} />
-
-      <div className={s.analysisBlock}>
-        {analysisAllowed ? (
-          <label className={s.analysisRow}>
-            <input
-              type="checkbox"
-              className={s.analysisCheck}
-              checked={wantAnalysis}
-              disabled={submitting}
-              onChange={(e) => setWantAnalysis(e.target.checked)}
-            />
-            <AnalysisCopy allowed />
-          </label>
-        ) : (
-          /* Quota épuisé : un vrai bouton, donc atteignable au clavier — une
-             case désactivée ne l'aurait pas été, et l'offre serait restée
-             hors de portée. */
-          <button type="button" className={s.analysisRow} onClick={() => setPaywallOpen(true)}>
-            <span className={s.analysisLock} aria-hidden>
-              <Lock size={14} strokeWidth={2.4} />
-            </span>
-            <AnalysisCopy allowed={false} />
-          </button>
-        )}
-        {quota && !quota.unlimited && (
-          <span className={s.quota}>
-            {Math.max(0, quota.remaining)} analyse{quota.remaining > 1 ? "s" : ""} offerte
-            {quota.remaining > 1 ? "s" : ""} sur {quota.freeAnalysesTotal}
-          </span>
-        )}
-      </div>
+      {/* Information, plus une décision : le candidat doit savoir qu'il va
+          consommer un de ses essais offerts. La retirer reviendrait à le lui
+          prélever en silence. Rien à zéro — l'invitation à s'abonner vit sur
+          l'écran de résultat, après la production. */}
+      {freeAnalysesLeft != null && (
+        <span className={s.quota}>
+          Il te reste {freeAnalysesLeft} analyse{freeAnalysesLeft > 1 ? "s" : ""} offerte
+          {freeAnalysesLeft > 1 ? "s" : ""}
+        </span>
+      )}
 
       {/* Dit POURQUOI les références sont masquées — sans elle, le candidat
           croit à un contenu verrouillé plutôt qu'à une règle d'entraînement. */}
@@ -430,9 +407,10 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
                     tip,
                   }}
                   footerSlot={footerSlot}
-                  /* Ces trois blocs se décident AVANT de parler : l'analyse IA
-                     consomme un des essais offerts, et le rappel sur les
-                     références n'a plus d'objet une fois la prise faite. */
+                  /* Ce pied se lit AVANT de parler : il annonce qu'un des
+                     essais d'analyse offerts va être consommé, et le rappel
+                     sur les références n'a plus d'objet une fois la prise
+                     faite. */
                   footerAlwaysVisible
                   maxDurationSec={SKILL_ANALYSIS_MAX_AUDIO_SEC}
                   voice="tutoiement"
@@ -469,7 +447,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
           title="Analyses IA illimitées"
-          message="Tes analyses offertes ont été utilisées. L'abonnement Intégral ouvre l'analyse ciblée sur tous les petits sujets. Produire, t'auto-évaluer et lire les trois références restent gratuits."
+          message="Tes analyses offertes ont été utilisées. L'abonnement Intégral ouvre l'analyse ciblée sur tous les petits sujets. Produire et lire les trois références restent gratuits."
         />
       </SkillShell>
     </DualChromeShell>

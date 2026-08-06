@@ -1,15 +1,20 @@
 "use client";
 
 import {useParams, useRouter} from "next/navigation";
-import {useCallback, useEffect, useId, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {ArrowRight, Check, Clock, RefreshCw, Sparkles, Target, TrendingUp} from "lucide-react";
 import {ApiException, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
+  referencesOpenByDefault,
+  skillResultAnalysisView,
+  skillResultBannerAction,
+  type SkillResultAnalysisView,
+} from "@/lib/skill-result-view";
+import {
   formatDurationSec,
   isSkillAttemptPending,
   SKILL_CRITERION_STATUS_LABEL,
-  SKILL_SELF_EVALUATION_LABEL,
   type SkillAnalysisDto,
   type SkillAnalysisQuotaDto,
   type SkillAttemptDto,
@@ -63,6 +68,14 @@ const VERDICT_TONE: Record<SkillCriterionStatus, {card: string; status: string}>
  * le retour de l'IA, puis **seulement ensuite** les références comparatives.
  * Voir les modèles avant son propre retour pousse à se comparer au lieu de se
  * relire.
+ *
+ * **Ce qui est déplié a été inversé** (décision client) : l'analyse IA est
+ * visible d'emblée — c'est le retour que le candidat vient de mériter, il n'a
+ * pas à le déverrouiller — et ce sont les trois références qui se replient
+ * derrière une action explicite. Le bandeau « Analyse IA du critère » ne
+ * subsiste donc que lorsqu'il n'y a rien à déplier : quota épuisé, production
+ * enregistrée sans analyse, analyse en échec. Les règles vivent dans
+ * `lib/skill-result-view.ts` (pures, testées).
  *
  * Il n'y a ici **ni note /20 ni niveau CECRL** (spec §9) : un exercice de
  * quinze mots ne situe personne sur l'échelle du TCF. Le seul verdict porte sur
@@ -168,12 +181,14 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
   if (!user)
     return <ModuleDetailGate next={`${base}/${skillId}/${promptId}/resultat/${attemptId}`} />;
 
-  const pending = attempt ? isSkillAttemptPending(attempt) : true;
-  const failed = attempt?.statut === "FAILED";
-  const recorded = attempt?.statut === "RECORDED";
   const analysis = attempt?.analysis ?? null;
   const nextId = prompt?.nextPromptId ?? null;
-  const analysisAllowed = quota == null || quota.remaining !== 0;
+  const view = skillResultAnalysisView({
+    pending: attempt ? isSkillAttemptPending(attempt) : true,
+    hasAnalysis: analysis != null,
+    failed: attempt?.statut === "FAILED",
+    analysisAllowed: quota == null || quota.remaining !== 0,
+  });
 
   return (
     <DualChromeShell>
@@ -227,9 +242,10 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
               {!attempt.writtenProduction && !attempt.audioUrl && (
                 <p className={s.prodText}>Production indisponible.</p>
               )}
-              {(attempt.audioDurationSec != null ||
-                attempt.wordsCount != null ||
-                attempt.selfEvaluation) && (
+              {/* L'auto-évaluation a été retirée de l'écran de saisie (parité
+                  mobile) : plus aucune tentative ne portera de ressenti, on
+                  n'en affiche donc plus. */}
+              {(attempt.audioDurationSec != null || attempt.wordsCount != null) && (
                 <div className={s.chips}>
                   {attempt.audioDurationSec != null && (
                     <span className={s.chip}>
@@ -242,16 +258,11 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                       {attempt.wordsCount} mot{attempt.wordsCount > 1 ? "s" : ""}
                     </span>
                   )}
-                  {attempt.selfEvaluation && (
-                    <span className={s.chip}>
-                      Ton ressenti : {SKILL_SELF_EVALUATION_LABEL[attempt.selfEvaluation]}
-                    </span>
-                  )}
                 </div>
               )}
             </div>
 
-            {pending ? (
+            {view === "PENDING" ? (
               <div className={s.pending}>
                 <div className={s.spinner} />
                 <p className={s.pendingText}>
@@ -260,35 +271,23 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                     : "Analyse de ta réponse…"}
                 </p>
               </div>
-            ) : failed ? (
-              <div className={s.invite}>
-                <div className={s.inviteBody}>
-                  <p className={s.inviteTitle}>L&apos;analyse n&apos;a pas abouti</p>
-                  <p className={s.inviteSub}>
-                    {attempt.errorMessage ??
-                      "Ta production est bien enregistrée. Tu peux relancer l'analyse."}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={retrying}
-                  onClick={() => void retry()}
-                >
-                  <RefreshCw size={15} strokeWidth={2.2} aria-hidden />
-                  {retrying ? "Relance…" : "Relancer l'analyse"}
-                </button>
-              </div>
+            ) : analysis ? (
+              <AnalysisView analysis={analysis} />
             ) : (
-              <AnalysisPanel
-                analysis={analysis}
-                locked={!analysis && recorded && !analysisAllowed}
+              <AnalysisBanner
+                view={view}
+                errorMessage={attempt.errorMessage}
+                busy={retrying}
+                onRetry={() => void retry()}
                 onUnlock={() => setPaywallOpen(true)}
                 onRequest={() => router.push(`${base}/${skillId}/${promptId}`)}
               />
             )}
 
-            <CompetenceReferences references={references} />
+            <CompetenceReferences
+              references={references}
+              defaultOpen={referencesOpenByDefault(view)}
+            />
 
             <div className={s.actions}>
               <button
@@ -325,7 +324,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
           title="Analyses IA illimitées"
-          message="Tes analyses offertes ont été utilisées. L'abonnement Intégral ouvre l'analyse ciblée sur tous les petits sujets. Produire, t'auto-évaluer et lire les trois références restent gratuits."
+          message="Tes analyses offertes ont été utilisées. L'abonnement Intégral ouvre l'analyse ciblée sur tous les petits sujets. Produire et lire les trois références restent gratuits."
         />
       </SkillShell>
     </DualChromeShell>
@@ -333,109 +332,134 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
 }
 
 /**
- * Bandeau « Analyse IA du critère » et son bloc repliable.
+ * Le retour de l'IA, **déplié, sans bandeau ni bouton**.
  *
- * Le bandeau est **toujours** là, ce qui change c'est ce que fait son bouton :
- * dépliage quand l'analyse existe (« Voir » ⇄ « Masquer »), ouverture de
- * l'offre quand le quota d'analyses offertes est épuisé, relance de l'exercice
- * quand il reste des analyses mais que la production a été enregistrée sans.
- * Un bandeau qui disparaîtrait ne dirait jamais au candidat ce qu'il rate.
+ * C'est ce que le candidat vient chercher : le lui faire déverrouiller d'un
+ * clic ajoutait une étape à un contenu déjà acquis (et déjà décompté de ses
+ * analyses offertes). L'intertitre suffit à situer le bloc dans l'ordre imposé
+ * de l'écran — accusé de traitement → ta production → **analyse** →
+ * références → actions.
  */
-function AnalysisPanel({
-  analysis,
-  locked,
+function AnalysisView({analysis}: {analysis: SkillAnalysisDto}) {
+  const tone = VERDICT_TONE[analysis.status];
+
+  return (
+    <section className={s.aiPanel}>
+      <h2 className={s.resultSectionTitle}>Analyse IA du critère</h2>
+
+      <div className={`${s.verdict} ${tone.card}`}>
+        <div className={s.verdictTop}>
+          <span className={s.verdictLabel}>Critère unique</span>
+          <span className={`${s.status} ${tone.status}`}>
+            {analysis.status === "VALIDATED" ? (
+              <Check size={12} strokeWidth={2.8} aria-hidden />
+            ) : (
+              <Target size={11} strokeWidth={2.4} aria-hidden />
+            )}
+            {SKILL_CRITERION_STATUS_LABEL[analysis.status]}
+          </span>
+        </div>
+        <p className={s.verdictText}>{analysis.verdict}</p>
+      </div>
+
+      <div className={s.feedbackGrid}>
+        <div className={s.feedbackItem}>
+          <span className={`${s.feedbackIcon} ${s.feedbackIconGood}`} aria-hidden>
+            <Check size={16} strokeWidth={2.8} />
+          </span>
+          <div>
+            <strong className={s.feedbackTitle}>Ce qui est réussi</strong>
+            <p className={s.feedbackText}>{analysis.successPoint}</p>
+          </div>
+        </div>
+        <div className={s.feedbackItem}>
+          <span className={`${s.feedbackIcon} ${s.feedbackIconFocus}`} aria-hidden>
+            <TrendingUp size={16} strokeWidth={2.4} />
+          </span>
+          <div>
+            <strong className={s.feedbackTitle}>À travailler en priorité</strong>
+            <p className={s.feedbackText}>{analysis.improvementPriority}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className={s.rewrite}>
+        <strong className={s.rewriteLabel}>Proposition améliorée</strong>
+        <p className={s.rewriteText}>{analysis.improvedVersion}</p>
+        <small className={s.rewriteNote}>
+          Exemple de reformulation : ce n&apos;est pas la seule bonne réponse, et ton idée
+          doit être conservée.
+        </small>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Bandeau « Analyse IA du critère » — **le cas où il n'y a rien à montrer**.
+ *
+ * Il ne sert plus à replier un contenu existant : il dit au candidat ce qui
+ * manque et propose l'unique action qui y remédie — relancer une analyse en
+ * échec, ouvrir l'offre quand les analyses offertes sont épuisées, refaire le
+ * sujet quand la production est partie sans analyse alors qu'il en restait.
+ * Le faire disparaître dans ces cas-là ne dirait jamais au candidat ce qu'il
+ * rate — c'est exactement le point premium du module.
+ */
+function AnalysisBanner({
+  view,
+  errorMessage,
+  busy,
+  onRetry,
   onUnlock,
   onRequest,
 }: {
-  analysis: SkillAnalysisDto | null;
-  locked: boolean;
+  view: SkillResultAnalysisView;
+  errorMessage: string | null;
+  busy: boolean;
+  onRetry: () => void;
   onUnlock: () => void;
   onRequest: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const panelId = useId();
+  const action = skillResultBannerAction(view);
+  if (!action) return null;
 
-  const tone = analysis ? VERDICT_TONE[analysis.status] : null;
+  const hint =
+    action === "RETRY"
+      ? (errorMessage ??
+        "Ta production est bien enregistrée. Tu peux relancer l'analyse.")
+      : action === "PAYWALL"
+        ? "Tes analyses offertes ont été utilisées. Tes références restent accessibles."
+        : "Ta production a été enregistrée sans analyse. Refais le sujet pour en obtenir une.";
+
+  const label =
+    action === "RETRY"
+      ? busy
+        ? "Relance…"
+        : "Relancer l'analyse"
+      : action === "PAYWALL"
+        ? "Débloquer"
+        : "Analyser";
 
   return (
-    <>
-      <div className={s.premium}>
-        <span className={s.spark} aria-hidden>
-          <Sparkles size={18} strokeWidth={2.2} />
-        </span>
-        <div className={s.premiumCopy}>
-          <strong className={s.premiumTitle}>Analyse IA du critère</strong>
-          <span className={s.premiumHint}>
-            {analysis
-              ? "Verdict, point réussi, priorité et reformulation courte."
-              : locked
-                ? "Tes analyses offertes ont été utilisées. Tes références restent accessibles."
-                : "Ta production a été enregistrée sans analyse. Refais le sujet en cochant l'analyse."}
-          </span>
-        </div>
-        <button
-          type="button"
-          className={s.unlock}
-          aria-expanded={analysis ? open : undefined}
-          aria-controls={analysis ? panelId : undefined}
-          onClick={() => {
-            if (analysis) setOpen((o) => !o);
-            else if (locked) onUnlock();
-            else onRequest();
-          }}
-        >
-          {analysis ? (open ? "Masquer" : "Voir") : locked ? "Débloquer" : "Analyser"}
-        </button>
+    <div className={s.premium}>
+      <span className={s.spark} aria-hidden>
+        <Sparkles size={18} strokeWidth={2.2} />
+      </span>
+      <div className={s.premiumCopy}>
+        <strong className={s.premiumTitle}>
+          {action === "RETRY" ? "L'analyse n'a pas abouti" : "Analyse IA du critère"}
+        </strong>
+        <span className={s.premiumHint}>{hint}</span>
       </div>
-
-      {analysis && open && tone && (
-        <div className={s.aiPanel} id={panelId}>
-          <div className={`${s.verdict} ${tone.card}`}>
-            <div className={s.verdictTop}>
-              <span className={s.verdictLabel}>Critère unique</span>
-              <span className={`${s.status} ${tone.status}`}>
-                {analysis.status === "VALIDATED" ? (
-                  <Check size={12} strokeWidth={2.8} aria-hidden />
-                ) : (
-                  <Target size={11} strokeWidth={2.4} aria-hidden />
-                )}
-                {SKILL_CRITERION_STATUS_LABEL[analysis.status]}
-              </span>
-            </div>
-            <p className={s.verdictText}>{analysis.verdict}</p>
-          </div>
-
-          <div className={s.feedbackGrid}>
-            <div className={s.feedbackItem}>
-              <span className={`${s.feedbackIcon} ${s.feedbackIconGood}`} aria-hidden>
-                <Check size={16} strokeWidth={2.8} />
-              </span>
-              <div>
-                <strong className={s.feedbackTitle}>Ce qui est réussi</strong>
-                <p className={s.feedbackText}>{analysis.successPoint}</p>
-              </div>
-            </div>
-            <div className={s.feedbackItem}>
-              <span className={`${s.feedbackIcon} ${s.feedbackIconFocus}`} aria-hidden>
-                <TrendingUp size={16} strokeWidth={2.4} />
-              </span>
-              <div>
-                <strong className={s.feedbackTitle}>À travailler en priorité</strong>
-                <p className={s.feedbackText}>{analysis.improvementPriority}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className={s.rewrite}>
-            <strong className={s.rewriteLabel}>Proposition améliorée</strong>
-            <p className={s.rewriteText}>{analysis.improvedVersion}</p>
-            <small className={s.rewriteNote}>
-              Exemple de reformulation : ce n&apos;est pas la seule bonne réponse, et ton
-              idée doit être conservée.
-            </small>
-          </div>
-        </div>
-      )}
-    </>
+      <button
+        type="button"
+        className={s.unlock}
+        disabled={action === "RETRY" && busy}
+        onClick={action === "RETRY" ? onRetry : action === "PAYWALL" ? onUnlock : onRequest}
+      >
+        {action === "RETRY" && <RefreshCw size={13} strokeWidth={2.2} aria-hidden />}
+        {label}
+      </button>
+    </div>
   );
 }

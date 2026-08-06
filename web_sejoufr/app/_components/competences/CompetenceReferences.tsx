@@ -1,7 +1,8 @@
 "use client";
 
-import {useState} from "react";
-import {Lightbulb} from "lucide-react";
+import {useId, useState} from "react";
+import {ChevronDown, Lightbulb} from "lucide-react";
+import {REFERENCES_OPEN_BY_DEFAULT} from "@/lib/skill-result-view";
 import {
   SKILL_REFERENCE_LEVEL_LABEL,
   SKILL_REFERENCE_LEVELS,
@@ -29,12 +30,30 @@ const TAB_TONE: Record<SkillReferenceLevel, string> = {
  * d'un garde serveur qui répond 403 tant qu'aucune tentative n'existe) : lues
  * trop tôt, elles ne sont plus des repères mais un modèle à recopier.
  *
+ * **Repliées par défaut** (décision client, `REFERENCES_OPEN_BY_DEFAULT`) : le
+ * candidat lit d'abord son propre retour, déplié juste au-dessus, et va se
+ * comparer ensuite s'il le veut. Le dépliant est un vrai `<button>` —
+ * `aria-expanded` + `aria-controls`, atteignable au clavier, focus visible —
+ * et non un titre cliquable.
+ *
  * On ouvre sur « Attendu » : c'est la cible, pas le contre-exemple.
  */
-export function CompetenceReferences({references}: {references: SkillReferenceDto[]}) {
+export function CompetenceReferences({
+  references,
+  defaultOpen = REFERENCES_OPEN_BY_DEFAULT,
+}: {
+  references: SkillReferenceDto[];
+  /**
+   * Ouvert d'emblée quand l'écran n'a pas d'analyse à montrer : les références
+   * y sont le seul retour. Voir `referencesOpenByDefault`.
+   */
+  defaultOpen?: boolean;
+}) {
   const byLevel = new Map(references.map((r) => [r.level, r]));
   const available = SKILL_REFERENCE_LEVELS.filter((l) => byLevel.has(l));
   const [level, setLevel] = useState<SkillReferenceLevel>("EXPECTED");
+  const [open, setOpen] = useState(defaultOpen);
+  const panelId = useId();
 
   if (available.length === 0) return null;
 
@@ -42,33 +61,65 @@ export function CompetenceReferences({references}: {references: SkillReferenceDt
   if (!current) return null;
 
   return (
-    <section>
-      <h2 className={s.resultSectionTitle}>Compare avec les niveaux de référence</h2>
-      <div className={s.refTabs} role="tablist" aria-label="Niveau de référence">
-        {available.map((l) => {
-          const on = current.level === l;
-          return (
-            <button
-              key={l}
-              type="button"
-              role="tab"
-              aria-selected={on}
-              className={`${s.refTab} ${on ? TAB_TONE[l] : ""}`}
-              onClick={() => setLevel(l)}
-            >
-              {SKILL_REFERENCE_LEVEL_LABEL[l]}
-            </button>
-          );
-        })}
-      </div>
-      <div className={s.refBox}>
-        <span className={s.answerLabel}>{SKILL_REFERENCE_LEVEL_LABEL[current.level]}</span>
-        <p className={s.prodText}>{current.text}</p>
-        <p className={s.refNote}>
-          <Lightbulb size={14} strokeWidth={2} aria-hidden style={{flex: "none", marginTop: 2}} />
-          <span>{current.pedagogicalNote}</span>
-        </p>
-      </div>
+    <section className={s.refSection}>
+      <button
+        type="button"
+        className={s.refToggle}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className={s.refToggleBody}>
+          <span className={s.refToggleTitle}>Compare avec les niveaux de référence</span>
+          <span className={s.refToggleHint}>
+            Trois productions du même sujet : insuffisante, attendue, très réussie.
+          </span>
+        </span>
+        <span className={s.refToggleAction}>
+          {open ? "Masquer" : "Afficher"}
+          <ChevronDown
+            size={15}
+            strokeWidth={2.4}
+            aria-hidden
+            className={`${s.refChevron} ${open ? s.refChevronOpen : ""}`}
+          />
+        </span>
+      </button>
+
+      {open && (
+        <div id={panelId} className={s.refPanel}>
+          <div className={s.refTabs} role="tablist" aria-label="Niveau de référence">
+            {available.map((l) => {
+              const on = current.level === l;
+              return (
+                <button
+                  key={l}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  className={`${s.refTab} ${on ? TAB_TONE[l] : ""}`}
+                  onClick={() => setLevel(l)}
+                >
+                  {SKILL_REFERENCE_LEVEL_LABEL[l]}
+                </button>
+              );
+            })}
+          </div>
+          <div className={s.refBox}>
+            <span className={s.answerLabel}>{SKILL_REFERENCE_LEVEL_LABEL[current.level]}</span>
+            <p className={s.prodText}>{current.text}</p>
+            <p className={s.refNote}>
+              <Lightbulb
+                size={14}
+                strokeWidth={2}
+                aria-hidden
+                style={{flex: "none", marginTop: 2}}
+              />
+              <span>{current.pedagogicalNote}</span>
+            </p>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

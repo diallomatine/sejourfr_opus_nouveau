@@ -15,18 +15,15 @@ import '../../../core/utils/start_failure.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_tag.dart';
 import '../../../core/widgets/fixed_action_bar.dart';
-import '../../../core/widgets/paywall_sheet.dart';
 import '../../../core/widgets/progress_track.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../audio_recorder_service.dart';
 import '../tcf_production_module.dart';
 import 'competences_nav.dart';
 import 'competences_providers.dart';
-import 'widgets/analysis_toggle.dart';
 import '../widgets/production_blocks.dart';
 import '../widgets/production_state_views.dart';
 import 'widgets/prompt_guidance.dart';
-import 'widgets/self_evaluation_picker.dart';
 import 'widgets/skill_answer_card.dart';
 import 'widgets/skill_recorder_panel.dart';
 
@@ -50,8 +47,14 @@ const int _kMaxWords = 400;
 /// « Compétence évaluée », l'encart « Pourquoi cet exercice ? » et les puces
 /// méta « Accessible » / « Un seul critère ».
 ///
-/// L'auto-évaluation, la bascule d'analyse IA et la tipline restent, **sous**
-/// la zone de production : elles ne doivent jamais la repousser.
+/// **L'analyse IA n'est pas une option** : elle est demandée dès que
+/// l'utilisateur y a droit (abonné, ou analyses offertes restantes). Quand il
+/// n'y a plus droit, la production part **sans** analyse — c'est l'écran de
+/// résultat qui invite à s'abonner. Ne pas y remettre une bascule : le choix
+/// n'existe plus, seule l'information de quota reste.
+///
+/// Cette information et la tipline restent **sous** la zone de production :
+/// elles ne doivent jamais la repousser.
 ///
 /// L'oral reçoit **exactement la même structure** : seules la zone de
 /// production (panneau d'enregistrement) et la donnée du pied de carte (durée)
@@ -137,8 +140,6 @@ class _PromptViewState extends ConsumerState<_PromptView> {
   final TextEditingController _controller = TextEditingController();
   SkillSelfEvaluation? _selfEvaluation;
 
-  /// `null` = pas encore choisi par l'utilisateur → on suit le quota.
-  bool? _requestAnalysis;
   bool _loadingLastProduction = false;
 
   bool get _isEo => widget.prompt.section.isEo;
@@ -169,10 +170,15 @@ class _PromptViewState extends ConsumerState<_PromptView> {
     return words.length;
   }
 
-  bool _analysisRequested(SkillAnalysisQuotaDto? quota) {
-    if (quota != null && !quota.canAnalyse) return false;
-    return _requestAnalysis ?? (quota?.canAnalyse ?? true);
-  }
+  /// L'analyse est le comportement naturel : on la demande **toujours**, sauf
+  /// quand le compte n'y a plus droit. Dans ce cas la soumission part sans
+  /// analyse au lieu d'échouer en 403 — l'écran de résultat prend le relais et
+  /// invite à s'abonner.
+  ///
+  /// Quota inconnu (lecture en vol, erreur réseau) = on demande : le serveur
+  /// reste l'arbitre, et un 403 est rattrapé par `showPaywallOrError`.
+  bool _analysisRequested(SkillAnalysisQuotaDto? quota) =>
+      quota?.canAnalyse ?? true;
 
   // ---------------------------------------------------------------------------
   // Reprise d'une production précédente (§13.5)
@@ -431,22 +437,7 @@ class _PromptViewState extends ConsumerState<_PromptView> {
                 const SizedBox(height: 10),
                 const SkillTranscriptNotice(),
               ],
-              // Tout ce qui suit vit SOUS la zone de production : y remonter
-              // quoi que ce soit la ferait passer sous la ligne de flottaison.
-              const SizedBox(height: 14),
-              SelfEvaluationPicker(
-                value: _selfEvaluation,
-                accent: _accent,
-                onChanged: (v) => setState(() => _selfEvaluation = v),
-              ),
-              const SizedBox(height: 12),
-              AnalysisToggle(
-                value: _analysisRequested(quota),
-                quota: quota,
-                accent: _accent,
-                onChanged: (v) => setState(() => _requestAnalysis = v),
-                onLockedTap: () => showPaywallSheet(context),
-              ),
+              _FreeAnalysesSlot(quota: quota, accent: _accent),
               const SizedBox(height: 11),
               // M5 — sans cette ligne, rien n'explique au candidat pourquoi
               // les références restent masquées (§13.2).
@@ -534,6 +525,54 @@ class _PromptViewState extends ConsumerState<_PromptView> {
     return inRange && !overCap
         ? SkillMetaTone.inTarget
         : SkillMetaTone.outOfTarget;
+  }
+}
+
+/// Ce qu'il reste d'analyses offertes à un compte gratuit — **une information,
+/// plus une décision**.
+///
+/// La bascule « Analyser ma réponse avec l'IA » a disparu : l'analyse est le
+/// comportement naturel. Mais valider consomme une analyse offerte, et le
+/// candidat doit le savoir — sans cette ligne, un quota se viderait à son insu.
+///
+/// Ne s'affiche donc que dans ce cas précis : ni pour un accès illimité (rien à
+/// décompter), ni quand il n'en reste plus (la production part sans analyse, et
+/// c'est l'écran de résultat qui le dit), ni tant que le quota est inconnu.
+class _FreeAnalysesSlot extends StatelessWidget {
+  const _FreeAnalysesSlot({required this.quota, required this.accent});
+
+  final SkillAnalysisQuotaDto? quota;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final q = quota;
+    if (q == null || q.isUnlimited || q.remaining <= 0) {
+      return const SizedBox.shrink();
+    }
+    final plural = q.remaining > 1 ? 's' : '';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(LucideIcons.sparkles, size: 15, color: accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Ta réponse sera analysée par l\'IA. Il te reste '
+              '${q.remaining} analyse$plural offerte$plural.',
+              style: AppFonts.ui(
+                size: 11.5,
+                height: 1.4,
+                color: AppColors.inkSoft,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -201,9 +201,11 @@ function SkillCard({skill, onOpen}: {skill: SkillDto; onOpen: () => void}) {
       <span className={`${s.tile} ${done ? s.tileDone : ""}`} aria-hidden>
         {done ? <Check size={22} strokeWidth={2.8} /> : skill.displayOrder}
       </span>
+      {/* Le titre et la progression, rien d'autre : la description vit derrière
+          la pastille d'information de l'écran de détail (parité mobile). Six
+          lignes de texte par carte repoussaient la 8ᵉ compétence hors de vue. */}
       <span className={s.rowBody}>
         <span className={s.rowTitle}>{skill.title}</span>
-        <span className={s.rowText}>{skill.description}</span>
         <MiniBar
           attempted={progress.attempted}
           total={progress.total}

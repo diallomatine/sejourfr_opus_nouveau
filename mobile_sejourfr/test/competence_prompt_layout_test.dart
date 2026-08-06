@@ -1,17 +1,16 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sejourfr_mobile/core/api/repositories.dart';
-import 'package:sejourfr_mobile/core/api/skill_repository.dart';
 import 'package:sejourfr_mobile/core/models/skill_models.dart';
 import 'package:sejourfr_mobile/core/widgets/fixed_action_bar.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/competence_prompt_screen.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_answer_card.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_recorder_panel.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/tcf_production_module.dart';
+
+import 'support/skill_fixtures.dart';
 
 /// **Le critère de réussite de cet écran est mesurable** : la zone de
 /// production doit être visible sans défiler sur un téléphone standard.
@@ -30,141 +29,6 @@ const Size _kStandardPhone = Size(390, 844);
 /// qu'on accepte.
 const Size _kSmallPhone = Size(375, 812);
 
-Map<String, dynamic> _promptJson(Map<String, dynamic> extra) => {
-      'id': 'p1',
-      'skillId': 'c1',
-      'skillCode': 'EE1-C1',
-      'skillTitle': 'Adapter le message au destinataire',
-      'skillPromptCount': 5,
-      'skillDescription': 'Savoir à qui l\'on écrit change tout le message.',
-      'skillGeneralCriterion': 'Le message est adapté à son destinataire.',
-      'skillTargetLevel': 'A2',
-      'section': 'EE',
-      'taskCode': 'EE1',
-      'taskTitle': 'Écrire un message court',
-      'code': 'EE1-C1-S1',
-      'title': 'Un mot pour votre voisine',
-      'context': 'Vous partez 3 jours. Vos plantes ont besoin d\'eau. '
-          'Vous connaissez peu votre voisine du 2e étage.',
-      'instruction': 'Écrivez les deux premières phrases de votre message : '
-          'saluez-la et dites qui vous êtes.',
-      'uniqueCriterion': 'Employer une salutation et un vouvoiement adaptés '
-          'à une voisine que l\'on connaît peu.',
-      'difficultyLevel': 'EASY',
-      'displayOrder': 1,
-      'status': 'TODO',
-      'attemptCount': 0,
-      'recommendedMinWords': 15,
-      'recommendedMaxWords': 35,
-      'checklist': [
-        'Saluez votre voisine',
-        'Dites qui vous êtes',
-        'Écrivez 2 phrases',
-      ],
-      'constraintTags': [
-        {'label': 'Vouvoiement', 'icon': 'PERSON'},
-        {'label': 'Ton poli', 'icon': 'TONE'},
-      ],
-      'answerStarter': 'Bonjour Madame, je suis votre voisin du…',
-      'tip': 'commencez par bonjour, puis présentez-vous.',
-      ...extra,
-    };
-
-Map<String, dynamic> _detailJson(SkillPromptDto prompt) => {
-      'skill': {
-        'id': 'c1',
-        'section': prompt.section.wire,
-        'taskCode': prompt.taskCode,
-        'code': prompt.skillCode,
-        'title': prompt.skillTitle,
-        'description': prompt.skillDescription,
-        'generalCriterion': prompt.skillGeneralCriterion,
-        'targetLevel': prompt.skillTargetLevel,
-        'displayOrder': 1,
-        'promptCount': 5,
-        'attemptedCount': 0,
-        'validatedCount': 0,
-        'toReinforceCount': 0,
-      },
-      'prompts': [
-        for (var i = 0; i < 5; i++)
-          {
-            'id': 'p${i + 1}',
-            'code': 'EE1-C1-S${i + 1}',
-            'title': 'Sujet ${i + 1}',
-            'uniqueCriterion': prompt.uniqueCriterion,
-            'difficultyLevel': 'EASY',
-            'displayOrder': i + 1,
-            'status': 'TODO',
-            'attemptCount': 0,
-          },
-      ],
-    };
-
-/// Repository de test : seules les trois lectures de l'écran sont servies.
-class _FakeSkillRepository implements SkillRepository {
-  _FakeSkillRepository(this.prompt);
-
-  final SkillPromptDto prompt;
-
-  @override
-  Future<SkillPromptDto> getPrompt(String promptId) async => prompt;
-
-  @override
-  Future<SkillDetail> getSkillDetail(String skillId) async =>
-      SkillDetail.fromJson(_detailJson(prompt));
-
-  @override
-  Future<SkillAnalysisQuotaDto> analysisQuota() async =>
-      SkillAnalysisQuotaDto.fromJson(const {
-        'premium': false,
-        'unlimited': false,
-        'freeAnalysesTotal': 3,
-        'freeAnalysesUsed': 0,
-        'remaining': 3,
-      });
-
-  @override
-  Future<List<SkillDto>> listSkills(String taskCode) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<List<SkillReferenceDto>> getReferences(String promptId) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<SkillAttemptDto> getAttempt(String attemptId) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<SkillAttemptDto> submitText({
-    required String skillPromptId,
-    required String texte,
-    required bool requestAnalysis,
-    SkillSelfEvaluation? selfEvaluation,
-  }) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<SkillAttemptDto> submitAudio({
-    required String skillPromptId,
-    required File audioFile,
-    required int durationSec,
-    required bool requestAnalysis,
-    SkillSelfEvaluation? selfEvaluation,
-    String? mimeType,
-  }) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<SkillAttemptDto> requestAnalysis(String attemptId) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<SkillAttemptDto> retryAnalysis(String attemptId) async =>
-      throw UnimplementedError();
-}
-
 Future<void> _pumpPrompt(
   WidgetTester tester, {
   required SkillPromptDto prompt,
@@ -177,7 +41,7 @@ Future<void> _pumpPrompt(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        skillRepositoryProvider.overrideWithValue(_FakeSkillRepository(prompt)),
+        skillRepositoryProvider.overrideWithValue(FakeSkillRepository(prompt: prompt)),
       ],
       child: MaterialApp(
         home: CompetencePromptScreen(
@@ -212,7 +76,7 @@ void main() {
 
   group('la zone de production tient au-dessus de la ligne de flottaison', () {
     testWidgets('à l\'écrit, sur un téléphone standard', (tester) async {
-      final prompt = SkillPromptDto.fromJson(_promptJson({}));
+      final prompt = SkillPromptDto.fromJson(promptJson({}));
       await _pumpPrompt(tester, prompt: prompt);
 
       final field = tester.getRect(find.byType(SkillWritingField));
@@ -227,7 +91,7 @@ void main() {
     });
 
     testWidgets('à l\'écrit, sur un petit téléphone', (tester) async {
-      final prompt = SkillPromptDto.fromJson(_promptJson({}));
+      final prompt = SkillPromptDto.fromJson(promptJson({}));
       await _pumpPrompt(tester, prompt: prompt, size: _kSmallPhone);
 
       final field = tester.getRect(find.byType(SkillWritingField));
@@ -238,7 +102,7 @@ void main() {
 
     testWidgets('à l\'oral, la carte de réponse est visible elle aussi',
         (tester) async {
-      final prompt = SkillPromptDto.fromJson(_promptJson({
+      final prompt = SkillPromptDto.fromJson(promptJson({
         'section': 'EO',
         'recommendedMinWords': null,
         'recommendedMaxWords': null,
@@ -256,7 +120,7 @@ void main() {
     testWidgets('les deux épreuves rendent check-list, situation et étiquettes',
         (tester) async {
       for (final section in ['EE', 'EO']) {
-        final prompt = SkillPromptDto.fromJson(_promptJson({
+        final prompt = SkillPromptDto.fromJson(promptJson({
           'section': section,
           if (section == 'EO') 'recommendedDurationSeconds': 45,
         }));
@@ -278,14 +142,14 @@ void main() {
         (tester) async {
       await _pumpPrompt(
         tester,
-        prompt: SkillPromptDto.fromJson(_promptJson({})),
+        prompt: SkillPromptDto.fromJson(promptJson({})),
       );
       expect(find.text('≈ 15–35 mots'), findsOneWidget);
       expect(find.text('0 / 35 mots'), findsOneWidget);
 
       await _pumpPrompt(
         tester,
-        prompt: SkillPromptDto.fromJson(_promptJson({
+        prompt: SkillPromptDto.fromJson(promptJson({
           'section': 'EO',
           'recommendedDurationSeconds': 45,
         })),
@@ -301,7 +165,7 @@ void main() {
         (tester) async {
       await _pumpPrompt(
         tester,
-        prompt: SkillPromptDto.fromJson(_promptJson({
+        prompt: SkillPromptDto.fromJson(promptJson({
           'section': 'EO',
           'recommendedDurationSeconds': 90,
         })),
@@ -316,7 +180,7 @@ void main() {
   group('avertissement de transcription (spec §15)', () {
     testWidgets('rendu à l\'oral, sous le panneau d\'enregistrement',
         (tester) async {
-      final prompt = SkillPromptDto.fromJson(_promptJson({
+      final prompt = SkillPromptDto.fromJson(promptJson({
         'section': 'EO',
         'recommendedDurationSeconds': 45,
       }));
@@ -344,7 +208,7 @@ void main() {
     testWidgets('absent à l\'écrit', (tester) async {
       await _pumpPrompt(
         tester,
-        prompt: SkillPromptDto.fromJson(_promptJson({})),
+        prompt: SkillPromptDto.fromJson(promptJson({})),
       );
       await _scrollListToEnd(tester);
       expect(find.byType(SkillTranscriptNotice), findsNothing);
@@ -356,7 +220,7 @@ void main() {
     testWidgets('4 gestes et 3 étiquettes au maximum', (tester) async {
       await _pumpPrompt(
         tester,
-        prompt: SkillPromptDto.fromJson(_promptJson({
+        prompt: SkillPromptDto.fromJson(promptJson({
           'checklist': ['Geste 1', 'Geste 2', 'Geste 3', 'Geste 4', 'Geste 5'],
           'constraintTags': [
             {'label': 'Tag 1', 'icon': 'PERSON'},
@@ -379,7 +243,7 @@ void main() {
         (tester) async {
       await _pumpPrompt(
         tester,
-        prompt: SkillPromptDto.fromJson(_promptJson({})),
+        prompt: SkillPromptDto.fromJson(promptJson({})),
       );
 
       expect(find.text('Une compétence · un critère'), findsNothing);
@@ -399,7 +263,7 @@ void main() {
 
   group('dégradation — un sujet sans guidage reste utilisable', () {
     testWidgets('aucune carte vide, aucun « null » à l\'écran', (tester) async {
-      final prompt = SkillPromptDto.fromJson(_promptJson({
+      final prompt = SkillPromptDto.fromJson(promptJson({
         'checklist': null,
         'constraintTags': null,
         'answerStarter': null,

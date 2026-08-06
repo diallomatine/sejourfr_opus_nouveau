@@ -24,9 +24,20 @@ import 'widgets/skill_status_badge.dart';
 
 /// Résultat d'une tentative sur un petit sujet.
 ///
-/// Ordre du prototype : accusé de traitement → `Ta production` → analyse IA
-/// (repliée derrière un bandeau) → références comparatives → les trois
-/// actions. Le retour IA reste **au-dessus** des références (§13.4).
+/// Ordre du contrat, inchangé : accusé de traitement → `Ta production` →
+/// analyse IA → références comparatives → les trois actions. Le retour IA reste
+/// **au-dessus** des références (§13.4).
+///
+/// **L'analyse est dépliée d'emblée** : c'est le retour que le candidat vient
+/// de mériter, il n'a pas à le déverrouiller. Le bandeau premium et son bouton
+/// « Voir » ne subsistent donc que quand il n'y a **rien** à montrer — quota
+/// épuisé, production sans analyse, analyse en échec — et son action ouvre
+/// alors le paywall.
+///
+/// Symétriquement, la comparaison aux niveaux de référence est **repliée** tant
+/// qu'une analyse est affichée : deux blocs longs dépliés noyaient le retour
+/// personnalisé sous des textes génériques. Sans analyse, elle reste ouverte —
+/// elle est alors le seul retour de l'écran.
 ///
 /// Aucune note /20 et aucun niveau CECRL : interdits sur un micro-exercice
 /// (§9 de la spec). Le sujet ne juge qu'un critère.
@@ -58,8 +69,10 @@ class _CompetenceResultScreenState
   DateTime _pollStartedAt = DateTime.now();
   bool _retrying = false;
 
-  /// M7 — l'analyse est repliée par défaut, comme dans le prototype.
-  bool _analysisExpanded = false;
+  /// `null` = l'utilisateur n'a pas tranché → on suit la règle par défaut :
+  /// références repliées quand une analyse est affichée, ouvertes quand elle
+  /// est le seul retour de l'écran.
+  bool? _referencesExpanded;
 
   Color get _accent => widget.module.accent;
 
@@ -195,36 +208,29 @@ class _CompetenceResultScreenState
           accent: _accent,
         ),
         if (analysis != null) ...[
+          // Aucun bandeau, aucun bouton « Voir » : l'analyse s'ouvre d'elle-même.
           const SizedBox(height: 13),
-          _AnalysisBanner(
-            actionLabel: _analysisExpanded ? 'Masquer' : 'Voir',
-            onAction: () =>
-                setState(() => _analysisExpanded = !_analysisExpanded),
+          _VerdictCard(analysis: analysis),
+          const SizedBox(height: 9),
+          _FeedbackItem(
+            // Libellés figés par le contrat, mot pour mot avec le web.
+            label: 'Ce qui est réussi',
+            text: analysis.successPoint,
+            color: AppColors.green,
+            soft: AppColors.greenLight,
+            icon: LucideIcons.check,
           ),
-          if (_analysisExpanded) ...[
-            const SizedBox(height: 11),
-            _VerdictCard(analysis: analysis),
-            const SizedBox(height: 9),
-            _FeedbackItem(
-              // Libellés figés par le contrat, mot pour mot avec le web.
-              label: 'Ce qui est réussi',
-              text: analysis.successPoint,
-              color: AppColors.green,
-              soft: AppColors.greenLight,
-              icon: LucideIcons.check,
-            ),
-            const SizedBox(height: 9),
-            _FeedbackItem(
-              label: 'À travailler en priorité',
-              text: analysis.improvementPriority,
-              color: AppColors.amberDark,
-              soft: AppColors.amberLight,
-              icon: LucideIcons.arrowRight,
-            ),
-            if (analysis.improvedVersion.trim().isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _RewriteCard(text: analysis.improvedVersion),
-            ],
+          const SizedBox(height: 9),
+          _FeedbackItem(
+            label: 'À travailler en priorité',
+            text: analysis.improvementPriority,
+            color: AppColors.amberDark,
+            soft: AppColors.amberLight,
+            icon: LucideIcons.arrowRight,
+          ),
+          if (analysis.improvedVersion.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _RewriteCard(text: analysis.improvedVersion),
           ],
         ] else ...[
           if (!canAnalyse) ...[
@@ -255,6 +261,12 @@ class _CompetenceResultScreenState
         // à une liste vide, qui les faisait échouer à l'initialisation).
         _ReferencesSection(
           async: referencesAsync,
+          // Repliées quand l'analyse occupe déjà l'écran, ouvertes quand elles
+          // sont le seul retour disponible.
+          expanded: _referencesExpanded ?? analysis == null,
+          onToggle: () => setState(
+            () => _referencesExpanded = !(_referencesExpanded ?? analysis == null),
+          ),
           onRetry: () =>
               ref.invalidate(skillReferencesProvider(attempt.skillPromptId)),
         ),
@@ -273,16 +285,28 @@ class _CompetenceResultScreenState
 // Blocs
 // ---------------------------------------------------------------------------
 
-/// Les trois références comparatives, **titre compris**.
+/// Les trois références comparatives, **titre compris** — et son titre est
+/// aussi son interrupteur.
 ///
 /// Le titre appartient au contenu : sans référence, la section entière
 /// disparaît au lieu de laisser un intertitre orphelin au-dessus d'un widget
 /// vide. Pendant le chargement et sur erreur, le titre reste — il y a bien
 /// quelque chose à annoncer.
+///
+/// Replier ne coupe **aucun** appel : la liste est chargée par l'écran de toute
+/// façon (c'est elle qui décide si la section existe). On ne cache que du
+/// texte, jamais de la donnée.
 class _ReferencesSection extends StatelessWidget {
-  const _ReferencesSection({required this.async, required this.onRetry});
+  const _ReferencesSection({
+    required this.async,
+    required this.expanded,
+    required this.onToggle,
+    required this.onRetry,
+  });
 
   final AsyncValue<List<SkillReferenceDto>> async;
+  final bool expanded;
+  final VoidCallback onToggle;
   final VoidCallback onRetry;
 
   @override
@@ -293,24 +317,77 @@ class _ReferencesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Compare avec les niveaux de référence',
-          style: AppFonts.display(size: 15),
-        ),
-        const SizedBox(height: 8),
-        async.when(
-          skipLoadingOnReload: true,
-          loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator()),
+        _ReferencesHeader(expanded: expanded, onToggle: onToggle),
+        if (expanded) ...[
+          const SizedBox(height: 8),
+          async.when(
+            skipLoadingOnReload: true,
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (e, _) => ProductionErrorView(
+              message: ApiClient.toApiException(e).message,
+              onRetry: onRetry,
+            ),
+            data: (list) => SkillReferencesTabs(references: list),
           ),
-          error: (e, _) => ProductionErrorView(
-            message: ApiClient.toApiException(e).message,
-            onRetry: onRetry,
-          ),
-          data: (list) => SkillReferencesTabs(references: list),
-        ),
+        ],
       ],
+    );
+  }
+}
+
+/// L'intertitre des références, tappable sur toute sa largeur : titre à gauche,
+/// action explicite à droite (« Comparer » ⇄ « Masquer ») avec son chevron.
+///
+/// Le libellé dit ce qui va se passer, pas l'état courant — « Comparer » invite
+/// au geste que la section propose.
+class _ReferencesHeader extends StatelessWidget {
+  const _ReferencesHeader({required this.expanded, required this.onToggle});
+
+  final bool expanded;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      // Le fond de l'écran : l'intertitre reste un intertitre, il ne devient
+      // pas une carte parce qu'il est devenu tappable.
+      color: AppColors.bg,
+      borderRadius: BorderRadius.circular(AppRadii.md),
+      child: InkWell(
+        onTap: onToggle,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Compare avec les niveaux de référence',
+                  style: AppFonts.display(size: 15),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                expanded ? 'Masquer' : 'Comparer',
+                style: AppFonts.ui(
+                  size: 11.5,
+                  weight: FontWeight.w800,
+                  color: AppColors.blue,
+                ),
+              ),
+              const SizedBox(width: 3),
+              Icon(
+                expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+                size: 16,
+                color: AppColors.blue,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1075,7 +1075,8 @@ sujet. Ne jamais réintroduire `ProductionScoreHero`/`formatNoteSur20` ici.
   `/[skillId]/[promptId]/resultat/[attemptId]` (retour + références).
 - **Composants** `app/_components/competences/` : `CompetencesList`,
   `CompetenceDetail`, `CompetencePrompt`, `CompetenceResult`,
-  `CompetenceReferences`, `CompetenceStatusBadge`, `SelfEvaluationPicker`.
+  `CompetenceReferences`, `CompetenceStatusBadge`. (`SelfEvaluationPicker` a été
+  **supprimé** — cf. « Allègements », plus bas.)
   Les briques de mise en page et leur feuille de style ont été **promues en
   partagé** dans `app/_components/skill-ui/` (`SkillLayout.tsx` +
   `skill.module.css`) quand tout le parcours TCF est passé sur la même
@@ -1196,8 +1197,39 @@ haut : le candidat lisait une leçon au lieu de produire.
 compacte `Sujet i/N` + pilule de palier · `Progression` + barre · carte **« Ce
 qu'il faut faire »** (la check-list) · carte **« Situation »** · rangée de puces
 (longueur + contraintes) · carte **« Ta réponse »** (champ ou enregistreur,
-astuce et compteur en pied) · auto-évaluation **sous** la zone de production ·
-actions `Valider et comparer` / `Effacer`.
+astuce et compteur en pied) · pied sobre (plafond de longueur en EE, reliquat
+d'analyses offertes, rappel ambre) · actions `Valider et comparer` / `Effacer`.
+
+### Allègements de l'écran de saisie et des listes (parité mobile)
+
+Le client a allégé ces composants côté mobile ; le web applique **les mêmes
+retraits**, la parité web ⇄ mobile n'étant pas négociable. À ne pas rétablir
+« pour le contexte » — c'est exactement la verbosité qu'on retire :
+
+- **L'auto-évaluation est supprimée.** Le sélecteur, son état et le composant
+  `SelfEvaluationPicker` n'existent plus, et l'écran de résultat n'affiche plus
+  la puce « Ton ressenti » (aucune tentative n'en portera). Elle était
+  déclarative et sans effet, et coûtait une décision de plus avant de produire.
+  ⚠️ **Le contrat d'API ne change pas** : `selfEvaluation` reste optionnel sur
+  `SubmitSkillTextRequest` / `skillApi.submitAudio` et sur `SkillAttemptDto` —
+  on cesse simplement de l'envoyer.
+- **La description ne s'affiche plus sous le titre** dans la liste des
+  compétences (niveau 4). Elle reste derrière la **pastille d'information** de
+  l'écran de détail.
+- **Le critère unique ne s'affiche plus sous le titre** dans la liste des petits
+  sujets. Il est déjà rendu en gestes vérifiables par la check-list de l'écran
+  de saisie.
+- **La pastille de niveau est retirée** de la carte de résumé d'une compétence :
+  le palier est celui de toute la tâche, déjà porté par le hero de la liste et
+  par l'écran d'un sujet.
+- Classes CSS supprimées de `skill-ui/skill.module.css` faute d'appelant :
+  `selfBlock` / `selfLabel` / `selfHint` / `selfRow` / `selfBtn` / `selfBtnOn`,
+  `analysisBlock` / `analysisRow` / `analysisCheck` / `analysisLock` /
+  `analysisBody` / `analysisTitle` / `analysisHint`, `invite` / `inviteBody` /
+  `inviteTitle` / `inviteSub`. Ajoutées pour le dépliant des références :
+  `refSection` / `refToggle` / `refToggleBody` / `refToggleTitle` /
+  `refToggleHint` / `refToggleAction` / `refChevron` / `refChevronOpen` /
+  `refPanel`.
 
 - **Critère de réussite, mesuré** : à 360 px la carte « Ta réponse » commence
   à ~468 px et le champ à ~516 px — visible sans défiler. C'est ce chiffre qui
@@ -1234,8 +1266,9 @@ actions `Valider et comparer` / `Effacer`.
   `criteriaSlot` (remplace la carte des 4 critères du TCF — un micro-exercice
   n'en a qu'un ; `null` la retire), **`answerCard`** (présente la zone de
   production en carte : icône + titre, amorce grisée, pied astuce / compteur ;
-  absent = présentation historique), `footerSlot` (auto-évaluation, option
-  d'analyse et rappel ambre, juste au-dessus du bouton de validation) et, côté
+  absent = présentation historique), `footerSlot` (plafond de longueur,
+  reliquat d'analyses offertes et rappel ambre, juste au-dessus du bouton de
+  validation) et, côté
   EE seulement, `lengthAdvisory` + `clearLabel`. ⚠️ Ces formulaires sont
   partagés avec les écrans de production TCF et la session d'examen blanc :
   **toute prop ajoutée reste optionnelle**, comportement actuel par défaut.
@@ -1245,12 +1278,12 @@ actions `Valider et comparer` / `Effacer`.
     avertissement de longueur non bloquant, aides du micro, messages de
     permission), jamais le sujet ni l'amorce venus de la base.
   - **`footerAlwaysVisible`** (EO) : rend `footerSlot` **dès l'ouverture**, au
-    lieu d'attendre l'arrêt de l'enregistrement. Ce que ce pied porte —
-    auto-évaluation, bascule « Analyser ma réponse avec l'IA », rappel sur les
-    références — se décide **avant de parler** : arrivé après coup, le candidat
-    avait déjà consommé une de ses analyses offertes sans le savoir (parité
-    mobile, où ces blocs sont permanents sous la carte de réponse). Faux par
-    défaut : les écrans de production TCF gardent leur pied d'après-prise.
+    lieu d'attendre l'arrêt de l'enregistrement. Ce que ce pied porte — reliquat
+    d'analyses offertes, rappel sur les références — se lit **avant de
+    parler** : arrivé après coup, le candidat avait déjà consommé une de ses
+    analyses offertes sans le savoir (parité mobile, où ces blocs sont
+    permanents sous la carte de réponse). Faux par défaut : les écrans de
+    production TCF gardent leur pied d'après-prise.
   - **`maxDurationSec`** (EO) : plafond **dur** de capture hors examen — la
     prise s'arrête d'elle-même et la durée transmise est bornée. Reflet d'un
     garde serveur, pas d'un réglage d'affichage : sans lui, un enregistrement de
@@ -1299,21 +1332,33 @@ actions `Valider et comparer` / `Effacer`.
   (préremplit la zone de saisie depuis `lastAttemptId`) et
   `Écouter ma dernière réponse` en EO (ouvre l'écran de résultat de
   `lastAttemptId`). Un enregistrement ne se « reprend » pas — il se réécoute.
-- **Freemium** (§14) : **aucun sujet n'est verrouillé**. Produire, s'auto-évaluer
-  et lire les 3 références sont gratuits partout. Seule **l'analyse IA** est
-  premium, avec **3 analyses offertes à vie** — case « Analyser ma réponse avec
-  l'IA » cochée par défaut, verrouillée à quota épuisé (clic → `PaywallSheet`
-  INTEGRAL). `GET /api/skills/analysis-quota` renvoie `remaining = -1` pour
-  illimité : **cette valeur ne s'affiche jamais telle quelle**.
-  `skillApi.requestAnalysis` (`POST /api/skill-attempts/{id}/analyse`) demande
-  l'analyse d'une tentative déjà `RECORDED` — le cas « produire d'abord,
-  s'abonner ensuite ». Le client existe, **l'UI reste à brancher**.
+- **Freemium (§14) — l'analyse IA n'est PAS une option.** **Aucun sujet n'est
+  verrouillé** : produire et lire les 3 références sont gratuits partout. Seule
+  **l'analyse IA** est premium, avec **3 analyses offertes à vie**. Il n'y a
+  **plus de case à cocher** (décision client) : l'analyse est le comportement
+  naturel, `requestAnalysis` vaut simplement « le candidat y a droit » (abonné,
+  ou compte gratuit avec du reliquat). **Quota épuisé ⇒ la production part sans
+  analyse**, jamais en 403 — demander une analyse interdite ferait perdre la
+  production, alors que c'est **l'écran de résultat** qui porte l'invitation à
+  s'abonner (`PaywallSheet` INTEGRAL). Ne pas réintroduire de contrôle
+  d'analyse sur l'écran de saisie.
+  - Seule information conservée sous la zone de production : **« Il te reste N
+    analyses offertes »**, et **uniquement quand N > 0** sur un compte gratuit.
+    C'est une information, plus une décision : la retirer prélèverait un essai
+    en silence. Rien n'est affiché à zéro — l'invitation vit après la
+    production. `GET /api/skills/analysis-quota` renvoie `remaining = -1` pour
+    illimité : **cette valeur ne s'affiche jamais telle quelle**.
+  - `skillApi.requestAnalysis` (`POST /api/skill-attempts/{id}/analyse`) demande
+    l'analyse d'une tentative déjà `RECORDED` — le cas « produire d'abord,
+    s'abonner ensuite ». Le client existe, **l'UI reste à brancher** (le bandeau
+    de résultat renvoie aujourd'hui vers « refaire le sujet »).
 - **Ordre imposé de l'écran de résultat** (§13.4) : **accusé de traitement**
   (« Sujet marqué comme traité » — la progression a bougé, c'est ce que le
   candidat vient chercher) → `Ta production` → verdict →
   `Ce qui est réussi` / `À travailler en priorité` → `Proposition améliorée` →
-  **puis seulement** les onglets de références `Insuffisant | Attendu | Très
-  réussi` → les 3 actions (`Retour aux petits sujets`, `Refaire ce sujet`,
+  **puis seulement** le dépliant de références (replié ; ouvert, ses onglets
+  `Insuffisant | Attendu | Très réussi`) → les 3 actions
+  (`Retour aux petits sujets`, `Refaire ce sujet`,
   `Sujet suivant à travailler` via `nextPromptId`, désactivé si null). Les
   références ne sont **jamais** visibles avant d'avoir produit (§13.2, doublé
   d'un 403 serveur). **Polling 3 s, plafond 120 s — valeur de parité, partagée
@@ -1327,14 +1372,29 @@ actions `Valider et comparer` / `Effacer`.
   URL R2 présignée 15 min, même `<audio controls preload="metadata">` que
   `EoRecordingForm`) **et** la durée : se réécouter en lisant le retour est la
   moitié de la valeur de l'oral.
-- **Le retour IA est replié derrière un bandeau « Analyse IA du critère »**
-  (maquette). Le bandeau est **toujours** rendu — ce qui change, c'est ce que
-  fait son bouton : dépliage « Voir » ⇄ « Masquer » quand l'analyse existe
-  (`aria-expanded` + `aria-controls`, bouton donc pilotable au clavier),
-  ouverture du `PaywallSheet` quand les analyses offertes sont épuisées,
-  relance de l'exercice quand la production a été enregistrée sans analyse alors
-  qu'il en reste. Un bandeau qui disparaîtrait ne dirait jamais au candidat ce
-  qu'il rate — c'est exactement le point premium du module.
+- **Le retour IA est DÉPLIÉ, les références sont REPLIÉES** (inversion demandée
+  par le client — c'était l'inverse). Règles pures dans
+  **`lib/skill-result-view.ts`** (`skillResultAnalysisView`,
+  `skillResultHasBanner`, `skillResultBannerAction`,
+  `ANALYSIS_OPEN_BY_DEFAULT`, `REFERENCES_OPEN_BY_DEFAULT`), testées par
+  `lib/skill-result-view.test.ts` — ne pas réimplémenter ces décisions dans un
+  composant.
+  - **Cas nominal : ni bandeau ni bouton.** L'analyse s'affiche telle quelle
+    sous son intertitre « Analyse IA du critère ». C'est le retour que le
+    candidat vient de mériter (et qui a consommé un de ses essais) : le lui
+    faire déverrouiller d'un clic ajoutait une étape à un contenu déjà acquis.
+  - **Le bandeau ne subsiste que quand il n'y a rien à déplier** : analyse en
+    échec (→ `retryAnalysis`), quota épuisé (→ `PaywallSheet`), production
+    enregistrée sans analyse alors qu'il en restait (→ refaire le sujet). Un
+    bandeau qui disparaîtrait dans ces cas-là ne dirait jamais au candidat ce
+    qu'il rate — c'est le point premium du module. Une analyse présente
+    **l'emporte toujours** sur un quota épuisé ou un statut en échec.
+  - **Les 3 références sont derrière un dépliant** (`CompetenceReferences`) :
+    vrai `<button>` avec `aria-expanded` / `aria-controls`, libellé explicite
+    dans les deux sens (« Afficher » ⇄ « Masquer »), `:focus-visible`. Le
+    candidat lit son propre retour d'abord, il va se comparer ensuite.
+  - **L'ordre du contrat ne bouge pas** : accusé de traitement → ta production →
+    analyse → références → actions.
 - **Le verdict `NOT_VALIDATED` est ROUGE** (parité mobile, et cohérent avec la
   référence « Insuffisant ») : c'est un **critère**, pas un niveau CECRL — la
   règle « jamais de rouge sur un palier » ne s'applique pas ici. Les onglets de

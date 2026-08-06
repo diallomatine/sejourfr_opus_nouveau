@@ -56,17 +56,6 @@ class CompetenceCard extends StatelessWidget {
                       height: 1.25,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    skill.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppFonts.ui(
-                      size: 12,
-                      color: AppColors.inkSoft,
-                      height: 1.38,
-                    ),
-                  ),
                   const SizedBox(height: 9),
                   Row(
                     children: [

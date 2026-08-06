@@ -1160,142 +1160,16 @@
   overflow-wrap: anywhere;
 }
 
-/* --------------------------------------------------------- auto-évaluation */
-
-.selfBlock {
-  padding: 13px;
-  border-radius: 18px;
-  background: var(--color-paper);
-  border: 1px solid var(--color-line);
-}
-
-.selfLabel {
-  display: block;
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--color-ink);
-}
-
-.selfHint {
-  margin: 4px 0 10px;
-  color: var(--color-muted);
-  font-size: 10px;
-  line-height: 1.4;
-}
-
-.selfRow {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 7px;
-}
-
-@media (min-width: 470px) {
-  .selfRow {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-.selfBtn {
-  min-width: 0;
-  border: 1px solid var(--color-line);
-  background: white;
-  color: var(--color-muted);
-  border-radius: 13px;
-  padding: 9px 6px;
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-  overflow-wrap: anywhere;
-}
-
-.selfBtn:hover:not(:disabled) {
-  border-color: var(--skill-accent);
-}
-
-.selfBtn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.selfBtnOn {
-  background: var(--skill-accent-light);
-  border-color: color-mix(in srgb, var(--skill-accent) 35%, transparent);
-  color: var(--skill-accent);
-}
-
-/* ------------------------------------------------------ option d'analyse IA */
-
-.analysisBlock {
-  padding: 13px;
-  border-radius: 18px;
-  background: white;
-  border: 1px solid var(--color-line);
-}
-
-/* Sert de `<label>` quand l'analyse est disponible, et de `<button>` quand elle
-   est verrouillée : un `<label>` sur une case désactivée n'est pas atteignable
-   au clavier, l'offre serait restée hors de portée. */
-.analysisRow {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  border-radius: 10px;
-  background: none;
-  color: inherit;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.analysisCheck {
-  flex: none;
-  width: 18px;
-  height: 18px;
-  margin-top: 1px;
-  accent-color: var(--skill-accent);
-}
-
-.analysisLock {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 18px;
-  height: 18px;
-  margin-top: 1px;
-  color: var(--color-muted-2);
-}
-
-.analysisBody {
-  min-width: 0;
-}
-
-.analysisTitle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--color-ink);
-}
-
-.analysisHint {
-  display: block;
-  margin-top: 3px;
-  font-size: 10px;
-  line-height: 1.45;
-  color: var(--color-muted);
-}
-
+/* Reliquat d'analyses offertes, seule information restée sous la zone de
+   production. Elle est un **élément de pile** (le pied du formulaire est une
+   colonne flex avec `gap`) : pas de marge propre, qui s'ajouterait au gap, et
+   `align-self` pour que la pilule garde sa largeur de contenu au lieu d'être
+   étirée sur toute la colonne. */
 .quota {
   display: inline-flex;
+  align-self: flex-start;
   align-items: center;
   gap: 6px;
-  margin-top: 10px;
   padding: 5px 10px;
   border-radius: 999px;
   background: var(--color-paper-2);
@@ -1651,7 +1525,12 @@
   line-height: 1.35;
 }
 
+/* Le bouton du bandeau porte parfois une icône (relance) : `inline-flex` pour
+   qu'elle s'aligne sur le libellé au lieu de reposer sur la ligne de base. */
 .unlock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   flex: none;
   border: 0;
   background: white;
@@ -1669,8 +1548,14 @@
   cursor: not-allowed;
 }
 
+/* Le retour de l'IA est rendu déplié : il porte donc son propre intertitre,
+   et c'est lui qui ouvre le bloc — pas un bandeau. */
 .aiPanel {
-  margin-top: 11px;
+  margin-top: 17px;
+}
+
+.aiPanel > .resultSectionTitle {
+  margin-top: 0;
 }
 
 /* ------------------------------------------------------ onglets références */
@@ -1681,6 +1566,78 @@
   font-weight: 800;
   letter-spacing: -0.15px;
   color: var(--color-ink);
+}
+
+/* Dépliant des trois références : replié par défaut, l'analyse IA occupant la
+   place de contenu principal juste au-dessus. C'est un vrai bouton (clavier +
+   `aria-expanded`), pas un titre cliquable — l'action doit être annoncée. */
+.refSection {
+  margin-top: 17px;
+}
+
+.refToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 19px;
+  background: white;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.refToggle:hover {
+  border-color: var(--skill-accent);
+}
+
+.refToggleBody {
+  min-width: 0;
+}
+
+.refToggleTitle {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.15px;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.refToggleHint {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.refToggleAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--skill-accent);
+  white-space: nowrap;
+}
+
+.refChevron {
+  transition: transform 0.18s ease;
+}
+
+.refChevronOpen {
+  transform: rotate(180deg);
+}
+
+.refPanel {
+  margin-top: 11px;
 }
 
 .refTabs {
@@ -1775,37 +1732,6 @@
 }
 
 /* --------------------------------------------------------------- états */
-
-.invite {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 13px;
-  padding: 14px;
-  border-radius: 20px;
-  border: 1px dashed var(--color-line);
-  background: var(--color-paper);
-}
-
-.inviteBody {
-  flex: 1 1 220px;
-  min-width: 0;
-}
-
-.inviteTitle {
-  margin: 0 0 3px;
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--color-ink);
-}
-
-.inviteSub {
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--color-muted);
-}
 
 .pending {
   display: flex;
@@ -2380,11 +2306,10 @@
 .taskPill:focus-visible,
 .rowCard:focus-visible,
 .filter:focus-visible,
-.selfBtn:focus-visible,
 .refTab:focus-visible,
+.refToggle:focus-visible,
 .unlock:focus-visible,
 .previousAction:focus-visible,
-.analysisRow:focus-within,
 .footLink:focus-visible,
 .modeBtn:focus-visible,
 .primary:focus-visible,
@@ -2398,7 +2323,6 @@
 .headLink:active,
 .taskPill:active,
 .filter:active,
-.selfBtn:active:not(:disabled),
 .refTab:active,
 .unlock:active:not(:disabled),
 .previousAction:active:not(:disabled),
@@ -2413,8 +2337,9 @@
   .headLink,
   .taskPill,
   .filter,
-  .selfBtn,
   .refTab,
+  .refToggle,
+  .refChevron,
   .unlock,
   .previousAction,
   .primary,
@@ -2430,7 +2355,6 @@
   .headLink:active,
   .taskPill:active,
   .filter:active,
-  .selfBtn:active:not(:disabled),
   .refTab:active,
   .unlock:active:not(:disabled),
   .previousAction:active:not(:disabled),

@@ -9,7 +9,6 @@ import '../../../core/router/route_observer.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_sheet.dart';
-import '../../../core/widgets/app_tag.dart';
 import '../../../core/widgets/fixed_action_bar.dart';
 import '../../../core/widgets/progress_track.dart';
 import '../../../core/widgets/screen_header.dart';
@@ -93,7 +92,7 @@ class _CompetenceDetailScreenState
         child: Column(
           children: [
             ScreenHeader(
-              title: 'diallo ${detail?.skill.title }'?? 'Compétence',
+              title: detail?.skill.title ?? 'Compétence',
               sub: detail == null
                   ? widget.module.title
                   : '${detail.skill.code} · ${widget.module.title}',
@@ -260,14 +259,6 @@ class _SummaryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (skill.targetLevel.trim().isNotEmpty) ...[
-                      AppTag(
-                        label: skill.targetLevel,
-                        tone: TagTone.amber,
-                        compact: true,
-                      ),
-                      const SizedBox(height: 6),
-                    ],
                     Text(
                       skill.title,
                       style: AppFonts.display(size: 19, height: 1.2),

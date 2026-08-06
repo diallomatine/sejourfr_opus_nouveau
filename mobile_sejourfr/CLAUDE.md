@@ -1079,8 +1079,7 @@ Et deux conventions transverses :
   ne pas le réintroduire.
 - **L'accent descend en paramètre optionnel** (bleu par défaut) dans les
   widgets partagés utilisés par le module — `AppTag.compact`,
-  `ExamFilterChips.accent`, `WritingZone.accent`, `AnalysisToggle.accent`,
-  `SelfEvaluationPicker.accent`. La valeur par défaut préserve **au pixel près**
+  `ExamFilterChips.accent`, `WritingZone.accent`. La valeur par défaut préserve **au pixel près**
   le rendu des appelants historiques : ne jamais la changer pour arranger un
   seul écran.
 
@@ -1118,14 +1117,17 @@ Structure, de haut en bas (`competence_prompt_screen.dart`) :
    l'oral** — zone de production + pied de carte (astuce à gauche,
    compteur/durée à droite) ;
 8. à l'oral seulement : `SkillTranscriptNotice`, **sous** l'enregistreur ;
-9. **sous** la zone : auto-évaluation, bascule d'analyse IA, tipline ;
+9. **sous** la zone : le reste d'analyses offertes (compte gratuit uniquement),
+   tipline ;
 10. `FixedActionBar` : `Valider et comparer` · `Effacer`.
 
-**Ont été supprimés** (et leurs widgets avec — `criterion_highlight.dart`
-n'existe plus) : le fil d'Ariane sur deux lignes, les badges « Une compétence ·
-un critère » et « Petit sujet i/N », le titre « Produis ta propre réponse. », le
-paragraphe d'objectif, l'encart « Compétence évaluée », l'encart « Pourquoi cet
-exercice ? » et les puces méta « Accessible » / « Un seul critère ».
+**Ont été supprimés** (et leurs widgets avec — `criterion_highlight.dart`,
+`self_evaluation_picker.dart` et `analysis_toggle.dart` n'existent plus) : le
+fil d'Ariane sur deux lignes, les badges « Une compétence · un critère » et
+« Petit sujet i/N », le titre « Produis ta propre réponse. », le paragraphe
+d'objectif, l'encart « Compétence évaluée », l'encart « Pourquoi cet
+exercice ? », les puces méta « Accessible » / « Un seul critère »,
+**l'auto-évaluation** et **la bascule d'analyse IA**.
 
 **Parité écrit ⇄ oral par construction** : `SkillAnswerCard` est **une seule
 coque** pour les deux épreuves. Seuls changent le `child` (champ de saisie ⇄
@@ -1192,10 +1194,27 @@ Points de comportement à ne pas défaire :
 - **La fourchette de longueur avertit, elle ne bloque pas** (règle 15). Le
   plafond de 400 mots est un garde-fou **serveur** : il s'affiche en avertissement
   et ne désactive plus le bouton de validation.
-- **L'analyse IA est repliée derrière le bandeau « Analyse IA du critère »**
-  (« Voir » ⇄ « Masquer »). Quand l'utilisateur n'y a pas droit (quota épuisé,
-  non abonné), le bandeau **reste affiché** et son action ouvre
-  `showPaywallSheet` au lieu de déplier.
+- **L'analyse IA n'est pas une option, et elle ne se déverrouille pas.** L'écran
+  de saisie n'a plus de bascule : l'analyse est demandée dès que le compte y a
+  droit (abonné, ou analyses offertes restantes). Quand il n'y a plus droit, la
+  soumission part **sans** analyse au lieu d'échouer en 403 — c'est l'écran de
+  résultat qui invite à s'abonner. Reste, sous la zone de production et pour un
+  compte gratuit seulement, une **information** : « Ta réponse sera analysée par
+  l'IA. Il te reste N analyses offertes. » La retirer ferait consommer un quota
+  à l'insu du candidat ; la retransformer en interrupteur redonnerait une
+  décision à prendre au pire moment.
+- **Au résultat, l'analyse s'affiche dépliée** — c'est le retour qui vient
+  d'être mérité. Le bandeau « Analyse IA du critère » et son bouton « Voir » ne
+  subsistent **que** quand il n'y a rien à montrer (quota épuisé, production
+  sans analyse, analyse en échec) : son action ouvre alors `showPaywallSheet`.
+  Symétriquement, **les références comparatives sont repliées par défaut** dès
+  qu'une analyse est affichée (intertitre tappable, « Comparer » ⇄ « Masquer »),
+  et **ouvertes** quand il n'y a pas d'analyse — elles sont alors le seul retour
+  de l'écran. Replier ne coupe aucun appel : la liste est chargée de toute
+  façon, c'est elle qui décide si la section existe. L'ordre du contrat ne
+  bouge pas : accusé → production → analyse → références → actions.
+  Verrouillé par `test/competence_result_screen_test.dart` et
+  `test/competence_prompt_analysis_test.dart`.
 - **La barre « Progression · X/N »** de l'écran d'un petit sujet est **calculée
   côté client** depuis `skillDetailProvider` (déjà en cache : l'écran est poussé
   depuis le détail). Aucun endpoint n'a été inventé ; en deep link direct la
@@ -1292,12 +1311,13 @@ spec) : l'analyse rend 4 champs courts — verdict, point réussi, priorité, re
 plus un verdict de critère `VALIDATED | PARTIAL | NOT_VALIDATED`. C'est une voie
 **parallèle** à la notation des productions complètes (rubriques v8), pas une réutilisation.
 
-**Freemium** : **aucun sujet n'est verrouillé**. Produire, s'auto-évaluer et lire les 3
-références sont gratuits partout. Seule l'**analyse IA** est premium, avec des analyses
-offertes à vie aux comptes gratuits (`GET /api/skills/analysis-quota`). L'écran de sujet
-propose la bascule `AnalysisToggle` avant validation : active par défaut si `remaining != 0`,
-verrouillée sinon (tap → `showPaywallSheet`). `remaining == -1` signifie **illimité** et ne
-doit jamais s'afficher tel quel. Un 403 à la soumission passe par `showPaywallOrError`.
+**Freemium** : **aucun sujet n'est verrouillé**. Produire et lire les 3 références sont
+gratuits partout. Seule l'**analyse IA** est premium, avec des analyses offertes à vie aux
+comptes gratuits (`GET /api/skills/analysis-quota`). L'écran de sujet ne demande plus rien :
+il demande l'analyse quand `canAnalyse`, s'en passe sinon (aucun 403 provoqué), et se
+contente d'annoncer le reste du quota. `remaining == -1` signifie **illimité** et ne doit
+jamais s'afficher tel quel. Un 403 à la soumission passe quand même par
+`showPaywallOrError` — le serveur reste l'arbitre.
 
 **Oral** : la capture réutilise `AudioRecorderService` / `recordingControllerProvider`
 (panneau `SkillRecorderPanel`). Le plafond de capture est **180 s**, aligné sur la borne
