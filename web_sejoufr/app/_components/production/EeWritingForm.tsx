@@ -1,7 +1,7 @@
 "use client";
 
 import {useEffect, useRef, useState, type ReactNode} from "react";
-import {FileText, Target} from "lucide-react";
+import {FileText, Lightbulb, Target} from "lucide-react";
 import type {ProductionTaskDto} from "@/lib/types";
 import {SkillAccent} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
@@ -29,6 +29,24 @@ function countWords(s: string): number {
   return t ? t.split(/\s+/).length : 0;
 }
 
+const DEFAULT_PLACEHOLDER = "Rédigez votre réponse ici…";
+
+/**
+ * Zone de production présentée en **carte** (icône + titre, champ, pied
+ * astuce / compteur), telle que la maquette client la dessine sur l'écran d'un
+ * petit sujet. Optionnelle : sans elle, le formulaire garde son en-tête
+ * historique « Votre rédaction » + compteur flottant.
+ */
+export interface AnswerCard {
+  title: string;
+  icon?: ReactNode;
+  /** Amorce grisée du champ. Absente = texte grisé neutre. */
+  placeholder?: string | null;
+  /** Rappel du geste souvent oublié, en pied de carte. Absent = seul le
+   *  compteur s'affiche, sans trou visuel. */
+  tip?: string | null;
+}
+
 /**
  * Zone de rédaction d'une tâche EE : consigne + contexte, critères, textarea
  * avec compteur de mots live et auto-save du brouillon (localStorage, debounce
@@ -43,7 +61,9 @@ export function EeWritingForm({
   consigneLabel,
   exerciseTitle,
   headerSlot,
+  promptSlot,
   criteriaSlot,
+  answerCard,
   footerSlot,
   lengthAdvisory = false,
   clearLabel,
@@ -65,10 +85,18 @@ export function EeWritingForm({
   /** Inséré tout en haut, **avant** la carte de consigne : intention de
    *  l'exercice et critère travaillé. Rien par défaut. */
   headerSlot?: ReactNode;
+  /** Remplace **entièrement** la carte d'exercice (badge, palier, consigne,
+   *  contexte, chips de format). Absent = carte historique. Les micro-exercices
+   *  « Compétences » y posent leur guidage : ce qu'il faut faire, la situation,
+   *  les contraintes — un écran qui fait faire au lieu d'expliquer. */
+  promptSlot?: ReactNode;
   /** Remplace la carte des 4 critères du TCF. `null` la retire — les
    *  micro-exercices « Compétences » n'évaluent QU'UN critère et affichent le
    *  leur ici, juste au-dessus de la zone de saisie. */
   criteriaSlot?: ReactNode;
+  /** Présente la zone de saisie en carte (icône + titre, amorce grisée, pied
+   *  astuce / compteur). Absent = en-tête « Votre rédaction » historique. */
+  answerCard?: AnswerCard;
   /** Inséré juste au-dessus du bouton de validation (auto-évaluation, options
    *  de soumission). Rien par défaut. */
   footerSlot?: ReactNode;
@@ -153,63 +181,108 @@ export function EeWritingForm({
 
   const canSubmit = submittable && !submitting;
 
+  // En carte, le compteur annonce la cible (« 12 / 35 mots ») : le candidat
+  // vise une longueur, il ne compte pas dans le vide.
+  const counterText =
+    answerCard && max != null
+      ? `${words} / ${max} mots`
+      : `${words} mot${words > 1 ? "s" : ""}`;
+
   return (
     <SkillAccent accent="blue">
       {headerSlot}
 
       {/* Carte d'exercice de la maquette : badge de contrainte + repère de
           position, titre d'intention, consigne, contexte, chips de format. */}
-      <section className={s.exercise}>
-        <div className={s.exerciseTop}>
-          <span className={s.criterionTag}>
-            <Target size={12} strokeWidth={2.4} aria-hidden />
-            {consigneLabel ?? `Tâche ${task.tacheNumero}`}
-          </span>
-          <span className={s.stepTag}>Niveau {task.niveauCible}</span>
-        </div>
-
-        {exerciseTitle && <h2 className={s.exerciseTitle}>{exerciseTitle}</h2>}
-        <p className={s.exerciseIntro}>{task.consigne}</p>
-
-        {task.contexte && (
-          <div className={s.context}>
-            <span className={s.contextLabel}>Contexte</span>
-            {task.contexte}
-          </div>
-        )}
-
-        {rangeLabel && (
-          <div className={s.requirements}>
-            <span className={s.requirement}>
-              <FileText size={11} strokeWidth={2.4} aria-hidden />
-              {rangeLabel}
+      {promptSlot === undefined ? (
+        <section className={s.exercise}>
+          <div className={s.exerciseTop}>
+            <span className={s.criterionTag}>
+              <Target size={12} strokeWidth={2.4} aria-hidden />
+              {consigneLabel ?? `Tâche ${task.tacheNumero}`}
             </span>
+            <span className={s.stepTag}>Niveau {task.niveauCible}</span>
           </div>
-        )}
-      </section>
+
+          {exerciseTitle && <h2 className={s.exerciseTitle}>{exerciseTitle}</h2>}
+          <p className={s.exerciseIntro}>{task.consigne}</p>
+
+          {task.contexte && (
+            <div className={s.context}>
+              <span className={s.contextLabel}>Contexte</span>
+              {task.contexte}
+            </div>
+          )}
+
+          {rangeLabel && (
+            <div className={s.requirements}>
+              <span className={s.requirement}>
+                <FileText size={11} strokeWidth={2.4} aria-hidden />
+                {rangeLabel}
+              </span>
+            </div>
+          )}
+        </section>
+      ) : (
+        promptSlot
+      )}
 
       {criteriaSlot === undefined ? <ProductionCriteriaCard /> : criteriaSlot}
 
-      <div>
-        <div className={s.editorHead}>
-          <p className={s.editorHeadTitle}>Votre rédaction</p>
-          {rangeLabel && <span className={s.editorHeadHint}>{rangeLabel}</span>}
-        </div>
-        <div className={s.editor}>
+      {answerCard ? (
+        <section className={s.answerCard}>
+          <div className={s.answerHead}>
+            {answerCard.icon && (
+              <span className={s.answerIcon} aria-hidden>
+                {answerCard.icon}
+              </span>
+            )}
+            <h2 className={s.answerTitle}>{answerCard.title}</h2>
+          </div>
           <textarea
-            className={s.textarea}
+            className={`${s.textarea} ${s.textareaBare}`}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Rédigez votre réponse ici…"
+            placeholder={answerCard.placeholder || DEFAULT_PLACEHOLDER}
             disabled={submitting}
             spellCheck
           />
-          <span className={`${s.counter} ${counterClass}`} aria-live="polite">
-            {words} mot{words > 1 ? "s" : ""}
-          </span>
+          <div className={s.answerFoot}>
+            {answerCard.tip ? (
+              <span className={s.answerTip}>
+                <Lightbulb size={13} strokeWidth={2.2} aria-hidden />
+                Astuce : {answerCard.tip}
+              </span>
+            ) : (
+              <span />
+            )}
+            <span className={`${s.answerCount} ${counterClass}`} aria-live="polite">
+              {counterText}
+            </span>
+          </div>
+        </section>
+      ) : (
+        <div>
+          <div className={s.editorHead}>
+            <p className={s.editorHeadTitle}>Votre rédaction</p>
+            {rangeLabel && <span className={s.editorHeadHint}>{rangeLabel}</span>}
+          </div>
+          <div className={s.editor}>
+            <textarea
+              className={s.textarea}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={DEFAULT_PLACEHOLDER}
+              disabled={submitting}
+              spellCheck
+            />
+            <span className={`${s.counter} ${counterClass}`} aria-live="polite">
+              {counterText}
+            </span>
+          </div>
+          <p className={s.liveStats}>Brouillon enregistré automatiquement sur cet appareil.</p>
         </div>
-        <p className={s.liveStats}>Brouillon enregistré automatiquement sur cet appareil.</p>
-      </div>
+      )}
 
       {lengthHint && (
         <p className={s.tipline}>

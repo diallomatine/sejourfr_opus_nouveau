@@ -17,6 +17,23 @@
           "context": "L'entretien commence. L'examinateur vous accueille et vous demande de vous présenter.",
           "instruction": "Répondez à la question : « Bonjour, pouvez-vous vous présenter ? » Donnez votre prénom, votre situation actuelle et la ville où vous habitez.",
           "uniqueCriterion": "Donner les trois informations demandées : prénom, situation actuelle, ville.",
+          "checklist": [
+            "Dites votre prénom",
+            "Dites ce que vous faites",
+            "Nommez votre ville"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Réponse directe",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour, je m'appelle Sofia et je…",
+          "tip": "les trois informations comptent autant : ne vous arrêtez pas au prénom.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 25,
@@ -46,6 +63,23 @@
           "context": "Vous participez à la première séance d'une association sportive de votre ville. L'animateur demande à chacun de se présenter au groupe.",
           "instruction": "Répondez à la question : « Et vous, vous pouvez vous présenter en quelques mots ? » Dites votre prénom, ce que vous faites dans la vie et pourquoi vous venez dans cette association.",
           "uniqueCriterion": "Donner son prénom, son occupation et la raison de sa venue.",
+          "checklist": [
+            "Donnez votre prénom",
+            "Dites votre occupation",
+            "Expliquez pourquoi vous venez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Une raison",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Bonjour à tous, je m'appelle…",
+          "tip": "terminez par la raison de votre venue : c'est elle qu'on oublie souvent.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 25,
@@ -75,6 +109,23 @@
           "context": "C'est votre premier jour dans une entreprise. Votre responsable vous demande de vous présenter devant vos nouveaux collègues.",
           "instruction": "Répondez à la question : « Vous voulez bien vous présenter à l'équipe ? » Donnez votre prénom, votre poste et une information sur votre expérience.",
           "uniqueCriterion": "Donner son prénom, son poste et une information sur son expérience.",
+          "checklist": [
+            "Dites votre prénom",
+            "Nommez votre poste",
+            "Citez une expérience passée"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Expérience passée",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "Bonjour, moi c'est Elena, je commence…",
+          "tip": "une expérience courte suffit : deux ans dans un bureau, par exemple.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -104,6 +155,23 @@
           "context": "Vous vous inscrivez à un atelier de cuisine organisé par la maison de quartier. La personne à l'accueil vous demande de vous présenter rapidement.",
           "instruction": "Répondez à la question : « Vous pouvez me dire qui vous êtes et depuis combien de temps vous habitez le quartier ? » Donnez votre prénom, votre situation et depuis quand vous vivez ici.",
           "uniqueCriterion": "Donner son prénom, sa situation et depuis quand on habite le quartier.",
+          "checklist": [
+            "Dites votre prénom",
+            "Précisez votre situation actuelle",
+            "Dites depuis quand vous habitez ici"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Durée précise",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour, je m'appelle Diego, je suis…",
+          "tip": "donnez une durée chiffrée : un an, six mois, plutôt que longtemps.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -133,6 +201,24 @@
           "context": "Vous rencontrez la responsable d'une structure qui propose des stages. Elle vous demande de vous présenter avant de parler du poste.",
           "instruction": "Répondez à la question : « Présentez-vous, s'il vous plaît. » Donnez votre prénom, votre formation, votre expérience et ce que vous cherchez.",
           "uniqueCriterion": "Donner quatre informations : prénom, formation, expérience et objectif.",
+          "checklist": [
+            "Dites votre prénom",
+            "Nommez votre formation",
+            "Résumez votre expérience",
+            "Dites ce que vous cherchez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Quatre informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Objectif clair",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour, je m'appelle Fatou et je suis…",
+          "tip": "finissez par votre objectif : c'est ce que la responsable retiendra.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 45,
@@ -172,6 +258,22 @@
           "context": "L'examinateur vous pose une question simple sur l'endroit où vous vivez.",
           "instruction": "Répondez à la question : « Est-ce que vous aimez votre quartier ? » Répondez clairement par oui ou par non, puis expliquez brièvement.",
           "uniqueCriterion": "Répondre clairement à la question posée et donner une raison.",
+          "checklist": [
+            "Répondez par oui ou non",
+            "Expliquez brièvement pourquoi"
+          ],
+          "constraintTags": [
+            {
+              "label": "Réponse directe",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Une raison",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Oui, j'aime bien mon quartier parce que…",
+          "tip": "commencez par oui ou non, la raison vient juste après.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 25,
@@ -201,6 +303,22 @@
           "context": "L'examinateur s'intéresse à vos activités physiques.",
           "instruction": "Répondez à la question : « Est-ce que vous faites du sport ? » Répondez directement et dites lequel, ou expliquez pourquoi vous n'en faites pas.",
           "uniqueCriterion": "Répondre directement par oui ou non et compléter par une information utile.",
+          "checklist": [
+            "Répondez par oui ou non",
+            "Nommez le sport ou la raison"
+          ],
+          "constraintTags": [
+            {
+              "label": "Réponse personnelle",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Une précision",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Oui, je fais du sport, surtout…",
+          "tip": "parlez de vous, pas du sport en général : la question est personnelle.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 25,
@@ -230,6 +348,22 @@
           "context": "L'examinateur vous interroge sur vos habitudes alimentaires.",
           "instruction": "Répondez à la question : « Est-ce que vous préférez cuisiner chez vous ou manger au restaurant ? » Annoncez votre choix et expliquez-le.",
           "uniqueCriterion": "Annoncer clairement son choix entre les deux possibilités et le justifier.",
+          "checklist": [
+            "Annoncez votre choix",
+            "Justifiez-le en une phrase"
+          ],
+          "constraintTags": [
+            {
+              "label": "Choix net",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Une justification",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Je préfère cuisiner chez moi, parce que…",
+          "tip": "choisissez une option, même si les deux vous plaisent : un choix net rassure.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -259,6 +393,22 @@
           "context": "L'examinateur vous pose une question sur vos déplacements dans la ville.",
           "instruction": "Répondez à la question : « Est-ce que vous utilisez les transports en commun ? » Répondez directement et expliquez comment vous vous déplacez.",
           "uniqueCriterion": "Répondre directement à la question et préciser son mode de déplacement.",
+          "checklist": [
+            "Répondez par oui ou non",
+            "Dites comment vous vous déplacez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Réponse personnelle",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Un exemple concret",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Oui, je prends les transports pour…",
+          "tip": "décrivez vos trajets à vous, pas ceux de toute la ville.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -288,6 +438,22 @@
           "context": "L'examinateur vous interroge sur votre activité professionnelle actuelle ou passée.",
           "instruction": "Répondez à la question : « Est-ce que votre travail vous plaît ? » Prenez position clairement et expliquez ce qui vous plaît ou ce qui est difficile.",
           "uniqueCriterion": "Prendre position clairement sur la question et expliquer avec au moins deux éléments.",
+          "checklist": [
+            "Dites clairement si cela vous plaît",
+            "Donnez deux éléments d'explication"
+          ],
+          "constraintTags": [
+            {
+              "label": "Position claire",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Deux éléments",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Oui, mon travail me plaît, surtout…",
+          "tip": "décrire votre poste ne suffit pas : donnez d'abord votre avis.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 40,
@@ -327,6 +493,22 @@
           "context": "L'examinateur vous pose une question sur votre temps libre.",
           "instruction": "Répondez à la question : « Que faites-vous le week-end ? » Donnez une activité et au moins une précision : quand, où ou avec qui.",
           "uniqueCriterion": "Donner une activité et au moins une précision.",
+          "checklist": [
+            "Nommez une activité",
+            "Ajoutez quand, où ou avec qui"
+          ],
+          "constraintTags": [
+            {
+              "label": "Une précision",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Moment ou lieu",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Le week-end, j'aime surtout…",
+          "tip": "une activité seule reste vague : ajoutez le moment ou le lieu.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -356,6 +538,22 @@
           "context": "L'examinateur vous interroge sur vos goûts alimentaires.",
           "instruction": "Répondez à la question : « Qu'est-ce que vous aimez manger ? » Nommez un plat et ajoutez une précision : quand vous le mangez, avec qui ou pourquoi vous l'aimez.",
           "uniqueCriterion": "Nommer un plat et ajouter au moins une précision.",
+          "checklist": [
+            "Nommez un plat",
+            "Ajoutez une précision utile"
+          ],
+          "constraintTags": [
+            {
+              "label": "Une précision",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Quand ou pourquoi",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "J'aime beaucoup le poisson, surtout…",
+          "tip": "dites quand vous le mangez ou avec qui : la réponse devient vivante.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -385,6 +583,22 @@
           "context": "L'examinateur vous pose une question sur vos trajets quotidiens.",
           "instruction": "Répondez à la question : « Comment allez-vous au travail ? » Donnez votre moyen de transport et au moins une précision : la durée, l'horaire ou le trajet.",
           "uniqueCriterion": "Donner son moyen de transport et au moins une précision.",
+          "checklist": [
+            "Nommez votre moyen de transport",
+            "Ajoutez la durée ou l'horaire"
+          ],
+          "constraintTags": [
+            {
+              "label": "Durée ou horaire",
+              "icon": "TIME"
+            },
+            {
+              "label": "Une précision",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Pour aller au travail, je prends…",
+          "tip": "un chiffre aide beaucoup : vingt minutes, sept heures et demie.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 35,
@@ -414,6 +628,22 @@
           "context": "L'examinateur s'intéresse à votre organisation quotidienne.",
           "instruction": "Répondez à la question : « Où est-ce que vous faites vos courses ? » Nommez l'endroit et ajoutez au moins une précision : quand, à quelle fréquence ou pourquoi là.",
           "uniqueCriterion": "Nommer l'endroit et ajouter au moins une précision.",
+          "checklist": [
+            "Nommez l'endroit",
+            "Ajoutez quand ou à quelle fréquence"
+          ],
+          "constraintTags": [
+            {
+              "label": "Lieu nommé",
+              "icon": "PLACE"
+            },
+            {
+              "label": "Une précision",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Je fais mes courses au…",
+          "tip": "le nom du lieu ne suffit pas : dites aussi quand vous y allez.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 35,
@@ -443,6 +673,23 @@
           "context": "L'examinateur vous interroge sur ce que vous apprenez en ce moment.",
           "instruction": "Répondez à la question : « Est-ce que vous apprenez quelque chose en ce moment ? » Dites quoi et donnez deux précisions : depuis quand, où, comment ou pourquoi.",
           "uniqueCriterion": "Nommer ce que l'on apprend et donner au moins deux précisions.",
+          "checklist": [
+            "Dites ce que vous apprenez",
+            "Donnez une première précision",
+            "Ajoutez-en une deuxième"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux précisions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Depuis quand",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Oui, en ce moment j'apprends…",
+          "tip": "deux précisions valent mieux qu'une : depuis quand, et où par exemple.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 45,
@@ -482,6 +729,23 @@
           "context": "L'examinateur veut savoir comment se passent vos matins.",
           "instruction": "Répondez à la question : « Que faites-vous habituellement le matin ? » Racontez au moins trois actions dans l'ordre.",
           "uniqueCriterion": "Enchaîner au moins trois actions habituelles dans un ordre clair.",
+          "checklist": [
+            "Commencez par votre réveil",
+            "Enchaînez trois actions",
+            "Utilisez d'abord, ensuite, après"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois actions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Ordre chronologique",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Le matin, je me lève vers…",
+          "tip": "les mots d'ordre guident votre auditeur : d'abord, ensuite, puis, après.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 35,
@@ -511,6 +775,23 @@
           "context": "L'examinateur vous interroge sur la fin de votre journée.",
           "instruction": "Répondez à la question : « Que faites-vous le soir après le travail ? » Racontez vos habitudes du soir dans l'ordre.",
           "uniqueCriterion": "Décrire au moins trois habitudes du soir dans un ordre compréhensible.",
+          "checklist": [
+            "Dites à quelle heure vous rentrez",
+            "Citez trois habitudes du soir",
+            "Reliez-les avec puis ou ensuite"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois habitudes",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Enchaînement",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Le soir, quand je rentre, je…",
+          "tip": "racontez des actions, pas seulement votre fatigue de fin de journée.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 35,
@@ -540,6 +821,23 @@
           "context": "L'examinateur veut savoir comment vous occupez votre jour de repos.",
           "instruction": "Répondez à la question : « Comment se passe un dimanche ordinaire pour vous ? » Racontez votre journée du matin au soir.",
           "uniqueCriterion": "Couvrir les différents moments de la journée dans l'ordre, du matin au soir.",
+          "checklist": [
+            "Commencez par le matin",
+            "Continuez avec l'après-midi",
+            "Terminez par la soirée"
+          ],
+          "constraintTags": [
+            {
+              "label": "Matin, après-midi, soir",
+              "icon": "TIME"
+            },
+            {
+              "label": "Trois moments",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Le dimanche, je me lève…",
+          "tip": "découpez la journée en trois moments : c'est plus facile à suivre.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 45,
@@ -569,6 +867,23 @@
           "context": "L'examinateur s'intéresse à l'organisation de votre semaine.",
           "instruction": "Répondez à la question : « Comment est organisée votre semaine ? » Parlez de vos horaires et de vos jours de travail ou de cours.",
           "uniqueCriterion": "Décrire ses horaires et ses jours de manière ordonnée et compréhensible.",
+          "checklist": [
+            "Nommez vos jours de travail",
+            "Donnez vos horaires",
+            "Suivez l'ordre de la semaine"
+          ],
+          "constraintTags": [
+            {
+              "label": "Jours et horaires",
+              "icon": "TIME"
+            },
+            {
+              "label": "Semaine ordonnée",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Je travaille du lundi au…",
+          "tip": "des jours et des heures précis valent mieux que beaucoup ou fatigant.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 45,
@@ -598,6 +913,24 @@
           "context": "L'examinateur vous demande de raconter une journée où vous avez beaucoup de choses à faire.",
           "instruction": "Répondez à la question : « Racontez-moi une journée où vous avez beaucoup de choses à organiser. » Enchaînez vos activités dans l'ordre et dites comment vous vous organisez.",
           "uniqueCriterion": "Enchaîner au moins cinq activités dans l'ordre en marquant clairement les moments.",
+          "checklist": [
+            "Situez la journée",
+            "Enchaînez cinq activités",
+            "Marquez chaque moment",
+            "Dites comment vous vous organisez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Cinq activités",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Moments marqués",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Le mercredi, ma journée commence…",
+          "tip": "cinq activités, c'est court si chacune tient en une phrase simple.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 55,
@@ -637,6 +970,22 @@
           "context": "L'examinateur vous demande de parler de l'endroit où vous habitez.",
           "instruction": "Répondez à la question : « Pouvez-vous décrire votre quartier ? » Donnez au moins deux informations concrètes : commerces, transports, ambiance, lieux.",
           "uniqueCriterion": "Donner au moins deux informations concrètes sur le quartier.",
+          "checklist": [
+            "Nommez un commerce ou un lieu",
+            "Ajoutez une deuxième information concrète"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Détails concrets",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Mon quartier est plutôt calme, et…",
+          "tip": "remplacez c'est très bien par un lieu, un commerce, un transport.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -666,6 +1015,22 @@
           "context": "L'examinateur s'intéresse à l'endroit où vous vivez.",
           "instruction": "Répondez à la question : « Comment est votre logement ? » Donnez au moins deux informations concrètes : type, pièces, étage, luminosité.",
           "uniqueCriterion": "Donner au moins deux informations concrètes sur le logement.",
+          "checklist": [
+            "Dites le type de logement",
+            "Ajoutez une deuxième information précise"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Pièces ou étage",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "J'habite dans un appartement de…",
+          "tip": "confortable ne dit rien : nombre de pièces, étage, balcon, lumière.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -695,6 +1060,22 @@
           "context": "L'examinateur vous demande de parler d'une personne importante pour vous.",
           "instruction": "Répondez à la question : « Parlez-moi d'une personne proche de vous. » Dites qui c'est et donnez au moins deux informations : ce qu'elle fait, son caractère, ce que vous faites ensemble.",
           "uniqueCriterion": "Identifier la personne et donner au moins deux informations concrètes sur elle.",
+          "checklist": [
+            "Dites qui est cette personne",
+            "Donnez deux informations sur elle"
+          ],
+          "constraintTags": [
+            {
+              "label": "Personne identifiée",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Deux informations",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Je vais vous parler de ma…",
+          "tip": "gentille reste vague : son métier, sa ville, ce que vous partagez.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 35,
@@ -724,6 +1105,23 @@
           "context": "L'examinateur veut se représenter l'endroit où vous travaillez ou étudiez.",
           "instruction": "Répondez à la question : « Comment est votre lieu de travail ou votre lieu d'études ? » Donnez au moins trois informations concrètes : taille, équipe, ambiance, organisation.",
           "uniqueCriterion": "Donner au moins trois informations concrètes sur ce lieu.",
+          "checklist": [
+            "Dites où vous travaillez",
+            "Donnez trois informations concrètes",
+            "Parlez de l'équipe ou des horaires"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Faits, pas impressions",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Je travaille dans un magasin de…",
+          "tip": "les gens sont sympas ne compte pas : donnez des faits observables.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 40,
@@ -753,6 +1151,23 @@
           "context": "L'examinateur vous demande de présenter votre ville comme si un ami venait vous rendre visite pour la première fois.",
           "instruction": "Répondez à la question : « Comment décririez-vous votre ville à quelqu'un qui ne la connaît pas ? » Donnez au moins trois informations concrètes et dites ce que vous lui feriez découvrir.",
           "uniqueCriterion": "Donner au moins trois informations concrètes sur la ville et proposer un lieu à découvrir.",
+          "checklist": [
+            "Donnez trois informations sur votre ville",
+            "Nommez un lieu à découvrir",
+            "Dites pourquoi ce lieu"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Un lieu proposé",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Ma ville n'est pas très grande…",
+          "tip": "terminez par votre proposition : où emmèneriez-vous cette personne ?",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 50,
@@ -792,6 +1207,23 @@
           "context": "L'examinateur vous interroge sur vos loisirs des dernières semaines.",
           "instruction": "Répondez à la question : « Parlez-moi d'une sortie que vous avez faite récemment. » Dites quand c'était et racontez au moins deux actions dans l'ordre.",
           "uniqueCriterion": "Situer le moment de la sortie et raconter au moins deux actions dans l'ordre.",
+          "checklist": [
+            "Dites quand c'était",
+            "Racontez deux actions",
+            "Respectez l'ordre des faits"
+          ],
+          "constraintTags": [
+            {
+              "label": "Passé composé",
+              "icon": "TENSE"
+            },
+            {
+              "label": "Moment situé",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Samedi dernier, je suis allé…",
+          "tip": "commencez par la date : samedi dernier, la semaine dernière, hier soir.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 35,
@@ -821,6 +1253,23 @@
           "context": "L'examinateur vous demande de parler d'une occasion où vous avez mangé avec d'autres personnes.",
           "instruction": "Répondez à la question : « Racontez-moi un repas de fête auquel vous avez participé. » Dites quand c'était, avec qui, et racontez deux ou trois moments.",
           "uniqueCriterion": "Situer le moment et raconter au moins deux moments du repas dans l'ordre.",
+          "checklist": [
+            "Dites quand c'était",
+            "Dites avec qui",
+            "Racontez deux moments du repas"
+          ],
+          "constraintTags": [
+            {
+              "label": "Passé composé",
+              "icon": "TENSE"
+            },
+            {
+              "label": "Deux moments",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Le mois dernier, nous avons fêté…",
+          "tip": "d'abord, ensuite, après : ces mots suffisent pour raconter dans l'ordre.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 35,
@@ -850,6 +1299,23 @@
           "context": "L'examinateur vous demande de raconter une démarche liée à votre santé.",
           "instruction": "Répondez à la question : « Racontez-moi votre dernier rendez-vous chez le médecin. » Dites quand c'était et racontez comment le rendez-vous s'est passé, étape par étape.",
           "uniqueCriterion": "Situer le moment et raconter au moins trois étapes du rendez-vous dans l'ordre.",
+          "checklist": [
+            "Dites quand c'était",
+            "Racontez trois étapes",
+            "Suivez l'ordre du rendez-vous"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois étapes",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Passé composé",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "Il y a deux semaines, j'ai…",
+          "tip": "pensez à l'avant, au pendant et à l'après : trois étapes naturelles.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 45,
@@ -879,6 +1345,23 @@
           "context": "L'examinateur vous demande de raconter un trajet qui ne s'est pas passé comme prévu.",
           "instruction": "Répondez à la question : « Racontez-moi un voyage ou un trajet difficile. » Dites quand c'était, ce qui s'est passé et comment cela s'est terminé.",
           "uniqueCriterion": "Situer le moment, raconter le problème et dire comment la situation s'est terminée.",
+          "checklist": [
+            "Dites quand c'était",
+            "Racontez le problème",
+            "Dites comment cela s'est terminé"
+          ],
+          "constraintTags": [
+            {
+              "label": "Problème et fin",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Passé composé",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "L'hiver dernier, je suis parti…",
+          "tip": "un récit a une fin : dites comment la situation s'est résolue.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 45,
@@ -908,6 +1391,27 @@
           "context": "L'examinateur vous demande de raconter un début important pour vous : un premier jour de travail, de formation ou de cours.",
           "instruction": "Répondez à la question : « Racontez-moi votre premier jour de travail ou de formation. » Dites quand c'était, racontez le déroulement et expliquez ce que vous avez ressenti.",
           "uniqueCriterion": "Situer le moment, raconter au moins trois étapes dans l'ordre et exprimer un ressenti.",
+          "checklist": [
+            "Dites quand c'était",
+            "Racontez trois étapes",
+            "Terminez par votre ressenti"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois étapes",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Un ressenti",
+              "icon": "TONE"
+            },
+            {
+              "label": "Passé composé",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "L'année dernière, j'ai commencé dans…",
+          "tip": "le ressenti se place à la fin : fatiguée mais contente, par exemple.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 55,
@@ -947,6 +1451,23 @@
           "context": "L'examinateur vous interroge sur vos intentions pour la période à venir.",
           "instruction": "Répondez à la question : « Qu'est-ce que vous aimeriez faire l'année prochaine ? » Donnez un projet et au moins une précision.",
           "uniqueCriterion": "Exprimer un projet et donner au moins une précision.",
+          "checklist": [
+            "Nommez un projet précis",
+            "Ajoutez une précision",
+            "Utilisez je vais ou je voudrais"
+          ],
+          "constraintTags": [
+            {
+              "label": "Futur",
+              "icon": "TENSE"
+            },
+            {
+              "label": "Une précision",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "L'année prochaine, je voudrais…",
+          "tip": "un projet nommé vaut mieux que changer des choses dans ma vie.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -976,6 +1497,22 @@
           "context": "L'examinateur vous demande de parler de vos projets de vacances.",
           "instruction": "Répondez à la question : « Qu'allez-vous faire pendant vos prochaines vacances ? » Donnez votre projet et au moins une précision : quand, où ou avec qui.",
           "uniqueCriterion": "Exprimer un projet de vacances et donner au moins une précision.",
+          "checklist": [
+            "Dites ce que vous allez faire",
+            "Ajoutez quand, où ou avec qui"
+          ],
+          "constraintTags": [
+            {
+              "label": "Futur proche",
+              "icon": "TENSE"
+            },
+            {
+              "label": "Une précision",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Cet été, je vais partir…",
+          "tip": "se reposer n'est pas un projet : dites où, quand, avec qui.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -1005,6 +1542,23 @@
           "context": "L'examinateur s'intéresse à ce que vous voulez apprendre.",
           "instruction": "Répondez à la question : « Est-ce que vous avez un projet de formation ou d'études ? » Dites lequel et donnez deux précisions : quand, où ou pourquoi.",
           "uniqueCriterion": "Nommer un projet de formation et donner au moins deux précisions.",
+          "checklist": [
+            "Nommez la formation visée",
+            "Donnez une première précision",
+            "Ajoutez-en une deuxième"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux précisions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Quand et où",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Oui, je voudrais faire une formation…",
+          "tip": "nommez le domaine : informatique, comptabilité, aide à la personne.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 40,
@@ -1034,6 +1588,22 @@
           "context": "L'examinateur vous demande si vous envisagez de déménager.",
           "instruction": "Répondez à la question : « Est-ce que vous pensez changer de logement bientôt ? » Donnez votre intention et expliquez avec deux précisions.",
           "uniqueCriterion": "Exprimer une intention claire sur le logement et donner au moins deux précisions.",
+          "checklist": [
+            "Dites clairement votre intention",
+            "Donnez deux précisions"
+          ],
+          "constraintTags": [
+            {
+              "label": "Intention claire",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Deux précisions",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Oui, je pense déménager d'ici…",
+          "tip": "peut-être un jour ne suffit pas : décidez, puis expliquez votre choix.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 40,
@@ -1063,6 +1633,23 @@
           "context": "L'examinateur vous demande où vous voulez en être dans quelques années.",
           "instruction": "Répondez à la question : « Que voudriez-vous faire dans deux ou trois ans ? » Exprimez votre objectif et expliquez au moins deux étapes pour y arriver.",
           "uniqueCriterion": "Exprimer un objectif à moyen terme et nommer au moins deux étapes pour l'atteindre.",
+          "checklist": [
+            "Annoncez votre objectif",
+            "Nommez la première étape",
+            "Nommez la deuxième étape"
+          ],
+          "constraintTags": [
+            {
+              "label": "Objectif nommé",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Deux étapes",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Dans deux ans, je voudrais travailler…",
+          "tip": "d'abord et ensuite suffisent pour présenter vos deux étapes clairement.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 50,
@@ -1102,6 +1689,23 @@
           "context": "Vous venez de dire : « J'aime bien mon quartier. » L'examinateur veut en savoir plus.",
           "instruction": "L'examinateur vous relance : « Pourquoi ? » Répondez en donnant une raison nouvelle, sans répéter votre phrase précédente.",
           "uniqueCriterion": "Donner une raison qui apporte une information nouvelle.",
+          "checklist": [
+            "Répondez à la question pourquoi",
+            "Donnez une raison nouvelle",
+            "Évitez de répéter votre phrase"
+          ],
+          "constraintTags": [
+            {
+              "label": "Information nouvelle",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Une raison",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Parce qu'il est calme et que…",
+          "tip": "une relance attend du nouveau, pas la même phrase reformulée.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 25,
@@ -1131,6 +1735,22 @@
           "context": "Vous venez de dire : « Le dimanche, je fais de la randonnée. » L'examinateur veut une précision.",
           "instruction": "L'examinateur vous relance : « Avec qui ? » Répondez en apportant une information nouvelle sur les personnes qui vous accompagnent.",
           "uniqueCriterion": "Répondre à la relance en donnant une information nouvelle sur les personnes.",
+          "checklist": [
+            "Dites avec qui vous y allez",
+            "Ajoutez une information nouvelle"
+          ],
+          "constraintTags": [
+            {
+              "label": "Les personnes",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Information nouvelle",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Avec deux amis, on part…",
+          "tip": "la relance porte sur les personnes : nommez-les avant tout le reste.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 25,
@@ -1160,6 +1780,22 @@
           "context": "Vous venez de dire : « Je travaille dans un restaurant. » L'examinateur demande une précision de durée.",
           "instruction": "L'examinateur vous relance : « Et depuis quand ? » Répondez à la relance et ajoutez une information nouvelle sur cette période.",
           "uniqueCriterion": "Indiquer la durée demandée et ajouter une information nouvelle.",
+          "checklist": [
+            "Donnez une durée précise",
+            "Ajoutez une information nouvelle"
+          ],
+          "constraintTags": [
+            {
+              "label": "Durée précise",
+              "icon": "TIME"
+            },
+            {
+              "label": "Information nouvelle",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Depuis deux ans environ, et…",
+          "tip": "un chiffre répond mieux que depuis un moment ou un certain temps.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -1189,6 +1825,22 @@
           "context": "Vous venez de dire : « Je suis des cours de français le soir. » L'examinateur veut savoir comment cela se passe.",
           "instruction": "L'examinateur vous relance : « Et ce n'est pas trop difficile ? » Répondez clairement et expliquez avec au moins deux éléments nouveaux.",
           "uniqueCriterion": "Répondre clairement à la relance et apporter au moins deux éléments nouveaux.",
+          "checklist": [
+            "Répondez clairement à la relance",
+            "Donnez deux éléments nouveaux"
+          ],
+          "constraintTags": [
+            {
+              "label": "Réponse directe",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Deux éléments",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "C'est un peu difficile, surtout…",
+          "tip": "dites oui ou non, puis expliquez avec deux détails concrets.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 35,
@@ -1218,6 +1870,27 @@
           "context": "Vous venez de parler d'une activité que vous pratiquez, par exemple un sport ou une activité associative. L'examinateur pousse l'échange un peu plus loin.",
           "instruction": "L'examinateur vous relance : « Et vous le conseilleriez à quelqu'un ? » Prenez position, justifiez et dites à qui vous le conseilleriez.",
           "uniqueCriterion": "Prendre position sur la relance, justifier et préciser à qui le conseil s'adresse.",
+          "checklist": [
+            "Prenez position clairement",
+            "Justifiez votre conseil",
+            "Dites à qui vous le conseillez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Position claire",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Un destinataire",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Une justification",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Oui, je le conseillerais surtout à…",
+          "tip": "précisez à qui s'adresse votre conseil : c'est la partie souvent oubliée.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 45,

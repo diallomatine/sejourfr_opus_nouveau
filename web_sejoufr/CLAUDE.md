@@ -682,10 +682,18 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
 `AttemptService.startProductionAttempt`) :
 
 - **1 essai d'entraînement** par épreuve (EE et EO) à vie (était 2).
-  ⚠️ La modale d'info one-time qui l'annonçait vivait sur `ProductionHub`
-  (supprimé, cf. « Entrée dans une épreuve ») : **plus rien ne l'annonce côté
-  web** — à replacer sur un écran survivant si le besoin est confirmé
-  (localStorage `sejourfr.prodQuotaInfo.<épreuve>`).
+  Annoncé par une **modale d'info one-time** (`ConfirmSheet tone="info"`,
+  « Un essai gratuit par épreuve ») portée par **`ProductionSubjects`**
+  (`…/tache/[n]`), mémorisée en localStorage `sejourfr.prodQuotaInfo.<épreuve>`
+  et **jamais montrée à un abonné TCF**. Elle vivait sur `ProductionHub`
+  (supprimé) ; elle est **sur l'écran des sujets et nulle part ailleurs** —
+  c'est le seul écran de l'épreuve où la règle s'applique, et il précède
+  l'écran de production qui consomme l'essai (on annonce avant, pas après un
+  403). ⚠️ **Surtout pas sur l'écran d'entrée** (mode « Compétences ») : les
+  micro-exercices ne verrouillent aucun sujet et ont leur **propre** quota
+  (analyses IA offertes) — l'y afficher annoncerait une règle fausse.
+  Décision + libellé partagés mot pour mot avec le mobile ; la règle du
+  « quand » vit dans `lib/production-quota-info.ts` (pur, testé).
 - **1 examen blanc production offert** (examen 1, `ProductionExams`
   `freeSlots=1`). Le start passe `exam: true`
   (`ProductionAttemptStartRequest.exam`) → attempt marqué
@@ -1122,17 +1130,64 @@ sujet. Ne jamais réintroduire `ProductionScoreHero`/`formatNoteSur20` ici.
   « Validé » comme « À renforcer » seraient tous les deux faux. Les quatre
   statuts se distinguent par couleur **et** icône **et** libellé, plus un liseré
   vertical sur la carte de sujet.
+### Écran de saisie d'un petit sujet — il fait faire, il n'explique pas
+
+Refonte demandée par le client (« beaucoup trop verbeux et pas du tout
+intuitif »), **menée dans la même passe que le mobile**, contre la même capture
+de référence. **Supprimés** : le fil d'Ariane sur deux lignes, les badges « Une
+compétence · un critère » et « Petit sujet i/N », le titre « Produisez votre
+propre réponse. », le paragraphe d'objectif, l'encart « COMPÉTENCE ÉVALUÉE »,
+l'encart « Pourquoi cet exercice ? » et les puces méta « Accessible » / « Un
+seul critère ». Ils repoussaient la zone de production à plus de 1 200 px du
+haut : le candidat lisait une leçon au lieu de produire.
+
+**Structure, de haut en bas** (identique en EE et en EO) : en-tête · ligne
+compacte `Sujet i/N` + pilule de palier · `Progression` + barre · carte **« Ce
+qu'il faut faire »** (la check-list) · carte **« Situation »** · rangée de puces
+(longueur + contraintes) · carte **« Votre réponse »** (champ ou enregistreur,
+astuce et compteur en pied) · auto-évaluation **sous** la zone de production ·
+actions `Valider et comparer` / `Effacer`.
+
+- **Critère de réussite, mesuré** : à 360 px la carte « Votre réponse » commence
+  à ~468 px et le champ à ~516 px — visible sans défiler. C'est ce chiffre qui
+  justifie le bloc `@media (max-width: 420px)` de `skill.module.css` (rythme
+  resserré, puces à 11 px pour tenir sur **une** ligne : une seconde ligne de
+  puces coûte 39 px prélevés exactement là). Ne pas le desserrer sans
+  remesurer.
+- **Les quatre champs de guidage** (`checklist`, `constraintTags`,
+  `answerStarter`, `tip`, migration V026) sont **tous nullables**. Les règles de
+  dégradation vivent dans **`lib/skill-guidance.ts`** (pur, testé par
+  `skill-guidance.test.ts`) et **nulle part ailleurs** : pas de check-list ⇒ la
+  carte retombe sur la consigne, pas de contexte ⇒ pas de carte « Situation »,
+  pas d'étiquette ⇒ seule la puce de longueur, pas de bornes ⇒ pas de rangée,
+  pas d'amorce ⇒ texte grisé neutre, pas d'astuce ⇒ le pied n'affiche que le
+  compteur. **Jamais de carte vide, jamais de « null » à l'écran.**
+- **La puce de longueur est DÉRIVÉE des bornes** (`lengthChipLabel`), jamais
+  stockée dans `constraintTags` — la dupliquer, c'est se garantir de la voir
+  diverger. Elle reste **indicative** : `lengthAdvisory` continue d'avertir sans
+  bloquer.
+- **Une seule table icône ⇄ contrainte**, dans
+  `competences/PromptGuidance.tsx` : `Record<SkillConstraintIcon, LucideIcon>`
+  (donc exhaustive — une famille ajoutée au contrat sans icône ne compile plus)
+  + une icône neutre pour une valeur que ce front ne connaît pas encore.
+- **Parité EE ⇄ EO** : l'oral reçoit exactement la même structure. L'amorce y
+  devient une **suggestion de démarrage**, le compteur de mots une **durée**
+  (`0:12 / 0:45`), et l'avertissement de transcription passe **sous**
+  l'enregistreur pour ne pas repousser le micro.
 - **Réutilisation des formulaires** : `EeWritingForm` / `EoRecordingForm` sont
   employés tels quels via un adaptateur `SkillPromptDto → ProductionTaskDto`
   (`toProductionTask`, dans `CompetencePrompt`). Des props **optionnelles** ont
   été ajoutées aux deux formulaires, sans changer leur comportement par défaut :
-  `consigneLabel`, `headerSlot` (tête d'exercice **avant** la consigne :
-  intention + critère du sujet — le critère se lit avant l'énoncé, §13.1),
+  `consigneLabel`, `headerSlot`, **`promptSlot`** (remplace **entièrement** la
+  carte d'exercice : c'est là que vit le guidage du petit sujet),
   `criteriaSlot` (remplace la carte des 4 critères du TCF — un micro-exercice
-  n'en a qu'un ; sert ici aux repères de format et à « Pourquoi cet
-  exercice ? »), `footerSlot` (auto-évaluation, option d'analyse et rappel ambre,
-  juste au-dessus du bouton de validation) et, côté EE seulement,
-  `lengthAdvisory` + `clearLabel`.
+  n'en a qu'un ; `null` la retire), **`answerCard`** (présente la zone de
+  production en carte : icône + titre, amorce grisée, pied astuce / compteur ;
+  absent = présentation historique), `footerSlot` (auto-évaluation, option
+  d'analyse et rappel ambre, juste au-dessus du bouton de validation) et, côté
+  EE seulement, `lengthAdvisory` + `clearLabel`. ⚠️ Ces formulaires sont
+  partagés avec les écrans de production TCF et la session d'examen blanc :
+  **toute prop ajoutée reste optionnelle**, comportement actuel par défaut.
   - **`lengthAdvisory` (EE) : la fourchette AVERTIT sans bloquer.** `motsMin` /
     `motsMax` sont désormais **transmis** (ils étaient annulés, ce qui rendait la
     fourchette purement décorative) ; avec ce drapeau la soumission reste ouverte
@@ -1150,15 +1205,17 @@ sujet. Ne jamais réintroduire `ProductionScoreHero`/`formatNoteSur20` ici.
 - **Deux textes, deux endroits** : `SkillDto.generalCriterion` = le critère
   général → encart **« Critère travaillé »** de l'écran compétence ;
   `SkillDto.description` = la courte explication → paragraphe de la carte de
-  résumé (niveau 4) et encart **« Pourquoi cet exercice ? »** de l'écran de
-  sujet (niveau 5). Ne jamais rendre le même texte aux deux places. Le critère
+  résumé (niveau 4). Ne jamais rendre le même texte aux deux places. Le critère
   du **sujet**, lui, est `SkillPromptDto.uniqueCriterion` — encore un troisième
-  texte.
+  texte. ⚠️ Depuis la refonte de l'écran de saisie, **ni `description` ni
+  `uniqueCriterion` ne s'affichent sur l'écran d'un petit sujet** : la
+  check-list a remplacé le critère abstrait par des gestes vérifiables. Ils
+  restent servis par le DTO et lus ailleurs — ne pas les y réintroduire « pour
+  le contexte », c'est exactement la verbosité qu'on a retirée.
 - **Un seul appel sur l'écran de sujet** : `SkillPromptDto` porte
   `skillPromptCount`, `skillDescription`, `skillGeneralCriterion` et
-  `skillTargetLevel`, donc le fil
-  d'Ariane `Tâche › Compétence › Sujet i/5` (`displayOrder` / `skillPromptCount`)
-  et l'encart « Pourquoi cet exercice ? » se rendent **sans** second
+  `skillTargetLevel`, donc le repère `Sujet i/5` (`displayOrder` /
+  `skillPromptCount`) et la pilule de palier se rendent **sans** second
   `GET /api/skills/{skillId}`. Ne pas réintroduire cet aller-retour.
 - **Bandeau « Sujet déjà traité »**, libellés gelés par le contrat (parité mot
   pour mot avec le mobile) : **une seule** action, `Reprendre ma réponse` en EE

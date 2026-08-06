@@ -1,5 +1,6 @@
 package com.sejourfr.app.dto;
 
+import com.sejourfr.app.entity.SkillConstraintTag;
 import com.sejourfr.app.enums.SkillDifficulty;
 import com.sejourfr.app.enums.SkillSection;
 
@@ -31,6 +32,17 @@ public record AdminSkillPromptDto(
         String context,
         String instruction,
         String uniqueCriterion,
+        /**
+         * Guidage de l'ecran de saisie. Les quatre champs qui suivent sont
+         * <b>facultatifs</b> : un sujet cree depuis cette console peut naitre
+         * sans eux, et la console doit alors afficher « A completer » plutot
+         * que de casser — meme regle que {@link #references}.
+         */
+        List<String> checklist,
+        List<SkillConstraintTag> constraintTags,
+        String answerStarter,
+        /** Sans le prefixe « Astuce : » — les fronts l'ajoutent. */
+        String tip,
         /** Section EE uniquement — nul en EO (CHECK en base). */
         Integer recommendedMinWords,
         Integer recommendedMaxWords,

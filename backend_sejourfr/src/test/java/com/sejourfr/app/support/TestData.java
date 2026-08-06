@@ -30,6 +30,7 @@ import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.RealtimeSession;
 import com.sejourfr.app.entity.RefreshToken;
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.entity.SkillConstraintTag;
 import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.entity.SkillReference;
 import com.sejourfr.app.entity.Theme;
@@ -59,6 +60,7 @@ import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.enums.SkillAttemptStatut;
 import com.sejourfr.app.enums.SkillDifficulty;
 import com.sejourfr.app.enums.SkillReferenceLevel;
+import com.sejourfr.app.enums.SkillConstraintIcon;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
 import com.sejourfr.app.enums.SubmissionStatut;
@@ -742,11 +744,22 @@ public class TestData {
         p.setContext("Vous ecrivez a votre voisin.");
         p.setInstruction("Redigez deux phrases.");
         p.setUniqueCriterion("Adapter le ton au destinataire.");
+        // Guidage de l'ecran de saisie : renseigne comme sur un sujet publie
+        // (2 a 4 gestes, 1 a 3 etiquettes), pour qu'un test qui consomme cette
+        // fabrique voie un sujet realiste et non un sujet a moitie vide. Un
+        // sujet SANS guidage reste legal : le poser explicitement a null.
+        p.setChecklist(List.of("Saluez votre voisin", "Dites qui vous etes", "Ecrivez deux phrases"));
+        p.setConstraintTags(List.of(
+                new SkillConstraintTag("Vouvoiement", SkillConstraintIcon.PERSON),
+                new SkillConstraintTag("Ton poli", SkillConstraintIcon.TONE)));
+        p.setTip("commencez par bonjour, puis presentez-vous");
         if (skill.getSection() == SkillSection.EE) {
             p.setRecommendedMinWords(15);
             p.setRecommendedMaxWords(50);
+            p.setAnswerStarter("Bonjour Madame, je suis votre voisin du…");
         } else {
             p.setRecommendedDurationSeconds(45);
+            p.setAnswerStarter("Bonjour, je voudrais vous parler de…");
         }
         p.setDifficultyLevel(SkillDifficulty.EASY);
         p.setDisplayOrder(nextPromptDisplayOrder(skill));

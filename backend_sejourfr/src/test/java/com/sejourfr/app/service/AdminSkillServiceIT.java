@@ -128,6 +128,7 @@ class AdminSkillServiceIT extends AbstractIntegrationTest {
 
         AdminSkillPromptDto dto = service.createPrompt(new AdminSkillPromptCreateRequest(
                 oral.getId(), code, "Titre", "Contexte", "Consigne", "Critère unique",
+                null, null, null, null,
                 null, null, 45, SkillDifficulty.MEDIUM, 15, true));
 
         // La cle etrangere composite (skill_id, section) refuserait toute autre
@@ -145,6 +146,7 @@ class AdminSkillServiceIT extends AbstractIntegrationTest {
 
         AdminSkillPromptDto dto = service.updatePrompt(prompt.getId(),
                 new AdminSkillPromptUpdateRequest(null, null, null, null,
+                        null, null, null, null,
                         30, 80, null, null, null, null));
 
         assertThat(dto.recommendedMinWords()).isEqualTo(30);
@@ -162,6 +164,7 @@ class AdminSkillServiceIT extends AbstractIntegrationTest {
         // chk_skill_prompts_ee_eo_coherence qui serait tombe en 500 sans lui.
         assertThatThrownBy(() -> service.updatePrompt(prompt.getId(),
                 new AdminSkillPromptUpdateRequest(null, null, null, null,
+                        null, null, null, null,
                         null, 80, null, null, null, null)))
                 .isInstanceOf(com.sejourfr.app.exception.BusinessException.class);
 

@@ -7,16 +7,19 @@ import '../../core/api/api_client.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
+import '../../core/providers/shared_prefs_provider.dart';
 import '../../core/router/route_observer.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/format_date.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
+import '../../core/widgets/app_sheet.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/screen_header.dart';
 import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
 import 'production_nav.dart';
+import 'production_quota_info.dart';
 import 'task_training_data.dart';
 import 'tcf_production_module.dart';
 import 'widgets/exam_filter_chips.dart';
@@ -67,12 +70,70 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
       );
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowQuotaInfo());
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final route = ModalRoute.of(context);
     if (route is PageRoute) {
       appRouteObserver.subscribe(this, route);
     }
+  }
+
+  /// Info one-time pour les comptes gratuits : 1 essai d'entraînement offert
+  /// par épreuve (EE et EO), évalué par l'IA, + 1 examen blanc de production
+  /// offert (`ProductionAccessService.enforceQuota` côté backend).
+  ///
+  /// Elle vit ICI, sur la liste des sujets TCF complets, et nulle part
+  /// ailleurs : c'est le seul écran de l'épreuve où cette règle s'applique, et
+  /// il précède l'écran de production qui consomme l'essai — on annonce avant,
+  /// pas après un 403. Surtout PAS sur l'écran d'entrée (mode « Compétences ») :
+  /// les micro-exercices ne verrouillent aucun sujet et ont leur propre quota
+  /// (analyses IA offertes), l'y afficher annoncerait une règle fausse.
+  ///
+  /// Mémorisée par épreuve, sous la même clé que le web
+  /// (`sejourfr.prodQuotaInfo.TCF_{EE,EO}`), pour que les deux fronts disent la
+  /// même chose au même moment.
+  Future<void> _maybeShowQuotaInfo() async {
+    if (!mounted || _isPremium()) return;
+    final prefs = ref.read(sharedPrefsProvider);
+    final key = prodQuotaInfoKey(widget.module.epreuve);
+    if (prefs.getBool(key) ?? false) return;
+    // Marqué vu AVANT l'ouverture : une feuille se referme aussi en la
+    // glissant, geste qui ne passe par aucun callback — l'écrire à la
+    // fermeture la ferait revenir à chaque visite.
+    await prefs.setBool(key, true);
+    if (!mounted) return;
+    await showAppSheet<void>(
+      context,
+      icon: LucideIcons.gift,
+      iconBg: widget.module.accent.withValues(alpha: 0.12),
+      iconColor: widget.module.accentDark,
+      title: 'Un essai gratuit par épreuve',
+      children: [
+        Text(
+          "Vous disposez d'un essai d'entraînement gratuit en "
+          '${widget.module.title.toLowerCase()}, évalué par l\'IA '
+          '(note /20 + niveau CECRL), ainsi qu\'un examen blanc complet '
+          'offert. Pour vous entraîner sans limite, passez à l\'abonnement '
+          'Intégral.',
+          style: AppFonts.ui(size: 13.5, color: AppColors.inkSoft, height: 1.55),
+        ),
+        const SizedBox(height: 6),
+        AppButton(
+          label: 'Compris',
+          height: 46,
+          variant: widget.module.isEo
+              ? AppButtonVariant.accent
+              : AppButtonVariant.primary,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
+    );
   }
 
   @override

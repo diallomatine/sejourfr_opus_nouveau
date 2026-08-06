@@ -154,6 +154,92 @@
   white-space: nowrap;
 }
 
+/* ===== Guidage de l'écran de saisie, en lecture ===== */
+.guidance {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 320px;
+}
+
+.guidanceList {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.guidanceList li {
+  margin-bottom: 2px;
+}
+
+.guidanceTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.guidanceChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--paper-2);
+  font-size: 11.5px;
+  color: var(--ink);
+}
+
+.guidanceStarter,
+.guidanceTip {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.guidanceStarter {
+  font-style: italic;
+}
+
+.guidanceLabel {
+  display: inline-block;
+  margin-right: 6px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-style: normal;
+  color: var(--muted-2);
+}
+
+.guidanceEmpty {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .guidance {
+    max-width: none;
+    align-items: flex-end;
+    text-align: right;
+  }
+
+  .guidanceList {
+    padding-left: 0;
+    list-style-position: inside;
+  }
+
+  .guidanceTags {
+    justify-content: flex-end;
+  }
+}
+
 .dangerText {
   margin: 0 0 14px;
   font-size: 13px;

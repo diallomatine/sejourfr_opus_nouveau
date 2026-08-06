@@ -43,6 +43,23 @@ public record AdminSkillPromptCreateRequest(
         @NotBlank(message = "Le critère unique est obligatoire.")
         String uniqueCriterion,
 
+        /**
+         * Guidage de l'ecran de saisie — <b>facultatif</b> : les quatre champs
+         * qui suivent peuvent etre absents, un sujet naitra alors sans guidage
+         * et les fronts se degraderont sur la consigne. Fournis, ils sont
+         * valides par le service (2 a 4 gestes, 1 a 3 etiquettes, icone dans la
+         * liste fermee) : les bornes vivent la-bas et non en annotation, pour
+         * rendre un message qui explique la regle au lieu de la reciter.
+         */
+        java.util.List<String> checklist,
+
+        java.util.List<SkillConstraintTagInput> constraintTags,
+
+        String answerStarter,
+
+        /** Sans le prefixe « Astuce : » — les fronts l'ajoutent. */
+        String tip,
+
         /** Section EE uniquement. Conseil d'ecriture, jamais un plafond. */
         @Min(value = 1, message = "Le nombre de mots minimum doit être positif.")
         Integer recommendedMinWords,

@@ -10,7 +10,12 @@ import { EmptyState, Panel } from "../../components/ui/Panel";
 import { Spinner } from "../../components/ui/Spinner";
 import { Tag } from "../../components/ui/Tag";
 import { useToast } from "../../components/ui/Toast";
-import type { AdminSkillDto, AdminSkillPromptDto } from "../../types/api";
+import type {
+  AdminSkillDto,
+  AdminSkillPromptDto,
+  SkillSection,
+} from "../../types/api";
+import { ConstraintIcon } from "./ConstraintIcon";
 import { SkillFormModal } from "./SkillFormModal";
 import { SkillPromptFormModal } from "./SkillPromptFormModal";
 import { SkillReferencesModal } from "./SkillReferencesModal";
@@ -23,6 +28,7 @@ import {
   deletionBlockedMessage,
   formatDate,
   formatRecommendation,
+  guidanceState,
   referencesComplete,
   targetLevelTone,
   truncate,
@@ -246,6 +252,7 @@ export function SkillDetailPage() {
                       <th>Difficulté</th>
                       <th>{skill.section === "EE" ? "Longueur" : "Durée"}</th>
                       <th>Rang</th>
+                      <th>Guidage de saisie</th>
                       <th>Références</th>
                       <th>Tentatives</th>
                       <th>Statut</th>
@@ -279,6 +286,9 @@ export function SkillDetailPage() {
                           </td>
                           <td data-label="Rang">
                             <span className={styles.mono}>{prompt.displayOrder}</span>
+                          </td>
+                          <td data-label="Guidage de saisie">
+                            <GuidanceCell prompt={prompt} section={skill.section} />
                           </td>
                           <td data-label="Références">
                             {referencesComplete(prompt.references) ? (
@@ -393,6 +403,91 @@ export function SkillDetailPage() {
         </>
       )}
     </>
+  );
+}
+
+/**
+ * Le guidage tel qu'il arrivera à l'écran du candidat : les quatre champs sont
+ * montrés en lecture, pas seulement en édition — un éditeur doit pouvoir
+ * relire ce qu'il publie sans rouvrir la modal. Chaque bloc absent disparaît :
+ * un sujet sans guidage reste légal, les fronts retombent sur la consigne.
+ */
+function GuidanceCell({
+  prompt,
+  section,
+}: {
+  prompt: AdminSkillPromptDto;
+  section: SkillSection;
+}) {
+  const state = guidanceState(prompt);
+  const checklist = prompt.checklist ?? [];
+  const tags = prompt.constraintTags ?? [];
+
+  return (
+    <div className={styles.guidance}>
+      {state === "complete" && <Tag tone="active">Complet</Tag>}
+      {state === "partial" && <Tag tone="draft">À compléter</Tag>}
+      {state === "absent" && <Tag tone="muted">Absent</Tag>}
+
+      {state === "absent" ? (
+        <p className={styles.guidanceEmpty}>
+          L&apos;écran de saisie retombera sur la consigne : ni check-list, ni
+          étiquette, ni amorce, ni astuce.
+        </p>
+      ) : (
+        <>
+          {checklist.length > 0 && (
+            <ol className={styles.guidanceList}>
+              {checklist.map((action, index) => (
+                <li key={`${index}-${action}`}>{action}</li>
+              ))}
+            </ol>
+          )}
+
+          {tags.length > 0 && (
+            <div className={styles.guidanceTags}>
+              {tags.map((tag) => (
+                <span key={`${tag.icon}-${tag.label}`} className={styles.guidanceChip}>
+                  <ConstraintIcon icon={tag.icon} size={13} />
+                  {tag.label}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {prompt.answerStarter && (
+            <p className={styles.guidanceStarter}>
+              <span className={styles.guidanceLabel}>Amorce</span>
+              {prompt.answerStarter}
+            </p>
+          )}
+
+          {prompt.tip && (
+            <p className={styles.guidanceTip}>
+              <span className={styles.guidanceLabel}>Astuce</span>
+              {prompt.tip}
+            </p>
+          )}
+
+          {state === "partial" && (
+            <p className={styles.guidanceEmpty}>
+              Manque
+              {[
+                checklist.length === 0 ? " la check-list" : null,
+                tags.length === 0 ? " les étiquettes" : null,
+                !prompt.answerStarter ? " l'amorce" : null,
+                !prompt.tip ? " l'astuce" : null,
+              ]
+                .filter((part): part is string => part !== null)
+                .join(",")}
+              . Le reste de l&apos;écran{" "}
+              {section === "EE" ? "de saisie" : "d'enregistrement"} s&apos;affiche
+              quand même.
+            </p>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 

@@ -62,6 +62,13 @@ export const skillsApi = {
     return apiRequest<AdminSkillPromptDto>(`/api/admin/skill-prompts/${id}`);
   },
 
+  /**
+   * Les quatre champs de guidage (`checklist`, `constraintTags`,
+   * `answerStarter`, `tip`) partent dans la même charge utile. Ils sont
+   * facultatifs, mais **toujours envoyés** : une liste vide vaut `null` côté
+   * serveur, et le service valide tout avant d'écrire quoi que ce soit — un
+   * refus (422) ne laisse jamais un sujet à moitié créé.
+   */
   createPrompt(req: AdminSkillPromptCreateRequest) {
     return apiRequest<AdminSkillPromptDto>("/api/admin/skill-prompts", {
       method: "POST",
@@ -69,6 +76,12 @@ export const skillsApi = {
     });
   },
 
+  /**
+   * PATCH à sémantique de **remplacement** sur les bornes de longueur ET sur les
+   * quatre champs de guidage : un `null` y efface, il ne veut pas dire « ne
+   * touche pas ». C'est ce qui rend une check-list posée par erreur effaçable
+   * depuis la console — le formulaire envoie donc systématiquement les quatre.
+   */
   updatePrompt(id: string, req: AdminSkillPromptUpdateRequest) {
     return apiRequest<AdminSkillPromptDto>(`/api/admin/skill-prompts/${id}`, {
       method: "PATCH",

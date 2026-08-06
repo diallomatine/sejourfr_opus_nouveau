@@ -8,6 +8,7 @@ import 'package:sejourfr_mobile/core/theme/app_theme.dart';
 import 'package:sejourfr_mobile/core/utils/dashboard_targets.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/expression_hub_data.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/production_nav.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/production_quota_info.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/task_training_data.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/tcf_production_module.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_common.dart';
@@ -181,6 +182,30 @@ void main() {
 
       await tester.tap(find.text('Examens'));
       expect(picked, ProductionModuleTab.examens);
+    });
+  });
+
+  group("Info « 1 essai gratuit par épreuve »", () {
+    // L'annonce a disparu du parcours quand le hub d'épreuve a été supprimé :
+    // le candidat découvrait la limite en la consommant. Elle est remise sur la
+    // liste des sujets TCF complets — le seul écran où la règle s'applique.
+    test('la clé de mémorisation est PAR ÉPREUVE', () {
+      expect(prodQuotaInfoKey(EpreuveType.tcfEe),
+          'sejourfr.prodQuotaInfo.TCF_EE');
+      expect(prodQuotaInfoKey(EpreuveType.tcfEo),
+          'sejourfr.prodQuotaInfo.TCF_EO');
+      expect(prodQuotaInfoKey(EpreuveType.tcfEe),
+          isNot(prodQuotaInfoKey(EpreuveType.tcfEo)));
+    });
+
+    test('la clé est exactement celle du web — les deux fronts se souviennent '
+        'de la même chose', () {
+      for (final module in TcfProductionModule.values) {
+        expect(
+          prodQuotaInfoKey(module.epreuve),
+          'sejourfr.prodQuotaInfo.${module.epreuve.wire}',
+        );
+      }
     });
   });
 }

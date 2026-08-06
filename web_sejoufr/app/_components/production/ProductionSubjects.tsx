@@ -7,6 +7,7 @@ import { Check, Lock } from "lucide-react";
 import { ApiException, productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { tcfNoteTone } from "@/lib/production-feedback";
+import { prodQuotaInfoKey, shouldAnnounceFreeTrial } from "@/lib/production-quota-info";
 import {
   canAccessModule,
   formatNoteSur20,
@@ -16,6 +17,7 @@ import {
   type ProductionTaskDto,
 } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
+import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
 import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import {
@@ -79,11 +81,45 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [quotaInfoOpen, setQuotaInfoOpen] = useState(false);
 
   // EE/EO sont des épreuves TCF → accès gouverné par l'abonnement Intégral.
   // Non-abonné : seul le 1er sujet est ouvert, le reste est cadenassé (parité
   // avec les séries CO/CE/Structure et l'app mobile).
   const isPremium = user ? canAccessModule(user, "TCF") : false;
+
+  // Info one-time pour les comptes gratuits : 1 essai d'entraînement offert par
+  // épreuve (EE et EO), évalué par l'IA, + 1 examen blanc de production offert
+  // (`ProductionAccessService.enforceQuota` / `AttemptService`).
+  //
+  // Elle vit ICI, sur la liste des sujets TCF complets, et nulle part ailleurs :
+  // c'est le seul écran de l'épreuve où cette règle s'applique, et il précède
+  // l'écran de production qui consomme l'essai — on annonce avant, pas après un
+  // 403. Surtout PAS sur l'écran d'entrée (mode « Compétences ») : les
+  // micro-exercices ne verrouillent aucun sujet et ont leur propre quota
+  // (3 analyses IA offertes), l'y afficher annoncerait une règle fausse.
+  const quotaInfoKey = prodQuotaInfoKey(config.epreuve);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const announce = shouldAnnounceFreeTrial({
+      status,
+      hasUser: !!user,
+      isPremium: user ? canAccessModule(user, "TCF") : false,
+      alreadySeen: !!window.localStorage.getItem(quotaInfoKey),
+    });
+    if (!announce) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setQuotaInfoOpen(true);
+  }, [status, user, quotaInfoKey]);
+
+  function dismissQuotaInfo() {
+    setQuotaInfoOpen(false);
+    try {
+      window.localStorage.setItem(quotaInfoKey, "1");
+    } catch {
+      // stockage indisponible (navigation privée) : la modale reviendra.
+    }
+  }
 
   useEffect(() => {
     if (status !== "authenticated" || !valid) return;
@@ -284,6 +320,14 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
           message="Le 1er sujet est offert pour découvrir l'épreuve. Passez à l'abonnement Intégral pour débloquer tous les sujets et leurs corrigés."
+        />
+
+        <ConfirmSheet
+          open={quotaInfoOpen}
+          tone="info"
+          title="Un essai gratuit par épreuve"
+          message={`Vous disposez d'un essai d'entraînement gratuit en ${config.label.toLowerCase()}, évalué par l'IA (note /20 + niveau CECRL), ainsi qu'un examen blanc complet offert. Pour vous entraîner sans limite, passez à l'abonnement Intégral.`}
+          onClose={dismissQuotaInfo}
         />
       </SkillShell>
     </DualChromeShell>

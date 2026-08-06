@@ -16,9 +16,12 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -95,6 +98,45 @@ public class SkillPrompt {
     /** EO uniquement (NULL en EE). Conseil de duree, jamais un plafond. */
     @Column(name = "recommended_duration_seconds")
     private Integer recommendedDurationSeconds;
+
+    /**
+     * Ce qu'il faut faire, en 2 a 4 gestes a l'imperatif et dans l'ordre
+     * d'execution. C'est la traduction du critere en actions que le candidat
+     * peut verifier lui-meme : l'ecran ne montre plus le critere brut.
+     *
+     * <p><b>Nullable</b> — la colonne a ete ajoutee sur 240 lignes existantes
+     * (V026), et un sujet cree depuis la console peut naitre sans guidage. Les
+     * fronts retombent alors sur la consigne. La completude du contenu
+     * <i>publie</i> est verrouillee par un test de seed, pas par le DDL.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private List<String> checklist;
+
+    /**
+     * Les 1 a 3 contraintes de forme, lisibles d'un coup d'oeil. Voir
+     * {@link SkillConstraintTag} : elles disent COMMENT produire, jamais
+     * combien de mots ni combien de temps.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "constraint_tags", columnDefinition = "jsonb")
+    private List<SkillConstraintTag> constraintTags;
+
+    /**
+     * L'amorce affichee en texte grise dans le champ de reponse (EE) ou
+     * proposee comme demarrage (EO). Elle donne l'elan sans donner la reponse :
+     * elle ne doit jamais satisfaire a elle seule le critere du sujet.
+     */
+    @Column(name = "answer_starter", columnDefinition = "text")
+    private String answerStarter;
+
+    /**
+     * L'astuce affichee sous la zone de production : le geste le plus souvent
+     * oublie sur CE sujet. Le prefixe « Astuce : » est ajoute par les fronts,
+     * il n'est pas stocke.
+     */
+    @Column(columnDefinition = "text")
+    private String tip;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "difficulty_level", nullable = false, length = 8)

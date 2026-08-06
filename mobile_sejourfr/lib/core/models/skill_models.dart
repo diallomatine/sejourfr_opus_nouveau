@@ -149,6 +149,82 @@ enum SkillAttemptStatut {
   bool get isInProgress => !isFinal;
 }
 
+/// Icône d'une étiquette de contrainte d'un petit sujet. **Liste fermée**,
+/// identique au backend, au web et à l'admin.
+///
+/// [unknown] n'est pas une valeur du contrat : c'est le repli d'un code non
+/// prévu (contenu créé depuis la console d'administration). Il existe pour que
+/// le `switch` de la table d'icônes reste exhaustif sans jamais planter.
+enum SkillConstraintIcon {
+  tone('TONE'),
+  person('PERSON'),
+  time('TIME'),
+  place('PLACE'),
+  number('NUMBER'),
+  tense('TENSE'),
+  structure('STRUCTURE'),
+  example('EXAMPLE'),
+  unknown('');
+
+  const SkillConstraintIcon(this.wire);
+
+  final String wire;
+
+  static SkillConstraintIcon fromWire(String? value) =>
+      SkillConstraintIcon.values.firstWhere(
+        (e) => e.wire == value,
+        orElse: () => SkillConstraintIcon.unknown,
+      );
+}
+
+/// Une étiquette de contrainte : ce qu'il faut respecter *dans la manière*
+/// d'écrire ou de parler (« Vouvoiement », « Ton poli », « Passé composé »).
+///
+/// ⚠ Ne porte **jamais** la longueur : la puce `≈ 15–35 mots` / `≈ 45 secondes`
+/// est générée par le front depuis les bornes déjà en base.
+class SkillConstraintTag {
+  const SkillConstraintTag({required this.label, required this.icon});
+
+  final String label;
+  final SkillConstraintIcon icon;
+
+  /// `null` quand l'entrée est inexploitable (pas un objet, libellé vide) :
+  /// une étiquette sans texte ne doit jamais devenir une pilule vide.
+  static SkillConstraintTag? fromJsonNullable(Object? json) {
+    if (json is! Map) return null;
+    final label = _trimmedOrNull(json['label']);
+    if (label == null) return null;
+    return SkillConstraintTag(
+      label: label,
+      icon: SkillConstraintIcon.fromWire(json['icon'] as String?),
+    );
+  }
+}
+
+/// `null` plutôt qu'une chaîne vide : les blocs de guidage se retirent de
+/// l'écran au lieu d'afficher un cadre sans contenu.
+String? _trimmedOrNull(Object? raw) {
+  if (raw is! String) return null;
+  final value = raw.trim();
+  return value.isEmpty ? null : value;
+}
+
+List<String> _stringList(Object? raw) {
+  if (raw is! List) return const <String>[];
+  return raw
+      .map(_trimmedOrNull)
+      .whereType<String>()
+      .toList(growable: false);
+}
+
+List<SkillConstraintTag> _constraintTags(Object? raw) {
+  if (raw is! List) return const <SkillConstraintTag>[];
+  return raw
+      .map(SkillConstraintTag.fromJsonNullable)
+      .whereType<SkillConstraintTag>()
+      .toList(growable: false);
+}
+
 /// Une compétence (8 par tâche) + la progression du user courant.
 class SkillDto {
   const SkillDto({
@@ -310,6 +386,10 @@ class SkillPromptDto {
     required this.displayOrder,
     required this.status,
     required this.attemptCount,
+    this.checklist = const <String>[],
+    this.constraintTags = const <SkillConstraintTag>[],
+    this.answerStarter,
+    this.tip,
     this.recommendedMinWords,
     this.recommendedMaxWords,
     this.recommendedDurationSeconds,
@@ -350,6 +430,23 @@ class SkillPromptDto {
   final int displayOrder;
   final SkillPromptStatus status;
   final int attemptCount;
+
+  /// Les 2 à 4 gestes à l'impératif de la carte « Ce qu'il faut faire ».
+  /// **Vide** = sujet créé sans guidage : la carte retombe sur [instruction].
+  final List<String> checklist;
+
+  /// Les 1 à 3 étiquettes de contrainte. **Vide** = seule la puce de longueur
+  /// s'affiche.
+  final List<SkillConstraintTag> constraintTags;
+
+  /// L'amorce grisée du champ (EE) ou la suggestion de démarrage (EO).
+  /// `null` = texte grisé neutre.
+  final String? answerStarter;
+
+  /// L'astuce du pied de la carte de réponse. `null` = seul le compteur reste.
+  /// Le mot « Astuce : » est ajouté par le front, jamais porté par la valeur.
+  final String? tip;
+
   final int? recommendedMinWords;
   final int? recommendedMaxWords;
   final int? recommendedDurationSeconds;
@@ -379,6 +476,10 @@ class SkillPromptDto {
         displayOrder: (json['displayOrder'] as num?)?.toInt() ?? 0,
         status: SkillPromptStatus.fromWire(json['status'] as String),
         attemptCount: (json['attemptCount'] as num?)?.toInt() ?? 0,
+        checklist: _stringList(json['checklist']),
+        constraintTags: _constraintTags(json['constraintTags']),
+        answerStarter: _trimmedOrNull(json['answerStarter']),
+        tip: _trimmedOrNull(json['tip']),
         recommendedMinWords: (json['recommendedMinWords'] as num?)?.toInt(),
         recommendedMaxWords: (json['recommendedMaxWords'] as num?)?.toInt(),
         recommendedDurationSeconds:

@@ -44,7 +44,7 @@
 .wrap {
   max-width: 880px;
   margin: 0 auto;
-  padding: 20px 16px 72px;
+  padding: 14px 16px 72px;
   display: flex;
   flex-direction: column;
 }
@@ -636,30 +636,28 @@
 
 /* ------------------------------------------------ écran d'un petit sujet */
 
-.breadcrumb {
+/* Où j'en suis · à quel palier. Une seule ligne, à la place du fil d'Ariane
+   sur deux lignes qui ouvrait l'écran : le titre du sujet et celui de la tâche
+   sont déjà dans l'en-tête, les répéter coûtait la moitié de la hauteur utile
+   avant la zone de production. */
+.compactLine {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.compactStep {
   font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--color-muted);
-}
-
-.breadcrumbCurrent {
-  color: var(--skill-accent);
+  font-size: 11px;
   font-weight: 800;
-}
-
-.breadcrumbSep {
-  color: var(--color-muted-2);
+  color: var(--color-muted);
 }
 
 /* Progression de la compétence, sur l'écran du sujet (barre fine, pas hero). */
 .inlineProgress {
-  margin: 0 0 14px;
+  margin: 0 0 12px;
 }
 
 .inlineProgressLabel {
@@ -801,34 +799,260 @@
   margin: 0;
 }
 
-/* Le critère du sujet, mis en avant AVANT l'énoncé (§13.1). */
-.objective {
-  margin: 14px 0 0;
-  border-radius: 19px;
+/* --------------------------------------- guidage d'un petit sujet (M6 bis)
+
+   Les deux cartes qui ouvrent l'écran de saisie — « Ce qu'il faut faire » et
+   « Situation » — plus la rangée de contraintes. Volontairement plus courtes
+   que `.exercise` : leur seul rôle est de tenir au-dessus de la zone de
+   production sur un écran de 360 px, ce que l'ancienne carte d'exercice
+   (titre d'intention + objectif + « Pourquoi cet exercice ? ») ne permettait
+   pas. Paddings et rayons repris de la capture client.
+   ------------------------------------------------------------------------- */
+
+.guideCard {
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
   padding: 14px;
-  background: var(--skill-accent-soft);
-  border: 1px solid color-mix(in srgb, var(--skill-accent) 20%, transparent);
+  box-shadow: var(--skill-shadow);
 }
 
-.objectiveLabel {
+.guideHead {
   display: flex;
   align-items: center;
-  gap: 7px;
-  color: var(--skill-accent);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.065em;
+  gap: 9px;
 }
 
-.objectiveText {
-  margin: 8px 0 0;
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 700;
+.guideIcon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 11px;
+  background: var(--skill-accent-light);
+  color: var(--skill-accent);
+}
+
+.guideTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: var(--color-ink);
+}
+
+/* La check-list : des gestes, pas un critère abstrait. */
+.checklist {
+  list-style: none;
+  margin: 9px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.checkItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 600;
   color: var(--color-ink);
   overflow-wrap: anywhere;
+}
+
+.checkDot {
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  flex: none;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--skill-accent) 45%, transparent);
+  color: var(--skill-accent);
+}
+
+/* Corps d'une carte de guidage : la situation, ou la consigne quand le sujet
+   n'a pas de check-list (dégradation — la carte n'est jamais vide). */
+.guideText {
+  margin: 9px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+/* Rangée de contraintes : longueur (dérivée des bornes) puis étiquettes. */
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+/* Padding volontairement serré : les trois puces d'un sujet doivent tenir sur
+   UNE ligne à 360 px. Une seconde ligne coûte ~42 px, prélevés exactement là
+   où on essaie de faire remonter la zone de production. */
+.chipItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.chipItem svg {
+  flex: none;
+  color: var(--color-muted);
+}
+
+/* ------------------------------------------------ zone de production (M6) */
+
+/* Carte « Votre réponse » : icône + titre, champ (ou enregistreur), puis un
+   pied qui porte l'astuce à gauche et le compteur à droite. Même coquille à
+   l'écrit et à l'oral — le parcours est identique, seule la zone change. */
+.answerCard {
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  padding: 14px;
+  box-shadow: var(--skill-shadow);
+}
+
+.answerHead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 10px;
+}
+
+.answerIcon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 11px;
+  background: var(--skill-accent-light);
+  color: var(--skill-accent);
+}
+
+.answerTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: var(--color-ink);
+}
+
+/* Amorce à l'oral : une suggestion de démarrage, pas un texte à réciter. */
+.starter {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  font-style: italic;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.answerFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 9px;
+}
+
+.answerTip {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.answerTip svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--color-amber-dark);
+}
+
+.answerCount {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-muted-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Sur un téléphone, chaque pixel gagné au-dessus de la carte « Votre réponse »
+   est un pixel de champ visible sans défiler — c'est le critère de réussite de
+   cet écran. On resserre le rythme, jamais la taille du texte : le guidage doit
+   rester lisible, sinon on n'a fait que déplacer le problème. */
+@media (max-width: 420px) {
+  .accent {
+    gap: 9px;
+  }
+
+  .back {
+    margin-bottom: 8px;
+  }
+
+  .compactLine {
+    margin-bottom: 6px;
+  }
+
+  .inlineProgress {
+    margin-bottom: 8px;
+  }
+
+  .guideCard,
+  .answerCard {
+    padding: 11px;
+  }
+
+  .guideIcon,
+  .answerIcon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .checklist {
+    gap: 6px;
+  }
+
+  .checkItem,
+  .guideText {
+    font-size: 13.5px;
+    line-height: 1.4;
+  }
+
+  /* Les trois puces d'un sujet tiennent alors sur une ligne : deux lignes de
+     puces coûtent 39 px, exactement ce qu'on essaie de rendre au champ. */
+  .chipItem {
+    gap: 4px;
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+
+  .answerHead {
+    margin-bottom: 8px;
+  }
 }
 
 /* ----------------------------------------------------- repères de format */
@@ -839,12 +1063,6 @@
   display: flex;
   flex-direction: column;
   gap: 13px;
-}
-
-.stack {
-  display: flex;
-  flex-direction: column;
-  gap: 11px;
 }
 
 .requirements {
@@ -1716,6 +1934,16 @@
 .textarea:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Variante « carte » : le compteur vit dans le pied de carte et non en
+   surimpression, le champ n'a donc plus à réserver 38 px en bas. Déclarée
+   APRÈS `.textarea` — à spécificité égale, c'est l'ordre qui tranche, et
+   placée avant elle cette règle ne faisait rien. */
+.textareaBare {
+  min-height: 132px;
+  border-radius: 16px;
+  padding: 13px;
 }
 
 .counter {

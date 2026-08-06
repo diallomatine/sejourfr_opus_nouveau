@@ -11,12 +11,15 @@ import '../../widgets/recording_waveform.dart';
 ///
 /// Le panneau ne décide de rien : la permission, le démarrage et l'arrêt sont
 /// pilotés par l'écran, qui possède le `RecordingController`.
+///
+/// ⚠ **Il ne porte pas son propre cadre** : il vit dans la carte « Votre
+/// réponse » (`SkillAnswerCard`), exactement là où l'écrit met son champ de
+/// saisie. Lui redonner une bordure blanche referait une carte dans une carte.
 class SkillRecorderPanel extends StatelessWidget {
   const SkillRecorderPanel({
     super.key,
     required this.state,
     required this.accent,
-    required this.recommendedSeconds,
     required this.onStart,
     required this.onStop,
     required this.onReset,
@@ -24,7 +27,6 @@ class SkillRecorderPanel extends StatelessWidget {
 
   final RecordingState state;
   final Color accent;
-  final int? recommendedSeconds;
   final VoidCallback onStart;
   final VoidCallback onStop;
   final VoidCallback onReset;
@@ -37,14 +39,8 @@ class SkillRecorderPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        border: Border.all(color: AppColors.line),
-      ),
       child: switch (state.phase) {
         RecordingPhase.recording || RecordingPhase.paused => _recording(),
         RecordingPhase.finished when state.filePath != null => _finished(),
@@ -67,24 +63,20 @@ class SkillRecorderPanel extends StatelessWidget {
             onTap: onStart,
             customBorder: const CircleBorder(),
             child: const SizedBox(
-              width: 88,
-              height: 88,
-              child: Icon(LucideIcons.mic, size: 34, color: AppColors.white),
+              width: 76,
+              height: 76,
+              child: Icon(LucideIcons.mic, size: 30, color: AppColors.white),
             ),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         Text(
           'Appuie pour t\'enregistrer',
-          style: AppFonts.ui(size: 14.5, weight: FontWeight.w700),
+          style: AppFonts.ui(size: 14, weight: FontWeight.w700),
         ),
-        if (recommendedSeconds != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            'Durée conseillée : environ $recommendedSeconds secondes',
-            style: AppFonts.ui(size: 12.5, color: AppColors.inkSoft),
-          ),
-        ],
+        // La durée conseillée n'est plus répétée ici : elle est déjà dans la
+        // puce de longueur, au-dessus de la carte. La redire poussait la zone
+        // de production sous la ligne de flottaison.
         if (state.errorMessage != null) ...[
           const SizedBox(height: 10),
           Text(
@@ -170,12 +162,9 @@ class SkillRecorderPanel extends StatelessWidget {
           'Réponse enregistrée',
           style: AppFonts.ui(size: 15, weight: FontWeight.w700),
         ),
-        const SizedBox(height: 4),
-        Text(
-          'Durée : ${formatDuration(state.elapsed)}',
-          style: AppFonts.ui(size: 12.5, color: AppColors.inkSoft),
-        ),
-        const SizedBox(height: 14),
+        // La durée est affichée par le pied de la carte, à la place exacte du
+        // compteur de mots de l'écrit — parité, et pas de doublon.
+        const SizedBox(height: 12),
         AppButton(
           label: 'Réenregistrer',
           icon: LucideIcons.refreshCw,

@@ -991,6 +991,46 @@ export interface SkillReferenceDto {
   pedagogicalNote: string;
 }
 
+/**
+ * Famille d'icône d'une étiquette de contrainte — enum backend
+ * `SkillConstraintIcon`, **liste fermée**. Elle décrit une famille, pas un
+ * dessin : chaque front choisit son icône. Ajouter une valeur suppose de la
+ * mapper côté web ET mobile dans la même passe.
+ */
+export type SkillConstraintIcon =
+  | "TONE"
+  | "PERSON"
+  | "TIME"
+  | "PLACE"
+  | "NUMBER"
+  | "TENSE"
+  | "STRUCTURE"
+  | "EXAMPLE";
+
+/**
+ * Étiquette de contrainte lue depuis le serveur (record `SkillConstraintTag`,
+ * stocké en JSONB). Elle dit **comment** produire, jamais **combien** : ni
+ * longueur ni durée, que les fronts rendent déjà depuis `recommendedMinWords` /
+ * `recommendedMaxWords` / `recommendedDurationSeconds`.
+ */
+export interface SkillConstraintTagDto {
+  /** 1 à 3 mots. */
+  label: string;
+  icon: SkillConstraintIcon;
+}
+
+/**
+ * Même forme sur le fil à l'écriture (`SkillConstraintTagInput`), à un détail
+ * près : côté Java `icon` y est une **chaîne** et non l'enum, pour que le
+ * service rende un 422 français énumérant la liste fermée au lieu d'un 400
+ * technique du convertisseur. La console, elle, ne peut envoyer qu'une valeur
+ * de l'union — l'icône se choisit, elle ne se saisit pas.
+ */
+export interface SkillConstraintTagInput {
+  label: string;
+  icon: SkillConstraintIcon;
+}
+
 export interface AdminSkillDto {
   id: string;
   section: SkillSection;
@@ -1025,6 +1065,21 @@ export interface AdminSkillPromptDto {
   context: string;
   instruction: string;
   uniqueCriterion: string;
+  /**
+   * Guidage de l'écran de saisie — les quatre champs qui suivent sont
+   * **facultatifs** (colonnes nullables, V026) : un sujet peut naître sans eux
+   * et les fronts se dégradent alors sur la consigne. La console affiche « à
+   * compléter » plutôt que de casser.
+   *
+   * `checklist` : 2 à 4 gestes à l'impératif, 6 mots maximum chacun.
+   */
+  checklist: string[] | null;
+  /** 1 à 3 étiquettes. Jamais la longueur ni la durée : elles diviseraient la vérité. */
+  constraintTags: SkillConstraintTagDto[] | null;
+  /** Amorce grisée du champ de réponse, terminée par « … ». */
+  answerStarter: string | null;
+  /** Sans le préfixe « Astuce : » — les fronts l'ajoutent. */
+  tip: string | null;
   /** Renseigné en section EE uniquement (CHECK en base). */
   recommendedMinWords: number | null;
   recommendedMaxWords: number | null;
@@ -1098,6 +1153,13 @@ export interface AdminSkillUpdateRequest {
   active: boolean;
 }
 
+/**
+ * POST : les quatre champs de guidage sont facultatifs. Une liste vide vaut
+ * `null` côté serveur (« aucune étiquette » et « je n'en envoie pas » décrivent
+ * le même sujet) ; fournis, ils sont validés — 2 à 4 gestes, 1 à 3 étiquettes,
+ * icône dans la liste fermée — et **tout est vérifié avant la moindre
+ * écriture**, donc un refus ne laisse jamais un sujet à moitié modifié.
+ */
 export interface AdminSkillPromptCreateRequest {
   skillId: string;
   code: string;
@@ -1105,6 +1167,10 @@ export interface AdminSkillPromptCreateRequest {
   context: string;
   instruction: string;
   uniqueCriterion: string;
+  checklist: string[] | null;
+  constraintTags: SkillConstraintTagInput[] | null;
+  answerStarter: string | null;
+  tip: string | null;
   recommendedMinWords: number | null;
   recommendedMaxWords: number | null;
   recommendedDurationSeconds: number | null;
@@ -1118,6 +1184,11 @@ export interface AdminSkillPromptCreateRequest {
  * bornes de longueur à `null`. Un `null` vaut « efface », pas « ne touche pas » :
  * c'est ce qui garantit qu'un sujet EE ne porte jamais de durée et inversement
  * (CHECK `skill_prompts`). Le `code` et le `skillId` sont absents : immuables.
+ *
+ * **Les quatre champs de guidage suivent la même règle de remplacement** :
+ * leurs colonnes sont nullables, donc un `null` y désigne un état atteignable
+ * (« ce sujet n'a pas de guidage ») et non un état impossible. Sans cela, une
+ * check-list posée par erreur serait ineffaçable depuis la console.
  */
 export type AdminSkillPromptUpdateRequest = Omit<
   AdminSkillPromptCreateRequest,

@@ -1,8 +1,10 @@
 package com.sejourfr.app.manager;
 
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.entity.SkillConstraintTag;
 import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.entity.SkillReference;
+import com.sejourfr.app.enums.SkillConstraintIcon;
 import com.sejourfr.app.enums.SkillDifficulty;
 import com.sejourfr.app.enums.SkillReferenceLevel;
 import com.sejourfr.app.enums.SkillSection;
@@ -12,6 +14,7 @@ import com.sejourfr.app.repository.SkillReferenceRepository;
 import com.sejourfr.app.repository.SkillRepository;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -46,9 +49,66 @@ class SkillPromptManagerIT extends AbstractIntegrationTest {
     @Autowired
     private TestData testData;
 
+    @Autowired
+    private EntityManager em;
+
     @Test
     void findByIdAbsentReturnsEmpty() {
         assertThat(manager.findById(UUID.randomUUID())).isEmpty();
+    }
+
+    /**
+     * Les deux colonnes de guidage sont du {@code jsonb} : leur forme Java
+     * (liste de chaines, liste d'objets {@code {label, icon}}) ne vit que dans
+     * le mapping Hibernate, pas dans le schema. Le contexte de persistance est
+     * donc vide avant la relecture — sans cela le test relirait l'objet ecrit,
+     * et une serialisation cassee passerait inapercue.
+     */
+    @Test
+    void guidanceSurvivesTheJsonbRoundTrip() {
+        SkillPrompt prompt = testData.skillPrompt(testData.skill(SkillTaskCode.EE1));
+        prompt.setChecklist(List.of("Saluez votre voisine", "Écrivez deux phrases"));
+        prompt.setConstraintTags(List.of(
+                new SkillConstraintTag("Vouvoiement", SkillConstraintIcon.PERSON),
+                new SkillConstraintTag("Ton poli", SkillConstraintIcon.TONE)));
+        prompt.setAnswerStarter("Bonjour Madame, je suis votre voisin du…");
+        prompt.setTip("commencez par bonjour");
+        manager.save(prompt);
+        em.flush();
+        em.clear();
+
+        assertThat(manager.findById(prompt.getId())).get().satisfies(reloaded -> {
+            assertThat(reloaded.getChecklist())
+                    .containsExactly("Saluez votre voisine", "Écrivez deux phrases");
+            assertThat(reloaded.getConstraintTags()).containsExactly(
+                    new SkillConstraintTag("Vouvoiement", SkillConstraintIcon.PERSON),
+                    new SkillConstraintTag("Ton poli", SkillConstraintIcon.TONE));
+            assertThat(reloaded.getAnswerStarter()).isEqualTo("Bonjour Madame, je suis votre voisin du…");
+            assertThat(reloaded.getTip()).isEqualTo("commencez par bonjour");
+        });
+    }
+
+    /**
+     * Les quatre colonnes sont nullables (V026) : un sujet cree depuis la
+     * console peut naitre sans guidage, et sa relecture ne doit pas echouer.
+     */
+    @Test
+    void promptWithoutGuidanceIsReloadedWithNulls() {
+        SkillPrompt prompt = testData.skillPrompt(testData.skill(SkillTaskCode.EE1));
+        prompt.setChecklist(null);
+        prompt.setConstraintTags(null);
+        prompt.setAnswerStarter(null);
+        prompt.setTip(null);
+        manager.save(prompt);
+        em.flush();
+        em.clear();
+
+        assertThat(manager.findById(prompt.getId())).get().satisfies(reloaded -> {
+            assertThat(reloaded.getChecklist()).isNull();
+            assertThat(reloaded.getConstraintTags()).isNull();
+            assertThat(reloaded.getAnswerStarter()).isNull();
+            assertThat(reloaded.getTip()).isNull();
+        });
     }
 
     @Test

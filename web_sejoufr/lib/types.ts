@@ -711,6 +711,31 @@ export interface SkillPromptSummaryDto {
     lastAttemptAt: string | null;
 }
 
+/** Familles d'icônes des étiquettes de contrainte. **Liste fermée**, partagée
+ *  telle quelle par le backend, le web, le mobile et l'admin : chaque front la
+ *  mappe sur son propre jeu d'icônes.
+ *
+ *  TONE = registre / politesse · PERSON = destinataire, vouvoiement ·
+ *  TIME = moment ou durée · PLACE = lieu · NUMBER = quantité ·
+ *  TENSE = temps du récit · STRUCTURE = enchaînement · EXAMPLE = illustration. */
+export type SkillConstraintIcon =
+    | "TONE"
+    | "PERSON"
+    | "TIME"
+    | "PLACE"
+    | "NUMBER"
+    | "TENSE"
+    | "STRUCTURE"
+    | "EXAMPLE";
+
+/** Une contrainte de production, lisible d'un coup d'œil : 1 à 3 mots + son
+ *  icône. Dit **comment** produire, jamais **quoi** — et **jamais la longueur**,
+ *  qui est dérivée des bornes par le front (`lengthChipLabel`). */
+export interface SkillConstraintTagDto {
+    label: string;
+    icon: SkillConstraintIcon;
+}
+
 /** GET /api/skills/{skillId}. */
 export interface SkillDetailDto {
     skill: SkillDto;
@@ -749,6 +774,22 @@ export interface SkillPromptDto {
     recommendedDurationSeconds: number | null;
     difficultyLevel: SkillDifficulty;
     displayOrder: number;
+    /* ------------------------------------------------------------ guidage
+       Les quatre champs ci-dessous sont **tous nullables** : un sujet créé
+       depuis la console d'administration peut naître sans guidage, et les
+       colonnes DB (V026) sont nullables sur les 240 lignes existantes. Les
+       fronts se dégradent — jamais de carte vide, jamais de « null » à
+       l'écran. Règles de lecture : `lib/skill-guidance.ts`. */
+    /** 2 à 4 gestes à l'impératif, dans l'ordre où les accomplir. */
+    checklist: string[] | null;
+    /** 1 à 3 contraintes de forme. La longueur n'y figure jamais. */
+    constraintTags: SkillConstraintTagDto[] | null;
+    /** Amorce de réponse (4-8 mots) : texte grisé du champ à l'écrit,
+     *  suggestion de démarrage à l'oral. */
+    answerStarter: string | null;
+    /** Le geste le plus souvent oublié, en une phrase. Le mot « Astuce : »
+     *  n'est **pas** dans la valeur — c'est le front qui l'ajoute. */
+    tip: string | null;
     status: SkillPromptStatus;
     attemptCount: number;
     lastAttemptAt: string | null;

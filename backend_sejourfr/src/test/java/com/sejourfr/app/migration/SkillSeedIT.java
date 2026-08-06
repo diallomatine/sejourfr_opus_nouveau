@@ -1,5 +1,6 @@
 package com.sejourfr.app.migration;
 
+import com.sejourfr.app.enums.SkillConstraintIcon;
 import com.sejourfr.app.enums.SkillTaskCode;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
@@ -166,6 +167,84 @@ class SkillSeedIT extends AbstractIntegrationTest {
                 .isEqualTo(EXPECTED_PROMPTS);
     }
 
+    /**
+     * <b>C'est ce test qui garantit la completude du guidage</b>, puisque V026 a
+     * ajoute les quatre colonnes NULLABLES : la table portait deja 240 lignes,
+     * un {@code NOT NULL} sans defaut aurait echoue a l'ajout, et un sujet cree
+     * depuis la console reste legalement sans guidage. La regle « tout sujet
+     * PUBLIE en a un » n'est donc pas exprimable en DDL — elle vit ici.
+     *
+     * <p>Un sujet sans check-list ne casse rien (les fronts retombent sur la
+     * consigne), mais il perd exactement ce que la refonte de l'ecran apporte :
+     * l'exercice redeviendrait explique au lieu d'etre fait.
+     */
+    @Test
+    void everyPublishedPromptCarriesItsCompleteInputGuidance() {
+        assertThat(count("skill_prompts",
+                "is_active" + NOT_A_FIXTURE
+                        + " AND jsonb_typeof(checklist) = 'array'"
+                        + " AND jsonb_array_length(checklist) BETWEEN 2 AND 4"
+                        + " AND jsonb_typeof(constraint_tags) = 'array'"
+                        + " AND jsonb_array_length(constraint_tags) BETWEEN 1 AND 3"
+                        + " AND btrim(answer_starter) <> ''"
+                        + " AND btrim(tip) <> ''"))
+                .as("sujets publies dont le guidage est complet et dans les bornes")
+                .isEqualTo(EXPECTED_PROMPTS);
+
+        assertThat(jdbc.queryForList("""
+                SELECT p.code FROM skill_prompts p, jsonb_array_elements_text(p.checklist) AS action
+                WHERE p.is_active AND p.code NOT LIKE 'TST-%' AND btrim(action) = ''
+                """))
+                .as("sujets portant une action de check-list vide")
+                .isEmpty();
+
+        // L'amorce s'affiche en texte grise DANS le champ : les points de
+        // suspension sont ce qui la donne a lire comme un debut a poursuivre, et
+        // non comme une reponse deja ecrite.
+        assertThat(count("skill_prompts",
+                "is_active" + NOT_A_FIXTURE + " AND answer_starter LIKE '%…'"))
+                .as("amorces terminees par des points de suspension")
+                .isEqualTo(EXPECTED_PROMPTS);
+
+        // Le prefixe « Astuce : » est ajoute par les fronts. Stocke, il
+        // s'afficherait deux fois.
+        assertThat(count("skill_prompts",
+                "is_active" + NOT_A_FIXTURE + " AND tip ILIKE 'astuce%'"))
+                .as("astuces qui repetent le prefixe ajoute par les fronts")
+                .isZero();
+    }
+
+    /**
+     * Les etiquettes disent COMMENT produire. La longueur et la duree, elles,
+     * sont rendues par les fronts depuis les bornes deja en base : une etiquette
+     * qui les redirait creerait une seconde verite, vouee a diverger de la
+     * premiere le jour ou un editeur corrige les bornes.
+     *
+     * <p>L'icone, elle, appartient a une liste fermee que les deux fronts
+     * mappent : une valeur inconnue n'afficherait rien du tout.
+     */
+    @Test
+    void everyConstraintTagUsesAKnownIconAndNeverRestatesTheLength() {
+        assertThat(jdbc.queryForList("""
+                SELECT DISTINCT tag ->> 'icon' AS icon
+                FROM skill_prompts p, jsonb_array_elements(p.constraint_tags) AS tag
+                WHERE p.is_active AND p.code NOT LIKE 'TST-%'
+                """))
+                .extracting(row -> row.get("icon"))
+                .as("icones employees par le contenu publie")
+                .isSubsetOf((Object[]) nomsDesIcones())
+                .doesNotContainNull();
+
+        assertThat(jdbc.queryForList("""
+                SELECT p.code, tag ->> 'label' AS label
+                FROM skill_prompts p, jsonb_array_elements(p.constraint_tags) AS tag
+                WHERE p.is_active AND p.code NOT LIKE 'TST-%'
+                  AND (btrim(coalesce(tag ->> 'label', '')) = '' OR tag ->> 'label' ~ '[0-9]')
+                """))
+                .as("etiquettes vides, ou portant un chiffre — donc une longueur ou une duree")
+                .isEmpty();
+    }
+
     private int count(String table, String where) {
         Integer n = jdbc.queryForObject("SELECT count(*) FROM " + table + " WHERE " + where,
                 Integer.class);
@@ -174,5 +253,10 @@ class SkillSeedIT extends AbstractIntegrationTest {
 
     private static String[] codesDesTaches() {
         return java.util.Arrays.stream(SkillTaskCode.values()).map(Enum::name).toArray(String[]::new);
+    }
+
+    private static String[] nomsDesIcones() {
+        return java.util.Arrays.stream(SkillConstraintIcon.values()).map(Enum::name)
+                .toArray(String[]::new);
     }
 }

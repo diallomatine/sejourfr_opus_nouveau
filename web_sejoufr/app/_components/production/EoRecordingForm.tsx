@@ -1,7 +1,7 @@
 "use client";
 
 import {useEffect, useRef, useState, type ReactNode} from "react";
-import {Clock, Mic, RotateCcw, Square, Target} from "lucide-react";
+import {Clock, Lightbulb, Mic, RotateCcw, Square, Target} from "lucide-react";
 import {formatDurationSec, type ProductionTaskDto} from "@/lib/types";
 import {SkillAccent} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
@@ -23,6 +23,22 @@ function fmtTimer(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+/**
+ * Pendant oral d'`AnswerCard` : la zone de production en carte (icône + titre,
+ * suggestion de démarrage, enregistreur, pied astuce / durée). L'écran d'un
+ * petit sujet est **structuré à l'identique** à l'écrit et à l'oral — seule la
+ * zone de production change, ici l'enregistreur au lieu du champ de saisie.
+ */
+export interface RecorderCard {
+  title: string;
+  icon?: ReactNode;
+  /** Amorce du sujet, proposée comme **suggestion de démarrage** (l'oral n'a
+   *  pas de texte grisé). Absente = aucune suggestion, pas de bloc vide. */
+  starter?: string | null;
+  /** Rappel du geste souvent oublié. Absent = seule la durée s'affiche. */
+  tip?: string | null;
 }
 
 /** Message précis selon le type d'échec de `getUserMedia`. */
@@ -62,7 +78,9 @@ export function EoRecordingForm({
   consigneLabel,
   exerciseTitle,
   headerSlot,
+  promptSlot,
   criteriaSlot,
+  answerCard,
   footerSlot,
   examMode = false,
   timeoutSignal = 0,
@@ -84,10 +102,17 @@ export function EoRecordingForm({
   /** Inséré tout en haut, **avant** la carte de consigne : intention de
    *  l'exercice et critère travaillé. Rien par défaut. */
   headerSlot?: ReactNode;
+  /** Remplace **entièrement** la carte d'exercice (badge, palier, consigne,
+   *  situation, chips de format). Absent = carte historique. Même prop, même
+   *  contenu qu'à l'écrit : le guidage d'un petit sujet. */
+  promptSlot?: ReactNode;
   /** Remplace la carte des 4 critères du TCF. `null` la retire — les
    *  micro-exercices « Compétences » n'évaluent QU'UN critère et affichent le
    *  leur ici, juste au-dessus de l'enregistreur. */
   criteriaSlot?: ReactNode;
+  /** Présente l'enregistreur en carte (icône + titre, suggestion de démarrage,
+   *  pied astuce / durée). Absent = panneau d'enregistrement historique. */
+  answerCard?: RecorderCard;
   /** Inséré juste au-dessus des boutons Refaire / Envoyer, donc visible une fois
    *  la prise enregistrée (auto-évaluation, options de soumission). */
   footerSlot?: ReactNode;
@@ -353,6 +378,64 @@ export function EoRecordingForm({
           ? "Le navigateur indique que le micro est bloqué pour ce site. Cliquez sur le micro pour réessayer — si rien ne se passe, autorisez-le via l'icône à gauche de l'adresse → Microphone."
           : null;
 
+  // Corps de l'enregistreur, partagé par les deux présentations (panneau
+  // historique et carte « Votre réponse ») : le dupliquer serait la garantie de
+  // voir un correctif n'atterrir que d'un côté.
+  const recorder = (
+    <div className={styles.recorder}>
+      <div className={`${styles.timerBig} ${timerClass}`}>{fmtTimer(shownSec)}</div>
+
+      {phase === "recording" ? (
+        <button
+          type="button"
+          className={`${styles.recordCircle} ${styles.recordCircleRec}`}
+          onClick={stop}
+          aria-label="Arrêter l'enregistrement"
+        >
+          <Square size={28} strokeWidth={2.2} fill="currentColor" />
+        </button>
+      ) : (
+        <button
+          type="button"
+          className={styles.recordCircle}
+          onClick={handleStartClick}
+          disabled={submitting || blocked || (examMode && phase === "recorded")}
+          aria-label={phase === "recorded" ? "Réenregistrer" : "Démarrer l'enregistrement"}
+        >
+          <Mic size={32} strokeWidth={2} />
+        </button>
+      )}
+
+      <p className={styles.recordHint}>
+        {phase === "recording"
+          ? examCountdown
+            ? "Enregistrement en cours… arrêt automatique à 0:00, ou appuyez sur le carré pour soumettre."
+            : "Enregistrement en cours… appuyez sur le carré pour arrêter."
+          : phase === "recorded"
+            ? examMode
+              ? "Réponse envoyée à l'évaluation…"
+              : "Réécoutez votre réponse, refaites-la ou envoyez-la à l'évaluation."
+            : examCountdown
+              ? `Appuyez sur le micro : vous avez ${rangeLabel || formatDurationSec(max ?? 0)} et votre réponse est soumise dès l'arrêt. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`
+              : `Appuyez sur le micro pour autoriser et enregistrer${
+                  rangeLabel ? ` (durée conseillée ${rangeLabel})` : ""
+                }. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`}
+      </p>
+
+      {!examMode && phase === "recorded" && audioUrl && (
+        <div className={styles.player}>
+          <audio src={audioUrl} controls preload="metadata" />
+        </div>
+      )}
+    </div>
+  );
+
+  // Pendant du compteur de mots : ce qui a été dit, sur ce qui est visé. Il
+  // prend les teintes du compteur de l'écrit (`counterWarn` = ambre LISIBLE),
+  // pas celles du gros chrono, qui sont calibrées pour du texte de 34 px.
+  const durationText = max != null ? `${fmtTimer(elapsed)} / ${fmtTimer(max)}` : fmtTimer(elapsed);
+  const durationClass = phase === "idle" ? "" : inRange ? s.counterOk : s.counterWarn;
+
   return (
     <SkillAccent accent="red">
       {headerSlot}
@@ -360,87 +443,78 @@ export function EoRecordingForm({
       {/* Même carte d'exercice qu'à l'écrit : le parcours est identique en EE
           et en EO, seules la zone de production et la couleur d'accent
           changent. */}
-      <section className={s.exercise}>
-        <div className={s.exerciseTop}>
-          <span className={s.criterionTag}>
-            <Target size={12} strokeWidth={2.4} aria-hidden />
-            {consigneLabel ?? `Tâche ${task.tacheNumero}`}
-          </span>
-          <span className={s.stepTag}>Niveau {task.niveauCible}</span>
-        </div>
-
-        {exerciseTitle && <h2 className={s.exerciseTitle}>{exerciseTitle}</h2>}
-        <p className={s.exerciseIntro}>{task.consigne}</p>
-
-        {task.contexte && (
-          <div className={s.context}>
-            <span className={s.contextLabel}>Situation</span>
-            {task.contexte}
-          </div>
-        )}
-
-        {rangeLabel && (
-          <div className={s.requirements}>
-            <span className={s.requirement}>
-              <Clock size={11} strokeWidth={2.4} aria-hidden />
-              {rangeLabel}
+      {promptSlot === undefined ? (
+        <section className={s.exercise}>
+          <div className={s.exerciseTop}>
+            <span className={s.criterionTag}>
+              <Target size={12} strokeWidth={2.4} aria-hidden />
+              {consigneLabel ?? `Tâche ${task.tacheNumero}`}
             </span>
+            <span className={s.stepTag}>Niveau {task.niveauCible}</span>
           </div>
-        )}
-      </section>
+
+          {exerciseTitle && <h2 className={s.exerciseTitle}>{exerciseTitle}</h2>}
+          <p className={s.exerciseIntro}>{task.consigne}</p>
+
+          {task.contexte && (
+            <div className={s.context}>
+              <span className={s.contextLabel}>Situation</span>
+              {task.contexte}
+            </div>
+          )}
+
+          {rangeLabel && (
+            <div className={s.requirements}>
+              <span className={s.requirement}>
+                <Clock size={11} strokeWidth={2.4} aria-hidden />
+                {rangeLabel}
+              </span>
+            </div>
+          )}
+        </section>
+      ) : (
+        promptSlot
+      )}
 
       {criteriaSlot === undefined ? <ProductionCriteriaCard /> : criteriaSlot}
 
-      <EoTranscriptNotice />
+      {/* En carte, l'avertissement passe SOUS l'enregistreur : il reste dit, il
+          ne repousse plus le micro sous la ligne de flottaison. */}
+      {!answerCard && <EoTranscriptNotice />}
 
-      <div className={`${s.card} ${s.panel}`}>
-        <div className={styles.recorder}>
-          <div className={`${styles.timerBig} ${timerClass}`}>{fmtTimer(shownSec)}</div>
-
-          {phase === "recording" ? (
-            <button
-              type="button"
-              className={`${styles.recordCircle} ${styles.recordCircleRec}`}
-              onClick={stop}
-              aria-label="Arrêter l'enregistrement"
-            >
-              <Square size={28} strokeWidth={2.2} fill="currentColor" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={styles.recordCircle}
-              onClick={handleStartClick}
-              disabled={submitting || blocked || (examMode && phase === "recorded")}
-              aria-label={phase === "recorded" ? "Réenregistrer" : "Démarrer l'enregistrement"}
-            >
-              <Mic size={32} strokeWidth={2} />
-            </button>
+      {answerCard ? (
+        <section className={s.answerCard}>
+          <div className={s.answerHead}>
+            {answerCard.icon && (
+              <span className={s.answerIcon} aria-hidden>
+                {answerCard.icon}
+              </span>
+            )}
+            <h2 className={s.answerTitle}>{answerCard.title}</h2>
+          </div>
+          {answerCard.starter && (
+            <p className={s.starter}>Pour démarrer : « {answerCard.starter} »</p>
           )}
+          {recorder}
+          <div className={s.answerFoot}>
+            {answerCard.tip ? (
+              <span className={s.answerTip}>
+                <Lightbulb size={13} strokeWidth={2.2} aria-hidden />
+                Astuce : {answerCard.tip}
+              </span>
+            ) : (
+              <span />
+            )}
+            <span className={`${s.answerCount} ${durationClass}`} aria-live="polite">
+              {durationText}
+            </span>
+          </div>
+        </section>
+      ) : (
+        <div className={`${s.card} ${s.panel}`}>{recorder}</div>
+      )}
 
-          <p className={styles.recordHint}>
-            {phase === "recording"
-              ? examCountdown
-                ? "Enregistrement en cours… arrêt automatique à 0:00, ou appuyez sur le carré pour soumettre."
-                : "Enregistrement en cours… appuyez sur le carré pour arrêter."
-              : phase === "recorded"
-                ? examMode
-                  ? "Réponse envoyée à l'évaluation…"
-                  : "Réécoutez votre réponse, refaites-la ou envoyez-la à l'évaluation."
-                : examCountdown
-                  ? `Appuyez sur le micro : vous avez ${rangeLabel || formatDurationSec(max ?? 0)} et votre réponse est soumise dès l'arrêt. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`
-                  : `Appuyez sur le micro pour autoriser et enregistrer${
-                      rangeLabel ? ` (durée conseillée ${rangeLabel})` : ""
-                    }. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`}
-          </p>
-
-          {!examMode && phase === "recorded" && audioUrl && (
-            <div className={styles.player}>
-              <audio src={audioUrl} controls preload="metadata" />
-            </div>
-          )}
-        </div>
-      </div>
+      {answerCard && <EoTranscriptNotice />}
 
       {(blockMsg || permError || error) && (
         <div className={s.error}>{blockMsg ?? permError ?? error}</div>

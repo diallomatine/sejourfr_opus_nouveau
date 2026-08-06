@@ -136,6 +136,32 @@ corriger une faute de frappe dans un sujet imposerait une migration Flyway.
   le jeu autorisé et construit la charge utile depuis la section de la compétence
   parente, jamais depuis l'état du formulaire — la base porte un CHECK, l'erreur
   doit être impossible côté UI plutôt que renvoyée en 500.
+- **Guidage de l'écran de saisie (4 champs, nullables — V026)** : `checklist`
+  (2 à 4 gestes à l'impératif, 6 mots max chacun), `constraintTags` (1 à 3
+  `{label, icon}`, `icon` dans la liste fermée `SkillConstraintIcon` : TONE,
+  PERSON, TIME, PLACE, NUMBER, TENSE, STRUCTURE, EXAMPLE), `answerStarter`
+  (terminé par « … ») et `tip` (15 mots max, **sans** le préfixe « Astuce : »,
+  ajouté par les fronts). Ils pilotent l'écran candidat refondu — celui qui
+  *fait faire* l'exercice au lieu de le décrire.
+  - **Facultatifs mais structurants** : un sujet sans guidage reste publiable
+    (les fronts retombent sur la consigne) et le formulaire ne les exige pas,
+    mais un bandeau annonce « Guidage complet / partiel / sans guidage — sujet
+    incomplet », et le détail affiche les quatre en lecture (colonne « Guidage
+    de saisie »), pas seulement en édition.
+  - **`PATCH` à sémantique de REMPLACEMENT** sur ces quatre champs, comme les
+    bornes : un `null` **efface**, une liste vide vaut `null`. Le formulaire
+    envoie donc toujours les quatre — c'est la seule façon de retirer une
+    check-list posée par erreur.
+  - **Les bornes de comptage sont serveur** (`AdminSkillService`, 422 en cas
+    d'écart) : la console les rend improbables (compteurs de mots, boutons
+    d'ajout désactivés aux plafonds, icônes en sélection avec leur dessin —
+    `ConstraintIcon.tsx`, 8 SVG locaux, l'admin n'embarque aucune librairie
+    d'icônes). Deux pièges contre-intuitifs sont écrits en toutes lettres dans
+    l'aide du formulaire : une étiquette **ne redit jamais la longueur ni la
+    durée** (les fronts les rendent depuis les bornes du sujet — les saisir les
+    ferait diverger, et la console refuse un libellé contenant un chiffre ou
+    « mots/secondes/minutes »), et l'amorce **ne satisfait jamais à elle seule
+    le critère** du sujet.
 - **Les 3 références partent ensemble** (`PUT`, remplacement atomique, 3 niveaux
   exigés sans doublon) : la modal ne permet ni d'ajouter ni de retirer un niveau,
   et refuse de soumettre tant qu'un texte ou une note manque.

@@ -22,6 +22,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 1,
+          "checklist": [
+            "Saluez votre voisine",
+            "Dites qui vous êtes",
+            "Écrivez deux phrases"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Ton poli",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour Madame, je suis votre voisin du…",
+          "tip": "commencez par bonjour, puis présentez-vous en quelques mots",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -51,6 +68,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 2,
+          "checklist": [
+            "Ouvrez avec un bonjour amical",
+            "Proposez le cinéma ce week-end",
+            "Tutoyez-la jusqu'à la fin"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Ton amical",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Salut Sofia, bravo pour ces examens…",
+          "tip": "gardez le même tutoiement de la première à la dernière ligne",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -80,6 +114,24 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 3,
+          "checklist": [
+            "Ouvrez par Bonjour Monsieur",
+            "Présentez-vous comme locataire",
+            "Annoncez la fuite",
+            "Vouvoyez tout le message"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Formule d'appel",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour Monsieur, je suis votre locataire…",
+          "tip": "une formule d'appel formelle vaut mieux qu'un simple salut",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -109,6 +161,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 4,
+          "checklist": [
+            "Commencez par Madame, Monsieur",
+            "Exposez le problème de connexion",
+            "Terminez par une formule de clôture"
+          ],
+          "constraintTags": [
+            {
+              "label": "Ton formel",
+              "icon": "TONE"
+            },
+            {
+              "label": "Ouverture et clôture",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Madame, Monsieur, ma connexion internet ne…",
+          "tip": "la signature ferme le message aussi sûrement que la formule d'appel l'ouvre",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -138,6 +207,24 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "HARD",
           "displayOrder": 5,
+          "checklist": [
+            "Saluez Madame Fontaine",
+            "Exposez votre demande de planning",
+            "Vouvoyez du début à la fin",
+            "Signez votre message"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Ton professionnel",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour Madame Fontaine, je vous écris…",
+          "tip": "une fin familière efface un début professionnel, restez constant jusqu'à la signature",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -177,6 +264,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 1,
+          "checklist": [
+            "Saluez le cabinet dentaire",
+            "Annoncez l'annulation dès le début",
+            "Écrivez une seule phrase"
+          ],
+          "constraintTags": [
+            {
+              "label": "Objet en premier",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Ton poli",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour, je vous écris au sujet…",
+          "tip": "dites l'essentiel avant d'expliquer, votre lecteur comprend immédiatement",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -206,6 +310,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 2,
+          "checklist": [
+            "Ouvrez par un bonjour",
+            "Remerciez-la dès la première phrase",
+            "Précisez pourquoi vous la remerciez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Merci en ouverture",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour Madame Diaz, je vous écris…",
+          "tip": "placez le merci avant vos nouvelles du voyage",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -235,6 +356,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 3,
+          "checklist": [
+            "Adressez-vous à toute l'équipe",
+            "Annoncez d'emblée le report",
+            "Précisez le nouveau jour"
+          ],
+          "constraintTags": [
+            {
+              "label": "Information en tête",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Ton professionnel",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour à tous, la réunion d'équipe…",
+          "tip": "commencez par ce qui change, les détails viennent juste après",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -264,6 +402,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 4,
+          "checklist": [
+            "Ouvrez par une salutation",
+            "Dites que vous demandez des informations",
+            "Posez ensuite vos questions"
+          ],
+          "constraintTags": [
+            {
+              "label": "But d'abord",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Ton formel",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour, je souhaite m'inscrire à votre…",
+          "tip": "annoncez votre but avant de raconter votre parcours personnel",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -293,6 +448,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "HARD",
           "displayOrder": 5,
+          "checklist": [
+            "Ouvrez par Madame, Monsieur",
+            "Demandez le remboursement dès le début",
+            "Racontez ensuite l'annulation"
+          ],
+          "constraintTags": [
+            {
+              "label": "Demande en tête",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Ton posé",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Madame, Monsieur, je vous écris au…",
+          "tip": "votre demande d'abord, votre histoire ensuite, le lecteur suivra bien mieux",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -332,6 +504,27 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 1,
+          "checklist": [
+            "Annoncez la fête de samedi",
+            "Donnez l'adresse exacte",
+            "Indiquez l'heure de début"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Lieu précis",
+              "icon": "PLACE"
+            },
+            {
+              "label": "Heure précise",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Salut Mehdi, je fête mon anniversaire…",
+          "tip": "sans adresse ni heure, votre invité ne peut pas venir",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -361,6 +554,26 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 2,
+          "checklist": [
+            "Donnez votre heure d'arrivée exacte",
+            "Fixez un point de rendez-vous précis"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Heure exacte",
+              "icon": "TIME"
+            },
+            {
+              "label": "Repère précis",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Coucou, j'arrive demain à Bordeaux en…",
+          "tip": "écrivez 14 h 20 plutôt que dans l'après-midi",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -390,6 +603,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 3,
+          "checklist": [
+            "Écrivez votre adresse complète",
+            "Indiquez le code d'entrée",
+            "Précisez l'étage"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Coucou, voici comment arriver chez moi…",
+          "tip": "un seul détail oublié et votre amie devra vous appeler",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -419,6 +649,27 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 4,
+          "checklist": [
+            "Rappelez la date du rendez-vous",
+            "Indiquez l'heure exacte",
+            "Listez les documents à apporter"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Date et heure",
+              "icon": "TIME"
+            },
+            {
+              "label": "Liste de documents",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Le rendez-vous à la préfecture est…",
+          "tip": "nommez chaque document plutôt que d'écrire simplement tes papiers",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -448,6 +699,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "HARD",
           "displayOrder": 5,
+          "checklist": [
+            "Annoncez le jour et l'heure",
+            "Précisez le lieu de livraison",
+            "Nommez la personne à contacter"
+          ],
+          "constraintTags": [
+            {
+              "label": "Quatre informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Ton professionnel",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour à tous, une livraison importante…",
+          "tip": "vérifiez que chacun sait où, quand et avec qui se présenter",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -487,6 +755,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 1,
+          "checklist": [
+            "Saluez votre voisin",
+            "Expliquez que vous attendez un colis",
+            "Formulez la demande poliment"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Forme polie",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour, je reçois un colis demain…",
+          "tip": "remplacez l'impératif par pourriez-vous, votre voisin se sentira libre d'accepter",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -516,6 +801,22 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 2,
+          "checklist": [
+            "Rappelez votre absence de lundi",
+            "Demandez le document au conditionnel"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Conditionnel",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "Bonjour Madame, j'étais absent au cours…",
+          "tip": "pourriez-vous et serait-il possible adoucissent n'importe quelle demande",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -545,6 +846,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 3,
+          "checklist": [
+            "Expliquez votre contrainte du matin",
+            "Demandez le changement poliment",
+            "Laissez la porte ouverte au refus"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Demande, pas décision",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour Madame, pendant deux semaines je…",
+          "tip": "une question laisse le choix, une annonce le retire",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -574,6 +892,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 4,
+          "checklist": [
+            "Rappelez votre consultation",
+            "Demandez l'attestation poliment",
+            "Remerciez à la fin"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Remerciement final",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour, j'ai consulté le docteur Silva…",
+          "tip": "un remerciement final coûte trois secondes et change le ton",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -603,6 +938,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "HARD",
           "displayOrder": 5,
+          "checklist": [
+            "Exposez votre besoin de rendez-vous",
+            "Demandez une date poliment",
+            "Évitez les excuses répétées"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Poli et direct",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Madame, Monsieur, je souhaite déposer un…",
+          "tip": "trop d'excuses repoussent la demande, allez-y simplement et poliment",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -642,6 +994,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 1,
+          "checklist": [
+            "Nommez l'activité prévue",
+            "Précisez le jour",
+            "Formulez clairement l'invitation"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Jour précis",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour, les habitants de l'immeuble organisent…",
+          "tip": "dites clairement quoi et quand, sinon ce n'est pas une invitation",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -671,6 +1040,22 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 2,
+          "checklist": [
+            "Dites clairement que vous refusez",
+            "Évitez le peut-être"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Réponse nette",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Salut Thomas, merci pour ta proposition…",
+          "tip": "un on verra bien laisse votre ami dans le doute",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -700,6 +1085,22 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 3,
+          "checklist": [
+            "Dites clairement que vous acceptez",
+            "Confirmez votre jour et le sien"
+          ],
+          "constraintTags": [
+            {
+              "label": "Accord explicite",
+              "icon": "TONE"
+            },
+            {
+              "label": "Deux jours confirmés",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Bonjour Awa, merci pour ta proposition…",
+          "tip": "ça m'arrangerait n'est pas encore un oui, écrivez-le franchement",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -729,6 +1130,22 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 4,
+          "checklist": [
+            "Proposez une séance de révision",
+            "Offrez deux moments possibles"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Deux créneaux",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Salut Ana, l'examen approche et je…",
+          "tip": "deux options valent mieux qu'une, votre camarade choisit plus vite",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -758,6 +1175,22 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "HARD",
           "displayOrder": 5,
+          "checklist": [
+            "Refusez clairement pour vendredi soir",
+            "Proposez une autre solution"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Refus puis solution",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour Madame, merci de penser à…",
+          "tip": "un non clair suivi d'une solution reste un message aidant",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -797,6 +1230,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 1,
+          "checklist": [
+            "Prévenez Camille de votre retard",
+            "Présentez vos excuses",
+            "Donnez la raison"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Excuse et raison",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Salut Camille, petit contretemps ce soir…",
+          "tip": "une excuse sans raison laisse toujours une question en suspens",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -826,6 +1276,22 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 2,
+          "checklist": [
+            "Excusez-vous pour le retard",
+            "Expliquez la raison de l'oubli"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Excuse puis cause",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour, je devais rapporter un livre…",
+          "tip": "annoncer votre passage ne remplace pas les excuses attendues",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -855,6 +1321,22 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 3,
+          "checklist": [
+            "Présentez vos excuses au responsable",
+            "Donnez une raison précise"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Raison précise",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Bonjour Monsieur, au sujet de mon…",
+          "tip": "je n'ai pas pu venir n'explique toujours pas pourquoi",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -884,6 +1366,22 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 4,
+          "checklist": [
+            "Excusez-vous pour le bruit",
+            "Expliquez la cause en une phrase"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Explication courte",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour Madame, au sujet de samedi…",
+          "tip": "une cause en une phrase vaut mieux qu'une longue justification",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -913,6 +1411,22 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "HARD",
           "displayOrder": 5,
+          "checklist": [
+            "Présentez vos excuses pour son absence",
+            "Expliquez clairement la raison"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Excuse et raison",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour Madame, je vous écris au…",
+          "tip": "signaler l'absence ne suffit pas, excusez-la et expliquez-la",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -952,6 +1466,22 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 1,
+          "checklist": [
+            "Annoncez que le studio se libère",
+            "Donnez deux caractéristiques concrètes"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Détails concrets",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Salut, mon studio se libère le…",
+          "tip": "très bien ne décrit rien, préférez une surface ou un loyer",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -981,6 +1511,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 2,
+          "checklist": [
+            "Annoncez la venue de votre belle-sœur",
+            "Donnez son nom",
+            "Décrivez deux détails reconnaissables"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Détails reconnaissables",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Bonjour, ma belle-sœur viendra chercher les…",
+          "tip": "imaginez la personne qui l'attend, que doit-elle repérer d'un coup d'œil",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -1010,6 +1557,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 3,
+          "checklist": [
+            "Signalez l'oubli dans le bus",
+            "Donnez la couleur et la taille",
+            "Décrivez le contenu du sac"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois précisions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Bonjour, j'ai oublié mon sac dans…",
+          "tip": "un détail unique, comme une fermeture cassée, fait toute la différence",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -1039,6 +1603,22 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 4,
+          "checklist": [
+            "Choisissez trois caractéristiques du quartier",
+            "Restez concret et utile"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Trois caractéristiques",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Salut, mon quartier pourrait bien te…",
+          "tip": "agréable reste un avis, le tramway à cinq minutes est une information",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -1068,6 +1648,26 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "HARD",
           "displayOrder": 5,
+          "checklist": [
+            "Racontez précisément le vol",
+            "Décrivez le vélo en détail"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Description précise",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Ton formel",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Madame, Monsieur, je déclare le vol…",
+          "tip": "écrivez comme si votre assureur ne verra jamais aucune photo",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -1107,6 +1707,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 1,
+          "checklist": [
+            "Annoncez le changement",
+            "Donnez le nouveau lieu",
+            "Terminez par une formule finale"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Trois phrases",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Salut Lucie, petite nouvelle pour samedi…",
+          "tip": "une annonce sans nouveau lieu laisse votre amie sans solution",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -1136,6 +1753,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 2,
+          "checklist": [
+            "Annoncez le report",
+            "Donnez la nouvelle date",
+            "Terminez par une phrase polie"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois phrases",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Clôture polie",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour Sarah, la réunion de jeudi…",
+          "tip": "une réunion reportée sans nouvelle date laisse toute l'équipe bloquée",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -1165,6 +1799,24 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 3,
+          "checklist": [
+            "Annoncez la panne de chauffage",
+            "Ajoutez une précision utile",
+            "Reliez vos phrases par un connecteur",
+            "Terminez par une formule de clôture"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Connecteurs",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour Monsieur, le chauffage ne fonctionne…",
+          "tip": "donc, mais et car suffisent à relier vos phrases entre elles",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -1194,6 +1846,24 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 4,
+          "checklist": [
+            "Rappelez le rendez-vous prévu",
+            "Expliquez votre empêchement",
+            "Demandez une autre date",
+            "Terminez par une formule de clôture"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Ordre logique",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Madame, Monsieur, j'ai un rendez-vous lundi…",
+          "tip": "rappelez le rendez-vous avant d'expliquer, votre lecteur suivra sans effort",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -1223,6 +1893,24 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "HARD",
           "displayOrder": 5,
+          "checklist": [
+            "Annoncez votre interruption",
+            "Expliquez la raison de santé",
+            "Posez votre question au responsable",
+            "Terminez par une formule adaptée"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Quatre étapes",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour Monsieur, je dois malheureusement interrompre…",
+          "tip": "avancez étape par étape, chaque phrase prépare la suivante",
           "references": [
             {
               "level": "INSUFFICIENT",

@@ -1,11 +1,13 @@
 package com.sejourfr.app.dto;
 
+import com.sejourfr.app.entity.SkillConstraintTag;
 import com.sejourfr.app.enums.SkillDifficulty;
 import com.sejourfr.app.enums.SkillPromptStatus;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -52,6 +54,26 @@ public record SkillPromptDto(
         String instruction,
         /** LE critere evalue — affiche AVANT la production. */
         String uniqueCriterion,
+        /**
+         * Guidage de l'ecran de saisie : ce qu'il faut faire, en 2 a 4 gestes a
+         * l'imperatif. {@code null} sur un sujet cree sans guidage — les fronts
+         * retombent alors sur {@link #instruction}, jamais sur une carte vide.
+         */
+        List<String> checklist,
+        /**
+         * Les 1 a 3 contraintes de forme. <b>N'y figure ni la longueur ni la
+         * duree</b> : les fronts rendent cette puce-la depuis
+         * {@link #recommendedMinWords} / {@link #recommendedMaxWords} /
+         * {@link #recommendedDurationSeconds}. {@code null} accepte.
+         */
+        List<SkillConstraintTag> constraintTags,
+        /** Amorce grisee du champ de reponse. {@code null} accepte. */
+        String answerStarter,
+        /**
+         * Astuce affichee sous la zone de production, <b>sans</b> le prefixe
+         * « Astuce : » — c'est le front qui l'ajoute. {@code null} accepte.
+         */
+        String tip,
         Integer recommendedMinWords,
         Integer recommendedMaxWords,
         Integer recommendedDurationSeconds,

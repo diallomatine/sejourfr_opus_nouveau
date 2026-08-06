@@ -2,14 +2,13 @@
 
 import {useParams, useRouter} from "next/navigation";
 import {useCallback, useEffect, useState} from "react";
-import {Check, Clock, FileText, HelpCircle, Lock, Sparkles, Target} from "lucide-react";
+import {Check, Lock, Mic, PenLine, Sparkles} from "lucide-react";
 import {ApiException, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
+import {answerStarterOf, tipOf} from "@/lib/skill-guidance";
 import {findSkillProgress, type SkillProgress} from "@/lib/skill-progress";
 import {handleStartFailure} from "@/lib/start-failure";
 import {
-  SKILL_DIFFICULTY_LABEL,
-  formatDurationSec,
   type ProductionTaskDto,
   type SkillAnalysisQuotaDto,
   type SkillPromptDto,
@@ -21,6 +20,7 @@ import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {clearEeDraft, EeWritingForm, setEeDraft} from "@/app/_components/production/EeWritingForm";
 import {EoRecordingForm} from "@/app/_components/production/EoRecordingForm";
 import {type ProductionConfig} from "@/app/_components/production/config";
+import {PromptGuidance} from "./PromptGuidance";
 import {SelfEvaluationPicker} from "./SelfEvaluationPicker";
 import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
@@ -75,11 +75,24 @@ function AnalysisCopy({allowed}: {allowed: boolean}) {
 /**
  * Niveau 5 de la spec — un petit sujet.
  *
- * L'écran suit la maquette : fil d'Ariane, progression de la compétence,
- * rappel du sujet déjà traité, puis la carte d'exercice — intention
- * (« Produisez votre propre réponse »), **critère avant l'énoncé** (§13.1),
- * repères de format, « Pourquoi cet exercice ? », saisie, auto-évaluation,
- * option d'analyse et rappel ambre.
+ * **L'écran ne raconte plus l'exercice, il le fait faire.** La version
+ * précédente ouvrait sur un fil d'Ariane à deux lignes, deux badges, un titre
+ * d'intention, un paragraphe d'objectif, l'encart « Compétence évaluée » et
+ * l'encart « Pourquoi cet exercice ? » : la zone de production arrivait très
+ * loin sous la ligne de flottaison, et le candidat lisait une leçon au lieu de
+ * produire. Tout cela est supprimé.
+ *
+ * Structure, de haut en bas (maquette client, **identique à l'écrit et à
+ * l'oral**) : ligne compacte `Sujet i/N` + palier · barre de progression ·
+ * carte **« Ce qu'il faut faire »** (la check-list du sujet) · carte
+ * **« Situation »** · puces de contrainte · carte **« Votre réponse »** (champ
+ * ou enregistreur, astuce et compteur en pied) · auto-évaluation **sous** la
+ * zone de production · actions.
+ *
+ * Rien du **comportement** ne bouge : brouillon local, compteur de mots,
+ * auto-soumission, capture micro, quota d'analyses IA et paywall sont ceux des
+ * formulaires partagés, pilotés par des props **optionnelles** dont les écrans
+ * de production TCF n'ont pas connaissance.
  *
  * Les trois références restent invisibles jusqu'à la validation (§13.2) : voir
  * le modèle avant d'écrire, c'est ne plus s'entraîner mais recopier — et c'est
@@ -234,78 +247,15 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
   const total = prompt?.skillPromptCount ?? 0;
   const task = prompt ? toProductionTask(prompt, n) : null;
   const alreadyDone = (prompt?.attemptCount ?? 0) > 0;
-  const stepLabel = prompt
-    ? `Petit sujet ${prompt.displayOrder}${total > 0 ? `/${total}` : ""}`
-    : "Petit sujet";
 
-  /* Tête de la carte d'exercice : ce qu'on attend, et pourquoi. Le critère
-     arrive AVANT l'énoncé — on annonce la cible, puis on donne la situation. */
-  const headerSlot = prompt ? (
-    <div>
-      <div className={s.exerciseTop}>
-        <span className={s.criterionTag}>
-          <Target size={12} strokeWidth={2.4} aria-hidden />
-          Une compétence · un critère
-        </span>
-        <span className={s.stepTag}>{stepLabel}</span>
-      </div>
-      <h1 className={s.exerciseTitle}>
-        {oral ? "Enregistrez votre propre réponse." : "Produisez votre propre réponse."}
-      </h1>
-      <p className={s.exerciseIntro}>
-        L&apos;objectif n&apos;est pas de rendre une réponse parfaite, mais de montrer
-        clairement la compétence travaillée.
-      </p>
-      <div className={s.objective}>
-        <span className={s.objectiveLabel}>
-          <Target size={12} strokeWidth={2.4} aria-hidden />
-          Compétence évaluée
-        </span>
-        <p className={s.objectiveText}>{prompt.uniqueCriterion}</p>
-      </div>
-    </div>
-  ) : null;
+  /* Ce qu'il faut faire · la situation · les contraintes. Remplace la carte
+     d'exercice générique des formulaires partagés. */
+  const promptSlot = prompt ? <PromptGuidance prompt={prompt} oral={oral} /> : null;
 
-  /* Repères de format + raison d'être de l'exercice, juste sous l'énoncé. */
-  const criteriaSlot = prompt ? (
-    <div className={s.stack}>
-      <div className={s.requirements}>
-        <span className={s.requirement}>
-          <Target size={11} strokeWidth={2.4} aria-hidden />
-          Un seul critère
-        </span>
-        {oral
-          ? prompt.recommendedDurationSeconds != null && (
-              <span className={s.requirement}>
-                <Clock size={11} strokeWidth={2.4} aria-hidden />≃{" "}
-                {formatDurationSec(prompt.recommendedDurationSeconds)}
-              </span>
-            )
-          : prompt.recommendedMinWords != null &&
-            prompt.recommendedMaxWords != null && (
-              <span className={s.requirement}>
-                <FileText size={11} strokeWidth={2.4} aria-hidden />≃{" "}
-                {prompt.recommendedMinWords} à {prompt.recommendedMaxWords} mots
-              </span>
-            )}
-        <span className={s.requirement}>
-          {SKILL_DIFFICULTY_LABEL[prompt.difficultyLevel]}
-        </span>
-      </div>
-
-      {prompt.skillDescription && (
-        <div className={s.why}>
-          <span className={s.whyIcon} aria-hidden>
-            <HelpCircle size={15} strokeWidth={2.4} />
-          </span>
-          <p className={s.whyText}>
-            <strong>Pourquoi cet exercice ?</strong> {prompt.skillDescription} Cette
-            compétence sera ensuite réutilisée dans une production TCF complète.
-          </p>
-        </div>
-      )}
-    </div>
-  ) : null;
+  /* Amorce et astuce se dégradent en silence : sans amorce, le champ garde un
+     texte grisé neutre ; sans astuce, le pied n'affiche que le compteur. */
+  const starter = prompt ? answerStarterOf(prompt) : null;
+  const tip = prompt ? tipOf(prompt) : null;
 
   const footerSlot = (
     <>
@@ -369,25 +319,20 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
           <p className={s.empty}>Sujet introuvable.</p>
         ) : (
           <>
-            <nav className={s.breadcrumb} aria-label="Fil d'Ariane">
-              <span>{prompt.taskTitle}</span>
-              <span className={s.breadcrumbSep} aria-hidden>
-                ›
-              </span>
-              <span>{prompt.skillTitle}</span>
-              <span className={s.breadcrumbSep} aria-hidden>
-                ›
-              </span>
-              <span className={s.breadcrumbCurrent}>
+            {/* Où j'en suis et à quel palier, en une ligne. L'ancien fil
+                d'Ariane disait la même chose sur deux lignes, en plus long. */}
+            <div className={s.compactLine}>
+              <span className={s.compactStep}>
                 Sujet {prompt.displayOrder}
                 {total > 0 ? `/${total}` : ""}
               </span>
-            </nav>
+              <span className={`${s.badge} ${s.levelPill}`}>{prompt.skillTargetLevel}</span>
+            </div>
 
             {skillProgress && skillProgress.total > 0 && (
               <div className={s.inlineProgress}>
                 <div className={s.inlineProgressLabel}>
-                  <span>Progression de la compétence</span>
+                  <span>Progression</span>
                   <span>
                     {skillProgress.attempted}/{skillProgress.total}
                   </span>
@@ -451,9 +396,14 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
                   submitting={submitting}
                   error={submitError}
                   submitLabel="Valider et comparer"
-                  consigneLabel={`Petit sujet · ${stepLabel}`}
-                  headerSlot={headerSlot}
-                  criteriaSlot={criteriaSlot}
+                  promptSlot={promptSlot}
+                  criteriaSlot={null}
+                  answerCard={{
+                    title: "Votre réponse",
+                    icon: <Mic size={16} strokeWidth={2.2} />,
+                    starter,
+                    tip,
+                  }}
                   footerSlot={footerSlot}
                   onSubmit={(audio, durationSec) => void submit({audio, durationSec})}
                 />
@@ -464,9 +414,14 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
                   submitting={submitting}
                   error={submitError}
                   submitLabel="Valider et comparer"
-                  consigneLabel={`Petit sujet · ${stepLabel}`}
-                  headerSlot={headerSlot}
-                  criteriaSlot={criteriaSlot}
+                  promptSlot={promptSlot}
+                  criteriaSlot={null}
+                  answerCard={{
+                    title: "Votre réponse",
+                    icon: <PenLine size={16} strokeWidth={2.2} />,
+                    placeholder: starter,
+                    tip,
+                  }}
                   footerSlot={footerSlot}
                   lengthAdvisory
                   clearLabel="Effacer"

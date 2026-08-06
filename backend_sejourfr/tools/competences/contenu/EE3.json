@@ -22,6 +22,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 1,
+          "checklist": [
+            "Choisissez votre camp",
+            "Employez un verbe d'opinion",
+            "Tenez-vous à une phrase"
+          ],
+          "constraintTags": [
+            {
+              "label": "Position tranchée",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Verbe d'opinion",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Selon moi, le télétravail devrait…",
+          "tip": "votre avis doit apparaître avant tout le reste",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -51,6 +68,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 2,
+          "checklist": [
+            "Annoncez votre avis",
+            "Nommez la mesure concernée",
+            "Arrêtez-vous après une phrase"
+          ],
+          "constraintTags": [
+            {
+              "label": "Avis explicite",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Ton personnel",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Je trouve que cette gratuité…",
+          "tip": "dites franchement oui ou non, le doute affaiblit votre réponse",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -80,6 +114,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 3,
+          "checklist": [
+            "Prenez clairement position",
+            "Désignez le menu unique",
+            "Évitez toute formule hésitante"
+          ],
+          "constraintTags": [
+            {
+              "label": "Aucune hésitation",
+              "icon": "TONE"
+            },
+            {
+              "label": "Avis personnel",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Ce menu unique me paraît…",
+          "tip": "« cela dépend » ne fait pas une opinion, tranchez",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -109,6 +160,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 4,
+          "checklist": [
+            "Répondez directement à la question",
+            "Dites si vous êtes favorable",
+            "Gardez vos raisons de côté"
+          ],
+          "constraintTags": [
+            {
+              "label": "Réponse directe",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Ton neutre",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "À mon sens, un âge…",
+          "tip": "une position affirmée vaut mieux qu'un constat général",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -138,6 +206,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "HARD",
           "displayOrder": 5,
+          "checklist": [
+            "Nommez l'option choisie",
+            "Écartez clairement l'autre",
+            "Ne justifiez pas encore"
+          ],
+          "constraintTags": [
+            {
+              "label": "Choix unique",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Conseil assumé",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "À ta place, je choisirais…",
+          "tip": "votre ami doit savoir quoi faire après une seule lecture",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -177,6 +262,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 1,
+          "checklist": [
+            "Donnez une raison nouvelle",
+            "Reliez-la à votre avis",
+            "Restez sur une phrase"
+          ],
+          "constraintTags": [
+            {
+              "label": "Raison nouvelle",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Sans exemple",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Ils permettent surtout de…",
+          "tip": "répéter l'opinion autrement ne compte pas comme une raison",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -206,6 +308,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 2,
+          "checklist": [
+            "Nommez un effet concret",
+            "Rattachez-le à votre avis",
+            "Limitez-vous à une raison"
+          ],
+          "constraintTags": [
+            {
+              "label": "Une seule raison",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Effet concret",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Bouger chaque jour aide à…",
+          "tip": "un bénéfice précis convainc plus qu'un « c'est important »",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -235,6 +354,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 3,
+          "checklist": [
+            "Ciblez l'âge de six ans",
+            "Dites ce que cela permet",
+            "Tenez en une phrase"
+          ],
+          "constraintTags": [
+            {
+              "label": "Argument ciblé",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Âge précis",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "À six ans, un enfant…",
+          "tip": "l'argument doit parler de l'âge, pas des langues en général",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -264,6 +400,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 4,
+          "checklist": [
+            "Dites ce que l'atelier évite",
+            "Ou ce qu'il permet d'obtenir",
+            "Restez sur une seule raison"
+          ],
+          "constraintTags": [
+            {
+              "label": "Effet mesurable",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Raison unique",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Ces ateliers permettent d'éviter…",
+          "tip": "« bon pour l'environnement » gagne à devenir concret",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -293,6 +446,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "HARD",
           "displayOrder": 5,
+          "checklist": [
+            "Comparez occasion et neuf",
+            "Dites ce que l'on gagne",
+            "Laissez votre expérience de côté"
+          ],
+          "constraintTags": [
+            {
+              "label": "Sans anecdote",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Raison convaincante",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "L'occasion permet surtout de…",
+          "tip": "« beaucoup de gens le font » n'explique rien, cherchez l'avantage",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -332,6 +502,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 1,
+          "checklist": [
+            "Dites d'où vient l'avantage",
+            "Montrez ce que cela change",
+            "Évitez tout exemple précis"
+          ],
+          "constraintTags": [
+            {
+              "label": "Cause puis conséquence",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Sans exemple",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "En ville, la plupart des…",
+          "tip": "expliquer une idée, c'est dire d'où elle vient",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -361,6 +548,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 2,
+          "checklist": [
+            "Posez votre raison d'abord",
+            "Expliquez l'effet qu'elle produit",
+            "N'ajoutez aucun autre argument"
+          ],
+          "constraintTags": [
+            {
+              "label": "Un seul argument",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Lien logique",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Les pistes séparées permettent…",
+          "tip": "la deuxième phrase prolonge la première, elle n'en ouvre pas d'autre",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -390,6 +594,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 3,
+          "checklist": [
+            "Partez de la durée courte",
+            "Expliquez comment l'habitude agit",
+            "Reliez vos deux phrases"
+          ],
+          "constraintTags": [
+            {
+              "label": "Mécanisme expliqué",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Durée quotidienne",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Quinze minutes tiennent facilement dans…",
+          "tip": "montrez comment ces minutes agissent, pas seulement qu'elles sont utiles",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -419,6 +640,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 4,
+          "checklist": [
+            "Donnez la raison en premier",
+            "Décrivez sa conséquence directe",
+            "Restez sur ce seul argument"
+          ],
+          "constraintTags": [
+            {
+              "label": "Conséquence directe",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Rythme annuel",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Une visite annuelle permet de…",
+          "tip": "élargir le sujet fait perdre le fil, restez sur votre raison",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -448,6 +686,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "HARD",
           "displayOrder": 5,
+          "checklist": [
+            "Décrivez ce que fait le bénévole",
+            "Montrez ce que cela lui apporte",
+            "Écartez votre expérience personnelle"
+          ],
+          "constraintTags": [
+            {
+              "label": "Étapes enchaînées",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Sans récit personnel",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "En donnant quelques heures, un…",
+          "tip": "reformuler trois fois la même idée ne remplace pas une explication",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -487,6 +742,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 1,
+          "checklist": [
+            "Choisissez une seule situation",
+            "Situez le lieu et le moment",
+            "Dites ce que cela a permis"
+          ],
+          "constraintTags": [
+            {
+              "label": "Situation unique",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Lieu précis",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Par exemple, la semaine dernière…",
+          "tip": "un exemple vaut par ses détails, pas par sa longueur",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -516,6 +788,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 2,
+          "checklist": [
+            "Nommez un plat précis",
+            "Donnez un prix ou une quantité",
+            "Précisez quand c'était"
+          ],
+          "constraintTags": [
+            {
+              "label": "Chiffres concrets",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Moment daté",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Par exemple, dimanche dernier, j'ai…",
+          "tip": "un prix et une quantité rendent votre exemple imparable",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -545,6 +834,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 3,
+          "checklist": [
+            "Nommez la démarche exacte",
+            "Dites le temps gagné",
+            "Comparez avec le guichet"
+          ],
+          "constraintTags": [
+            {
+              "label": "Démarche nommée",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Temps gagné",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Par exemple, j'ai renouvelé ma…",
+          "tip": "chiffrer le temps gagné transforme l'idée en preuve",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -574,6 +880,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 4,
+          "checklist": [
+            "Racontez un problème précis",
+            "Dites comment l'équipe s'est organisée",
+            "Terminez par le résultat"
+          ],
+          "constraintTags": [
+            {
+              "label": "Situation identifiable",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Rôle de chacun",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Par exemple, dans mon service…",
+          "tip": "une histoire avec un début et une fin convainc immédiatement",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -603,6 +926,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "HARD",
           "displayOrder": 5,
+          "checklist": [
+            "Situez l'exemple dans votre immeuble",
+            "Indiquez depuis quand",
+            "Décrivez un effet visible"
+          ],
+          "constraintTags": [
+            {
+              "label": "Échelle du quartier",
+              "icon": "PLACE"
+            },
+            {
+              "label": "Effet observable",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Par exemple, dans mon immeuble…",
+          "tip": "restez près de chez vous, la planète entière ne se vérifie pas",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -642,6 +982,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 1,
+          "checklist": [
+            "Écartez l'angle de la santé",
+            "Trouvez un autre bénéfice",
+            "Introduisez-le par un connecteur"
+          ],
+          "constraintTags": [
+            {
+              "label": "Angle nouveau",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Connecteur d'ajout",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Par ailleurs, le sport apprend…",
+          "tip": "changez de terrain : le second argument doit surprendre un peu",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -671,6 +1028,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 2,
+          "checklist": [
+            "Laissez la pollution de côté",
+            "Trouvez un avantage différent",
+            "Ouvrez par un connecteur"
+          ],
+          "constraintTags": [
+            {
+              "label": "Autre angle",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Ton du conseil",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "En plus, dans le train…",
+          "tip": "reformuler le premier argument ne fait pas avancer votre texte",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -700,6 +1074,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 3,
+          "checklist": [
+            "Évitez la question des horaires",
+            "Pensez à un autre usage",
+            "Reliez par « ensuite »"
+          ],
+          "constraintTags": [
+            {
+              "label": "Angle inédit",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Public concerné",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Ensuite, la bibliothèque offrirait aux…",
+          "tip": "demandez-vous à qui d'autre cette ouverture profiterait",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -729,6 +1120,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 4,
+          "checklist": [
+            "Oubliez la question du prix",
+            "Cherchez un autre bénéfice",
+            "Annoncez-le par un connecteur"
+          ],
+          "constraintTags": [
+            {
+              "label": "Hors budget",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Second argument",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "D'autre part, faire réparer son…",
+          "tip": "le prix est déjà dit, montrez ce qu'il ne couvre pas",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -758,6 +1166,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "HARD",
           "displayOrder": 5,
+          "checklist": [
+            "Écartez le sujet des trajets",
+            "Développez un bénéfice personnel",
+            "Enchaînez vos deux phrases"
+          ],
+          "constraintTags": [
+            {
+              "label": "Autre aspect",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Effet personnel",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Ensuite, vingt minutes de marche…",
+          "tip": "cherchez ce que la marche apporte une fois arrivé au bureau",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -797,6 +1222,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 1,
+          "checklist": [
+            "Donnez un point fort chacun",
+            "Utilisez les mêmes critères",
+            "Nommez la différence décisive"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux options",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Critères comparables",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "À la maison, on gagne…",
+          "tip": "comparer, c'est confronter, pas décrire les options l'une après l'autre",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -826,6 +1268,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 2,
+          "checklist": [
+            "Choisissez un critère commun",
+            "Opposez les deux solutions",
+            "Terminez par la différence essentielle"
+          ],
+          "constraintTags": [
+            {
+              "label": "Points comparables",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Deux solutions",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "En ligne, le choix est…",
+          "tip": "un même critère des deux côtés, et la comparaison devient claire",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -855,6 +1314,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 3,
+          "checklist": [
+            "Partez du loyer identique",
+            "Confrontez espace et trajet",
+            "Dégagez la différence centrale"
+          ],
+          "constraintTags": [
+            {
+              "label": "Base commune",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Différence centrale",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Le studio offre peu d'espace…",
+          "tip": "à loyer égal, demandez-vous ce que chaque logement fait perdre",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -884,6 +1360,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 4,
+          "checklist": [
+            "Décrivez chaque formule brièvement",
+            "Comparez-les sur le même point",
+            "Concluez par la différence principale"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux formules",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Mise en relation",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "En ligne, on suit le…",
+          "tip": "n'oubliez pas de décrire la seconde formule aussi précisément",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -913,6 +1406,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "HARD",
           "displayOrder": 5,
+          "checklist": [
+            "Donnez un avantage par option",
+            "Ajoutez un inconvénient par option",
+            "Finissez par la différence essentielle"
+          ],
+          "constraintTags": [
+            {
+              "label": "Avantage et inconvénient",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Équilibre des deux",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Au marché, les légumes sont…",
+          "tip": "n'oubliez pas les inconvénients : ils rendent la comparaison honnête",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -952,6 +1462,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 1,
+          "checklist": [
+            "Rappelez votre opinion positive",
+            "Reconnaissez une limite réelle",
+            "Gardez votre position finale"
+          ],
+          "constraintTags": [
+            {
+              "label": "Concession assumée",
+              "icon": "TONE"
+            },
+            {
+              "label": "Position maintenue",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Les réseaux sociaux me permettent…",
+          "tip": "reconnaître une limite renforce votre avis au lieu de l'affaiblir",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -981,6 +1508,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 2,
+          "checklist": [
+            "Défendez d'abord votre position",
+            "Admettez un cas contraire",
+            "Revenez à votre avis"
+          ],
+          "constraintTags": [
+            {
+              "label": "Cas contraire",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Avis conservé",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Dans une ville moyenne, les…",
+          "tip": "un « certes… mais » suffit à montrer votre nuance",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -1010,6 +1554,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 3,
+          "checklist": [
+            "Soutenez la régularité",
+            "Signalez une limite concrète",
+            "Terminez par votre conseil"
+          ],
+          "constraintTags": [
+            {
+              "label": "Réserve concrète",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Ton bienveillant",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "La régularité fait progresser bien…",
+          "tip": "une limite précise vaut mieux qu'une réserve vague",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -1039,6 +1600,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 4,
+          "checklist": [
+            "Annoncez votre avis favorable",
+            "Nommez un risque réel",
+            "Montrez comment le limiter"
+          ],
+          "constraintTags": [
+            {
+              "label": "Risque nommé",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Avis favorable",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Les horaires libres permettraient de…",
+          "tip": "traiter l'objection après l'avoir posée est un vrai réflexe B2",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -1068,6 +1646,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "HARD",
           "displayOrder": 5,
+          "checklist": [
+            "Soutenez l'initiative d'abord",
+            "Reconnaissez la contrainte pour les clients",
+            "Redites votre position à la fin"
+          ],
+          "constraintTags": [
+            {
+              "label": "Contrainte reconnue",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Ton mesuré",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Les bocaux consignés évitent des…",
+          "tip": "finir sur votre position évite que la concession prenne le dessus",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -1107,6 +1702,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 1,
+          "checklist": [
+            "Posez votre argument",
+            "Introduisez la conséquence par un connecteur",
+            "Concluez en reprenant votre position"
+          ],
+          "constraintTags": [
+            {
+              "label": "Connecteurs logiques",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Trois étapes",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Apprendre une langue dès le…",
+          "tip": "un connecteur bien placé montre que vos idées s'enchaînent",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -1136,6 +1748,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "EASY",
           "displayOrder": 2,
+          "checklist": [
+            "Commencez par un argument",
+            "Ajoutez sa conséquence",
+            "Terminez par une phrase de conclusion"
+          ],
+          "constraintTags": [
+            {
+              "label": "Enchaînement marqué",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Trois étapes",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Ce marché permet d'acheter des…",
+          "tip": "une phrase de conclusion s'annonce toujours par un connecteur",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -1165,6 +1794,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 3,
+          "checklist": [
+            "Annoncez votre position",
+            "Reliez vos deux idées",
+            "Fermez par une conclusion"
+          ],
+          "constraintTags": [
+            {
+              "label": "Position puis idées",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Deux arguments",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Je suis favorable à ce…",
+          "tip": "« d'abord », « ensuite » guident le lecteur sans effort",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -1194,6 +1840,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "MEDIUM",
           "displayOrder": 4,
+          "checklist": [
+            "Ouvrez par votre avis",
+            "Numérotez vos idées par des connecteurs",
+            "Réunissez-les dans la conclusion"
+          ],
+          "constraintTags": [
+            {
+              "label": "Ordre visible",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Conclusion cohérente",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Je trouve cette formule particulièrement…",
+          "tip": "la conclusion réunit vos idées, elle n'en répète aucune",
           "references": [
             {
               "level": "INSUFFICIENT",
@@ -1223,6 +1886,23 @@
           "recommendedDurationSeconds": null,
           "difficultyLevel": "HARD",
           "displayOrder": 5,
+          "checklist": [
+            "Annoncez votre position",
+            "Variez vos connecteurs",
+            "Concluez avec des mots nouveaux"
+          ],
+          "constraintTags": [
+            {
+              "label": "Connecteurs variés",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Quatre étapes",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Cette proposition mérite d'être…",
+          "tip": "terminer par la même phrase qu'au début donne une impression d'inachevé",
           "references": [
             {
               "level": "INSUFFICIENT",

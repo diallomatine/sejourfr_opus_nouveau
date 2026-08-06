@@ -17,6 +17,23 @@
           "context": "Vous téléphonez à une agence immobilière de votre ville. Une conseillère décroche : « Agence Latour, bonjour. »",
           "instruction": "Commencez la conversation : saluez la conseillère, dites pourquoi vous appelez et précisez ce que vous cherchez à louer.",
           "uniqueCriterion": "La prise de parole contient une salutation et annonce clairement le besoin de location.",
+          "checklist": [
+            "Saluez la conseillère",
+            "Dites pourquoi vous appelez",
+            "Précisez le logement cherché"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Besoin annoncé",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour madame, je vous appelle pour…",
+          "tip": "Nommez le type de logement : la conseillère pourra vous orienter tout de suite.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 25,
@@ -46,6 +63,23 @@
           "context": "Vous entrez dans une salle de sport située près de chez vous. Un employé se tient à l'accueil et se tourne vers vous.",
           "instruction": "Adressez-vous à lui : saluez, expliquez pourquoi vous venez et dites ce que vous souhaitez faire.",
           "uniqueCriterion": "La prise de parole salue l'employé et annonce l'objet de la visite en une phrase compréhensible.",
+          "checklist": [
+            "Saluez l'employé",
+            "Dites pourquoi vous venez",
+            "Annoncez ce que vous voulez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Objet annoncé",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, je viens me renseigner…",
+          "tip": "Dites en une phrase ce que vous voulez faire dans cette salle.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 25,
@@ -75,6 +109,23 @@
           "context": "Vous vous présentez au service scolaire de la mairie de votre commune. Une agente vous accueille au guichet.",
           "instruction": "Saluez-la, présentez votre situation en une phrase et annoncez la démarche que vous voulez faire.",
           "uniqueCriterion": "La prise de parole salue, situe brièvement votre situation et nomme la démarche voulue.",
+          "checklist": [
+            "Saluez l'agente",
+            "Résumez votre situation",
+            "Nommez la démarche voulue"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Registre poli",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour madame, nous venons d'emménager et…",
+          "tip": "Une phrase suffit pour situer votre situation avant d'annoncer la démarche.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -104,6 +155,23 @@
           "context": "Votre voiture fait un bruit anormal depuis quelques jours. Vous poussez la porte d'un garage du quartier ; un mécanicien vient vers vous.",
           "instruction": "Saluez-le, expliquez brièvement le problème et dites clairement ce que vous attendez de lui.",
           "uniqueCriterion": "La prise de parole salue, décrit le problème et annonce la demande adressée au garage.",
+          "checklist": [
+            "Saluez le mécanicien",
+            "Décrivez le bruit constaté",
+            "Dites ce que vous demandez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Demande explicite",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, ma voiture fait un bruit…",
+          "tip": "Après le problème, dites clairement ce que le garage doit faire pour vous.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 35,
@@ -133,6 +201,23 @@
           "context": "Vous travaillez en journée et vous souhaitez reprendre une formation. Vous téléphonez à un centre de formation de votre région ; une conseillère décroche.",
           "instruction": "Ouvrez la conversation : saluez, présentez votre situation professionnelle et annoncez précisément la formation que vous recherchez.",
           "uniqueCriterion": "La prise de parole salue, expose votre situation et annonce le type de formation recherché.",
+          "checklist": [
+            "Saluez la conseillère",
+            "Présentez votre situation professionnelle",
+            "Annoncez la formation recherchée"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Domaine précis",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Bonjour madame, je travaille en journée et…",
+          "tip": "Nommez le domaine visé : la conseillère ciblera immédiatement les bonnes formations.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 45,
@@ -172,6 +257,22 @@
           "context": "Vous téléphonez à la piscine municipale de votre ville. Un agent d'accueil vous répond.",
           "instruction": "Posez-lui une question claire pour savoir si la piscine est ouverte au public le samedi matin.",
           "uniqueCriterion": "Une question complète et compréhensible porte sur l'ouverture au public le samedi matin.",
+          "checklist": [
+            "Saluez l'agent d'accueil",
+            "Demandez l'ouverture du samedi matin"
+          ],
+          "constraintTags": [
+            {
+              "label": "Question entière",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Samedi matin",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, je voudrais savoir si…",
+          "tip": "Nommez le jour et le moment dans votre question : samedi matin.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 20,
@@ -201,6 +302,22 @@
           "context": "Vous êtes à l'accueil de la médiathèque de votre commune. Une bibliothécaire est disponible derrière le comptoir.",
           "instruction": "Posez-lui une question claire pour savoir combien de livres vous pouvez emprunter en même temps.",
           "uniqueCriterion": "La question est complète et porte exactement sur le nombre de livres empruntables en même temps.",
+          "checklist": [
+            "Saluez la bibliothécaire",
+            "Demandez le nombre de livres"
+          ],
+          "constraintTags": [
+            {
+              "label": "Question entière",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Nombre exact",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Bonjour madame, pouvez-vous me dire combien…",
+          "tip": "Une question complète appelle une réponse chiffrée, utilisable tout de suite.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 20,
@@ -230,6 +347,23 @@
           "context": "Vous appelez le service client de votre opérateur internet. Après quelques minutes d'attente, un conseiller prend votre appel.",
           "instruction": "Posez-lui une question claire pour savoir si la fibre est disponible à votre adresse.",
           "uniqueCriterion": "La question est formulée en entier et permet au conseiller de vérifier la disponibilité à votre adresse.",
+          "checklist": [
+            "Saluez le conseiller",
+            "Demandez la disponibilité de la fibre",
+            "Donnez votre adresse"
+          ],
+          "constraintTags": [
+            {
+              "label": "Question entière",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Adresse précise",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, je voudrais vérifier si…",
+          "tip": "Donnez votre adresse dans la question : le conseiller vérifie immédiatement.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 25,
@@ -259,6 +393,23 @@
           "context": "Vous téléphonez à une crèche municipale. La directrice prend votre appel.",
           "instruction": "Posez une question claire pour savoir s'il reste une place pour votre enfant à la rentrée de septembre.",
           "uniqueCriterion": "La question est complète et précise l'enfant concerné ainsi que la période demandée.",
+          "checklist": [
+            "Saluez la directrice",
+            "Demandez s'il reste une place",
+            "Précisez l'enfant et septembre"
+          ],
+          "constraintTags": [
+            {
+              "label": "Rentrée de septembre",
+              "icon": "TIME"
+            },
+            {
+              "label": "Question entière",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour madame, est-ce qu'il vous reste…",
+          "tip": "Nommez l'enfant concerné et la période : la réponse vous concernera vraiment.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 25,
@@ -288,6 +439,23 @@
           "context": "Vous devez renouveler votre titre de séjour. Vous appelez le standard de la préfecture ; une agente décroche.",
           "instruction": "Posez une question claire pour savoir si un rendez-vous est obligatoire avant de déposer votre dossier.",
           "uniqueCriterion": "La question est construite en entier et porte précisément sur l'obligation de prendre rendez-vous.",
+          "checklist": [
+            "Saluez l'agente",
+            "Dites quelle démarche vous faites",
+            "Demandez si le rendez-vous est obligatoire"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Question entière",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour madame, je dois renouveler mon…",
+          "tip": "Annoncez la démarche avant la question : l'agente saura de quoi vous parlez.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -327,6 +495,23 @@
           "context": "Une association de votre quartier propose des cours de français aux adultes. Vous passez à sa permanence et une bénévole vous reçoit.",
           "instruction": "Demandez-lui deux informations pratiques : quels jours ont lieu les cours et à quelle heure.",
           "uniqueCriterion": "Les deux informations demandées, les jours et les horaires, sont réclamées explicitement.",
+          "checklist": [
+            "Saluez la bénévole",
+            "Demandez les jours des cours",
+            "Demandez l'heure de début"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux questions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Jours et horaires",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour madame, je souhaite suivre vos cours…",
+          "tip": "Posez vos deux questions à la suite, sans en oublier une.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -356,6 +541,23 @@
           "context": "Vous voulez passer le permis de conduire. Vous entrez dans une auto-école de votre ville et un formateur vous reçoit.",
           "instruction": "Demandez-lui deux informations pratiques : le prix du forfait et la durée moyenne de la formation.",
           "uniqueCriterion": "Le prix et la durée de la formation sont tous les deux demandés explicitement.",
+          "checklist": [
+            "Saluez le formateur",
+            "Demandez le prix du forfait",
+            "Demandez la durée de la formation"
+          ],
+          "constraintTags": [
+            {
+              "label": "Prix demandé",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Durée demandée",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, je voudrais passer le permis…",
+          "tip": "Le prix ne suffit pas : demandez aussi combien de temps dure la formation.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -385,6 +587,24 @@
           "context": "Un centre culturel propose des cours de guitare pour adultes. Vous téléphonez et un animateur vous répond.",
           "instruction": "Posez trois questions pour connaître le prix du cours, son horaire et le lieu exact où il se déroule.",
           "uniqueCriterion": "Les trois informations, prix, horaire et lieu, sont demandées chacune explicitement.",
+          "checklist": [
+            "Saluez l'animateur",
+            "Demandez le prix du cours",
+            "Demandez l'horaire",
+            "Demandez le lieu exact"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois questions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Lieu précis",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, je m'intéresse à vos cours…",
+          "tip": "Comptez vos questions : trois informations sont demandées, le lieu s'oublie souvent.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 40,
@@ -414,6 +634,24 @@
           "context": "Vous préparez un séjour d'une semaine à Marseille pour les vacances de printemps. Vous entrez dans une agence de voyage et une conseillère vous invite à vous asseoir.",
           "instruction": "Demandez-lui trois informations pratiques : les dates de départ possibles, la durée du séjour proposé et le prix par personne.",
           "uniqueCriterion": "Les trois informations, dates, durée et prix, sont demandées chacune explicitement.",
+          "checklist": [
+            "Saluez la conseillère",
+            "Demandez les dates de départ",
+            "Demandez la durée du séjour",
+            "Demandez le prix par personne"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois questions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Dates possibles",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour madame, je prépare un séjour…",
+          "tip": "Enchaînez vos trois questions dans un ordre logique : dates, durée, prix.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 40,
@@ -443,6 +681,24 @@
           "context": "Votre fille de huit ans souhaite aller au centre de loisirs pendant les vacances d'été. Vous appelez le directeur du centre.",
           "instruction": "Demandez-lui quatre informations pratiques : les dates d'ouverture, les horaires d'accueil, le tarif à la journée et l'adresse du centre.",
           "uniqueCriterion": "Les quatre informations demandées sont réclamées chacune de façon explicite.",
+          "checklist": [
+            "Saluez le directeur",
+            "Demandez les dates d'ouverture",
+            "Demandez horaires et tarif",
+            "Demandez l'adresse du centre"
+          ],
+          "constraintTags": [
+            {
+              "label": "Quatre questions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Adresse demandée",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, ma fille voudrait venir…",
+          "tip": "Quatre informations à obtenir : gardez-les en tête et n'en laissez aucune.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 45,
@@ -482,6 +738,23 @@
           "context": "Vous voulez inscrire votre enfant à la cantine scolaire. Vous vous présentez au guichet du service scolaire de la mairie.",
           "instruction": "Demandez à l'agente quelles conditions il faut remplir et quels documents vous devez fournir pour cette inscription.",
           "uniqueCriterion": "La demande porte explicitement sur les documents ou les conditions exigés pour l'inscription.",
+          "checklist": [
+            "Saluez l'agente",
+            "Annoncez l'inscription à la cantine",
+            "Demandez les documents à fournir"
+          ],
+          "constraintTags": [
+            {
+              "label": "Documents exigés",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Bonjour madame, je voudrais inscrire mon…",
+          "tip": "Demander la liste des pièces maintenant vous évite un second déplacement.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -511,6 +784,22 @@
           "context": "Vous venez de choisir un lave-linge dans un magasin d'électroménager. Le vendeur prépare la commande sur son ordinateur.",
           "instruction": "Demandez-lui les conditions du service : ce que comprend la livraison et ce que couvre la garantie.",
           "uniqueCriterion": "La demande porte explicitement sur les modalités de livraison et sur la garantie.",
+          "checklist": [
+            "Demandez ce que comprend la livraison",
+            "Demandez ce que couvre la garantie"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux conditions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Avant de commander, je voudrais savoir…",
+          "tip": "Posez ces deux questions avant de valider la commande : c'est le moment.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -540,6 +829,23 @@
           "context": "Vous venez d'arriver dans une nouvelle ville et vous voulez ouvrir un compte bancaire. Un conseiller vous reçoit à son bureau.",
           "instruction": "Demandez-lui les conditions d'ouverture : les documents nécessaires et les frais éventuels.",
           "uniqueCriterion": "La demande porte à la fois sur les pièces exigées et sur les frais du compte.",
+          "checklist": [
+            "Saluez le conseiller",
+            "Demandez les documents nécessaires",
+            "Demandez les frais du compte"
+          ],
+          "constraintTags": [
+            {
+              "label": "Documents et frais",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, je souhaite ouvrir un compte…",
+          "tip": "Les frais mensuels comptent autant que les papiers : demandez les deux.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 35,
@@ -569,6 +875,23 @@
           "context": "Une agence immobilière vous propose un appartement qui vous plaît. Avant d'organiser la visite, le conseiller vous demande si vous avez des questions.",
           "instruction": "Demandez-lui quelles pièces composent le dossier de location et quelles conditions sont exigées pour être retenu.",
           "uniqueCriterion": "La demande porte sur les pièces du dossier et sur les conditions exigées, revenus, garant ou dépôt.",
+          "checklist": [
+            "Demandez les pièces du dossier",
+            "Demandez les conditions exigées",
+            "Citez le garant ou les revenus"
+          ],
+          "constraintTags": [
+            {
+              "label": "Conditions exigées",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Garant",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Avant la visite, j'aimerais connaître les…",
+          "tip": "Connaître les conditions avant la visite vous fait gagner un temps précieux.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 40,
@@ -598,6 +921,23 @@
           "context": "Vous êtes inscrit à France Travail et une formation de magasinier vous intéresse. Votre conseillère vous reçoit pour en parler.",
           "instruction": "Demandez-lui les conditions d'accès à cette formation, la façon dont elle est financée et ce qui est attendu de vous pendant les cours.",
           "uniqueCriterion": "La demande couvre les conditions d'accès, le financement et les obligations du stagiaire.",
+          "checklist": [
+            "Demandez les conditions d'accès",
+            "Demandez qui finance la formation",
+            "Demandez ce qu'on attend de vous"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois volets",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Bonjour madame, cette formation m'intéresse et…",
+          "tip": "Le financement et vos obligations pèsent autant que les conditions d'entrée.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 45,
@@ -637,6 +977,22 @@
           "context": "Vous cherchez un appartement à louer. Au téléphone, l'employé de l'agence vous répond : « Le logement est libre le 15 mars, il est à 620 euros par mois. »",
           "instruction": "Rebondissez sur cette réponse : posez une question de suivi sur ce que ce prix comprend réellement.",
           "uniqueCriterion": "La question posée s'appuie sur l'information reçue et porte sur ce qu'inclut le loyer annoncé.",
+          "checklist": [
+            "Reprenez les 620 euros annoncés",
+            "Demandez si les charges sont comprises"
+          ],
+          "constraintTags": [
+            {
+              "label": "Montant repris",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Question de suivi",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "D'accord, et concernant ces 620 euros…",
+          "tip": "Repartez du chiffre annoncé : votre question s'accroche à sa réponse.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 25,
@@ -666,6 +1022,22 @@
           "context": "Vous vous renseignez sur un cours de yoga dans une association de quartier. La responsable vous dit : « Le cours a lieu tous les mardis à dix-neuf heures. »",
           "instruction": "Rebondissez sur cette réponse : posez une question de suivi utile à partir de l'horaire annoncé.",
           "uniqueCriterion": "La question s'appuie sur l'horaire annoncé et demande une information supplémentaire liée à ce cours.",
+          "checklist": [
+            "Reprenez le mardi dix-neuf heures",
+            "Demandez une information liée au cours"
+          ],
+          "constraintTags": [
+            {
+              "label": "Horaire repris",
+              "icon": "TIME"
+            },
+            {
+              "label": "Même sujet",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Le mardi à dix-neuf heures, et…",
+          "tip": "Restez sur ce cours : la durée ou la réservation prolongent naturellement l'horaire.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 25,
@@ -695,6 +1067,23 @@
           "context": "Vous appelez un cabinet médical pour prendre rendez-vous. La secrétaire vous répond : « Le docteur Lemaire peut vous recevoir jeudi à seize heures trente. »",
           "instruction": "Rebondissez sur cette proposition : dites si elle vous convient, puis posez une question de suivi sur ce rendez-vous.",
           "uniqueCriterion": "La réponse reprend le créneau proposé et demande une information supplémentaire liée à ce rendez-vous.",
+          "checklist": [
+            "Reprenez le créneau proposé",
+            "Dites s'il vous convient",
+            "Posez une question sur le rendez-vous"
+          ],
+          "constraintTags": [
+            {
+              "label": "Créneau repris",
+              "icon": "TIME"
+            },
+            {
+              "label": "Accord exprimé",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Jeudi à seize heures trente, cela…",
+          "tip": "Confirmez d'abord le créneau, puis demandez ce qu'il faut apporter.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -724,6 +1113,23 @@
           "context": "Vous vous renseignez sur une formation d'aide à la personne. La conseillère vous annonce : « La formation dure six mois, à raison de trois jours par semaine. »",
           "instruction": "Rebondissez sur cette réponse : posez une ou deux questions de suivi sur l'organisation concrète de cette formation.",
           "uniqueCriterion": "Les questions s'appuient sur la durée annoncée et portent sur l'organisation concrète de la formation.",
+          "checklist": [
+            "Reprenez les six mois annoncés",
+            "Demandez quels jours sont concernés",
+            "Interrogez l'organisation concrète"
+          ],
+          "constraintTags": [
+            {
+              "label": "Durée reprise",
+              "icon": "TIME"
+            },
+            {
+              "label": "Organisation concrète",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Six mois à trois jours, d'accord…",
+          "tip": "Partez de la durée annoncée pour interroger le rythme réel des semaines.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 35,
@@ -753,6 +1159,23 @@
           "context": "Un conseiller d'un opérateur téléphonique vous présente une offre : « Notre forfait fibre est à 24,99 euros par mois pendant douze mois. »",
           "instruction": "Rebondissez : posez deux questions de suivi qui vous permettront de savoir ce que vous paierez réellement.",
           "uniqueCriterion": "Deux questions de suivi s'appuient sur le prix annoncé et portent sur le coût réel de l'offre.",
+          "checklist": [
+            "Reprenez le prix annoncé",
+            "Demandez le tarif après douze mois",
+            "Demandez les frais éventuels"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux questions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Après douze mois",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Vingt-quatre euros quatre-vingt-dix-neuf, d'accord, et…",
+          "tip": "Deux questions valent mieux qu'une pour connaître le coût réel du forfait.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 40,
@@ -792,6 +1215,22 @@
           "context": "Vous appelez la mairie. L'agente vous indique l'heure de fermeture du guichet, mais la ligne est mauvaise et vous n'avez pas entendu ce qu'elle a dit.",
           "instruction": "Signalez poliment que vous n'avez pas compris et demandez-lui de répéter cette information.",
           "uniqueCriterion": "La demande signale l'incompréhension et réclame explicitement la répétition de l'heure.",
+          "checklist": [
+            "Signalez poliment votre incompréhension",
+            "Demandez de répéter l'heure"
+          ],
+          "constraintTags": [
+            {
+              "label": "Ton poli",
+              "icon": "TONE"
+            },
+            {
+              "label": "Heure demandée",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Excusez-moi madame, je n'ai pas bien…",
+          "tip": "Dire qu'on n'a pas compris est normal et attendu dans l'échange.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 25,
@@ -821,6 +1260,22 @@
           "context": "Au bureau de poste, l'employé consulte votre suivi et vous dit : « Votre colis sera livré en fin de semaine. »",
           "instruction": "Demandez-lui une précision pour savoir exactement quand le colis arrivera chez vous.",
           "uniqueCriterion": "La demande signale que l'information est trop vague et réclame une précision de date.",
+          "checklist": [
+            "Reprenez la formule vague",
+            "Demandez le jour exact"
+          ],
+          "constraintTags": [
+            {
+              "label": "Date précise",
+              "icon": "TIME"
+            },
+            {
+              "label": "Ton poli",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "En fin de semaine, d'accord, mais…",
+          "tip": "Reprendre le mot vague montre exactement ce que vous voulez préciser.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 25,
@@ -850,6 +1305,22 @@
           "context": "Le garagiste examine votre voiture, referme le capot et vous annonce : « Ça devrait coûter dans les trois cents euros. »",
           "instruction": "Demandez-lui des précisions sur ce montant, qui reste approximatif.",
           "uniqueCriterion": "La demande porte sur ce que couvre le montant annoncé ou sur son caractère approximatif.",
+          "checklist": [
+            "Reprenez les trois cents euros",
+            "Demandez ce que couvre ce montant"
+          ],
+          "constraintTags": [
+            {
+              "label": "Montant repris",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Pièces et main-d'œuvre",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Trois cents euros, est-ce que ce…",
+          "tip": "Un montant approximatif se précise : demandez ce qu'il comprend vraiment.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -879,6 +1350,23 @@
           "context": "À la préfecture, l'agent parcourt la liste des pièces à fournir et vous dit : « Il faudra joindre un justificatif de domicile récent. »",
           "instruction": "Demandez-lui de préciser quels documents sont acceptés et ce que le mot « récent » signifie ici.",
           "uniqueCriterion": "La demande porte sur la nature des documents acceptés et sur l'ancienneté maximale admise.",
+          "checklist": [
+            "Reprenez le mot récent",
+            "Demandez quels documents sont acceptés",
+            "Demandez l'ancienneté maximale admise"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux précisions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Documents acceptés",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Un justificatif récent, c'est-à-dire quels…",
+          "tip": "Préciser la date limite vous évite un dossier refusé au guichet.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 35,
@@ -908,6 +1396,23 @@
           "context": "Une conseillère en assurance vous explique rapidement : « Avec cette formule, vous êtes couvert en cas de dégât des eaux, mais il reste une franchise de cent cinquante euros à votre charge. »",
           "instruction": "Reformulez avec vos propres mots ce que vous avez compris, puis demandez-lui de confirmer.",
           "uniqueCriterion": "La production reformule l'information avec d'autres mots et demande explicitement une confirmation.",
+          "checklist": [
+            "Reformulez avec vos propres mots",
+            "Reprenez les cent cinquante euros",
+            "Demandez confirmation à la conseillère"
+          ],
+          "constraintTags": [
+            {
+              "label": "Reformulation",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Montant repris",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Si je comprends bien, en cas…",
+          "tip": "Dites-le autrement, avec vos mots, puis demandez si c'est exact.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 40,
@@ -947,6 +1452,23 @@
           "context": "À la salle de sport, l'employé vous présente deux formules : « L'abonnement mensuel est à 39 euros, sans engagement. L'abonnement à l'année revient à 29 euros par mois, mais vous vous engagez douze mois. »",
           "instruction": "Interrogez-le sur la différence entre les deux formules, puis dites laquelle vous choisissez et pourquoi.",
           "uniqueCriterion": "La production compare les deux formules et annonce un choix accompagné d'une raison.",
+          "checklist": [
+            "Interrogez la différence entre les formules",
+            "Comparez prix et engagement",
+            "Annoncez votre choix et sa raison"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux formules",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Choix justifié",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Si je compare les deux formules…",
+          "tip": "Un choix convainc quand il repose sur une comparaison, pas une préférence.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 35,
@@ -976,6 +1498,23 @@
           "context": "Un conseiller vous présente deux forfaits mobiles : « Le premier est à 9,99 euros avec 20 gigaoctets. Le second est à 19,99 euros avec 100 gigaoctets et les appels illimités vers l'étranger. »",
           "instruction": "Posez une question sur la différence entre les deux forfaits, puis annoncez votre choix en expliquant pourquoi.",
           "uniqueCriterion": "La production met les deux forfaits en regard et justifie le choix final.",
+          "checklist": [
+            "Posez une question sur la différence",
+            "Comparez prix et services",
+            "Annoncez votre choix motivé"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux forfaits",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Raison donnée",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Entre les deux forfaits, est-ce que…",
+          "tip": "Reliez votre choix à votre usage réel : appels, données, budget.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 35,
@@ -1005,6 +1544,23 @@
           "context": "En agence de voyage, la conseillère vous propose deux trajets pour aller à Lyon : « Le train met deux heures trente et coûte 55 euros. Le bus met cinq heures et coûte 25 euros. »",
           "instruction": "Interrogez-la sur ce qui distingue les deux trajets, puis choisissez-en un en justifiant votre décision.",
           "uniqueCriterion": "La production compare les deux trajets sur au moins deux aspects et justifie le choix retenu.",
+          "checklist": [
+            "Interrogez la conseillère sur les trajets",
+            "Comparez le temps et le prix",
+            "Choisissez et justifiez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux critères",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Choix justifié",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Entre le train et le bus…",
+          "tip": "Deux aspects comparés valent mieux qu'un : le temps et le prix.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 40,
@@ -1034,6 +1590,24 @@
           "context": "Un centre de formation vous propose deux organisations pour le même diplôme : « Soit trois soirées par semaine pendant quatre mois, soit tous les samedis pendant huit mois. »",
           "instruction": "Posez des questions sur ces deux formules, comparez-les, puis dites laquelle vous convient et pourquoi.",
           "uniqueCriterion": "Les deux formules sont comparées sur des points concrets et le choix est justifié par votre situation.",
+          "checklist": [
+            "Posez vos questions sur les formules",
+            "Comparez durée et rythme",
+            "Dites laquelle vous convient",
+            "Expliquez pourquoi"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux formules",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Votre situation",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Avant de choisir, j'aimerais savoir si…",
+          "tip": "Votre emploi du temps réel est le meilleur argument pour trancher.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 45,
@@ -1063,6 +1637,24 @@
           "context": "Une conseillère en assurance vous présente deux contrats pour votre appartement : « La formule de base est à 12 euros par mois, avec 300 euros de franchise. La formule confort est à 19 euros, avec 100 euros de franchise et le remplacement à neuf des appareils. »",
           "instruction": "Posez des questions pour bien saisir ce qui distingue ces deux contrats, comparez-les, puis annoncez votre choix en l'expliquant.",
           "uniqueCriterion": "La production interroge et compare les deux contrats sur plusieurs points, puis justifie le choix retenu.",
+          "checklist": [
+            "Interrogez les deux contrats",
+            "Comparez prix et franchise",
+            "Annoncez votre choix",
+            "Expliquez votre décision"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux contrats",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Choix argumenté",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Entre ces deux contrats, est-ce que…",
+          "tip": "Comparez sur plusieurs points : le prix seul ne décide pas tout.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 55,
@@ -1102,6 +1694,23 @@
           "context": "La secrétaire médicale vous confirme : « C'est noté : rendez-vous le mardi 10 mars à quatorze heures avec le docteur Aubry, au deuxième étage. »",
           "instruction": "Récapitulez les informations importantes pour vérifier qu'elles sont exactes, puis prenez congé.",
           "uniqueCriterion": "La production reprend les informations essentielles du rendez-vous et se termine par une formule de congé.",
+          "checklist": [
+            "Répétez la date et l'heure",
+            "Nommez le médecin",
+            "Terminez par une formule de congé"
+          ],
+          "constraintTags": [
+            {
+              "label": "Récapitulatif",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Date et heure",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Donc mardi 10 mars à quatorze…",
+          "tip": "Répéter la date permet de corriger une erreur avant de partir.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -1131,6 +1740,23 @@
           "context": "Le garagiste conclut votre échange : « Votre voiture sera prête vendredi à dix-sept heures, et la réparation coûtera 240 euros. »",
           "instruction": "Reprenez ces informations pour les confirmer, puis terminez poliment la conversation.",
           "uniqueCriterion": "La production répète l'heure et le montant annoncés et se clôt par une formule de congé.",
+          "checklist": [
+            "Répétez l'heure annoncée",
+            "Répétez le montant annoncé",
+            "Prenez congé poliment"
+          ],
+          "constraintTags": [
+            {
+              "label": "Heure et montant",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Congé poli",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Donc vendredi à dix-sept heures, pour…",
+          "tip": "Le prix se confirme aussi : c'est lui qui compte à la fin.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 30,
@@ -1160,6 +1786,24 @@
           "context": "La directrice de la crèche conclut : « Déposez le dossier complet avant le 30 avril. La commission se réunit en juin et vous recevrez la réponse par courrier. »",
           "instruction": "Récapitulez ces informations, vérifiez un point qui reste à confirmer, puis prenez congé.",
           "uniqueCriterion": "La production reprend les informations reçues, ajoute une question de vérification et se termine par un congé.",
+          "checklist": [
+            "Répétez la date limite",
+            "Rappelez la réponse par courrier",
+            "Vérifiez un point précis",
+            "Prenez congé"
+          ],
+          "constraintTags": [
+            {
+              "label": "Récapitulatif",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Date limite",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Donc je dépose le dossier avant…",
+          "tip": "Gardez une dernière question pour la fin : elle sécurise votre dossier.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 40,
@@ -1189,6 +1833,24 @@
           "context": "L'agent de location vous récapitule : « Vous prenez le véhicule le samedi 12 à neuf heures à l'agence de la gare, vous le rendez le lundi 14 avant midi, pour un total de 96 euros. »",
           "instruction": "Reprenez ces informations pour les confirmer, posez une dernière question utile, puis terminez l'échange.",
           "uniqueCriterion": "La production confirme les dates, le lieu et le prix, ajoute une dernière question et clôt l'échange.",
+          "checklist": [
+            "Répétez les dates et le lieu",
+            "Répétez le prix total",
+            "Posez une dernière question",
+            "Terminez l'échange poliment"
+          ],
+          "constraintTags": [
+            {
+              "label": "Dates et lieu",
+              "icon": "TIME"
+            },
+            {
+              "label": "Prix total",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Donc je prends la voiture samedi…",
+          "tip": "Récapitulatif complet, puis une question, puis le congé : dans cet ordre.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 45,
@@ -1218,6 +1880,24 @@
           "context": "Au centre social, l'animatrice conclut votre inscription : « Les ateliers d'informatique ont lieu le jeudi de dix-huit à vingt heures, à partir du 15 septembre, en salle 3. L'adhésion annuelle est de 20 euros et il faut apporter une photo d'identité. »",
           "instruction": "Récapitulez l'essentiel de ces informations, vérifiez le point qui vous semble le moins clair, puis prenez congé.",
           "uniqueCriterion": "La production reprend l'essentiel des informations, vérifie un point précis et se termine par un congé.",
+          "checklist": [
+            "Répétez le jour et l'horaire",
+            "Rappelez l'adhésion et la photo",
+            "Vérifiez le point le moins clair",
+            "Prenez congé"
+          ],
+          "constraintTags": [
+            {
+              "label": "Récapitulatif complet",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Adhésion et photo",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Donc les ateliers ont lieu le…",
+          "tip": "Reprenez l'essentiel, pas tout : jour, horaire, salle, adhésion, photo.",
           "recommendedMinWords": null,
           "recommendedMaxWords": null,
           "recommendedDurationSeconds": 55,

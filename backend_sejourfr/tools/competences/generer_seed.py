@@ -56,6 +56,26 @@ TACHES = [
 
 HORODATAGE = "'2026-08-06 09:00:00+02'"
 
+# Migrations de MISE A JOUR du guidage de l'ecran de saisie (checklist, etiquettes
+# de contrainte, amorce, astuce). Elles sont separees des inserts V300-V305 parce
+# que ceux-ci sont deja APPLIQUES : y toucher invaliderait leur somme de controle
+# Flyway sur toute base qui les a joues.
+TACHES_GUIDAGE = [(code, 306 + i, titre) for i, (code, _, titre) in enumerate(TACHES)]
+
+# Liste fermee des icones d'etiquette. Les deux fronts la mappent sur une icone
+# Lucide ; une valeur hors liste ferait tomber l'affichage sur l'icone par defaut,
+# donc on la refuse a la generation plutot qu'a l'execution.
+ICONES = {
+    "TONE",
+    "PERSON",
+    "TIME",
+    "PLACE",
+    "NUMBER",
+    "TENSE",
+    "STRUCTURE",
+    "EXAMPLE",
+}
+
 
 def uid(kind: str, code: str) -> str:
     return str(uuid.uuid5(NS, f"{kind}:{code}"))
@@ -117,6 +137,29 @@ def valider(doc: dict, code_tache: str) -> None:
             else:
                 assert dur is not None and mn is None and mx is None, p["code"]
                 assert 15 <= dur <= 90, f"{p['code']}: duree {dur}"
+
+            # Guidage de l'ecran de saisie. La check-list DECOUPE la consigne en
+            # gestes, elle n'ajoute aucune exigence ; les etiquettes disent
+            # comment produire, jamais combien (la longueur/duree est rendue par
+            # le front depuis les bornes, la dupliquer ici la ferait diverger).
+            liste = p["checklist"]
+            assert 2 <= len(liste) <= 4, f"{p['code']}: {len(liste)} items de check-list"
+            for item in liste:
+                assert 1 <= len(item.split()) <= 6, f"{p['code']}: « {item} »"
+            tags = p["constraintTags"]
+            assert 1 <= len(tags) <= 3, f"{p['code']}: {len(tags)} etiquettes"
+            for tag in tags:
+                assert tag["icon"] in ICONES, f"{p['code']}: icone {tag['icon']}"
+                assert 1 <= len(tag["label"].split()) <= 3, f"{p['code']}: {tag['label']}"
+                interdit = "mot" if section == "EE" else "seconde"
+                assert interdit not in tag["label"].lower(), f"{p['code']}: {tag['label']}"
+            amorce = p["answerStarter"]
+            assert amorce.endswith("…"), f"{p['code']}: amorce sans points de suspension"
+            assert 4 <= len(amorce.split()) <= 9, f"{p['code']}: amorce {len(amorce.split())} mots"
+            astuce = p["tip"]
+            assert astuce.strip(), f"{p['code']}: astuce vide"
+            assert len(astuce.split()) <= 15, f"{p['code']}: astuce {len(astuce.split())} mots"
+            assert not astuce.lower().startswith("astuce"), f"{p['code']}: « Astuce : » en dur"
 
             refs = p["references"]
             assert len(refs) == 3, f"{p['code']}: {len(refs)} references"
@@ -227,6 +270,68 @@ def rendre(doc: dict, version: int, titre_tache: str) -> str:
     return "\n".join(out)
 
 
+def rendre_guidage(doc: dict, version: int, titre_tache: str) -> str:
+    """Migration de MISE A JOUR du guidage de l'ecran de saisie.
+
+    Pourquoi un UPDATE et pas un INSERT enrichi : les migrations V300-V305 sont
+    deja appliquees. Les rejouer avec des colonnes en plus invaliderait leur
+    somme de controle Flyway sur toute base qui les a jouees, y compris la base
+    de developpement du projet.
+    """
+    code_tache = doc["taskCode"]
+    skills = doc["skills"]
+    sujets = [p for s in skills for p in s["prompts"]]
+
+    out: list[str] = []
+    a = out.append
+
+    a("-- ============================================================================")
+    a(f"-- V{version} — Competences TCF : guidage de saisie, tache {code_tache}")
+    a("--")
+    a(f"-- Renseigne le guidage des {len(sujets)} petits sujets de « {titre_tache} » :")
+    a("--   checklist        ce qu'il faut faire, en 2 a 4 gestes a l'imperatif")
+    a("--   constraint_tags  1 a 3 etiquettes {label, icon} — le COMMENT, jamais")
+    a("--                    la longueur ni la duree (le front les rend depuis les")
+    a("--                    bornes deja en base ; les dupliquer les ferait diverger)")
+    a("--   answer_starter   l'amorce grisee du champ de reponse")
+    a("--   tip              l'astuce affichee sous la zone de production")
+    a("--")
+    a("-- Colonnes ajoutees par V026. UPDATE et non INSERT : les lignes existent")
+    a(f"-- deja (V{300 + (version - 306)}), et cette migration-la est deja appliquee — la")
+    a("-- rejouer invaliderait sa somme de controle Flyway.")
+    a("--")
+    a("-- FICHIER GENERE — NE PAS EDITER A LA MAIN.")
+    a("--   cd backend_sejourfr && python3 tools/competences/generer_seed.py")
+    a("-- ============================================================================")
+    a("")
+    a("UPDATE skill_prompts p SET")
+    a("    checklist       = v.checklist::jsonb,")
+    a("    constraint_tags = v.constraint_tags::jsonb,")
+    a("    answer_starter  = v.answer_starter,")
+    a("    tip             = v.tip,")
+    a(f"    updated_at      = {HORODATAGE}")
+    a("FROM (VALUES")
+
+    lignes = []
+    for p in sujets:
+        checklist = json.dumps(p["checklist"], ensure_ascii=False)
+        tags = json.dumps(p["constraintTags"], ensure_ascii=False)
+        lignes.append(
+            f"  -- {p['code']}\n"
+            f"  ({q(p['code'])},\n"
+            f"   {q(checklist)},\n"
+            f"   {q(tags)},\n"
+            f"   {q(p['answerStarter'])},\n"
+            f"   {q(p['tip'])})"
+        )
+    a(",\n".join(lignes))
+    a(") AS v(code, checklist, constraint_tags, answer_starter, tip)")
+    a("WHERE p.code = v.code;")
+    a("")
+
+    return "\n".join(out)
+
+
 def main() -> int:
     CIBLE.mkdir(parents=True, exist_ok=True)
     manquants = [c for c, _, _ in TACHES if not (CONTENU / f"{c}.json").exists()]
@@ -250,7 +355,12 @@ def main() -> int:
 
         nom = f"V{version}__tcf_competences_{code.lower()}.sql"
         (CIBLE / nom).write_text(rendre(doc, version, titre), encoding="utf-8")
-        print(f"{nom} — 8 competences, {sum(len(s['prompts']) for s in doc['skills'])} sujets")
+
+        vg = next(v for c, v, _ in TACHES_GUIDAGE if c == code)
+        nom_g = f"V{vg}__tcf_competences_guidage_{code.lower()}.sql"
+        (CIBLE / nom_g).write_text(rendre_guidage(doc, vg, titre), encoding="utf-8")
+
+        print(f"{nom} + {nom_g} — 8 competences, {sum(len(s['prompts']) for s in doc['skills'])} sujets")
 
     print(f"\nTotal : 48 competences, {total_sujets} sujets, {total_sujets * 3} references")
     assert total_sujets == 240, total_sujets

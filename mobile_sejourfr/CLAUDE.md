@@ -764,6 +764,19 @@ réintroduire dans un toggle.
    briefing `/tcf/expression-{orale,ecrite}/t/0`) ; sujet fait → sheet Voir le
    détail / Refaire. Freemium inchangé : 1er sujet offert, suivants → paywall, le
    verrou suit **l'index d'origine**, jamais l'index filtré.
+   - **Info one-time « Un essai gratuit par épreuve »** (`showAppSheet`, posée en
+     `initState` + post-frame) : 1 essai d'entraînement offert **par épreuve** +
+     1 examen blanc de production offert (règle backend
+     `ProductionAccessService.enforceQuota`). Mémorisée par épreuve dans
+     `SharedPreferences` sous **la même clé que le web**
+     (`sejourfr.prodQuotaInfo.TCF_{EE,EO}`, `prodQuotaInfoKey`), **jamais montrée
+     à un abonné TCF**. Le mobile ne l'avait **jamais eue** (elle n'existait que
+     sur le web, sur le hub d'épreuve supprimé) — ajoutée ici par parité.
+     ⚠️ Elle vit sur **cet écran et nulle part ailleurs** : c'est le seul de
+     l'épreuve où la règle s'applique, et il précède l'écran qui consomme
+     l'essai. **Surtout pas sur l'écran d'entrée** (mode « Compétences ») : les
+     micro-exercices ne verrouillent aucun sujet et ont leur **propre** quota
+     (analyses IA offertes) — l'y afficher annoncerait une règle fausse.
    - Données : `task_training_data.dart` (`taskTrainingProvider`), **partagé** avec
      l'écran des exemples — les deux chargeaient la même chose chacun de leur côté.
 
@@ -1079,9 +1092,73 @@ pastille de numéro **48×48 r16 — une seule forme partout**, chevron 30×30,
 `PressableCard` = ombre douce + enfoncement au toucher, `DashedBox` = la
 bordure pointillée que Flutter n'a pas nativement).
 
+### L'écran d'un petit sujet — il fait produire, il n'explique pas
+
+Refonte 2026-08-06 (verdict client sur la version précédente : « beaucoup trop
+verbeux et pas du tout intuitif »). Référence :
+`~/Downloads/saisi_ee-competence.png`.
+
+**Le critère de réussite est mesurable et verrouillé par des tests** : la zone
+de production doit être **visible sans défiler** sur un téléphone standard
+(`test/competence_prompt_layout_test.dart`, qui pompe le vrai écran à 390×844
+et 375×812 et compare la position du champ au haut du `FixedActionBar`). Tout
+ce qu'on ajoute au-dessus de la carte « Votre réponse » se paie en défilement
+et fera tomber ces tests — c'est le but, ne pas les assouplir.
+
+Structure, de haut en bas (`competence_prompt_screen.dart`) :
+1. en-tête (`ScreenHeader`) ;
+2. `_PromptMetaRow` — `Sujet i/N` à gauche, pilule de palier à droite ;
+3. `_SkillProgressBar` — libellé réduit à **« Progression »** ;
+4. `SkillChecklistCard` « Ce qu'il faut faire » ;
+5. `SkillSituationCard` « Situation » ;
+6. `SkillConstraintRow` — puce de longueur **puis** étiquettes de contrainte ;
+7. `SkillAnswerCard` « Votre réponse » — zone de production + pied de carte
+   (astuce à gauche, compteur/durée à droite) ;
+8. **sous** la zone : auto-évaluation, bascule d'analyse IA, tipline ;
+9. `FixedActionBar` : `Valider et comparer` · `Effacer`.
+
+**Ont été supprimés** (et leurs widgets avec — `criterion_highlight.dart`
+n'existe plus) : le fil d'Ariane sur deux lignes, les badges « Une compétence ·
+un critère » et « Petit sujet i/N », le titre « Produis ta propre réponse. », le
+paragraphe d'objectif, l'encart « Compétence évaluée », l'encart « Pourquoi cet
+exercice ? » et les puces méta « Accessible » / « Un seul critère ».
+
+**Parité écrit ⇄ oral par construction** : `SkillAnswerCard` est **une seule
+coque** pour les deux épreuves. Seuls changent le `child` (champ de saisie ⇄
+`SkillRecorderPanel`) et le `meta` (compteur de mots ⇄ durée). Ne pas refaire
+un écran oral à part.
+
+**Les 4 champs de guidage** (`SkillPromptDto.checklist`, `constraintTags`,
+`answerStarter`, `tip`, backend V026 + V306-311) sont **tous facultatifs** — un
+sujet créé depuis la console d'administration peut naître sans guidage. La
+dégradation est un contrat, pas un cas limite : pas de check-list ⇒ la carte
+retombe sur la **consigne** ; pas d'étiquette ⇒ seule la puce de longueur ; pas
+d'amorce ⇒ texte grisé neutre ; pas d'astuce ⇒ pied de carte réduit au
+compteur. **Jamais de carte vide, jamais de « null » à l'écran.**
+
+- La **puce de longueur** est générée par le front depuis les bornes en base
+  (`skillLengthHint`) — `≈ 15–35 mots` à l'écrit, `≈ 45 secondes` à l'oral.
+  Une étiquette de contrainte ne doit **jamais** la dupliquer.
+- La table **icône ↔ code d'étiquette** est unique et exhaustive
+  (`skillConstraintIcon`, `prompt_guidance.dart`), avec
+  `SkillConstraintIcon.unknown` comme repli d'un code non prévu. Ne pas
+  disperser un second `switch`.
+- Le **corps des cartes de guidage prend toute la largeur** : la référence
+  l'aligne sous le titre, mais sur un téléphone étroit ce retrait de 40 px
+  coûtait une ligne de repli par paragraphe — donc la zone de production sous la
+  ligne de flottaison. Adaptation responsive assumée.
+- `SkillRecorderPanel` **ne porte pas son propre cadre** : il vit dans
+  `SkillAnswerCard`, là où l'écrit met son champ. Lui rendre une bordure
+  blanche referait une carte dans une carte.
+- `SkillWritingField` est volontairement **distinct de `WritingZone`** (le gros
+  éditeur des sujets TCF complets, avec stats, barre de progression et
+  confirmation d'effacement) : ici le compteur et l'astuce vivent dans le pied
+  de la carte. Ne pas rebrancher `WritingZone` sur cet écran.
+
 Points de comportement à ne pas défaire :
-- **Le critère est affiché AVANT la production** (§13.1) : sur l'écran d'un
-  petit sujet, l'ordre est critère → contexte → consigne → saisie.
+- **La consigne est traduite en gestes AVANT la production** : la check-list
+  remplace le critère abstrait, et l'ordre reste guidage → situation →
+  contraintes → saisie. Le critère brut du sujet n'est plus montré tel quel.
 - **La fourchette de longueur avertit, elle ne bloque pas** (règle 15). Le
   plafond de 400 mots est un garde-fou **serveur** : il s'affiche en avertissement
   et ne désactive plus le bouton de validation.
@@ -1089,10 +1166,10 @@ Points de comportement à ne pas défaire :
   (« Voir » ⇄ « Masquer »). Quand l'utilisateur n'y a pas droit (quota épuisé,
   non abonné), le bandeau **reste affiché** et son action ouvre
   `showPaywallSheet` au lieu de déplier.
-- **La barre « Progression de la compétence · X/N »** de l'écran d'un petit sujet
-  est **calculée côté client** depuis `skillDetailProvider` (déjà en cache :
-  l'écran est poussé depuis le détail). Aucun endpoint n'a été inventé ; en deep
-  link direct la barre disparaît plutôt que d'afficher un chiffre faux.
+- **La barre « Progression · X/N »** de l'écran d'un petit sujet est **calculée
+  côté client** depuis `skillDetailProvider` (déjà en cache : l'écran est poussé
+  depuis le détail). Aucun endpoint n'a été inventé ; en deep link direct la
+  barre disparaît plutôt que d'afficher un chiffre faux.
 - **Le liseré vertical d'une carte de sujet n'existe QUE si le sujet est traité**
   (3 px, en retrait de 17 px haut et bas) — un liseré gris permanent ne repère
   plus rien.
@@ -1152,9 +1229,12 @@ la valeur pédagogique de l'oral.
 **Libellés du bandeau « Sujet déjà traité »** (identiques au web, mot pour mot) : EE →
 **« Reprendre ma réponse »** (recharge la dernière production dans la zone d'écriture via
 `lastAttemptId`) ; EO → **« Écouter ma dernière réponse »** (ouvre l'écran de résultat de
-`lastAttemptId`). **Une seule action par section**, jamais deux.
+`lastAttemptId`). **Une seule action par section**, jamais deux. Le bandeau est
+**tenu sur une ligne** (toute la carte est tappable) : en pavé — pastille, deux
+lignes de méta, bouton pleine largeur — il suffisait à repousser la zone de
+production sous la ligne de flottaison dès la deuxième visite d'un sujet.
 
-**Règles UX à ne pas défaire** (spec §13) : le critère unique est affiché **avant** la
+**Règles UX à ne pas défaire** (spec §13) : la consigne est traduite en gestes **avant** la
 production ; les références n'apparaissent **jamais** avant qu'une tentative existe (garde
 serveur : 403) ; le statut se met à jour immédiatement au retour (`RouteAware.didPopNext` →
 `ref.invalidate` sur la liste et le détail) ; le retour IA est **au-dessus** des

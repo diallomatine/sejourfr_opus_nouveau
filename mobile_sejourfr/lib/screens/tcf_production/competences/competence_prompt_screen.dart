@@ -20,14 +20,14 @@ import '../../../core/widgets/progress_track.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../audio_recorder_service.dart';
 import '../tcf_production_module.dart';
-import '../widgets/writing_zone.dart';
 import 'competences_nav.dart';
 import 'competences_providers.dart';
 import 'widgets/analysis_toggle.dart';
 import '../widgets/production_blocks.dart';
 import '../widgets/production_state_views.dart';
-import 'widgets/criterion_highlight.dart';
+import 'widgets/prompt_guidance.dart';
 import 'widgets/self_evaluation_picker.dart';
+import 'widgets/skill_answer_card.dart';
 import 'widgets/skill_recorder_panel.dart';
 
 /// Garde anti-abus **côté serveur** : au-delà, la soumission est refusée. Il
@@ -37,11 +37,25 @@ const int _kMaxWords = 400;
 
 /// Niveau 5 du parcours : un petit sujet.
 ///
-/// Reprend la carte d'exercice du prototype : badge « Une compétence · un
-/// critère » + « Petit sujet i/N », titre d'intention, phrase d'objectif,
-/// **critère avant la production** (§13.1), aucune référence ici (§13.2),
-/// tipline ambre en pied, et une validation atteignable sans scroll
-/// interminable (§13.10, `FixedActionBar`).
+/// **Cet écran fait produire, il n'explique pas.** De haut en bas : repère
+/// « Sujet i/N » + palier, progression de la compétence, ce qu'il faut faire,
+/// la situation, les contraintes, puis la zone de production — qui doit tenir
+/// **au-dessus de la ligne de flottaison** sur un téléphone standard. C'est le
+/// critère de réussite de la mise en page : tout ce qu'on ajoute avant la carte
+/// « Votre réponse » se paie en défilement.
+///
+/// Ont disparu de l'écran (ils racontaient l'exercice) : le fil d'Ariane sur
+/// deux lignes, les badges « Une compétence · un critère » / « Petit sujet i/N »,
+/// le titre « Produis ta propre réponse. », le paragraphe d'objectif, l'encart
+/// « Compétence évaluée », l'encart « Pourquoi cet exercice ? » et les puces
+/// méta « Accessible » / « Un seul critère ».
+///
+/// L'auto-évaluation, la bascule d'analyse IA et la tipline restent, **sous**
+/// la zone de production : elles ne doivent jamais la repousser.
+///
+/// L'oral reçoit **exactement la même structure** : seules la zone de
+/// production (panneau d'enregistrement) et la donnée du pied de carte (durée)
+/// changent.
 class CompetencePromptScreen extends ConsumerWidget {
   const CompetencePromptScreen({
     super.key,
@@ -310,7 +324,7 @@ class _PromptViewState extends ConsumerState<_PromptView> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             children: [
-              _Breadcrumb(prompt: prompt, accent: _accent),
+              _PromptMetaRow(prompt: prompt),
               const SizedBox(height: 12),
               _SkillProgressBar(
                 skillId: prompt.skillId,
@@ -318,7 +332,7 @@ class _PromptViewState extends ConsumerState<_PromptView> {
                 accent: _accent,
               ),
               if (prompt.attemptCount > 0 && prompt.lastAttemptId != null) ...[
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 _AlreadyTreatedBanner(
                   prompt: prompt,
                   accent: _accent,
@@ -343,122 +357,95 @@ class _PromptViewState extends ConsumerState<_PromptView> {
                   },
                 ),
               ],
+              const SizedBox(height: 12),
+              // Ce qu'il faut faire — la check-list remplace le critère
+              // abstrait. Sans check-list, elle retombe sur la consigne.
+              SkillChecklistCard(
+                checklist: prompt.checklist,
+                fallback: prompt.instruction,
+                accent: _accent,
+              ),
+              const SizedBox(height: 10),
+              if (prompt.context.trim().isNotEmpty) ...[
+                SkillSituationCard(
+                  context: prompt.context.trim(),
+                  accent: _accent,
+                ),
+                const SizedBox(height: 10),
+              ],
+              _ConstraintRowSlot(prompt: prompt),
+              SkillAnswerCard(
+                accent: _accent,
+                tip: prompt.tip,
+                meta: _answerMeta(prompt, recording),
+                metaHighlighted: overCap,
+                child: _isEo
+                    ? Column(
+                        children: [
+                          if (prompt.answerStarter != null &&
+                              recording.phase == RecordingPhase.idle) ...[
+                            SkillStarterHint(starter: prompt.answerStarter!),
+                            const SizedBox(height: 14),
+                          ],
+                          SkillRecorderPanel(
+                            state: recording,
+                            accent: _accent,
+                            onStart: () => unawaited(_startRecording()),
+                            onStop: () => unawaited(
+                              ref
+                                  .read(recordingControllerProvider.notifier)
+                                  .stop(),
+                            ),
+                            onReset: () => unawaited(
+                              ref
+                                  .read(recordingControllerProvider.notifier)
+                                  .cancel(),
+                            ),
+                          ),
+                        ],
+                      )
+                    : SkillWritingField(
+                        controller: _controller,
+                        onChanged: (_) => setState(() {}),
+                        starter: prompt.answerStarter,
+                        accent: _accent,
+                      ),
+              ),
+              if (overCap) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Au-delà de $_kMaxWords mots, la correction peut être '
+                  'refusée. Ce sujet se traite en quelques phrases.',
+                  style: AppFonts.ui(
+                    size: 11.5,
+                    height: 1.4,
+                    color: AppColors.amberDark,
+                  ),
+                ),
+              ],
+              // Tout ce qui suit vit SOUS la zone de production : y remonter
+              // quoi que ce soit la ferait passer sous la ligne de flottaison.
               const SizedBox(height: 14),
-              _ExerciseCard(
-                children: [
-                  _ExerciseHead(prompt: prompt, accent: _accent),
-                  const SizedBox(height: 15),
-                  Text(
-                    _isEo
-                        ? 'Enregistre ta propre réponse.'
-                        : 'Produis ta propre réponse.',
-                    style: AppFonts.display(size: 20, height: 1.26),
-                  ),
-                  const SizedBox(height: 7),
-                  Text(
-                    "L'objectif n'est pas d'écrire une réponse parfaite, mais "
-                    'de montrer clairement la compétence travaillée.',
-                    style: AppFonts.ui(
-                      size: 12,
-                      height: 1.48,
-                      color: AppColors.inkSoft,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  // Y8 — le critère AVANT la production (§13.1). Il précède le
-                  // contexte, la consigne et la zone de saisie.
-                  CriterionHighlight(
-                    criterion: prompt.uniqueCriterion,
-                    accent: _accent,
-                  ),
-                  const SizedBox(height: 15),
-                  _ContextBox(
-                    label: 'Petit sujet',
-                    text: prompt.context,
-                  ),
-                  const SizedBox(height: 11),
-                  _ContextBox(
-                    label: 'Consigne',
-                    text: prompt.instruction,
-                  ),
-                  const SizedBox(height: 11),
-                  ConstraintChips(labels: _constraintLabels(prompt)),
-                  if (prompt.skillDescription.trim().isNotEmpty) ...[
-                    const SizedBox(height: 11),
-                    WhyThisExercise(
-                      text: prompt.skillDescription,
-                      accent: _accent,
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  _EditorHead(
-                    title: 'Ta production',
-                    hint: _isEo
-                        ? 'Parle sans consulter les exemples'
-                        : 'Écris sans consulter les exemples',
-                  ),
-                  const SizedBox(height: 8),
-                  if (_isEo)
-                    SkillRecorderPanel(
-                      state: recording,
-                      accent: _accent,
-                      recommendedSeconds: prompt.recommendedDurationSeconds,
-                      onStart: () => unawaited(_startRecording()),
-                      onStop: () => unawaited(
-                        ref.read(recordingControllerProvider.notifier).stop(),
-                      ),
-                      onReset: () => unawaited(
-                        ref.read(recordingControllerProvider.notifier).cancel(),
-                      ),
-                    )
-                  else
-                    WritingZone(
-                      controller: _controller,
-                      onChanged: (_) => setState(() {}),
-                      wordCount: _wordCount,
-                      minWords: prompt.recommendedMinWords ?? 30,
-                      maxWords: prompt.recommendedMaxWords ?? 60,
-                      title: 'Ta réponse',
-                      hint: 'Écris ta réponse ici…',
-                      minLines: 8,
-                      accent: _accent,
-                      onClear: _clear,
-                    ),
-                  if (overCap) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      'Au-delà de $_kMaxWords mots, la correction peut être '
-                      'refusée. Ce sujet se traite en quelques phrases.',
-                      style: AppFonts.ui(
-                        size: 11.5,
-                        height: 1.4,
-                        color: AppColors.amberDark,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 14),
-                  SelfEvaluationPicker(
-                    value: _selfEvaluation,
-                    accent: _accent,
-                    onChanged: (v) => setState(() => _selfEvaluation = v),
-                  ),
-                  const SizedBox(height: 12),
-                  AnalysisToggle(
-                    value: _analysisRequested(quota),
-                    quota: quota,
-                    accent: _accent,
-                    onChanged: (v) => setState(() => _requestAnalysis = v),
-                    onLockedTap: () => showPaywallSheet(context),
-                  ),
-                  const SizedBox(height: 11),
-                  // M5 — sans cette ligne, rien n'explique au candidat
-                  // pourquoi les références restent masquées (§13.2).
-                  const ProductionTipline(
-                    lead: 'Important :',
-                    body: 'Les exemples de référence et l\'analyse '
-                        'apparaissent seulement après ta production.',
-                  ),
-                ],
+              SelfEvaluationPicker(
+                value: _selfEvaluation,
+                accent: _accent,
+                onChanged: (v) => setState(() => _selfEvaluation = v),
+              ),
+              const SizedBox(height: 12),
+              AnalysisToggle(
+                value: _analysisRequested(quota),
+                quota: quota,
+                accent: _accent,
+                onChanged: (v) => setState(() => _requestAnalysis = v),
+                onLockedTap: () => showPaywallSheet(context),
+              ),
+              const SizedBox(height: 11),
+              // M5 — sans cette ligne, rien n'explique au candidat pourquoi
+              // les références restent masquées (§13.2).
+              const ProductionTipline(
+                lead: 'Important :',
+                body: 'Les exemples de référence et l\'analyse '
+                    'apparaissent seulement après ta production.',
               ),
             ],
           ),
@@ -495,178 +482,44 @@ class _PromptViewState extends ConsumerState<_PromptView> {
     );
   }
 
-  List<String> _constraintLabels(SkillPromptDto prompt) {
-    final labels = <String>[];
-    if (_isEo) {
-      final seconds = prompt.recommendedDurationSeconds;
-      if (seconds != null) labels.add('≃ $seconds secondes');
-    } else {
-      final min = prompt.recommendedMinWords;
-      final max = prompt.recommendedMaxWords;
-      if (min != null && max != null) labels.add('≃ $min à $max mots');
-    }
-    labels.add(prompt.difficultyLevel.label);
-    labels.add('Un seul critère');
-    return labels;
+  /// La donnée du pied de la carte de réponse : compteur de mots à l'écrit,
+  /// durée capturée à l'oral. Même place, même rôle — c'est la parité.
+  String _answerMeta(SkillPromptDto prompt, RecordingState recording) {
+    if (_isEo) return SkillRecorderPanel.formatDuration(recording.elapsed);
+    final max = prompt.recommendedMaxWords;
+    // La borne haute est indicative : elle s'affiche, elle ne bloque pas.
+    if (max == null) return '$_wordCount ${_wordCount > 1 ? "mots" : "mot"}';
+    return '$_wordCount / $max mots';
   }
 }
 
-/// Carte d'exercice du prototype (`.exercise`) : blanche, `radius 28`,
-/// `padding 18`, ombre marquée. Tout l'exercice y vit.
-class _ExerciseCard extends StatelessWidget {
-  const _ExerciseCard({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppColors.line),
-        boxShadow: AppShadows.md,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
-      ),
-    );
-  }
-}
-
-/// `.exercise-top` : « Une compétence · un critère » + « Petit sujet i/N ».
-class _ExerciseHead extends StatelessWidget {
-  const _ExerciseHead({required this.prompt, required this.accent});
+/// La rangée de contraintes et l'espace qui la suit : sans borne de longueur ni
+/// étiquette, ni l'une ni l'autre n'existe (pas de trou de 10 px sous une
+/// rangée vide).
+class _ConstraintRowSlot extends StatelessWidget {
+  const _ConstraintRowSlot({required this.prompt});
 
   final SkillPromptDto prompt;
-  final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    final total = prompt.skillPromptCount;
-    final step = total <= 0
-        ? 'Petit sujet ${prompt.displayOrder}'
-        : 'Petit sujet ${prompt.displayOrder}/$total';
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Flexible(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(AppRadii.pill),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(LucideIcons.target, size: 12, color: accent),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    'Une compétence · un critère',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppFonts.ui(
-                      size: 10,
-                      weight: FontWeight.w900,
-                      color: accent,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-          decoration: BoxDecoration(
-            color: AppColors.surface2,
-            borderRadius: BorderRadius.circular(AppRadii.pill),
-          ),
-          child: Text(
-            step,
-            style: AppFonts.ui(
-              size: 10,
-              weight: FontWeight.w900,
-              color: AppColors.inkSoft,
-            ),
-          ),
-        ),
-      ],
+    final row = SkillConstraintRow(
+      lengthHint: skillLengthHint(prompt),
+      tags: prompt.constraintTags,
+      isEo: prompt.section.isEo,
+    );
+    if (row.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: row,
     );
   }
 }
 
-/// `.context` du prototype : encadré neutre, label en petites capitales.
-class _ContextBox extends StatelessWidget {
-  const _ContextBox({required this.label, required this.text});
-
-  final String label;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface2,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: AppFonts.label(size: 10, color: AppColors.inkSoft),
-          ),
-          const SizedBox(height: 6),
-          Text(text, style: AppFonts.ui(size: 13, height: 1.5)),
-        ],
-      ),
-    );
-  }
-}
-
-/// `.editor-head` : intitulé de la zone de production + rappel de la règle du
-/// jeu (produire avant de comparer).
-class _EditorHead extends StatelessWidget {
-  const _EditorHead({required this.title, required this.hint});
-
-  final String title;
-  final String hint;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(title, style: AppFonts.ui(size: 13, weight: FontWeight.w800)),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            hint,
-            textAlign: TextAlign.right,
-            style: AppFonts.ui(
-              size: 10,
-              weight: FontWeight.w700,
-              color: AppColors.inkFaint,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// M3 — « Progression de la compétence · X/N », entre le fil d'Ariane et le
-/// bandeau « déjà traité ».
+/// M3 — « Progression · X/N », sous le repère de sujet.
+///
+/// Le libellé s'est réduit à « Progression » : le mot « compétence » se paie en
+/// hauteur, et l'écran est déjà celui d'une compétence.
 ///
 /// L'agrégat est **calculé côté client** depuis le détail de la compétence
 /// (déjà en cache : cet écran est poussé depuis lui). Aucun endpoint nouveau,
@@ -699,19 +552,15 @@ class _SkillProgressBar extends ConsumerWidget {
           children: [
             Expanded(
               child: Text(
-                'Progression de la compétence',
-                style: AppFonts.ui(
-                  size: 11,
-                  weight: FontWeight.w800,
-                  color: AppColors.inkSoft,
-                ),
+                'Progression',
+                style: AppFonts.ui(size: 12.5, weight: FontWeight.w800),
               ),
             ),
             Text(
               '$done/$count',
               style: AppFonts.ui(
-                size: 11,
-                weight: FontWeight.w800,
+                size: 12.5,
+                weight: FontWeight.w700,
                 color: AppColors.inkSoft,
               ),
             ),
@@ -728,15 +577,17 @@ class _SkillProgressBar extends ConsumerWidget {
   }
 }
 
-/// Fil d'Ariane `Tâche › Compétence › Sujet i/N` + palier de la compétence
-/// (spec §3 niveau 5). Tout vient du sujet lui-même (`skillPromptCount`,
-/// `skillTargetLevel`) : aucun appel à la compétence pour l'afficher, deep link
-/// direct compris.
-class _Breadcrumb extends StatelessWidget {
-  const _Breadcrumb({required this.prompt, required this.accent});
+/// Ligne compacte de repère : `Sujet i/N` à gauche, **palier** à droite.
+///
+/// Remplace le fil d'Ariane sur deux lignes : la tâche et la compétence sont
+/// déjà dans l'en-tête et dans l'écran d'où l'on vient, les répéter coûtait
+/// deux lignes juste avant la zone de production. Le palier, lui, est exigé sur
+/// l'écran d'un petit sujet (spec §3 niveau 5) et vient du sujet lui-même —
+/// deep link direct compris, aucun appel à la compétence.
+class _PromptMetaRow extends StatelessWidget {
+  const _PromptMetaRow({required this.prompt});
 
   final SkillPromptDto prompt;
-  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -746,31 +597,14 @@ class _Breadcrumb extends StatelessWidget {
         : 'Sujet ${prompt.displayOrder}/$total';
     final level = prompt.skillTargetLevel.trim();
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: prompt.taskTitle,
-                  style: AppFonts.ui(
-                    size: 10,
-                    height: 1.5,
-                    weight: FontWeight.w900,
-                    color: accent,
-                  ),
-                ),
-                TextSpan(
-                  text: ' › ${prompt.skillTitle} › $position',
-                  style: AppFonts.ui(
-                    size: 10,
-                    height: 1.5,
-                    weight: FontWeight.w800,
-                    color: AppColors.inkSoft,
-                  ),
-                ),
-              ],
+          child: Text(
+            position,
+            style: AppFonts.ui(
+              size: 13,
+              weight: FontWeight.w700,
+              color: AppColors.inkSoft,
             ),
           ),
         ),
@@ -783,8 +617,13 @@ class _Breadcrumb extends StatelessWidget {
   }
 }
 
-/// `.previous-attempt` du prototype : le sujet a déjà été traité, on le dit et
-/// on propose **une seule** action (reprendre en EE, réécouter en EO).
+/// Le sujet a déjà été traité : on le dit et on propose **une seule** action
+/// (reprendre en EE, réécouter en EO).
+///
+/// Volontairement tenu sur **une ligne** : ce bandeau s'intercale juste
+/// au-dessus du guidage, et la version en pavé (pastille + deux lignes de méta
+/// + bouton pleine largeur) suffisait à repousser la zone de production sous la
+/// ligne de flottaison dès la deuxième visite d'un sujet.
 class _AlreadyTreatedBanner extends StatelessWidget {
   const _AlreadyTreatedBanner({
     required this.prompt,
@@ -811,62 +650,62 @@ class _AlreadyTreatedBanner extends StatelessWidget {
       if (date != null) formatShortDate(date),
     ].join(' · ');
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: accent.withValues(alpha: 0.22)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Material(
+      color: accent.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(AppRadii.lg),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        onTap: busy ? null : onAction,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+            border: Border.all(color: accent.withValues(alpha: 0.22)),
+          ),
+          child: Row(
             children: [
-              Container(
-                width: 34,
-                height: 34,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadii.md),
-                ),
-                child: Icon(LucideIcons.history, size: 16, color: accent),
-              ),
-              const SizedBox(width: 10),
+              Icon(LucideIcons.history, size: 16, color: accent),
+              const SizedBox(width: 9),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Sujet déjà traité',
-                      style: AppFonts.ui(size: 12, weight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      meta,
-                      style: AppFonts.ui(
-                        size: 10,
-                        height: 1.4,
-                        color: AppColors.inkSoft,
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: actionLabel,
+                        style: AppFonts.ui(
+                          size: 12.5,
+                          weight: FontWeight.w800,
+                          color: accent,
+                        ),
                       ),
-                    ),
-                  ],
+                      TextSpan(
+                        text: '  ·  $meta',
+                        style: AppFonts.ui(
+                          size: 11,
+                          color: AppColors.inkSoft,
+                        ),
+                      ),
+                    ],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
+              if (busy)
+                SizedBox(
+                  width: 15,
+                  height: 15,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(accent),
+                  ),
+                )
+              else
+                Icon(actionIcon, size: 15, color: accent),
             ],
           ),
-          const SizedBox(height: 10),
-          AppButton(
-            label: actionLabel,
-            icon: actionIcon,
-            variant: AppButtonVariant.outline,
-            height: 42,
-            isLoading: busy,
-            onPressed: busy ? null : onAction,
-          ),
-        ],
+        ),
       ),
     );
   }

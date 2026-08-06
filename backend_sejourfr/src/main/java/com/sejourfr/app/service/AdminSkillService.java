@@ -10,9 +10,12 @@ import com.sejourfr.app.dto.AdminSkillReferencesRequest;
 import com.sejourfr.app.dto.AdminSkillStatsDto;
 import com.sejourfr.app.dto.AdminSkillUpdateRequest;
 import com.sejourfr.app.dto.PageResponse;
+import com.sejourfr.app.dto.SkillConstraintTagInput;
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.entity.SkillConstraintTag;
 import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.entity.SkillReference;
+import com.sejourfr.app.enums.SkillConstraintIcon;
 import com.sejourfr.app.enums.SkillReferenceLevel;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
@@ -33,11 +36,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * CRUD editorial du module « Competences TCF » pour la console admin :
@@ -75,6 +81,16 @@ public class AdminSkillService {
 
     /** Garde-fou de pagination : une console n'affiche pas 10 000 lignes d'un coup. */
     private static final int MAX_SIZE = 100;
+
+    /**
+     * Bornes du guidage de l'ecran de saisie. Elles vivent ici et non dans le
+     * DDL : les colonnes ont ete ajoutees nullables sur 240 lignes existantes
+     * (V026), et un sujet sans guidage reste legal.
+     */
+    private static final int CHECKLIST_MIN = 2;
+    private static final int CHECKLIST_MAX = 4;
+    private static final int TAGS_MIN = 1;
+    private static final int TAGS_MAX = 3;
 
     private final SkillManager skillManager;
     private final SkillPromptManager promptManager;
@@ -265,6 +281,8 @@ public class AdminSkillService {
         prompt.setContext(req.context().trim());
         prompt.setInstruction(req.instruction().trim());
         prompt.setUniqueCriterion(req.uniqueCriterion().trim());
+        applyGuidance(prompt, req.checklist(), req.constraintTags(),
+                req.answerStarter(), req.tip());
         prompt.setRecommendedMinWords(req.recommendedMinWords());
         prompt.setRecommendedMaxWords(req.recommendedMaxWords());
         prompt.setRecommendedDurationSeconds(req.recommendedDurationSeconds());
@@ -288,6 +306,10 @@ public class AdminSkillService {
      * cohabiterait avec une fourchette de mots, donc vider les unes et poser
      * l'autre doit se faire dans le meme appel.
      *
+     * <p><b>Les quatre champs de guidage sont REMPLACES eux aussi</b> : leurs
+     * colonnes sont nullables (V026), un nul y designe donc l'etat « ce sujet
+     * n'a pas de guidage », qui doit rester atteignable depuis la console.
+     *
      * <p>Les autres champs visent des colonnes {@code NOT NULL} : un nul y vaut
      * « ne touche pas ».
      */
@@ -305,6 +327,9 @@ public class AdminSkillService {
             prompt.setDisplayOrder(req.displayOrder().shortValue());
         }
         if (req.active() != null) prompt.setActive(req.active());
+
+        applyGuidance(prompt, req.checklist(), req.constraintTags(),
+                req.answerStarter(), req.tip());
 
         requireCoherentBounds(prompt.getSection(), req.recommendedMinWords(),
                 req.recommendedMaxWords(), req.recommendedDurationSeconds());
@@ -472,6 +497,101 @@ public class AdminSkillService {
                         "Un sujet d'expression orale ne porte pas de nombre de mots.");
             }
         }
+    }
+
+    /**
+     * Pose le guidage de l'ecran de saisie, en <b>remplacement</b> : ce qui
+     * n'est pas fourni est efface. Utilise a la creation comme a la
+     * modification, pour que les deux voies ne puissent pas diverger.
+     *
+     * <p>Une liste vide vaut un nul — « aucune etiquette » et « je n'en envoie
+     * pas » decrivent le meme sujet, et refuser l'un des deux obligerait la
+     * console a distinguer deux facons d'exprimer la meme intention.
+     *
+     * <p><b>Tout est valide avant qu'une seule valeur ne soit posee</b> : une
+     * check-list valide suivie d'une etiquette invalide ne doit pas laisser le
+     * sujet a moitie modifie en memoire. La transaction annulerait l'ecriture,
+     * mais l'entite serait deja incoherente pour tout ce qui la relit avant.
+     */
+    private void applyGuidance(SkillPrompt prompt,
+                               List<String> checklist,
+                               List<SkillConstraintTagInput> constraintTags,
+                               String answerStarter,
+                               String tip) {
+        List<String> actions = sanitizeChecklist(checklist);
+        List<SkillConstraintTag> tags = sanitizeConstraintTags(constraintTags);
+
+        prompt.setChecklist(actions);
+        prompt.setConstraintTags(tags);
+        prompt.setAnswerStarter(blankToNull(answerStarter));
+        prompt.setTip(blankToNull(tip));
+    }
+
+    /**
+     * La check-list compte 2 a 4 gestes. Moins de deux ne decoupe rien, plus de
+     * quatre ne tient plus au-dessus de la zone de saisie sur un telephone —
+     * c'est la contrainte d'ecran qui fixe la borne haute, pas une regle
+     * pedagogique.
+     */
+    private List<String> sanitizeChecklist(List<String> checklist) {
+        if (checklist == null || checklist.isEmpty()) return null;
+        List<String> cleaned = new ArrayList<>(checklist.size());
+        for (String item : checklist) {
+            if (item == null || item.isBlank()) {
+                throw new BusinessException("Une action de la check-list ne peut pas être vide.");
+            }
+            cleaned.add(item.trim());
+        }
+        if (cleaned.size() < CHECKLIST_MIN || cleaned.size() > CHECKLIST_MAX) {
+            throw new BusinessException("La check-list doit compter entre " + CHECKLIST_MIN
+                    + " et " + CHECKLIST_MAX + " actions (" + cleaned.size() + " fournie(s)).");
+        }
+        return cleaned;
+    }
+
+    /**
+     * Les etiquettes sont 1 a 3, et leur icone appartient a une liste fermee :
+     * une valeur inconnue n'afficherait rien cote front. On la refuse ici, en
+     * enumerant les valeurs admises, plutot que de laisser une etiquette muette
+     * atteindre l'ecran du candidat.
+     */
+    private List<SkillConstraintTag> sanitizeConstraintTags(List<SkillConstraintTagInput> tags) {
+        if (tags == null || tags.isEmpty()) return null;
+        List<SkillConstraintTag> cleaned = new ArrayList<>(tags.size());
+        for (SkillConstraintTagInput tag : tags) {
+            if (tag == null || tag.label() == null || tag.label().isBlank()) {
+                throw new BusinessException("Le libellé d'une étiquette de contrainte est obligatoire.");
+            }
+            cleaned.add(new SkillConstraintTag(tag.label().trim(), parseIcon(tag.icon())));
+        }
+        if (cleaned.size() < TAGS_MIN || cleaned.size() > TAGS_MAX) {
+            throw new BusinessException("Les étiquettes de contrainte doivent être entre " + TAGS_MIN
+                    + " et " + TAGS_MAX + " (" + cleaned.size() + " fournie(s)).");
+        }
+        return cleaned;
+    }
+
+    private SkillConstraintIcon parseIcon(String icon) {
+        if (icon == null || icon.isBlank()) {
+            throw new BusinessException("L'icône d'une étiquette de contrainte est obligatoire. "
+                    + "Valeurs acceptées : " + iconesAcceptees() + ".");
+        }
+        try {
+            return SkillConstraintIcon.valueOf(icon.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException("L'icône « " + icon + " » n'existe pas. "
+                    + "Valeurs acceptées : " + iconesAcceptees() + ".");
+        }
+    }
+
+    private static String iconesAcceptees() {
+        return Arrays.stream(SkillConstraintIcon.values())
+                .map(Enum::name)
+                .collect(Collectors.joining(", "));
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private void requireExactlyThreeLevels(List<AdminSkillReferencesRequest.Item> references) {

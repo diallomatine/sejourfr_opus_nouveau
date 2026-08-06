@@ -8,9 +8,12 @@ import com.sejourfr.app.dto.AdminSkillPromptUpdateRequest;
 import com.sejourfr.app.dto.AdminSkillReferencesRequest;
 import com.sejourfr.app.dto.AdminSkillStatsDto;
 import com.sejourfr.app.dto.AdminSkillUpdateRequest;
+import com.sejourfr.app.dto.SkillConstraintTagInput;
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.entity.SkillConstraintTag;
 import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.entity.SkillReference;
+import com.sejourfr.app.enums.SkillConstraintIcon;
 import com.sejourfr.app.enums.SkillDifficulty;
 import com.sejourfr.app.enums.SkillReferenceLevel;
 import com.sejourfr.app.enums.SkillSection;
@@ -231,6 +234,177 @@ class AdminSkillServiceTest {
     }
 
     // ------------------------------------------------------------------------
+    // Petits sujets : guidage de l'ecran de saisie
+    // ------------------------------------------------------------------------
+
+    @Test
+    void createPromptStoresTheGuidanceAndNormalisesTheIconCase() {
+        Skill written = skill(SkillTaskCode.EE1, "EE1-C1", (short) 1);
+        when(skillManager.findById(written.getId())).thenReturn(Optional.of(written));
+
+        AdminSkillPromptDto dto = service.createPrompt(promptRequest(written.getId(),
+                List.of("  Saluez votre voisine  ", "Écrivez deux phrases"),
+                List.of(new SkillConstraintTagInput("Vouvoiement", "person")),
+                "  Bonjour Madame, je suis votre voisin du…  ",
+                "  commencez par bonjour  "));
+
+        assertThat(dto.checklist()).containsExactly("Saluez votre voisine", "Écrivez deux phrases");
+        assertThat(dto.constraintTags())
+                .containsExactly(new SkillConstraintTag("Vouvoiement", SkillConstraintIcon.PERSON));
+        assertThat(dto.answerStarter()).isEqualTo("Bonjour Madame, je suis votre voisin du…");
+        assertThat(dto.tip()).isEqualTo("commencez par bonjour");
+    }
+
+    /**
+     * Une check-list a un seul geste ne decoupe rien, et au-dela de quatre elle
+     * repousse la zone de saisie sous la ligne de flottaison — soit exactement
+     * ce que la refonte de l'ecran corrige.
+     */
+    @Test
+    void createPromptRejectsAChecklistOutsideItsBounds() {
+        Skill written = skill(SkillTaskCode.EE1, "EE1-C1", (short) 1);
+        when(skillManager.findById(written.getId())).thenReturn(Optional.of(written));
+
+        assertThatThrownBy(() -> service.createPrompt(promptRequest(written.getId(),
+                List.of("Saluez votre voisine"), null, null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("check-list");
+
+        assertThatThrownBy(() -> service.createPrompt(promptRequest(written.getId(),
+                List.of("Un", "Deux", "Trois", "Quatre", "Cinq"), null, null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("entre 2 et 4");
+    }
+
+    @Test
+    void createPromptRejectsMoreThanThreeConstraintTags() {
+        Skill written = skill(SkillTaskCode.EE1, "EE1-C1", (short) 1);
+        when(skillManager.findById(written.getId())).thenReturn(Optional.of(written));
+
+        assertThatThrownBy(() -> service.createPrompt(promptRequest(written.getId(), null,
+                List.of(new SkillConstraintTagInput("Vouvoiement", "PERSON"),
+                        new SkillConstraintTagInput("Ton poli", "TONE"),
+                        new SkillConstraintTagInput("Passé composé", "TENSE"),
+                        new SkillConstraintTagInput("Un exemple", "EXAMPLE")),
+                null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("entre 1 et 3");
+    }
+
+    /**
+     * Hors de la liste fermee, aucun front ne saurait quoi dessiner : l'etiquette
+     * s'afficherait muette. Le refus doit rester un 422 lisible en francais —
+     * pas la violation d'une contrainte, pas un 400 du convertisseur JSON.
+     */
+    @Test
+    void createPromptRejectsAnIconOutsideTheClosedListAndListsTheAcceptedOnes() {
+        Skill written = skill(SkillTaskCode.EE1, "EE1-C1", (short) 1);
+        when(skillManager.findById(written.getId())).thenReturn(Optional.of(written));
+
+        assertThatThrownBy(() -> service.createPrompt(promptRequest(written.getId(), null,
+                List.of(new SkillConstraintTagInput("Vouvoiement", "SMILEY")), null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("SMILEY")
+                .hasMessageContaining("PERSON");
+
+        verify(promptManager, never()).save(any());
+    }
+
+    @Test
+    void createPromptRejectsAConstraintTagWithoutALabel() {
+        Skill written = skill(SkillTaskCode.EE1, "EE1-C1", (short) 1);
+        when(skillManager.findById(written.getId())).thenReturn(Optional.of(written));
+
+        assertThatThrownBy(() -> service.createPrompt(promptRequest(written.getId(), null,
+                List.of(new SkillConstraintTagInput("   ", "PERSON")), null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("libellé");
+    }
+
+    /**
+     * Le guidage est facultatif : la console doit pouvoir publier un sujet sans
+     * lui, quitte a ce que les fronts retombent sur la consigne. L'exiger
+     * fermerait la creation depuis la console, sans que le DDL ne l'ait jamais
+     * demande.
+     */
+    @Test
+    void createPromptWithoutAnyGuidanceIsAccepted() {
+        Skill written = skill(SkillTaskCode.EE1, "EE1-C1", (short) 1);
+        when(skillManager.findById(written.getId())).thenReturn(Optional.of(written));
+
+        AdminSkillPromptDto dto = service.createPrompt(
+                promptRequest(written.getId(), null, null, null, null));
+
+        assertThat(dto.checklist()).isNull();
+        assertThat(dto.constraintTags()).isNull();
+        assertThat(dto.answerStarter()).isNull();
+        assertThat(dto.tip()).isNull();
+    }
+
+    /**
+     * Meme semantique que les bornes de longueur : un nul EFFACE. Sans cela, une
+     * check-list posee par erreur serait ineffacable depuis la console, et il
+     * faudrait un UPDATE en base pour retirer un guidage errone d'un sujet
+     * publie.
+     */
+    @Test
+    void patchWithoutGuidanceErasesTheExistingOne() {
+        SkillPrompt prompt = writtenPrompt(15, 50);
+        prompt.setChecklist(List.of("Saluez votre voisine", "Écrivez deux phrases"));
+        prompt.setConstraintTags(List.of(
+                new SkillConstraintTag("Vouvoiement", SkillConstraintIcon.PERSON)));
+        prompt.setAnswerStarter("Bonjour Madame…");
+        prompt.setTip("commencez par bonjour");
+        when(promptManager.findByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
+
+        AdminSkillPromptDto dto = service.updatePrompt(prompt.getId(), patch(15, 50, null));
+
+        assertThat(dto.checklist()).isNull();
+        assertThat(dto.constraintTags()).isNull();
+        assertThat(dto.answerStarter()).isNull();
+        assertThat(dto.tip()).isNull();
+        assertThat(prompt.getChecklist()).isNull();
+    }
+
+    @Test
+    void patchReplacesTheGuidanceWholesaleRatherThanMergingIt() {
+        SkillPrompt prompt = writtenPrompt(15, 50);
+        prompt.setChecklist(List.of("Ancien geste 1", "Ancien geste 2", "Ancien geste 3"));
+        prompt.setTip("ancienne astuce");
+        when(promptManager.findByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
+
+        AdminSkillPromptDto dto = service.updatePrompt(prompt.getId(), patchGuidance(
+                List.of("Saluez votre voisine", "Écrivez deux phrases"),
+                List.of(new SkillConstraintTagInput("Ton poli", "TONE")),
+                "Bonjour Madame…",
+                null));
+
+        assertThat(dto.checklist()).containsExactly("Saluez votre voisine", "Écrivez deux phrases");
+        assertThat(dto.constraintTags())
+                .containsExactly(new SkillConstraintTag("Ton poli", SkillConstraintIcon.TONE));
+        // L'ancienne astuce n'est pas conservee : le champ absent vaut « efface ».
+        assertThat(dto.tip()).isNull();
+    }
+
+    /** Une modification invalide ne doit rien ecrire du tout. */
+    @Test
+    void patchWithAnInvalidIconLeavesThePromptUntouched() {
+        SkillPrompt prompt = writtenPrompt(15, 50);
+        prompt.setChecklist(List.of("Ancien geste 1", "Ancien geste 2"));
+        when(promptManager.findByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
+
+        assertThatThrownBy(() -> service.updatePrompt(prompt.getId(), patchGuidance(
+                List.of("Saluez votre voisine", "Écrivez deux phrases"),
+                List.of(new SkillConstraintTagInput("Ton poli", "COULEUR")),
+                null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("COULEUR");
+
+        assertThat(prompt.getChecklist()).containsExactly("Ancien geste 1", "Ancien geste 2");
+        verify(promptManager, never()).save(any());
+    }
+
+    // ------------------------------------------------------------------------
     // Petits sujets : semantique de remplacement du PATCH
     // ------------------------------------------------------------------------
 
@@ -264,7 +438,8 @@ class AdminSkillServiceTest {
         when(promptManager.findByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
 
         AdminSkillPromptDto dto = service.updatePrompt(prompt.getId(),
-                new AdminSkillPromptUpdateRequest(null, null, null, null, 15, 50, null, null, null, null));
+                new AdminSkillPromptUpdateRequest(null, null, null, null,
+                        null, null, null, null, 15, 50, null, null, null, null));
 
         assertThat(dto.title()).isEqualTo("Sujet seed");
         assertThat(dto.code()).isEqualTo("EE1-C1-S1");
@@ -394,12 +569,35 @@ class AdminSkillServiceTest {
                                                                Integer max,
                                                                Integer duration) {
         return new AdminSkillPromptCreateRequest(skillId, "EE1-C1-S9", "Titre", "Contexte",
-                "Consigne", "Critere unique", min, max, duration, SkillDifficulty.EASY, 9, null);
+                "Consigne", "Critere unique", null, null, null, null,
+                min, max, duration, SkillDifficulty.EASY, 9, null);
+    }
+
+    /** Creation portant le guidage de l'ecran de saisie. */
+    private static AdminSkillPromptCreateRequest promptRequest(UUID skillId,
+                                                               List<String> checklist,
+                                                               List<SkillConstraintTagInput> tags,
+                                                               String answerStarter,
+                                                               String tip) {
+        return new AdminSkillPromptCreateRequest(skillId, "EE1-C1-S9", "Titre", "Contexte",
+                "Consigne", "Critere unique", checklist, tags, answerStarter, tip,
+                15, 50, null, SkillDifficulty.EASY, 9, null);
     }
 
     private static AdminSkillPromptUpdateRequest patch(Integer min, Integer max, Integer duration) {
         return new AdminSkillPromptUpdateRequest("Titre", "Contexte", "Consigne", "Critere",
+                null, null, null, null,
                 min, max, duration, SkillDifficulty.MEDIUM, 1, true);
+    }
+
+    /** Modification portant le guidage, bornes de mots inchangees. */
+    private static AdminSkillPromptUpdateRequest patchGuidance(List<String> checklist,
+                                                               List<SkillConstraintTagInput> tags,
+                                                               String answerStarter,
+                                                               String tip) {
+        return new AdminSkillPromptUpdateRequest("Titre", "Contexte", "Consigne", "Critere",
+                checklist, tags, answerStarter, tip,
+                15, 50, null, SkillDifficulty.MEDIUM, 1, true);
     }
 
     private static AdminSkillReferencesRequest.Item item(SkillReferenceLevel level) {

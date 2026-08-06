@@ -20,6 +20,10 @@ import jakarta.validation.constraints.Size;
  * bornes de mots dans le meme appel ou l'on pose sa duree, sinon le CHECK
  * {@code chk_skill_prompts_ee_eo_coherence} refuse l'etat intermediaire.
  *
+ * <p><b>Les quatre champs de guidage suivent la meme regle</b>, pour la meme
+ * raison : leurs colonnes sont nullables (V026), un nul y designe donc un etat
+ * atteignable — « ce sujet n'a pas de guidage » — et non un etat impossible.
+ *
  * <p>Les autres champs visent des colonnes {@code NOT NULL} : un nul y demande
  * un etat impossible, il vaut donc « ne touche pas ». Le front, lui, envoie
  * toujours tous les champs — les deux lectures coincident.
@@ -33,6 +37,23 @@ public record AdminSkillPromptUpdateRequest(
         String instruction,
 
         String uniqueCriterion,
+
+        /**
+         * Guidage de l'ecran de saisie. <b>Meme semantique de REMPLACEMENT que
+         * les bornes : un nul efface.</b> Ces colonnes sont nullables (V026),
+         * donc un nul y designe un etat atteignable — a l'inverse des colonnes
+         * {@code NOT NULL} ci-dessus, ou il ne peut vouloir dire que « ne touche
+         * pas ». Sans cela, une check-list posee par erreur serait ineffacable
+         * depuis la console.
+         */
+        java.util.List<String> checklist,
+
+        java.util.List<SkillConstraintTagInput> constraintTags,
+
+        String answerStarter,
+
+        /** Sans le prefixe « Astuce : ». Nul = efface. */
+        String tip,
 
         /** Nul = efface. Voir la note de remplacement ci-dessus. */
         @Min(value = 1, message = "Le nombre de mots minimum doit être positif.")

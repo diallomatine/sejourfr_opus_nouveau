@@ -5,8 +5,10 @@ import com.sejourfr.app.dto.SkillPromptDto;
 import com.sejourfr.app.dto.SkillPromptSummaryDto;
 import com.sejourfr.app.dto.SkillReferenceDto;
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.entity.SkillConstraintTag;
 import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.entity.SkillReference;
+import com.sejourfr.app.enums.SkillConstraintIcon;
 import com.sejourfr.app.enums.SkillDifficulty;
 import com.sejourfr.app.enums.SkillPromptStatus;
 import com.sejourfr.app.enums.SkillReferenceLevel;
@@ -15,9 +17,11 @@ import com.sejourfr.app.enums.SkillTaskCode;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 /** Mappers purs du module competences : aucune dependance, aucune doublure. */
 class SkillPromptMapperTest {
@@ -80,6 +84,63 @@ class SkillPromptMapperTest {
                 .isEqualTo("Le ton et les formules sont adaptés au destinataire.");
         // Le critere du SUJET reste distinct de celui de la COMPETENCE.
         assertThat(dto.uniqueCriterion()).isNotEqualTo(dto.skillGeneralCriterion());
+    }
+
+    /**
+     * L'ecran de saisie ne montre plus le critere brut : il montre une
+     * check-list, des etiquettes, une amorce et une astuce. S'ils ne sont pas
+     * servis, l'ecran retombe sur l'ancienne forme sans que rien n'echoue —
+     * d'ou ce test, qui verifie qu'ils font bien le voyage jusqu'au DTO.
+     */
+    @Test
+    void fullPromptServesTheFourGuidanceFields() {
+        SkillPrompt prompt = writtenPrompt();
+        prompt.setChecklist(List.of("Saluez votre voisine", "Dites qui vous êtes", "Écrivez deux phrases"));
+        prompt.setConstraintTags(List.of(
+                new SkillConstraintTag("Vouvoiement", SkillConstraintIcon.PERSON),
+                new SkillConstraintTag("Ton poli", SkillConstraintIcon.TONE)));
+        prompt.setAnswerStarter("Bonjour Madame, je suis votre voisin du…");
+        prompt.setTip("commencez par bonjour, puis présentez-vous");
+
+        SkillPromptDto dto = promptMapper.toDto(prompt, prompt.getSkill(), 5,
+                SkillPromptStatus.TODO, 0, null, null, null);
+
+        assertThat(dto.checklist())
+                .containsExactly("Saluez votre voisine", "Dites qui vous êtes", "Écrivez deux phrases");
+        assertThat(dto.constraintTags())
+                .extracting(SkillConstraintTag::label, SkillConstraintTag::icon)
+                .containsExactly(
+                        tuple("Vouvoiement", SkillConstraintIcon.PERSON),
+                        tuple("Ton poli", SkillConstraintIcon.TONE));
+        assertThat(dto.answerStarter()).isEqualTo("Bonjour Madame, je suis votre voisin du…");
+        // L'astuce est servie SANS le prefixe « Astuce : » : c'est le front qui l'ajoute.
+        assertThat(dto.tip()).isEqualTo("commencez par bonjour, puis présentez-vous")
+                .doesNotStartWith("Astuce");
+    }
+
+    /**
+     * Un sujet cree depuis la console peut naitre sans guidage : les colonnes
+     * sont nullables (V026). Il doit alors etre servi <b>sans exception</b>, en
+     * laissant les quatre champs a {@code null} — c'est aux fronts de retomber
+     * sur la consigne. Une valeur de repli fabriquee ici leur cacherait
+     * l'absence et remplirait la carte « Ce qu'il faut faire » avec du vide.
+     */
+    @Test
+    void promptWithoutGuidanceIsServedWithNullsAndNoFailure() {
+        SkillPrompt prompt = writtenPrompt();
+
+        SkillPromptDto dto = promptMapper.toDto(prompt, prompt.getSkill(), 5,
+                SkillPromptStatus.TODO, 0, null, null, null);
+        SkillPromptSummaryDto summary = promptMapper.toSummaryDto(
+                prompt, SkillPromptStatus.TODO, 0, null);
+
+        assertThat(dto.checklist()).isNull();
+        assertThat(dto.constraintTags()).isNull();
+        assertThat(dto.answerStarter()).isNull();
+        assertThat(dto.tip()).isNull();
+        // La carte du sujet reste servie : le guidage ne conditionne rien d'autre.
+        assertThat(dto.instruction()).isEqualTo("Rédigez trois phrases.");
+        assertThat(summary.uniqueCriterion()).isEqualTo("Adapter le ton au destinataire.");
     }
 
     @Test
