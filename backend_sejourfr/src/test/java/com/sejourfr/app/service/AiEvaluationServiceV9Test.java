@@ -149,6 +149,58 @@ class AiEvaluationServiceV9Test {
             .doesNotContain(EvaluationOralArtifactFilter.AVERTISSEMENT_ARTEFACT);
     }
 
+    // ------------------------------------------------- filet oral (volet LANGUE)
+
+    /**
+     * Bout en bout : le reproche de langue etrangere disparait de la restitution
+     * ORALE, l'avertissement DEDIE est pose, et la note ne bouge pas d'un iota —
+     * ce filet n'agit que sur du texte.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void un_reproche_de_langue_etrangere_est_purge_a_l_oral() {
+        Map<String, Object> f = feedbackOral();
+        score(f, "communiquer").put("commentaire",
+            "Le propos suit un fil clair. "
+                + "Plusieurs passages sont inaudibles ou en langue étrangère, ce qui bloque "
+                + "la communication.");
+        f.put("suggestions", new ArrayList<>(List.of(
+            "Éviter de passer à une autre langue pendant l'épreuve : rester en français.")));
+        stubLlm(f);
+
+        AiEvaluation eval = service.evaluate(submissionOraleLongue().getId());
+        Map<String, Object> feedback = eval.getFeedbackJson();
+
+        assertThat(score(feedback, "communiquer").get("commentaire"))
+            .isEqualTo("Le propos suit un fil clair.");
+        assertThat((List<Object>) feedback.get("suggestions")).isEmpty();
+        assertThat((List<String>) feedback.get("avertissements"))
+            .contains(EvaluationOralArtifactFilter.AVERTISSEMENT_LANGUE);
+        assertThat(eval.getNoteSur20()).isEqualByComparingTo("7.0");
+        assertThat(eval.getNiveauCecrl()).isEqualTo(NiveauCecrl.B1);
+    }
+
+    /**
+     * ASYMETRIE EE / EO — a l'ECRIT, le candidat a tape chaque mot : une langue
+     * etrangere est une VRAIE non-realisation et doit remonter. Rien n'est purge,
+     * aucun avertissement.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void le_meme_reproche_de_langue_est_conserve_a_l_ecrit() {
+        Map<String, Object> f = feedbackEcrit(7, 7, 7, 7);
+        String commentaire = "Plusieurs phrases sont rédigées en anglais : la consigne "
+            + "demandait un message en français.";
+        score(f, "communiquer").put("commentaire", commentaire);
+        stubLlm(f);
+
+        Map<String, Object> feedback = service.evaluate(submissionEcrite().getId()).getFeedbackJson();
+
+        assertThat(score(feedback, "communiquer").get("commentaire")).isEqualTo(commentaire);
+        assertThat((List<String>) feedback.getOrDefault("avertissements", List.of()))
+            .doesNotContain(EvaluationOralArtifactFilter.AVERTISSEMENT_LANGUE);
+    }
+
     // ------------------------------------------- exemples corriges (volet 3)
 
     /**
@@ -216,6 +268,30 @@ class AiEvaluationServiceV9Test {
         when(submissionManager.findById(s.getId())).thenReturn(Optional.of(s));
         when(transcriptionManager.findLatestTexteBySubmissionId(s.getId()))
             .thenReturn(Optional.of(DIALOGUE_EO));
+        return s;
+    }
+
+    /**
+     * Transcription francaise ASSEZ LONGUE pour que le volet langue soit
+     * mesurable (>= 40 mots exploitables), portant l'artefact neerlandais reel.
+     */
+    private ProductionSubmission submissionOraleLongue() {
+        ProductionSubmission s = new ProductionSubmission();
+        s.setId(UUID.randomUUID());
+        s.setProductionTask(task(EpreuveType.TCF_EO, 2));
+        s.setStatut(SubmissionStatut.SUBMITTED);
+        s.setMediaDurationSec(210);
+        when(submissionManager.findById(s.getId())).thenReturn(Optional.of(s));
+        when(transcriptionManager.findLatestTexteBySubmissionId(s.getId()))
+            .thenReturn(Optional.of(
+                "Examinateur : Bonjour, pourquoi souhaitez-vous déménager ?\n"
+                    + "Candidat : je veux aller habiter dans une autre ville parce que le loyer "
+                    + "est moins cher pour ma famille et il y a un grand parc juste à côté de "
+                    + "chez nous\n"
+                    + "Candidat : Ja. Dus kan nog sorteer de weekenden\n"
+                    + "Examinateur : Et les transports, cela vous inquiète ?\n"
+                    + "Candidat : non il y a le tramway et je mets vingt minutes pour aller au "
+                    + "travail chaque matin avec mes collègues"));
         return s;
     }
 

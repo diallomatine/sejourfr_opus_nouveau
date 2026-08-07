@@ -50,6 +50,17 @@ compétence, sans note ni niveau — les versions sont **v1 / v1** et tout est d
 > perdues » du banc, qui doit peser dans l'arbitrage. Comparaison colonne par colonne au
 > **§12.6** ; changer de moteur tient en trois lignes de configuration.
 
+> 🆕 **7 août 2026 — on ne vous reproche plus une langue étrangère que vous n'avez pas
+> parlée.** Le transcripteur de l'oral **en temps réel** change parfois de langue tout seul :
+> il rend en russe, en arabe ou en néerlandais un passage qu'il a mal capté. Le correcteur
+> reprochait alors au candidat d'« être passé à une autre langue ». Notre serveur **retire
+> désormais ces reproches du rapport**, automatiquement, et le dit franchement au candidat.
+> **À l'écrit, rien ne change** : là, c'est bien le candidat qui a tapé chaque mot, et une
+> langue étrangère reste une vraie non-réalisation. Un garde-fou chiffré empêche que cette
+> protection efface le cas d'un candidat qui répond **réellement** dans une autre langue. Ni la
+> note, ni le niveau, ni aucun seuil ne bougent. Détail complet, chiffres réels et versions de
+> grille écartées au **§8 quater**.
+
 > 🆕 **Ce que change la v9 : la lecture de l'oral.** La façon de **noter** est celle de la
 > v8 — mêmes critères, même échelle, mêmes seuils, mêmes garde-fous, mêmes exemples de
 > calibration, mêmes grilles par tâche, au caractère près. Deux sections seulement ont été
@@ -201,6 +212,19 @@ en enregistrement.
 retrouver avec un texte transcrit décousu ou bizarre. **L'IA correctrice est prévenue de
 ça** et a des consignes strictes pour ne pas pénaliser le candidat à cause d'un défaut de
 transcription (voir §8).
+
+**Les deux machines qui transcrivent ne sont pas la même — et elles ne se trompent pas
+pareil.** C'est une distinction qui compte pour comprendre le §8 quater :
+
+| | Enregistrement (tâche 3, et tout l'oral asynchrone) | Temps réel (tâches 1 et 2) |
+|---|---|---|
+| Qui transcrit | *Whisper* | *Gemini Live*, la même IA qui joue l'examinateur |
+| Langue | **imposée : français.** On lui dit dans quelle langue écouter, elle n'a rien à deviner | **impossible à imposer.** L'outil ne propose aucun réglage de langue pour ce qu'il entend |
+| Défaut typique | des mots mal entendus (« Lille » → « l'île ») | des mots mal entendus **et** des passages restitués dans une **autre langue** |
+
+Cette différence n'est pas une hypothèse : sur nos données réelles, **aucune** des
+36 transcriptions faites par Whisper ne contient d'écriture étrangère, contre **6 sur 39**
+côté temps réel. Le §8 quater explique ce qu'on en a fait.
 
 ### 3.1 Une phrase coupée en deux est recollée avant d'être lue et notée
 
@@ -1310,6 +1334,165 @@ la durée n'est toujours pas transmise. C'est uniquement la consigne qui change.
 
 ---
 
+## 8 quater. Quand la machine de transcription change de langue
+
+**Le constat de départ, brut.** En regardant les corrections réellement rendues, on voyait
+l'IA reprocher à des candidats d'avoir parlé **russe**, **arabe**, **néerlandais** ou
+**anglais**. Or nous sommes une application de préparation au français : les candidats
+parlent français. Ce n'était pas eux qui changeaient de langue — **c'était notre
+transcripteur**.
+
+### Pourquoi ça n'arrive qu'à l'oral en temps réel
+
+L'examinateur vocal et le transcripteur du temps réel sont **la même IA**, et elle est
+multilingue par construction. Son éditeur l'annonce d'ailleurs comme une qualité : elle
+« change de langue naturellement au cours d'une conversation ». Résultat : quand un passage
+est mal articulé, couvert par un bruit, ou simplement peu audible, elle ne rend pas du
+charabia français — elle rend des mots d'**une autre langue**, parfois dans une **autre
+écriture**.
+
+Nous avons compté sur nos données réelles, en séparant les deux voies :
+
+| | Transcriptions portant une écriture non latine |
+|---|---|
+| Oral **enregistré** (Whisper) | **0 sur 36** |
+| Oral **temps réel** (examinateur vocal) | **6 sur 39**, soit 15 % |
+
+Côté corrections rendues : **5 corrections orales sur 72** reprochaient au candidat une langue
+étrangère, et **les cinq viennent de la voie temps réel**. À l'écrit, un seul cas sur 60 — et
+c'en est un **vrai**, le candidat avait bien écrit dans une autre langue.
+
+Le défaut est donc **entièrement** dans la voie temps réel. Deux chiffres donnent l'échelle
+du phénomène : les passages fautifs pèsent **de 6 à 24 caractères** dans des transcriptions
+de **1 700 à 3 900 caractères**, soit **moins de 1,5 % du texte**. Ce sont des miettes — mais
+des miettes que le correcteur reprochait au candidat.
+
+### Ce qu'on a essayé d'abord : imposer le français à la machine
+
+C'est la correction la plus propre, et c'est la première qu'on a cherchée. Elle marche pour
+l'oral **enregistré** : on dit à Whisper « écoute du français », et c'est déjà le cas depuis
+toujours — ce qui explique son score parfait ci-dessus.
+
+**Pour le temps réel, ce n'est pas possible.** L'outil ne propose aucun réglage de langue
+pour ce qu'il *entend*, et les modèles vocaux qu'on utilise **refusent** qu'on leur impose une
+langue — la demande ferait échouer l'ouverture de la session et renverrait tout le monde vers
+le mode enregistré. Nous le disons franchement plutôt que d'annoncer une correction qui
+n'existe pas.
+
+Ce qu'on a pu faire : **verrouiller la langue dans les consignes de l'examinateur vocal**
+(persona v3, §10) — celle-là est **livrée et active**. On lui dit explicitement que
+l'entretien est intégralement en français, que le candidat passe un examen **de** français et
+que ce qu'il prononce est donc du français — et qu'un passage mal compris est du français mal
+capté, jamais une phrase étrangère. C'est un **biais, pas une garantie** : nous ne pouvons pas
+mesurer son effet sans faire passer des oraux réels. Le vrai filet est ailleurs.
+
+### Ce qu'on a essayé ensuite, et qui n'a pas marché : mieux l'expliquer à l'IA
+
+Deux versions de la grille de notation (**v10** puis **v11**) ont été écrites pour dire au
+correcteur, noir sur blanc, qu'un fragment en langue étrangère à l'oral vient de la machine et
+ne doit pas être reproché. Les deux ont été **mesurées** contre la grille en service (v9), le
+même jour, sur le même modèle, avec les mêmes réglages qu'en production.
+
+| | v9 (en service) | v10 | v11 |
+|---|---|---|---|
+| Niveau exact | **81,8 %** | 75,6 % | 76,7 % |
+| Corrections perdues | **8,3 %** | 14,6 % | 10,4 % |
+| Pièges déjoués | **7/8** | 4/8 | 5/8 |
+
+**Les deux sont moins bonnes que ce qu'elles remplaçaient**, et v10 dérivait en plus sur deux
+cas de référence : une production **hors-sujet** remontait de « A1 non atteint » à « A1 », et
+une transcription simplement **bruitée** passait de A2 à B1. L'explication est simple et vaut
+d'être retenue : le texte ajouté (plus de 4 000 caractères) **diluait la sévérité du reste de
+la grille**. En demandant à l'IA d'être indulgente sur un point, on l'a rendue indulgente
+partout.
+
+Les deux versions sont **conservées** — nous ne supprimons jamais une grille livrée — mais
+elles **ne sont pas activées** et la voie est refermée. La leçon est générale : *une consigne
+est un vœu.* v9 interdisait **déjà** d'imputer un artefact de transcription au candidat, et le
+correcteur l'a fait quand même dans 5 corrections sur 72.
+
+### Le vrai filet : une vérification automatique, après coup
+
+Ce qui règle le problème n'est pas une consigne mais un **contrôle de notre serveur**, appliqué
+à la correction une fois qu'elle est rendue. Il est **livré et actif**.
+
+**Ce qu'il fait.** Sur une épreuve **orale** uniquement, il relit le rapport destiné au
+candidat et **retire les phrases qui lui reprochent d'avoir employé une autre langue**. Cela
+concerne les commentaires de chaque critère, les priorités d'amélioration, les conseils, les
+points forts, le résumé d'objectif et les exemples corrigés. Une priorité dont le constat
+disparaît est retirée en entier — on ne rend pas un demi-conseil. Un commentaire vidé n'est
+jamais laissé vide : il est remplacé par une phrase qui dit franchement pourquoi.
+
+**Le candidat est prévenu.** Un avertissement dédié apparaît dans son rapport : *une ou
+plusieurs remarques vous reprochaient d'être passé à une autre langue ; elles ont été retirées,
+ces passages viennent de notre transcription automatique.* Nous ne corrigeons rien en douce.
+
+**Ce qu'il ne fait pas.** Il ne touche **ni à la note, ni au niveau, ni à aucun seuil** : la
+même correction donne exactement le même résultat chiffré avec ou sans lui. C'est précisément
+ce qui permet de le livrer sans nouvelle campagne de mesure.
+
+**Ce qu'il ne touche jamais.** Les **raisons de confiance**. Quand le correcteur écrit
+« transcription temps réel partiellement incertaine (passages en russe et en néerlandais,
+artefacts de reconnaissance vocale) », il a **raison**, et il le dit au bon endroit : la langue
+étrangère y est traitée comme une gêne pour *lire* la production, pas comme une faute du
+candidat. C'est exactement là qu'elle doit vivre, et rien ne l'en retire.
+
+### À l'écrit, rien de tout cela ne s'applique
+
+**C'est volontaire, et c'est la partie la plus importante de la règle.** À l'écrit, aucune
+machine ne s'interpose entre le candidat et son texte : il a tapé chaque mot. Une phrase en
+anglais dans une production écrite est **une vraie non-réalisation** de la consigne, et elle
+doit remonter au candidat sans aucun bénéfice du doute. Le contrôle n'est donc **jamais**
+appliqué à l'expression écrite.
+
+L'asymétrie ne dit pas que l'oral est moins exigeant. Elle dit que **l'oral passe par une
+machine et l'écrit non**.
+
+### Le point délicat : ne pas effacer un vrai changement de langue
+
+Un candidat qui répond **réellement** en espagnol doit continuer d'être sanctionné — sinon
+cette protection deviendrait une porte de sortie. Le serveur ne juge donc pas « au feeling » :
+avant de retirer quoi que ce soit, il **mesure la production elle-même**, sur les seules
+paroles du candidat (jamais celles de l'examinateur).
+
+Deux mesures, deux plafonds. Au-dessus de **l'un ou l'autre**, **plus rien n'est retiré** :
+
+1. **La part d'écriture étrangère** (arabe, cyrillique…) doit rester **sous 15 %**. Sur nos
+   données réelles, les hallucinations plafonnent à **6,8 %** ; une production vraiment écrite
+   dans un autre alphabet en est proche de 100 %.
+2. **La part de mots-outils d'une autre langue** (« dus », « porque », « the », « however »…)
+   doit rester **sous 6 %**. Sur les 75 transcriptions réelles, le maximum observé est
+   **1,4 %** ; sur les 48 productions de référence du banc, 47 sont à **0 %** — et celle où le
+   candidat bascule vraiment en espagnol est à **12,5 %**.
+
+S'y ajoute une condition de bon sens : **au moins 40 mots exploitables**. En dessous, un seul
+mot pèserait plus que le seuil, et une production quasi muette est justement celle où un vrai
+changement de langue est le plus plausible.
+
+**Pourquoi deux mesures et pas une.** L'écriture ne trahit rien quand la langue s'écrit avec
+notre alphabet : anglais, néerlandais, espagnol passent inaperçus. Et compter les *mots
+français* ne suffit pas non plus — nous l'avons vérifié : la production de référence où le
+candidat bascule en espagnol contient **36 % de mots-outils français**, soit **plus que huit
+vraies transcriptions françaises** de nos données. Les langues voisines partagent trop de
+petits mots avec le français. Il fallait donc compter directement la matière **étrangère**.
+
+**En cas de doute, on ne retire rien.** Le sens de l'erreur est assumé : laisser passer un
+reproche injuste est moins grave qu'effacer la détection d'une production qui n'est pas en
+français.
+
+### Ce qui n'a pas bougé
+
+Un contrôle plus ancien vérifiait **déjà**, avant même d'appeler l'IA, qu'une production est
+bien en français (§4) : une production massivement dans une autre langue est refusée sans que
+l'IA ait son mot à dire. Il n'a pas changé. Le nouveau filet règle le sort des **fragments**
+qui passent sous ce seuil — et qui sont précisément ceux que notre transcripteur fabrique.
+
+N'ont pas bougé non plus : l'échelle, les quatre critères, les seuils, le garde-fou de
+couplage, les plafonds, les bandes affichées, la règle de preuve littérale et le garde-fou de
+l'oral.
+
+---
+
 ## 9. L'oral : ce que nous ne savons pas évaluer
 
 **C'est une limite technique, pas un choix pédagogique — et le candidat en est informé.**
@@ -1380,6 +1563,37 @@ joué par une IA vocale (technologie Google Gemini Live). Deux choses à bien di
   quelles questions poser ou quelles informations demander. En T2 (jeu de rôle), c'est le
   **candidat** qui mène et pose les questions ; l'examinateur **répond** et attend, sans
   prendre l'initiative.
+
+### Le verrou de langue (nouveau : persona v3)
+
+La même IA joue l'examinateur **et** écrit la transcription de l'échange. Elle est multilingue,
+et son éditeur en fait un argument : elle « change de langue naturellement au cours d'une
+conversation ». Pour un examen de français, c'est un défaut, pas une qualité — c'est lui qui
+faisait apparaître des passages en arabe ou en néerlandais dans les transcriptions
+(§8 quater).
+
+Ses consignes lui disaient déjà de **parler** exclusivement français. Elles lui disent
+maintenant, en plus, comment **entendre** :
+
+- l'entretien se déroule **intégralement en français, des deux côtés**, du premier au dernier
+  mot ;
+- le candidat passe un examen **de** français : par définition, ce qu'il prononce **est** du
+  français — même avec une prononciation approximative, un accent marqué, une phrase
+  inachevée ou un micro qui grésille ;
+- un passage mal compris est du français **mal capté**, jamais une phrase étrangère. Elle ne
+  doit ni lui substituer des mots d'une autre langue, ni écrire la parole du candidat dans une
+  autre écriture. Si elle n'a pas compris, elle demande simplement de répéter — en français ;
+- elle ne bascule jamais vers une autre langue, même si on le lui demande.
+
+**Honnêteté sur la portée.** C'est le seul levier que l'outil nous laisse : il n'existe aucun
+réglage permettant d'imposer la langue de ce qu'il entend. C'est donc un **biais donné au
+modèle, pas une garantie technique**, et son effet ne se mesure pas sur notre banc (qui rejoue
+des textes déjà transcrits, sans jamais appeler l'examinateur vocal). Le filet qui protège
+réellement le candidat est la vérification automatique décrite au §8 quater.
+
+Tout le reste de la persona est **inchangé** — conduite de l'entretien, fiche de scénario,
+interdiction de corriger la langue du candidat : v3 ajoute trois règles, elle n'en réécrit
+aucune.
 
 ### La fiche de scénario de la tâche 2
 
@@ -2342,17 +2556,17 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 
 | Ce qu'on veut changer | Fichier |
 |-----------------------|---------|
-| **Toutes les consignes de notation** (les 4 critères du TCF et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et tout ce qui se lit sur une note** : seuils note → niveau, écart du garde-fou, seuils des plafonds, bornes des bandes affichées) **et toutes les consignes de restitution** (confiance, anti-répétition, levier de progression, verdict, version améliorée, plafonds d'affichage) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v9.json` (version **active**, profil `TCF_IRN`, maximum B2). `v8`, `v7` et les versions antérieures restent en place et chargeables. Un rollback change la **paire compatible** `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION` (v9/v5 → v8/v5 → v7/v4, par exemple), jamais un seul côté du contrat — et revenir de v9 à v8 ne demande **qu'une variable**, les deux partageant le même format de réponse. |
+| **Toutes les consignes de notation** (les 4 critères du TCF et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et tout ce qui se lit sur une note** : seuils note → niveau, écart du garde-fou, seuils des plafonds, bornes des bandes affichées) **et toutes les consignes de restitution** (confiance, anti-répétition, levier de progression, verdict, version améliorée, plafonds d'affichage) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v9.json` (version **active**, profil `TCF_IRN`, maximum B2). `v8`, `v7` et les versions antérieures restent en place et chargeables. ⚠️ **`v10` et `v11` existent aussi, et sont écartées** : elles ajoutaient une consigne sur la langue étrangère à l'oral et ont été **mesurées moins bonnes que v9** (§8 quater) — les activer ferait revenir ces chiffres. Un rollback change la **paire compatible** `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION` (v9/v5 → v8/v5 → v7/v4, par exemple), jamais un seul côté du contrat — et revenir de v9 à v8 ne demande **qu'une variable**, les deux partageant le même format de réponse. |
 | **Le format de réponse de l'IA** (note, confiance, accomplissement **et son verdict**, preuves, exemples corrigés, version améliorée…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v5.json` (version active : structure complète, quatre critères exacts, niveaux limités à B2, aucun champ imprévu, au plus 2 points forts / 2 priorités / 3 exemples corrigés) |
 | **Le correcteur utilisé partout** (async, fin de session temps réel, réparation, seconde passe, calibration) | Le **fichier d'environnement** (`.env`), pas le code : `EVAL_LLM_PROVIDER` et `EVAL_<FOURNISSEUR>_MODEL`. `application.yaml` ne porte que les **défauts** — aujourd'hui **DeepSeek / `deepseek-v4-flash`**, et **pas** son homonyme « pro », plus cher sans mieux noter. ⚠️ **Ce choix est en cours de réexamen** (§12.6). Les blocs OpenAI (`gpt-5.4`) et Anthropic restent complets et testés : basculer, c'est décommenter un bloc de trois lignes. Gemini reste l'examinateur vocal/transcripteur, jamais le correcteur. |
 | **La façon dont on parle à un fournisseur** (nom du réglage de longueur maximale, envoi ou non d'une température) | Personne ne l'écrit : elle est **négociée avec le fournisseur** au premier appel, à partir de ses messages d'erreur, puis retenue jusqu'au redémarrage (`backend_sejourfr/src/main/java/com/sejourfr/app/util/ChatCompletionDialectNegotiator.java`). Deux clés d'environnement par fournisseur permettent de reprendre la main sans code si besoin : `EVAL_<FOURNISSEUR>_MAX_TOKENS_PARAM` et `EVAL_<FOURNISSEUR>_SEND_TEMPERATURE` |
 | **Le tarif du modèle** (le coût d'une correction est enregistré en base : un tarif faux y reste faux) | Le **même fichier d'environnement que le modèle** : `EVAL_<FOURNISSEUR>_COST_INPUT` / `..._COST_OUTPUT` (défauts dans `application.yaml`). C'est délibéré : le prix doit voyager avec le modèle. Un test **fait échouer la construction du projet** si un modèle est choisi sans ses deux tarifs — mais il ne dit plus « tel modèle vaut tel prix », sinon essayer un modèle nouveau redeviendrait une modification de code |
-| **Le comportement de l'examinateur vocal** (ton, cadre, interdiction d'orienter le candidat, ouverture T1/T2, façon de rendre la fiche de scénario T2…) | `backend_sejourfr/src/main/resources/prompts/realtime-personas-v2.json` (version active ; la v1, sans fiche de scénario, reste disponible en repli) |
+| **Le comportement de l'examinateur vocal** (ton, cadre, interdiction d'orienter le candidat, ouverture T1/T2, façon de rendre la fiche de scénario T2, **verrou de langue** §10) | `backend_sejourfr/src/main/resources/prompts/realtime-personas-v3.json` (version active ; v2 — sans verrou de langue — et v1 — sans fiche de scénario — restent disponibles en repli) |
 | **Les faits d'un jeu de rôle T2** (prix, délais, horaires, attitude du personnage) | colonne `agent_role_card` du sujet, en base — renseignée par les migrations `db/migration/300_tcf/production/eo/tache_2/` |
 | **Les seuils de niveau, les plafonds, les vérifications automatiques, les deux réglages éteints** | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.production-evaluation` |
 | **Le garde-fou de cohérence du bilan** (§6.5 bis — pas de B2 si la tâche 3 est sous B1) | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.coherence-bilan` — livré **actif**, contrairement aux deux réglages du §13. `EVAL_COHERENCE_BILAN_ENABLED=false` rend exactement les bilans d'avant |
 | **Le recollage des phrases coupées en deux à l'oral en temps réel** (§3.1) | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.recollage-tours.enabled` — livré **actif**, contrairement aux trois réglages du §13. La règle elle-même vit à **un seul endroit**, `backend_sejourfr/src/main/java/com/sejourfr/app/util/TranscriptTurnStitcher.java`, et s'applique en un seul point de lecture, ce qui garantit que le texte cité est le texte affiché |
-| **Le retrait automatique des reproches fondés sur un mot mal transcrit** (§8 bis) et **la suppression — au lieu du rejet — d'un exemple corrigé fondé sur une notion non évaluable à l'oral** (§9) | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationOralArtifactFilter.java`. Ne touche **ni la note, ni le niveau, ni un seuil** : uniquement le texte du rapport. La frontière entre ce qui reste **fatal** et ce qui est **purgé** est écrite dans `EvaluationOutputValidator.java` |
+| **Le retrait automatique des reproches fondés sur un mot mal transcrit** (§8 bis), **le retrait des reproches de langue étrangère à l'oral** (§8 quater) et **la suppression — au lieu du rejet — d'un exemple corrigé fondé sur une notion non évaluable à l'oral** (§9) | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationOralArtifactFilter.java`. Ne touche **ni la note, ni le niveau, ni un seuil** : uniquement le texte du rapport, et **uniquement à l'oral**. Les deux plafonds qui protègent le cas « le candidat a vraiment changé de langue » sont écrits dans cette même classe, avec les chiffres qui les justifient ; la liste de mots-outils étrangers qu'ils utilisent vit avec son équivalent français dans `ProductionValidityService.java`. La frontière entre ce qui reste **fatal** et ce qui est **purgé** est écrite dans `EvaluationOutputValidator.java` |
 | **La patience / réactivité de l'examinateur vocal** (détection de fin de parole) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.realtime.gemini.vad` |
 | **La longueur maximale d'une réponse du correcteur** (§12.3 bis — au-delà, la réponse est coupée et la correction est perdue) | `backend_sejourfr/src/main/resources/application.yaml`, `max-tokens` des trois correcteurs de `sejourfr.production-evaluation` : **la même valeur pour les trois**, verrouillée par un test |
 | **Les consignes des micro-exercices par compétence** (§11 bis — ce que l'IA regarde, les trois verdicts, l'interdiction d'une note ou d'un niveau, la règle « une seule priorité », les limites de l'oral) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-rubrics-v1.json` (version active). Fichier **séparé** de celui des tâches complètes : les deux voies n'ont ni les mêmes règles ni le même but, et on ne veut pas qu'une modification de l'une déborde sur l'autre |

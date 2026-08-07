@@ -73,7 +73,7 @@ final class EvaluationProofMatcher {
      * <p><b>Sens unique</b> : production -> citation. On ne retire jamais rien
      * de la citation.
      */
-    private static final Set<String> DISFLUENCES = Set.of("euh", "heu", "hum");
+    static final Set<String> DISFLUENCES = Set.of("euh", "heu", "hum");
 
     /**
      * Nombre maximum de tokens CONSECUTIFS de la production qu'un seul token de

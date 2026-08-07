@@ -315,9 +315,32 @@ sejourfr:
     # facon avant d'etre activee : campagne + temoin de la version precedente
     # rejoue le MEME JOUR.
     # Matrice verifiee au demarrage : v3-v4.2 -> schema v2, v5-v6 -> schema v3,
-    # v7 -> schema v4, v8 et v9 -> schema v5. Un rollback change donc la paire
-    # EVAL_RUBRICS_VERSION + EVAL_PROMPT_VERSION (v8/v5 -> v7/v4, etc.) ; une
-    # combinaison incoherente bloque le demarrage.
+    # v7 -> schema v4, v8/v9/v10/v11 -> schema v5. Un rollback change donc la
+    # paire EVAL_RUBRICS_VERSION + EVAL_PROMPT_VERSION (v8/v5 -> v7/v4, etc.) ;
+    # une combinaison incoherente bloque le demarrage.
+    #
+    # ---------------------------------------------------------------------
+    # v10 et v11 : ECRITES, MESUREES MOINS BONNES QUE v9, NON ACTIVEES.
+    # NE PAS REESSAYER CETTE VOIE SANS LE SAVOIR.
+    # ---------------------------------------------------------------------
+    # Les deux ajoutaient a v9 une CONSIGNE demandant au correcteur de ne pas
+    # imputer au candidat un fragment en langue etrangere a l'oral. Mesurees le
+    # 2026-08-07 contre un temoin v9 du MEME JOUR, meme modele,
+    # calibration.retries=1 (comme la production) :
+    #   v9  : 81,8 % de niveaux exacts · 8,33 % de corrections perdues · 7/8 pieges
+    #   v10 : 75,6 % · 14,58 % · 4/8   (hors-sujet remonte de A1_NON_ATTEINT a A1,
+    #         transcription bruitee A2 -> B1 ; le bloc ajoute, +4197 caracteres,
+    #         diluait la severite du reste de la grille)
+    #   v11 : 76,7 % · 10,42 % · 5/8   (derives de v10 corrigees, mais toujours
+    #         en dessous du temoin)
+    # Conclusion : ecrire une consigne de plus n'a pas regle le probleme et a
+    # coute ailleurs. Le comportement est desormais tenu par un CONTROLE SERVEUR
+    # DETERMINISTE (EvaluationOralArtifactFilter, volet LANGUE), qui ne touche ni
+    # a la note, ni a un seuil, ni au prompt. Ordre de preference du depot :
+    # tool-schema > longueur plafonnee > controle serveur > consigne de rubrique.
+    # v10 et v11 restent CHARGEABLES (on ne supprime jamais une grille livree) et
+    # ne s'activent que par EVAL_RUBRICS_VERSION=v10|v11 — ce qui ferait revenir
+    # les chiffres ci-dessus.
     rubrics-version: ${EVAL_RUBRICS_VERSION:v9}
     # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
     # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
@@ -637,8 +660,25 @@ sejourfr:
     provider: ${REALTIME_PROVIDER:gemini}
     # Gabarit de persona chargé (prompts/realtime-personas-<version>.json).
     # v2 = v1 + rendu de la fiche de scénario T2 (production_tasks.agent_role_card)
-    # quand le sujet en porte une. Repli sur v1 possible par variable d'env.
-    persona-version: ${REALTIME_PERSONA_VERSION:v2}
+    # quand le sujet en porte une. Repli sur v1/v2 possible par variable d'env.
+    #
+    # v3 = v2 + VERROU DE LANGUE (3 règles, tout le reste identique au caractère
+    # près, cf. RealtimePersonaV3Test). Motif : le modèle natif-audio est conçu
+    # pour « changer de langue naturellement en cours de conversation » ; sur un
+    # passage bruité ou mal articulé, il restitue la parole du candidat en arabe,
+    # en néerlandais ou en cyrillique. Mesuré en base : 6 transcriptions temps
+    # réel sur 39 portent une écriture non latine, contre 0 sur 36 côté Whisper
+    # asynchrone. L'API Live ne permet PAS d'imposer la langue à la
+    # transcription d'entrée (AudioTranscriptionConfig n'a aucun champ) et les
+    # modèles natif-audio REFUSENT speechConfig.languageCode — poser un code de
+    # langue ferait échouer l'émission du token et basculerait tout le temps
+    # réel en async. La system instruction est donc le SEUL levier disponible.
+    # C'est un biais, pas une garantie : le filet qui protège réellement le
+    # candidat est le contrôle serveur déterministe
+    # EvaluationOralArtifactFilter (volet LANGUE), livré ACTIF. La voie
+    # « écrire une consigne de plus » a été tentée (rubriques v10 et v11) et
+    # mesurée moins bonne que v9 — cf. rubrics-version plus haut.
+    persona-version: ${REALTIME_PERSONA_VERSION:v3}
     gemini:
       # Clé Google AI (Gemini API). Absente -> temps réel désactivé (fallback async).
       api-key: ${GEMINI_API_KEY:}

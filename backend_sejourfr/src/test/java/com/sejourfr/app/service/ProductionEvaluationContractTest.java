@@ -193,6 +193,142 @@ class ProductionEvaluationContractTest {
             .contains("'Candidat :'");
     }
 
+    /**
+     * v10 et v11 = v9 pour TOUT, sauf UNE SEULE section : la section orale des
+     * artefacts de transcription, ou elles ajoutent la regle ASYMETRIQUE EE/EO
+     * sur la LANGUE. Meme verrou, meme raison que pour v9 : c'est ce qui rend la
+     * campagne de banc interpretable. Si un seuil, une ponderation, un critere,
+     * une borne, une ancre few-shot ou une consigne de tache bougeait en meme
+     * temps, on ne saurait plus ce que la mesure attribue a quoi — et cette
+     * bascule-la est precisement celle qui doit prouver qu'elle ne casse pas le
+     * piege AUTRE_LANGUE du corpus.
+     *
+     * <p>v11 succede a v10 (meme regle, un tiers de texte en moins, sanction
+     * enoncee avant tolerance) ; les deux restent chargeables, et chacune est
+     * rattachable a sa campagne.
+     */
+    @ParameterizedTest
+    @CsvSource({"v10", "v11"})
+    void chaqueVersionDeLangueNeChangeQueLaSectionOraleDesArtefacts(String version) throws Exception {
+        Map<String, Object> v9 = resource("prompts/production-rubrics-v9.json");
+        Map<String, Object> candidate = resource("prompts/production-rubrics-" + version + ".json");
+
+        assertThat(candidate)
+            .containsEntry("rubrics-version", version)
+            .containsEntry("profile", "TCF_IRN")
+            .containsEntry("tool_schema_version", "v5")
+            .containsEntry("niveau_max", "B2");
+        assertThat(resourceText("prompts/production-rubrics-" + version + ".json"))
+            .doesNotContain("\"C1\"", "\"C2\"");
+
+        assertThat(candidate.get("rubrics"))
+            .as(version + " ne touche a aucune rubrique de tache")
+            .isEqualTo(v9.get("rubrics"));
+
+        Map<String, Object> communV9 = map(v9.get("commun"));
+        Map<String, Object> communCandidate = map(candidate.get("commun"));
+        for (String bloc : List.of("niveau", "couplage", "plafonds", "bandes_criteres", "few_shot")) {
+            assertThat(communCandidate.get(bloc))
+                .as(version + " ne touche pas a commun." + bloc + " : la notation est celle de v9")
+                .isEqualTo(communV9.get(bloc));
+        }
+
+        List<?> sectionsV9 = list(communV9.get("sections"));
+        List<?> sections = list(communCandidate.get("sections"));
+        assertThat(sections).hasSameSizeAs(sectionsV9);
+        List<Integer> modifiees = new java.util.ArrayList<>();
+        for (int i = 0; i < sectionsV9.size(); i++) {
+            if (!sectionsV9.get(i).equals(sections.get(i))) modifiees.add(i);
+        }
+        assertThat(modifiees)
+            .as("exactement UNE section change, et c'est la section orale des artefacts")
+            .hasSize(1);
+
+        Map<String, Object> section = map(sections.get(modifiees.get(0)));
+        assertThat(section.get("titre").toString())
+            .isEqualTo(map(sectionsV9.get(modifiees.get(0))).get("titre").toString())
+            .contains("TRANSCRIPTION AUTOMATIQUE");
+
+        String orale = section.get("contenu").toString();
+
+        // (a) la section v9 est integralement conservee : on ajoute, on ne reecrit pas.
+        String oraleV9 = map(sectionsV9.get(modifiees.get(0))).get("contenu").toString();
+        for (String garantieV9 : List.of(
+                "ARTEFACT DE TRANSCRIPTION — LA REGLE, ET ELLE EST OPPOSABLE.",
+                "CE QUI N'EST PAS UN ARTEFACT — L'ECHAPPATOIRE EST FERMEE.",
+                "LA REGLE DE PREUVE NE CHANGE PAS D'UN IOTA.",
+                "TU NE JUGES NI la prononciation")) {
+            assertThat(oraleV9).as("garantie v9 presente en v9").contains(garantieV9);
+            assertThat(orale).as("garantie v9 conservee en " + version).contains(garantieV9);
+        }
+
+        // (b) la TOLERANCE (artefact) : opposable, jamais laissee au feeling.
+        assertThat(orale)
+            .as(version + " enonce le cote tolerance de facon opposable")
+            .containsIgnoringCase("ARTEFACT")
+            .contains("ISOLE")
+            .contains("NULLE PART");
+
+        // (c) la SANCTION : le piege AUTRE_LANGUE doit rester attrapable. Les
+        //     trois criteres discriminants sont ecrits, et la consequence aussi.
+        //     (les deux versions les ecrivent, v10 au feminin, v11 au masculin :
+        //     on verifie la racine, pas l'accord.)
+        assertThat(orale)
+            .as(version + " enonce le cote sanction de facon opposable")
+            .contains("CONTINU")
+            .contains("COHERENT")
+            .contains("DOMIN")
+            .contains("SEUL LE FRANCAIS REELLEMENT PRODUIT COMPTE")
+            .contains("un quart");
+
+        // (d) l'asymetrie EE/EO est ecrite noir sur blanc.
+        assertThat(orale)
+            .as(version + " declare l'asymetrie EE/EO")
+            .contains("A L'ECRIT, RIEN DE CETTE REGLE NE S'APPLIQUE");
+    }
+
+    /**
+     * v11 seule : elle reaffirme explicitement les deux regles que la campagne
+     * du 2026-08-07 a vues bouger sous v10 (hors-sujet passe de A1_NON_ATTEINT a
+     * A1, transcription bruitee passee de A2 a B1). C'est la correction de
+     * cette derive, et elle doit rester ecrite.
+     */
+    @Test
+    void v11_reaffirmeExplicitementCeQueLaRegleNeChangePas() throws Exception {
+        Map<String, Object> v11 = resource("prompts/production-rubrics-v11.json");
+        List<?> sections = list(map(v11.get("commun")).get("sections"));
+        String orale = sections.stream()
+            .map(s -> map(s).get("contenu").toString())
+            .filter(c -> c.contains("A L'ECRIT, RIEN DE CETTE REGLE NE S'APPLIQUE"))
+            .findFirst()
+            .orElseThrow();
+
+        assertThat(orale)
+            .contains("CE QUE CETTE REGLE NE CHANGE PAS")
+            .contains("HORS-SUJET")
+            .contains("BRUITEE")
+            .contains("un artefact leve une sanction, il n'ajoute jamais rien");
+    }
+
+    /**
+     * L'asymetrie ne peut pas fuiter vers l'ecrit : la regle de langue vit dans
+     * une section ORALE, et aucune rubrique EE ne la mentionne. C'est ce qui
+     * garantit qu'une production ecrite en langue etrangere reste une vraie
+     * non-realisation.
+     */
+    @ParameterizedTest
+    @CsvSource({"v10", "v11"})
+    void laRegleDeLangueNeToucheAucuneRubriqueEcrite(String version) throws Exception {
+        Map<String, Object> rubrics = map(
+            resource("prompts/production-rubrics-" + version + ".json").get("rubrics"));
+
+        for (String cle : List.of("EE_T1", "EE_T2", "EE_T3")) {
+            assertThat(map(rubrics.get(cle)).toString())
+                .as(cle + " ne parle jamais d'artefact de transcription")
+                .doesNotContain("ARTEFACT");
+        }
+    }
+
     /** Le contrat de sortie v5 : celui de v4, plus les seules cles de restitution. */
     @Test
     void v5AjouteLeVerdictLaVersionAmelioreeEtLesPlafondsDeRestitution() throws Exception {
@@ -269,7 +405,9 @@ class ProductionEvaluationContractTest {
         "v6, v3",
         "v7, v4",
         "v8, v5",
-        "v9, v5"
+        "v9, v5",
+        "v10, v5",
+        "v11, v5"
     })
     void chaqueVersionDeRubriquesAccepteUniquementSonToolSchema(
             String rubricsVersion, String toolSchemaVersion) {
@@ -291,7 +429,9 @@ class ProductionEvaluationContractTest {
         "v6, v4, v3",
         "v7, v3, v4",
         "v8, v4, v5",
-        "v9, v4, v5"
+        "v9, v4, v5",
+        "v10, v4, v5",
+        "v11, v4, v5"
     })
     void unePaireRubriquesToolSchemaIncompatibleEchoueAuChargement(
             String rubricsVersion, String activeSchema, String expectedSchema) {

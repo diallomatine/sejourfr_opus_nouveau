@@ -570,6 +570,30 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   version à un **rerun de l'ancienne le même jour** (le bruit inter-campagnes
   vaut ~1 pt de note / ~2 pts de pourcentage, et un seul cas qui bascule sur 12
   ne prouve rien).
+  🛑 **INTERDIT DE LANCER UNE CAMPAGNE SANS DEMANDE EXPLICITE DE L'UTILISATEUR**
+  (règle posée le 2026-08-07, elle prime sur tout le reste de ce fichier). Le banc
+  appelle un LLM payant, c'est **l'argent de l'utilisateur**. Aucun agent ne le
+  déclenche « pour vérifier », « pour mesurer avant/après » ou « parce que la règle
+  du dépôt l'exige » : il faut une phrase de l'utilisateur qui le demande. En
+  l'absence de campagne, on **livre quand même** — en disant franchement ce qui est
+  mesuré et ce qui est estimé. La règle « toute modif d'une consigne de notation se
+  mesure avant/après » devient donc : *on propose la mesure, on ne la lance pas.*
+  Corollaire : **une bascule de LLM ou de modèle ne demande AUCUNE campagne** — le
+  contrat de sortie (tool-schema strict, `additionalProperties:false`, longueurs
+  plafonnées) et les **contrôles serveur déterministes** sont ce qui tient la
+  qualité, pas la mesure a posteriori.
+- **Ce qui tient la qualité, ce sont les CONTRAINTES DURES, pas les consignes.**
+  Ordre de préférence, du plus fiable au moins fiable, à respecter quand on veut
+  corriger un comportement du correcteur : (1) **le tool-schema** — un champ absent
+  du schéma ne peut pas être produit ; (2) **une longueur plafonnée** (`maxLength`,
+  budget en mots déclaré par la grille, comme le module Compétences : 20 / 30 /
+  35 mots) ; (3) **un contrôle serveur déterministe** qui refuse ou purge
+  (`EvaluationOutputValidator`, `EvaluationOralArtifactFilter`, `capListe`) ; (4) en
+  **dernier** recours, une consigne dans la rubrique. Une consigne est un vœu : v9
+  §17 interdisait déjà d'imputer un artefact de transcription au candidat, et le
+  correcteur l'a fait dans 5 évaluations EO sur 72. Ne jamais répondre à un
+  comportement indésirable par « on va mieux lui expliquer » quand un plafond ou un
+  filtre serveur peut le rendre **impossible**.
   Convention de signe partout : **écart = référence − IA** (négatif = IA trop
   indulgente). **Toute modif d'une consigne de notation ou d'un seuil se mesure
   avant/après** — sinon c'est un pari. La contrainte de preuve littérale a été la
@@ -639,6 +663,46 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     candidat 461 → 183 (-60,3 %), médiane 6 → 14 tokens par tour candidat,
     tours candidat sous 4 tokens 26,9 % → 15,3 %. Sur 388 frontières « même
     locuteur », **37 sont refusées** par les garde-fous 3 et 4 (34 + 3).
+- **Filet déterministe de langue étrangère à l'oral** (`EvaluationOralArtifactFilter`,
+  volet LANGUE, livré **ACTIF** le 2026-08-07). Le transcripteur temps réel (Gemini
+  natif-audio) hallucine des passages en langue/écriture étrangère — **6
+  transcriptions realtime sur 39**, contre **0 sur 36** côté Whisper, où la langue est
+  imposée ; l'API Live ne permet **pas** de l'imposer à l'entrée, et les modèles
+  natif-audio rejettent un code de langue. Le correcteur l'imputait au candidat dans
+  **5 évaluations EO sur 72** (« *Éviter de passer à une autre langue pendant
+  l'épreuve* »). Le serveur retire ces phrases de `scores_criteres[].commentaire`,
+  `points_a_ameliorer`, `suggestions`, `points_forts`,
+  `accomplissement.objectif_resume` et `exemples_corriges`, pose
+  `AVERTISSEMENT_LANGUE`, et **ne touche ni la note, ni le niveau, ni un seuil**.
+  - **Jamais `confiance_raisons`** : « transcription partiellement incertaine
+    (passages en russe et en néerlandais) » est le **bon** comportement — là, la
+    langue étrangère est une limite d'**observation**. **Jamais en EE** : à l'écrit le
+    candidat tape chaque mot, une langue étrangère est une vraie non-réalisation.
+    L'asymétrie vient de la **machine**, pas du niveau exigé.
+  - **Garde-fou contre la neutralisation d'une VRAIE bascule de langue** (piège
+    `AUTRE_LANGUE` du corpus) : deux mesures sur les seuls tours `Candidat :` —
+    lettres non latines ≤ **15 %** ET mots-outils étrangers ≤ **6 %**, avec ≥ **40**
+    mots exploitables. Au-dessus de l'un **ou** l'autre, ou en cas de doute, **on ne
+    purge rien**. Calibré sur les données réelles : artefacts ≤ 6,8 % / ≤ 1,4 %, piège
+    espagnol à 12,5 %. ⚠️ **Le ratio de mots-outils FRANÇAIS ne sépare pas** — le
+    piège en affiche 36 %, plus que 8 vraies transcriptions françaises (les langues
+    romanes partagent trop de petits mots) ; d'où
+    `ProductionValidityService.MOTS_OUTILS_ETRANGERS`, miroir de `MOTS_OUTILS_FR`,
+    verrouillé par test.
+  - **Rubriques v10 et v11 : écrites, mesurées MOINS BONNES que v9, NON ACTIVÉES, ne
+    pas réessayer cette voie.** Elles répondaient au même problème par une **consigne**
+    — illustration directe de la règle « les contraintes dures priment sur les
+    consignes ». Campagne du 2026-08-07, témoin v9 du même jour, même modèle,
+    `retries=1` : accord exact 81,8 % (v9) contre 75,6 % et 76,7 % ; échec en
+    production 8,33 % contre 14,58 % et 10,42 % ; pièges 7/8 contre 4/8 et 5/8. v10
+    remontait en plus un hors-sujet de `A1_NON_ATTEINT` à `A1` : le bloc ajouté
+    (+4197 caractères) **diluait la sévérité du reste**. Elles restent chargeables.
+  - **Persona `realtime-personas-v3.json`** (défaut) = v2 + verrou de langue dans la
+    system instruction. **Biais, pas garantie**, et non mesurable au banc.
+  - Frontières assumées : la purge ne se déclenche que sur un marqueur d'une **liste
+    fermée** (une formulation qui y échappe passe) ; `MOTS_OUTILS_ETRANGERS` couvre 6
+    langues, une vraie production en turc ou polonais n'est protégée que par le
+    contrôle amont `ratioMotsOutils < 0,10`.
 - **Deux drapeaux livrés ÉTEINTS** (`sejourfr.production-evaluation`) :
   `fluidite.enabled` (débit/pauses, informatif) et `seconde-passe.enabled` (2ᵉ
   lecture en zone floue, même provider/modèle). À `false`, ils ne changent
@@ -898,6 +962,14 @@ avant de toucher.
 
 - **Pas de README ni de docs générés automatiquement.** Ne créer un `.md` que si
   l'utilisateur le demande.
+- 🛑 **Aucun test ni aucune mesure qui appelle un LLM payant sans demande explicite
+  de l'utilisateur.** Vaut pour le banc de calibration (`CalibrationBenchTest`) et
+  pour tout script qui interroge un fournisseur. C'est son argent. On propose la
+  mesure et son coût estimé, il décide. Un smoke test d'un ou deux appels pour
+  vérifier qu'une chaîne technique répond est toléré ; une campagne ne l'est pas.
+  Avant de lancer une analyse, se demander d'abord si une **requête SQL sur la base
+  locale** répond à la question — c'est gratuit, immédiat, et c'est le plus souvent
+  le cas quand il s'agit de regarder ce que l'IA a réellement produit.
 - **Code direct + brèves explications.** Pas de récap de fin de message ni de narration
   d'étapes triviales.
 - **Décisions structurantes** : proposer des options avec leurs tradeoffs, pas imposer.

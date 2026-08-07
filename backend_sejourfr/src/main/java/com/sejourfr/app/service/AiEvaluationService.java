@@ -486,11 +486,16 @@ public class AiEvaluationService {
             var purge = EvaluationOralArtifactFilter.purge(feedback, production);
             if (purge.aPurge()) {
                 log.info("Restitution orale purgee submission={} : {} remarque(s) de niveau mot, "
-                        + "{} exemple(s) corrige(s) fondes sur un element non evaluable.",
-                    submissionId, purge.remarquesRetirees(), purge.exemplesRetires());
+                        + "{} remarque(s) de langue etrangere, {} exemple(s) corrige(s) fondes "
+                        + "sur un element non evaluable.",
+                    submissionId, purge.remarquesRetirees(), purge.remarquesLangueRetirees(),
+                    purge.exemplesRetires());
             }
             if (purge.remarquesRetirees() > 0) {
                 addAvertissement(feedback, EvaluationOralArtifactFilter.AVERTISSEMENT_ARTEFACT);
+            }
+            if (purge.remarquesLangueRetirees() > 0) {
+                addAvertissement(feedback, EvaluationOralArtifactFilter.AVERTISSEMENT_LANGUE);
             }
         }
         // Joint le `label` des criteres a chaque score (le LLM ne renvoie que le

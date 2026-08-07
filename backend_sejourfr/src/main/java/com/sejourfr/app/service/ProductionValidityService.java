@@ -82,6 +82,57 @@ public class ProductionValidityService {
         "apres", "avant", "entre", "depuis", "pendant", "si", "y", "en"
     );
 
+    /**
+     * MOTS-OUTILS D'AUTRES LANGUES, miroir exact de {@link #MOTS_OUTILS_FR} et
+     * sous la meme forme normalisee. Anglais, espagnol, portugais, italien,
+     * allemand et neerlandais : les langues effectivement rencontrees dans nos
+     * transcriptions et dans le corpus de calibration.
+     *
+     * <p><b>A quoi ca sert.</b> {@link #ratioMotsOutils} repond « ce texte est-il
+     * francais ? » et suffit a refuser une production entierement etrangere.
+     * Il ne sait PAS reconnaitre un texte MIXTE : mesure sur nos donnees, le cas
+     * {@code EO_T3_PIEGE_01} du corpus (le candidat bascule vraiment en espagnol)
+     * affiche 36 % de mots-outils francais, soit plus que 8 vraies transcriptions
+     * francaises reelles. Les langues romanes partagent trop de mots-outils avec
+     * le francais pour qu'un ratio francais les separe. On compte donc aussi,
+     * directement, la matiere ETRANGERE.
+     *
+     * <p><b>Regles de composition, a respecter en cas d'ajout.</b> Uniquement des
+     * mots-outils (jamais de mot lexical : {@code casa}, {@code weekend} et
+     * {@code trabajar} en ont ete retires, le second s'ecrivant aussi en
+     * francais) ; <b>3 lettres minimum</b> (en dessous, ce sont des debris de
+     * transcription) ; et <b>aucune collision avec un mot francais courant</b>,
+     * meme familier — {@code ben}, {@code don}, {@code es}, {@code su},
+     * {@code mai}, {@code okay} ont ete ecartes pour cette raison. Un seul faux
+     * positif de cette liste peut, sur une production courte, faire croire a une
+     * bascule de langue et desactiver la purge : le sens de l'erreur est assume,
+     * il ne cree jamais de reproche, il en laisse passer un.
+     */
+    static final Set<String> MOTS_OUTILS_ETRANGERS = Set.of(
+        "abbiamo", "aber", "about", "ademas", "adesso", "ahora", "alli", "als", "also",
+        "although", "anche", "anything", "aqui", "auch", "aunque", "avere", "bajo", "because",
+        "been", "being", "between", "can", "could", "cuando", "dass", "degli", "dein", "del",
+        "della", "desde", "did", "does", "doing", "door", "durante", "during", "dus", "een",
+        "ella", "ellas", "ellos", "entao", "entonces", "erano", "essere", "esta", "estan",
+        "estas", "estoy", "everything", "fuer", "gli", "habe", "haben", "hacia", "had",
+        "hadden", "hanno", "has", "hasta", "hat", "hatte", "have", "having", "heb", "hebben",
+        "hebt", "heeft", "het", "hij", "however", "ich", "into", "ist", "jij", "jouw",
+        "jullie", "just", "kan", "kunnen", "kunt", "lei", "loro", "maar", "many", "mein",
+        "menos", "mentre", "mientras", "mijn", "mio", "mit", "moet", "moeten", "molto", "more",
+        "most", "much", "mucha", "muchas", "mucho", "muchos", "muito", "must", "muy", "naar",
+        "nach", "nao", "nella", "nicht", "nichts", "niet", "niets", "noch", "nog", "nosotros",
+        "nothing", "nuestro", "nunca", "oder", "omdat", "onder", "only", "ook", "our", "ours",
+        "over", "para", "perche", "pero", "piu", "porem", "porque", "quando", "schon",
+        "sebbene", "secondo", "segun", "sehr", "sein", "sem", "sempre", "shall", "she",
+        "should", "siempre", "sim", "sind", "sobre", "something", "sono", "sopra", "sotto",
+        "suo", "sus", "tambem", "tambien", "tener", "tengo", "than", "that", "the", "their",
+        "them", "then", "there", "therefore", "these", "they", "this", "those", "though",
+        "tiene", "tienen", "tuo", "tussen", "uber", "uit", "und", "under", "very", "voce",
+        "von", "vosotros", "want", "war", "waren", "weil", "wel", "wenn", "werden", "what",
+        "which", "who", "whose", "wij", "wil", "will", "willen", "wird", "without", "would",
+        "wurde", "yes", "you", "your", "yours", "zal", "zijn", "zonder", "zullen", "zwischen"
+    );
+
     /** Un tour de parole : « Examinateur : ... » ou « Candidat : ... ». */
     private static final Pattern MARQUEUR_TOUR =
         Pattern.compile("^\\s*(examinateur|candidat)\\s*:", Pattern.CASE_INSENSITIVE);
@@ -264,6 +315,21 @@ public class ProductionValidityService {
         int hits = 0;
         for (String mot : mots) {
             if (MOTS_OUTILS_FR.contains(mot)) hits++;
+        }
+        return (double) hits / mots.size();
+    }
+
+    /**
+     * Proportion de mots-outils d'une AUTRE langue parmi les mots (0 si aucun
+     * mot). Complement de {@link #ratioMotsOutils} : celui-la mesure ce qui est
+     * francais, celui-ci mesure ce qui ne l'est pas. Les deux sont necessaires,
+     * cf. le javadoc de {@link #MOTS_OUTILS_ETRANGERS}.
+     */
+    static double ratioMotsEtrangers(List<String> mots) {
+        if (mots.isEmpty()) return 0.0;
+        int hits = 0;
+        for (String mot : mots) {
+            if (MOTS_OUTILS_ETRANGERS.contains(mot)) hits++;
         }
         return (double) hits / mots.size();
     }

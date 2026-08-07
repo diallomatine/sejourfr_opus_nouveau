@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 
 /**
  * FILET DETERMINISTE de la restitution ORALE. Il retire du rapport rendu au
- * candidat deux choses que la grille interdit deja au correcteur, mais qu'il
+ * candidat trois choses que la grille interdit deja au correcteur, mais qu'il
  * produit quand meme :
  *
  * <ol>
@@ -20,9 +20,13 @@ import java.util.regex.Pattern;
  *       incorrecte ») : a l'oral, un mot isole est exactement ce que la
  *       reconnaissance vocale se trompe a restituer, et les rubriques exigent
  *       depuis toujours des remarques au niveau de la PHRASE, jamais du MOT ;</li>
+ *   <li>les REPROCHES DE LANGUE ETRANGERE (« un passage en neerlandais »,
+ *       « eviter de passer a une autre langue ») : c'est le transcripteur temps
+ *       reel qui change de langue, pas le candidat — cf. la section dediee
+ *       ci-dessous ;</li>
  *   <li>les entrees de {@code exemples_corriges} dont l'explication ou le gain
  *       se fondent sur une NOTION non evaluable a l'oral (hesitations, debit,
- *       prononciation...).</li>
+ *       prononciation...) ou sur un reproche de langue etrangere.</li>
  * </ol>
  *
  * <h2>Ce que ce filet ne touche pas</h2>
@@ -60,6 +64,41 @@ import java.util.regex.Pattern;
  *   <li>une priorite dont le {@code constat} ou le {@code comment} ne survit pas
  *       est supprimee ENTIEREMENT : elle etait batie sur l'artefact.</li>
  * </ul>
+ *
+ * <h2>Volet LANGUE ETRANGERE (2026-08-07)</h2>
+ * <b>Cause, mesuree en base.</b> Le transcripteur du temps reel (Gemini Live,
+ * modele natif-audio) est multilingue par construction et son editeur annonce
+ * qu'il « change de langue naturellement en cours de conversation ».
+ * <b>6 transcriptions temps reel sur 39</b> portent une ecriture non latine
+ * (arabe, cyrillique), contre <b>0 sur 36</b> cote Whisper asynchrone — ou la
+ * langue, elle, est imposee. L'API Live <b>ne permet pas</b> d'imposer la langue
+ * de la transcription d'ENTREE. Le correcteur a impute cette langue au candidat
+ * dans <b>5 evaluations EO sur 72</b>.
+ *
+ * <p><b>Asymetrie EE / EO, volontaire.</b> Ce filet n'est appele que sur une
+ * epreuve orale. <b>A l'ecrit, rien de tout ceci ne s'applique</b> : aucune
+ * machine ne s'interpose entre le candidat et son texte, il a tape chaque mot.
+ * Une langue etrangere dans une production ECRITE est une vraie non-realisation
+ * et doit remonter au candidat.
+ *
+ * <p><b>Ce qui n'est JAMAIS purge : {@code confiance_raisons}.</b> « Transcription
+ * temps reel partiellement incertaine (passages en russe et en neerlandais,
+ * artefacts de reconnaissance vocale) » est un verbatim REEL, et c'est le bon
+ * comportement : la langue etrangere y est traitee comme un obstacle a
+ * l'observation, pas comme une faute du candidat. C'est exactement la ou elle
+ * doit vivre.
+ *
+ * <h2>Le garde-fou : ne pas neutraliser une VRAIE bascule de langue</h2>
+ * Un candidat qui repond reellement dans une autre langue doit continuer d'etre
+ * sanctionne — c'est un piege du corpus de calibration ({@code EO_T3_PIEGE_01}).
+ * La purge est donc conditionnee a deux mesures DETERMINISTES sur la production
+ * elle-meme, prises sur les seuls tours {@code Candidat :} :
+ * {@link #PART_NON_LATIN_MAX} et {@link #PART_MOTS_ETRANGERS_MAX}. Au-dessus de
+ * l'un ou l'autre, <b>on ne purge rien</b>.
+ *
+ * <p>La production mesuree est celle que LIT le correcteur : le parametre
+ * {@code production} vient de {@code TranscriptionManager.findLatestTexteBySubmissionId}
+ * (tours recolles compris), unique accesseur au texte. Aucun second acces.
  */
 final class EvaluationOralArtifactFilter {
 
@@ -72,8 +111,90 @@ final class EvaluationOralArtifactFilter {
     private static final Pattern CITATION = Pattern.compile(
         "«\\s*([^«»]{1,300}?)\\s*»|\"([^\"]{1,300}?)\"|“([^”]{1,300}?)”");
 
-    /** Fin de phrase : ponctuation forte suivie d'un blanc. */
-    private static final Pattern FIN_DE_PHRASE = Pattern.compile("(?<=[.!?…])\\s+");
+    /** Ponctuation forte : candidate a une fin de phrase (cf. {@link #phrases}). */
+    private static final String PONCTUATION_FORTE = ".!?…";
+
+    /**
+     * MARQUEURS DE REPROCHE DE LANGUE ETRANGERE, forme normalisee (minuscules,
+     * sans accents). Liste FERMEE, calquee sur les verbatims reellement produits
+     * par le correcteur (5 evaluations en base) :
+     * <ul>
+     *   <li>« Eviter de passer a une <b>autre langue</b> pendant l'epreuve » ;</li>
+     *   <li>« Plusieurs passages sont inaudibles ou en <b>langue etrangere</b> » ;</li>
+     *   <li>« Un passage <b>en neerlandais</b> (...) qui interrompt la communication » ;</li>
+     *   <li>« ... avec des passages <b>en russe</b> et des bruits » ;</li>
+     *   <li>« Le passage final en anglais sort du <b>cadre francophone</b> ».</li>
+     * </ul>
+     *
+     * <p>Volontairement ANCREE sur « en &lt;langue&gt; » et non sur le simple nom de
+     * la langue : « le mot anglais "meeting" » est une remarque de lexique
+     * francais parfaitement legitime, et elle n'est pas touchee. De meme, aucun
+     * marqueur ne porte sur {@code francais} seul — « ta phrase en francais est
+     * claire » n'est pas un reproche de langue.
+     */
+    private static final Pattern LANGUE_ETRANGERE = Pattern.compile(
+        "\\blangues? etrangeres?\\b"
+            + "|\\bautres? langues?\\b"
+            + "|\\bchang(e|er|ez|ement)( de| la )?langue\\b"
+            + "|\\b(en|vers l|vers le|a l|a la) (anglais|americain|russe|arabe|espagnol"
+            + "|neerlandais|hollandais|flamand|allemand|italien|portugais|bresilien|turc"
+            + "|chinois|mandarin|japonais|coreen|polonais|roumain|ukrainien|serbe|croate"
+            + "|albanais|grec|persan|farsi|pachto|ourdou|hindi|bengali|tamoul|vietnamien"
+            + "|thai|swahili|somali|amharique|wolof|bambara|peul|soninke|berbere|kabyle"
+            + "|creole|catalan|basque|anglaise|russes?|arabes?|espagnole|neerlandaise"
+            + "|allemande|italienne|portugaise|turque|chinoise)\\b"
+            + "|\\blangue (anglaise|russe|arabe|espagnole|neerlandaise|allemande|italienne"
+            + "|portugaise|turque|chinoise|maternelle)\\b"
+            + "|\\bcadre francophone\\b|\\bnon francophone\\b"
+            + "|\\brest(er|ez|e|es) en francais\\b"
+            + "|\\bhors du francais\\b");
+
+    /**
+     * Part maximale de lettres NON LATINES (arabe, cyrillique...) dans les tours
+     * du candidat au-dela de laquelle on ne purge plus rien.
+     *
+     * <p><b>Origine, mesuree.</b> Sur les 75 transcriptions reelles en base, les
+     * 5 qui portent une hallucination non latine plafonnent a <b>6,8 %</b>
+     * (24 caracteres non latins dans une production courte) ; les 36
+     * transcriptions Whisper sont a <b>0 %</b>. A l'inverse, une production
+     * reellement redigee dans un autre alphabet en est proche de 100 %, et le
+     * controle amont ({@code ProductionValidityService}) la declare deja INVALIDE
+     * a partir de 30 %. Ce seuil laisse donc 2,2x de marge au-dessus du pire
+     * artefact observe tout en restant a la moitie du seuil d'invalidite.
+     */
+    static final double PART_NON_LATIN_MAX = 0.15;
+
+    /**
+     * Part maximale de MOTS-OUTILS D'UNE AUTRE LANGUE dans les tours du candidat
+     * au-dela de laquelle on ne purge plus rien. C'est ce seuil qui protege le
+     * cas « le candidat repond vraiment dans une autre langue », que l'alphabet
+     * ne trahit pas (anglais, neerlandais, espagnol).
+     *
+     * <p><b>Origine, mesuree.</b> Trois populations, meme mesure
+     * ({@code ProductionValidityService.ratioMotsEtrangers} sur les tours
+     * candidat, hesitations retirees) :
+     * <ul>
+     *   <li>75 transcriptions reelles (dont les 5 evaluations fautives) :
+     *       <b>1,4 % au pire</b> ;</li>
+     *   <li>47 des 48 cas du corpus de calibration : <b>0 %</b> ;</li>
+     *   <li>{@code EO_T3_PIEGE_01}, le cas ou le candidat bascule VRAIMENT en
+     *       espagnol : <b>12,5 %</b>.</li>
+     * </ul>
+     * 6 % se place a 4,3x au-dessus du pire artefact reel et a 2,1x en dessous
+     * du piege. C'est la mesure qui separe, et la seule : le ratio de mots-outils
+     * FRANCAIS ne separe pas (le piege affiche 36 %, soit plus que 8 vraies
+     * transcriptions francaises) — cf. {@code MOTS_OUTILS_ETRANGERS}.
+     */
+    static final double PART_MOTS_ETRANGERS_MAX = 0.06;
+
+    /**
+     * En dessous de ce nombre de mots exploitables, on ne mesure rien et on ne
+     * purge rien : un seul token pese alors plus de 2,5 % et deux tokens
+     * suffiraient a franchir {@link #PART_MOTS_ETRANGERS_MAX}. Une production
+     * quasi muette est justement celle ou une vraie bascule de langue est la plus
+     * plausible. Les 5 evaluations fautives reelles portent 77 a 255 mots.
+     */
+    static final int MOTS_MIN_MESURE_LANGUE = 40;
 
     /**
      * MARQUEURS DE REPROCHE. Citer un mot de la transcription ne suffit pas a
@@ -113,16 +234,34 @@ final class EvaluationOralArtifactFilter {
             + "transcription : elle a été retirée. Nous ne vous reprochons jamais un mot que "
             + "la reconnaissance vocale a pu déformer.";
 
+    /** Idem, quand c'est le volet LANGUE qui a tout emporte. */
+    static final String COMMENTAIRE_CRITERE_PURGE_LANGUE =
+        "La seule remarque proposée pour ce critère vous reprochait d'avoir parlé une autre "
+            + "langue : elle a été retirée. Ces passages viennent de notre transcription "
+            + "automatique, pas de vous.";
+
+    /** Idem pour le résumé d'objectif, qui ne peut pas rester vide. */
+    static final String OBJECTIF_RESUME_PURGE_LANGUE =
+        "Ton objectif a été évalué sur ce que tu as dit en français : les passages transcrits "
+            + "dans une autre langue n'ont pas été retenus contre toi.";
+
     /** Avertissement candidat, pose des qu'au moins une remarque a ete retiree. */
     static final String AVERTISSEMENT_ARTEFACT =
         "Une ou plusieurs remarques portaient sur un mot isolé de la transcription "
             + "automatique : elles ont été retirées. À l'oral, un mot mal transcrit n'est "
             + "jamais compté comme une erreur de votre part.";
 
+    /** Avertissement candidat propre au volet LANGUE. */
+    static final String AVERTISSEMENT_LANGUE =
+        "Une ou plusieurs remarques vous reprochaient d'être passé à une autre langue : elles "
+            + "ont été retirées. Ces passages sont produits par notre transcription "
+            + "automatique, qui bascule parfois de langue toute seule — ils ne vous sont "
+            + "jamais comptés comme une faute.";
+
     /** Resultat d'une purge : le feedback est modifie en place. */
-    record Resultat(int remarquesRetirees, int exemplesRetires) {
+    record Resultat(int remarquesRetirees, int remarquesLangueRetirees, int exemplesRetires) {
         boolean aPurge() {
-            return remarquesRetirees > 0 || exemplesRetires > 0;
+            return remarquesRetirees > 0 || remarquesLangueRetirees > 0 || exemplesRetires > 0;
         }
     }
 
@@ -136,50 +275,62 @@ final class EvaluationOralArtifactFilter {
      * @param production transcription servie au correcteur (tours recolles)
      */
     static Resultat purge(Map<String, Object> feedback, String production) {
-        int remarques = purgeScores(feedback, production)
-            + purgePriorites(feedback, production)
-            + purgeSuggestions(feedback, production);
-        return new Resultat(remarques, purgeExemplesCorriges(feedback));
+        Contexte ctx = new Contexte(production, mesurableEtFrancaise(production));
+        Purge total = Purge.vide();
+        total = total.plus(purgeScores(feedback, ctx));
+        total = total.plus(purgePriorites(feedback, ctx));
+        total = total.plus(purgeListeDeTextes(feedback, "suggestions", ctx));
+        total = total.plus(purgeListeDeTextes(feedback, "points_forts", ctx));
+        total = total.plus(purgeObjectifResume(feedback, ctx));
+        return new Resultat(total.mot(), total.langue(), purgeExemplesCorriges(feedback, ctx));
+    }
+
+    /**
+     * Ce que chaque champ doit connaitre : le texte de la production, et si le
+     * volet LANGUE a le droit de s'appliquer. Le garde-fou est evalue UNE fois
+     * par purge, pas par phrase.
+     */
+    private record Contexte(String production, boolean langueAutorisee) {
     }
 
     // ------------------------------------------------------------- par champ
 
     @SuppressWarnings("unchecked")
-    private static int purgeScores(Map<String, Object> feedback, String production) {
-        if (!(feedback.get("scores_criteres") instanceof List<?> scores)) return 0;
-        int retirees = 0;
+    private static Purge purgeScores(Map<String, Object> feedback, Contexte ctx) {
+        if (!(feedback.get("scores_criteres") instanceof List<?> scores)) return Purge.vide();
+        Purge total = Purge.vide();
         for (Object raw : scores) {
             if (!(raw instanceof Map<?, ?> rawMap)) continue;
             Map<String, Object> score = (Map<String, Object>) rawMap;
             if (!(score.get("commentaire") instanceof String commentaire)) continue;
-            Purge purge = purgerPhrases(commentaire, production);
-            if (purge.phrasesRetirees() == 0) continue;
-            retirees += purge.phrasesRetirees();
-            score.put("commentaire",
-                purge.reste().isBlank() ? COMMENTAIRE_CRITERE_PURGE : purge.reste());
+            Purge purge = purgerPhrases(commentaire, ctx);
+            if (purge.rien()) continue;
+            total = total.plus(purge);
+            score.put("commentaire", purge.reste().isBlank()
+                ? (purge.langue() > 0 ? COMMENTAIRE_CRITERE_PURGE_LANGUE : COMMENTAIRE_CRITERE_PURGE)
+                : purge.reste());
         }
-        return retirees;
+        return total;
     }
 
     @SuppressWarnings("unchecked")
-    private static int purgePriorites(Map<String, Object> feedback, String production) {
-        if (!(feedback.get("points_a_ameliorer") instanceof List<?> points)) return 0;
+    private static Purge purgePriorites(Map<String, Object> feedback, Contexte ctx) {
+        if (!(feedback.get("points_a_ameliorer") instanceof List<?> points)) return Purge.vide();
         List<Object> gardees = new ArrayList<>();
-        int retirees = 0;
+        Purge total = Purge.vide();
         for (Object raw : points) {
             if (!(raw instanceof Map<?, ?> rawMap)) {
                 gardees.add(raw);
                 continue;
             }
             Map<String, Object> point = new LinkedHashMap<>((Map<String, Object>) rawMap);
-            Purge constat = purgerPhrases(texte(point.get("constat")), production);
-            Purge comment = purgerPhrases(texte(point.get("comment")), production);
-            int purgees = constat.phrasesRetirees() + comment.phrasesRetirees();
-            if (purgees == 0) {
+            Purge constat = purgerPhrases(texte(point.get("constat")), ctx);
+            Purge comment = purgerPhrases(texte(point.get("comment")), ctx);
+            if (constat.rien() && comment.rien()) {
                 gardees.add(rawMap);
                 continue;
             }
-            retirees += purgees;
+            total = total.plus(constat).plus(comment);
             // Une priorite dont le constat OU la technique est tombee ne tenait
             // que par l'artefact : on la retire en entier plutot que de rendre
             // au candidat un demi-conseil.
@@ -191,43 +342,76 @@ final class EvaluationOralArtifactFilter {
             gardees.add(point);
         }
         feedback.put("points_a_ameliorer", gardees);
-        return retirees;
+        return total;
     }
 
-    private static int purgeSuggestions(Map<String, Object> feedback, String production) {
-        if (!(feedback.get("suggestions") instanceof List<?> suggestions)) return 0;
+    /**
+     * Listes de chaines simples ({@code suggestions}, {@code points_forts}) :
+     * l'entree entierement purgee disparait — un conseil ou un point fort reduit
+     * a rien n'a rien a dire au candidat. Le plafond serveur
+     * ({@code AiEvaluationService.capListe}) s'applique apres, sur ce qui reste.
+     */
+    private static Purge purgeListeDeTextes(Map<String, Object> feedback, String champ, Contexte ctx) {
+        if (!(feedback.get(champ) instanceof List<?> valeurs)) return Purge.vide();
         List<Object> gardees = new ArrayList<>();
-        int retirees = 0;
-        for (Object raw : suggestions) {
-            if (!(raw instanceof String suggestion)) {
+        Purge total = Purge.vide();
+        for (Object raw : valeurs) {
+            if (!(raw instanceof String valeur)) {
                 gardees.add(raw);
                 continue;
             }
-            Purge purge = purgerPhrases(suggestion, production);
-            if (purge.phrasesRetirees() == 0) {
+            Purge purge = purgerPhrases(valeur, ctx);
+            if (purge.rien()) {
                 gardees.add(raw);
                 continue;
             }
-            retirees += purge.phrasesRetirees();
+            total = total.plus(purge);
             if (!purge.reste().isBlank()) gardees.add(purge.reste());
         }
-        feedback.put("suggestions", gardees);
-        return retirees;
+        feedback.put(champ, gardees);
+        return total;
+    }
+
+    /**
+     * {@code accomplissement.objectif_resume} : phrase candidat, elle ne peut pas
+     * rester vide (les fronts l'affichent sous le verdict). Le VERDICT lui-meme
+     * ({@code accomplissement.objectif}) n'est pas touche : il est garanti par
+     * ailleurs, et le remonter ici contredirait la regle « le serveur n'abaisse,
+     * jamais ne releve ».
+     */
+    @SuppressWarnings("unchecked")
+    private static Purge purgeObjectifResume(Map<String, Object> feedback, Contexte ctx) {
+        if (!(feedback.get("accomplissement") instanceof Map<?, ?> rawMap)) return Purge.vide();
+        Map<String, Object> accomplissement = (Map<String, Object>) rawMap;
+        if (!(accomplissement.get("objectif_resume") instanceof String resume)) return Purge.vide();
+        // Volet LANGUE seul : le volet MOT exige une citation ancree ET un
+        // marqueur de reproche, or ce champ resume l'ATTEINTE de l'objectif.
+        // L'y appliquer viderait un resume pour un mot cite, en contradiction
+        // avec la coherence « accomplissement <-> rapport » de la v8.
+        Purge purge = purgerPhrases(resume, ctx, false, true);
+        if (purge.rien()) return Purge.vide();
+        accomplissement.put("objectif_resume",
+            purge.reste().isBlank() ? OBJECTIF_RESUME_PURGE_LANGUE : purge.reste());
+        return purge;
     }
 
     /**
      * {@code exemples_corriges} : on SUPPRIME l'entree dont l'explication ou le
-     * gain se fonde sur une notion non evaluable a l'oral, au lieu de faire
-     * echouer l'evaluation entiere (cf. {@link EvaluationOutputValidator}).
+     * gain se fonde sur une notion non evaluable a l'oral — ou sur un reproche de
+     * langue etrangere — au lieu de faire echouer l'evaluation entiere (cf.
+     * {@link EvaluationOutputValidator}).
      */
-    private static int purgeExemplesCorriges(Map<String, Object> feedback) {
+    private static int purgeExemplesCorriges(Map<String, Object> feedback, Contexte ctx) {
         if (!(feedback.get("exemples_corriges") instanceof List<?> exemples)) return 0;
         List<Object> gardes = new ArrayList<>();
         int retires = 0;
         for (Object raw : exemples) {
             if (raw instanceof Map<?, ?> exemple
                 && (EvaluationOutputValidator.mentionneMotifOralInterdit(exemple.get("explication"))
-                    || EvaluationOutputValidator.mentionneMotifOralInterdit(exemple.get("gain")))) {
+                    || EvaluationOutputValidator.mentionneMotifOralInterdit(exemple.get("gain"))
+                    || (ctx.langueAutorisee()
+                        && (reprocheDeLangue(texte(exemple.get("explication")))
+                            || reprocheDeLangue(texte(exemple.get("gain"))))))) {
                 retires++;
                 continue;
             }
@@ -239,29 +423,126 @@ final class EvaluationOralArtifactFilter {
 
     // ------------------------------------------------------------- mecanique
 
-    private record Purge(String reste, int phrasesRetirees) {
+    /** Compteurs par MOTIF : les deux volets n'ont pas le meme avertissement. */
+    private record Purge(String reste, int mot, int langue) {
+
+        static Purge vide() {
+            return new Purge("", 0, 0);
+        }
+
+        boolean rien() {
+            return mot == 0 && langue == 0;
+        }
+
+        /** Cumul des COMPTEURS seuls ; le reste textuel appartient a chaque champ. */
+        Purge plus(Purge autre) {
+            return new Purge(reste, mot + autre.mot(), langue + autre.langue());
+        }
+    }
+
+    private static Purge purgerPhrases(String texte, Contexte ctx) {
+        return purgerPhrases(texte, ctx, true, true);
     }
 
     /**
      * Retire les phrases qui ne tiennent que par une citation d'UN SEUL mot de la
-     * transcription. Les autres sont recopiees telles quelles.
+     * transcription, ou par un reproche de langue etrangere. Les autres sont
+     * recopiees telles quelles.
      */
-    private static Purge purgerPhrases(String texte, String production) {
+    private static Purge purgerPhrases(String texte, Contexte ctx, boolean voletMot, boolean voletLangue) {
+        String production = ctx.production();
         if (texte == null || texte.isBlank() || production == null || production.isBlank()) {
-            return new Purge(texte == null ? "" : texte, 0);
+            return new Purge(texte == null ? "" : texte, 0, 0);
         }
-        String[] phrases = FIN_DE_PHRASE.split(texte);
-        List<String> gardees = new ArrayList<>(phrases.length);
-        int retirees = 0;
-        for (String phrase : phrases) {
-            if (reprocheDeNiveauMot(phrase, production)) {
-                retirees++;
+        List<String> gardees = new ArrayList<>();
+        int mot = 0;
+        int langue = 0;
+        for (String phrase : phrases(texte)) {
+            if (voletLangue && ctx.langueAutorisee() && reprocheDeLangue(phrase)) {
+                langue++;
+            } else if (voletMot && reprocheDeNiveauMot(phrase, production)) {
+                mot++;
             } else {
                 gardees.add(phrase.strip());
             }
         }
-        if (retirees == 0) return new Purge(texte, 0);
-        return new Purge(String.join(" ", gardees).strip(), retirees);
+        if (mot == 0 && langue == 0) return new Purge(texte, 0, 0);
+        return new Purge(String.join(" ", gardees).strip(), mot, langue);
+    }
+
+    /**
+     * Decoupage en phrases sur la ponctuation forte, <b>hors citation et hors
+     * parenthese</b>. Sans cette precaution, « Un passage en néerlandais ('Ja.
+     * Dus kan nog sorteer de weekenden') qui interrompt... » — un verbatim REEL —
+     * se coupait au point de « Ja. », la premiere moitie partait a la purge et le
+     * candidat recevait le debris restant.
+     */
+    private static List<String> phrases(String texte) {
+        List<String> out = new ArrayList<>();
+        int debut = 0;
+        int parentheses = 0;
+        boolean dansGuillemetsFr = false;
+        boolean dansGuillemetsDroits = false;
+        boolean dansGuillemetsCourbes = false;
+        for (int i = 0; i < texte.length(); i++) {
+            char c = texte.charAt(i);
+            switch (c) {
+                case '(' -> parentheses++;
+                case ')' -> parentheses = Math.max(0, parentheses - 1);
+                case '«' -> dansGuillemetsFr = true;
+                case '»' -> dansGuillemetsFr = false;
+                case '"' -> dansGuillemetsDroits = !dansGuillemetsDroits;
+                case '“' -> dansGuillemetsCourbes = true;
+                case '”' -> dansGuillemetsCourbes = false;
+                default -> {
+                    // rien : seul un separateur ouvre ou ferme un contexte
+                }
+            }
+            boolean protege = parentheses > 0 || dansGuillemetsFr
+                || dansGuillemetsDroits || dansGuillemetsCourbes;
+            if (protege || PONCTUATION_FORTE.indexOf(c) < 0) continue;
+            int j = i + 1;
+            while (j < texte.length() && PONCTUATION_FORTE.indexOf(texte.charAt(j)) >= 0) j++;
+            if (j >= texte.length() || !Character.isWhitespace(texte.charAt(j))) continue;
+            out.add(texte.substring(debut, j));
+            while (j < texte.length() && Character.isWhitespace(texte.charAt(j))) j++;
+            debut = j;
+            i = j - 1;
+        }
+        if (debut < texte.length()) out.add(texte.substring(debut));
+        return out;
+    }
+
+    /** Vrai quand la phrase reproche au candidat d'avoir employe une autre langue. */
+    private static boolean reprocheDeLangue(String phrase) {
+        return phrase != null && !phrase.isBlank()
+            && LANGUE_ETRANGERE.matcher(normaliserPourMarqueur(phrase)).find();
+    }
+
+    /**
+     * GARDE-FOU DU VOLET LANGUE — vrai quand la production est assez longue pour
+     * etre mesuree ET reste massivement francaise. Faux <b>en cas de doute</b> :
+     * un reproche injuste laisse passer coute moins cher que l'effacement d'une
+     * vraie bascule de langue, qui est une non-realisation.
+     *
+     * <p>Mesure prise sur les seuls tours {@code Candidat :} : les mots de
+     * l'examinateur ne sont pas la production du candidat. Hesitations retirees,
+     * comme partout ailleurs.
+     */
+    private static boolean mesurableEtFrancaise(String production) {
+        if (production == null || production.isBlank()) return false;
+        String texte = production.strip();
+        String duCandidat = ProductionValidityService.estDialogue(texte)
+            ? ProductionValidityService.toursDuCandidat(texte)
+            : texte;
+        if (duCandidat.isBlank()) return false;
+        List<String> mots = new ArrayList<>();
+        for (String mot : ProductionValidityService.motsNormalises(duCandidat)) {
+            if (!EvaluationProofMatcher.DISFLUENCES.contains(mot)) mots.add(mot);
+        }
+        if (mots.size() < MOTS_MIN_MESURE_LANGUE) return false;
+        return ProductionValidityService.ratioLettresNonLatines(duCandidat) <= PART_NON_LATIN_MAX
+            && ProductionValidityService.ratioMotsEtrangers(mots) <= PART_MOTS_ETRANGERS_MAX;
     }
 
     /**

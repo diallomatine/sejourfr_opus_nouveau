@@ -9,6 +9,18 @@ référence pédagogique exhaustive reste [`notation-ia-eo-ee.md`](notation-ia-e
 - Niveau de sortie maximal : **B2** ; C1 et C2 ne font pas partie du contrat actif.
 - Rubriques : `prompts/production-rubrics-v9.json`.
 - Tool-schema : `prompts/production-evaluation-tool-schema-v5.json`.
+- ⚠️ **`v10` et `v11` existent, sont chargeables, et sont ÉCARTÉES — ne pas réessayer cette
+  voie sans le savoir.** Les deux ajoutaient une **consigne** demandant au correcteur de ne
+  pas imputer au candidat un fragment en langue étrangère à l'oral. Mesurées le 2026-08-07
+  contre un témoin v9 **du même jour**, même modèle, `calibration.retries=1` : niveaux exacts
+  **81,8 % (v9)** contre 75,6 % (v10) et 76,7 % (v11) ; corrections perdues **8,33 % (v9)**
+  contre 14,58 % et 10,42 % ; pièges 7/8 contre 4/8 et 5/8. v10 remontait en plus un
+  hors-sujet de `A1_NON_ATTEINT` à `A1` et une transcription bruitée de A2 à B1 (le bloc
+  ajouté, +4197 caractères, diluait la sévérité du reste). Rapports :
+  `target/calibration/{v9-temoin,v10,v11}-20260807.json`. Le comportement visé est désormais
+  tenu par un **contrôle serveur déterministe** (`EvaluationOralArtifactFilter`, volet LANGUE,
+  §8 quater de `notation-ia-eo-ee.md`), qui ne touche ni à la note, ni à un seuil, ni au
+  prompt. Les activer (`EVAL_RUBRICS_VERSION=v10|v11`) ferait revenir les chiffres ci-dessus.
 - Correcteur par défaut : **DeepSeek `deepseek-v4-flash`**. ⚠️ **Choix en cours de
   réexamen** — cf. §12.6 de `notation-ia-eo-ee.md`.
 - ⚠️ **La comparaison des 3 campagnes v9 est partiellement invalide.** Elles n'ont pas tourné
@@ -29,6 +41,12 @@ référence pédagogique exhaustive reste [`notation-ia-eo-ee.md`](notation-ia-e
   ne se fait jamais refuser, mais coûte 4,5× plus cher. OpenAI et Anthropic restent câblés et
   testés : **une bascule = un bloc de `.env`** (provider + modèle + ses deux tarifs), zéro
   ligne de code, zéro ligne de `.yaml`.
+- **Première campagne à `retries=1` (comme la production), 2026-08-07** : `flash` sous v9
+  rend **81,8 %** de niveaux exacts, **8,33 %** de corrections perdues et **22,8 %** de sorties
+  refusées par nos validateurs, pour **51 centimes**. Les motifs de perte sont, dans l'ordre :
+  JSON mal formé par le fournisseur, garde-fou oral, rejet de preuve. Ces chiffres-là **sont**
+  comparables entre eux (mêmes réglages) — à l'inverse des trois campagnes v9 signalées
+  ci-dessus.
 - Le « pic à 5 min 44 s » du banc est un **cumul de 9 appels** sur un même cas, pas un appel
   lent : un appel isolé de `flash` tient en 16,3 s de médiane et 36,2 s au pire (mesuré sur
   les 41 cas réglés en un seul appel). C'est ce chiffre qui dimensionne `timeout-sec`.
@@ -58,12 +76,71 @@ Les versions v6/v3 restent intactes pour rollback ; on versionne, on ne réécri
 2. `WhisperTranscriptionService` produit une transcription littérale.
 3. La transcription suit exactement le même `AiEvaluationService` que l'EE.
 
+**Langue imposée.** `WhisperTranscriptionClient` envoie systématiquement
+`language` (`sejourfr.openai.whisper.language: fr`) **et** `prompt`
+(`literal-mode-prompt`, transcription verbatim). Whisper n'a donc rien à deviner.
+C'est vérifié en base : **0 transcription sur 36** issue de cette voie porte une
+écriture non latine, et `langue_detectee` vaut toujours `fr`/`french`. Le module
+« Compétences » réutilise **le même client** (`SkillTranscriptionService`) et
+hérite du réglage — aucune divergence possible entre les deux voies.
+
 ### Expression orale temps réel
 
 1. Gemini Live joue l'examinateur et fournit le dialogue transcrit.
 2. `ProductionEvaluationService.evaluateRealtimeTranscript` crée la submission et la
    transcription déjà finalisée ; Whisper est sauté.
 3. Le même runner async et le même `EvaluationLlmClient` évaluent le transcript.
+
+⚠️ **La langue de la transcription temps réel NE PEUT PAS être imposée.** Deux
+limites de l'API Live, toutes les deux vérifiées :
+
+- `inputAudioTranscription` prend un `AudioTranscriptionConfig`, et ce message
+  **n'a aucun champ** — il n'existe pas de paramètre de langue pour l'entrée.
+  `GeminiTokenBroker.buildRequestBody` l'envoie donc en objet vide, et c'est le
+  seul envoi possible ;
+- `speechConfig.languageCode` existe, mais les modèles **native-audio**
+  (`gemini-live-2.5-flash-native-audio`, celui en service) le **refusent**
+  (`Unsupported language code`). Le poser ferait échouer l'émission du token
+  éphémère, et `RealtimeSessionService` basculerait silencieusement tout le temps
+  réel en async. **Ne pas l'ajouter.**
+
+Conséquence mesurée : **6 transcriptions temps réel sur 39** portent une écriture
+non latine (arabe, cyrillique…), et le modèle produit aussi des passages en
+langue étrangère en alphabet latin (anglais, néerlandais) que ce comptage ne voit
+pas. Le modèle native-audio est documenté comme changeant « de langue
+naturellement en cours de conversation » : c'est le mécanisme exact du défaut.
+
+Deux réponses, aucune des deux n'étant un réglage d'API :
+
+1. **`prompts/realtime-personas-v3.json`** (défaut `REALTIME_PERSONA_VERSION`) —
+   verrou de langue dans la system instruction verrouillée dans le token : trois
+   règles qui déclarent l'échange intégralement francophone et interdisent
+   d'interpréter un passage mal capté comme une autre langue. v3 = v2 + ces trois
+   règles, tout le reste au caractère près (`RealtimePersonaV3Test`). **Biais, pas
+   garantie** : non mesurable au banc, qui n'appelle jamais Gemini Live.
+2. **`EvaluationOralArtifactFilter`, volet LANGUE** (livré **ACTIF**) — contrôle
+   serveur déterministe, appliqué **après** la correction, uniquement en EO. Il
+   retire du rapport les phrases qui reprochent au candidat d'avoir employé une
+   autre langue (`scores_criteres[].commentaire`, `points_a_ameliorer`,
+   `suggestions`, `points_forts`, `accomplissement.objectif_resume`,
+   `exemples_corriges`), pose un avertissement candidat dédié, et **ne touche ni à
+   la note, ni au niveau, ni à un seuil**. Jamais `confiance_raisons` (c'est là
+   que la langue étrangère doit vivre : limite d'observation, pas faute), jamais
+   en EE. Garde-fou contre la neutralisation d'une **vraie** bascule de langue :
+   deux mesures sur les seuls tours `Candidat :` — part de lettres non latines
+   ≤ 15 % **et** part de mots-outils étrangers ≤ 6 %, avec un minimum de 40 mots
+   exploitables ; au-dessus, on ne purge rien. Seuils calibrés sur les données
+   réelles, cf. le javadoc de la classe.
+
+   ⚠️ La voie « écrire une consigne de plus » (rubriques v10 puis v11) a été
+   tentée **et mesurée moins bonne que v9** — cf. « Contrat actif » ci-dessus.
+
+**Aucun filtrage a posteriori du transcript n'a été ajouté.** Le point de lecture
+unique (`TranscriptionManager.findLatestTexteBySubmissionId` +
+`TranscriptTurnStitcher`) ne retire que des **frontières** de tours, jamais du
+contenu. Y supprimer un tour halluciné violerait cette philosophie, détruirait de
+la parole réelle en cas de faux positif, et resterait de toute façon aveugle aux
+passages étrangers en alphabet latin — qui sont la majorité des cas observés.
 
 La durée de l'EO peut rester stockée comme métadonnée de session, mais elle n'est plus insérée
 dans le prompt de notation et ne produit plus d'avertissement de score.
