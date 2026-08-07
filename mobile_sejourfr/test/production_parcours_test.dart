@@ -20,7 +20,7 @@ ProductionTaskDto _task(String id, int tache) => ProductionTaskDto(
       tacheNumero: tache,
       niveauCible: 'B1',
       consigne: 'Consigne $id',
-      motsMin: 60,
+      motsMin: 40,
       motsMax: 90,
     );
 

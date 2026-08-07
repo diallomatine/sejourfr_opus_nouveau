@@ -381,11 +381,15 @@ void main() {
       expect(isEeWordCountWithinBounds(t1, 61), isFalse);
     });
 
-    test('T2 et T3 acceptent 60 et 90, refusent 59 et 91', () {
+    // Le volume officiel du TCF IRN en tâches 2 et 3 est 40-90 mots. Le minimum
+    // a valu 60 jusqu'à V724 : une copie de 40 à 59 mots, parfaitement
+    // recevable, était refusée. Les cas à 59 sont cette régression.
+    test('T2 et T3 acceptent 40, 59 et 90, refusent 39 et 91', () {
       for (final numero in [2, 3]) {
-        final current = task(numero, 60, 90);
-        expect(isEeWordCountWithinBounds(current, 59), isFalse);
-        expect(isEeWordCountWithinBounds(current, 60), isTrue);
+        final current = task(numero, 40, 90);
+        expect(isEeWordCountWithinBounds(current, 39), isFalse);
+        expect(isEeWordCountWithinBounds(current, 40), isTrue);
+        expect(isEeWordCountWithinBounds(current, 59), isTrue);
         expect(isEeWordCountWithinBounds(current, 90), isTrue);
         expect(isEeWordCountWithinBounds(current, 91), isFalse);
       }

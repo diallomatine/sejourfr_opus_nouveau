@@ -160,12 +160,12 @@ const _eeTasks = <_ExamTask>[
   _ExamTask(
     index: 2,
     label: 'Récit',
-    detail: 'Expérience personnelle · 60-90 mots',
+    detail: 'Expérience personnelle · 40-90 mots',
   ),
   _ExamTask(
     index: 3,
     label: 'Opinion',
-    detail: 'Argumentation simple · 60-90 mots',
+    detail: 'Argumentation simple · 40-90 mots',
   ),
 ];
 

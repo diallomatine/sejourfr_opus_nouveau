@@ -809,7 +809,7 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
       `timeLimitSeconds` est null (sous-épreuve d'examen complet) ; l'EO n'a
       alors **aucun** chrono local. À 0:00 : EE auto-soumet le texte courant
       s'il est recevable (mots ∈ [`motsMin`, `motsMax`] strictement : T1
-      30–60, T2/T3 60–90), EO coupe la
+      30–60, T2/T3 40–90 ; règle partagée `lib/ee-word-bounds.ts`), EO coupe la
       capture en cours et l'envoie en best-effort (`timeoutSignal` /
       `onTimeout` sur `EoRecordingForm`, pendant de `autoSubmitSignal` /
       `onAutoSubmit` côté EE) ; puis `attemptApi.finish` puis bilan.

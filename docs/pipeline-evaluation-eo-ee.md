@@ -7,8 +7,44 @@ référence pédagogique exhaustive reste [`notation-ia-eo-ee.md`](notation-ia-e
 
 - Profil : **TCF IRN uniquement**.
 - Niveau de sortie maximal : **B2** ; C1 et C2 ne font pas partie du contrat actif.
-- Rubriques : `prompts/production-rubrics-v9.json`.
-- Tool-schema : `prompts/production-evaluation-tool-schema-v5.json`.
+- Rubriques : `prompts/production-rubrics-v12.json`.
+- Tool-schema : `prompts/production-evaluation-tool-schema-v6.json`.
+- 🆕 **`v12` / `v6` = LA PREUVE SE DÉSIGNE PAR UN NUMÉRO DE SEGMENT.** `v12` est `v9` **au bit
+  près** pour tout ce qui note (échelle, 4 critères, seuils, couplage, plafonds, bandes, tests
+  décisifs A1/A2 et B1/B2, les 16 ancres few-shot, les 6 rubriques de tâche — verrouillé par
+  `ProductionEvaluationContractTest`) ; seules 5 sections du bloc `commun` changent, et toutes
+  décrivent la **mécanique** de la preuve. `v6` est `v5` avec `scores_criteres[].preuve`
+  (string) remplacé par `preuve_segment` (**integer, minimum 1**).
+  - **Motif** : une citation recopiée peut être juste et refusée quand même (le modèle
+    dédouble un bégaiement, normalise une graphie). Cas réel `e6f28822` : deux appels refusés
+    d'affilée, deux citations exactes, puis mode dégradé. Plus généralement, `flash` voyait
+    **42,9 % de ses appels ORAUX** refusés par nos contrôles. Avec un entier borné, inventer
+    une preuve devient impossible **par construction** ; la seule violation possible est un
+    numéro hors bornes.
+  - **Aucun impact sur les 3 fronts** : le serveur résout le numéro en texte AVANT
+    persistance, donc `AiEvaluation.feedback_json.scores_criteres[].preuve` reste une chaîne.
+    `preuve_segment` ne franchit jamais la frontière du service. Aucun miroir de DTO à
+    propager (`web_sejoufr/lib/types.ts`, `mobile_sejourfr/lib/core/models/production_models.dart`,
+    `admin_sejourfr/src/types/api.ts` : inchangés).
+  - ⚠️ **NON MESURÉE AU BANC** : bascule livrée sans campagne (aucun appel LLM payant
+    autorisé). Défendable parce qu'elle ne touche aucune règle de notation et que le peu
+    qu'elle change au prompt **retire** une contrainte. Retour arrière sans migration :
+    `EVAL_RUBRICS_VERSION=v9` + `EVAL_PROMPT_VERSION=v5` (les deux ensemble — la matrice
+    refuse une paire incohérente au démarrage).
+  - **v12 corrige aussi une consigne contradictoire** : les bornes de mots EE étaient
+    recopiées en dur dans la grille (« tâches 2 et 3 : 60 à 90 mots ») et dans la
+    description de `version_amelioree`, **à côté** des bornes réellement injectées depuis
+    `production_tasks`. Depuis la migration **V724** (minimum T2/T3 60 → **40**), les deux
+    se contredisaient dans le même prompt. v12 et le tool-schema v6 ne redéclarent plus
+    rien : ils **renvoient** au bloc `LONGUEUR ATTENDUE`. Verrou : `EvaluationBornesMotsSourceUniqueTest`
+    (aucune plage de mots en dur dans la grille ni le tool-schema **actifs**).
+  - ⚠️ **Le retour arrière v9/v5 réintroduit cette contradiction.** v8, v9, v10, v11 et le
+    tool-schema v5 sont des versions **livrées** : elles gardent leurs bornes historiques
+    60-90, qui sont la trace exacte de ce avec quoi les copies déjà notées l'ont été. En
+    v9, le correcteur recevra donc de nouveau « LONGUEUR ATTENDUE : 40 à 90 » **et**
+    « 60 à 90 mots », et la version améliorée rendue au candidat visera 60-90 même sur une
+    copie de 45 mots parfaitement valide. Basculer en connaissance de cause.
+  - `EvaluationProofMatcher` **reste en place** et sert toujours les contrats ≤ v5.
 - ⚠️ **`v10` et `v11` existent, sont chargeables, et sont ÉCARTÉES — ne pas réessayer cette
   voie sans le savoir.** Les deux ajoutaient une **consigne** demandant au correcteur de ne
   pas imputer au candidat un fragment en langue étrangère à l'oral. Mesurées le 2026-08-07
@@ -52,7 +88,7 @@ référence pédagogique exhaustive reste [`notation-ia-eo-ee.md`](notation-ia-e
   les 41 cas réglés en un seul appel). C'est ce chiffre qui dimensionne `timeout-sec`.
 - Examinateur vocal temps réel : **Gemini Live**. Il conduit/transcrit l'échange mais ne
   note jamais ; le transcript final revient dans le même pipeline correcteur.
-- EE : T1 **30–60 mots**, T2/T3 **60–90 mots**, bornes strictes.
+- EE : T1 **30–60 mots**, T2/T3 **40–90 mots**, bornes strictes.
 
 La v7 déclare `profile=TCF_IRN`, `niveau_max=B2` et `tool_schema_version=v4`.
 `ProductionRubricsProvider` refuse au chargement une paire incompatible (par exemple v7/v3).
@@ -166,10 +202,10 @@ Toute voie de notation lit `sejourfr.production-evaluation` dans `application.ya
 sejourfr:
   production-evaluation:
     provider: ${EVAL_LLM_PROVIDER:deepseek}
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v9}
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v12}
     deepseek:
       model: ${EVAL_DEEPSEEK_MODEL:deepseek-v4-flash}
-      prompt-version: ${EVAL_PROMPT_VERSION:v5}
+      prompt-version: ${EVAL_PROMPT_VERSION:v6}
       # Forme de requête négociée avec le fournisseur ; `auto` = négociation.
       max-tokens-param: ${EVAL_DEEPSEEK_MAX_TOKENS_PARAM:auto}
       send-temperature: ${EVAL_DEEPSEEK_SEND_TEMPERATURE:auto}
@@ -292,7 +328,28 @@ Les quatre critères v7, équipondérés, sont toujours :
 Le function calling ne suffit pas à garantir qu'un fournisseur respecte le contrat.
 `EvaluationOutputValidator` intervient donc **avant toute normalisation** et avant tout calcul.
 
-Pour v4, il exige notamment :
+Sous le contrat **v6**, la preuve n'est plus une chaîne mais un **numéro de segment**. Le
+matériau part découpé par `EvaluationProductionSegments` (EO dialogué : un segment par tour
+`Candidat :`, les tours `Examinateur :` sont rendus SANS numéro donc non désignables ; EE et
+EO monologue : une phrase par segment), et `EvaluationOutputValidator` recalcule le même
+découpage — il est déterministe — pour vérifier que `preuve_segment` est un entier de
+`1..n`. Deux violations possibles, et deux seulement :
+
+| Violation | Sens | Après le réessai |
+|---|---|---|
+| `preuve_segment[<code>] doit etre un numero de segment entier` | champ absent ou non entier | **bloquant** (miroir de « preuve vide ») |
+| `preuve_segment[<code>] doit designer un segment numerote de la production` | entier hors bornes | **dégradable** (miroir de « citation non rattachable ») |
+
+`AiEvaluationService.resolvePreuveSegments` remplace ensuite le numéro par le texte exact du
+segment sous la clé `preuve`, et `EvaluationProofMatcher` n'est **pas** appelé : réappliquer un
+rapprochement littéral sur un texte que le serveur a lui-même extrait rendrait ambiguë toute
+production contenant deux tours identiques. `EvaluationRepairPrompt` bascule sur un rappel
+« numéro », la règle de recopie n'ayant plus d'objet. `EvaluationRefusalMetrics` classe ces
+violations dans les **mêmes familles** (`PREUVE_NON_RATTACHEE` / `PREUVE_ABSENTE`) pour rester
+comparable d'une version de contrat à l'autre. Le garde-fou oral, le filet d'artefacts et le
+filet de langue portent sur d'autres champs : **inchangés**.
+
+Pour v4 et v5, il exige notamment :
 
 - tous les champs racine requis et aucun champ imprévu ;
 - un niveau parmi `A1_NON_ATTEINT`, `A1`, `A2`, `B1`, `B2` ;
@@ -380,6 +437,13 @@ Le niveau brut du LLM reste advisory pour la calibration. Le niveau affiché vie
 - ajoute un destinataire/contexte aux trois T2 historiques qui n'en avaient pas ;
 - ajoute un contexte de forum aux T3 qui en étaient dépourvues ;
 - pose des contraintes SQL sur les bornes et le contexte T2/T3.
+
+`V724__tcf_irn_ee_t2_t3_mots_min_40.sql` corrige le **minimum** des tâches 2 et 3 :
+le volume officiel du TCF IRN est **40–90**, pas 60–90. Comme les bornes sont
+strictes, une copie de 40 à 59 mots — recevable à l'examen — était refusée à la
+soumission. La migration retire la contrainte de V723, passe `mots_min` à 40 sur
+T2/T3, puis repose la contrainte sur `30–60 / 40–90 / 40–90`. Ni la tâche 1 ni
+aucun maximum ne bougent, aucun sujet n'est réécrit.
 
 `V762__tcf_irn_ee_examples_word_bounds.sql` réécrit les neuf exemples EE dans les bornes :
 

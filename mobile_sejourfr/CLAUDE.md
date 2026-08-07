@@ -1065,7 +1065,7 @@ flag `isExam` + le `slotNumber`. Points d'entrée :
 `ProductionProgressStrip`, ancré sur `attempt.startedAt` + `timeLimitSeconds` (module ; survit à un
 kill/reprise) ou 1800 s côté front (examen complet, pas de `timeLimitSeconds` backend). À 0:00 :
 auto-soumission du texte courant **s'il est recevable** (mots ∈ [motsMin, motsMax],
-bornes strictes TCF IRN : 30–60 / 60–90 / 60–90), sinon rien ;
+bornes strictes TCF IRN : 30–60 / 40–90 / 40–90), sinon rien ;
 puis `finish` (module) / `markSubDone` (complet) ; puis bilan.
 
 **Chrono d'examen EO (15:00)** : `eo_briefing_screen` rend le même `ExamTimer` dans le `trailing` du

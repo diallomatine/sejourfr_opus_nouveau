@@ -704,7 +704,8 @@ export type BandeCritere =
 
 /**
  * `communiquer` · `interagir` · `lexique` · `morphosyntaxe` sont les 4 codes
- * de la grille v5 (calquée sur la vraie grille TCF). Les autres codes ont
+ * de notre grille SejourFR depuis la v5 (alignée sur les dimensions évaluées au
+ * TCF, sans reprendre la grille de correction officielle). Les autres codes ont
  * disparu au fil des versions (v4 puis v3) mais restent portés par les
  * évaluations antérieures en base — on les garde ici pour ne pas planter sur
  * l'historique.

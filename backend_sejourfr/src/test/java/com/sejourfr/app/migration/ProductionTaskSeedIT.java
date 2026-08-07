@@ -158,6 +158,62 @@ class ProductionTaskSeedIT extends AbstractIntegrationTest {
                 .isEqualTo(attendu));
     }
 
+    /**
+     * Fige les BORNES DE MOTS publiees des trois taches EE : T1 30-60, T2 et T3
+     * <b>40-90</b> (volume officiel du TCF IRN). Elles sont strictes — aucune
+     * tolerance serveur, aucune tolerance front — donc un minimum trop haut
+     * refuse une copie recevable : V723 avait fige T2/T3 a 60, ce qui bloquait
+     * toute production de 40 a 59 mots ; V724 corrige le minimum, les maximums
+     * et la tache 1 etant deja justes.
+     *
+     * <p>Assertions seed-tolerantes : on ne compte aucun total, on verifie que
+     * <b>chaque</b> sujet publie de chaque tache porte exactement ces bornes.
+     */
+    @Test
+    void everyPublishedEeTaskCarriesTheOfficialTcfIrnWordBounds() {
+        Map<Integer, int[]> attendu = Map.of(1, new int[]{30, 60}, 2, new int[]{40, 90}, 3, new int[]{40, 90});
+
+        attendu.forEach((tache, bornes) -> {
+            List<Map<String, Object>> sujets = jdbc.queryForList("""
+                    SELECT id::text AS id, mots_min, mots_max FROM production_tasks
+                    WHERE epreuve = 'TCF_EE' AND tache_numero = ? AND is_active
+                      AND consigne NOT LIKE 'Consigne %'
+                    """, tache);
+
+            assertThat(sujets).as("pool EE T%d", tache).isNotEmpty().allSatisfy(row -> {
+                assertThat(((Number) row.get("mots_min")).intValue())
+                        .as("EE T%d %s : mots_min", tache, row.get("id"))
+                        .isEqualTo(bornes[0]);
+                assertThat(((Number) row.get("mots_max")).intValue())
+                        .as("EE T%d %s : mots_max", tache, row.get("id"))
+                        .isEqualTo(bornes[1]);
+            });
+        });
+    }
+
+    /**
+     * Les 9 exemples-modeles EE livres (V761, reecrits par V762) restent dans la
+     * fourchette de leur tache apres l'elargissement de V724 : la borne basse
+     * descend, aucune borne haute ne bouge, donc aucun exemple ne sort. Comptage
+     * identique au backend : {@code contenu.trim().split("\\s+").length}.
+     */
+    @Test
+    void theNineDeliveredEeExamplesStayWithinTheirTaskBounds() {
+        List<Map<String, Object>> exemples = jdbc.queryForList("""
+                SELECT e.id::text AS id, t.tache_numero, t.mots_min, t.mots_max,
+                       array_length(regexp_split_to_array(btrim(e.contenu), '\\s+'), 1) AS mots
+                FROM production_examples e
+                JOIN production_tasks t ON t.id = e.task_id
+                WHERE t.epreuve = 'TCF_EE' AND t.consigne NOT LIKE 'Consigne %'
+                """);
+
+        assertThat(exemples).hasSize(9).allSatisfy(row ->
+                assertThat(((Number) row.get("mots")).intValue())
+                        .as("exemple EE T%s %s", row.get("tache_numero"), row.get("id"))
+                        .isBetween(((Number) row.get("mots_min")).intValue(),
+                                ((Number) row.get("mots_max")).intValue()));
+    }
+
     private int count(String where) {
         Integer n = jdbc.queryForObject(
                 "SELECT count(*) FROM production_tasks WHERE " + where + NOT_A_FIXTURE, Integer.class);

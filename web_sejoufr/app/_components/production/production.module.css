@@ -135,9 +135,9 @@
 }
 
 /* ---------- Note + échelle du TCF ----------
-   Ni pourcentage, ni jauge « sur 20 points » : notre note EST celle du TCF,
-   dont l'échelle est comprimée (10/20 = B2). Un remplissage à 22 % ferait lire
-   un A2 comme un naufrage — c'est précisément ce que cette carte corrige. */
+   Ni pourcentage, ni jauge « sur 20 points » : notre note s'exprime sur
+   l'échelle du TCF, qui est comprimée (10/20 = B2). Un remplissage à 22 % ferait
+   lire un A2 comme un naufrage — c'est précisément ce que cette carte corrige. */
 .scoreCard {
   background: white;
   border: 1px solid var(--color-line);
@@ -989,8 +989,8 @@
   color: rgba(255, 255, 255, 0.7); margin-top: 6px;
 }
 
-/* Correspondance avec la grille officielle du TCF IRN. Uniquement au bilan
-   d'une épreuve entière : une tâche isolée n'a pas de note TCF. */
+/* Correspondance avec les fourchettes officielles du TCF IRN. Uniquement au
+   bilan d'une épreuve entière : une tâche isolée n'a pas de note TCF. */
 .sessTcf {
   margin-top: 16px;
   padding-top: 14px;

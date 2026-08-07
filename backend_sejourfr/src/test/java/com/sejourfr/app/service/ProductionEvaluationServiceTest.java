@@ -287,6 +287,63 @@ class ProductionEvaluationServiceTest {
         assertThat(saved.getMotsCount()).isEqualTo(10);
     }
 
+    // ------------------------------------------------------------------------
+    // Bornes officielles du TCF IRN a l'ecrit (STRICTES, aucune tolerance) :
+    // T1 30-60 mots, T2 et T3 40-90 mots. Les cas a 59 mots sont la regression
+    // corrigee : le minimum des taches 2 et 3 valait 60, une copie de 40 a 59
+    // mots — parfaitement recevable au TCF — etait refusee a la soumission.
+    // ------------------------------------------------------------------------
+
+    private void assertEeAccepte(int tache, int min, int max, int mots) {
+        ProductionTask t = task(EpreuveType.TCF_EE);
+        t.setTacheNumero((short) tache);
+        t.setMotsMin(min);
+        t.setMotsMax(max);
+        stubCommon(t, ownedAttempt());
+
+        assertThat(service.submitAndEvaluate(userId, taskId, attemptId, null, words(mots)).getMotsCount())
+                .as("EE T%d (%d-%d) : %d mots doit etre accepte", tache, min, max, mots)
+                .isEqualTo(mots);
+    }
+
+    private void assertEeRefuse(int tache, int min, int max, int mots) {
+        ProductionTask t = task(EpreuveType.TCF_EE);
+        t.setTacheNumero((short) tache);
+        t.setMotsMin(min);
+        t.setMotsMax(max);
+        stubCommon(t, ownedAttempt());
+
+        assertThatThrownBy(() -> service.submitAndEvaluate(userId, taskId, attemptId, null, words(mots)))
+                .as("EE T%d (%d-%d) : %d mots doit etre refuse", tache, min, max, mots)
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void submit_EE_tache1_respecte_les_frontieres_30_60() {
+        assertEeRefuse(1, 30, 60, 29);
+        assertEeAccepte(1, 30, 60, 30);
+        assertEeAccepte(1, 30, 60, 60);
+        assertEeRefuse(1, 30, 60, 61);
+    }
+
+    @Test
+    void submit_EE_tache2_respecte_les_frontieres_40_90() {
+        assertEeRefuse(2, 40, 90, 39);
+        assertEeAccepte(2, 40, 90, 40);
+        assertEeAccepte(2, 40, 90, 59);
+        assertEeAccepte(2, 40, 90, 90);
+        assertEeRefuse(2, 40, 90, 91);
+    }
+
+    @Test
+    void submit_EE_tache3_respecte_les_frontieres_40_90() {
+        assertEeRefuse(3, 40, 90, 39);
+        assertEeAccepte(3, 40, 90, 40);
+        assertEeAccepte(3, 40, 90, 59);
+        assertEeAccepte(3, 40, 90, 90);
+        assertEeRefuse(3, 40, 90, 91);
+    }
+
     @Test
     void submit_EE_valide_cree_la_submission_en_SUBMITTED_et_lance_le_pipeline() {
         ProductionTask t = task(EpreuveType.TCF_EE); // motsMin/Max null → plancher = minTextWords (10)

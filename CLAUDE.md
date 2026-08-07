@@ -241,12 +241,36 @@ Le « quoi » et le « pourquoi » vivent dans `docs/notation-ia-eo-ee.md` (réf
 grand public, **à tenir exhaustive et à jour dans la même passe** — cf. la règle
 dédiée plus bas). Ici, uniquement de quoi se repérer.
 
-- **Versions actives** : rubriques `production-rubrics-v8.json`, tool-schema de
-  sortie `production-evaluation-tool-schema-v5.json`, persona vocale
-  `realtime-personas-v2.json`. **v7/v4, v6/v3, v5/v3, v4.2/v2, v4.1/v2, v4/v2 et
-  v3/v2 restent chargeables et validées** : un retour arrière change la paire
-  `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION`, aucune migration. **On
-  versionne, on ne réécrit jamais** une rubrique livrée.
+- **Versions actives** : rubriques `production-rubrics-v12.json`, tool-schema de
+  sortie `production-evaluation-tool-schema-v6.json`, persona vocale
+  `realtime-personas-v3.json`. **v9/v5, v8/v5, v7/v4, v6/v3, v5/v3, v4.2/v2,
+  v4.1/v2, v4/v2 et v3/v2 restent chargeables et validées** : un retour arrière
+  change la paire `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION`, aucune migration.
+  **On versionne, on ne réécrit jamais** une rubrique livrée. **v10 et v11 sont
+  chargeables mais MESURÉES MOINS BONNES que v9 — ne pas les réactiver** (détail
+  dans le filet de langue étrangère, plus bas).
+- **v12 / v6 = LA PREUVE SE DÉSIGNE PAR NUMÉRO, elle n'est plus recopiée.** v12 est
+  **v9 au bit près pour tout ce qui note** (échelle, 4 critères, seuils, couplage,
+  plafonds, bandes, tests décisifs, les 16 ancres few-shot — verrouillé par
+  `ProductionEvaluationContractTest`) ; seules changent les 5 sections qui décrivent
+  la preuve. La production part au correcteur **découpée en segments numérotés**
+  (`EvaluationProductionSegments` : EO dialogué = un tour `Candidat :` ; EE et EO
+  monologue = une phrase). **Les tours `Examinateur :` sont montrés mais SANS
+  numéro** → citer l'examinateur devient structurellement impossible.
+  `scores_criteres[].preuve` (string) devient `preuve_segment` (entier ≥ 1), et
+  `AiEvaluationService.resolvePreuveSegments` **résout le numéro en texte avant
+  persistance** : `feedback_json.preuve` reste une chaîne, **aucun miroir DTO à
+  propager** sur les 3 fronts (vérifié). **Inventer une preuve devient impossible par
+  construction**, pas « interdit » : les seules violations possibles sont un entier
+  hors bornes (dégradable après réessai, comme une citation non rattachable) ou un
+  non-entier (bloquant, comme une preuve vide). Motif : `PREUVE_NON_RATTACHEE` était
+  le premier poste de refus — **42,9 % des appels sur les productions orales**.
+  `EvaluationProofMatcher` reste en place pour les contrats ≤ v5 (retour arrière) :
+  ne pas le supprimer, mais il n'est plus exercé en production.
+  ⚠️ **Bascule NON mesurée au banc** (l'utilisateur interdit les appels payants).
+  Défendable sans mesure parce qu'aucune règle de notation ne bouge et que le seul
+  changement de prompt **retire** une contrainte. Retour arrière :
+  `EVAL_RUBRICS_VERSION=v9` + `EVAL_PROMPT_VERSION=v5`.
 - **v4** = critères propres à chaque tâche (5 par tâche, fini les 4 universels),
   obligatoires vs pistes, bloc accomplissement, confiance, preuve littérale,
   2 priorités max. **v4.1** = correction de l'indulgence du **bas** d'échelle
@@ -255,7 +279,16 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   appliquée au **haut** : `TEST DECISIF B1 vs B2` opposable — deux marqueurs B2
   à citer littéralement, dont un pris dans « objection envisagée puis traitée »
   ou « lexique précis ».
-- **v5 = la grille RÉELLE du TCF**, en remplacement de la grille maison :
+- **v5 = NOTRE grille, alignée sur les dimensions évaluées au TCF**, en
+  remplacement de la grille maison précédente. ⚠️ **Ne pas la présenter comme « la
+  grille du vrai examen »** : France Éducation international publie ses critères en
+  **trois familles** (linguistiques, pragmatiques, sociolinguistiques) et fait
+  corriger chaque production par **plusieurs évaluateurs humains indépendants**,
+  selon une règle de calcul que nous ne reproduisons pas. Nos quatre critères sont
+  une grille **SejourFR**, et notre note une **estimation pédagogique exprimée sur
+  l'échelle du TCF IRN**. Formules bannies partout (doc, fronts) : « votre note
+  officielle serait », « notre calcul reproduit le calcul officiel », « notre grille
+  est celle du vrai examen ». Structure :
   **4 critères équipondérés à 0,25**, **codes identiques sur les 6 tâches** —
   `communiquer` (accomplir la tâche + enchaîner les idées), `interagir`
   (adéquation à la situation et au destinataire), `lexique`, `morphosyntaxe`.
@@ -272,7 +305,10 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     `sejourfr.production-evaluation.niveau-cecrl` (celui-ci ne sert plus qu'aux
     grilles v3→v4.2). C'est ce qui garde le retour arrière à **une seule
     variable**.
-  - **Garde-fou de couplage** (ce qui remplace l'exclusion) : `communiquer` et
+  - **Garde-fou de couplage — invention SejourFR, PAS une règle TCF** (aucun texte
+    de France Éducation international ne le prévoit ; c'est un réglage de
+    calibration, ajouté parce qu'un correcteur automatique surévalue
+    l'accomplissement, et il ne peut qu'**abaisser**) : `communiquer` et
     `interagir` ne dépassent jamais de plus de **4 points** la moyenne de
     `lexique`+`morphosyntaxe`. Écrit dans le prompt **et** appliqué serveur
     (`AiEvaluationService.applyCouplage`, `sejourfr.production-evaluation.couplage`,
@@ -344,11 +380,6 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     (langue notée 7/20 = bande A2 de v5) ; c'est le décalage bandes/seuils de v5
     qui affichait A1, pas son jugement. Le palier A1 ne vaut qu'**une valeur**
     sur la grille officielle : c'est la nouvelle zone fragile.
-  - ⚠️ **Texte d'interface à corriger côté fronts** (aucun DTO ne change) : la
-    mention « notre échelle est plus fine que celle du TCF » est devenue fausse.
-    Web `ProductionScoreHero.tsx`, `ProductionSession.tsx`, `lib/types.ts` ;
-    mobile `donut_chart_score.dart`, `bilan_hero.dart`,
-    `production_models.dart`.
 - **v8 = la RESTITUTION, version active (rubriques v8 / tool-schema v5).** Elle
   ne touche à **rien** de ce qui note : échelle, quatre critères, seuils,
   `couplage.ecart_max=1`, plafonds, bandes, tests décisifs A1/A2 et B1/B2 et les
@@ -478,6 +509,22 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   Whisper est littérale, et le prompt interdit par ailleurs d'évaluer les
   hésitations — sans cette élision, le correcteur ne pouvait pas satisfaire les
   deux consignes.
+- **Élision des répétitions immédiates** (`EvaluationProofMatcher`, contrats ≤ v5) :
+  même famille que l'élision des disfluences, **sens production → citation
+  uniquement**. Un bloc de 1 à 3 tokens **immédiatement répété** dans la production
+  peut n'apparaître qu'une fois dans la citation. Motif : le correcteur dédouble les
+  bégaiements — ce que la grille lui ordonne par ailleurs de ne pas évaluer — et deux
+  citations JUSTES ont été refusées d'affilée sur une même production réelle
+  (`une sœur qui se trouve tous tous chez moi`, `j'aime bien les les films les films
+  comédies`), soit 2 et 3 suppressions, hors de la tolérance d'**une seule** édition.
+  **Deux lectures, jamais mélangées** : la lecture stricte garde le comportement
+  historique au bit près et **gagne toujours** ; l'élision n'est tentée que si la
+  première ne trouve **rien**. L'élision se fait **avant** l'appariement et ne
+  consomme donc pas le budget d'édition. Aucun bloc contenant un nombre, un chiffre
+  ou une négation n'est élidable ; ambiguïté = refus ; le passage restitué reste la
+  **sous-chaîne originale exacte**, bégaiements compris. Limite assumée : une
+  répétition légitime (`très très bien`) est élidable — sans conséquence, le texte
+  affiché reste celui du candidat.
 - **Message de réessai** (`EvaluationRepairPrompt`) : le retry ne renvoie plus la
   seule liste brute des violations (mesuré : **0 preuve réparée sur 8**, le
   modèle resoumettait la même citation). Il rappelle **la citation refusée,
@@ -545,10 +592,17 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   prononciation, accent, intonation, orthographe/ponctuation de la transcription
   ou durée. Seules les `confiance_raisons` peuvent expliquer une transcription
   incertaine.
-- **Bornes EE strictes TCF IRN** : T1 `30–60`, T2/T3 `60–90`. La tolérance
+- **Bornes EE strictes TCF IRN** : T1 `30–60`, **T2/T3 `40–90`**. La tolérance
   historique de 20 % est supprimée : serveur, web, mobile et auto-soumission
   appliquent exactement les bornes DB. Les tâches T2/T3 ont un contexte/destinataire et les neuf exemples
   livrés restent dans la fourchette. Les anciennes submissions sont préservées.
+  ⚠️ **Le minimum de T2/T3 a valu 60 par erreur** jusqu'à `V724` (2026-08-08) : une
+  copie de **40 à 59 mots**, pourtant recevable à l'examen, était **refusée sur les
+  trois surfaces**. `V723` figeait même `mots_min = 60` par contrainte SQL.
+  **Source de vérité unique : `production_tasks.mots_min/mots_max`**, injectée dans
+  le prompt par `EvaluationPromptBuilder`. Ne jamais réécrire ces bornes en dur —
+  ni dans une rubrique, ni dans un tool-schema, ni dans un texte de front : c'est
+  exactement ce qui a produit une consigne contradictoire au correcteur.
 - **Un seul correcteur configurable** : `sejourfr.production-evaluation.provider`
   dans `application.yaml` (défaut `deepseek`, modèle `deepseek-v4-flash`) pilote
   l'async, la fin de session temps réel, la seconde passe et le banc. La seconde
@@ -606,7 +660,9 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   invalide**. Avant, un rejet de preuve tombait dans `erreurAppel` et la doc
   affichait « 0 % de sortie invalide » pendant qu'un tiers des cas se perdait.
 - **Une seule échelle depuis v6** (0 → A1 non atteint, 1 → A1, 2-5 → A2,
-  6-9 → B1, **10-20 → B2**) : notre note **est** celle du TCF. La table
+  6-9 → B1, **10-20 → B2**) : notre note **s'exprime sur l'échelle** du TCF — elle
+  n'est pas la note officielle, qui est produite par plusieurs correcteurs humains.
+  La table
   officielle vit toujours dans l'enum `BandeNoteTcf` (code, pas config — donnée
   officielle, pas réglage) ; la grille active la reprend telle quelle dans
   `commun.niveau`. On ne **convertit** toujours rien : `correspondanceTcf`

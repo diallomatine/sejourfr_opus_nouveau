@@ -87,8 +87,9 @@ class ProductionTaskDto {
       );
 }
 
-/// Les bornes EE du TCF IRN sont strictes : T1 30–60 mots, T2/T3 60–90
-/// d'après la tâche reçue du backend. Aucune marge au-delà du maximum.
+/// Les bornes EE du TCF IRN sont strictes : T1 30–60 mots, T2/T3 40–90
+/// d'après la tâche reçue du backend. Aucune marge, ni sous le minimum ni
+/// au-delà du maximum — les valeurs viennent de la base, jamais du code.
 bool isEeWordCountWithinBounds(ProductionTaskDto task, int wordCount) =>
     task.motsMin != null &&
     task.motsMax != null &&
@@ -541,10 +542,11 @@ class ProductionExampleDto {
 /// Fourchette de note officielle du TCF IRN correspondant a un niveau CECRL, sur
 /// les epreuves d'expression — miroir de CorrespondanceTcfDto.
 ///
-/// Grille officielle : 0 → A1 non atteint, 1 → A1, 2-5 → A2, 6-9 → B1,
-/// 10-20 → B2. Nos notes suivent la MEME echelle : la fourchette se lit
-/// directement, sans conversion. A n'afficher qu'au bilan d'une epreuve
-/// entiere — au TCF, une tache isolee n'a pas de note.
+/// Table officielle : 0 → A1 non atteint, 1 → A1, 2-5 → A2, 6-9 → B1,
+/// 10-20 → B2. Nos notes sont des ESTIMATIONS exprimees sur cette MEME echelle :
+/// la fourchette se lit directement, sans conversion — ce qui est officiel ici,
+/// c'est l'echelle, pas la correction, qui reste la notre. A n'afficher qu'au
+/// bilan d'une epreuve entiere — au TCF, une tache isolee n'a pas de note.
 class CorrespondanceTcf {
   const CorrespondanceTcf({
     required this.niveau,

@@ -295,8 +295,9 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
         </div>
 
         <SkillNotice title="Ce que mesure un examen blanc">
-          Le niveau final est le plancher de vos trois tâches, comme au TCF IRN : il faut
-          tenir le palier partout, pas seulement sur la tâche la plus facile.
+          Le niveau de l&apos;épreuve tient compte de vos trois tâches, avec un garde-fou :
+          pas de B2 si la tâche 3, la seule qui demande d&apos;argumenter, n&apos;atteint pas
+          B1. Il faut tenir le palier partout, pas seulement sur la tâche la plus facile.
         </SkillNotice>
 
         <ExamIntroSheet

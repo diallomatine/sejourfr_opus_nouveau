@@ -21,9 +21,10 @@ const TRANSCRIPTION_LIMIT =
  *
  * 1. **Objectif de la tâche** — a-t-il fait ce qu'on lui demandait ? Avant tout
  *    le reste, y compris la note ;
- * 2. **note + échelle du TCF** — notre note EST celle du TCF : montrer
- *    l'échelle est la seule façon d'empêcher qu'un 4,5/20 (un A2) se lise comme
- *    une catastrophe. Porte les deux garde-fous niveau/confiance ;
+ * 2. **note + échelle du TCF** — notre note est une estimation exprimée sur
+ *    l'échelle du TCF : montrer l'échelle est la seule façon d'empêcher qu'un
+ *    4,5/20 (un A2) se lise comme une catastrophe. Porte les deux garde-fous
+ *    niveau/confiance ;
  * 3. **points forts** (2 max) ;
  * 4. **priorités** (2 max) : constat → comment faire → avant/après ;
  * 5. **version améliorée** — sa production réécrite. EE seulement : on ne

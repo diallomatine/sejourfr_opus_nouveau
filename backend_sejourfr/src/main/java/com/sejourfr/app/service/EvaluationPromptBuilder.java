@@ -63,6 +63,22 @@ public class EvaluationPromptBuilder {
      */
     public String buildUserPrompt(ProductionTask task, String production,
                                   boolean transcriptionLitterale, Integer dureeProductionSec) {
+        return buildUserPrompt(task, production, transcriptionLitterale, dureeProductionSec, null);
+    }
+
+    /**
+     * @param segments decoupe NUMEROTEE de la production, ou {@code null} quand
+     *        le contrat de sortie actif attend une citation recopiee (v5 et
+     *        anterieurs). Sous le contrat v6, la production est rendue segment
+     *        par segment et le correcteur ne renvoie qu'un NUMERO : c'est ce qui
+     *        rend une preuve inventee impossible par construction.
+     *        <p>Les BORNES rendues ici sont une DONNEE (elles dependent de la
+     *        production), pas une consigne de notation : la regle de preuve,
+     *        elle, vit dans le fichier de rubriques comme tout le reste.
+     */
+    public String buildUserPrompt(ProductionTask task, String production,
+                                  boolean transcriptionLitterale, Integer dureeProductionSec,
+                                  EvaluationProductionSegments segments) {
         Map<String, Object> rubric = rubrics.getTask(task.getEpreuve(), task.getTacheNumero()).orElse(Map.of());
 
         String criteresJson;
@@ -96,7 +112,14 @@ public class EvaluationPromptBuilder {
         sb.append("CONSIGNES SPÉCIFIQUES AU CORRECTEUR POUR CETTE TÂCHE :\n")
             .append(asString(rubric.get("consignes_correcteur"))).append("\n\n");
 
-        sb.append("PRODUCTION DU CANDIDAT :\n\"").append(nullSafe(production)).append("\"\n");
+        if (segments == null || segments.taille() == 0) {
+            sb.append("PRODUCTION DU CANDIDAT :\n\"").append(nullSafe(production)).append("\"\n");
+        } else {
+            sb.append("PRODUCTION DU CANDIDAT, DÉCOUPÉE EN SEGMENTS NUMÉROTÉS :\n")
+                .append(segments.rendu()).append('\n')
+                .append("\nSEGMENTS DISPONIBLES POUR `preuve_segment` : 1 à ")
+                .append(segments.taille()).append(".\n");
+        }
 
         sb.append("\nÉvalue cette production en appelant l'outil `submit_evaluation`.");
         return sb.toString();

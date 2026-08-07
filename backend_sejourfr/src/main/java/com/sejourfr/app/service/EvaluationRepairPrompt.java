@@ -37,6 +37,14 @@ final class EvaluationRepairPrompt {
 
         appendGardeFouOral(sb, violations);
 
+        // CONTRAT v6 : le correcteur ne recopie plus rien, donc la « regle de la
+        // citation » n'a plus d'objet — la seule erreur possible est un numero,
+        // et le rappel doit porter sur elle, pas sur une recopie qu'on ne lui
+        // demande plus.
+        if (violations.stream().anyMatch(EvaluationOutputValidator::estViolationDeSegment)) {
+            return appendPreuveParNumero(sb, violations);
+        }
+
         List<String> codes = EvaluationOutputValidator.unmatchedProofCodes(violations);
         if (codes.isEmpty()) return sb.toString();
 
@@ -62,6 +70,28 @@ final class EvaluationRepairPrompt {
         sb.append("\n- RE-CITE PLUS COURT : un passage bref et exact (3 a 6 mots) vaut mieux ")
             .append("qu'un passage long reconstitue. Choisis une suite de mots que tu peux ")
             .append("relire lettre a lettre dans la production ci-dessus, puis recopie-la.")
+            .append("\nReprends tes autres champs a l'identique : ne change QUE ce qui est signale.");
+        return sb.toString();
+    }
+
+    /**
+     * PREUVE PAR NUMERO (contrat v6). Il n'y a plus de citation a reparer : le
+     * correcteur a rendu un numero qui n'existe pas, ou pas un entier. Le rappel
+     * tient en trois lignes, et la production numerotee est deja au-dessus dans
+     * ce meme message (le prompt utilisateur y est integralement repris).
+     */
+    private static String appendPreuveParNumero(StringBuilder sb, List<String> violations) {
+        sb.append("\n\nNUMERO DE SEGMENT INVALIDE — le serveur a refuse ")
+            .append(violations.size() == 1 ? "cette preuve" : "ces preuves")
+            .append(" :")
+            .append("\n- `preuve_segment` n'est PAS une citation : c'est le NUMERO, entre ")
+            .append("crochets, d'un segment de la production affichee ci-dessus ;")
+            .append("\n- renvoie un ENTIER qui figure dans la liste servie — jamais 0, jamais du ")
+            .append("texte, jamais un numero absent de cette production ;")
+            .append("\n- a l'oral, seuls les tours « Candidat : » portent un numero : les tours ")
+            .append("de l'examinateur ne sont pas designables ;")
+            .append("\n- relis la liste numerotee et choisis le segment le plus directement lie ")
+            .append("a ton constat.")
             .append("\nReprends tes autres champs a l'identique : ne change QUE ce qui est signale.");
         return sb.toString();
     }

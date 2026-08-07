@@ -43,6 +43,14 @@ class EvaluationRefusalMetricsTest {
             .isEqualTo(EvaluationRefusalMetrics.Motif.NOTE_OU_NIVEAU);
         assertThat(EvaluationRefusalMetrics.motif("confiance invalide"))
             .isEqualTo(EvaluationRefusalMetrics.Motif.STRUCTURE_CONTRAT);
+        // Contrat v6 : memes FAMILLES, pour que les compteurs restent
+        // comparables d'une version de contrat a l'autre.
+        assertThat(EvaluationRefusalMetrics.motif(
+            "preuve_segment[lexique] doit designer un segment numerote de la production"))
+            .isEqualTo(EvaluationRefusalMetrics.Motif.PREUVE_NON_RATTACHEE);
+        assertThat(EvaluationRefusalMetrics.motif(
+            "preuve_segment[lexique] doit etre un numero de segment entier"))
+            .isEqualTo(EvaluationRefusalMetrics.Motif.PREUVE_ABSENTE);
     }
 
     /**

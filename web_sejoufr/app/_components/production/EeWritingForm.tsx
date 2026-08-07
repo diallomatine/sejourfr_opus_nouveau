@@ -3,6 +3,7 @@
 import {useEffect, useRef, useState, type ReactNode} from "react";
 import {FileText, Lightbulb, Target} from "lucide-react";
 import type {ProductionTaskDto} from "@/lib/types";
+import {countEeWords, isEeWordCountWithinBounds} from "@/lib/ee-word-bounds";
 import {SkillAccent} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
 import {type ProductionVoice} from "./config";
@@ -23,11 +24,6 @@ export function setEeDraft(taskId: string, texte: string): void {
   if (typeof window === "undefined") return;
   if (texte.trim()) localStorage.setItem(DRAFT_PREFIX + taskId, texte);
   else localStorage.removeItem(DRAFT_PREFIX + taskId);
-}
-
-function countWords(s: string): number {
-  const t = s.trim();
-  return t ? t.split(/\s+/).length : 0;
 }
 
 /** Texte grisé du champ quand le sujet ne propose pas d'amorce. Une des deux
@@ -98,7 +94,7 @@ export function EeWritingForm({
    *  « Compétences » y posent leur guidage : ce qu'il faut faire, la situation,
    *  les contraintes — un écran qui fait faire au lieu d'expliquer. */
   promptSlot?: ReactNode;
-  /** Remplace la carte des 4 critères du TCF. `null` la retire — les
+  /** Remplace la carte de nos 4 critères. `null` la retire — les
    *  micro-exercices « Compétences » n'évaluent QU'UN critère et affichent le
    *  leur ici, juste au-dessus de la zone de saisie. */
   criteriaSlot?: ReactNode;
@@ -155,14 +151,11 @@ export function EeWritingForm({
     };
   }, [text, hydrated, draftKey]);
 
-  const words = countWords(text);
+  const words = countEeWords(text);
   const min = task.motsMin;
   const max = task.motsMax;
-  const inRange =
-    (min == null || words >= min) && (max == null || words <= max);
-  const submittable =
-    words > 0 &&
-    (lengthAdvisory || ((min == null || words >= min) && (max == null || words <= max)));
+  const inRange = isEeWordCountWithinBounds(task, words);
+  const submittable = words > 0 && (lengthAdvisory || inRange);
   const rangeLabel =
     min != null && max != null ? `${min}–${max} mots` : min != null ? `≥ ${min} mots` : "";
   // Hors bornes, on AVERTIT toujours ; on ne bloque que quand les bornes sont
@@ -186,10 +179,7 @@ export function EeWritingForm({
   useEffect(() => {
     if (autoSubmitSignal <= 0 || autoSubmitSignal === lastSignalRef.current) return;
     lastSignalRef.current = autoSubmitSignal;
-    const recevable =
-      (min == null || words >= min) &&
-      (max == null || words <= max);
-    onAutoSubmit?.(text.trim(), recevable);
+    onAutoSubmit?.(text.trim(), isEeWordCountWithinBounds({motsMin: min, motsMax: max}, words));
   }, [autoSubmitSignal, words, min, max, text, onAutoSubmit]);
   const counterClass = words === 0 ? "" : inRange ? s.counterOk : s.counterWarn;
 

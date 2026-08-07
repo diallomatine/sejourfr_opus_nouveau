@@ -40,7 +40,7 @@ function task(id: string, tacheNumero: number, niveauCible: string): ProductionT
     contexte: null,
     dureeMaxSec: null,
     dureeMinSec: null,
-    motsMin: 60,
+    motsMin: 40,
     motsMax: 90,
   };
 }

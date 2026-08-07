@@ -624,4 +624,164 @@ class EvaluationProofMatcherTest {
             recolle, "je voudrais une voiture pour trois jours", EpreuveType.TCF_EO))
             .isEmpty();
     }
+
+    // ------------------------------------------------ begaiements (mots repetes)
+
+    /**
+     * CAS REEL, submission {@code e6f28822-f68b-4e1e-961a-8ddaaf24305a} (EO temps
+     * reel, deepseek-v4-flash) : DEUX appels refuses d'affilee, tous deux
+     * {@code PREUVE_NON_RATTACHEE}, puis mode degrade — alors que les deux
+     * citations etaient JUSTES. Le correcteur avait seulement dedouble les
+     * begaiements, ce que la grille lui ordonne par ailleurs de ne pas evaluer.
+     * Deux et trois suppressions de token : au-dela de la tolerance d'UNE seule
+     * edition, donc refus.
+     */
+    @Test
+    void les_deux_citations_reelles_refusees_sont_desormais_rattachees() {
+        String transcription = """
+            Examinateur : Bonjour, je suis votre examinateur pour l'épreuve d'expression orale du TCF.
+            Candidat : Oui, bonjour. Je me nomme Dialo Mammado, j'ai 21 ans, je suis d'origine guinéenne. Je suis un étudiant en informatique et puis Habite à Lille. Je suis ici d'une famille nombreuse quatre frères et une sœur qui se trouve tous tous chez moi en Guinée et non. Je recule c'est général
+            Examinateur : Vous aimez aller au cinéma, dites-vous ? Quel genre de films aimez-vous regarder ?
+            Candidat : Alors, vous aimez bien les oui, j'aime bien le cinéma, j'aime bien les les films les films comédies par exemple là dernièrement, on a été voir le film d'Amed Silla.""";
+
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            transcription, "une sœur qui se trouve tous chez moi en Guinée", EpreuveType.TCF_EO))
+            .as("un mot repete deux fois : deux suppressions, refusees jusqu'ici")
+            .contains("une sœur qui se trouve tous tous chez moi en Guinée");
+
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            transcription, "j'aime bien le cinéma, j'aime bien les films comédies",
+            EpreuveType.TCF_EO))
+            .as("un GROUPE repete : trois suppressions, refusees jusqu'ici")
+            .contains("j'aime bien le cinéma, j'aime bien les les films les films comédies");
+    }
+
+    /** Le begaiement n'est pas borne : trois occurrences s'elident comme deux. */
+    @Test
+    void un_mot_repete_trois_fois_reste_elidable() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Je vais vais vais à la gare demain matin.",
+            "je vais à la gare demain matin", EpreuveType.TCF_EO))
+            .contains("Je vais vais vais à la gare demain matin");
+    }
+
+    /**
+     * Le passage RESTITUE reste la sous-chaine originale exacte, begaiements
+     * compris : le candidat lit ce qu'il a reellement produit, jamais une version
+     * nettoyee.
+     */
+    @Test
+    void le_passage_restitue_conserve_le_begaiement() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Candidat : je pense que que c'est bien organisé ici.",
+            "je pense que c'est bien organisé", EpreuveType.TCF_EO))
+            .contains("je pense que que c'est bien organisé");
+    }
+
+    /**
+     * Quand le begaiement est en TETE de la citation, la lecture stricte trouve
+     * deja le passage — sur la seconde occurrence, sans rien elider. La lecture
+     * « begaiements elides » ne sert donc qu'aux repetitions INTERNES au passage
+     * cite, ce qui est exactement le cas des deux citations reelles ci-dessus.
+     */
+    @Test
+    void un_begaiement_en_tete_est_deja_resolu_par_la_lecture_stricte() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Candidat : mon mon frère habite à Lyon depuis longtemps.",
+            "mon frère habite à Lyon", EpreuveType.TCF_EO))
+            .contains("mon frère habite à Lyon");
+    }
+
+    /** SENS UNIQUE : la citation ne peut pas inventer une repetition absente. */
+    @Test
+    void une_citation_ne_peut_pas_inventer_une_repetition() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Mon frère habite à Lyon depuis longtemps.",
+            "mon mon frère habite à Lyon", EpreuveType.TCF_EE))
+            .isEmpty();
+    }
+
+    /** Une citation qui CONSERVE le begaiement reste evidemment acceptee. */
+    @Test
+    void une_citation_qui_conserve_le_begaiement_reste_acceptee() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Candidat : mon mon frère habite à Lyon depuis longtemps.",
+            "mon mon frère habite à Lyon", EpreuveType.TCF_EO))
+            .contains("mon mon frère habite à Lyon");
+    }
+
+    /**
+     * TOKENS IMMUABLES : une repetition portant sur un nombre, un token chiffre
+     * ou une negation n'est PAS elidable — un ecart de nombre ou de negation ne
+     * peut pas naitre d'un begaiement.
+     */
+    @Test
+    void une_repetition_sur_un_nombre_ou_une_negation_n_est_pas_elidable() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "J'ai payé vingt vingt euros pour ce billet de train.",
+            "j'ai payé vingt euros pour ce billet de train", EpreuveType.TCF_EE))
+            .isEmpty();
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Le train de 20 20 heures arrive toujours en retard.",
+            "le train de 20 heures arrive toujours en retard", EpreuveType.TCF_EE))
+            .isEmpty();
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Je ne ne veux pas partir en vacances cette année.",
+            "je ne veux pas partir en vacances cette année", EpreuveType.TCF_EE))
+            .isEmpty();
+    }
+
+    /** Aucun mot porteur de sens n'est dispense : l'elision n'ouvre rien d'autre. */
+    @Test
+    void l_elision_des_repetitions_n_autorise_aucun_mot_absent() {
+        String production = "Candidat : je je travaille dans une entreprise de transport.";
+
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            production, "je travaille dans une grande entreprise", EpreuveType.TCF_EO))
+            .isEmpty();
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            production, "je travaille dans une usine de transport", EpreuveType.TCF_EO))
+            .isEmpty();
+    }
+
+    /**
+     * NON-REGRESSION, le point delicat : la lecture « begaiements elides » n'est
+     * tentee que si la lecture stricte n'a RIEN trouve. Sans cet ordre, une
+     * reprise de phrase ({@code je veux aller à Paris je veux aller à Lyon})
+     * ferait apparaitre un second passage possible et rendrait AMBIGUE une
+     * citation aujourd'hui acceptee.
+     */
+    @Test
+    void une_reprise_de_phrase_ne_rend_pas_ambigue_une_citation_deja_acceptee() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Candidat : je veux aller à Paris je veux aller à Lyon.",
+            "je veux aller à Lyon", EpreuveType.TCF_EO))
+            .contains("je veux aller à Lyon");
+    }
+
+    /**
+     * LIMITE ASSUMEE, documentee : une repetition LEGITIME est elidable par cette
+     * regle. Sans consequence — le passage affiche reste le texte reel, et rien
+     * ne se note sur une citation.
+     */
+    @Test
+    void une_repetition_legitime_est_elidable_et_c_est_assume() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Candidat : c'est très très bien organisé dans cette ville.",
+            "c'est très bien organisé dans cette ville", EpreuveType.TCF_EO))
+            .contains("c'est très très bien organisé dans cette ville");
+    }
+
+    /** Une repetition ne traverse jamais un tour de l'examinateur. */
+    @Test
+    void l_elision_des_repetitions_ne_traverse_pas_un_tour_examinateur() {
+        String dialogue = """
+            Candidat : je voudrais une voiture
+            Examinateur : je voudrais une voiture ?
+            Candidat : oui pour trois jours""";
+
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            dialogue, "je voudrais une voiture oui pour trois jours", EpreuveType.TCF_EO))
+            .isEmpty();
+    }
 }

@@ -178,8 +178,9 @@ class BilanHero extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Grille officielle du TCF IRN. Notre note ci-dessus utilise la '
-                    'même échelle et porte, comme au TCF, sur l\'épreuve entière.',
+                    'Fourchette officielle du TCF IRN pour ce niveau. Notre note '
+                    'ci-dessus est une estimation, exprimée sur cette échelle ; elle '
+                    'porte, comme au TCF, sur l\'épreuve entière.',
                     style: AppFonts.ui(
                       size: 12,
                       color: Colors.white.withValues(alpha: 0.78),

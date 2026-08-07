@@ -52,7 +52,7 @@ import static org.mockito.Mockito.when;
  * rend chaque unite de travail independante et parallelisable.
  *
  * <p><b>Conventions de format IRN</b> appliquees aux taches reconstituees :
- * EE T1 30-60 mots, EE T2/T3 60-90 mots ; EO T1 180 s, EO T2/T3 210 s (plancher
+ * EE T1 30-60 mots, EE T2/T3 40-90 mots ; EO T1 180 s, EO T2/T3 210 s (plancher
  * 120 s). La duree parlee simulee est posee a l'objectif : le corpus ne porte pas
  * de duree, et une duree courte injecterait un signal absent de la reference.
  */
@@ -255,7 +255,7 @@ final class CalibrationRunner {
         t.setConsigne(cas.consigne());
         t.setActive(true);
         if (cas.epreuve() == EpreuveType.TCF_EE) {
-            t.setMotsMin(cas.tache() == 1 ? 30 : 60);
+            t.setMotsMin(cas.tache() == 1 ? 30 : 40);
             t.setMotsMax(cas.tache() == 1 ? 60 : 90);
         } else {
             t.setDureeMaxSec(cas.tache() == 1 ? 180 : 210);

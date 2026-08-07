@@ -780,8 +780,9 @@ function BilanView({
           <div className={prod.sessTcf}>
             <p className={prod.sessTcfPhrase}>{correspondance}</p>
             <p className={prod.sessTcfSource}>
-              Grille officielle du TCF IRN. Notre note ci-dessus utilise la même
-              échelle et porte, comme au TCF, sur l&apos;épreuve entière.
+              Fourchette officielle du TCF IRN pour ce niveau. Notre note
+              ci-dessus est une estimation, exprimée sur cette échelle ; elle
+              porte, comme au TCF, sur l&apos;épreuve entière.
             </p>
           </div>
         )}

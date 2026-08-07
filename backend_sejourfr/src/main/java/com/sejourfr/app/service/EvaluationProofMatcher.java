@@ -22,7 +22,13 @@ final class EvaluationProofMatcher {
     // deja decomposee en NFD, "e\u0301cole" doit rester un seul token. Les
     // offsets restent ceux du texte brut pour restituer sa sous-chaine exacte.
     private static final Pattern TOKEN = Pattern.compile("[\\p{L}\\p{N}\\p{M}]+");
-    private static final Pattern TURN_MARKER = Pattern.compile(
+    /**
+     * Marqueur de tour d'un dialogue oral. Partage avec
+     * {@link EvaluationProductionSegments} : le decoupage NUMEROTE servi au
+     * correcteur (contrat v6) et le rapprochement litteral (contrats v4/v5)
+     * doivent lire un dialogue exactement de la meme facon.
+     */
+    static final Pattern TURN_MARKER = Pattern.compile(
         "(?im)^[\\h]*(examinateur|candidat)[\\h]*:[\\h]*");
     private static final Pattern CITATION_SPEAKER = Pattern.compile(
         "(?is)^\\s*(examinateur|candidat)\\s*:\\s*");
@@ -76,6 +82,25 @@ final class EvaluationProofMatcher {
     static final Set<String> DISFLUENCES = Set.of("euh", "heu", "hum");
 
     /**
+     * BEGAIEMENT : longueur maximale, EN TOKENS, d'un bloc que la production peut
+     * repeter d'affilee sans que la citation ait a le recopier deux fois.
+     *
+     * <p>La forme la plus frequente du begaiement a l'oral n'est pas
+     * l'hesitation ({@code euh}), c'est le MOT REPETE ({@code tous tous chez
+     * moi}), parfois le groupe court repete ({@code les les films les films}).
+     * La grille interdit par ailleurs d'evaluer les repetitions ; sans cette
+     * elision, le correcteur ne pouvait pas a la fois ignorer le begaiement et
+     * recopier « exactement » — deux ou trois suppressions depassent la
+     * tolerance d'UNE seule edition de token, et la preuve etait refusee. Cas
+     * reel : submission {@code e6f28822}, deux citations justes refusees
+     * d'affilee, puis mode degrade.
+     *
+     * <p>Au-dela de trois tokens, ce n'est plus un begaiement : c'est une reprise
+     * de phrase, et on ne l'elide pas.
+     */
+    private static final int MAX_TOKENS_REPETITION_ELIDABLE = 3;
+
+    /**
      * Nombre maximum de tokens CONSECUTIFS de la production qu'un seul token de
      * la citation peut recoller. La transcription temps reel coupe un mot en
      * deux, parfois en trois (« quatre vingt dou ze ») ; au-dela, ce n'est plus
@@ -109,6 +134,15 @@ final class EvaluationProofMatcher {
      * Retourne le passage original exact si la citation designe un seul endroit.
      * La comparaison exacte normalisee est toujours tentee avant la tolerance
      * d'un unique token.
+     *
+     * <p><b>Deux lectures, jamais melangees.</b> La premiere lit la production
+     * TELLE QUELLE : c'est le comportement historique, au comportement pres
+     * inchange. La seconde n'est tentee que si la premiere n'a rien trouve du
+     * tout, et elle elide les REPETITIONS IMMEDIATES de la production
+     * (begaiements). Cet ordre est ce qui garantit qu'aucune citation acceptee
+     * hier ne devient ambigue aujourd'hui : une lecture qui trouve, meme
+     * plusieurs fois, arrete la recherche — « en cas de doute, on ne rapproche
+     * pas ».
      */
     static Optional<String> canonicalPassage(String production, String citation,
                                              EpreuveType epreuve) {
@@ -122,9 +156,32 @@ final class EvaluationProofMatcher {
         if (needle.isEmpty()) return Optional.empty();
 
         List<Segment> segments = searchableSegments(production, epreuve);
+
+        Lecture stricte = rechercher(production, segments, needle, false);
+        if (stricte.concluante()) return stricte.passage();
+        return rechercher(production, segments, needle, true).passage();
+    }
+
+    /**
+     * Resultat d'UNE lecture. {@code concluante} distingue « je n'ai rien
+     * trouve » (on peut tenter la lecture suivante) de « j'ai trouve, mais a
+     * plusieurs endroits » (refus definitif : la preuve est ambigue).
+     */
+    private record Lecture(boolean concluante, Optional<String> passage) {
+        private static final Lecture ABSENTE = new Lecture(false, Optional.empty());
+
+        static Lecture trouvee(Set<String> passages) {
+            return new Lecture(true, passages.size() == 1
+                ? Optional.of(passages.iterator().next())
+                : Optional.empty());
+        }
+    }
+
+    private static Lecture rechercher(String production, List<Segment> segments,
+                                      List<Token> needle, boolean elideRepetitions) {
         Set<SourceMatch> exactMatches = new LinkedHashSet<>();
         for (Segment segment : segments) {
-            collectExact(production, segment.tokens(), needle, exactMatches);
+            collectExact(production, lecture(segment.tokens(), elideRepetitions), needle, exactMatches);
         }
         if (!exactMatches.isEmpty()) {
             Set<String> exactPassages = new LinkedHashSet<>();
@@ -132,25 +189,111 @@ final class EvaluationProofMatcher {
             // Une phrase strictement identique repetee a la meme valeur
             // canonique. Deux graphies originales distinctes seraient en
             // revanche impossibles a canonicaliser sans choisir arbitrairement.
-            if (exactPassages.size() == 1) return Optional.of(exactPassages.iterator().next());
-            return Optional.empty();
+            return Lecture.trouvee(exactPassages);
         }
-        if (needle.size() < MIN_FUZZY_TOKENS) return Optional.empty();
+        if (needle.size() < MIN_FUZZY_TOKENS) return Lecture.ABSENTE;
 
         Set<SourceMatch> fuzzyMatches = new LinkedHashSet<>();
         for (Segment segment : segments) {
-            collectFuzzy(segment.tokens(), needle, fuzzyMatches);
+            List<Token> base = lecture(segment.tokens(), elideRepetitions);
+            collectFuzzy(base, needle, fuzzyMatches);
             // Seconde lecture du meme segment, hesitations retirees : la
             // tolerance d'UNE edition reste entiere, elle n'est simplement plus
             // consommee par un « euh ». Les offsets restant ceux du texte brut,
             // le passage restitue contient toujours la production originale.
-            List<Token> sansHesitations = withoutDisfluences(segment.tokens());
-            if (sansHesitations.size() != segment.tokens().size()) {
+            List<Token> sansHesitations = withoutDisfluences(base);
+            if (sansHesitations.size() != base.size()) {
                 collectFuzzy(sansHesitations, needle, fuzzyMatches);
             }
         }
-        if (fuzzyMatches.size() != 1) return Optional.empty();
-        return Optional.of(fuzzyMatches.iterator().next().extract(production));
+        if (fuzzyMatches.isEmpty()) return Lecture.ABSENTE;
+        if (fuzzyMatches.size() != 1) return new Lecture(true, Optional.empty());
+        return new Lecture(true, Optional.of(fuzzyMatches.iterator().next().extract(production)));
+    }
+
+    private static List<Token> lecture(List<Token> tokens, boolean elideRepetitions) {
+        return elideRepetitions ? withoutImmediateRepetitions(tokens) : tokens;
+    }
+
+    /**
+     * BEGAIEMENTS ELIDES : retire les tokens qui REPETENT A L'IDENTIQUE, et
+     * immediatement, le bloc qui vient d'etre retenu ({@code tous tous} ->
+     * {@code tous}, {@code les les films les films} -> {@code les films}).
+     *
+     * <p><b>Sens unique</b>, comme l'elision des hesitations et le recollage des
+     * mots coupes : la PRODUCTION peut begayer, la citation jamais. Une citation
+     * qui inventerait une repetition absente de la production reste refusee, et
+     * aucun token porteur de sens n'est dispense — tous les mots de la citation
+     * restent exiges, dans le meme ordre, dans un passage contigu et unique.
+     *
+     * <p><b>L'elision ne consomme pas le budget d'une edition de token</b> : elle
+     * se fait avant l'appariement, en nombre non borne. C'est tout l'objet — la
+     * tolerance d'UNE edition ne reglait deja pas un mot repete deux fois.
+     *
+     * <p><b>Ce qui reste immuable</b> : aucun token special (nombre ecrit en
+     * lettres, token contenant un chiffre, negation) n'est elidable, meme
+     * repete. {@code pas pas} et {@code vingt vingt} restent tels quels — un
+     * ecart de nombre ou de negation ne peut pas naitre d'un begaiement.
+     *
+     * <p><b>Les offsets ne bougent pas</b> : le passage restitue reste la
+     * sous-chaine ORIGINALE exacte de la production, begaiements compris. Le
+     * candidat lit donc toujours ce qu'il a reellement produit.
+     *
+     * <p><b>Limite assumee</b> : une repetition LEGITIME ({@code tres tres bien},
+     * {@code il faut faire}) est elidable par cette regle, donc une citation qui
+     * n'en garde qu'une occurrence est acceptee. C'est sans consequence : le
+     * texte affiche au candidat reste le texte reel, et rien ne se note sur une
+     * citation.
+     */
+    private static List<Token> withoutImmediateRepetitions(List<Token> tokens) {
+        List<Token> out = new ArrayList<>(tokens.size());
+        int i = 0;
+        while (i < tokens.size()) {
+            int repetes = longueurRepetitionImmediate(out, tokens, i);
+            if (repetes > 0) {
+                i += repetes;
+                continue;
+            }
+            out.add(tokens.get(i));
+            i++;
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * Nombre de tokens, a partir de {@code from}, qui repetent a l'identique le
+     * bloc qui vient d'etre retenu — 0 si aucun. On cherche le bloc le PLUS
+     * COURT : {@code tous tous tous} s'elide token par token, {@code les films
+     * les films} par bloc de deux.
+     */
+    private static int longueurRepetitionImmediate(List<Token> retenus, List<Token> tokens, int from) {
+        for (int k = 1; k <= MAX_TOKENS_REPETITION_ELIDABLE; k++) {
+            if (k > retenus.size() || from + k > tokens.size()) return 0;
+            if (blocIdentique(retenus, retenus.size() - k, tokens, from, k)
+                    && elidableEnRepetition(tokens, from, k)) {
+                return k;
+            }
+        }
+        return 0;
+    }
+
+    private static boolean blocIdentique(List<Token> gauche, int debutGauche,
+                                         List<Token> droite, int debutDroite, int longueur) {
+        for (int i = 0; i < longueur; i++) {
+            if (!gauche.get(debutGauche + i).normalized()
+                    .equals(droite.get(debutDroite + i).normalized())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Un bloc repete ne s'elide que s'il ne porte ni nombre, ni chiffre, ni negation. */
+    private static boolean elidableEnRepetition(List<Token> tokens, int from, int longueur) {
+        for (int i = 0; i < longueur; i++) {
+            if (isSpecial(tokens.get(from + i).normalized())) return false;
+        }
+        return true;
     }
 
     private static String candidateCitation(String citation, EpreuveType epreuve) {

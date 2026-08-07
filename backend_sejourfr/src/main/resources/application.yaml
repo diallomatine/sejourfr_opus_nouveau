@@ -315,8 +315,8 @@ sejourfr:
     # facon avant d'etre activee : campagne + temoin de la version precedente
     # rejoue le MEME JOUR.
     # Matrice verifiee au demarrage : v3-v4.2 -> schema v2, v5-v6 -> schema v3,
-    # v7 -> schema v4, v8/v9/v10/v11 -> schema v5. Un rollback change donc la
-    # paire EVAL_RUBRICS_VERSION + EVAL_PROMPT_VERSION (v8/v5 -> v7/v4, etc.) ;
+    # v7 -> schema v4, v8/v9/v10/v11 -> schema v5, v12 -> schema v6. Un rollback
+    # change donc la paire EVAL_RUBRICS_VERSION + EVAL_PROMPT_VERSION ;
     # une combinaison incoherente bloque le demarrage.
     #
     # ---------------------------------------------------------------------
@@ -341,7 +341,49 @@ sejourfr:
     # v10 et v11 restent CHARGEABLES (on ne supprime jamais une grille livree) et
     # ne s'activent que par EVAL_RUBRICS_VERSION=v10|v11 — ce qui ferait revenir
     # les chiffres ci-dessus.
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v9}
+    #
+    # ---------------------------------------------------------------------
+    # v12 : ACTIVE. LA PREUVE SE DESIGNE PAR NUMERO, ELLE NE SE RECOPIE PLUS.
+    # ---------------------------------------------------------------------
+    # v12 = v9 AU BIT PRES pour tout ce qui note (echelle, quatre criteres,
+    # seuils, couplage, plafonds, bandes, tests decisifs A1/A2 et B1/B2, les
+    # 16 ancres few-shot, les six rubriques de tache — verrouille par
+    # ProductionEvaluationContractTest). SEULE change la forme de la PREUVE :
+    # la production part DECOUPEE EN SEGMENTS NUMEROTES et le correcteur
+    # renvoie `preuve_segment`, un ENTIER, au lieu de recopier un extrait
+    # (tool-schema v6). Le serveur resout le numero en texte avant
+    # persistance : `feedback_json.preuve` reste une chaine, les trois fronts
+    # ne changent pas d'une ligne.
+    # Motif : une citation recopiee peut etre JUSTE et refusee quand meme. Cas
+    # reel, submission e6f28822 (EO, deepseek-v4-flash) : deux appels refuses
+    # d'affilee, deux citations exactes au begaiement pres, puis mode degrade.
+    # Plus generalement, `flash` voyait 42,9 % de ses appels ORAUX refuses par
+    # nos propres controles. Avec un numero, inventer une preuve devient
+    # impossible PAR CONSTRUCTION : le seul defaut possible est un entier hors
+    # bornes, trivial a detecter et a reparer.
+    # Ordre de preference du depot respecte : c'est un changement de
+    # TOOL-SCHEMA, pas une consigne de rubrique de plus.
+    # /!\ NON MESUREE AU BANC — bascule livree sans campagne (aucun appel LLM
+    # paye n'etait autorise). Ce qui la rend defendable sans mesure : elle ne
+    # touche AUCUNE regle de notation, et le peu qu'elle change au prompt
+    # SUPPRIME une contrainte au lieu d'en ajouter une.
+    # v12 corrige AUSSI une contradiction envoyee au correcteur : les bornes de
+    # mots EE etaient recopiees en dur dans la grille (« taches 2 et 3 : 60 a 90
+    # mots ») a cote des bornes reellement injectees depuis production_tasks.
+    # Depuis la migration V724 (minimum T2/T3 60 -> 40), les deux se
+    # contredisaient. v12 ne redeclare plus rien : elle RENVOIE au bloc
+    # « LONGUEUR ATTENDUE » de l'enonce (verrou : EvaluationBornesMotsSourceUniqueTest).
+    # Retour arriere, sans migration : EVAL_RUBRICS_VERSION=v9 +
+    # EVAL_PROMPT_VERSION=v5 (les deux ensemble : la matrice refuse une paire
+    # incoherente au demarrage).
+    # /!\ CE RETOUR ARRIERE N'EST PAS UN RETOUR A UN ETAT SAIN : v9 (comme v8,
+    # v10, v11 et le tool-schema v5) porte encore les bornes historiques 60-90
+    # pour EE T2/T3, alors que la base dit 40-90. En v9, le correcteur recevra
+    # donc de nouveau deux longueurs contradictoires, et la version amelioree
+    # rendue au candidat visera 60-90 meme sur une copie de 45 mots parfaitement
+    # valide. C'est assume : on ne reecrit pas une grille livree, dont dependent
+    # des evaluations deja notees. Basculer en v9 en connaissance de cause.
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v12}
     # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
     # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
     # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).
@@ -561,7 +603,7 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v5}
+      prompt-version: ${EVAL_PROMPT_VERSION:v6}
       # Tarification gpt-5.4 (USD / 1M tokens, relevée sur la page tarifaire
       # OpenAI le 2026-08-07 : 2,50 en entrée / 15,00 en sortie).
       # ⚠ Ces deux valeurs vont AVEC `model` ci-dessus : le coût estimé est
@@ -581,7 +623,7 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v5}
+      prompt-version: ${EVAL_PROMPT_VERSION:v6}
       # Tarif claude-sonnet-4-5 (USD / 1M tokens). Surchargeable comme le modèle,
       # et dans la même source que lui.
       cost-per-million-input-tokens: ${EVAL_ANTHROPIC_COST_INPUT:3.0}
@@ -639,7 +681,7 @@ sejourfr:
       # OpenAiCompatibleEvalClient#buildRequestFactory) — au-dela, c'est un
       # fournisseur qui a accepte la requete et genere.
       timeout-sec: ${EVAL_DEEPSEEK_TIMEOUT_SEC:90}
-      prompt-version: ${EVAL_PROMPT_VERSION:v5}
+      prompt-version: ${EVAL_PROMPT_VERSION:v6}
       # Tarif deepseek-v4-flash (USD / 1M tokens, relevé sur
       # api-docs.deepseek.com le 2026-08-07 : 0,14 en entrée cache-miss / 0,28
       # en sortie ; le tarif cache-hit, plus bas, n'est pas modélisé — on

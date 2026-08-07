@@ -147,7 +147,8 @@ export function tcfNoteTone(note: number | null | undefined): TcfNoteTone {
  * Bande qualitative d'un critère d'une évaluation **ancienne** — celles d'avant
  * que le serveur ne renvoie `bande`, seules à ne porter qu'une note.
  *
- * Depuis la grille v6, un critère se note sur la **même échelle du TCF** que la
+ * Depuis la grille v6, un critère se note sur la **même échelle du TCF** (celle
+ * sur laquelle nous exprimons nos estimations) que la
  * note globale : sa bande se lit donc sur {@link TCF_NOTE_BANDS}, exactement
  * comme le serveur la calcule aujourd'hui (`BandeCritere.of`, bornes 10 / 6 /
  * 2). D'où l'absence de tout seuil propre : un critère à 12 est un B2, pas un

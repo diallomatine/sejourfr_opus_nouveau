@@ -141,6 +141,14 @@ public class EvaluationRefusalMetrics {
             return Motif.GARDE_FOU_ORAL;
         }
         if (violation.contains("doit citer un passage reel")) return Motif.PREUVE_NON_RATTACHEE;
+        // Contrat v6 : la preuve est un NUMERO de segment. Un numero inexistant
+        // est l'exact equivalent d'une citation non rattachable, un numero absent
+        // ou non entier celui d'une preuve vide — memes familles, pour que les
+        // compteurs restent comparables d'une version de contrat a l'autre.
+        if (violation.contains("doit designer un segment numerote")) {
+            return Motif.PREUVE_NON_RATTACHEE;
+        }
+        if (violation.startsWith("preuve_segment[")) return Motif.PREUVE_ABSENTE;
         if (violation.startsWith("preuve[")) return Motif.PREUVE_ABSENTE;
         if (violation.contains("critere") && !violation.startsWith("note_sur_20")) {
             return Motif.CRITERES;
@@ -167,7 +175,11 @@ public class EvaluationRefusalMetrics {
         for (String code : codes) {
             for (Object score : scores) {
                 if (score instanceof Map<?, ?> m && code.equals(String.valueOf(m.get("code")))) {
-                    out.add(code + " : " + m.get("preuve"));
+                    // Contrat v6 : ce n'est plus une citation mais un numero de
+                    // segment — c'est neanmoins ce que le correcteur avait rendu,
+                    // et c'est ce qu'on veut relire apres coup.
+                    Object rendue = m.containsKey("preuve") ? m.get("preuve") : m.get("preuve_segment");
+                    out.add(code + " : " + rendue);
                 }
             }
         }

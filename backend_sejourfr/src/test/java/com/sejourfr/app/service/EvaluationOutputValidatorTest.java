@@ -34,6 +34,104 @@ class EvaluationOutputValidatorTest {
             .isEmpty();
     }
 
+    // ------------------------------------------- contrat v6 : preuve par numero
+
+    /**
+     * Sous le contrat v6, la preuve est un ENTIER borne par le nombre de
+     * segments servis. C'est la seule chose a verifier, et une preuve inventee
+     * n'existe plus : il n'y a plus de texte a rapprocher.
+     */
+    @Test
+    void v6_accepte_une_preuve_qui_designe_un_segment_existant() {
+        assertThat(EvaluationOutputValidator.violations(
+            feedbackParNumero(1, 2, 3, 4), task(EpreuveType.TCF_EE), rubricsV12(), "v6",
+            TEXTE_EE)).isEmpty();
+    }
+
+    @Test
+    void v6_refuse_un_numero_hors_bornes() {
+        assertThat(EvaluationOutputValidator.violations(
+            feedbackParNumero(1, 2, 3, 99), task(EpreuveType.TCF_EE), rubricsV12(), "v6", TEXTE_EE))
+            .containsExactly(
+                "preuve_segment[morphosyntaxe] doit designer un segment numerote de la production");
+    }
+
+    @Test
+    void v6_refuse_le_zero_et_le_non_entier() {
+        assertThat(EvaluationOutputValidator.violations(
+            feedbackParNumero(0, 2, 3, 4), task(EpreuveType.TCF_EE), rubricsV12(), "v6", TEXTE_EE))
+            .anyMatch(v -> v.contains("doit designer un segment numerote"));
+
+        Map<String, Object> feedback = feedbackParNumero(1, 2, 3, 4);
+        scoreDe(feedback, "lexique").put("preuve_segment", "la phrase 2");
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubricsV12(), "v6", TEXTE_EE))
+            .containsExactly("preuve_segment[lexique] doit etre un numero de segment entier");
+    }
+
+    /** Une citation recopiee n'a plus sa place dans une sortie v6. */
+    @Test
+    void v6_refuse_une_preuve_textuelle() {
+        Map<String, Object> feedback = feedbackParNumero(1, 2, 3, 4);
+        scoreDe(feedback, "lexique").put("preuve", "il est lumineux");
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubricsV12(), "v6", TEXTE_EE))
+            .anyMatch(v -> v.contains("champ inattendu : preuve"));
+    }
+
+    /**
+     * SEUL le numero inexistant est degradable apres reessai — exactement comme
+     * l'etait une citation introuvable. Un champ absent ou non entier reste
+     * bloquant, comme l'etait une preuve vide.
+     */
+    @Test
+    void v6_seul_un_numero_inexistant_est_degradable() {
+        assertThat(EvaluationOutputValidator.singleUnmatchedProofCode(List.of(
+            "preuve_segment[lexique] doit designer un segment numerote de la production")))
+            .contains("lexique");
+        assertThat(EvaluationOutputValidator.singleUnmatchedProofCode(List.of(
+            "preuve_segment[lexique] doit etre un numero de segment entier")))
+            .isEmpty();
+    }
+
+    private static final String TEXTE_EE =
+        "Salut Marie ! J'ai déménagé samedi. Mon appartement est lumineux. Viens le voir ?";
+
+    private ProductionRubricsProvider rubricsV12() {
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        props.setRubricsVersion("v12");
+        ProductionRubricsProvider provider = new ProductionRubricsProvider(props, new ObjectMapper());
+        provider.load();
+        return provider;
+    }
+
+    private static Map<String, Object> feedbackParNumero(int communiquer, int interagir,
+                                                         int lexique, int morphosyntaxe) {
+        Map<String, Object> feedback = validFeedbackV5();
+        feedback.put("scores_criteres", new ArrayList<>(List.of(
+            scoreNumero("communiquer", communiquer), scoreNumero("interagir", interagir),
+            scoreNumero("lexique", lexique), scoreNumero("morphosyntaxe", morphosyntaxe))));
+        return feedback;
+    }
+
+    private static Map<String, Object> scoreNumero(String code, Object segment) {
+        Map<String, Object> score = new LinkedHashMap<>();
+        score.put("code", code);
+        score.put("note_sur_20", 7);
+        score.put("commentaire", "Commentaire centré sur le critère " + code + ".");
+        score.put("preuve_segment", segment);
+        return score;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> scoreDe(Map<String, Object> feedback, String code) {
+        for (Object raw : (List<Object>) feedback.get("scores_criteres")) {
+            Map<String, Object> score = (Map<String, Object>) raw;
+            if (code.equals(score.get("code"))) return score;
+        }
+        throw new IllegalArgumentException("critere absent : " + code);
+    }
+
     private ProductionRubricsProvider rubrics;
 
     @BeforeEach

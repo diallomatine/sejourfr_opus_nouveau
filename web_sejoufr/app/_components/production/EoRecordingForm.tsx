@@ -179,7 +179,7 @@ export function EoRecordingForm({
    *  situation, chips de format). Absent = carte historique. Même prop, même
    *  contenu qu'à l'écrit : le guidage d'un petit sujet. */
   promptSlot?: ReactNode;
-  /** Remplace la carte des 4 critères du TCF. `null` la retire — les
+  /** Remplace la carte de nos 4 critères. `null` la retire — les
    *  micro-exercices « Compétences » n'évaluent QU'UN critère et affichent le
    *  leur ici, juste au-dessus de l'enregistreur. */
   criteriaSlot?: ReactNode;

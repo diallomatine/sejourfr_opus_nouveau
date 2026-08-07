@@ -48,7 +48,7 @@ class ProductionSubmissionManagerIT extends AbstractIntegrationTest {
             t.setDureeMinSec(60);
             t.setDureeMaxSec(180);
         } else {
-            t.setMotsMin(tache == 1 ? 30 : 60);
+            t.setMotsMin(tache == 1 ? 30 : 40);
             t.setMotsMax(tache == 1 ? 60 : 90);
             if (tache > 1) {
                 t.setContexte("Vous répondez aux participants d'un forum de test.");

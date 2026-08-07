@@ -24,6 +24,23 @@ final class EvaluationOutputValidator {
     private static final String UNMATCHED_PROOF_SUFFIX =
         "] doit citer un passage reel de la production";
 
+    /**
+     * CONTRAT v6 — la preuve n'est plus une chaine recopiee mais un NUMERO de
+     * segment. Deux violations possibles, et deux seulement :
+     * <ul>
+     *   <li>{@link #MISSING_SEGMENT_SUFFIX} : champ absent, non numerique ou non
+     *       entier. Bloquant, comme l'etait une preuve vide ;</li>
+     *   <li>{@link #UNKNOWN_SEGMENT_SUFFIX} : entier hors de la liste servie.
+     *       C'est l'equivalent exact d'une citation non rattachable, donc le seul
+     *       cas degradable apres reessai.</li>
+     * </ul>
+     */
+    private static final String SEGMENT_PROOF_PREFIX = "preuve_segment[";
+    private static final String MISSING_SEGMENT_SUFFIX =
+        "] doit etre un numero de segment entier";
+    private static final String UNKNOWN_SEGMENT_SUFFIX =
+        "] doit designer un segment numerote de la production";
+
     private static final List<String> CHAMPS_V4 = List.of(
         "note_globale", "niveau_cecrl", "justification_niveau", "scores_criteres",
         "points_forts", "points_a_ameliorer", "suggestions", "exemples_corriges",
@@ -38,7 +55,13 @@ final class EvaluationOutputValidator {
     private static final String CHAMP_VERSION_AMELIOREE = "version_amelioree";
 
     /** Versions de tool-schema dont la STRUCTURE est verifiee champ par champ. */
-    private static final Set<String> SCHEMAS_STRICTS = Set.of("v4", "v5");
+    private static final Set<String> SCHEMAS_STRICTS = Set.of("v4", "v5", "v6");
+
+    /** Versions qui portent la RESTITUTION v5 (verdict, version amelioree, plafonds). */
+    private static final Set<String> SCHEMAS_RESTITUTION = Set.of("v5", "v6");
+
+    /** Versions dont la preuve est un NUMERO DE SEGMENT et non une citation. */
+    private static final String SCHEMA_PREUVE_PAR_NUMERO = "v6";
 
     private static final Set<String> OBJECTIFS =
         Set.of("ATTEINT", "PARTIELLEMENT_ATTEINT", "NON_ATTEINT");
@@ -137,17 +160,25 @@ final class EvaluationOutputValidator {
         // stricts (v4, v5). Les schemas anterieurs restent volontairement
         // tolerants : un rollback ne doit rien casser.
         boolean strict = SCHEMAS_STRICTS.contains(promptVersion);
-        boolean v5 = "v5".equals(promptVersion);
+        boolean restitution = SCHEMAS_RESTITUTION.contains(promptVersion);
+        boolean preuveParNumero = SCHEMA_PREUVE_PAR_NUMERO.equals(promptVersion);
         if (strict) {
             requireText(feedback.get("justification_niveau"), "justification_niveau", errors);
         }
 
         Set<String> expected = expectedCodes(task, rubrics, errors);
-        validateScores(feedback.get("scores_criteres"), expected, strict, production,
-            task == null ? null : task.getEpreuve(), errors);
+        EpreuveType epreuve = task == null ? null : task.getEpreuve();
+        // Sous le contrat v6, la seule chose a verifier sur une preuve est qu'un
+        // entier designe un segment servi. On recalcule donc la meme decoupe que
+        // celle envoyee au correcteur : elle est deterministe.
+        int nbSegments = preuveParNumero && production != null
+            ? EvaluationProductionSegments.of(production, epreuve).taille()
+            : 0;
+        validateScores(feedback.get("scores_criteres"), expected, strict, preuveParNumero,
+            nbSegments, production, epreuve, errors);
 
         if (strict) {
-            validateStructure(feedback, v5, task, errors);
+            validateStructure(feedback, restitution, task, errors);
         }
         if (task != null && task.getEpreuve() == EpreuveType.TCF_EO) {
             validateOralFeedback(feedback, errors);
@@ -178,6 +209,7 @@ final class EvaluationOutputValidator {
     }
 
     private static void validateScores(Object raw, Set<String> expected, boolean strict,
+                                       boolean preuveParNumero, int nbSegments,
                                        String production, EpreuveType epreuve,
                                        List<String> errors) {
         if (!(raw instanceof List<?> scores)) {
@@ -195,7 +227,9 @@ final class EvaluationOutputValidator {
                 continue;
             }
             if (strict) {
-                validateKeys(score, Set.of("code", "note_sur_20", "commentaire", "preuve"),
+                validateKeys(score, preuveParNumero
+                        ? Set.of("code", "note_sur_20", "commentaire", "preuve_segment")
+                        : Set.of("code", "note_sur_20", "commentaire", "preuve"),
                     "scores_criteres[" + i + "]", errors);
             }
             Object codeRaw = score.get("code");
@@ -207,7 +241,9 @@ final class EvaluationOutputValidator {
             }
             validateNumber(score.get("note_sur_20"), "note_sur_20[" + code + "]", errors);
             requireText(score.get("commentaire"), "commentaire[" + code + "]", errors);
-            if (strict) {
+            if (strict && preuveParNumero) {
+                validateSegmentProof(score.get("preuve_segment"), code, nbSegments, errors);
+            } else if (strict) {
                 Object preuve = score.get("preuve");
                 requireText(preuve, "preuve[" + code + "]", errors);
                 if (preuve instanceof String citation && !citation.isBlank() && production != null) {
@@ -225,20 +261,52 @@ final class EvaluationOutputValidator {
     }
 
     /**
-     * Identifie le seul cas degradable apres retry : une unique citation non
-     * rattachable. Toute autre violation, y compris une preuve vide, reste
-     * bloquante.
+     * PREUVE PAR NUMERO (contrat v6). Le correcteur ne recopie rien : il ne peut
+     * donc plus se tromper de graphie, seulement de numero. Deux cas, et deux
+     * seulement — un entier attendu, et un entier qui existe.
+     */
+    private static void validateSegmentProof(Object raw, String code, int nbSegments,
+                                             List<String> errors) {
+        if (!(raw instanceof Number number) || !estEntier(number)) {
+            errors.add(SEGMENT_PROOF_PREFIX + code + MISSING_SEGMENT_SUFFIX);
+            return;
+        }
+        int numero = number.intValue();
+        if (numero < 1 || numero > nbSegments) {
+            errors.add(SEGMENT_PROOF_PREFIX + code + UNKNOWN_SEGMENT_SUFFIX);
+        }
+    }
+
+    private static boolean estEntier(Number number) {
+        double valeur = number.doubleValue();
+        return Double.isFinite(valeur) && valeur == Math.rint(valeur)
+            && Math.abs(valeur) <= Integer.MAX_VALUE;
+    }
+
+    /**
+     * Identifie le seul cas degradable apres retry : une unique preuve non
+     * rattachable — citation introuvable (contrats v4/v5) ou numero de segment
+     * inexistant (contrat v6). Toute autre violation, y compris une preuve vide
+     * ou un {@code preuve_segment} non entier, reste bloquante.
      */
     static Optional<String> singleUnmatchedProofCode(List<String> violations) {
         if (violations == null || violations.size() != 1) return Optional.empty();
-        String violation = violations.get(0);
-        if (violation == null || !violation.startsWith(UNMATCHED_PROOF_PREFIX)
-                || !violation.endsWith(UNMATCHED_PROOF_SUFFIX)) {
+        return unmatchedProofCode(violations.get(0));
+    }
+
+    private static Optional<String> unmatchedProofCode(String violation) {
+        if (violation == null) return Optional.empty();
+        Optional<String> citation = codeEntre(violation, UNMATCHED_PROOF_PREFIX, UNMATCHED_PROOF_SUFFIX);
+        if (citation.isPresent()) return citation;
+        return codeEntre(violation, SEGMENT_PROOF_PREFIX, UNKNOWN_SEGMENT_SUFFIX);
+    }
+
+    private static Optional<String> codeEntre(String violation, String prefix, String suffix) {
+        if (!violation.startsWith(prefix) || !violation.endsWith(suffix)
+                || violation.length() <= prefix.length() + suffix.length()) {
             return Optional.empty();
         }
-        String code = violation.substring(
-            UNMATCHED_PROOF_PREFIX.length(),
-            violation.length() - UNMATCHED_PROOF_SUFFIX.length());
+        String code = violation.substring(prefix.length(), violation.length() - suffix.length());
         return code.isBlank() ? Optional.empty() : Optional.of(code);
     }
 
@@ -252,16 +320,14 @@ final class EvaluationOutputValidator {
         if (violations == null) return List.of();
         List<String> out = new ArrayList<>();
         for (String violation : violations) {
-            if (violation == null || !violation.startsWith(UNMATCHED_PROOF_PREFIX)
-                    || !violation.endsWith(UNMATCHED_PROOF_SUFFIX)) {
-                continue;
-            }
-            String code = violation.substring(
-                UNMATCHED_PROOF_PREFIX.length(),
-                violation.length() - UNMATCHED_PROOF_SUFFIX.length());
-            if (!code.isBlank()) out.add(code);
+            unmatchedProofCode(violation).ifPresent(out::add);
         }
         return List.copyOf(out);
+    }
+
+    /** Vrai si la violation porte sur un {@code preuve_segment} (contrat v6). */
+    static boolean estViolationDeSegment(String violation) {
+        return violation != null && violation.startsWith(SEGMENT_PROOF_PREFIX);
     }
 
     private static String unmatchedProofViolation(String code) {
@@ -276,10 +342,10 @@ final class EvaluationOutputValidator {
      * rollback vers v4 ne doit voir aucune de ces regles s'appliquer, d'ou le
      * drapeau plutot qu'une validation aveugle.
      */
-    private static void validateStructure(Map<String, Object> feedback, boolean v5,
+    private static void validateStructure(Map<String, Object> feedback, boolean restitution,
                                           ProductionTask task, List<String> errors) {
         Set<String> autorises = new LinkedHashSet<>(CHAMPS_V4);
-        if (v5) autorises.add(CHAMP_VERSION_AMELIOREE);
+        if (restitution) autorises.add(CHAMP_VERSION_AMELIOREE);
         validateKeys(feedback, autorises, "racine", errors);
         for (String field : CHAMPS_V4) {
             if (!feedback.containsKey(field) || feedback.get(field) == null) {
@@ -294,10 +360,10 @@ final class EvaluationOutputValidator {
         if (confiance == null || !Set.of("HAUTE", "MOYENNE", "FAIBLE").contains(confiance.toString())) {
             errors.add("confiance invalide");
         }
-        validateAccomplissement(feedback.get("accomplissement"), v5, errors);
+        validateAccomplissement(feedback.get("accomplissement"), restitution, errors);
         validatePointsAAmeliorer(feedback.get("points_a_ameliorer"), errors);
-        validateExemples(feedback.get("exemples_corriges"), v5, errors);
-        if (v5) {
+        validateExemples(feedback.get("exemples_corriges"), restitution, errors);
+        if (restitution) {
             validatePointsForts(feedback.get("points_forts"), errors);
             validateVersionAmelioree(feedback.get(CHAMP_VERSION_AMELIOREE), task, errors);
         }
@@ -328,13 +394,13 @@ final class EvaluationOutputValidator {
         requireText(raw, CHAMP_VERSION_AMELIOREE, errors);
     }
 
-    private static void validateAccomplissement(Object raw, boolean v5, List<String> errors) {
+    private static void validateAccomplissement(Object raw, boolean restitution, List<String> errors) {
         if (!(raw instanceof Map<?, ?> map)) {
             errors.add("accomplissement doit etre un objet");
             return;
         }
         Set<String> autorises = new LinkedHashSet<>(List.of("points_traites", "points_oublies"));
-        if (v5) {
+        if (restitution) {
             autorises.add("objectif");
             autorises.add("objectif_resume");
             Object objectif = map.get("objectif");
@@ -392,12 +458,12 @@ final class EvaluationOutputValidator {
         }
     }
 
-    private static void validateExemples(Object raw, boolean v5, List<String> errors) {
+    private static void validateExemples(Object raw, boolean restitution, List<String> errors) {
         if (!(raw instanceof List<?> exemples)) {
             errors.add("exemples_corriges doit etre une liste");
             return;
         }
-        if (v5 && exemples.size() > AiEvaluationService.MAX_EXEMPLES_CORRIGES) {
+        if (restitution && exemples.size() > AiEvaluationService.MAX_EXEMPLES_CORRIGES) {
             errors.add("exemples_corriges contient plus de "
                 + AiEvaluationService.MAX_EXEMPLES_CORRIGES + " entrees");
         }

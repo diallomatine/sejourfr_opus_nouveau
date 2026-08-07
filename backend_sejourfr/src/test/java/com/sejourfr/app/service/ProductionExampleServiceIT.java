@@ -57,7 +57,7 @@ class ProductionExampleServiceIT extends AbstractIntegrationTest {
     @Test
     void exemplesEeSeedes_respectent_les_volumes_du_tcfIrn_et_le_plafondB2() {
         SEEDED_EE_EXAMPLE_IDS.forEach((tache, ids) -> {
-            int minWords = tache == 1 ? 30 : 60;
+            int minWords = tache == 1 ? 30 : 40;
             int maxWords = tache == 1 ? 60 : 90;
             List<ProductionExampleDto> seeded = service
                     .listByEpreuveAndTache(EpreuveType.TCF_EE, tache)

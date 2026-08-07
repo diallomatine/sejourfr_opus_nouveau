@@ -48,13 +48,13 @@ import '../tcf_production_module.dart';
       ),
     2 => (
         title: 'Récit',
-        subtitle: 'Raconter une expérience · 60-90 mots',
+        subtitle: 'Raconter une expérience · 40-90 mots',
         intro:
             'Tu racontes une expérience personnelle au passé, dans l\'ordre, avec ce que tu en as retenu.',
       ),
     _ => (
         title: 'Opinion',
-        subtitle: 'Avis argumenté · 60-90 mots',
+        subtitle: 'Avis argumenté · 40-90 mots',
         intro:
             'Tu donnes ton avis sur une question et tu l\'argumentes, en tenant compte de l\'avis opposé.',
       ),

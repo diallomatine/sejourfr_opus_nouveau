@@ -21,6 +21,13 @@ class ProductionEvaluationContractTest {
         "communiquer", "interagir", "lexique", "morphosyntaxe");
     private static final List<String> NIVEAUX = List.of(
         "A1_NON_ATTEINT", "A1", "A2", "B1", "B2");
+    /**
+     * Ce par quoi v12 remplace un chiffre de bornes recopie : un RENVOI a la
+     * seule source de verite ({@code production_tasks}, injectee en tete de
+     * l'enonce sous « LONGUEUR ATTENDUE »).
+     */
+    private static final String BORNES_RENVOI =
+        "dans les bornes du bloc LONGUEUR ATTENDUE, registre et destinataire";
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
@@ -329,6 +336,203 @@ class ProductionEvaluationContractTest {
         }
     }
 
+    /**
+     * v12 = v9 pour TOUT ce qui note, et ne change QUE DEUX CHOSES, toutes deux
+     * de FORME : (1) la preuve — le correcteur ne recopie plus un extrait, il
+     * designe le NUMERO d'un segment ; (2) les BORNES DE MOTS — v9 et avant les
+     * recopiaient en dur (« taches 2 et 3 : 60 a 90 mots ») a cote des bornes
+     * reellement injectees depuis {@code production_tasks}, ce qui envoyait au
+     * correcteur deux longueurs contradictoires des que la base changeait
+     * (V724 : minimum T2/T3 60 -> 40). v12 ne les redeclare plus, il RENVOIE au
+     * bloc LONGUEUR ATTENDUE de l'enonce.
+     *
+     * <p>Ce test est le verrou de cette promesse — et il compte double ici,
+     * parce que cette bascule est livree SANS campagne de banc : la seule chose
+     * qui garantisse qu'elle ne deplace pas une note, c'est qu'aucune regle de
+     * notation n'a bouge d'un caractere. D'ou une comparaison v9 ⇄ v12 champ par
+     * champ, ou le SEUL ecart tolere est celui, enumere, des bornes de mots.
+     */
+    @Test
+    void v12NeChangeQueLaFormeDeLaPreuve() throws Exception {
+        Map<String, Object> v9 = resource("prompts/production-rubrics-v9.json");
+        Map<String, Object> v12 = resource("prompts/production-rubrics-v12.json");
+
+        assertThat(v12)
+            .containsEntry("rubrics-version", "v12")
+            .containsEntry("profile", "TCF_IRN")
+            .containsEntry("tool_schema_version", "v6")
+            .containsEntry("niveau_max", "B2");
+        assertThat(resourceText("prompts/production-rubrics-v12.json"))
+            .doesNotContain("\"C1\"", "\"C2\"");
+
+        // Les six rubriques de tache : identiques au champ pres, hors bornes de mots.
+        Map<String, Object> rubricsV9 = map(v9.get("rubrics"));
+        Map<String, Object> rubricsV12 = map(v12.get("rubrics"));
+        assertThat(rubricsV12.keySet()).isEqualTo(rubricsV9.keySet());
+        for (String tache : rubricsV9.keySet()) {
+            Map<String, Object> blocV9 = new java.util.LinkedHashMap<>(map(rubricsV9.get(tache)));
+            Map<String, Object> blocV12 = new java.util.LinkedHashMap<>(map(rubricsV12.get(tache)));
+
+            if (tache.startsWith("EE_")) {
+                assertThat(blocV9.remove("bornes_mots_indicatives"))
+                    .as(tache + " : v9 portait bien une copie des bornes")
+                    .isNotNull();
+            }
+            assertThat(blocV12)
+                .as(tache + " : v12 ne duplique plus les bornes de production_tasks")
+                .doesNotContainKey("bornes_mots_indicatives");
+
+            String consignesV9 = String.valueOf(blocV9.remove("consignes_correcteur"));
+            String consignesV12 = String.valueOf(blocV12.remove("consignes_correcteur"));
+            assertThat(consignesV12)
+                .as(tache + " : seule la mention des bornes change dans les consignes")
+                .isEqualTo(consignesV9
+                    .replace("en 30 a 60 mots, registre et destinataire", BORNES_RENVOI)
+                    .replace("en 60 a 90 mots, registre et destinataire", BORNES_RENVOI));
+
+            assertThat(blocV12)
+                .as(tache + " : tout le reste de la rubrique est celui de v9")
+                .isEqualTo(blocV9);
+        }
+
+        Map<String, Object> communV9 = map(v9.get("commun"));
+        Map<String, Object> communV12 = map(v12.get("commun"));
+        for (String bloc : List.of("niveau", "couplage", "plafonds", "bandes_criteres", "few_shot")) {
+            assertThat(communV12.get(bloc))
+                .as("v12 ne touche pas a commun." + bloc + " : la notation est celle de v9")
+                .isEqualTo(communV9.get(bloc));
+        }
+
+        List<?> sectionsV9 = list(communV9.get("sections"));
+        List<?> sectionsV12 = list(communV12.get("sections"));
+        assertThat(sectionsV12).hasSameSizeAs(sectionsV9);
+        List<String> titresModifies = new java.util.ArrayList<>();
+        for (int i = 0; i < sectionsV9.size(); i++) {
+            if (sectionsV9.get(i).equals(sectionsV12.get(i))) continue;
+            Map<String, Object> section = map(sectionsV12.get(i));
+            assertThat(section.get("titre"))
+                .as("un titre de section ne bouge pas")
+                .isEqualTo(map(sectionsV9.get(i)).get("titre"));
+            titresModifies.add(section.get("titre").toString());
+        }
+        assertThat(titresModifies)
+            .as("seules changent les sections qui decrivent la MECANIQUE DE LA PREUVE "
+                + "et celle qui recopiait les BORNES DE MOTS")
+            .containsExactly(
+                "Preuves litterales et priorites : ENSEIGNER, PAS CONSTATER (regle capitale)",
+                "Version amelioree de la production (taches ECRITES uniquement)",
+                "Production orale : tu lis une TRANSCRIPTION AUTOMATIQUE, tu evalues le SENS "
+                    + "(regle capitale)",
+                "Production orale en INTERACTION (dialogue examinateur/candidat)",
+                "Methode d'evaluation",
+                "Principes et format de sortie");
+
+        // Chaque section touchee enonce la nouvelle mecanique, et plus l'ancienne.
+        String v12Texte = sectionsV12.stream()
+            .map(s -> map(s).get("contenu").toString())
+            .reduce("", (a, b) -> a + "\n" + b);
+        assertThat(v12Texte)
+            .contains("preuve_segment")
+            .contains("SEGMENTS NUMEROTES")
+            .as("le correcteur ne recopie plus rien pour prouver")
+            .doesNotContain("recopiee EXACTEMENT telle qu'elle apparait")
+            .doesNotContain("caractere par caractere");
+        // L'invariant oral survit a la bascule : la preuve reste un tour candidat.
+        assertThat(v12Texte)
+            .contains("seuls les tours 'Candidat :' portent un numero")
+            .contains("les tours de l'examinateur ne portent aucun numero");
+
+        // La section « version amelioree » ne change QUE sur la regle 3 (bornes).
+        String versionAmelioreeV9 = sectionContenu(sectionsV9, TITRE_VERSION_AMELIOREE);
+        String versionAmelioreeV12 = sectionContenu(sectionsV12, TITRE_VERSION_AMELIOREE);
+        assertThat(lignesHors(versionAmelioreeV12, "3)"))
+            .as("les regles 1, 2, 4 et 5 de la version amelioree sont intactes")
+            .isEqualTo(lignesHors(versionAmelioreeV9, "3)"));
+        assertThat(versionAmelioreeV12)
+            .as("la regle 3 RENVOIE aux bornes injectees au lieu de les redeclarer")
+            .contains("du bloc LONGUEUR ATTENDUE de l'enonce")
+            .contains("ne te fie a AUCUN chiffre memorise")
+            .doesNotContain("30 a 60 mots")
+            .doesNotContain("60 a 90 mots");
+    }
+
+    private static final String TITRE_VERSION_AMELIOREE =
+        "Version amelioree de la production (taches ECRITES uniquement)";
+
+    private static String sectionContenu(List<?> sections, String titre) {
+        return sections.stream()
+            .map(ProductionEvaluationContractTest::map)
+            .filter(s -> titre.equals(String.valueOf(s.get("titre"))))
+            .map(s -> String.valueOf(s.get("contenu")))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("section absente : " + titre));
+    }
+
+    /** Le contenu prive des lignes commencant par {@code prefixe}. */
+    private static String lignesHors(String contenu, String prefixe) {
+        return java.util.Arrays.stream(contenu.split("\n"))
+            .filter(l -> !l.startsWith(prefixe))
+            .reduce("", (a, b) -> a + "\n" + b);
+    }
+
+    /**
+     * Le contrat de sortie v6 : celui de v5, la citation remplacee par un
+     * numero de segment. Rien d'autre — ni la note, ni le niveau, ni la
+     * restitution.
+     */
+    @Test
+    void v6RemplaceLaCitationParUnNumeroDeSegmentEtRienDAutre() throws Exception {
+        Map<String, Object> v5 = resource("prompts/production-evaluation-tool-schema-v5.json");
+        Map<String, Object> v6 = resource("prompts/production-evaluation-tool-schema-v6.json");
+
+        assertThat(strings(v6.get("required")))
+            .containsExactlyElementsOf(strings(v5.get("required")));
+        Map<String, Object> propsV5 = map(v5.get("properties"));
+        Map<String, Object> propsV6 = map(v6.get("properties"));
+        assertThat(propsV6.keySet()).isEqualTo(propsV5.keySet());
+        for (String champ : propsV5.keySet()) {
+            if ("scores_criteres".equals(champ) || "version_amelioree".equals(champ)) continue;
+            assertThat(propsV6.get(champ)).as(champ + " ne bouge pas entre v5 et v6")
+                .isEqualTo(propsV5.get(champ));
+        }
+        // version_amelioree : seule sa DESCRIPTION bouge, et seulement sur les
+        // bornes de mots, que v5 recopiait a cote de celles vraiment injectees.
+        Map<String, Object> vaV5 = new java.util.LinkedHashMap<>(map(propsV5.get("version_amelioree")));
+        Map<String, Object> vaV6 = new java.util.LinkedHashMap<>(map(propsV6.get("version_amelioree")));
+        String descV5 = String.valueOf(vaV5.remove("description"));
+        String descV6 = String.valueOf(vaV6.remove("description"));
+        assertThat(vaV6).as("version_amelioree : type et contraintes inchanges").isEqualTo(vaV5);
+        assertThat(descV5).contains("T2 et T3 : 60 a 90 mots");
+        assertThat(descV6)
+            .as("v6 renvoie aux bornes injectees au lieu d'en recopier")
+            .contains("les bornes de mots annoncees dans le bloc LONGUEUR ATTENDUE")
+            .doesNotContain("30 a 60 mots")
+            .doesNotContain("60 a 90 mots");
+
+        Map<String, Object> scoresV5 = map(propsV5.get("scores_criteres"));
+        Map<String, Object> scoresV6 = map(propsV6.get("scores_criteres"));
+        assertThat(scoresV6).containsEntry("minItems", 4).containsEntry("maxItems", 4);
+        Map<String, Object> itemsV5 = map(scoresV5.get("items"));
+        Map<String, Object> itemsV6 = map(scoresV6.get("items"));
+        assertThat(strings(itemsV6.get("required")))
+            .containsExactly("code", "note_sur_20", "commentaire", "preuve_segment");
+        Map<String, Object> champsV6 = map(itemsV6.get("properties"));
+        assertThat(champsV6.keySet())
+            .containsExactlyInAnyOrder("code", "note_sur_20", "commentaire", "preuve_segment");
+        for (String champ : List.of("code", "note_sur_20", "commentaire")) {
+            assertThat(champsV6.get(champ)).as("scores_criteres." + champ)
+                .isEqualTo(map(itemsV5.get("properties")).get(champ));
+        }
+        // C'est CA qui rend une preuve inventee impossible : un entier borne.
+        assertThat(map(champsV6.get("preuve_segment")))
+            .containsEntry("type", "integer")
+            .containsEntry("minimum", 1);
+        assertThat(strings(map(propsV6.get("niveau_cecrl")).get("enum")))
+            .containsExactlyElementsOf(NIVEAUX);
+        assertThat(v6.get("additionalProperties")).isEqualTo(false);
+        assertAllObjectsClosed(v6, "root");
+    }
+
     /** Le contrat de sortie v5 : celui de v4, plus les seules cles de restitution. */
     @Test
     void v5AjouteLeVerdictLaVersionAmelioreeEtLesPlafondsDeRestitution() throws Exception {
@@ -407,7 +611,8 @@ class ProductionEvaluationContractTest {
         "v8, v5",
         "v9, v5",
         "v10, v5",
-        "v11, v5"
+        "v11, v5",
+        "v12, v6"
     })
     void chaqueVersionDeRubriquesAccepteUniquementSonToolSchema(
             String rubricsVersion, String toolSchemaVersion) {
@@ -431,7 +636,8 @@ class ProductionEvaluationContractTest {
         "v8, v4, v5",
         "v9, v4, v5",
         "v10, v4, v5",
-        "v11, v4, v5"
+        "v11, v4, v5",
+        "v12, v5, v6"
     })
     void unePaireRubriquesToolSchemaIncompatibleEchoueAuChargement(
             String rubricsVersion, String activeSchema, String expectedSchema) {

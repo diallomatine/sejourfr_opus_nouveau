@@ -210,6 +210,80 @@ class EvaluationPromptBuilderTest {
                 .doesNotContain("VERSION AMELIOREE obligatoire");
     }
 
+    // ------------------------------------------------------------------ v12
+
+    private EvaluationPromptBuilder builderV12() {
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        props.setRubricsVersion("v12");
+        ObjectMapper om = new ObjectMapper();
+        ProductionRubricsProvider provider = new ProductionRubricsProvider(props, om);
+        provider.load();
+        return new EvaluationPromptBuilder(om, provider);
+    }
+
+    /**
+     * Sous v12 la production part DECOUPEE ET NUMEROTEE, et les bornes servies
+     * sont une DONNEE (elles dependent de la production), pas une consigne de
+     * notation — celle-ci vit dans le fichier de rubriques, comme tout le reste.
+     */
+    @Test
+    void userPrompt_v12_envoie_la_production_decoupee_en_segments_numerotes() {
+        ProductionTask task = new ProductionTask();
+        task.setEpreuve(EpreuveType.TCF_EE);
+        task.setTacheNumero((short) 1);
+        task.setNiveauCible("A2");
+        task.setConsigne("Annoncez votre demenagement a un ami et invitez-le.");
+        task.setMotsMin(30);
+        task.setMotsMax(60);
+        String production = "Salut Marie ! J'ai déménagé samedi. Viens le voir ?";
+
+        EvaluationProductionSegments segments =
+            EvaluationProductionSegments.of(production, EpreuveType.TCF_EE);
+        String user = builderV12().buildUserPrompt(task, production, false, null, segments);
+
+        assertThat(user)
+            .contains("PRODUCTION DU CANDIDAT, DÉCOUPÉE EN SEGMENTS NUMÉROTÉS")
+            .contains("[1] Salut Marie !")
+            .contains("[2] J'ai déménagé samedi.")
+            .contains("[3] Viens le voir ?")
+            .contains("SEGMENTS DISPONIBLES POUR `preuve_segment` : 1 à 3.")
+            .contains("submit_evaluation");
+    }
+
+    /** Sans decoupe (contrats v5 et anterieurs), le rendu ne change pas d'un caractere. */
+    @Test
+    void userPrompt_sans_decoupe_reste_celui_des_contrats_anterieurs() {
+        ProductionTask task = new ProductionTask();
+        task.setEpreuve(EpreuveType.TCF_EE);
+        task.setTacheNumero((short) 1);
+        task.setNiveauCible("A2");
+        task.setConsigne("Annoncez votre demenagement a un ami et invitez-le.");
+
+        assertThat(builderV12().buildUserPrompt(task, "Salut Marie !", false, null, null))
+            .contains("PRODUCTION DU CANDIDAT :")
+            .doesNotContain("SEGMENTS DISPONIBLES");
+    }
+
+    /** Le system prompt v12 dit au correcteur de DESIGNER un numero, plus de recopier. */
+    @Test
+    void systemPrompt_v12_demande_un_numero_de_segment_et_plus_une_recopie() {
+        String system = builderV12().buildSystemPrompt();
+
+        assertThat(system)
+            .contains("preuve_segment")
+            .contains("SEGMENTS NUMEROTES")
+            .as("notation strictement inchangee par rapport a v9")
+            .contains("# Du score au niveau : la note EST le niveau (obligatoire)")
+            .contains("10 et plus -> B2 ; 6 a 9 -> B1 ; 2 a 5 -> A2")
+            .contains("TEST DECISIF A1 vs A2")
+            .contains("TEST DECISIF B1 vs B2")
+            .contains("GARDE-FOU DE COUPLAGE")
+            .contains("# Exemples d'ancrage")
+            .as("la consigne de recopie litterale a disparu")
+            .doesNotContain("recopiee EXACTEMENT telle qu'elle apparait")
+            .doesNotContain("caractere par caractere");
+    }
+
     /** Le system prompt v5 porte le passage note -> niveau et l'exigence pedagogique. */
     @Test
     void systemPrompt_v5_porte_le_passage_note_niveau_et_le_comment() {

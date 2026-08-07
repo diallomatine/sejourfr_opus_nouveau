@@ -500,10 +500,12 @@ export interface EvaluationResultDto {
 }
 
 /** Fourchette de note officielle du TCF IRN correspondant à un niveau CECRL, sur
- *  les épreuves d'expression. Grille officielle (0 → A1 non atteint, 1 → A1,
- *  2-5 → A2, 6-9 → B1, 10-20 → B2). Nos notes suivent la MÊME échelle : la
- *  fourchette se lit donc directement, sans conversion. N'accompagne que le
- *  bilan d'une épreuve entière — au TCF, une tâche isolée n'a pas de note. */
+ *  les épreuves d'expression. Table officielle (0 → A1 non atteint, 1 → A1,
+ *  2-5 → A2, 6-9 → B1, 10-20 → B2). Nos notes sont des ESTIMATIONS exprimées sur
+ *  cette MÊME échelle : la fourchette se lit donc directement, sans conversion —
+ *  ce qui est officiel ici, c'est l'échelle, pas la correction, qui reste la
+ *  nôtre. N'accompagne que le bilan d'une épreuve entière — au TCF, une tâche
+ *  isolée n'a pas de note. */
 export interface CorrespondanceTcfDto {
     niveau: NiveauCecrl;
     scoreTcfMin: number;
@@ -1123,7 +1125,7 @@ export interface EeFeedback {
     /** Ce que le candidat a traité / oublié de la consigne. Null (et non pas
      *  listes vides) quand l'évaluation ne porte pas l'information. */
     accomplissement: EeAccomplishment | null;
-    /** Exactement 4 critères depuis la grille TCF (`communiquer`, `interagir`,
+    /** Exactement 4 critères depuis notre grille SejourFR (`communiquer`, `interagir`,
      *  `lexique`, `morphosyntaxe`) — les évaluations plus anciennes en portent
      *  5 aux codes propres à chaque tâche. */
     criteres: EeCriterion[];
@@ -1321,12 +1323,12 @@ export function parseEeFeedback(
 
 /** Libellé de repli pour un critère EE/EO si le backend n'a pas fourni `label`
  *  (il le fournit depuis la rubrique de la tâche : cette table n'est qu'un
- *  filet, jamais la source). Les quatre premiers codes sont ceux de la grille
- *  réelle du TCF, identiques sur les six tâches ; tous les suivants restent
- *  portés par les évaluations déjà en base. */
+ *  filet, jamais la source). Les quatre premiers codes sont ceux de notre grille
+ *  SejourFR, identiques sur les six tâches ; tous les suivants restent portés par
+ *  les évaluations déjà en base. */
 export function eeCriterionLabel(code: string): string {
     switch (code) {
-        // --- grille TCF : les 4 critères équipondérés des six tâches ---
+        // --- notre grille : les 4 critères équipondérés des six tâches ---
         case "communiquer":
             return "Communiquer : accomplir la tâche et enchaîner les idées";
         case "interagir":
