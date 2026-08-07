@@ -9,7 +9,29 @@ référence pédagogique exhaustive reste [`notation-ia-eo-ee.md`](notation-ia-e
 - Niveau de sortie maximal : **B2** ; C1 et C2 ne font pas partie du contrat actif.
 - Rubriques : `prompts/production-rubrics-v9.json`.
 - Tool-schema : `prompts/production-evaluation-tool-schema-v5.json`.
-- Correcteur par défaut : **DeepSeek `deepseek-v4-flash`**.
+- Correcteur par défaut : **DeepSeek `deepseek-v4-flash`**. ⚠️ **Choix en cours de
+  réexamen** — cf. §12.6 de `notation-ia-eo-ee.md`.
+- ⚠️ **La comparaison des 3 campagnes v9 est partiellement invalide.** Elles n'ont pas tourné
+  avec le même nombre de tentatives (`calibration.retries` : 9 pour `flash`, 3 pour `pro`,
+  1 pour `gpt-5.4`), alors que la production n'accorde **qu'un seul rejeu** avant `FAILED`.
+  Toute métrique dépendant du nombre d'essais — au premier chef « corrections perdues » —
+  est donc **non comparable entre campagnes** et ne doit pas être citée. Les métriques de
+  justesse et de coût restent valides.
+- Métrique honnête (`tentativesRatees / tentatives`, indépendante du nombre de vies) :
+  **`flash` 27,3 %** de rejets serveur, dont **42,9 % sur l'EO seul** ; `pro` 17,9 % / 31,2 % ;
+  `gpt-5.4` **0 % / 0 %**. En EE : **0 % partout**. Le rejet est donc un problème purement
+  oral (preuve non rattachable dans un transcript, garde-fou oral). Chaque rejet est un appel
+  facturé en double et, en production, un risque de correction non rendue.
+- Reste établi et contre-intuitif : **`deepseek-v4-pro` coûte plus cher que `flash`** (1,12 $
+  contre 0,91 $ la même campagne) sans mieux noter (pièges 4/8 contre 8/8, B2 3/7 contre 6/7).
+  Le nom « pro » ne présume rien de l'aptitude à cette tâche ni du prix — ne pas y revenir
+  sans remesurer, à nombre de rejeux égal. `gpt-5.4` fait jeu égal sur la justesse (81,3 %) et
+  ne se fait jamais refuser, mais coûte 4,5× plus cher. OpenAI et Anthropic restent câblés et
+  testés : **une bascule = un bloc de `.env`** (provider + modèle + ses deux tarifs), zéro
+  ligne de code, zéro ligne de `.yaml`.
+- Le « pic à 5 min 44 s » du banc est un **cumul de 9 appels** sur un même cas, pas un appel
+  lent : un appel isolé de `flash` tient en 16,3 s de médiane et 36,2 s au pire (mesuré sur
+  les 41 cas réglés en un seul appel). C'est ce chiffre qui dimensionne `timeout-sec`.
 - Examinateur vocal temps réel : **Gemini Live**. Il conduit/transcrit l'échange mais ne
   note jamais ; le transcript final revient dans le même pipeline correcteur.
 - EE : T1 **30–60 mots**, T2/T3 **60–90 mots**, bornes strictes.
@@ -67,11 +89,51 @@ Toute voie de notation lit `sejourfr.production-evaluation` dans `application.ya
 sejourfr:
   production-evaluation:
     provider: ${EVAL_LLM_PROVIDER:deepseek}
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v7}
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v9}
     deepseek:
       model: ${EVAL_DEEPSEEK_MODEL:deepseek-v4-flash}
-      prompt-version: ${EVAL_PROMPT_VERSION:v4}
+      prompt-version: ${EVAL_PROMPT_VERSION:v5}
+      # Forme de requête négociée avec le fournisseur ; `auto` = négociation.
+      max-tokens-param: ${EVAL_DEEPSEEK_MAX_TOKENS_PARAM:auto}
+      send-temperature: ${EVAL_DEEPSEEK_SEND_TEMPERATURE:auto}
+      # Budget d'UN appel HTTP (read timeout), pas d'une correction : 2,5× le
+      # pire appel `flash` mesuré (36,2 s), et déjà au-dessus du pire appel
+      # `pro` (66,7 s) — un retour arrière reste 3 lignes de `.env`.
+      timeout-sec: ${EVAL_DEEPSEEK_TIMEOUT_SEC:90}
+      # Vont AVEC `model`, dans la même source que lui (cf. EvaluationPricingTest).
+      cost-per-million-input-tokens: ${EVAL_DEEPSEEK_COST_INPUT:0.14}
+      cost-per-million-output-tokens: ${EVAL_DEEPSEEK_COST_OUTPUT:0.28}
+    openai:
+      model: ${EVAL_OPENAI_MODEL:gpt-5.4}
+      prompt-version: ${EVAL_PROMPT_VERSION:v5}
+      max-tokens-param: ${EVAL_OPENAI_MAX_TOKENS_PARAM:auto}
+      send-temperature: ${EVAL_OPENAI_SEND_TEMPERATURE:auto}
+      cost-per-million-input-tokens: ${EVAL_OPENAI_COST_INPUT:2.50}
+      cost-per-million-output-tokens: ${EVAL_OPENAI_COST_OUTPUT:15.00}
 ```
+
+### Changer de LLM ou de modèle : configuration seule, jamais de code
+
+Exigence explicite du propriétaire, formulée deux fois : **une ligne de `.env`, un
+redémarrage, ça marche**. Trois mécanismes la tiennent, aucun ne doit être défait.
+
+1. **La forme de la requête est négociée** avec le fournisseur (section suivante), jamais
+   codée en dur.
+2. **Le modèle de chaque bloc est un `${EVAL_*_MODEL:…}`** ; aucun défaut métier n'existe
+   dans les POJO (`ProductionEvaluationProperties` livre `model = null`), donc `application.yaml`
+   reste la seule source des défauts.
+3. **Le tarif voyage avec le modèle.** Le coût estimé est **persisté** dans
+   `ai_evaluations.cout_centimes` et n'est pas recalculable a posteriori : les deux tarifs sont
+   donc eux aussi des `${EVAL_*_COST_INPUT/OUTPUT:…}`, et `EvaluationPricingTest` **fait échouer
+   le build** si un modèle est choisi hors du `.yaml` sans ses deux tarifs dans la même source.
+
+Ce que ces tests **ne font plus** : nommer le provider ou le modèle attendu. `CalibrationEnvTest`
+vérifiait `provider == "openai"` et une table fermée de tarifs listait les modèles connus —
+revenir à DeepSeek passait le build au rouge alors que rien n'était cassé. Ils vérifient
+désormais une **cohérence** (provider connu, modèle nommé, clé présente, paire rubriques ⇄
+tool-schema valide, tarif présent/positif/plausible), et `EvaluationProviderSwapTest` prouve
+qu'un modèle *inédit* se branche sur les trois providers par quatre variables, sans toucher
+un `.java` ni un `.yaml`.
 
 `EvaluationLlmConfig` expose un unique bean primaire `EvaluationLlmClient`. Il est utilisé par :
 
@@ -90,6 +152,40 @@ Providers supportés :
 
 - `deepseek` et `openai` via `OpenAiCompatibleEvalClient` ;
 - `anthropic` via `EvaluationAnthropicClient`.
+
+### Négociation de la forme de requête (aucun code à toucher pour changer de modèle)
+
+`OpenAiCompatibleEvalClient` sert **deux** providers dont les corps de requête diffèrent, et
+les modèles évoluent : `max_tokens` (gpt-4.x, DeepSeek) contre `max_completion_tokens`
+(gpt-5.x, o-series), et des modèles qui refusent toute `temperature` explicite. Ces
+différences ne sont **pas** décidées par une liste de modèles dans le code — cette approche
+rouvre le code à chaque nouveau modèle.
+
+`ChatCompletionDialectNegotiator` (`util/`) tient la **forme courante** et la corrige à partir
+du 400 renvoyé par le fournisseur :
+
+- sur `Unsupported parameter: 'max_tokens' … Use 'max_completion_tokens' instead`, le nom de
+  remplacement est **lu dans le message** (`Use 'X' instead`) — un futur renommage est donc
+  absorbé sans commit ; à défaut de suggestion, bascule sur l'autre nom connu ;
+- sur `Unsupported value: 'temperature' does not support 0 …`, le champ est **omis** (jamais
+  envoyé à 1 : ce serait accepter en douce une notation non déterministe), avec un `WARN` ;
+- l'appel est rejoué **une fois** par correction de forme (3 renégociations au maximum) et la
+  forme retenue est **mémorisée pour le processus** — un client = un couple provider+modèle,
+  donc le surcoût est payé une fois par démarrage, jamais par correction. Rien n'est persisté.
+
+Un **400 métier** (tool-schema refusé, contenu invalide, modèle inexistant) ne déclenche
+**jamais** de renégociation : il faut à la fois un marqueur « paramètre/valeur non supporté »
+et l'un de nos champs, et un `error.param` désignant autre chose suffit à refuser. Sinon on
+masquerait une vraie erreur derrière une boucle de réessais.
+
+Les heuristiques par famille de modèle (`ChatCompletionDialect.premiereForme`) ne sont qu'un
+**raccourci** évitant un aller-retour raté sur les familles déjà connues ; leur absence de
+correspondance ne casse rien. `EVAL_OPENAI_MAX_TOKENS_PARAM` et `EVAL_OPENAI_SEND_TEMPERATURE`
+permettent de reprendre la main sans code (et **désactivent** la négociation du champ imposé).
+
+Tests : `ChatCompletionDialectNegotiatorTest` (unitaire) et
+`OpenAiCompatibleEvalClientNegotiationTest` (serveur HTTP local, corps 400 réels d'OpenAI,
+modèles volontairement inconnus du code).
 
 Changer `EVAL_LLM_PROVIDER` est la seule bascule globale. Les réglages Gemini sous
 `sejourfr.realtime` restent indépendants car ils concernent la conversation/transcription,

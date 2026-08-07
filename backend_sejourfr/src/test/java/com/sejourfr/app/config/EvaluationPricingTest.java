@@ -1,18 +1,17 @@
 package com.sejourfr.app.config;
 
+import com.sejourfr.app.config.EvaluationConfigFixture.BlocProvider;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
-import org.springframework.core.io.ClassPathResource;
 
 import java.util.Map;
 import java.util.Properties;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * FIGE le couple « modele correcteur ⇄ tarif ».
+ * FIGE la COHERENCE du couple « modele correcteur ⇄ tarif », jamais le CHOIX du
+ * modele.
  *
  * <p>Le cout estime d'une correction est <b>persiste</b> dans
  * {@code ai_evaluations} : un tarif faux y reste faux pour toujours, et il
@@ -21,66 +20,121 @@ import static org.assertj.core.api.Assertions.assertThat;
  * encore les tarifs de gpt-4o-mini (0,15 / 0,60) alors qu'on s'appretait a
  * appeler gpt-5.4, soit un facteur 17 en entree et 25 en sortie.
  *
- * <p>Ce test echoue donc des qu'on change {@code model} sans changer les deux
- * tarifs dans la meme passe. Ajouter un modele = ajouter sa ligne ici, avec le
- * prix RELEVE sur la page tarifaire du fournisseur — jamais de memoire.
+ * <p><b>Ce que ce test ne fait plus.</b> Il portait une table fermee
+ * « tel modele vaut tel prix ». Cette table transformait un changement de
+ * modele — une decision d'exploitation, qui doit tenir en une ligne de
+ * {@code .env} — en modification de code suivie d'une recompilation. Le premier
+ * modele absent de la table faisait echouer le build alors que rien n'etait
+ * casse.
+ *
+ * <p><b>Ce qu'il verifie a la place</b>, sans jamais nommer un modele :
+ * <ol>
+ *   <li>chaque bloc declare son modele ET ses deux tarifs en variables
+ *       d'environnement — donc changer de modele ne demande pas d'editer ce
+ *       fichier de configuration ;</li>
+ *   <li>les tarifs effectivement resolus existent, sont strictement positifs et
+ *       plausibles (entree ≤ sortie, ordres de grandeur d'une API publique) ;</li>
+ *   <li><b>le tarif voyage avec le modele</b> : un modele choisi ailleurs que
+ *       dans {@code application.yaml} doit apporter ses deux tarifs depuis la
+ *       MEME source. C'est exactement l'incident de gpt-4o-mini, exprime comme
+ *       une regle et non comme une liste.</li>
+ * </ol>
  */
 class EvaluationPricingTest {
 
-    /** USD / 1M tokens {input, output}, releves le 2026-08-07. */
-    private static final Map<String, double[]> TARIFS_OPENAI = Map.of(
-        "gpt-5.5", new double[] {5.00, 30.00},
-        "gpt-5.4", new double[] {2.50, 15.00},
-        "gpt-5.4-mini", new double[] {0.75, 4.50},
-        "gpt-5.2", new double[] {1.75, 14.00},
-        "gpt-4o-mini", new double[] {0.15, 0.60});
+    /**
+     * Un tarif au-dela de ce seuil (USD / 1M tokens) denonce une erreur d'unite
+     * — un prix « par millier » recopie dans un champ « par million ». Aucune
+     * API publique n'a jamais approche ce montant.
+     */
+    private static final double PLAFOND_PLAUSIBLE = 1_000.0;
 
-    /** USD / 1M tokens {input, output} — tarif public DeepSeek. */
-    private static final Map<String, double[]> TARIFS_DEEPSEEK = Map.of(
-        "deepseek-v4-flash", new double[] {0.27, 1.10});
+    /** {@code ${VAR:defaut}} — la forme qui rend une cle surchargeable sans editer le yaml. */
+    private static final Pattern PLACEHOLDER = Pattern.compile("^\\$\\{[A-Za-z_][A-Za-z0-9_]*:.*}$");
 
-    private static final Pattern PLACEHOLDER = Pattern.compile("^\\$\\{[^:}]+:(.*)}$");
+    @Test
+    void chaque_bloc_declare_son_modele_et_ses_tarifs_en_variables_d_environnement() {
+        Properties yaml = EvaluationConfigFixture.yamlBrut();
 
-    private static Properties applicationYaml() {
-        YamlPropertiesFactoryBean yaml = new YamlPropertiesFactoryBean();
-        yaml.setResources(new ClassPathResource("application.yaml"));
-        Properties props = yaml.getObject();
-        assertThat(props).isNotNull();
-        return props;
-    }
-
-    /** Valeur effective d'une propriete, placeholder {@code ${VAR:defaut}} resolu a son defaut. */
-    private static String valeur(Properties yaml, String cle) {
-        String brut = yaml.getProperty(cle);
-        assertThat(brut).as("propriete absente : %s", cle).isNotNull();
-        Matcher m = PLACEHOLDER.matcher(brut.strip());
-        return m.matches() ? m.group(1).strip() : brut.strip();
-    }
-
-    private static void verifie(Properties yaml, String prefixe, Map<String, double[]> tarifs) {
-        String modele = valeur(yaml, prefixe + ".model");
-        assertThat(tarifs)
-            .as("%s.model = '%s' : tarif inconnu. Relever le prix reel chez le fournisseur "
-                + "et l'ajouter a EvaluationPricingTest — un cout invente est persiste tel quel.",
-                prefixe, modele)
-            .containsKey(modele);
-
-        double[] attendu = tarifs.get(modele);
-        assertThat(Double.parseDouble(valeur(yaml, prefixe + ".cost-per-million-input-tokens")))
-            .as("%s : tarif d'entree incoherent avec le modele %s", prefixe, modele)
-            .isEqualTo(attendu[0]);
-        assertThat(Double.parseDouble(valeur(yaml, prefixe + ".cost-per-million-output-tokens")))
-            .as("%s : tarif de sortie incoherent avec le modele %s", prefixe, modele)
-            .isEqualTo(attendu[1]);
+        for (String provider : EvaluationConfigFixture.PROVIDERS) {
+            String prefixe = EvaluationConfigFixture.PREFIXE + "." + provider;
+            for (String cle : new String[] {
+                ".model", ".cost-per-million-input-tokens", ".cost-per-million-output-tokens"}) {
+                String brut = yaml.getProperty(prefixe + cle);
+                assertThat(brut).as("propriete absente : %s%s", prefixe, cle).isNotNull();
+                assertThat(brut.strip())
+                    .as("%s%s doit rester surchargeable par variable d'environnement "
+                        + "(forme ${VAR:defaut}) : sans cela, changer de modele ou de tarif "
+                        + "obligerait a editer application.yaml, ce que le proprietaire refuse.",
+                        prefixe, cle)
+                    .matches(PLACEHOLDER.asMatchPredicate());
+            }
+        }
     }
 
     @Test
-    void le_tarif_openai_correspond_au_modele_openai_configure() {
-        verifie(applicationYaml(), "sejourfr.production-evaluation.openai", TARIFS_OPENAI);
+    void le_tarif_effectif_de_chaque_bloc_est_present_positif_et_plausible() {
+        ProductionEvaluationProperties props = EvaluationConfigFixture.resolue();
+
+        for (String provider : EvaluationConfigFixture.PROVIDERS) {
+            verifieTarif(EvaluationConfigFixture.bloc(props, provider));
+        }
     }
 
     @Test
-    void le_tarif_deepseek_correspond_au_modele_deepseek_configure() {
-        verifie(applicationYaml(), "sejourfr.production-evaluation.deepseek", TARIFS_DEEPSEEK);
+    void un_modele_choisi_hors_du_yaml_apporte_ses_deux_tarifs() {
+        ProductionEvaluationProperties effective = EvaluationConfigFixture.resolue();
+        ProductionEvaluationProperties defauts = EvaluationConfigFixture.defautsYaml();
+        // NOMS seuls : cet environnement porte toutes les cles d'API du projet,
+        // et un message d'echec finit dans les journaux de build.
+        java.util.Set<String> horsYaml = EvaluationConfigFixture.nomsVariablesHorsYaml();
+
+        for (String provider : EvaluationConfigFixture.PROVIDERS) {
+            String modeleEffectif = EvaluationConfigFixture.bloc(effective, provider).modele();
+            String modeleYaml = EvaluationConfigFixture.bloc(defauts, provider).modele();
+            if (modeleEffectif == null || modeleEffectif.equals(modeleYaml)) continue;
+
+            for (String variable : new String[] {
+                EvaluationConfigFixture.varCoutEntree(provider),
+                EvaluationConfigFixture.varCoutSortie(provider)}) {
+                assertThat(horsYaml.contains(variable))
+                    .as("%s vaut '%s' au lieu du defaut '%s' : le modele a ete choisi hors "
+                        + "d'application.yaml, ses TARIFS doivent l'etre aussi, dans la meme "
+                        + "source. Poser %s a cote de %s. Le cout d'une correction est persiste "
+                        + "dans ai_evaluations : un tarif reste de l'ancien modele y reste faux "
+                        + "pour toujours (defaut vecu : facteur 17 en entree).",
+                        EvaluationConfigFixture.varModele(provider), modeleEffectif, modeleYaml,
+                        variable, EvaluationConfigFixture.varModele(provider))
+                    .isTrue();
+            }
+        }
+    }
+
+    /**
+     * Les trois regles de plausibilite d'un tarif, partagees avec
+     * {@link EvaluationProviderSwapTest} : ce sont elles qui doivent continuer
+     * de passer quand on branche un modele qui n'existe pas encore.
+     */
+    static void verifieTarif(BlocProvider bloc) {
+        assertThat(bloc.modele())
+            .as("%s : aucun modele configure", bloc.provider())
+            .isNotNull().isNotBlank();
+
+        assertThat(bloc.coutEntree())
+            .as("%s (modele %s) : tarif d'entree absent ou nul — un cout de 0 est enregistre "
+                + "tel quel dans ai_evaluations et rend toute analyse de depense fausse.",
+                bloc.provider(), bloc.modele())
+            .isGreaterThan(0.0).isFinite().isLessThan(PLAFOND_PLAUSIBLE);
+
+        assertThat(bloc.coutSortie())
+            .as("%s (modele %s) : tarif de sortie absent ou nul.", bloc.provider(), bloc.modele())
+            .isGreaterThan(0.0).isFinite().isLessThan(PLAFOND_PLAUSIBLE);
+
+        assertThat(bloc.coutSortie())
+            .as("%s (modele %s) : la sortie coute %s et l'entree %s. Aucun fournisseur ne "
+                + "facture la sortie moins cher que l'entree — les deux valeurs sont "
+                + "probablement inversees.",
+                bloc.provider(), bloc.modele(), bloc.coutSortie(), bloc.coutEntree())
+            .isGreaterThanOrEqualTo(bloc.coutEntree());
     }
 }

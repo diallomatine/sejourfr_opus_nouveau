@@ -110,7 +110,7 @@ class AiEvaluationServiceV8Test {
         service = new AiEvaluationService(submissionManager, transcriptionManager, aiEvaluationManager,
             llmClient, promptBuilder, rubrics, new ProductionValidityService(props),
             new ProductionSecondePasseService(props, mock(EvaluationLlmClient.class), rubrics),
-            new ProductionFluiditeService(props), props);
+            new ProductionFluiditeService(props), new EvaluationRefusalMetrics(), props);
     }
 
     // ------------------------------------------------------------- fixtures

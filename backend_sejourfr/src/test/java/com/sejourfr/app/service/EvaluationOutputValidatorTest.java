@@ -172,6 +172,108 @@ class EvaluationOutputValidatorTest {
         }
     }
 
+    // --------------------------------- deux faux positifs du garde-fou oral
+
+    /**
+     * CAS REEL : une evaluation a ete detruite pour « cette repetition alourdit la
+     * phrase … supprime le pronom repete » — une remarque de MORPHOSYNTAXE, pas de
+     * diction. Pire, les rubriques ORDONNENT au correcteur de peser « a-t-il du
+     * faire repeter ? » dans {@code communiquer} : le prompt commandait une notion
+     * que le validateur interdisait d'ecrire.
+     */
+    @Test
+    void la_repetition_syntaxique_n_est_plus_un_motif_oral_interdit() {
+        for (String remarque : List.of(
+            "Cette répétition alourdit la phrase : supprime le pronom répété.",
+            "La répétition du même connecteur « et » limite la variété des liens.",
+            "L'examinateur a dû faire répéter la question, ce qui coupe l'échange.")) {
+            Map<String, Object> feedback = validFeedback();
+            feedback.put("justification_niveau", remarque);
+
+            assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+                feedback, task(EpreuveType.TCF_EO), rubrics, "v4")))
+                .as(remarque)
+                .isEmpty();
+        }
+    }
+
+    /** La REPETITION comme defaut de diction, elle, reste refusee. */
+    @Test
+    void la_repetition_de_diction_reste_refusee() {
+        for (String remarque : List.of(
+            "Réduisez les répétitions pour gagner en clarté.",
+            "Évite les répétitions du début de ta réponse.",
+            "De nombreuses répétitions parsèment votre discours.",
+            "Le débit est régulier mais les répétitions gênent l'écoute.")) {
+            Map<String, Object> feedback = validFeedback();
+            feedback.put("justification_niveau", remarque);
+
+            assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+                feedback, task(EpreuveType.TCF_EO), rubrics, "v4")))
+                .as(remarque)
+                .hasSize(1);
+        }
+    }
+
+    /** « Mettre l'accent sur » est une tournure legitime, pas un reproche de diction. */
+    @Test
+    void mettre_l_accent_sur_n_est_plus_un_motif_oral_interdit() {
+        for (String remarque : List.of(
+            "Mets l'accent sur les liens logiques entre tes idées.",
+            "L'accent est mis sur la demande, ce qui rend le message clair.",
+            "Il faudrait mettre l'accent sur la justification de ton choix.")) {
+            Map<String, Object> feedback = validFeedback();
+            feedback.put("justification_niveau", remarque);
+
+            assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+                feedback, task(EpreuveType.TCF_EO), rubrics, "v4")))
+                .as(remarque)
+                .isEmpty();
+        }
+    }
+
+    @Test
+    void l_accent_de_diction_reste_refuse() {
+        for (String remarque : List.of(
+            "Votre accent rend certains mots difficiles à identifier.",
+            "Un accent marqué gêne la compréhension.")) {
+            Map<String, Object> feedback = validFeedback();
+            feedback.put("justification_niveau", remarque);
+
+            assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+                feedback, task(EpreuveType.TCF_EO), rubrics, "v4")))
+                .as(remarque)
+                .hasSize(1);
+        }
+    }
+
+    /**
+     * NON-REGRESSION : l'acquis principal — « on ne note jamais sur la
+     * prononciation » — reste entier. Aucun de ces jetons n'a bouge.
+     */
+    @Test
+    void les_autres_notions_de_diction_restent_toutes_interdites() {
+        for (String remarque : List.of(
+            "Le discours est haché par de nombreuses hésitations.",
+            "La fluidité reste limitée.",
+            "La prononciation gêne la compréhension.",
+            "Le débit de parole est trop lent.",
+            "L'intonation reste plate.",
+            "De longues pauses dans la réponse cassent le propos.",
+            "Les faux départs sont fréquents.",
+            "L'aisance fait défaut.",
+            "L'orthographe de la transcription est fautive.",
+            "La ponctuation manque.")) {
+            Map<String, Object> feedback = validFeedback();
+            feedback.put("justification_niveau", remarque);
+
+            assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+                feedback, task(EpreuveType.TCF_EO), rubrics, "v4")))
+                .as(remarque)
+                .hasSize(1);
+        }
+    }
+
     @Test
     void aucune_violation_orale_sur_une_sortie_conforme() {
         assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(

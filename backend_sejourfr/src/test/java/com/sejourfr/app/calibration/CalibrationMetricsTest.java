@@ -73,7 +73,7 @@ class CalibrationMetricsTest {
         CalibrationMetrics.Conformite c = CalibrationMetrics.conformite(List.of(erreur));
         assertThat(c.erreurAppel()).isEqualTo(1);
         assertThat(c.casPerdus()).isEqualTo(1);
-        assertThat(c.pctAppelsRates()).isEqualTo(100.0);
+        assertThat(c.pctEchecProduction()).isEqualTo(100.0);
     }
 
     @Test
@@ -87,7 +87,7 @@ class CalibrationMetricsTest {
         assertThat(bloque.accordExact()).isTrue();
         CalibrationMetrics.Conformite c = CalibrationMetrics.conformite(List.of(bloque));
         assertThat(c.validiteServeur()).isEqualTo(1);
-        assertThat(c.pctAppelsRates()).isZero();
+        assertThat(c.pctEchecProduction()).isZero();
     }
 
     @Test
@@ -246,6 +246,67 @@ class CalibrationMetricsTest {
             "cas_non_mesures_pct", "motifs_perte", "motifs_perte_lisible");
         assertThat(json.get("cas_perdus_pct")).isEqualTo(50.0);
         assertThat(json.get("sortie_invalide_pct")).isEqualTo(0.0);
+    }
+
+    /**
+     * DEUX METRIQUES, PAS UNE. L'ancien {@code appels_rates_pct} comptait les
+     * tentatives de la boucle externe en les annoncant « par appel » : il
+     * sous-estimait les refus d'un facteur ~2 et ne decrivait pas non plus ce que
+     * vit un candidat. Ici : 3 evaluations tentees dont 2 echouees (66,7 % en
+     * conditions de production), pour 5 appels LLM dont 4 refuses (80 %).
+     */
+    @Test
+    void les_sorties_refusees_et_l_echec_en_production_ne_se_confondent_pas() {
+        CaseRun.Tentative refusee = new CaseRun.Tentative(1, false, "refus", 2,
+            List.of("PREMIER_APPEL : preuve[lexique] doit citer un passage reel de la production"),
+            List.of("PREMIER_APPEL : lexique : citation absente"),
+            Map.of("PREUVE_NON_RATTACHEE", 1));
+        CaseRun perduDeuxFois = new CaseRun("c1", "EO_T2", 1, "ERREUR_APPEL", "refus", "B1",
+            List.of("B1"), null, null, null, Map.of(), 6, 9, "HAUTE", null, true, null,
+            List.of(), List.of(), List.of(), List.of(), List.of(), true, 2, 2, "m",
+            null, null, null, 5, 4, List.of(refusee, refusee));
+        CaseRun reussi = new CaseRun("c2", "EE_T1", 1, "OK", null, "B1", List.of("B1"), "B1",
+            "B1", 8.0, Map.of(), 6, 9, "HAUTE", "HAUTE", true, true, List.of(), List.of(),
+            List.of(), List.of(), List.of(), true, 1, 0, "m", 1, 1, 1, 1, 1, List.of());
+
+        CalibrationMetrics.Conformite c =
+            CalibrationMetrics.conformite(List.of(perduDeuxFois, reussi));
+
+        assertThat(c.evaluationsTentees()).isEqualTo(3);
+        assertThat(c.evaluationsEchouees()).isEqualTo(2);
+        assertThat(c.pctEchecProduction()).isEqualTo(200.0 / 3);
+        assertThat(c.appelsLlm()).isEqualTo(5);
+        assertThat(c.sortiesRefusees()).isEqualTo(4);
+        assertThat(c.pctSortiesRefusees()).isEqualTo(80.0);
+    }
+
+    /**
+     * {@code erreur} n'est plus efface par une tentative qui reussit : c'est ce
+     * qui faisait disparaitre le motif de refus du rapport (2 motifs tracables
+     * sur 102 refus). La trace, elle, garde chaque tentative.
+     */
+    @Test
+    void un_cas_rattrape_conserve_la_trace_de_ce_qui_a_ete_refuse() {
+        CaseRun rattrape = new CaseRun("c1", "EO_T2", 1, "OK",
+            "AiEvaluationException : Sortie LLM invalide apres une tentative de reparation",
+            "B1", List.of("B1"), "B1", "B1", 8.0, Map.of(), 6, 9, "HAUTE", "HAUTE", true, true,
+            List.of(), List.of(), List.of(), List.of(), List.of(), true, 2, 1, "m", 1, 1, 1, 1,
+            3, List.of(
+                new CaseRun.Tentative(1, false, "refus", 2,
+                    List.of("PREMIER_APPEL : preuve[lexique] doit citer un passage reel "
+                        + "de la production"),
+                    List.of("PREMIER_APPEL : lexique : « la cou ture s'est défai te »"),
+                    Map.of("PREUVE_NON_RATTACHEE", 1)),
+                new CaseRun.Tentative(2, true, null, 0, List.of(), List.of(), Map.of())));
+
+        // Le cas est mesure — donc aucun motif de PERTE — mais le refus reste lisible.
+        assertThat(rattrape.exploitable()).isTrue();
+        assertThat(CalibrationMetrics.motifPerte(rattrape)).isNull();
+        assertThat(rattrape.erreur()).isNotNull();
+        assertThat(rattrape.sortiesRefusees()).isEqualTo(2);
+        assertThat(rattrape.traces().get(0).citationsRefusees())
+            .containsExactly("PREMIER_APPEL : lexique : « la cou ture s'est défai te »");
+        assertThat(rattrape.traces().get(0).refuseeParNosControles()).isTrue();
     }
 
     @Test

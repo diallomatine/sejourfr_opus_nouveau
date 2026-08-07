@@ -27,7 +27,7 @@ public class EvaluationLlmConfig {
 
     private static final Logger log = LoggerFactory.getLogger(EvaluationLlmConfig.class);
 
-    /** Client OpenAI (gpt-4o-mini par defaut). */
+    /** Client OpenAI. Le modele vient de la configuration, jamais d'ici. */
     @Bean("evaluationOpenAiClient")
     public OpenAiCompatibleEvalClient evaluationOpenAiClient(
             ProductionEvaluationProperties props, ObjectMapper objectMapper) {

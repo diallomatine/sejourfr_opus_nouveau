@@ -350,9 +350,29 @@ final class CalibrationMetrics {
     }
 
     /**
-     * @param appels          appels LLM reellement emis (retries compris)
-     * @param appelsRates     appels dont la reponse etait inexploitable — en
-     *                        production, chacun fait echouer une soumission
+     * DEUX CHOSES QUE LE RAPPORT CONFONDAIT (corrige 2026-08-07).
+     *
+     * <p>L'ancien {@code appels_rates_pct} etait annonce comme un taux de
+     * sorties invalides « par appel », alors qu'il comptait les tentatives de la
+     * BOUCLE EXTERNE du banc — or une tentative vaut jusqu'a deux appels
+     * (initial + reparation). Il sous-estimait donc les refus d'un facteur ~2, et
+     * n'etait de toute facon pas la metrique qui decrit ce que vit un candidat.
+     * Les deux sont desormais publiees separement :
+     *
+     * <ul>
+     *   <li><b>sorties refusees</b> = {@code sortiesRefusees / appelsLlm} : ce que
+     *       NOS controles refusent, appel par appel ;</li>
+     *   <li><b>echec en conditions de production</b> =
+     *       {@code evaluationsEchouees / evaluationsTentees} : en production il
+     *       n'y a qu'UN reessai, donc une evaluation echouee est une soumission
+     *       perdue pour un candidat.</li>
+     * </ul>
+     *
+     * @param evaluationsTentees  evaluations completes tentees (boucle externe)
+     * @param evaluationsEchouees evaluations completes qui ont echoue
+     * @param appelsLlm           appels au correcteur, reparations comprises
+     * @param sortiesRefusees     sorties bien formees que nos validateurs ont
+     *                            refusees, appel par appel
      * @param casPerdus       cas qu'aucune tentative n'a permis de mesurer
      * @param casNonMesures   cas absents des agregats, quelle qu'en soit la
      *                        cause ({@code casPerdus} + sorties incompletes)
@@ -362,12 +382,22 @@ final class CalibrationMetrics {
      *                        utilisateur : les deux taux se lisent cote a cote.
      */
     record Conformite(int total, int ok, int validiteServeur, int sortieInvalide, int erreurAppel,
-                      int criteresManquants, int appels, int appelsRates, int casPerdus,
+                      int criteresManquants, int evaluationsTentees, int evaluationsEchouees,
+                      int appelsLlm, int sortiesRefusees, int casPerdus,
                       int casAvecReessai, int casNonMesures, Map<String, Integer> motifsPerte) {
 
-        /** Taux de sorties invalides du modele, par appel. */
-        double pctAppelsRates() {
-            return pct(appelsRates, appels);
+        /**
+         * ECHEC EN CONDITIONS DE PRODUCTION : part des evaluations completes qui
+         * echouent. C'est ce qu'un candidat subit — en production, une evaluation
+         * n'est pas rejouee par une boucle externe.
+         */
+        double pctEchecProduction() {
+            return pct(evaluationsEchouees, evaluationsTentees);
+        }
+
+        /** Part des reponses du correcteur que NOS controles ont refusees. */
+        double pctSortiesRefusees() {
+            return pct(sortiesRefusees, appelsLlm);
         }
 
         /** Taux de cas irrecuperables meme apres reessai. */
@@ -396,8 +426,10 @@ final class CalibrationMetrics {
         int invalide = 0;
         int erreur = 0;
         int criteres = 0;
-        int appels = 0;
-        int rates = 0;
+        int tentees = 0;
+        int echouees = 0;
+        int appelsLlm = 0;
+        int refusees = 0;
         int reessais = 0;
         Map<String, Integer> motifs = new LinkedHashMap<>();
         for (MotifPerte motif : MotifPerte.values()) motifs.put(motif.name(), 0);
@@ -415,12 +447,14 @@ final class CalibrationMetrics {
                 nonMesures++;
             }
             if (!r.criteresManquants().isEmpty()) criteres++;
-            appels += r.tentatives();
-            rates += r.tentativesRatees();
+            tentees += r.tentatives();
+            echouees += r.tentativesRatees();
+            appelsLlm += r.appelsLlm();
+            refusees += r.sortiesRefusees();
             if (r.tentativesRatees() > 0) reessais++;
         }
         return new Conformite(runs.size(), ok, validite, invalide, erreur, criteres,
-            appels, rates, erreur, reessais, nonMesures,
+            tentees, echouees, appelsLlm, refusees, erreur, reessais, nonMesures,
             java.util.Collections.unmodifiableMap(motifs));
     }
 

@@ -6,6 +6,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +24,76 @@ final class CalibrationReport {
         "ecart = reference - IA (reference = centre de [note_min, note_max] ; niveau : rang attendu - rang obtenu). "
             + "NEGATIF = l'IA note AU-DESSUS de la reference, donc trop indulgente. POSITIF = trop severe.";
 
+    /**
+     * Reglages qui doivent etre IDENTIQUES entre un temoin et un candidat pour
+     * que leurs colonnes soient comparables. {@code retries} est en tete parce
+     * que c'est celui qui a deja fausse une decision : {@code v9-flash} a tourne
+     * a 9, {@code v9-pro} a 3, {@code gpt-5.4} a 1 — la colonne « cas perdus »
+     * n'y mesurait plus la meme chose, et un choix de modele a ete fait dessus.
+     */
+    private static final List<String> REGLAGES_COMPARABLES =
+        List.of("retries", "modele", "provider", "corpus", "cas", "passes",
+            "rubrics_version", "prompt_version");
+
+    /** Reglage dont la divergence rend les rapports NON comparables (echec dur). */
+    static final String REGLAGE_BLOQUANT = "retries";
+
     private CalibrationReport() {
+    }
+
+    /**
+     * Compare les reglages d'une campagne a ceux d'un rapport temoin.
+     *
+     * @return les divergences, {@code retries} en premier s'il diverge. Vide si
+     *         les deux campagnes sont comparables.
+     */
+    static List<String> divergencesDeReglage(Map<String, Object> contexte, Map<String, Object> temoin) {
+        List<String> out = new ArrayList<>();
+        for (String cle : REGLAGES_COMPARABLES) {
+            Object attendu = temoin.get(cle);
+            Object obtenu = contexte.get(cle);
+            if (attendu == null && obtenu == null) continue;
+            if (String.valueOf(attendu).equals(String.valueOf(obtenu))) continue;
+            String divergence = cle + " : temoin=" + attendu + " vs campagne=" + obtenu;
+            if (REGLAGE_BLOQUANT.equals(cle)) out.add(0, divergence);
+            else out.add(divergence);
+        }
+        return List.copyOf(out);
+    }
+
+    /** Vrai si l'une des divergences porte sur {@link #REGLAGE_BLOQUANT}. */
+    static boolean bloquant(List<String> divergences) {
+        return divergences.stream().anyMatch(d -> d.startsWith(REGLAGE_BLOQUANT + " :"));
+    }
+
+    /** Contexte d'un rapport deja ecrit, pour servir de temoin. */
+    static Map<String, Object> contexteDuRapport(Path fichier) {
+        try {
+            Object racine = JsonMapper.builder().build().readValue(fichier.toFile(), Object.class);
+            if (racine instanceof Map<?, ?> m && m.get("contexte") instanceof Map<?, ?> contexte) {
+                Map<String, Object> out = new LinkedHashMap<>();
+                contexte.forEach((k, v) -> out.put(String.valueOf(k), v));
+                return out;
+            }
+            throw new IllegalStateException("Rapport temoin sans bloc `contexte` : " + fichier);
+        } catch (Exception e) {
+            throw new IllegalStateException("Rapport temoin illisible : " + fichier, e);
+        }
+    }
+
+    /** Bandeau tres visible : un rapport non comparable ne doit pas se lire de biais. */
+    static String bandeauComparabilite(List<String> divergences) {
+        if (divergences.isEmpty()) return "Temoin comparable : memes reglages.";
+        StringBuilder sb = new StringBuilder();
+        sb.append("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+        sb.append(bloquant(divergences)
+            ? "CAMPAGNES NON COMPARABLES — les reglages different sur `retries`.\n"
+              + "Un temoin et un candidat DOIVENT tourner au meme nombre de reessais :\n"
+              + "sinon la colonne « cas perdus » ne mesure pas la meme chose.\n"
+            : "ATTENTION — reglages differents entre le temoin et cette campagne.\n");
+        for (String d : divergences) sb.append("  · ").append(d).append('\n');
+        sb.append("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+        return sb.toString();
     }
 
     static Path ecrire(String label, Map<String, Object> contexte, List<CaseRun> runs) {
@@ -67,9 +137,16 @@ final class CalibrationReport {
         m.put("total", c.total());
         m.put("ok", c.ok());
         m.put("validite_serveur", c.validiteServeur());
-        m.put("appels", c.appels());
-        m.put("appels_rates", c.appelsRates());
-        m.put("appels_rates_pct", arrondi(c.pctAppelsRates()));
+        // DEUX METRIQUES DISTINCTES, cf. javadoc de Conformite. L'ancienne cle
+        // `appels_rates_pct` melangeait les deux et sous-estimait les refus d'un
+        // facteur ~2 : elle n'est volontairement pas conservee, un rapport
+        // ambigu vaut moins qu'un rapport qui change de forme.
+        m.put("evaluations_tentees", c.evaluationsTentees());
+        m.put("evaluations_echouees", c.evaluationsEchouees());
+        m.put("echec_production_pct", arrondi(c.pctEchecProduction()));
+        m.put("appels_llm", c.appelsLlm());
+        m.put("sorties_refusees", c.sortiesRefusees());
+        m.put("sorties_refusees_pct", arrondi(c.pctSortiesRefusees()));
         m.put("cas_avec_reessai", c.casAvecReessai());
         m.put("criteres_manquants", c.criteresManquants());
         m.put("sortie_invalide", c.sortieInvalide());
@@ -116,10 +193,13 @@ final class CalibrationReport {
             "Runs %d — OK %d · court-circuit validite %d · champ requis manquant %d · cas perdus %d%n",
             c.total(), c.ok(), c.validiteServeur(), c.sortieInvalide(), c.erreurAppel()));
         sb.append(String.format(
-            "Sorties invalides : %d appels rates sur %d (%.1f %%) — %d cas ont exige un reessai · "
-                + "criteres manquants sur %d run(s)%n",
-            c.appelsRates(), c.appels(), c.pctAppelsRates(), c.casAvecReessai(),
-            c.criteresManquants()));
+            "SORTIES REFUSEES par nos controles : %d sur %d appels LLM (%.1f %%)%n",
+            c.sortiesRefusees(), c.appelsLlm(), c.pctSortiesRefusees()));
+        sb.append(String.format(
+            "ECHEC EN CONDITIONS DE PRODUCTION : %d evaluations echouees sur %d tentees (%.1f %%) "
+                + "— %d cas ont exige un reessai · criteres manquants sur %d run(s)%n",
+            c.evaluationsEchouees(), c.evaluationsTentees(), c.pctEchecProduction(),
+            c.casAvecReessai(), c.criteresManquants()));
         // Les deux taux cote a cote, et le MOTIF de chaque perte : un cas perdu
         // coute autant a un utilisateur qu'une sortie invalide, et annoncer
         // « 0 % de sortie invalide » pendant qu'un tiers des cas se perd rendait

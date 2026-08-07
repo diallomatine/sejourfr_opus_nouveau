@@ -19,6 +19,37 @@ réponse strict **v5** (inchangé depuis la v8), examinateur vocal **v2**. Ce qu
 changent, est expliqué en §15. Pour la **seconde voie d'évaluation** — les micro-exercices par
 compétence, sans note ni niveau — les versions sont **v1 / v1** et tout est décrit au §11 bis.
 
+> 🆕 **Correcteur en vigueur : `deepseek-v4-flash`. Ce choix est en cours de réexamen.**
+> **Aucune règle de notation n'est en jeu** : mêmes rubriques v9, même format de réponse v5,
+> mêmes seuils, mêmes garde-fous. Seul le moteur qui lit les consignes est discuté.
+>
+> Trois moteurs ont été comparés sur les mêmes 48 cas les 7 et 8 août 2026 (§12.6). **Une
+> partie de cette comparaison s'est révélée faussée** : les trois campagnes n'ont pas accordé
+> le même nombre de réessais au correcteur (jusqu'à **9** pour `flash`, **3** pour
+> `deepseek-v4-pro`, **1** pour `gpt-5.4`), alors qu'en vraie utilisation il n'y a **qu'un
+> seul réessai** avant l'échec. Ce qui se lisait comme « `flash` ne perd jamais de
+> correction » disait en réalité « `flash` a eu neuf vies ». **Ce point est retiré du
+> dossier** ; il ne faut pas s'y appuyer.
+>
+> Ce qui reste établi, et qui est **contre-intuitif — le fait le plus important de cette
+> page** : **le modèle qui s'appelle « pro » coûte plus cher que celui qui s'appelle
+> « flash »** (1,12 $ contre 0,91 $ pour la même campagne de 48 corrections), sans lui être
+> supérieur : il **rate la moitié des cas-pièges** (4/8 contre 8/8) et classe **4 B2 sur 7 en
+> B1**. Le nom commercial d'un modèle ne dit rien de son aptitude à corriger une production
+> TCF, ni de son prix relatif. Un futur lecteur tenté de « corriger » ce choix en repassant
+> au « pro » parce que le nom sonne mieux ferait une erreur : **il faut remesurer**, et cette
+> fois à nombre de réessais égal.
+>
+> **Ce qu'on sait du coût réel du choix `flash`.** Une réponse de `flash` sur quatre est
+> **refusée par nos propres contrôles** (citation qui ne se retrouve pas mot pour mot dans la
+> production, conseil fondé sur un élément qu'on s'interdit de juger à l'oral) : **27,3 % de
+> ses appels, et 42,9 % sur les seules productions orales**. Chaque refus est un appel
+> facturé en double, et — en vraie utilisation, où le réessai est unique — **un risque réel
+> de correction non rendue**. `deepseek-v4-pro` refuse moins (17,9 % ; 31,2 % à l'oral),
+> `gpt-5.4` ne refuse jamais (0 %). C'est ce chiffre-là, et non la ligne « corrections
+> perdues » du banc, qui doit peser dans l'arbitrage. Comparaison colonne par colonne au
+> **§12.6** ; changer de moteur tient en trois lignes de configuration.
+
 > 🆕 **Ce que change la v9 : la lecture de l'oral.** La façon de **noter** est celle de la
 > v8 — mêmes critères, même échelle, mêmes seuils, mêmes garde-fous, mêmes exemples de
 > calibration, mêmes grilles par tâche, au caractère près. Deux sections seulement ont été
@@ -34,9 +65,11 @@ compétence, sans note ni niveau — les versions sont **v1 / v1** et tout est d
 >    dans « communiquer » et « interagir » (§8 ter) — sans jamais toucher au garde-fou de
 >    l'oral : une relance de l'examinateur **n'est pas** une hésitation du candidat.
 >
-> Mesurée au banc contre un témoin v8 rejoué le même jour : accord exact **74,5 % → 81,3 %**,
-> pièges évités **4/8 → 8/8**, corrections perdues **2,1 % → 0 %**. Un recul à signaler :
-> l'accord de confiance baisse (53,2 % → 45,8 %). Détail et réserves au **§12.4**.
+> Mesurée au banc contre un témoin v8 rejoué le même jour, **avec le même moteur et le même
+> budget de réessais** (ce qui rend cette comparaison-ci valide, à la différence de celle des
+> moteurs au §12.6) : accord exact **74,5 % → 81,3 %**, pièges évités **4/8 → 8/8**, appels
+> refusés par nos contrôles **37,3 % → 27,3 %**, corrections perdues **2,1 % → 0 %**. Un recul
+> à signaler : l'accord de confiance baisse (53,2 % → 45,8 %). Détail et réserves au **§12.4**.
 
 > 🆕 **Ce que la v8 avait changé : le rapport, pas la note.** La façon de **noter** est celle de la
 > v7, à l'identique — mêmes critères, même échelle, mêmes seuils, mêmes garde-fous, mêmes
@@ -1664,7 +1697,9 @@ l'incompréhensibilité).
 
 Une **commande unique** rejoue tout le corpus contre l'IA, avec la version de consignes qu'on
 veut tester, et produit un rapport. Elle n'est **jamais** lancée automatiquement : elle appelle
-un modèle payant. Une campagne complète coûte environ **45 centimes**.
+un modèle payant. Une campagne complète coûte **91 centimes** avec le correcteur en vigueur
+(`deepseek-v4-flash`, grille v9) — c'était 45 centimes avec les grilles plus courtes d'avant
+la v9, et cela monte à **4,14 $** avec `gpt-5.4` (§12.6).
 
 ### 12.3 Ce qu'il mesure
 
@@ -1944,6 +1979,7 @@ Mesure : **une campagne v8 rejouée le même jour, sur le même modèle (DeepSee
 | productions **B1** correctement classées | 12/12 | 12/12 |
 | productions **B2** correctement classées | **7/7** | 6/7 |
 | réponses inexploitables | 0 % | 0 % |
+| **appels refusés par nos contrôles** | 37,3 % (28 sur 75) | **27,3 %** (18 sur 66) |
 | **corrections perdues** | 1/48 — 2,1 % (citation refusée) | **0/48 — 0 %** |
 | écart de sévérité (référence − IA) | −0,57 | **−0,38** |
 | accord de **confiance** | **53,2 %** | 45,8 % |
@@ -1956,9 +1992,13 @@ Ce qu'il faut en retenir, et ce qu'il ne faut pas y lire :
   vérifiable, l'autre classée un palier trop haut), le **texte mémorisé** annoncé B1 au lieu de
   A2, le hors-sujet et la production en langue étrangère. Sur l'oral en interaction (tâche 2),
   l'accord exact passe de **71,4 % à 87,5 %** ;
-- **plus aucune correction perdue.** Le seul cas perdu de la v8 l'était pour une citation
-  refusée, sur une transcription bruitée — exactement la situation où le correcteur est invité,
-  désormais, à citer un autre passage plutôt qu'un mot douteux ;
+- **le correcteur se fait nettement moins refuser** : 37,3 % de ses appels étaient rejetés par
+  nos contrôles sous la v8, 27,3 % sous la v9. Le seul cas perdu de la v8 l'était pour une
+  citation refusée sur une transcription bruitée — exactement la situation où le correcteur est
+  invité, désormais, à citer un autre passage plutôt qu'un mot douteux. ⚠️ Contrairement à la
+  comparaison de **moteurs** du §12.6, cette comparaison-ci **est** valide : même modèle
+  (`deepseek-v4-flash`), même jour, **et même budget de réessais** (jusqu'à 10 côté v8, 9 côté
+  v9) — la ligne « corrections perdues » y est donc lisible ;
 - **attention à ne pas sur-attribuer.** Les consignes communes sont envoyées pour **toutes** les
   tâches, y compris à l'écrit : le gain visible sur l'écrit tâche 3 (50 % → 75 %) n'a pas de
   cause identifiable dans le changement, et sur douze cas il tient dans le bruit. Ce qui est
@@ -2101,6 +2141,139 @@ Le banc sert autant à mesurer les progrès qu'à nommer ce qui ne va pas.
 
 ---
 
+### 12.6 Changer de correcteur : trois moteurs mesurés sur le même corpus
+
+Le correcteur est un **réglage**, pas une règle : la même grille v9 peut être lue par
+plusieurs moteurs. Trois l'ont été, sur les **mêmes 48 cas**, avec la même grille et le même
+format de réponse, 3 corrections en vol :
+
+- **DeepSeek `deepseek-v4-flash`** — le correcteur historique, **en vigueur aujourd'hui** ;
+- **OpenAI `gpt-5.4`** — essayé le 2026-08-07, le plus régulier mesuré, et le plus cher ;
+- **DeepSeek `deepseek-v4-pro`** — essayé le 2026-08-08.
+
+> 🛑 **Avertissement de lecture, ajouté après coup — à lire avant le tableau.** Ces trois
+> campagnes **ne se comparent pas ligne à ligne**. Elles n'ont pas accordé au correcteur le
+> même nombre de réessais : jusqu'à **9** pour `flash`, **3** pour `deepseek-v4-pro`, **1**
+> pour `gpt-5.4`. Or, en vraie utilisation, un candidat n'a droit qu'à **un seul réessai**
+> avant que la correction n'échoue. Toute ligne qui dépend du nombre d'essais — au premier
+> chef **« corrections perdues »** — mesure donc le réglage du banc, pas le modèle. La ligne
+> honnête, celle qui décrit ce qui arrive à un vrai candidat, est **« appels refusés par nos
+> contrôles »** : elle compte les réponses rejetées **rapportées aux appels réellement
+> passés**, indépendamment du nombre de vies accordées. Les lignes de justesse (accord,
+> paliers, pièges) et de coût, elles, restent comparables.
+
+> ⚠️ **Le fait à retenir, parce qu'il est contre-intuitif.** Sur ce travail précis — corriger
+> une production TCF avec citations obligatoires — **le modèle nommé « pro » coûte plus cher
+> que celui nommé « flash »** (1,12 $ contre 0,91 $ la campagne) **sans mieux noter** (pièges
+> 4/8 contre 8/8, B2 3/7 contre 6/7). Le nom commercial d'un modèle renseigne sur sa taille,
+> **pas** sur son prix relatif ni sur son aptitude à une tâche donnée. Quiconque voudrait
+> « remettre le bon modèle » doit **refaire la mesure d'abord**.
+
+| Ce qu'on mesure | **`deepseek-v4-flash`** (en vigueur) | `gpt-5.4` | `deepseek-v4-pro` |
+|---|---|---|---|
+| ~~Corrections rendues / perdues~~ | ⚠️ **NON COMPARABLE** — réessais accordés : 9 | ⚠️ réessais : 1 | ⚠️ réessais : 3 |
+| **Appels refusés par nos contrôles** *(la ligne qui décrit ce qu'un candidat subit)* | 27,3 % (18 appels sur 66) | **0 %** (0 sur 48) | 17,9 % (10 sur 56) |
+| …dont sur les seules productions **orales** | 42,9 % | **0 %** | 31,2 % |
+| …sur les productions **écrites** | **0 %** | **0 %** | **0 %** |
+| Accord exact (sur les corrections rendues) | 81,3 % | 81,3 % | 82,2 % |
+| Accord exact (sur les 48 cas, les perdues comptées ratées) | **81,3 %** | **81,3 %** | 77,1 % |
+| Accord à un palier près | **97,9 %** | **97,9 %** | 93,3 % |
+| Écart moyen (référence − IA) | −0,38 | **−0,19** | +0,50 (trop sévère) |
+| **A1 non atteint** (8 cas) | 8/8 | 8/8 | 8/8 |
+| A1 (8 cas) | 3/8 | 2/8 | **4/8** |
+| A2 (13 cas) | 10/13 | 11/13 | **12/13** |
+| B1 (12 cas) | **12/12** | **12/12** | 10/12 |
+| **B2** (7 cas) | **6/7** | **6/7** | 3/7 |
+| **Pièges évités** (8 cas) | **8/8** | 5/8 | 4/8 |
+| Cas ayant exigé un réessai | 7 | **0** | 4 |
+| Attente médiane par correction | 16,6 s | **12,9 s** | 29,5 s |
+| Attente **maximale** observée (cumul des réessais) | 5 min 44 s | **32 s** | 3 min 03 s |
+| Accord sur la confiance annoncée | 45,8 % | **54,2 %** | 53,3 % |
+| **Coût de la campagne** (48 corrections) | **0,91 $** | 4,14 $ | 1,12 $ |
+
+**Une conclusion a dû être retirée.** Ce paragraphe disait, dans une version précédente de ce
+document, que `deepseek-v4-pro` « perdait 3 corrections sur 48 là où `flash` n'en perdait
+aucune ». **C'était faux, et c'est important de le dire plutôt que de l'effacer en silence.**
+Une vérification ultérieure a montré que `flash` avait tourné avec **neuf** tentatives
+autorisées par cas (un cas en a consommé neuf), `pro` avec trois, `gpt-5.4` avec une. Un
+modèle à qui l'on accorde neuf essais finit évidemment par rendre quelque chose. La différence
+mesurait donc le **réglage du banc**, pas les modèles. En vraie utilisation, il n'y a **qu'un
+seul réessai**.
+
+**La bonne façon de poser la question : combien d'appels sont refusés ?** Cette mesure-là ne
+dépend pas du nombre de vies accordées, et c'est elle qui prédit ce qu'un candidat vivra.
+
+| | `flash` | `gpt-5.4` | `pro` |
+|---|---|---|---|
+| appels refusés, tous cas | 27,3 % | **0 %** | 17,9 % |
+| appels refusés, **productions orales** | **42,9 %** | **0 %** | 31,2 % |
+| appels refusés, productions écrites | 0 % | 0 % | 0 % |
+
+Deux enseignements. D'abord, **le problème est entièrement oral** : à l'écrit, les trois
+moteurs passent nos contrôles du premier coup, systématiquement. Ensuite, **`flash` est le
+moteur qui se fait le plus refuser** — près d'un appel oral sur deux. Ce que refusent nos
+contrôles, ce sont deux choses précises : une citation qui ne se retrouve pas mot pour mot
+dans la production du candidat, et un conseil fondé sur un élément qu'on s'interdit de juger
+à l'oral (accent, débit, hésitations). Ce ne sont **pas** des réponses illisibles : le défaut
+qui avait détruit une tâche d'examen réelle le 2026-08-06 — une réponse **tronquée ou
+corrompue** — n'est réapparu sur **aucune** des trois campagnes.
+
+**Ce que `deepseek-v4-pro` fait mieux, et moins bien.** Mieux : il se fait moins refuser
+(17,9 % contre 27,3 %) et il est le meilleur des trois sur le **bas de l'échelle** — A1 4/8,
+le meilleur score jamais obtenu sur ce palier fragile, et A2 12/13. Moins bien : il **rate la
+moitié des cas-pièges** (4/8 contre 8/8) — les cas construits exprès pour tromper : hors-sujet
+bien écrit, texte appris par cœur, transcription bruitée, réponse dans une autre langue — et
+il **reconnaît mal les très bons candidats** (3 B2 sur 7, contre 6/7 pour les deux autres).
+Ses erreurs vont dans le sens **sévère** (écart global +0,50, le seul positif des trois) : il
+sous-note plutôt qu'il ne flatte, ce qui est le sens d'erreur le moins dangereux — mais
+annoncer B1 à quatre candidats sur sept qui valent B2 reste une erreur. Et il **coûte 23 % de
+plus** que `flash`.
+
+**Une pointe d'attente à lire correctement.** Les 5 min 44 s de `flash` ne sont **pas** une
+correction qui a mis cinq minutes à s'écrire : c'est **neuf appels enchaînés** sur la même
+production, à cause des refus ci-dessus. Pris isolément, un appel de `flash` prend 16,3 s en
+médiane et **36 s au pire** — mesuré sur les 41 cas réglés en un seul appel. C'est ce
+chiffre-là, et pas la pointe, qui dimensionne le délai d'attente côté serveur (90 s, soit
+2,5 fois le pire appel observé).
+
+**Où en est la décision.** `deepseek-v4-flash` est le correcteur **en vigueur**, et **le choix
+est en cours de réexamen** : l'argument qui le soutenait le plus fortement — « il ne perd
+jamais de correction » — ne tient plus. Ce qui reste solide : il est **le moins cher** (0,91 $
+contre 1,12 $ et 4,14 $) et **le plus fiable sur les cas-pièges** (8/8). Ce qui joue contre
+lui : **42,9 % d'appels refusés à l'oral**, là où `gpt-5.4` n'en refuse aucun. `gpt-5.4` note
+**aussi juste** que lui (81,3 % tous les deux, pas mieux) et bien plus régulièrement, mais
+coûte **4,5 fois plus cher**. L'arbitrage revient au propriétaire ; ce document ne le
+préempte pas.
+
+**Revenir en arrière** ne demande ni migration ni recompilation : trois lignes dans le fichier
+d'environnement (le fournisseur, le modèle, ses deux tarifs), un redémarrage. Les blocs
+OpenAI et Anthropic restent complets et testés.
+
+**Changer de modèle ne demande plus de toucher au code.** Chaque fournisseur a ses petites
+manies : les uns veulent que la longueur maximale de réponse s'appelle `max_tokens`, les
+autres `max_completion_tokens` ; certains modèles refusent qu'on leur impose une notation
+déterministe. Avant, ces différences étaient écrites dans le programme : brancher un modèle
+nouveau demandait une modification et une recompilation. Désormais, **c'est le fournisseur
+lui-même qui nous le dit** — il renvoie un message d'erreur explicite, qui nomme souvent le
+réglage de remplacement — et le programme **corrige sa demande, réessaie une fois, et retient
+la bonne forme** jusqu'au redémarrage suivant.
+
+Le **tarif** suivait la même logique à l'envers : il vivait dans une liste écrite dans le
+code, si bien que le premier modèle absent de cette liste faisait échouer la construction du
+projet alors que rien n'était cassé. Il se déclare désormais **à côté du modèle, dans le même
+fichier d'environnement** : si le modèle se choisit là, son prix aussi. Ce qui reste
+verrouillé, c'est la **cohérence** — choisir un modèle sans poser ses deux tarifs fait échouer
+la construction, parce que le coût d'une correction est enregistré en base et qu'un tarif faux
+y resterait faux pour toujours. Ce qui n'est plus verrouillé, c'est le **choix** : aucun test
+ne dit plus quel moteur doit être utilisé.
+
+> ⚠️ **Un modèle qui impose sa propre température** (mesuré sur `gpt-5.5`) rend la notation
+> **non déterministe** : la même production peut ressortir avec une note légèrement
+> différente d'un jour à l'autre. Le programme s'y adapte sans planter, mais c'est un choix
+> à faire en connaissance de cause, pas par accident. `deepseek-v4-flash`, `deepseek-v4-pro`,
+> `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.2`, `gpt-4.1` et `gpt-4o-mini` acceptent tous la notation
+> déterministe.
+
 ## 13. Deux réglages **préparés mais éteints** (aucun effet aujourd'hui)
 
 Ces deux comportements sont écrits, testés et livrés, mais **désactivés**. Tant qu'ils ne
@@ -2171,7 +2344,9 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 |-----------------------|---------|
 | **Toutes les consignes de notation** (les 4 critères du TCF et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et tout ce qui se lit sur une note** : seuils note → niveau, écart du garde-fou, seuils des plafonds, bornes des bandes affichées) **et toutes les consignes de restitution** (confiance, anti-répétition, levier de progression, verdict, version améliorée, plafonds d'affichage) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v9.json` (version **active**, profil `TCF_IRN`, maximum B2). `v8`, `v7` et les versions antérieures restent en place et chargeables. Un rollback change la **paire compatible** `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION` (v9/v5 → v8/v5 → v7/v4, par exemple), jamais un seul côté du contrat — et revenir de v9 à v8 ne demande **qu'une variable**, les deux partageant le même format de réponse. |
 | **Le format de réponse de l'IA** (note, confiance, accomplissement **et son verdict**, preuves, exemples corrigés, version améliorée…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v5.json` (version active : structure complète, quatre critères exacts, niveaux limités à B2, aucun champ imprévu, au plus 2 points forts / 2 priorités / 3 exemples corrigés) |
-| **Le correcteur utilisé partout** (async, fin de session temps réel, réparation, seconde passe, calibration) | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.provider` et le modèle du provider choisi. Défaut : DeepSeek / `deepseek-v4-flash`. Gemini reste l'examinateur vocal/transcripteur, jamais le correcteur. |
+| **Le correcteur utilisé partout** (async, fin de session temps réel, réparation, seconde passe, calibration) | Le **fichier d'environnement** (`.env`), pas le code : `EVAL_LLM_PROVIDER` et `EVAL_<FOURNISSEUR>_MODEL`. `application.yaml` ne porte que les **défauts** — aujourd'hui **DeepSeek / `deepseek-v4-flash`**, et **pas** son homonyme « pro », plus cher sans mieux noter. ⚠️ **Ce choix est en cours de réexamen** (§12.6). Les blocs OpenAI (`gpt-5.4`) et Anthropic restent complets et testés : basculer, c'est décommenter un bloc de trois lignes. Gemini reste l'examinateur vocal/transcripteur, jamais le correcteur. |
+| **La façon dont on parle à un fournisseur** (nom du réglage de longueur maximale, envoi ou non d'une température) | Personne ne l'écrit : elle est **négociée avec le fournisseur** au premier appel, à partir de ses messages d'erreur, puis retenue jusqu'au redémarrage (`backend_sejourfr/src/main/java/com/sejourfr/app/util/ChatCompletionDialectNegotiator.java`). Deux clés d'environnement par fournisseur permettent de reprendre la main sans code si besoin : `EVAL_<FOURNISSEUR>_MAX_TOKENS_PARAM` et `EVAL_<FOURNISSEUR>_SEND_TEMPERATURE` |
+| **Le tarif du modèle** (le coût d'une correction est enregistré en base : un tarif faux y reste faux) | Le **même fichier d'environnement que le modèle** : `EVAL_<FOURNISSEUR>_COST_INPUT` / `..._COST_OUTPUT` (défauts dans `application.yaml`). C'est délibéré : le prix doit voyager avec le modèle. Un test **fait échouer la construction du projet** si un modèle est choisi sans ses deux tarifs — mais il ne dit plus « tel modèle vaut tel prix », sinon essayer un modèle nouveau redeviendrait une modification de code |
 | **Le comportement de l'examinateur vocal** (ton, cadre, interdiction d'orienter le candidat, ouverture T1/T2, façon de rendre la fiche de scénario T2…) | `backend_sejourfr/src/main/resources/prompts/realtime-personas-v2.json` (version active ; la v1, sans fiche de scénario, reste disponible en repli) |
 | **Les faits d'un jeu de rôle T2** (prix, délais, horaires, attitude du personnage) | colonne `agent_role_card` du sujet, en base — renseignée par les migrations `db/migration/300_tcf/production/eo/tache_2/` |
 | **Les seuils de niveau, les plafonds, les vérifications automatiques, les deux réglages éteints** | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.production-evaluation` |

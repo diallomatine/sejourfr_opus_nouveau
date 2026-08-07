@@ -549,8 +549,8 @@ public class ProductionEvaluationProperties {
      * endpoint {@code /chat/completions}, meme format {@code tools}/{@code tool_calls},
      * auth Bearer), donc le meme {@code OpenAiCompatibleEvalClient} la sert sans
      * code dedie. Renseigner {@code …deepseek.api-key} (DEEPSEEK_API_KEY). Le
-     * modele par defaut est {@code deepseek-v4-flash} (function calling supporte) ;
-     * surchargeable via {@code …deepseek.model}.
+     * modele est celui d'{@code application.yaml}, lui-meme surchargeable par
+     * {@code EVAL_DEEPSEEK_MODEL} : aucun nom de modele n'est ecrit ici.
      */
     public static class DeepSeek implements ChatCompletionSettings {
         // Toutes les valeurs viennent de application.yaml
@@ -564,6 +564,8 @@ public class ProductionEvaluationProperties {
         private String promptVersion;
         private boolean disableThinking;
         private double temperature;
+        private String sendTemperature = com.sejourfr.app.util.ChatCompletionDialect.AUTO;
+        private String maxTokensParam = com.sejourfr.app.util.ChatCompletionDialect.AUTO;
         private double costPerMillionInputTokens;
         private double costPerMillionOutputTokens;
 
@@ -578,6 +580,30 @@ public class ProductionEvaluationProperties {
 
         public void setTemperature(double temperature) {
             this.temperature = temperature;
+        }
+
+        /**
+         * Meme echappatoire que le bloc OpenAI : la forme de requete est
+         * NEGOCIEE par defaut ({@code auto}), et ces deux cles ne servent qu'a
+         * reprendre la main SANS code si la negociation ne suffisait pas. Les
+         * garder ici evite qu'une bascule de provider fasse perdre ce filet.
+         */
+        @Override
+        public String getSendTemperature() {
+            return sendTemperature;
+        }
+
+        public void setSendTemperature(String sendTemperature) {
+            this.sendTemperature = sendTemperature;
+        }
+
+        @Override
+        public String getMaxTokensParam() {
+            return maxTokensParam;
+        }
+
+        public void setMaxTokensParam(String maxTokensParam) {
+            this.maxTokensParam = maxTokensParam;
         }
 
         @Override

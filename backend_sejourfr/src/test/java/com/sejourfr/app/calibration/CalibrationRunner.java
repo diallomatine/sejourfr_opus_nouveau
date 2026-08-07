@@ -15,6 +15,7 @@ import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.service.AiEvaluationService;
 import com.sejourfr.app.service.EvaluationLlmClient;
 import com.sejourfr.app.service.EvaluationPromptBuilder;
+import com.sejourfr.app.service.EvaluationRefusalMetrics;
 import com.sejourfr.app.service.ProductionFluiditeService;
 import com.sejourfr.app.service.ProductionRubricsProvider;
 import com.sejourfr.app.service.ProductionSecondePasseService;
@@ -141,42 +142,70 @@ final class CalibrationRunner {
         }
 
         RecordingClient recorder = new RecordingClient(client);
+        // Une instance PAR CAS : le banc y lit les violations et la citation
+        // refusee de CHAQUE appel, y compris celles du premier — l'exception ne
+        // porte que celles du reessai. Isolee par cas, donc parallelisable.
+        EvaluationRefusalMetrics refus = new EvaluationRefusalMetrics();
         // Seconde passe et fluidite suivent la config du banc : desactivees par
         // defaut, activables via application.yaml pour mesurer leur effet.
         AiEvaluationService service = new AiEvaluationService(submissionManager, transcriptionManager,
             aiEvaluationManager, recorder, promptBuilder, rubrics, validity,
             new ProductionSecondePasseService(props, recorder, rubrics),
-            new ProductionFluiditeService(props), props);
+            new ProductionFluiditeService(props), refus, props);
 
         long start = System.currentTimeMillis();
         AiEvaluation eval = null;
         String erreur = null;
         int tentatives = 0;
         int ratees = 0;
+        List<CaseRun.Tentative> traces = new ArrayList<>();
         // Une reponse inexploitable (JSON casse, pas de tool_call, 5xx) fait
         // echouer la soumission en production : on la COMPTE, puis on rejoue pour
         // ne pas perdre le cas — sinon les taux d'accord se mesureraient sur un
         // echantillon biaise par les productions qui cassent le modele.
         while (eval == null && tentatives < maxTentatives) {
             tentatives++;
+            refus.reset();
+            String erreurTentative = null;
+            boolean fatal = false;
             try {
                 eval = service.evaluate(sub.getId());
-                erreur = null;
             } catch (AiEvaluationTransientException | AiEvaluationException e) {
                 ratees++;
-                erreur = resume(e);
+                erreurTentative = resume(e);
                 dormir(1000L * tentatives);
             } catch (RuntimeException e) {
-                erreur = resume(e);
-                break;
+                erreurTentative = resume(e);
+                fatal = true;
             }
+            traces.add(trace(tentatives, erreurTentative, refus));
+            // `erreur` n'est PLUS remis a null par une tentative qui reussit :
+            // c'est ce qui effacait le motif des refus du rapport.
+            if (erreurTentative != null && erreur == null) erreur = erreurTentative;
+            if (fatal) break;
         }
         long duree = System.currentTimeMillis() - start;
-        return toRun(cas, passe, eval, recorder, erreur, duree, tentatives, ratees);
+        return toRun(cas, passe, eval, recorder, erreur, duree, tentatives, ratees, traces);
+    }
+
+    /** Ce que NOS controles ont refuse pendant une tentative, phase par phase. */
+    private static CaseRun.Tentative trace(int numero, String erreur, EvaluationRefusalMetrics refus) {
+        List<String> violations = new ArrayList<>();
+        List<String> citations = new ArrayList<>();
+        Map<String, Integer> motifs = new LinkedHashMap<>();
+        List<EvaluationRefusalMetrics.Refus> refuses = refus.derniersRefus();
+        for (EvaluationRefusalMetrics.Refus r : refuses) {
+            for (String v : r.violations()) violations.add(r.phase() + " : " + v);
+            for (String c : r.citationsRefusees()) citations.add(r.phase() + " : " + c);
+            r.motifs().forEach((motif, n) -> motifs.merge(motif, n, Integer::sum));
+        }
+        return new CaseRun.Tentative(numero, erreur == null, erreur, refuses.size(),
+            List.copyOf(violations), List.copyOf(citations), Map.copyOf(motifs));
     }
 
     private CaseRun toRun(GoldenSet.Cas cas, int passe, AiEvaluation eval, RecordingClient recorder,
-                          String erreur, long duree, int tentatives, int ratees) {
+                          String erreur, long duree, int tentatives, int ratees,
+                          List<CaseRun.Tentative> traces) {
         GoldenSet.Attendu attendu = cas.attendu();
         if (eval == null) {
             return new CaseRun(cas.id(), cas.groupe(), passe, "ERREUR_APPEL", erreur,
@@ -185,7 +214,7 @@ final class CalibrationRunner {
                 nom(attendu.confiance()), null, attendu.obligatoireTraite(), null,
                 attendu.pointsOublies(), List.of(), attendu.pieges(),
                 List.of(), List.of(), recorder.appele, tentatives, ratees, modele(),
-                null, null, null, duree);
+                null, null, null, duree, recorder.appels, List.copyOf(traces));
         }
 
         Map<String, Object> feedback = eval.getFeedbackJson();
@@ -211,7 +240,8 @@ final class CalibrationRunner {
             attendu.pointsOublies(), libelles(feedback, "points_oublies"),
             attendu.pieges(), manquants, criteresManquants,
             recorder.appele, tentatives, ratees, eval.getModeleUtilise(),
-            eval.getTokensInput(), eval.getTokensOutput(), eval.getCoutEstimeCentimes(), duree);
+            eval.getTokensInput(), eval.getTokensOutput(), eval.getCoutEstimeCentimes(), duree,
+            recorder.appels, List.copyOf(traces));
     }
 
     // ------------------------------------------------------------------ donnees
@@ -352,6 +382,8 @@ final class CalibrationRunner {
         private final EvaluationLlmClient delegate;
         private Map<String, Object> brut;
         private boolean appele;
+        /** Appels LLM reellement emis, reparations comprises. */
+        private int appels;
 
         private RecordingClient(EvaluationLlmClient delegate) {
             this.delegate = delegate;
@@ -360,6 +392,7 @@ final class CalibrationRunner {
         @Override
         public Outcome evaluate(String systemPrompt, String userPrompt) {
             appele = true;
+            appels++;
             Outcome o = delegate.evaluate(systemPrompt, userPrompt);
             brut = o.feedback() == null ? null : new LinkedHashMap<>(o.feedback());
             return o;

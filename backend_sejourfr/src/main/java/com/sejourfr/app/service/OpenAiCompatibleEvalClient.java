@@ -4,6 +4,7 @@ import com.sejourfr.app.config.ProductionEvaluationProperties.ChatCompletionSett
 import com.sejourfr.app.exception.AiEvaluationException;
 import com.sejourfr.app.exception.AiEvaluationTransientException;
 import com.sejourfr.app.util.ChatCompletionDialect;
+import com.sejourfr.app.util.ChatCompletionDialectNegotiator;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +55,11 @@ public class OpenAiCompatibleEvalClient implements EvaluationLlmClient {
     private final String label;
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
+    /**
+     * Forme de requete negociee avec le fournisseur (nom du plafond de sortie,
+     * temperature envoyee ou non), memorisee pour la duree du processus.
+     */
+    private final ChatCompletionDialectNegotiator dialecte;
     private Map<String, Object> toolSchema;
 
     public OpenAiCompatibleEvalClient(
@@ -61,6 +67,9 @@ public class OpenAiCompatibleEvalClient implements EvaluationLlmClient {
         this.settings = settings;
         this.label = label;
         this.objectMapper = objectMapper;
+        this.dialecte = new ChatCompletionDialectNegotiator(
+            label + " eval", settings.getModel(),
+            settings.getMaxTokensParam(), settings.getSendTemperature());
         this.restClient = RestClient.builder()
             .baseUrl(settings.getApiUrl())
             .requestFactory(buildRequestFactory(settings.getTimeoutSec()))
@@ -76,15 +85,9 @@ public class OpenAiCompatibleEvalClient implements EvaluationLlmClient {
             this.toolSchema = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
         }
         log.info("{} eval : tool schema {} charge ({})", label, TOOL_NAME, version);
-        // Le dialecte est deduit du modele : on le JOURNALISE, sinon un modele
-        // mal reconnu (ou un .env fraichement modifie) ne se voit qu'au 400.
-        String resume = ChatCompletionDialect.resume(
-            settings.getMaxTokensParam(), settings.getSendTemperature(), settings.getModel());
-        if (ChatCompletionDialect.modeleInconnu(settings.getModel())) {
-            log.warn("{} eval : {}", label, resume);
-        } else {
-            log.info("{} eval : {}", label, resume);
-        }
+        // Forme d'ESSAI : si elle ne convient pas au modele, le 400 du
+        // fournisseur la corrige au premier appel (cf. le negociateur).
+        log.info("{} eval : modele={} forme d'essai {}", label, settings.getModel(), dialecte.forme());
     }
 
     @Override
@@ -111,25 +114,36 @@ public class OpenAiCompatibleEvalClient implements EvaluationLlmClient {
             );
         }
 
-        Map<String, Object> body = buildRequestBody(systemPrompt, userPrompt);
         long start = System.currentTimeMillis();
-        JsonNode response;
-        try {
-            response = restClient.post()
-                .contentType(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer " + settings.getApiKey())
-                .body(body)
-                .retrieve()
-                .body(JsonNode.class);
-        } catch (HttpClientErrorException.TooManyRequests e) {
-            throw new AiEvaluationTransientException(label + " eval 429 rate-limited", e);
-        } catch (HttpServerErrorException e) {
-            throw new AiEvaluationTransientException(label + " eval 5xx (" + e.getStatusCode() + ")", e);
-        } catch (HttpClientErrorException e) {
-            log.warn("{} eval 4xx : {} body={}", label, e.getStatusCode(), preview(e.getResponseBodyAsString()));
-            throw new AiEvaluationException(label + " eval 4xx (" + e.getStatusCode() + ")", e);
-        } catch (ResourceAccessException e) {
-            throw new AiEvaluationTransientException(label + " eval timeout ou erreur reseau", e);
+        JsonNode response = null;
+        // Boucle de NEGOCIATION DE FORME, pas de reessai : elle ne se rejoue que
+        // sur un 400 ou le fournisseur dit lui-meme quel champ il refuse. Un 400
+        // metier (tool-schema, contenu) sort du premier coup.
+        for (int tentative = 0; response == null; tentative++) {
+            ChatCompletionDialect forme = dialecte.forme();
+            Map<String, Object> body = buildRequestBody(systemPrompt, userPrompt, forme);
+            try {
+                response = restClient.post()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer " + settings.getApiKey())
+                    .body(body)
+                    .retrieve()
+                    .body(JsonNode.class);
+            } catch (HttpClientErrorException.TooManyRequests e) {
+                throw new AiEvaluationTransientException(label + " eval 429 rate-limited", e);
+            } catch (HttpServerErrorException e) {
+                throw new AiEvaluationTransientException(label + " eval 5xx (" + e.getStatusCode() + ")", e);
+            } catch (HttpClientErrorException e) {
+                String corps = e.getResponseBodyAsString();
+                if (tentative < ChatCompletionDialectNegotiator.MAX_RENEGOCIATIONS
+                        && dialecte.adapte(forme, corps)) {
+                    continue;
+                }
+                log.warn("{} eval 4xx : {} body={}", label, e.getStatusCode(), preview(corps));
+                throw new AiEvaluationException(label + " eval 4xx (" + e.getStatusCode() + ")", e);
+            } catch (ResourceAccessException e) {
+                throw new AiEvaluationTransientException(label + " eval timeout ou erreur reseau", e);
+            }
         }
         long duration = System.currentTimeMillis() - start;
 
@@ -161,6 +175,10 @@ public class OpenAiCompatibleEvalClient implements EvaluationLlmClient {
     }
 
     Map<String, Object> buildRequestBody(String systemPrompt, String userPrompt) {
+        return buildRequestBody(systemPrompt, userPrompt, dialecte.forme());
+    }
+
+    Map<String, Object> buildRequestBody(String systemPrompt, String userPrompt, ChatCompletionDialect forme) {
         // function = { name, description, parameters: <JSON Schema> }
         Map<String, Object> function = new LinkedHashMap<>();
         function.put("name", TOOL_NAME);
@@ -186,15 +204,14 @@ public class OpenAiCompatibleEvalClient implements EvaluationLlmClient {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", settings.getModel());
         // Le PLAFOND est le meme partout (4000) ; seul le NOM du champ change
-        // selon le modele — les gpt-5.x refusent max_tokens en 400, DeepSeek et
-        // les gpt-4.x refusent l'inverse. cf. ChatCompletionDialect.
-        body.put(
-            ChatCompletionDialect.maxTokensParam(settings.getMaxTokensParam(), settings.getModel()),
-            settings.getMaxTokens());
+        // selon le modele. Ce nom est NEGOCIE avec le fournisseur, pas devine
+        // depuis une liste de modeles — cf. ChatCompletionDialectNegotiator.
+        body.put(forme.maxTokensParam(), settings.getMaxTokens());
         // 0 = deterministe : une evaluation doit donner les memes notes d'un run
         // a l'autre sur le meme texte (au defaut ~1.0 les scores varient bcp).
-        // Certains modeles n'acceptent que leur defaut : on OMET alors le champ.
-        if (ChatCompletionDialect.sendTemperature(settings.getSendTemperature(), settings.getModel())) {
+        // Un modele a temperature figee fait OMETTRE le champ (jamais envoyer 1,
+        // qui reviendrait a choisir en douce une notation non deterministe).
+        if (forme.sendTemperature()) {
             body.put("temperature", settings.getTemperature());
         }
         body.put("messages", List.of(systemMessage, userMessage));

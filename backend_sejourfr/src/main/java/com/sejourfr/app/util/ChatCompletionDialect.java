@@ -6,145 +6,89 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Ce qu'un fournisseur « compatible OpenAI » accepte VRAIMENT dans le corps
- * d'une requete Chat Completions. Deux dialectes coexistent sous le meme nom
- * d'API, et se tromper coute 100 % des appels :
+ * FORME d'une requete Chat Completions : le nom du champ de plafond de sortie,
+ * et le fait d'envoyer ou non {@code temperature}.
  *
+ * <p>Deux dialectes coexistent sous le meme nom d'API et se tromper coute
+ * 100 % des appels (400, aucune correction rendue) :
  * <ul>
- *   <li><b>Plafond de sortie</b> — les modeles d'avant la generation de
- *       raisonnement lisent {@code max_tokens} ; les gpt-5.x et les o-series le
- *       REFUSENT en 400 (« Unsupported parameter: 'max_tokens' is not supported
- *       with this model. Use 'max_completion_tokens' instead. »). DeepSeek, qui
- *       passe par le meme client, est reste sur {@code max_tokens}.</li>
- *   <li><b>Temperature</b> — certains modeles n'acceptent que leur valeur par
- *       defaut (mesure : gpt-5.5 repond « Only the default (1) value is
- *       supported »). Sur ceux-la il faut OMETTRE le champ, pas l'envoyer a 1 :
- *       c'est un reglage qu'on n'a pas, pas un reglage qu'on choisit.</li>
+ *   <li>{@code max_tokens} (gpt-4.x, DeepSeek) contre
+ *       {@code max_completion_tokens} (gpt-5.x, o-series) ;</li>
+ *   <li>{@code temperature} reglable contre modele a temperature figee
+ *       (« Only the default (1) value is supported »).</li>
  * </ul>
  *
- * <p><b>Pourquoi une detection par modele, et pas deux cles de config ?</b>
- * Parce que la seule chose qu'on change en pratique, c'est
- * {@code EVAL_OPENAI_MODEL} dans le {@code .env}. Le but explicite est que
- * changer de modele soit UNE ligne : si le dialecte etait fige a cote, il se
- * desynchroniserait au premier changement et toutes les corrections partiraient
- * en 400. La detection est donc le DEFAUT ({@code auto}) ; la config garde le
- * dernier mot pour un endpoint OpenAI-compatible exotique.
- *
- * <p><b>Modele inconnu</b> : on retombe sur le dialecte historique
- * ({@code max_tokens} + temperature envoyee), et {@link #resume(String, String,
- * String)} permet au client de le JOURNALISER au demarrage. Le choix est
- * assume : ce dialecte-la echoue en 400 explicite (« use
- * 'max_completion_tokens' instead »), la ou omettre la temperature en silence
- * donnerait une notation non deterministe que personne ne verrait passer.
+ * <p><b>Ce qui decide, c'est l'API, pas une liste dans le code.</b> Cette classe
+ * ne fait que porter la forme courante ; c'est
+ * {@link ChatCompletionDialectNegotiator} qui la corrige a partir du 400 renvoye
+ * par le fournisseur. Les heuristiques {@link #premiereForme(String)} ci-dessous
+ * sont un simple RACCOURCI : elles evitent un aller-retour rate au demarrage sur
+ * les familles deja connues, et leur absence de correspondance ne casse rien —
+ * un modele qui n'existe pas encore aujourd'hui doit se brancher par une seule
+ * ligne de {@code .env}, sans recompilation.
  *
  * <p>Le PLAFOND lui-meme (4000) ne change jamais : seul le NOM du champ change.
  */
-public final class ChatCompletionDialect {
+public record ChatCompletionDialect(String maxTokensParam, boolean sendTemperature) {
 
-    /** Plafond de sortie historique, encore lu par gpt-4.x et DeepSeek. */
+    /** Plafond de sortie historique (gpt-4.x, DeepSeek). */
     public static final String MAX_TOKENS = "max_tokens";
     /** Plafond de sortie des gpt-5.x / o-series, qui rejettent l'autre. */
     public static final String MAX_COMPLETION_TOKENS = "max_completion_tokens";
-    /** Valeur de config demandant la detection par modele (defaut). */
+    /** Valeur de config demandant la negociation automatique (defaut). */
     public static final String AUTO = "auto";
 
-    private static final Set<String> NOMS_CONNUS = Set.of(MAX_TOKENS, MAX_COMPLETION_TOKENS);
-    /** {@code gpt-5.4}, {@code gpt-4o-mini}, {@code gpt-4.1}… — on lit la generation. */
+    /**
+     * Noms de plafond que le projet sait proposer de lui-meme. Un nom hors de
+     * cette liste reste accepte s'il vient de l'API (« Use 'X' instead ») ou de
+     * la config : la liste n'est pas une autorisation, juste un point de depart.
+     */
+    static final Set<String> NOMS_PROPOSABLES = Set.of(MAX_TOKENS, MAX_COMPLETION_TOKENS);
+
+    /** {@code gpt-5.4}, {@code gpt-4o-mini}… — on lit la generation. Raccourci. */
     private static final Pattern GPT_GENERATION = Pattern.compile("^gpt-(\\d+)");
-    /** {@code o1}, {@code o3-mini}, {@code o4-mini}… : famille raisonnement. */
+    /** {@code o1}, {@code o3-mini}… : famille raisonnement. Raccourci. */
     private static final Pattern O_SERIES = Pattern.compile("^o\\d");
-    /** DeepSeek : famille CONNUE de ce projet, restee sur le dialecte historique. */
-    private static final Pattern DEEPSEEK = Pattern.compile("^deepseek");
-    /** Premiere generation OpenAI a n'accepter que {@code max_completion_tokens}. */
-    private static final int PREMIERE_GENERATION_MAX_COMPLETION_TOKENS = 5;
+    /** Premiere generation OpenAI connue pour n'accepter que le nom long. */
+    private static final int PREMIERE_GENERATION_NOM_LONG = 5;
 
     /**
-     * Modeles VERIFIES comme refusant toute temperature autre que leur defaut.
-     * Liste fermee et volontairement courte : n'y ajouter qu'un modele dont le
-     * refus a ete constate contre l'API, jamais « par precaution ».
+     * Forme d'essai pour un modele donne. Simple raccourci : si elle se trompe,
+     * le 400 du fournisseur la corrige au premier appel et la forme retenue est
+     * memorisee pour le reste du processus.
      */
-    private static final Pattern TEMPERATURE_VERROUILLEE = Pattern.compile("^gpt-5\\.5(\\b|[.\\-]).*");
-
-    private ChatCompletionDialect() {
+    public static ChatCompletionDialect premiereForme(String modele) {
+        return new ChatCompletionDialect(nomProbable(modele), true);
     }
 
-    /**
-     * Nom du champ de plafond de sortie a poser dans le corps de la requete.
-     *
-     * @param configure valeur de config : {@code auto} (ou vide) = detection par
-     *                  modele ; sinon un nom de champ explicite, qui l'emporte.
-     * @param modele    modele reellement appele.
-     * @throws IllegalArgumentException si la config force un nom inconnu — une
-     *                                  coquille silencieuse enverrait un champ
-     *                                  ignore et laisserait la sortie sans
-     *                                  plafond.
-     */
-    public static String maxTokensParam(String configure, String modele) {
-        if (estExplicite(configure)) {
-            String force = configure.strip().toLowerCase(Locale.ROOT);
-            if (!NOMS_CONNUS.contains(force)) {
-                throw new IllegalArgumentException(
-                    "max-tokens-param invalide : '" + configure + "'. Valeurs supportees : "
-                        + MAX_TOKENS + ", " + MAX_COMPLETION_TOKENS + ", " + AUTO + ".");
-            }
-            return force;
-        }
+    private static String nomProbable(String modele) {
         String m = normalise(modele);
         if (O_SERIES.matcher(m).find()) return MAX_COMPLETION_TOKENS;
         Matcher gpt = GPT_GENERATION.matcher(m);
-        if (gpt.find() && Integer.parseInt(gpt.group(1)) >= PREMIERE_GENERATION_MAX_COMPLETION_TOKENS) {
+        if (gpt.find() && Integer.parseInt(gpt.group(1)) >= PREMIERE_GENERATION_NOM_LONG) {
             return MAX_COMPLETION_TOKENS;
         }
+        // Modele inconnu : on part du dialecte historique. Il echoue en 400
+        // EXPLICITE (« use 'max_completion_tokens' instead »), donc negociable ;
+        // le pari inverse echouerait tout aussi bien mais sans rien apprendre.
         return MAX_TOKENS;
     }
 
-    /**
-     * Faut-il envoyer le champ {@code temperature} ?
-     *
-     * @param configure {@code auto} (ou vide) = detection par modele ;
-     *                  {@code true} / {@code false} pour forcer.
-     * @param modele    modele reellement appele.
-     * @throws IllegalArgumentException si la config n'est ni {@code auto}, ni un
-     *                                  booleen.
-     */
-    public static boolean sendTemperature(String configure, String modele) {
-        if (estExplicite(configure)) {
-            String force = configure.strip().toLowerCase(Locale.ROOT);
-            if ("true".equals(force)) return true;
-            if ("false".equals(force)) return false;
-            throw new IllegalArgumentException(
-                "send-temperature invalide : '" + configure + "'. Valeurs supportees : true, false, "
-                    + AUTO + ".");
-        }
-        return !TEMPERATURE_VERROUILLEE.matcher(normalise(modele)).matches();
+    public ChatCompletionDialect avecMaxTokensParam(String nom) {
+        return new ChatCompletionDialect(nom, sendTemperature);
     }
 
-    /** true si le modele n'est reconnu d'aucune famille connue de ce dialecte. */
-    public static boolean modeleInconnu(String modele) {
-        String m = normalise(modele);
-        return !O_SERIES.matcher(m).find()
-            && !GPT_GENERATION.matcher(m).find()
-            && !DEEPSEEK.matcher(m).find();
+    public ChatCompletionDialect sansTemperature() {
+        return new ChatCompletionDialect(maxTokensParam, false);
     }
 
-    /**
-     * Ligne de log lisible resumant le dialecte resolu : c'est elle qui evite
-     * qu'un modele mal reconnu passe inapercu au demarrage.
-     */
-    public static String resume(String maxTokensParamConfigure, String sendTemperatureConfigure, String modele) {
-        String champ = maxTokensParam(maxTokensParamConfigure, modele);
-        boolean temperature = sendTemperature(sendTemperatureConfigure, modele);
-        return "modele=" + modele
-            + " plafond=" + champ
-            + " temperature=" + (temperature ? "envoyee" : "omise (modele a temperature figee)")
-            + (modeleInconnu(modele) ? " [modele hors familles connues : dialecte historique applique]" : "");
+    @Override
+    public String toString() {
+        return "plafond=" + maxTokensParam
+            + " temperature=" + (sendTemperature ? "envoyee" : "omise");
     }
 
-    private static boolean estExplicite(String configure) {
-        return configure != null && !configure.isBlank() && !AUTO.equalsIgnoreCase(configure.strip());
-    }
-
-    private static String normalise(String modele) {
-        return modele == null ? "" : modele.strip().toLowerCase(Locale.ROOT);
+    static String normalise(String s) {
+        return s == null ? "" : s.strip().toLowerCase(Locale.ROOT);
     }
 }

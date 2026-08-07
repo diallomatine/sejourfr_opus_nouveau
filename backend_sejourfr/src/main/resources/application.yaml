@@ -215,12 +215,22 @@ sejourfr:
         Conserver les hesitations, les repetitions, et les eventuelles fautes
         grammaticales telles que prononcees.
   production-evaluation:
-    # Source unique du LLM correcteur : deepseek (defaut), openai ou anthropic.
-    # Runtime async, fin de session temps reel, seconde passe et banc de
-    # calibration lisent tous cette meme valeur. Pour switcher,
-    # changer cette valeur (ou EVAL_LLM_PROVIDER) et redemarrer le backend. Aucune
+    # Source unique du LLM correcteur : deepseek (defaut depuis le 2026-08-08),
+    # openai ou anthropic. Runtime async, fin de session temps reel, seconde
+    # passe et banc de calibration lisent tous cette meme valeur. Pour switcher,
+    # changer EVAL_LLM_PROVIDER dans le .env et redemarrer le backend. Aucune
     # migration ni changement cote mobile : le DTO + le tool schema sont
     # identiques, seule la maniere d'appeler le LLM change.
+    #
+    # /!\ REGLE : changer de correcteur OU de modele ne doit demander AUCUNE
+    # modification de code ni de ce fichier — une ligne de .env, un redemarrage.
+    # Trois mecanismes la garantissent, ne pas les defaire :
+    #   1. la FORME de la requete est negociee avec le fournisseur au premier
+    #      appel (ChatCompletionDialectNegotiator), jamais codee en dur ;
+    #   2. le MODELE de chaque bloc est un ${EVAL_*_MODEL:...} ;
+    #   3. le TARIF de chaque bloc est un ${EVAL_*_COST_*:...} — le prix voyage
+    #      donc avec le modele, dans la meme source (cf. EvaluationPricingTest).
+    # Les valeurs ci-dessous ne sont que des DEFAUTS, pas un catalogue.
     provider: ${EVAL_LLM_PROVIDER:deepseek}
     # Source UNIQUE de TOUTES les instructions d'eval (global + par tache) :
     # prompts/production-rubrics-<v>.json. Le system prompt et le user message
@@ -496,24 +506,31 @@ sejourfr:
       # via EVAL_OPENAI_API_KEY si on veut une cle dediee.
       api-key: ${EVAL_OPENAI_API_KEY:${OPENAI_API_KEY:}}
       api-url: https://api.openai.com/v1/chat/completions
+      # Defaut de repli, PAS le correcteur actif (cf. provider ci-dessus).
       # gpt-5.4 : moderne ET compatible temperature 0 (gpt-5.5 refuse toute
       # temperature autre que son defaut — voir send-temperature ci-dessous).
+      # Changer ce modele se fait par EVAL_OPENAI_MODEL, avec ses deux tarifs.
       model: ${EVAL_OPENAI_MODEL:gpt-5.4}
       # 0 = notation déterministe (même texte → mêmes notes d'un run à l'autre).
       temperature: ${EVAL_OPENAI_TEMPERATURE:0}
-      # `auto` = déduit du modèle. Un modèle à température figée (mesuré sur
-      # gpt-5.5 : « Only the default (1) value is supported ») fait OMETTRE le
-      # champ — envoyer 1 reviendrait à choisir, sans le dire, une notation non
-      # déterministe. `true` / `false` pour forcer.
+      # FORME DE LA REQUÊTE — négociée avec le fournisseur, pas codée en dur.
+      # Objectif : brancher un modèle qui n'existe pas encore aujourd'hui ne doit
+      # demander AUCUNE modification de code ni recompilation — une ligne de
+      # .env (EVAL_OPENAI_MODEL), un redémarrage. Sur un 400 du type
+      # « Unsupported parameter: 'max_tokens' … Use 'max_completion_tokens'
+      # instead » ou « Unsupported value: 'temperature' does not support 0 »,
+      # le client corrige la forme, rejoue une fois et MÉMORISE le résultat pour
+      # la durée du processus (cf. ChatCompletionDialectNegotiator). Un 400
+      # métier (tool-schema, contenu) n'y touche pas et remonte immédiatement.
+      #
+      # `auto` (défaut) = négociation. Les deux clés ci-dessous ne servent qu'à
+      # REPRENDRE LA MAIN sans code, et désactivent la négociation du champ
+      # concerné.
+      #   send-temperature : `false` = ne pas envoyer le champ du tout (valeur
+      #     distincte de 0 et de 1 — envoyer 1 reviendrait à accepter en douce
+      #     une notation non déterministe).
+      #   max-tokens-param : nom du champ de plafond, quel qu'il soit.
       send-temperature: ${EVAL_OPENAI_SEND_TEMPERATURE:auto}
-      # Nom du champ de plafond de sortie. `auto` = déduit du modèle
-      # (ChatCompletionDialect) : les gpt-5.x / o-series REFUSENT `max_tokens`
-      # en 400 et exigent `max_completion_tokens`, les gpt-4.x et DeepSeek font
-      # l'inverse. La détection est le défaut parce que la SEULE clé qu'on change
-      # en pratique est EVAL_OPENAI_MODEL, dans le .env : changer de modèle ne
-      # doit jamais obliger à toucher au code ni à ce fichier. Forcer
-      # `max_tokens` / `max_completion_tokens` reste possible pour un endpoint
-      # OpenAI-compatible exotique.
       max-tokens-param: ${EVAL_OPENAI_MAX_TOKENS_PARAM:auto}
       # cf. le bloc « PLAFOND DE TOKENS DE SORTIE » ci-dessus. La VALEUR ne change
       # pas avec le nom du champ.
@@ -526,8 +543,9 @@ sejourfr:
       # OpenAI le 2026-08-07 : 2,50 en entrée / 15,00 en sortie).
       # ⚠ Ces deux valeurs vont AVEC `model` ci-dessus : le coût estimé est
       # PERSISTÉ dans ai_evaluations.cout_centimes, un tarif faux y reste faux
-      # pour toujours. Changer de modèle = changer les deux tarifs dans la même
-      # passe (EvaluationPricingTest fait échouer le build sinon).
+      # pour toujours. Le tarif se surcharge DANS LA MÊME SOURCE que le modèle :
+      # poser EVAL_OPENAI_MODEL sans EVAL_OPENAI_COST_INPUT/OUTPUT fait échouer
+      # le build (EvaluationPricingTest), exprès.
       cost-per-million-input-tokens: ${EVAL_OPENAI_COST_INPUT:2.50}
       cost-per-million-output-tokens: ${EVAL_OPENAI_COST_OUTPUT:15.00}
     anthropic:
@@ -541,24 +559,74 @@ sejourfr:
       max-retries: 2
       retry-backoff-ms: 1000
       prompt-version: ${EVAL_PROMPT_VERSION:v5}
-      cost-per-million-input-tokens: 3.0
-      cost-per-million-output-tokens: 15.0
-    # DeepSeek : API compatible OpenAI (meme client). Activer avec
-    # EVAL_LLM_PROVIDER=deepseek + EVAL_DEEPSEEK_API_KEY (ou DEEPSEEK_API_KEY).
+      # Tarif claude-sonnet-4-5 (USD / 1M tokens). Surchargeable comme le modèle,
+      # et dans la même source que lui.
+      cost-per-million-input-tokens: ${EVAL_ANTHROPIC_COST_INPUT:3.0}
+      cost-per-million-output-tokens: ${EVAL_ANTHROPIC_COST_OUTPUT:15.0}
+    # DeepSeek : API compatible OpenAI (meme client). CORRECTEUR ACTIF depuis le
+    # 2026-08-08 (cf. provider ci-dessus) — clé via EVAL_DEEPSEEK_API_KEY (ou
+    # DEEPSEEK_API_KEY).
     deepseek:
       api-key: ${EVAL_DEEPSEEK_API_KEY:${DEEPSEEK_API_KEY:}}
       api-url: https://api.deepseek.com/chat/completions
+      # deepseek-v4-flash : correcteur EN VIGUEUR — choix EN COURS DE REEXAMEN.
+      # /!\ CONTRE-INTUITIF, et c'est exactement pour ca que c'est ecrit ici :
+      # `deepseek-v4-pro`, le « grand » modele de la gamme V4, coute PLUS CHER
+      # que `flash` (0,435/0,87 contre 0,14/0,28 ; 1,12 $ contre 0,91 $ sur la
+      # meme campagne de 48 corrections) SANS mieux noter (pieges 4/8 contre
+      # 8/8, B2 3/7 contre 6/7). Le nom du modele ne dit rien de son prix
+      # relatif ni de son aptitude a corriger une production TCF. Ne pas
+      # « reparer » ce choix en repassant a `pro` sans avoir remesure au banc.
+      # /!\ NE PAS CITER la ligne « corrections perdues » des campagnes v9 :
+      # elles n'ont pas tourne avec le meme `calibration.retries` (9 / 3 / 1)
+      # alors que la PRODUCTION n'accorde qu'UN SEUL rejeu — cette metrique
+      # mesure le reglage du banc, pas le modele.
+      # Le defaut connu de `flash`, lui, ne depend pas du nombre d'essais :
+      # 27,3 % de ses appels sont refuses par nos controles serveur, et
+      # 42,9 % sur les seules productions ORALES (0 % en EE, chez les trois
+      # moteurs). `pro` : 17,9 % / 31,2 %. `gpt-5.4` : 0 % / 0 %.
+      # Detail des 3 campagnes v9 : docs/notation-ia-eo-ee.md §12.6.
+      # Se change par EVAL_DEEPSEEK_MODEL, avec ses deux tarifs.
       model: ${EVAL_DEEPSEEK_MODEL:deepseek-v4-flash}
       # DeepSeek V4 : thinking mode ON par défaut casse le tool_choice forcé (400).
       # On l'envoie {"thinking":{"type":"disabled"}} pour un tool_call déterministe.
       disable-thinking: ${EVAL_DEEPSEEK_DISABLE_THINKING:true}
       temperature: ${EVAL_DEEPSEEK_TEMPERATURE:0}
+      # FORME DE LA REQUÊTE — négociée, comme pour OpenAI : `auto` laisse le
+      # client déduire du 400 du fournisseur le nom du champ de plafond et
+      # l'acceptation de `temperature`. Ces deux clés ne servent qu'à reprendre
+      # la main SANS code si la négociation ne suffisait pas.
+      send-temperature: ${EVAL_DEEPSEEK_SEND_TEMPERATURE:auto}
+      max-tokens-param: ${EVAL_DEEPSEEK_MAX_TOKENS_PARAM:auto}
       # cf. le bloc « PLAFOND DE TOKENS DE SORTIE » ci-dessus.
       max-tokens: 4000
-      timeout-sec: 60
+      # BUDGET D'ATTENTE D'UN SEUL APPEL HTTP (read timeout), pas d'une
+      # correction. A ne pas dimensionner sur la duree d'un CAS du banc : le
+      # « pic a 5 min 44 » de `flash` est le cumul de NEUF appels sur un meme
+      # cas (rejeu de preuve + rejeu transitoire), pas un appel lent.
+      # Mesure v9, 48 cas, sur les cas resolus en UN appel : `flash` median
+      # 16,3 s, max 36,2 s ; `pro` median 28,8 s, max 66,7 s.
+      # 90 s = 2,5x le pire appel `flash` mesure, ET au-dessus du pire appel
+      # `pro` — donc un retour arriere vers `pro` reste 3 lignes de .env, sans
+      # second reglage a toucher. Un appel coupe n'est pas perdu : il repart
+      # en AiEvaluationTransientException, rejouee 3 fois (@Retryable), donc le
+      # pire cas d'attente est ~4 min 40 par evaluation au lieu de ~9 min a
+      # 180 s. Un vrai incident RESEAU n'est pas gouverne par cette valeur :
+      # le connect timeout est plafonne a 10 s (min(timeoutSec, 10), cf.
+      # OpenAiCompatibleEvalClient#buildRequestFactory) — au-dela, c'est un
+      # fournisseur qui a accepte la requete et genere.
+      timeout-sec: ${EVAL_DEEPSEEK_TIMEOUT_SEC:90}
       prompt-version: ${EVAL_PROMPT_VERSION:v5}
-      cost-per-million-input-tokens: 0.27
-      cost-per-million-output-tokens: 1.10
+      # Tarif deepseek-v4-flash (USD / 1M tokens, relevé sur
+      # api-docs.deepseek.com le 2026-08-07 : 0,14 en entrée cache-miss / 0,28
+      # en sortie ; le tarif cache-hit, plus bas, n'est pas modélisé — on
+      # facture toujours au plein tarif, ce qui SURESTIME le coût, jamais
+      # l'inverse).
+      # Pour mémoire : deepseek-v4-pro vaut 0,435 / 0,87. L'ancien 0,27 / 1,10
+      # écrit ici datait de la gamme V3 et surestimait déjà 2 à 4× les coûts
+      # `flash` persistés dans ai_evaluations.cout_centimes.
+      cost-per-million-input-tokens: ${EVAL_DEEPSEEK_COST_INPUT:0.14}
+      cost-per-million-output-tokens: ${EVAL_DEEPSEEK_COST_OUTPUT:0.28}
 
   # Expression orale en TEMPS RÉEL (examinateur vocal IA, Tâches 1 & 2).
   # S'ajoute au pipeline async — ne le remplace pas. Schéma de connexion (A) :

@@ -98,12 +98,15 @@ class OpenAiCompatibleEvalClientRequestBodyTest {
     }
 
     @Test
-    void temperature_omise_quand_le_modele_n_accepte_que_son_defaut() {
-        // Rien a configurer : la seule ligne changee est EVAL_OPENAI_MODEL.
-        Map<String, Object> body = corps(openAi("gpt-5.5"), "OpenAI");
+    void temperature_omise_quand_la_config_le_demande() {
+        // Valeur « ne pas envoyer », distincte de 0 et de 1. Le cas NORMAL est la
+        // negociation avec l'API (cf. OpenAiCompatibleEvalClientNegotiationTest) :
+        // cette cle n'est qu'une reprise de main sans code.
+        ProductionEvaluationProperties.OpenAi s = openAi("gpt-5.4");
+        s.setSendTemperature("false");
 
-        // gpt-5.5 : « Only the default (1) value is supported ». On OMET, on
-        // n'envoie pas 1 : ce serait accepter une notation non deterministe.
+        Map<String, Object> body = corps(s, "OpenAI");
+
         assertThat(body).doesNotContainKey("temperature");
         assertThat(body).containsEntry("max_completion_tokens", 4000);
     }
@@ -111,15 +114,17 @@ class OpenAiCompatibleEvalClientRequestBodyTest {
     @Test
     void changer_de_modele_suffit_a_changer_de_dialecte() {
         // L'exigence produit : une seule ligne de .env (EVAL_OPENAI_MODEL) doit
-        // suffire, sans toucher au code ni au YAML.
+        // suffire, sans toucher au code ni au YAML. Sur les familles connues, le
+        // raccourci evite meme l'aller-retour rate ; sur les autres, c'est la
+        // negociation qui s'en charge au premier appel.
         assertThat(corps(openAi("gpt-4.1"), "OpenAI"))
             .containsEntry("max_tokens", 4000).containsEntry("temperature", 0.0);
         assertThat(corps(openAi("gpt-5.2"), "OpenAI"))
             .containsEntry("max_completion_tokens", 4000).containsEntry("temperature", 0.0);
         assertThat(corps(openAi("gpt-5.4-mini"), "OpenAI"))
             .containsEntry("max_completion_tokens", 4000).containsEntry("temperature", 0.0);
-        assertThat(corps(openAi("gpt-5.5"), "OpenAI"))
-            .containsEntry("max_completion_tokens", 4000).doesNotContainKey("temperature");
+        assertThat(corps(openAi("o3-mini"), "OpenAI"))
+            .containsEntry("max_completion_tokens", 4000);
     }
 
     @Test

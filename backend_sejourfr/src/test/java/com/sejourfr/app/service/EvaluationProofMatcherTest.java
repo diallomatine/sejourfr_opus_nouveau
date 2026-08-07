@@ -402,6 +402,214 @@ class EvaluationProofMatcherTest {
      * citation qui enjambe une relance reste refusee, sinon on validerait une
      * phrase que personne n'a dite d'un trait.
      */
+    // ------------------------------------------- mots coupes par la transcription
+
+    /**
+     * Cas REEL du corpus {@code EO_T2_B1_01} (piege {@code TRANSCRIPTION_BRUITEE}) :
+     * la transcription temps reel coupe les mots au mauvais endroit. Le correcteur
+     * cite la forme recomposee — la seule qu'il puisse ecrire — et le matcher la
+     * refusait. Comme presque tous les tours candidat de ce cas portent des mots
+     * coupes, la consigne « cite un passage propre » y etait impossible a
+     * satisfaire.
+     */
+    @Test
+    void recolle_un_mot_coupe_par_la_transcription_reelle() {
+        String production = "Examinateur : Bonjour, je peux vous aider ?\n"
+            + "Candidat : oui bon jour j'ai ach eté cette ves te chez vous il y a dix jours "
+            + "et une cou ture s'est défai te dès le pre mier jour";
+
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            production, "j'ai acheté cette veste chez vous il y a dix jours", EpreuveType.TCF_EO))
+            .contains("j'ai ach eté cette ves te chez vous il y a dix jours");
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            production, "une couture s'est défaite dès le premier jour", EpreuveType.TCF_EO))
+            .contains("une cou ture s'est défai te dès le pre mier jour");
+    }
+
+    /** Second cas reel du corpus ({@code EO_T2_A2_01}), avec hesitations melees. */
+    @Test
+    void recolle_un_mot_coupe_meme_entoure_d_hesitations() {
+        String production = "Candidat : bonjour euh je voudrais réser ver une cham bre pour "
+            + "deu personne s'il vous plaît";
+
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            production, "je voudrais réserver une chambre", EpreuveType.TCF_EO))
+            .contains("je voudrais réser ver une cham bre");
+    }
+
+    /**
+     * SENS UNIQUE, comme l'elision des hesitations : la PRODUCTION peut etre
+     * coupee, la citation jamais. Une citation qui coupe un mot que la production
+     * ecrit d'un trait reste refusee.
+     */
+    @Test
+    void le_recollage_ne_vaut_que_de_la_production_vers_la_citation() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "J'ai acheté cette veste chez vous il y a dix jours.",
+            "j'ai ach eté cette ves te chez vous il y a dix jours", EpreuveType.TCF_EE))
+            .isEmpty();
+    }
+
+    /**
+     * RISQUE DE FUSION ABUSIVE, dans les deux sens. On ne DECOUPE jamais un token
+     * de la production : « les » ne peut pas absorber une partie de « lest », et
+     * « lest » ne peut pas se rassembler a partir de « les tuteurs » (la
+     * concatenation deborderait la cible).
+     */
+    @Test
+    void la_fusion_abusive_les_tuteurs_lest_uteurs_reste_impossible() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Le bateau prend du lest uteurs pour la traversée.",
+            "le bateau prend du les tuteurs pour la traversée", EpreuveType.TCF_EE))
+            .isEmpty();
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Le bateau prend du les tuteurs pour la traversée.",
+            "le bateau prend du lest uteurs pour la traversée", EpreuveType.TCF_EE))
+            .isEmpty();
+    }
+
+    /**
+     * LIMITE ASSUMEE ET DOCUMENTEE : rien ne distingue « une couture coupee en
+     * deux » de « deux mots colles par la citation ». Une citation qui soude deux
+     * mots voisins passe donc — et c'est sans consequence : le passage restitue,
+     * persiste et affiche reste la sous-chaine ORIGINALE, avec ses deux mots
+     * separes. Aucun mot n'est invente, aucun n'est perdu.
+     */
+    @Test
+    void deux_mots_voisins_soudes_par_la_citation_restituent_le_texte_original() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Les tuteurs accompagnent les nouveaux élèves du quartier.",
+            "lestuteurs accompagnent les nouveaux élèves du quartier", EpreuveType.TCF_EE))
+            .contains("Les tuteurs accompagnent les nouveaux élèves du quartier");
+    }
+
+    /**
+     * La negation ne se fabrique pas par recollage : « pas sage » ne rend pas
+     * citable « passage », et un fragment de negation n'est jamais absorbe.
+     */
+    @Test
+    void le_recollage_ne_fabrique_jamais_une_negation() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Cet enfant n'est pas sage dans notre classe.",
+            "cet enfant n'est passage dans notre classe", EpreuveType.TCF_EE))
+            .isEmpty();
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Je ne veux p as quitter ce quartier calme.",
+            "je ne veux pas quitter ce quartier calme", EpreuveType.TCF_EE))
+            .isEmpty();
+    }
+
+    /** Deux nombres voisins ne se recollent jamais en un troisieme. */
+    @Test
+    void le_recollage_ne_fabrique_jamais_un_nombre() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "J'ai payé 20 26 euros pour cette veste.",
+            "j'ai payé 2026 euros pour cette veste", EpreuveType.TCF_EE))
+            .isEmpty();
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "La chambre coûte quatre vingt euros la nuit.",
+            "la chambre coûte quatrevingt euros la nuit", EpreuveType.TCF_EE))
+            .isEmpty();
+    }
+
+    /**
+     * Seuls des BLANCS HORIZONTAUX separent deux fragments d'un meme mot. Une
+     * apostrophe, un trait d'union, une ponctuation ou un saut de ligne marquent
+     * une frontiere REELLE : les enjamber fabriquerait un mot.
+     */
+    @Test
+    void le_recollage_n_enjambe_ni_ponctuation_ni_apostrophe_ni_saut_de_ligne() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Je pars demain. Toi aussi tu pars bientôt.",
+            "je pars demaintoi aussi tu pars bientôt", EpreuveType.TCF_EE))
+            .isEmpty();
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Le grand-père accompagne les enfants du quartier.",
+            "le grandpère accompagne les enfants du quartier", EpreuveType.TCF_EE))
+            .isEmpty();
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Candidat : je pars\nCandidat : demain avec ma famille proche",
+            "je parsdemain avec ma famille proche", EpreuveType.TCF_EO))
+            .isEmpty();
+    }
+
+    /** Au-dela de trois fragments, ce n'est plus un mot coupe : c'est une recomposition. */
+    @Test
+    void le_recollage_s_arrete_a_trois_fragments() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Ce dossier reste in com pré hen sible pour les familles.",
+            "ce dossier reste incompréhensible pour les familles", EpreuveType.TCF_EE))
+            .isEmpty();
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Ce dossier reste in com préhensible pour les familles.",
+            "ce dossier reste incompréhensible pour les familles", EpreuveType.TCF_EE))
+            .contains("Ce dossier reste in com préhensible pour les familles");
+    }
+
+    /**
+     * Le recollage ne relache RIEN : il ne fait pas passer un mot absent, un mot
+     * substitue ni un ordre recompose. Toutes les lettres de la citation restent
+     * presentes, contigues et dans le meme ordre.
+     */
+    @Test
+    void le_recollage_n_autorise_aucun_mot_absent_ni_substitue() {
+        String production = "Candidat : j'ai ach eté cette ves te chez vous hier matin";
+
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            production, "j'ai acheté cette belle veste chez vous", EpreuveType.TCF_EO))
+            .isEmpty();
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            production, "j'ai acheté cette jupe chez vous hier", EpreuveType.TCF_EO))
+            .isEmpty();
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            production, "cette veste j'ai acheté chez vous hier", EpreuveType.TCF_EO))
+            .isEmpty();
+    }
+
+    /**
+     * Le passage restitue reste la SOUS-CHAINE ORIGINALE EXACTE, coupures
+     * comprises : le candidat relit ce qu'il a produit, pas ce que le correcteur
+     * a recompose.
+     */
+    @Test
+    void le_passage_restitue_reste_la_sous_chaine_originale_coupures_comprises() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Candidat : la cou ture s'est défai te dès le début",
+            "la couture s'est défaite dès le début", EpreuveType.TCF_EO))
+            .hasValueSatisfying(passage -> assertThat(passage)
+                .isEqualTo("la cou ture s'est défai te dès le début")
+                .doesNotContain("couture"));
+    }
+
+    @Test
+    void le_recollage_exige_toujours_un_match_unique() {
+        String fragment = "Candidat : j'ai ach eté cette ves te chez vous";
+
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            fragment + "\nCandidat : j'ai acheté cette veste chez vous",
+            "j'ai acheté cette veste chez vous", EpreuveType.TCF_EO))
+            .isEmpty();
+    }
+
+    @Test
+    void le_recollage_ne_traverse_pas_un_tour_de_l_examinateur() {
+        String dialogue = "Candidat : j'ai ach\n"
+            + "Examinateur : Pardon ?\n"
+            + "Candidat : eté cette veste chez vous hier";
+
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            dialogue, "j'ai acheté cette veste chez vous hier", EpreuveType.TCF_EO))
+            .isEmpty();
+    }
+
+    @Test
+    void le_recollage_ne_traverse_pas_une_hesitation() {
+        assertThat(EvaluationProofMatcher.canonicalPassage(
+            "Candidat : j'ai ach euh eté cette veste chez vous hier",
+            "j'ai acheté cette veste chez vous hier", EpreuveType.TCF_EO))
+            .isEmpty();
+    }
+
     @Test
     void le_recollage_ne_rend_pas_citable_une_phrase_a_cheval_sur_une_relance() {
         String dialogue = """

@@ -36,7 +36,13 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * <p>Proprietes reconnues : {@code calibration.rubrics}, {@code calibration.prompt},
  * {@code calibration.passes}, {@code calibration.parallelisme},
  * {@code calibration.limit}, {@code calibration.retries}, {@code calibration.label},
- * {@code calibration.env.file}.
+ * {@code calibration.env.file}, {@code calibration.temoin}.
+ *
+ * <p><b>{@code calibration.retries} est fige dans le rapport</b> et
+ * {@code -Dcalibration.temoin=target/calibration/<temoin>.json} fait ECHOUER la
+ * campagne si le temoin n'a pas tourne au meme nombre de reessais : c'est
+ * exactement le defaut qui a fausse la comparaison v9-flash (9) / v9-pro (3) /
+ * gpt-5.4 (1).
  */
 @EnabledIfSystemProperty(named = "calibration.enabled", matches = "true")
 class CalibrationBenchTest {
@@ -84,6 +90,22 @@ class CalibrationBenchTest {
         contexte.put("cas", corpus.size());
         contexte.put("passes", passes);
         contexte.put("parallelisme", parallelisme);
+        // FIGE DANS LE RAPPORT. Sans lui, deux campagnes se comparaient en
+        // ignorant que l'une rejouait 9 fois et l'autre 1 : la colonne « cas
+        // perdus » ne mesurait pas la meme chose, et un choix de modele a ete
+        // fait dessus.
+        contexte.put("retries", retries);
+
+        // Garde-fou de comparabilite : -Dcalibration.temoin=<chemin du rapport>.
+        String temoin = prop("calibration.temoin", null);
+        if (temoin != null) {
+            List<String> divergences = CalibrationReport.divergencesDeReglage(
+                contexte, CalibrationReport.contexteDuRapport(Path.of(temoin)));
+            System.out.println(CalibrationReport.bandeauComparabilite(divergences));
+            assertThat(CalibrationReport.bloquant(divergences))
+                .as("temoin %s non comparable : %s", temoin, divergences)
+                .isFalse();
+        }
 
         System.out.printf("%nCampagne '%s' : %d cas x %d passe(s), %d appels en vol, modele %s "
                 + "(rubriques %s, prompt %s)%n",

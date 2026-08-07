@@ -397,6 +397,51 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   `MOYENNE` et un avertissement serveur est ajouté. Deux preuves, une preuve vide ou toute
   autre violation font échouer la submission sans note partielle. Sur un retry réparé ou
   dégradé, tokens d'entrée, tokens de sortie et coût des deux appels sont additionnés.
+- **Changer de LLM ou de modèle ne touche AUCUN `.java` ni `.yaml`** — exigence du
+  propriétaire, verrouillée par les tests. Trois mécanismes : la **forme de requête**
+  (`max_tokens` vs `max_completion_tokens`, `temperature` envoyée ou omise) est
+  **négociée** (`ChatCompletionDialectNegotiator` : déduit le remplacement du 400 du
+  fournisseur, rejoue **une fois**, mémorise par processus ; un **400 métier** ne
+  renégocie **jamais** ; les heuristiques par famille ne sont qu'un point de départ) ;
+  le **modèle et ses deux tarifs** sont des `${EVAL_*_MODEL/COST_INPUT/COST_OUTPUT}` ;
+  le même dialecte sert `CompetenceOpenAiCompatibleClient` — sinon une bascule casse
+  le module Compétences en silence. `EvaluationPricingTest` ne fige plus une table
+  « tel modèle = tel prix » (elle rendait rouge tout changement de modèle) mais une
+  **cohérence** : tarif présent, positif, plausible, **posé dans la même source que le
+  modèle**. `CalibrationEnvTest` vérifie un environnement **cohérent**, plus quel
+  provider est choisi. `EvaluationProviderSwapTest` prouve qu'un modèle inédit se
+  branche sur les 3 providers par 4 variables.
+- **Correcteur actif : DeepSeek `deepseek-v4-flash`** (`.env`, défaut YAML aligné) —
+  **choix mesuré, pas par défaut**. Trois campagnes v9 sur les 48 cas ont départagé
+  `flash`, `deepseek-v4-pro` et `gpt-5.4` :
+
+  | | `flash` | `pro` | `gpt-5.4` |
+  |---|---|---|---|
+  | **appels refusés — tous cas** | 27,3 % | 17,9 % | **0 %** |
+  | **appels refusés — ORAL** | **42,9 %** | 31,2 % | **0 %** |
+  | appels refusés — écrit | **0 %** | **0 %** | **0 %** |
+  | accord exact | **81,3 %** | 77,1 % | **81,3 %** |
+  | pièges | **8/8** | 4/8 | 5/8 |
+  | B2 · A1 · A2 | 6/7 · 3/8 · 10/13 | 3/7 · **4/8** · **12/13** | 6/7 · 2/8 · 11/13 |
+  | latence médiane / max **par appel** | 16,3 s / 36 s | 28,8 s / 67 s | **12,9 s / 32 s** |
+  | coût 48 corrections | **0,91 $** | 1,12 $ | 4,14 $ |
+
+  ⚠️ **La ligne « corrections perdues » de ces campagnes est NON COMPARABLE et a été
+  retirée** : `calibration.retries` valait **9 / 3 / 1**. `flash` n'a pas moins perdu,
+  il a eu neuf vies. En production il n'y a qu'**un** réessai — figer `retims` entre
+  témoin et candidat, et le reporter dans le rapport. Ne jamais rechoisir un modèle
+  sur cette colonne.
+  ⚠️ **`pro` est plus cher que `flash`** — le nom ne dit rien de l'aptitude à cette
+  tâche. `gpt-5.4` est le seul sans aucun appel refusé, mais 4,5× le prix (écarté sur
+  le coût, 2026-08-08). **Choix en cours de réexamen.**
+  **Le rejet est un problème purement ORAL** : 0 % d'appels refusés en EE chez les
+  trois moteurs. Et ce ne sont pas des JSON cassés — ce sont **nos validateurs** qui
+  refusent des sorties bien formées. Tarifs relevés le 2026-08-07 sur
+  api-docs.deepseek.com : flash 0,14 / 0,28 ; pro 0,435 / 0,87 — **l'ancien
+  0,27 / 1,10 du YAML était faux** et surestimait 2 à 4× les coûts déjà persistés.
+  `timeout-sec` deepseek 60 → **90** (read timeout **par appel** : pire appel `flash`
+  36 s, `pro` 67 s ; les « 5 min » d'un rapport sont un **cas entier**, pas un appel).
+  Bascule = un bloc de 3 lignes de `.env`. Détail : `docs/notation-ia-eo-ee.md` §12.6.
 - **Une sortie LLM malformée est TRANSITOIRE, donc rejouée** (`@Retryable` des deux
   clients) : absence de `tool_calls`, `finish_reason=length`, arguments vides,
   JSON illisible, réponse vide. Seuls la configuration absente et les 4xx sont
@@ -440,6 +485,46 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   apparaît, pas d'ellipse, pas de recomposition, un seul tour `Candidat :` en EO)
   et suggère de re-citer plus court. **Aucun contrôle serveur n'est relâché** :
   on aide le correcteur à respecter la vérification.
+- **Mot coupé par la transcription** (`EvaluationProofMatcher`, 2026-08-07) : un token
+  de la citation peut recoller **plusieurs tokens consécutifs de la production** dont
+  la concaténation est identique — **sens unique production → citation**, exactement
+  comme l'élision des disfluences. Motif : sur une transcription hachée
+  (« j'ai ach eté cette ves te »), presque aucun passage n'était citable, et la grille
+  ordonne pourtant de « changer de passage » — on demandait l'impossible. Quatre
+  garde-fous, tous dans le sens « en cas de doute, on ne fusionne pas » : ≤ 3
+  fragments ; **blancs horizontaux seuls** entre fragments (ni apostrophe, ni trait
+  d'union, ni ponctuation, ni saut de ligne — donc jamais à travers un tour
+  `Examinateur :`) ; aucun fragment négation / nombre / chiffre / disfluence ; le mot
+  recollé n'est jamais une négation ni un token chiffré. Contiguïté, match unique,
+  écart de nombre/négation, tolérance d'une seule édition, tours `Candidat :` :
+  **inchangés** ; le passage restitué reste la **sous-chaîne originale exacte**,
+  coupures comprises. La voie *fuzzy* (une édition) n'en bénéficie **pas** :
+  mot coupé **plus** édition = cas doublement dégradé. Limite assumée et testée : deux
+  mots voisins soudés par la citation passent — sans conséquence, rien n'est inventé
+  et le passage affiché reste le texte réel.
+- **Garde-fou oral : deux faux positifs corrigés** — `repetition` n'est plus interdit
+  que dans ses emplois de **diction** (consigne d'évitement portant sur « les
+  répétitions » en bloc, ou voisinage d'un marqueur oral dans la même phrase) : il
+  détruisait des évaluations pour des remarques de **morphosyntaxe** et levait une
+  **contradiction interne** du dépôt, la rubrique v9 §19 *ordonnant* de peser « a-t-il
+  dû faire répéter ? ». `accent` n'est refusé que hors de l'idiome « mettre l'accent
+  **sur** ». `fluidite`, `prononciation`, `debit`, `intonation`, `pauses`,
+  `hesitation`, `orthographe` : **inchangés** — l'acquis « on ne note jamais sur la
+  prononciation » est entier. Aucune campagne requise : rien de ce qui note ne bouge.
+- **`EvaluationRefusalMetrics`** : ce que nos contrôles refusent est **compté par
+  (phase, motif)**, plus seulement logué, et le refus **après réessai** est logué lui
+  aussi (il ne l'était pas). Le banc en tire, par tentative, les violations **et la
+  citation refusée** — y compris celles du premier appel, que l'exception ne porte pas.
+  Sans ça, 98 % des refus étaient sans motif traçable et toute action sur les contrôles
+  était un pari.
+- **Banc — deux métriques à ne plus confondre** : `sorties_refusees_pct` (÷ appels LLM,
+  ce que refusent nos contrôles) ≠ `echec_production_pct` (`tentativesRatees /
+  tentatives`, **la seule qui décrit ce que vit un candidat**, puisqu'en production il
+  n'y a qu'**un** réessai). `appels_rates_pct` est supprimé : il comptait les
+  tentatives de la boucle externe en se présentant comme un taux par appel, et
+  sous-estimait les refus d'un facteur ~2. **`calibration.retries` est figé dans le
+  rapport** et `-Dcalibration.temoin=<rapport.json>` fait **échouer** une campagne dont
+  le témoin n'a pas tourné au même nombre de réessais.
 - **Plafond de tokens de SORTIE = 4000**, identique sur les trois providers
   (`sejourfr.production-evaluation.{openai,anthropic,deepseek}.max-tokens`,
   figé par `EvaluationTokenBudgetTest`). À 2000 — valeur d'avant les quatre

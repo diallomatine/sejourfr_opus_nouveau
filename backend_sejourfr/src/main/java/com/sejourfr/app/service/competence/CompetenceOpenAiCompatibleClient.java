@@ -5,6 +5,7 @@ import com.sejourfr.app.config.ProductionEvaluationProperties.ChatCompletionSett
 import com.sejourfr.app.exception.AiEvaluationException;
 import com.sejourfr.app.exception.AiEvaluationTransientException;
 import com.sejourfr.app.util.ChatCompletionDialect;
+import com.sejourfr.app.util.ChatCompletionDialectNegotiator;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +63,8 @@ public class CompetenceOpenAiCompatibleClient implements CompetenceAnalysisLlmCl
     private final String label;
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
+    /** Forme de requete negociee avec le fournisseur, memorisee par processus. */
+    private final ChatCompletionDialectNegotiator dialecte;
     private Map<String, Object> toolSchema;
 
     public CompetenceOpenAiCompatibleClient(ChatCompletionSettings connection,
@@ -71,6 +74,9 @@ public class CompetenceOpenAiCompatibleClient implements CompetenceAnalysisLlmCl
         this.analysis = analysis;
         this.label = label;
         this.objectMapper = objectMapper;
+        this.dialecte = new ChatCompletionDialectNegotiator(
+            label + " analyse competence", connection.getModel(),
+            connection.getMaxTokensParam(), connection.getSendTemperature());
         this.restClient = RestClient.builder()
             .baseUrl(connection.getApiUrl())
             .requestFactory(buildRequestFactory(connection.getTimeoutSec()))
@@ -86,8 +92,8 @@ public class CompetenceOpenAiCompatibleClient implements CompetenceAnalysisLlmCl
             this.toolSchema = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
         }
         log.info("{} analyse competence : tool schema {} charge ({})", label, TOOL_NAME, version);
-        log.info("{} analyse competence : {}", label, ChatCompletionDialect.resume(
-            connection.getMaxTokensParam(), connection.getSendTemperature(), connection.getModel()));
+        log.info("{} analyse competence : modele={} forme d'essai {}",
+            label, connection.getModel(), dialecte.forme());
     }
 
     @Override
@@ -114,26 +120,35 @@ public class CompetenceOpenAiCompatibleClient implements CompetenceAnalysisLlmCl
             );
         }
 
-        Map<String, Object> body = buildRequestBody(systemPrompt, userPrompt);
         long start = System.currentTimeMillis();
-        JsonNode response;
-        try {
-            response = restClient.post()
-                .contentType(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer " + connection.getApiKey())
-                .body(body)
-                .retrieve()
-                .body(JsonNode.class);
-        } catch (HttpClientErrorException.TooManyRequests e) {
-            throw new AiEvaluationTransientException(label + " analyse 429 rate-limited", e);
-        } catch (HttpServerErrorException e) {
-            throw new AiEvaluationTransientException(label + " analyse 5xx (" + e.getStatusCode() + ")", e);
-        } catch (HttpClientErrorException e) {
-            log.warn("{} analyse 4xx : {} body={}", label, e.getStatusCode(),
-                preview(e.getResponseBodyAsString()));
-            throw new AiEvaluationException(label + " analyse 4xx (" + e.getStatusCode() + ")", e);
-        } catch (ResourceAccessException e) {
-            throw new AiEvaluationTransientException(label + " analyse timeout ou erreur reseau", e);
+        JsonNode response = null;
+        // Meme negociation de forme que les corrections completes : l'analyse
+        // ciblee partage le PROVIDER, elle doit parler le meme dialecte.
+        for (int tentative = 0; response == null; tentative++) {
+            ChatCompletionDialect forme = dialecte.forme();
+            Map<String, Object> body = buildRequestBody(systemPrompt, userPrompt, forme);
+            try {
+                response = restClient.post()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer " + connection.getApiKey())
+                    .body(body)
+                    .retrieve()
+                    .body(JsonNode.class);
+            } catch (HttpClientErrorException.TooManyRequests e) {
+                throw new AiEvaluationTransientException(label + " analyse 429 rate-limited", e);
+            } catch (HttpServerErrorException e) {
+                throw new AiEvaluationTransientException(label + " analyse 5xx (" + e.getStatusCode() + ")", e);
+            } catch (HttpClientErrorException e) {
+                String corps = e.getResponseBodyAsString();
+                if (tentative < ChatCompletionDialectNegotiator.MAX_RENEGOCIATIONS
+                        && dialecte.adapte(forme, corps)) {
+                    continue;
+                }
+                log.warn("{} analyse 4xx : {} body={}", label, e.getStatusCode(), preview(corps));
+                throw new AiEvaluationException(label + " analyse 4xx (" + e.getStatusCode() + ")", e);
+            } catch (ResourceAccessException e) {
+                throw new AiEvaluationTransientException(label + " analyse timeout ou erreur reseau", e);
+            }
         }
         long duration = System.currentTimeMillis() - start;
 
@@ -160,6 +175,10 @@ public class CompetenceOpenAiCompatibleClient implements CompetenceAnalysisLlmCl
     }
 
     Map<String, Object> buildRequestBody(String systemPrompt, String userPrompt) {
+        return buildRequestBody(systemPrompt, userPrompt, dialecte.forme());
+    }
+
+    Map<String, Object> buildRequestBody(String systemPrompt, String userPrompt, ChatCompletionDialect forme) {
         Map<String, Object> function = new LinkedHashMap<>();
         function.put("name", TOOL_NAME);
         function.put("description", TOOL_DESCRIPTION);
@@ -172,14 +191,12 @@ public class CompetenceOpenAiCompatibleClient implements CompetenceAnalysisLlmCl
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", connection.getModel());
         // Budget PROPRE a l'analyse ciblee, pas celui des corrections completes.
-        // Le NOM du champ, lui, depend du modele : les gpt-5.x refusent
-        // max_tokens en 400 (cf. ChatCompletionDialect). L'analyse ciblee et les
-        // corrections completes partagent le meme provider (regle « un seul
-        // correcteur configurable ») : elles doivent parler le meme dialecte.
-        body.put(
-            ChatCompletionDialect.maxTokensParam(connection.getMaxTokensParam(), connection.getModel()),
-            analysis.getMaxTokens());
-        if (ChatCompletionDialect.sendTemperature(connection.getSendTemperature(), connection.getModel())) {
+        // Le NOM du champ, lui, est negocie avec le fournisseur (cf.
+        // ChatCompletionDialectNegotiator). L'analyse ciblee et les corrections
+        // completes partagent le meme provider (regle « un seul correcteur
+        // configurable ») : elles doivent parler le meme dialecte.
+        body.put(forme.maxTokensParam(), analysis.getMaxTokens());
+        if (forme.sendTemperature()) {
             body.put("temperature", analysis.getTemperature());
         }
         body.put("messages", List.of(

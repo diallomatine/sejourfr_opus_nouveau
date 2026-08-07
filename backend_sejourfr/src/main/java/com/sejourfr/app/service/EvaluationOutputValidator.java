@@ -43,17 +43,74 @@ final class EvaluationOutputValidator {
     private static final Set<String> OBJECTIFS =
         Set.of("ATTEINT", "PARTIELLEMENT_ATTEINT", "NON_ATTEINT");
 
+    /**
+     * NOTIONS DE DICTION, interdites sans condition : les entendre reprocher,
+     * c'est noter ce que nous n'avons pas entendu. {@code repetition} et
+     * {@code accent} n'y figurent plus (cf. {@link #MOTIFS_ORAUX_CONTEXTUELS}) ;
+     * tout le reste est inchange.
+     */
     private static final Pattern MOTIFS_ORAUX_INTERDITS = Pattern.compile(
-        "\\b(hesitation(?:s)?|repetition(?:s)?|faux[ -]?depart(?:s)?|hache(?:e|es|s)?|"
+        "\\b(hesitation(?:s)?|faux[ -]?depart(?:s)?|hache(?:e|es|s)?|"
             + "(?:vous |tu )?(?:hesitez|repetez)|(?:vous |tu )?parl(?:ez|es) (?:trop )?"
             + "(?:vite|lentement)|(?:longues? )?pauses? (?:dans|pendant) (?:la |votre )?"
             + "(?:reponse|prise de parole|parole|discours)|"
             + "(?:debit|rythme) (?:de (?:parole|voix|discours|l['’]elocution)|oral|"
             + "(?:trop )?(?:lent|rapide|saccade|irregulier))|"
-            + "fluidite|aisance|prononciation|accent|intonation|orthographe|"
+            + "fluidite|aisance|prononciation|intonation|orthographe|"
             + "ponctuation|temps de parole|duree (?:de l['’]|de la |du |d['’])?"
             + "(?:enregistrement|audio|production|reponse|prise de parole|parole)|"
             + "(?:enregistrement|audio) (?:trop )?court)\\b");
+
+    /**
+     * Mots qui designent le SUPPORT ORAL. Leur voisinage suffit a faire d'une
+     * « repetition » un reproche de diction ; seuls, ils ne sont pas interdits
+     * (« ton discours est clair » est un compliment legitime).
+     */
+    private static final String MARQUEURS_ORAUX =
+        "oral|orale|oralement|discours|parole|elocution|articulation|voix|"
+            + "enregistrement|audio|transcription|debit|fluidite|aisance|hesitation(?:s)?";
+
+    /**
+     * DEUX FAUX POSITIFS CORRIGES (2026-08-07) — une liste de MOTS ne sait pas
+     * distinguer la diction de la syntaxe.
+     *
+     * <ol>
+     *   <li><b>{@code repetition}</b> a detruit une evaluation reelle pour
+     *       « cette <i>repetition</i> alourdit la phrase … supprime le pronom
+     *       repete » : une remarque de MORPHOSYNTAXE. Pire, les rubriques
+     *       ORDONNENT au correcteur de peser « a-t-il du faire repeter ? » dans
+     *       {@code communiquer} — le prompt commandait une notion que le
+     *       validateur interdisait d'ecrire. La notion reste refusee dans ses
+     *       emplois de DICTION : consigne d'evitement portant sur « les
+     *       repetitions » en bloc, ou voisinage d'un {@link #MARQUEURS_ORAUX
+     *       marqueur oral}.</li>
+     *   <li><b>{@code accent}</b> capturait « mettre l'accent sur », tournure
+     *       parfaitement legitime. Il n'est refuse que hors de cet emploi
+     *       (« votre accent », « un accent marque »).</li>
+     * </ol>
+     *
+     * <p>Les autres jetons ({@code fluidite}, {@code prononciation},
+     * {@code debit}, {@code intonation}, {@code pauses}) ne bougent pas : « on ne
+     * note jamais sur la prononciation » reste entier.
+     *
+     * <p>Le groupe {@code noyau}, quand il existe, porte la notion a nommer dans
+     * la violation — sans lui le message citerait la fenetre entiere au lieu du
+     * mot rejete, et le reessai redeviendrait aveugle.
+     */
+    private static final List<Pattern> MOTIFS_ORAUX_CONTEXTUELS = List.of(
+        // Consigne d'evitement portant sur « les repetitions » en bloc : c'est la
+        // diction. « supprime le pronom repete » ne matche pas — l'objet y est un
+        // element de langue nomme, pas le defaut oral lui-meme.
+        Pattern.compile("\\b(?:evite|evitez|reduis|reduisez|supprime|supprimez|limite|limitez"
+            + "|espace|espacez|diminue|diminuez|corrige|corrigez)\\s+(?:les|vos|tes|ces)\\s+"
+            + "(?<noyau>repetitions)\\b"),
+        // Voisinage d'un marqueur oral, dans la meme phrase, dans les deux sens.
+        Pattern.compile("(?<noyau>repetition(?:s)?)\\b[^.!?]{0,80}?\\b(?:" + MARQUEURS_ORAUX + ")\\b"),
+        Pattern.compile("\\b(?:" + MARQUEURS_ORAUX + ")\\b[^.!?]{0,80}?\\b(?<noyau>repetition(?:s)?)\\b"),
+        // « accent » hors de l'idiome « mettre / porter l'accent SUR quelque
+        // chose », reconnu par la presence de « sur » dans la meme proposition.
+        // Un accent de DICTION n'est jamais mis « sur » quoi que ce soit.
+        Pattern.compile("\\b(?<noyau>accents?)\\b(?![^.!?;:]{0,40}?\\bsur\\b)"));
 
     private EvaluationOutputValidator() {
     }
@@ -436,7 +493,33 @@ final class EvaluationOutputValidator {
      */
     static boolean mentionneMotifOralInterdit(Object raw) {
         if (!(raw instanceof String text) || text.isBlank()) return false;
-        return MOTIFS_ORAUX_INTERDITS.matcher(normaliserPourScan(text)).find();
+        return notionInterdite(normaliserPourScan(text)) != null;
+    }
+
+    /**
+     * Notion non evaluable a l'oral trouvee le plus a GAUCHE dans {@code texte}
+     * deja normalise, {@code null} sinon. Les motifs inconditionnels et les
+     * motifs contextuels sont lus par la meme methode, pour que la PURGE et la
+     * VIOLATION rejettent exactement les memes choses.
+     */
+    private static String notionInterdite(String texte) {
+        int position = Integer.MAX_VALUE;
+        String notion = null;
+        var inconditionnel = MOTIFS_ORAUX_INTERDITS.matcher(texte);
+        if (inconditionnel.find()) {
+            position = inconditionnel.start();
+            notion = inconditionnel.group();
+        }
+        for (Pattern motif : MOTIFS_ORAUX_CONTEXTUELS) {
+            var matcher = motif.matcher(texte);
+            if (!matcher.find()) continue;
+            int debut = matcher.start("noyau");
+            if (debut < position) {
+                position = debut;
+                notion = matcher.group("noyau");
+            }
+        }
+        return notion;
     }
 
     private static String normaliserPourScan(String text) {
@@ -447,15 +530,14 @@ final class EvaluationOutputValidator {
 
     private static void scanText(Object raw, String path, List<String> errors) {
         if (!(raw instanceof String text) || text.isBlank()) return;
-        String normalized = normaliserPourScan(text);
-        var matcher = MOTIFS_ORAUX_INTERDITS.matcher(normalized);
-        if (!matcher.find()) return;
+        String notion = notionInterdite(normaliserPourScan(text));
+        if (notion == null) return;
         // La NOTION rejetee et le passage exact sont dans le message : sans eux,
         // le reessai ne dit au correcteur ni quel champ ni quel mot revoir, et il
         // resoumet la meme phrase (meme pathologie que les preuves refusees, cf.
         // EvaluationRepairPrompt). C'est aussi ce qui rend le log exploitable.
         errors.add(path + ORAL_VIOLATION_MARKER
-            + " — notion interdite « " + normalized.substring(matcher.start(), matcher.end())
+            + " — notion interdite « " + notion
             + " », dans : « " + extrait(text) + " »");
     }
 

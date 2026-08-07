@@ -87,7 +87,10 @@ class CompetenceOpenAiCompatibleClientRequestBodyTest {
     }
 
     @Test
-    void temperature_omise_sur_un_modele_a_temperature_figee() {
-        assertThat(corps(openAi("gpt-5.5"), "OpenAI")).doesNotContainKey("temperature");
+    void temperature_omise_quand_la_config_le_demande() {
+        ProductionEvaluationProperties.OpenAi s = openAi("gpt-5.4");
+        s.setSendTemperature("false");
+
+        assertThat(corps(s, "OpenAI")).doesNotContainKey("temperature");
     }
 }

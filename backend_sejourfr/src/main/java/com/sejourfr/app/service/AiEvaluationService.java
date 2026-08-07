@@ -91,6 +91,7 @@ public class AiEvaluationService {
     private final ProductionValidityService validityService;
     private final ProductionSecondePasseService secondePasseService;
     private final ProductionFluiditeService fluiditeService;
+    private final EvaluationRefusalMetrics refusalMetrics;
     private final ProductionEvaluationProperties props;
 
     private static BigDecimal extractNote(Map<String, Object> feedback) {
@@ -305,8 +306,15 @@ public class AiEvaluationService {
                 first.feedback(), task, rubrics, client.getPromptVersion(), production);
         if (violations.isEmpty()) return new ValidatedOutcome(first, List.of());
 
-        log.warn("Sortie LLM invalide submission={} modele={} — retry semantique unique : {}",
-                submissionId, client.getModelName(), violations);
+        // COMPTEUR PAR MOTIF, pas seulement une trace : sans lui on ne savait pas,
+        // en exploitation, ce que nos propres controles refusaient (cf.
+        // EvaluationRefusalMetrics). La liste brute reste logue pour le debug.
+        EvaluationRefusalMetrics.Refus refus = refusalMetrics.enregistrer(
+                EvaluationRefusalMetrics.Phase.PREMIER_APPEL, violations, first.feedback());
+        log.warn("Sortie LLM refusee submission={} modele={} phase=PREMIER_APPEL motifs={} "
+                        + "citations_refusees={} cumul={} — retry semantique unique : {}",
+                submissionId, client.getModelName(), refus.motifs(), refus.citationsRefusees(),
+                refusalMetrics.compteurs(), violations);
         // Le reessai rappelle la citation refusee critere par critere et enonce
         // la regle de la preuve : sans cela il ne reparait rien (cf.
         // EvaluationRepairPrompt). Aucun controle n'est relache pour autant.
@@ -317,6 +325,12 @@ public class AiEvaluationService {
         List<String> remaining = EvaluationOutputValidator.violations(
                 repaired.feedback(), task, rubrics, client.getPromptVersion(), production);
         if (!remaining.isEmpty()) {
+            EvaluationRefusalMetrics.Refus refusFinal = refusalMetrics.enregistrer(
+                    EvaluationRefusalMetrics.Phase.APRES_REESSAI, remaining, repaired.feedback());
+            log.warn("Sortie LLM refusee submission={} modele={} phase=APRES_REESSAI motifs={} "
+                            + "citations_refusees={} cumul={}",
+                    submissionId, client.getModelName(), refusFinal.motifs(),
+                    refusFinal.citationsRefusees(), refusalMetrics.compteurs());
             String promptVersion = client.getPromptVersion();
             var unmatchedProof = "v4".equals(promptVersion) || "v5".equals(promptVersion)
                 ? EvaluationOutputValidator.singleUnmatchedProofCode(remaining)
