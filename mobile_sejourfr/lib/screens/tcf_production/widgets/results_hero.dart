@@ -124,8 +124,9 @@ class ProductionResultsHero extends StatelessWidget {
                     const SizedBox(height: 18),
                     _LevelPanel(evaluation: evaluation, niveau: niveau),
                     if (rappel != null) ...[
-                      const SizedBox(height: 12),
-                      _StakeBlock(rappel: rappel),
+                     // const SizedBox(height: 12),
+                      // TODO  à masquer pour l'instant
+                      //_StakeBlock(rappel: rappel),
                     ],
                   ],
                 ),

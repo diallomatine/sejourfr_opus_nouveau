@@ -13,6 +13,7 @@ import { DashboardPage } from "./features/dashboard/DashboardPage";
 import { ExamFormPage } from "./features/exams/ExamFormPage";
 import { ExamsPage } from "./features/exams/ExamsPage";
 import { PlansPage } from "./features/plans/PlansPage";
+import { ProductionTitlesPage } from "./features/productionTasks/ProductionTitlesPage";
 import { QuestionDetailPage } from "./features/questions/QuestionDetailPage";
 import { QuestionsPage } from "./features/questions/QuestionsPage";
 import { SkillDetailPage } from "./features/skills/SkillDetailPage";
@@ -54,6 +55,10 @@ export function App() {
                 />
                 <Route path="/themes" element={<ThemesPage />} />
                 <Route path="/skills" element={<SkillsPage />} />
+                <Route
+                  path="/production-titles"
+                  element={<ProductionTitlesPage />}
+                />
                 <Route path="/skills/stats" element={<SkillsStatsPage />} />
                 <Route path="/skills/:id" element={<SkillDetailPage />} />
                 <Route path="/exams" element={<ExamsPage />} />

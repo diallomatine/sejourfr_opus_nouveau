@@ -197,7 +197,13 @@ class _ProductionSubjectsTabViewState
     context.push('$base/${sub.id}?taskIndex=${tache - 1}&history=1');
   }
 
-  void _openDoneSheet(ProductionTaskDto task, ProductionSubmissionDto last) {
+  /// [order] = rang du sujet dans la tâche (1-based), celui de la pastille :
+  /// il sert au repli « Sujet N » quand le sujet n'a pas de titre éditorial.
+  void _openDoneSheet(
+    ProductionTaskDto task,
+    ProductionSubmissionDto last,
+    int order,
+  ) {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -227,7 +233,12 @@ class _ProductionSubjectsTabViewState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SheetHandle(),
-                Text(task.displayTitle, style: AppFonts.display(size: 18)),
+                // Même intitulé que la carte d'où vient la feuille : deux
+                // surfaces ne doivent pas nommer le même sujet autrement.
+                Text(
+                  productionSubjectTitle(task.titre, order),
+                  style: AppFonts.display(size: 18),
+                ),
                 const SizedBox(height: 5),
                 Row(
                   children: [
@@ -395,7 +406,7 @@ class _ProductionSubjectsTabViewState
               }
               final last = done[task.id];
               if (last != null) {
-                _openDoneSheet(task, last);
+                _openDoneSheet(task, last, origIndex + 1);
               } else {
                 _practice(task);
               }

@@ -109,6 +109,9 @@ Endpoints utilisés actuellement :
 - `GET /api/production-tasks?epreuve=TCF_EE|TCF_EO` — catalogue des sujets, utilisé
   pour retrouver l'épreuve et la consigne d'une soumission (le DTO submission ne
   porte que `productionTaskId`). Route authentifiée, pas `/api/admin/**`.
+- `GET /api/admin/production-tasks?epreuve=…&tacheNumero=…` +
+  `PATCH /api/admin/production-tasks/{id}/titre` (feature `productionTasks/` —
+  intitulés éditoriaux des sujets EE/EO)
 
 ### Compétences TCF EE/EO (`features/skills/`)
 
@@ -177,6 +180,32 @@ corriger une faute de frappe dans un sujet imposerait une migration Flyway.
   `GET /api/admin/skill-prompts/{id}` au lieu de se fier au payload du détail :
   un seul endroit garantit d'avoir le contexte, la consigne et les 3 références
   complets.
+
+### Titres des sujets EE/EO (`features/productionTasks/`)
+
+Route `/production-titles`. Une seule chose éditable : `production_tasks.titre`
+(colonne V028), l'intitulé court affiché en tête de la carte de sujet côté web
+et mobile — sans lui, les cartes disaient « Sujet 01 » suivi du début de la
+consigne, et toutes les consignes d'une même tâche commencent pareil.
+
+- **Périmètre volontairement étroit** : ce n'est pas un CRUD du catalogue. La
+  consigne, les bornes de mots/durée, l'activation et la fiche de scénario T2
+  restent pilotées par les migrations de contenu — ce sont des données que la
+  notation et `ProductionTaskSeedIT` verrouillent, pas du texte d'affichage.
+- **La liste inclut les sujets dépubliés** (`GET /api/admin/production-tasks`),
+  contrairement à la route candidat : la console doit voir ce qu'elle édite.
+- **Vider le champ retire le titre** (`titre: null`) : « pas de titre » se dit
+  NULL en base (contrainte `chk_prod_task_titre`), jamais par une chaîne vide,
+  et les fronts réaffichent alors `Sujet N`. C'est la seule façon de défaire un
+  titre posé par erreur.
+- **Règles de rédaction rappelées dans l'écran** : 2 à 5 mots, forme nominale,
+  fidèle à la situation ; ni numéro de tâche, ni palier, ni nombre de mots (déjà
+  affichés ailleurs sur la carte) ; deux sujets d'une même tâche ne se
+  confondent jamais. Le contenu initial (103 titres) vient de la migration V754,
+  générée par `backend_sejourfr/tools/production-titres/` — mais une fois
+  appliquée, **c'est la base qui fait foi**, comme pour les Compétences.
+- **`queryKey`** : `["adminProductionTasks", filters]` ; la mutation invalide le
+  préfixe `["adminProductionTasks"]`.
 
 ### Calibration de la notation IA (`features/calibration/`)
 

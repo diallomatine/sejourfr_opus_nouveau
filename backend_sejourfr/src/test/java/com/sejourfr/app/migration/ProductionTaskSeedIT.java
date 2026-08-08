@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.text.Normalizer;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -212,6 +213,55 @@ class ProductionTaskSeedIT extends AbstractIntegrationTest {
                         .as("exemple EE T%s %s", row.get("tache_numero"), row.get("id"))
                         .isBetween(((Number) row.get("mots_min")).intValue(),
                                 ((Number) row.get("mots_max")).intValue()));
+    }
+
+    /**
+     * Fige les TITRES EDITORIAUX publies par V754 (colonne posee par V028).
+     *
+     * <p>Leur raison d'etre est de <b>distinguer</b> deux sujets d'une meme
+     * tache : les consignes d'une tache commencent toutes de la meme facon, et
+     * une carte « Sujet 01 » + debut de consigne ne se lisait pas. Un titre
+     * duplique dans une tache, un titre absent ou un titre qui redit ce que la
+     * carte affiche deja (tache, palier, nombre de mots) ruine cette raison
+     * d'etre — le generateur le refuse, ce test le verrouille en base.
+     *
+     * <p>Le titre reste NULLABLE : c'est le CONTENU PUBLIE qu'on exige complet,
+     * pas la colonne. Les lignes de {@code TestData} en sont exclues, comme
+     * partout ici.
+     */
+    @Test
+    void everyPublishedSubjectCarriesADistinctiveEditorialTitle() {
+        List<Map<String, Object>> sujets = jdbc.queryForList("""
+                SELECT id::text AS id, epreuve, tache_numero, titre
+                FROM production_tasks
+                WHERE consigne NOT LIKE 'Consigne %'
+                """);
+
+        assertThat(sujets).hasSize(103);
+
+        Map<String, String> vusParTache = new HashMap<>();
+        assertThat(sujets).allSatisfy(row -> {
+            String titre = (String) row.get("titre");
+            String repere = row.get("epreuve") + " T" + row.get("tache_numero") + " / " + row.get("id");
+
+            assertThat(titre).as("titre de %s", repere).isNotNull();
+            assertThat(titre.strip()).as("titre blanc sur %s", repere).isEqualTo(titre).isNotEmpty();
+            assertThat(titre.length()).as("longueur du titre de %s", repere).isLessThanOrEqualTo(80);
+
+            // 2 a 5 mots : au-dela, le titre passe a la ligne sur une carte de
+            // telephone et cesse d'etre lisible d'un coup d'oeil.
+            int mots = titre.split("\\s+").length;
+            assertThat(mots).as("« %s » (%s)", titre, repere).isBetween(2, 5);
+
+            // Aucun chiffre : ni numero de tache, ni nombre de mots, ni duree —
+            // ces informations vivent deja dans les autres badges de la carte.
+            assertThat(titre).as("« %s » (%s) porte un chiffre", titre, repere)
+                    .matches("[^0-9]+");
+
+            String cle = row.get("epreuve") + "/" + row.get("tache_numero") + "/" + sansAccents(titre);
+            String deja = vusParTache.put(cle, repere);
+            assertThat(deja).as("« %s » se confond avec %s dans la meme tache", titre, deja).isNull();
+        });
     }
 
     private int count(String where) {

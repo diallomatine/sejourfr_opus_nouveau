@@ -235,6 +235,29 @@ void main() {
     });
   });
 
+  group("titre d'une carte de sujet", () {
+    test("le titre éditorial servi par l'API l'emporte", () {
+      expect(productionSubjectTitle('Message à un ami', 1), 'Message à un ami');
+    });
+
+    test('titre absent ⇒ « Sujet N », jamais un titre vide ni un placeholder',
+        () {
+      expect(productionSubjectTitle(null, 1), 'Sujet 1');
+      expect(productionSubjectTitle(null, 12), 'Sujet 12');
+    });
+
+    test('un titre blanc est traité comme absent', () {
+      expect(productionSubjectTitle('   ', 3), 'Sujet 3');
+    });
+
+    test('les espaces de bord sont retirés', () {
+      expect(
+        productionSubjectTitle("  Refus d'une invitation  ", 2),
+        "Refus d'une invitation",
+      );
+    });
+  });
+
   group('contrainte d\'un sujet — jamais une borne inventée', () {
     ProductionTaskDto task({int? motsMin, int? motsMax, int? dureeMaxSec}) =>
         ProductionTaskDto(

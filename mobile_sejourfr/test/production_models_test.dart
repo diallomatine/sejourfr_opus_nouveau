@@ -395,4 +395,38 @@ void main() {
       }
     });
   });
+
+  // Le titre editorial (V028) est NULLABLE cote backend : le parsing ne doit
+  // jamais le supposer present, ni laisser passer une chaine blanche — un
+  // titre vide ferait un trou en tete de carte.
+  group('ProductionTaskDto.titre', () {
+    Map<String, dynamic> json(Object? titre) => <String, dynamic>{
+          'id': 't',
+          'epreuve': 'TCF_EE',
+          'tacheNumero': 1,
+          'niveauCible': 'B1',
+          'titre': titre,
+          'consigne': 'Consigne',
+        };
+
+    test('titre servi : repris tel quel', () {
+      expect(
+        ProductionTaskDto.fromJson(json('Message a un ami')).titre,
+        'Message a un ami',
+      );
+    });
+
+    test('titre absent, null ou blanc : null', () {
+      expect(ProductionTaskDto.fromJson(json(null)).titre, isNull);
+      expect(ProductionTaskDto.fromJson(json('   ')).titre, isNull);
+      final sansCle = <String, dynamic>{
+        'id': 't',
+        'epreuve': 'TCF_EE',
+        'tacheNumero': 1,
+        'niveauCible': 'B1',
+        'consigne': 'Consigne',
+      };
+      expect(ProductionTaskDto.fromJson(sansCle).titre, isNull);
+    });
+  });
 }

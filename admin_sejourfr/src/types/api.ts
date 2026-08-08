@@ -876,12 +876,38 @@ export interface ProductionTaskDto {
   epreuve: EpreuveType;
   tacheNumero: number;
   niveauCible: string | null;
+  /** Intitulé éditorial du sujet (V028). `null` = pas de titre : les fronts
+   *  candidats retombent sur « Sujet N » + consigne. */
+  titre: string | null;
   consigne: string;
   contexte: string | null;
   dureeMaxSec: number | null;
   dureeMinSec: number | null;
   motsMin: number | null;
   motsMax: number | null;
+}
+
+/**
+ * Miroir de AdminProductionTaskDto (`GET /api/admin/production-tasks`).
+ * Inclut les sujets DÉSACTIVÉS et le drapeau `active` : la console doit voir
+ * ce qu'elle édite, même dépublié. Seul le `titre` est modifiable.
+ */
+export interface AdminProductionTaskDto {
+  id: string;
+  epreuve: EpreuveType;
+  tacheNumero: number;
+  niveauCible: string | null;
+  titre: string | null;
+  consigne: string;
+  contexte: string | null;
+  active: boolean;
+}
+
+/** Corps de `PATCH /api/admin/production-tasks/{id}/titre`. `null` ou blanc
+ *  = retirer le titre (sémantique de remplacement, comme les bornes des
+ *  petits sujets). */
+export interface AdminProductionTaskTitreRequest {
+  titre: string | null;
 }
 
 /**

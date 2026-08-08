@@ -465,6 +465,9 @@ export interface ProductionTaskDto {
     epreuve: EpreuveType;
     tacheNumero: number;
     niveauCible: string; // "A2" | "B1" | "B2"
+    /** Intitulé éditorial du sujet (V028). `null` = pas de titre → repli
+     *  `productionSubjectTitle`. Aucun écran ne suppose qu'il est présent. */
+    titre: string | null;
     consigne: string;
     contexte: string | null;
     dureeMaxSec: number | null; // EO uniquement
@@ -1062,6 +1065,31 @@ export function productionTaskShortTitle(epreuve: EpreuveType, tacheNumero: numb
         default:
             return `Tâche ${tacheNumero}`;
     }
+}
+
+/**
+ * Titre affiché en tête d'une **carte de sujet**.
+ *
+ * Le backend sert un intitulé éditorial (`production_tasks.titre`, V028) —
+ * « Message à un ami », « Invitation à un pique-nique » — parce que toutes les
+ * consignes d'une même tâche commencent pareil : sans lui, vingt sujets se
+ * ressemblent dans la liste.
+ *
+ * **Le titre peut manquer** (contenu antérieur à V028, sujet créé en console
+ * sans titre) : on retombe alors sur l'affichage historique « Sujet N », jamais
+ * sur un titre vide ni sur un texte de remplacement. Un titre blanc est traité
+ * comme absent — la base l'interdit, mais le repli ne coûte rien.
+ *
+ * ⚠️ **Libellé gelé**, miroir mot pour mot du mobile (`productionSubjectTitle`,
+ * `widgets/production_common.dart`) : un libellé qui bouge, ce sont deux
+ * fichiers à changer dans la même passe, et deux tests.
+ */
+export function productionSubjectTitle(
+    titre: string | null | undefined,
+    ordre: number,
+): string {
+    const propre = titre?.trim();
+    return propre ? propre : `Sujet ${ordre}`;
 }
 
 /**

@@ -81,6 +81,9 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.PATCH, "/api/admin/skill-prompts/" + RANDOM_ID),
                 Arguments.of(HttpMethod.DELETE, "/api/admin/skill-prompts/" + RANDOM_ID),
                 Arguments.of(HttpMethod.PUT, "/api/admin/skill-prompts/" + RANDOM_ID + "/references"),
+                // Titres editoriaux des sujets EO/EE (console de contenu).
+                Arguments.of(HttpMethod.GET, "/api/admin/production-tasks?epreuve=TCF_EE"),
+                Arguments.of(HttpMethod.PATCH, "/api/admin/production-tasks/" + RANDOM_ID + "/titre"),
                 // quelques mutations pour couvrir POST/PUT/PATCH/DELETE sous /api/admin
                 Arguments.of(HttpMethod.POST, "/api/admin/exams"),
                 Arguments.of(HttpMethod.PUT, "/api/admin/themes/" + RANDOM_ID),

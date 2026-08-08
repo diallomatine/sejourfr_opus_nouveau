@@ -785,9 +785,20 @@ sombre.
 
 **Libellés gelés partagés avec le web** (chaque front en tient une copie écrite
 à la main, un test par couche sur les mêmes chaînes) :
-`productionTaskShortTitle` et `productionTaskConstraint`
-(`widgets/production_common.dart` ⇄ `lib/types.ts`), `competenceProgressLabel`
-(`competences/widgets/competence_card.dart` ⇄ `lib/skill-progress.ts`).
+`productionTaskShortTitle`, `productionTaskConstraint` et
+`productionSubjectTitle` (`widgets/production_common.dart` ⇄ `lib/types.ts`),
+`competenceProgressLabel` (`competences/widgets/competence_card.dart` ⇄
+`lib/skill-progress.ts`).
+
+**Le titre d'une carte de sujet vient de la base** : `ProductionTaskDto.titre`
+(colonne `production_tasks.titre`, V028, contenu V754), éditable en console
+admin. Il est **nullable** — contenu antérieur, sujet créé sans titre — et le
+repli est `productionSubjectTitle(titre, ordre)` → « Sujet N », **jamais** un
+titre vide ni un placeholder ; la consigne reste affichée dessous dans les deux
+cas. Ne pas y remettre `displayTitle` (l'intitulé de la **tâche**) : il est le
+même pour les vingt sujets d'une tâche, donc il ne distingue rien. `displayTitle`
+reste employé là où c'est bien la tâche qu'on nomme (briefings, temps réel,
+historique).
 
 **Une ligne de compétence** porte un `ProgressRing` « 2/5 » + l'état en clair
 (« 2 réussis · 3 restants »), plus une pastille de numéro et une barre fine.

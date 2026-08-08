@@ -25,8 +25,11 @@ db/migration/
 │   │                                             (page_views V020, agent_role_card V021,
 │   │                                             ai_evaluations.rubrics_version V022) et
 │   │                                             correctifs de données (V023, V024)
-│   └── V025__schema_competences_tcf.sql         skills, skill_prompts, skill_references,
-│                                                 user_skill_attempts (module Compétences TCF)
+│   ├── V025__schema_competences_tcf.sql         skills, skill_prompts, skill_references,
+│   │                                             user_skill_attempts (module Compétences TCF)
+│   └── V026-V028                                guidage des petits sujets (V026), qualité de
+│                                                 transcription (V027), production_tasks.titre
+│                                                 (V028, intitulé éditorial d'un sujet EE/EO)
 │
 ├── 100_reference/                   V100-V199   données de référence (fixes, prod + dev)
 │   ├── V100__ref_plans.sql                      catalogue plans (abonnements dormants + passes one-time)
@@ -53,7 +56,9 @@ db/migration/
     ├── structure_langue/            V600-V699   a2=V600-V629, b1=V630-V659, b2=V660-V689
     ├── production/                  V700-V759   production_tasks (sujets EO/EE), 10 numéros par tâche
     │   ├── ee/tache_{1,2,3}/        V700-V709 / V710-V719 / V720-V729
-    │   └── eo/tache_{1,2,3}/        V730-V739 / V740-V749 / V750-V759
+    │   ├── eo/tache_{1,2,3}/        V730-V739 / V740-V749 / V750-V759
+    │   └── V754__tcf_production_titres.sql      les 103 titres éditoriaux (colonne V028)
+    │                                            ⚠ FICHIER GÉNÉRÉ — ne pas éditer à la main
     └── expression/                  V760-V799   production_examples (exemples-modèles EE/EO)
 
 db/migration-dev/                    V900+       seeds dev uniquement (comptes seed, sub démo,
@@ -72,6 +77,21 @@ db/migration-dev/                    V900+       seeds dev uniquement (comptes s
     idempotents** (rejouables sans effet). Jamais de `DELETE` d'historique utilisateur.
 - **`100_reference/` à `300_tcf/` = INSERT propres** régénérés depuis l'état final de la
   base (déterministes, UUID explicites → rejouables à l'identique sur dev **et** recette).
+- **Deux familles de fichiers sont GÉNÉRÉES — ne jamais les éditer à la main** :
+  `300_tcf/competences/` (V300-V305) et `300_tcf/production/V754__tcf_production_titres.sql`.
+  Même convention dans les deux cas : on édite le JSON de contenu, on régénère, et une
+  fois les migrations appliquées c'est la **console d'administration** qui fait foi.
+
+  ```bash
+  cd backend_sejourfr && python3 tools/production-titres/generer_seed.py
+  ```
+
+  Le générateur des titres valide avant d'écrire (2 à 5 mots, aucun chiffre, aucun jargon
+  déjà affiché ailleurs sur la carte, unicité à l'intérieur d'une tâche, UUID connus) et
+  refuse de produire du SQL sur du contenu non conforme. Les sujets **existent déjà** en
+  base (V700-V753) : la migration est une suite d'`UPDATE` bornés par `WHERE id =`,
+  déterministes et idempotents — aucune ligne créée, aucune supprimée.
+
 - **`300_tcf/competences/` (V300-V305) est GÉNÉRÉ — ne jamais l'éditer à la main.** Les six
   fichiers sortent du générateur **versionné** `backend_sejourfr/tools/competences/`
   (`generer_seed.py` + `contenu/*.json`, une fiche de contenu par tâche), et leurs UUID sont
@@ -111,8 +131,8 @@ db/migration-dev/                    V900+       seeds dev uniquement (comptes s
 
 ## Ajouter une migration
 
-- **Évolution de schéma** → `00_schema/`, prochain `V0xx` libre. **Max actuel : `V025`**
-  (module Compétences TCF) → le prochain est `V026`.
+- **Évolution de schéma** → `00_schema/`, prochain `V0xx` libre. **Max actuel : `V028`**
+  (`production_tasks.titre`) → le prochain est `V029`.
 - **Nouvelle donnée de référence** → `100_reference/`, prochain `V1xx`. Max actuel : `V113`.
 - **Nouveau lot de contenu** → sous-dossier du domaine/niveau concerné, prochain numéro
   libre dans la plage. Vérifier les slots restants de la sous-plage visée avant de choisir.
@@ -125,7 +145,7 @@ db/migration-dev/                    V900+       seeds dev uniquement (comptes s
   | `300_tcf/ce_comprehension_ecrite/`      | V400       | quasi toute la plage |
   | `300_tcf/co_comprehension_orale/`       | V500       | quasi toute la plage |
   | `300_tcf/structure_langue/`             | V600       | quasi toute la plage |
-  | `300_tcf/production/`                   | V752       | V753-V759           |
+  | `300_tcf/production/`                   | V754       | V755-V759           |
   | `300_tcf/expression/`                   | V762       | V763-V799           |
   | `300_tcf/…/audio_drafts/` a2 / b1 / b2  | V814 / V845 / V877 | b2 = V878-V889 (rendus par la renumérotation des compétences) |
 - **Nouveau lot de compétences** → ne pas ajouter un `V3xx` à la main : ajouter la tâche au

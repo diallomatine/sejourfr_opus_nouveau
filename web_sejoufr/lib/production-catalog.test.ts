@@ -38,6 +38,7 @@ function task(id: string, tacheNumero: number, niveauCible: string): ProductionT
     epreuve: "TCF_EE",
     tacheNumero,
     niveauCible,
+    titre: null,
     consigne: `Sujet ${id}`,
     contexte: null,
     dureeMaxSec: null,

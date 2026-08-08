@@ -1056,9 +1056,17 @@ l'en-tête.
 
 **Libellés gelés partagés avec le mobile** (chaque front en tient une copie
 écrite à la main, un test par couche sur exactement les mêmes chaînes) :
-`productionTaskShortTitle` et `productionTaskConstraint` (`lib/types.ts` ⇄
-`widgets/production_common.dart`), `competenceProgressLabel`
-(`lib/skill-progress.ts` ⇄ `competences/widgets/competence_card.dart`).
+`productionTaskShortTitle`, `productionTaskConstraint` et
+`productionSubjectTitle` (`lib/types.ts` ⇄ `widgets/production_common.dart`),
+`competenceProgressLabel` (`lib/skill-progress.ts` ⇄
+`competences/widgets/competence_card.dart`).
+
+**Le titre d'une carte de sujet vient de la base** : `ProductionTaskDto.titre`
+(colonne `production_tasks.titre`, V028, contenu V754), éditable en console
+admin. Il est **nullable** — contenu antérieur, sujet créé sans titre — et le
+repli est `productionSubjectTitle(titre, ordre)` → « Sujet N », **jamais** un
+titre vide ni un placeholder ; la consigne reste affichée dessous dans les deux
+cas. Ne pas réécrire ce repli dans un composant.
 
 ### Navigation fluide : un seul appel, pas de remontage (parité mobile)
 

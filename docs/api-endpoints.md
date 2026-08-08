@@ -71,7 +71,8 @@ Cf. `exams-tcf.md`.
 
 ## EO/EE TCF (production)
 
-- `GET /api/production-tasks?epreuve=TCF_EO&niveau=B1[&tacheNumero=1|2|3]`
+- `GET /api/production-tasks?epreuve=TCF_EO&niveau=B1[&tacheNumero=1|2|3]` — `titre` est
+  **nullable** (intitulé éditorial du sujet, V028) : les fronts retombent sur « Sujet N ».
 - `GET /api/production-tasks/{id}`
 - `POST /api/production-submissions` (multipart audio **ou** JSON texte selon `Content-Type`)
 - `POST /api/production-submissions/{id}/retry`
@@ -214,6 +215,19 @@ Console de contenu du module Compétences (cf. la section utilisateur plus haut)
 - `PUT /api/admin/skill-prompts/{id}/references` → remplace les **3** références d'un seul coup
   et de façon **atomique**. Corps `{references: [{level, text, pedagogicalNote} × 3]}` (un objet
   enveloppe, pas un tableau nu) ; les 3 niveaux sont exigés, sans doublon.
+
+### Titres des sujets EE/EO (console de contenu)
+
+- `GET /api/admin/production-tasks?epreuve=TCF_EE|TCF_EO[&tacheNumero=1|2|3]` →
+  `AdminProductionTaskDto[]`, **sujets dépubliés compris** (la route candidat
+  `/api/production-tasks` ne rend que les actifs) et dans l'ordre où le candidat les voit
+  (tâche puis niveau), pour que le rang affiché en console corresponde au « Sujet N » du front.
+- `PATCH /api/admin/production-tasks/{id}/titre` → `AdminProductionTaskDto`. Corps
+  `{titre}`. **Sémantique de remplacement** : `null` ou blanc **efface** le titre — « pas de
+  titre » se dit NULL en base (contrainte `chk_prod_task_titre`), jamais par une chaîne vide,
+  et les fronts réaffichent alors « Sujet N ». C'est la seule surface d'écriture du catalogue
+  de sujets : consigne, bornes, activation et fiche de scénario T2 restent pilotées par les
+  migrations de contenu.
 
 **Pagination** : `?size=` est plafonné à **100** sur toutes les listes paginées
 (`spring.data.web.pageable.max-page-size`), défaut 20.

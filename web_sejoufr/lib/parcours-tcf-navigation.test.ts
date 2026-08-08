@@ -14,7 +14,11 @@
 import assert from "node:assert/strict";
 import {describe, it} from "node:test";
 import {createDataCache, type DataCache} from "./data-cache.ts";
-import {productionTaskConstraint, productionTaskShortTitle} from "./types.ts";
+import {
+  productionSubjectTitle,
+  productionTaskConstraint,
+  productionTaskShortTitle,
+} from "./types.ts";
 import {
   examDrafts,
   latestSubmissionByTask,
@@ -90,6 +94,7 @@ class BackendSpy {
             epreuve: opts.epreuve,
             tacheNumero: n,
             niveauCible: "B1",
+            titre: null,
             consigne: `Sujet ${n}`,
             contexte: null,
             dureeMaxSec: null,
@@ -309,5 +314,24 @@ describe("productionTaskConstraint — jamais une borne inventée", () => {
       productionTaskConstraint({motsMin: null, motsMax: null, dureeMaxSec: null}, true),
       null,
     );
+  });
+});
+
+describe("productionSubjectTitle — le titre d'un sujet, ou son repli", () => {
+  it("le titre éditorial servi par l'API l'emporte", () => {
+    assert.equal(productionSubjectTitle("Message à un ami", 1), "Message à un ami");
+  });
+
+  it("titre absent ⇒ « Sujet N », jamais un titre vide ni un placeholder", () => {
+    assert.equal(productionSubjectTitle(null, 1), "Sujet 1");
+    assert.equal(productionSubjectTitle(undefined, 12), "Sujet 12");
+  });
+
+  it("un titre blanc est traité comme absent", () => {
+    assert.equal(productionSubjectTitle("   ", 3), "Sujet 3");
+  });
+
+  it("les espaces de bord sont retirés", () => {
+    assert.equal(productionSubjectTitle("  Refus d'une invitation  ", 2), "Refus d'une invitation");
   });
 });

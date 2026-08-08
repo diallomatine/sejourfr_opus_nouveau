@@ -13,6 +13,7 @@ public class ProductionTaskMapper {
             task.getEpreuve(),
             task.getTacheNumero() != null ? task.getTacheNumero() : 0,
             task.getNiveauCible(),
+            task.getTitre(),
             task.getConsigne(),
             task.getContexte(),
             task.getDureeMaxSec(),

@@ -23,7 +23,7 @@ import {
 import { prodQuotaInfoKey, shouldAnnounceFreeTrial } from "@/lib/production-quota-info";
 import { replaceUrlShallow } from "@/lib/shallow-url";
 import { useCachedData } from "@/lib/use-cached-data";
-import {canAccessModule, productionTaskConstraint} from "@/lib/types";
+import {canAccessModule, productionSubjectTitle, productionTaskConstraint} from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
 import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
@@ -254,7 +254,10 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
                       }
                       tileDone={done && !locked}
                       mark={done && !locked ? TONE_MARK[tone] : "none"}
-                      title={`Sujet ${i + 1}`}
+                      /* Intitulé éditorial du sujet quand la base en porte un,
+                         « Sujet N » sinon : la consigne reste dessous dans les
+                         deux cas, donc aucun repli ne laisse la carte muette. */
+                      title={productionSubjectTitle(t.titre, i + 1)}
                       text={t.consigne}
                       meta={
                         <>

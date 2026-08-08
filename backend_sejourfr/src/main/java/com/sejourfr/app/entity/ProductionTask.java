@@ -41,6 +41,16 @@ public class ProductionTask {
     @Column(name = "niveau_cible", nullable = false, length = 4)
     private String niveauCible;
 
+    /**
+     * Intitule editorial court du sujet (« Invitation a un pique-nique »),
+     * affiche en tete de sa carte. NULLABLE : le contenu anterieur a V028 n'en
+     * a pas, et un sujet cree en console peut rester sans titre — les fronts
+     * retombent alors sur « Sujet N » + consigne. Jamais une chaine vide
+     * (contrainte {@code chk_prod_task_titre}).
+     */
+    @Column(length = 80)
+    private String titre;
+
     @Column(nullable = false, columnDefinition = "text")
     private String consigne;
 
@@ -97,6 +107,9 @@ public class ProductionTask {
 
     public String getNiveauCible() { return niveauCible; }
     public void setNiveauCible(String niveauCible) { this.niveauCible = niveauCible; }
+
+    public String getTitre() { return titre; }
+    public void setTitre(String titre) { this.titre = titre; }
 
     public String getConsigne() { return consigne; }
     public void setConsigne(String consigne) { this.consigne = consigne; }

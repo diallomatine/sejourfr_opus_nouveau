@@ -789,6 +789,17 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   V743, les 20 sujets couverts), rendue par `RealtimePersonaBuilder` via le
   gabarit `t2Fiche` de la persona v2. Jamais exposée à un client, jamais envoyée
   à l'IA correctrice — **ce n'est pas une check-list de notation**.
+- **Titre éditorial d'un sujet** : `production_tasks.titre` (colonne V028,
+  **nullable** ; contenu V754 — les **103** sujets publiés). Les cartes de sujet
+  affichaient « Sujet 01 » + le début de la consigne, or les consignes d'une même
+  tâche commencent toutes pareil. Contenu **généré**, jamais écrit à la main dans
+  le SQL (`backend_sejourfr/tools/production-titres/`, même convention que
+  `tools/competences/`), et **éditable en console** une fois les migrations
+  appliquées (`/api/admin/production-tasks`, feature admin `productionTasks/`) :
+  c'est la base qui fait foi. **Repli obligatoire quand le titre manque** :
+  « Sujet N » + consigne, déclaré une seule fois par front
+  (`productionSubjectTitle`, `lib/types.ts` ⇄ `widgets/production_common.dart`,
+  libellé gelé par test des deux côtés). Aucun écran ne suppose le titre présent.
 - **Recollage des tours EO temps réel** (`util/TranscriptTurnStitcher`, drapeau
   `sejourfr.production-evaluation.recollage-tours.enabled`, livré **ACTIF** —
   c'est une correction, pas une expérimentation). La transcription temps réel

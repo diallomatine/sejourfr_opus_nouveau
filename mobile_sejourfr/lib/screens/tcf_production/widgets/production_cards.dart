@@ -92,7 +92,11 @@ class ProductionSubjectCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          task.displayTitle,
+                          // Intitulé éditorial du sujet quand la base en porte
+                          // un, « Sujet N » sinon : la consigne reste dessous
+                          // dans les deux cas, donc aucun repli ne laisse la
+                          // carte muette (miroir web `productionSubjectTitle`).
+                          productionSubjectTitle(task.titre, order),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppFonts.ui(
@@ -111,14 +115,6 @@ class ProductionSubjectCard extends StatelessWidget {
                             color: AppColors.inkSoft,
                             height: 1.38,
                           ),
-                        ),
-                        const SizedBox(height: 9),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: [
-                            for (final chip in _metaChips()) chip,
-                          ],
                         ),
                       ],
                     ),

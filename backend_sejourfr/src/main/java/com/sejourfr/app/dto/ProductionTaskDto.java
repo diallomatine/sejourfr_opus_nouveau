@@ -15,12 +15,18 @@ import java.util.UUID;
  * reviendrait a lui donner le corrige. Elle ne sort du serveur que verrouillee
  * dans la system instruction de l'agent vocal (token ephemere). Ne rien ajouter
  * ici sans un besoin front precis, et jamais les {@code valeur}.
+ *
+ * <p><b>{@code titre} peut etre null</b> (colonne V028, contenu anterieur ou
+ * sujet cree en console sans titre) : les fronts ont un repli declare une seule
+ * fois chacun (« Sujet N » + consigne). Aucun ecran ne doit supposer qu'il est
+ * present.
  */
 public record ProductionTaskDto(
         UUID id,
         EpreuveType epreuve,
         short tacheNumero,
         String niveauCible,
+        String titre,
         String consigne,
         String contexte,
         Integer dureeMaxSec,

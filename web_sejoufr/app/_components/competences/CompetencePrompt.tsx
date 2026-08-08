@@ -50,6 +50,9 @@ function toProductionTask(prompt: SkillPromptDto, tacheNumero: number): Producti
     epreuve: oral ? "TCF_EO" : "TCF_EE",
     tacheNumero,
     niveauCible: prompt.skillTargetLevel,
+    // Un petit sujet a son propre chrome (« Sujet i/N ») : aucun titre de
+    // carte de sujet TCF à emprunter ici.
+    titre: null,
     consigne: prompt.instruction,
     contexte: prompt.context,
     dureeMaxSec: oral ? prompt.recommendedDurationSeconds : null,

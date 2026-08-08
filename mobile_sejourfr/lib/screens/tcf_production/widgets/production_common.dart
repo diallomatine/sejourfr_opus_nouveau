@@ -86,6 +86,26 @@ String productionTaskShortTitle(TcfProductionModule module, int tache) {
   };
 }
 
+/// Titre affiché en tête d'une **carte de sujet**.
+///
+/// Le backend sert un intitulé éditorial (`production_tasks.titre`, V028) —
+/// « Message à un ami », « Invitation à un pique-nique » — parce que toutes
+/// les consignes d'une même tâche commencent pareil : sans lui, vingt sujets
+/// se ressemblent dans la liste.
+///
+/// **Le titre peut manquer** (contenu antérieur à V028, sujet créé en console
+/// sans titre) : on retombe alors sur « Sujet N », jamais sur un titre vide ni
+/// sur un texte de remplacement. Un titre blanc est traité comme absent.
+///
+/// ⚠️ **Libellé gelé**, miroir mot pour mot du web (`productionSubjectTitle`,
+/// `lib/types.ts`). Les deux fronts en tiennent chacun une copie écrite à la
+/// main : un libellé qui bouge, ce sont deux fichiers à changer dans la même
+/// passe, et deux tests.
+String productionSubjectTitle(String? titre, int ordre) {
+  final propre = titre?.trim();
+  return (propre == null || propre.isEmpty) ? 'Sujet $ordre' : propre;
+}
+
 /// Contrainte **réelle** d'un sujet, telle que servie par l'API : la longueur
 /// à l'écrit (`30-60 mots`), la durée à l'oral (`3 min`).
 ///

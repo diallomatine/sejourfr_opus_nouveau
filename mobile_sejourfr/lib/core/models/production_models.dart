@@ -21,6 +21,7 @@ class ProductionTaskDto {
     required this.epreuve,
     required this.tacheNumero,
     required this.niveauCible,
+    this.titre,
     required this.consigne,
     this.contexte,
     this.dureeMinSec,
@@ -37,6 +38,14 @@ class ProductionTaskDto {
 
   /// "A2" / "B1" / "B2" -- string raw pour rester aligne avec le backend.
   final String niveauCible;
+
+  /// Intitule editorial du sujet (`production_tasks.titre`, V028) --
+  /// « Message a un ami », « Invitation a un pique-nique ».
+  ///
+  /// **Peut manquer** (contenu anterieur a V028, sujet cree en console sans
+  /// titre) : les cartes retombent alors sur `productionSubjectTitle`, qui
+  /// rend « Sujet N ». Aucun ecran ne suppose qu'il est present.
+  final String? titre;
 
   final String consigne;
   final String? contexte;
@@ -78,6 +87,7 @@ class ProductionTaskDto {
         epreuve: EpreuveType.fromWire(json['epreuve'] as String),
         tacheNumero: (json['tacheNumero'] as num).toInt(),
         niveauCible: json['niveauCible'] as String,
+        titre: _trimmedOrNull(json['titre']),
         consigne: json['consigne'] as String,
         contexte: json['contexte'] as String?,
         dureeMinSec: (json['dureeMinSec'] as num?)?.toInt(),

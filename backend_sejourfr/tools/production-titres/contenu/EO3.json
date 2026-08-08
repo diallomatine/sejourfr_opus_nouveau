@@ -1,0 +1,107 @@
+{
+  "epreuve": "TCF_EO",
+  "tacheNumero": 3,
+  "libelle": "Point de vue",
+  "titres": [
+    {
+      "id": "5e739a88-a418-49ad-a7f2-8266c899ad2a",
+      "titre": "Avantages et inconvénients des réseaux",
+      "repere": "Les réseaux sociaux ont-ils plus d'avantages ou plus d'inconvénients ?"
+    },
+    {
+      "id": "91d0f63c-3127-40ef-af9f-8e677910e59b",
+      "titre": "Se déplacer en grande ville",
+      "repere": "Quel est votre moyen de transport préféré dans une grande ville ?"
+    },
+    {
+      "id": "f0fe3fcd-93b2-4f33-aa49-7ac040f04626",
+      "titre": "L'organisation du travail",
+      "repere": "Quelle organisation du travail vous semble la plus juste et la plus efficace ?"
+    },
+    {
+      "id": "88888888-3001-1000-0000-000000000001",
+      "titre": "Sa ville d'enfance",
+      "repere": "On est toujours mieux dans la ville où l'on a grandi. Êtes-vous d'accord ?"
+    },
+    {
+      "id": "88888888-3001-1000-0000-000000000002",
+      "titre": "La gratuité des transports",
+      "repere": "Êtes-vous favorable à la gratuité des transports en commun ?"
+    },
+    {
+      "id": "88888888-3001-1000-0000-000000000003",
+      "titre": "Les écrans avant six ans",
+      "repere": "Faut-il interdire les écrans aux enfants de moins de six ans ?"
+    },
+    {
+      "id": "88888888-3001-1000-0000-000000000004",
+      "titre": "Vivre en ville ou ailleurs",
+      "repere": "Préférez-vous vivre en ville ou à la campagne ?"
+    },
+    {
+      "id": "88888888-3001-1000-0000-000000000005",
+      "titre": "Le sport et la santé",
+      "repere": "Faut-il faire du sport chaque semaine pour rester en bonne santé ?"
+    },
+    {
+      "id": "88888888-3001-1000-0000-000000000006",
+      "titre": "Voyager loin ou près",
+      "repere": "Faut-il voyager loin pour passer de bonnes vacances ?"
+    },
+    {
+      "id": "88888888-3001-1000-0000-000000000007",
+      "titre": "Cuisiner soi-même chaque jour",
+      "repere": "Est-il important de cuisiner soi-même tous les jours ?"
+    },
+    {
+      "id": "88888888-3001-1000-0000-000000000008",
+      "titre": "Le travail du week-end",
+      "repere": "Le travail du week-end devrait-il rester une exception ?"
+    },
+    {
+      "id": "88888888-3001-1000-0000-000000000009",
+      "titre": "La voiture en centre-ville",
+      "repere": "Faut-il réduire la place de la voiture en ville, et jusqu'où ?"
+    },
+    {
+      "id": "88888888-3001-1000-0000-00000000000a",
+      "titre": "Apprendre une langue étrangère",
+      "repere": "Quelle est la meilleure façon d'apprendre une langue étrangère ?"
+    },
+    {
+      "id": "88888888-3002-1000-0000-000000000001",
+      "titre": "Le tourisme dans les villes",
+      "repere": "Le tourisme est-il une bonne chose pour les lieux qui le reçoivent ?"
+    },
+    {
+      "id": "88888888-3002-1000-0000-000000000002",
+      "titre": "L'aide de l'intelligence artificielle",
+      "repere": "Cette aide quotidienne nous rend-elle plus efficaces ou plus dépendants ?"
+    },
+    {
+      "id": "88888888-3002-1000-0000-000000000003",
+      "titre": "Les gestes pour l'environnement",
+      "repere": "Les gestes de chacun suffisent-ils à protéger l'environnement ?"
+    },
+    {
+      "id": "88888888-3002-1000-0000-000000000004",
+      "titre": "L'engagement associatif",
+      "repere": "Est-il important de s'engager dans une association ?"
+    },
+    {
+      "id": "88888888-3002-1000-0000-000000000005",
+      "titre": "Vie professionnelle et vie privée",
+      "repere": "Faut-il séparer strictement la vie professionnelle de la vie personnelle ?"
+    },
+    {
+      "id": "88888888-3002-1000-0000-000000000006",
+      "titre": "Habiter seul ou en famille",
+      "repere": "Préférez-vous habiter seul ou avec votre famille ?"
+    },
+    {
+      "id": "88888888-3002-1000-0000-000000000007",
+      "titre": "Cuisine d'origine ou d'ici",
+      "repere": "Préférez-vous les plats de votre pays d'origine ou la cuisine d'ici ?"
+    }
+  ]
+}

@@ -61,6 +61,15 @@ public class ProductionTaskManager {
         return repository.findByActiveTrue();
     }
 
+    /** Catalogue d'une epreuve, <b>desactivees comprises</b> : console admin uniquement. */
+    public List<ProductionTask> findAllByEpreuve(EpreuveType epreuve) {
+        return repository.findByEpreuveOrderByNiveauCibleAscTacheNumeroAsc(epreuve);
+    }
+
+    public ProductionTask save(ProductionTask task) {
+        return repository.save(task);
+    }
+
     /** Exemples-modeles d'une categorie (epreuve, tacheNumero). */
     public List<ProductionExample> findExamplesByEpreuveAndTache(EpreuveType epreuve, short tacheNumero) {
         return exampleRepository.findByEpreuveAndTache(epreuve, tacheNumero);
