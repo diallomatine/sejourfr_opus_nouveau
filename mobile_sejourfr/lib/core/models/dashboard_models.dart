@@ -14,6 +14,9 @@ class DashboardSummary {
     required this.tcfMockExams,
     required this.globalSuccessPercent,
     required this.estimatedTcfLevel,
+    required this.estimatedTcfLevelEpreuvesCounted,
+    required this.estimatedTcfLevelEpreuvesExpected,
+    required this.estimatedTcfLevelPartial,
     required this.civique,
     required this.tcf,
   });
@@ -37,6 +40,21 @@ class DashboardSummary {
   /// recalculer côté front.
   final NiveauCecrl? estimatedTcfLevel;
 
+  /// **Périmètre** de [estimatedTcfLevel] : combien d'épreuves ont réellement
+  /// pesé (0..4), sur combien, et si ça n'en fait pas le tour.
+  ///
+  /// Même contrat que `epreuvesCountedInFinalLevel` / `epreuvesExpected` /
+  /// `finalLevelPartial` d'un examen blanc complet, et même raison : un
+  /// candidat qui n'a passé que l'expression écrite lisait « Niveau TCF
+  /// estimé : B1 » sur la foi d'**une** épreuve sur quatre. Dérivé serveur —
+  /// **ne jamais recompter** côté app.
+  final int estimatedTcfLevelEpreuvesCounted;
+  final int estimatedTcfLevelEpreuvesExpected;
+
+  /// Au moins une épreuve comptée, mais pas les quatre. À zéro épreuve le
+  /// niveau vaut déjà `null` (« — ») : il n'y a rien à annoter.
+  final bool estimatedTcfLevelPartial;
+
   final List<DashboardCategoryStat> civique;
   final List<DashboardCategoryStat> tcf;
 
@@ -54,6 +72,12 @@ class DashboardSummary {
         globalSuccessPercent: (json['globalSuccessPercent'] as num?)?.toInt(),
         estimatedTcfLevel:
             NiveauCecrl.fromWireNullable(json['estimatedTcfLevel'] as String?),
+        estimatedTcfLevelEpreuvesCounted:
+            (json['estimatedTcfLevelEpreuvesCounted'] as num? ?? 0).toInt(),
+        estimatedTcfLevelEpreuvesExpected:
+            (json['estimatedTcfLevelEpreuvesExpected'] as num? ?? 0).toInt(),
+        estimatedTcfLevelPartial:
+            json['estimatedTcfLevelPartial'] as bool? ?? false,
         civique: (json['civique'] as List<dynamic>? ?? [])
             .map((e) =>
                 DashboardCategoryStat.fromJson(e as Map<String, dynamic>))
@@ -118,4 +142,29 @@ class DashboardCategoryStat {
         prevMockScore: (json['prevMockScore'] as num?)?.toInt(),
         level: NiveauCecrl.fromWireNullable(json['level'] as String?),
       );
+}
+
+/// Ce qu'on écrit **sous** un niveau TCF estimé qui ne porte pas sur les quatre
+/// épreuves.
+///
+/// Une seule chaîne, courte, la même sur toutes les surfaces (accueil, profil,
+/// progrès) et **au caractère près** identique au web
+/// (`estimatedTcfLevelScopeLabel`, `web_sejoufr/lib/types.ts`). Elle tient dans
+/// la légende d'une `StatValueCard` à 360 px, ce qui est la vraie contrainte :
+/// une phrase longue n'aurait pas pu être la même partout, et deux formulations
+/// auraient divergé au premier retouche.
+///
+/// ⚠️ Règle de ton : elle **constate un périmètre**, elle ne reproche pas un
+/// inachèvement. « D'après 1 épreuve sur 4 » dit ce qu'on sait ; « il te manque
+/// 3 épreuves » dirait au candidat qu'il est en retard. Et **aucun chiffre de
+/// barème** n'y apparaît — un décompte d'épreuves n'en est pas un.
+///
+/// `null` quand il n'y a rien à annoter : niveau complet (4/4) ou inconnu (0/4,
+/// l'écran affiche déjà « — »).
+String? estimatedTcfLevelScopeLabel(DashboardSummary? summary) {
+  if (summary == null || !summary.estimatedTcfLevelPartial) return null;
+  final counted = summary.estimatedTcfLevelEpreuvesCounted;
+  final expected = summary.estimatedTcfLevelEpreuvesExpected;
+  if (counted <= 0 || expected <= 0) return null;
+  return "D'après $counted épreuve${counted > 1 ? 's' : ''} sur $expected";
 }

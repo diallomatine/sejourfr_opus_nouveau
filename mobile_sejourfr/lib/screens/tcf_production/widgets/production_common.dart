@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../tcf_production_module.dart';
 
@@ -59,6 +60,58 @@ import '../tcf_production_module.dart';
             'Tu donnes ton avis sur une question et tu l\'argumentes, en tenant compte de l\'avis opposé.',
       ),
   };
+}
+
+/// Intitulé **court** d'une tâche — celui du sélecteur de tâche du parcours,
+/// où trois cartes se partagent la largeur d'un téléphone.
+///
+/// ⚠️ **Libellés gelés**, miroir mot pour mot du web
+/// (`productionTaskShortTitle`, `lib/types.ts`). Les deux fronts en tiennent
+/// chacun une copie écrite à la main : un libellé qui bouge, ce sont deux
+/// fichiers à changer dans la même passe, et deux tests.
+String productionTaskShortTitle(TcfProductionModule module, int tache) {
+  if (module.isEo) {
+    return switch (tache) {
+      1 => 'Entretien dirigé',
+      2 => 'Jeu de rôle',
+      3 => 'Opinion',
+      _ => 'Tâche $tache',
+    };
+  }
+  return switch (tache) {
+    1 => 'Message',
+    2 => 'Récit',
+    3 => 'Opinion',
+    _ => 'Tâche $tache',
+  };
+}
+
+/// Contrainte **réelle** d'un sujet, telle que servie par l'API : la longueur
+/// à l'écrit (`30-60 mots`), la durée à l'oral (`3 min`).
+///
+/// `null` quand le champ est absent — **on n'invente jamais une borne** : les
+/// bornes EE vivent dans `production_tasks.mots_min/mots_max` côté serveur et
+/// une valeur écrite en dur ici contredirait la consigne donnée au correcteur
+/// (cf. `CLAUDE.md` racine, « Bornes EE strictes TCF IRN »).
+///
+/// Source unique : la carte de sujet, le sélecteur de tâche et le héros la
+/// composaient chacun de leur côté.
+String? productionTaskConstraint(
+  ProductionTaskDto task, {
+  required bool isOral,
+}) {
+  if (isOral) {
+    final max = task.dureeMaxSec;
+    if (max == null) return null;
+    final minutes = max ~/ 60;
+    final seconds = max % 60;
+    if (minutes == 0) return '$max s';
+    return seconds == 0 ? '$minutes min' : '$minutes min $seconds';
+  }
+  final min = task.motsMin;
+  final max = task.motsMax;
+  if (min == null || max == null) return null;
+  return '$min-$max mots';
 }
 
 /// Poignée de bottom sheet.

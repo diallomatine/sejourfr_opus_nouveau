@@ -10,6 +10,7 @@ import {
     canAccessModule,
     type DashboardCategoryStat,
     type DashboardSummaryResponse,
+    estimatedTcfLevelScopeLabel,
     niveauCecrlLabel,
 } from "@/lib/types";
 import {
@@ -79,7 +80,10 @@ const TCF_CARDS: Array<{
     },
     {
         code: "TCF_EO",
-        iconTone: "red",
+        // Même teinte que l'expression écrite : les deux épreuves productives
+        // sont bleues depuis le 2026-08-09. Ce qui les distingue ici, c'est le
+        // pictogramme (micro vs stylo) et le titre.
+        iconTone: "slate",
         icon: <Mic size={24} strokeWidth={1.7}/>,
         title: "Expression orale",
         desc: "Répondre à l'oral, enregistré et analysé par l'IA.",
@@ -191,9 +195,13 @@ export function TcfHub({user}: { user: AuthenticatedUser | null }) {
                         value: summary?.estimatedTcfLevel
                             ? niveauCecrlLabel(summary.estimatedTcfLevel)
                             : "—",
-                        hint: summary?.estimatedTcfLevel
-                            ? "équivalence CECRL"
-                            : "non noté CECRL",
+                        // Un niveau qui ne porte pas sur les 4 épreuves le dit
+                        // ici, à la place de la mention générique.
+                        hint:
+                            estimatedTcfLevelScopeLabel(summary) ??
+                            (summary?.estimatedTcfLevel
+                                ? "équivalence CECRL"
+                                : "non noté CECRL"),
                     },
                 ]}
             />

@@ -1,6 +1,7 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.DashboardSummaryResponse;
+import com.sejourfr.app.dto.TcfLevelProfile;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.Theme;
@@ -89,8 +90,10 @@ public class UserDashboardService {
         // Niveau TCF estimé : plancher des 4 épreuves, chacune retenant son
         // MEILLEUR résultat, une épreuve abandonnée sans rien rendre étant
         // exclue (cf. TcfProfileService). Dérivé serveur — aucun front ne le
-        // recalcule.
-        final NiveauCecrl estimatedTcfLevel = tcfProfileService.levelProfile(userId).globalLevel();
+        // recalcule, et son PÉRIMÈTRE part avec lui : sans ça, une seule épreuve
+        // passée s'affichait comme un niveau TCF tout court.
+        final TcfLevelProfile tcfProfile = tcfProfileService.levelProfile(userId);
+        final NiveauCecrl estimatedTcfLevel = tcfProfile.globalLevel();
 
         final List<DashboardSummaryResponse.CategoryStat> tcf =
                 new ArrayList<>(themeCategories(userId, Module.TCF, tcfExams.byCategory));
@@ -123,6 +126,9 @@ public class UserDashboardService {
                 tcfExams.total,
                 globalSuccessPercent,
                 estimatedTcfLevel,
+                tcfProfile.epreuvesCounted(),
+                TcfLevelProfile.EPREUVES_EXPECTED,
+                tcfProfile.partial(),
                 civique,
                 tcf);
     }

@@ -22,4 +22,35 @@ public record TcfLevelProfile(
         NiveauCecrl eo,
         NiveauCecrl globalLevel
 ) {
+
+    /** Les 4 épreuves du TCF IRN — le dénominateur de {@link #epreuvesCounted()}. */
+    public static final int EPREUVES_EXPECTED = 4;
+
+    /**
+     * Nombre d'épreuves qui ont réellement pesé dans {@link #globalLevel()}
+     * (0..{@value #EPREUVES_EXPECTED}).
+     *
+     * <p>C'est l'exact pendant de {@code epreuvesCountedInFinalLevel} sur un
+     * examen blanc complet : le plancher se calcule sur les épreuves non nulles,
+     * donc leur compte <b>est</b> le périmètre du niveau annoncé. Le dériver ici
+     * plutôt que de le recompter ailleurs interdit qu'un jour le périmètre publié
+     * cesse de décrire le niveau publié.
+     */
+    public int epreuvesCounted() {
+        int counted = 0;
+        for (final NiveauCecrl n : new NiveauCecrl[]{co, ce, ee, eo}) {
+            if (n != null) counted++;
+        }
+        return counted;
+    }
+
+    /**
+     * {@code true} quand le niveau est établi sur <b>une partie seulement</b> des
+     * épreuves. Faux quand il n'y en a aucune : {@link #globalLevel()} vaut alors
+     * {@code null} et il n'y a rien à annoter — « — » se suffit.
+     */
+    public boolean partial() {
+        final int counted = epreuvesCounted();
+        return counted > 0 && counted < EPREUVES_EXPECTED;
+    }
 }

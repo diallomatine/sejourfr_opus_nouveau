@@ -18,6 +18,7 @@ class ProductionSectionHead extends StatelessWidget {
     this.description,
     this.linkLabel,
     this.onLinkTap,
+    this.trailing,
     this.accent = AppColors.blue,
   });
 
@@ -25,6 +26,10 @@ class ProductionSectionHead extends StatelessWidget {
   final String? description;
   final String? linkLabel;
   final VoidCallback? onLinkTap;
+
+  /// Élément libre aligné à droite du titre (lien vers une ressource
+  /// d'appoint). Prioritaire sur [linkLabel] — les deux ne coexistent jamais.
+  final Widget? trailing;
   final Color accent;
 
   @override
@@ -53,7 +58,10 @@ class ProductionSectionHead extends StatelessWidget {
               ],
             ),
           ),
-          if (linkLabel != null && onLinkTap != null) ...[
+          if (trailing != null) ...[
+            const SizedBox(width: 10),
+            trailing!,
+          ] else if (linkLabel != null && onLinkTap != null) ...[
             const SizedBox(width: 10),
             InkWell(
               onTap: onLinkTap,
@@ -204,12 +212,17 @@ class ProductionIndexChip extends StatelessWidget {
     required this.foreground,
     required this.background,
     this.done = false,
+    this.pad = false,
   });
 
   final int order;
   final Color foreground;
   final Color background;
   final bool done;
+
+  /// Numéro sur deux chiffres (`01`, `02`) — la forme de la maquette pour les
+  /// listes de sujets, où l'alignement des rangs se lit d'un coup d'œil.
+  final bool pad;
 
   @override
   Widget build(BuildContext context) {
@@ -224,7 +237,7 @@ class ProductionIndexChip extends StatelessWidget {
       child: done
           ? Icon(LucideIcons.check, size: 22, color: foreground)
           : Text(
-              '$order',
+              pad ? order.toString().padLeft(2, '0') : '$order',
               style: AppFonts.display(size: 18, color: foreground)
                   .copyWith(fontWeight: FontWeight.w800),
             ),

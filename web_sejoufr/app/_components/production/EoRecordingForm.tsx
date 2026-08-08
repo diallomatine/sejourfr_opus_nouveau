@@ -556,7 +556,7 @@ export function EoRecordingForm({
   const durationClass = phase === "idle" ? "" : inRange ? s.counterOk : s.counterWarn;
 
   return (
-    <SkillAccent accent="red">
+    <SkillAccent>
       {headerSlot}
 
       {/* Même carte d'exercice qu'à l'écrit : le parcours est identique en EE

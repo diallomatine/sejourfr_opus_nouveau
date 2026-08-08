@@ -310,7 +310,6 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
   return (
     <DualChromeShell>
       <SkillShell
-        config={config}
         backHref={`${base}/${skillId}`}
         backLabel={prompt?.skillTitle ?? "Petits sujets"}
       >

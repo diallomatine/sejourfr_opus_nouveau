@@ -209,8 +209,8 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
                   children: [
                     ConsigneCard(
                       consigne: task.consigne,
-                      accent: AppColors.red,
-                      soft: AppColors.redLight,
+                      accent: AppColors.blue,
+                      soft: AppColors.blueLight,
                     ),
                     const SizedBox(height: 8),
                     const _FinishedIcon(),

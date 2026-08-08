@@ -20,7 +20,7 @@ import 'package:sejourfr_mobile/screens/tcf_production/production_parcours_scree
 import 'package:sejourfr_mobile/screens/tcf_production/production_quota_info.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/tcf_production_module.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/task_training_data.dart';
-import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_module_bar.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_mode_tabs.dart';
 
 /// Ce fichier verrouille le **contrat de fluidité** du parcours TCF EE/EO :
 /// naviguer entre les tâches et entre les modes ne redemande rien au backend.
@@ -356,8 +356,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Compétences de la tâche 1'), findsOneWidget);
-      // Le mode « Sujets » n'a jamais été ouvert : on n'a pas payé ses appels.
-      expect(production.listTasksCalls, 0);
+      // Le catalogue de l'épreuve est chargé **dès l'entrée** depuis que la
+      // tête du parcours (héros chiffré) est commune aux trois modes : il
+      // compte les sujets et les examens de l'épreuve entière, quel que soit
+      // le mode affiché. Ce qui reste vrai — et c'est l'objet de ce test — est
+      // qu'une bascule ne coûte **rien de plus**.
+      expect(production.listTasksCalls, 1);
+      expect(production.listMineCalls, 1);
 
       await tester.tap(find.text('Sujets'));
       await tester.pumpAndSettle();
@@ -382,7 +387,7 @@ void main() {
       expect(production.listMineCalls, 1);
     });
 
-    testWidgets('les pastilles T1/T2/T3 ne rechargent pas les compétences',
+    testWidgets('le sélecteur de tâche ne recharge pas les compétences',
         (tester) async {
       SharedPreferences.setMockInitialValues(const {});
       final prefs = await SharedPreferences.getInstance();
@@ -407,10 +412,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      for (final tache in [2, 3, 1]) {
-        await tester.tap(find.text('Tâche $tache'));
+      // Le sélecteur de tâche de la maquette porte l'intitulé court de la
+      // tâche (« Entretien dirigé », « Jeu de rôle », « Opinion »), plus un
+      // simple « Tâche 2 » : c'est le format et la contrainte qui distinguent
+      // les trois tâches, pas leur numéro.
+      const labels = {2: 'Jeu de rôle', 3: 'Opinion', 1: 'Entretien dirigé'};
+      for (final entry in labels.entries) {
+        await tester.tap(find.text(entry.value));
         await tester.pumpAndSettle();
-        expect(find.text('Compétences de la tâche $tache'), findsOneWidget);
+        expect(find.text('Compétences de la tâche ${entry.key}'),
+            findsOneWidget);
       }
 
       expect(skills.sectionCalls, 1);

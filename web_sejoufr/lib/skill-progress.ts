@@ -62,3 +62,38 @@ export function findSkillProgress(
   const found = skills.find((s) => s.id === skillId);
   return found ? sumProgress([found]) : null;
 }
+
+/** Ce dont le libellé d'état a besoin : les trois compteurs servis par
+ *  `GET /api/skills` — aucun agrégat inventé. */
+interface SkillCounters {
+  promptCount: number;
+  attemptedCount: number;
+  validatedCount: number;
+}
+
+/**
+ * État d'une compétence en une phrase : « 2 réussis · 3 restants »,
+ * « 1 commencé · 4 restants », « 5 à découvrir ».
+ *
+ * ⚠️ **Libellé gelé**, miroir mot pour mot du mobile
+ * (`competenceProgressLabel`, `competences/widgets/competence_card.dart`). Les
+ * deux fronts en tiennent chacun une copie écrite à la main : un libellé qui
+ * bouge, ce sont deux fichiers à changer dans la même passe, et deux tests.
+ */
+export function competenceProgressLabel(skill: SkillCounters): string {
+  const total = Math.max(0, skill.promptCount);
+  if (total === 0) return "Bientôt disponible";
+
+  const attempted = Math.min(Math.max(0, skill.attemptedCount), total);
+  if (attempted === 0) return `${total} à découvrir`;
+
+  const validated = Math.min(Math.max(0, skill.validatedCount), attempted);
+  const head =
+    validated > 0
+      ? `${validated} réussi${validated > 1 ? "s" : ""}`
+      : `${attempted} commencé${attempted > 1 ? "s" : ""}`;
+
+  const remaining = total - attempted;
+  if (remaining === 0) return head;
+  return `${head} · ${remaining} restant${remaining > 1 ? "s" : ""}`;
+}

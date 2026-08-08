@@ -5,7 +5,7 @@ import {useRouter} from "next/navigation";
 import {useEffect, useState} from "react";
 import {useAuth} from "@/lib/auth-context";
 import {accountApi, ApiException, billingApi, dashboardApi} from "@/lib/api";
-import {niveauCecrlLabel, niveauViseTcf} from "@/lib/types";
+import {estimatedTcfLevelScopeLabel, niveauCecrlShort, niveauViseTcf} from "@/lib/types";
 import type {
     DashboardSummaryResponse,
     SubscriptionStatusResponse,
@@ -121,12 +121,9 @@ export default function ProfilPage() {
             ? `${dashboard.globalSuccessPercent} %`
             : "—";
     const streakValue = dashboard ? `${dashboard.currentStreakDays} j` : "—";
-    const levelValue =
-        dashboard?.estimatedTcfLevel == null
-            ? "—"
-            : dashboard.estimatedTcfLevel === "A1_NON_ATTEINT"
-                ? "<A1"
-                : niveauCecrlLabel(dashboard.estimatedTcfLevel);
+    // Forme courte partagée (« <A1 » et pas « A1 »), jamais une table locale.
+    const levelValue = niveauCecrlShort(dashboard?.estimatedTcfLevel ?? null);
+    const levelScope = estimatedTcfLevelScopeLabel(dashboard);
 
     // ── Mon pass ──────────────────────────────────────────────────────────
     const premium = subscription?.isPremium ?? user.isPremium ?? false;
@@ -180,7 +177,7 @@ export default function ProfilPage() {
             <section className="pr-stats">
                 <StatCard label="Maîtrise" value={masteryValue} accent="blue"/>
                 <StatCard label="Série" value={streakValue} accent="red"/>
-                <StatCard label="Niveau estimé" value={levelValue} accent="blue"/>
+                <StatCard label="Niveau estimé" value={levelValue} accent="blue" hint={levelScope}/>
             </section>
 
             {/* ---- Mon pass ---- */}
@@ -312,11 +309,24 @@ export default function ProfilPage() {
 // ============================================================================
 // STAT CARD
 // ============================================================================
-function StatCard({label, value, accent}: {label: string; value: string; accent: "blue" | "red"}) {
+function StatCard({
+                      label,
+                      value,
+                      accent,
+                      hint,
+                  }: {
+    label: string;
+    value: string;
+    accent: "blue" | "red";
+    /** Précision facultative sous le libellé (périmètre d'un niveau estimé
+     *  partiel). Absente ⇒ la carte garde exactement ses deux lignes. */
+    hint?: string | null;
+}) {
     return (
         <div className={`pr-stat-card accent-${accent}`}>
             <div className="pr-stat-value">{value}</div>
             <div className="pr-stat-label">{label}</div>
+            {hint && <div className="pr-stat-hint">{hint}</div>}
         </div>
     );
 }
@@ -788,6 +798,13 @@ const styles = `
   .pr-stat-label {
     margin-top: 6px; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.06em;
     text-transform: uppercase; color: var(--color-muted);
+  }
+  /* Périmètre d'un niveau estimé partiel : une précision, pas une alerte —
+     ni couleur d'avertissement, ni majuscules. Doit tenir sur une carte de
+     grille à 3 colonnes dès 360 px. */
+  .pr-stat-hint {
+    margin-top: 4px; font-family: var(--font-sans); font-size: 11px; line-height: 1.3;
+    color: var(--color-muted-2); overflow-wrap: anywhere;
   }
 
   /* ---- Section titles ---- */

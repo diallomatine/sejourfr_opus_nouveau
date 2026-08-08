@@ -8,8 +8,21 @@ import '../../core/theme/app_theme.dart';
 /// l'icône partagés par les écrans du parcours (Compétences, Sujets, Examens)
 /// et le briefing d'examen complet.
 ///
-/// Palette stricte bleu / blanc / rouge SejourFR. EE et EO se distinguent par
-/// leur icône et le libellé du 3ᵉ onglet (Corrections vs Analyses).
+/// **Les deux épreuves sont BLEUES** (décision client 2026-08-09). Le rouge ne
+/// distingue plus l'oral de l'écrit : il reste réservé aux CTA critiques et aux
+/// signaux d'urgence (`docs/identite-visuelle.md`). Ce qui distingue les deux
+/// épreuves, c'est donc :
+///
+/// 1. le **titre** (« Expression écrite » / « Expression orale ») et le
+///    sous-titre d'épreuve, portés par l'en-tête du parcours ;
+/// 2. le **pictogramme** ([icon] : stylo vs micro), rendu sur la carte
+///    « Prochain entraînement », le bouton d'action d'un sujet et les liens
+///    d'appoint ;
+/// 3. le **verbe** ([actionVerb] : « Rédiger » / « Enregistrer ») et la durée
+///    d'épreuve.
+///
+/// Ne pas réintroduire d'accent rouge sur l'oral : deux épreuves du même module
+/// qui se peignent différemment se lisent comme deux produits.
 enum TcfProductionModule {
   ee(
     routeKey: 'ee',
@@ -22,6 +35,7 @@ enum TcfProductionModule {
     icon: LucideIcons.penLine,
     durationLabel: '30',
     historyTabLabel: 'Corrections',
+    actionVerb: 'Rédiger',
   ),
   eo(
     routeKey: 'eo',
@@ -31,8 +45,9 @@ enum TcfProductionModule {
     headline: 'Parle comme au vrai examen',
     description: 'Enregistre tes réponses et reçois une analyse IA avec transcription et niveau CECRL.',
     icon: LucideIcons.mic,
-    durationLabel: '10',
+    durationLabel: '15',
     historyTabLabel: 'Analyses',
+    actionVerb: 'Enregistrer',
   );
 
   const TcfProductionModule({
@@ -45,6 +60,7 @@ enum TcfProductionModule {
     required this.icon,
     required this.durationLabel,
     required this.historyTabLabel,
+    required this.actionVerb,
   });
 
   final String routeKey;
@@ -53,17 +69,31 @@ enum TcfProductionModule {
   final String title;
   final String headline;
   final String description;
+
+  /// Pictogramme de l'épreuve — **le repère visuel** qui remplace l'ancien
+  /// code couleur rouge/bleu.
   final IconData icon;
+
+  /// Durée de l'épreuve en examen blanc, en minutes, telle qu'appliquée par le
+  /// backend (`AttemptService.PRODUCTION_E{E,O}_EXAM_SECONDS`).
   final String durationLabel;
   final String historyTabLabel;
 
+  /// Verbe de production, l'autre repère écrit/oral (« Rédiger » /
+  /// « Enregistrer »).
+  final String actionVerb;
+
   bool get isEo => epreuve == EpreuveType.tcfEo;
 
-  /// Accent du module : **EO rouge, EE bleu** (sémantique de la refonte 2026).
-  /// Déclaré ici et nulle part ailleurs — les écrans du module Compétences
-  /// recopiaient tous le même ternaire.
-  Color get accent => isEo ? AppColors.red : AppColors.blue;
+  /// Sous-titre d'épreuve de l'en-tête du parcours : « TCF IRN · 3 tâches ·
+  /// 30 min ». Écrit ici et nulle part ailleurs — trois écrans le composaient.
+  String get epreuveMeta => 'TCF IRN · 3 tâches · $durationLabel min';
+
+  /// Accent du module : **bleu pour les deux épreuves**. Conservé comme
+  /// propriété (et non inliné) parce que toutes les briques du parcours le
+  /// reçoivent en paramètre.
+  Color get accent => AppColors.blue;
 
   /// Ton foncé du même accent, pour les dégradés de hero.
-  Color get accentDark => isEo ? AppColors.redDark : AppColors.blueDark;
+  Color get accentDark => AppColors.blueDark;
 }

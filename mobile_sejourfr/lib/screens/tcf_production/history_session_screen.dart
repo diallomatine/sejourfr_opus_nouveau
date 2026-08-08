@@ -344,38 +344,6 @@ class _Body extends StatelessWidget {
   /// examen blanc avec évaluations complètes). Null en entraînement libre.
   NiveauCecrl? get _niveauGlobal => bilan?.niveauGlobal;
 
-  String _nextStepsMessage() {
-    final niveau = _niveauGlobal;
-    if (niveau == null) {
-      return "Continue à t'entraîner pour qu'on puisse évaluer ton niveau "
-          'avec précision.';
-    }
-    final modaliteAdj = epreuve == EpreuveType.tcfEo ? 'orale' : 'écrite';
-    switch (niveau) {
-      case NiveauCecrl.a1NonAtteint:
-      case NiveauCecrl.a1:
-        return "Reviens aux bases de l'expression $modaliteAdj — vise le A2 "
-            'à ta prochaine session.';
-      case NiveauCecrl.a2:
-        return 'Niveau A2 sur cette épreuve — le palier demandé pour la carte '
-            'de séjour pluriannuelle, à condition de l\'atteindre aussi dans '
-            'les 3 autres épreuves. Continue pour viser le B1.';
-      case NiveauCecrl.b1:
-        return 'Niveau B1 sur cette épreuve — le palier demandé pour la carte '
-            'de résident, à condition de l\'atteindre aussi dans les 3 autres '
-            'épreuves. Vise le B2 pour la naturalisation.';
-      case NiveauCecrl.b2:
-        return 'Excellent — niveau B2 sur cette épreuve, le palier demandé '
-            'pour la naturalisation. Il se juge dans les 4 épreuves sans '
-            'moyenne : garde ce niveau partout.';
-      case NiveauCecrl.c1:
-      case NiveauCecrl.c2:
-        return 'Niveau ${niveau.displayName} — bravo, ton français '
-            '$modaliteAdj est avancé. Le TCF IRN, lui, s\'arrête à B2 : tu es '
-            'au-dessus du palier le plus haut demandé.';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final pending = _pendingCount;
@@ -449,8 +417,8 @@ class _Body extends StatelessWidget {
               const SizedBox(height: 16),
               FeedbackBlock(
                 kind: FeedbackKind.suggest,
-                title: 'Tes prochaines étapes',
-                items: [_nextStepsMessage()],
+                title: kBilanProchainesEtapesTitle,
+                items: [bilanProchainesEtapesMessage(_niveauGlobal)],
               ),
             ],
           ),

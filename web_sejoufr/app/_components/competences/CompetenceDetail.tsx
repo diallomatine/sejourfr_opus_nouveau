@@ -85,11 +85,8 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   return (
     <DualChromeShell>
       <SkillShell
-        config={config}
         backHref={base}
         backLabel="Compétences"
-        mode="competences"
-        taskNumero={n}
       >
         {error && <div className={s.error}>{error}</div>}
 

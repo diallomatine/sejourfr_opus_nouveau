@@ -20,6 +20,7 @@ import {
     canAccessModule,
     cecrlIndex,
     type DashboardSummaryResponse,
+    estimatedTcfLevelScopeLabel,
     type ExamTemplateSummary,
     type FullTcfExamSummaryResponse,
     type Module as ModuleEnum,
@@ -37,6 +38,9 @@ type ExamModule = "TCF" | "CIVIQUE";
 interface StatItem {
     value: string;
     label: string;
+    /** Précision facultative sous le libellé (périmètre d'un niveau estimé
+     *  partiel). Absente ⇒ la stat garde exactement ses deux lignes. */
+    hint?: string | null;
 }
 
 /** Template de référence de l'examen civique complet (briefing + lancement). */
@@ -268,7 +272,14 @@ function ExamsConnectedHome() {
     const tcfStats: StatItem[] = [
         {value: niveauCecrlLabel(bestFullLevel), label: "Meilleur niveau"},
         {value: lastFull ? niveauCecrlLabel(lastFull.finalCecrlLevel) : "—", label: "Dernier examen"},
-        {value: estimatedTcf, label: "Niveau estimé"},
+        // Un niveau estimé qui ne porte pas sur les 4 épreuves le dit ici :
+        // à côté de « Meilleur niveau » (un examen complet), il se lirait
+        // sinon comme un résultat de même portée.
+        {
+            value: estimatedTcf,
+            label: "Niveau estimé",
+            hint: estimatedTcfLevelScopeLabel(summary),
+        },
     ];
     const tcfTips = ["Conditions réelles", "90 minutes", "4 épreuves", "Niveau CECRL"];
 
@@ -521,6 +532,7 @@ function ModuleExamsSection({
                         <div className="ebh-stat" key={s.label}>
                             <span className="ebh-stat-val">{s.value}</span>
                             <span className="ebh-stat-lbl">{s.label}</span>
+                            {s.hint && <span className="ebh-stat-hint">{s.hint}</span>}
                         </div>
                     ))}
                 </div>
@@ -939,6 +951,14 @@ const styles = `
     font-size: 12px; font-weight: 600;
     color: var(--color-muted);
   }
+  /* Périmètre d'un niveau estimé partiel : une précision, pas une alerte.
+     Doit tenir dans une colonne de la grille de stats dès 360 px. */
+  .ebh-stat-hint {
+    margin-top: 2px;
+    font-size: 11px; font-weight: 500; line-height: 1.3;
+    color: var(--color-muted-2);
+    overflow-wrap: anywhere;
+  }
 
   /* ===== tips chips (remplace la phrase descriptive) ===== */
   .ebh-tips {
@@ -983,5 +1003,6 @@ const styles = `
     .ebh-stat { padding: 10px; }
     .ebh-stat-val { font-size: 17px; }
     .ebh-stat-lbl { font-size: 11px; }
+    .ebh-stat-hint { font-size: 10.5px; }
   }
 `;

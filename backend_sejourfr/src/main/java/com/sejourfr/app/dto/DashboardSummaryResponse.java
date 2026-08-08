@@ -32,6 +32,17 @@ import java.util.UUID;
  *       <b>exclue</b> (cf. {@code TcfProfileService}). Null tant qu'aucune
  *       épreuve n'a été réellement passée — null = inconnu, jamais mauvais.
  *       Dérivé serveur : aucun front ne le recalcule.</li>
+ *   <li>{@code estimatedTcfLevelEpreuvesCounted} /
+ *       {@code estimatedTcfLevelEpreuvesExpected} /
+ *       {@code estimatedTcfLevelPartial} : <b>périmètre</b> de ce niveau, même
+ *       contrat que {@code epreuvesCountedInFinalLevel} /
+ *       {@code epreuvesExpected} / {@code finalLevelPartial} sur un examen blanc
+ *       complet. Sans lui, un candidat qui n'a passé que l'expression écrite
+ *       lisait « Niveau TCF estimé : B1 » sur la foi d'<b>une</b> épreuve sur
+ *       quatre, sans que rien ne le signale. Partiel = au moins une épreuve
+ *       comptée, mais pas les quatre : à zéro épreuve le niveau est déjà
+ *       {@code null} et il n'y a rien à annoter. Dérivé serveur
+ *       ({@code TcfLevelProfile}) — <b>aucun front ne recompte</b>.</li>
  *   <li>{@code civique} / {@code tcf} : une entrée par catégorie, TOUS les
  *       thèmes du module (même jamais travaillés → percent null). Côté TCF,
  *       deux entrées synthétiques {@code TCF_EE} / {@code TCF_EO} sont
@@ -47,6 +58,9 @@ public record DashboardSummaryResponse(
         int tcfMockExams,
         Integer globalSuccessPercent,
         NiveauCecrl estimatedTcfLevel,
+        int estimatedTcfLevelEpreuvesCounted,
+        int estimatedTcfLevelEpreuvesExpected,
+        boolean estimatedTcfLevelPartial,
         List<CategoryStat> civique,
         List<CategoryStat> tcf
 ) {

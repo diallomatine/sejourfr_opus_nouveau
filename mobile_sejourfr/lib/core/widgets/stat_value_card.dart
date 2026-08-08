@@ -12,12 +12,18 @@ class StatValueCard extends StatelessWidget {
     required this.label,
     this.color = AppColors.ink,
     this.valueSize = 24,
+    this.hint,
   });
 
   final String value;
   final String label;
   final Color color;
   final double valueSize;
+
+  /// Précision facultative sous le libellé (périmètre d'un niveau estimé
+  /// partiel). Absente ⇒ la carte garde **exactement** ses deux lignes : les
+  /// appelants historiques ne bougent pas d'un pixel.
+  final String? hint;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +47,24 @@ class StatValueCard extends StatelessWidget {
               color: AppColors.inkFaint,
             ),
           ),
+          if (hint != null) ...[
+            const SizedBox(height: 3),
+            Text(
+              hint!,
+              // Une précision, pas une alerte : ni teinte d'avertissement, ni
+              // gras. 2 lignes suffisent à « D'après 1 épreuve sur 4 » sur un
+              // tiers de largeur à 360 px.
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: AppFonts.ui(
+                size: 10,
+                weight: FontWeight.w500,
+                color: AppColors.inkFaint,
+                height: 1.25,
+              ),
+            ),
+          ],
         ],
       ),
     );

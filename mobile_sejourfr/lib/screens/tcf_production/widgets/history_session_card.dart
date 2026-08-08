@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/format_date.dart';
+import '../expression_hub_data.dart';
 import '../production_result_labels.dart';
 import 'task_palette.dart';
 
@@ -17,7 +18,7 @@ class _Pastille extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isExam = submissions.length >= 2;
+    final isExam = submissions.length >= kProductionExamMinSubmissions;
     if (isExam) {
       return Container(
         width: 40,
@@ -79,13 +80,15 @@ class HistorySessionCard extends StatelessWidget {
         .reduce((a, b) => a.isAfter(b) ? a : b);
   }
 
-  String _title() => submissions.length >= 2
+  String _title() => submissions.length >= kProductionExamMinSubmissions
       ? 'Examen blanc complet'
       : 'Tâche ${submissions.first.tacheNumero ?? 1} · entraînement libre';
 
   @override
   Widget build(BuildContext context) {
-    final isMulti = submissions.length >= 2;
+    // Le seuil « session d'examen » vit à un seul endroit : trois copies de
+    // `>= 2` ici auraient contredit la grille des examens le jour où il bouge.
+    final isMulti = submissions.length >= kProductionExamMinSubmissions;
     final avg = isMulti ? _avgScore() : null;
     final niveau = isMulti ? null : tacheNiveau(submissions.first.evaluation);
     final date = _lastSubmittedAt();
@@ -169,11 +172,18 @@ class HistorySessionCard extends StatelessWidget {
                         text: TextSpan(
                           children: [
                             TextSpan(
+                              // Évaluée sans niveau affichable (éval
+                              // antérieure au contrat v4) : on écrit
+                              // « Évaluée », on ne laisse pas un tiret — même
+                              // repli que `TacheBilanRow` et que le web.
+                              // « — » reste pour ce qui n'est pas évalué.
                               text: isMulti
                                   ? (avg == null ? '—' : formatScore(avg))
-                                  : (niveau == null
-                                      ? '—'
-                                      : tacheNiveauLabel(niveau)),
+                                  : (niveau != null
+                                      ? tacheNiveauLabel(niveau)
+                                      : completed > 0
+                                          ? kTacheEvalueeLabel
+                                          : '—'),
                               style: AppFonts.display(
                                 size: isMulti ? 24 : 18,
                                 weight: FontWeight.w700,

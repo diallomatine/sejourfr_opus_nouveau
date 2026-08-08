@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import {describe, it} from "node:test";
 import {createDataCache} from "./data-cache.ts";
 import {
+    epreuveSubjectProgress,
   PRODUCTION_EXAM_MIN_SUBMISSIONS,
   examDrafts,
   isFinalBilan,
@@ -312,4 +313,61 @@ describe("latestSubmissionByTask", () => {
   it("sans historique chargé, rend un objet vide", () => {
     assert.deepEqual(latestSubmissionByTask(undefined), {});
   });
+});
+
+// ---------------------------------------------------------------------------
+// Tête commune du parcours EE/EO (refonte 2026-08-09) : les chiffres du héros
+// sont **dérivés** du catalogue déjà chargé, aucun endpoint ajouté.
+// ---------------------------------------------------------------------------
+
+describe("epreuveSubjectProgress — « Sujets traités · 3/40 »", () => {
+    const tasks = [
+        {id: "t1", tacheNumero: 1},
+        {id: "t2", tacheNumero: 1},
+        {id: "t3", tacheNumero: 2},
+    ] as unknown as ProductionTaskDto[];
+
+    it("compte les sujets PUBLIÉS déjà produits, une seule fois chacun", () => {
+        const subs = [
+            {productionTaskId: "t1"},
+            {productionTaskId: "t1"},
+        ] as unknown as ProductionSubmissionDto[];
+        assert.deepEqual(epreuveSubjectProgress(tasks, subs), {done: 1, total: 3});
+    });
+
+    it("un sujet retiré du catalogue ne gonfle pas le numérateur", () => {
+        const subs = [
+            {productionTaskId: "t1"},
+            {productionTaskId: "retire-du-catalogue"},
+        ] as unknown as ProductionSubmissionDto[];
+        assert.deepEqual(epreuveSubjectProgress(tasks, subs), {done: 1, total: 3});
+    });
+
+    it("rien de chargé : 0/0, jamais un NaN ni une barre pleine", () => {
+        assert.deepEqual(epreuveSubjectProgress(undefined, undefined), {done: 0, total: 0});
+    });
+});
+
+describe("examDrafts.fullyEvaluated — le score moyen n'agrège que du complet", () => {
+    const sub = (attemptId: string, note: number | null) =>
+        ({
+            attemptId,
+            productionTaskId: `${attemptId}-${note}`,
+            submittedAt: "2026-08-09T10:00:00Z",
+            evaluation: note == null ? null : {noteSurVingt: note},
+        }) as unknown as ProductionSubmissionDto;
+
+    it("vrai quand chaque tâche de la session porte une note", () => {
+        const [draft] = examDrafts([sub("a", 12), sub("a", 14), sub("a", 10)]);
+        assert.equal(draft.fullyEvaluated, true);
+        assert.equal(draft.avgNote, 12);
+    });
+
+    it("faux tant qu'une évaluation manque — la moyenne partielle ne compte pas", () => {
+        const [draft] = examDrafts([sub("b", 12), sub("b", null), sub("b", null)]);
+        assert.equal(draft.fullyEvaluated, false);
+        // La moyenne reste calculée (elle sert ailleurs), mais le héros du
+        // parcours ne retiendra pas cette session.
+        assert.equal(draft.avgNote, 12);
+    });
 });

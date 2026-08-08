@@ -245,6 +245,10 @@ class _HomeBody extends ConsumerWidget {
                 value: level?.shortName ?? '—',
                 label: 'Niveau TCF estimé',
                 color: AppColors.blue,
+                // Un niveau qui ne porte pas sur les 4 épreuves le dit ici :
+                // sans ça, une seule épreuve passée s'affichait comme un
+                // niveau TCF tout court.
+                hint: estimatedTcfLevelScopeLabel(summary),
               ),
             ),
           ],

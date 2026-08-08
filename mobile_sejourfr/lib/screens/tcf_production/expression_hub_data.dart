@@ -49,6 +49,10 @@ class ExamSession {
 /// et **nulle part** ici.
 const int kProductionExamMinSubmissions = 2;
 
+/// Nombre d'examens blancs proposés par épreuve EE/EO. Déclaré ici — le héros
+/// du parcours et la grille des examens l'affichaient chacun de leur côté.
+const int kProductionExamSlots = 10;
+
 /// Vue agrégée du hub : compteur de sujets par tâche et sessions d'examen blanc
 /// (≥ [kProductionExamMinSubmissions] soumissions).
 class HubData {

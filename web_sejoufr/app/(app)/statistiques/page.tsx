@@ -28,6 +28,7 @@ import { categoryHref, categoryStatus, masteryHint, moduleAverage } from "@/lib/
 import {
   type DashboardCategoryStat,
   type DashboardSummaryResponse,
+  estimatedTcfLevelScopeLabel,
   niveauCecrlLabel,
 } from "@/lib/types";
 
@@ -143,6 +144,8 @@ export default function StatistiquesPage() {
               ? `Niveau estimé ${niveauCecrlLabel(summary.estimatedTcfLevel)}`
               : masteryHint(tcfAvg)
           }
+          /* Un niveau qui ne porte pas sur les 4 épreuves le dit ici. */
+          hint={estimatedTcfLevelScopeLabel(summary)}
           chip={`${summary?.tcf.length ?? 5} catégories`}
           chipTone="blue"
         />
@@ -177,12 +180,16 @@ function DonutCard({
   label,
   percent,
   headline,
+  hint,
   chip,
   chipTone,
 }: {
   label: string;
   percent: number | null;
   headline: string;
+  /** Précision facultative sous le titre (périmètre d'un niveau estimé
+   *  partiel). Absente ⇒ la carte garde exactement sa forme d'origine. */
+  hint?: string | null;
   chip: string;
   chipTone: "neutral" | "blue" | "red";
 }) {
@@ -193,6 +200,7 @@ function DonutCard({
         <ProgressDonut percent={percent} />
         <div className="prog-donut-text">
           <span className="prog-donut-headline">{headline}</span>
+          {hint && <span className="prog-donut-hint">{hint}</span>}
           <span className={`prog-chip prog-chip-${chipTone}`}>{chip}</span>
         </div>
       </div>
@@ -346,6 +354,15 @@ const styles = `
     font-size: 19px; font-weight: 800; letter-spacing: -0.01em;
     color: var(--color-ink);
     margin-bottom: 7px;
+  }
+  /* Périmètre d'un niveau estimé partiel : une précision, pas une alerte. */
+  .prog-donut-hint {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 12px; font-weight: 500; line-height: 1.35;
+    color: var(--color-muted-2);
+    margin: -3px 0 7px;
+    overflow-wrap: anywhere;
   }
   .prog-chip {
     display: inline-block;

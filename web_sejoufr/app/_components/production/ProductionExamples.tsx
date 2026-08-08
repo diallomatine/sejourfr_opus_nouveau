@@ -61,11 +61,8 @@ export function ProductionExamples({ config }: { config: ProductionConfig }) {
   return (
     <DualChromeShell>
       <SkillShell
-        config={config}
         backHref={backHref}
         backLabel={valid ? `${config.label} · Tâche ${n}` : config.label}
-        mode="sujets"
-        taskNumero={valid ? n : undefined}
       >
         {!valid ? (
           <p className={s.empty}>Tâche inconnue.</p>

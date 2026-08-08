@@ -193,7 +193,7 @@ export function EeWritingForm({
       : `${words} mot${words > 1 ? "s" : ""}`;
 
   return (
-    <SkillAccent accent="blue">
+    <SkillAccent>
       {headerSlot}
 
       {/* Carte d'exercice de la maquette : badge de contrainte + repère de

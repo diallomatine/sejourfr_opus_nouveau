@@ -14,6 +14,7 @@
 import assert from "node:assert/strict";
 import {describe, it} from "node:test";
 import {createDataCache, type DataCache} from "./data-cache.ts";
+import {productionTaskConstraint, productionTaskShortTitle} from "./types.ts";
 import {
   examDrafts,
   latestSubmissionByTask,
@@ -254,5 +255,59 @@ describe("parcours TCF EE/EO — aucun appel réseau redondant", () => {
 
     const added = spy.calls.slice(before);
     assert.deepEqual(added, ["GET /api/users/me/production-submissions?epreuve=TCF_EE"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Libellés du sélecteur de tâche — CONTRAT GELÉ, miroir mot pour mot du mobile
+// (`productionTaskShortTitle` / `productionTaskConstraint`,
+// `screens/tcf_production/widgets/production_common.dart`). Ces chaînes ne
+// transitent pas par le réseau : chaque front en tient une copie écrite à la
+// main, donc rien n'empêche une couche de dériver — sauf ce test, écrit des
+// deux côtés sur exactement les mêmes chaînes.
+// ---------------------------------------------------------------------------
+
+describe("productionTaskShortTitle — intitulés courts du sélecteur de tâche", () => {
+  it("expression écrite : Message · Récit · Opinion", () => {
+    assert.equal(productionTaskShortTitle("TCF_EE", 1), "Message");
+    assert.equal(productionTaskShortTitle("TCF_EE", 2), "Récit");
+    assert.equal(productionTaskShortTitle("TCF_EE", 3), "Opinion");
+  });
+
+  it("expression orale : Entretien dirigé · Jeu de rôle · Opinion", () => {
+    assert.equal(productionTaskShortTitle("TCF_EO", 1), "Entretien dirigé");
+    assert.equal(productionTaskShortTitle("TCF_EO", 2), "Jeu de rôle");
+    assert.equal(productionTaskShortTitle("TCF_EO", 3), "Opinion");
+  });
+
+  it("un numéro hors référentiel ne fabrique pas d'intitulé", () => {
+    assert.equal(productionTaskShortTitle("TCF_EE", 7), "Tâche 7");
+  });
+});
+
+describe("productionTaskConstraint — jamais une borne inventée", () => {
+  it("à l'écrit : les bornes servies par l'API, telles quelles", () => {
+    assert.equal(
+      productionTaskConstraint({motsMin: 40, motsMax: 90, dureeMaxSec: null}, false),
+      "40-90 mots",
+    );
+  });
+
+  it("à l'oral : la durée maximale", () => {
+    assert.equal(
+      productionTaskConstraint({motsMin: null, motsMax: null, dureeMaxSec: 180}, true),
+      "3 min",
+    );
+  });
+
+  it("borne absente ⇒ rien : la source de vérité est `production_tasks`", () => {
+    assert.equal(
+      productionTaskConstraint({motsMin: 40, motsMax: null, dureeMaxSec: null}, false),
+      null,
+    );
+    assert.equal(
+      productionTaskConstraint({motsMin: null, motsMax: null, dureeMaxSec: null}, true),
+      null,
+    );
   });
 });

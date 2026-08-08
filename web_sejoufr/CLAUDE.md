@@ -617,6 +617,20 @@ retenant son **meilleur** résultat, une épreuve abandonnée sans rien rendre (
 (« Meilleur niveau » / « Dernier examen » sur `/examens-blancs`), qui reste le plancher de
 **cet examen-là**, épreuve abandonnée comprise.
 
+**Le périmètre part avec le niveau.** `estimatedTcfLevelEpreuvesCounted` /
+`…EpreuvesExpected` / `…Partial` (même contrat que `epreuvesCountedInFinalLevel` /
+`epreuvesExpected` / `finalLevelPartial` d'un examen complet) disent sur **combien
+d'épreuves sur 4** le niveau porte — sans eux, un candidat qui n'avait passé que
+l'expression écrite lisait « Niveau TCF estimé : B1 » sans le moindre signal. Dérivé
+serveur (`TcfLevelProfile`) : **aucun front ne recompte**. Le rendu passe par
+`estimatedTcfLevelScopeLabel` (`lib/types.ts`), **une seule chaîne** — « D'après 1 épreuve
+sur 4 » — affichée en petite ligne sous le niveau sur les **cinq** surfaces, et gelée en
+miroir du mobile par `lib/estimated-tcf-level.test.ts`. Elle **constate un périmètre**,
+elle ne reproche pas un inachèvement, et ne porte aucun chiffre de barème. 4/4 ⇒ rien ;
+0/4 ⇒ le niveau vaut déjà « — », donc rien non plus.
+La forme **courte** du niveau (« <A1 ») vient de `niveauCecrlShort` — `/dashboard` et
+`/profil` en tenaient chacun une copie inline.
+
 ### Règle de progression (validée 2026-06-06 — source unique backend)
 
 Toute valeur de « progression » d'un thème / d'une épreuve vient de
@@ -964,45 +978,87 @@ sous-module Compétences. Ce n'est plus un habillage local : les briques vivent
 dans `skill-ui/` et **aucun écran ne les recopie**.
 
 - `skill-ui/SkillLayout.tsx` : `SkillShell`, `SkillAccent`, `SkillHero`,
-  `SkillModeBar`, `TaskPills`, `SectionHead`, `SkillNotice`, `MiniBar`,
-  `RowChevron`, `SkillBadge`, `SkillRowCard`, `SkillFilterRow`, `SkillStats`.
+  `SkillModeTabs`, `ParcoursHero`, `ParcoursNextCard`, `TaskCards`, `ExamTrail`,
+  `SkillRing`, `SectionHead`, `SkillNotice`, `MiniBar`, `RowChevron`,
+  `SkillBadge`, `SkillRowCard`, `SkillFilterRow`.
+- `production/ParcoursTop.tsx` (**2026-08-09**) : la **tête commune** aux trois
+  modes (héros chiffré, « Prochain entraînement », barre des modes, sélecteur de
+  tâche), plus `useParcoursLevel` et `PRODUCTION_EXAM_SLOTS`.
 - `skill-ui/skill.module.css` : la géométrie de la maquette (rayons, paddings,
   grilles, graisses, survols) avec **les couleurs de l'application**. Un
   `grep -nE "#[0-9a-fA-F]{3,8}"` sur `production/`, `competences/` et
   `skill-ui/` doit **rester vide** — `white` / `color-mix()`, jamais un hex.
-- **Un seul accent, `--skill-accent`** (bleu à l'écrit, rouge à l'oral). Il est
-  posé par `SkillShell` **ou** par `SkillAccent`, qui existe précisément pour
-  les blocs rendus hors colonne : `EeWritingForm` / `EoRecordingForm` sont
-  réutilisés par `ProductionSession` (examen blanc) et par `CompetencePrompt`,
-  qui n'ont pas le même conteneur. Sans lui, une carte d'exercice d'expression
-  orale retombait sur du bleu en pleine épreuve rouge.
+- **Un seul accent, `--skill-accent`** — et depuis le 2026-08-09 il vaut le
+  **bleu pour les deux épreuves** (cf. ci-dessous). Il est posé par `SkillShell`
+  **ou** par `SkillAccent`, qui existe précisément pour les blocs rendus hors
+  colonne : `EeWritingForm` / `EoRecordingForm` sont réutilisés par
+  `ProductionSession` (examen blanc) et par `CompetencePrompt`, qui n'ont pas le
+  même conteneur.
 - **Le parcours est strictement identique en EE et en EO** : mêmes écrans, même
-  structure, même ordre. Seuls l'accent et la **zone de production** (saisie vs
-  enregistreur) changent.
+  structure, même ordre. Seule la **zone de production** (saisie vs
+  enregistreur) change.
 
-### Navigation : la barre des trois modes (`SkillModeBar`)
+### ⚠️ Les DEUX épreuves sont BLEUES (décision client 2026-08-09)
 
-La maquette porte **deux** navigations pour les mêmes trois modes. On ne
-reproduit **pas** la barre d'onglets du haut (`.mode-tabs`) — c'est une redite
-d'un prototype autonome. On reproduit `nav.bottom` : **Compétences · Sujets ·
-Examens**, icône au-dessus du libellé, carte blanche à 3 colonnes.
+`ProductionConfig` n'a **plus de champ `accent`** : l'expression orale n'est plus
+rouge, et le rouge redevient ce que `docs/identite-visuelle.md` prévoit — CTA
+critiques et signaux d'urgence, rien d'autre. Deux épreuves du même module qui
+se peignent différemment se lisent comme deux produits.
 
-- Elle est rendue **par `SkillShell`** via sa prop `mode` (+ `taskNumero`),
-  jamais en direct : c'est ce qui garantit qu'elle est au même endroit partout
-  et que la colonne réserve la place nécessaire (`.wrapBar`).
-- **Décision de placement (responsive)** : **fixée en bas sous 900 px** —
-  l'idiome mobile de la maquette, et le point où `DualChromeShell` replie sa
-  barre latérale en tiroir. **Au-delà de 900 px elle repasse dans le flux**, en
-  tête de colonne, en segmenté de 440 px. Une barre flottante en bas d'un écran
-  large entrerait en concurrence avec la navigation latérale de l'application :
-  deux navigations superposées valent moins qu'une seule lisible.
-- Elle n'est **pas** posée sur les écrans de production (exercice, résultat,
-  session d'examen) : l'action principale y vit en bas de page, une barre
-  flottante s'assoirait dessus.
-- Sans `taskNumero` (grille d'examens blancs), « Sujets » comme
-  « Compétences » retombent sur la **tâche 1**. C'est une destination par
-  défaut, **jamais un chiffre affiché** qui serait faux. Il n'y a plus d'écran
-  d'accueil d'épreuve où retomber.
+Ce qui distingue l'écrit de l'oral, déclaré une seule fois dans `config.ts` :
+le **titre** (`label`), le sous-titre d'épreuve (`epreuveMeta`), le
+**pictogramme** (dérivé de `mode` : stylo / micro) et le **verbe**
+(`actionVerb` : « Rédiger » / « Enregistrer »). `TcfHub` aligne la vignette EO
+sur celle de EE (`iconTone: "slate"`). Miroir mobile : `TcfProductionModule`.
+
+### Structure du parcours — maquettes client (2026-08-09)
+
+Les trois modes partagent une **tête commune**, `ParcoursTop`, reprise des trois
+maquettes fournies par le propriétaire :
+
+1. **en-tête de parcours** — `SkillShell` avec `title` / `meta` / `level` :
+   flèche de retour, nom de l'épreuve, `epreuveMeta`, et à droite le badge
+   « NIVEAU VISÉ » + le palier de la démarche (`niveauViseTcf`). L'eyebrow dit
+   « visé » en toutes lettres : ce n'est **pas** le niveau estimé du candidat,
+   et le repo interdit d'afficher un niveau sans le qualifier. Sans `title`,
+   `SkillShell` garde le lien de retour historique (modèles, historique) ;
+2. **`ParcoursHero`** : anneau + trois colonnes chiffrées (Score moyen `/20`,
+   Examens blancs `/10`, Sujets traités `/N`) + « Progression du parcours » ;
+3. **`ParcoursNextCard`** : la prochaine compétence non terminée, « Tâche N ·
+   <titre> » + « Continuer ». Rien à faire ⇒ **aucune carte** ;
+4. **`SkillModeTabs`** : barre segmentée **dans le flux**, sous la carte
+   « Prochain entraînement ». L'ancienne `SkillModeBar` flottante en bas est
+   **supprimée** — elle masquait le dernier élément de chaque liste, imposait
+   118 px de réserve en pied de colonne (`.wrapBar`) et faisait doublon avec la
+   barre latérale de l'application au-delà de 900 px ;
+5. **`TaskCards`** : trois cartes « 1 · Message · 30-60 mots », qui remplacent
+   `TaskPills` (**supprimé**). Absentes de la grille d'examens blancs, portée
+   par l'épreuve entière. `onPick` les garde en **filtre local** (URL réécrite
+   en navigation superficielle) ; les clics modifiés restent natifs.
+
+Sans `taskNumero` (grille d'examens blancs), « Sujets » comme « Compétences »
+retombent sur la **tâche 1** : une destination par défaut, **jamais un chiffre
+affiché** qui serait faux.
+
+⚠️ **Conséquence assumée sur les appels** : `ParcoursTop` lit les trois sources
+d'épreuve (`productionTasksKey`, `productionMineKey`, `skillsSectionKey`) — mais
+**sous les mêmes clés de cache** que les écrans, donc un aller-retour entre les
+modes ne coûte toujours **aucun appel de plus** (`lib/parcours-tcf-navigation.test.ts`).
+
+`SkillStats` est **supprimé** : ses trois cartes redisaient ce que le héros
+affiche déjà. La grille des examens blancs ouvre sur `ExamTrail`
+(« Parcours examens blancs · 1/10 »), qui porte aussi le niveau estimé.
+
+**Une ligne de compétence** porte un `SkillRing` « 2/5 » + l'état en clair
+(« 2 réussis · 3 restants ») ; **une carte de sujet** porte sa contrainte et sa
+tâche — le palier a quitté la carte, il est annoncé une fois par le badge de
+l'en-tête.
+
+**Libellés gelés partagés avec le mobile** (chaque front en tient une copie
+écrite à la main, un test par couche sur exactement les mêmes chaînes) :
+`productionTaskShortTitle` et `productionTaskConstraint` (`lib/types.ts` ⇄
+`widgets/production_common.dart`), `competenceProgressLabel`
+(`lib/skill-progress.ts` ⇄ `competences/widgets/competence_card.dart`).
 
 ### Navigation fluide : un seul appel, pas de remontage (parité mobile)
 
@@ -1034,8 +1090,8 @@ relançait les `fetch`. Trois décisions, dans l'ordre du moins coûteux au plus
    - `loadBilan` → mis en cache **seulement si le bilan est final**
      (`finished` **et** 3 tâches évaluées) : sinon l'IA travaille encore et rien
      n'invaliderait une note figée trop tôt.
-3. **Les pastilles T1/T2/T3 sont un filtre**, plus une navigation :
-   `TaskPills` accepte `onPick` (le clic simple est intercepté, les clics
+3. **Le sélecteur de tâche est un filtre**, plus une navigation :
+   `TaskCards` accepte `onPick` (le clic simple est intercepté, les clics
    modifiés gardent « ouvrir dans un nouvel onglet »), l'écran filtre localement
    et **réécrit l'URL en navigation superficielle** (`replaceUrlShallow`,
    `lib/shallow-url.ts` → `window.history.replaceState`, API native supportée
@@ -1742,6 +1798,19 @@ Deux champs backend nouveaux, câblés dans la même passe (miroirs :
 - **Libellés partagés** : `TACHE_TRAITEE_LABEL` (« Traité ») et
   `TACHE_EVALUEE_LABEL` (« Évaluée ») vivent dans `lib/production-feedback.ts`
   et sont gelés en miroir du mobile, qui affichait « Fait » pour le même état.
+  **« Évaluée » est le repli, partout** : une soumission corrigée sans niveau
+  affichable (éval antérieure au contrat v4) l'affiche aussi bien au détail par
+  tâche du bilan que dans `SubmissionRow`, qui n'affichait rien — ni badge, ni
+  chevron, donc une ligne qui semblait ne mener nulle part.
+- **Le conseil de fin de bilan est partagé** : `BILAN_PROCHAINES_ETAPES_TITLE`
+  (« Vos prochaines étapes ») + `bilanProchainesEtapesMessage(niveau)`
+  (`lib/production-feedback.ts`). Il vivait **en double**, écrit à la main de
+  chaque côté, et les copies avaient divergé (le mobile tutoyait) ; surtout,
+  chacune recopiait la table **démarche → palier**, donnée légale que
+  `TargetProcedure` interdit de réécrire dans un écran. `DEMARCHE_PAR_NIVEAU`
+  est la seule table, et **tout texte qui nomme une démarche passe par elle**.
+  Le bloc est rendu **même sans niveau** (le message dit alors que l'IA n'a pas
+  fini) — il disparaissait ici et restait là-bas.
 - **`PRODUCTION_EXAM_MIN_SUBMISSIONS = 2`** (`lib/production-catalog.ts`) : le
   seuil qui distingue une session d'examen d'un entraînement libre, consommé par
   `examDrafts` **et** `ProductionHistory`. Miroir de

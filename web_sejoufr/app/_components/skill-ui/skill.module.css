@@ -31,15 +31,11 @@
     0 2px 6px color-mix(in srgb, var(--color-ink) 5%, transparent);
 }
 
-/* Expression orale : l'accent du module EST le rouge. Sans ça, l'écran mêlait
-   le rouge de l'épreuve et le bleu des composants génériques. */
-.wrapEo,
-.accentEo {
-  --skill-accent: var(--color-red);
-  --skill-accent-light: var(--color-red-light);
-  --skill-accent-soft: var(--color-red-light);
-  --skill-hero: var(--gradient-hero-red);
-}
+/* ⚠️ Il n'y a plus de variante d'accent : l'expression orale était rouge, elle
+   est bleue comme l'expression écrite depuis le 2026-08-09 (décision client).
+   Ce qui distingue les deux épreuves, ce sont le titre, le pictogramme
+   (stylo / micro), le verbe d'action et la durée — jamais la couleur, qui
+   reste réservée aux CTA critiques (cf. `docs/identite-visuelle.md`). */
 
 .wrap {
   max-width: 880px;
@@ -231,65 +227,6 @@
   text-decoration: underline;
 }
 
-/* -------------------------------------------------- pastilles de tâche */
-
-.taskPills {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 3px;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.taskPills::-webkit-scrollbar {
-  display: none;
-}
-
-.taskPill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex: none;
-  border: 1.5px solid var(--color-line);
-  background: white;
-  color: var(--color-muted);
-  border-radius: 999px;
-  padding: 10px 13px;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  white-space: nowrap;
-  text-decoration: none;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.taskPill:hover {
-  border-color: var(--skill-accent);
-}
-
-.taskPillOn {
-  background: var(--skill-accent);
-  border-color: var(--skill-accent);
-  color: white;
-}
-
-.taskNum {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--skill-accent) 10%, transparent);
-  font-family: var(--font-mono);
-  font-size: 11px;
-}
-
-.taskPillOn .taskNum {
-  background: color-mix(in srgb, white 18%, transparent);
-}
-
 /* ------------------------------------------------------------- cartes */
 
 .list {
@@ -393,6 +330,16 @@
   color: var(--color-muted);
   font-size: 12px;
   line-height: 1.38;
+  overflow-wrap: anywhere;
+}
+
+ /* État d'une compétence en clair, sous son titre (« 2 réussis · 3 restants »). */
+.rowState {
+  display: block;
+  margin-top: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-muted);
   overflow-wrap: anywhere;
 }
 
@@ -2084,56 +2031,6 @@
   color: var(--color-red-dark);
 }
 
-/* --------------------------------------------------------- statistiques */
-
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-@media (max-width: 460px) {
-  .stats {
-    grid-template-columns: 1fr;
-  }
-}
-
-.stat {
-  min-width: 0;
-  padding: 13px 14px;
-  border-radius: 20px;
-  border: 1px solid var(--color-line);
-  background: white;
-  box-shadow: var(--skill-shadow);
-}
-
-.statValue {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.1;
-  color: var(--color-ink);
-  overflow-wrap: anywhere;
-}
-
-.statLabel {
-  display: block;
-  margin-top: 5px;
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--color-ink);
-}
-
-.statSub {
-  display: block;
-  margin-top: 2px;
-  font-size: 10px;
-  line-height: 1.35;
-  color: var(--color-muted);
-}
-
 /* ------------------------------------------------------ pack d'examen blanc */
 
 .packGrid {
@@ -2213,88 +2110,455 @@
 
 /* ------------------------------------------- barre de modes du parcours */
 
-/* `<nav class="bottom">` du prototype : les trois modes du module (Compétences ·
-   Sujets · Examens), icône au-dessus du libellé.
-   **Décision de placement** : barre flottante en bas sous 900 px — l'idiome
-   mobile de la maquette, et le point où `DualChromeShell` replie sa navigation
-   latérale en tiroir. Au-delà, elle repasse **dans le flux**, en tête de
-   colonne : une barre flottante en bas d'un écran large entrerait en
-   concurrence avec la barre latérale de l'application, et deux navigations
-   superposées valent moins qu'une seule lisible. */
-.modeBar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 30;
-  padding: 10px 16px 14px;
-  background: linear-gradient(
-    180deg,
-    transparent,
-    color-mix(in srgb, var(--color-paper) 96%, transparent) 30%,
-    var(--color-paper)
-  );
-}
-
-.modeBarInner {
+/* Barre segmentée des trois modes, **dans le flux** de la colonne (structure de
+   la maquette client). L'ancienne barre flottante en bas d'écran est supprimée :
+   elle masquait le dernier élément de chaque liste, imposait 118 px de réserve
+   en pied de colonne, et faisait doublon avec la navigation latérale. */
+.modeTabs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 5px;
-  max-width: 880px;
-  margin: 0 auto;
-  padding: 7px;
+  padding: 5px;
+  margin-bottom: 12px;
   border: 1px solid var(--color-line);
-  border-radius: 22px;
+  border-radius: 20px;
   background: white;
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--color-ink) 13%, transparent);
+  box-shadow: var(--skill-shadow);
 }
 
-.modeBtn {
-  display: grid;
-  place-items: center;
-  gap: 4px;
+.modeTab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-width: 0;
-  padding: 8px 4px;
+  padding: 11px 6px;
   border: 0;
-  border-radius: 16px;
+  border-radius: 15px;
   background: transparent;
-  color: var(--color-muted-2);
+  color: var(--color-muted);
   font-family: inherit;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   text-align: center;
   text-decoration: none;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.modeBtnOn {
+.modeTab svg {
+  flex: none;
+}
+
+.modeTabOn {
   background: var(--skill-accent);
   color: white;
 }
 
-/* Colonne du module quand elle porte la barre : le contenu ne doit jamais
-   finir sous elle. */
-.wrapBar {
-  padding-bottom: 118px;
+/* Sous 380 px, trois libellés + trois icônes ne tiennent plus : l'icône reste,
+   elle suffit à distinguer les trois modes une fois le mode actif nommé. */
+@media (max-width: 380px) {
+  .modeTab {
+    font-size: 11px;
+    gap: 4px;
+    padding: 10px 3px;
+  }
 }
 
-@media (min-width: 900px) {
-  .modeBar {
-    position: static;
-    padding: 0;
-    background: none;
-    margin-bottom: 17px;
-  }
+/* ------------------------------------------- en-tête de parcours (maquette) */
 
-  .modeBarInner {
-    max-width: 440px;
-    margin: 0;
-  }
+.pageHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
 
-  .wrapBar {
-    padding-bottom: 80px;
-  }
+.backDot {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 12px;
+  background: white;
+  border: 1px solid var(--color-line);
+  color: var(--color-ink);
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+
+.backDot:hover {
+  border-color: var(--skill-accent);
+}
+
+.pageHeadBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.pageTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  font-weight: 600;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.pageMeta {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+.levelBadge {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  flex: none;
+  padding: 7px 11px;
+  border-radius: 12px;
+  background: var(--color-blue);
+  color: white;
+}
+
+.levelBadge strong {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.levelBadgeLabel {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  opacity: 0.75;
+}
+
+/* ------------------------------------------------- héros chiffré du parcours */
+
+.parcoursHero {
+  background: var(--skill-hero);
+  color: white;
+  border-radius: 24px;
+  padding: 18px 16px 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--skill-shadow-lg);
+}
+
+.parcoursHeroTop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.ring {
+  width: 64px;
+  height: 64px;
+  flex: none;
+}
+
+.ringTrack {
+  stroke: color-mix(in srgb, white 18%, transparent);
+}
+
+.ringFill {
+  stroke: white;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  transition: stroke-dashoffset 0.4s ease;
+}
+
+.ringText {
+  fill: white;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+/* Trois colonnes chiffrées séparées par des filets. `min-width: 0` partout :
+   un « 12,5 » ne doit jamais élargir la carte sur un écran de 360 px. */
+.parcoursStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  flex: 1;
+  min-width: 0;
+}
+
+.parcoursStat {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 0 6px;
+  text-align: center;
+}
+
+.parcoursStat + .parcoursStat {
+  border-left: 1px solid color-mix(in srgb, white 18%, transparent);
+}
+
+.parcoursStatValue {
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.parcoursStatLabel {
+  font-size: 10px;
+  line-height: 1.25;
+  opacity: 0.82;
+}
+
+.parcoursStatUnit {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.6;
+}
+
+/* --------------------------------------------- carte « Prochain entraînement » */
+
+.nextCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  background: white;
+  box-shadow: var(--skill-shadow);
+}
+
+.nextIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--skill-accent) 10%, transparent);
+  color: var(--skill-accent);
+}
+
+.nextBody {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.nextTitle {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.nextText {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.nextBtn {
+  flex: none;
+  padding: 11px 14px;
+  border-radius: 13px;
+  background: var(--skill-accent);
+  color: white;
+  font-size: 12.5px;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------- sélecteur de tâche */
+
+.taskCards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.taskCard {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  background: white;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.taskCard:hover {
+  border-color: var(--skill-accent);
+}
+
+.taskCardOn {
+  border: 1.8px solid var(--skill-accent);
+}
+
+.taskCardNum {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.taskCardOn .taskCardNum {
+  background: var(--skill-accent);
+  color: white;
+}
+
+.taskCardTitle {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.taskCardMeta {
+  font-size: 10.5px;
+  color: var(--color-muted-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* --------------------------------------- parcours des examens blancs */
+
+.trail {
+  padding: 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: white;
+  box-shadow: var(--skill-shadow);
+}
+
+.trailTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.trailTitle {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.trailNote {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--color-muted-2);
+}
+
+.trailCount {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-muted);
+}
+
+.trailSegments {
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.trailSegment,
+.trailSegmentOn {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--color-line-2);
+}
+
+.trailSegmentOn {
+  background: var(--skill-accent);
+}
+
+/* --------------------------------------- anneau d'une ligne de compétence */
+
+.skillRing {
+  width: 46px;
+  height: 46px;
+  flex: none;
+}
+
+.skillRingTrack {
+  stroke: var(--color-line-2);
+}
+
+.skillRingFill {
+  stroke: var(--skill-accent);
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+.skillRingDone .skillRingFill {
+  stroke: var(--color-green);
+}
+
+.skillRingValue {
+  fill: var(--skill-accent);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.skillRingDone .skillRingValue {
+  fill: var(--color-green);
+}
+
+.skillRingTotal {
+  fill: var(--color-muted-2);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+/* Ligne de compétence : anneau / corps / chevron. */
+.ringRow {
+  grid-template-columns: 46px minmax(0, 1fr) auto;
 }
 
 /* ----------------------------------------------- accessibilité clavier */
@@ -2303,7 +2567,7 @@
    focus clavier, et s'enfonce au clic comme dans la maquette. */
 .back:focus-visible,
 .headLink:focus-visible,
-.taskPill:focus-visible,
+.taskCard:focus-visible,
 .rowCard:focus-visible,
 .filter:focus-visible,
 .refTab:focus-visible,
@@ -2311,7 +2575,9 @@
 .unlock:focus-visible,
 .previousAction:focus-visible,
 .footLink:focus-visible,
-.modeBtn:focus-visible,
+.modeTab:focus-visible,
+.nextBtn:focus-visible,
+.backDot:focus-visible,
 .primary:focus-visible,
 .secondary:focus-visible,
 .packBtn:focus-visible,
@@ -2321,7 +2587,7 @@
 }
 
 .headLink:active,
-.taskPill:active,
+.taskCard:active,
 .filter:active,
 .refTab:active,
 .unlock:active:not(:disabled),
@@ -2335,7 +2601,7 @@
 @media (prefers-reduced-motion: reduce) {
   .rowCard,
   .headLink,
-  .taskPill,
+  .taskCard,
   .filter,
   .refTab,
   .refToggle,
@@ -2353,7 +2619,7 @@
   .rowCard:hover,
   .rowCard:active,
   .headLink:active,
-  .taskPill:active,
+  .taskCard:active,
   .filter:active,
   .refTab:active,
   .unlock:active:not(:disabled),

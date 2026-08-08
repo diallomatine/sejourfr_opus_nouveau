@@ -349,8 +349,17 @@ export const NIVEAU_PORTEE_TACHE =
     "paliers du TCF. Il porte ici sur cette seule tâche — au TCF, le niveau d'une épreuve " +
     "est établi sur vos trois tâches réunies.";
 
-/** Ce que chaque palier du TCF ouvre comme démarche. Seuils en vigueur au
- *  1ᵉʳ janvier 2026. */
+/**
+ * Ce que chaque palier du TCF ouvre comme démarche. Seuils en vigueur au
+ * 1ᵉʳ janvier 2026.
+ *
+ * ⚠️ **Une seule table, ici.** C'est une donnée légale, pas une tournure : la
+ * recopier dans un écran, c'est garantir qu'une des copies ne bougera pas le
+ * jour où les seuils bougeront. Miroir de `TargetLevel.demarcheLabel` côté
+ * mobile. Tout texte qui nomme une démarche passe par elle
+ * ({@link demarcheRappel}, {@link versionCibleeIntro},
+ * {@link bilanProchainesEtapesMessage}).
+ */
 const DEMARCHE_PAR_NIVEAU: Record<TargetLevel, string> = {
     A2: "la carte de séjour pluriannuelle",
     B1: "la carte de résident",
@@ -605,4 +614,76 @@ export const BILAN_NIVEAU_RETRY_LABEL = "Évaluation à relancer";
 /** Texte du badge « Niveau global » tant qu'aucun niveau n'est calculable. */
 export function bilanNiveauPendingLabel(anyFailed: boolean): string {
     return anyFailed ? BILAN_NIVEAU_RETRY_LABEL : BILAN_NIVEAU_PENDING_LABEL;
+}
+
+/**
+ * Titre du conseil de fin de bilan.
+ *
+ * ⚠️ Il **vouvoie**, comme tout le reste de la restitution
+ * (`niveauAtteintLabel`, `demarcheRappel`, `NIVEAU_VISE_ATTEINT_INTRO`). Il
+ * disait « Tes prochaines étapes » au-dessus d'un corps qui vouvoyait : deux
+ * registres dans le même encart. Miroir mot pour mot de
+ * `kBilanProchainesEtapesTitle` côté mobile.
+ */
+export const BILAN_PROCHAINES_ETAPES_TITLE = "Vos prochaines étapes";
+
+/**
+ * Le conseil affiché sous le bilan d'une session de production, dérivé du
+ * niveau d'épreuve.
+ *
+ * **Il vivait en double**, écrit à la main de chaque côté — et les deux copies
+ * avaient divergé : registres opposés (le mobile tutoyait), paliers bas
+ * formulés autrement, et surtout **une troisième et une quatrième copie de la
+ * table démarche → palier**, celle-là même que `TargetProcedure` interdit de
+ * réécrire dans un écran (seuils légaux du 1ᵉʳ janvier 2026). Ici la démarche
+ * vient de {@link DEMARCHE_PAR_NIVEAU}, comme partout ailleurs.
+ *
+ * `null` (aucun niveau calculable) a son propre message : c'est le cas normal
+ * d'un bilan dont l'IA n'a pas fini, et le dire vaut mieux que masquer le bloc.
+ *
+ * ⚠️ Contrat gelé, miroir mot pour mot de `bilanProchainesEtapesMessage` côté
+ * mobile.
+ */
+export function bilanProchainesEtapesMessage(niveau: NiveauCecrl | null | undefined): string {
+    switch (niveau) {
+        case "C1":
+        case "C2":
+            return (
+                "Bravo, votre français est avancé. Le TCF IRN, lui, s'arrête au B2 : vous êtes " +
+                "au-dessus du palier le plus haut demandé."
+            );
+        case "B2":
+            return (
+                `Excellent — niveau B2 sur cette épreuve, le palier demandé pour ` +
+                `${DEMARCHE_PAR_NIVEAU.B2}. Il se juge sur les 4 épreuves sans moyenne : ` +
+                "gardez ce niveau partout."
+            );
+        case "B1":
+            return (
+                `Niveau B1 sur cette épreuve — le palier demandé pour ${DEMARCHE_PAR_NIVEAU.B1}, ` +
+                "à condition de l'atteindre aussi dans les 3 autres épreuves. Visez le B2 pour " +
+                `${DEMARCHE_PAR_NIVEAU.B2}.`
+            );
+        case "A2":
+            return (
+                `Niveau A2 sur cette épreuve — le palier demandé pour ${DEMARCHE_PAR_NIVEAU.A2}, ` +
+                "à condition de l'atteindre aussi dans les 3 autres épreuves. Visez le B1 pour " +
+                `${DEMARCHE_PAR_NIVEAU.B1}.`
+            );
+        case "A1":
+            return (
+                "Les bases sont là. Entraînez-vous régulièrement sur des productions plus " +
+                "complètes pour progresser vers le A2."
+            );
+        case "A1_NON_ATTEINT":
+            return (
+                "Reprenez les bases : des phrases courtes et correctes d'abord. Chaque " +
+                "entraînement compte."
+            );
+        default:
+            return (
+                "Dès que l'IA a évalué vos 3 tâches, votre niveau d'épreuve s'affiche ici avec " +
+                "des conseils ciblés."
+            );
+    }
 }

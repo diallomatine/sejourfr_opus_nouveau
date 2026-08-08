@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_tag.dart';
 import '../production_result_labels.dart';
 import 'production_blocks.dart';
+import 'production_common.dart';
 
 /// Cartes de liste du prototype. Même géométrie que la carte de compétence
 /// (`.topic-card` : grille `48px 1fr auto`, `gap 12`, `padding 15`,
@@ -81,6 +82,7 @@ class ProductionSubjectCard extends StatelessWidget {
                   ProductionIndexChip(
                     order: order,
                     done: done,
+                    pad: true,
                     foreground: chipForeground,
                     background: chipBackground,
                   ),
@@ -190,24 +192,18 @@ class ProductionSubjectCard extends StatelessWidget {
     return const AppTag(label: 'À faire', tone: TagTone.neutral, compact: true);
   }
 
-  /// Contraintes **réelles** du sujet, telles que servies par l'API : palier
-  /// visé, puis la longueur (écrit) ou la durée (oral). Rien n'est affiché
-  /// quand le champ est absent — pas de chiffre inventé.
+  /// Contraintes **réelles** du sujet, telles que servies par l'API : la
+  /// longueur (écrit) ou la durée (oral), puis la tâche d'appartenance. Rien
+  /// n'est affiché quand le champ est absent — pas de chiffre inventé.
+  ///
+  /// Le palier du sujet a quitté cette rangée : il est annoncé une fois pour
+  /// toutes par le badge « NIVEAU VISÉ » de l'en-tête du parcours, et le
+  /// répéter sur chaque carte noyait la contrainte de production, seule
+  /// information qui change d'un sujet à l'autre.
   List<Widget> _metaChips() {
     final chips = <Widget>[];
 
-    final niveau = NiveauCecrl.values
-        .where((n) => n.wire == task.niveauCible)
-        .firstOrNull;
-    if (niveau != null) {
-      chips.add(AppTag(
-        label: niveau.shortName,
-        tone: niveau.tagTone,
-        compact: true,
-      ));
-    }
-
-    final constraint = isOral ? _durationLabel() : _wordsLabel();
+    final constraint = productionTaskConstraint(task, isOral: isOral);
     if (constraint != null) {
       chips.add(AppTag(
         label: constraint,
@@ -216,23 +212,13 @@ class ProductionSubjectCard extends StatelessWidget {
         compact: true,
       ));
     }
+
+    chips.add(AppTag(
+      label: 'Tâche ${task.tacheNumero}',
+      tone: TagTone.neutral,
+      compact: true,
+    ));
     return chips;
-  }
-
-  String? _wordsLabel() {
-    final min = task.motsMin;
-    final max = task.motsMax;
-    if (min == null || max == null) return null;
-    return '$min-$max mots';
-  }
-
-  String? _durationLabel() {
-    final max = task.dureeMaxSec;
-    if (max == null) return null;
-    final minutes = max ~/ 60;
-    final seconds = max % 60;
-    if (minutes == 0) return '$max s';
-    return seconds == 0 ? '$minutes min' : '$minutes min $seconds';
   }
 }
 

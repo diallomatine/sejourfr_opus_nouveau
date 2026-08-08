@@ -25,10 +25,8 @@ import 'widgets/exam_filter_chips.dart';
 import 'widgets/production_blocks.dart';
 import 'widgets/production_cards.dart';
 import 'widgets/production_common.dart';
-import 'widgets/production_hero.dart';
-import 'widgets/production_module_bar.dart';
+import 'widgets/production_parcours_top.dart';
 import 'widgets/production_state_views.dart';
-import 'widgets/production_task_pills.dart';
 
 /// Mode « Sujets TCF » du parcours EE/EO : hero, pastilles T1/T2/T3, filtres
 /// avec compteurs, puis les sujets en cartes.
@@ -36,28 +34,28 @@ import 'widgets/production_task_pills.dart';
 /// **Écrit et oral suivent exactement le même écran** : seuls l'accent (bleu /
 /// rouge) et la zone de production en aval changent.
 ///
-/// Corps seul — l'en-tête, la barre du module (Compétences / Sujets / Examens)
-/// et le voile d'attente sont portés par [ProductionParcoursScreen]. Les
-/// modèles ne sont pas un mode : c'est une ressource d'appoint, atteinte par un
-/// bouton discret posé au-dessus de la liste des sujets.
+/// Corps seul — l'en-tête, la tête commune du parcours (héros, prochain
+/// entraînement, barre des modes, sélecteur de tâche) et le voile d'attente
+/// sont portés par [ProductionParcoursScreen]. Les modèles ne sont pas un
+/// mode : c'est une ressource d'appoint, atteinte par un lien discret à droite
+/// de l'intertitre de la liste des sujets.
 class ProductionSubjectsTabView extends ConsumerStatefulWidget {
   const ProductionSubjectsTabView({
     super.key,
     required this.module,
     required this.tache,
-    required this.onTacheChanged,
     required this.onBusy,
+    required this.top,
   });
 
   final TcfProductionModule module;
   final int tache;
 
-  /// Les pastilles T1/T2/T3 changent la tâche **du parcours entier**, pas
-  /// seulement celle de ce mode : c'est le parcours qui porte l'état.
-  final ValueChanged<int> onTacheChanged;
-
-  /// Remonte l'attente au parcours : le voile doit couvrir la barre du module.
+  /// Remonte l'attente au parcours : le voile doit couvrir la tête du parcours.
   final ValueChanged<bool> onBusy;
+
+  /// Tête commune du parcours, rendue en tête de cette liste.
+  final List<Widget> Function({required bool withTaskPicker}) top;
 
   @override
   ConsumerState<ProductionSubjectsTabView> createState() =>
@@ -207,6 +205,15 @@ class _ProductionSubjectsTabViewState
         // Le palier de la dernière production, jamais sa note : au TCF un
         // sujet isolé reçoit un niveau (décision produit du 2026-08-08).
         final niveau = tacheNiveau(last.evaluation);
+        // Sans niveau affichable, on dit quand même l'état — « Évaluée » si la
+        // correction est là, « Traité » sinon. La ligne disparaissait
+        // entièrement, alors que la carte derrière la feuille affichait bien
+        // « Traité » : deux surfaces, deux vérités sur le même sujet.
+        final etat = niveau != null
+            ? tacheNiveauLabel(niveau)
+            : last.evaluation != null
+                ? kTacheEvalueeLabel
+                : kTacheTraiteeLabel;
         return SafeArea(
           top: false,
           child: Container(
@@ -221,24 +228,24 @@ class _ProductionSubjectsTabViewState
               children: [
                 const SheetHandle(),
                 Text(task.displayTitle, style: AppFonts.display(size: 18)),
-                if (niveau != null) ...[
-                  const SizedBox(height: 5),
-                  Row(
-                    children: [
-                      const Icon(LucideIcons.circleCheck,
-                          size: 13, color: AppColors.green),
-                      const SizedBox(width: 5),
-                      Text(
-                        'Dernière évaluation : ${tacheNiveauLabel(niveau)}',
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    const Icon(LucideIcons.circleCheck,
+                        size: 13, color: AppColors.green),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        'Dernière évaluation : $etat',
                         style: AppFonts.ui(
                           size: 12.5,
                           color: AppColors.green,
                           weight: FontWeight.w700,
                         ),
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 16),
                 AppButton(
                   label: 'Voir le détail',
@@ -274,76 +281,45 @@ class _ProductionSubjectsTabViewState
   @override
   Widget build(BuildContext context) {
     final mod = widget.module;
-    final meta = productionTaskMeta(mod, widget.tache);
 
-    return ref.watch(taskTrainingProvider(_key)).when(
+    // La tête du parcours porte la barre des trois modes : elle est rendue
+    // **quel que soit l'état** de la liste, sinon une erreur de chargement
+    // enfermerait le candidat dans ce mode.
+    final content = ref.watch(taskTrainingProvider(_key)).when(
           // Au retour d'un entraînement (le parcours invalide le catalogue), on
           // garde la liste affichée pendant le refetch au lieu de flasher un
           // spinner plein écran.
           skipLoadingOnReload: true,
-          loading: () =>
-              Center(child: CircularProgressIndicator(color: mod.accent)),
-          error: (e, _) => ProductionErrorView(
-            message: ApiClient.toApiException(e).message,
-            onRetry: () => invalidateProductionCatalog(ref, mod.epreuve),
-          ),
-          data: (data) => ListView(
-            // Une clé par tâche : changer de pastille repart en haut de liste
-            // au lieu de garder le défilement d'une autre tâche.
-            key: PageStorageKey<int>(widget.tache),
-            padding: const EdgeInsets.fromLTRB(
-              16,
-              16,
-              16,
-              ProductionModuleBar.reservedHeight,
+          loading: () => [
+            Center(child: CircularProgressIndicator(color: mod.accent)),
+          ],
+          error: (e, _) => [
+            ProductionErrorView(
+              message: ApiClient.toApiException(e).message,
+              onRetry: () => invalidateProductionCatalog(ref, mod.epreuve),
             ),
-            children: _content(mod, meta, data),
-          ),
+          ],
+          data: (data) => data.subjects.isEmpty
+              ? const [
+                  ProductionEmptyView(
+                    description:
+                        'Les sujets de cette tâche ne sont pas encore prêts. '
+                        'Reviens vite !',
+                  ),
+                ]
+              : _subjects(mod, data),
         );
-  }
 
-  List<Widget> _content(
-    TcfProductionModule mod,
-    ({String title, String subtitle, String intro}) meta,
-    TaskTrainingData data,
-  ) {
-    return [
-      ProductionHero(
-        accent: mod.accent,
-        accentDark: mod.accentDark,
-        eyebrow: 'Tâche ${widget.tache}',
-        title: meta.title,
-        description: meta.intro,
-        percent: data.percent,
-        progressLabel:
-            '${data.doneCount}/${data.subjects.length} sujets traités',
-        level: _constraintLabel(data),
-      ),
-      const SizedBox(height: 21),
-      ProductionTaskPills(
-        active: widget.tache,
-        accent: mod.accent,
-        onChanged: widget.onTacheChanged,
-      ),
-      const SizedBox(height: 17),
-      _ExamplesLink(
-        accent: mod.accent,
-        count: data.examples.length,
-        isOral: mod.isEo,
-        onTap: _openExamples,
-      ),
-      const SizedBox(height: 4),
-      ...(data.subjects.isEmpty
-          ? [
-              const SizedBox(height: 8),
-              ProductionEmptyView(
-                description: mod.isEo
-                    ? "Les sujets de cette tâche ne sont pas encore prêts. Reviens vite !"
-                    : "Les sujets de cette tâche ne sont pas encore prêts. Reviens vite !",
-              ),
-            ]
-          : _subjects(mod, data)),
-    ];
+    return ListView(
+      // Une clé par tâche : changer de tâche repart en haut de liste au lieu
+      // de garder le défilement d'une autre tâche.
+      key: PageStorageKey<int>(widget.tache),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+      children: [
+        ...widget.top(withTaskPicker: true),
+        ...content,
+      ],
+    );
   }
 
   List<Widget> _subjects(TcfProductionModule mod, TaskTrainingData data) {
@@ -367,14 +343,6 @@ class _ProductionSubjectsTabViewState
     final remaining = filtered.length - visible.length;
 
     return [
-      ProductionSectionHead(
-        title: "Sujets d'entraînement",
-        description: mod.isEo
-            ? 'Choisis un sujet, enregistre ta réponse, reçois ta correction.'
-            : 'Choisis un sujet, rédige ta réponse, reçois ta correction.',
-        accent: mod.accent,
-      ),
-      const SizedBox(height: 11),
       ExamFilterChips(
         active: _filter,
         accent: mod.accent,
@@ -387,6 +355,22 @@ class _ProductionSubjectsTabViewState
           _filter = i;
           _showAll = false;
         }),
+      ),
+      const SizedBox(height: 14),
+      ProductionSectionHead(
+        title: "Sujets d'entraînement",
+        description: mod.isEo
+            ? 'Choisis un sujet, enregistre ta réponse, reçois ta correction.'
+            : 'Choisis un sujet, rédige ta réponse, reçois ta correction.',
+        accent: mod.accent,
+        trailing: ProductionSideLink(
+          icon: mod.isEo ? LucideIcons.headphones : LucideIcons.bookOpen,
+          label: data.examples.isEmpty
+              ? 'Exemples corrigés'
+              : '${data.examples.length} exemples corrigés',
+          accent: mod.accent,
+          onTap: _openExamples,
+        ),
       ),
       const SizedBox(height: 12),
       if (filtered.isEmpty)
@@ -424,89 +408,5 @@ class _ProductionSubjectsTabViewState
           onTap: () => setState(() => _showAll = true),
         ),
     ];
-  }
-
-  /// Contrainte de la tâche telle que servie par l'API (longueur à l'écrit,
-  /// durée à l'oral), lue sur le premier sujet publié. `null` quand le champ
-  /// est absent : on n'invente pas de consigne.
-  String? _constraintLabel(TaskTrainingData data) {
-    if (data.subjects.isEmpty) return null;
-    final task = data.subjects.first;
-    if (widget.module.isEo) {
-      final max = task.dureeMaxSec;
-      if (max == null) return null;
-      final minutes = max ~/ 60;
-      final seconds = max % 60;
-      if (minutes == 0) return '$max s';
-      return seconds == 0 ? '$minutes min' : '$minutes min $seconds';
-    }
-    final min = task.motsMin;
-    final max = task.motsMax;
-    if (min == null || max == null) return null;
-    return '$min-$max mots';
-  }
-}
-
-/// Bouton discret vers les modèles corrigés, posé **au-dessus** de la liste
-/// des sujets. C'est une ressource d'appoint : il ne doit jamais concurrencer
-/// l'action principale de l'écran (produire).
-class _ExamplesLink extends StatelessWidget {
-  const _ExamplesLink({
-    required this.accent,
-    required this.count,
-    required this.isOral,
-    required this.onTap,
-  });
-
-  final Color accent;
-  final int count;
-  final bool isOral;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(17),
-          border: Border.all(color: AppColors.line, width: 1.5),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 27,
-              height: 27,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: Icon(
-                isOral ? LucideIcons.headphones : LucideIcons.bookOpen,
-                size: 15,
-                color: accent,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                count > 0 ? 'Exemples corrigés · $count' : 'Exemples corrigés',
-                style: AppFonts.ui(size: 12.5, weight: FontWeight.w800),
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(
-              LucideIcons.chevronRight,
-              size: 18,
-              color: AppColors.inkFaint,
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

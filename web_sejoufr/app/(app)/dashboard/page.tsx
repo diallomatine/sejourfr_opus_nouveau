@@ -22,7 +22,9 @@ import {
     type AttemptSummaryResponse,
     type DashboardCategoryStat,
     type DashboardSummaryResponse,
+    estimatedTcfLevelScopeLabel,
     isProductionAttempt,
+    niveauCecrlShort,
 } from "@/lib/types";
 
 /**
@@ -32,11 +34,6 @@ import {
  * Les recommandations complètes vivent sur /recommandations.
  */
 
-/** Niveau CECRL compact pour la stat card ("A1 non atteint" → "<A1"). */
-function shortLevel(level: DashboardSummaryResponse["estimatedTcfLevel"]): string {
-    if (!level) return "—";
-    return level === "A1_NON_ATTEINT" ? "<A1" : level;
-}
 
 export default function DashboardPage() {
     const {user, status} = useAuth();
@@ -186,10 +183,16 @@ export default function DashboardPage() {
           </span>
                     <div className="stat-body">
             <span className="stat-value">
-              {shortLevel(summary?.estimatedTcfLevel ?? null)}
+              {niveauCecrlShort(summary?.estimatedTcfLevel ?? null)}
             </span>
                         <span className="stat-label">Niveau TCF estimé</span>
-                        <span className="stat-sub">équivalence CECRL</span>
+                        {/* Un niveau qui ne porte pas sur les 4 épreuves le dit
+                            ici, à la place de la mention générique : sans ça,
+                            une seule épreuve passée s'affichait comme un niveau
+                            TCF tout court. */}
+                        <span className="stat-sub">
+              {estimatedTcfLevelScopeLabel(summary) ?? "équivalence CECRL"}
+            </span>
                     </div>
                 </article>
             </section>

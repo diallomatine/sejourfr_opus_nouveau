@@ -3,16 +3,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sejourfr_mobile/core/models/dashboard_models.dart';
 import 'package:sejourfr_mobile/core/models/enums.dart';
 import 'package:sejourfr_mobile/core/models/production_models.dart';
+import 'package:sejourfr_mobile/core/models/skill_models.dart';
 import 'package:sejourfr_mobile/core/router/app_router.dart';
 import 'package:sejourfr_mobile/core/theme/app_theme.dart';
 import 'package:sejourfr_mobile/core/utils/dashboard_targets.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/competence_card.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/expression_hub_data.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/production_nav.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/production_quota_info.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/task_training_data.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/tcf_production_module.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_common.dart';
-import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_module_bar.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_mode_tabs.dart';
 
 ProductionTaskDto _task(String id, int tache) => ProductionTaskDto(
       id: id,
@@ -154,14 +156,14 @@ void main() {
     });
   });
 
-  group('ProductionModuleBar', () {
+  group('ProductionModeTabs', () {
     testWidgets('porte les trois modes de la maquette, jamais un de plus',
         (tester) async {
       var picked = ProductionModuleTab.sujets;
 
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
-          body: ProductionModuleBar(
+          body: ProductionModeTabs(
             active: ProductionModuleTab.sujets,
             accent: AppColors.blue,
             onChanged: (t) => picked = t,
@@ -202,6 +204,141 @@ void main() {
           'sejourfr.prodQuotaInfo.${module.epreuve.wire}',
         );
       }
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Libellés partagés avec le web — CONTRAT GELÉ. Ces chaînes ne transitent pas
+  // par le réseau : chaque front en tient une copie écrite à la main, donc rien
+  // n'empêche une couche de dériver — sauf ce test, écrit des deux côtés sur
+  // exactement les mêmes chaînes (`lib/parcours-tcf-navigation.test.ts`,
+  // `lib/skill-progress.test.ts`).
+  // -------------------------------------------------------------------------
+
+  group('intitulés courts du sélecteur de tâche', () {
+    test('expression écrite : Message · Récit · Opinion', () {
+      const mod = TcfProductionModule.ee;
+      expect(productionTaskShortTitle(mod, 1), 'Message');
+      expect(productionTaskShortTitle(mod, 2), 'Récit');
+      expect(productionTaskShortTitle(mod, 3), 'Opinion');
+    });
+
+    test('expression orale : Entretien dirigé · Jeu de rôle · Opinion', () {
+      const mod = TcfProductionModule.eo;
+      expect(productionTaskShortTitle(mod, 1), 'Entretien dirigé');
+      expect(productionTaskShortTitle(mod, 2), 'Jeu de rôle');
+      expect(productionTaskShortTitle(mod, 3), 'Opinion');
+    });
+
+    test("un numéro hors référentiel ne fabrique pas d'intitulé", () {
+      expect(productionTaskShortTitle(TcfProductionModule.ee, 7), 'Tâche 7');
+    });
+  });
+
+  group('contrainte d\'un sujet — jamais une borne inventée', () {
+    ProductionTaskDto task({int? motsMin, int? motsMax, int? dureeMaxSec}) =>
+        ProductionTaskDto(
+          id: 't',
+          epreuve: EpreuveType.tcfEe,
+          tacheNumero: 1,
+          niveauCible: 'B1',
+          consigne: 'Consigne',
+          motsMin: motsMin,
+          motsMax: motsMax,
+          dureeMaxSec: dureeMaxSec,
+        );
+
+    test("à l'écrit : les bornes servies par l'API, telles quelles", () {
+      expect(
+        productionTaskConstraint(task(motsMin: 40, motsMax: 90), isOral: false),
+        '40-90 mots',
+      );
+    });
+
+    test("à l'oral : la durée maximale", () {
+      expect(
+        productionTaskConstraint(task(dureeMaxSec: 180), isOral: true),
+        '3 min',
+      );
+    });
+
+    test('borne absente ⇒ rien : la source de vérité est `production_tasks`',
+        () {
+      expect(productionTaskConstraint(task(motsMin: 40), isOral: false), isNull);
+      expect(productionTaskConstraint(task(), isOral: true), isNull);
+    });
+  });
+
+  group('libellé d\'état d\'une compétence', () {
+    SkillDto skill({
+      required int total,
+      required int attempted,
+      required int validated,
+    }) =>
+        SkillDto.fromJson({
+          'id': 's',
+          'section': 'EE',
+          'taskCode': 'EE1',
+          'code': 'EE1-C1',
+          'title': 'Compétence',
+          'description': 'Pourquoi',
+          'generalCriterion': 'Critère',
+          'targetLevel': 'A2',
+          'displayOrder': 1,
+          'promptCount': total,
+          'attemptedCount': attempted,
+          'validatedCount': validated,
+          'toReinforceCount': 0,
+        });
+
+    test('rien de tenté : on invite, on ne reproche rien', () {
+      expect(
+        competenceProgressLabel(skill(total: 5, attempted: 0, validated: 0)),
+        '5 à découvrir',
+      );
+    });
+
+    test('des sujets réussis : « N réussis · M restants »', () {
+      expect(
+        competenceProgressLabel(skill(total: 5, attempted: 2, validated: 2)),
+        '2 réussis · 3 restants',
+      );
+      expect(
+        competenceProgressLabel(skill(total: 5, attempted: 1, validated: 1)),
+        '1 réussi · 4 restants',
+      );
+    });
+
+    test('traité mais rien de validé : « commencé », jamais « réussi »', () {
+      expect(
+        competenceProgressLabel(skill(total: 5, attempted: 1, validated: 0)),
+        '1 commencé · 4 restants',
+      );
+      expect(
+        competenceProgressLabel(skill(total: 5, attempted: 3, validated: 0)),
+        '3 commencés · 2 restants',
+      );
+    });
+
+    test('tout traité : plus de « restants » à annoncer', () {
+      expect(
+        competenceProgressLabel(skill(total: 5, attempted: 5, validated: 4)),
+        '4 réussis',
+      );
+    });
+
+    test("compétence sans sujet publié : on le dit, pas de « 0/0 »", () {
+      expect(
+        competenceProgressLabel(skill(total: 0, attempted: 0, validated: 0)),
+        'Bientôt disponible',
+      );
+    });
+
+    test('un backend incohérent ne produit jamais « 6/5 »', () {
+      expect(
+        competenceProgressLabel(skill(total: 5, attempted: 9, validated: 9)),
+        '5 réussis',
+      );
     });
   });
 }

@@ -30,7 +30,10 @@ class LevelPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(100),
       ),
       child: Text(
-        level.displayName,
+        // Forme COURTE dans une pastille : `A1_NON_ATTEINT` s'y rend « <A1 »,
+        // jamais « A1 non atteint », qui déborde et annonce un palier que le
+        // candidat n'a justement pas atteint (règle unique, `NiveauCecrl`).
+        level.shortName,
         style: AppFonts.ui(
           size: small ? 11 : 12,
           weight: FontWeight.w700,

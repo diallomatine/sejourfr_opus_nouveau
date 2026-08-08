@@ -162,7 +162,35 @@ class TcfProfileServiceTest {
         stubProduction(EpreuveType.TCF_EE, List.of(eval(NiveauCecrl.B1, Instant.now())));
         stubProduction(EpreuveType.TCF_EO, List.of(eval(NiveauCecrl.A2, Instant.now())));
 
-        assertThat(service.levelProfile(userId).globalLevel()).isEqualTo(NiveauCecrl.A2);
+        TcfLevelProfile p = service.levelProfile(userId);
+
+        assertThat(p.globalLevel()).isEqualTo(NiveauCecrl.A2);
+        // 4 épreuves comptées : le niveau porte sur tout, rien à annoter.
+        assertThat(p.epreuvesCounted()).isEqualTo(4);
+        assertThat(p.partial()).isFalse();
+    }
+
+    // ------------------------------------------------------------------ périmètre
+
+    @Test
+    void perimetre_uneSeuleEpreuvePassee_estPartiel() {
+        stubProduction(EpreuveType.TCF_EE, List.of(eval(NiveauCecrl.B1, Instant.now())));
+
+        TcfLevelProfile p = service.levelProfile(userId);
+
+        assertThat(p.globalLevel()).isEqualTo(NiveauCecrl.B1);
+        assertThat(p.epreuvesCounted()).isEqualTo(1);
+        assertThat(p.epreuvesCounted()).isLessThan(TcfLevelProfile.EPREUVES_EXPECTED);
+        assertThat(p.partial()).isTrue();
+    }
+
+    @Test
+    void perimetre_aucuneEpreuve_nEstPasPartiel_carIlNyARienAAnnoter() {
+        TcfLevelProfile p = service.levelProfile(userId);
+
+        assertThat(p.globalLevel()).isNull();
+        assertThat(p.epreuvesCounted()).isZero();
+        assertThat(p.partial()).isFalse();
     }
 
     @Test

@@ -9,10 +9,7 @@ import 'competences_nav.dart';
 import 'competences_providers.dart';
 import 'widgets/competence_card.dart';
 import '../widgets/production_blocks.dart';
-import '../widgets/production_hero.dart';
-import '../widgets/production_module_bar.dart';
 import '../widgets/production_state_views.dart';
-import '../widgets/production_task_pills.dart';
 
 /// Mode « Compétences » du parcours : les 8 compétences d'une tâche EE/EO.
 ///
@@ -24,21 +21,24 @@ import '../widgets/production_task_pills.dart';
 /// travaille ici un critère à la fois sur de petits sujets, pas une production
 /// d'examen entière.
 ///
-/// Corps seul — l'en-tête et la barre du module sont portés par
-/// [ProductionParcoursScreen]. Les pastilles T1/T2/T3 ne sont plus une
-/// navigation : les 24 compétences de l'épreuve arrivent en un appel, le
-/// changement de tâche est un tri local.
+/// Corps seul — l'en-tête et la tête commune du parcours (héros, prochain
+/// entraînement, barre des modes, sélecteur de tâche) sont portés par
+/// [ProductionParcoursScreen] et rendus par [top]. Le sélecteur de tâche n'est
+/// plus une navigation : les 24 compétences de l'épreuve arrivent en un appel,
+/// le changement de tâche est un tri local.
 class CompetencesTabView extends ConsumerStatefulWidget {
   const CompetencesTabView({
     super.key,
     required this.module,
     required this.tache,
-    required this.onTacheChanged,
+    required this.top,
   });
 
   final TcfProductionModule module;
   final int tache;
-  final ValueChanged<int> onTacheChanged;
+
+  /// Tête commune du parcours, rendue en tête de cette liste.
+  final List<Widget> Function({required bool withTaskPicker}) top;
 
   @override
   ConsumerState<CompetencesTabView> createState() => _CompetencesTabViewState();
@@ -55,53 +55,64 @@ class _CompetencesTabViewState extends ConsumerState<CompetencesTabView> {
   void _open(SkillDto skill) =>
       context.push(competenceDetailPath(widget.module, skill.id));
 
-  /// « Continuer » ouvre la première compétence dont tous les sujets n'ont pas
-  /// encore été traités ; si tout a été vu, on rouvre la première.
-  SkillDto? _resumeTarget(List<SkillDto> skills) {
-    if (skills.isEmpty) return null;
-    for (final skill in skills) {
-      if (!skill.isComplete) return skill;
-    }
-    return skills.first;
-  }
-
-  /// Palier de la tâche : celui de ses compétences quand elles s'accordent,
-  /// sinon `null` — on n'affiche pas un niveau qui ne vaudrait que pour une
-  /// partie de la liste.
-  String? _taskLevel(List<SkillDto> skills) {
-    if (skills.isEmpty) return null;
-    final first = skills.first.targetLevel.trim();
-    if (first.isEmpty) return null;
-    return skills.every((s) => s.targetLevel.trim() == first) ? first : null;
-  }
-
   @override
   Widget build(BuildContext context) {
-    return ref.watch(skillsListProvider(_key)).when(
-          skipLoadingOnReload: true,
-          loading: () => Center(child: CircularProgressIndicator(color: _accent)),
-          error: (e, _) => ProductionErrorView(
+    // La tête du parcours porte la barre des trois modes : elle est rendue
+    // **quel que soit l'état** de la liste. Sans elle, une erreur de chargement
+    // enfermait le candidat dans un mode, sans autre issue que « retour ».
+    final async = ref.watch(skillsListProvider(_key));
+    return _body(
+      async.when(
+        skipLoadingOnReload: true,
+        loading: () => [
+          Center(child: CircularProgressIndicator(color: _accent)),
+        ],
+        error: (e, _) => [
+          ProductionErrorView(
             message: ApiClient.toApiException(e).message,
             onRetry: () => invalidateSkillsSection(ref, _key.section),
           ),
-          data: _body,
-        );
+        ],
+        data: _skills,
+      ),
+    );
   }
 
-  Widget _body(List<SkillDto> skills) {
+  List<Widget> _skills(List<SkillDto> skills) {
     if (skills.isEmpty) {
-      return const ProductionEmptyView(
-        description:
-            'Les compétences de cette tâche ne sont pas encore prêtes.',
-      );
+      return const [
+        ProductionEmptyView(
+          description:
+              'Les compétences de cette tâche ne sont pas encore prêtes.',
+        ),
+      ];
     }
-    final resume = _resumeTarget(skills);
-    // Agrégat calculé côté client : `GET /api/skills` sert déjà les compteurs
-    // par compétence, aucun endpoint à inventer pour la barre.
-    final treated = skills.fold<int>(0, (sum, s) => sum + s.attemptedCount);
-    final total = skills.fold<int>(0, (sum, s) => sum + s.promptCount);
-    final percent = total == 0 ? 0.0 : treated / total * 100;
+    return [
+      ProductionSectionHead(
+        title: 'Compétences de la tâche ${widget.tache}',
+        description:
+            'Chaque compétence contient plusieurs petits sujets de production.',
+        accent: _accent,
+      ),
+      const SizedBox(height: 11),
+      for (final skill in skills) ...[
+        CompetenceCard(
+          skill: skill,
+          accent: _accent,
+          onTap: () => _open(skill),
+        ),
+        const SizedBox(height: 11),
+      ],
+      const SizedBox(height: 4),
+      const ProductionNotice(
+        title: 'Principe pédagogique',
+        body: 'Le candidat produit directement. Chaque petit sujet travaille '
+            'un seul critère attendu au TCF.',
+      ),
+    ];
+  }
 
+  Widget _body(List<Widget> content) {
     return RefreshIndicator(
       color: _accent,
       onRefresh: () async {
@@ -109,60 +120,13 @@ class _CompetencesTabViewState extends ConsumerState<CompetencesTabView> {
         await ref.read(skillsSectionProvider(_key.section).future);
       },
       child: ListView(
-        // Une clé par tâche : changer de pastille repart en haut de liste au
-        // lieu de garder le défilement d'une autre tâche.
+        // Une clé par tâche : changer de tâche repart en haut de liste au lieu
+        // de garder le défilement d'une autre tâche.
         key: PageStorageKey<int>(widget.tache),
-        padding: const EdgeInsets.fromLTRB(
-            16, 12, 16, ProductionModuleBar.reservedHeight),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         children: [
-          ProductionHero(
-            accent: _accent,
-            accentDark: widget.module.accentDark,
-            eyebrow: 'Parcours TCF',
-            title: 'Tâche ${widget.tache} · ${widget.module.title}',
-            description: 'Travaille une compétence à la fois, puis '
-                'utilise-la dans un sujet complet.',
-            percent: percent,
-            progressLabel: '$treated/$total sujets traités',
-            level: _taskLevel(skills),
-          ),
-          const SizedBox(height: 21),
-          const ProductionSectionHead(
-            title: 'Choisis une tâche',
-            description: 'Chaque tâche développe des compétences différentes.',
-          ),
-          const SizedBox(height: 11),
-          ProductionTaskPills(
-            active: widget.tache,
-            accent: _accent,
-            onChanged: widget.onTacheChanged,
-          ),
-          const SizedBox(height: 21),
-          ProductionSectionHead(
-            title: 'Compétences de la tâche ${widget.tache}',
-            description: 'Chaque compétence contient plusieurs petits sujets '
-                'de production.',
-            accent: _accent,
-            linkLabel: resume == null
-                ? null
-                : (resume.attemptedCount == 0 ? 'Commencer' : 'Continuer'),
-            onLinkTap: resume == null ? null : () => _open(resume),
-          ),
-          const SizedBox(height: 11),
-          for (final skill in skills) ...[
-            CompetenceCard(
-              skill: skill,
-              accent: _accent,
-              onTap: () => _open(skill),
-            ),
-            const SizedBox(height: 11),
-          ],
-          const SizedBox(height: 4),
-          const ProductionNotice(
-            title: 'Principe pédagogique',
-            body: 'Le candidat produit directement. Chaque petit sujet '
-                'travaille un seul critère attendu au TCF.',
-          ),
+          ...widget.top(withTaskPicker: true),
+          ...content,
         ],
       ),
     );

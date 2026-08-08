@@ -153,6 +153,11 @@ export interface ProductionExamDraft {
   date: string;
   /** Moyenne des tâches évaluées, à une décimale. Null tant que rien n'est noté. */
   avgNote: number | null;
+  /** Toutes les soumissions de la session portent une évaluation. Le héros du
+   *  parcours n'agrège que celles-là : une session dont l'IA n'a rendu qu'une
+   *  note sur trois tirerait le score moyen vers le bas sans raison.
+   *  Miroir de `ExamSession.isFullyEvaluated` (mobile). */
+  fullyEvaluated: boolean;
 }
 
 /**
@@ -202,6 +207,7 @@ export function examDrafts(
     drafts.push({
       attemptId,
       date,
+      fullyEvaluated: notes.length === items.length,
       // Une décimale, comme les notes elles-mêmes : arrondir à l'entier
       // afficherait 13 là où la session vaut 12,5.
       avgNote: notes.length
@@ -211,6 +217,28 @@ export function examDrafts(
   }
   drafts.sort((a, b) => a.date.localeCompare(b.date));
   return drafts;
+}
+
+/**
+ * Sujets **distincts déjà produits** sur l'épreuve, et total publié.
+ *
+ * On repart des `tasks` (et non du `tacheNumero` porté par la soumission) pour
+ * ne compter que des sujets encore publiés : sinon un sujet retiré du catalogue
+ * gonflerait le numérateur sans gonfler le dénominateur. Un sujet repris deux
+ * fois ne compte qu'une fois.
+ *
+ * Miroir de `buildHubData` (mobile, `expression_hub_data.dart`).
+ */
+export function epreuveSubjectProgress(
+  tasks: readonly ProductionTaskDto[] | undefined,
+  subs: readonly ProductionSubmissionDto[] | undefined,
+): {done: number; total: number} {
+  const published = tasks ?? [];
+  const treated = new Set((subs ?? []).map((s) => s.productionTaskId));
+  return {
+    done: published.filter((t) => treated.has(t.id)).length,
+    total: published.length,
+  };
 }
 
 /** Dernière soumission par sujet — l'état « traité » des cartes de sujet. */

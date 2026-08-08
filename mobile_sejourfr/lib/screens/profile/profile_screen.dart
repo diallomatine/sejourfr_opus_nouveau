@@ -7,6 +7,7 @@ import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/auth_models.dart';
 import '../../core/models/billing_models.dart';
+import '../../core/models/dashboard_models.dart';
 import '../../core/providers/dashboard_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
@@ -110,6 +111,10 @@ class ProfileScreen extends ConsumerWidget {
                           label: 'Niveau estimé',
                           color: AppColors.blue,
                           valueSize: 22,
+                          // Un niveau qui ne porte pas sur les 4 épreuves le
+                          // dit ici (parité web /profil).
+                          hint: estimatedTcfLevelScopeLabel(
+                              dashboard.valueOrNull),
                         ),
                       ),
                     ],

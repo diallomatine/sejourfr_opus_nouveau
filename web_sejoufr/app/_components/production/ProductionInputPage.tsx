@@ -182,7 +182,6 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
   return (
     <DualChromeShell>
       <SkillShell
-        config={config}
         backHref={upHref}
         backLabel={task ? `${config.label} · Tâche ${task.tacheNumero}` : TCF_HUB_LABEL}
       >

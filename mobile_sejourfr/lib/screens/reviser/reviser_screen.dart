@@ -142,7 +142,12 @@ class _ModuleCard extends StatelessWidget {
     final stat = entry.stat;
     final percent = stat.percent;
     // Rythme bleu-blanc-rouge de la maquette : icônes alternées bleu/rouge.
-    final isBlue = index.isEven;
+    // **Sauf les deux épreuves de production** : expression écrite et orale
+    // forment une paire, et elles sont bleues des deux côtés depuis le
+    // 2026-08-09 (cf. `TcfProductionModule`). Les laisser dans l'alternance
+    // faisait apparaître l'écrit en rouge à l'entrée d'un parcours entièrement
+    // bleu — le seul endroit où la couleur aurait encore trié EE et EO.
+    final isBlue = stat.isProduction || index.isEven;
     final iconBg = isBlue ? AppColors.blueLight : AppColors.redLight;
     final iconFg = isBlue ? AppColors.blue : AppColors.red;
 

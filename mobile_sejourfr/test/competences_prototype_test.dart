@@ -6,8 +6,8 @@ import 'package:sejourfr_mobile/core/theme/app_theme.dart';
 import 'package:sejourfr_mobile/core/widgets/app_tag.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/competence_card.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_blocks.dart';
-import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_hero.dart';
-import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_task_pills.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_mode_tabs.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_parcours_top.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_prompt_card.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_references_tabs.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_status_badge.dart';
@@ -27,11 +27,23 @@ void main() {
   setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
 
   group('accent du module', () {
-    test('EO est rouge, EE est bleu — declaré une seule fois', () {
-      expect(TcfProductionModule.eo.accent, AppColors.red);
-      expect(TcfProductionModule.eo.accentDark, AppColors.redDark);
-      expect(TcfProductionModule.ee.accent, AppColors.blue);
-      expect(TcfProductionModule.ee.accentDark, AppColors.blueDark);
+    // Décision client du 2026-08-09 : l'expression orale n'est plus rouge. Le
+    // rouge redevient réservé aux CTA critiques et aux signaux d'urgence.
+    test('les DEUX épreuves sont bleues — plus aucun accent rouge', () {
+      for (final module in TcfProductionModule.values) {
+        expect(module.accent, AppColors.blue);
+        expect(module.accentDark, AppColors.blueDark);
+        expect(module.accent, isNot(AppColors.red));
+      }
+    });
+
+    test('ce qui distingue l\'écrit de l\'oral : pictogramme, verbe, durée', () {
+      expect(TcfProductionModule.ee.icon,
+          isNot(TcfProductionModule.eo.icon));
+      expect(TcfProductionModule.ee.actionVerb, 'Rédiger');
+      expect(TcfProductionModule.eo.actionVerb, 'Enregistrer');
+      expect(TcfProductionModule.ee.epreuveMeta, 'TCF IRN · 3 tâches · 30 min');
+      expect(TcfProductionModule.eo.epreuveMeta, 'TCF IRN · 3 tâches · 15 min');
     });
   });
 
@@ -73,76 +85,99 @@ void main() {
     });
   });
 
-  group('hero de l\'accueil Compétences', () {
-    testWidgets('affiche la progression globale de la tâche', (tester) async {
+  group('héros chiffré du parcours', () {
+    testWidgets('trois indicateurs agrégés + progression du parcours',
+        (tester) async {
       await tester.pumpWidget(
         _host(
-          ProductionHero(
-            accent: AppColors.blue,
-            accentDark: AppColors.blueDark,
-            eyebrow: 'Parcours TCF',
-            title: 'Tâche 1 · Expression écrite',
-            description: 'Travaille une compétence à la fois.',
-            percent: 7 / 40 * 100,
-            progressLabel: '7/40 sujets traités',
-            level: 'A2',
+          const ProductionParcoursHero(
+            module: TcfProductionModule.ee,
+            stats: ProductionParcoursStats(
+              avgScore: 7.7,
+              examsDone: 1,
+              examsTotal: 10,
+              subjectsDone: 3,
+              subjectsTotal: 40,
+            ),
           ),
         ),
       );
 
-      expect(find.text('PARCOURS TCF'), findsOneWidget);
-      expect(find.text('Tâche 1 · Expression écrite'), findsOneWidget);
-      expect(find.text('Progression · 7/40 sujets traités'), findsOneWidget);
-      expect(find.text('18 %'), findsOneWidget);
-      expect(find.text('A2'), findsOneWidget);
+      // Le /20 n'est PAS une note de tâche : c'est la moyenne d'examens blancs
+      // (3 tâches agrégées), la seule échelle /20 autorisée ici.
+      expect(find.text('7,7'), findsOneWidget);
+      expect(find.text('/20'), findsOneWidget);
+      expect(find.text('/10'), findsOneWidget);
+      expect(find.text('/40'), findsOneWidget);
+      expect(find.text('Progression du parcours'), findsOneWidget);
+      expect(find.text('8 %'), findsOneWidget);
     });
 
-    testWidgets('sans palier connu, aucune pilule inventée', (tester) async {
+    testWidgets('aucun examen évalué ⇒ un tiret, jamais un zéro',
+        (tester) async {
       await tester.pumpWidget(
         _host(
-          const ProductionHero(
-            accent: AppColors.red,
-            accentDark: AppColors.redDark,
-            eyebrow: 'Parcours TCF',
-            title: 'Tâche 2 · Expression orale',
-            description: 'Travaille une compétence à la fois.',
-            percent: 0,
-            progressLabel: '0/40 sujets traités',
+          const ProductionParcoursHero(
+            module: TcfProductionModule.eo,
+            stats: ProductionParcoursStats(
+              avgScore: null,
+              examsDone: 0,
+              examsTotal: 10,
+              subjectsDone: 0,
+              subjectsTotal: 0,
+            ),
           ),
         ),
       );
 
+      expect(find.text('—'), findsOneWidget);
+      // Aucun sujet publié ⇒ 0 %, pas de NaN ni de barre pleine.
       expect(find.text('0 %'), findsOneWidget);
-      expect(find.textContaining('A2'), findsNothing);
     });
   });
 
-  group('pastilles de tâche', () {
-    testWidgets('la tâche active est pleine, un tap change de tâche',
-        (tester) async {
+  group('sélecteur de tâche', () {
+    testWidgets('porte l\'intitulé court et la contrainte réelle, et change '
+        'de tâche', (tester) async {
       int? tapped;
       await tester.pumpWidget(
         _host(
-          ProductionTaskPills(
+          ProductionTaskCards(
+            module: TcfProductionModule.ee,
             active: 2,
             accent: AppColors.blue,
             onChanged: (n) => tapped = n,
+            constraintOf: (n) => n == 1 ? '30-60 mots' : null,
           ),
         ),
       );
 
-      expect(find.text('Tâche 1'), findsOneWidget);
-      expect(find.text('Tâche 2'), findsOneWidget);
-      expect(find.text('Tâche 3'), findsOneWidget);
+      expect(find.text('Message'), findsOneWidget);
+      expect(find.text('Récit'), findsOneWidget);
+      expect(find.text('Opinion'), findsOneWidget);
+      expect(find.text('30-60 mots'), findsOneWidget);
 
-      // Actif = texte blanc sur fond accent ; inactif = texte encre.
-      expect(tester.widget<Text>(find.text('Tâche 2')).style!.color,
-          AppColors.white);
-      expect(tester.widget<Text>(find.text('Tâche 1')).style!.color,
-          AppColors.inkSoft);
-
-      await tester.tap(find.text('Tâche 3'));
+      await tester.tap(find.text('Opinion'));
       expect(tapped, 3);
+    });
+  });
+
+  group('barre des trois modes', () {
+    testWidgets('le mode actif est une pilule pleine', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          ProductionModeTabs(
+            active: ProductionModuleTab.sujets,
+            accent: AppColors.blue,
+            onChanged: (_) {},
+          ),
+        ),
+      );
+
+      expect(tester.widget<Text>(find.text('Sujets')).style!.color,
+          AppColors.white);
+      expect(tester.widget<Text>(find.text('Compétences')).style!.color,
+          AppColors.inkSoft);
     });
   });
 
@@ -308,7 +343,8 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('Répondre à une invitation'), findsOneWidget);
-      expect(find.text('3/5 traités · 2 ✓'), findsOneWidget);
+      // Libellé GELÉ, miroir mot pour mot du web (`competenceProgressLabel`).
+      expect(find.text('2 réussis · 2 restants'), findsOneWidget);
     });
   });
 

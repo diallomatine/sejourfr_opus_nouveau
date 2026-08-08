@@ -104,7 +104,6 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
   return (
     <DualChromeShell>
       <SkillShell
-        config={config}
         backHref={backHref}
         backLabel={backParam ? "Retour" : TCF_HUB_LABEL}
       >

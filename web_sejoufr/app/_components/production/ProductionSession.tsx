@@ -20,8 +20,10 @@ import {
   type RealtimeSessionDescriptor,
 } from "@/lib/types";
 import {
+  BILAN_PROCHAINES_ETAPES_TITLE,
   TACHE_EVALUEE_LABEL,
   bilanNiveauPendingLabel,
+  bilanProchainesEtapesMessage,
   tacheNiveau,
   tacheNiveauLabel,
 } from "@/lib/production-feedback";
@@ -671,27 +673,6 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
 
 const CECRL_SCALE: NiveauCecrl[] = ["A1", "A2", "B1", "B2"];
 
-/** Conseil « prochaines étapes » selon le niveau plancher (calqué mobile). */
-function nextStepsMessage(level: NiveauCecrl | null): string {
-  switch (level) {
-    case "C2":
-    case "C1":
-      return "Bravo, votre français est avancé. Le TCF IRN, lui, s'arrête à B2 : vous êtes au-dessus du palier le plus haut demandé.";
-    case "B2":
-      return "Excellent — niveau B2 sur cette épreuve, le palier demandé pour la naturalisation. Il se juge dans les 4 épreuves sans moyenne : gardez ce niveau partout.";
-    case "B1":
-      return "Niveau B1 sur cette épreuve — le palier demandé pour la carte de résident, à condition de l'atteindre aussi dans les 3 autres épreuves. Travaillez la richesse du vocabulaire pour viser B2.";
-    case "A2":
-      return "Niveau A2 sur cette épreuve — le palier demandé pour la carte de séjour pluriannuelle, à condition de l'atteindre aussi dans les 3 autres épreuves. Renforcez la grammaire et la longueur de vos productions pour viser B1.";
-    case "A1":
-      return "Les bases sont là. Entraînez-vous régulièrement sur des phrases plus complètes pour progresser vers A2.";
-    case "A1_NON_ATTEINT":
-      return "Reprenez les bases : des phrases courtes et correctes d'abord. Chaque entraînement compte.";
-    default:
-      return "Dès que l'IA a évalué vos 3 tâches, votre niveau plancher s'affiche ici avec des conseils ciblés.";
-  }
-}
-
 /**
  * Bilan d'une session de production (3 tâches), calqué sur le mobile : hero bleu
  * (note moyenne + niveau global du backend + échelle CECRL), détail par tâche
@@ -859,14 +840,14 @@ function BilanView({
         })}
       </div>
 
-      {niveauGlobal != null && (
-        <div className={prod.sessNext}>
-          <p className={prod.sessNextTitle}>
-            <Lightbulb size={16} aria-hidden /> Tes prochaines étapes
-          </p>
-          <p className={prod.sessNextBody}>{nextStepsMessage(niveauGlobal)}</p>
-        </div>
-      )}
+      {/* Rendu même sans niveau : le message dit alors que l'IA n'a pas fini,
+          ce qui vaut mieux qu'un bloc qui disparaît (parité mobile). */}
+      <div className={prod.sessNext}>
+        <p className={prod.sessNextTitle}>
+          <Lightbulb size={16} aria-hidden /> {BILAN_PROCHAINES_ETAPES_TITLE}
+        </p>
+        <p className={prod.sessNextBody}>{bilanProchainesEtapesMessage(niveauGlobal)}</p>
+      </div>
 
       <div className={prod.bilanFoot}>
         {backTo ? (

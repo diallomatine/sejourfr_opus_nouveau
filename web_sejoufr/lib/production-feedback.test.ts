@@ -16,10 +16,12 @@ import {
     SITUATION_QUALIFICATIFS,
     TACHE_EVALUEE_LABEL,
     TACHE_TRAITEE_LABEL,
+    BILAN_PROCHAINES_ETAPES_TITLE,
     TCF_NOTE_BANDS,
     VERSION_CIBLEE_EYEBROW,
     VERSION_CIBLEE_LEVIERS_TITLE,
     bilanNiveauPendingLabel,
+    bilanProchainesEtapesMessage,
     canShowNiveau,
     critereBandeFromNote,
     demarcheRappel,
@@ -934,4 +936,60 @@ describe("aucun composant ne rend `version_amelioree` (retrait 2026-08-08)", () 
             assert.equal(/[Vv]ersion améliorée/.test(code), false, fichier);
         });
     }
+});
+
+// ---------------------------------------------------------------------------
+
+// Le conseil de fin de bilan vivait EN DOUBLE, écrit à la main de chaque côté,
+// et les deux copies avaient divergé (le mobile tutoyait). Pire : chacune
+// recopiait la table démarche → palier, donnée LÉGALE que `TargetProcedure`
+// interdit de réécrire dans un écran. Miroir mobile :
+// `test/evaluation_report_test.dart`, sur exactement les mêmes chaînes.
+const TUTOIEMENT = /(?<!\p{L})(tu|ton|ta|tes|toi|continue|vise|garde|reviens)(?!\p{L})/iu;
+
+describe("conseil « prochaines étapes » du bilan d'épreuve", () => {
+    it("le titre vouvoie, comme tout le reste de la restitution", () => {
+        assert.equal(BILAN_PROCHAINES_ETAPES_TITLE, "Vos prochaines étapes");
+    });
+
+    it("chaque palier nomme la démarche qu'il ouvre, et elle seule", () => {
+        assert.match(bilanProchainesEtapesMessage("A2"), /la carte de séjour pluriannuelle/);
+        assert.match(bilanProchainesEtapesMessage("B1"), /la carte de résident/);
+        assert.match(bilanProchainesEtapesMessage("B2"), /la naturalisation/);
+        // Un A2 ne doit pas se voir promettre la naturalisation dans la même
+        // phrase que son palier : il vise le B1, une marche à la fois.
+        assert.equal(/naturalisation/.test(bilanProchainesEtapesMessage("A2")), false);
+    });
+
+    it("aucun message ne tutoie", () => {
+        const niveaux = [
+            "A1_NON_ATTEINT", "A1", "A2", "B1", "B2", "C1", "C2", null,
+        ] as const;
+        for (const n of niveaux) {
+            const m = bilanProchainesEtapesMessage(n);
+            // ⚠️ `\b` est ASCII : il coupe AVANT le « t » de « êtes » et fait
+            // croire à un « tes ». On borne donc sur les lettres Unicode.
+            assert.equal(TUTOIEMENT.test(m), false, m);
+        }
+    });
+
+    it("aucun message n'affiche un chiffre de barème", () => {
+        const niveaux = [
+            "A1_NON_ATTEINT", "A1", "A2", "B1", "B2", "C1", "C2", null,
+        ] as const;
+        for (const n of niveaux) {
+            assert.equal(/\/20|sur 20/.test(bilanProchainesEtapesMessage(n)), false, String(n));
+        }
+    });
+
+    it("sans niveau, il dit que l'IA n'a pas fini — jamais rien", () => {
+        const m = bilanProchainesEtapesMessage(null);
+        assert.ok(m.length > 0);
+        assert.match(m, /évalué vos 3 tâches/);
+    });
+
+    it("au-dessus du plafond du TCF IRN, il le dit sans reproche", () => {
+        assert.equal(bilanProchainesEtapesMessage("C1"), bilanProchainesEtapesMessage("C2"));
+        assert.match(bilanProchainesEtapesMessage("C1"), /s'arrête au B2/);
+    });
 });

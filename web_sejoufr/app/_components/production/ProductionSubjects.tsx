@@ -23,11 +23,7 @@ import {
 import { prodQuotaInfoKey, shouldAnnounceFreeTrial } from "@/lib/production-quota-info";
 import { replaceUrlShallow } from "@/lib/shallow-url";
 import { useCachedData } from "@/lib/use-cached-data";
-import {
-  canAccessModule,
-  productionTaskSubtitle,
-  productionTaskTitle,
-} from "@/lib/types";
+import {canAccessModule, productionTaskConstraint} from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
 import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
@@ -37,13 +33,12 @@ import {
   SkillBadge,
   type SkillBadgeTone,
   SkillFilterRow,
-  SkillHero,
   SkillNotice,
   type SkillRowMark,
   SkillRowCard,
   SkillShell,
-  TaskPills,
 } from "@/app/_components/skill-ui/SkillLayout";
+import {ParcoursTop, useParcoursLevel} from "./ParcoursTop";
 import s from "@/app/_components/skill-ui/skill.module.css";
 import { type ProductionConfig, TCF_HUB_HREF, TCF_HUB_LABEL } from "./config";
 
@@ -109,6 +104,7 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
     [config.base],
   );
 
+  const level = useParcoursLevel();
   const ready = status === "authenticated" && valid;
 
   // Catalogue : les 3 tâches en un appel, mémorisé pour la session.
@@ -172,7 +168,7 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
   if (!valid) {
     return (
       <DualChromeShell>
-        <SkillShell config={config} backHref={TCF_HUB_HREF} backLabel={TCF_HUB_LABEL}>
+        <SkillShell backHref={TCF_HUB_HREF} backLabel={TCF_HUB_LABEL}>
           <p className={s.empty}>Tâche inconnue.</p>
         </SkillShell>
       </DualChromeShell>
@@ -189,42 +185,13 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
   return (
     <DualChromeShell>
       <SkillShell
-        config={config}
         backHref={TCF_HUB_HREF}
         backLabel={TCF_HUB_LABEL}
-        mode="sujets"
-        taskNumero={n}
+        title={config.label}
+        meta={config.epreuveMeta}
+        level={level}
       >
-        <SkillHero
-          eyebrow={`${config.label} · Tâche ${n}`}
-          title={productionTaskTitle(config.epreuve, n)}
-          text={productionTaskSubtitle(config.epreuve, n)}
-          level={null}
-          attempted={doneCount}
-          total={rows.length}
-          percent={rows.length ? Math.round((doneCount / rows.length) * 100) : 0}
-        />
-
-        <SectionHead
-          title="Choisissez une tâche"
-          text="Chaque tâche a son format et ses attentes."
-        />
-        <TaskPills
-          config={config}
-          current={n}
-          labelOf={(i) => productionTaskTitle(config.epreuve, i)}
-          onPick={pickTask}
-        />
-
-        <SectionHead
-          title="Sujets TCF complets"
-          text="Une production entière, évaluée sur l'échelle du TCF."
-          action={
-            <Link href={`${config.base}/tache/${n}/exemples`} className={s.headLink}>
-              Exemples →
-            </Link>
-          }
-        />
+        <ParcoursTop config={config} mode="sujets" taskNumero={n} onPickTask={pickTask} />
 
         {error && <div className={s.error}>{error}</div>}
 
@@ -245,6 +212,20 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
               ]}
             />
 
+            <SectionHead
+              title="Sujets d'entraînement"
+              text={
+                config.mode === "audio"
+                  ? "Choisissez un sujet, enregistrez votre réponse, recevez votre correction."
+                  : "Choisissez un sujet, rédigez votre réponse, recevez votre correction."
+              }
+              action={
+                <Link href={`${config.base}/tache/${n}/exemples`} className={s.headLink}>
+                  Exemples corrigés →
+                </Link>
+              }
+            />
+
             {shown.length === 0 ? (
               <p className={s.empty}>
                 {filter === "done"
@@ -258,6 +239,7 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
                   const done = !!sub;
                   const niveau = tacheNiveau(sub?.evaluation);
                   const tone = tacheNiveauTone(niveau);
+                  const constraint = productionTaskConstraint(t, config.mode === "audio");
                   return (
                     <SkillRowCard
                       key={t.id}
@@ -290,7 +272,13 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
                           ) : (
                             <SkillBadge tone="todo">À faire</SkillBadge>
                           )}
-                          <SkillBadge tone="level">{t.niveauCible}</SkillBadge>
+                          {/* Contrainte réelle du sujet puis sa tâche — le
+                              palier, lui, est annoncé une fois pour toutes par
+                              le badge « NIVEAU VISÉ » de l'en-tête : le répéter
+                              sur chaque carte noyait la seule information qui
+                              change d'un sujet à l'autre. */}
+                          {constraint && <SkillBadge tone="todo">{constraint}</SkillBadge>}
+                          <SkillBadge tone="todo">Tâche {t.tacheNumero}</SkillBadge>
                         </>
                       }
                       onClick={

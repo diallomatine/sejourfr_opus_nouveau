@@ -87,6 +87,11 @@ class UserDashboardServiceTest {
         assertThat(resp.mockExamsTotal()).isZero();
         assertThat(resp.globalSuccessPercent()).isNull();
         assertThat(resp.estimatedTcfLevel()).isNull();
+        // Zéro épreuve : le niveau vaut déjà null (« — » à l'écran), il n'y a
+        // rien à annoter — « partiel » sur un niveau absent n'aurait aucun sens.
+        assertThat(resp.estimatedTcfLevelEpreuvesCounted()).isZero();
+        assertThat(resp.estimatedTcfLevelEpreuvesExpected()).isEqualTo(4);
+        assertThat(resp.estimatedTcfLevelPartial()).isFalse();
         // Les deux entrées synthétiques EE/EO sont toujours présentes côté TCF.
         assertThat(resp.tcf()).extracting(DashboardSummaryResponse.CategoryStat::code)
                 .contains("TCF_EE", "TCF_EO");
@@ -180,7 +185,37 @@ class UserDashboardServiceTest {
         when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
                 NiveauCecrl.B2, NiveauCecrl.B2, NiveauCecrl.B1, null, NiveauCecrl.B1));
 
-        assertThat(service.summary(userId).estimatedTcfLevel()).isEqualTo(NiveauCecrl.B1);
+        DashboardSummaryResponse resp = service.summary(userId);
+
+        assertThat(resp.estimatedTcfLevel()).isEqualTo(NiveauCecrl.B1);
+        // 3 épreuves sur 4 : le niveau est vrai, mais il ne porte pas sur tout.
+        assertThat(resp.estimatedTcfLevelEpreuvesCounted()).isEqualTo(3);
+        assertThat(resp.estimatedTcfLevelPartial()).isTrue();
+    }
+
+    @Test
+    void summary_estimatedTcfLevel_uneSeuleEpreuve_estPartiel() {
+        // Le cas vécu : un candidat qui n'a fait que l'expression écrite lisait
+        // « Niveau TCF estimé : B1 » sans que rien ne dise sur quoi il portait.
+        when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
+                null, null, NiveauCecrl.B1, null, NiveauCecrl.B1));
+
+        DashboardSummaryResponse resp = service.summary(userId);
+
+        assertThat(resp.estimatedTcfLevelEpreuvesCounted()).isEqualTo(1);
+        assertThat(resp.estimatedTcfLevelEpreuvesExpected()).isEqualTo(4);
+        assertThat(resp.estimatedTcfLevelPartial()).isTrue();
+    }
+
+    @Test
+    void summary_estimatedTcfLevel_quatreEpreuves_nEstPasPartiel() {
+        when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
+                NiveauCecrl.B2, NiveauCecrl.B1, NiveauCecrl.B1, NiveauCecrl.A2, NiveauCecrl.A2));
+
+        DashboardSummaryResponse resp = service.summary(userId);
+
+        assertThat(resp.estimatedTcfLevelEpreuvesCounted()).isEqualTo(4);
+        assertThat(resp.estimatedTcfLevelPartial()).isFalse();
     }
 
     @Test

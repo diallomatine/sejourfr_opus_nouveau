@@ -1665,4 +1665,75 @@ void main() {
       expect(find.text(kNiveauViseAtteintEyebrow.toUpperCase()), findsNothing);
     });
   });
+
+  // Le conseil de fin de bilan vivait EN DOUBLE, écrit à la main de chaque
+  // côté, et les deux copies avaient divergé : ici on tutoyait (« Continue »,
+  // « garde »), le web vouvoyait. Pire : chacune recopiait la table démarche →
+  // palier, donnée LÉGALE que `TargetProcedure` interdit de réécrire dans un
+  // écran. Miroir web : `lib/production-feedback.test.ts`, sur exactement les
+  // mêmes chaînes.
+  group('conseil « prochaines étapes » du bilan d\'épreuve', () {
+    const niveaux = <NiveauCecrl?>[
+      NiveauCecrl.a1NonAtteint,
+      NiveauCecrl.a1,
+      NiveauCecrl.a2,
+      NiveauCecrl.b1,
+      NiveauCecrl.b2,
+      NiveauCecrl.c1,
+      NiveauCecrl.c2,
+      null,
+    ];
+
+    test('le titre vouvoie, comme tout le reste de la restitution', () {
+      expect(kBilanProchainesEtapesTitle, 'Vos prochaines étapes');
+    });
+
+    test('chaque palier nomme la démarche qu\'il ouvre, et elle seule', () {
+      expect(bilanProchainesEtapesMessage(NiveauCecrl.a2),
+          contains('la carte de séjour pluriannuelle'));
+      expect(bilanProchainesEtapesMessage(NiveauCecrl.b1),
+          contains('la carte de résident'));
+      expect(bilanProchainesEtapesMessage(NiveauCecrl.b2),
+          contains('la naturalisation'));
+      // Un A2 ne doit pas se voir promettre la naturalisation dans la même
+      // phrase que son palier : il vise le B1, une marche à la fois.
+      expect(bilanProchainesEtapesMessage(NiveauCecrl.a2),
+          isNot(contains('naturalisation')));
+    });
+
+    test('aucun message ne tutoie', () {
+      // ⚠️ Une frontière ASCII coupe avant le « t » de « êtes » : on borne sur
+      // les lettres Unicode, sinon le test crie au tutoiement pour rien.
+      final tutoiement = RegExp(
+        r'(?<!\p{L})(tu|ton|ta|tes|toi|continue|vise|garde|reviens)(?!\p{L})',
+        caseSensitive: false,
+        unicode: true,
+      );
+      for (final n in niveaux) {
+        final m = bilanProchainesEtapesMessage(n);
+        expect(tutoiement.hasMatch(m), isFalse, reason: m);
+      }
+    });
+
+    test('aucun message n\'affiche un chiffre de barème', () {
+      for (final n in niveaux) {
+        final m = bilanProchainesEtapesMessage(n);
+        expect(m, isNot(contains('/20')));
+        expect(m, isNot(contains('sur 20')));
+      }
+    });
+
+    test('sans niveau, il dit que l\'IA n\'a pas fini — jamais rien', () {
+      final m = bilanProchainesEtapesMessage(null);
+      expect(m, isNotEmpty);
+      expect(m, contains('évalué vos 3 tâches'));
+    });
+
+    test('au-dessus du plafond du TCF IRN, il le dit sans reproche', () {
+      expect(bilanProchainesEtapesMessage(NiveauCecrl.c1),
+          bilanProchainesEtapesMessage(NiveauCecrl.c2));
+      expect(bilanProchainesEtapesMessage(NiveauCecrl.c1),
+          contains("s'arrête au B2"));
+    });
+  });
 }

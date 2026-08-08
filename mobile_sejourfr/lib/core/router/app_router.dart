@@ -23,7 +23,7 @@ import '../../screens/tcf_production/competences/competence_detail_screen.dart';
 import '../../screens/tcf_production/competences/competence_prompt_screen.dart';
 import '../../screens/tcf_production/competences/competence_result_screen.dart';
 import '../../screens/tcf_production/production_parcours_screen.dart';
-import '../../screens/tcf_production/widgets/production_module_bar.dart';
+import '../../screens/tcf_production/widgets/production_mode_tabs.dart';
 import '../../screens/tcf_production/tcf_task_examples_screen.dart';
 import '../../screens/tcf_production/tcf_production_module.dart';
 import '../../screens/module_detail/tcf_qcm_detail_screen.dart';

@@ -53,6 +53,12 @@ export type ProductionVoice = "vouvoiement" | "tutoiement";
  * composants génériques `Production*` : même flux (compétences ⇄ sujets ⇄
  * examens → input → feedback IA → examen blanc 3 tâches → historique), seul
  * l'input change (rédaction texte vs enregistrement audio).
+ *
+ * ⚠️ **Plus d'`accent`** (décision client 2026-08-09) : l'expression orale
+ * était rouge, elle est bleue comme l'écrit. Le rouge redevient réservé aux CTA
+ * critiques et aux signaux d'urgence (`docs/identite-visuelle.md`). Ce qui
+ * distingue les deux épreuves : `label`, `mode` (donc le pictogramme stylo /
+ * micro), `actionVerb` et `epreuveMeta`. Miroir mobile : `TcfProductionModule`.
  */
 export interface ProductionConfig {
   epreuve: Extract<EpreuveType, "TCF_EE" | "TCF_EO">;
@@ -62,7 +68,13 @@ export interface ProductionConfig {
   label: string; // "Expression écrite" / "Expression orale"
   shortLabel: string; // "Écrit" / "Oral"
   mode: "text" | "audio";
-  accent: "blue" | "red";
+  /** Sous-titre d'épreuve de l'en-tête du parcours. Écrit ici et nulle part
+   *  ailleurs — trois écrans le composaient. */
+  epreuveMeta: string;
+  /** Verbe de production (« Rédiger » / « Enregistrer ») : avec le pictogramme
+   *  et la durée, c'est ce qui distingue l'écrit de l'oral depuis que les deux
+   *  épreuves sont bleues. */
+  actionVerb: string;
   /** Segment de la route de saisie : "redaction" (EE) / "enregistrement" (EO). */
   inputSegment: string;
   /** Chrono de l'épreuve en examen blanc, tel qu'appliqué par le backend
@@ -78,7 +90,8 @@ export const EE_CONFIG: ProductionConfig = {
   label: "Expression écrite",
   shortLabel: "Écrit",
   mode: "text",
-  accent: "blue",
+  epreuveMeta: "TCF IRN · 3 tâches · 30 min",
+  actionVerb: "Rédiger",
   inputSegment: "redaction",
   examMinutes: "30 min",
   examIntro:
@@ -91,7 +104,8 @@ export const EO_CONFIG: ProductionConfig = {
   label: "Expression orale",
   shortLabel: "Oral",
   mode: "audio",
-  accent: "red",
+  epreuveMeta: "TCF IRN · 3 tâches · 15 min",
+  actionVerb: "Enregistrer",
   inputSegment: "enregistrement",
   examMinutes: "15 min",
   examIntro:

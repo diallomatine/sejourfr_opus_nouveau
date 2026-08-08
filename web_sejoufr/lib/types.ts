@@ -1029,6 +1029,61 @@ export function productionTaskSubtitle(epreuve: EpreuveType, tacheNumero: number
     return epreuve === "TCF_EO" ? eoTaskSubtitle(tacheNumero) : eeTaskSubtitle(tacheNumero);
 }
 
+/**
+ * Intitulé **court** d'une tâche — celui du sélecteur de tâche du parcours, où
+ * trois cartes se partagent la largeur d'un téléphone. « Point de vue
+ * argumenté » y passe à la ligne ou se tronque ; « Opinion » se lit.
+ *
+ * ⚠️ **Libellés gelés**, miroir mot pour mot du mobile
+ * (`productionTaskShortTitle`, `widgets/production_common.dart`). Les deux
+ * fronts en tiennent chacun une copie écrite à la main : un libellé qui bouge,
+ * ce sont deux fichiers à changer dans la même passe, et deux tests.
+ */
+export function productionTaskShortTitle(epreuve: EpreuveType, tacheNumero: number): string {
+    if (epreuve === "TCF_EO") {
+        switch (tacheNumero) {
+            case 1:
+                return "Entretien dirigé";
+            case 2:
+                return "Jeu de rôle";
+            case 3:
+                return "Opinion";
+            default:
+                return `Tâche ${tacheNumero}`;
+        }
+    }
+    switch (tacheNumero) {
+        case 1:
+            return "Message";
+        case 2:
+            return "Récit";
+        case 3:
+            return "Opinion";
+        default:
+            return `Tâche ${tacheNumero}`;
+    }
+}
+
+/**
+ * Contrainte **réelle** d'un sujet, telle que servie par l'API : la longueur à
+ * l'écrit (`30-60 mots`), la durée à l'oral (`3 min`).
+ *
+ * `null` quand le champ est absent — **on n'invente jamais une borne** : les
+ * bornes EE vivent dans `production_tasks.mots_min/mots_max` côté serveur, et
+ * une valeur écrite en dur ici contredirait la consigne donnée au correcteur.
+ * Miroir de `productionTaskConstraint` (mobile).
+ */
+export function productionTaskConstraint(
+    task: Pick<ProductionTaskDto, "motsMin" | "motsMax" | "dureeMaxSec">,
+    isOral: boolean,
+): string | null {
+    if (isOral) {
+        return task.dureeMaxSec ? formatDurationSec(task.dureeMaxSec) || null : null;
+    }
+    if (task.motsMin == null || task.motsMax == null) return null;
+    return `${task.motsMin}-${task.motsMax} mots`;
+}
+
 /** Durée lisible « 1 min 30 » / « 2 min » à partir de secondes. */
 export function formatDurationSec(sec: number | null | undefined): string {
     if (sec == null || sec <= 0) return "";
@@ -1630,8 +1685,55 @@ export interface DashboardSummaryResponse {
      * côté front.
      */
     estimatedTcfLevel: NiveauCecrl | null;
+    /**
+     * **Périmètre** de `estimatedTcfLevel` : combien d'épreuves ont réellement
+     * pesé (0..4), sur combien, et si ça n'en fait pas le tour.
+     *
+     * Même contrat que `epreuvesCountedInFinalLevel` / `epreuvesExpected` /
+     * `finalLevelPartial` d'un examen blanc complet, et même raison : un
+     * candidat qui n'a passé que l'expression écrite lisait « Niveau TCF
+     * estimé : B1 » sur la foi d'**une** épreuve sur quatre. Dérivé serveur —
+     * **ne jamais recompter** côté front.
+     */
+    estimatedTcfLevelEpreuvesCounted: number;
+    estimatedTcfLevelEpreuvesExpected: number;
+    /** Au moins une épreuve comptée, mais pas les quatre. À zéro épreuve le
+     *  niveau vaut déjà `null` (« — ») : il n'y a rien à annoter. */
+    estimatedTcfLevelPartial: boolean;
     civique: DashboardCategoryStat[];
     tcf: DashboardCategoryStat[];
+}
+
+/**
+ * Ce qu'on écrit **sous** un niveau TCF estimé qui ne porte pas sur les quatre
+ * épreuves.
+ *
+ * Une seule chaîne, courte, la même sur toutes les surfaces (dashboard, profil,
+ * statistiques, hub TCF, examens blancs) et **au caractère près** identique au
+ * mobile (`estimatedTcfLevelScopeLabel`, `core/models/dashboard_models.dart`).
+ * Elle tient dans la légende d'une carte de statistique à 360 px, ce qui est la
+ * vraie contrainte : une phrase longue n'aurait pas pu être la même partout, et
+ * deux formulations auraient divergé au premier retouche.
+ *
+ * ⚠️ Règle de ton : elle **constate un périmètre**, elle ne reproche pas un
+ * inachèvement. « D'après 1 épreuve sur 4 » dit ce qu'on sait ; « il vous manque
+ * 3 épreuves » dirait au candidat qu'il est en retard. Et **aucun chiffre de
+ * barème** n'y apparaît — un décompte d'épreuves n'en est pas un.
+ *
+ * `null` quand il n'y a rien à annoter : niveau complet (4/4) ou inconnu (0/4,
+ * l'écran affiche déjà « — »).
+ */
+export function estimatedTcfLevelScopeLabel(
+    summary: Pick<
+        DashboardSummaryResponse,
+        "estimatedTcfLevelPartial" | "estimatedTcfLevelEpreuvesCounted" | "estimatedTcfLevelEpreuvesExpected"
+    > | null | undefined,
+): string | null {
+    if (!summary?.estimatedTcfLevelPartial) return null;
+    const counted = summary.estimatedTcfLevelEpreuvesCounted;
+    const expected = summary.estimatedTcfLevelEpreuvesExpected;
+    if (counted <= 0 || expected <= 0) return null;
+    return `D'après ${counted} épreuve${counted > 1 ? "s" : ""} sur ${expected}`;
 }
 
 // ============ HELPERS ============
@@ -1641,7 +1743,7 @@ export interface DashboardSummaryResponse {
  *
  * Seuils en vigueur au 1ᵉʳ janvier 2026 (loi n° 2024-42, décrets 2025-647 et
  * 2025-648, arrêté du 22 décembre 2025). Donnée légale de trois lignes, pas un
- * réglage : c'est un **miroir gelé par test** (`lib/types.test.ts`) de l'enum
+ * réglage : c'est un **miroir gelé par test** (`lib/target-level.test.ts`) de l'enum
  * `TargetProcedure` côté backend, comme `skill-labels` l'est des libellés
  * Compétences.
  *

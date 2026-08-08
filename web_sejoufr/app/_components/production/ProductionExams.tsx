@@ -26,17 +26,17 @@ import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/mo
 import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
 import { ExamIntroSheet } from "@/app/_components/hub/ExamIntroSheet";
 import {
+  ExamTrail,
   SectionHead,
   SkillBadge,
-  SkillHero,
   SkillNotice,
   SkillShell,
-  SkillStats,
 } from "@/app/_components/skill-ui/SkillLayout";
+import {ParcoursTop, PRODUCTION_EXAM_SLOTS, useParcoursLevel} from "./ParcoursTop";
 import s from "@/app/_components/skill-ui/skill.module.css";
 import { type ProductionConfig, TCF_HUB_HREF, TCF_HUB_LABEL } from "./config";
 
-const SLOTS = 10;
+const SLOTS = PRODUCTION_EXAM_SLOTS;
 /** Examen 1 offert à tous les comptes (règle backend `ProductionAccessService`). */
 const FREE_SLOTS = 1;
 
@@ -69,6 +69,7 @@ interface PastSession {
 export function ProductionExams({ config }: { config: ProductionConfig }) {
   const router = useRouter();
   const { user, status } = useAuth();
+  const level = useParcoursLevel();
   const isPremium = user ? canAccessModule(user, "TCF") : false;
 
   const [past, setPast] = useState<PastSession[]>([]);
@@ -181,51 +182,27 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
   }, [past]);
 
   const done = bySlot.size;
-  const bestNote = useMemo(() => {
-    let best: number | null = null;
-    for (const sess of past) {
-      if (sess.avgNote == null) continue;
-      if (best === null || sess.avgNote > best) best = sess.avgNote;
-    }
-    return best;
-  }, [past]);
-
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`${config.base}/examens`} />;
 
   return (
     <DualChromeShell>
       <SkillShell
-        config={config}
         backHref={TCF_HUB_HREF}
         backLabel={TCF_HUB_LABEL}
-        mode="examens"
+        title={config.label}
+        meta={config.epreuveMeta}
+        level={level}
       >
-        <SkillHero
-          eyebrow={`${config.label} · Examens blancs`}
-          title="Examens blancs"
-          text={`Trois tâches enchaînées en ${config.examMinutes}, en conditions réelles, puis une évaluation IA et un niveau CECRL.`}
-          level={null}
-          attempted={done}
-          total={SLOTS}
-          percent={Math.round((done / SLOTS) * 100)}
-          unit="examens"
-        />
+        <ParcoursTop config={config} mode="examens" />
 
-        <SkillStats
-          stats={[
-            { value: `${done}/${SLOTS}`, label: "Examens passés", sub: "dans cette épreuve" },
-            {
-              value: bestNote != null ? `${formatNoteSur20(bestNote)}/20` : "—",
-              label: "Meilleure note",
-              sub: "moyenne des 3 tâches",
-            },
-            {
-              value: bestLevel ? niveauCecrlLabel(bestLevel) : "—",
-              label: "Niveau estimé",
-              sub: "sur votre meilleur essai",
-            },
-          ]}
+        {/* Le score moyen et le décompte d'examens vivent désormais dans le
+            héros du parcours : les répéter ici en cartes de statistiques disait
+            deux fois la même chose sur la même page. */}
+        <ExamTrail
+          done={done}
+          total={SLOTS}
+          note={bestLevel ? `Niveau estimé · ${niveauCecrlLabel(bestLevel)}` : null}
         />
 
         <SectionHead

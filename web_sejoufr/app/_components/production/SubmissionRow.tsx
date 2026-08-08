@@ -5,7 +5,11 @@ import {
   productionTaskTitle,
   type ProductionSubmissionDto,
 } from "@/lib/types";
-import { tacheNiveau, tacheNiveauLabel } from "@/lib/production-feedback";
+import {
+  TACHE_EVALUEE_LABEL,
+  tacheNiveau,
+  tacheNiveauLabel,
+} from "@/lib/production-feedback";
 import {
   RowChevron,
   SkillBadge,
@@ -50,12 +54,20 @@ export function SubmissionRow({
       title={productionTaskTitle(epreuve, sub.tacheNumero ?? 0)}
       text={text}
       aside={
-        niveau && evaluated ? (
-          <span className={s.rowAside}>
-            <SkillBadge tone="treated">{tacheNiveauLabel(niveau)}</SkillBadge>
-            <RowChevron />
-          </span>
-        ) : undefined
+        <span className={s.rowAside}>
+          {/* Évaluée sans niveau affichable (éval antérieure au contrat v4) :
+              on écrit « Évaluée », on ne laisse pas le vide — même repli que
+              le détail par tâche du bilan et que le badge d'un sujet traité.
+              Et le chevron ne dépend pas du badge : la ligne est cliquable
+              dans tous les cas (parité `HistorySessionCard` mobile), le
+              retirer donnait une ligne qui ne semblait mener nulle part. */}
+          {evaluated && (
+            <SkillBadge tone="treated">
+              {niveau ? tacheNiveauLabel(niveau) : TACHE_EVALUEE_LABEL}
+            </SkillBadge>
+          )}
+          <RowChevron />
+        </span>
       }
       onClick={onClick}
     />

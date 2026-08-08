@@ -206,12 +206,12 @@ class _Hero extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.red, AppColors.redDark],
+          colors: [AppColors.blue, AppColors.blueDark],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.red.withValues(alpha: 0.22),
+            color: AppColors.blue.withValues(alpha: 0.22),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
@@ -396,9 +396,9 @@ class _ConseilCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       decoration: BoxDecoration(
-        color: AppColors.redLight,
+        color: AppColors.amberLight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.red.withValues(alpha: 0.12)),
+        border: Border.all(color: AppColors.amber.withValues(alpha: 0.20)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -408,14 +408,14 @@ class _ConseilCard extends StatelessWidget {
               const Icon(
                 LucideIcons.lightbulb,
                 size: 14,
-                color: AppColors.red,
+                color: AppColors.amberDark,
               ),
               const SizedBox(width: 6),
               Text(
                 'CONSEIL',
                 style: AppFonts.mono(
                   size: 9.5,
-                  color: AppColors.red,
+                  color: AppColors.amberDark,
                   letterSpacing: 1.8,
                   weight: FontWeight.w700,
                 ),

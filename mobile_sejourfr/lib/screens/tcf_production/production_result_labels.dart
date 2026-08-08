@@ -196,6 +196,59 @@ const String kConfianceSansRaison =
     'Une partie de votre production était difficile à analyser : ce niveau est '
     'à prendre avec prudence.';
 
+/// Titre du conseil de fin de bilan.
+///
+/// ⚠️ Il **vouvoie**, comme tout le reste de la restitution
+/// ([niveauAtteintLabel], [demarcheRappel], [kNiveauViseAtteintIntro]). Il
+/// disait « Tes prochaines étapes » ici et sur le web, au-dessus d'un corps qui
+/// vouvoyait côté web : deux registres dans le même encart. Miroir mot pour mot
+/// de `BILAN_PROCHAINES_ETAPES_TITLE` côté web.
+const String kBilanProchainesEtapesTitle = 'Vos prochaines étapes';
+
+/// Le conseil affiché sous le bilan d'une session de production, dérivé du
+/// niveau d'épreuve.
+///
+/// **Il vivait en double**, écrit à la main de chaque côté — et les deux copies
+/// avaient divergé : registres opposés (le mobile tutoyait), paliers bas
+/// formulés autrement, et surtout **une troisième et une quatrième copie de la
+/// table démarche → palier**, celle-là même que `TargetProcedure` interdit de
+/// réécrire dans un écran (seuils légaux du 1ᵉʳ janvier 2026). Ici la démarche
+/// vient de [TargetLevel.demarcheLabel], comme partout ailleurs.
+///
+/// `null` (aucun niveau calculable) a son propre message : c'est le cas normal
+/// d'un bilan dont l'IA n'a pas fini, et le dire vaut mieux que masquer le bloc.
+///
+/// ⚠️ Contrat gelé, miroir mot pour mot de `bilanProchainesEtapesMessage` côté
+/// web.
+String bilanProchainesEtapesMessage(NiveauCecrl? niveau) => switch (niveau) {
+      NiveauCecrl.c1 || NiveauCecrl.c2 =>
+        "Bravo, votre français est avancé. Le TCF IRN, lui, s'arrête au B2 : "
+            'vous êtes au-dessus du palier le plus haut demandé.',
+      NiveauCecrl.b2 =>
+        'Excellent — niveau B2 sur cette épreuve, le palier demandé pour '
+            '${TargetLevel.b2.demarcheLabel}. Il se juge sur les 4 épreuves '
+            'sans moyenne : gardez ce niveau partout.',
+      NiveauCecrl.b1 =>
+        'Niveau B1 sur cette épreuve — le palier demandé pour '
+            "${TargetLevel.b1.demarcheLabel}, à condition de l'atteindre aussi "
+            'dans les 3 autres épreuves. Visez le B2 pour '
+            '${TargetLevel.b2.demarcheLabel}.',
+      NiveauCecrl.a2 =>
+        'Niveau A2 sur cette épreuve — le palier demandé pour '
+            "${TargetLevel.a2.demarcheLabel}, à condition de l'atteindre aussi "
+            'dans les 3 autres épreuves. Visez le B1 pour '
+            '${TargetLevel.b1.demarcheLabel}.',
+      NiveauCecrl.a1 =>
+        'Les bases sont là. Entraînez-vous régulièrement sur des productions '
+            'plus complètes pour progresser vers le A2.',
+      NiveauCecrl.a1NonAtteint =>
+        'Reprenez les bases : des phrases courtes et correctes d\'abord. '
+            'Chaque entraînement compte.',
+      null =>
+        "Dès que l'IA a évalué vos 3 tâches, votre niveau d'épreuve s'affiche "
+            'ici avec des conseils ciblés.',
+    };
+
 /// Le rappel d'enjeu : le niveau obtenu, mis en face de la démarche visée.
 class DemarcheRappel {
   const DemarcheRappel({required this.atteint, required this.text});

@@ -19,12 +19,10 @@ import 'expression_hub_data.dart';
 import 'production_catalog.dart';
 import 'tcf_production_module.dart';
 import 'widgets/exam_filter_chips.dart';
-import 'widgets/exam_progress_card.dart';
 import 'widgets/exam_slot/exam_slot_card.dart';
 import 'widgets/exams_error_view.dart';
 import 'widgets/production_exam_done_result.dart';
-import 'widgets/production_exams_stats_row.dart';
-import 'widgets/production_module_bar.dart';
+import 'widgets/production_parcours_top.dart';
 
 /// Identité des sessions d'examen d'une épreuve, sous forme comparable.
 ///
@@ -94,9 +92,6 @@ final _sessionsBySlotProvider =
   return bySlot;
 });
 
-/// Nombre de slots d'examens blancs proposés pour une épreuve EE/EO.
-const int _examSlotsCount = 10;
-
 /// Nombre de slots ouverts en mode gratuit ; au-delà → paywall TCF.
 const int _freeSlots = 2;
 
@@ -143,22 +138,27 @@ ExamSlotPill _difficultyPill(_ExamDifficulty d) {
 /// Mode « Examens blancs » du parcours EE/EO : stats + barre de progression +
 /// chips de filtre + liste des 10 slots numérotés.
 ///
-/// Corps seul — l'en-tête, la barre du module et le voile d'attente sont portés
-/// par [ProductionParcoursScreen], qui garde les trois modes montés côte à côte.
-/// C'est ce qui fait qu'y revenir ne recharge rien et ne perd pas le
-/// défilement.
+/// Corps seul — l'en-tête, la tête commune du parcours et le voile d'attente
+/// sont portés par [ProductionParcoursScreen], qui garde les trois modes montés
+/// côte à côte. C'est ce qui fait qu'y revenir ne recharge rien et ne perd pas
+/// le défilement.
 class ProductionExamsTabView extends ConsumerStatefulWidget {
   const ProductionExamsTabView({
     super.key,
     required this.module,
     required this.onBusy,
+    required this.top,
   });
 
   final TcfProductionModule module;
 
-  /// Remonte l'attente au parcours : le voile doit couvrir la barre du module,
+  /// Remonte l'attente au parcours : le voile doit couvrir la tête du parcours,
   /// sinon on peut changer de mode pendant le démarrage d'un examen.
   final ValueChanged<bool> onBusy;
+
+  /// Tête commune du parcours. La grille des examens est portée par l'épreuve
+  /// entière : elle ne rend **pas** le sélecteur de tâche.
+  final List<Widget> Function({required bool withTaskPicker}) top;
 
   @override
   ConsumerState<ProductionExamsTabView> createState() =>
@@ -247,50 +247,27 @@ class _ProductionExamsTabViewState
 
   @override
   Widget build(BuildContext context) {
-    return ref.watch(expressionHubProvider(widget.module.epreuve)).when(
+    // La tête du parcours porte la barre des trois modes : elle est rendue
+    // **quel que soit l'état** de la grille, sinon une erreur de chargement
+    // enfermerait le candidat dans ce mode.
+    final content = ref.watch(expressionHubProvider(widget.module.epreuve)).when(
           // Le catalogue est en cache : un rechargement (retour d'un examen)
           // garde la grille à l'écran au lieu de la remplacer par un spinner.
           skipLoadingOnReload: true,
-          loading: () => Center(
-              child: CircularProgressIndicator(color: widget.module.accent)),
-          error: (e, _) => ExamsErrorView(
-            message: ApiClient.toApiException(e).message,
-            onRetry: () =>
-                invalidateProductionCatalog(ref, widget.module.epreuve),
-            accent: widget.module.accent,
-          ),
-          data: (_) => _buildContent(),
+          loading: () => [
+            Center(
+                child: CircularProgressIndicator(color: widget.module.accent)),
+          ],
+          error: (e, _) => [
+            ExamsErrorView(
+              message: ApiClient.toApiException(e).message,
+              onRetry: () =>
+                  invalidateProductionCatalog(ref, widget.module.epreuve),
+              accent: widget.module.accent,
+            ),
+          ],
+          data: (_) => _content(),
         );
-  }
-
-  Widget _buildContent() {
-    // Mapping session → slot réel (via `bilan.slotNumber`). Tant que les bilans
-    // ne sont pas chargés, on retombe sur une map vide → tous les slots libres.
-    final bySlot = ref.watch(_sessionsBySlotProvider(widget.module.epreuve));
-    final nextSlot = _firstFreeSlot(bySlot);
-
-    final filteredIndices = <int>[
-      for (int i = 0; i < _examSlotsCount; i++)
-        if (_passesFilter(slotIndex: i, bySlot: bySlot)) i,
-    ];
-
-    final visibleIndices =
-        _showAll ? filteredIndices : filteredIndices.take(_visibleByDefault).toList();
-    final hiddenCount = filteredIndices.length - visibleIndices.length;
-
-    final doneCount = bySlot.length;
-    final completed =
-        bySlot.values.where((e) => e.isFullyEvaluated).toList();
-    final avg = completed.isEmpty
-        ? null
-        : completed.map((e) => e.avgScore ?? 0).reduce((a, b) => a + b) /
-            completed.length;
-    // Niveau estimé alimenté par le backend (bilans d'examen blanc), pas
-    // dérivé localement par tâche.
-    final niveauEstime = ref.watch(_niveauEstimeProvider(widget.module.epreuve));
-
-    final lockedTodo = _isPremium() ? 0 : (_examSlotsCount - _freeSlots);
-    final todoCount = _examSlotsCount - doneCount - lockedTodo;
 
     return RefreshIndicator(
       color: widget.module.accent,
@@ -299,80 +276,110 @@ class _ProductionExamsTabViewState
         // catalogue ET les bilans, dont la note peut avoir fini d'arriver.
         invalidateProductionCatalog(ref, widget.module.epreuve);
         ref.invalidate(examBilansProvider(widget.module.epreuve));
-        await ref.read(
-            productionCatalogProvider(widget.module.epreuve).future);
+        await ref.read(productionCatalogProvider(widget.module.epreuve).future);
       },
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(
-            14, 8, 14, ProductionModuleBar.reservedHeight),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         children: [
-          ProductionExamsStatsRow(
-            doneCount: doneCount,
-            totalCount: _examSlotsCount,
-            avgScore: avg,
-            niveau: niveauEstime,
-          ),
-          const SizedBox(height: 12),
-          ExamProgressCard(doneCount: doneCount, total: _examSlotsCount),
-          const SizedBox(height: 12),
-          ExamFilterChips(
-            active: _filter,
-            accent: widget.module.accent,
-            labels: [
-              'Tous · $_examSlotsCount',
-              'À faire · $todoCount',
-              'Terminés · $doneCount',
-            ],
-            onChanged: (i) => setState(() {
-              _filter = i;
-              _showAll = false;
-            }),
-          ),
-          const SizedBox(height: 12),
-          for (final i in visibleIndices) ...[
-            _buildSlot(i, bySlot, nextSlot),
-            const SizedBox(height: 8),
-          ],
-          if (filteredIndices.isEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
-              child: Text(
-                _filter == 1
-                    ? 'Tous les examens disponibles sont déjà faits.'
-                    : _filter == 2
-                        ? 'Aucun examen terminé pour l\'instant.'
-                        : 'Aucun examen.',
-                style: AppFonts.ui(size: 13, color: AppColors.muted),
-              ),
-            ),
-          if (hiddenCount > 0)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: TextButton.icon(
-                onPressed: () => setState(() => _showAll = true),
-                icon: Text(
-                  'Voir les examens ${visibleIndices.length + 1} à ${filteredIndices.length}',
-                  style: AppFonts.ui(
-                      size: 13,
-                      weight: FontWeight.w700,
-                      color: widget.module.accent),
-                ),
-                label: Icon(LucideIcons.chevronDown,
-                    size: 18, color: widget.module.accent),
-              ),
-            ),
+          ...widget.top(withTaskPicker: false),
+          ...content,
         ],
       ),
     );
   }
 
+  List<Widget> _content() {
+    // Mapping session → slot réel (via `bilan.slotNumber`). Tant que les bilans
+    // ne sont pas chargés, on retombe sur une map vide → tous les slots libres.
+    final bySlot = ref.watch(_sessionsBySlotProvider(widget.module.epreuve));
+    final nextSlot = _firstFreeSlot(bySlot);
+
+    final filteredIndices = <int>[
+      for (int i = 0; i < kProductionExamSlots; i++)
+        if (_passesFilter(slotIndex: i, bySlot: bySlot)) i,
+    ];
+
+    final visibleIndices =
+        _showAll ? filteredIndices : filteredIndices.take(_visibleByDefault).toList();
+    final hiddenCount = filteredIndices.length - visibleIndices.length;
+
+    final doneCount = bySlot.length;
+    // Niveau estimé alimenté par le backend (bilans d'examen blanc), pas
+    // dérivé localement par tâche.
+    final niveauEstime = ref.watch(_niveauEstimeProvider(widget.module.epreuve));
+
+    final lockedTodo = _isPremium() ? 0 : (kProductionExamSlots - _freeSlots);
+    final todoCount = kProductionExamSlots - doneCount - lockedTodo;
+
+    return [
+      // Le score moyen et le décompte d'examens vivent désormais dans le héros
+      // du parcours : les répéter ici en cartes de statistiques disait deux
+      // fois la même chose à deux endroits de la même page.
+      ProductionExamTrail(
+        done: doneCount,
+        total: kProductionExamSlots,
+        accent: widget.module.accent,
+        note: niveauEstime == null
+            ? null
+            : 'Niveau estimé · ${niveauEstime.displayName}',
+      ),
+      const SizedBox(height: 12),
+      ExamFilterChips(
+        active: _filter,
+        accent: widget.module.accent,
+        labels: [
+          'Tous · $kProductionExamSlots',
+          'À faire · $todoCount',
+          'Terminés · $doneCount',
+        ],
+        onChanged: (i) => setState(() {
+          _filter = i;
+          _showAll = false;
+        }),
+      ),
+      const SizedBox(height: 12),
+      for (final i in visibleIndices) ...[
+        _buildSlot(i, bySlot, nextSlot),
+        const SizedBox(height: 8),
+      ],
+      if (filteredIndices.isEmpty)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
+          child: Text(
+            _filter == 1
+                ? 'Tous les examens disponibles sont déjà faits.'
+                : _filter == 2
+                    ? 'Aucun examen terminé pour l\'instant.'
+                    : 'Aucun examen.',
+            style: AppFonts.ui(size: 13, color: AppColors.muted),
+          ),
+        ),
+      if (hiddenCount > 0)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: TextButton.icon(
+            onPressed: () => setState(() => _showAll = true),
+            icon: Text(
+              'Voir les examens ${visibleIndices.length + 1} à ${filteredIndices.length}',
+              style: AppFonts.ui(
+                  size: 13,
+                  weight: FontWeight.w700,
+                  color: widget.module.accent),
+            ),
+            label: Icon(LucideIcons.chevronDown,
+                size: 18, color: widget.module.accent),
+          ),
+        ),
+    ];
+  }
+
   /// Premier slot 1-based sans session jouée (1 si tout est libre, sinon le
   /// plus petit numéro non présent dans la map).
   int _firstFreeSlot(Map<int, ExamSession> bySlot) {
-    for (int n = 1; n <= _examSlotsCount; n++) {
+    for (int n = 1; n <= kProductionExamSlots; n++) {
       if (!bySlot.containsKey(n)) return n;
     }
-    return _examSlotsCount + 1;
+    return kProductionExamSlots + 1;
   }
 
   bool _passesFilter(
@@ -392,7 +399,7 @@ class _ProductionExamsTabViewState
     final exam = bySlot[number];
     final done = exam != null;
     final isLocked = _isLocked(number);
-    final isNext = number == nextSlot && number <= _examSlotsCount;
+    final isNext = number == nextSlot && number <= kProductionExamSlots;
     final difficulty = _difficultyFor(number);
     final badge = _badgeColors(difficulty);
 

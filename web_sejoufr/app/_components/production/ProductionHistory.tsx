@@ -88,7 +88,7 @@ export function ProductionHistory({config}: {config: ProductionConfig}) {
 
   return (
     <DualChromeShell>
-      <SkillShell config={config} backHref={TCF_HUB_HREF} backLabel={TCF_HUB_LABEL}>
+      <SkillShell backHref={TCF_HUB_HREF} backLabel={TCF_HUB_LABEL}>
         <SkillHero
           eyebrow={`${config.label} · Historique`}
           title="Vos productions"

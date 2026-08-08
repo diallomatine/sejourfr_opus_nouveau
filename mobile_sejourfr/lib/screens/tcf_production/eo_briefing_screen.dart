@@ -558,7 +558,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
             // la navigation (tâche suivante / bilan / écran realtime) suit.
             if (_submittingExam || _negotiating) {
               return const Center(
-                child: CircularProgressIndicator(color: AppColors.red),
+                child: CircularProgressIndicator(color: AppColors.blue),
               );
             }
             final examLimitSeconds =
@@ -655,8 +655,8 @@ class _IdleView extends StatelessWidget {
           consigne: task.consigne,
           subTitleHero: task.displayTitle,
           subtitle: _durationLabel(task.dureeMaxSec),
-          accent: AppColors.red,
-          soft: AppColors.redLight,
+          accent: AppColors.blue,
+          soft: AppColors.blueLight,
           contexte: task.contexte,
           requirements: [
             if (task.dureeMaxSec != null) _durationChip(task.dureeMaxSec!),
@@ -700,8 +700,8 @@ class _RecordingView extends StatelessWidget {
               children: [
                 ConsigneCard(
                   consigne: task.consigne,
-                  accent: AppColors.red,
-                  soft: AppColors.redLight,
+                  accent: AppColors.blue,
+                  soft: AppColors.blueLight,
                 ),
                 const SizedBox(height: 12),
                 const _RecStatusPill(),
@@ -715,7 +715,7 @@ class _RecordingView extends StatelessWidget {
                 const SizedBox(height: 20),
                 RecordingWaveform(
                   amplitude: rec.lastAmplitude,
-                  color: AppColors.red,
+                  color: AppColors.blue,
                 ),
               ],
             ),

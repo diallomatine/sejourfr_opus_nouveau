@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import {ArrowLeft, ChevronRight, FileText, Info, Layers, Target} from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronRight,
+  ClipboardCheck,
+  Clock,
+  FileText,
+  Info,
+  Mic,
+  PenLine,
+} from "lucide-react";
 import type {ReactNode} from "react";
 import {type ProductionConfig} from "@/app/_components/production/config";
 import s from "./skill.module.css";
@@ -17,8 +26,10 @@ import s from "./skill.module.css";
  * voir les deux versions diverger à la première retouche.
  *
  * **Aucune de ces briques ne choisit sa couleur** : elles héritent toutes de
- * `--skill-accent`, posé une seule fois par `SkillShell` (ou `SkillAccent` hors
- * colonne) selon l'épreuve — bleu à l'écrit, rouge à l'oral.
+ * `--skill-accent`. Depuis le 2026-08-09 il vaut **le bleu pour les deux
+ * épreuves** : ce qui distingue l'écrit de l'oral, ce sont le titre, le
+ * pictogramme (stylo / micro), le verbe d'action et la durée — plus jamais la
+ * couleur (cf. `production/config.ts`).
  */
 
 /** Les trois modes du parcours, tels que la maquette les nomme dans sa barre
@@ -27,22 +38,25 @@ import s from "./skill.module.css";
 export type SkillMode = "competences" | "sujets" | "examens";
 
 const MODES: readonly {key: SkillMode; label: string; icon: ReactNode}[] = [
-  {key: "competences", label: "Compétences", icon: <Layers size={20} strokeWidth={2} />},
-  {key: "sujets", label: "Sujets", icon: <FileText size={20} strokeWidth={2} />},
-  {key: "examens", label: "Examens", icon: <Target size={20} strokeWidth={2} />},
+  {key: "competences", label: "Compétences", icon: <Clock size={15} strokeWidth={2.2} />},
+  {key: "sujets", label: "Sujets", icon: <FileText size={15} strokeWidth={2.2} />},
+  {key: "examens", label: "Examens", icon: <ClipboardCheck size={15} strokeWidth={2.2} />},
 ];
 
 /**
- * Barre de modes du prototype (`nav.bottom`). Rendue par `SkillShell`, jamais
- * en direct : c'est ce qui garantit qu'elle est au même endroit, avec la même
- * réserve de place en bas de colonne, sur tous les écrans qui la portent.
+ * Barre segmentée des trois modes, **dans le flux** de la colonne, juste sous
+ * la carte « Prochain entraînement » (structure de la maquette client).
+ *
+ * Elle a remplacé la barre flottante en bas d'écran : celle-ci masquait le
+ * dernier élément de chaque liste, imposait une réserve de 118 px en pied de
+ * colonne et faisait doublon avec la navigation latérale de l'application.
  *
  * `taskNumero` porte le contexte quand l'écran en a un. Sans lui (grille
  * d'examens blancs), « Sujets » comme « Compétences » retombent sur la
  * tâche 1 : une destination par défaut, jamais un chiffre affiché qui serait
  * faux. L'épreuve n'a plus d'écran d'accueil où retomber.
  */
-export function SkillModeBar({
+export function SkillModeTabs({
   config,
   current,
   taskNumero,
@@ -59,23 +73,21 @@ export function SkillModeBar({
   };
 
   return (
-    <nav className={s.modeBar} aria-label="Espaces de l'épreuve">
-      <div className={s.modeBarInner}>
-        {MODES.map((m) => {
-          const on = m.key === current;
-          return (
-            <Link
-              key={m.key}
-              href={hrefOf(m.key)}
-              className={`${s.modeBtn} ${on ? s.modeBtnOn : ""}`}
-              aria-current={on ? "page" : undefined}
-            >
-              <span aria-hidden>{m.icon}</span>
-              {m.label}
-            </Link>
-          );
-        })}
-      </div>
+    <nav className={s.modeTabs} aria-label="Espaces de l'épreuve">
+      {MODES.map((m) => {
+        const on = m.key === current;
+        return (
+          <Link
+            key={m.key}
+            href={hrefOf(m.key)}
+            className={`${s.modeTab} ${on ? s.modeTabOn : ""}`}
+            aria-current={on ? "page" : undefined}
+          >
+            <span aria-hidden>{m.icon}</span>
+            {m.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }
@@ -83,34 +95,56 @@ export function SkillModeBar({
 /**
  * Colonne unique du parcours — même largeur sur tous les écrans.
  *
- * `mode` allume la barre des trois espaces. Elle n'est **pas** posée sur les
- * écrans de production (exercice, résultat, session d'examen) : l'action y vit
- * en bas de page, une barre flottante s'assoirait dessus.
+ * Deux en-têtes possibles, et un seul par écran :
+ * - `title` renseigné ⇒ **en-tête de parcours** de la maquette (flèche de
+ *   retour, nom de l'épreuve, sous-titre `TCF IRN · 3 tâches · 30 min`, badge
+ *   de palier). C'est celui des trois modes ;
+ * - sinon, le lien de retour historique, gardé pour les écrans d'appoint
+ *   (modèles corrigés, historique).
  */
 export function SkillShell({
-  config,
   backHref,
   backLabel,
-  mode,
-  taskNumero,
+  title,
+  meta,
+  level,
   children,
 }: {
-  config: ProductionConfig;
   backHref: string;
   backLabel: string;
-  mode?: SkillMode;
-  taskNumero?: number;
+  /** Nom de l'épreuve. Renseigné ⇒ en-tête de parcours. */
+  title?: string;
+  /** Sous-titre d'épreuve (`TCF IRN · 3 tâches · 30 min`). */
+  meta?: string;
+  /** Palier **visé** par la démarche du candidat. `null` ⇒ pas de badge : on
+   *  ne devine jamais une démarche à sa place. */
+  level?: string | null;
   children: ReactNode;
 }) {
   return (
-    <main
-      className={`${s.wrap} ${config.accent === "red" ? s.wrapEo : ""} ${mode ? s.wrapBar : ""}`}
-    >
-      <Link href={backHref} className={s.back}>
-        <ArrowLeft size={16} aria-hidden />
-        {backLabel}
-      </Link>
-      {mode && <SkillModeBar config={config} current={mode} taskNumero={taskNumero} />}
+    <main className={s.wrap}>
+      {title ? (
+        <header className={s.pageHead}>
+          <Link href={backHref} className={s.backDot} aria-label={backLabel}>
+            <ArrowLeft size={18} aria-hidden />
+          </Link>
+          <div className={s.pageHeadBody}>
+            <h1 className={s.pageTitle}>{title}</h1>
+            {meta && <p className={s.pageMeta}>{meta}</p>}
+          </div>
+          {level && (
+            <span className={s.levelBadge}>
+              <span className={s.levelBadgeLabel}>NIVEAU VISÉ</span>
+              <strong>{level}</strong>
+            </span>
+          )}
+        </header>
+      ) : (
+        <Link href={backHref} className={s.back}>
+          <ArrowLeft size={16} aria-hidden />
+          {backLabel}
+        </Link>
+      )}
       {children}
     </main>
   );
@@ -119,22 +153,231 @@ export function SkillShell({
 /**
  * Porteur d'accent autonome, pour les blocs rendus **hors** de `SkillShell` —
  * typiquement les formulaires d'exercice réutilisés par la session d'examen
- * blanc, qui a sa propre colonne. Sans lui, une carte d'exercice d'expression
- * orale retombait sur le bleu au milieu d'une épreuve rouge.
+ * blanc, qui a sa propre colonne.
+ *
+ * ⚠️ **Les deux épreuves sont bleues** depuis le 2026-08-09 : l'accent rouge de
+ * l'expression orale est supprimé (cf. `config.ts`). Ce porteur reste utile —
+ * il pose les variables du module sur un bloc qui n'est pas dans `.wrap` — mais
+ * il ne choisit plus de couleur.
  */
 export function SkillAccent({
-  accent,
   className,
   children,
 }: {
-  accent: "blue" | "red";
   className?: string;
   children: ReactNode;
 }) {
+  return <div className={`${s.accent} ${className ?? ""}`}>{children}</div>;
+}
+
+/* ------------------------------------------------- tête commune du parcours */
+
+/** Trois indicateurs chiffrés du héros. */
+export interface ParcoursStat {
+  value: string;
+  label: string;
+  unit: string;
+}
+
+/**
+ * Carte héros du parcours : anneau de progression, trois colonnes chiffrées
+ * séparées par des filets, puis la ligne « Progression du parcours ».
+ *
+ * L'anneau et la ligne disent **la même chose** : la part des sujets publiés
+ * déjà produits. C'est volontairement « du parcours » et non « de l'épreuve » —
+ * la progression d'épreuve, elle, est dérivée serveur (`GET /api/me/dashboard`)
+ * et ne se recalcule jamais côté front.
+ */
+export function ParcoursHero({
+  percent,
+  stats,
+}: {
+  percent: number;
+  stats: readonly ParcoursStat[];
+}) {
+  const pct = Math.min(100, Math.max(0, Math.round(percent)));
   return (
-    <div className={`${s.accent} ${accent === "red" ? s.accentEo : ""} ${className ?? ""}`}>
-      {children}
-    </div>
+    <section className={s.parcoursHero}>
+      <div className={s.parcoursHeroTop}>
+        <Ring percent={pct} />
+        <div className={s.parcoursStats}>
+          {stats.map((st) => (
+            <div key={st.label} className={s.parcoursStat}>
+              <span className={s.parcoursStatValue}>{st.value}</span>
+              <span className={s.parcoursStatLabel}>{st.label}</span>
+              <span className={s.parcoursStatUnit}>{st.unit}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className={s.heroProgressLabel}>
+        <span>Progression du parcours</span>
+        <span>{pct} %</span>
+      </div>
+      <span className={s.heroRail}>
+        <span style={{width: `${pct}%`}} />
+      </span>
+    </section>
+  );
+}
+
+/** Anneau SVG du héros — blanc sur le dégradé de marque. */
+function Ring({percent}: {percent: number}) {
+  const radius = 28;
+  const circumference = 2 * Math.PI * radius;
+  return (
+    <svg className={s.ring} viewBox="0 0 64 64" role="img" aria-label={`${percent} %`}>
+      <circle className={s.ringTrack} cx="32" cy="32" r={radius} strokeWidth="7" fill="none" />
+      <circle
+        className={s.ringFill}
+        cx="32"
+        cy="32"
+        r={radius}
+        strokeWidth="7"
+        fill="none"
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={circumference * (1 - percent / 100)}
+      />
+      <text className={s.ringText} x="32" y="32" textAnchor="middle" dominantBaseline="central">
+        {percent}%
+      </text>
+    </svg>
+  );
+}
+
+/**
+ * Carte « Prochain entraînement » : pictogramme de l'épreuve, la prochaine
+ * chose à faire, et le bouton qui y mène.
+ *
+ * Le pictogramme est **le repère écrit/oral** depuis que les deux épreuves
+ * partagent le bleu : stylo à l'écrit, micro à l'oral.
+ */
+export function ParcoursNextCard({
+  config,
+  title,
+  subtitle,
+  actionLabel,
+  href,
+}: {
+  config: ProductionConfig;
+  title: string;
+  subtitle: string;
+  actionLabel: string;
+  href: string;
+}) {
+  return (
+    <section className={s.nextCard}>
+      <span className={s.nextIcon} aria-hidden>
+        {config.mode === "audio" ? <Mic size={20} /> : <PenLine size={20} />}
+      </span>
+      <div className={s.nextBody}>
+        <strong className={s.nextTitle}>{title}</strong>
+        <span className={s.nextText}>{subtitle}</span>
+      </div>
+      <Link href={href} className={s.nextBtn}>
+        {actionLabel}
+      </Link>
+    </section>
+  );
+}
+
+/** Une tâche du sélecteur : son intitulé court et sa contrainte réelle. */
+export interface TaskCardData {
+  numero: number;
+  title: string;
+  /** `null` quand l'API ne porte pas la contrainte — **aucune borne inventée**
+   *  (les bornes EE vivent dans `production_tasks.mots_min/mots_max`). */
+  constraint: string | null;
+}
+
+/**
+ * Sélecteur de tâche : trois cartes « 1 · Message · 30-60 mots », l'active
+ * encadrée. Remplace les pastilles T1/T2/T3, qui ne disaient que « Tâche 2 »
+ * alors que le format et la contrainte sont précisément ce qui distingue les
+ * trois tâches.
+ *
+ * Ce sont de vrais liens (chaque tâche a son URL, partageable). **`onPick`**
+ * les transforme en filtre quand l'écran a déjà les trois tâches en mémoire :
+ * le clic simple est intercepté, l'écran filtre, l'URL est réécrite en
+ * navigation superficielle. Les clics *modifiés* (Ctrl, ⌘, Maj, clic du
+ * milieu) gardent leur comportement natif.
+ */
+export function TaskCards({
+  tasks,
+  current,
+  hrefOf,
+  onPick,
+}: {
+  tasks: readonly TaskCardData[];
+  current: number;
+  hrefOf: (n: number) => string;
+  onPick?: (n: number) => void;
+}) {
+  return (
+    <nav className={s.taskCards} aria-label="Tâches de l'épreuve">
+      {tasks.map((t) => {
+        const on = t.numero === current;
+        return (
+          <Link
+            key={t.numero}
+            href={hrefOf(t.numero)}
+            className={`${s.taskCard} ${on ? s.taskCardOn : ""}`}
+            aria-current={on ? "page" : undefined}
+            onClick={
+              onPick
+                ? (e) => {
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                    e.preventDefault();
+                    onPick(t.numero);
+                  }
+                : undefined
+            }
+          >
+            <span className={s.taskCardNum} aria-hidden>
+              {t.numero}
+            </span>
+            <span className={s.taskCardTitle}>{t.title}</span>
+            {t.constraint && <span className={s.taskCardMeta}>{t.constraint}</span>}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+/**
+ * Barre segmentée « Parcours examens blancs · n/N » : un segment par examen,
+ * rempli quand l'examen a été passé.
+ */
+export function ExamTrail({
+  done,
+  total,
+  note,
+}: {
+  done: number;
+  total: number;
+  /** Mention libre sous le titre (« Niveau estimé · B1 »). Absente tant que le
+   *  backend n'a rendu aucun bilan : on n'écrit pas un niveau inconnu. */
+  note?: string | null;
+}) {
+  return (
+    <section className={s.trail}>
+      <div className={s.trailTop}>
+        <div>
+          <strong className={s.trailTitle}>Parcours examens blancs</strong>
+          {note && <span className={s.trailNote}>{note}</span>}
+        </div>
+        <span className={s.trailCount}>
+          {done}/{total}
+        </span>
+      </div>
+      <div className={s.trailSegments} aria-hidden>
+        {Array.from({length: total}, (_, i) => (
+          <span key={i} className={i < done ? s.trailSegmentOn : s.trailSegment} />
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -193,69 +436,6 @@ export function SkillHero({
   );
 }
 
-/**
- * Pastilles T1 / T2 / T3 : changer de tâche sans revenir en arrière. Ce sont de
- * vrais liens (chaque tâche a son URL, partageable et ouvrable directement),
- * donc navigables au clavier et ouvrables dans un onglet ; la rangée défile
- * horizontalement sous 360 px sans jamais élargir la page.
- *
- * `hrefOf` dit où va chaque pastille : les sujets TCF pointent la tâche, les
- * micro-exercices pointent son sous-espace « compétences ».
- *
- * **`onPick` transforme la pastille en filtre.** Quand l'écran a déjà les trois
- * tâches en mémoire (c'est le cas depuis qu'on charge l'épreuve entière en un
- * appel), changer de tâche ne doit ni remonter la page, ni relancer un `fetch` :
- * le clic simple est intercepté, l'écran filtre, et l'URL est réécrite en
- * navigation superficielle par l'appelant. Les clics *modifiés* (Ctrl, ⌘, Maj,
- * clic du milieu) gardent leur comportement natif — sinon « ouvrir dans un
- * nouvel onglet » cesserait de fonctionner. Sans `onPick`, on navigue comme
- * avant.
- */
-export function TaskPills({
-  config,
-  current,
-  labelOf,
-  hrefOf,
-  onPick,
-}: {
-  config: ProductionConfig;
-  current: number;
-  labelOf: (n: number) => string;
-  hrefOf?: (n: number) => string;
-  onPick?: (n: number) => void;
-}) {
-  const href = hrefOf ?? ((n: number) => `${config.base}/tache/${n}`);
-  return (
-    <nav className={s.taskPills} aria-label="Tâches de l'épreuve">
-      {[1, 2, 3].map((n) => {
-        const on = n === current;
-        return (
-          <Link
-            key={n}
-            href={href(n)}
-            className={`${s.taskPill} ${on ? s.taskPillOn : ""}`}
-            aria-current={on ? "page" : undefined}
-            onClick={
-              onPick
-                ? (e) => {
-                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-                    e.preventDefault();
-                    onPick(n);
-                  }
-                : undefined
-            }
-          >
-            <span className={s.taskNum} aria-hidden>
-              {n}
-            </span>
-            {labelOf(n)}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
 /** Intertitre de section + sa phrase d'explication, et son lien discret. */
 export function SectionHead({
   title,
@@ -289,6 +469,54 @@ export function SkillNotice({title, children}: {title: string; children: ReactNo
         {children}
       </div>
     </aside>
+  );
+}
+
+/**
+ * Anneau de progression d'une compétence (« 2/5 »), structure de la maquette.
+ *
+ * Il a remplacé la pastille de numéro + barre fine sur les lignes de
+ * compétence : le rang d'une compétence dans sa tâche n'apprend rien au
+ * candidat, alors que « où j'en suis » est exactement ce qu'il vient chercher.
+ */
+export function SkillRing({
+  attempted,
+  total,
+  done = false,
+}: {
+  attempted: number;
+  total: number;
+  done?: boolean;
+}) {
+  const radius = 19;
+  const circumference = 2 * Math.PI * radius;
+  const pct = total > 0 ? Math.min(100, Math.max(0, (attempted / total) * 100)) : 0;
+  return (
+    <svg
+      className={`${s.skillRing} ${done ? s.skillRingDone : ""}`}
+      viewBox="0 0 46 46"
+      role="img"
+      aria-label={`${attempted} sur ${total}`}
+    >
+      <circle className={s.skillRingTrack} cx="23" cy="23" r={radius} strokeWidth="5" fill="none" />
+      <circle
+        className={s.skillRingFill}
+        cx="23"
+        cy="23"
+        r={radius}
+        strokeWidth="5"
+        fill="none"
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={circumference * (1 - pct / 100)}
+      />
+      <text className={s.skillRingValue} x="23" y="21" textAnchor="middle">
+        {attempted}
+      </text>
+      <text className={s.skillRingTotal} x="23" y="32" textAnchor="middle">
+        /{total}
+      </text>
+    </svg>
   );
 }
 
@@ -480,23 +708,3 @@ export function SkillFilterRow<T extends string>({
 
 /* --------------------------------------------------------- statistiques */
 
-export interface SkillStat {
-  value: string;
-  label: string;
-  sub?: string;
-}
-
-/** Rangée de trois indicateurs, au-dessus d'une grille d'examens. */
-export function SkillStats({stats}: {stats: readonly SkillStat[]}) {
-  return (
-    <div className={s.stats}>
-      {stats.map((st) => (
-        <div key={st.label} className={s.stat}>
-          <span className={s.statValue}>{st.value}</span>
-          <span className={s.statLabel}>{st.label}</span>
-          {st.sub && <span className={s.statSub}>{st.sub}</span>}
-        </div>
-      ))}
-    </div>
-  );
-}
