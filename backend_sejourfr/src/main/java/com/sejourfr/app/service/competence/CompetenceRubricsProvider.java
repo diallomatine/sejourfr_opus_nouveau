@@ -42,11 +42,14 @@ public class CompetenceRubricsProvider {
     private static final String PATH_FORMAT = "prompts/competence-analysis-rubrics-%s.json";
 
     /**
-     * Paires rubriques -> tool-schema supportees. Une seule aujourd'hui ; la
-     * matrice existe pour que l'ajout d'une v2 soit une ligne, et pour qu'une
-     * version inconnue soit refusee au lieu d'etre chargee au hasard.
+     * Paires rubriques -> tool-schema supportees. v2 = v1 pour tout ce qui
+     * juge, plus une exigence de FORME (le francais rendu au candidat est
+     * accentue ; ce qui est cite reste tel quel) ; son contrat de sortie v2 est
+     * celui de v1 avec ses descriptions accentuees, sans un champ de plus ni de
+     * moins. v1/v1 reste chargeable : c'est le retour arriere.
      */
-    private static final Map<String, String> TOOL_SCHEMA_BY_RUBRICS_VERSION = Map.of("v1", "v1");
+    private static final Map<String, String> TOOL_SCHEMA_BY_RUBRICS_VERSION =
+        Map.of("v1", "v1", "v2", "v2");
 
     /** Le module ne sert que le TCF IRN : aucune autre grille n'est acceptee. */
     private static final String PROFILE_ATTENDU = "TCF_IRN";

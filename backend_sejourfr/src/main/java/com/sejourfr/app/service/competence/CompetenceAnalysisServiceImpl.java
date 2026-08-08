@@ -138,6 +138,16 @@ public class CompetenceAnalysisServiceImpl implements CompetenceAnalysisService 
         log.info("Analyse de competence persistee attempt={} statut={} model={} tokens={}/{}",
                 attempt.getId(), statut, client.getModelName(),
                 outcome.inputTokens(), outcome.outputTokens());
+
+        // MESURE SEULE : on compte le francais desaccentue rendu au candidat,
+        // on ne refuse jamais l'analyse pour ca (cf. EvaluationAccentAudit).
+        var accents = com.sejourfr.app.service.EvaluationAccentAudit.analyser(analyse);
+        if (accents.aDetecte()) {
+            log.warn("Francais desaccentue rendu au candidat attempt={} : {} occurrence(s) "
+                    + "dans {} champ(s), formes={}",
+                attempt.getId(), accents.occurrences(), accents.champsTouches(),
+                accents.formes());
+        }
     }
 
     /**

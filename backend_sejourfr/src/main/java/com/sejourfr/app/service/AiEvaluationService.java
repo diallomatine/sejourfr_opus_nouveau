@@ -573,9 +573,27 @@ public class AiEvaluationService {
         // Plafonds cibles, APRES le calcul du niveau (jamais avant : ils
         // coupent un niveau, ils ne le fabriquent pas).
         niveauCalcule = applyPlafonds(feedback, task, niveauCalcule, submissionId);
+        // AUDIT D'ACCENTUATION : on MESURE le francais desaccentue rendu au
+        // candidat, on ne refuse rien. Cf. EvaluationAccentAudit : une
+        // soumission perdue coute plus cher au candidat qu'un accent manquant.
+        auditAccents(feedback, submissionId);
 
         return new ProductionSecondePasseService.Passe(
                 feedback, noteSur20, niveauIa, niveauCalcule, modele);
+    }
+
+    /**
+     * Compte le francais DESACCENTUE rendu au candidat, sans jamais refuser la
+     * sortie ni la modifier. C'est un capteur : il dit si la consigne
+     * d'accentuation (rubriques v13 / tool-schema v7) prend, et permet de
+     * decider plus tard, sur des chiffres, s'il faut durcir.
+     */
+    private void auditAccents(Map<String, Object> feedback, UUID submissionId) {
+        EvaluationAccentAudit.Resultat audit = EvaluationAccentAudit.analyser(feedback);
+        if (!audit.aDetecte()) return;
+        log.warn("Francais desaccentue rendu au candidat submission={} : {} occurrence(s) "
+                + "dans {} champ(s), formes={}",
+            submissionId, audit.occurrences(), audit.champsTouches(), audit.formes());
     }
 
     /**

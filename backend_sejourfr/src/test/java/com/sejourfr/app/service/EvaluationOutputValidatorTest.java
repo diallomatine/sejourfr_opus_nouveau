@@ -270,6 +270,29 @@ class EvaluationOutputValidatorTest {
         }
     }
 
+    /**
+     * CONSEQUENCE DE LA REGLE D'ACCENTUATION (rubriques v13) : le correcteur
+     * ecrit desormais « hésitations », « débit », « répétitions » — avec leurs
+     * accents. Le garde-fou oral doit continuer de les voir, sinon on l'aurait
+     * silencieusement desactive en corrigeant l'orthographe du rapport.
+     */
+    @Test
+    void le_garde_fou_oral_voit_les_notions_interdites_ACCENTUEES() {
+        for (String fautif : List.of(
+                "Les hésitations cassent le rythme de la réponse.",
+                "Le débit de parole est trop rapide pour être suivi.",
+                "La prononciation gêne parfois la compréhension.",
+                "Le manque d'aisance et de fluidité pèse sur l'échange.")) {
+            Map<String, Object> feedback = validFeedback();
+            feedback.put("justification_niveau", fautif);
+
+            assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+                feedback, task(EpreuveType.TCF_EO), rubrics, "v4")))
+                .as(fautif)
+                .isNotEmpty();
+        }
+    }
+
     // --------------------------------- deux faux positifs du garde-fou oral
 
     /**

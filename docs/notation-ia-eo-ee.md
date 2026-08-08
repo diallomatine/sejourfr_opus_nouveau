@@ -14,11 +14,40 @@
 > **dans la même passe**. Il doit toujours pouvoir être lu et compris par une personne non
 > technique. Pas de jargon non expliqué, pas de raccourci.
 
-**État actuel** : rubriques de notation **v12** (profil **TCF IRN**, plafonné à B2 — **la
-notation y est celle de la v9, au caractère près**), format de réponse strict **v6**,
+**État actuel** : rubriques de notation **v13** (profil **TCF IRN**, plafonné à B2 — **la
+notation y est celle de la v9, au caractère près**), format de réponse strict **v7**,
 examinateur vocal **v2**. Ce que ces numéros veulent dire, et où ils se
 changent, est expliqué en §15. Pour la **seconde voie d'évaluation** — les micro-exercices par
-compétence, sans note ni niveau — les versions sont **v1 / v1** et tout est décrit au §11 bis.
+compétence, sans note ni niveau — les versions sont **v2 / v2** et tout est décrit au §11 bis.
+
+> 🆕 **8 août 2026 — le rapport qui vous est rendu est écrit en français correctement
+> accentué.** Explication complète au **§10 bis**.
+>
+> **Le problème, constaté en vraie utilisation.** L'IA rendait des phrases comme « Excuse
+> formulee », « le passe compose est maitrise et employe a bon escient », « J'espere que cette
+> date te convient ». Les accents tombaient presque systématiquement. Sur une plateforme qui
+> **enseigne le français**, corriger l'orthographe de quelqu'un dans un français mal
+> orthographié est inacceptable : on lui apprend une faute au moment même où on lui en corrige
+> une.
+>
+> **Ce qu'on a fait.** Deux choses, aucune ne touche la notation :
+> 1. une **règle explicite** ajoutée aux consignes (grille **v13**) : *tout le français que tu
+>    écris est accentué* — et, tout aussi important, *tout ce que tu cites du candidat se
+>    recopie tel quel, accents manquants compris* ;
+> 2. les **consignes du format de réponse ont elles-mêmes été réaccentuées** (format **v7**).
+>    C'est la cause la plus probable du défaut : nos consignes étaient écrites sans accents, et
+>    une IA imite la langue de ce qu'elle lit. Un contrôle automatique vérifie qu'entre v6 et
+>    v7 **seuls des accents ont changé** — pas un mot, pas une virgule.
+>
+> **Ce qui n'a pas bougé** : l'échelle, les quatre critères, les seuils, les garde-fous, les
+> plafonds, les exemples de calibration, les consignes de chaque tâche — **rien de ce qui
+> note**, et un test le vérifie fichier contre fichier. Retour en arrière :
+> `EVAL_RUBRICS_VERSION=v12` + `EVAL_PROMPT_VERSION=v6`, sans migration.
+>
+> ⚠️ **Ce changement n'a pas été passé au banc de mesure** (§12) : une campagne appelle une IA
+> payante, et aucun appel payant n'était autorisé. Il ne touche aucune règle de notation, donc
+> il n'en demande pas — mais il faut le dire : **on n'a pas mesuré combien d'accents sont
+> réellement revenus.** C'est précisément pourquoi on a ajouté un **compteur** (§10 bis).
 
 > 🆕 **8 août 2026 — l'IA ne recopie plus vos phrases pour justifier sa note : elle les
 > DÉSIGNE.** C'est le changement le plus important de cette page, et il supprime une
@@ -1818,6 +1847,102 @@ Quatre précisions qui comptent :
 
 ---
 
+## 10 bis. Le rapport est écrit en français correctement accentué (nouveau : grille v13)
+
+### Le problème
+
+Sur une évaluation d'expression écrite réellement rendue à un candidat, on lisait :
+
+> « Excuse **formulee** », « Raison de l'absence **expliquee** », « Nouvelle **seance
+> proposee** »
+> « Le **passe compose** est **maitrise** et **employe a** bon escient (…), ce qui donne un
+> **recit** clair de l'incident. »
+> « **J'espere** que cette date te convient. »
+
+Les cédilles et les accents circonflexes passaient parfois ; les accents aigus et graves
+tombaient presque systématiquement. Pour une plateforme qui **apprend le français**, c'est
+inacceptable : on corrige l'orthographe de quelqu'un dans un texte mal orthographié, et on lui
+enseigne une faute au moment même où on lui en corrige une.
+
+### La cause la plus probable
+
+Nos propres consignes étaient écrites **sans accents**. Les fichiers de règles envoyés à l'IA
+contenaient environ 96 000 lettres et presque aucun accent, là où un texte français normal en
+compte environ 3 %. Une IA imite la langue de ce qu'elle lit : on lui montrait un français sans
+accents et on s'étonnait qu'elle en produise un.
+
+### Ce qu'on a fait
+
+Deux choses, **dans l'ordre de ce qui marche le mieux** :
+
+1. **Le format de réponse a été réaccentué** (version **v7**). C'est le texte que l'IA lit
+   juste avant d'écrire chaque champ, et il contient les phrases d'exemple qu'elle imite.
+   Aucune règle n'y a été reformulée : un contrôle automatique compare l'ancienne et la
+   nouvelle version **après avoir retiré tous les accents** et exige qu'elles soient
+   identiques. Autrement dit : la machine garantit que **seuls des accents ont changé**.
+2. **Une règle explicite a été ajoutée aux consignes** (grille **v13**) — une section entière,
+   elle-même rédigée dans un français impeccable pour servir de modèle. Elle liste les formes
+   les plus souvent fautives (« déjà » et non « deja », « après » et non « apres », « le passé
+   composé » et non « le passe compose »…) et rappelle que la règle vise **la forme, jamais la
+   note** : elle n'autorise à sanctionner personne sur ses accents.
+
+### L'exception capitale : ce que l'IA **cite** n'est jamais corrigé
+
+Deux champs du rapport reprennent **les mots du candidat** : la phrase « avant » d'un exemple
+de correction, et la citation d'origine d'une reformulation. Ces champs se recopient **tels
+quels — fautes, accents manquants et maladresses comprises**. Lui montrer une phrase qu'il n'a
+pas écrite fausserait la démonstration, et la citation cesserait d'être la sienne. La règle est
+écrite en toutes lettres à trois endroits : dans la nouvelle section de la grille, dans la
+description du format de réponse, et sur chacun des deux champs concernés.
+
+> **Un bon côté inattendu du changement d'août** : depuis que la preuve d'un critère est un
+> **numéro** et non une citation recopiée (§5.5), il n'existe plus, dans le format en vigueur,
+> de citation que le serveur vérifie mot à mot. Un accent ajouté par erreur ne peut donc plus
+> faire échouer une correction. Ce risque existait avec l'ancien format (v5 et antérieurs) —
+> raison de plus pour que l'exception soit écrite noir sur blanc, puisque ces versions restent
+> chargeables en cas de retour arrière.
+
+### Un compteur, pas un refus
+
+Le serveur **mesure** désormais le français désaccentué qu'il s'apprête à rendre au candidat :
+il cherche, dans les seuls champs que l'IA rédige elle-même, une **liste fermée** de formes qui
+n'ont aucune lecture française valable sans accent (« ete », « apres », « deja », « seance »…),
+et il écrit le compte dans le journal du serveur.
+
+**Il ne refuse rien, ne modifie rien, ne rejoue rien.** Faire échouer une correction sur un
+indice de ce genre coûterait au candidat infiniment plus cher que l'accent manquant qu'on veut
+corriger — c'est exactement l'erreur commise avec la vérification des citations littérales,
+dont le coût en corrections perdues est resté invisible pendant des mois (§12.3 bis). On
+mesure d'abord ; on durcira si la mesure le justifie.
+
+Le détecteur est volontairement **prudent** : en cas de doute, il ne signale rien.
+- les mots qui restent français **sans** leur accent (« tache » une salissure, « cote »,
+  « a », « ou », « regle ») en sont **exclus** ;
+- les mots identiques à un mot anglais courant (« experience », « different ») aussi : un
+  rapport peut légitimement en citer un ;
+- les champs qui **citent** le candidat ne sont jamais examinés, ni les passages entre
+  guillemets à l'intérieur d'un autre champ ;
+- les textes ajoutés par le serveur lui-même (libellés de critères, avertissements) non plus :
+  ils ne disent rien de ce que rend l'IA.
+
+### Ce qui n'a pas bougé
+
+L'échelle, les quatre critères, les seuils, le garde-fou de couplage, les plafonds, les bandes
+affichées, les tests décisifs entre niveaux, les seize exemples de calibration, les consignes
+de chacune des six tâches : **rien**. Un test automatique compare v13 et v12 champ par champ et
+n'accepte qu'une seule différence — la section ajoutée. C'est ce qui permet de livrer ce
+changement **sans campagne de mesure** : aucune règle de notation n'est en jeu.
+
+⚠️ **À dire franchement** : on n'a donc **pas mesuré** combien d'accents sont réellement
+revenus. C'est estimé, pas vérifié — d'où le compteur ci-dessus, qui donnera le chiffre sur les
+prochaines corrections réelles.
+
+**La même correction a été appliquée aux micro-exercices par compétence** (§11 bis) : consignes
+**v2**, format de réponse **v2**, mêmes garanties (accentuation ajoutée, rien d'autre modifié,
+citations préservées, compteur en place).
+
+---
+
 ## 11. Ce que le candidat reçoit à la fin
 
 Dans cet ordre :
@@ -2721,8 +2846,8 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 
 | Ce qu'on veut changer | Fichier |
 |-----------------------|---------|
-| **Toutes les consignes de notation** (nos 4 critères et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et tout ce qui se lit sur une note** : seuils note → niveau, écart du garde-fou, seuils des plafonds, bornes des bandes affichées) **et toutes les consignes de restitution** (confiance, anti-répétition, levier de progression, verdict, version améliorée, plafonds d'affichage) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v12.json` (version **active**, profil `TCF_IRN`, maximum B2). `v8`, `v7` et les versions antérieures restent en place et chargeables. ⚠️ **`v10` et `v11` existent aussi, et sont écartées** : elles ajoutaient une consigne sur la langue étrangère à l'oral et ont été **mesurées moins bonnes que v9** (§8 quater) — les activer ferait revenir ces chiffres. Un rollback change la **paire compatible** `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION` (v12/v6 → v9/v5 → v8/v5 → v7/v4), jamais un seul côté du contrat. ⚠️ **v12 est la seule version dont la notation n'a pas été mesurée au banc** — parce qu'elle ne la change pas : elle est la v9 au caractère près pour tout ce qui note (verrouillé par un test qui compare les deux fichiers), et ne modifie que **deux choses de forme** : la façon dont l'IA désigne sa preuve (§5.5), et le fait qu'elle ne **recopie plus** les bornes de mots des tâches EE — elle renvoie à celles qui lui sont injectées depuis la base (§2). Retour à la recopie littérale : `EVAL_RUBRICS_VERSION=v9` + `EVAL_PROMPT_VERSION=v5`, sans migration — ⚠️ **ce retour arrière réintroduit la contradiction sur les bornes de mots** (grille à 60-90, base à 40-90, §2). |
-| **Le format de réponse de l'IA** (note, confiance, accomplissement **et son verdict**, preuves, exemples corrigés, version améliorée…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v6.json` (version active : structure complète, quatre critères exacts, niveaux limités à B2, aucun champ imprévu, au plus 2 points forts / 2 priorités / 3 exemples corrigés). **La seule différence avec la v5** : la preuve d'un critère y est un **numéro de morceau** (un entier), plus une citation recopiée — c'est ce qui rend une preuve inventée impossible plutôt que simplement interdite (§5.5). La v5 reste en place et chargeable. |
+| **Toutes les consignes de notation** (nos 4 critères et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et tout ce qui se lit sur une note** : seuils note → niveau, écart du garde-fou, seuils des plafonds, bornes des bandes affichées) **et toutes les consignes de restitution** (confiance, anti-répétition, levier de progression, verdict, version améliorée, plafonds d'affichage) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v13.json` (version **active**, profil `TCF_IRN`, maximum B2 — **c'est la v12 au caractère près, plus une seule section : le français rendu au candidat doit être accentué, et ce qui est cité de lui recopié tel quel**, §10 bis). `v8`, `v7` et les versions antérieures restent en place et chargeables. ⚠️ **`v10` et `v11` existent aussi, et sont écartées** : elles ajoutaient une consigne sur la langue étrangère à l'oral et ont été **mesurées moins bonnes que v9** (§8 quater) — les activer ferait revenir ces chiffres. Un rollback change la **paire compatible** `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION` (v13/v7 → v12/v6 → v9/v5 → v8/v5 → v7/v4), jamais un seul côté du contrat. ⚠️ **v12 et v13 sont les seules versions dont la notation n'a pas été mesurée au banc** — parce qu'elle ne la change pas : elle est la v9 au caractère près pour tout ce qui note (verrouillé par un test qui compare les deux fichiers), et ne modifie que **deux choses de forme** : la façon dont l'IA désigne sa preuve (§5.5), et le fait qu'elle ne **recopie plus** les bornes de mots des tâches EE — elle renvoie à celles qui lui sont injectées depuis la base (§2). Retour à la recopie littérale : `EVAL_RUBRICS_VERSION=v9` + `EVAL_PROMPT_VERSION=v5`, sans migration — ⚠️ **ce retour arrière réintroduit la contradiction sur les bornes de mots** (grille à 60-90, base à 40-90, §2). |
+| **Le format de réponse de l'IA** (note, confiance, accomplissement **et son verdict**, preuves, exemples corrigés, version améliorée…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v7.json` (version active — **v6 avec ses consignes réaccentuées et la règle « ce qu'on cite se recopie tel quel » ; un test garantit que seuls des accents ont changé**, §10 bis) ; structure figée depuis v6 : structure complète, quatre critères exacts, niveaux limités à B2, aucun champ imprévu, au plus 2 points forts / 2 priorités / 3 exemples corrigés). **La seule différence avec la v5** : la preuve d'un critère y est un **numéro de morceau** (un entier), plus une citation recopiée — c'est ce qui rend une preuve inventée impossible plutôt que simplement interdite (§5.5). La v5 reste en place et chargeable. |
 | **Le découpage de la production en morceaux numérotés** (une prise de parole du candidat à l'oral, une phrase à l'écrit) et sa **résolution en texte** avant affichage | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationProductionSegments.java`. Le découpage est **le même** pour ce qui est envoyé à l'IA, pour la vérification du numéro et pour le texte affiché — un seul point de vérité, comme pour le recollage des phrases coupées (§3.1) |
 | **Le correcteur utilisé partout** (async, fin de session temps réel, réparation, seconde passe, calibration) | Le **fichier d'environnement** (`.env`), pas le code : `EVAL_LLM_PROVIDER` et `EVAL_<FOURNISSEUR>_MODEL`. `application.yaml` ne porte que les **défauts** — aujourd'hui **DeepSeek / `deepseek-v4-flash`**, et **pas** son homonyme « pro », plus cher sans mieux noter. ⚠️ **Ce choix est en cours de réexamen** (§12.6). Les blocs OpenAI (`gpt-5.4`) et Anthropic restent complets et testés : basculer, c'est décommenter un bloc de trois lignes. Gemini reste l'examinateur vocal/transcripteur, jamais le correcteur. |
 | **La façon dont on parle à un fournisseur** (nom du réglage de longueur maximale, envoi ou non d'une température) | Personne ne l'écrit : elle est **négociée avec le fournisseur** au premier appel, à partir de ses messages d'erreur, puis retenue jusqu'au redémarrage (`backend_sejourfr/src/main/java/com/sejourfr/app/util/ChatCompletionDialectNegotiator.java`). Deux clés d'environnement par fournisseur permettent de reprendre la main sans code si besoin : `EVAL_<FOURNISSEUR>_MAX_TOKENS_PARAM` et `EVAL_<FOURNISSEUR>_SEND_TEMPERATURE` |
@@ -2733,10 +2858,11 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 | **Le garde-fou de cohérence du bilan** (§6.5 bis — pas de B2 si la tâche 3 est sous B1) | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.coherence-bilan` — livré **actif**, contrairement aux deux réglages du §13. `EVAL_COHERENCE_BILAN_ENABLED=false` rend exactement les bilans d'avant |
 | **Le recollage des phrases coupées en deux à l'oral en temps réel** (§3.1) | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.recollage-tours.enabled` — livré **actif**, contrairement aux trois réglages du §13. La règle elle-même vit à **un seul endroit**, `backend_sejourfr/src/main/java/com/sejourfr/app/util/TranscriptTurnStitcher.java`, et s'applique en un seul point de lecture, ce qui garantit que le texte cité est le texte affiché |
 | **Le retrait automatique des reproches fondés sur un mot mal transcrit** (§8 bis), **le retrait des reproches de langue étrangère à l'oral** (§8 quater) et **la suppression — au lieu du rejet — d'un exemple corrigé fondé sur une notion non évaluable à l'oral** (§9) | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationOralArtifactFilter.java`. Ne touche **ni la note, ni le niveau, ni un seuil** : uniquement le texte du rapport, et **uniquement à l'oral**. Les deux plafonds qui protègent le cas « le candidat a vraiment changé de langue » sont écrits dans cette même classe, avec les chiffres qui les justifient ; la liste de mots-outils étrangers qu'ils utilisent vit avec son équivalent français dans `ProductionValidityService.java`. La frontière entre ce qui reste **fatal** et ce qui est **purgé** est écrite dans `EvaluationOutputValidator.java` |
+| **Le compteur de français désaccentué** (§10 bis — il MESURE, il ne refuse jamais) | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationAccentAudit.java`. La liste fermée des formes détectées y est écrite, avec la règle qui l'a construite : en cas de doute, on ne signale rien. Aucun effet sur la note, le niveau, ni le texte rendu |
 | **La patience / réactivité de l'examinateur vocal** (détection de fin de parole) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.realtime.gemini.vad` |
 | **La longueur maximale d'une réponse du correcteur** (§12.3 bis — au-delà, la réponse est coupée et la correction est perdue) | `backend_sejourfr/src/main/resources/application.yaml`, `max-tokens` des trois correcteurs de `sejourfr.production-evaluation` : **la même valeur pour les trois**, verrouillée par un test |
-| **Les consignes des micro-exercices par compétence** (§11 bis — ce que l'IA regarde, les trois verdicts, l'interdiction d'une note ou d'un niveau, la règle « une seule priorité », les limites de l'oral) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-rubrics-v1.json` (version active). Fichier **séparé** de celui des tâches complètes : les deux voies n'ont ni les mêmes règles ni le même but, et on ne veut pas qu'une modification de l'une déborde sur l'autre |
-| **Le format de réponse des micro-exercices** (les quatre éléments rendus, les trois verdicts, les longueurs maximales) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-tool-schema-v1.json` — **aucun champ n'y existe pour une note ou un niveau**, c'est ce qui rend leur apparition impossible plutôt que simplement interdite |
+| **Les consignes des micro-exercices par compétence** (§11 bis — ce que l'IA regarde, les trois verdicts, l'interdiction d'une note ou d'un niveau, la règle « une seule priorité », les limites de l'oral) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-rubrics-v2.json` (version active — **v1 plus la règle d'accentuation**, §10 bis ; v1 reste chargeable). Fichier **séparé** de celui des tâches complètes : les deux voies n'ont ni les mêmes règles ni le même but, et on ne veut pas qu'une modification de l'une déborde sur l'autre |
+| **Le format de réponse des micro-exercices** (les quatre éléments rendus, les trois verdicts, les longueurs maximales) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-tool-schema-v2.json` (consignes réaccentuées, contrat inchangé) — **aucun champ n'y existe pour une note ou un niveau**, c'est ce qui rend leur apparition impossible plutôt que simplement interdite |
 | **Les réglages des micro-exercices** (longueur maximale acceptée, durée maximale d'un enregistrement, nombre d'analyses offertes) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.competences.analysis`. Le **correcteur**, lui, n'a pas de réglage propre : cette voie utilise le même que tout le reste (`sejourfr.production-evaluation.provider`) |
 | **Le contenu des micro-exercices** (les compétences, les petits sujets, les trois réponses de référence et leurs notes pédagogiques) | migrations `db/migration/300_tcf/competences/` — fichiers **générés**, à ne pas modifier à la main ; le volume publié est figé par un test automatique |
 | **Le corpus de référence du banc de mesure** | `backend_sejourfr/src/test/resources/calibration/golden-set-v1.json` |
@@ -2785,6 +2911,13 @@ abaisse un verdict qui se contredit, et n'affiche jamais un niveau sans sa confi
 bilan d'une épreuve, il refuse en plus un **B2 sans argumentation** (tâche 3 sous B1), et
 laisse **sans niveau** une épreuve qui n'a pas pu être passée plutôt que de la compter au
 plus bas.
+
+Le rapport lui-même est rendu **en français correctement accentué** (§10 bis) : sur une
+plateforme qui enseigne le français, corriger quelqu'un dans un texte mal orthographié lui
+apprend une faute au moment où on lui en corrige une. La seule exception, absolue : **ce que
+l'IA cite du candidat est recopié tel quel**, accents manquants compris — lui montrer une
+phrase qu'il n'a pas écrite fausserait la démonstration. Un compteur mesure ce qui échappe
+encore à la règle ; il ne refuse jamais une correction pour autant.
 
 Elle juge avant tout la **capacité du candidat à communiquer et à se faire comprendre**, sans
 le pénaliser pour une transcription imparfaite, pour une piste du sujet non traitée, ni pour

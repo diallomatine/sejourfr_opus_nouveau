@@ -1,0 +1,48 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "verdict",
+    "success_point",
+    "improvement_priority",
+    "improved_version"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "VALIDATED",
+        "PARTIAL",
+        "NOT_VALIDATED"
+      ],
+      "description": "Verdict sur le CRITÈRE UNIQUE du sujet, et sur lui seul. VALIDATED : le critère est visible et compréhensible, même avec des erreurs de langue qui ne bloquent pas la communication. PARTIAL : le candidat tente le critère mais il manque une information, une précision, un développement ou un lien. NOT_VALIDATED : le critère est absent, la consigne n'est pas traitée, ou la production est trop difficile à comprendre pour l'identifier."
+    },
+    "verdict": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "UNE phrase courte (20 mots maximum) qui dit si le critère est atteint. Pas de note, pas de niveau, pas de liste."
+    },
+    "success_point": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "description": "UN seul point réussi (30 mots maximum), concret et tiré de la production réelle du candidat. Toujours renseigné, même sur une production faible. Si tu cites ses mots entre guillemets, recopie-les tels quels — le reste de ta phrase, lui, est écrit en français accentué."
+    },
+    "improvement_priority": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 350,
+      "description": "UNE seule priorité d'amélioration (35 mots maximum), actionnable, liée au critère unique. Si le critère est déjà validé, dire qu'il n'y a pas de correction prioritaire pour ce critère — ne jamais inventer un défaut secondaire."
+    },
+    "improved_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1200,
+      "description": "Reformulation courte qui conserve l'IDÉE ET L'INTENTION du candidat, de longueur proche de celle demandée par le sujet. Jamais une réponse entièrement différente, jamais un modèle de substitution."
+    }
+  },
+  "title": "Analyse de compétence TCF IRN v2",
+  "description": "Contrat strict de sortie de l'analyse ciblée d'une micro-compétence : cinq champs, aucune note, aucun niveau CECRL. Identique à v1 pour tout ce qui juge ; v2 n'ajoute qu'une exigence de FORME, l'ACCENTUATION : tout le français que TU écris ici est lu par un candidat qui apprend le français, donc il est orthographié et ACCENTUÉ correctement (é, è, ê, à, ù, û, î, ô, ë, ï, ç). « déjà », jamais « deja » ; « très », jamais « tres » ; « réussi », jamais « reussi ». Seule exception : les mots du candidat que tu reprends entre guillemets se recopient tels quels, accents manquants compris."
+}

@@ -241,14 +241,43 @@ Le « quoi » et le « pourquoi » vivent dans `docs/notation-ia-eo-ee.md` (réf
 grand public, **à tenir exhaustive et à jour dans la même passe** — cf. la règle
 dédiée plus bas). Ici, uniquement de quoi se repérer.
 
-- **Versions actives** : rubriques `production-rubrics-v12.json`, tool-schema de
-  sortie `production-evaluation-tool-schema-v6.json`, persona vocale
-  `realtime-personas-v3.json`. **v9/v5, v8/v5, v7/v4, v6/v3, v5/v3, v4.2/v2,
+- **Versions actives** : rubriques `production-rubrics-v13.json`, tool-schema de
+  sortie `production-evaluation-tool-schema-v7.json`, persona vocale
+  `realtime-personas-v3.json`. **v12/v6, v9/v5, v8/v5, v7/v4, v6/v3, v5/v3, v4.2/v2,
   v4.1/v2, v4/v2 et v3/v2 restent chargeables et validées** : un retour arrière
   change la paire `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION`, aucune migration.
   **On versionne, on ne réécrit jamais** une rubrique livrée. **v10 et v11 sont
   chargeables mais MESURÉES MOINS BONNES que v9 — ne pas les réactiver** (détail
   dans le filet de langue étrangère, plus bas).
+- **v13 / v7 = LE FRANÇAIS RENDU AU CANDIDAT EST ACCENTUÉ.** v13 est **v12 au bit
+  près** (rubriques de tâche, `commun.niveau/couplage/plafonds/bandes_criteres`, les
+  16 ancres, les 23 sections — verrouillé par `ProductionEvaluationContractTest`) ;
+  elle **appende une 24ᵉ section**, et rien d'autre. Le tool-schema v7 est v6 avec
+  ses `description` **réaccentuées** — verrou : égalité **après repli des accents**
+  (`fold(v7) == v6`), donc aucune reformulation ne peut s'y glisser ; seules 3
+  descriptions s'étoffent (racine + les 2 champs de citation) et elles doivent
+  *commencer* par celle de v6. Motif, constaté en production : « Excuse formulee »,
+  « le passe compose est maitrise », « J'espere que cette date te convient ».
+  **Cause probable : nos propres prompts étaient écrits sans accents** (ratio
+  d'accents 0,0002 sur 96 k lettres, contre ~0,03 en français normal) — un LLM imite
+  la langue de son prompt. D'où l'ordre des leviers ici : on a d'abord réaccentué le
+  **texte lu par le modèle**, la consigne ne vient qu'en second.
+  ⚠️ **Exception à ne jamais casser : ce qui est CITÉ se recopie tel quel**, fautes et
+  accents manquants compris — `points_a_ameliorer.exemple.avant` et
+  `exemples_corriges[].original`. Écrit à 3 endroits (section v13, description racine
+  v7, description des 2 champs). Sous le contrat v6+ la preuve est un **numéro**, donc
+  aucune citation n'est plus vérifiée mot à mot : un accent ajouté ne peut plus faire
+  échouer une soumission — **mais c'était le cas sous v5 et antérieurs**, qui restent
+  chargeables en retour arrière.
+  **Détecteur serveur : `EvaluationAccentAudit` — il MESURE, il ne refuse RIEN**
+  (log `warn` + formes vues). Liste **fermée** de formes sans lecture française valable
+  sans accent ; sont exclus les mots encore français sans accent (`tache`, `cote`, `a`,
+  `ou`, `regle`), les homographes anglais (`experience`, `different`), les champs de
+  citation, les passages entre guillemets et les textes posés par le serveur (`label`,
+  `avertissements`). Choix assumé : une soumission perdue coûte plus cher qu'un accent
+  manquant — cf. le coût invisible de la contrainte de preuve littérale.
+  ⚠️ **Bascule NON mesurée au banc** (aucune règle de notation ne bouge ⇒ aucune
+  campagne requise). Retour arrière : `EVAL_RUBRICS_VERSION=v12` + `EVAL_PROMPT_VERSION=v6`.
 - **v12 / v6 = LA PREUVE SE DÉSIGNE PAR NUMÉRO, elle n'est plus recopiée.** v12 est
   **v9 au bit près pour tout ce qui note** (échelle, 4 critères, seuils, couplage,
   plafonds, bandes, tests décisifs, les 16 ancres few-shot — verrouillé par
@@ -821,8 +850,11 @@ point d'entrée = 3ᵉ onglet « Compétences » à côté de « Sujets » et «
 qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
 
 - **Contrat de l'analyse IA** : rubriques
-  `prompts/competence-analysis-rubrics-v1.json` + tool-schema
-  `prompts/competence-analysis-tool-schema-v1.json` (`profile: TCF_IRN`, paire
+  `prompts/competence-analysis-rubrics-v2.json` + tool-schema
+  `prompts/competence-analysis-tool-schema-v2.json` (**v2/v2 = v1/v1 plus la règle
+  d'accentuation, même technique et mêmes verrous que v13/v7 côté productions** ;
+  v1/v1 reste chargeable via `COMPETENCE_RUBRICS_VERSION=v1` +
+  `COMPETENCE_TOOL_SCHEMA_VERSION=v1`) (`profile: TCF_IRN`, paire
   `rubrics-version` ⇄ `tool_schema_version` validée au boot, même convention que
   les productions complètes — **aucune consigne de notation en dur dans le Java**).
   Sortie stricte à **5 champs**, `additionalProperties: false` : `status`

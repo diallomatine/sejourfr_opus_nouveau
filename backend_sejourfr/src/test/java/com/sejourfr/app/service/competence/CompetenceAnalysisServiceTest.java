@@ -47,7 +47,7 @@ class CompetenceAnalysisServiceTest {
         attemptManager = mock(UserSkillAttemptManager.class);
         client = mock(CompetenceAnalysisLlmClient.class);
         when(client.getModelName()).thenReturn("deepseek-v4-flash");
-        when(client.getToolSchemaVersion()).thenReturn("v1");
+        when(client.getToolSchemaVersion()).thenReturn("v2");
 
         CompetenceRubricsProvider rubrics =
             new CompetenceRubricsProvider(new CompetenceProperties(), new ObjectMapper());
@@ -140,8 +140,8 @@ class CompetenceAnalysisServiceTest {
         assertThat(attempt.getStatut()).isEqualTo(SkillAttemptStatut.EVALUATED);
         assertThat(attempt.getCriterionStatus()).isEqualTo(SkillCriterionStatus.PARTIAL);
         assertThat(attempt.getAiModel()).isEqualTo("deepseek-v4-flash");
-        assertThat(attempt.getPromptVersion()).isEqualTo("v1");
-        assertThat(attempt.getRubricsVersion()).isEqualTo("v1");
+        assertThat(attempt.getPromptVersion()).isEqualTo("v2");
+        assertThat(attempt.getRubricsVersion()).isEqualTo("v2");
         assertThat(attempt.getTokensInput()).isEqualTo(1200);
         assertThat(attempt.getTokensOutput()).isEqualTo(180);
         assertThat(attempt.getCoutEstimeCentimes()).isEqualTo(3);

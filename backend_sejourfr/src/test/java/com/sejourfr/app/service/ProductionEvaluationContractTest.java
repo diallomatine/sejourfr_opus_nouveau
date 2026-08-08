@@ -456,6 +456,178 @@ class ProductionEvaluationContractTest {
             .doesNotContain("60 a 90 mots");
     }
 
+    /**
+     * v13 = v12 AU BIT PRES pour TOUT ce qui note ET pour toute la restitution.
+     * Elle n'ajoute qu'UNE section, en fin de bloc commun : le francais rendu au
+     * candidat doit etre ACCENTUE. Ce test est le verrou de cette promesse — et
+     * il compte double, parce que la bascule est livree SANS campagne de banc :
+     * la seule chose qui garantisse qu'elle ne deplace pas une note, c'est
+     * qu'aucune regle de notation n'a bouge d'un caractere.
+     */
+    @Test
+    void v13NAjouteQueLaRegleDAccentuation() throws Exception {
+        Map<String, Object> v12 = resource("prompts/production-rubrics-v12.json");
+        Map<String, Object> v13 = resource("prompts/production-rubrics-v13.json");
+
+        assertThat(v13)
+            .containsEntry("rubrics-version", "v13")
+            .containsEntry("profile", "TCF_IRN")
+            .containsEntry("tool_schema_version", "v7")
+            .containsEntry("niveau_max", "B2");
+        assertThat(resourceText("prompts/production-rubrics-v13.json"))
+            .doesNotContain("\"C1\"", "\"C2\"");
+
+        assertThat(v13.get("rubrics"))
+            .as("v13 ne touche a aucune rubrique de tache")
+            .isEqualTo(v12.get("rubrics"));
+
+        Map<String, Object> communV12 = map(v12.get("commun"));
+        Map<String, Object> communV13 = map(v13.get("commun"));
+        for (String bloc : List.of("niveau", "couplage", "plafonds", "bandes_criteres", "few_shot")) {
+            assertThat(communV13.get(bloc))
+                .as("v13 ne touche pas a commun." + bloc + " : la notation est celle de v12")
+                .isEqualTo(communV12.get(bloc));
+        }
+
+        List<?> sectionsV12 = list(communV12.get("sections"));
+        List<?> sectionsV13 = list(communV13.get("sections"));
+        assertThat(sectionsV13)
+            .as("une seule section ajoutee, aucune reecrite")
+            .hasSize(sectionsV12.size() + 1);
+        assertThat(sectionsV13.subList(0, sectionsV12.size()))
+            .as("les sections precedentes sont reprises telles quelles, dans l'ordre")
+            .isEqualTo(sectionsV12);
+
+        Map<String, Object> ajoutee = map(sectionsV13.get(sectionsV13.size() - 1));
+        String contenu = String.valueOf(ajoutee.get("contenu"));
+        assertThat(String.valueOf(ajoutee.get("titre"))).contains("accentuation");
+        assertThat(contenu)
+            .as("la section dit d'entree qu'elle ne touche a rien de ce qui note")
+            .contains("NE CHANGE RIEN À LA NOTATION")
+            .as("elle vise le francais que le correcteur ECRIT")
+            .contains("TU ÉCRIS EN FRANÇAIS CORRECTEMENT ACCENTUÉ")
+            .as("l'exception des citations est nommee, champ par champ")
+            .contains("CE QUE TU CITES SE RECOPIE TEL QUEL")
+            .contains("`points_a_ameliorer.exemple.avant`")
+            .contains("`exemples_corriges.original`");
+        assertThat(contenu)
+            .as("une consigne d'accentuation ecrite sans accents ne vaudrait rien")
+            .containsPattern("[éèêàùûîôçÉÈÊÀÇ]");
+    }
+
+    /**
+     * Le contrat de sortie v7 : celui de v6, ses descriptions ACCENTUEES. Le
+     * verrou est une egalite apres repli des accents — ainsi, aucune
+     * reformulation ne peut se glisser dans la passe d'accentuation. Seules
+     * trois descriptions s'etoffent, et uniquement pour porter la regle.
+     */
+    @Test
+    void v7NAccentueQueLesDescriptionsDeV6() throws Exception {
+        Map<String, Object> v6 = resource("prompts/production-evaluation-tool-schema-v6.json");
+        Map<String, Object> v7 = resource("prompts/production-evaluation-tool-schema-v7.json");
+
+        List<String> etoffees = new java.util.ArrayList<>();
+        assertMemeSchemaAuxAccentsPres(v6, v7, "root", etoffees);
+        assertThat(etoffees)
+            .as("seules la description du contrat et les deux champs de CITATION s'etoffent")
+            .containsExactlyInAnyOrder(
+                "root.description",
+                "root.properties.points_a_ameliorer.items.properties.exemple"
+                    + ".properties.avant.description",
+                "root.properties.exemples_corriges.items.properties.original.description");
+
+        assertThat(String.valueOf(v7.get("description")))
+            .contains("ACCENTUATION")
+            .contains("« déjà », jamais « deja »");
+        for (String[] chemin : new String[][] {
+                {"points_a_ameliorer", "exemple", "avant"},
+                {"exemples_corriges", null, "original"}}) {
+            Map<String, Object> items = map(map(map(v7.get("properties")).get(chemin[0])).get("items"));
+            Map<String, Object> proprietes = map(items.get("properties"));
+            Map<String, Object> champ = chemin[1] == null
+                ? map(proprietes.get(chemin[2]))
+                : map(map(map(proprietes.get(chemin[1])).get("properties")).get(chemin[2]));
+            assertThat(String.valueOf(champ.get("description")))
+                .as(chemin[2] + " : la citation echappe explicitement a la regle")
+                .contains("C'est une CITATION")
+                .contains("accents manquants");
+        }
+
+        // Le contrat de SORTIE, lui, est celui de v6 : mêmes champs, mêmes bornes.
+        assertThat(strings(v7.get("required"))).containsExactlyElementsOf(strings(v6.get("required")));
+        assertThat(map(v7.get("properties")).keySet()).isEqualTo(map(v6.get("properties")).keySet());
+        assertThat(v7.get("additionalProperties")).isEqualTo(false);
+        assertAllObjectsClosed(v7, "root");
+    }
+
+    /**
+     * Aucun fichier de prompt ne doit porter de mojibake : une consigne pleine
+     * d'accents lue avec le mauvais encodage produirait exactement le defaut
+     * qu'on corrige. Les fichiers sont lus en UTF-8 par les providers ; ce test
+     * verifie qu'ils sont ecrits en UTF-8.
+     */
+    @Test
+    void tousLesFichiersDePromptSontDuVraiUtf8() throws Exception {
+        java.io.File dossier = new ClassPathResource("prompts").getFile();
+        java.io.File[] fichiers = dossier.listFiles((d, nom) -> nom.endsWith(".json"));
+        assertThat(fichiers).isNotNull().isNotEmpty();
+        for (java.io.File fichier : fichiers) {
+            byte[] octets = java.nio.file.Files.readAllBytes(fichier.toPath());
+            String texte = new String(octets, StandardCharsets.UTF_8);
+            assertThat(texte)
+                .as("%s : mojibake (fichier ecrit en latin-1 puis relu en UTF-8)", fichier.getName())
+                .doesNotContain("Ã©", "Ã¨", "Ã ", "Ã§", "â€™", "ï¿½");
+            assertThat(texte.getBytes(StandardCharsets.UTF_8))
+                .as("%s : octets non decodables en UTF-8", fichier.getName())
+                .isEqualTo(octets);
+            objectMapper.readValue(texte, new TypeReference<Map<String, Object>>() {});
+        }
+    }
+
+    /**
+     * Compare deux schemas APRES repli des accents : tout doit etre identique,
+     * sauf les descriptions volontairement etoffees, qui doivent COMMENCER par
+     * celle de v6 (on ajoute, on ne reecrit pas).
+     */
+    private void assertMemeSchemaAuxAccentsPres(Object v6, Object v7, String path,
+                                                List<String> etoffees) {
+        if (v6 instanceof Map<?, ?> gauche) {
+            assertThat(v7).as(path).isInstanceOf(Map.class);
+            Map<String, Object> droite = map(v7);
+            assertThat(droite.keySet()).as(path).isEqualTo(map(gauche).keySet());
+            for (Map.Entry<String, Object> entry : map(gauche).entrySet()) {
+                assertMemeSchemaAuxAccentsPres(entry.getValue(), droite.get(entry.getKey()),
+                    path + "." + entry.getKey(), etoffees);
+            }
+        } else if (v6 instanceof List<?> gauche) {
+            List<?> droite = list(v7);
+            assertThat(droite).as(path).hasSameSizeAs(gauche);
+            for (int i = 0; i < gauche.size(); i++) {
+                assertMemeSchemaAuxAccentsPres(gauche.get(i), droite.get(i),
+                    path + "[" + i + "]", etoffees);
+            }
+        } else if (v6 instanceof String texte) {
+            String replie = sansAccents(String.valueOf(v7));
+            if ("root.title".equals(path)) {
+                // Seul le numero de contrat bouge dans le titre.
+                assertThat(replie).isEqualTo(texte.replace("v6", "v7"));
+                return;
+            }
+            if (replie.equals(texte)) return;
+            assertThat(replie)
+                .as("%s : on ajoute, on ne reecrit pas", path)
+                .startsWith(texte);
+            etoffees.add(path);
+        } else {
+            assertThat(v7).as(path).isEqualTo(v6);
+        }
+    }
+
+    private static String sansAccents(String texte) {
+        return java.text.Normalizer.normalize(texte, java.text.Normalizer.Form.NFD)
+            .replaceAll("\\p{M}+", "");
+    }
+
     private static final String TITRE_VERSION_AMELIOREE =
         "Version amelioree de la production (taches ECRITES uniquement)";
 
@@ -612,7 +784,8 @@ class ProductionEvaluationContractTest {
         "v9, v5",
         "v10, v5",
         "v11, v5",
-        "v12, v6"
+        "v12, v6",
+        "v13, v7"
     })
     void chaqueVersionDeRubriquesAccepteUniquementSonToolSchema(
             String rubricsVersion, String toolSchemaVersion) {
@@ -637,7 +810,8 @@ class ProductionEvaluationContractTest {
         "v9, v4, v5",
         "v10, v4, v5",
         "v11, v4, v5",
-        "v12, v5, v6"
+        "v12, v5, v6",
+        "v13, v6, v7"
     })
     void unePaireRubriquesToolSchemaIncompatibleEchoueAuChargement(
             String rubricsVersion, String activeSchema, String expectedSchema) {

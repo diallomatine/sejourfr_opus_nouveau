@@ -383,7 +383,23 @@ sejourfr:
     # rendue au candidat visera 60-90 meme sur une copie de 45 mots parfaitement
     # valide. C'est assume : on ne reecrit pas une grille livree, dont dependent
     # des evaluations deja notees. Basculer en v9 en connaissance de cause.
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v12}
+    #
+    # v13 (ACTIVE) = v12 AU BIT PRES pour tout ce qui note ET pour toute la
+    # restitution — memes seuils, memes criteres, memes plafonds, memes bandes,
+    # memes 16 ancres, memes six rubriques de tache, memes 23 sections. SEULE
+    # ADDITION : une 24e section qui exige que le francais RENDU AU CANDIDAT
+    # soit ACCENTUE, et qui reserve explicitement les CITATIONS (recopiees
+    # telles quelles, accents manquants compris). Motif, constate en
+    # production : le correcteur rendait « Excuse formulee », « le passe compose
+    # est maitrise », « J'espere que cette date te convient » — a des gens qui
+    # apprennent le francais. Le tool-schema v7 va avec : c'est v6 avec ses
+    # descriptions accentuees (le correcteur imite la langue de son prompt) et
+    # la meme reserve de citation ; aucun champ ajoute ni retire.
+    # Aucune regle de notation ne bouge => AUCUNE campagne de banc requise
+    # (regle du depot). Verrou : ProductionEvaluationContractTest.
+    # Retour arriere, sans migration : EVAL_RUBRICS_VERSION=v12 +
+    # EVAL_PROMPT_VERSION=v6.
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v13}
     # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
     # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
     # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).
@@ -603,7 +619,7 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v6}
+      prompt-version: ${EVAL_PROMPT_VERSION:v7}
       # Tarification gpt-5.4 (USD / 1M tokens, relevée sur la page tarifaire
       # OpenAI le 2026-08-07 : 2,50 en entrée / 15,00 en sortie).
       # ⚠ Ces deux valeurs vont AVEC `model` ci-dessus : le coût estimé est
@@ -623,7 +639,7 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v6}
+      prompt-version: ${EVAL_PROMPT_VERSION:v7}
       # Tarif claude-sonnet-4-5 (USD / 1M tokens). Surchargeable comme le modèle,
       # et dans la même source que lui.
       cost-per-million-input-tokens: ${EVAL_ANTHROPIC_COST_INPUT:3.0}
@@ -681,7 +697,7 @@ sejourfr:
       # OpenAiCompatibleEvalClient#buildRequestFactory) — au-dela, c'est un
       # fournisseur qui a accepte la requete et genere.
       timeout-sec: ${EVAL_DEEPSEEK_TIMEOUT_SEC:90}
-      prompt-version: ${EVAL_PROMPT_VERSION:v6}
+      prompt-version: ${EVAL_PROMPT_VERSION:v7}
       # Tarif deepseek-v4-flash (USD / 1M tokens, relevé sur
       # api-docs.deepseek.com le 2026-08-07 : 0,14 en entrée cache-miss / 0,28
       # en sortie ; le tarif cache-hit, plus bas, n'est pas modélisé — on
@@ -780,11 +796,11 @@ sejourfr:
   competences:
     analysis:
       # Consignes d'analyse : prompts/competence-analysis-rubrics-<v>.json.
-      rubrics-version: ${COMPETENCE_RUBRICS_VERSION:v1}
+      rubrics-version: ${COMPETENCE_RUBRICS_VERSION:v2}
       # Contrat de sortie : prompts/competence-analysis-tool-schema-<v>.json.
       # Versionne separement des consignes — deux analyses produites avec le
       # meme schema mais des consignes differentes ne sont pas comparables.
-      tool-schema-version: ${COMPETENCE_TOOL_SCHEMA_VERSION:v1}
+      tool-schema-version: ${COMPETENCE_TOOL_SCHEMA_VERSION:v2}
       # Plafond de tokens de SORTIE. 600 suffit largement : la reponse tient en
       # cinq champs courts (verdict, point reussi, priorite, reformulation).
       # C'est un plafond, pas une consommation.

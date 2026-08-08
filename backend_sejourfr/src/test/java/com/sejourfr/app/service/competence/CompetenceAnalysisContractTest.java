@@ -158,12 +158,92 @@ class CompetenceAnalysisContractTest {
         CompetenceProperties.Analysis analysis = new CompetenceProperties().getAnalysis();
         Properties yaml = applicationYaml();
 
-        assertThat(analysis.getRubricsVersion()).isEqualTo("v1");
-        assertThat(analysis.getToolSchemaVersion()).isEqualTo("v1");
+        assertThat(analysis.getRubricsVersion()).isEqualTo("v2");
+        assertThat(analysis.getToolSchemaVersion()).isEqualTo("v2");
         assertThat(yaml.getProperty("sejourfr.competences.analysis.rubrics-version"))
-            .isEqualTo("${COMPETENCE_RUBRICS_VERSION:v1}");
+            .isEqualTo("${COMPETENCE_RUBRICS_VERSION:v2}");
         assertThat(yaml.getProperty("sejourfr.competences.analysis.tool-schema-version"))
-            .isEqualTo("${COMPETENCE_TOOL_SCHEMA_VERSION:v1}");
+            .isEqualTo("${COMPETENCE_TOOL_SCHEMA_VERSION:v2}");
+    }
+
+    /**
+     * v2 = v1 pour TOUT ce qui juge : memes plafonds de longueur, memes trois
+     * verdicts, memes ancres, memes huit sections. Elle n'ajoute qu'une neuvieme
+     * section, en fin de bloc commun : le francais rendu au candidat doit etre
+     * ACCENTUE, et ce qu'on cite de lui se recopie tel quel.
+     */
+    @Test
+    void lesConsignesV2NAjoutentQueLaRegleDAccentuation() {
+        Map<String, Object> v1 = resource("prompts/competence-analysis-rubrics-v1.json");
+        Map<String, Object> v2 = resource("prompts/competence-analysis-rubrics-v2.json");
+
+        assertThat(v2)
+            .containsEntry("rubrics-version", "v2")
+            .containsEntry("tool_schema_version", "v2")
+            .containsEntry("profile", "TCF_IRN");
+
+        Map<String, Object> communV1 = map(v1.get("commun"));
+        Map<String, Object> communV2 = map(v2.get("commun"));
+        for (String bloc : List.of("contraintes_longueur", "statuts", "few_shot")) {
+            assertThat(communV2.get(bloc))
+                .as("v2 ne touche pas a commun." + bloc)
+                .isEqualTo(communV1.get(bloc));
+        }
+
+        List<?> sectionsV1 = list(communV1.get("sections"));
+        List<?> sectionsV2 = list(communV2.get("sections"));
+        assertThat(sectionsV2)
+            .as("une seule section ajoutee, aucune reecrite")
+            .hasSize(sectionsV1.size() + 1);
+        assertThat(sectionsV2.subList(0, sectionsV1.size()))
+            .as("les sections precedentes sont reprises telles quelles, dans l'ordre")
+            .isEqualTo(sectionsV1);
+
+        String contenu = String.valueOf(map(sectionsV2.get(sectionsV2.size() - 1)).get("contenu"));
+        assertThat(contenu)
+            .contains("NE CHANGE RIEN À TON VERDICT")
+            .contains("ACCENTUÉS")
+            .as("l'exception des citations est explicite")
+            .contains("UNE SEULE EXCEPTION : les mots du candidat");
+    }
+
+    /**
+     * Le contrat de sortie v2 : celui de v1, ses descriptions ACCENTUEES.
+     * Verrou : egalite apres repli des accents — aucune reformulation ne peut se
+     * glisser dans la passe d'accentuation. Ni champ ajoute, ni champ retire.
+     */
+    @Test
+    void leToolSchemaV2NAccentueQueLesDescriptionsDeV1() {
+        Map<String, Object> v1 = resource("prompts/competence-analysis-tool-schema-v1.json");
+        Map<String, Object> v2 = resource("prompts/competence-analysis-tool-schema-v2.json");
+
+        assertThat(strings(v2.get("required"))).containsExactlyElementsOf(CLES);
+        assertThat(map(v2.get("properties")).keySet())
+            .containsExactlyInAnyOrderElementsOf(CLES);
+        assertThat(v2.get("additionalProperties")).isEqualTo(false);
+
+        for (String cle : CLES) {
+            Map<String, Object> champV1 = map(map(v1.get("properties")).get(cle));
+            Map<String, Object> champV2 = map(map(v2.get("properties")).get(cle));
+            for (String contrainte : List.of("type", "minLength", "maxLength", "enum")) {
+                assertThat(champV2.get(contrainte))
+                    .as("%s.%s : le contrat ne bouge pas", cle, contrainte)
+                    .isEqualTo(champV1.get(contrainte));
+            }
+            String replie = sansAccents(String.valueOf(champV2.get("description")));
+            assertThat(replie)
+                .as("%s : on accentue, on ne reecrit pas", cle)
+                .startsWith(String.valueOf(champV1.get("description")));
+        }
+        assertThat(String.valueOf(v2.get("description")))
+            .as("la regle vit aussi dans la description du contrat")
+            .contains("ACCENTUÉ")
+            .contains("recopient tels quels");
+    }
+
+    private static String sansAccents(String texte) {
+        return java.text.Normalizer.normalize(texte, java.text.Normalizer.Form.NFD)
+            .replaceAll("\\p{M}+", "");
     }
 
     private static Properties applicationYaml() {

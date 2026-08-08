@@ -40,8 +40,12 @@ public class CompetenceProperties {
         /**
          * Version du fichier de consignes charge par le fournisseur de
          * rubriques : {@code prompts/competence-analysis-rubrics-<v>.json}.
+         *
+         * <p>v2 = v1 pour tout ce qui juge, plus une exigence de FORME : le
+         * francais rendu au candidat est ACCENTUE, et ce qui est cite de sa
+         * production reste recopie tel quel. Retour arriere : v1 + v1.
          */
-        private String rubricsVersion = "v1";
+        private String rubricsVersion = "v2";
 
         /**
          * Version du contrat de sortie :
@@ -50,7 +54,7 @@ public class CompetenceProperties {
          * produites avec le meme schema mais des consignes differentes ne sont
          * pas comparables.
          */
-        private String toolSchemaVersion = "v1";
+        private String toolSchemaVersion = "v2";
 
         /**
          * Plafond de tokens de SORTIE. 600 suffit largement : la reponse tient

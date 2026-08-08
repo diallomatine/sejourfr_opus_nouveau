@@ -65,7 +65,13 @@ public class ProductionRubricsProvider {
         // FORME DE LA PREUVE (numero de segment au lieu d'une citation
         // recopiee), donc elle exige le contrat de sortie v6. v9/v5 reste
         // chargeable et activable : c'est le retour arriere, sans migration.
-        Map.entry("v12", "v6")
+        Map.entry("v12", "v6"),
+        // v13 = v12 au bit pres, PLUS une section : le francais rendu au
+        // candidat doit etre ACCENTUE (et ce qui est cite, recopie tel quel).
+        // Rien de ce qui note ne bouge. Le contrat de sortie v7 est celui de
+        // v6 avec ses descriptions accentuees et la meme reserve de citation :
+        // aucun champ ajoute, aucun champ retire.
+        Map.entry("v13", "v7")
     );
 
     /**
@@ -73,7 +79,7 @@ public class ProductionRubricsProvider {
      * {@code niveau_max} y sont verifies au chargement.
      */
     private static final java.util.Set<String> PROFILS_TCF_IRN =
-        java.util.Set.of("v7", "v8", "v9", "v10", "v11", "v12");
+        java.util.Set.of("v7", "v8", "v9", "v10", "v11", "v12", "v13");
 
     private final ProductionEvaluationProperties props;
     private final ObjectMapper objectMapper;
@@ -153,7 +159,7 @@ public class ProductionRubricsProvider {
      * Verifie la paire rubriques/tool-schema avant la premiere evaluation.
      * Les fichiers historiques ne declaraient pas ce lien, donc la matrice
      * reste explicite ici : v3-v4.2 -> v2, v5-v6 -> v3, v7 -> v4,
-     * v8/v9/v10/v11 -> v5, v12 -> v6.
+     * v8/v9/v10/v11 -> v5, v12 -> v6, v13 -> v7.
      */
     private void validateDeclaredContract(Map<String, Object> root, String configuredVersion) {
         if (!configuredVersion.equals(String.valueOf(root.get("rubrics-version")))) {
