@@ -10,8 +10,11 @@ import type {
     ConfianceEvaluation,
     EeAccomplishment,
     EeAccomplishmentPoint,
+    EvaluationResultDto,
     NiveauCecrl,
     ObjectifAccomplissement,
+    SituationDansNiveau,
+    TargetLevel,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -42,49 +45,52 @@ export const TCF_NOTE_BANDS: readonly TcfNoteBand[] = [
     {niveau: "B2", label: "B2", min: 10, max: 20},
 ];
 
-/** Plage d'une bande, telle qu'on l'écrit sous l'échelle (« 2-5 », « 0 »). */
-export function tcfBandRange(band: TcfNoteBand): string {
-    return band.min === band.max ? String(band.min) : `${band.min}-${band.max}`;
-}
-
-export interface TcfScalePosition {
-    /** Index dans {@link TCF_NOTE_BANDS}. */
-    bandIndex: number;
-    /** Position du curseur, en % de la largeur totale de l'échelle. */
-    percent: number;
-}
-
 /**
- * Où poser le curseur d'une note sur l'échelle.
+ * Palier d'une note sur l'échelle du TCF : la DERNIÈRE bande dont le minimum est
+ * atteint — même lecture que le serveur (`>= 10 → B2`, `>= 6 → B1`, …), donc une
+ * note à décimale entre deux bandes (5,5) reste dans la bande basse, comme le
+ * niveau calculé côté backend.
  *
- * Les bandes sont dessinées à largeur ÉGALE : à l'échelle réelle, « B2 »
- * occuperait la moitié de la barre et « A1 non atteint » serait illisible. Le
- * curseur se place donc dans SA bande, proportionnellement à la plage, et reste
- * inséré de 10 % de chaque côté pour qu'il soit toujours sans ambiguïté dans la
- * bonne case (une note pile au seuil, comme 2/20, tomberait sinon sur la
- * frontière).
+ * `null` quand il n'y a pas de note exploitable : ne rien conclure est moins
+ * faux que retomber sur l'index 0 et **inventer** un « A1 non atteint ».
  *
- * La bande retenue est la DERNIÈRE dont le minimum est atteint : c'est la même
- * lecture que le serveur (`>= 10 → B2`, `>= 6 → B1`, …), donc une note à
- * décimale entre deux bandes (5,5) reste dans la bande basse, comme le niveau
- * calculé côté backend.
+ * ⚠️ Cette fonction ne sert plus qu'à **teinter** et à relire une bande de
+ * critère ancienne. Plus rien n'affiche une note de tâche : miroir de
+ * `TcfNoteScale.bandIndexFor` côté mobile.
  */
-export function tcfScalePosition(note: number | null | undefined): TcfScalePosition | null {
+export function tcfBandIndex(note: number | null | undefined): number | null {
     if (note == null || !Number.isFinite(note)) return null;
     const clamped = Math.max(0, Math.min(20, note));
     let bandIndex = 0;
     for (let i = 0; i < TCF_NOTE_BANDS.length; i++) {
         if (clamped >= TCF_NOTE_BANDS[i].min) bandIndex = i;
     }
-    const band = TCF_NOTE_BANDS[bandIndex];
-    const next = TCF_NOTE_BANDS[bandIndex + 1];
-    const upper = next ? next.min : band.max + 1;
-    const fraction =
-        band.min === band.max
-            ? 0.5
-            : Math.min(1, Math.max(0, (clamped - band.min) / (upper - band.min)));
-    const width = 100 / TCF_NOTE_BANDS.length;
-    return {bandIndex, percent: (bandIndex + 0.1 + fraction * 0.8) * width};
+    return bandIndex;
+}
+
+/**
+ * Rang d'un niveau sur l'échelle du TCF IRN (0 = A1 non atteint … 4 = B2).
+ *
+ * C'est lui qui situe le palier atteint sur la barre du hero et qui compare le
+ * niveau obtenu au niveau visé par la démarche. Les valeurs historiques C1/C2
+ * sont rabattues sur le plafond B2 de l'examen. Miroir de
+ * `NiveauCecrl.tcfPalierIndex` côté mobile.
+ */
+export function tcfPalierIndex(niveau: NiveauCecrl): number {
+    switch (niveau) {
+        case "A1_NON_ATTEINT":
+            return 0;
+        case "A1":
+            return 1;
+        case "A2":
+            return 2;
+        case "B1":
+            return 3;
+        case "B2":
+        case "C1":
+        case "C2":
+            return 4;
+    }
 }
 
 /**
@@ -97,7 +103,7 @@ export function tcfScalePosition(note: number | null | undefined): TcfScalePosit
 export type TcfTone = "amber" | "blue" | "green";
 
 /** Teinte telle qu'un affichage la consomme : `"neutral"` quand il n'y a pas
- *  (encore) de note à teinter. Une production non évaluée n'est pas un échec —
+ *  (encore) de palier à teinter. Une production non évaluée n'est pas un échec —
  *  elle est grise, jamais rouge. */
 export type TcfNoteTone = TcfTone | "neutral";
 
@@ -125,22 +131,16 @@ export function tcfNiveauTone(niveau: NiveauCecrl): TcfTone {
 }
 
 /**
- * Teinte d'une note, dérivée de son palier TCF et de rien d'autre.
+ * Teinte d'un résultat de tâche, `"neutral"` quand il n'y a pas de palier.
  *
- * Un seuil « sur 20 » n'a aucun sens ici : 12/20 vaut B2, le niveau le plus
- * haut de l'examen — le colorer en rouge, c'est peindre la meilleure note
- * possible en échec. La note est donc située sur l'échelle
- * ({@link tcfScalePosition}) puis teintée par son niveau
- * ({@link tcfNiveauTone}), sans seconde table.
- *
- * `"neutral"` quand il n'y a rien à teinter (production pas encore évaluée) :
- * un emplacement qui doit être coloré de toute façon — le grand chiffre du
- * hero — le rend en gris, comme le mobile.
+ * Une teinte ne se dérive plus jamais d'une note : rien n'affiche plus la note
+ * d'une tâche, et un seuil « sur 20 » n'avait de toute façon aucun sens ici —
+ * 12/20 vaut B2, le niveau le plus haut de l'examen, le colorer en rouge
+ * revenait à peindre la meilleure note possible en échec. Une production pas
+ * encore évaluée est grise, jamais rouge.
  */
-export function tcfNoteTone(note: number | null | undefined): TcfNoteTone {
-    const position = tcfScalePosition(note);
-    if (!position) return "neutral";
-    return tcfNiveauTone(TCF_NOTE_BANDS[position.bandIndex].niveau);
+export function tacheNiveauTone(niveau: NiveauCecrl | null | undefined): TcfNoteTone {
+    return niveau == null ? "neutral" : tcfNiveauTone(niveau);
 }
 
 /**
@@ -159,9 +159,9 @@ export function tcfNoteTone(note: number | null | undefined): TcfNoteTone {
  * que le serveur.
  */
 export function critereBandeFromNote(note: number | null | undefined): BandeCritere {
-    const position = note != null && note > 0 ? tcfScalePosition(note) : null;
-    if (!position) return "NON_EVALUABLE";
-    switch (TCF_NOTE_BANDS[position.bandIndex].niveau) {
+    const index = note != null && note > 0 ? tcfBandIndex(note) : null;
+    if (index == null) return "NON_EVALUABLE";
+    switch (TCF_NOTE_BANDS[index].niveau) {
         case "B2":
         case "C1":
         case "C2":
@@ -182,14 +182,131 @@ export function critereBandeFromNote(note: number | null | undefined): BandeCrit
 
 /**
  * Garde-fou produit, porté ici et nulle part ailleurs : **on n'annonce jamais
- * un niveau sans savoir ce qu'il vaut**. Sans confiance, l'écran retombe sur la
- * note seule.
+ * un niveau sans savoir ce qu'il vaut**. Sans confiance, l'écran n'annonce rien.
  */
 export function canShowNiveau(
     niveau: NiveauCecrl | null | undefined,
     confiance: ConfianceEvaluation | null | undefined,
 ): boolean {
     return niveau != null && confiance != null;
+}
+
+/**
+ * Le niveau **affichable** d'une tâche, ou `null` quand il n'y a rien
+ * d'honnête à montrer : évaluation trop ancienne pour porter un niveau, ou
+ * niveau sans sa confiance ({@link canShowNiveau}).
+ *
+ * Aucun front ne recalcule un niveau — il est dérivé serveur — donc l'absence
+ * se dit (« Évaluée », « Traité »), elle ne se comble pas.
+ */
+export function tacheNiveau(
+    evaluation: Pick<EvaluationResultDto, "niveauObserve" | "confiance"> | null | undefined,
+): NiveauCecrl | null {
+    if (!evaluation) return null;
+    return canShowNiveau(evaluation.niveauObserve, evaluation.confiance)
+        ? evaluation.niveauObserve
+        : null;
+}
+
+/**
+ * Le niveau d'UNE tâche, tel qu'il s'affiche dans une liste : détail par tâche
+ * du bilan de session, sujets déjà traités, historique.
+ *
+ * C'est ce qui remplace la note /20 partout où elle décrivait une tâche isolée
+ * (décision produit du 2026-08-08) : au TCF, un correcteur attribue un niveau
+ * par tâche, jamais une note — le /20 ne porte que sur l'épreuve entière. Même
+ * forme que la bande d'un critère (`bandeCritereLabel`), pour qu'un palier se
+ * lise pareil d'un écran à l'autre ; sauf le plancher, où « Niveau A1 non
+ * atteint » se contredirait tout seul.
+ *
+ * ⚠️ Contrat gelé, miroir mot pour mot de `tacheNiveauLabel` côté mobile.
+ */
+export function tacheNiveauLabel(niveau: NiveauCecrl): string {
+    return niveau === "A1_NON_ATTEINT" ? "A1 non atteint" : `Niveau ${niveau}`;
+}
+
+/**
+ * Badge d'un sujet **rendu mais sans niveau affichable** (évaluation encore en
+ * vol, ou antérieure au contrat v4).
+ *
+ * ⚠️ Contrat gelé, miroir mot pour mot de `kTacheTraiteeLabel` côté mobile, qui
+ * disait « Fait » — deux fronts, deux mots, pour le même état. Le filtre de la
+ * liste de sujets dit « Traités » **des deux côtés** : le badge s'aligne dessus.
+ * (Ne pas confondre avec `SkillPromptStatus.TREATED` = « Fait », qui appartient
+ * au module Compétences et reste, lui, gelé sur son propre libellé.)
+ */
+export const TACHE_TRAITEE_LABEL = "Traité";
+
+/** Même famille, pour une ligne de bilan : la tâche est corrigée mais son
+ *  niveau n'est pas affichable. Miroir de `kTacheEvalueeLabel`. */
+export const TACHE_EVALUEE_LABEL = "Évaluée";
+
+// ---------------------------------------------------------------------------
+// Situation dans le palier
+// ---------------------------------------------------------------------------
+
+/**
+ * Libellé autonome d'un cran, affichable **sans** le niveau (« Palier solide »).
+ * Miroir au caractère près de `SituationDansNiveau.getLibelle()` côté serveur,
+ * gelé par test des deux côtés.
+ *
+ * ⚠️ Règle de formulation : le haut de la bande A2 se dit « solide », **jamais**
+ * « presque B1 ». Aucun des trois crans ne nomme un manque — c'est la
+ * contrepartie de la note masquée : le candidat doit voir qu'il progresse
+ * **dans** son palier, sans aucun chiffre.
+ */
+export const SITUATION_LIBELLES: Record<SituationDansNiveau, string> = {
+    ENTREE_DE_PALIER: "Palier atteint",
+    PALIER_CONFIRME: "Palier confirmé",
+    PALIER_SOLIDE: "Palier solide",
+};
+
+/** Adjectif seul, pour composer avec un niveau (« A2 solide »). Miroir de
+ *  `SituationDansNiveau.getQualificatif()`. */
+export const SITUATION_QUALIFICATIFS: Record<SituationDansNiveau, string> = {
+    ENTREE_DE_PALIER: "atteint",
+    PALIER_CONFIRME: "confirmé",
+    PALIER_SOLIDE: "solide",
+};
+
+export interface SituationView {
+    cran: SituationDansNiveau;
+    /** Forme autonome (« Palier solide »), pour un contexte où le niveau n'est
+     *  pas déjà écrit à côté. Le hero, lui, affiche `libelleAvecNiveau`. */
+    libelle: string;
+    /** **Ce qui s'affiche au candidat** (« A2 solide »), conformément à
+     *  `docs/notation-ia-eo-ee.md` §6.3 bis. Vient du serveur ; recomposé en
+     *  dernier recours à partir du qualificatif. */
+    libelleAvecNiveau: string;
+}
+
+/**
+ * Ce qu'on affiche du cran de progression, ou `null` quand il n'y a rien à
+ * situer.
+ *
+ * Deux verrous : le cran ne s'affiche **jamais sans le niveau qu'il nuance**
+ * (une position dans une bande qu'on ne nomme pas ne veut rien dire), et il
+ * suit la garde `canShowNiveau` — pas de confiance, pas de niveau, donc pas de
+ * situation non plus.
+ */
+export function situationView(
+    evaluation:
+        | Pick<
+              EvaluationResultDto,
+              "niveauObserve" | "confiance" | "situationDansNiveau" | "situationDansNiveauLabel"
+          >
+        | null
+        | undefined,
+): SituationView | null {
+    const niveau = tacheNiveau(evaluation);
+    const cran = evaluation?.situationDansNiveau ?? null;
+    if (!niveau || !cran) return null;
+    return {
+        cran,
+        libelle: SITUATION_LIBELLES[cran],
+        libelleAvecNiveau:
+            evaluation?.situationDansNiveauLabel ?? `${niveau} ${SITUATION_QUALIFICATIFS[cran]}`,
+    };
 }
 
 /**
@@ -200,6 +317,116 @@ export function canShowNiveau(
 export function shouldShowConfiance(confiance: ConfianceEvaluation | null | undefined): boolean {
     return confiance != null && confiance !== "HAUTE";
 }
+
+/**
+ * Ce que le résultat d'une tâche annonce : **le niveau, affirmé**.
+ *
+ * « Proche du niveau A2 » signifie « pas encore A2 » en français courant, alors
+ * que le niveau EST A2 et que la pastille juste à côté le dit. Le plancher garde
+ * son traitement propre : on n'est pas « proche » d'un niveau non atteint, et on
+ * ne dit pas non plus à quelqu'un qu'il est « sous le A1 » — on dit ce qui reste
+ * à faire.
+ *
+ * ⚠️ Contrat gelé, miroir mot pour mot de `ProductionResultsHero.levelLabel`
+ * côté mobile.
+ */
+export function niveauAtteintLabel(niveau: NiveauCecrl): string {
+    return niveau === "A1_NON_ATTEINT"
+        ? "Votre production n'atteint pas encore le niveau A1"
+        : `Votre production est au niveau ${niveau}`;
+}
+
+/**
+ * Règle de lecture derrière la pastille d'information du panneau de niveau.
+ *
+ * Elle parlait de la **note** : depuis que le résultat d'une tâche n'en affiche
+ * plus (au TCF, les correcteurs attribuent un niveau par tâche, jamais une note
+ * — le /20 ne porte que sur l'épreuve entière), elle explique le **niveau**.
+ * Laisser une info-bulle qui commente une note invisible serait pire que rien.
+ */
+export const NIVEAU_PORTEE_TACHE =
+    "Ce niveau est une estimation : il décrit ce que cette production démontre, sur les " +
+    "paliers du TCF. Il porte ici sur cette seule tâche — au TCF, le niveau d'une épreuve " +
+    "est établi sur vos trois tâches réunies.";
+
+/** Ce que chaque palier du TCF ouvre comme démarche. Seuils en vigueur au
+ *  1ᵉʳ janvier 2026. */
+const DEMARCHE_PAR_NIVEAU: Record<TargetLevel, string> = {
+    A2: "la carte de séjour pluriannuelle",
+    B1: "la carte de résident",
+    B2: "la naturalisation",
+};
+
+export interface DemarcheRappel {
+    /** La production atteint (ou dépasse) le niveau exigé par la démarche. */
+    atteint: boolean;
+    text: string;
+}
+
+/**
+ * Le vrai anti-découragement : relier le niveau obtenu à **ce que le candidat
+ * est venu chercher**.
+ *
+ * Un candidat qui vise la carte de séjour pluriannuelle et qui obtient A2 est au
+ * niveau demandé — personne ne le lui disait, et il lisait sa note comme une
+ * catastrophe scolaire. Les deux cas se traitent avec le même soin : la réussite
+ * se dit clairement, l'objectif encore devant se dit sans dramatiser.
+ *
+ * `null` quand le niveau visé est inconnu : **rien** vaut mieux qu'un message
+ * générique qui parlerait d'une démarche que le candidat n'a pas choisie.
+ */
+export function demarcheRappel(
+    targetLevel: TargetLevel | null | undefined,
+    niveau: NiveauCecrl | null | undefined,
+): DemarcheRappel | null {
+    if (!targetLevel || !niveau) return null;
+    const demande = `Le niveau ${targetLevel} est celui demandé pour ${DEMARCHE_PAR_NIVEAU[targetLevel]}.`;
+    if (tcfPalierIndex(niveau) >= tcfPalierIndex(targetLevel)) {
+        return {atteint: true, text: `${demande} Cette production l'atteint.`};
+    }
+    const constat =
+        niveau === "A1_NON_ATTEINT"
+            ? "Cette production n'atteint pas encore le niveau A1"
+            : `Cette production est au niveau ${niveau}`;
+    return {atteint: false, text: `${demande} ${constat} : continuez à vous entraîner.`};
+}
+
+// ---------------------------------------------------------------------------
+// Version au niveau visé
+// ---------------------------------------------------------------------------
+
+/**
+ * Sur-titre de la section. Elle ne montre **pas** la production du candidat :
+ * elle montre la marche au-dessus. Le dire dès le sur-titre est la seule
+ * protection contre la lecture « voilà ce que j'ai écrit ».
+ */
+export const VERSION_CIBLEE_EYEBROW = "La marche au-dessus";
+
+/** Titre de la section : il nomme le niveau visé et emploie le conditionnel —
+ *  c'est un modèle possible, pas la seule bonne réponse. */
+export function versionCibleeTitle(niveauVise: TargetLevel): string {
+    return `Au niveau ${niveauVise}, votre réponse pourrait ressembler à ceci`;
+}
+
+/**
+ * Sous-titre : il **désamorce la confusion** (« ce n'est pas votre texte ») et
+ * relie le niveau visé à la démarche du candidat.
+ *
+ * Volontairement pas la phrase du rappel d'enjeu du hero (`demarcheRappel`) :
+ * les deux blocs parlent de la même démarche, les répéter mot pour mot ferait
+ * lire deux fois la même chose. Ici on nomme l'objectif, là-bas on dit où en
+ * est la production.
+ */
+export function versionCibleeIntro(niveauVise: TargetLevel): string {
+    return (
+        `Ce texte n'est pas le vôtre : c'est un modèle rédigé au niveau ${niveauVise}, ` +
+        `celui qui ouvre ${DEMARCHE_PAR_NIVEAU[niveauVise]}.`
+    );
+}
+
+/** Intertitre des leviers. « Ce qui vous en sépare » et non « ce qui vous
+ *  manque » : on décrit une distance à parcourir, pas un déficit. */
+export const VERSION_CIBLEE_LEVIERS_TITLE = "Ce qui vous en sépare";
 
 // ---------------------------------------------------------------------------
 // Objectif de la tâche

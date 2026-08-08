@@ -92,6 +92,7 @@ public class AiEvaluationService {
     private final ProductionSecondePasseService secondePasseService;
     private final ProductionFluiditeService fluiditeService;
     private final EvaluationRefusalMetrics refusalMetrics;
+    private final EvaluationPurgeMetrics purgeMetrics;
     private final ProductionEvaluationProperties props;
 
     private static BigDecimal extractNote(Map<String, Object> feedback) {
@@ -529,6 +530,10 @@ public class AiEvaluationService {
             if (purge.remarquesLangueRetirees() > 0) {
                 addAvertissement(feedback, EvaluationOralArtifactFilter.AVERTISSEMENT_LANGUE);
             }
+            purgeMetrics.enregistrer(EvaluationPurgeMetrics.Filtre.ARTEFACT_ORAL_MOT,
+                purge.remarquesRetirees(), 0);
+            purgeMetrics.enregistrer(EvaluationPurgeMetrics.Filtre.ARTEFACT_ORAL_LANGUE,
+                purge.remarquesLangueRetirees(), purge.exemplesRetires());
         }
         // Joint le `label` des criteres a chaque score (le LLM ne renvoie que le
         // `code`). Source = la rubrique de la tache (fallback DB) : evite au mobile
@@ -573,6 +578,12 @@ public class AiEvaluationService {
         // Plafonds cibles, APRES le calcul du niveau (jamais avant : ils
         // coupent un niveau, ils ne le fabriquent pas).
         niveauCalcule = applyPlafonds(feedback, task, niveauCalcule, submissionId);
+        // MARQUEUR A2 VENDU COMME LEVIER D'UN PALIER SUPERIEUR : on retire la
+        // promesse fausse du rapport. APRES le calcul du niveau, parce que le
+        // filet a besoin du niveau REELLEMENT constate pour trancher une formule
+        // relative (« gagner un niveau » depuis A1 vise A2 : c'est legitime).
+        // Aucun effet sur la note ni sur le niveau — ils sont deja arretes.
+        appliquerFiltreMarqueurPalier(feedback, niveauCalcule, submissionId);
         // AUDIT D'ACCENTUATION : on MESURE le francais desaccentue rendu au
         // candidat, on ne refuse rien. Cf. EvaluationAccentAudit : une
         // soumission perdue coute plus cher au candidat qu'un accent manquant.
@@ -580,6 +591,28 @@ public class AiEvaluationService {
 
         return new ProductionSecondePasseService.Passe(
                 feedback, noteSur20, niveauIa, niveauCalcule, modele);
+    }
+
+    /**
+     * Retire du rapport les remarques qui presentent un moyen classe A2 par la
+     * grille active (« parce que », « mais », « et »...) comme la cle du palier
+     * superieur. Le proprietaire a suivi un tel conseil, resoumis, et obtenu la
+     * meme note : il etait structurellement incapable de le faire progresser.
+     *
+     * <p>Ni la note, ni le niveau, ni un seuil ne bougent — c'est de la
+     * restitution, comme le filet oral. Cf. {@link EvaluationPalierMarqueurFilter}.
+     */
+    private void appliquerFiltreMarqueurPalier(Map<String, Object> feedback,
+                                               NiveauCecrl constate, UUID submissionId) {
+        EvaluationPalierMarqueurFilter.Resultat purge =
+            EvaluationPalierMarqueurFilter.purge(feedback, constate);
+        if (!purge.aPurge()) return;
+        log.info("Marqueur A2 presente comme levier de palier superieur, purge submission={} : "
+                + "{} remarque(s), {} entree(s) supprimee(s) (niveau constate={}).",
+            submissionId, purge.remarquesRetirees(), purge.entreesRetirees(), constate);
+        addAvertissement(feedback, EvaluationPalierMarqueurFilter.AVERTISSEMENT_MARQUEUR_PALIER);
+        purgeMetrics.enregistrer(EvaluationPurgeMetrics.Filtre.MARQUEUR_PALIER,
+            purge.remarquesRetirees(), purge.entreesRetirees());
     }
 
     /**

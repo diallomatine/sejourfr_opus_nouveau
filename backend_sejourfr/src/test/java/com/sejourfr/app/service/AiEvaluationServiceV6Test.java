@@ -175,7 +175,7 @@ class AiEvaluationServiceV6Test {
         service = new AiEvaluationService(submissionManager, transcriptionManager, aiEvaluationManager,
             llmClient, promptBuilder, rubrics, new ProductionValidityService(props),
             new ProductionSecondePasseService(props, mock(EvaluationLlmClient.class), rubrics),
-            new ProductionFluiditeService(props), refusalMetrics, props);
+            new ProductionFluiditeService(props), refusalMetrics, new EvaluationPurgeMetrics(), props);
     }
 
     /**

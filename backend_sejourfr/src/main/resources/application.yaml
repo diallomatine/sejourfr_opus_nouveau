@@ -564,6 +564,47 @@ sejourfr:
       enabled: ${EVAL_COHERENCE_BILAN_ENABLED:true}
       tache3-niveau-min: B1
       plafond-si-tache3-faible: B1
+    # VERSION AU NIVEAU VISE — livree ACTIVE. La reponse du candidat reecrite au
+    # palier qu'il VISE (son TargetLevel TCF, a defaut le niveau_cible de la
+    # tache), plus deux a trois leviers concrets pour l'atteindre. EE UNIQUEMENT,
+    # en miroir de la regle version_amelioree (obligatoire a l'ecrit, retiree a
+    # l'oral).
+    #
+    # /!\ SECOND APPEL LLM, TOTALEMENT SEPARE DE LA CORRECTION. C'est la raison
+    # meme de la fonctionnalite : le prompt de NOTATION ne change pas d'un octet,
+    # et le correcteur n'apprend jamais quel niveau vise le candidat — sinon il
+    # aligne sa note dessus. Le depot a deja mesure qu'ajouter un bloc a la
+    # grille degrade la notation (rubriques v10/v11 : accord exact 81,8 % ->
+    # 75,6 %). NE PAS FUSIONNER LES DEUX APPELS, meme si ca parait plus
+    # economique.
+    #
+    # BEST-EFFORT, JAMAIS BLOQUANT : timeout, sortie invalide ou cle absente
+    # laissent l'evaluation EVALUATED et complete, le bloc `version_ciblee` est
+    # simplement absent du feedback. Aucun reessai (c'est un confort, pas une
+    # correction) et aucune campagne de banc requise : rien de ce qui NOTE ne
+    # bouge, par construction.
+    #
+    # Le FOURNISSEUR reste production-evaluation.provider ci-dessus (regle « un
+    # seul correcteur configurable ») : la version rendue au candidat et la
+    # correction qu'il lit juste au-dessus viennent de la meme main. Ce bloc ne
+    # porte que le contrat de sortie, le budget de tokens et le coupe-circuit.
+    # Retour arriere en une variable : EVAL_VERSION_CIBLEE_ENABLED=false.
+    version-ciblee:
+      enabled: ${EVAL_VERSION_CIBLEE_ENABLED:true}
+      # Consignes : prompts/production-version-ciblee-rubrics-<v>.json.
+      rubrics-version: ${EVAL_VERSION_CIBLEE_RUBRICS_VERSION:v1}
+      # Contrat de sortie : prompts/production-version-ciblee-tool-schema-<v>.json.
+      # Paire rubriques <-> tool-schema verifiee au demarrage, comme partout.
+      tool-schema-version: ${EVAL_VERSION_CIBLEE_TOOL_SCHEMA_VERSION:v1}
+      # Plafond de tokens de SORTIE, PROPRE a cet appel — pas les 4000 d'une
+      # correction complete : la sortie tient en un texte de 40 a 90 mots et deux
+      # ou trois phrases. C'est un plafond, pas une consommation.
+      max-tokens: 1200
+      # Zero : deux lectures du meme texte doivent rendre la meme version.
+      temperature: 0
+      # Plafond SERVEUR du nombre de leviers (le tool-schema en demande 2 a 3).
+      # Troisieme filet, celui qui ne depend d'aucune cooperation du modele.
+      max-leviers: 3
     max-audio-duration-seconds: 300
     max-text-words: 300
     min-text-words: 10

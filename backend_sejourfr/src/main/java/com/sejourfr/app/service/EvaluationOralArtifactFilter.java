@@ -111,9 +111,6 @@ final class EvaluationOralArtifactFilter {
     private static final Pattern CITATION = Pattern.compile(
         "«\\s*([^«»]{1,300}?)\\s*»|\"([^\"]{1,300}?)\"|“([^”]{1,300}?)”");
 
-    /** Ponctuation forte : candidate a une fin de phrase (cf. {@link #phrases}). */
-    private static final String PONCTUATION_FORTE = ".!?…";
-
     /**
      * MARQUEURS DE REPROCHE DE LANGUE ETRANGERE, forme normalisee (minuscules,
      * sans accents). Liste FERMEE, calquee sur les verbatims reellement produits
@@ -218,9 +215,6 @@ final class EvaluationOralArtifactFilter {
             + "|pauvre|approximat|imprecis|passe[- ]partout|vague"
             + "|manque|absent|oubli|jamais donne|devrait|il faudrait|aurait du)");
 
-    /** Apostrophes typographiques ou droites, ramenees a un blanc pour la detection. */
-    private static final Pattern APOSTROPHES = Pattern.compile("['’‘]");
-
     /** Au-dela d'un mot porteur de sens, le reproche n'est plus « de niveau mot ». */
     private static final int MAX_MOTS_PORTEURS = 1;
 
@@ -324,8 +318,8 @@ final class EvaluationOralArtifactFilter {
                 continue;
             }
             Map<String, Object> point = new LinkedHashMap<>((Map<String, Object>) rawMap);
-            Purge constat = purgerPhrases(texte(point.get("constat")), ctx);
-            Purge comment = purgerPhrases(texte(point.get("comment")), ctx);
+            Purge constat = purgerPhrases(EvaluationTexte.texte(point.get("constat")), ctx);
+            Purge comment = purgerPhrases(EvaluationTexte.texte(point.get("comment")), ctx);
             if (constat.rien() && comment.rien()) {
                 gardees.add(rawMap);
                 continue;
@@ -410,8 +404,8 @@ final class EvaluationOralArtifactFilter {
                 && (EvaluationOutputValidator.mentionneMotifOralInterdit(exemple.get("explication"))
                     || EvaluationOutputValidator.mentionneMotifOralInterdit(exemple.get("gain"))
                     || (ctx.langueAutorisee()
-                        && (reprocheDeLangue(texte(exemple.get("explication")))
-                            || reprocheDeLangue(texte(exemple.get("gain"))))))) {
+                        && (reprocheDeLangue(EvaluationTexte.texte(exemple.get("explication")))
+                            || reprocheDeLangue(EvaluationTexte.texte(exemple.get("gain"))))))) {
                 retires++;
                 continue;
             }
@@ -457,7 +451,7 @@ final class EvaluationOralArtifactFilter {
         List<String> gardees = new ArrayList<>();
         int mot = 0;
         int langue = 0;
-        for (String phrase : phrases(texte)) {
+        for (String phrase : EvaluationTexte.phrases(texte)) {
             if (voletLangue && ctx.langueAutorisee() && reprocheDeLangue(phrase)) {
                 langue++;
             } else if (voletMot && reprocheDeNiveauMot(phrase, production)) {
@@ -470,53 +464,10 @@ final class EvaluationOralArtifactFilter {
         return new Purge(String.join(" ", gardees).strip(), mot, langue);
     }
 
-    /**
-     * Decoupage en phrases sur la ponctuation forte, <b>hors citation et hors
-     * parenthese</b>. Sans cette precaution, « Un passage en néerlandais ('Ja.
-     * Dus kan nog sorteer de weekenden') qui interrompt... » — un verbatim REEL —
-     * se coupait au point de « Ja. », la premiere moitie partait a la purge et le
-     * candidat recevait le debris restant.
-     */
-    private static List<String> phrases(String texte) {
-        List<String> out = new ArrayList<>();
-        int debut = 0;
-        int parentheses = 0;
-        boolean dansGuillemetsFr = false;
-        boolean dansGuillemetsDroits = false;
-        boolean dansGuillemetsCourbes = false;
-        for (int i = 0; i < texte.length(); i++) {
-            char c = texte.charAt(i);
-            switch (c) {
-                case '(' -> parentheses++;
-                case ')' -> parentheses = Math.max(0, parentheses - 1);
-                case '«' -> dansGuillemetsFr = true;
-                case '»' -> dansGuillemetsFr = false;
-                case '"' -> dansGuillemetsDroits = !dansGuillemetsDroits;
-                case '“' -> dansGuillemetsCourbes = true;
-                case '”' -> dansGuillemetsCourbes = false;
-                default -> {
-                    // rien : seul un separateur ouvre ou ferme un contexte
-                }
-            }
-            boolean protege = parentheses > 0 || dansGuillemetsFr
-                || dansGuillemetsDroits || dansGuillemetsCourbes;
-            if (protege || PONCTUATION_FORTE.indexOf(c) < 0) continue;
-            int j = i + 1;
-            while (j < texte.length() && PONCTUATION_FORTE.indexOf(texte.charAt(j)) >= 0) j++;
-            if (j >= texte.length() || !Character.isWhitespace(texte.charAt(j))) continue;
-            out.add(texte.substring(debut, j));
-            while (j < texte.length() && Character.isWhitespace(texte.charAt(j))) j++;
-            debut = j;
-            i = j - 1;
-        }
-        if (debut < texte.length()) out.add(texte.substring(debut));
-        return out;
-    }
-
     /** Vrai quand la phrase reproche au candidat d'avoir employe une autre langue. */
     private static boolean reprocheDeLangue(String phrase) {
         return phrase != null && !phrase.isBlank()
-            && LANGUE_ETRANGERE.matcher(normaliserPourMarqueur(phrase)).find();
+            && LANGUE_ETRANGERE.matcher(EvaluationTexte.normaliserPourMarqueur(phrase)).find();
     }
 
     /**
@@ -559,7 +510,7 @@ final class EvaluationOralArtifactFilter {
      * </ol>
      */
     private static boolean reprocheDeNiveauMot(String phrase, String production) {
-        if (!REPROCHE.matcher(normaliserPourMarqueur(phrase)).find()) return false;
+        if (!REPROCHE.matcher(EvaluationTexte.normaliserPourMarqueur(phrase)).find()) return false;
         Matcher matcher = CITATION.matcher(phrase);
         boolean ancree = false;
         while (matcher.find()) {
@@ -584,16 +535,4 @@ final class EvaluationOralArtifactFilter {
         return null;
     }
 
-    /** Minuscules, accents retires, apostrophes ramenees a un blanc. */
-    private static String normaliserPourMarqueur(String text) {
-        String sansAccents = java.text.Normalizer
-            .normalize(APOSTROPHES.matcher(text).replaceAll(" "),
-                java.text.Normalizer.Form.NFD)
-            .replaceAll("\\p{M}+", "");
-        return sansAccents.toLowerCase(java.util.Locale.FRENCH).replaceAll("\\s+", " ");
-    }
-
-    private static String texte(Object raw) {
-        return raw == null ? "" : raw.toString();
-    }
 }

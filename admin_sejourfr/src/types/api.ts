@@ -694,6 +694,17 @@ export type NiveauCecrl = "A1_NON_ATTEINT" | "A1" | "A2" | "B1" | "B2" | "C1" | 
 
 export type ConfianceEvaluation = "HAUTE" | "MOYENNE" | "FAIBLE";
 
+/**
+ * Position d'une production DANS sa propre bande CECRL, en 3 crans (dérivé
+ * serveur). C'est ce qui remplace, sur le résultat d'une TÂCHE, la note /20 qui
+ * n'y est plus affichée côté candidat. Null sur les évaluations antérieures,
+ * sur `A1_NON_ATTEINT` et sur C1/C2.
+ */
+export type SituationDansNiveau =
+  | "ENTREE_DE_PALIER"
+  | "PALIER_CONFIRME"
+  | "PALIER_SOLIDE";
+
 /** Bande de maîtrise par critère (notation v4). */
 export type BandeCritere =
   | "TRES_BONNE_MAITRISE"
@@ -807,6 +818,19 @@ export interface EvaluationFeedback {
    * et sur toute évaluation antérieure à v8.
    */
   version_amelioree?: string | null;
+  /**
+   * Bloc « version au niveau visé » (second appel LLM, EE uniquement) : la même
+   * réponse rédigée au palier que le candidat vise, plus 2 à 3 leviers. Absent
+   * de toutes les évaluations antérieures, en EO, et quand le niveau visé est
+   * déjà atteint.
+   */
+  version_ciblee?: {
+    niveau_vise: string;
+    niveau_constate?: string | null;
+    texte: string;
+    /** 2 à 3 items, triés du plus rentable au moins rentable. */
+    ce_qui_manque: string[];
+  } | null;
 }
 
 /**
@@ -820,6 +844,10 @@ export interface EvaluationResultDto {
   niveauObserve: NiveauCecrl | null;
   confiance: ConfianceEvaluation | null;
   avertissementNiveau: string | null;
+  /** Position dans la bande du niveau annoncé (3 crans), et son libellé composé
+   *  (« A2 solide »). Null tous les deux en même temps. */
+  situationDansNiveau: SituationDansNiveau | null;
+  situationDansNiveauLabel: string | null;
   /** Le JSONB persisté peut être absent en base : null est un cas normal. */
   feedback: EvaluationFeedback | null;
 }

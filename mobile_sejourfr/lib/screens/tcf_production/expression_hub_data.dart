@@ -32,14 +32,30 @@ class ExamSession {
   }
 }
 
-/// Vue agrégée du hub : compteur de sujets par tâche, sessions d'examen blanc
-/// (≥ 3 soumissions) et entraînements libres (mono-tâche).
+/// Nombre de soumissions à partir duquel un attempt se lit comme une **session
+/// d'examen blanc** et non comme un entraînement libre.
+///
+/// Deux, et pas trois. Une épreuve complète en compte bien trois, mais ce seuil
+/// n'est pas la définition de l'épreuve : c'est un **discriminant**. Un
+/// entraînement libre n'ouvre qu'un attempt par tâche, donc ne porte jamais
+/// deux soumissions ; à l'inverse, un examen abandonné après deux tâches reste
+/// un examen — il a consommé son slot et le freebie EE/EO côté backend. Le
+/// laisser à trois le faisait disparaître de la grille alors que le serveur,
+/// lui, l'avait bien compté : le candidat voyait « examen 1 jamais fait » et se
+/// prenait un 403 en le relançant.
+///
+/// ⚠️ Miroir de `PRODUCTION_EXAM_MIN_SUBMISSIONS` (web, `production-catalog.ts`),
+/// qui valait déjà 2 : un attempt à 2 tâches apparaissait en examen sur le web
+/// et **nulle part** ici.
+const int kProductionExamMinSubmissions = 2;
+
+/// Vue agrégée du hub : compteur de sujets par tâche et sessions d'examen blanc
+/// (≥ [kProductionExamMinSubmissions] soumissions).
 class HubData {
   const HubData(
       {required this.countByTache,
       required this.doneByTache,
-      required this.exams,
-      required this.singles});
+      required this.exams});
 
   final Map<int, int> countByTache;
 
@@ -65,10 +81,6 @@ class HubData {
 
   /// Sessions d'examen blanc, les plus récentes d'abord.
   final List<ExamSession> exams;
-
-  /// Dernières productions en entraînement libre (single-task), récentes
-  /// d'abord.
-  final List<ProductionSubmissionDto> singles;
 }
 
 /// Vue d'épreuve EE/EO, **dérivée sans réseau** du catalogue déjà chargé.
@@ -114,19 +126,12 @@ HubData buildHubData(ProductionCatalog catalog) {
     byAttempt.putIfAbsent(id, () => []).add(s);
   }
   final exams = <ExamSession>[];
-  final singles = <ProductionSubmissionDto>[];
   for (final entry in byAttempt.entries) {
-    if (entry.value.length >= 3) {
+    if (entry.value.length >= kProductionExamMinSubmissions) {
       exams.add(ExamSession(attemptId: entry.key, submissions: entry.value));
-    } else {
-      singles.addAll(entry.value);
     }
   }
   exams.sort((a, b) => b.lastSubmittedAt.compareTo(a.lastSubmittedAt));
-  singles.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
   return HubData(
-      countByTache: countByTache,
-      doneByTache: doneByTache,
-      exams: exams,
-      singles: singles);
+      countByTache: countByTache, doneByTache: doneByTache, exams: exams);
 }

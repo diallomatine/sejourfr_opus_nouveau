@@ -17,6 +17,7 @@ import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.util.ProductionPayloadSupport;
+import com.sejourfr.app.util.ProductionTextBounds;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -290,10 +291,14 @@ public class ProductionEvaluationService {
      * </ul>
      * Contrairement a l'EO (jamais bloquante), l'EE bloque hors-bornes : le
      * front desactive deja le bouton, c'est un garde-fou serveur.
+     *
+     * <p>Les bornes sont resolues par {@link ProductionTextBounds}, partage avec
+     * le second appel « version au niveau vise » : le texte MODELE rendu au
+     * candidat est ainsi soumis exactement au meme plafond que sa propre copie.
      */
     private void validateTextWordCount(int mots, ProductionTask task) {
-        int plancher = Math.max(props.getMinTextWords(),
-            task.getMotsMin() != null ? task.getMotsMin() : 0);
+        int plancher = ProductionTextBounds.of(task.getMotsMin(), task.getMotsMax(),
+            props.getMinTextWords(), props.getMaxTextWords()).min();
         if (mots < plancher) {
             throw new BusinessException(
                 "Votre texte est trop court : " + mots + " mots, il en faut au moins "

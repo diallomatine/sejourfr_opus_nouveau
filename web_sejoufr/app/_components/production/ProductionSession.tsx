@@ -19,7 +19,12 @@ import {
   type ProductionTaskDto,
   type RealtimeSessionDescriptor,
 } from "@/lib/types";
-import { bilanNiveauPendingLabel } from "@/lib/production-feedback";
+import {
+  TACHE_EVALUEE_LABEL,
+  bilanNiveauPendingLabel,
+  tacheNiveau,
+  tacheNiveauLabel,
+} from "@/lib/production-feedback";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
@@ -806,7 +811,10 @@ function BilanView({
           const pending = s ? isSubmissionPending(s) : false;
           const evaluatedOk = s?.statut === "EVALUATED";
           const failed = s?.statut === "FAILED";
-          const note = s?.evaluation?.noteSurVingt;
+          // Une tâche isolée se rend par son NIVEAU, jamais par sa note : le
+          // /20 ci-dessus porte sur l'épreuve entière, c'est la seule échelle
+          // que le TCF attache à trois tâches réunies.
+          const niveau = tacheNiveau(s?.evaluation);
           return (
             <button
               key={n}
@@ -835,13 +843,13 @@ function BilanView({
                       ? "Évaluation échouée — à relancer"
                       : pending
                         ? "Évaluation IA en cours…"
-                        : note != null
-                          ? `Note ${formatNoteSur20(note)}/20`
-                          : "Évaluée"}
+                        : niveau
+                          ? tacheNiveauLabel(niveau)
+                          : TACHE_EVALUEE_LABEL}
                 </span>
               </span>
-              {/* La note vit dans le sous-titre (« Note 10/20 »), comme sur
-                  mobile : la pastille la répétait mot pour mot sur la même
+              {/* Le niveau vit dans le sous-titre (« Niveau B1 »), comme sur
+                  mobile : une pastille le répéterait mot pour mot sur la même
                   ligne. */}
               {s && !pending && (
                 <ChevronRight size={18} className={prod.sessTacheChevron} aria-hidden />

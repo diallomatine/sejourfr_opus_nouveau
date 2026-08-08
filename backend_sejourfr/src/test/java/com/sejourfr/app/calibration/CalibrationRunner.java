@@ -15,6 +15,7 @@ import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.service.AiEvaluationService;
 import com.sejourfr.app.service.EvaluationLlmClient;
 import com.sejourfr.app.service.EvaluationPromptBuilder;
+import com.sejourfr.app.service.EvaluationPurgeMetrics;
 import com.sejourfr.app.service.EvaluationRefusalMetrics;
 import com.sejourfr.app.service.ProductionFluiditeService;
 import com.sejourfr.app.service.ProductionRubricsProvider;
@@ -151,7 +152,7 @@ final class CalibrationRunner {
         AiEvaluationService service = new AiEvaluationService(submissionManager, transcriptionManager,
             aiEvaluationManager, recorder, promptBuilder, rubrics, validity,
             new ProductionSecondePasseService(props, recorder, rubrics),
-            new ProductionFluiditeService(props), refus, props);
+            new ProductionFluiditeService(props), refus, new EvaluationPurgeMetrics(), props);
 
         long start = System.currentTimeMillis();
         AiEvaluation eval = null;

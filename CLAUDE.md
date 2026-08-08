@@ -300,6 +300,51 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   Défendable sans mesure parce qu'aucune règle de notation ne bouge et que le seul
   changement de prompt **retire** une contrainte. Retour arrière :
   `EVAL_RUBRICS_VERSION=v9` + `EVAL_PROMPT_VERSION=v5`.
+- **NOTE /20 MASQUÉE SUR UNE TÂCHE ISOLÉE** (décision produit, 2026-08-08) : le résultat d'une
+  tâche n'affiche plus que le **niveau** + sa position dans le palier. Au TCF le correcteur
+  attribue un niveau **par tâche**, la note /20 ne porte que sur l'**épreuve entière** ; et sur
+  l'échelle officielle (10 = B2), « 3,5/20 » se lit comme un naufrage alors que c'est un A2
+  normal. **Aucune règle de calcul ne bouge** : la note reste calculée, persistée et exposée
+  (`EvaluationResultDto.noteSurVingt`, bilan d'épreuve, admin, banc). Changement d'**affichage**.
+  Remplacement du signal de progression : **`SituationDansNiveau`** (`ENTREE_DE_PALIER` /
+  `PALIER_CONFIRME` / `PALIER_SOLIDE`, libellés *Palier atteint / confirmé / solide*, composés
+  en « **A2 solide** »). Dérivé **serveur** (`SituationDansNiveau.of`, appelé par
+  `ProductionSubmissionMapper`), jamais recalculé par un front — même philosophie que
+  `SkillStatusResolver`. Bornes de bande lues dans `commun.niveau` de la **grille active**, pas
+  en dur. ⚠️ **Règle de formulation gelée** : le haut de A2 se dit « A2 solide », **jamais
+  « presque B1 »** — on vient de retirer le vocabulaire de déficit, on ne le réintroduit pas.
+  `null` si pas de note, `A1_NON_ATTEINT` (bande d'un seul point) ou C1/C2. Note hors bande
+  (niveau **plafonné**) → ramenée dans la bande affichée. Libellés figés par
+  `SituationDansNiveauTest` ; **à mirrorer sur les 3 fronts**.
+- **VERSION AU NIVEAU VISÉ — SECOND APPEL LLM SÉPARÉ, EE seulement** (`service/versionciblee/`,
+  livré **ACTIF**). Rend au candidat sa réponse **réécrite au palier qu'il VISE**
+  (`User.targetLevel`, repli `production_tasks.niveau_cible`) + **2 à 3 leviers** concrets.
+  Distinct de `version_amelioree`, qui vise le palier **juste au-dessus**.
+  ⚠️ **C'est désormais LE texte modèle affiché sur un résultat EE** : les fronts ont
+  retiré `version_amelioree` de l'écran (champ toujours produit et persisté, plus
+  aucun lecteur). Motif mesuré en base : elle était **au même niveau que la copie**,
+  sans étiquette de palier — recopiée telle quelle et resoumise, elle rendait la
+  **même note au dixième près**. `version_ciblee`, elle, **nomme son niveau**.
+  ⚠️ **L'appel est séparé de la correction, c'est la raison même du montage** : le prompt de
+  notation ne change pas d'un octet et le correcteur n'apprend **jamais** le niveau visé, sinon
+  il aligne sa note dessus (v10/v11 ont mesuré qu'un simple bloc ajouté à la grille fait tomber
+  l'accord exact de 81,8 % à 75,6 %). **Ne pas fusionner les deux appels.** Verrou :
+  `VersionCibleeContractTest`.
+  Prompts versionnés `production-version-ciblee-{rubrics,tool-schema}-v1.json`, paire validée au
+  boot ; **aucune consigne en dur dans le Java** ; français **accentué** (leçon v13/v7).
+  Sortie stricte à 2 champs (`texte`, `ce_qui_manque[2..3]`), `additionalProperties:false`,
+  `maxLength` + budget en mots déclaré par la grille (25) + plafond serveur — **aucun champ où
+  loger une note ou un niveau**. Le serveur ajoute `niveau_vise` / `niveau_constate`.
+  **Best-effort, jamais bloquant** : lancé par `ProductionPipelineAsyncRunner` **après** que
+  l'éval est persistée et `EVALUATED`, **hors transaction** (invariant du runner), le service
+  avale toute exception, **aucun rejeu** (c'est un confort, pas une correction). Rien n'est
+  produit si le niveau visé est **≤** au niveau constaté, à l'oral, ou drapeau éteint.
+  Persistance dans `feedback_json.version_ciblee` — **aucune migration**. Tokens/coût du 2ᵉ
+  appel **additionnés** à ceux de l'éval. Provider = `production-evaluation.provider` (règle
+  « un seul correcteur configurable »), réglages propres sous
+  `production-evaluation.version-ciblee` (`enabled`, `max-tokens: 1200`, `max-leviers: 3`).
+  Retour arrière : `EVAL_VERSION_CIBLEE_ENABLED=false`. **Aucune campagne requise** : rien de ce
+  qui note ne bouge, par construction. Le banc (`CalibrationRunner`) n'emprunte pas ce chemin.
 - **v4** = critères propres à chaque tâche (5 par tâche, fini les 4 universels),
   obligatoires vs pistes, bloc accomplissement, confiance, preuve littérale,
   2 priorités max. **v4.1** = correction de l'indulgence du **bas** d'échelle
@@ -748,6 +793,61 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     candidat 461 → 183 (-60,3 %), médiane 6 → 14 tokens par tour candidat,
     tours candidat sous 4 tokens 26,9 % → 15,3 %. Sur 388 frontières « même
     locuteur », **37 sont refusées** par les garde-fous 3 et 4 (34 + 3).
+- **Filet « marqueur A2 vendu comme levier d'un palier supérieur »**
+  (`EvaluationPalierMarqueurFilter`, livré **ACTIF** le 2026-08-08, EE **et** EO).
+  Purge les phrases de `suggestions`, `points_a_ameliorer` et
+  `exemples_corriges[].gain` qui présentent un moyen classé **A2 par la grille
+  active** (`et`, `mais`, `alors`, `aussi`, `après`, `parce que`) comme la clé du
+  **B1/B2** — verbatims réels : « une subordonnée causale avec « parce que »,
+  marqueur attendu au B1 ». Le propriétaire a suivi ce conseil, resoumis, **même
+  note** : structurellement incapable de faire progresser. **Ni note, ni niveau, ni
+  seuil** (appliqué après `applyPlafonds`, d'où il tire le niveau constaté) ⇒ aucune
+  campagne requise. Deux conditions dans la **même phrase** : revendication d'un
+  palier **> A2** (B1/B2 nommés, ou formule relative si constaté ≥ A2 — depuis A1
+  « gagner un niveau » vise A2, ce que la rubrique **ordonne**) **et** marqueur
+  **désigné** (cité seul, ou « parce que » précédé d'un mot de désignation à ≤ 25
+  caractères). **Mesuré sur les 707 champs de restitution des 138 évaluations en
+  base : 5 phrases purgées, toutes fautives, 0 faux positif** ; deux variantes plus
+  larges rejetées sur ces mêmes données (« marqueur dans n'importe quelle citation »
+  effaçait un conseil B2 sur l'objection traitée ; « désignation + n'importe quel
+  marqueur » effaçait un conseil sur le passé composé). Jamais touchés :
+  `justification_niveau`, `exemple.avant`, `exemples_corriges[].original`,
+  `scores_criteres[].commentaire`. Liste fermée en Java, **miroir vérifié par
+  `EvaluationPalierMarqueurRubriqueTest`** contre la rubrique active. Purges comptées
+  par `EvaluationPurgeMetrics` (distinct de `EvaluationRefusalMetrics` : un refus
+  coûte la tâche, une purge retire une phrase).
+- **Même filet sur `version_ciblee.ce_qui_manque`** (`VersionCibleeLevierFilter`,
+  livré **ACTIF** le 2026-08-08). Le défaut existait **aussi** dans le 2ᵉ appel —
+  mesuré en base : **2 blocs, 6 leviers, 1 fautif** (« Relier les phrases avec des
+  connecteurs simples : « et », « mais », « donc » » sous `niveau_vise: B1`).
+  Devenu urgent depuis que les fronts n'affichent plus `version_amelioree` :
+  `version_ciblee` est **LE** texte modèle d'un résultat EE, leviers en dessous.
+  Détection **partagée** (`EvaluationMarqueursA2.designe`, extraite à la 2ᵉ
+  occurrence, porte aussi `MARQUEURS_A2`) ; la condition « palier revendiqué » est
+  ici **le champ structuré `niveau_vise`**, pas une devinette dans la phrase → on
+  purge dès que `niveau_vise > A2`, jamais si `= A2`. Le levier tombe **en entier**
+  (un demi-levier ne s'applique pas). **Nouveau garde-fou commun aux deux filets** :
+  tout ce qui suit une formule de **rejet** (`au lieu de`, `plutôt que`, `à la place
+  de`, `au-delà de`, `remplacer`, `éviter`) est ignoré — sans lui, notre propre ancre
+  few-shot « … au lieu de poser « mais » seul » se purgeait elle-même. Reste < 2
+  leviers ⇒ **une** réparation actionnable (`VersionCibleeRepairPrompt.pourLeviers`,
+  nomme le levier refusé + les moyens > A2), puis **abandon du bloc** ; **une seule
+  réparation par bloc, tous motifs confondus** (longueur ou leviers). Compté
+  `EvaluationPurgeMetrics.MARQUEUR_PALIER_LEVIER`, à part de `MARQUEUR_PALIER`.
+  Consigne ajoutée en parallèle dans `production-version-ciblee-rubrics-v1.json`
+  (prompt récent, non figé par un contrat de notation) — mais c'est le contrôle qui
+  tient la règle. Invariant best-effort intact, aucune campagne requise.
+- **Bornes de longueur = `ProductionTextBounds`** (`util/`), source unique partagée
+  par `ProductionEvaluationService.validateTextWordCount` et le second appel
+  « version au niveau visé ». Motif : `version_ciblee.texte` faisait **63 et 64 mots**
+  sur une tâche EE T1 à `mots_max=60` — un modèle **non soumettable** sur notre propre
+  plateforme, la seule garde étant une consigne de prompt. Désormais bornes injectées
+  dans le prompt **et** recomptées serveur (`ProductionPayloadSupport.countWords`,
+  **sans tolérance** — celle de 20 % ne vaut que pour les leviers). Hors bornes ⇒
+  **une** réparation actionnable (`VersionCibleeRepairPrompt` : compte obtenu, bornes,
+  mots à retirer/ajouter, « ne coupe pas en cours de phrase »), puis **abandon du
+  bloc** — on ne tronque **jamais** un texte modèle. Une violation **structurelle** ne
+  vaut toujours **aucun** second appel payé. Invariant best-effort intact.
 - **Filet déterministe de langue étrangère à l'oral** (`EvaluationOralArtifactFilter`,
   volet LANGUE, livré **ACTIF** le 2026-08-07). Le transcripteur temps réel (Gemini
   natif-audio) hallucine des passages en langue/écriture étrangère — **6

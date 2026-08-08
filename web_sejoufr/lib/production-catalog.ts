@@ -156,8 +156,27 @@ export interface ProductionExamDraft {
 }
 
 /**
- * Regroupe les soumissions par session d'examen blanc : un attempt qui porte
- * **au moins deux** soumissions (un entraînement par tâche n'en porte qu'une).
+ * Nombre de soumissions à partir duquel un attempt se lit comme une **session
+ * d'examen blanc** et non comme un entraînement libre.
+ *
+ * Deux, et pas trois. Une épreuve complète en compte bien trois, mais ce seuil
+ * n'est pas la définition de l'épreuve : c'est un **discriminant**. Un
+ * entraînement libre n'ouvre qu'un attempt par tâche, donc ne porte jamais deux
+ * soumissions ; à l'inverse, un examen abandonné après deux tâches reste un
+ * examen — il a consommé son slot et le freebie EE/EO côté backend. Le passer à
+ * trois le ferait disparaître de la grille alors que le serveur, lui, l'a bien
+ * compté : le candidat verrait « examen 1 jamais fait » et se prendrait un 403
+ * en le relançant.
+ *
+ * ⚠️ Miroir de `kProductionExamMinSubmissions` (mobile,
+ * `expression_hub_data.dart`), qui valait 3 : un attempt à 2 tâches
+ * apparaissait en examen sur le web et **nulle part** sur mobile.
+ */
+export const PRODUCTION_EXAM_MIN_SUBMISSIONS = 2;
+
+/**
+ * Regroupe les soumissions par session d'examen blanc : un attempt qui porte au
+ * moins {@link PRODUCTION_EXAM_MIN_SUBMISSIONS} soumissions.
  *
  * Pur et testé : c'est ce qui alimente la grille des 10 examens, et le calcul
  * ne doit pas se refaire à la main dans un JSX.
@@ -175,7 +194,7 @@ export function examDrafts(
 
   const drafts: ProductionExamDraft[] = [];
   for (const [attemptId, items] of byAttempt) {
-    if (items.length < 2) continue;
+    if (items.length < PRODUCTION_EXAM_MIN_SUBMISSIONS) continue;
     const date = items.map((i) => i.submittedAt).sort((a, b) => a.localeCompare(b))[0];
     const notes = items
       .map((i) => i.evaluation?.noteSurVingt)

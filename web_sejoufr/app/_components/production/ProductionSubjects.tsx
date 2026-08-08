@@ -14,13 +14,17 @@ import {
   productionTasksKey,
   tasksOfTache,
 } from "@/lib/production-catalog";
-import { tcfNoteTone } from "@/lib/production-feedback";
+import {
+  TACHE_TRAITEE_LABEL,
+  tacheNiveau,
+  tacheNiveauLabel,
+  tacheNiveauTone,
+} from "@/lib/production-feedback";
 import { prodQuotaInfoKey, shouldAnnounceFreeTrial } from "@/lib/production-quota-info";
 import { replaceUrlShallow } from "@/lib/shallow-url";
 import { useCachedData } from "@/lib/use-cached-data";
 import {
   canAccessModule,
-  formatNoteSur20,
   productionTaskSubtitle,
   productionTaskTitle,
 } from "@/lib/types";
@@ -45,17 +49,17 @@ import { type ProductionConfig, TCF_HUB_HREF, TCF_HUB_LABEL } from "./config";
 
 type SubjectFilter = "all" | "todo" | "done";
 
-/** Un sujet fait se lit par son PALIER TCF (cf. `tcfNoteTone`) : la note n'est
- *  pas une note scolaire sur 20, et aucun palier ne se peint en rouge.
- *  `neutral` = fait mais pas encore évalué → simplement « traité ». */
-const TONE_BADGE: Record<ReturnType<typeof tcfNoteTone>, SkillBadgeTone> = {
+/** Un sujet fait se lit par son PALIER TCF (cf. `tacheNiveauTone`), jamais par
+ *  une note : une tâche isolée n'en a pas au TCF, et aucun palier ne se peint en
+ *  rouge. `neutral` = fait mais pas encore évalué → simplement « traité ». */
+const TONE_BADGE: Record<ReturnType<typeof tacheNiveauTone>, SkillBadgeTone> = {
   neutral: "treated",
   amber: "reinforce",
   blue: "treated",
   green: "validated",
 };
 
-const TONE_MARK: Record<ReturnType<typeof tcfNoteTone>, SkillRowMark> = {
+const TONE_MARK: Record<ReturnType<typeof tacheNiveauTone>, SkillRowMark> = {
   neutral: "done",
   amber: "reinforce",
   blue: "done",
@@ -252,8 +256,8 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
                 {shown.map(({ task: t, index: i, sub }) => {
                   const locked = !isPremium && i > 0;
                   const done = !!sub;
-                  const note = sub?.evaluation?.noteSurVingt ?? null;
-                  const tone = tcfNoteTone(note);
+                  const niveau = tacheNiveau(sub?.evaluation);
+                  const tone = tacheNiveauTone(niveau);
                   return (
                     <SkillRowCard
                       key={t.id}
@@ -277,7 +281,7 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
                               tone={TONE_BADGE[tone]}
                               icon={<Check size={11} strokeWidth={2.6} aria-hidden />}
                             >
-                              {note != null ? `${formatNoteSur20(note)}/20` : "Traité"}
+                              {niveau ? tacheNiveauLabel(niveau) : TACHE_TRAITEE_LABEL}
                             </SkillBadge>
                           ) : locked ? (
                             <SkillBadge tone="todo" icon={<Lock size={10} aria-hidden />}>
@@ -303,9 +307,10 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
           </>
         )}
 
-        <SkillNotice title="Comment ces sujets sont notés">
-          Chaque sujet est une production complète : l&apos;IA la situe sur l&apos;échelle du
-          TCF (note /20 et niveau), puis détaille ce qui est réussi et vos deux priorités.
+        <SkillNotice title="Comment ces sujets sont évalués">
+          Chaque sujet est une production complète : l&apos;IA la situe sur les paliers du
+          TCF et vous rend un niveau, puis détaille ce qui est réussi et vos deux
+          priorités.
         </SkillNotice>
 
         <PaywallSheet
@@ -319,7 +324,7 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
           open={quotaInfoOpen}
           tone="info"
           title="Un essai gratuit par épreuve"
-          message={`Vous disposez d'un essai d'entraînement gratuit en ${config.label.toLowerCase()}, évalué par l'IA (note /20 + niveau CECRL), ainsi qu'un examen blanc complet offert. Pour vous entraîner sans limite, passez à l'abonnement Intégral.`}
+          message={`Vous disposez d'un essai d'entraînement gratuit en ${config.label.toLowerCase()}, évalué par l'IA (votre niveau sur les paliers du TCF), ainsi qu'un examen blanc complet offert. Pour vous entraîner sans limite, passez à l'abonnement Intégral.`}
           onClose={dismissQuotaInfo}
         />
       </SkillShell>

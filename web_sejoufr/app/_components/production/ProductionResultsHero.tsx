@@ -2,82 +2,88 @@
 
 import {Info} from "lucide-react";
 import {
+  NIVEAU_PORTEE_TACHE,
   TCF_NOTE_BANDS,
   canShowNiveau,
+  demarcheRappel,
+  niveauAtteintLabel,
   objectifPresentation,
   shouldShowConfiance,
-  tcfBandRange,
   tcfNiveauTone,
-  tcfScalePosition,
+  tcfPalierIndex,
+  type SituationView,
 } from "@/lib/production-feedback";
 import {
   confianceLabel,
-  formatNoteSur20,
-  niveauCecrlLabel,
   niveauCecrlShort,
   type ConfianceEvaluation,
   type NiveauCecrl,
   type ObjectifAccomplissement,
+  type TargetLevel,
 } from "@/lib/types";
 import styles from "./production.module.css";
 
-const PORTEE_SUR_LA_TACHE =
-  "Cette note est une estimation, exprimée sur l'échelle du TCF : c'est elle qui donne le " +
-  "niveau. Elle porte ici sur cette seule tâche — au TCF, la note sur 20 est celle de " +
-  "l'épreuve entière, vos trois tâches.";
-
 const CONFIANCE_SANS_RAISON =
-  "Une partie de votre production était difficile à analyser : cette note est à prendre avec " +
+  "Une partie de votre production était difficile à analyser : ce niveau est à prendre avec " +
   "prudence.";
 
 /**
- * En-tête du rapport : **le verdict, la note et le niveau dans UN SEUL bloc**.
+ * En-tête du rapport : **le verdict et le niveau dans UN SEUL bloc**.
  *
  * Avant, c'étaient trois cartes empilées (accusé « Production évaluée », bandeau
  * d'objectif, carte de note) qui disaient chacune une moitié de la même chose et
  * remplissaient un écran entier avant le premier conseil. Le candidat doit
  * pouvoir répondre à « c'est bien ou pas ? » sans faire défiler.
  *
- * Miroir strict du mobile (`results_hero.dart`) et de la maquette « Rapport
- * express » : dégradé de marque, halo clair en haut à droite, note à droite, et
- * panneau de niveau **translucide** posé dessus.
+ * Miroir strict du mobile (`results_hero.dart`).
+ *
+ * **La note /20 a disparu du résultat d'une tâche** (décision produit du
+ * 2026-08-08) : au TCF, un correcteur attribue **un niveau par tâche**, jamais
+ * une note — le /20 ne porte que sur l'épreuve entière (3 tâches). Et comme
+ * 10/20 y vaut déjà B2, un A2 normal s'affichait « 3,5/20 », qu'un francophone
+ * lit comme une catastrophe scolaire. Le **niveau** est donc le héros de la
+ * carte, et la note reste là où elle a un sens : les bilans d'épreuve et
+ * d'examen complet. Corollaire assumé : les bornes chiffrées du barème
+ * (« 2-5 → A2 ») ne sont plus affichées nulle part ici.
  *
  * Ce qui n'a pas bougé, parce que ce sont des règles et non de la mise en page :
- * - la note s'affiche AVEC l'échelle du TCF — sans elle, un 4,5/20 (un A2) se
- *   lit comme une catastrophe scolaire ;
  * - **le niveau ne s'affiche jamais sans sa confiance** ({@link canShowNiveau}) ;
  * - **une confiance HAUTE ne s'affiche pas** ({@link shouldShowConfiance}) :
  *   c'est le cas normal, l'écrire fait douter d'un résultat qui ne le mérite
  *   pas ;
- * - notre niveau est une **estimation** : « proche du niveau B1 », jamais « B1 »
- *   sec ;
- * - la portée de la note (`avertissementNiveau`, ou son repli) reste accessible
- *   en un geste — le panneau de niveau est un `<details>`.
+ * - la portée du niveau (`avertissementNiveau`, ou {@link NIVEAU_PORTEE_TACHE})
+ *   reste accessible en un geste — le panneau de niveau est un `<details>`.
  */
 export function ProductionResultsHero({
   eyebrow,
   objectif,
   resume,
-  noteSurVingt,
   niveau,
   confiance,
   avertissementNiveau,
   confianceRaisons,
+  situation,
+  targetLevel,
 }: {
   /** Situe la correction (« Expression écrite · Tâche 1 »). */
   eyebrow?: string | null;
   objectif: ObjectifAccomplissement | null;
   resume: string | null;
-  noteSurVingt: number | null;
   niveau: NiveauCecrl | null;
   confiance: ConfianceEvaluation | null;
   avertissementNiveau: string | null;
   confianceRaisons: string[];
+  /** Cran de progression **dans** le palier (« Palier solide »). `null` = rien
+   *  à situer : la pastille disparaît, sans placeholder. */
+  situation?: SituationView | null;
+  /** Palier visé par la démarche du candidat. `null` = inconnu : on n'affiche
+   *  alors aucun rappel plutôt qu'un message générique. */
+  targetLevel: TargetLevel | null;
 }) {
   const presentation = objectifPresentation(objectif);
   const showLevel = canShowNiveau(niveau, confiance);
   const showConfiance = shouldShowConfiance(confiance);
-  const position = tcfScalePosition(noteSurVingt);
+  const rappel = showLevel ? demarcheRappel(targetLevel, niveau) : null;
 
   return (
     <section className={styles.hero}>
@@ -91,10 +97,6 @@ export function ProductionResultsHero({
             {presentation ? `Objectif ${presentation.label.toLowerCase()}` : "Votre correction"}
           </h2>
         </div>
-        <p className={styles.heroScore}>
-          {noteSurVingt != null ? formatNoteSur20(noteSurVingt) : "—"}
-          <span className={styles.heroScoreOf}>/20</span>
-        </p>
       </div>
 
       {resume && <p className={styles.heroResume}>{resume}</p>}
@@ -104,15 +106,19 @@ export function ProductionResultsHero({
           <span className={styles.levelRow}>
             <span className={styles.levelMain}>
               <span className={styles.levelEyebrow}>
-                {showLevel ? "Niveau estimé" : "Note sur l'échelle du TCF"}
+                Niveau estimé
                 <Info size={13} strokeWidth={2.4} aria-hidden />
               </span>
-              {showLevel && niveau && (
-                <span className={styles.levelValue}>
-                  {niveau === "A1_NON_ATTEINT"
-                    ? "Niveau A1 non atteint"
-                    : `Proche du niveau ${niveauCecrlLabel(niveau)}`}
-                </span>
+              <span className={styles.levelValue}>
+                {showLevel && niveau
+                  ? niveauAtteintLabel(niveau)
+                  : "Niveau indisponible pour cette production"}
+              </span>
+              {/* Le cran DANS le palier : c'est lui qui remplace la note
+                  disparue, sans chiffre et sans vocabulaire de manque. Il
+                  nuance le niveau, il ne le remplace pas — d'où la discrétion. */}
+              {showLevel && situation && (
+                <span className={styles.levelSituation}>{situation.libelleAvecNiveau}</span>
               )}
             </span>
             {showLevel && niveau && (
@@ -122,7 +128,7 @@ export function ProductionResultsHero({
             )}
           </span>
 
-          <HeroScale activeIndex={position?.bandIndex ?? null} note={noteSurVingt} />
+          {showLevel && niveau && <HeroScale niveau={niveau} />}
 
           {showConfiance && confiance && (
             <span className={styles.heroConfBox}>
@@ -137,46 +143,39 @@ export function ProductionResultsHero({
         </summary>
 
         <div className={styles.levelRule}>
-          <p className={styles.levelRuleText}>{avertissementNiveau ?? PORTEE_SUR_LA_TACHE}</p>
-          <ul className={styles.levelTable}>
-            {TCF_NOTE_BANDS.map((band) => (
-              <li key={band.niveau} className={styles.levelTableRow}>
-                <span className={styles.levelTableRange} data-tone={tcfNiveauTone(band.niveau)}>
-                  {tcfBandRange(band)}
-                </span>
-                <span className={styles.levelTableLabel}>{band.label}</span>
-              </li>
-            ))}
-          </ul>
+          <p className={styles.levelRuleText}>{avertissementNiveau ?? NIVEAU_PORTEE_TACHE}</p>
         </div>
       </details>
+
+      {/* Le rappel d'enjeu : un A2 qui vise la carte de séjour pluriannuelle EST
+          au niveau demandé, et personne ne le lui disait. */}
+      {rappel && (
+        <p className={styles.heroStake} data-reached={rappel.atteint ? "" : undefined}>
+          <span className={styles.heroStakeLabel}>Votre démarche</span>
+          <span className={styles.heroStakeText}>{rappel.text}</span>
+        </p>
+      )}
     </section>
   );
 }
 
 /**
- * L'échelle **sur le dégradé** : cinq segments à largeur égale et **une seule
- * ligne** de libellés (les paliers, pas leurs bornes chiffrées).
+ * Les cinq paliers du TCF **sur le dégradé**, celui du candidat mis en avant.
  *
- * Deux écarts assumés avec la version claire, pour la même raison — le fond :
- * les teintes de palier ne se voient plus sur du bleu, donc le segment atteint
- * passe en **blanc plein** et c'est la pastille (blanche, texte teinté) qui
- * porte la couleur ; et les bornes chiffrées, qui sont de la règle de lecture et
- * non du résultat, vivent dans le dépliant.
+ * C'était l'échelle des notes, curseur compris ; elle situe désormais un
+ * **niveau**, la seule chose que le résultat d'une tâche annonce. Les teintes de
+ * palier ne se voient pas sur du bleu : le segment atteint passe en blanc plein,
+ * et c'est la pastille (blanche, texte teinté) qui porte la couleur.
  */
-function HeroScale({activeIndex, note}: {activeIndex: number | null; note: number | null}) {
-  const activeBand = activeIndex != null ? TCF_NOTE_BANDS[activeIndex] : null;
+function HeroScale({niveau}: {niveau: NiveauCecrl}) {
+  const activeIndex = tcfPalierIndex(niveau);
 
   return (
     <span className={styles.heroScale}>
       <span
         className={styles.heroScaleTrack}
         role="img"
-        aria-label={
-          note != null && activeBand
-            ? `Votre note, ${formatNoteSur20(note)} sur 20, se situe dans la bande ${activeBand.label} de l'échelle du TCF.`
-            : "Échelle de notation du TCF."
-        }
+        aria-label={`Votre production se situe au palier ${niveauCecrlShort(niveau)} de l'échelle du TCF.`}
       >
         {TCF_NOTE_BANDS.map((band, i) => (
           <span

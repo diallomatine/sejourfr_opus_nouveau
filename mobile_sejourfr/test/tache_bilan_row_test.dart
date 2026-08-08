@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:sejourfr_mobile/core/models/enums.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/tache_bilan_row.dart';
 
 /// Vécu le 2026-08-06 : sur un examen blanc EO, les évaluations des tâches 1 et
@@ -42,10 +43,51 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 
-  testWidgets('une note reste affichee telle quelle', (tester) async {
-    await pump(tester, const TacheBilanRow(name: 'Tâche 1', score: 12.5));
+  testWidgets('une tache evaluee montre son NIVEAU, jamais une note',
+      (tester) async {
+    // Décision produit du 2026-08-08 : au TCF, un correcteur attribue un
+    // niveau par tâche ; la note /20 ne porte que sur l'épreuve entière, dont
+    // le bilan est rendu au-dessus de ces lignes.
+    await pump(
+      tester,
+      const TacheBilanRow(
+        name: 'Tâche 1',
+        niveau: NiveauCecrl.b2,
+        evaluated: true,
+      ),
+    );
 
-    expect(find.textContaining('12,5'), findsOneWidget);
+    expect(find.text('Niveau B2'), findsOneWidget);
+    expect(find.textContaining('/ 20'), findsNothing);
+    expect(find.textContaining('12,5'), findsNothing);
+    expect(find.byIcon(LucideIcons.chevronRight), findsOneWidget);
+  });
+
+  testWidgets('le plancher ne se dit pas « Niveau A1 non atteint »',
+      (tester) async {
+    await pump(
+      tester,
+      const TacheBilanRow(
+        name: 'Tâche 2',
+        niveau: NiveauCecrl.a1NonAtteint,
+        evaluated: true,
+      ),
+    );
+
+    expect(find.text('A1 non atteint'), findsOneWidget);
+  });
+
+  testWidgets('une eval trop ancienne pour porter un niveau garde son rapport',
+      (tester) async {
+    // ~100 évaluations d'avant le contrat v4 n'ont pas de `niveauObserve` : on
+    // n'invente rien, mais le chevron doit rester — le rapport existe.
+    await pump(
+      tester,
+      const TacheBilanRow(name: 'Tâche 3', evaluated: true),
+    );
+
+    expect(find.text('Évaluée'), findsOneWidget);
+    expect(find.text('Non évaluée'), findsNothing);
     expect(find.byIcon(LucideIcons.chevronRight), findsOneWidget);
   });
 }

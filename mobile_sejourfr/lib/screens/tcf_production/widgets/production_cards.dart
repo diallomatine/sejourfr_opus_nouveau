@@ -4,10 +4,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/format_date.dart';
 import '../../../core/widgets/app_tag.dart';
+import '../production_result_labels.dart';
 import 'production_blocks.dart';
-import 'tcf_note_scale.dart';
 
 /// Cartes de liste du prototype. Même géométrie que la carte de compétence
 /// (`.topic-card` : grille `48px 1fr auto`, `gap 12`, `padding 15`,
@@ -49,14 +48,12 @@ class ProductionSubjectCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final done = last != null;
-    final note = last?.evaluation?.noteSurVingt;
-
-    // La couleur d'une note vient de son PALIER TCF (0 → A1 non atteint,
-    // 1 → A1, 2-5 → A2, 6-9 → B1, 10-20 → B2), jamais d'un seuil scolaire sur
-    // 20 : 12/20 est un B2. Tant que l'IA n'a pas rendu sa note, on reste sur
-    // le vert « terminé ».
-    final band = note == null ? null : TcfNoteScale.bandFor(note);
-    final doneTone = band?.tone ?? AppColors.green;
+    // Un sujet traité se lit par son PALIER, jamais par une note : au TCF une
+    // tâche isolée n'en reçoit pas (décision produit du 2026-08-08), et le
+    // palier porte déjà sa propre couleur. Tant que l'IA n'a pas rendu son
+    // niveau, on reste sur le vert « terminé ».
+    final niveau = tacheNiveau(last?.evaluation);
+    final doneTone = niveau?.color ?? AppColors.green;
 
     final chipForeground = locked
         ? AppColors.inkFaint
@@ -128,7 +125,7 @@ class ProductionSubjectCard extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      _statusBadge(band, note),
+                      _statusBadge(niveau),
                       const SizedBox(height: 7),
                       _ActionDot(
                         icon: locked
@@ -166,7 +163,7 @@ class ProductionSubjectCard extends StatelessWidget {
     );
   }
 
-  Widget _statusBadge(TcfNoteBand? band, double? note) {
+  Widget _statusBadge(NiveauCecrl? niveau) {
     if (locked) {
       return const AppTag(
         label: 'Abonnement',
@@ -175,16 +172,16 @@ class ProductionSubjectCard extends StatelessWidget {
         compact: true,
       );
     }
-    if (note != null) {
+    if (niveau != null) {
       return AppTag(
-        label: '${formatScore(note)}/20',
-        tone: band?.niveau.tagTone ?? TagTone.success,
+        label: tacheNiveauLabel(niveau),
+        tone: niveau.tagTone,
         compact: true,
       );
     }
     if (last != null) {
       return const AppTag(
-        label: 'Fait',
+        label: kTacheTraiteeLabel,
         tone: TagTone.success,
         icon: LucideIcons.check,
         compact: true,

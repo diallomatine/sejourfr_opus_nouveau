@@ -1486,10 +1486,10 @@ par écran.
 
 1. **Hero** (`ProductionResultsHero`) — le `.hero` de la maquette : dégradé de
    marque + **halo clair** en haut à droite, eyebrow « Expression écrite ·
-   Tâche 1 », **verdict d'objectif** en gros, `objectif_resume`, **note /20 à
-   droite**, puis le panneau `.level` **translucide** (blanc 13 %, bordure
-   blanc 18 %) : niveau estimé + pastille + échelle du TCF. Les trois blocs
-   d'avant (accusé « Production évaluée », `ProductionObjectiveBanner`,
+   Tâche 1 », **verdict d'objectif** en gros, `objectif_resume`, puis le panneau
+   `.level` **translucide** (blanc 13 %, bordure blanc 18 %) : niveau estimé +
+   pastille + barre des cinq paliers, et enfin le **rappel d'enjeu**. Les trois
+   blocs d'avant (accusé « Production évaluée », `ProductionObjectiveBanner`,
    `ProductionScoreHero`) n'en font plus qu'un, et les deux composants sont
    **supprimés**. Pas de verdict (≈ 100 évaluations legacy) → titre neutre
    « Votre correction ». **Aucune pastille d'icône devant le verdict** : la
@@ -1512,13 +1512,13 @@ par écran.
    droite), **sortie du repli** (elle y était, donc personne ne la voyait).
    Commentaire, preuve **et définition complète** se déplient carte par carte via
    **« Voir pourquoi »**.
-4. **Votre rédaction** (`ProductionTextCard`) — le texte rendu **et** la version
-   améliorée en **bascule dans la même carte** : c'est une comparaison qu'on
-   demande au candidat, les deux ne peuvent pas vivre à deux endroits éloignés.
-   La phrase visée par la priorité n° 1 y est **surlignée** (`splitHighlight`,
-   première occurrence **exacte** ; aucune correspondance ⇒ aucun repère, jamais
-   un repère faux). Deux actions comme la maquette : « Voir la version
-   améliorée » (pleine) et « Masquer les repères » (douce).
+4. **Votre rédaction** (`ProductionTextCard`) — le texte rendu, **et rien
+   d'autre** : la bascule « Voir la version améliorée » a été **retirée le
+   2026-08-08** (cf. la règle dédiée ci-dessous). La phrase visée par la
+   priorité n° 1 y est **surlignée** (`splitHighlight`, première occurrence
+   **exacte** ; aucune correspondance ⇒ aucun repère, jamais un repère faux),
+   avec pour seule action « Masquer les repères » (douce). Puis, juste en
+   dessous, le **seul texte modèle** de la page : `TargetLevelVersionCard`.
 
 Puis **« Voir l'analyse complète »** (`ProductionFullAnalysis`), toujours
 **repliée par défaut** : avertissements → accomplissement détaillé → exemples
@@ -1549,36 +1549,85 @@ côtés**, sinon une consigne entièrement remplie s'affiche « 3/5 ») et
 (`lib/types.ts`) rend `A1_NON_ATTEINT` en **« <A1 »** — le tronquer en « A1 »
 annoncerait un niveau non atteint.
 
-**L'échelle sur le dégradé** (`HeroScale`) : cinq segments et **une seule ligne**
-de libellés. Sur du bleu, les teintes de palier ne se voient plus — le segment
-atteint passe donc en **blanc plein** et c'est la **pastille (blanche, texte
-teinté)** qui porte la couleur du niveau. Les **bornes chiffrées** (0 · 1 · 2-5 ·
-6-9 · 10-20) sont de la règle de lecture, pas du résultat : elles vivent dans le
-dépliant du panneau, avec `avertissementNiveau` (ou son repli). Ce dépliant est
-le `<details>` du panneau lui-même — une ligne « Comment lire cette note ? »
-écrite en toutes lettres coûtait une ligne de plus dans le bloc qu'on allège.
+**La barre des paliers sur le dégradé** (`HeroScale`) : cinq segments et **une
+seule ligne** de libellés (`<A1 · A1 · A2 · B1 · B2`), le palier atteint en
+**blanc plein** — sur du bleu, les teintes de palier ne se voient plus, et c'est
+la **pastille (blanche, texte teinté)** qui porte la couleur. Le `<details>` du
+panneau ouvre `avertissementNiveau` (ou `NIVEAU_PORTEE_TACHE`) — une ligne
+« Comment lire ce niveau ? » écrite en toutes lettres coûtait une ligne de plus
+dans le bloc qu'on allège.
+
+### ⚠️ Pas de note /20 sur le résultat d'une TÂCHE (décision 2026-08-08)
+
+Au TCF, un correcteur attribue **un niveau par tâche, jamais une note** : le /20
+ne porte que sur l'**épreuve entière** (3 tâches). Et comme 10/20 y vaut déjà B2,
+un A2 parfaitement normal s'affichait « 3,5/20 », qu'un francophone lit comme une
+catastrophe scolaire. Trois conséquences, à ne pas défaire :
+
+- **`ProductionResultsHero` n'affiche aucune note** — ni en gros, ni en petit, ni
+  dans un repli — et **aucune borne chiffrée de barème** (« 2-5 → A2 ») : la
+  table des paliers et `tcfBandRange` ont été supprimées avec elle. Le
+  **niveau** est le héros de la carte.
+- **La note reste affichée dès qu'on agrège les 3 tâches** : bilan d'épreuve
+  EE/EO (`noteEpreuve`) et bilan d'examen blanc TCF complet. Le critère est
+  « 3 productions agrégées », pas « examen complet ».
+- **La règle vaut PARTOUT, pas seulement sur l'écran de résultat** (passe du
+  2026-08-08, second lot) : le « détail par tâche » du bilan de session
+  (`ProductionSession`), les badges des sujets traités (`ProductionSubjects`) et
+  les lignes d'entraînement libre de l'historique (`SubmissionRow`) portent
+  désormais le **niveau** de la tâche. Ce qui agrège reste chiffré : hero du
+  bilan de session, stats et slots de `ProductionExams`.
+- **Trois helpers partagés dans `lib/production-feedback.ts`** :
+  `tacheNiveau(evaluation)` (le niveau affichable, `null` sans confiance ou sur
+  une éval antérieure au contrat v4 — on n'invente rien, on écrit « Évaluée » /
+  « Traité »), `tacheNiveauLabel(niveau)` (**libellé gelé** : « Niveau B2 » …,
+  et « A1 non atteint » pour le plancher, qui se contredirait en « Niveau A1 non
+  atteint » — miroir mot pour mot de `tacheNiveauLabel` côté mobile, verrouillé
+  par test des deux côtés) et `tacheNiveauTone(niveau)`. **`tcfNoteTone` est
+  supprimé** : plus rien ne teinte à partir d'une note.
+- **Le niveau s'affirme** : `niveauAtteintLabel` rend « Votre production est au
+  niveau A2 », plus jamais « Proche du niveau A2 » — « proche de » veut dire
+  « pas encore » en français courant, alors que le niveau EST A2. Le plancher a
+  sa propre formulation (« n'atteint pas encore le niveau A1 »).
+
+**Rappel d'enjeu** (`demarcheRappel`, rendu par `.heroStake`) : le niveau obtenu
+mis en face de la démarche du candidat (A2 → carte de séjour pluriannuelle ·
+B1 → carte de résident · B2 → naturalisation, seuils du 1ᵉʳ janvier 2026). C'est
+le vrai anti-découragement — un A2 qui vise la carte de séjour **est** au niveau
+demandé, et personne ne le lui disait. Le palier visé vient de
+`user.targetLevel ?? tcfLevelFromProcedure(user.targetProcedure)`, **sans** le
+repli « B1 » de `resolveTcfLevel` : parcours inconnu ⇒ **rien** ne s'affiche,
+jamais un message générique.
+
+**Libellés des bandes de critère gelés** (`bandeCritereLabel`, `lib/types.ts`) :
+« Niveau B2 / B1 / A2 / A1 / Non évaluable ». Les bornes des bandes (10 / 6 / 2)
+sont exactement celles des paliers du TCF — « En cours d'acquisition » couvrait
+donc TOUTE la bande A2, et un candidat A2 ne pouvait voir que ça, quoi qu'il
+produise. Ces chaînes ne transitent pas par le réseau : **miroir mot pour mot de
+`BandeCritere.displayName` côté mobile**, verrouillé par test des deux côtés
+(cf. le module Compétences, même technique).
 
 Règles à ne pas défaire :
 
 - **Les règles de lecture vivent dans `lib/production-feedback.ts`** (pures,
   testées par `lib/production-feedback.test.ts`, `npm test` = runner natif de
   Node, aucune dépendance ajoutée) : `TCF_NOTE_BANDS` (la table officielle),
-  `tcfScalePosition`, `canShowNiveau`, `shouldShowConfiance`,
-  `objectifPresentation`, `groupAccomplishment`. Ne pas réimplémenter ces
-  décisions dans un composant.
-- **L'échelle du TCF est dessinée à bandes de largeur ÉGALE**, pas à l'échelle
-  réelle (B2 = la moitié des notes, « A1 non atteint » = une seule valeur :
-  proportionnelles, elles seraient illisibles). `tcfScalePosition` reste la règle
-  de placement (10 % d'inset, une note à décimale entre deux bandes reste dans la
-  bande **basse**, comme le niveau calculé serveur) ; le hero n'en consomme plus
-  que le `bandIndex` — sur cinq segments dont un plein, un curseur en plus serait
-  redondant.
+  `tcfBandIndex`, `tcfPalierIndex`, `niveauAtteintLabel`, `demarcheRappel`,
+  `canShowNiveau`, `shouldShowConfiance`, `objectifPresentation`,
+  `groupAccomplishment`. Ne pas réimplémenter ces décisions dans un composant.
+- **Les paliers du TCF sont dessinés à largeur ÉGALE**, pas à l'échelle réelle
+  (B2 = la moitié des notes, « A1 non atteint » = une seule valeur :
+  proportionnels, ils seraient illisibles). `tcfBandIndex` reste la lecture d'une
+  note (une note à décimale entre deux bandes reste dans la bande **basse**,
+  comme le niveau calculé serveur), mais ne sert plus qu'à **teinter** et à
+  relire la bande d'un critère legacy ; la barre du hero se place, elle, par
+  `tcfPalierIndex(niveau)`.
 - **Le niveau n'est JAMAIS affiché sans sa confiance** (`EvaluationResultDto.
   niveauObserve` + `confiance` + `avertissementNiveau`, tous fournis par le
   backend) — `canShowNiveau`, appliqué dans `ProductionResultsHero` : sans
-  confiance, le sur-titre du panneau retombe sur « Note sur l'échelle du TCF ».
-  Le seul niveau qui fait foi reste celui du bilan d'épreuve — dit dans le
-  dépliant de la règle de lecture.
+  confiance, le panneau écrit « Niveau indisponible pour cette production » et ne
+  rend ni pastille ni barre. Le seul niveau qui fait foi reste celui du bilan
+  d'épreuve — dit dans le dépliant de la règle de lecture.
 - **Une confiance HAUTE ne s'affiche PAS** (`shouldShowConfiance`) : c'est le
   cas normal, l'écrire n'apprend rien et fait douter d'un résultat qui ne le
   mérite pas. Elle n'apparaît, avec ses `confiance_raisons`, que lorsqu'elle
@@ -1588,9 +1637,9 @@ Règles à ne pas défaire :
   derniers fait paniquer pour des points qui n'enlèvent rien
   (`obligatoire: false` = simple piste suggérée par le sujet).
 - **Un critère s'affiche en bande, pas en note** (`scores_criteres[].bande`,
-  calculée serveur) : une IA ne distingue pas honnêtement un 13 d'un 14. La
-  note **globale** /20, elle, reste chiffrée. La `preuve` (citation littérale)
-  s'affiche sous le commentaire.
+  calculée serveur) : une IA ne distingue pas honnêtement un 13 d'un 14 — et
+  depuis le 2026-08-08 le rapport d'une tâche ne porte plus **aucun** chiffre.
+  La `preuve` (citation littérale) s'affiche sous le commentaire.
 - **Quatre critères, les mêmes sur les six tâches** (`communiquer`, `interagir`,
   `lexique`, `morphosyntaxe`, à poids égaux) : c'est la grille réelle du TCF. Les
   codes par tâche des évaluations antérieures restent dans la table de repli
@@ -1634,6 +1683,57 @@ Règles à ne pas défaire :
   (EO), et se lit dans le bloc 6. `EoTranscriptNotice` ne sert plus qu'**avant**
   l'enregistrement (`EoRecordingForm`) ; le résultat garde un repli statique du
   même message si l'évaluation ne porte aucun avertissement (éval v3).
+
+
+### Situation dans le palier + version au niveau visé (2026-08-08, 3ᵉ lot)
+
+Deux champs backend nouveaux, câblés dans la même passe (miroirs :
+`lib/types.ts`, `mobile_sejourfr/lib/core/models/production_models.dart`,
+`admin_sejourfr/src/types/api.ts`).
+
+- **`EvaluationResultDto.situationDansNiveau` / `situationDansNiveauLabel`** —
+  le cran de progression **dans** la bande (`ENTREE_DE_PALIER` /
+  `PALIER_CONFIRME` / `PALIER_SOLIDE`), qui remplace la note disparue du
+  résultat d'une tâche. Lu par `situationView` (`lib/production-feedback.ts`) et
+  rendu en pastille discrète sous le niveau du hero, à la forme **composée**
+  (« A2 solide ») — celle qu'annonce `docs/notation-ia-eo-ee.md` §6.3 bis.
+  ⚠️ **Jamais « presque B1 »** : aucun cran ne nomme un manque, c'est la
+  contrepartie de la note masquée. Deux gardes : rien sans niveau affichable
+  (donc rien sans confiance), rien quand le backend n'envoie pas de cran (évals
+  antérieures, `A1_NON_ATTEINT`, C1/C2). Libellés gelés par test des deux côtés
+  (`SITUATION_LIBELLES` / `SITUATION_QUALIFICATIFS`).
+- **`feedback.version_ciblee`** (`{niveau_vise, niveau_constate?, texte,
+  ce_qui_manque[]}`, **EE uniquement**) → `EeFeedback.versionCiblee` +
+  `TargetLevelVersionCard`, rendue **juste sous** la carte de rédaction : c'est
+  le **seul texte modèle** de la page (teinte bleue, section titrée à part,
+  titre qui nomme le niveau visé, sous-titre qui dit explicitement que ce texte
+  n'est pas celui du candidat). L'ordre de `ce_qui_manque` vient du backend (du
+  plus rentable au moins rentable) : **ne jamais le retrier**. Bloc absent ⇒
+  **rien n'est rendu** (EO, éval antérieure, second appel en échec, niveau visé
+  déjà atteint) — pas de squelette, pas de « non disponible » : le rapport se
+  termine alors sur le profil par critère puis l'analyse complète.
+- ⚠️ **`version_amelioree` N'EST PLUS AFFICHÉE NULLE PART (2026-08-08).** Elle
+  réécrit la production au niveau **déjà constaté** et vivait en bascule sous la
+  rédaction, sans mention de niveau : c'était le texte le plus visible et le
+  plus copiable du rapport, et il ne fait pas monter d'un palier. Mesuré : le
+  propriétaire l'a recopiée telle quelle, resoumise, et a obtenu **la même note
+  et le même niveau au dixième près** (4,5/20, A2). Le champ **reste dans le
+  contrat serveur et dans `lib/types.ts`** — le retirer imposerait une version
+  de tool-schema sur la grille de notation — mais **aucun composant ne le lit**,
+  et `lib/production-feedback.test.ts` le verrouille en relisant tout
+  `app/_components/production/`. Sont morts et supprimés : la prop
+  `versionAmelioree` de `ProductionTextCard`, sa bascule, la carte autonome de
+  repli de `ProductionFeedbackView`, les classes `.improved` / `.prodImproved*`
+  / `.prodBtn` et le libellé « Comparez en 10 secondes ». Même retrait, même
+  passe côté mobile (`improved_version_card.dart` supprimé).
+- **Libellés partagés** : `TACHE_TRAITEE_LABEL` (« Traité ») et
+  `TACHE_EVALUEE_LABEL` (« Évaluée ») vivent dans `lib/production-feedback.ts`
+  et sont gelés en miroir du mobile, qui affichait « Fait » pour le même état.
+- **`PRODUCTION_EXAM_MIN_SUBMISSIONS = 2`** (`lib/production-catalog.ts`) : le
+  seuil qui distingue une session d'examen d'un entraînement libre, consommé par
+  `examDrafts` **et** `ProductionHistory`. Miroir de
+  `kProductionExamMinSubmissions` côté mobile, qui valait 3 — un examen
+  abandonné après 2 tâches apparaissait ici et nulle part là-bas.
 
 ### Endpoints backend manquants (à créer si besoin)
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/models/enums.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
 import 'accomplishment_card.dart';
@@ -8,11 +9,11 @@ import 'avertissements_card.dart';
 import 'correction_example.dart';
 import 'criteria_overview.dart';
 import 'feedback_block.dart';
-import 'improved_version_card.dart';
 import 'production_text_card.dart';
 import 'results_hero.dart';
 import 'results_summary_tiles.dart';
 import 'results_section_head.dart';
+import 'target_level_version_card.dart';
 
 /// Limite de l'evaluation orale, mot pour mot (cf. `docs/notation-ia-eo-ee.md`
 /// §9). Le correcteur la renvoie normalement dans ses `avertissements` ; ce
@@ -36,18 +37,28 @@ const String kOralEvaluationLimitNotice =
 /// se consulte** au lieu de se lire.
 ///
 /// Quatre sections, dans cet ordre :
-/// 1. **le verdict, la note et le niveau** — un seul hero ([ProductionResultsHero]) ;
+/// 1. **le verdict et le niveau** — un seul hero ([ProductionResultsHero]).
+///    Pas de note : sur une tache isolee, le /20 n'existe pas au TCF (cf. le
+///    widget) ;
 /// 2. **ce qui marche / a corriger en priorite** ([ResultsSummaryTiles]) : deux
 ///    bandeaux pleine largeur, replies, qui ouvrent leur detail en dessous — les
 ///    points traites et les points forts d'un cote, la priorite complete (avec
 ///    sa technique et sa reecriture) de l'autre ;
 /// 3. **le profil par critere** ([CriteriaOverview]), une carte par critere,
 ///    depliable — il vivait dans le repli, donc personne ne le voyait ;
-/// 4. **la production**, avec sa version amelioree en bascule ([ProductionTextCard]).
+/// 4. **la production** ([ProductionTextCard]), puis **le seul texte modele de
+///    l'ecran** ([TargetLevelVersionCard]).
 ///
 /// Le reste — avertissements, check-list de la consigne, exemples corriges,
 /// suggestions — vit dans « Voir l'analyse complète », **replie par defaut**.
 /// Rien n'est perdu : c'est range.
+///
+/// ⚠️ **`version_amelioree` n'est plus affichee nulle part (2026-08-08)** :
+/// elle reecrivait la production au niveau **deja constate**, en bascule juste
+/// sous la redaction — donc le texte le plus visible et le plus copiable de
+/// l'ecran etait celui qui ne fait pas progresser (mesure : recopie puis
+/// resoumis, meme note, meme niveau). Le champ reste servi par l'API et decode
+/// dans `production_models.dart`, aucun widget ne le lit.
 ///
 /// Chaque bloc est optionnel : une evaluation ancienne n'expose ni objectif, ni
 /// niveau, ni accomplissement — les blocs concernes disparaissent et l'ecran
@@ -59,23 +70,27 @@ class EvaluationReport extends StatelessWidget {
     required this.isOral,
     this.eyebrow,
     this.productionText,
+    this.targetLevel,
   });
 
   final EvaluationResult evaluation;
 
   /// Tache orale : la limite de l'evaluation orale s'applique, les exemples
-  /// sont des reformulations et non des corrections d'ecriture, et aucune
-  /// version amelioree n'est attendue.
+  /// sont des reformulations et non des corrections d'ecriture, et aucun texte
+  /// modele n'est attendu.
   final bool isOral;
 
   /// Situe la correction en tete du hero (« Expression écrite · Tâche 1 »).
   final String? eyebrow;
 
-  /// Le texte rendu par le candidat. Fourni en expression ECRITE : il porte
-  /// alors la bascule vers la version amelioree, pour que la comparaison se
-  /// fasse au meme endroit. A l'oral, la transcription vit dans sa propre
-  /// feuille (dialogue en bulles) : ce parametre reste nul.
+  /// Le texte rendu par le candidat. Fourni en expression ECRITE. A l'oral, la
+  /// transcription vit dans sa propre feuille (dialogue en bulles) : ce
+  /// parametre reste nul.
   final String? productionText;
+
+  /// Palier vise par la demarche du candidat, pour le rappel d'enjeu du hero.
+  /// `null` = inconnu → aucun rappel n'est affiche.
+  final TargetLevel? targetLevel;
 
   String get _correctionsTitle =>
       isOral ? 'Reformulations pour plus de clarté' : 'Corrections';
@@ -114,12 +129,19 @@ class EvaluationReport extends StatelessWidget {
     ];
 
     final production = productionText;
-    final versionAmelioree = isOral ? null : feedback.versionAmelioree;
+    // Le backend ne produit `version_ciblee` qu'en EE ; on le redit ici : a
+    // l'oral, un dialogue modele n'a pas de sens, et une evaluation historique
+    // ne doit pas en faire apparaitre un.
+    final versionCiblee = isOral ? null : feedback.versionCiblee;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ProductionResultsHero(evaluation: evaluation, eyebrow: eyebrow),
+        ProductionResultsHero(
+          evaluation: evaluation,
+          eyebrow: eyebrow,
+          targetLevel: targetLevel,
+        ),
         ResultsSummaryTiles(
           accomplissement: accomplissement,
           priorites: priorites,
@@ -127,22 +149,21 @@ class EvaluationReport extends StatelessWidget {
         ),
         CriteriaOverview(criteres: feedback.scoresCriteres),
         if (production != null && production.isNotEmpty) ...[
-          ResultsSectionHead(
-            title: 'Votre rédaction',
-            hint: versionAmelioree == null ? null : 'Comparez en 10 secondes',
-          ),
+          const ResultsSectionHead(title: 'Votre rédaction'),
           const SizedBox(height: 8),
           ProductionTextCard(
             texte: production,
-            versionAmelioree: versionAmelioree,
-            // La phrase visee par la priorite n° 1, surlignee dans le texte :
-            // c'est ce qui rend « comparez en 10 secondes » vrai.
+            // La phrase visee par la priorite n° 1, surlignee dans le texte.
             highlight: priorites.isEmpty ? null : priorites.first.exemple?.avant,
           ),
-        ] else
-          // Pas de texte a comparer (oral, ou historique sans production
-          // servie) : la version amelioree garde sa carte autonome.
-          ImprovedVersionCard(texte: versionAmelioree),
+        ],
+        // Le SEUL texte modele du rapport, juste sous la redaction : l'ordre de
+        // lecture est « ce que j'ai ecrit » → « le texte du palier que je vise ».
+        // Absent (EO, eval anterieure, second appel en echec, niveau vise deja
+        // atteint) ⇒ rien n'est rendu, et le rapport se termine sur le profil
+        // par critere puis l'analyse complete : ni section vide, ni titre
+        // orphelin.
+        TargetLevelVersionCard(version: versionCiblee),
         if (analyse.isNotEmpty) _FullAnalysis(children: analyse),
       ],
     );

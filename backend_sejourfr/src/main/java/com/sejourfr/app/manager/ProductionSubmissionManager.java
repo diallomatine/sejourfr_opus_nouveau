@@ -31,6 +31,11 @@ public class ProductionSubmissionManager {
         return repository.findByIdWithTask(id);
     }
 
+    /** Submission avec sa {@code productionTask} ET son {@code user} eager-loadés. */
+    public Optional<ProductionSubmission> findByIdWithTaskAndUser(UUID id) {
+        return repository.findByIdWithTaskAndUser(id);
+    }
+
     public ProductionSubmission save(ProductionSubmission submission) {
         return repository.save(submission);
     }

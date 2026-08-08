@@ -6,9 +6,11 @@ import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.enums.ConfianceEvaluation;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.SituationDansNiveau;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.service.ProductionAudioStorageService;
+import com.sejourfr.app.service.ProductionRubricsProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -30,6 +32,13 @@ public class ProductionSubmissionMapper {
     private final AiEvaluationManager aiEvaluationManager;
     private final TranscriptionManager transcriptionManager;
     private final ProductionAudioStorageService audioStorage;
+    /**
+     * Bornes de bande de la GRILLE ACTIVE (bloc {@code commun.niveau}). Ce n'est
+     * ni un repository ni un manager : c'est le porteur de configuration deja
+     * utilise partout ailleurs pour lire une note. Les figer en dur ici ferait
+     * derailler la situation dans le palier au prochain changement d'echelle.
+     */
+    private final ProductionRubricsProvider rubrics;
 
     public ProductionSubmissionDto toDto(ProductionSubmission s) {
         EvaluationResultDto eval = aiEvaluationManager
@@ -106,11 +115,19 @@ public class ProductionSubmissionMapper {
             feedback = sanitized;
         }
         NiveauCecrl niveauObserve = confiance == null ? null : e.getNiveauCecrl();
+        // SITUATION DANS LE PALIER — ce qui remplace, sur une tache isolee, la
+        // note /20 qui n'y est plus affichee. Derivee SERVEUR : aucun front ne
+        // doit refaire ce calcul, sinon trois implementations divergeront des
+        // que l'echelle bougera.
+        SituationDansNiveau situation = SituationDansNiveau.of(
+            e.getNoteSur20(), niveauObserve, rubrics.niveauCecrl());
         return new EvaluationResultDto(
             e.getNoteSur20(),
             niveauObserve,
             confiance,
             niveauObserve == null ? null : AVERTISSEMENT_NIVEAU,
+            situation,
+            situation == null ? null : situation.libelleAvecNiveau(niveauObserve),
             feedback);
     }
 }

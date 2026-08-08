@@ -11,15 +11,11 @@ import '../../../core/theme/app_theme.dart';
 class TcfNoteBand {
   const TcfNoteBand({
     required this.niveau,
-    required this.rangeLabel,
     required this.min,
     required this.max,
   });
 
   final NiveauCecrl niveau;
-
-  /// Ce qui rend la note lisible : « 2-5 », pas un pourcentage.
-  final String rangeLabel;
   final double min;
   final double max;
 
@@ -34,52 +30,22 @@ class TcfNoteBand {
 /// exprimees sur cette echelle : 4,5/20 n'est pas un 4,5 scolaire francais,
 /// c'est un A2. Ce qui est officiel ici, c'est l'echelle, pas la correction.
 const List<TcfNoteBand> kTcfNoteBands = [
-  TcfNoteBand(
-      niveau: NiveauCecrl.a1NonAtteint, rangeLabel: '0', min: 0, max: 0),
-  TcfNoteBand(niveau: NiveauCecrl.a1, rangeLabel: '1', min: 1, max: 1),
-  TcfNoteBand(niveau: NiveauCecrl.a2, rangeLabel: '2-5', min: 2, max: 5),
-  TcfNoteBand(niveau: NiveauCecrl.b1, rangeLabel: '6-9', min: 6, max: 9),
-  TcfNoteBand(niveau: NiveauCecrl.b2, rangeLabel: '10-20', min: 10, max: 20),
+  TcfNoteBand(niveau: NiveauCecrl.a1NonAtteint, min: 0, max: 0),
+  TcfNoteBand(niveau: NiveauCecrl.a1, min: 1, max: 1),
+  TcfNoteBand(niveau: NiveauCecrl.a2, min: 2, max: 5),
+  TcfNoteBand(niveau: NiveauCecrl.b1, min: 6, max: 9),
+  TcfNoteBand(niveau: NiveauCecrl.b2, min: 10, max: 20),
 ];
 
-/// Regle de lecture de la note, rendue visible : les cinq paliers du TCF, leurs
-/// notes, et un curseur sur celle du candidat.
+/// Lecture d'une note sur l'échelle du TCF : à quel palier elle appartient.
 ///
-/// Les paliers sont dessines a largeur EGALE, jamais proportionnelle a leur
-/// etendue en points : sur cette echelle comprimee, un B2 (10-20) occuperait la
-/// moitie de la barre et un A1 (1) un trait invisible. Ce qu'on montre ici,
-/// c'est la suite des paliers, pas un axe metrique.
-class TcfNoteScale extends StatelessWidget {
-  const TcfNoteScale({super.key, required this.note}) : onDark = false;
-
-  /// Variante du hero : **sur le dégradé bleu**, cinq segments et **une seule
-  /// ligne** de libellés (les paliers, pas leurs bornes chiffrées).
-  ///
-  /// Deux raisons de ne pas y rejouer la version claire :
-  /// - les teintes de [CecrlColor] (ambre, bleu, vert) ne se voient plus sur un
-  ///   fond bleu — le segment actif y passe donc en **blanc plein**, et c'est la
-  ///   pastille de niveau, blanche à texte teinté, qui porte la couleur du
-  ///   palier ;
-  /// - les bornes chiffrées (0 · 1 · 2-5 · 6-9 · 10-20) demandaient une seconde
-  ///   ligne de libellés : c'est de la règle de lecture, pas du résultat. Elles
-  ///   vivent dans « Comment lire cette note ».
-  const TcfNoteScale.onDark({super.key, required this.note}) : onDark = true;
-
-  /// Note 0..20 ; null quand la production n'a pas pu etre notee — la barre
-  /// reste affichee (la regle de lecture vaut toujours), sans curseur. Une
-  /// note qui n'est pas un nombre (`NaN`) est traitee pareil : pas de palier
-  /// determine, donc pas de curseur.
-  final double? note;
-
-  /// Rendu sur le dégradé du hero (cf. [TcfNoteScale.onDark]).
-  final bool onDark;
-
-  static const cursorKey = ValueKey<String>('tcf-note-cursor');
-
-  static const double _gap = 4;
-  static const double _barHeight = 8;
-  static const double _cursorSize = 16;
-
+/// **Ce n'est plus un widget.** La barre de notes du rapport de tâche a été
+/// retirée le 2026-08-08 avec la note elle-même (au TCF, une tâche reçoit un
+/// niveau, pas une note) ; le hero rend désormais les **paliers**, et le bilan
+/// d'épreuve garde sa note avec `CecrlScale`. Ne subsiste donc ici que la table
+/// officielle et sa lecture, utilisée pour **teinter** un résultat et pour
+/// relire la bande d'un critère d'une évaluation trop ancienne pour la porter.
+abstract final class TcfNoteScale {
   /// Palier d'une note : le dernier dont la borne basse est atteinte. `null`
   /// quand la note n'est pas un nombre exploitable : `NaN >= 0` est faux, donc
   /// une comparaison naive retomberait sur l'index 0 et **inventerait** un
@@ -121,198 +87,5 @@ class TcfNoteScale extends StatelessWidget {
       NiveauCecrl.c2 =>
         BandeCritere.tresBonneMaitrise,
     };
-  }
-
-  /// Curseur insere de [_inset] de chaque cote de sa case : une note pile au
-  /// seuil (2/20) tomberait sinon sur la frontiere entre deux paliers, et se
-  /// lirait dans la mauvaise case.
-  static const double _inset = 0.1;
-
-  /// Position 0..1 DANS le palier, avant insertion.
-  ///
-  /// Un palier a valeur unique (0 → A1 non atteint, 1 → A1) n'a pas d'interieur
-  /// a parcourir : le curseur s'y **centre**, sinon il se collerait au bord
-  /// gauche de la case et donnerait a lire un palier plus bas.
-  static double _fractionInBand(double note, int index) {
-    final band = kTcfNoteBands[index];
-    if (band.min == band.max) return 0.5;
-    final end = index == kTcfNoteBands.length - 1
-        ? band.max + 1
-        : kTcfNoteBands[index + 1].min;
-    return ((note - band.min) / (end - band.min)).clamp(0.0, 1.0);
-  }
-
-  /// Position 0..1 DANS la case dessinee, insertion comprise.
-  static double positionInBand(double note, int index) =>
-      _inset + _fractionInBand(note, index) * (1 - 2 * _inset);
-
-  @override
-  Widget build(BuildContext context) {
-    final value = note;
-    final activeIndex = value == null ? -1 : (bandIndexFor(value) ?? -1);
-    if (onDark) return _buildOnDark(activeIndex);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final width = constraints.maxWidth;
-            final segment = (width - _gap * (kTcfNoteBands.length - 1)) /
-                kTcfNoteBands.length;
-            return SizedBox(
-              height: _cursorSize,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: (_cursorSize - _barHeight) / 2,
-                    child: Row(
-                      children: [
-                        for (var i = 0; i < kTcfNoteBands.length; i++) ...[
-                          if (i > 0) const SizedBox(width: _gap),
-                          Expanded(
-                            child: Container(
-                              height: _barHeight,
-                              decoration: BoxDecoration(
-                                color: kTcfNoteBands[i].tone.withValues(
-                                      alpha: i == activeIndex ? 1 : 0.22,
-                                    ),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  if (value != null && activeIndex >= 0)
-                    Positioned(
-                      left: activeIndex * (segment + _gap) +
-                          positionInBand(value, activeIndex) * segment -
-                          _cursorSize / 2,
-                      top: 0,
-                      child: Container(
-                        key: cursorKey,
-                        width: _cursorSize,
-                        height: _cursorSize,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.white,
-                          border: Border.all(
-                            color: kTcfNoteBands[activeIndex].tone,
-                            width: 3,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 8),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (var i = 0; i < kTcfNoteBands.length; i++) ...[
-              if (i > 0) const SizedBox(width: _gap),
-              Expanded(
-                child: _BandLabel(
-                  band: kTcfNoteBands[i],
-                  active: i == activeIndex,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildOnDark(int activeIndex) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            for (var i = 0; i < kTcfNoteBands.length; i++) ...[
-              if (i > 0) const SizedBox(width: _gap),
-              Expanded(
-                child: Container(
-                  height: _barHeight,
-                  decoration: BoxDecoration(
-                    color: AppColors.white
-                        .withValues(alpha: i == activeIndex ? 1 : 0.18),
-                    borderRadius: BorderRadius.circular(AppRadii.pill),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 7),
-        Row(
-          children: [
-            for (var i = 0; i < kTcfNoteBands.length; i++) ...[
-              if (i > 0) const SizedBox(width: _gap),
-              Expanded(
-                child: Text(
-                  kTcfNoteBands[i].niveau.shortName,
-                  textAlign: TextAlign.center,
-                  style: AppFonts.ui(
-                    size: 9.5,
-                    weight:
-                        i == activeIndex ? FontWeight.w800 : FontWeight.w600,
-                    color: AppColors.white
-                        .withValues(alpha: i == activeIndex ? 1 : 0.55),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _BandLabel extends StatelessWidget {
-  const _BandLabel({required this.band, required this.active});
-
-  final TcfNoteBand band;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    // Plage en premier : « A1 non atteint » passe sur deux lignes sur les
-    // petits ecrans, et les plages doivent rester alignees entre elles.
-    return Column(
-      children: [
-        Text(
-          band.rangeLabel,
-          textAlign: TextAlign.center,
-          style: AppFonts.ui(
-            size: 10,
-            weight: active ? FontWeight.w700 : FontWeight.w500,
-            color: active ? AppColors.ink : AppColors.muted2,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          band.label,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          style: AppFonts.ui(
-            size: 10,
-            weight: active ? FontWeight.w800 : FontWeight.w600,
-            color: active ? band.tone : AppColors.muted,
-            height: 1.2,
-          ),
-        ),
-      ],
-    );
   }
 }

@@ -2,6 +2,7 @@ package com.sejourfr.app.dto;
 
 import com.sejourfr.app.enums.ConfianceEvaluation;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.SituationDansNiveau;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -55,6 +56,20 @@ import java.util.Map;
  *       ECRITES uniquement, absente en EO (retiree cote serveur).</li>
  * </ul>
  * {@code points_forts[]} est plafonne a 2 et {@code exemples_corriges[]} a 3.
+ *
+ * <p><b>Bloc {@code version_ciblee}</b> (facultatif, EE uniquement, produit par
+ * un SECOND appel LLM totalement separe de la correction) :
+ * {@code {niveau_vise, niveau_constate, texte, ce_qui_manque[]}} — la meme
+ * reponse redigee au niveau que le candidat VISE, et 2 a 3 choses concretes qui
+ * l'en separent. Absent quand le niveau vise est deja atteint, quand le second
+ * appel a echoue, ou sur toute evaluation anterieure a cette fonctionnalite.
+ *
+ * <p><b>La note /20 n'est plus affichee sur une tache isolee</b> — decision
+ * produit : au TCF, un correcteur attribue un NIVEAU par tache, la note ne porte
+ * que sur l'epreuve entiere. {@link #noteSurVingt} reste calculee, persistee et
+ * exposee (bilan d'epreuve, admin, calibration) ; c'est
+ * {@link #situationDansNiveau} qui porte, sur l'ecran d'une tache, le signal de
+ * progression a l'interieur du palier.
  */
 public record EvaluationResultDto(
         BigDecimal noteSurVingt,
@@ -64,6 +79,13 @@ public record EvaluationResultDto(
         ConfianceEvaluation confiance,
         /** Rappel a afficher sous le niveau observe. Null quand il n'y a pas de niveau. */
         String avertissementNiveau,
+        /**
+         * Position de la production DANS sa propre bande CECRL (3 crans),
+         * derivee serveur. Null quand il n'y a ni note ni niveau situable.
+         */
+        SituationDansNiveau situationDansNiveau,
+        /** Libelle pret a afficher (« A2 solide »). Null en meme temps que le cran. */
+        String situationDansNiveauLabel,
         Map<String, Object> feedback
 ) {
 }

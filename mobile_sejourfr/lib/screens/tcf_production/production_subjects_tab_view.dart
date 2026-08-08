@@ -9,7 +9,6 @@ import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 import '../../core/providers/shared_prefs_provider.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/format_date.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_sheet.dart';
@@ -19,6 +18,7 @@ import 'eo_session_controller.dart';
 import 'production_catalog.dart';
 import 'production_nav.dart';
 import 'production_quota_info.dart';
+import 'production_result_labels.dart';
 import 'task_training_data.dart';
 import 'tcf_production_module.dart';
 import 'widgets/exam_filter_chips.dart';
@@ -120,9 +120,9 @@ class _ProductionSubjectsTabViewState
         Text(
           "Vous disposez d'un essai d'entraînement gratuit en "
           '${widget.module.title.toLowerCase()}, évalué par l\'IA '
-          '(note /20 + niveau CECRL), ainsi qu\'un examen blanc complet '
-          'offert. Pour vous entraîner sans limite, passez à l\'abonnement '
-          'Intégral.',
+          '(votre niveau sur les paliers du TCF), ainsi qu\'un examen blanc '
+          'complet offert. Pour vous entraîner sans limite, passez à '
+          'l\'abonnement Intégral.',
           style: AppFonts.ui(size: 13.5, color: AppColors.inkSoft, height: 1.55),
         ),
         const SizedBox(height: 6),
@@ -204,7 +204,9 @@ class _ProductionSubjectsTabViewState
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        final note = last.evaluation?.noteSurVingt;
+        // Le palier de la dernière production, jamais sa note : au TCF un
+        // sujet isolé reçoit un niveau (décision produit du 2026-08-08).
+        final niveau = tacheNiveau(last.evaluation);
         return SafeArea(
           top: false,
           child: Container(
@@ -219,7 +221,7 @@ class _ProductionSubjectsTabViewState
               children: [
                 const SheetHandle(),
                 Text(task.displayTitle, style: AppFonts.display(size: 18)),
-                if (note != null) ...[
+                if (niveau != null) ...[
                   const SizedBox(height: 5),
                   Row(
                     children: [
@@ -227,7 +229,7 @@ class _ProductionSubjectsTabViewState
                           size: 13, color: AppColors.green),
                       const SizedBox(width: 5),
                       Text(
-                        'Dernière note : ${formatScore(note)}/20',
+                        'Dernière évaluation : ${tacheNiveauLabel(niveau)}',
                         style: AppFonts.ui(
                           size: 12.5,
                           color: AppColors.green,

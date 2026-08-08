@@ -4,6 +4,7 @@ import {useRouter} from "next/navigation";
 import {useEffect, useMemo, useState} from "react";
 import {FileStack} from "lucide-react";
 import {productionApi} from "@/lib/api";
+import {PRODUCTION_EXAM_MIN_SUBMISSIONS} from "@/lib/production-catalog";
 import {useAuth} from "@/lib/auth-context";
 import {type ProductionSubmissionDto} from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
@@ -67,7 +68,7 @@ export function ProductionHistory({config}: {config: ProductionConfig}) {
     const found: Session[] = [];
     const alone: ProductionSubmissionDto[] = [];
     for (const [attemptId, items] of byAttempt) {
-      if (items.length >= 2) {
+      if (items.length >= PRODUCTION_EXAM_MIN_SUBMISSIONS) {
         const date = items.map((i) => i.submittedAt).sort((a, b) => b.localeCompare(a))[0];
         found.push({attemptId, items, date});
       } else {

@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/production_models.dart';
+import '../../core/providers/target_level_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
@@ -230,6 +231,7 @@ class _Body extends ConsumerWidget {
                 evaluation: eval,
                 isOral: true,
                 eyebrow: 'Expression orale · Tâche ${taskIndex + 1}',
+                targetLevel: ref.watch(userTargetLevelProvider),
               ),
               if (submission.transcription != null &&
                   submission.transcription!.isNotEmpty) ...[

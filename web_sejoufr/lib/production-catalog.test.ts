@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import {describe, it} from "node:test";
 import {createDataCache} from "./data-cache.ts";
 import {
+  PRODUCTION_EXAM_MIN_SUBMISSIONS,
   examDrafts,
   isFinalBilan,
   latestSubmissionByTask,
@@ -275,6 +276,27 @@ describe("examDrafts", () => {
 
   it("sans historique chargé, rend une liste vide", () => {
     assert.deepEqual(examDrafts(undefined), []);
+  });
+
+  // Le seuil vivait en dur ici (2) et dans `buildHubData` côté mobile (3) : un
+  // examen abandonné après deux tâches apparaissait sur le web et NULLE PART
+  // sur mobile, alors que le backend, lui, avait bien consommé le slot.
+  it("garde un examen abandonné à 2 tâches — le slot a été consommé", () => {
+    assert.equal(PRODUCTION_EXAM_MIN_SUBMISSIONS, 2);
+    const drafts = examDrafts([
+      submission("a", "att", "t1", "2026-08-01T10:00:00Z", 8),
+      submission("b", "att", "t2", "2026-08-01T10:30:00Z", 9),
+    ]);
+    assert.equal(drafts.length, 1);
+    assert.equal(drafts[0].attemptId, "att");
+  });
+
+  it("ne prend jamais un entraînement libre (1 soumission) pour un examen", () => {
+    const drafts = examDrafts([
+      submission("a", "att-1", "t1", "2026-08-01T10:00:00Z", 8),
+      submission("b", "att-2", "t2", "2026-08-02T10:00:00Z", 9),
+    ]);
+    assert.deepEqual(drafts, []);
   });
 });
 

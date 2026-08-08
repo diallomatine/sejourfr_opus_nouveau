@@ -8,9 +8,9 @@ import 'tcf_note_scale.dart';
 
 /// Ligne d'un critere : icone bubble coloree + nom + bande qualitative + barre.
 ///
-/// On affiche la **bande** (« Satisfaisant »), pas la note du critere — l'IA ne
-/// distingue pas honnetement un 13 d'un 14. Seule la note globale /20 reste
-/// chiffree, ailleurs sur l'ecran. Les evaluations anterieures au contrat v4
+/// On affiche la **bande** (« Niveau B1 »), pas la note du critere — l'IA ne
+/// distingue pas honnetement un 13 d'un 14, et depuis le 2026-08-08 le rapport
+/// d'une tache ne porte plus aucun chiffre. Les evaluations anterieures au v4
 /// n'ont pas de `bande` : on la **relit depuis leur note** sur la table
 /// officielle du TCF ([TcfNoteScale.bandeFor]), pour qu'elles se rendent
 /// exactement comme les recentes. Aucun critere ne s'affiche plus en chiffres.

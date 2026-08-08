@@ -4,50 +4,38 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/format_date.dart';
 import '../../../core/widgets/app_sheet.dart';
-import 'tcf_note_scale.dart';
+import '../production_result_labels.dart';
 
-/// Règle de lecture de la note. Elle vit derrière la pastille d'information du
-/// panneau de niveau, et non à plat sous l'échelle : l'échelle DESSINE déjà la
-/// règle, ce texte l'explique. Trois lignes de prose entre la note et le premier
-/// conseil, c'est exactement la verbosité que cette refonte corrige.
-const String kNotePorteeSurLaTache =
-    'Cette note est une estimation, exprimée sur l\'échelle du TCF : c\'est elle '
-    'qui donne le niveau. Elle porte ici sur cette seule tâche — au TCF, la note '
-    'sur 20 est celle de l\'épreuve entière, vos trois tâches.';
-
-/// Repli quand le correcteur signale une confiance basse sans dire pourquoi :
-/// une pastille seule laisse le candidat sans explication.
-const String kConfianceSansRaison =
-    'Une partie de votre production était difficile à analyser : cette note est '
-    'à prendre avec prudence.';
-
-/// En-tête du rapport : **le verdict, la note et le niveau dans UN SEUL bloc**,
-/// calqué sur le `.hero` de la maquette « Rapport express » — dégradé de marque,
-/// halo clair en haut à droite, note à droite, et panneau de niveau
-/// **translucide** posé dessus.
+/// En-tête du rapport : **le verdict et le niveau dans UN SEUL bloc**, calqué
+/// sur le `.hero` de la maquette « Rapport express » — dégradé de marque, halo
+/// clair en haut à droite, et panneau de niveau **translucide** posé dessus.
 ///
 /// Avant, c'étaient trois cartes empilées (bandeau « Évaluation terminée »,
 /// carte objectif, carte note) qui disaient chacune une moitié de la même chose,
 /// et remplissaient un écran entier avant le premier conseil. Le candidat doit
 /// pouvoir répondre à « c'est bien ou pas ? » sans défiler.
 ///
+/// **La note /20 a disparu du résultat d'une tâche** (décision produit du
+/// 2026-08-08) : au TCF, un correcteur attribue **un niveau par tâche**, jamais
+/// une note — le /20 ne porte que sur l'épreuve entière (3 tâches). Et comme
+/// 10/20 y vaut déjà B2, un A2 parfaitement normal s'affichait « 3,5/20 », qu'un
+/// francophone lit comme une catastrophe scolaire. Le **niveau** est donc le
+/// héros de la carte, et la note reste là où elle a un sens : les bilans
+/// d'épreuve et d'examen complet. Corollaire assumé : les bornes chiffrées du
+/// barème (« 2-5 → A2 ») ne sont plus affichées nulle part ici.
+///
 /// Ce qui n'a pas bougé, parce que ce sont des règles et non de la mise en page :
-/// - la note s'affiche AVEC l'échelle du TCF : séparée, elle se lit comme une
-///   note scolaire française, et « 4,5/20 » y passe pour une catastrophe alors
-///   que c'est un A2 ;
 /// - jamais de niveau sans sa confiance ([EvaluationResult.hasNiveauObserve]) ;
 /// - la confiance ne s'affiche QUE lorsqu'elle n'est pas haute ;
-/// - notre niveau est une **estimation** : « proche du niveau B1 », jamais
-///   « B1 » sec ;
-/// - la portée de la note ([kNotePorteeSurLaTache], ou l'`avertissementNiveau`
-///   du backend qui la **remplace**) reste accessible en un geste.
+/// - la portée du niveau ([kNiveauPorteeTache], ou l'`avertissementNiveau` du
+///   backend qui la **remplace**) reste accessible en un geste.
 class ProductionResultsHero extends StatelessWidget {
   const ProductionResultsHero({
     super.key,
     required this.evaluation,
     this.eyebrow,
+    this.targetLevel,
   });
 
   final EvaluationResult evaluation;
@@ -55,6 +43,11 @@ class ProductionResultsHero extends StatelessWidget {
   /// Situe la correction (« Expression écrite · Tâche 1 »). Absent depuis un
   /// contexte qui ne connaît pas la tâche : le hero se rend sans, sans trou.
   final String? eyebrow;
+
+  /// Palier visé par la démarche du candidat. `null` = inconnu : aucun rappel
+  /// d'enjeu n'est alors affiché — un message générique parlerait d'une
+  /// démarche qu'il n'a pas choisie.
+  final TargetLevel? targetLevel;
 
   /// « Objectif atteint » plutôt que « Atteint » seul : sur un hero, le mot doit
   /// se suffire à lui-même. Aucune pastille d'icône ne le précède — la maquette
@@ -66,6 +59,8 @@ class ProductionResultsHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final objectif = evaluation.feedback.accomplissement?.objectif;
     final resume = evaluation.feedback.accomplissement?.objectifResume;
+    final niveau = evaluation.hasNiveauObserve ? evaluation.niveauObserve : null;
+    final rappel = demarcheRappel(targetLevel, niveau);
 
     return Container(
       width: double.infinity,
@@ -88,42 +83,27 @@ class ProductionResultsHero extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (eyebrow != null) ...[
-                                Text(
-                                  eyebrow!.toUpperCase(),
-                                  style: AppFonts.label(
-                                    size: 11,
-                                    color: AppColors.white
-                                        .withValues(alpha: 0.75),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                              ],
-                              Text(
-                                objectif == null
-                                    ? 'Votre correction'
-                                    : objectifTitle(objectif),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppFonts.display(
-                                  size: 25,
-                                  weight: FontWeight.w700,
-                                  color: AppColors.white,
-                                ).copyWith(height: 1.1),
-                              ),
-                            ],
-                          ),
+                    if (eyebrow != null) ...[
+                      Text(
+                        eyebrow!.toUpperCase(),
+                        style: AppFonts.label(
+                          size: 11,
+                          color: AppColors.white.withValues(alpha: 0.75),
                         ),
-                        const SizedBox(width: 14),
-                        _Score(note: evaluation.noteSurVingt),
-                      ],
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    Text(
+                      objectif == null
+                          ? 'Votre correction'
+                          : objectifTitle(objectif),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppFonts.display(
+                        size: 25,
+                        weight: FontWeight.w700,
+                        color: AppColors.white,
+                      ).copyWith(height: 1.1),
                     ),
                     if (resume != null) ...[
                       const SizedBox(height: 8),
@@ -142,7 +122,11 @@ class ProductionResultsHero extends StatelessWidget {
                       ),
                     ],
                     const SizedBox(height: 18),
-                    _LevelPanel(evaluation: evaluation),
+                    _LevelPanel(evaluation: evaluation, niveau: niveau),
+                    if (rappel != null) ...[
+                      const SizedBox(height: 12),
+                      _StakeBlock(rappel: rappel),
+                    ],
                   ],
                 ),
               ),
@@ -179,58 +163,26 @@ class _Halo extends StatelessWidget {
   }
 }
 
-class _Score extends StatelessWidget {
-  const _Score({required this.note});
-
-  final double? note;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(
-            text: note == null ? '—' : formatScore(note!),
-            style: AppFonts.display(
-              size: 40,
-              weight: FontWeight.w700,
-              color: AppColors.white,
-            ).copyWith(height: 1),
-          ),
-          TextSpan(
-            text: '/20',
-            style: AppFonts.ui(
-              size: 15,
-              weight: FontWeight.w600,
-              color: AppColors.white.withValues(alpha: 0.72),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// Panneau `.level` de la maquette : **translucide**, posé sur le dégradé.
-/// Niveau estimé à gauche, pastille à droite, échelle du TCF dessous.
+/// Niveau atteint à gauche, pastille à droite, paliers du TCF dessous.
 ///
 /// Le panneau entier est tactile et ouvre la règle de lecture — la pastille
 /// d'information à côté du sur-titre en est le repère visible. Une ligne
-/// « Comment lire cette note ? » écrite en toutes lettres coûtait une ligne de
+/// « Comment lire ce niveau ? » écrite en toutes lettres coûtait une ligne de
 /// plus dans le bloc que cette refonte est censée alléger.
 class _LevelPanel extends StatelessWidget {
-  const _LevelPanel({required this.evaluation});
+  const _LevelPanel({required this.evaluation, required this.niveau});
 
   final EvaluationResult evaluation;
 
-  static const readingRuleTooltip = 'Comment lire cette note';
+  /// Niveau affichable (déjà passé par la garde « jamais sans confiance »).
+  final NiveauCecrl? niveau;
 
-  /// « Proche du niveau B1 », pas « B1 ». Sauf pour le plancher, où « proche
-  /// de » n'a aucun sens : on n'est pas proche d'un niveau non atteint.
-  static String levelLabel(NiveauCecrl niveau) =>
-      niveau == NiveauCecrl.a1NonAtteint
-          ? 'Niveau A1 non atteint'
-          : 'Proche du niveau ${niveau.displayName}';
+  static const readingRuleTooltip = 'Comment lire ce niveau';
+
+  /// « Votre production est au niveau A2 », pas « Proche du niveau A2 » :
+  /// « proche de » veut dire « pas encore » en français courant.
+  static String levelLabel(NiveauCecrl niveau) => niveauAtteintLabel(niveau);
 
   void _openReadingRule(BuildContext context) {
     showAppSheet<void>(
@@ -239,21 +191,19 @@ class _LevelPanel extends StatelessWidget {
       title: readingRuleTooltip,
       children: [
         Text(
-          evaluation.avertissementNiveau ?? kNotePorteeSurLaTache,
+          evaluation.avertissementNiveau ?? kNiveauPorteeTache,
           style: AppFonts.ui(size: 13.5, color: AppColors.ink, height: 1.55),
         ),
-        const SizedBox(height: 16),
-        const _ReadingTable(),
       ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final niveau = evaluation.hasNiveauObserve ? evaluation.niveauObserve : null;
     final confiance = evaluation.confiance;
     final showConfiance =
         confiance != null && confiance != ConfianceEvaluation.haute;
+    final situation = situationView(evaluation);
 
     return Semantics(
       button: true,
@@ -286,9 +236,7 @@ class _LevelPanel extends StatelessWidget {
                             children: [
                               Flexible(
                                 child: Text(
-                                  niveau == null
-                                      ? 'NOTE SUR L\'ÉCHELLE DU TCF'
-                                      : 'NIVEAU ESTIMÉ',
+                                  'NIVEAU ESTIMÉ',
                                   style: AppFonts.label(
                                     size: 10.5,
                                     color: AppColors.white
@@ -305,28 +253,38 @@ class _LevelPanel extends StatelessWidget {
                               ),
                             ],
                           ),
-                          if (niveau != null) ...[
-                            const SizedBox(height: 3),
-                            Text(
-                              levelLabel(niveau),
-                              style: AppFonts.display(
-                                size: 15,
-                                weight: FontWeight.w700,
-                                color: AppColors.white,
-                              ),
+                          const SizedBox(height: 3),
+                          Text(
+                            niveau == null
+                                ? 'Niveau indisponible pour cette production'
+                                : levelLabel(niveau!),
+                            style: AppFonts.display(
+                              size: 15,
+                              weight: FontWeight.w700,
+                              color: AppColors.white,
                             ),
+                          ),
+                          // Le cran DANS le palier : c'est lui qui remplace la
+                          // note disparue, sans chiffre et sans vocabulaire de
+                          // manque. Il nuance le niveau, il ne le remplace
+                          // pas — d'ou la discretion.
+                          if (situation != null) ...[
+                            const SizedBox(height: 6),
+                            _SituationChip(situation: situation),
                           ],
                         ],
                       ),
                     ),
                     if (niveau != null) ...[
                       const SizedBox(width: 10),
-                      _LevelPill(niveau: niveau),
+                      _LevelPill(niveau: niveau!),
                     ],
                   ],
                 ),
-                const SizedBox(height: 11),
-                TcfNoteScale.onDark(note: evaluation.noteSurVingt),
+                if (niveau != null) ...[
+                  const SizedBox(height: 11),
+                  _PaliersBar(niveau: niveau!),
+                ],
                 if (showConfiance) ...[
                   const SizedBox(height: 12),
                   _ConfianceBlock(
@@ -343,9 +301,42 @@ class _LevelPanel extends StatelessWidget {
   }
 }
 
+/// Le cran de progression **dans** le palier, en pastille translucide sous le
+/// niveau. Aucun chiffre : c'est tout l'objet du champ.
+///
+/// Elle porte la forme **composée** (« A2 solide »), celle que
+/// `docs/notation-ia-eo-ee.md` §6.3 bis annonce au candidat — et jamais
+/// « presque B1 », qui réintroduirait le vocabulaire de manque qu'on vient de
+/// retirer avec la note.
+class _SituationChip extends StatelessWidget {
+  const _SituationChip({required this.situation});
+
+  final SituationView situation;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+        border: Border.all(color: AppColors.white.withValues(alpha: 0.26)),
+      ),
+      child: Text(
+        situation.libelleAvecNiveau,
+        style: AppFonts.ui(
+          size: 11.5,
+          weight: FontWeight.w700,
+          color: AppColors.white.withValues(alpha: 0.92),
+        ),
+      ),
+    );
+  }
+}
+
 /// Pastille `.pill.light` : fond blanc, **texte à la teinte du palier**
-/// ([CecrlColor]). C'est elle qui porte la couleur du niveau, puisque l'échelle
-/// passe en blanc sur le dégradé.
+/// ([CecrlColor]). C'est elle qui porte la couleur du niveau, puisque la barre
+/// des paliers passe en blanc sur le dégradé.
 class _LevelPill extends StatelessWidget {
   const _LevelPill({required this.niveau});
 
@@ -371,53 +362,116 @@ class _LevelPill extends StatelessWidget {
   }
 }
 
-/// Les cinq paliers officiels et leurs bornes, dans la feuille de règle de
-/// lecture : c'est là que vit le tableau, pas dans le hero.
-class _ReadingTable extends StatelessWidget {
-  const _ReadingTable();
+/// Les cinq paliers du TCF **sur le dégradé**, celui du candidat mis en avant.
+///
+/// C'était l'échelle des notes, curseur compris ; elle situe désormais un
+/// **palier**, la seule chose que le résultat d'une tâche annonce. Les paliers
+/// sont dessinés à largeur égale : ce qu'on montre, c'est la suite des paliers,
+/// pas un axe métrique.
+class _PaliersBar extends StatelessWidget {
+  const _PaliersBar({required this.niveau});
+
+  final NiveauCecrl niveau;
+
+  static const double _gap = 4;
+  static const double _barHeight = 8;
 
   @override
   Widget build(BuildContext context) {
+    final activeIndex = niveau.tcfPalierIndex;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final band in kTcfNoteBands)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              children: [
-                Container(
-                  width: 58,
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  alignment: Alignment.center,
+        Row(
+          children: [
+            for (var i = 0; i < kTcfPaliers.length; i++) ...[
+              if (i > 0) const SizedBox(width: _gap),
+              Expanded(
+                child: Container(
+                  height: _barHeight,
                   decoration: BoxDecoration(
-                    color: band.tone.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadii.sm),
-                  ),
-                  child: Text(
-                    band.rangeLabel,
-                    style: AppFonts.ui(
-                      size: 12,
-                      weight: FontWeight.w800,
-                      color: band.tone,
-                    ),
+                    color: AppColors.white
+                        .withValues(alpha: i == activeIndex ? 1 : 0.18),
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    band.label,
-                    style: AppFonts.ui(
-                      size: 13,
-                      weight: FontWeight.w600,
-                      color: AppColors.ink,
-                    ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 7),
+        Row(
+          children: [
+            for (var i = 0; i < kTcfPaliers.length; i++) ...[
+              if (i > 0) const SizedBox(width: _gap),
+              Expanded(
+                child: Text(
+                  kTcfPaliers[i].shortName,
+                  textAlign: TextAlign.center,
+                  style: AppFonts.ui(
+                    size: 9.5,
+                    weight:
+                        i == activeIndex ? FontWeight.w800 : FontWeight.w600,
+                    color: AppColors.white
+                        .withValues(alpha: i == activeIndex ? 1 : 0.55),
                   ),
                 ),
-              ],
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Le rappel d'enjeu : un A2 qui vise la carte de séjour pluriannuelle EST au
+/// niveau demandé, et personne ne le lui disait. Filet vertical côté gauche,
+/// jamais rouge — un objectif encore devant n'est pas une faute.
+class _StakeBlock extends StatelessWidget {
+  const _StakeBlock({required this.rappel});
+
+  final DemarcheRappel rappel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
+      decoration: BoxDecoration(
+        color: AppColors.white
+            .withValues(alpha: rappel.atteint ? 0.17 : 0.12),
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border(
+          left: BorderSide(
+            color: AppColors.white
+                .withValues(alpha: rappel.atteint ? 1 : 0.55),
+            width: 3,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'VOTRE DÉMARCHE',
+            style: AppFonts.label(
+              size: 10,
+              color: AppColors.white.withValues(alpha: 0.75),
             ),
           ),
-      ],
+          const SizedBox(height: 4),
+          Text(
+            rappel.text,
+            style: AppFonts.ui(
+              size: 13,
+              color: AppColors.white.withValues(alpha: 0.92),
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

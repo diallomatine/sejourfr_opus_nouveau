@@ -418,6 +418,20 @@ export type NiveauCecrl =
     | "C1"
     | "C2";
 
+/**
+ * Où se situe une production **à l'intérieur de son propre palier**, en trois
+ * crans (dérivé serveur, cf. l'enum Java `SituationDansNiveau`).
+ *
+ * C'est ce qui remplace, sur le résultat d'une TÂCHE, la note /20 qui n'y est
+ * plus affichée : sans lui, un A2 à 2 et un A2 à 5 voyaient exactement le même
+ * écran, et le candidat n'avait plus aucun signal de progression entre deux
+ * tentatives.
+ *
+ * Null sur les évaluations antérieures, sur `A1_NON_ATTEINT` (bande d'une seule
+ * valeur) et sur C1/C2 (hors profil TCF IRN).
+ */
+export type SituationDansNiveau = "ENTREE_DE_PALIER" | "PALIER_CONFIRME" | "PALIER_SOLIDE";
+
 /** POST /api/attempts/production — crée un attempt vide pour EO/EE. */
 export interface ProductionAttemptStartRequest {
     module: Module;
@@ -482,11 +496,12 @@ export type BandeCritere =
 /** Résultat IA. `feedback` est le JSONB brut (clés snake_case) — utiliser
  *  {@link parseEeFeedback} pour le normaliser avant affichage.
  *
- *  `niveauObserve` est la performance observée SUR CETTE TÂCHE, formulée
- *  prudemment (« proche du niveau B1 ») : le seul niveau qui fait foi reste
- *  celui du bilan d'épreuve (cf. {@link ProductionBilanResponse}). Garde-fou
- *  produit : il n'est JAMAIS affiché sans `confiance` à côté — le backend ne
- *  le renseigne d'ailleurs pas quand la confiance est inconnue.
+ *  `niveauObserve` est la performance observée SUR CETTE TÂCHE : c'est tout ce
+ *  qu'un écran affiche d'une tâche isolée (au TCF, une tâche reçoit un niveau,
+ *  jamais une note), le niveau qui fait foi restant celui du bilan d'épreuve
+ *  (cf. {@link ProductionBilanResponse}). Garde-fou produit : il n'est JAMAIS
+ *  affiché sans `confiance` à côté — le backend ne le renseigne d'ailleurs pas
+ *  quand la confiance est inconnue.
  *
  *  Les évaluations d'avant la notation v4 laissent `niveauObserve`,
  *  `confiance` et `avertissementNiveau` à null (et leur `feedback` n'a ni
@@ -496,6 +511,12 @@ export interface EvaluationResultDto {
     niveauObserve: NiveauCecrl | null;
     confiance: ConfianceEvaluation | null;
     avertissementNiveau: string | null;
+    /** Position dans la bande du niveau annoncé (3 crans). Null = rien à
+     *  situer : évaluation ancienne, `A1_NON_ATTEINT`, ou C1/C2. */
+    situationDansNiveau: SituationDansNiveau | null;
+    /** Libellé composé prêt à afficher (« A2 solide »). Null exactement quand
+     *  `situationDansNiveau` l'est. */
+    situationDansNiveauLabel: string | null;
     feedback: Record<string, unknown> | null;
 }
 
@@ -1130,6 +1151,30 @@ export interface EePriority {
     exemple: EePriorityExample | null;
 }
 
+/**
+ * La réponse du candidat **réécrite au palier qu'il vise**, plus ce qui l'en
+ * sépare. Produite par un SECOND appel LLM, totalement séparé de la correction
+ * (le correcteur n'apprend jamais quel niveau vise le candidat — sinon il
+ * alignerait sa note dessus).
+ *
+ * **EE uniquement**, et absente dans tous ces cas parfaitement normaux : à
+ * l'oral, sur les évaluations antérieures, quand le second appel a échoué, et
+ * quand le niveau visé est déjà atteint (montrer une « version B1 » à quelqu'un
+ * qui écrit du B2 serait un contresens). Rien ne s'affiche alors — ni squelette,
+ * ni « non disponible ».
+ */
+export interface EeVersionCiblee {
+    /** Palier visé par le candidat (son `targetLevel`, à défaut celui du sujet). */
+    niveauVise: TargetLevel;
+    /** Palier réellement observé sur cette tâche. Absent si inconnu. */
+    niveauConstate: NiveauCecrl | null;
+    /** Le modèle rédigé au niveau visé. **Jamais la production du candidat.** */
+    texte: string;
+    /** 2 à 3 leviers, **dans l'ordre du backend** (du plus rentable au moins
+     *  rentable) : ne jamais retrier côté front. */
+    ceQuiManque: string[];
+}
+
 export interface EeFeedback {
     /** Note /20 à UNE décimale (12,5 et non 13) : c'est la moyenne des quatre
      *  critères, recalculée serveur. */
@@ -1151,10 +1196,16 @@ export interface EeFeedback {
     /** Limité à 3 côté backend. */
     exemplesCorriges: EeCorrection[];
     avertissements: string[];
-    /** Production réécrite en entier, au niveau visé. Présente en EE seulement :
-     *  on ne réécrit pas un oral, l'absence en EO est voulue et n'est pas une
-     *  erreur. Null aussi sur les évaluations antérieures à la grille v8. */
+    /** Production réécrite au niveau **déjà constaté**. ⚠️ **N'est plus affichée
+     *  nulle part depuis le 2026-08-08** : recopiée puis resoumise, elle rendait
+     *  la même note et le même niveau, alors qu'elle était le texte le plus
+     *  copiable du rapport. Le champ reste typé parce que l'API le sert encore
+     *  (le retirer imposerait une version de tool-schema). Ne pas le rebrancher
+     *  dans un composant : le seul modèle affiché est `versionCiblee`. */
     versionAmelioree: string | null;
+    /** La même réponse écrite **au palier au-dessus**, celui que le candidat
+     *  vise — le seul texte modèle rendu au candidat. */
+    versionCiblee: EeVersionCiblee | null;
 }
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -1196,6 +1247,46 @@ function asBande(v: unknown): BandeCritere | null {
 function asConfiance(v: unknown): ConfianceEvaluation | null {
     const s = asString(v)?.toUpperCase();
     return s === "HAUTE" || s === "MOYENNE" || s === "FAIBLE" ? s : null;
+}
+
+function asTargetLevel(v: unknown): TargetLevel | null {
+    const s = asString(v)?.toUpperCase();
+    return s === "A2" || s === "B1" || s === "B2" ? s : null;
+}
+
+const NIVEAUX_CECRL: readonly string[] = [
+    "A1_NON_ATTEINT",
+    "A1",
+    "A2",
+    "B1",
+    "B2",
+    "C1",
+    "C2",
+];
+
+function asNiveauCecrl(v: unknown): NiveauCecrl | null {
+    const s = asString(v)?.toUpperCase();
+    return s && NIVEAUX_CECRL.includes(s) ? (s as NiveauCecrl) : null;
+}
+
+/**
+ * Bloc `version_ciblee`, ou `null` dès qu'il manque de quoi l'afficher
+ * honnêtement : sans palier visé on ne saurait pas au nom de quoi ce texte est
+ * montré, et sans texte il n'y a rien à montrer. L'ordre de `ce_qui_manque` est
+ * **préservé** — le backend le trie du plus rentable au moins rentable.
+ */
+function asVersionCiblee(v: unknown): EeVersionCiblee | null {
+    const r = asRecord(v);
+    if (!r) return null;
+    const niveauVise = asTargetLevel(r.niveau_vise);
+    const texte = asString(r.texte);
+    if (!niveauVise || !texte) return null;
+    return {
+        niveauVise,
+        niveauConstate: asNiveauCecrl(r.niveau_constate),
+        texte,
+        ceQuiManque: asStringList(r.ce_qui_manque),
+    };
 }
 
 function asObjectif(v: unknown): ObjectifAccomplissement | null {
@@ -1269,6 +1360,7 @@ export function parseEeFeedback(
         exemplesCorriges: [],
         avertissements: [],
         versionAmelioree: null,
+        versionCiblee: null,
     };
     const fb = asRecord(evaluation?.feedback);
     if (!fb) return empty;
@@ -1330,6 +1422,7 @@ export function parseEeFeedback(
         exemplesCorriges,
         avertissements: asStringList(fb.avertissements),
         versionAmelioree: asString(fb.version_amelioree),
+        versionCiblee: asVersionCiblee(fb.version_ciblee),
     };
 }
 
@@ -1383,17 +1476,32 @@ export function eeCriterionLabel(code: string): string {
     }
 }
 
-/** Libellé affichable d'une bande de critère. */
+/**
+ * Libellé affichable d'une bande de critère : **le palier atteint, pas un
+ * déficit**.
+ *
+ * Les bornes des bandes (10 / 6 / 2) sont exactement celles des paliers du TCF.
+ * Conséquence structurelle du vocabulaire précédent (« En cours d'acquisition »,
+ * « Fragile ») : la bande d'un candidat A2 était son niveau CECRL renommé en
+ * échec, et **aucune production ne pouvait lui faire afficher autre chose**. On
+ * nomme donc la bande par ce qu'elle est.
+ *
+ * ⚠️ Contrat gelé, écrit à la main sur les deux fronts (le réseau ne transporte
+ * que l'enum) : miroir mot pour mot de `BandeCritere.displayName`
+ * (`mobile_sejourfr/lib/core/models/enums.dart`), verrouillé des deux côtés par
+ * test. Un libellé qui bouge, ce sont deux fichiers + deux tests dans la même
+ * passe.
+ */
 export function bandeCritereLabel(b: BandeCritere): string {
     switch (b) {
         case "TRES_BONNE_MAITRISE":
-            return "Très bonne maîtrise";
+            return "Niveau B2";
         case "SATISFAISANT":
-            return "Satisfaisant";
+            return "Niveau B1";
         case "EN_COURS_ACQUISITION":
-            return "En cours d'acquisition";
+            return "Niveau A2";
         case "FRAGILE":
-            return "Fragile";
+            return "Niveau A1";
         case "NON_EVALUABLE":
             return "Non évaluable";
     }

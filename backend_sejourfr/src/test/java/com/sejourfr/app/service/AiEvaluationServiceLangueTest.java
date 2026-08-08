@@ -105,7 +105,7 @@ class AiEvaluationServiceLangueTest {
             llmClient, new EvaluationPromptBuilder(new ObjectMapper(), rubrics), rubrics,
             new ProductionValidityService(props),
             new ProductionSecondePasseService(props, mock(EvaluationLlmClient.class), rubrics),
-            new ProductionFluiditeService(props), new EvaluationRefusalMetrics(), props);
+            new ProductionFluiditeService(props), new EvaluationRefusalMetrics(), new EvaluationPurgeMetrics(), props);
     }
 
     // --------------------------------------------------------- non-regression

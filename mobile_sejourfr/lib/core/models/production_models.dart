@@ -184,6 +184,8 @@ class EvaluationResult {
     this.niveauObserve,
     this.confiance,
     this.avertissementNiveau,
+    this.situationDansNiveau,
+    this.situationDansNiveauLabel,
   });
 
   /// Note 0..20, peut etre nulle si l'IA n'a pas pu noter (ex: production vide).
@@ -200,6 +202,15 @@ class EvaluationResult {
   /// backend). Null quand il n'y a pas de niveau.
   final String? avertissementNiveau;
 
+  /// Position de la production DANS la bande du niveau annonce (3 crans).
+  /// Null quand il n'y a rien a situer (eval ancienne, `A1_NON_ATTEINT`,
+  /// C1/C2) : l'affichage disparait alors, sans placeholder.
+  final SituationDansNiveau? situationDansNiveau;
+
+  /// Libelle compose pret a afficher (« A2 solide »), pose par le serveur.
+  /// Null exactement en meme temps que [situationDansNiveau].
+  final String? situationDansNiveauLabel;
+
   final EvaluationFeedback feedback;
 
   /// Garde-fou produit : jamais de niveau sans sa confiance a cote.
@@ -213,6 +224,10 @@ class EvaluationResult {
         confiance:
             ConfianceEvaluation.fromWireNullable(json['confiance'] as String?),
         avertissementNiveau: json['avertissementNiveau'] as String?,
+        situationDansNiveau: SituationDansNiveau.fromWireNullable(
+          json['situationDansNiveau'] as String?,
+        ),
+        situationDansNiveauLabel: _trimmedOrNull(json['situationDansNiveauLabel']),
         feedback: EvaluationFeedback.fromJson(
           (json['feedback'] as Map<String, dynamic>?) ?? const {},
         ),
@@ -227,6 +242,7 @@ class EvaluationFeedback {
     this.confianceRaisons = const [],
     this.accomplissement,
     this.versionAmelioree,
+    this.versionCiblee,
     this.scoresCriteres = const [],
     this.pointsForts = const [],
     this.pointsAAmeliorer = const [],
@@ -249,11 +265,19 @@ class EvaluationFeedback {
   /// les evaluations anterieures au contrat v4.
   final Accomplissement? accomplissement;
 
-  /// Production reecrite en entier, telle qu'elle aurait pu etre rendue.
-  /// Presente en expression ECRITE uniquement : a l'oral, reecrire le discours
-  /// du candidat n'aurait pas de sens (on ne lui demande pas de reciter un
-  /// texte). Absente aussi des evaluations anterieures.
+  /// Production reecrite au niveau **deja constate**. ⚠️ **N'est plus affichee
+  /// nulle part depuis le 2026-08-08** : recopiee puis resoumise, elle rendait
+  /// la meme note et le meme niveau, alors qu'elle etait le texte le plus
+  /// copiable du rapport. Le champ reste decode parce que l'API le sert encore
+  /// (le retirer imposerait une version de tool-schema). Ne pas le rebrancher
+  /// dans un widget : le seul modele affiche est [versionCiblee].
   final String? versionAmelioree;
+
+  /// La meme reponse redigee au palier que le candidat VISE, plus les 2 a 3
+  /// leviers qui l'en separent — le seul texte modele rendu au candidat.
+  /// **EE uniquement**, et absente aussi quand le niveau vise est deja atteint
+  /// ou quand le second appel LLM a echoue : cas normaux.
+  final VersionCiblee? versionCiblee;
 
   final List<CriterionScore> scoresCriteres;
   final List<String> pointsForts;
@@ -277,6 +301,7 @@ class EvaluationFeedback {
           ? Accomplissement.fromJson(accomplissement)
           : null,
       versionAmelioree: _trimmedOrNull(json['version_amelioree']),
+      versionCiblee: VersionCiblee.fromJsonNullable(json['version_ciblee']),
       scoresCriteres: ((json['scores_criteres'] as List?) ?? const [])
           .map((e) => CriterionScore.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -298,6 +323,76 @@ class EvaluationFeedback {
           .toList(),
     );
   }
+}
+
+/// La reponse du candidat **reecrite au palier qu'il vise**, plus ce qui l'en
+/// separe. Produite par un SECOND appel LLM, totalement separe de la
+/// correction : le correcteur n'apprend jamais quel niveau vise le candidat,
+/// sinon il alignerait sa note dessus.
+///
+/// **EE uniquement.** Le bloc est absent dans tous ces cas parfaitement
+/// normaux : a l'oral, sur les evaluations anterieures, quand le second appel a
+/// echoue, et quand le niveau vise est deja atteint (montrer une « version B1 »
+/// a quelqu'un qui ecrit du B2 serait un contresens). Rien ne s'affiche alors —
+/// ni squelette, ni « non disponible ».
+class VersionCiblee {
+  const VersionCiblee({
+    required this.niveauVise,
+    required this.texte,
+    this.niveauConstate,
+    this.ceQuiManque = const [],
+  });
+
+  /// Palier vise par le candidat (son `targetLevel`, a defaut celui du sujet).
+  final TargetLevel niveauVise;
+
+  /// Palier reellement observe sur cette tache. Absent si inconnu.
+  final NiveauCecrl? niveauConstate;
+
+  /// Le modele redige au niveau vise. **Jamais la production du candidat.**
+  final String texte;
+
+  /// 2 a 3 leviers, **dans l'ordre du backend** (du plus rentable au moins
+  /// rentable) : ne jamais retrier cote front.
+  final List<String> ceQuiManque;
+
+  /// Null des qu'il manque de quoi l'afficher honnetement : sans palier vise on
+  /// ne saurait pas au nom de quoi ce texte est montre, et sans texte il n'y a
+  /// rien a montrer.
+  static VersionCiblee? fromJsonNullable(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final vise = _targetLevelOrNull(_trimmedOrNull(raw['niveau_vise']));
+    final texte = _trimmedOrNull(raw['texte']);
+    if (vise == null || texte == null) return null;
+    return VersionCiblee(
+      niveauVise: vise,
+      niveauConstate: _niveauCecrlOrNull(_trimmedOrNull(raw['niveau_constate'])),
+      texte: texte,
+      ceQuiManque: ((raw['ce_qui_manque'] as List?) ?? const [])
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toList(growable: false),
+    );
+  }
+}
+
+/// Lectures **tolerantes** des deux enums de niveau : le bloc est facultatif et
+/// ne doit jamais faire echouer le parsing d'une evaluation par ailleurs
+/// valide. `TargetLevel.fromWireNullable` leve sur une valeur inconnue.
+TargetLevel? _targetLevelOrNull(String? wire) {
+  if (wire == null) return null;
+  for (final t in TargetLevel.values) {
+    if (t.wire == wire.toUpperCase()) return t;
+  }
+  return null;
+}
+
+NiveauCecrl? _niveauCecrlOrNull(String? wire) {
+  if (wire == null) return null;
+  for (final n in NiveauCecrl.values) {
+    if (n.wire == wire.toUpperCase()) return n;
+  }
+  return null;
 }
 
 /// Une priorite de travail. Un rapport doit ENSEIGNER, pas constater : le

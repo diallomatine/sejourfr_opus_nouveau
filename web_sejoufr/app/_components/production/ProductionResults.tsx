@@ -5,7 +5,11 @@ import {useParams, useSearchParams} from "next/navigation";
 import {useEffect, useState} from "react";
 import {ApiException, productionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
-import {isSubmissionPending, type ProductionSubmissionDto} from "@/lib/types";
+import {
+  isSubmissionPending,
+  tcfLevelFromProcedure,
+  type ProductionSubmissionDto,
+} from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
 import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
@@ -149,6 +153,10 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
               eyebrow={`${config.epreuve === "TCF_EO" ? "Expression orale" : "Expression écrite"} · Tâche ${tacheNum}`}
               productionText={config.mode === "text" ? submission.texteSoumis : null}
               motsCount={submission.motsCount}
+              // Palier visé par la démarche. Volontairement SANS le repli
+              // « B1 » de `resolveTcfLevel` : un objectif deviné n'a rien à
+              // faire dans une phrase qui dit au candidat ce qu'il joue.
+              targetLevel={user.targetLevel ?? tcfLevelFromProcedure(user.targetProcedure)}
             />
 
             {/* À l'oral, l'écho de la production est la transcription. */}

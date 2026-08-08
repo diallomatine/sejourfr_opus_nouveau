@@ -2,10 +2,10 @@
 
 import {
   type EpreuveType,
-  formatNoteSur20,
   productionTaskTitle,
   type ProductionSubmissionDto,
 } from "@/lib/types";
+import { tacheNiveau, tacheNiveauLabel } from "@/lib/production-feedback";
 import {
   RowChevron,
   SkillBadge,
@@ -15,9 +15,13 @@ import s from "@/app/_components/skill-ui/skill.module.css";
 
 /**
  * Ligne d'une soumission de production (EE/EO) : numéro de tâche, titre (selon
- * l'épreuve), état (note si évaluée, sinon « en cours » / « échouée »). Pas de
- * niveau CECRL par tâche. Partagée entre le hub et l'historique — c'est la même
- * carte que celles des sujets, à la géométrie de la maquette.
+ * l'épreuve), état (**niveau** si évaluée, sinon « en cours » / « échouée »).
+ * Partagée entre le hub et l'historique — c'est la même carte que celles des
+ * sujets, à la géométrie de la maquette.
+ *
+ * Le badge portait la note /20 : une soumission, c'est UNE tâche, et le TCF n'y
+ * attache pas de note (décision produit du 2026-08-08). Il porte donc le palier
+ * observé sur cette tâche.
  */
 export function SubmissionRow({
   submission: sub,
@@ -28,7 +32,7 @@ export function SubmissionRow({
   epreuve: EpreuveType;
   onClick: () => void;
 }) {
-  const note = sub.evaluation?.noteSurVingt;
+  const niveau = tacheNiveau(sub.evaluation);
   const evaluated = sub.statut === "EVALUATED";
   const pending = !evaluated && sub.statut !== "FAILED";
   const text =
@@ -46,9 +50,9 @@ export function SubmissionRow({
       title={productionTaskTitle(epreuve, sub.tacheNumero ?? 0)}
       text={text}
       aside={
-        note != null && evaluated ? (
+        niveau && evaluated ? (
           <span className={s.rowAside}>
-            <SkillBadge tone="treated">{formatNoteSur20(note)}/20</SkillBadge>
+            <SkillBadge tone="treated">{tacheNiveauLabel(niveau)}</SkillBadge>
             <RowChevron />
           </span>
         ) : undefined

@@ -42,6 +42,7 @@ public class ProductionEvaluationProperties {
     private SecondePasse secondePasse = new SecondePasse();
     private CoherenceBilan coherenceBilan = new CoherenceBilan();
     private RecollageTours recollageTours = new RecollageTours();
+    private VersionCiblee versionCiblee = new VersionCiblee();
     /**
      * Plafond audio accepte pour une submission EO (defaut: 5 min).
      */
@@ -181,6 +182,14 @@ public class ProductionEvaluationProperties {
 
     public void setRecollageTours(RecollageTours recollageTours) {
         this.recollageTours = recollageTours;
+    }
+
+    public VersionCiblee getVersionCiblee() {
+        return versionCiblee;
+    }
+
+    public void setVersionCiblee(VersionCiblee versionCiblee) {
+        this.versionCiblee = versionCiblee;
     }
 
     public int getMaxAudioDurationSeconds() {
@@ -1215,6 +1224,100 @@ public class ProductionEvaluationProperties {
 
         public void setPlafondSiTache3Faible(com.sejourfr.app.enums.NiveauCecrl plafondSiTache3Faible) {
             this.plafondSiTache3Faible = plafondSiTache3Faible;
+        }
+    }
+
+    /**
+     * « Version au niveau visé » : la réponse du candidat réécrite au palier
+     * qu'il VISE (son {@code TargetLevel}), plus deux à trois leviers concrets
+     * pour l'atteindre. <b>EE uniquement</b>, en miroir de la règle
+     * {@code version_amelioree} (obligatoire à l'écrit, retirée à l'oral).
+     *
+     * <p><b>SECOND APPEL LLM, totalement séparé de la correction — c'est la
+     * raison même de la fonctionnalité, pas un détail d'implémentation.</b> Le
+     * prompt de notation ne change pas d'un octet : le correcteur ne doit jamais
+     * savoir quel niveau vise le candidat, sinon il aligne sa note dessus. Le
+     * dépôt a déjà mesuré qu'ajouter un bloc à la grille dégrade la notation
+     * (rubriques v10/v11 : accord exact 81,8 % → 75,6 %). Ne pas fusionner les
+     * deux appels, même si ça paraît plus économique.
+     *
+     * <p><b>Best-effort, jamais bloquant</b> : un échec de ce second appel
+     * (timeout, sortie invalide, clé absente) laisse l'évaluation
+     * {@code EVALUATED} et valide, le bloc est simplement absent du feedback.
+     *
+     * <p>Le FOURNISSEUR reste {@code sejourfr.production-evaluation.provider} —
+     * règle « un seul correcteur configurable ». Ce bloc ne porte que le contrat
+     * de sortie, le budget de tokens et le coupe-circuit.
+     */
+    public static class VersionCiblee {
+        /**
+         * Livré ACTIF. {@code false} = plus aucun second appel, plus aucun bloc
+         * {@code version_ciblee} : le comportement d'avant, à l'identique.
+         */
+        private boolean enabled = true;
+        /** Consignes : {@code prompts/production-version-ciblee-rubrics-<v>.json}. */
+        private String rubricsVersion = "v1";
+        /** Contrat de sortie : {@code prompts/production-version-ciblee-tool-schema-<v>.json}. */
+        private String toolSchemaVersion = "v1";
+        /**
+         * Plafond de tokens de SORTIE, PROPRE à cet appel (pas les 4000 d'une
+         * correction complète) : la sortie tient en un texte court plus deux ou
+         * trois phrases. C'est un plafond, pas une consommation — mais le
+         * relever ouvrirait la porte à des versions bavardes que le contrat
+         * n'attend pas.
+         */
+        private int maxTokens = 1200;
+        /** Zéro : deux lectures du même texte doivent donner la même version. */
+        private double temperature = 0;
+        /** Plafond serveur du nombre de leviers rendus (le schéma en demande 2 à 3). */
+        private int maxLeviers = 3;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getRubricsVersion() {
+            return rubricsVersion;
+        }
+
+        public void setRubricsVersion(String rubricsVersion) {
+            this.rubricsVersion = rubricsVersion;
+        }
+
+        public String getToolSchemaVersion() {
+            return toolSchemaVersion;
+        }
+
+        public void setToolSchemaVersion(String toolSchemaVersion) {
+            this.toolSchemaVersion = toolSchemaVersion;
+        }
+
+        public int getMaxTokens() {
+            return maxTokens;
+        }
+
+        public void setMaxTokens(int maxTokens) {
+            this.maxTokens = maxTokens;
+        }
+
+        public double getTemperature() {
+            return temperature;
+        }
+
+        public void setTemperature(double temperature) {
+            this.temperature = temperature;
+        }
+
+        public int getMaxLeviers() {
+            return maxLeviers;
+        }
+
+        public void setMaxLeviers(int maxLeviers) {
+            this.maxLeviers = maxLeviers;
         }
     }
 }

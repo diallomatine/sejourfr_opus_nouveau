@@ -7,6 +7,7 @@ import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.exception.AiEvaluationException;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.TranscriptionManager;
+import com.sejourfr.app.service.versionciblee.ProductionVersionCibleeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -45,6 +46,7 @@ public class ProductionPipelineAsyncRunner {
     private final WhisperTranscriptionService whisperService;
     private final AiEvaluationService aiEvaluationService;
     private final ProductionPipelineFailureRecorder failureRecorder;
+    private final ProductionVersionCibleeService versionCibleeService;
 
     /**
      * Lance le pipeline d'évaluation IA en arrière-plan. Re-fetch la
@@ -86,6 +88,17 @@ public class ProductionPipelineAsyncRunner {
             }
             log.info("Pipeline async OK pour submission {} (epreuve={})",
                     submissionId, epreuve);
+            // SECOND APPEL LLM, totalement separe de la correction : la reponse
+            // du candidat reecrite au niveau qu'il VISE (EE seulement). Lance
+            // APRES que l'evaluation est persistee et EVALUATED, et hors de
+            // toute transaction — comme le reste de ce runner.
+            //
+            // /!\ INVARIANT : il ne doit JAMAIS faire echouer une correction
+            // deja obtenue. Le service avale toutes ses exceptions ; le catch
+            // ci-dessous, qui poserait FAILED, est un filet supplementaire dont
+            // on ne veut pas dependre — d'ou l'appel deliberement place apres
+            // le log de succes, sur une evaluation deja commitee.
+            versionCibleeService.enrichir(submissionId);
         } catch (Exception e) {
             log.warn("Pipeline async FAILED pour submission {} : {}",
                     submissionId, e.getMessage(), e);

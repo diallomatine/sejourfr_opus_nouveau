@@ -6,24 +6,46 @@
 // Exécution : `npm test` (runner natif de Node, aucune dépendance ajoutée).
 
 import assert from "node:assert/strict";
+import {readFileSync, readdirSync} from "node:fs";
 import {describe, it} from "node:test";
 import {
+    NIVEAU_PORTEE_TACHE,
+    SITUATION_LIBELLES,
+    SITUATION_QUALIFICATIFS,
+    TACHE_EVALUEE_LABEL,
+    TACHE_TRAITEE_LABEL,
     TCF_NOTE_BANDS,
+    VERSION_CIBLEE_EYEBROW,
+    VERSION_CIBLEE_LEVIERS_TITLE,
     bilanNiveauPendingLabel,
     canShowNiveau,
     critereBandeFromNote,
+    demarcheRappel,
     groupAccomplishment,
     hasAccomplishmentDetail,
+    niveauAtteintLabel,
     objectifPresentation,
     shouldShowConfiance,
+    situationView,
     splitHighlight,
-    tcfBandRange,
+    tacheNiveau,
+    tacheNiveauLabel,
+    tacheNiveauTone,
+    tcfBandIndex,
     tcfNiveauTone,
-    tcfNoteTone,
-    tcfScalePosition,
+    tcfPalierIndex,
     treatedPointsSummary,
+    versionCibleeIntro,
+    versionCibleeTitle,
 } from "./production-feedback.ts";
-import {bandeCritereLabel, parseEeFeedback, type EvaluationResultDto} from "./types.ts";
+import {
+    bandeCritereLabel,
+    parseEeFeedback,
+    type BandeCritere,
+    type EvaluationResultDto,
+    type NiveauCecrl,
+    type SituationDansNiveau,
+} from "./types.ts";
 
 function evaluation(feedback: Record<string, unknown> | null): EvaluationResultDto {
     return {
@@ -31,6 +53,8 @@ function evaluation(feedback: Record<string, unknown> | null): EvaluationResultD
         niveauObserve: "A2",
         confiance: "HAUTE",
         avertissementNiveau: null,
+        situationDansNiveau: null,
+        situationDansNiveauLabel: null,
         feedback,
     };
 }
@@ -51,12 +75,6 @@ describe("échelle du TCF", () => {
         );
     });
 
-    it("écrit les plages comme on les lit sous la barre", () => {
-        assert.equal(tcfBandRange(TCF_NOTE_BANDS[0]), "0");
-        assert.equal(tcfBandRange(TCF_NOTE_BANDS[2]), "2-5");
-        assert.equal(tcfBandRange(TCF_NOTE_BANDS[4]), "10-20");
-    });
-
     it("place une note de chaque palier dans SA bande", () => {
         const cases: [number, number][] = [
             [0, 0], // A1 non atteint
@@ -70,48 +88,37 @@ describe("échelle du TCF", () => {
             [20, 4], // haut de B2
         ];
         for (const [note, expected] of cases) {
-            const pos = tcfScalePosition(note);
-            assert.ok(pos, `note ${note}`);
-            assert.equal(pos.bandIndex, expected, `note ${note}`);
+            assert.equal(tcfBandIndex(note), expected, `note ${note}`);
         }
-    });
-
-    it("garde le curseur à l'intérieur de la case de sa bande", () => {
-        const width = 100 / TCF_NOTE_BANDS.length;
-        for (const note of [0, 1, 2, 4.5, 5, 6, 9, 10, 15, 20]) {
-            const pos = tcfScalePosition(note);
-            assert.ok(pos);
-            const low = pos.bandIndex * width;
-            assert.ok(
-                pos.percent > low && pos.percent < low + width,
-                `note ${note} → ${pos.percent}% hors de [${low}, ${low + width}]`,
-            );
-        }
-    });
-
-    it("progresse avec la note", () => {
-        const a = tcfScalePosition(2)!.percent;
-        const b = tcfScalePosition(4.5)!.percent;
-        const c = tcfScalePosition(12)!.percent;
-        assert.ok(a < b && b < c);
     });
 
     it("rattache une note à décimale entre deux bandes à la bande basse, comme le serveur", () => {
         // 5,5 < 6 : le backend en fait un A2, l'échelle doit dire la même chose.
-        assert.equal(tcfScalePosition(5.5)!.bandIndex, 2);
-        assert.equal(tcfScalePosition(0.5)!.bandIndex, 0);
-        assert.equal(tcfScalePosition(9.9)!.bandIndex, 3);
+        assert.equal(tcfBandIndex(5.5), 2);
+        assert.equal(tcfBandIndex(0.5), 0);
+        assert.equal(tcfBandIndex(9.9), 3);
     });
 
     it("borne les notes aberrantes plutôt que de sortir de la barre", () => {
-        assert.equal(tcfScalePosition(-3)!.bandIndex, 0);
-        assert.equal(tcfScalePosition(42)!.bandIndex, 4);
+        assert.equal(tcfBandIndex(-3), 0);
+        assert.equal(tcfBandIndex(42), 4);
     });
 
-    it("n'a pas de curseur sans note", () => {
-        assert.equal(tcfScalePosition(null), null);
-        assert.equal(tcfScalePosition(undefined), null);
-        assert.equal(tcfScalePosition(Number.NaN), null);
+    it("n'a pas de palier sans note exploitable", () => {
+        // `NaN >= 0` est faux : une comparaison naïve retombait sur l'index 0 et
+        // inventait un « A1 non atteint », un niveau que personne n'a obtenu.
+        assert.equal(tcfBandIndex(null), null);
+        assert.equal(tcfBandIndex(undefined), null);
+        assert.equal(tcfBandIndex(Number.NaN), null);
+    });
+
+    it("range les paliers dans l'ordre du TCF IRN, C1/C2 rabattus sur B2", () => {
+        assert.deepEqual(
+            TCF_NOTE_BANDS.map((b) => tcfPalierIndex(b.niveau)),
+            [0, 1, 2, 3, 4],
+        );
+        assert.equal(tcfPalierIndex("C1"), 4);
+        assert.equal(tcfPalierIndex("C2"), 4);
     });
 
     it("teinte les bandes de l'ambre au vert — aucun palier n'est rouge", () => {
@@ -138,69 +145,261 @@ describe("échelle du TCF", () => {
 
 // ---------------------------------------------------------------------------
 
-describe("teinte d'une note acquise (badges, pastilles)", () => {
-    it("ne traite JAMAIS 12/20 comme un échec : c'est un B2, le haut du TCF", () => {
-        // Le bug d'origine : `note <= 12` → badge rouge, sur la meilleure note
-        // que l'examen sache produire.
-        assert.equal(tcfNoteTone(12), "green");
-        assert.equal(tcfNoteTone(10), "green"); // pile le seuil B2
-        assert.equal(tcfNoteTone(20), "green");
+describe("teinte d'un palier acquis (badges, pastilles)", () => {
+    it("ne teinte JAMAIS un B2 comme un échec : c'est le haut du TCF", () => {
+        // Le bug d'origine : `note <= 12` → badge rouge, sur le meilleur
+        // résultat que l'examen sache produire.
+        assert.equal(tacheNiveauTone("B2"), "green");
     });
 
-    it("sépare le haut du B1 du bas du B2 — 9 et 10 ne sont pas le même palier", () => {
-        assert.equal(tcfNoteTone(9), "blue");
-        assert.equal(tcfNoteTone(10), "green");
-        assert.notEqual(tcfNoteTone(9), tcfNoteTone(10));
+    it("sépare B1 et B2 — deux paliers, deux teintes", () => {
+        assert.equal(tacheNiveauTone("B1"), "blue");
+        assert.notEqual(tacheNiveauTone("B1"), tacheNiveauTone("B2"));
     });
 
-    it("suit les paliers du TCF, et eux seuls", () => {
-        const cases: [number, string][] = [
-            [0, "amber"], // A1 non atteint
-            [1, "amber"], // A1
-            [2, "amber"], // bas de A2
-            [4.5, "amber"], // le 4,5/20 qui vaut A2
-            [5, "amber"], // haut de A2
-            [5.5, "amber"], // entre deux bandes → bande basse, comme le serveur
-            [6, "blue"], // bas de B1
-            [9.9, "blue"], // toujours B1
-            [10, "green"],
-        ];
-        for (const [note, expected] of cases) {
-            assert.equal(tcfNoteTone(note), expected, `note ${note}`);
-        }
-    });
-
-    it("n'utilise JAMAIS de rouge, sur tout le balayage 0 → 20 par pas de 0,5", () => {
-        // Vaut pour les trois endroits où la teinte se rend : le grand chiffre
-        // du hero, les segments de l'échelle et les badges de la liste de
-        // sujets — ils partent tous de ces deux fonctions.
-        for (let note = 0; note <= 20; note += 0.5) {
-            assert.notEqual(tcfNoteTone(note), "red", `note ${note}`);
-            const pos = tcfScalePosition(note);
-            assert.ok(pos, `note ${note}`);
-            assert.notEqual(
-                tcfNiveauTone(TCF_NOTE_BANDS[pos.bandIndex].niveau),
-                "red",
-                `bande de la note ${note}`,
-            );
+    it("n'utilise JAMAIS de rouge, sur aucun palier du TCF", () => {
+        // Vaut partout où la teinte se rend : segments de l'échelle, badges de
+        // la liste de sujets, marque de ligne — tout part de cette fonction.
+        for (const band of TCF_NOTE_BANDS) {
+            assert.notEqual(tacheNiveauTone(band.niveau), "red", band.niveau);
         }
         // Typé en dur : le rouge n'appartient même plus à l'union des teintes.
-        const tones: string[] = TCF_NOTE_BANDS.map((b) => tcfNiveauTone(b.niveau));
+        const tones: string[] = TCF_NOTE_BANDS.map((b) => tacheNiveauTone(b.niveau));
         assert.equal(tones.includes("red"), false);
     });
 
     it("rend une production pas encore évaluée en NEUTRE, jamais en rouge", () => {
-        // Le hero doit colorer son « — » même sans note : neutre = gris, comme
-        // le mobile. Une production non notée n'est pas un échec.
-        for (const absente of [null, undefined, Number.NaN]) {
-            assert.equal(tcfNoteTone(absente), "neutral");
-            assert.notEqual(tcfNoteTone(absente), "red");
+        // Un sujet fait mais pas encore corrigé garde un badge : neutre = gris,
+        // comme le mobile. Ce n'est pas un échec.
+        for (const absent of [null, undefined]) {
+            assert.equal(tacheNiveauTone(absent), "neutral");
+            assert.notEqual(tacheNiveauTone(absent), "red");
+        }
+    });
+});
+
+// ---------------------------------------------------------------------------
+
+describe("le niveau d'UNE tâche remplace sa note partout", () => {
+    it("nomme le palier comme une bande de critère, au caractère près", () => {
+        // Un badge doit se lire pareil d'un écran à l'autre : la bande d'un
+        // critère et le résultat d'une tâche disent le même palier.
+        assert.equal(tacheNiveauLabel("B2"), "Niveau B2");
+        assert.equal(tacheNiveauLabel("B1"), "Niveau B1");
+        assert.equal(tacheNiveauLabel("A2"), "Niveau A2");
+        assert.equal(tacheNiveauLabel("A1"), "Niveau A1");
+        assert.equal(bandeCritereLabel("TRES_BONNE_MAITRISE"), tacheNiveauLabel("B2"));
+        assert.equal(bandeCritereLabel("SATISFAISANT"), tacheNiveauLabel("B1"));
+        assert.equal(bandeCritereLabel("EN_COURS_ACQUISITION"), tacheNiveauLabel("A2"));
+        assert.equal(bandeCritereLabel("FRAGILE"), tacheNiveauLabel("A1"));
+    });
+
+    it("ne dit jamais « Niveau A1 non atteint », qui se contredit tout seul", () => {
+        assert.equal(tacheNiveauLabel("A1_NON_ATTEINT"), "A1 non atteint");
+    });
+
+    it("n'affiche AUCUN /20 : une tâche isolée n'a pas de note au TCF", () => {
+        const niveaux: NiveauCecrl[] = ["A1_NON_ATTEINT", "A1", "A2", "B1", "B2"];
+        for (const n of niveaux) {
+            const label = tacheNiveauLabel(n);
+            assert.equal(label.includes("/20"), false, n);
+            assert.equal(label.includes("20"), false, n);
         }
     });
 
-    it("borne les notes aberrantes au lieu de perdre la teinte", () => {
-        assert.equal(tcfNoteTone(-3), "amber");
-        assert.equal(tcfNoteTone(42), "green");
+    it("garde le niveau muet tant que la confiance manque", () => {
+        // Miroir du garde-fou serveur : pas de niveau sans confiance.
+        assert.equal(
+            tacheNiveau({niveauObserve: "B1", confiance: null}),
+            null,
+        );
+        assert.equal(
+            tacheNiveau({niveauObserve: null, confiance: "HAUTE"}),
+            null,
+        );
+        assert.equal(tacheNiveau(null), null);
+        assert.equal(tacheNiveau(undefined), null);
+    });
+
+    it("rend le niveau d'une évaluation complète", () => {
+        assert.equal(tacheNiveau({niveauObserve: "A2", confiance: "MOYENNE"}), "A2");
+    });
+});
+
+// ---------------------------------------------------------------------------
+
+// Ces chaînes ne transitent PAS par le réseau non plus (le serveur n'envoie que
+// la forme composée) : chaque front en tient une copie, donc elles sont gelées
+// des deux côtés — miroir de `test/production_result_labels_test.dart`.
+describe("situation dans le palier — ce qui remplace la note d'une tâche", () => {
+    const situated = (
+        cran: SituationDansNiveau | null,
+        label: string | null = null,
+        niveau: NiveauCecrl | null = "A2",
+    ): EvaluationResultDto => ({
+        noteSurVingt: 4.5,
+        niveauObserve: niveau,
+        confiance: "HAUTE",
+        avertissementNiveau: null,
+        situationDansNiveau: cran,
+        situationDansNiveauLabel: label,
+        feedback: null,
+    });
+
+    it("gèle les trois libellés autonomes, miroir du serveur", () => {
+        assert.deepEqual(SITUATION_LIBELLES, {
+            ENTREE_DE_PALIER: "Palier atteint",
+            PALIER_CONFIRME: "Palier confirmé",
+            PALIER_SOLIDE: "Palier solide",
+        });
+    });
+
+    it("gèle les trois qualificatifs — « A2 solide » se compose avec eux", () => {
+        assert.deepEqual(SITUATION_QUALIFICATIFS, {
+            ENTREE_DE_PALIER: "atteint",
+            PALIER_CONFIRME: "confirmé",
+            PALIER_SOLIDE: "solide",
+        });
+    });
+
+    it("ne nomme JAMAIS un manque : ni « presque », ni « pas encore », ni chiffre", () => {
+        // C'est la contrepartie de la note masquée. Réintroduire « presque B1 »
+        // remettrait exactement le vocabulaire de déficit qu'on vient de retirer.
+        for (const cran of Object.keys(SITUATION_LIBELLES) as SituationDansNiveau[]) {
+            const textes = [SITUATION_LIBELLES[cran], SITUATION_QUALIFICATIFS[cran]];
+            for (const t of textes) {
+                assert.equal(/presque|pas encore|manqu|faible|insuffis/i.test(t), false, t);
+                assert.equal(/\d/.test(t), false, t);
+            }
+        }
+    });
+
+    it("affiche la forme composée du serveur — « A2 solide », cf. la doc §6.3 bis", () => {
+        const view = situationView(situated("PALIER_SOLIDE", "A2 solide"));
+        assert.deepEqual(view, {
+            cran: "PALIER_SOLIDE",
+            libelle: "Palier solide",
+            libelleAvecNiveau: "A2 solide",
+        });
+    });
+
+    it("recompose « niveau + qualificatif » si le serveur n'a pas envoyé le libellé", () => {
+        assert.equal(situationView(situated("PALIER_CONFIRME"))!.libelleAvecNiveau, "A2 confirmé");
+    });
+
+    it("ne situe rien sans niveau affichable : pas de position dans une bande anonyme", () => {
+        assert.equal(situationView(situated("PALIER_SOLIDE", "A2 solide", null)), null);
+        assert.equal(
+            situationView({
+                ...situated("PALIER_SOLIDE", "A2 solide"),
+                confiance: null,
+            }),
+            null,
+        );
+    });
+
+    it("ne rend rien quand le backend n'a pas de cran (legacy, <A1, C1/C2)", () => {
+        assert.equal(situationView(situated(null)), null);
+        assert.equal(situationView(null), null);
+        assert.equal(situationView(undefined), null);
+    });
+});
+
+// ---------------------------------------------------------------------------
+
+describe("libellés gelés — sujet rendu sans niveau (miroir mobile)", () => {
+    it("dit « Traité » des deux côtés — le mobile disait « Fait »", () => {
+        assert.equal(TACHE_TRAITEE_LABEL, "Traité");
+        assert.equal(TACHE_EVALUEE_LABEL, "Évaluée");
+    });
+
+    it("n'affiche aucun chiffre : c'est l'absence de niveau qu'on nomme", () => {
+        for (const label of [TACHE_TRAITEE_LABEL, TACHE_EVALUEE_LABEL]) {
+            assert.equal(/\d/.test(label), false, label);
+        }
+    });
+});
+
+// ---------------------------------------------------------------------------
+
+describe("version au niveau visé — la marche au-dessus", () => {
+    it("dit dès le titre que c'est un modèle, pas la production du candidat", () => {
+        assert.equal(
+            versionCibleeTitle("B2"),
+            "Au niveau B2, votre réponse pourrait ressembler à ceci",
+        );
+        assert.equal(VERSION_CIBLEE_EYEBROW, "La marche au-dessus");
+        assert.equal(VERSION_CIBLEE_LEVIERS_TITLE, "Ce qui vous en sépare");
+    });
+
+    it("désamorce explicitement la confusion « c'est mon texte »", () => {
+        assert.ok(versionCibleeIntro("B2").startsWith("Ce texte n'est pas le vôtre"));
+    });
+
+    it("relie chaque palier à SA démarche, sans recopier le rappel d'enjeu", () => {
+        assert.ok(versionCibleeIntro("A2").includes("la carte de séjour pluriannuelle"));
+        assert.ok(versionCibleeIntro("B1").includes("la carte de résident"));
+        assert.ok(versionCibleeIntro("B2").includes("la naturalisation"));
+        // Le hero écrit « Le niveau B2 est celui demandé pour… » : la section ne
+        // doit pas répéter la même phrase deux écrans plus bas.
+        const rappel = demarcheRappel("B2", "B1")!.text;
+        for (const cible of ["A2", "B1", "B2"] as const) {
+            assert.notEqual(versionCibleeIntro(cible), rappel);
+            assert.equal(versionCibleeIntro(cible).includes("est celui demandé pour"), false);
+        }
+    });
+});
+
+// ---------------------------------------------------------------------------
+
+describe("parseEeFeedback — bloc version_ciblee", () => {
+    it("lit le bloc et PRÉSERVE l'ordre des leviers", () => {
+        const fb = parseEeFeedback(
+            evaluation({
+                version_ciblee: {
+                    niveau_vise: "B2",
+                    niveau_constate: "B1",
+                    texte: "Madame, Monsieur,\nJe me permets de vous écrire…",
+                    ce_qui_manque: ["Articuler deux arguments", "Varier les temps", "Nuancer"],
+                },
+            }),
+        );
+        assert.equal(fb.versionCiblee?.niveauVise, "B2");
+        assert.equal(fb.versionCiblee?.niveauConstate, "B1");
+        assert.match(fb.versionCiblee?.texte ?? "", /^Madame, Monsieur,/);
+        assert.deepEqual(fb.versionCiblee?.ceQuiManque, [
+            "Articuler deux arguments",
+            "Varier les temps",
+            "Nuancer",
+        ]);
+    });
+
+    it("accepte un bloc sans niveau constaté (évaluation dont le niveau est inconnu)", () => {
+        const fb = parseEeFeedback(
+            evaluation({version_ciblee: {niveau_vise: "A2", texte: "Bonjour Sofia, …"}}),
+        );
+        assert.equal(fb.versionCiblee?.niveauConstate, null);
+        assert.deepEqual(fb.versionCiblee?.ceQuiManque, []);
+    });
+
+    it("reste null quand le bloc est absent — le cas de TOUTES les évals existantes et de l'EO", () => {
+        assert.equal(parseEeFeedback(evaluation({})).versionCiblee, null);
+        assert.equal(parseEeFeedback(evaluation(null)).versionCiblee, null);
+        assert.equal(parseEeFeedback(null).versionCiblee, null);
+    });
+
+    it("refuse un bloc inexploitable plutôt que d'afficher un cadre vide", () => {
+        // Sans palier visé, on ne saurait pas au nom de quoi ce texte est
+        // montré ; sans texte, il n'y a rien à montrer.
+        for (const bloc of [
+            {texte: "Un modèle."},
+            {niveau_vise: "B2"},
+            {niveau_vise: "C1", texte: "Un modèle."},
+            {niveau_vise: "B2", texte: "   "},
+            "pas un objet",
+        ]) {
+            assert.equal(parseEeFeedback(evaluation({version_ciblee: bloc})).versionCiblee, null);
+        }
     });
 });
 
@@ -234,7 +433,7 @@ describe("bande d'un critère legacy (évaluations sans `bande`)", () => {
         for (const note of [12, 14, 15]) {
             const bande = critereBandeFromNote(note);
             assert.equal(bande, "TRES_BONNE_MAITRISE", `note ${note}`);
-            assert.equal(bandeCritereLabel(bande), "Très bonne maîtrise");
+            assert.equal(bandeCritereLabel(bande), "Niveau B2");
         }
     });
 
@@ -249,11 +448,11 @@ describe("bande d'un critère legacy (évaluations sans `bande`)", () => {
             A1_NON_ATTEINT: "FRAGILE",
         };
         for (let note = 0.5; note <= 20; note += 0.5) {
-            const pos = tcfScalePosition(note);
-            assert.ok(pos, `note ${note}`);
+            const index = tcfBandIndex(note);
+            assert.ok(index != null, `note ${note}`);
             assert.equal(
                 critereBandeFromNote(note),
-                attendu[TCF_NOTE_BANDS[pos.bandIndex].niveau],
+                attendu[TCF_NOTE_BANDS[index].niveau],
                 `note ${note}`,
             );
         }
@@ -264,6 +463,146 @@ describe("bande d'un critère legacy (évaluations sans `bande`)", () => {
         assert.equal(critereBandeFromNote(undefined), "NON_EVALUABLE");
         assert.equal(critereBandeFromNote(Number.NaN), "NON_EVALUABLE");
         assert.equal(critereBandeFromNote(-3), "NON_EVALUABLE");
+    });
+});
+
+// ---------------------------------------------------------------------------
+
+// Ces chaînes ne transitent PAS par le réseau : le web et le mobile en tiennent
+// chacun une copie écrite à la main. Rien n'empêche une couche de dériver — d'où
+// ce gel, miroir de `test/skill_models_test.dart` et de `SkillLabelsTest`. Un
+// libellé qui bouge, ce sont deux fichiers et deux tests dans la même passe.
+describe("libellés gelés — bandes de critère (miroir mobile `BandeCritere.displayName`)", () => {
+    it("nomme le palier atteint, jamais un déficit", () => {
+        const attendu: Record<BandeCritere, string> = {
+            TRES_BONNE_MAITRISE: "Niveau B2",
+            SATISFAISANT: "Niveau B1",
+            EN_COURS_ACQUISITION: "Niveau A2",
+            FRAGILE: "Niveau A1",
+            NON_EVALUABLE: "Non évaluable",
+        };
+        for (const [bande, label] of Object.entries(attendu)) {
+            assert.equal(bandeCritereLabel(bande as BandeCritere), label);
+        }
+    });
+
+    it("ne contient plus le vocabulaire d'échec qui décrivait un palier normal", () => {
+        // Les bornes des bandes (10 / 6 / 2) sont celles des paliers du TCF :
+        // « En cours d'acquisition » couvrait TOUTE la bande A2, donc un
+        // candidat A2 ne pouvait voir que ça, quoi qu'il produise.
+        const bandes: BandeCritere[] = [
+            "TRES_BONNE_MAITRISE",
+            "SATISFAISANT",
+            "EN_COURS_ACQUISITION",
+            "FRAGILE",
+            "NON_EVALUABLE",
+        ];
+        for (const b of bandes) {
+            const label = bandeCritereLabel(b);
+            assert.equal(label.includes("acquisition"), false, b);
+            assert.equal(label.includes("Fragile"), false, b);
+        }
+    });
+});
+
+// ---------------------------------------------------------------------------
+
+describe("le niveau, affirmé (résultat d'une tâche)", () => {
+    it("ne dit plus « proche de » : le niveau EST celui-là", () => {
+        assert.equal(niveauAtteintLabel("A2"), "Votre production est au niveau A2");
+        assert.equal(niveauAtteintLabel("B1"), "Votre production est au niveau B1");
+        assert.equal(niveauAtteintLabel("B2"), "Votre production est au niveau B2");
+        for (const n of ["A1", "A2", "B1", "B2"] as NiveauCecrl[]) {
+            assert.equal(niveauAtteintLabel(n).includes("Proche"), false, n);
+        }
+    });
+
+    it("garde son traitement propre au plancher, sans humilier", () => {
+        assert.equal(
+            niveauAtteintLabel("A1_NON_ATTEINT"),
+            "Votre production n'atteint pas encore le niveau A1",
+        );
+        // « Proche d'un niveau non atteint » n'a aucun sens, et « sous le A1 »
+        // n'apprend rien : on dit ce qui reste à faire.
+        assert.equal(niveauAtteintLabel("A1_NON_ATTEINT").includes("Proche"), false);
+    });
+
+    it("explique le NIVEAU, jamais une note invisible", () => {
+        // Le résultat d'une tâche n'affiche plus de /20 : une info-bulle qui
+        // commenterait une note absente serait pire que pas d'info-bulle.
+        assert.equal(NIVEAU_PORTEE_TACHE.includes("note"), false);
+        assert.equal(NIVEAU_PORTEE_TACHE.includes("/20"), false);
+        assert.ok(NIVEAU_PORTEE_TACHE.includes("cette seule tâche"));
+    });
+});
+
+// ---------------------------------------------------------------------------
+
+describe("rappel d'enjeu (niveau atteint ⇄ démarche visée)", () => {
+    it("dit clairement qu'un A2 qui vise la carte de séjour est au niveau demandé", () => {
+        const r = demarcheRappel("A2", "A2");
+        assert.ok(r);
+        assert.equal(r.atteint, true);
+        assert.equal(
+            r.text,
+            "Le niveau A2 est celui demandé pour la carte de séjour pluriannuelle. " +
+                "Cette production l'atteint.",
+        );
+    });
+
+    it("nomme la bonne démarche pour chaque palier (seuils du 1ᵉʳ janvier 2026)", () => {
+        assert.ok(demarcheRappel("A2", "B2")!.text.includes("la carte de séjour pluriannuelle"));
+        assert.ok(demarcheRappel("B1", "B2")!.text.includes("la carte de résident"));
+        assert.ok(demarcheRappel("B2", "B2")!.text.includes("la naturalisation"));
+    });
+
+    it("compte un niveau au-dessus de l'objectif comme atteint", () => {
+        assert.equal(demarcheRappel("A2", "B1")!.atteint, true);
+        assert.equal(demarcheRappel("A2", "B2")!.atteint, true);
+        assert.equal(demarcheRappel("B1", "B2")!.atteint, true);
+        assert.equal(demarcheRappel("B2", "C1")!.atteint, true);
+    });
+
+    it("dit l'objectif encore devant sans dramatiser ni condescendance", () => {
+        const r = demarcheRappel("B1", "A2");
+        assert.ok(r);
+        assert.equal(r.atteint, false);
+        assert.equal(
+            r.text,
+            "Le niveau B1 est celui demandé pour la carte de résident. " +
+                "Cette production est au niveau A2 : continuez à vous entraîner.",
+        );
+    });
+
+    it("reformule le plancher au lieu d'écrire « au niveau A1 non atteint »", () => {
+        const r = demarcheRappel("A2", "A1_NON_ATTEINT");
+        assert.ok(r);
+        assert.equal(r.atteint, false);
+        assert.ok(r.text.includes("n'atteint pas encore le niveau A1"));
+    });
+
+    it("n'affiche RIEN quand la démarche ou le niveau est inconnu", () => {
+        // Un message générique parlerait d'une démarche que le candidat n'a pas
+        // choisie : mieux vaut se taire.
+        assert.equal(demarcheRappel(null, "A2"), null);
+        assert.equal(demarcheRappel(undefined, "A2"), null);
+        assert.equal(demarcheRappel("B1", null), null);
+        assert.equal(demarcheRappel("B1", undefined), null);
+    });
+
+    it("n'affiche aucune borne chiffrée de barème", () => {
+        for (const cible of ["A2", "B1", "B2"] as const) {
+            for (const obtenu of [
+                "A1_NON_ATTEINT",
+                "A1",
+                "A2",
+                "B1",
+                "B2",
+            ] as NiveauCecrl[]) {
+                const r = demarcheRappel(cible, obtenu)!;
+                assert.equal(/\d/.test(r.text.replace(/A1|A2|B1|B2/g, "")), false, r.text);
+            }
+        }
     });
 });
 
@@ -503,4 +842,37 @@ describe("splitHighlight — repérer la phrase visée dans la production", () =
         assert.equal(splitHighlight(texte, "   "), null);
         assert.equal(splitHighlight(texte, null), null);
     });
+});
+
+// ---------------------------------------------------------------------------
+
+// ⚠️ Garde de RENDU, faute de harnais de composants côté web : le seul texte
+// modèle du rapport est `version_ciblee`. `version_amelioree` réécrit la
+// production au niveau DÉJÀ CONSTATÉ — un candidat l'a recopiée telle quelle
+// (c'était le texte le plus visible et le plus copiable de la page, et il ne
+// nommait aucun niveau), l'a resoumise, et a obtenu exactement la même note et
+// le même niveau. Le champ reste servi par l'API et typé plus haut dans ce
+// dossier ; ce test verrouille qu'AUCUN composant ne le lit.
+describe("aucun composant ne rend `version_amelioree` (retrait 2026-08-08)", () => {
+    const dir = new URL("../app/_components/production/", import.meta.url);
+    const fichiers = readdirSync(dir).filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"));
+
+    it("lit bien tout le dossier des composants de production", () => {
+        assert.ok(fichiers.includes("ProductionFeedbackView.tsx"));
+        assert.ok(fichiers.includes("ProductionTextCard.tsx"));
+        assert.ok(fichiers.includes("TargetLevelVersionCard.tsx"));
+    });
+
+    for (const fichier of fichiers) {
+        it(`${fichier} ne lit ni le champ ni son libellé`, () => {
+            const source = readFileSync(new URL(fichier, dir), "utf8");
+            // Les commentaires expliquent POURQUOI il a disparu : on ne
+            // regarde que le code.
+            const code = source
+                .replace(/\/\*[\s\S]*?\*\//g, "")
+                .replace(/^\s*\/\/.*$/gm, "");
+            assert.equal(/versionAmelioree/.test(code), false, fichier);
+            assert.equal(/[Vv]ersion améliorée/.test(code), false, fichier);
+        });
+    }
 });

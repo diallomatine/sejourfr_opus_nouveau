@@ -6,6 +6,7 @@ import 'package:sejourfr_mobile/core/models/enums.dart';
 import 'package:sejourfr_mobile/core/models/production_models.dart';
 import 'package:sejourfr_mobile/core/theme/app_theme.dart';
 import 'package:sejourfr_mobile/core/widgets/app_tag.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/production_result_labels.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/criterion_row.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/evaluation_report.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/results_hero.dart';
@@ -16,6 +17,7 @@ Widget _host(
   bool isOral = false,
   String? productionText,
   String? eyebrow,
+  TargetLevel? targetLevel,
 }) =>
     MaterialApp(
       home: Scaffold(
@@ -25,6 +27,7 @@ Widget _host(
             isOral: isOral,
             eyebrow: eyebrow,
             productionText: productionText,
+            targetLevel: targetLevel,
           ),
         ),
       ),
@@ -32,12 +35,6 @@ Widget _host(
 
 EvaluationResult _eval(Map<String, dynamic> json) =>
     EvaluationResult.fromJson(json);
-
-/// L'échelle en version CLAIRE, hors hero : c'est là que vivent le curseur et
-/// les bornes chiffrées. Le hero, lui, la rend sur fond sombre.
-Widget _scaleHost(double note) => MaterialApp(
-      home: Scaffold(body: TcfNoteScale(note: note)),
-    );
 
 /// Deplie « Voir l'analyse complete » : le detail exhaustif y vit, replie par
 /// defaut.
@@ -48,8 +45,8 @@ Future<void> _openFullAnalysis(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-/// Ouvre la regle de lecture de la note : elle vit derriere un geste, pas a
-/// plat entre la note et le premier conseil.
+/// Ouvre la regle de lecture du niveau : elle vit derriere un geste, pas a
+/// plat entre le verdict et le premier conseil.
 Future<void> _openReadingRule(WidgetTester tester, {String? via}) async {
   final target = find.text(via ?? 'NIVEAU ESTIMÉ');
   await tester.ensureVisible(target);
@@ -77,7 +74,7 @@ Future<void> _openCriterion(WidgetTester tester) async {
 void main() {
   setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
 
-  group('hero : verdict, note et niveau dans un seul bloc', () {
+  group('hero : verdict et niveau dans un seul bloc, aucune note', () {
     Map<String, dynamic> withObjectif(String objectif) => <String, dynamic>{
           'noteSurVingt': 4.5,
           'feedback': <String, dynamic>{
@@ -89,8 +86,8 @@ void main() {
           },
         };
 
-    testWidgets('le verdict, le resume et la note vivent dans le meme hero, '
-        'en tete du rapport', (tester) async {
+    testWidgets('le verdict et le resume vivent dans le meme hero, en tete du '
+        'rapport — et AUCUNE note ne s\'y affiche', (tester) async {
       await tester.pumpWidget(_host(
         _eval(withObjectif('ATTEINT')),
         eyebrow: 'Expression écrite · Tâche 1',
@@ -99,21 +96,17 @@ void main() {
       expect(find.text('EXPRESSION ÉCRITE · TÂCHE 1'), findsOneWidget);
       expect(find.text('Objectif atteint'), findsOneWidget);
       expect(find.textContaining("vous n'invitez personne"), findsOneWidget);
-      expect(find.text('4,5/20', findRichText: true), findsOneWidget);
 
-      // Un seul bloc : le verdict et la note sont dans le meme widget, et ce
-      // widget ouvre le rapport.
+      // Au TCF, une tache recoit un NIVEAU, jamais une note : le /20 ne porte
+      // que sur l'epreuve entiere. Et 4,5/20 y est un A2 parfaitement normal,
+      // qu'un francophone lit comme une catastrophe scolaire.
+      expect(find.textContaining('/20', findRichText: true), findsNothing);
+      expect(find.textContaining('4,5', findRichText: true), findsNothing);
+
       final hero = find.byType(ProductionResultsHero);
       expect(hero, findsOneWidget);
       expect(
         find.descendant(of: hero, matching: find.text('Objectif atteint')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: hero,
-          matching: find.text('4,5/20', findRichText: true),
-        ),
         findsOneWidget,
       );
       expect(tester.getTopLeft(hero).dy, lessThan(1));
@@ -135,7 +128,7 @@ void main() {
       expect(find.text('Objectif atteint'), findsNothing);
     });
 
-    testWidgets('évaluation legacy sans objectif : titre neutre, note intacte',
+    testWidgets('évaluation legacy sans objectif : titre neutre, hero cohérent',
         (tester) async {
       await tester.pumpWidget(_host(_eval(<String, dynamic>{
         'noteSurVingt': 4.5,
@@ -149,9 +142,9 @@ void main() {
       })));
 
       expect(find.textContaining('Objectif '), findsNothing);
-      // Le hero reste coherent : titre neutre, note et echelle a leur place.
+      // Le hero reste coherent : titre neutre, et toujours aucune note.
       expect(find.text('Votre correction'), findsOneWidget);
-      expect(find.text('4,5/20', findRichText: true), findsOneWidget);
+      expect(find.textContaining('/20', findRichText: true), findsNothing);
     });
   });
 
@@ -205,9 +198,13 @@ void main() {
       }),
       eyebrow: 'Expression écrite · Tâche 1',
       productionText: 'Bonjour Khalil, je t\'écris pour m\'excuser.',
+      // Le rappel d'enjeu est la ligne la plus longue du hero : il doit tenir
+      // sur un 360 px comme le reste.
+      targetLevel: TargetLevel.b1,
     ));
 
     expect(tester.takeException(), isNull);
+    expect(find.text('VOTRE DÉMARCHE'), findsOneWidget);
   });
 
   group('ce qui marche / à corriger en priorité', () {
@@ -268,9 +265,9 @@ void main() {
     });
   });
 
-  group('note et échelle du TCF', () {
-    testWidgets('la note et le niveau vivent dans le MÊME bloc, avec la règle '
-        'de lecture', (tester) async {
+  group('le niveau, heros de la carte', () {
+    testWidgets('le niveau s\'affirme, avec sa barre de paliers et sans une '
+        'seule borne chiffree', (tester) async {
       await tester.pumpWidget(_host(_eval(<String, dynamic>{
         'noteSurVingt': 4.5,
         'niveauObserve': 'A2',
@@ -278,27 +275,22 @@ void main() {
         'feedback': <String, dynamic>{},
       })));
 
-      expect(find.text('4,5/20', findRichText: true), findsOneWidget);
       expect(find.text('NIVEAU ESTIMÉ'), findsOneWidget);
-      // Notre niveau est une estimation : on ne l'affirme pas sec.
-      expect(find.text('Proche du niveau A2'), findsOneWidget);
-      // Les 5 paliers du TCF, en une seule ligne de libellés sous la barre :
-      // le palier atteint se lit sans déplier, ses bornes chiffrées non.
+      // « Proche de » veut dire « pas encore » en francais courant, alors que
+      // le niveau EST A2 et que la pastille juste a cote le dit.
+      expect(find.text('Votre production est au niveau A2'), findsOneWidget);
+      expect(find.textContaining('Proche du niveau'), findsNothing);
+      // Les 5 paliers du TCF, en une seule ligne de libelles sous la barre.
       expect(find.text('<A1'), findsOneWidget);
       expect(find.text('A2'), findsWidgets);
-      expect(find.text('2-5'), findsNothing);
-      expect(find.text('10-20'), findsNothing);
-
-      // Les bornes vivent dans la règle de lecture, avec la table complète.
+      // Bornes chiffrees du bareme : nulle part, ni a plat ni dans le repli.
       await _openReadingRule(tester);
-      expect(find.text('0'), findsOneWidget);
-      expect(find.text('2-5'), findsOneWidget);
-      expect(find.text('6-9'), findsOneWidget);
-      expect(find.text('10-20'), findsOneWidget);
-      expect(find.text('A1 non atteint'), findsOneWidget);
+      for (final borne in ['0', '1', '2-5', '6-9', '10-20']) {
+        expect(find.text(borne), findsNothing, reason: borne);
+      }
     });
 
-    test('chaque palier de la table officielle reçoit sa note', () {
+    test('chaque palier de la table officielle recoit sa note', () {
       expect(TcfNoteScale.bandFor(0)!.niveau, NiveauCecrl.a1NonAtteint);
       expect(TcfNoteScale.bandFor(1)!.niveau, NiveauCecrl.a1);
       expect(TcfNoteScale.bandFor(2)!.niveau, NiveauCecrl.a2);
@@ -318,36 +310,17 @@ void main() {
       expect(TcfNoteScale.bandFor(double.nan), isNull);
     });
 
-    testWidgets('une note qui n\'est pas un nombre garde la règle de lecture, '
-        'sans curseur', (tester) async {
-      await tester.pumpWidget(_scaleHost(double.nan));
-
-      expect(find.byKey(TcfNoteScale.cursorKey), findsNothing);
-      // Les cinq paliers restent affiches : la regle vaut toujours.
-      expect(find.text('10-20'), findsOneWidget);
-      expect(find.text('A1 non atteint'), findsOneWidget);
+    test('les cinq paliers se suivent, C1/C2 rabattus sur le plafond B2', () {
+      expect(
+        kTcfPaliers.map((n) => n.tcfPalierIndex).toList(),
+        [0, 1, 2, 3, 4],
+      );
+      expect(NiveauCecrl.c1.tcfPalierIndex, 4);
+      expect(NiveauCecrl.c2.tcfPalierIndex, 4);
     });
 
-    testWidgets('le curseur avance avec la note, palier après palier',
-        (tester) async {
-      final positions = <double>[];
-      for (final note in [0.0, 1.0, 4.5, 7.0, 15.0]) {
-        await tester.pumpWidget(_scaleHost(note));
-        positions
-            .add(tester.getTopLeft(find.byKey(TcfNoteScale.cursorKey)).dx);
-      }
-
-      for (var i = 1; i < positions.length; i++) {
-        expect(
-          positions[i],
-          greaterThan(positions[i - 1]),
-          reason: 'curseur non monotone entre les paliers',
-        );
-      }
-    });
-
-    testWidgets('le plancher ne se dit pas « proche de » : on n\'est pas '
-        'proche d\'un niveau non atteint', (tester) async {
+    testWidgets('le plancher ne se dit pas « proche de », et ne dit pas non '
+        'plus « sous le A1 »', (tester) async {
       await tester.pumpWidget(_host(_eval(<String, dynamic>{
         'noteSurVingt': 0,
         'niveauObserve': 'A1_NON_ATTEINT',
@@ -355,50 +328,25 @@ void main() {
         'feedback': <String, dynamic>{},
       })));
 
-      expect(find.text('Niveau A1 non atteint'), findsOneWidget);
+      expect(
+        find.text("Votre production n'atteint pas encore le niveau A1"),
+        findsOneWidget,
+      );
       expect(find.textContaining('Proche du niveau'), findsNothing);
     });
 
-    test('les paliers à valeur unique centrent le curseur dans leur case', () {
-      // 0 et 1 ne valent qu'une note : sans centrage, le curseur se colle au
-      // bord gauche et se lit dans le palier d'en dessous.
-      expect(TcfNoteScale.positionInBand(0, 0), 0.5);
-      expect(TcfNoteScale.positionInBand(1, 1), 0.5);
-      // Les paliers à étendue gardent une position proportionnelle, insérée de
-      // 10 % de chaque côté (mêmes chiffres que le web).
-      expect(TcfNoteScale.positionInBand(2, 2), closeTo(0.1, 1e-9));
-      expect(TcfNoteScale.positionInBand(5, 2), closeTo(0.7, 1e-9));
-      expect(TcfNoteScale.positionInBand(6, 3), closeTo(0.1, 1e-9));
-      // Dernier palier : dénominateur `max + 1` = 21, jamais 20 — un 20/20 ne
-      // doit pas se coller à la bordure droite de la barre.
-      expect(TcfNoteScale.positionInBand(20, 4),
-          closeTo(0.1 + 10 / 11 * 0.8, 1e-9));
-      expect(TcfNoteScale.positionInBand(20, 4), lessThan(0.9));
-    });
-
-    testWidgets('curseur centré : un 0/20 tombe au milieu de sa case, pas au '
-        'bord', (tester) async {
-      await tester.pumpWidget(_scaleHost(0));
-
-      final cursor = tester.getRect(find.byKey(TcfNoteScale.cursorKey));
-      final scale = tester.getRect(find.byType(TcfNoteScale));
-      const gap = 4.0;
-      final segment = (scale.width - gap * (kTcfNoteBands.length - 1)) /
-          kTcfNoteBands.length;
-
-      expect(cursor.center.dx - scale.left, closeTo(segment / 2, 0.5));
-    });
-
-    testWidgets('une production non notée garde la règle de lecture, sans '
-        'curseur', (tester) async {
+    testWidgets('une production non notee garde son panneau, sans note ni '
+        'palier invente', (tester) async {
       await tester.pumpWidget(_host(_eval(<String, dynamic>{
         'feedback': <String, dynamic>{},
       })));
 
-      expect(find.text('—/20', findRichText: true), findsOneWidget);
-      // Le hero rend l'échelle, sans palier actif ni curseur.
-      expect(find.byType(TcfNoteScale), findsOneWidget);
-      expect(find.byKey(TcfNoteScale.cursorKey), findsNothing);
+      expect(find.text('NIVEAU ESTIMÉ'), findsOneWidget);
+      expect(
+        find.text('Niveau indisponible pour cette production'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('/20', findRichText: true), findsNothing);
     });
   });
 
@@ -527,27 +475,33 @@ void main() {
         'feedback': <String, dynamic>{},
       })));
 
-      // Ni l'en-tête de la pastille, ni son libellé. Les paliers de l'échelle
-      // citent bien « B1 », mais ils disent comment lire la note — ils
-      // n'attribuent aucun niveau au candidat.
-      expect(find.text('NIVEAU ESTIMÉ'), findsNothing);
-      expect(find.text('NOTE SUR L\'ÉCHELLE DU TCF'), findsOneWidget);
+      // Le panneau reste (il porte la regle de lecture), mais il n'attribue
+      // aucun niveau : ni libelle affirme, ni pastille, ni barre de paliers.
+      expect(
+        find.text('Niveau indisponible pour cette production'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Votre production est au niveau'), findsNothing);
+      expect(find.text('<A1'), findsNothing);
       expect(find.text('Confiance moyenne'), findsNothing);
-      expect(find.text('12/20', findRichText: true), findsOneWidget);
+      expect(find.textContaining('/20', findRichText: true), findsNothing);
     });
   });
 
-  group('portée de la note', () {
+  group('portée du niveau', () {
     testWidgets('la règle de lecture se consulte, elle ne s\'impose pas entre '
-        'la note et le premier conseil', (tester) async {
+        'le verdict et le premier conseil — et elle explique le NIVEAU, pas '
+        'une note invisible', (tester) async {
       await tester.pumpWidget(_host(_eval(<String, dynamic>{
         'noteSurVingt': 7,
         'feedback': <String, dynamic>{},
       })));
 
-      expect(find.text(kNotePorteeSurLaTache), findsNothing);
-      await _openReadingRule(tester, via: 'NOTE SUR L\'ÉCHELLE DU TCF');
-      expect(find.text(kNotePorteeSurLaTache), findsOneWidget);
+      expect(find.text(kNiveauPorteeTache), findsNothing);
+      await _openReadingRule(tester);
+      expect(find.text(kNiveauPorteeTache), findsOneWidget);
+      expect(kNiveauPorteeTache.contains('note'), isFalse);
+      expect(kNiveauPorteeTache.contains('/20'), isFalse);
     });
 
     testWidgets('avec avertissement du backend : il REMPLACE la générique, '
@@ -559,7 +513,7 @@ void main() {
         'feedback': <String, dynamic>{},
       })));
 
-      await _openReadingRule(tester, via: 'NOTE SUR L\'ÉCHELLE DU TCF');
+      await _openReadingRule(tester);
       expect(
         find.text('Le niveau qui fait foi est celui du bilan des trois '
             'tâches.'),
@@ -567,7 +521,7 @@ void main() {
       );
       // Dire deux fois la meme chose est exactement le defaut que la refonte
       // corrige.
-      expect(find.text(kNotePorteeSurLaTache), findsNothing);
+      expect(find.text(kNiveauPorteeTache), findsNothing);
     });
   });
 
@@ -595,7 +549,7 @@ void main() {
       expect(find.text('Votre profil en un coup d\'œil'), findsOneWidget);
       expect(find.text('Vocabulaire'), findsOneWidget);
       expect(find.text('Étendue du lexique'), findsNothing);
-      expect(find.text('Satisfaisant'), findsOneWidget);
+      expect(find.text('Niveau B1'), findsOneWidget);
       // Le critere se lit en bande, jamais en chiffres.
       expect(find.text('13/20', findRichText: true), findsNothing);
     });
@@ -625,7 +579,13 @@ void main() {
     });
   });
 
-  group('votre rédaction', () {
+  // ⚠️ Test RETOURNE (2026-08-08). Il verrouillait l'affichage de
+  // `version_amelioree` en bascule sous la redaction ; il verrouille desormais
+  // sa DISPARITION. Motif mesure : un candidat a recopie ce texte — le plus
+  // visible et le plus copiable de l'ecran, et sans mention de niveau — l'a
+  // resoumis tel quel, et a obtenu exactement la meme note et le meme niveau.
+  // C'est `version_ciblee` qui fait monter, pas celle-la.
+  group('votre rédaction — aucune version améliorée', () {
     final json = <String, dynamic>{
       'noteSurVingt': 12,
       'feedback': <String, dynamic>{
@@ -634,8 +594,8 @@ void main() {
       },
     };
 
-    testWidgets('le texte rendu et sa réécriture au même endroit, une seule '
-        'à la fois', (tester) async {
+    testWidgets('le texte rendu, et RIEN qui le réécrive à son propre niveau',
+        (tester) async {
       await tester.pumpWidget(_host(
         _eval(json),
         productionText: 'Bonjour Marie, j\'ai trouvé un appartement.',
@@ -646,31 +606,56 @@ void main() {
         find.text('Bonjour Marie, j\'ai trouvé un appartement.'),
         findsOneWidget,
       );
-      // La comparaison se demande : elle ne s'impose pas.
+      // Ni le texte, ni la bascule, ni son etiquette : le champ est encore
+      // servi par l'API, mais plus aucun widget ne le lit.
       expect(find.textContaining('je viens de trouver'), findsNothing);
-
-      await tester.tap(find.text('Voir la version améliorée'));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('je viens de trouver'), findsOneWidget);
-      expect(find.text('Masquer la version améliorée'), findsOneWidget);
+      expect(find.text('Voir la version améliorée'), findsNothing);
+      expect(find.text('Masquer la version améliorée'), findsNothing);
+      expect(find.text('Version améliorée'), findsNothing);
+      expect(find.text('VERSION AMÉLIORÉE'), findsNothing);
+      // Et pas de promesse de comparaison qui n'a plus d'objet.
+      expect(find.textContaining('Comparez'), findsNothing);
     });
 
-    testWidgets('sans texte rendu, la version améliorée garde sa carte',
+    testWidgets('sans texte rendu, aucune carte autonome ne la ramène',
         (tester) async {
       await tester.pumpWidget(_host(_eval(json)));
 
-      expect(find.text('Version améliorée'), findsOneWidget);
-      expect(find.textContaining('je viens de trouver'), findsOneWidget);
+      expect(find.text('Version améliorée'), findsNothing);
+      expect(find.textContaining('je viens de trouver'), findsNothing);
+      expect(find.text('Votre rédaction'), findsNothing);
     });
 
-    testWidgets('absente à l\'oral, sans trou visuel', (tester) async {
-      // Meme charge utile : c'est l'epreuve qui decide, pas la presence du
-      // champ — une eval orale ne doit jamais rendre ce bloc.
+    testWidgets('absente à l\'oral aussi, sans trou visuel', (tester) async {
       await tester.pumpWidget(_host(_eval(json), isOral: true));
 
       expect(find.text('Version améliorée'), findsNothing);
       expect(find.textContaining('je viens de trouver'), findsNothing);
+    });
+
+    testWidgets('les repères de la priorité n° 1 restent, eux', (tester) async {
+      await tester.pumpWidget(_host(
+        _eval(<String, dynamic>{
+          'noteSurVingt': 12,
+          'feedback': <String, dynamic>{
+            'points_a_ameliorer': [
+              {
+                'constat': 'Votre conclusion reste vague.',
+                'exemple': {
+                  'avant': 'on verra bien.',
+                  'apres': 'je te confirme la date demain.',
+                },
+              },
+            ],
+          },
+        }),
+        productionText: 'Bonjour Marie, on verra bien.',
+      ));
+
+      expect(find.text('Masquer les repères'), findsOneWidget);
+      await tester.tap(find.text('Masquer les repères'));
+      await tester.pumpAndSettle();
+      expect(find.text('Afficher les repères'), findsOneWidget);
     });
   });
 
@@ -966,13 +951,18 @@ void main() {
 
     await tester.pumpWidget(_host(eval));
     expect(find.textContaining('Objectif '), findsNothing);
-    expect(find.text('NIVEAU ESTIMÉ'), findsNothing);
+    // Aucun niveau attribué (pas de confiance) : le panneau le dit au lieu de
+    // se rabattre sur la note, qui n'existe plus sur une tâche.
+    expect(
+      find.text('Niveau indisponible pour cette production'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('/20', findRichText: true), findsNothing);
 
     expect(find.text('Vocabulaire'), findsOneWidget);
     // 13/20 vaut B2 au TCF : la bande le dit, un « 13/20 » scolaire suggérait
-    // l'inverse. Seule la note globale reste chiffrée, en tête du rapport.
-    expect(find.text('Très bonne maîtrise'), findsOneWidget);
-    expect(find.text('13/20', findRichText: true), findsNothing);
+    // l'inverse. Plus aucun chiffre nulle part sur le rapport d'une tâche.
+    expect(find.text('Niveau B2'), findsOneWidget);
 
     // Le libellé complet de la table locale reste atteignable au déplié.
     await _openCriterion(tester);
@@ -1098,7 +1088,7 @@ void main() {
         );
 
         expect(legacy, moderne, reason: 'note $note');
-        expect(legacy.bande, 'Très bonne maîtrise', reason: 'note $note');
+        expect(legacy.bande, 'Niveau B2', reason: 'note $note');
         expect(legacy.color, AppColors.green, reason: 'note $note');
       }
     });
@@ -1107,7 +1097,7 @@ void main() {
         (tester) async {
       final neuf = await render(tester, note: 9);
 
-      expect(neuf.bande, 'Satisfaisant');
+      expect(neuf.bande, 'Niveau B1');
       expect(neuf.color, AppColors.blue);
     });
 
@@ -1123,9 +1113,8 @@ void main() {
         );
 
         expect(legacy, moderne, reason: 'note $note');
-        // Seul le plancher (note < 2, sous le A1) garde la bande « Fragile »
-        // du serveur, qui est rouge parce que c'est un jugement qualitatif —
-        // pas un niveau CECRL peint en échec.
+        // Seul le plancher (note < 2, sous le A1) reste rouge : c'est le
+        // dernier cran de la barre, pas un niveau CECRL peint en échec.
         if (note >= 2) {
           expect(legacy.color, isNot(AppColors.red), reason: 'note $note');
         }
@@ -1141,11 +1130,451 @@ void main() {
       expect(zero.fill, 0);
 
       final un = await render(tester, note: 1);
-      expect(un.bande, 'Fragile');
+      expect(un.bande, 'Niveau A1');
       expect(
         un,
         await render(tester, note: 1, bande: BandeCritere.fragile),
       );
+    });
+  });
+
+  // Ces chaines ne transitent PAS par le reseau : le mobile et le web en
+  // tiennent chacun une copie ecrite a la main. Rien n'empeche une couche de
+  // deriver — d'ou ce gel, miroir de `lib/production-feedback.test.ts` cote
+  // web. Un libelle qui bouge, ce sont deux fichiers et deux tests dans la
+  // meme passe.
+  group('libellés gelés — bandes de critère (miroir web `bandeCritereLabel`)',
+      () {
+    test('nomme le palier atteint, jamais un déficit', () {
+      expect(BandeCritere.tresBonneMaitrise.displayName, 'Niveau B2');
+      expect(BandeCritere.satisfaisant.displayName, 'Niveau B1');
+      expect(BandeCritere.enCoursAcquisition.displayName, 'Niveau A2');
+      expect(BandeCritere.fragile.displayName, 'Niveau A1');
+      expect(BandeCritere.nonEvaluable.displayName, 'Non évaluable');
+    });
+
+    test('plus aucun vocabulaire d\'échec sur un palier normal', () {
+      // Les bornes des bandes (10 / 6 / 2) sont celles des paliers du TCF :
+      // « En cours d'acquisition » couvrait TOUTE la bande A2, donc un
+      // candidat A2 ne pouvait voir que ca, quoi qu'il produise.
+      for (final b in BandeCritere.values) {
+        expect(b.displayName.contains('acquisition'), isFalse, reason: b.name);
+        expect(b.displayName.contains('Fragile'), isFalse, reason: b.name);
+      }
+    });
+  });
+
+  group('le niveau d\'UNE tâche remplace sa note partout', () {
+    test('nomme le palier comme une bande de critère, au caractère près', () {
+      // Un badge doit se lire pareil d'un écran à l'autre : la bande d'un
+      // critère et le résultat d'une tâche disent le même palier.
+      expect(tacheNiveauLabel(NiveauCecrl.b2), 'Niveau B2');
+      expect(tacheNiveauLabel(NiveauCecrl.b1), 'Niveau B1');
+      expect(tacheNiveauLabel(NiveauCecrl.a2), 'Niveau A2');
+      expect(tacheNiveauLabel(NiveauCecrl.a1), 'Niveau A1');
+      expect(BandeCritere.tresBonneMaitrise.displayName,
+          tacheNiveauLabel(NiveauCecrl.b2));
+      expect(BandeCritere.satisfaisant.displayName,
+          tacheNiveauLabel(NiveauCecrl.b1));
+      expect(BandeCritere.enCoursAcquisition.displayName,
+          tacheNiveauLabel(NiveauCecrl.a2));
+      expect(BandeCritere.fragile.displayName,
+          tacheNiveauLabel(NiveauCecrl.a1));
+    });
+
+    test('ne dit jamais « Niveau A1 non atteint », qui se contredit tout seul',
+        () {
+      expect(tacheNiveauLabel(NiveauCecrl.a1NonAtteint), 'A1 non atteint');
+    });
+
+    test('n\'affiche AUCUN chiffre : une tâche isolée n\'a pas de note au TCF',
+        () {
+      for (final n in kTcfPaliers) {
+        final label = tacheNiveauLabel(n);
+        expect(label.contains('/20'), isFalse, reason: n.name);
+        expect(label.contains('20'), isFalse, reason: n.name);
+      }
+    });
+
+    test('garde le niveau muet tant que la confiance manque', () {
+      // Miroir du garde-fou serveur : pas de niveau sans confiance.
+      expect(tacheNiveau(null), isNull);
+      expect(
+        tacheNiveau(EvaluationResult.fromJson(const {
+          'noteSurVingt': 12,
+          'niveauObserve': 'B1',
+          'feedback': <String, dynamic>{},
+        })),
+        isNull,
+      );
+      expect(
+        tacheNiveau(EvaluationResult.fromJson(const {
+          'noteSurVingt': 12,
+          'confiance': 'HAUTE',
+          'feedback': <String, dynamic>{},
+        })),
+        isNull,
+      );
+    });
+
+    test('rend le niveau d\'une évaluation complète', () {
+      expect(
+        tacheNiveau(EvaluationResult.fromJson(const {
+          'noteSurVingt': 4.5,
+          'niveauObserve': 'A2',
+          'confiance': 'MOYENNE',
+          'feedback': <String, dynamic>{},
+        })),
+        NiveauCecrl.a2,
+      );
+    });
+  });
+
+  group('rappel d\'enjeu (niveau atteint ⇄ démarche visée)', () {
+    test('dit clairement qu\'un A2 qui vise la carte de séjour est au niveau '
+        'demandé', () {
+      final r = demarcheRappel(TargetLevel.a2, NiveauCecrl.a2)!;
+      expect(r.atteint, isTrue);
+      expect(
+        r.text,
+        'Le niveau A2 est celui demandé pour la carte de séjour '
+        "pluriannuelle. Cette production l'atteint.",
+      );
+    });
+
+    test('nomme la bonne démarche pour chaque palier (seuils du 1er janvier '
+        '2026)', () {
+      expect(
+        demarcheRappel(TargetLevel.a2, NiveauCecrl.b2)!.text,
+        contains('la carte de séjour pluriannuelle'),
+      );
+      expect(
+        demarcheRappel(TargetLevel.b1, NiveauCecrl.b2)!.text,
+        contains('la carte de résident'),
+      );
+      expect(
+        demarcheRappel(TargetLevel.b2, NiveauCecrl.b2)!.text,
+        contains('la naturalisation'),
+      );
+    });
+
+    test('compte un niveau au-dessus de l\'objectif comme atteint', () {
+      expect(demarcheRappel(TargetLevel.a2, NiveauCecrl.b1)!.atteint, isTrue);
+      expect(demarcheRappel(TargetLevel.a2, NiveauCecrl.b2)!.atteint, isTrue);
+      expect(demarcheRappel(TargetLevel.b1, NiveauCecrl.b2)!.atteint, isTrue);
+      expect(demarcheRappel(TargetLevel.b2, NiveauCecrl.c1)!.atteint, isTrue);
+    });
+
+    test('dit l\'objectif encore devant sans dramatiser', () {
+      final r = demarcheRappel(TargetLevel.b1, NiveauCecrl.a2)!;
+      expect(r.atteint, isFalse);
+      expect(
+        r.text,
+        'Le niveau B1 est celui demandé pour la carte de résident. Cette '
+        'production est au niveau A2 : continuez à vous entraîner.',
+      );
+    });
+
+    test('reformule le plancher au lieu d\'écrire « au niveau A1 non '
+        'atteint »', () {
+      final r = demarcheRappel(TargetLevel.a2, NiveauCecrl.a1NonAtteint)!;
+      expect(r.atteint, isFalse);
+      expect(r.text, contains("n'atteint pas encore le niveau A1"));
+    });
+
+    test('n\'affiche RIEN quand la démarche ou le niveau est inconnu', () {
+      // Un message generique parlerait d'une demarche que le candidat n'a pas
+      // choisie : mieux vaut se taire.
+      expect(demarcheRappel(null, NiveauCecrl.a2), isNull);
+      expect(demarcheRappel(TargetLevel.b1, null), isNull);
+      expect(demarcheRappel(null, null), isNull);
+    });
+
+    test('n\'affiche aucune borne chiffrée de barème', () {
+      for (final cible in TargetLevel.values) {
+        for (final obtenu in kTcfPaliers) {
+          final texte = demarcheRappel(cible, obtenu)!
+              .text
+              .replaceAll(RegExp('A1|A2|B1|B2'), '');
+          expect(RegExp(r'\d').hasMatch(texte), isFalse, reason: texte);
+        }
+      }
+    });
+
+    testWidgets('le hero l\'affiche quand le parcours est connu, et se tait '
+        'sinon', (tester) async {
+      final json = <String, dynamic>{
+        'noteSurVingt': 3.5,
+        'niveauObserve': 'A2',
+        'confiance': 'HAUTE',
+        'feedback': <String, dynamic>{},
+      };
+
+      await tester
+          .pumpWidget(_host(_eval(json), targetLevel: TargetLevel.a2));
+      expect(find.text('VOTRE DÉMARCHE'), findsOneWidget);
+      expect(
+        find.textContaining('la carte de séjour pluriannuelle'),
+        findsOneWidget,
+      );
+
+      await tester.pumpWidget(_host(_eval(json)));
+      expect(find.text('VOTRE DÉMARCHE'), findsNothing);
+    });
+  });
+
+  // Ces chaines ne transitent PAS par le reseau (le serveur n'envoie que la
+  // forme composee) : chaque front en tient une copie, donc elles sont gelees
+  // des deux cotes — miroir de `lib/production-feedback.test.ts`.
+  group('situation dans le palier — ce qui remplace la note d\'une tâche', () {
+    Map<String, dynamic> json({
+      String? cran,
+      String? label,
+      String? niveau = 'A2',
+      String? confiance = 'HAUTE',
+    }) =>
+        <String, dynamic>{
+          'noteSurVingt': 4.5,
+          'niveauObserve': niveau,
+          'confiance': confiance,
+          'situationDansNiveau': cran,
+          'situationDansNiveauLabel': label,
+          'feedback': <String, dynamic>{},
+        };
+
+    test('gèle les trois libellés autonomes, miroir du serveur', () {
+      expect(situationLibelle(SituationDansNiveau.entreeDePalier),
+          'Palier atteint');
+      expect(situationLibelle(SituationDansNiveau.palierConfirme),
+          'Palier confirmé');
+      expect(
+          situationLibelle(SituationDansNiveau.palierSolide), 'Palier solide');
+    });
+
+    test('gèle les trois qualificatifs — « A2 solide » se compose avec eux',
+        () {
+      expect(situationQualificatif(SituationDansNiveau.entreeDePalier),
+          'atteint');
+      expect(situationQualificatif(SituationDansNiveau.palierConfirme),
+          'confirmé');
+      expect(
+          situationQualificatif(SituationDansNiveau.palierSolide), 'solide');
+    });
+
+    test('ne nomme JAMAIS un manque : ni « presque », ni chiffre', () {
+      // C'est la contrepartie de la note masquee. Reintroduire « presque B1 »
+      // remettrait exactement le vocabulaire de deficit qu'on vient de retirer.
+      final interdits = RegExp('presque|pas encore|manqu|faible|insuffis',
+          caseSensitive: false);
+      for (final cran in SituationDansNiveau.values) {
+        for (final texte in [
+          situationLibelle(cran),
+          situationQualificatif(cran)
+        ]) {
+          expect(interdits.hasMatch(texte), isFalse, reason: texte);
+          expect(RegExp(r'\d').hasMatch(texte), isFalse, reason: texte);
+        }
+      }
+    });
+
+    test('préfère le libellé composé du serveur, recompose sinon', () {
+      final avec = situationView(
+          _eval(json(cran: 'PALIER_SOLIDE', label: 'A2 solide')))!;
+      expect(avec.cran, SituationDansNiveau.palierSolide);
+      expect(avec.libelle, 'Palier solide');
+      expect(avec.libelleAvecNiveau, 'A2 solide');
+
+      final sans = situationView(_eval(json(cran: 'PALIER_CONFIRME')))!;
+      expect(sans.libelleAvecNiveau, 'A2 confirmé');
+    });
+
+    test('ne situe rien sans niveau affichable', () {
+      // Une position dans une bande qu'on ne nomme pas ne veut rien dire.
+      expect(
+        situationView(_eval(
+            json(cran: 'PALIER_SOLIDE', label: 'A2 solide', niveau: null))),
+        isNull,
+      );
+      expect(
+        situationView(_eval(
+            json(cran: 'PALIER_SOLIDE', label: 'A2 solide', confiance: null))),
+        isNull,
+      );
+    });
+
+    test('ne rend rien sans cran (legacy, <A1, C1/C2)', () {
+      expect(situationView(_eval(json())), isNull);
+      expect(situationView(null), isNull);
+    });
+
+    testWidgets('le hero affiche la pastille, et rien quand le cran manque',
+        (tester) async {
+      await tester.pumpWidget(
+          _host(_eval(json(cran: 'PALIER_SOLIDE', label: 'A2 solide'))));
+      // La forme composee, celle qu'annonce docs/notation-ia-eo-ee.md §6.3 bis.
+      expect(find.text('A2 solide'), findsOneWidget);
+      // La note reste invisible : la pastille la remplace, elle ne la ramene
+      // pas par la bande.
+      expect(find.textContaining('/20', findRichText: true), findsNothing);
+
+      await tester.pumpWidget(_host(_eval(json())));
+      expect(find.text('A2 solide'), findsNothing);
+    });
+  });
+
+  group('libellés gelés — sujet rendu sans niveau (miroir web)', () {
+    test('dit « Traité » des deux côtés — le mobile disait « Fait »', () {
+      expect(kTacheTraiteeLabel, 'Traité');
+      expect(kTacheEvalueeLabel, 'Évaluée');
+    });
+
+    test('n\'affiche aucun chiffre : c\'est l\'absence de niveau qu\'on nomme',
+        () {
+      for (final label in [kTacheTraiteeLabel, kTacheEvalueeLabel]) {
+        expect(RegExp(r'\d').hasMatch(label), isFalse, reason: label);
+      }
+    });
+  });
+
+  group('version au niveau visé — la marche au-dessus', () {
+    Map<String, dynamic> json(Map<String, dynamic>? bloc) => <String, dynamic>{
+          'noteSurVingt': 7,
+          'niveauObserve': 'B1',
+          'confiance': 'HAUTE',
+          'feedback': <String, dynamic>{
+            if (bloc != null) 'version_ciblee': bloc,
+          },
+        };
+
+    final complet = <String, dynamic>{
+      'niveau_vise': 'B2',
+      'niveau_constate': 'B1',
+      'texte': 'Madame, Monsieur, je me permets de vous écrire…',
+      'ce_qui_manque': [
+        'Articuler deux arguments',
+        'Varier les temps',
+        'Nuancer',
+      ],
+    };
+
+    test('dit dès le titre que c\'est un modèle, pas la production', () {
+      expect(versionCibleeTitle(TargetLevel.b2),
+          'Au niveau B2, votre réponse pourrait ressembler à ceci');
+      expect(kVersionCibleeEyebrow, 'La marche au-dessus');
+      expect(kVersionCibleeLeviersTitle, 'Ce qui vous en sépare');
+      expect(versionCibleeIntro(TargetLevel.b2),
+          startsWith("Ce texte n'est pas le vôtre"));
+    });
+
+    test('relie chaque palier à SA démarche, sans recopier le rappel d\'enjeu',
+        () {
+      expect(versionCibleeIntro(TargetLevel.a2),
+          contains('la carte de séjour pluriannuelle'));
+      expect(versionCibleeIntro(TargetLevel.b1), contains('la carte de résident'));
+      expect(versionCibleeIntro(TargetLevel.b2), contains('la naturalisation'));
+      // Le hero ecrit « Le niveau B2 est celui demande pour… » : la section ne
+      // doit pas repeter la meme phrase deux ecrans plus bas.
+      for (final cible in TargetLevel.values) {
+        expect(versionCibleeIntro(cible).contains('est celui demandé pour'),
+            isFalse);
+      }
+    });
+
+    test('lit le bloc et PRÉSERVE l\'ordre des leviers', () {
+      final v = _eval(json(complet)).feedback.versionCiblee!;
+      expect(v.niveauVise, TargetLevel.b2);
+      expect(v.niveauConstate, NiveauCecrl.b1);
+      expect(v.texte, startsWith('Madame, Monsieur'));
+      expect(v.ceQuiManque, [
+        'Articuler deux arguments',
+        'Varier les temps',
+        'Nuancer',
+      ]);
+    });
+
+    test('reste null quand le bloc est absent ou inexploitable', () {
+      // Sans palier vise, on ne saurait pas au nom de quoi ce texte est
+      // montre ; sans texte, il n'y a rien a montrer.
+      expect(_eval(json(null)).feedback.versionCiblee, isNull);
+      for (final bloc in <Map<String, dynamic>>[
+        {'texte': 'Un modèle.'},
+        {'niveau_vise': 'B2'},
+        {'niveau_vise': 'C1', 'texte': 'Un modèle.'},
+        {'niveau_vise': 'B2', 'texte': '   '},
+      ]) {
+        expect(_eval(json(bloc)).feedback.versionCiblee, isNull,
+            reason: bloc.toString());
+      }
+    });
+
+    testWidgets('la section se rend en EE, avec ses leviers numérotés',
+        (tester) async {
+      await tester.pumpWidget(_host(_eval(json(complet))));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Au niveau B2, votre réponse pourrait ressembler à ceci'),
+          findsOneWidget);
+      expect(find.text(kVersionCibleeLeviersTitle), findsOneWidget);
+      expect(find.text('Articuler deux arguments'), findsOneWidget);
+      expect(find.text('1'), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
+    });
+
+    testWidgets('rien du tout à l\'oral, ni cadre ni « non disponible »',
+        (tester) async {
+      await tester.pumpWidget(_host(_eval(json(complet)), isOral: true));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Au niveau B2'), findsNothing);
+      expect(find.text(kVersionCibleeLeviersTitle), findsNothing);
+    });
+
+    testWidgets('rien du tout quand le bloc est absent (toutes les évals '
+        'existantes)', (tester) async {
+      await tester.pumpWidget(_host(_eval(json(null))));
+      await tester.pumpAndSettle();
+
+      expect(find.text(kVersionCibleeEyebrow.toUpperCase()), findsNothing);
+      expect(find.text(kVersionCibleeLeviersTitle), findsNothing);
+    });
+
+    // Le cas le plus frequent depuis le retrait de `version_amelioree` : une
+    // eval EE anterieure, ou dont le second appel a echoue. L'ecran n'a alors
+    // AUCUN texte modele — il doit rester equilibre, sans section vide ni
+    // titre orphelin, et sans « non disponible ».
+    testWidgets('aucun texte modèle : le rapport reste entier, sans trou',
+        (tester) async {
+      await tester.pumpWidget(_host(
+        _eval(<String, dynamic>{
+          'noteSurVingt': 7,
+          'niveauObserve': 'B1',
+          'confiance': 'HAUTE',
+          'feedback': <String, dynamic>{
+            // Servie par l'API, jamais rendue.
+            'version_amelioree': 'Bonjour Marie, je viens de trouver un '
+                'appartement.',
+            'points_forts': ['Le ton reste courtois.'],
+          },
+        }),
+        productionText: 'Bonjour Marie, j\'ai trouvé un appartement.',
+      ));
+      await tester.pumpAndSettle();
+
+      // Le rapport tient debout : hero, synthese, redaction.
+      expect(find.text('NIVEAU ESTIMÉ'), findsOneWidget);
+      expect(find.text('Ce qui marche'), findsOneWidget);
+      expect(find.text('Votre rédaction'), findsOneWidget);
+      expect(
+        find.text('Bonjour Marie, j\'ai trouvé un appartement.'),
+        findsOneWidget,
+      );
+
+      // Et pas un seul modele, ni cadre, ni titre, ni excuse.
+      expect(find.textContaining('je viens de trouver'), findsNothing);
+      expect(find.text(kVersionCibleeEyebrow.toUpperCase()), findsNothing);
+      expect(find.text(kVersionCibleeLeviersTitle), findsNothing);
+      expect(find.textContaining('Au niveau'), findsNothing);
+      expect(find.textContaining('non disponible'), findsNothing);
     });
   });
 }

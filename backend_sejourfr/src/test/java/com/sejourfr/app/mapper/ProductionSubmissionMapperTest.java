@@ -7,10 +7,12 @@ import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.enums.ConfianceEvaluation;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.SituationDansNiveau;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.service.ProductionAudioStorageService;
+import com.sejourfr.app.service.ProductionRubricsFixture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -46,7 +48,11 @@ class ProductionSubmissionMapperTest {
         aiEvaluationManager = mock(AiEvaluationManager.class);
         transcriptionManager = mock(TranscriptionManager.class);
         audioStorage = mock(ProductionAudioStorageService.class);
-        mapper = new ProductionSubmissionMapper(aiEvaluationManager, transcriptionManager, audioStorage);
+        // Grille active v13 : bandes de l'echelle du TCF (A2 = 2-5, B1 = 6-9,
+        // B2 = 10-20). La situation dans le palier s'y lit, elle n'est pas
+        // codee en dur dans le mapper.
+        mapper = new ProductionSubmissionMapper(aiEvaluationManager, transcriptionManager,
+            audioStorage, ProductionRubricsFixture.charge("v13"));
     }
 
     private ProductionSubmission submission(UUID id) {
@@ -145,6 +151,106 @@ class ProductionSubmissionMapperTest {
                 .isEqualTo(ProductionSubmissionMapper.AVERTISSEMENT_NIVEAU);
         // Le niveau brut reste hors du feedback : une seule porte d'affichage.
         assertThat(dto.evaluation().feedback()).doesNotContainKey("niveau_cecrl");
+    }
+
+    // ------------------------------------------------ situation dans le palier
+
+    /**
+     * Ce qui remplace, sur une TACHE ISOLEE, la note /20 qu'on n'affiche plus.
+     * Bande B1 de l'echelle du TCF = [6 ; 10[ : les tiers tombent a 7,33 et
+     * 8,67, donc 9,0 est un haut de bande.
+     */
+    @Test
+    void toDto_situeLaProductionDansSonPropreNiveau() {
+        UUID id = UUID.randomUUID();
+        ProductionSubmission s = submission(id);
+        s.setAttempt(null);
+        s.setProductionTask(null);
+
+        Map<String, Object> feedback = new LinkedHashMap<>();
+        feedback.put("confiance", "HAUTE");
+
+        AiEvaluation eval = new AiEvaluation();
+        eval.setNoteSur20(new BigDecimal("9.0"));
+        eval.setNiveauCecrl(NiveauCecrl.B1);
+        eval.setFeedbackJson(feedback);
+
+        when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.of(eval));
+        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
+
+        ProductionSubmissionDto dto = mapper.toDto(s);
+
+        assertThat(dto.evaluation().situationDansNiveau())
+            .isEqualTo(SituationDansNiveau.PALIER_SOLIDE);
+        assertThat(dto.evaluation().situationDansNiveauLabel()).isEqualTo("B1 solide");
+    }
+
+    /** Bas de la bande A2 (2 a 5) : le palier est atteint, jamais « presque B1 ». */
+    @Test
+    void toDto_basDeBande_seDitPalierAtteint() {
+        UUID id = UUID.randomUUID();
+        ProductionSubmission s = submission(id);
+        s.setAttempt(null);
+        s.setProductionTask(null);
+
+        Map<String, Object> feedback = new LinkedHashMap<>();
+        feedback.put("confiance", "MOYENNE");
+
+        AiEvaluation eval = new AiEvaluation();
+        eval.setNoteSur20(new BigDecimal("2.0"));
+        eval.setNiveauCecrl(NiveauCecrl.A2);
+        eval.setFeedbackJson(feedback);
+
+        when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.of(eval));
+        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
+
+        assertThat(mapper.toDto(s).evaluation().situationDansNiveauLabel()).isEqualTo("A2 atteint");
+    }
+
+    /** Sans niveau expose (eval pre-v2, pas de confiance), il n'y a rien a situer. */
+    @Test
+    void toDto_sansNiveauExpose_pasDeSituation() {
+        UUID id = UUID.randomUUID();
+        ProductionSubmission s = submission(id);
+        s.setAttempt(null);
+        s.setProductionTask(null);
+
+        AiEvaluation eval = new AiEvaluation();
+        eval.setNoteSur20(new BigDecimal("8.0"));
+        eval.setNiveauCecrl(NiveauCecrl.B1);
+        eval.setFeedbackJson(new LinkedHashMap<>());
+
+        when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.of(eval));
+        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
+
+        ProductionSubmissionDto dto = mapper.toDto(s);
+        assertThat(dto.evaluation().situationDansNiveau()).isNull();
+        assertThat(dto.evaluation().situationDansNiveauLabel()).isNull();
+    }
+
+    /** La note reste EXPOSEE dans le DTO : c'est l'affichage qui change, pas le calcul. */
+    @Test
+    void toDto_laNoteResteDansLeDto() {
+        UUID id = UUID.randomUUID();
+        ProductionSubmission s = submission(id);
+        s.setAttempt(null);
+        s.setProductionTask(null);
+
+        Map<String, Object> feedback = new LinkedHashMap<>();
+        feedback.put("confiance", "HAUTE");
+        feedback.put("note_globale", new BigDecimal("3.5"));
+
+        AiEvaluation eval = new AiEvaluation();
+        eval.setNoteSur20(new BigDecimal("3.5"));
+        eval.setNiveauCecrl(NiveauCecrl.A2);
+        eval.setFeedbackJson(feedback);
+
+        when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.of(eval));
+        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
+
+        ProductionSubmissionDto dto = mapper.toDto(s);
+        assertThat(dto.evaluation().noteSurVingt()).isEqualByComparingTo("3.5");
+        assertThat(dto.evaluation().feedback()).containsKey("note_globale");
     }
 
     @Test

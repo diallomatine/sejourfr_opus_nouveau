@@ -175,7 +175,7 @@ class AiEvaluationServiceV4Test {
         secondePasse = new ProductionSecondePasseService(props, secondPassClient, rubrics);
         service = new AiEvaluationService(submissionManager, transcriptionManager, aiEvaluationManager,
             llmClient, promptBuilder, rubrics, validity, secondePasse,
-            new ProductionFluiditeService(props), new EvaluationRefusalMetrics(), props);
+            new ProductionFluiditeService(props), new EvaluationRefusalMetrics(), new EvaluationPurgeMetrics(), props);
     }
 
     // -------------------------------------------------- verdict INVALIDE (T1)

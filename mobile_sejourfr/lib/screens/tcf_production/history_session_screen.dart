@@ -14,6 +14,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
+import 'production_result_labels.dart';
 import 'widgets/bilan_hero.dart';
 import 'widgets/feedback_block.dart';
 import 'widgets/production_app_header.dart';
@@ -435,7 +436,9 @@ class _Body extends StatelessWidget {
                   onTap: () => onTapTache(i),
                   child: TacheBilanRow(
                     name: _taskName(i),
-                    score: slots[i].submission?.evaluation?.noteSurVingt,
+                    niveau: tacheNiveau(slots[i].submission?.evaluation),
+                    evaluated: slots[i].submission?.statut ==
+                        SubmissionStatut.evaluated,
                     pending: slots[i].submission != null &&
                         !slots[i].submission!.statut.isFinal,
                     notRendered: slots[i].submission == null,

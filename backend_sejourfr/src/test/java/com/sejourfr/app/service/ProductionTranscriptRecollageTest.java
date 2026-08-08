@@ -107,7 +107,7 @@ class ProductionTranscriptRecollageTest {
             llmClient, new EvaluationPromptBuilder(new ObjectMapper(), rubrics), rubrics,
             new ProductionValidityService(props),
             new ProductionSecondePasseService(props, mock(EvaluationLlmClient.class), rubrics),
-            new ProductionFluiditeService(props), new EvaluationRefusalMetrics(), props);
+            new ProductionFluiditeService(props), new EvaluationRefusalMetrics(), new EvaluationPurgeMetrics(), props);
     }
 
     private ProductionSubmission submissionOrale() {
@@ -189,8 +189,10 @@ class ProductionTranscriptRecollageTest {
         AiEvaluation eval = service(manager).evaluate(sub.getId());
         when(aiEvaluationManager.findLatestBySubmissionId(sub.getId())).thenReturn(Optional.of(eval));
 
+        ProductionRubricsProvider rubrics = new ProductionRubricsProvider(props, new ObjectMapper());
+        rubrics.load();
         ProductionSubmissionDto dto = new ProductionSubmissionMapper(
-            aiEvaluationManager, manager, mock(ProductionAudioStorageService.class)).toDto(sub);
+            aiEvaluationManager, manager, mock(ProductionAudioStorageService.class), rubrics).toDto(sub);
 
         // Les quatre citations survivent : les deux qui enjambaient une
         // frontiere sont desormais rattachables.

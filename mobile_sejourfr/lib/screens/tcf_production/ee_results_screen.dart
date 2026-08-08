@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/production_models.dart';
+import '../../core/providers/target_level_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
@@ -216,6 +217,7 @@ class _ResultsBody extends ConsumerWidget {
                 isOral: false,
                 eyebrow: 'Expression écrite · Tâche ${taskIndex + 1}',
                 productionText: submission.texteSoumis,
+                targetLevel: ref.watch(userTargetLevelProvider),
               ),
             ],
           ),

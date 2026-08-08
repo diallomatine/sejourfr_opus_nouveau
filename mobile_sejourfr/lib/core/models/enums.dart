@@ -128,6 +128,14 @@ enum TargetProcedure {
         TargetProcedure.cr => 'B1',
         TargetProcedure.nat => 'B2',
       };
+
+  /// Même chose, typée : le palier que la démarche exige. Miroir de
+  /// `tcfLevelFromProcedure` côté web.
+  TargetLevel get requiredLevel => switch (this) {
+        TargetProcedure.csp => TargetLevel.a2,
+        TargetProcedure.cr => TargetLevel.b1,
+        TargetProcedure.nat => TargetLevel.b2,
+      };
 }
 
 enum UserRole {
@@ -218,7 +226,33 @@ enum NiveauCecrl {
         NiveauCecrl.b2 => 3,
         NiveauCecrl.c1 || NiveauCecrl.c2 => 3,
       };
+
+  /// Rang du palier sur l'échelle du TCF IRN (0 = A1 non atteint … 4 = B2),
+  /// **cinq crans distincts** — contrairement à [scaleIndex], qui dessine une
+  /// barre à quatre libellés et confond donc « A1 » et « A1 non atteint ».
+  ///
+  /// C'est lui qui situe le palier atteint sur la barre du rapport de tâche et
+  /// qui compare le niveau obtenu au niveau exigé par la démarche du candidat.
+  /// Miroir de `tcfPalierIndex` côté web (`lib/production-feedback.ts`).
+  int get tcfPalierIndex => switch (this) {
+        NiveauCecrl.a1NonAtteint => 0,
+        NiveauCecrl.a1 => 1,
+        NiveauCecrl.a2 => 2,
+        NiveauCecrl.b1 => 3,
+        NiveauCecrl.b2 || NiveauCecrl.c1 || NiveauCecrl.c2 => 4,
+      };
 }
+
+/// Les cinq paliers du TCF IRN, dans l'ordre. C'est la suite affichée par la
+/// barre de niveau du rapport de tâche : elle situe un **palier**, jamais une
+/// note. Miroir de `TCF_NOTE_BANDS` côté web.
+const List<NiveauCecrl> kTcfPaliers = [
+  NiveauCecrl.a1NonAtteint,
+  NiveauCecrl.a1,
+  NiveauCecrl.a2,
+  NiveauCecrl.b1,
+  NiveauCecrl.b2,
+];
 
 /// Degré de certitude d'une évaluation IA (contrat de notation v4). Un niveau
 /// par tâche n'est JAMAIS affiché sans sa confiance à côté.
@@ -246,9 +280,38 @@ enum ConfianceEvaluation {
       };
 }
 
+/// Où se situe une production **à l'intérieur de son propre palier**, en trois
+/// crans. Dérivé serveur (`SituationDansNiveau` côté Java), jamais recalculé
+/// ici — les bornes de bande viennent de la grille de notation active.
+///
+/// C'est ce qui remplace, sur le résultat d'une TÂCHE, la note /20 qui n'y est
+/// plus affichée : sans lui, un A2 à 2 et un A2 à 5 voyaient exactement le même
+/// écran, et le candidat n'avait plus aucun signal de progression entre deux
+/// tentatives.
+///
+/// Absent (null) sur les évaluations antérieures, sur `A1_NON_ATTEINT` (bande
+/// d'une seule valeur) et sur C1/C2 (hors profil TCF IRN).
+enum SituationDansNiveau {
+  entreeDePalier('ENTREE_DE_PALIER'),
+  palierConfirme('PALIER_CONFIRME'),
+  palierSolide('PALIER_SOLIDE');
+
+  const SituationDansNiveau(this.wire);
+  final String wire;
+
+  static SituationDansNiveau? fromWireNullable(String? value) {
+    if (value == null) return null;
+    final normalized = value.trim().toUpperCase();
+    for (final s in SituationDansNiveau.values) {
+      if (s.wire == normalized) return s;
+    }
+    return null;
+  }
+}
+
 /// Bande qualitative d'un critère, calculée côté serveur depuis sa note /20.
 /// Les fronts affichent la bande, plus le nombre : une IA ne distingue pas
-/// honnêtement un 13 d'un 14. La note globale /20 reste, elle, affichée.
+/// honnêtement un 13 d'un 14.
 /// Absente des évaluations antérieures au contrat v4.
 enum BandeCritere {
   tresBonneMaitrise('TRES_BONNE_MAITRISE'),
@@ -269,11 +332,22 @@ enum BandeCritere {
     return null;
   }
 
+  /// Le **palier atteint sur ce critère**, pas un déficit.
+  ///
+  /// Les bornes des bandes (10 / 6 / 2) sont exactement celles des paliers du
+  /// TCF. Conséquence structurelle du vocabulaire précédent (« En cours
+  /// d'acquisition », « Fragile ») : la bande d'un candidat A2 était son niveau
+  /// CECRL renommé en échec, et **aucune production ne pouvait lui faire
+  /// afficher autre chose**. On nomme donc la bande par ce qu'elle est.
+  ///
+  /// ⚠️ Contrat gelé, écrit à la main sur les deux fronts (le réseau ne
+  /// transporte que l'enum) : miroir mot pour mot de `bandeCritereLabel`
+  /// (`web_sejoufr/lib/types.ts`), verrouillé des deux côtés par test.
   String get displayName => switch (this) {
-        BandeCritere.tresBonneMaitrise => 'Très bonne maîtrise',
-        BandeCritere.satisfaisant => 'Satisfaisant',
-        BandeCritere.enCoursAcquisition => "En cours d'acquisition",
-        BandeCritere.fragile => 'Fragile',
+        BandeCritere.tresBonneMaitrise => 'Niveau B2',
+        BandeCritere.satisfaisant => 'Niveau B1',
+        BandeCritere.enCoursAcquisition => 'Niveau A2',
+        BandeCritere.fragile => 'Niveau A1',
         BandeCritere.nonEvaluable => 'Non évaluable',
       };
 
@@ -348,4 +422,20 @@ enum TargetLevel {
     if (value == null) return null;
     return TargetLevel.values.firstWhere((e) => e.wire == value);
   }
+
+  /// Le même palier, lu sur l'échelle des niveaux évalués : c'est ce qui permet
+  /// de comparer « ce que la démarche exige » à « ce que la production vaut ».
+  NiveauCecrl get asNiveau => switch (this) {
+        TargetLevel.a2 => NiveauCecrl.a2,
+        TargetLevel.b1 => NiveauCecrl.b1,
+        TargetLevel.b2 => NiveauCecrl.b2,
+      };
+
+  /// Ce que ce palier ouvre comme démarche. Seuils en vigueur au
+  /// 1ᵉʳ janvier 2026. Miroir de `DEMARCHE_PAR_NIVEAU` côté web.
+  String get demarcheLabel => switch (this) {
+        TargetLevel.a2 => 'la carte de séjour pluriannuelle',
+        TargetLevel.b1 => 'la carte de résident',
+        TargetLevel.b2 => 'la naturalisation',
+      };
 }

@@ -3,26 +3,30 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
-/// Ce que le candidat a rendu, et — d'un bouton — la meme chose reecrite.
+/// Ce que le candidat a rendu — et rien d'autre.
 ///
-/// Les deux vivaient dans deux cartes eloignees : le texte soumis tout en bas
-/// de l'ecran, la version amelioree bien plus haut. Or c'est une **comparaison**
-/// qu'on demande au candidat de faire ; il faut donc que les deux soient au
-/// meme endroit, et qu'une seule s'affiche a la fois.
+/// ⚠️ **La bascule « Voir la version améliorée » a été retiree (2026-08-08).**
+/// `version_amelioree` reecrit la production au niveau **deja constate** :
+/// c'etait le texte le plus visible et le plus copiable du rapport, et il ne
+/// fait pas monter d'un palier. Un candidat l'a recopie tel quel, l'a resoumis,
+/// et a obtenu **exactement la meme note et le meme niveau**. Le seul texte
+/// modele de l'ecran est desormais [TargetLevelVersionCard] (`version_ciblee`),
+/// qui montre la marche au-dessus et nomme son niveau.
 ///
-/// La version amelioree n'existe qu'en expression ECRITE (absente en EO par
-/// contrat, pas par bug) : sans elle, la carte se reduit au texte rendu, sans
-/// bouton mort.
+/// Le champ reste servi par l'API et decode dans `production_models.dart`
+/// (aucun widget ne le lit) : le retirer du contrat imposerait une nouvelle
+/// version de tool-schema sur la grille de notation.
+///
+/// Reste ici la seule chose qui aide a relire : le reperage de la phrase visee
+/// par la priorite n° 1.
 class ProductionTextCard extends StatefulWidget {
   const ProductionTextCard({
     super.key,
     required this.texte,
-    this.versionAmelioree,
     this.highlight,
   });
 
   final String texte;
-  final String? versionAmelioree;
 
   /// Passage a surligner dans le texte rendu — la phrase que vise la priorite
   /// n° 1. Le reperage se fait sur la **premiere occurrence exacte** : si le
@@ -35,13 +39,10 @@ class ProductionTextCard extends StatefulWidget {
 }
 
 class _ProductionTextCardState extends State<ProductionTextCard> {
-  bool _improved = false;
   bool _reperes = true;
 
   @override
   Widget build(BuildContext context) {
-    final version = widget.versionAmelioree;
-    final hasVersion = version != null && version.isNotEmpty;
     final hasHighlight = (widget.highlight ?? '').trim().isNotEmpty;
 
     return Container(
@@ -61,38 +62,16 @@ class _ProductionTextCardState extends State<ProductionTextCard> {
             texte: widget.texte,
             highlight: _reperes ? widget.highlight : null,
           ),
-          if (hasVersion || hasHighlight) ...[
+          if (hasHighlight) ...[
             const SizedBox(height: 13),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (hasVersion)
-                  _ActionButton(
-                    label: _improved
-                        ? 'Masquer la version améliorée'
-                        : 'Voir la version améliorée',
-                    icon: _improved
-                        ? LucideIcons.eyeOff
-                        : LucideIcons.fileCheck,
-                    primary: true,
-                    onTap: () => setState(() => _improved = !_improved),
-                  ),
-                if (hasHighlight)
-                  _ActionButton(
-                    label: _reperes
-                        ? 'Masquer les repères'
-                        : 'Afficher les repères',
-                    icon: LucideIcons.highlighter,
-                    primary: false,
-                    onTap: () => setState(() => _reperes = !_reperes),
-                  ),
-              ],
+            Align(
+              alignment: Alignment.centerLeft,
+              child: _ActionButton(
+                label: _reperes ? 'Masquer les repères' : 'Afficher les repères',
+                icon: _reperes ? LucideIcons.highlighter : LucideIcons.eye,
+                onTap: () => setState(() => _reperes = !_reperes),
+              ),
             ),
-          ],
-          if (hasVersion && _improved) ...[
-            const SizedBox(height: 12),
-            _ImprovedBox(texte: version),
           ],
         ],
       ),
@@ -137,27 +116,24 @@ class _HighlightedText extends StatelessWidget {
   }
 }
 
-/// Les deux actions de `.actions` dans la maquette : la pleine (version
-/// ameliorée) et la douce (repères). Petites, cote a cote, elles n'ajoutent
-/// aucune ligne de texte a lire.
+/// L'action douce de `.actions` dans la maquette. Petite, elle n'ajoute aucune
+/// ligne de texte a lire. La variante pleine servait a la version amelioree :
+/// elle est partie avec elle.
 class _ActionButton extends StatelessWidget {
   const _ActionButton({
     required this.label,
     required this.icon,
-    required this.primary,
     required this.onTap,
   });
 
   final String label;
   final IconData icon;
-  final bool primary;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final fg = primary ? AppColors.white : AppColors.blue;
     return Material(
-      color: primary ? AppColors.blue : AppColors.blueLight,
+      color: AppColors.blueLight,
       borderRadius: BorderRadius.circular(AppRadii.md),
       child: InkWell(
         onTap: onTap,
@@ -167,53 +143,19 @@ class _ActionButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 15, color: fg),
+              Icon(icon, size: 15, color: AppColors.blue),
               const SizedBox(width: 7),
               Text(
                 label,
-                style:
-                    AppFonts.ui(size: 12.5, weight: FontWeight.w800, color: fg),
+                style: AppFonts.ui(
+                  size: 12.5,
+                  weight: FontWeight.w800,
+                  color: AppColors.blue,
+                ),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _ImprovedBox extends StatelessWidget {
-  const _ImprovedBox({required this.texte});
-
-  final String texte;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: AppColors.greenLight,
-        borderRadius: BorderRadius.circular(AppRadii.md),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'VERSION AMÉLIORÉE',
-            style: AppFonts.label(size: 9.5, color: AppColors.green),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Vos idées, réécrites : les mêmes, dites autrement.',
-            style: AppFonts.ui(size: 12, color: AppColors.muted, height: 1.4),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            texte,
-            style: AppFonts.ui(size: 13.5, color: AppColors.ink, height: 1.6),
-          ),
-        ],
       ),
     );
   }

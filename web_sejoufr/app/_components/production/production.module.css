@@ -284,19 +284,6 @@
   color: var(--color-ink);
 }
 
-/* ---------- Version améliorée (EE uniquement) ---------- */
-.improved {
-  margin: 0;
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: var(--color-blue-soft);
-  border: 1px solid var(--color-blue-light);
-  font-size: 14px;
-  line-height: 1.65;
-  color: var(--color-ink);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
 
 /* ---------- Critères notés (feedback) ---------- */
 .critRow {
@@ -774,21 +761,6 @@
   line-height: 1.08;
   font-weight: 700;
 }
-.heroScore {
-  margin: 0;
-  flex-shrink: 0;
-  font-family: var(--font-display);
-  font-size: 42px;
-  line-height: 1;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.heroScoreOf {
-  font-size: 16px;
-  font-family: var(--font-sans);
-  color: color-mix(in srgb, white 72%, transparent);
-  margin-left: 2px;
-}
 .heroResume {
   position: relative;
   margin: 10px 0 0;
@@ -798,9 +770,9 @@
 }
 
 /* ---------- Panneau de niveau : translucide, et il ouvre la règle ----------
-   Il est `<details>` : la portée de la note et la table des paliers se
-   consultent d'un geste au lieu d'imposer trois lignes de prose entre la note
-   et le premier conseil. La pastille d'information en est le repère visible. */
+   Il est `<details>` : la portée du niveau se consulte d'un geste au lieu
+   d'imposer trois lignes de prose avant le premier conseil. La pastille
+   d'information en est le repère visible. */
 .levelPanel {
   position: relative;
   margin-top: 18px;
@@ -845,6 +817,22 @@
   font-size: 17px;
   font-weight: 700;
 }
+/* Le cran DANS le palier (« Palier solide ») : discret, il nuance le niveau au
+   lieu de le remplacer. Aucun chiffre — c'est tout l'objet du champ. */
+.levelSituation {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  max-width: 100%;
+  background: color-mix(in srgb, white 16%, transparent);
+  border: 1px solid color-mix(in srgb, white 26%, transparent);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: color-mix(in srgb, white 92%, transparent);
+}
+
 /* `.pill.light` de la maquette : fond blanc, texte à la teinte du palier. C'est
    elle qui porte la couleur du niveau, puisque l'échelle passe en blanc. */
 .levelPill {
@@ -912,29 +900,43 @@
   color: color-mix(in srgb, white 88%, transparent);
 }
 .levelRuleText {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: 13px;
   line-height: 1.55;
 }
-.levelTable { list-style: none; margin: 0; padding: 0; }
-.levelTableRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 5px 0;
+
+/* ---------- Rappel d'enjeu : le niveau atteint face à la démarche visée ----
+   Le vrai anti-découragement. Filet vertical côté gauche, jamais rouge : un
+   objectif encore devant n'est pas une faute. */
+.heroStake {
+  position: relative;
+  display: block;
+  margin: 12px 0 0;
+  padding: 11px 13px;
+  border-radius: 14px;
+  border-left: 3px solid color-mix(in srgb, white 55%, transparent);
+  background: color-mix(in srgb, white 12%, transparent);
 }
-.levelTableRange {
-  flex-shrink: 0;
-  width: 58px;
-  text-align: center;
-  padding: 3px 0;
-  border-radius: 8px;
-  background: color-mix(in srgb, white 16%, transparent);
-  font-size: 12px;
-  font-weight: 800;
-  color: white;
+.heroStake[data-reached] {
+  border-left-color: white;
+  background: color-mix(in srgb, white 17%, transparent);
 }
-.levelTableLabel { font-size: 13px; font-weight: 600; }
+.heroStakeLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: color-mix(in srgb, white 75%, transparent);
+}
+.heroStakeText {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: color-mix(in srgb, white 92%, transparent);
+}
 
 /* ---------- Deux bandeaux : ce qui marche / à corriger ----------
    Une ligne chacun, repliés. Le détail s'ouvre DANS le bandeau. */
@@ -1178,7 +1180,10 @@
   color: var(--color-ink-2);
 }
 
-/* ---------- Votre rédaction : le texte rendu et sa réécriture ---------- */
+/* ---------- Votre rédaction : le texte rendu, et lui seul ----------
+   La bascule « version améliorée » a été retirée : elle réécrivait au niveau
+   déjà constaté, et c'était le texte le plus copiable du rapport. Le seul
+   modèle de la page est `.targetCard`, plus bas. */
 .prodSection { display: block; }
 .prodCard {
   background: white;
@@ -1201,7 +1206,6 @@
   color: inherit;
 }
 .prodActions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
-.prodBtn,
 .prodBtnSoft {
   display: inline-flex;
   align-items: center;
@@ -1212,42 +1216,90 @@
   font-size: 13px;
   font-weight: 800;
   cursor: pointer;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
 }
-.prodBtn { background: var(--color-blue); color: white; }
-.prodBtnSoft { background: var(--color-blue-light); color: var(--color-blue); }
-.prodImproved {
-  margin-top: 12px;
-  padding: 13px;
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--color-green) 9%, white);
-  border: 1px solid color-mix(in srgb, var(--color-green) 24%, transparent);
+
+/* ---------- La marche au-dessus : la réponse au niveau VISÉ ----------
+   LE texte modèle du rapport, et le seul : il montre le palier suivant, nomme
+   son niveau, et son cadre dit qu'il n'est pas du candidat. */
+.targetSection { display: block; }
+.targetCard {
+  background: color-mix(in srgb, var(--color-blue) 5%, white);
+  border: 1px solid color-mix(in srgb, var(--color-blue) 22%, transparent);
+  border-radius: 20px;
+  padding: 15px;
 }
-.prodImprovedLabel {
+.targetEyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   font-weight: 700;
-  color: var(--color-green);
+  color: var(--color-blue);
 }
-.prodImprovedHint {
-  margin: 6px 0 0;
+.targetIntro {
+  margin: 8px 0 0;
   font-size: 12.5px;
-  line-height: 1.45;
+  line-height: 1.5;
   color: var(--color-muted);
 }
-.prodImprovedText {
-  margin: 8px 0 0;
+.targetText {
+  margin: 11px 0 0;
+  padding: 13px;
+  border-radius: 16px;
+  background: white;
+  border: 1px solid var(--color-line);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.65;
   color: var(--color-ink);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.targetGapTitle {
+  margin: 14px 0 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+.targetGapList {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.targetGapItem {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  align-items: start;
+  gap: 9px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+.targetGapRank {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-blue) 12%, white);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--color-blue);
 }
 
 @media (max-width: 480px) {
   .hero { padding: 18px; border-radius: 22px; }
   .heroVerdict { font-size: 24px; }
-  .heroScore { font-size: 34px; }
+  .levelValue { font-size: 16px; }
   .sectionTitle { font-size: 17px; }
+  .targetCard { padding: 13px; border-radius: 18px; }
 }

@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/format_date.dart';
+import '../production_result_labels.dart';
 import 'task_palette.dart';
 
 /// Pastille circulaire en tête de carte d'historique : numéro de tâche (T1
@@ -42,7 +43,14 @@ class _Pastille extends StatelessWidget {
   }
 }
 
-/// Carte de session dans l'historique : date + moyenne + niveau global + mini-pills par tache.
+/// Carte de session dans l'historique.
+///
+/// Une session **d'examen blanc** (≥ 2 tâches) porte sa moyenne /20 : c'est le
+/// seul périmètre auquel le TCF attache une note. Un **entraînement libre**
+/// (1 tâche) porte son **niveau** — une « moyenne » sur une seule tâche, c'était
+/// sa note, et une tâche isolée n'en reçoit pas (décision produit du
+/// 2026-08-08).
+///
 /// Tap -> bilan complet de la session.
 class HistorySessionCard extends StatelessWidget {
   const HistorySessionCard({
@@ -77,11 +85,12 @@ class HistorySessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avg = _avgScore();
+    final isMulti = submissions.length >= 2;
+    final avg = isMulti ? _avgScore() : null;
+    final niveau = isMulti ? null : tacheNiveau(submissions.first.evaluation);
     final date = _lastSubmittedAt();
     final completed = submissions.where((s) => s.evaluation != null).length;
     final total = submissions.length;
-    final isMulti = submissions.length >= 2;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -160,24 +169,30 @@ class HistorySessionCard extends StatelessWidget {
                         text: TextSpan(
                           children: [
                             TextSpan(
-                              text: avg == null ? '—' : formatScore(avg),
+                              text: isMulti
+                                  ? (avg == null ? '—' : formatScore(avg))
+                                  : (niveau == null
+                                      ? '—'
+                                      : tacheNiveauLabel(niveau)),
                               style: AppFonts.display(
-                                size: 24,
+                                size: isMulti ? 24 : 18,
                                 weight: FontWeight.w700,
                                 color: AppColors.ink,
                               ),
                             ),
-                            TextSpan(
-                              text: '/20',
-                              style: AppFonts.ui(
-                                size: 13,
-                                weight: FontWeight.w500,
-                                color: AppColors.muted2,
+                            if (isMulti)
+                              TextSpan(
+                                text: '/20',
+                                style: AppFonts.ui(
+                                  size: 13,
+                                  weight: FontWeight.w500,
+                                  color: AppColors.muted2,
+                                ),
                               ),
-                            ),
                             TextSpan(
-                              text: '  moyenne · $completed/$total évaluée'
-                                  '${total > 1 ? "s" : ""}',
+                              text: isMulti
+                                  ? '  moyenne · $completed/$total évaluées'
+                                  : '  $completed/$total évaluée',
                               style: AppFonts.ui(
                                 size: 12,
                                 color: AppColors.muted,

@@ -79,7 +79,6 @@ void main() {
         countByTache: {1: 5, 2: 5, 3: 10},
         doneByTache: {1: 2, 3: 3},
         exams: [],
-        singles: [],
       );
 
       expect(data.totalSubjects, 20);
@@ -92,7 +91,6 @@ void main() {
         countByTache: {},
         doneByTache: {},
         exams: [],
-        singles: [],
       );
 
       expect(data.totalSubjects, 0);

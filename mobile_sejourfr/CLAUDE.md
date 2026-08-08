@@ -113,6 +113,9 @@ lib/
     │   │                                fiche consigne+plan → Enregistrer/Rédiger
     │   │                                ou Refaire/Voir le rapport.
     │   ├── production_exams_tab_view.dart  mode « Examens » (corps seul).
+    │   ├── production_result_labels.dart  règles PURES du rapport de tâche :
+    │   │                                niveau affirmé, portée du niveau, rappel
+    │   │                                d'enjeu (miroir web production-feedback.ts).
     │   ├── production_catalog.dart      catalogue d'une épreuve (sujets +
     │   │                                productions), mis en cache pour la session.
     │   ├── competences/                 Module « Compétences TCF » : 4 écrans (liste,
@@ -166,7 +169,7 @@ L'app suit la maquette mobile autonome (design « bleu-blanc-rouge discret »). 
   en « A1 ». Une teinte de niveau vient **toujours** de `CecrlColor` : le vert dit
   « B2 », pas « terminé » (une pastille d'état reste neutre).
   **Une note de production se colore par son palier TCF** (`TcfNoteScale.bandFor(note)`,
-  `null` si la note n'est pas un nombre → pas de palier inventé, pas de curseur), jamais par
+  `null` si la note n'est pas un nombre → pas de palier inventé), jamais par
   un seuil scolaire sur 20 : 12/20 vaut B2, le palier le plus haut de l'examen. Un critère
   d'évaluation antérieur au contrat v4 (sans `bande`) relit sa note avec la même table
   (`TcfNoteScale.bandeFor`, mêmes correspondances que `BandeCritere.of` côté serveur) et se
@@ -902,9 +905,9 @@ Structure de référence : maquette « Résultats TCF — Rapport express », **
 
 1. **Hero** (`results_hero.dart`) — le `.hero` de la maquette : dégradé de marque +
    **halo clair** en haut à droite, eyebrow « Expression écrite · Tâche 1 », **verdict
-   d'objectif** en gros, `objectif_resume`, **note /20 à droite**, puis le panneau `.level`
-   **translucide** (blanc 13 %, bordure blanc 18 %) : niveau estimé + pastille + échelle du
-   TCF. Les trois cartes d'avant (bandeau « Évaluation terminée », `objective_card.dart`,
+   d'objectif** en gros, `objectif_resume`, puis le panneau `.level`
+   **translucide** (blanc 13 %, bordure blanc 18 %) : niveau estimé + pastille + barre des
+   cinq paliers, et enfin le **rappel d'enjeu**. Les trois cartes d'avant (bandeau « Évaluation terminée », `objective_card.dart`,
    `production_score_hero.dart`) n'en font plus qu'une, et les trois fichiers sont
    **supprimés**. Pas d'objectif (≈ 100 évaluations legacy) → titre neutre « Votre
    correction », le hero tient quand même. **Aucune pastille d'icône devant le verdict** :
@@ -927,13 +930,13 @@ Structure de référence : maquette « Résultats TCF — Rapport express », **
    complète** se déplient carte par carte via le bouton **« Voir pourquoi » / « Masquer le
    détail »** (`CriterionRow.showDetail` + `onToggle`). Quatre lignes serrées dans une seule
    carte se lisaient comme un tableau, pas comme quatre choses sur lesquelles appuyer.
-4. **Votre rédaction** (`production_text_card.dart`) — le texte rendu **et** la version
-   améliorée en **bascule dans la même carte** : c'est une comparaison qu'on demande au
-   candidat, les deux ne peuvent pas vivre à deux endroits éloignés. La phrase visée par la
+4. **Votre rédaction** (`production_text_card.dart`) — le texte rendu, **et rien d'autre** :
+   la bascule « Voir la version améliorée » a été **retirée le 2026-08-08** (cf. la règle
+   dédiée plus bas), et `improved_version_card.dart` est **supprimé**. La phrase visée par la
    priorité n° 1 y est **surlignée** (`highlight`, première occurrence **exacte** ; aucune
-   correspondance ⇒ aucun repère, jamais un repère faux). Deux actions comme la maquette :
-   « Voir la version améliorée » (pleine) et « Masquer les repères » (douce). Sans texte servi
-   (oral, historique), `improved_version_card.dart` garde sa carte autonome.
+   correspondance ⇒ aucun repère, jamais un repère faux), avec pour seule action « Masquer
+   les repères » (douce). Puis, juste en dessous, le **seul texte modèle** de l'écran :
+   `TargetLevelVersionCard`.
 
 Puis **« Voir l'analyse complète »**, toujours **repliée par défaut** : avertissements →
 accomplissement détaillé → exemples corrigés → suggestions (le détail par critère l'a quittée
@@ -963,26 +966,59 @@ que le mot « avant ». La forme étiquetée reste utilisée par les exemples co
 Les intertitres sortent des cartes (`results_section_head.dart`) : chaque bloc portait son
 titre dans un encadré coloré, ce qui faisait lire le rapport comme une suite d'alertes.
 
-- **La note est celle du TCF, et son échelle est affichée avec elle** : séparées, la note se
-  lisait comme une note scolaire française — « 4,5/20 » n'est pas une catastrophe, c'est un
-  A2. `donut_chart_score.dart` (arc = un pourcentage de 20, exactement la lecture qu'on
-  corrige), `niveau_observe_card.dart`, puis `production_score_hero.dart` sont **supprimés**,
-  fusionnés dans `ProductionResultsHero`. Les paliers de `TcfNoteScale` sont à **largeur
-  égale** (pas proportionnelle) et prennent leur teinte de `CecrlColor` : la barre dit le même
-  palier que la pastille. **`TcfNoteScale.onDark`** est la variante du hero : sur le dégradé
-  bleu, les teintes de `CecrlColor` ne se voient plus, donc le palier actif y passe en **blanc
-  plein** et c'est la **pastille — blanche, texte teinté** — qui porte la couleur du niveau.
-  Elle n'affiche **qu'une ligne** de libellés (les paliers `<A1 · A1 · A2 · B1 · B2`) : les
-  bornes chiffrées sont de la règle de lecture, pas du résultat, et vivent dans la feuille.
-  La version claire (curseur + bornes sur deux lignes) est **inchangée** et reste testée telle
-  quelle.
-- **La règle de lecture de la note se consulte, elle ne s'impose plus** : `avertissementNiveau`
-  (ou son repli `kNotePorteeSurLaTache`) **plus la table des cinq paliers et de leurs bornes**
-  vivent dans une feuille, ouverte en **appuyant sur le panneau de niveau** (la pastille ⓘ à
-  côté du sur-titre en est le repère). Trois lignes de prose entre la note et le premier
-  conseil, c'était le cœur du reproche de verbosité — l'échelle, elle, **dessine** la règle et
-  reste visible. Une ligne « Comment lire cette note ? » écrite en toutes lettres coûtait une
-  ligne de plus dans le bloc que cette passe allège.
+### ⚠️ Pas de note /20 sur le résultat d'une TÂCHE (décision 2026-08-08)
+
+Au TCF, un correcteur attribue **un niveau par tâche, jamais une note** : le /20 ne porte que
+sur l'**épreuve entière** (3 tâches). Et comme 10/20 y vaut déjà B2, un A2 parfaitement normal
+s'affichait « 3,5/20 », qu'un francophone lit comme une catastrophe scolaire. À ne pas défaire :
+
+- **`results_hero.dart` n'affiche aucune note** — ni en gros, ni en petit, ni dans un repli —
+  et **aucune borne chiffrée de barème** (« 2-5 → A2 ») : la table des paliers de la feuille
+  et `TcfNoteBand.rangeLabel` ont été supprimées avec elle. `TcfNoteScale` **n'est plus un
+  widget** : il ne reste que `kTcfNoteBands` + `bandIndexFor` / `bandFor` / `bandeFor`, qui
+  servent à **teinter** un résultat et à relire la bande d'un critère legacy.
+- **La note reste affichée dès qu'on agrège les 3 tâches** : bilan d'épreuve EE/EO (`BilanHero`,
+  `CecrlScale`) et bilan d'examen blanc TCF complet. Le critère est « 3 productions agrégées »,
+  pas « examen complet ».
+- **La règle vaut PARTOUT, pas seulement sur l'écran de résultat** (passe du 2026-08-08, second
+  lot) : `TacheBilanRow` (détail par tâche du bilan de session), `ProductionSubjectCard` (badge
+  d'un sujet traité), la feuille « sujet déjà traité » de `production_subjects_tab_view` et
+  `HistorySessionCard` **quand la session ne compte qu'une tâche** (entraînement libre) rendent
+  le **niveau**. Une session d'examen (≥ 2 soumissions) garde sa moyenne /20, comme
+  `ProductionExamDoneResult` et `ProductionExamsStatsRow`.
+  ⚠️ Le commentaire « Aucun niveau CECRL par tâche » de `tache_bilan_row.dart` datait du
+  2026-06-11, quand le backend avait retiré le niveau par tâche de son DTO. Il l'y a remis
+  (`EvaluationResult.niveauObserve`, contrat v4) : la décision est **inversée**, le commentaire
+  est supprimé.
+- **Deux helpers partagés dans `production_result_labels.dart`** : `tacheNiveau(evaluation)`
+  (le niveau affichable, `null` sans confiance ou sur une éval antérieure au contrat v4 — on
+  n'invente rien, on écrit « Évaluée » / « Fait ») et `tacheNiveauLabel(niveau)` (**libellé
+  gelé** : « Niveau B2 » …, et « A1 non atteint » pour le plancher, qui se contredirait en
+  « Niveau A1 non atteint » — miroir mot pour mot du web, verrouillé par test des deux côtés).
+- **Le niveau s'affirme** : `niveauAtteintLabel` rend « Votre production est au niveau A2 »,
+  plus jamais « Proche du niveau A2 » — « proche de » veut dire « pas encore » en français
+  courant, alors que le niveau EST A2. Le plancher a sa propre formulation (« n'atteint pas
+  encore le niveau A1 »). Sans confiance, le panneau écrit « Niveau indisponible pour cette
+  production » et ne rend ni pastille ni barre.
+- **Rappel d'enjeu** (`demarcheRappel`, bloc `VOTRE DÉMARCHE` du hero) : le niveau obtenu mis
+  en face de la démarche du candidat (A2 → carte de séjour pluriannuelle · B1 → carte de
+  résident · B2 → naturalisation, seuils du 1ᵉʳ janvier 2026). C'est le vrai
+  anti-découragement — un A2 qui vise la carte de séjour **est** au niveau demandé. Le palier
+  visé vient de `userTargetLevelProvider` (`core/providers/`), dérivé de `targetProcedure` :
+  parcours inconnu ⇒ **rien** ne s'affiche, jamais un message générique.
+- **Règles pures dans `production_result_labels.dart`** (sans Flutter, testées) :
+  `niveauAtteintLabel`, `tacheNiveau`, `tacheNiveauLabel`, `kNiveauPorteeTache`,
+  `kConfianceSansRaison`, `demarcheRappel`. Miroir web : `lib/production-feedback.ts`.
+
+- **La barre des cinq paliers** (`<A1 · A1 · A2 · B1 · B2`) est à **largeur égale** (pas
+  proportionnelle) : sur le dégradé bleu les teintes de `CecrlColor` ne se voient plus, donc le
+  palier atteint passe en **blanc plein** et c'est la **pastille — blanche, texte teinté** —
+  qui porte la couleur du niveau. `donut_chart_score.dart`, `niveau_observe_card.dart` et
+  `production_score_hero.dart` restent **supprimés**, fusionnés dans `ProductionResultsHero`.
+- **La règle de lecture du NIVEAU se consulte, elle ne s'impose pas** : `avertissementNiveau`
+  (ou son repli `kNiveauPorteeTache`) vit dans une feuille, ouverte en **appuyant sur le
+  panneau de niveau** (la pastille ⓘ à côté du sur-titre en est le repère). Elle explique le
+  niveau, **jamais une note invisible**.
 - **La confiance ne s'affiche QUE si elle n'est pas `HAUTE`** (avec ses `confianceRaisons`) :
   une confiance haute est le cas normal, l'annoncer n'apprend rien et inquiète.
 - **Limite de l'évaluation orale** : le correcteur la renvoie normalement dans
@@ -1000,12 +1036,16 @@ titre dans un encadré coloré, ce qui faisait lire le rapport comme une suite d
 - `exemples_corriges[].gain` (facultatif) = ce que la reformulation démontre de plus, rendu en
   ligne verte sous l'explication.
 - **Par critère on affiche la bande, pas la note** : `CriterionScore.bande` (`BandeCritere`,
-  calculée côté serveur) → « Très bonne maîtrise / Satisfaisant / En cours d'acquisition /
-  Fragile / Non évaluable », plus la `preuve` (citation littérale) sous le commentaire —
-  **dépliés à la demande** dans la section 4. La
-  **note globale /20 reste affichée** (dans le hero) et porte désormais **une décimale** (12,5) :
-  tout affichage de note passe par `formatScore` (`core/utils/format_date.dart`), jamais par
-  un arrondi local. La grille active n'a que **4 codes équipondérés** (`communiquer`, `interagir`,
+  calculée côté serveur) → **« Niveau B2 / Niveau B1 / Niveau A2 / Niveau A1 / Non
+  évaluable »**, plus la `preuve` (citation littérale) sous le commentaire — **dépliés à la
+  demande** dans la section 4. ⚠️ Ces libellés **nomment le palier atteint, pas un déficit** :
+  les bornes des bandes (10 / 6 / 2) sont exactement celles des paliers du TCF, donc
+  « En cours d'acquisition » couvrait TOUTE la bande A2 et un candidat A2 ne pouvait voir que
+  ça, quoi qu'il produise. Ces chaînes ne transitent pas par le réseau : **miroir mot pour mot
+  de `bandeCritereLabel` côté web** (`lib/types.ts`), gelé par test des deux côtés (même
+  technique que le module Compétences). Une note qui s'affiche encore (bilans) passe toujours
+  par `formatScore` (`core/utils/format_date.dart`), jamais par un arrondi local. La grille
+  active n'a que **4 codes équipondérés** (`communiquer`, `interagir`,
   `lexique`, `morphosyntaxe`), mais la table icône↔libellé de `criterion_row.dart` garde
   **tous** les codes des grilles précédentes (`realisation_consigne`,
   `adequation_destinataire`, `chronologie_recit`, `developpement_reponses`, `prise_position`,
@@ -1015,8 +1055,8 @@ titre dans un encadré coloré, ce qui faisait lire le rapport comme une suite d
   (`EvaluationResult.hasNiveauObserve`). Le **bilan d'épreuve** reste le seul niveau qui fait
   foi.
 - **La note /20 suit l'échelle TCF IRN** : 0 = A1 non atteint, 1 = A1, 2-5 = A2,
-  6-9 = B1 et 10-20 = B2 (plafond du profil, jamais C1/C2). Une tâche isolée n'a
-  toutefois pas de note officielle : aucune correspondance de bilan n'y est affichée. La
+  6-9 = B1 et 10-20 = B2 (plafond du profil, jamais C1/C2) — table jamais affichée au
+  candidat. Une tâche isolée n'a ni note ni correspondance de bilan. La
   correspondance (`ProductionBilan.correspondanceTcf` → `CorrespondanceTcf.phrase`) ne
   s'affiche qu'au **bilan d'épreuve** (`BilanHero`), au même wording que le web.
   Cf. `docs/notation-ia-eo-ee.md` §6.6.
@@ -1183,6 +1223,59 @@ Les ex `SessionProgressScreen` / `SessionBilanScreen` / `session_view.dart` ont 
 **Backend gotcha relayé** : le DTO `Attempt` du backend renvoie `totalQuestions=null` pour les attempts de
 type production. `core/models/attempt_models.dart` coerce `null → 0` pour ne pas casser le parsing existant.
 
+### Situation dans le palier + version au niveau visé (2026-08-08, 3ᵉ lot)
+
+Deux champs backend nouveaux, câblés dans la même passe (miroirs :
+`core/models/production_models.dart`, `web_sejoufr/lib/types.ts`,
+`admin_sejourfr/src/types/api.ts`).
+
+- **`EvaluationResult.situationDansNiveau` / `situationDansNiveauLabel`** — le
+  cran de progression **dans** la bande (enum `SituationDansNiveau` dans
+  `core/models/enums.dart`), qui remplace la note disparue du résultat d'une
+  tâche. Lu par `situationView` (`production_result_labels.dart`) et rendu en
+  pastille discrète sous le niveau du hero, à la forme **composée**
+  (« A2 solide ») — celle qu'annonce `docs/notation-ia-eo-ee.md` §6.3 bis.
+  ⚠️ **Jamais « presque B1 »** : aucun cran ne nomme un manque, c'est la
+  contrepartie de la note masquée. Deux gardes : rien sans niveau affichable
+  (donc rien sans confiance), rien quand le backend n'envoie pas de cran (évals
+  antérieures, `A1_NON_ATTEINT`, C1/C2). Libellés gelés par test des deux côtés
+  (`situationLibelle` / `situationQualificatif`).
+- **`feedback.version_ciblee`** (`VersionCiblee {niveauVise, niveauConstate?,
+  texte, ceQuiManque}`, **EE uniquement**) → `TargetLevelVersionCard`, rendue
+  **juste sous** `ProductionTextCard` : c'est le **seul texte modèle** de
+  l'écran (bleu, section titrée à part, titre qui nomme le niveau visé,
+  sous-titre qui dit explicitement que ce texte n'est pas celui du candidat).
+  L'ordre de `ceQuiManque` vient du backend (du plus rentable au moins
+  rentable) : **ne jamais le retrier**. Bloc absent ⇒ **rien n'est rendu** (EO,
+  éval antérieure, second appel en échec, niveau visé déjà atteint) — pas de
+  squelette, pas de « non disponible » : le rapport se termine alors sur le
+  profil par critère puis l'analyse complète.
+- ⚠️ **`versionAmelioree` N'EST PLUS AFFICHÉE NULLE PART (2026-08-08).** Elle
+  réécrit la production au niveau **déjà constaté** et vivait en bascule sous la
+  rédaction, sans mention de niveau : c'était le texte le plus visible et le
+  plus copiable du rapport, et il ne fait pas monter d'un palier. Mesuré : le
+  propriétaire l'a recopiée telle quelle, resoumise, et a obtenu **la même note
+  et le même niveau au dixième près** (4,5/20, A2). Le champ **reste dans le
+  contrat serveur et décodé dans `production_models.dart`** — le retirer
+  imposerait une version de tool-schema sur la grille de notation — mais **aucun
+  widget ne le lit**. Sont morts et supprimés : `improved_version_card.dart`, la
+  prop `versionAmelioree` de `ProductionTextCard`, sa bascule et le libellé
+  « Comparez en 10 secondes ». `test/evaluation_report_test.dart` a **retourné**
+  ses tests d'affichage (ils vérifient l'absence) et couvre le cas « aucun texte
+  modèle ». Même retrait, même passe côté web.
+- **Libellés partagés** : `kTacheTraiteeLabel` vaut désormais **« Traité »**
+  (c'était « Fait », le web disait « Traité » pour le même état) et
+  `kTacheEvalueeLabel` « Évaluée » — tous deux dans
+  `production_result_labels.dart`, gelés en miroir du web. Le « Fait » des slots
+  d'examen (`exam_slot/`) et de `SkillPromptStatus.treated` est un **autre**
+  contrat, inchangé.
+- **`kProductionExamMinSubmissions = 2`** (`expression_hub_data.dart`) : le
+  seuil qui distingue une session d'examen d'un entraînement libre. Il valait
+  **3** — un examen abandonné après 2 tâches n'apparaissait nulle part côté
+  mobile alors qu'il figurait dans la grille web et que le backend avait bien
+  consommé le slot. `HubData.singles`, sans consommateur depuis la refonte du
+  parcours, est **supprimé**.
+
 ## Compétences TCF (`screens/tcf_production/competences/`)
 
 Espace **voisin** des sujets TCF complets, jamais un remplacement : on y travaille **un
@@ -1191,6 +1284,7 @@ critère à la fois** sur de petits sujets de production ouverte. 6 tâches × 8
 
 **Les 5 niveaux** : épreuve → tâche → *deux espaces* (Sujets | **Compétences** | Exemples)
 → une compétence → un petit sujet → son résultat.
+
 
 ### Fidélité au prototype client (passe de reprise)
 

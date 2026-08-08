@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "texte",
+    "ce_qui_manque"
+  ],
+  "properties": {
+    "texte": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1400,
+      "description": "La MÊME réponse que celle du candidat, réécrite au niveau qu'il vise. Elle garde sa situation, ses faits, ses prénoms, ses chiffres et sa position ; seules la langue et l'organisation montent d'un cran. Elle respecte les bornes de mots de la tâche. Texte brut, recopiable tel quel : aucun titre, aucune parenthèse explicative, aucun nom de niveau (A1, A2, B1, B2), aucune note. Français entièrement accentué."
+    },
+    "ce_qui_manque": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "description": "DEUX ou TROIS leviers concrets, ordonnés du plus rentable au moins rentable, qui séparent la production actuelle de la version ci-dessus. Jamais un inventaire, jamais deux fois la même idée.",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 220,
+        "description": "UN levier (25 mots maximum), en une phrase qui commence par un verbe d'action et nomme le moyen linguistique ou discursif précis, illustré sur le sujet du candidat. Jamais un jugement, jamais un reproche, jamais une qualité vague du type « enrichir le vocabulaire ». Si tu reprends les mots du candidat entre guillemets, recopie-les tels quels ; le reste de ta phrase est écrit en français accentué."
+      }
+    }
+  },
+  "title": "Version au niveau visé — TCF IRN v1",
+  "description": "Contrat strict de sortie du SECOND appel, totalement séparé de la correction : la réponse du candidat réécrite au niveau qu'il vise, et deux à trois leviers pour l'atteindre. Aucune note, aucun niveau CECRL, aucun verdict — ce contrat ne prévoit aucun champ pour les loger. Tout le français produit ici est lu par une personne qui apprend le français : il est orthographié et ACCENTUÉ correctement (é, è, ê, à, ù, û, î, ô, ë, ï, ç). « déjà », jamais « deja » ; « très », jamais « tres ». Seule exception : les mots du candidat repris entre guillemets se recopient tels quels, accents manquants compris."
+}

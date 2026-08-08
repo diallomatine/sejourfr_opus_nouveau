@@ -157,7 +157,7 @@ class AiEvaluationServiceV5Test {
         service = new AiEvaluationService(submissionManager, transcriptionManager, aiEvaluationManager,
             llmClient, promptBuilder, rubrics, new ProductionValidityService(props),
             new ProductionSecondePasseService(props, mock(EvaluationLlmClient.class), rubrics),
-            new ProductionFluiditeService(props), new EvaluationRefusalMetrics(), props);
+            new ProductionFluiditeService(props), new EvaluationRefusalMetrics(), new EvaluationPurgeMetrics(), props);
     }
 
     // ------------------------------------------------------ note et niveau

@@ -28,6 +28,17 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
     @Query("SELECT s FROM ProductionSubmission s JOIN FETCH s.productionTask WHERE s.id = :id")
     Optional<ProductionSubmission> findByIdWithTask(@Param("id") UUID id);
 
+    /**
+     * Submission + sa {@code productionTask} + son {@code user} eager-loadés.
+     * Utilisé par la « version au niveau visé », qui a besoin du
+     * {@code TargetLevel} du candidat SANS ouvrir de transaction autour d'un
+     * appel HTTP au LLM — un accès lazy hors session y lèverait une
+     * {@code LazyInitializationException}.
+     */
+    @Query("SELECT s FROM ProductionSubmission s JOIN FETCH s.productionTask JOIN FETCH s.user "
+        + "WHERE s.id = :id")
+    Optional<ProductionSubmission> findByIdWithTaskAndUser(@Param("id") UUID id);
+
     /** Historique d'un utilisateur (timeline descendante). */
     List<ProductionSubmission> findByUserIdOrderBySubmittedAtDesc(UUID userId, Pageable pageable);
 
