@@ -75,6 +75,7 @@ public class UserDashboardService {
     private final QuestionManager questionManager;
     private final ThemeManager themeManager;
     private final AiEvaluationManager aiEvaluationManager;
+    private final TcfProfileService tcfProfileService;
 
     @Transactional(readOnly = true)
     public DashboardSummaryResponse summary(UUID userId) {
@@ -85,9 +86,11 @@ public class UserDashboardService {
         final MockExamCounts civiqueExams = civiqueMockExamCounts(userId);
         final MockExamCounts tcfExams = tcfMockExamCounts(userId);
 
-        final NiveauCecrl estimatedTcfLevel = attemptManager.findLatestTcfWithCecrlLevel(userId)
-                .map(a -> a.getFinalCecrlLevel() != null ? a.getFinalCecrlLevel() : a.getCecrlLevel())
-                .orElse(null);
+        // Niveau TCF estimé : plancher des 4 épreuves, chacune retenant son
+        // MEILLEUR résultat, une épreuve abandonnée sans rien rendre étant
+        // exclue (cf. TcfProfileService). Dérivé serveur — aucun front ne le
+        // recalcule.
+        final NiveauCecrl estimatedTcfLevel = tcfProfileService.levelProfile(userId).globalLevel();
 
         final List<DashboardSummaryResponse.CategoryStat> tcf =
                 new ArrayList<>(themeCategories(userId, Module.TCF, tcfExams.byCategory));

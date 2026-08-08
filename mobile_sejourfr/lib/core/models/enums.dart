@@ -122,20 +122,47 @@ enum TargetProcedure {
         TargetProcedure.nat => 'Naturalisation française',
       };
 
-  /// Niveau TCF requis pour cette procédure.
-  String get tcfLevel => switch (this) {
-        TargetProcedure.csp => 'A2',
-        TargetProcedure.cr => 'B1',
-        TargetProcedure.nat => 'B2',
-      };
-
-  /// Même chose, typée : le palier que la démarche exige. Miroir de
-  /// `tcfLevelFromProcedure` côté web.
+  /// **Le palier de français que cette démarche exige.**
+  ///
+  /// Seuils en vigueur au 1ᵉʳ janvier 2026 : CSP → A2, CR → B1, NAT → B2.
+  /// Donnée légale de trois lignes, pas un réglage — miroir **gelé par test**
+  /// (`test/target_level_test.dart`) de l'enum `TargetProcedure` côté backend,
+  /// comme `skill_models_test.dart` l'est des libellés Compétences.
+  ///
+  /// ⚠️ Ne jamais réécrire cette table dans un écran.
   TargetLevel get requiredLevel => switch (this) {
         TargetProcedure.csp => TargetLevel.a2,
         TargetProcedure.cr => TargetLevel.b1,
         TargetProcedure.nat => TargetLevel.b2,
       };
+
+  /// Forme courte affichable du palier exigé. Dérive de [requiredLevel] : une
+  /// seule table, pas deux qui pourraient diverger.
+  String get tcfLevel => requiredLevel.wire;
+
+  /// **Le palier réellement VISÉ** : le plus haut entre ce que la démarche
+  /// exige et ce que le candidat a déclaré viser. Miroir de
+  /// `TargetProcedure.niveauVise` côté backend et de `niveauViseTcf` côté web.
+  ///
+  /// La démarche fait **plancher**, jamais plafond :
+  /// - `nat` + `b1` déclaré ⇒ **b2** (la naturalisation en demande un de plus :
+  ///   le féliciter d'avoir « atteint son objectif » à B1 ne le tirerait jamais
+  ///   vers le niveau dont il a besoin) ;
+  /// - `csp` + `b2` déclaré ⇒ **b2** (viser plus haut est un choix légitime) ;
+  /// - démarche absente ⇒ le niveau déclaré seul ; les deux absents ⇒ `null`,
+  ///   et l'appelant décide de son repli. On ne devine jamais une démarche.
+  ///
+  /// Comparaison sur l'**index CECRL** (l'ordre de déclaration de
+  /// [TargetLevel]), jamais sur l'ordre alphabétique.
+  static TargetLevel? niveauVise(
+    TargetProcedure? procedure,
+    TargetLevel? declare,
+  ) {
+    if (procedure == null) return declare;
+    final exige = procedure.requiredLevel;
+    if (declare == null) return exige;
+    return declare.index > exige.index ? declare : exige;
+  }
 }
 
 enum UserRole {

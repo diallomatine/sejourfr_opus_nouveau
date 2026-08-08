@@ -13,6 +13,7 @@ import 'production_text_card.dart';
 import 'results_hero.dart';
 import 'results_summary_tiles.dart';
 import 'results_section_head.dart';
+import 'target_level_reached_card.dart';
 import 'target_level_version_card.dart';
 
 /// Limite de l'evaluation orale, mot pour mot (cf. `docs/notation-ia-eo-ee.md`
@@ -47,7 +48,8 @@ const String kOralEvaluationLimitNotice =
 /// 3. **le profil par critere** ([CriteriaOverview]), une carte par critere,
 ///    depliable — il vivait dans le repli, donc personne ne le voyait ;
 /// 4. **la production** ([ProductionTextCard]), puis **le seul texte modele de
-///    l'ecran** ([TargetLevelVersionCard]).
+///    l'ecran** ([TargetLevelVersionCard]) — ou, quand le palier vise est deja
+///    tenu, [TargetLevelReachedCard] qui l'annonce a sa place.
 ///
 /// Le reste — avertissements, check-list de la consigne, exemples corriges,
 /// suggestions — vit dans « Voir l'analyse complète », **replie par defaut**.
@@ -133,6 +135,10 @@ class EvaluationReport extends StatelessWidget {
     // l'oral, un dialogue modele n'a pas de sens, et une evaluation historique
     // ne doit pas en faire apparaitre un.
     final versionCiblee = isOral ? null : feedback.versionCiblee;
+    // Exclusif du precedent, et servi par le SERVEUR : un front ne saurait pas
+    // distinguer « objectif atteint » d'un second appel LLM en echec.
+    final niveauViseAtteint =
+        isOral || versionCiblee != null ? null : feedback.niveauViseAtteint;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -159,11 +165,14 @@ class EvaluationReport extends StatelessWidget {
         ],
         // Le SEUL texte modele du rapport, juste sous la redaction : l'ordre de
         // lecture est « ce que j'ai ecrit » → « le texte du palier que je vise ».
-        // Absent (EO, eval anterieure, second appel en echec, niveau vise deja
-        // atteint) ⇒ rien n'est rendu, et le rapport se termine sur le profil
-        // par critere puis l'analyse complete : ni section vide, ni titre
-        // orphelin.
+        // Absent (EO, eval anterieure, second appel en echec) ⇒ rien n'est
+        // rendu, et le rapport se termine sur le profil par critere puis
+        // l'analyse complete : ni section vide, ni titre orphelin.
         TargetLevelVersionCard(version: versionCiblee),
+        // Meme emplacement, cas exclusif : le palier vise est DEJA tenu. On
+        // l'annonce au lieu de laisser un trou — le candidat qui reussit avait
+        // un rapport plus vide que celui qui echoue.
+        TargetLevelReachedCard(atteint: niveauViseAtteint),
         if (analyse.isNotEmpty) _FullAnalysis(children: analyse),
       ],
     );

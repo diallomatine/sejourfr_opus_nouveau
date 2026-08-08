@@ -26,7 +26,18 @@ mobile. Web : 1 examen blanc + 10 QCM d'entraînement par module pour convertir.
 ## Domaine métier (vocabulaire)
 
 - **Module** : `CIVIQUE` ou `TCF`
-- **TargetProcedure** (civique) : `CSP` / `CR` / `NAT`
+- **TargetProcedure** (civique) : `CSP` / `CR` / `NAT`. **Le palier de français exigé
+  est porté par l'enum** (`CSP→A2`, `CR→B1`, `NAT→B2`, seuils du 1ᵉʳ janvier 2026) :
+  `TargetProcedure.getRequiredTcfLevel()` est LA source de vérité, `TargetProcedure.niveauVise(
+  procedure, declare)` applique le **plancher** (`max` sur l'ordre CECRL — NAT+B1 ⇒ B2, CSP+B2
+  ⇒ B2, procédure absente ⇒ le déclaré, rien ⇒ null). Ne jamais réécrire cette table ailleurs :
+  elle a vécu en 6 copies, d'où un candidat NAT tiré vers le B1. Miroirs **gelés par test de
+  chaque côté** — `TargetProcedureTest` ⇄ `web/lib/target-level.test.ts` ⇄
+  `mobile/test/target_procedure_levels_test.dart` (technique `SkillLabelsTest`).
+  `users.target_level` est **posé par le serveur** au choix de la démarche
+  (`MeService.updateTargetProcedure`, seul point d'écriture) et **re-dérivé à la lecture**
+  (`AuthenticatedUser.targetLevel`) : aucun front ne peut recevoir un couple contradictoire,
+  même sur une ligne héritée.
 - **TargetLevel** (TCF) : `A2` / `B1` / `B2`
 - **AttemptType** : `TRAINING` (correction immédiate) / `MOCK_EXAM` (examen blanc, chrono,
   pas de correction live) / `REVIEW`

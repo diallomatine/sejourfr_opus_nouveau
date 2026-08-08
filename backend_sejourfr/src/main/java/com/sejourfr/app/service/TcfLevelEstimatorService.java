@@ -122,6 +122,17 @@ public class TcfLevelEstimatorService {
         return a.ordinal() <= b.ordinal() ? a : b;
     }
 
+    /**
+     * Max ordinal, en tolérant les null (miroir de {@link #min} : un null est
+     * « inconnu », pas un plafond). Sert au « meilleur résultat » d'une épreuve
+     * dans le profil de niveau du candidat.
+     */
+    public NiveauCecrl max(NiveauCecrl a, NiveauCecrl b) {
+        if (a == null) return b;
+        if (b == null) return a;
+        return a.ordinal() >= b.ordinal() ? a : b;
+    }
+
     private static int weight(Difficulty d) {
         return d == null ? 0 : WEIGHTS.getOrDefault(d, 0);
     }

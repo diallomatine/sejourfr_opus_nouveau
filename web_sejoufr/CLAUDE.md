@@ -604,6 +604,19 @@ Chantier découpé en vagues :
       `FullTcfExamSummaryResponse`, `FullTcfExamStatus`, `FULL_TCF_EXAM_DURATION_SEC`,
       `FULL_TCF_EXAM_EPREUVES`) + `lib/api.ts` (`fullTcfExamApi`).
 
+### Niveau TCF estimé (source unique backend, arbitré 2026-08-08)
+
+`DashboardSummaryResponse.estimatedTcfLevel` est le **seul** endroit d'où sort ce niveau,
+et il est **dérivé serveur** (`TcfProfileService`) : plancher des 4 épreuves, chacune
+retenant son **meilleur** résultat, une épreuve abandonnée sans rien rendre (0 réponse /
+0 soumission) étant **exclue** — détail dans le `CLAUDE.md` racine. `null` = inconnu
+(afficher « — »), **jamais** « < A1 ». Cinq surfaces l'affichent : `/dashboard`, `/profil`,
+`/statistiques`, `TcfHub`, `/examens-blancs` — **aucune ne le recalcule** et toutes disent
+« estimé » (parité mot pour mot avec le mobile : accueil « Niveau TCF estimé », profil
+« Niveau estimé »). À ne pas confondre avec `finalCecrlLevel` d'un **examen complet**
+(« Meilleur niveau » / « Dernier examen » sur `/examens-blancs`), qui reste le plancher de
+**cet examen-là**, épreuve abandonnée comprise.
+
 ### Règle de progression (validée 2026-06-06 — source unique backend)
 
 Toute valeur de « progression » d'un thème / d'une épreuve vient de

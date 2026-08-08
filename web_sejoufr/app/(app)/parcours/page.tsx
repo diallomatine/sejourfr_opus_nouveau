@@ -6,7 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import { ApiException, userContentApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { safeInternalPath } from "@/lib/security";
-import type { TargetProcedure } from "@/lib/types";
+import { TCF_LEVEL_BY_PROCEDURE, type TargetLevel, type TargetProcedure } from "@/lib/types";
 
 /**
  * Édition du parcours administratif visé. Sert aussi d'onboarding intégré :
@@ -28,17 +28,22 @@ interface PathInfo {
   code: TargetProcedure;
   title: string;
   pitch: string;
-  tcfLevel: "A2" | "B1" | "B2";
   bullets: string[];
   tone: "blue" | "ink" | "red";
 }
+
+/** Le palier exigé n'est PAS recopié ici : il vient du référentiel partagé
+ *  (`TCF_LEVEL_BY_PROCEDURE`, miroir gelé de l'enum backend). Cet écran en a
+ *  tenu sa propre copie, comme `/inscription` et `/profil` — trois tables à
+ *  changer le jour où la loi bouge, donc trois occasions d'en oublier une. */
+const tcfLevelOf = (code: TargetProcedure): TargetLevel =>
+  TCF_LEVEL_BY_PROCEDURE[code];
 
 const PATHS: PathInfo[] = [
   {
     code: "CSP",
     title: "Carte de séjour pluriannuelle",
     pitch: "Premier renouvellement après le visa long séjour. Le palier le plus accessible des trois parcours.",
-    tcfLevel: "A2",
     bullets: [
       "Renouvellement 2 à 4 ans",
       "Examen civique · mention CSP",
@@ -50,7 +55,6 @@ const PATHS: PathInfo[] = [
     code: "CR",
     title: "Carte de résident",
     pitch: "Stabilité longue durée : 10 ans de validité, droit au travail facilité, démarches administratives allégées.",
-    tcfLevel: "B1",
     bullets: [
       "Validité 10 ans",
       "Examen civique · mention CR",
@@ -62,7 +66,6 @@ const PATHS: PathInfo[] = [
     code: "NAT",
     title: "Naturalisation française",
     pitch: "Devenir français. Le niveau d'exigence le plus élevé en civique comme en langue, mais aussi le plus complet.",
-    tcfLevel: "B2",
     bullets: [
       "Nationalité française",
       "Examen civique · mention Naturalisation",
@@ -203,7 +206,7 @@ function ParcoursForm() {
               <span className="pc-actionbar-label">SÉLECTION</span>
               <span className="pc-actionbar-value">
                 {PATHS.find((p) => p.code === selected)?.title} ·{" "}
-                <strong>{PATHS.find((p) => p.code === selected)?.tcfLevel}</strong>
+                <strong>{tcfLevelOf(selected)}</strong>
               </span>
             </>
           ) : (
@@ -296,7 +299,7 @@ function PathCard({
       <div className="path-tcf">
         <span className="path-tcf-label">NIVEAU DE FRANÇAIS</span>
         <span className={`path-tcf-value path-tcf-value-${info.tone}`}>
-          {info.tcfLevel}
+          {tcfLevelOf(info.code)}
         </span>
       </div>
       <ul className="path-bullets">

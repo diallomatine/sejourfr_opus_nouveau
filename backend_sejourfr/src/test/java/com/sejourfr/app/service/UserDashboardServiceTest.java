@@ -1,8 +1,8 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.DashboardSummaryResponse;
+import com.sejourfr.app.dto.TcfLevelProfile;
 import com.sejourfr.app.entity.AiEvaluation;
-import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.EpreuveType;
@@ -21,7 +21,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,6 +44,7 @@ class UserDashboardServiceTest {
     private QuestionManager questionManager;
     private ThemeManager themeManager;
     private AiEvaluationManager aiEvaluationManager;
+    private TcfProfileService tcfProfileService;
     private UserDashboardService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -56,8 +56,14 @@ class UserDashboardServiceTest {
         questionManager = mock(QuestionManager.class);
         themeManager = mock(ThemeManager.class);
         aiEvaluationManager = mock(AiEvaluationManager.class);
+        // Le niveau TCF estimé est dérivé par TcfProfileService (plancher des 4
+        // épreuves, meilleur résultat de chacune) : ici on n'exerce que le
+        // branchement, la règle elle-même vit dans TcfProfileServiceTest.
+        tcfProfileService = mock(TcfProfileService.class);
+        when(tcfProfileService.levelProfile(userId))
+                .thenReturn(new TcfLevelProfile(null, null, null, null, null));
         service = new UserDashboardService(attemptManager, answerManager, questionManager,
-                themeManager, aiEvaluationManager);
+                themeManager, aiEvaluationManager, tcfProfileService);
     }
 
     private static Theme theme(UUID id, Module module, String code) {
@@ -170,15 +176,11 @@ class UserDashboardServiceTest {
     // ------------------------------------------------------------------ niveau TCF estimé
 
     @Test
-    void summary_estimatedTcfLevel_prefersFinalCecrl() {
-        Attempt a = new Attempt();
-        a.setFinalCecrlLevel(NiveauCecrl.B1);
-        a.setCecrlLevel(NiveauCecrl.A2);
-        when(attemptManager.findLatestTcfWithCecrlLevel(userId)).thenReturn(Optional.of(a));
+    void summary_estimatedTcfLevel_vientDuPlancherDesEpreuves() {
+        when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
+                NiveauCecrl.B2, NiveauCecrl.B2, NiveauCecrl.B1, null, NiveauCecrl.B1));
 
-        DashboardSummaryResponse resp = service.summary(userId);
-
-        assertThat(resp.estimatedTcfLevel()).isEqualTo(NiveauCecrl.B1);
+        assertThat(service.summary(userId).estimatedTcfLevel()).isEqualTo(NiveauCecrl.B1);
     }
 
     @Test

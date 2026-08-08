@@ -26,8 +26,12 @@ import java.util.UUID;
  *   <li>{@code globalSuccessPercent} : progression globale 0-100 = moyenne
  *       des progressions des catégories renseignées (Civique + TCF, EE/EO
  *       inclus). Null si rien travaillé.</li>
- *   <li>{@code estimatedTcfLevel} : niveau CECRL du dernier examen TCF évalué
- *       (examen blanc complet en priorité, sinon examen module). Null si aucun.</li>
+ *   <li>{@code estimatedTcfLevel} : niveau TCF <b>estimé</b> du candidat —
+ *       plancher des 4 épreuves (CO/CE/EE/EO), chacune retenant son
+ *       <b>meilleur</b> résultat, une épreuve abandonnée sans rien rendre étant
+ *       <b>exclue</b> (cf. {@code TcfProfileService}). Null tant qu'aucune
+ *       épreuve n'a été réellement passée — null = inconnu, jamais mauvais.
+ *       Dérivé serveur : aucun front ne le recalcule.</li>
  *   <li>{@code civique} / {@code tcf} : une entrée par catégorie, TOUS les
  *       thèmes du module (même jamais travaillés → percent null). Côté TCF,
  *       deux entrées synthétiques {@code TCF_EE} / {@code TCF_EO} sont

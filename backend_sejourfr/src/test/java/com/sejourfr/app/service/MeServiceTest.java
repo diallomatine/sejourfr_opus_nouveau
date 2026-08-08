@@ -8,6 +8,7 @@ import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserQuestionStatus;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.AnswerManager;
@@ -77,15 +78,48 @@ class MeServiceTest {
 
     // ------------------------------------------------------------------ profil
 
+    /**
+     * SEUL point d'écriture de {@code users.target_procedure} — donc le seul
+     * endroit où les deux colonnes pouvaient se désynchroniser. Le serveur pose
+     * lui-même le palier exigé : aucun couple contradictoire ne peut plus être
+     * persisté par cette voie.
+     */
     @Test
-    void updateTargetProcedure_setsAndSaves() {
+    void updateTargetProcedure_poseAussiLePalierExige() {
         User u = user();
         when(userManager.findById(u.getId())).thenReturn(Optional.of(u));
 
         service.updateTargetProcedure(u.getId(), TargetProcedure.NAT);
 
         assertThat(u.getTargetProcedure()).isEqualTo(TargetProcedure.NAT);
+        assertThat(u.getTargetLevel()).isEqualTo(TargetLevel.B2);
         verify(userManager).save(u);
+    }
+
+    /** Changer de démarche recalcule le palier : on ne laisse pas l'ancien. */
+    @Test
+    void updateTargetProcedure_changerDeDemarcheRecalculeLePalier() {
+        User u = user();
+        u.setTargetProcedure(TargetProcedure.NAT);
+        u.setTargetLevel(TargetLevel.B2);
+        when(userManager.findById(u.getId())).thenReturn(Optional.of(u));
+
+        service.updateTargetProcedure(u.getId(), TargetProcedure.CSP);
+
+        assertThat(u.getTargetLevel()).isEqualTo(TargetLevel.A2);
+    }
+
+    /** Une ligne héritée incohérente est remise d'équerre au premier passage. */
+    @Test
+    void updateTargetProcedure_repareUnCoupleIncoherentHerite() {
+        User u = user();
+        u.setTargetProcedure(TargetProcedure.NAT);
+        u.setTargetLevel(TargetLevel.B1);
+        when(userManager.findById(u.getId())).thenReturn(Optional.of(u));
+
+        service.updateTargetProcedure(u.getId(), TargetProcedure.NAT);
+
+        assertThat(u.getTargetLevel()).isEqualTo(TargetLevel.B2);
     }
 
     @Test

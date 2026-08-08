@@ -1296,10 +1296,40 @@
   color: var(--color-blue);
 }
 
+/* ---------- Objectif atteint : ce qui prend la place du texte modèle ----------
+   Même gabarit que `.targetCard`, en VERT : c'est le palier tenu, pas la marche
+   au-dessus. Le vert dit « B2 » dans toute l'app (cf. `tcfNiveauTone`), et il
+   n'y a ici aucune marche à monter. */
+.reachedCard {
+  background: color-mix(in srgb, var(--color-green) 6%, white);
+  border: 1px solid color-mix(in srgb, var(--color-green) 26%, transparent);
+  border-radius: 20px;
+  padding: 15px;
+}
+.reachedEyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-green);
+}
+.reachedIntro {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-ink-2);
+}
+
 @media (max-width: 480px) {
   .hero { padding: 18px; border-radius: 22px; }
   .heroVerdict { font-size: 24px; }
   .levelValue { font-size: 16px; }
   .sectionTitle { font-size: 17px; }
   .targetCard { padding: 13px; border-radius: 18px; }
+  .reachedCard { padding: 13px; border-radius: 18px; }
 }

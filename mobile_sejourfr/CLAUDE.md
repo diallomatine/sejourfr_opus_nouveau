@@ -457,6 +457,14 @@ Progrès · Profil** (cf. maquette) :
 streak, `globalSuccessPercent`, `estimatedTcfLevel`, stats par catégorie (codes `TCF_*` /
 `CIV_*`, mapping icône/route partagé dans `core/utils/dashboard_targets.dart`).
 
+**`estimatedTcfLevel` = niveau TCF *estimé* du candidat**, dérivé serveur
+(`TcfProfileService`) : plancher des 4 épreuves, chacune retenant son **meilleur** résultat,
+une épreuve abandonnée sans rien rendre étant **exclue** (cf. CLAUDE.md racine). Null =
+inconnu, jamais « < A1 ». **Ne jamais le recalculer côté app**, et **toujours dire
+« estimé »** dans le libellé — Accueil « Niveau TCF estimé », Profil « Niveau estimé »,
+mêmes chaînes que le web. L'endpoint `GET /api/tcf/profile/level` et le client
+`tcfLevelProfile()` ont été supprimés (jamais appelés).
+
 **Les anciens hubs sont supprimés** : `screens/tcf/`, `screens/hub/`, `civique_screen.dart`
 et leurs widgets n'existent plus. `/civique` et `/tcf` sont des **redirects** vers `/reviser`
 (gardés pour les fallbacks et deep links).

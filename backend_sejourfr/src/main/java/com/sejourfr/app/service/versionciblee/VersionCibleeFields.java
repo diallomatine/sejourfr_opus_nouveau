@@ -13,6 +13,20 @@ public final class VersionCibleeFields {
     /** Clé du bloc ajouté à la racine du feedback persisté. */
     public static final String BLOC = "version_ciblee";
 
+    /**
+     * Clé du bloc <b>alternatif</b> : le palier visé est déjà atteint, il n'y a
+     * pas de marche au-dessus à montrer.
+     *
+     * <p>Exclusif de {@link #BLOC} — les deux ne coexistent jamais. Sans lui, un
+     * front ne pouvait pas distinguer « objectif atteint » (une victoire, à
+     * annoncer) de « le second appel LLM a échoué » (un incident, à taire) : la
+     * section disparaissait en silence dans les deux cas, et depuis le retrait de
+     * {@code version_amelioree} le candidat se retrouvait sans aucun texte modèle
+     * ni la moindre explication. C'est un signal SERVEUR, exactement comme
+     * {@code SkillStatusResolver} : aucun front ne le déduit.
+     */
+    public static final String BLOC_ATTEINT = "niveau_vise_atteint";
+
     /** Sortie du LLM : la réponse réécrite au niveau visé. */
     public static final String TEXTE = "texte";
     /** Sortie du LLM : les 2 à 3 leviers pour y arriver. */

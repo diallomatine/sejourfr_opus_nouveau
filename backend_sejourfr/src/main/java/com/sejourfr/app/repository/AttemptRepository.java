@@ -189,18 +189,33 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
             @Param("epreuves") java.util.Collection<EpreuveType> epreuves);
 
     /**
-     * Examens TCF finis porteurs d'un niveau CECRL (examen blanc complet via
-     * {@code finalCecrlLevel}, ou examen module via {@code cecrlLevel}),
-     * du plus récent au plus ancien. Le dashboard prend le premier comme
-     * "niveau TCF estimé".
+     * Épreuves QCM TCF (CO ou CE) <b>réellement passées</b> par le user :
+     * examen blanc fini portant <b>au moins une réponse enregistrée</b>, du
+     * plus récent au plus ancien.
+     *
+     * <p><b>Définition d'une épreuve « abandonnée sans rien rendre » : zéro
+     * réponse.</b> Elle est exclue d'office par le {@code EXISTS} — au niveau
+     * d'un candidat, « aucune preuve » n'est pas « mauvaise preuve ». (À ne pas
+     * confondre avec le résultat d'UN examen donné, où une épreuve abandonnée
+     * sans verrou reste comptée {@code A1_NON_ATTEINT} : c'est le résultat de
+     * cet examen-là.)
+     *
+     * <p>Le filtre porte sur {@code epreuve}, pas sur
+     * {@code moduleExamQuestionType} : il couvre ainsi les examens module
+     * standalone, les sous-attempts d'un examen blanc complet et les anciens
+     * diagnostics où cette colonne est nulle.
      */
     @Query("""
             SELECT a FROM Attempt a
             WHERE a.user.id = :userId
-              AND a.module = com.sejourfr.app.enums.Module.TCF
+              AND a.type = com.sejourfr.app.enums.AttemptType.MOCK_EXAM
+              AND a.epreuve = :epreuve
               AND a.finishedAt IS NOT NULL
-              AND (a.cecrlLevel IS NOT NULL OR a.finalCecrlLevel IS NOT NULL)
+              AND EXISTS (SELECT 1 FROM Answer an WHERE an.attemptQuestion.attempt = a)
             ORDER BY a.finishedAt DESC
             """)
-    List<Attempt> findTcfWithCecrlLevel(@Param("userId") UUID userId, Pageable pageable);
+    List<Attempt> findQcmEpreuvesPassees(
+            @Param("userId") UUID userId,
+            @Param("epreuve") EpreuveType epreuve,
+            Pageable pageable);
 }

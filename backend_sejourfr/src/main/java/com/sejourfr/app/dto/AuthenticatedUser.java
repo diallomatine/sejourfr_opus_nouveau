@@ -4,10 +4,22 @@ import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AuthProvider;
 import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.Role;
+import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * L'utilisateur courant, tel que les trois fronts le lisent
+ * ({@code GET /api/auth/me}).
+ *
+ * <p><b>{@code targetLevel} est DÉRIVÉ, jamais recopié depuis la colonne.</b>
+ * Il vaut {@link TargetProcedure#niveauVise} : la démarche fait plancher, ce que
+ * le candidat déclare peut le dépasser. Une ligne héritée incohérente
+ * ({@code NAT} + {@code B1}, produite avant que le serveur ne pose lui-même le
+ * palier) sort donc corrigée, sans migration — et aucun front ne peut afficher
+ * un couple contradictoire.
+ */
 public record AuthenticatedUser(
         UUID id,
         String email,
@@ -15,6 +27,8 @@ public record AuthenticatedUser(
         String lastName,
         Role role,
         TargetProcedure targetProcedure,
+        /** Palier VISÉ, plancher de la démarche appliqué. Null si rien n'est connu. */
+        TargetLevel targetLevel,
         boolean isPremium,
         boolean hasCivique,
         boolean hasTcf,
@@ -29,6 +43,7 @@ public record AuthenticatedUser(
                 u.getLastName(),
                 u.getRole(),
                 u.getTargetProcedure(),
+                TargetProcedure.niveauVise(u.getTargetProcedure(), u.getTargetLevel()),
                 access != ModuleAccess.NONE,
                 access.hasCivique(),
                 access.hasTcf(),

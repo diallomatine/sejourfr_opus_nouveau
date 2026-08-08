@@ -243,7 +243,7 @@ class _HomeBody extends ConsumerWidget {
             Expanded(
               child: StatValueCard(
                 value: level?.shortName ?? '—',
-                label: 'Niveau TCF',
+                label: 'Niveau TCF estimé',
                 color: AppColors.blue,
               ),
             ),

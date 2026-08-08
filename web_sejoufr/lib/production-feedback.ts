@@ -429,6 +429,45 @@ export function versionCibleeIntro(niveauVise: TargetLevel): string {
 export const VERSION_CIBLEE_LEVIERS_TITLE = "Ce qui vous en sépare";
 
 // ---------------------------------------------------------------------------
+// Niveau visé déjà atteint
+// ---------------------------------------------------------------------------
+
+/**
+ * Sur-titre de la section qui **remplace** la version au niveau visé quand le
+ * palier est déjà tenu.
+ *
+ * Avant, cette section disparaissait sans un mot : depuis que
+ * `version_amelioree` n'est plus affichée, le candidat qui réussit se retrouvait
+ * sans aucun texte modèle et sans savoir pourquoi — sa réussite avait exactement
+ * la même tête qu'une panne. Le serveur dit désormais laquelle des deux c'est
+ * (`niveau_vise_atteint`), et on l'annonce.
+ *
+ * ⚠️ Contrat gelé, miroir mot pour mot de `kNiveauViseAtteintEyebrow` côté mobile.
+ */
+export const NIVEAU_VISE_ATTEINT_EYEBROW = "Objectif atteint";
+
+/**
+ * Titre : la victoire, nommée par le palier. Volontairement **pas** la phrase du
+ * hero (`niveauAtteintLabel` dit « Votre production est au niveau B2 ») — deux
+ * blocs qui se recopient se lisent comme un bug d'affichage.
+ */
+export function niveauViseAtteintTitle(niveauVise: TargetLevel): string {
+    return `Objectif ${niveauVise} : vous y êtes`;
+}
+
+/**
+ * Sous-titre : il **explique l'absence** de texte modèle, sans un chiffre de
+ * barème ni un mot de manque, et dit où porter l'effort maintenant.
+ *
+ * Il ne redit pas non plus ce que le palier ouvre comme démarche : le rappel
+ * d'enjeu du hero (`demarcheRappel`) le fait déjà, à deux blocs d'écart.
+ */
+export const NIVEAU_VISE_ATTEINT_INTRO =
+    "Cette production tient le palier que vous visez. Il n'y a donc pas de version d'un " +
+    "niveau supérieur à vous montrer ici : l'enjeu est maintenant de tenir ce niveau sur " +
+    "les trois tâches de l'épreuve.";
+
+// ---------------------------------------------------------------------------
 // Objectif de la tâche
 // ---------------------------------------------------------------------------
 

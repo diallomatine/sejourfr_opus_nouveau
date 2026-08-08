@@ -7,6 +7,7 @@ import {ProductionFullAnalysis} from "./ProductionFullAnalysis";
 import {ProductionResultsHero} from "./ProductionResultsHero";
 import {ProductionTextCard} from "./ProductionTextCard";
 import {ResultsSummaryTiles} from "./ResultsSummaryTiles";
+import {TargetLevelReachedCard} from "./TargetLevelReachedCard";
 import {TargetLevelVersionCard} from "./TargetLevelVersionCard";
 import styles from "./production.module.css";
 
@@ -89,6 +90,9 @@ export function ProductionFeedbackView({
   // l'oral, un dialogue modèle n'a pas de sens, et une évaluation historique ne
   // doit pas en faire apparaître un.
   const versionCiblee = isOral ? null : fb.versionCiblee;
+  // Exclusif du précédent, et servi par le SERVEUR : un front ne saurait pas
+  // distinguer « objectif atteint » d'un second appel LLM en échec.
+  const niveauViseAtteint = isOral || versionCiblee ? null : fb.niveauViseAtteint;
   const highlight = fb.pointsAAmeliorer[0]?.exemple?.avant ?? null;
 
   return (
@@ -123,10 +127,15 @@ export function ProductionFeedbackView({
 
       {/* Le SEUL texte modèle du rapport, juste sous la rédaction : l'ordre de
           lecture est « ce que j'ai écrit » → « le texte du palier que je vise ».
-          Absent (EO, éval antérieure, second appel en échec, niveau visé déjà
-          atteint) ⇒ rien n'est rendu, et le rapport se termine sur le profil par
-          critère puis l'analyse complète : ni section vide, ni titre orphelin. */}
+          Absent (EO, éval antérieure, second appel en échec) ⇒ rien n'est rendu,
+          et le rapport se termine sur le profil par critère puis l'analyse
+          complète : ni section vide, ni titre orphelin. */}
       <TargetLevelVersionCard version={versionCiblee} />
+
+      {/* Même emplacement, cas exclusif : le palier visé est DÉJÀ tenu. On
+          l'annonce au lieu de laisser un trou — le candidat qui réussit avait un
+          rapport plus vide que celui qui échoue. */}
+      <TargetLevelReachedCard atteint={niveauViseAtteint} />
 
       <ProductionFullAnalysis
         avertissements={avertissements}

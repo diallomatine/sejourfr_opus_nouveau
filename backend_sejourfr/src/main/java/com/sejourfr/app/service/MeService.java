@@ -14,6 +14,7 @@ import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.AnswerManager;
@@ -72,11 +73,28 @@ public class MeService {
     // Profil
     // ------------------------------------------------------------------------
 
+    /**
+     * Choix (ou changement) de la démarche visée.
+     *
+     * <p><b>Le serveur pose LUI-MÊME le palier de français exigé</b>
+     * ({@link TargetProcedure#getRequiredTcfLevel()}) : c'est le seul point
+     * d'écriture de {@code users.target_procedure}, donc le seul endroit où les
+     * deux colonnes peuvent se désynchroniser. Elles l'ont fait — le compte de
+     * démonstration a longtemps porté {@code NAT} + {@code B1} parce que ce
+     * service ne touchait que la procédure, et le candidat visant la
+     * naturalisation était tiré vers le B1.
+     *
+     * <p><b>Correction serveur, pas refus</b> : le client n'envoie aucun niveau
+     * ({@code UpdateTargetProcedureRequest} ne porte que la procédure), donc
+     * aucune requête n'est <i>contradictoire</i> — c'est l'état stocké qui
+     * l'était. Refuser aurait rejeté une demande parfaitement légitime.
+     */
     @Transactional
     public void updateTargetProcedure(UUID userId, TargetProcedure procedure) {
         User user = userManager.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User introuvable"));
         user.setTargetProcedure(procedure);
+        user.setTargetLevel(procedure == null ? null : procedure.getRequiredTcfLevel());
         userManager.save(user);
     }
 
@@ -245,14 +263,14 @@ public class MeService {
                     coLvl, ceLvl, eeLvl, eoLvl);
         }
 
-        // Cible du user dérivée du parcours visé. CSP=A2, CR=B1, NAT=B2.
-        NiveauCecrl target = null;
+        // Cible du user : la démarche fait PLANCHER (cf. TargetProcedure.niveauVise),
+        // pas la valeur stockée seule — sinon une ligne héritée NAT + B1 afficherait
+        // un objectif B1 à un candidat qui a besoin du B2.
         final User user = userManager.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User introuvable"));
-        final TargetProcedure proc = user.getTargetProcedure();
-        if (proc != null) {
-            target = targetToCecrl(proc);
-        }
+        final TargetLevel vise = TargetProcedure.niveauVise(
+                user.getTargetProcedure(), user.getTargetLevel());
+        final NiveauCecrl target = vise == null ? null : NiveauCecrl.valueOf(vise.name());
 
         return new ProgressionSummaryResponse(
                 Module.TCF,
@@ -266,14 +284,6 @@ public class MeService {
                         bestWeightedMax,
                         lastFullExam,
                         target));
-    }
-
-    private static NiveauCecrl targetToCecrl(TargetProcedure proc) {
-        return switch (proc) {
-            case CSP -> NiveauCecrl.A2;
-            case CR -> NiveauCecrl.B1;
-            case NAT -> NiveauCecrl.B2;
-        };
     }
 
     // ------------------------------------------------------------------------

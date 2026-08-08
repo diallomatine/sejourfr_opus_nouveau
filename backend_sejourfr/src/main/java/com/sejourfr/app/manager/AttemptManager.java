@@ -152,8 +152,12 @@ public class AttemptManager {
                 userId, List.of(EpreuveType.TCF_EE, EpreuveType.TCF_EO));
     }
 
-    /** Dernier examen TCF fini porteur d'un niveau CECRL (complet ou module). */
-    public Optional<Attempt> findLatestTcfWithCecrlLevel(UUID userId) {
-        return repository.findTcfWithCecrlLevel(userId, PageRequest.of(0, 1)).stream().findFirst();
+    /**
+     * Épreuves QCM TCF (CO/CE) réellement passées : examen blanc fini portant
+     * au moins une réponse. Une épreuve abandonnée sans rien rendre (0 réponse)
+     * n'est jamais renvoyée — cf. le javadoc de la requête.
+     */
+    public List<Attempt> findQcmEpreuvesPassees(UUID userId, EpreuveType epreuve, int limit) {
+        return repository.findQcmEpreuvesPassees(userId, epreuve, PageRequest.of(0, limit));
     }
 }

@@ -332,36 +332,81 @@ class AttemptManagerIT extends AbstractIntegrationTest {
         assertThat(manager.countProductionExamSessions(user.getId())).isEqualTo(1);
     }
 
+    /**
+     * Épreuve QCM « abandonnée sans rien rendre » = examen fini sans AUCUNE
+     * réponse : elle doit être exclue du niveau du candidat (« aucune preuve »
+     * n'est pas « mauvaise preuve »). C'est le cœur de la correction du niveau
+     * TCF estimé — sans ce filtre, un examen complet lancé puis abandonné
+     * écrasait l'indicateur à « A1 non atteint » pendant des jours.
+     */
     @Test
-    void findLatestTcfWithCecrlLevel() {
+    void findQcmEpreuvesPassees_excludesAbandonedWithoutAnyAnswer() {
         User user = testData.user();
         Instant t0 = Instant.now().minus(3, ChronoUnit.HOURS);
 
-        Attempt older = base(user);
-        older.setFinishedAt(t0);
-        older.setCecrlLevel(NiveauCecrl.B1);
-        save(older);
-        Attempt newer = base(user);
-        newer.setFinishedAt(t0.plus(1, ChronoUnit.HOURS));
-        newer.setFinalCecrlLevel(NiveauCecrl.B2);
-        save(newer);
-        // TCF fini sans niveau → exclu.
-        Attempt noLevel = base(user);
-        noLevel.setFinishedAt(t0.plus(2, ChronoUnit.HOURS));
-        save(noLevel);
-        // Civique avec niveau → exclu (module).
-        Attempt civique = base(user);
-        civique.setModule(Module.CIVIQUE);
-        civique.setEpreuve(EpreuveType.CIVIQUE);
-        civique.setFinishedAt(t0.plus(2, ChronoUnit.HOURS));
-        civique.setCecrlLevel(NiveauCecrl.B1);
-        save(civique);
+        Attempt answered = mockExam(user, EpreuveType.TCF_CO, t0, NiveauCecrl.B2);
+        testData.answer(testData.attemptQuestion(answered, testData.question()));
 
-        Optional<Attempt> latest = manager.findLatestTcfWithCecrlLevel(user.getId());
-        assertThat(latest).map(Attempt::getId).contains(newer.getId());
+        // Fini mais zéro réponse (examen complet abandonné) → exclu.
+        mockExam(user, EpreuveType.TCF_CO, t0.plus(1, ChronoUnit.HOURS), NiveauCecrl.A1_NON_ATTEINT);
+
+        List<Attempt> found = manager.findQcmEpreuvesPassees(user.getId(), EpreuveType.TCF_CO, 50);
+
+        assertThat(found).extracting(Attempt::getId).containsExactly(answered.getId());
+    }
+
+    @Test
+    void findQcmEpreuvesPassees_filtersEpreuveTypeAndFinishedAndUser() {
+        User user = testData.user();
+        User other = testData.user();
+        Instant t0 = Instant.now().minus(3, ChronoUnit.HOURS);
+
+        Attempt co = mockExam(user, EpreuveType.TCF_CO, t0, NiveauCecrl.A2);
+        testData.answer(testData.attemptQuestion(co, testData.question()));
+        // Autre épreuve, non fini, autre user, et TRAINING → tous exclus.
+        Attempt ce = mockExam(user, EpreuveType.TCF_CE, t0, NiveauCecrl.B1);
+        testData.answer(testData.attemptQuestion(ce, testData.question()));
+        Attempt unfinished = mockExam(user, EpreuveType.TCF_CO, null, NiveauCecrl.B2);
+        testData.answer(testData.attemptQuestion(unfinished, testData.question()));
+        Attempt training = base(user);
+        training.setFinishedAt(t0);
+        training.setCecrlLevel(NiveauCecrl.B2);
+        save(training);
+        testData.answer(testData.attemptQuestion(training, testData.question()));
+        Attempt foreign = mockExam(other, EpreuveType.TCF_CO, t0, NiveauCecrl.B2);
+        testData.answer(testData.attemptQuestion(foreign, testData.question()));
+
+        assertThat(manager.findQcmEpreuvesPassees(user.getId(), EpreuveType.TCF_CO, 50))
+                .extracting(Attempt::getId).containsExactly(co.getId());
+        assertThat(manager.findQcmEpreuvesPassees(user.getId(), EpreuveType.TCF_CE, 50))
+                .extracting(Attempt::getId).containsExactly(ce.getId());
+    }
+
+    @Test
+    void findQcmEpreuvesPassees_ordersMostRecentFirst() {
+        User user = testData.user();
+        Instant t0 = Instant.now().minus(3, ChronoUnit.HOURS);
+
+        Attempt older = mockExam(user, EpreuveType.TCF_CE, t0, NiveauCecrl.B2);
+        testData.answer(testData.attemptQuestion(older, testData.question()));
+        Attempt newer = mockExam(user, EpreuveType.TCF_CE, t0.plus(2, ChronoUnit.HOURS), NiveauCecrl.A1);
+        testData.answer(testData.attemptQuestion(newer, testData.question()));
+
+        assertThat(manager.findQcmEpreuvesPassees(user.getId(), EpreuveType.TCF_CE, 50))
+                .extracting(Attempt::getId)
+                .containsExactly(newer.getId(), older.getId());
     }
 
     // ------------------------------------------------------------------------
+
+    private Attempt mockExam(User user, EpreuveType epreuve, Instant finishedAt, NiveauCecrl level) {
+        Attempt a = base(user);
+        a.setType(AttemptType.MOCK_EXAM);
+        a.setEpreuve(epreuve);
+        a.setFinishedAt(finishedAt);
+        a.setCecrlLevel(level);
+        return save(a);
+    }
 
     private Attempt base(User user) {
         Attempt a = new Attempt();

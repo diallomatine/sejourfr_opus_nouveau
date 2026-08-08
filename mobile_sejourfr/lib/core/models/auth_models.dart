@@ -8,6 +8,7 @@ class AuthUser {
     required this.lastName,
     required this.role,
     this.targetProcedure,
+    this.targetLevel,
     this.isPremium = false,
     this.hasCivique = false,
     this.hasTcf = false,
@@ -21,6 +22,12 @@ class AuthUser {
   final String? lastName;
   final UserRole role;
   final TargetProcedure? targetProcedure;
+
+  /// Palier VISÉ, **dérivé serveur** : `max(exigé par la démarche, niveau
+  /// déclaré)` (cf. `TargetProcedure.niveauVise`). Le backend applique déjà le
+  /// plancher, donc ce champ ne contredit jamais [targetProcedure] — null
+  /// seulement quand ni l'un ni l'autre n'est connu.
+  final TargetLevel? targetLevel;
 
   /// Vrai si l'utilisateur a au moins un plan payant actif (CIVIQUE ou INTÉGRAL).
   final bool isPremium;
@@ -65,6 +72,7 @@ class AuthUser {
 
   AuthUser copyWith({
     TargetProcedure? targetProcedure,
+    TargetLevel? targetLevel,
     bool? isPremium,
     bool? hasCivique,
     bool? hasTcf,
@@ -78,6 +86,7 @@ class AuthUser {
         lastName: lastName,
         role: role,
         targetProcedure: targetProcedure ?? this.targetProcedure,
+        targetLevel: targetLevel ?? this.targetLevel,
         isPremium: isPremium ?? this.isPremium,
         hasCivique: hasCivique ?? this.hasCivique,
         hasTcf: hasTcf ?? this.hasTcf,
@@ -94,6 +103,8 @@ class AuthUser {
         targetProcedure: json['targetProcedure'] == null
             ? null
             : TargetProcedure.fromWire(json['targetProcedure'] as String),
+        targetLevel:
+            TargetLevel.fromWireNullable(json['targetLevel'] as String?),
         isPremium: json['isPremium'] as bool? ?? false,
         hasCivique: json['hasCivique'] as bool? ?? false,
         hasTcf: json['hasTcf'] as bool? ?? false,
@@ -112,6 +123,7 @@ class AuthUser {
         'lastName': lastName,
         'role': role.wire,
         if (targetProcedure != null) 'targetProcedure': targetProcedure!.wire,
+        if (targetLevel != null) 'targetLevel': targetLevel!.wire,
         'isPremium': isPremium,
         'hasCivique': hasCivique,
         'hasTcf': hasTcf,

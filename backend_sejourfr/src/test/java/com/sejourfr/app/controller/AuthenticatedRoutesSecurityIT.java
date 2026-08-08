@@ -72,8 +72,6 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/production-tasks"),
                 // ProductionExampleController
                 Arguments.of(HttpMethod.GET, "/api/production-examples"),
-                // TcfProfileController
-                Arguments.of(HttpMethod.GET, "/api/tcf/profile/level"),
                 // RealtimeEoController
                 Arguments.of(HttpMethod.GET, "/api/realtime/eo/quota"),
                 // ThemeUserController

@@ -5,7 +5,7 @@ import {useRouter} from "next/navigation";
 import {useEffect, useState} from "react";
 import {useAuth} from "@/lib/auth-context";
 import {accountApi, ApiException, billingApi, dashboardApi} from "@/lib/api";
-import {niveauCecrlLabel} from "@/lib/types";
+import {niveauCecrlLabel, niveauViseTcf} from "@/lib/types";
 import type {
     DashboardSummaryResponse,
     SubscriptionStatusResponse,
@@ -112,6 +112,8 @@ export default function ProfilPage() {
         (user.firstName?.[0] ?? user.email[0] ?? "?").toUpperCase() +
         (user.lastName?.[0]?.toUpperCase() ?? "");
     const proc = user.targetProcedure ? PROCEDURE_INFO[user.targetProcedure] : null;
+    // Le palier VISÉ, plancher de la démarche appliqué — pas une table locale.
+    const niveauVise = niveauViseTcf(user);
 
     // ── 3 stats (parité mobile) ───────────────────────────────────────────
     const masteryValue =
@@ -207,7 +209,7 @@ export default function ProfilPage() {
                     </div>
                     <p>
                         {proc
-                            ? `Niveau de français visé : ${proc.tcfLevel} — toucher pour modifier`
+                            ? `Niveau de français visé : ${niveauVise} — toucher pour modifier`
                             : "Définissez votre objectif administratif"}
                     </p>
                 </div>
@@ -690,13 +692,12 @@ function ConfirmModal({
 // ============================================================================
 // HELPERS
 // ============================================================================
-const PROCEDURE_INFO: Record<
-    TargetProcedure,
-    {title: string; short: string; tcfLevel: string}
-> = {
-    CSP: {title: "Carte de séjour pluriannuelle", short: "CSP", tcfLevel: "A2"},
-    CR: {title: "Carte de résident (10 ans)", short: "CR", tcfLevel: "B1"},
-    NAT: {title: "Naturalisation française", short: "NAT", tcfLevel: "B2"},
+/** Le palier exigé n'est PAS recopié : `TCF_LEVEL_BY_PROCEDURE` (miroir gelé de
+ *  l'enum backend) le porte pour les trois surfaces web. */
+const PROCEDURE_INFO: Record<TargetProcedure, {title: string; short: string}> = {
+    CSP: {title: "Carte de séjour pluriannuelle", short: "CSP"},
+    CR: {title: "Carte de résident (10 ans)", short: "CR"},
+    NAT: {title: "Naturalisation française", short: "NAT"},
 };
 
 function formatDate(iso: string): string {

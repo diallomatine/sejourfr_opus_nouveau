@@ -61,8 +61,20 @@ import java.util.Map;
  * un SECOND appel LLM totalement separe de la correction) :
  * {@code {niveau_vise, niveau_constate, texte, ce_qui_manque[]}} — la meme
  * reponse redigee au niveau que le candidat VISE, et 2 a 3 choses concretes qui
- * l'en separent. Absent quand le niveau vise est deja atteint, quand le second
- * appel a echoue, ou sur toute evaluation anterieure a cette fonctionnalite.
+ * l'en separent. Absent quand le second appel a echoue, ou sur toute evaluation
+ * anterieure a cette fonctionnalite.
+ *
+ * <p>Le niveau vise est {@code max(palier exige par la demarche, TargetLevel
+ * declare)} — cf. {@link com.sejourfr.app.enums.TargetProcedure#niveauVise}. La
+ * demarche fait PLANCHER : {@code NAT} exige le B2 depuis le 1er janvier 2026,
+ * un candidat qui la vise n'a donc jamais « atteint son objectif » a B1.
+ *
+ * <p><b>Bloc {@code niveau_vise_atteint}</b>, exclusif du precedent :
+ * {@code {niveau_vise, niveau_constate}}, pose par le serveur quand la
+ * production atteint deja le palier vise. Il n'y a alors pas de marche au-dessus
+ * a montrer, et les fronts l'ANNONCENT (victoire) au lieu de laisser la section
+ * disparaitre en silence — un front ne saurait pas distinguer cet etat d'un
+ * second appel LLM en echec. Absent en EO et sur les evaluations anterieures.
  *
  * <p><b>La note /20 n'est plus affichee sur une tache isolee</b> — decision
  * produit : au TCF, un correcteur attribue un NIVEAU par tache, la note ne porte

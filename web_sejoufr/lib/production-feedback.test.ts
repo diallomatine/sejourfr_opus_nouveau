@@ -10,6 +10,8 @@ import {readFileSync, readdirSync} from "node:fs";
 import {describe, it} from "node:test";
 import {
     NIVEAU_PORTEE_TACHE,
+    NIVEAU_VISE_ATTEINT_EYEBROW,
+    NIVEAU_VISE_ATTEINT_INTRO,
     SITUATION_LIBELLES,
     SITUATION_QUALIFICATIFS,
     TACHE_EVALUEE_LABEL,
@@ -24,6 +26,7 @@ import {
     groupAccomplishment,
     hasAccomplishmentDetail,
     niveauAtteintLabel,
+    niveauViseAtteintTitle,
     objectifPresentation,
     shouldShowConfiance,
     situationView,
@@ -347,6 +350,62 @@ describe("version au niveau visé — la marche au-dessus", () => {
             assert.notEqual(versionCibleeIntro(cible), rappel);
             assert.equal(versionCibleeIntro(cible).includes("est celui demandé pour"), false);
         }
+    });
+});
+
+// ---------------------------------------------------------------------------
+
+describe("niveau visé déjà atteint — la victoire, dite", () => {
+    it("annonce l'objectif atteint, palier nommé", () => {
+        assert.equal(NIVEAU_VISE_ATTEINT_EYEBROW, "Objectif atteint");
+        assert.equal(niveauViseAtteintTitle("B2"), "Objectif B2 : vous y êtes");
+        assert.equal(niveauViseAtteintTitle("A2"), "Objectif A2 : vous y êtes");
+    });
+
+    it("explique l'absence de texte modèle, sans chiffre ni vocabulaire de manque", () => {
+        assert.ok(NIVEAU_VISE_ATTEINT_INTRO.includes("pas de version d'un niveau supérieur"));
+        for (const interdit of ["/20", "note", "manque", "insuffis", "échec", "faible"]) {
+            assert.equal(
+                NIVEAU_VISE_ATTEINT_INTRO.toLowerCase().includes(interdit),
+                false,
+                `« ${interdit} » n'a rien à faire dans un message de réussite`,
+            );
+        }
+    });
+
+    it("ne recopie pas le rappel d'enjeu du hero", () => {
+        // Le hero écrit déjà « Le niveau B2 est celui demandé pour la
+        // naturalisation. Cette production l'atteint. » Deux blocs qui se
+        // répètent mot pour mot se lisent comme un bug d'affichage.
+        const rappel = demarcheRappel("B2", "B2")!;
+        assert.equal(rappel.atteint, true);
+        assert.notEqual(NIVEAU_VISE_ATTEINT_INTRO, rappel.text);
+        assert.equal(NIVEAU_VISE_ATTEINT_INTRO.includes("est celui demandé pour"), false);
+        assert.notEqual(niveauViseAtteintTitle("B2"), niveauAtteintLabel("B2"));
+    });
+});
+
+// ---------------------------------------------------------------------------
+
+describe("parseEeFeedback — bloc niveau_vise_atteint", () => {
+    it("lit le signal serveur d'objectif atteint", () => {
+        const fb = parseEeFeedback(
+            evaluation({
+                niveau_vise_atteint: {niveau_vise: "B2", niveau_constate: "B2"},
+            }),
+        );
+        assert.deepEqual(fb.niveauViseAtteint, {niveauVise: "B2", niveauConstate: "B2"});
+        assert.equal(fb.versionCiblee, null);
+    });
+
+    it("sans palier visé, il n'y a rien à féliciter", () => {
+        const fb = parseEeFeedback(evaluation({niveau_vise_atteint: {niveau_constate: "B2"}}));
+        assert.equal(fb.niveauViseAtteint, null);
+    });
+
+    it("absent des évaluations qui ne le portent pas", () => {
+        assert.equal(parseEeFeedback(evaluation({})).niveauViseAtteint, null);
+        assert.equal(parseEeFeedback(null).niveauViseAtteint, null);
     });
 });
 

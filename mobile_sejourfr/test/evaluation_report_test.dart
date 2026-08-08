@@ -1577,4 +1577,92 @@ void main() {
       expect(find.textContaining('non disponible'), findsNothing);
     });
   });
+
+  // -------------------------------------------------------------------------
+
+  group('niveau visé déjà atteint — la victoire, dite', () {
+    Map<String, dynamic> json(Map<String, dynamic>? bloc) => <String, dynamic>{
+          'noteSurVingt': 14,
+          'niveauObserve': 'B2',
+          'confiance': 'HAUTE',
+          'feedback': <String, dynamic>{
+            if (bloc != null) 'niveau_vise_atteint': bloc,
+          },
+        };
+
+    final atteint = <String, dynamic>{
+      'niveau_vise': 'B2',
+      'niveau_constate': 'B2',
+    };
+
+    test('annonce l\'objectif atteint, palier nommé', () {
+      expect(kNiveauViseAtteintEyebrow, 'Objectif atteint');
+      expect(niveauViseAtteintTitle(TargetLevel.b2), 'Objectif B2 : vous y êtes');
+      expect(niveauViseAtteintTitle(TargetLevel.a2), 'Objectif A2 : vous y êtes');
+    });
+
+    test('explique l\'absence de texte modèle, sans chiffre ni manque', () {
+      expect(kNiveauViseAtteintIntro,
+          contains("pas de version d'un niveau supérieur"));
+      for (final interdit in const [
+        '/20',
+        'note',
+        'manque',
+        'insuffis',
+        'échec',
+        'faible',
+      ]) {
+        expect(kNiveauViseAtteintIntro.toLowerCase().contains(interdit), isFalse,
+            reason: '« $interdit » n\'a rien à faire dans un message de réussite');
+      }
+    });
+
+    test('ne recopie pas le rappel d\'enjeu du hero', () {
+      final rappel = demarcheRappel(TargetLevel.b2, NiveauCecrl.b2)!;
+      expect(rappel.atteint, isTrue);
+      expect(kNiveauViseAtteintIntro, isNot(rappel.text));
+      expect(kNiveauViseAtteintIntro.contains('est celui demandé pour'), isFalse);
+      expect(niveauViseAtteintTitle(TargetLevel.b2),
+          isNot(niveauAtteintLabel(NiveauCecrl.b2)));
+    });
+
+    test('lit le signal serveur, et rien sans palier visé', () {
+      final a = _eval(json(atteint)).feedback.niveauViseAtteint!;
+      expect(a.niveauVise, TargetLevel.b2);
+      expect(a.niveauConstate, NiveauCecrl.b2);
+      expect(_eval(json(null)).feedback.niveauViseAtteint, isNull);
+      expect(
+        _eval(json(<String, dynamic>{'niveau_constate': 'B2'}))
+            .feedback
+            .niveauViseAtteint,
+        isNull,
+      );
+    });
+
+    testWidgets('la section se rend en EE : plus de trou après une réussite',
+        (tester) async {
+      await tester.pumpWidget(_host(_eval(json(atteint))));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Objectif B2 : vous y êtes'), findsOneWidget);
+      expect(find.text(kNiveauViseAtteintEyebrow.toUpperCase()), findsOneWidget);
+      expect(find.text(kNiveauViseAtteintIntro), findsOneWidget);
+    });
+
+    testWidgets('rien du tout à l\'oral', (tester) async {
+      await tester.pumpWidget(_host(_eval(json(atteint)), isOral: true));
+      await tester.pumpAndSettle();
+
+      expect(find.text(kNiveauViseAtteintEyebrow.toUpperCase()), findsNothing);
+      expect(find.textContaining('Objectif B2'), findsNothing);
+    });
+
+    testWidgets('rien du tout sur une évaluation qui ne porte pas le bloc',
+        (tester) async {
+      await tester.pumpWidget(_host(_eval(json(null))));
+      await tester.pumpAndSettle();
+
+      expect(find.text(kNiveauViseAtteintEyebrow.toUpperCase()), findsNothing);
+    });
+  });
 }

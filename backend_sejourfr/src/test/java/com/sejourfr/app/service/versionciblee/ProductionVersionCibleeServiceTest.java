@@ -9,6 +9,7 @@ import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.enums.TargetLevel;
+import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.exception.AiEvaluationException;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
@@ -159,25 +160,101 @@ class ProductionVersionCibleeServiceTest {
 
     // ------------------------------------------------------- rien a produire
 
+    /**
+     * Objectif atteint : aucun appel payé, mais le serveur le DIT.
+     *
+     * <p>Se taire laissait un trou sur l'écran — depuis le retrait de
+     * {@code version_amelioree}, la section modèle disparaissait sans un mot et
+     * le candidat ne pouvait pas distinguer sa réussite d'une panne.
+     */
     @Test
-    void niveauViseDejaAtteint_aucunAppelPaye() {
+    @SuppressWarnings("unchecked")
+    void niveauViseDejaAtteint_aucunAppelPayeMaisLeServeurLAnnonce() {
         ProductionSubmission sub = submissionEcrite(TargetLevel.B1);
-        eval(NiveauCecrl.B1, sub.getId());
+        AiEvaluation eval = eval(NiveauCecrl.B1, sub.getId());
 
         service.enrichir(sub.getId());
 
         verify(llmClient, never()).produire(anyString(), anyString());
-        verify(aiEvaluationManager, never()).save(any());
+        Map<String, Object> bloc = (Map<String, Object>) eval.getFeedbackJson()
+            .get(VersionCibleeFields.BLOC_ATTEINT);
+        assertThat(bloc).isNotNull();
+        assertThat(bloc.get(VersionCibleeFields.NIVEAU_VISE)).isEqualTo("B1");
+        assertThat(bloc.get(VersionCibleeFields.NIVEAU_CONSTATE)).isEqualTo("B1");
+        // Les deux blocs sont EXCLUSIFS : jamais un texte modèle à côté.
+        assertThat(eval.getFeedbackJson()).doesNotContainKey(VersionCibleeFields.BLOC);
+        verify(aiEvaluationManager).save(eval);
     }
 
     @Test
-    void niveauViseSousLeNiveauConstate_aucunAppelPaye() {
+    @SuppressWarnings("unchecked")
+    void niveauViseSousLeNiveauConstate_aucunAppelPayeMaisLeServeurLAnnonce() {
         ProductionSubmission sub = submissionEcrite(TargetLevel.A2);
-        eval(NiveauCecrl.B2, sub.getId());
+        AiEvaluation eval = eval(NiveauCecrl.B2, sub.getId());
 
         service.enrichir(sub.getId());
 
         verify(llmClient, never()).produire(anyString(), anyString());
+        Map<String, Object> bloc = (Map<String, Object>) eval.getFeedbackJson()
+            .get(VersionCibleeFields.BLOC_ATTEINT);
+        assertThat(bloc.get(VersionCibleeFields.NIVEAU_VISE)).isEqualTo("A2");
+        assertThat(bloc.get(VersionCibleeFields.NIVEAU_CONSTATE)).isEqualTo("B2");
+    }
+
+    // ------------------------------------------- la demarche fait PLANCHER
+
+    /**
+     * LE DÉFAUT D'ORIGINE, verrouillé : naturalisation (B2 exigé) + un
+     * {@code targetLevel} hérité à B1. Sans plancher, le service concluait
+     * « objectif atteint » à B1 et ne tirait jamais le candidat vers le B2 dont
+     * sa démarche a besoin.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void naturalisationAvecUnNiveauDeclarePlusBas_viseQuandMemeB2() {
+        ProductionSubmission sub = submissionEcrite(TargetProcedure.NAT, TargetLevel.B1);
+        AiEvaluation eval = eval(NiveauCecrl.B1, sub.getId());
+        stubLlm(sortie(VERSION_CONFORME_45_MOTS,
+            List.of("Relier les idées.", "Préciser le lexique.")));
+
+        service.enrichir(sub.getId());
+
+        Map<String, Object> bloc = (Map<String, Object>) eval.getFeedbackJson()
+            .get(VersionCibleeFields.BLOC);
+        assertThat(bloc.get(VersionCibleeFields.NIVEAU_VISE)).isEqualTo("B2");
+        assertThat(eval.getFeedbackJson()).doesNotContainKey(VersionCibleeFields.BLOC_ATTEINT);
+    }
+
+    /** Viser plus haut que sa démarche est un choix légitime : on le respecte. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void carteDeSejourMaisNiveauDeclarePlusHaut_viseLeNiveauDeclare() {
+        ProductionSubmission sub = submissionEcrite(TargetProcedure.CSP, TargetLevel.B2);
+        AiEvaluation eval = eval(NiveauCecrl.A2, sub.getId());
+        stubLlm(sortie(VERSION_CONFORME_45_MOTS,
+            List.of("Relier les idées.", "Préciser le lexique.")));
+
+        service.enrichir(sub.getId());
+
+        Map<String, Object> bloc = (Map<String, Object>) eval.getFeedbackJson()
+            .get(VersionCibleeFields.BLOC);
+        assertThat(bloc.get(VersionCibleeFields.NIVEAU_VISE)).isEqualTo("B2");
+    }
+
+    /** Démarche seule, sans niveau déclaré : c'est elle qui fait foi. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void demarcheSeule_leNiveauExigeFaitFoi() {
+        ProductionSubmission sub = submissionEcrite(TargetProcedure.CR, null);
+        AiEvaluation eval = eval(NiveauCecrl.A2, sub.getId());
+        stubLlm(sortie(VERSION_CONFORME_45_MOTS,
+            List.of("Relier les idées.", "Préciser le lexique.")));
+
+        service.enrichir(sub.getId());
+
+        Map<String, Object> bloc = (Map<String, Object>) eval.getFeedbackJson()
+            .get(VersionCibleeFields.BLOC);
+        assertThat(bloc.get(VersionCibleeFields.NIVEAU_VISE)).isEqualTo("B1");
     }
 
     /** EE uniquement, en miroir de la règle {@code version_amelioree}. */
@@ -647,15 +724,20 @@ class ProductionVersionCibleeServiceTest {
     }
 
     private ProductionSubmission submissionEcrite(TargetLevel targetLevel) {
-        return submission(EpreuveType.TCF_EE, targetLevel, TEXTE_EE);
+        return submission(EpreuveType.TCF_EE, null, targetLevel, TEXTE_EE);
+    }
+
+    private ProductionSubmission submissionEcrite(TargetProcedure procedure,
+                                                  TargetLevel targetLevel) {
+        return submission(EpreuveType.TCF_EE, procedure, targetLevel, TEXTE_EE);
     }
 
     private ProductionSubmission submissionOrale(TargetLevel targetLevel) {
-        return submission(EpreuveType.TCF_EO, targetLevel, null);
+        return submission(EpreuveType.TCF_EO, null, targetLevel, null);
     }
 
-    private ProductionSubmission submission(EpreuveType epreuve, TargetLevel targetLevel,
-                                            String texte) {
+    private ProductionSubmission submission(EpreuveType epreuve, TargetProcedure procedure,
+                                            TargetLevel targetLevel, String texte) {
         ProductionSubmission s = new ProductionSubmission();
         s.setId(UUID.randomUUID());
         s.setProductionTask(task(epreuve));
@@ -663,6 +745,7 @@ class ProductionVersionCibleeServiceTest {
         s.setTexteSoumis(texte);
         User user = new User();
         user.setId(UUID.randomUUID());
+        user.setTargetProcedure(procedure);
         user.setTargetLevel(targetLevel);
         s.setUser(user);
         when(submissionManager.findByIdWithTaskAndUser(s.getId())).thenReturn(Optional.of(s));

@@ -1026,9 +1026,35 @@ atteindre le **B2**, et s'il écrit aujourd'hui du A2, voir une version B1 ne lu
 l'arrivée.
 
 Le rapport écrit contient donc, en plus, **la même réponse rédigée au niveau que vous visez**
-— celui de votre démarche (A2, B1 ou B2, tel qu'il est enregistré dans votre profil ; à défaut,
-le niveau visé par la tâche) — accompagnée de **deux ou trois choses précises** qui vous en
-séparent aujourd'hui.
+— accompagnée de **deux ou trois choses précises** qui vous en séparent aujourd'hui.
+
+#### Quel niveau « vous visez », exactement : **c'est votre démarche qui décide**
+
+C'est le **palier exigé par la démarche que vous avez choisie dans votre profil** :
+
+| Votre démarche | Palier de français exigé |
+|---|---|
+| Carte de séjour pluriannuelle | **A2** |
+| Carte de résident | **B1** |
+| Naturalisation | **B2** |
+
+Ces trois valeurs ne sont pas un choix de SejourFR : ce sont les seuils en vigueur depuis le
+**1ᵉʳ janvier 2026** (loi n° 2024-42, décrets 2025-647 et 2025-648, arrêté du 22 décembre 2025).
+
+Si vous avez par ailleurs déclaré viser un niveau **plus haut** que votre démarche, c'est
+celui-là qui est retenu : **on ne vous tire jamais vers le bas**. En revanche, un niveau
+déclaré **plus bas** que ce que votre démarche exige ne compte pas — votre démarche fait
+**plancher**.
+
+> **Pourquoi cette règle existe.** Un compte visant la naturalisation portait, hérité d'un
+> ancien réglage, un niveau enregistré à B1. Sa production a été jugée B1, la plateforme en a
+> conclu « objectif atteint »… alors que sa démarche en demande **un de plus**. Ce candidat
+> n'aurait jamais été tiré vers le B2 dont il a réellement besoin. Depuis, la démarche fait foi,
+> et changer de démarche met automatiquement à jour le palier exigé.
+
+Si vous n'avez pas encore choisi de démarche, c'est le niveau visé par la tâche qui sert de
+repère ; et si rien n'est connu, l'encart n'est simplement pas affiché — nous ne devinons pas
+un projet à votre place.
 
 Exemple, pour quelqu'un qui vise le B2 et dont la production a été jugée A2 :
 
@@ -1081,8 +1107,32 @@ Ce qui se passe maintenant :
 
 Votre correction, votre note et votre niveau ne changent jamais à cause de cela.
 
-**Rien de tout cela n'est produit** si le niveau que vous visez est **déjà atteint** (il n'y a
-rien à viser), ni à l'**oral**, pour la même raison qu'au §5.8.
+**Rien de tout cela n'est produit** à l'**oral**, pour la même raison qu'au §5.8.
+
+#### Et si vous êtes **déjà au niveau que vous visez** ? On vous le dit.
+
+Il n'y a alors pas de « marche au-dessus » à vous montrer : le texte modèle n'aurait aucun sens
+(vous écrivez déjà à ce niveau-là). Mais **cette section ne disparaît plus en silence**.
+
+C'était un vrai défaut : depuis que la version améliorée du §5.8 a été retirée de l'écran, ce
+bloc est le **seul** texte modèle du rapport. Le candidat qui **réussissait** se retrouvait donc
+avec un résultat plus vide que celui qui échouait, sans un mot d'explication — sa réussite avait
+exactement la même tête qu'une panne.
+
+À la place s'affiche désormais un encart vert :
+
+> **OBJECTIF ATTEINT**
+> **Objectif B2 : vous y êtes**
+> Cette production tient le palier que vous visez. Il n'y a donc pas de version d'un niveau
+> supérieur à vous montrer ici : l'enjeu est maintenant de tenir ce niveau sur les trois tâches
+> de l'épreuve.
+
+Deux points importants : aucune note n'y apparaît (comme partout sur le résultat d'une tâche),
+et **c'est le serveur qui décide** de l'afficher. Ce n'est pas un détail : vu de l'application
+seule, « objectif atteint » et « la génération du texte modèle a échoué » se ressemblent
+exactement — les deux se traduisent par une absence. Seul le serveur sait laquelle des deux
+c'est, et il le dit explicitement. Une panne, elle, reste silencieuse : on ne vous félicite
+jamais par erreur.
 
 #### Un levier ne peut pas être un moyen que vous employez déjà (nouveau)
 
@@ -2313,8 +2363,9 @@ Dans cet ordre :
 8. **Une appréciation par critère** (bande + commentaire + citation), avec le libellé propre à
    la tâche.
 9. **À l'écrit : la même réponse au niveau qu'il VISE** (§5.9), avec deux ou trois leviers pour
-   l'atteindre sous « Ce qui vous en sépare » — produite par un **second appel séparé**, absente
-   quand le niveau visé est déjà atteint, et absente sans conséquence si ce second appel échoue.
+   l'atteindre sous « Ce qui vous en sépare » — produite par un **second appel séparé**,
+   remplacée par un encart « Objectif atteint » quand le niveau visé est déjà tenu, et absente
+   sans conséquence si ce second appel échoue.
    Rien de tel à l'oral.
 9 bis. La **version améliorée** du palier juste au-dessus (§5.8) est toujours produite et
    conservée, mais **n'est plus affichée** : elle était au même niveau que la copie, et la

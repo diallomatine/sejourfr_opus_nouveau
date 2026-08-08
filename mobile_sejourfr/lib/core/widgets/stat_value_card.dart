@@ -30,7 +30,10 @@ class StatValueCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            maxLines: 1,
+            // 2 lignes : à 3 cartes par ligne sur un 360 px, un libellé
+            // explicite (« Niveau TCF estimé ») ne tient pas sur une seule.
+            maxLines: 2,
+            textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
             style: AppFonts.ui(
               size: 11.5,

@@ -243,6 +243,7 @@ class EvaluationFeedback {
     this.accomplissement,
     this.versionAmelioree,
     this.versionCiblee,
+    this.niveauViseAtteint,
     this.scoresCriteres = const [],
     this.pointsForts = const [],
     this.pointsAAmeliorer = const [],
@@ -279,6 +280,10 @@ class EvaluationFeedback {
   /// ou quand le second appel LLM a echoue : cas normaux.
   final VersionCiblee? versionCiblee;
 
+  /// Exclusif du precedent : le palier vise est **deja atteint**, et le serveur
+  /// le dit pour qu'on l'annonce au lieu de laisser un trou.
+  final NiveauViseAtteint? niveauViseAtteint;
+
   final List<CriterionScore> scoresCriteres;
   final List<String> pointsForts;
 
@@ -302,6 +307,8 @@ class EvaluationFeedback {
           : null,
       versionAmelioree: _trimmedOrNull(json['version_amelioree']),
       versionCiblee: VersionCiblee.fromJsonNullable(json['version_ciblee']),
+      niveauViseAtteint:
+          NiveauViseAtteint.fromJsonNullable(json['niveau_vise_atteint']),
       scoresCriteres: ((json['scores_criteres'] as List?) ?? const [])
           .map((e) => CriterionScore.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -331,10 +338,12 @@ class EvaluationFeedback {
 /// sinon il alignerait sa note dessus.
 ///
 /// **EE uniquement.** Le bloc est absent dans tous ces cas parfaitement
-/// normaux : a l'oral, sur les evaluations anterieures, quand le second appel a
-/// echoue, et quand le niveau vise est deja atteint (montrer une « version B1 »
-/// a quelqu'un qui ecrit du B2 serait un contresens). Rien ne s'affiche alors —
-/// ni squelette, ni « non disponible ».
+/// normaux : a l'oral, sur les evaluations anterieures, et quand le second
+/// appel a echoue. Rien ne s'affiche alors — ni squelette, ni « non
+/// disponible ».
+///
+/// Quand le palier vise est **deja atteint**, ce n'est pas ce bloc qui manque :
+/// c'est [NiveauViseAtteint] qui prend sa place. Les deux sont exclusifs.
 class VersionCiblee {
   const VersionCiblee({
     required this.niveauVise,
@@ -343,7 +352,8 @@ class VersionCiblee {
     this.ceQuiManque = const [],
   });
 
-  /// Palier vise par le candidat (son `targetLevel`, a defaut celui du sujet).
+  /// Palier vise : `max(exige par la demarche, targetLevel declare)`, a defaut
+  /// celui du sujet. Pose par le serveur (`TargetProcedure.niveauVise`).
   final TargetLevel niveauVise;
 
   /// Palier reellement observe sur cette tache. Absent si inconnu.
@@ -372,6 +382,37 @@ class VersionCiblee {
           .map((e) => e.toString().trim())
           .where((e) => e.isNotEmpty)
           .toList(growable: false),
+    );
+  }
+}
+
+/// **Le palier vise est atteint** — un signal SERVEUR, pas une deduction.
+///
+/// Sans lui, un front ne pouvait pas distinguer « objectif atteint » (une
+/// victoire, a annoncer) de « le second appel LLM a echoue » (un incident, a
+/// taire) : la section modele disparaissait en silence dans les deux cas, et
+/// depuis le retrait de `version_amelioree` le candidat qui REUSSIT se
+/// retrouvait avec un rapport plus vide que celui qui echoue.
+///
+/// Exclusif de [VersionCiblee]. Absent en EO et sur toutes les evaluations
+/// anterieures.
+class NiveauViseAtteint {
+  const NiveauViseAtteint({required this.niveauVise, this.niveauConstate});
+
+  /// Le palier que la production atteint (ou depasse).
+  final TargetLevel niveauVise;
+
+  /// Palier reellement observe sur cette tache. Absent si inconnu.
+  final NiveauCecrl? niveauConstate;
+
+  /// Null sans palier vise : il n'y aurait rien a feliciter.
+  static NiveauViseAtteint? fromJsonNullable(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final vise = _targetLevelOrNull(_trimmedOrNull(raw['niveau_vise']));
+    if (vise == null) return null;
+    return NiveauViseAtteint(
+      niveauVise: vise,
+      niveauConstate: _niveauCecrlOrNull(_trimmedOrNull(raw['niveau_constate'])),
     );
   }
 }

@@ -67,8 +67,11 @@ export interface RegisterRequest {
     password: string;
     firstName: string;
     lastName: string;
-    targetProcedure?: TargetProcedure;
-    targetLevel?: TargetLevel;
+    targetProcedure?: TargetProcedure | null;
+    /** Palier VISÉ, **dérivé serveur** : `max(exigé par la démarche, niveau
+     *  déclaré)`. Le backend applique déjà le plancher (`TargetProcedure.niveauVise`),
+     *  donc ce champ ne contredit jamais `targetProcedure`. */
+    targetLevel?: TargetLevel | null;
 }
 
 /**
@@ -92,8 +95,11 @@ export interface AuthenticatedUser {
     firstName: string;
     lastName: string;
     role: Role;
-    targetProcedure?: TargetProcedure;
-    targetLevel?: TargetLevel;
+    targetProcedure?: TargetProcedure | null;
+    /** Palier VISÉ, **dérivé serveur** : `max(exigé par la démarche, niveau
+     *  déclaré)`. Le backend applique déjà le plancher (`TargetProcedure.niveauVise`),
+     *  donc ce champ ne contredit jamais `targetProcedure`. */
+    targetLevel?: TargetLevel | null;
     /** Vrai si l'utilisateur a au moins un plan payant actif (CIVIQUE ou INTÉGRAL). */
     isPremium?: boolean;
     /** Accès au module Civique (vrai si un Plan donnant accès Civique ou Intégral est actif). */
@@ -1158,13 +1164,15 @@ export interface EePriority {
  * alignerait sa note dessus).
  *
  * **EE uniquement**, et absente dans tous ces cas parfaitement normaux : à
- * l'oral, sur les évaluations antérieures, quand le second appel a échoué, et
- * quand le niveau visé est déjà atteint (montrer une « version B1 » à quelqu'un
- * qui écrit du B2 serait un contresens). Rien ne s'affiche alors — ni squelette,
- * ni « non disponible ».
+ * l'oral, sur les évaluations antérieures, et quand le second appel a échoué.
+ * Rien ne s'affiche alors — ni squelette, ni « non disponible ».
+ *
+ * Quand le palier visé est **déjà atteint**, ce n'est pas ce bloc qui manque :
+ * c'est {@link EeNiveauViseAtteint} qui prend sa place. Les deux sont exclusifs.
  */
 export interface EeVersionCiblee {
-    /** Palier visé par le candidat (son `targetLevel`, à défaut celui du sujet). */
+    /** Palier visé : `max(exigé par la démarche, targetLevel déclaré)`, à défaut
+     *  celui du sujet. Posé par le serveur (cf. `TargetProcedure.niveauVise`). */
     niveauVise: TargetLevel;
     /** Palier réellement observé sur cette tâche. Absent si inconnu. */
     niveauConstate: NiveauCecrl | null;
@@ -1173,6 +1181,25 @@ export interface EeVersionCiblee {
     /** 2 à 3 leviers, **dans l'ordre du backend** (du plus rentable au moins
      *  rentable) : ne jamais retrier côté front. */
     ceQuiManque: string[];
+}
+
+/**
+ * **Le palier visé est atteint** — un signal serveur, pas une déduction.
+ *
+ * Sans lui, un front ne pouvait pas distinguer « objectif atteint » (une
+ * victoire, à annoncer) de « le second appel LLM a échoué » (un incident, à
+ * taire) : la section modèle disparaissait en silence dans les deux cas, et
+ * depuis le retrait de `version_amelioree` le candidat se retrouvait sans aucun
+ * texte modèle ni la moindre explication.
+ *
+ * Exclusif de {@link EeVersionCiblee}. Absent en EO et sur toutes les
+ * évaluations antérieures.
+ */
+export interface EeNiveauViseAtteint {
+    /** Le palier que la production atteint (ou dépasse). */
+    niveauVise: TargetLevel;
+    /** Palier réellement observé sur cette tâche. Absent si inconnu. */
+    niveauConstate: NiveauCecrl | null;
 }
 
 export interface EeFeedback {
@@ -1206,6 +1233,9 @@ export interface EeFeedback {
     /** La même réponse écrite **au palier au-dessus**, celui que le candidat
      *  vise — le seul texte modèle rendu au candidat. */
     versionCiblee: EeVersionCiblee | null;
+    /** Exclusif du précédent : le palier visé est **déjà atteint**, et le serveur
+     *  le dit pour qu'on l'annonce au lieu de laisser un trou. */
+    niveauViseAtteint: EeNiveauViseAtteint | null;
 }
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -1289,6 +1319,16 @@ function asVersionCiblee(v: unknown): EeVersionCiblee | null {
     };
 }
 
+/** Bloc `niveau_vise_atteint`. Sans palier visé, il n'y a rien à féliciter :
+ *  `null`, et la section n'est pas rendue. */
+function asNiveauViseAtteint(v: unknown): EeNiveauViseAtteint | null {
+    const r = asRecord(v);
+    if (!r) return null;
+    const niveauVise = asTargetLevel(r.niveau_vise);
+    if (!niveauVise) return null;
+    return {niveauVise, niveauConstate: asNiveauCecrl(r.niveau_constate)};
+}
+
 function asObjectif(v: unknown): ObjectifAccomplissement | null {
     const s = asString(v)?.toUpperCase();
     return s === "ATTEINT" || s === "PARTIELLEMENT_ATTEINT" || s === "NON_ATTEINT" ? s : null;
@@ -1361,6 +1401,7 @@ export function parseEeFeedback(
         avertissements: [],
         versionAmelioree: null,
         versionCiblee: null,
+        niveauViseAtteint: null,
     };
     const fb = asRecord(evaluation?.feedback);
     if (!fb) return empty;
@@ -1423,6 +1464,7 @@ export function parseEeFeedback(
         avertissements: asStringList(fb.avertissements),
         versionAmelioree: asString(fb.version_amelioree),
         versionCiblee: asVersionCiblee(fb.version_ciblee),
+        niveauViseAtteint: asNiveauViseAtteint(fb.niveau_vise_atteint),
     };
 }
 
@@ -1579,6 +1621,14 @@ export interface DashboardSummaryResponse {
     tcfMockExams: number;
     /** Progression globale = moyenne des progressions des catégories renseignées. */
     globalSuccessPercent: number | null;
+    /**
+     * Niveau TCF **estimé** du candidat : plancher des 4 épreuves (CO/CE/EE/EO),
+     * chacune retenant son **meilleur** résultat, une épreuve abandonnée sans
+     * rien rendre (0 réponse / 0 soumission) étant **exclue**. Null tant
+     * qu'aucune épreuve n'a été réellement passée — null = inconnu, jamais
+     * mauvais. Dérivé serveur (`TcfProfileService`) : ne jamais le recalculer
+     * côté front.
+     */
     estimatedTcfLevel: NiveauCecrl | null;
     civique: DashboardCategoryStat[];
     tcf: DashboardCategoryStat[];

@@ -29,7 +29,12 @@ class DashboardSummary {
   /// Null si rien travaillé.
   final int? globalSuccessPercent;
 
-  /// Niveau CECRL du dernier examen TCF évalué. Null si aucun.
+  /// Niveau TCF **estimé** du candidat : plancher des 4 épreuves
+  /// (CO/CE/EE/EO), chacune retenant son **meilleur** résultat, une épreuve
+  /// abandonnée sans rien rendre (0 réponse / 0 soumission) étant **exclue**.
+  /// Null tant qu'aucune épreuve n'a été réellement passée — null = inconnu,
+  /// jamais mauvais. Dérivé serveur (`TcfProfileService`) : ne jamais le
+  /// recalculer côté front.
   final NiveauCecrl? estimatedTcfLevel;
 
   final List<DashboardCategoryStat> civique;

@@ -7,7 +7,7 @@ import {ApiException, productionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
   isSubmissionPending,
-  tcfLevelFromProcedure,
+  niveauViseTcf,
   type ProductionSubmissionDto,
 } from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
@@ -153,10 +153,11 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
               eyebrow={`${config.epreuve === "TCF_EO" ? "Expression orale" : "Expression écrite"} · Tâche ${tacheNum}`}
               productionText={config.mode === "text" ? submission.texteSoumis : null}
               motsCount={submission.motsCount}
-              // Palier visé par la démarche. Volontairement SANS le repli
-              // « B1 » de `resolveTcfLevel` : un objectif deviné n'a rien à
-              // faire dans une phrase qui dit au candidat ce qu'il joue.
-              targetLevel={user.targetLevel ?? tcfLevelFromProcedure(user.targetProcedure)}
+              // Palier VISÉ : la démarche fait plancher (NAT ⇒ B2, même si le
+              // compte porte un `targetLevel` plus bas). Volontairement SANS le
+              // repli « B1 » de `resolveTcfLevel` : un objectif deviné n'a rien
+              // à faire dans une phrase qui dit au candidat ce qu'il joue.
+              targetLevel={niveauViseTcf(user)}
             />
 
             {/* À l'oral, l'écho de la production est la transcription. */}

@@ -7,6 +7,7 @@ import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.TargetLevel;
+import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.service.EvaluationPurgeMetrics;
@@ -40,9 +41,11 @@ import java.util.UUID;
  *   <li>coupe-circuit {@code version-ciblee.enabled=false} ;</li>
  *   <li>niveau visé <b>inférieur ou égal</b> au niveau constaté : il n'y a rien
  *       à viser, et montrer une « version B1 » à quelqu'un qui écrit déjà du B2
- *       serait un contresens ;</li>
- *   <li>niveau visé introuvable (candidat sans {@code TargetLevel} et tâche sans
- *       {@code niveau_cible} lisible) ;</li>
+ *       serait un contresens. Ce cas-là <b>ne se tait plus</b> : le serveur pose
+ *       {@code niveau_vise_atteint} pour que les fronts annoncent la victoire au
+ *       lieu de laisser un trou (cf. {@link VersionCibleeFields#BLOC_ATTEINT}) ;</li>
+ *   <li>niveau visé introuvable (candidat sans démarche ni {@code TargetLevel},
+ *       et tâche sans {@code niveau_cible} lisible) ;</li>
  *   <li>leviers {@link VersionCibleeLevierFilter purgés} au point qu'il en reste
  *       moins de deux, et la réparation n'a rien réparé.</li>
  * </ul>
@@ -103,8 +106,18 @@ public class ProductionVersionCibleeService {
 
         NiveauCecrl constate = eval.getNiveauCecrl();
         TargetLevel vise = niveauVise(sub, task);
-        if (vise == null || !aQuelqueChoseAViser(constate, vise)) {
-            log.debug("Version au niveau vise sans objet submission={} (constate={}, vise={}).",
+        if (vise == null) {
+            log.debug("Version au niveau vise sans objet submission={} : palier vise inconnu.",
+                submissionId);
+            return;
+        }
+        if (!aQuelqueChoseAViser(constate, vise)) {
+            // OBJECTIF ATTEINT. On ne se contente plus de ne rien produire : le
+            // serveur le DIT, sinon la section disparait en silence et le
+            // candidat croit a une panne (cf. VersionCibleeFields.BLOC_ATTEINT).
+            eval.setFeedbackJson(feedbackAvecBlocAtteint(eval.getFeedbackJson(), constate, vise));
+            aiEvaluationManager.save(eval);
+            log.info("Niveau vise deja atteint submission={} (constate={}, vise={}).",
                 submissionId, constate, vise);
             return;
         }
@@ -244,11 +257,20 @@ public class ProductionVersionCibleeService {
     }
 
     /**
-     * Palier VISÉ par le candidat : son {@code TargetLevel} TCF, à défaut le
-     * {@code niveau_cible} de la tâche. Null si aucun des deux n'est lisible.
+     * Palier VISÉ par le candidat, à défaut le {@code niveau_cible} de la tâche.
+     * Null si aucun des deux n'est lisible.
+     *
+     * <p><b>La démarche fait plancher</b> ({@link TargetProcedure#niveauVise}) :
+     * lire le seul {@code targetLevel} stocké a produit le défaut d'origine — un
+     * candidat visant la <b>naturalisation</b> (B2 exigé) portait un
+     * {@code targetLevel} hérité à B1, le service concluait « objectif atteint »
+     * à B1 et ne le tirait jamais vers le B2 dont sa démarche a besoin.
      */
     private static TargetLevel niveauVise(ProductionSubmission sub, ProductionTask task) {
-        TargetLevel duCandidat = sub.getUser() == null ? null : sub.getUser().getTargetLevel();
+        var user = sub.getUser();
+        TargetLevel duCandidat = user == null
+            ? null
+            : TargetProcedure.niveauVise(user.getTargetProcedure(), user.getTargetLevel());
         if (duCandidat != null) return duCandidat;
         return parseTargetLevel(task.getNiveauCible());
     }
@@ -292,6 +314,30 @@ public class ProductionVersionCibleeService {
 
         Map<String, Object> enrichi = new LinkedHashMap<>(feedback);
         enrichi.put(VersionCibleeFields.BLOC, bloc);
+        return enrichi;
+    }
+
+    /**
+     * Copie du feedback avec le bloc {@code niveau_vise_atteint} — la victoire,
+     * dite explicitement.
+     *
+     * <p><b>Aucun appel LLM ici</b>, et c'est le point : il n'y a rien à
+     * rédiger, seulement un constat que le serveur est seul à pouvoir faire (il
+     * connaît la démarche du candidat, le front ne connaît pas la raison de
+     * l'absence du bloc). Les deux blocs sont mutuellement exclusifs.
+     */
+    private static Map<String, Object> feedbackAvecBlocAtteint(Map<String, Object> feedback,
+                                                               NiveauCecrl constate,
+                                                               TargetLevel vise) {
+        Map<String, Object> bloc = new LinkedHashMap<>();
+        bloc.put(VersionCibleeFields.NIVEAU_VISE, vise.name());
+        if (constate != null) {
+            bloc.put(VersionCibleeFields.NIVEAU_CONSTATE, constate.name());
+        }
+
+        Map<String, Object> enrichi = new LinkedHashMap<>(feedback);
+        enrichi.remove(VersionCibleeFields.BLOC);
+        enrichi.put(VersionCibleeFields.BLOC_ATTEINT, bloc);
         return enrichi;
     }
 

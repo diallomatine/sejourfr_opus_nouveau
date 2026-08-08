@@ -10,12 +10,15 @@ import styles from "@/app/_components/auth/auth.module.css";
 import { ApiException } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { safeInternalPath } from "@/lib/security";
-import type { TargetProcedure } from "@/lib/types";
+import { TCF_LEVEL_BY_PROCEDURE, type TargetProcedure } from "@/lib/types";
 
-const MENTIONS: { v: TargetProcedure; code: string; name: string; tcf: string }[] = [
-  { v: "CSP", code: "CSP", name: "Carte de séjour", tcf: "A2" },
-  { v: "CR", code: "CR", name: "Carte de résident", tcf: "B1" },
-  { v: "NAT", code: "NAT", name: "Naturalisation", tcf: "B2" },
+/** Le palier exigé vient du référentiel partagé, jamais recopié ici :
+ *  `TCF_LEVEL_BY_PROCEDURE` est le miroir gelé de l'enum `TargetProcedure`
+ *  côté backend (cf. `lib/types.test.ts`). */
+const MENTIONS: { v: TargetProcedure; code: string; name: string }[] = [
+  { v: "CSP", code: "CSP", name: "Carte de séjour" },
+  { v: "CR", code: "CR", name: "Carte de résident" },
+  { v: "NAT", code: "NAT", name: "Naturalisation" },
 ];
 
 export default function InscriptionPage() {
@@ -181,7 +184,7 @@ function InscriptionInner() {
                   <span className={styles.mentionCode}>{opt.code}</span>
                   <span className={styles.mentionName}>{opt.name}</span>
                   <span className={styles.mentionTcf}>
-                    TCF <strong>{opt.tcf}</strong>
+                    TCF <strong>{TCF_LEVEL_BY_PROCEDURE[opt.v]}</strong>
                   </span>
                 </label>
               );

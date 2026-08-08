@@ -107,7 +107,7 @@ class ProfileScreen extends ConsumerWidget {
                           value: dashboard
                                   .valueOrNull?.estimatedTcfLevel?.shortName ??
                               '—',
-                          label: 'Niveau',
+                          label: 'Niveau estimé',
                           color: AppColors.blue,
                           valueSize: 22,
                         ),
