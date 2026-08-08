@@ -1636,19 +1636,70 @@ export interface DashboardSummaryResponse {
 
 // ============ HELPERS ============
 
-/** Niveau TCF visé dérivé du parcours civique (CSP→A2, CR→B1, NAT→B2). */
+/**
+ * **La correspondance démarche → palier de français, une seule fois.**
+ *
+ * Seuils en vigueur au 1ᵉʳ janvier 2026 (loi n° 2024-42, décrets 2025-647 et
+ * 2025-648, arrêté du 22 décembre 2025). Donnée légale de trois lignes, pas un
+ * réglage : c'est un **miroir gelé par test** (`lib/types.test.ts`) de l'enum
+ * `TargetProcedure` côté backend, comme `skill-labels` l'est des libellés
+ * Compétences.
+ *
+ * ⚠️ **Ne jamais réécrire cette table dans un écran.** Elle a vécu en trois
+ * copies web (`/parcours`, `/inscription`, `/profil`), et le jour où la loi
+ * bougera, ces copies ne bougeront pas.
+ */
+export const TCF_LEVEL_BY_PROCEDURE: Readonly<Record<TargetProcedure, TargetLevel>> = {
+    CSP: "A2",
+    CR: "B1",
+    NAT: "B2",
+};
+
+/** Le palier que la démarche **exige**. `null` si la démarche n'est pas choisie —
+ *  on ne devine jamais un parcours à la place du candidat. */
 export function tcfLevelFromProcedure(
     p: TargetProcedure | null | undefined,
 ): TargetLevel | null {
-    return p === "NAT" ? "B2" : p === "CR" ? "B1" : p === "CSP" ? "A2" : null;
+    return p ? TCF_LEVEL_BY_PROCEDURE[p] : null;
 }
 
-/** Niveau TCF effectif d'un utilisateur : targetLevel explicite, sinon dérivé
- *  du parcours, sinon B1 par défaut. Utilisé pour piocher les tâches EO/EE. */
+/** Rang CECRL d'un palier visé : c'est lui qu'on compare, jamais l'ordre
+ *  alphabétique (juste par chance aujourd'hui, faux dès qu'un palier s'ajoute). */
+const TARGET_LEVEL_RANK: Readonly<Record<TargetLevel, number>> = {A2: 0, B1: 1, B2: 2};
+
+/**
+ * **Le palier réellement VISÉ** : le plus haut entre ce que la démarche exige et
+ * ce que le candidat a déclaré viser. Miroir de `TargetProcedure.niveauVise`
+ * côté backend, gelé par test.
+ *
+ * La démarche fait **plancher**, jamais plafond :
+ * - `NAT` + `B1` déclaré ⇒ **B2** (la naturalisation en demande un de plus : le
+ *   féliciter d'avoir « atteint son objectif » à B1 ne le tirerait jamais vers
+ *   le niveau dont il a besoin) ;
+ * - `CSP` + `B2` déclaré ⇒ **B2** (viser plus haut est un choix légitime) ;
+ * - démarche absente ⇒ le niveau déclaré seul ; les deux absents ⇒ `null`.
+ *
+ * Le backend sert déjà `targetLevel` corrigé sur `/api/auth/me` : ce helper est
+ * la ceinture qui va avec les bretelles, et il sert aux écrans où la démarche
+ * n'est **pas encore enregistrée** (sélection sur `/parcours`, `/inscription`).
+ */
+export function niveauViseTcf(
+    user: Pick<AuthenticatedUser, "targetLevel" | "targetProcedure"> | null | undefined,
+): TargetLevel | null {
+    const exige = tcfLevelFromProcedure(user?.targetProcedure);
+    const declare = user?.targetLevel ?? null;
+    if (!exige) return declare;
+    if (!declare) return exige;
+    return TARGET_LEVEL_RANK[declare] > TARGET_LEVEL_RANK[exige] ? declare : exige;
+}
+
+/** Niveau TCF effectif d'un utilisateur, **avec repli B1** : sert à piocher les
+ *  tâches EO/EE, jamais à écrire une phrase au candidat (un objectif deviné n'a
+ *  rien à faire dans un message qui lui dit ce qu'il joue). */
 export function resolveTcfLevel(
     user: Pick<AuthenticatedUser, "targetLevel" | "targetProcedure"> | null,
 ): TargetLevel {
-    return user?.targetLevel ?? tcfLevelFromProcedure(user?.targetProcedure) ?? "B1";
+    return niveauViseTcf(user) ?? "B1";
 }
 
 export function canAccessModule(

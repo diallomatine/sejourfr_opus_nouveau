@@ -140,7 +140,7 @@ export default function StatistiquesPage() {
           percent={tcfAvg}
           headline={
             summary?.estimatedTcfLevel
-              ? `Niveau ${niveauCecrlLabel(summary.estimatedTcfLevel)}`
+              ? `Niveau estimé ${niveauCecrlLabel(summary.estimatedTcfLevel)}`
               : masteryHint(tcfAvg)
           }
           chip={`${summary?.tcf.length ?? 5} catégories`}

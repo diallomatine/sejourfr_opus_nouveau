@@ -934,10 +934,36 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   plus écrire « le plus bas de tes 4 épreuves » en dur, ni agréger un examen
   partiel dans un « meilleur niveau » sans l'annoter. V024 a remis à NULL les
   `final_cecrl_level` déjà persistés à tort sur les examens verrouillés.
-- **Incohérence de règle connue, non tranchée** : `TcfProfileService`
-  (profil par épreuve) applique un **plancher** là où `ProductionBilanService`
-  (bilan d'épreuve) applique une **moyenne**. Les deux décrivent pourtant « le
-  niveau de l'épreuve ». À arbitrer.
+- **Niveau TCF estimé d'un CANDIDAT** (≠ résultat d'un examen) —
+  `TcfProfileService`, arbitré le 2026-08-08 : **plancher des 4 épreuves,
+  chaque épreuve retenant son MEILLEUR résultat, une épreuve abandonnée sans
+  rien rendre étant EXCLUE**. « Aucune preuve » n'est pas « mauvaise preuve » :
+  `null = inconnu, jamais mauvais`, même principe que `finalCecrlLevel`.
+  - **« Abandonnée sans rien rendre »**, écrit dans le code : CO/CE = examen
+    fini avec **zéro réponse** (filtre `EXISTS` de
+    `AttemptRepository.findQcmEpreuvesPassees`, verrouillé par
+    `AttemptManagerIT`) ; EE/EO = **zéro soumission évaluée**.
+  - **Les productions entrent enfin dans le calcul** : EE/EO sont lues dans
+    `ai_evaluations` (meilleur niveau d'une **tâche** évaluée, la plus récente
+    évaluation faisant foi par soumission). Avant, le niveau ne regardait que
+    `attempts.cecrl_level` — un candidat qui ne travaillait qu'en EE/EO restait
+    à « — » indéfiniment, et un examen complet abandonné le figeait à
+    « < A1 ».
+  - **Une seule surface publie ce niveau** : `DashboardSummaryResponse
+    .estimatedTcfLevel` (`GET /api/me/dashboard`), lu tel quel par le web
+    (dashboard, profil, statistiques, `TcfHub`, examens-blancs) et le mobile
+    (accueil, profil). **Aucun front ne le recalcule.** Libellé aligné des deux
+    côtés : il contient toujours le mot **« estimé »**.
+  - L'endpoint `GET /api/tcf/profile/level` et son client mobile
+    `tcfLevelProfile()` (zéro appelant) ont été **supprimés** : deux surfaces
+    HTTP répondant différemment à la même question, c'est exactement ce qui a
+    produit l'incohérence.
+- **Ce qui reste ouvert** : `ProductionBilanService` (bilan d'**une épreuve**
+  de production) garde sa **moyenne** pondérée des 3 tâches, et
+  `FullTcfExamResponseBuilder` (niveau d'**un examen complet**) garde son
+  plancher où une épreuve abandonnée compte `A1_NON_ATTEINT`. L'arbitrage
+  ci-dessus ne vaut que pour le **niveau d'un candidat dans le temps** — ne pas
+  le propager à ces deux calculs sans une décision explicite.
 
 ## Module « Compétences TCF » (micro-entraînement EE/EO)
 
