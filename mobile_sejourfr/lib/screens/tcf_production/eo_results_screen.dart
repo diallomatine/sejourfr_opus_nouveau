@@ -18,7 +18,6 @@ import 'eo_session_controller.dart';
 import 'widgets/evaluation_loading_view.dart';
 import 'widgets/evaluation_report.dart';
 import 'widgets/production_app_header.dart';
-import 'widgets/results_eval_banner.dart';
 
 /// Ouvre la transcription en bottom sheet : dialogue en bulles pour un oral
 /// interactif (realtime), texte simple pour un enregistrement monologue.
@@ -155,7 +154,9 @@ class _Wrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
+      // Fond legerement teinte, comme la maquette : les cartes blanches du
+      // rapport ne se detachaient pas sur du blanc pur.
+      backgroundColor: AppColors.bg,
       appBar: ProductionAppHeader(
         title: 'Résultats',
         fallbackRoute: fallbackRoute,
@@ -225,11 +226,11 @@ class _Body extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
             children: [
-              const ResultsEvalBanner(
-                title: 'Évaluation terminée !',
-                subtitle: 'Voici votre évaluation détaillée.',
+              EvaluationReport(
+                evaluation: eval,
+                isOral: true,
+                eyebrow: 'Expression orale · Tâche ${taskIndex + 1}',
               ),
-              EvaluationReport(evaluation: eval, isOral: true),
               if (submission.transcription != null &&
                   submission.transcription!.isNotEmpty) ...[
                 const SizedBox(height: 4),

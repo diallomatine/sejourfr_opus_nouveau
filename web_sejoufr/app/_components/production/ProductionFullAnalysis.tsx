@@ -1,26 +1,15 @@
 "use client";
 
+import {AlertTriangle, Check, ChevronDown, Info, Lightbulb, Target} from "lucide-react";
 import {
-  AlertTriangle,
-  Check,
-  ChevronDown,
-  Info,
-  Lightbulb,
-  Quote,
-  Target,
-} from "lucide-react";
-import {
-  critereBandeFromNote,
   groupAccomplishment,
   hasAccomplishmentDetail,
   type AccomplishmentGroups,
 } from "@/lib/production-feedback";
 import {
-  bandeCritereLabel,
   type EeAccomplishment,
   type EeAccomplishmentPoint,
   type EeCorrection,
-  type EeCriterion,
 } from "@/lib/types";
 import {FeedbackList} from "./FeedbackList";
 import styles from "./production.module.css";
@@ -32,19 +21,19 @@ import styles from "./production.module.css";
  * consigne, les corrections et les suggestions.
  *
  * Rien n'est perdu — c'est la contrepartie du haut d'écran court. L'ordre est
- * identique au mobile : avertissements → critères → accomplissement →
- * exemples corrigés → suggestions.
+ * identique au mobile : avertissements → accomplissement → exemples corrigés →
+ * suggestions. **Le détail par critère a quitté ce repli** pour la section
+ * « Votre profil en un coup d'œil » ({@link CriteriaOverview}) : il y était, donc
+ * personne ne le voyait.
  */
 export function ProductionFullAnalysis({
   avertissements,
-  criteres,
   accomplissement,
   exemplesCorriges,
   suggestions,
   isOral,
 }: {
   avertissements: string[];
-  criteres: EeCriterion[];
   accomplissement: EeAccomplishment | null;
   exemplesCorriges: EeCorrection[];
   suggestions: string[];
@@ -54,7 +43,6 @@ export function ProductionFullAnalysis({
   const hasAccomplishment = hasAccomplishmentDetail(groups);
   const hasSomething =
     avertissements.length > 0 ||
-    criteres.length > 0 ||
     hasAccomplishment ||
     exemplesCorriges.length > 0 ||
     suggestions.length > 0;
@@ -67,7 +55,7 @@ export function ProductionFullAnalysis({
         <span className={styles.detailsSummaryText}>
           <span className={styles.detailsSummaryTitle}>Voir l&apos;analyse complète</span>
           <span className={styles.detailsSummaryHint}>
-            Détail par critère, consigne point par point, corrections et suggestions.
+            Consigne point par point, corrections et suggestions.
           </span>
         </span>
         <ChevronDown className={styles.detailsChevron} size={18} strokeWidth={2.4} aria-hidden />
@@ -84,15 +72,6 @@ export function ProductionFullAnalysis({
                 <li key={i}>{a}</li>
               ))}
             </ul>
-          </section>
-        )}
-
-        {criteres.length > 0 && (
-          <section className={styles.subBlock}>
-            <p className={styles.subTitle}>Détail par critère</p>
-            {criteres.map((c, i) => (
-              <CriterionRow key={c.code || i} criterion={c} />
-            ))}
           </section>
         )}
 
@@ -226,45 +205,5 @@ function AccomplishmentItem({
         {point.obligatoire ? "demandé par la consigne" : "piste"}
       </span>
     </li>
-  );
-}
-
-/**
- * Un critère, toujours rendu par sa **bande qualitative**.
- *
- * Les évaluations antérieures ne portent pas de `bande` : elle est alors
- * dérivée de la note sur la même échelle (celle du TCF) que celle du serveur
- * ({@link critereBandeFromNote}). Plus aucun chiffre ni jauge sur un critère —
- * une jauge « note / 20 » se lirait comme un pourcentage de réussite alors
- * qu'un critère à 12 vaut B2, et un seuil maison ferait diverger l'ancien du
- * moderne sur la même note.
- */
-function CriterionRow({criterion: c}: {criterion: EeCriterion}) {
-  const bande = c.bande ?? critereBandeFromNote(c.noteSurVingt);
-
-  return (
-    <div className={styles.critRow}>
-      <div className={styles.critBody}>
-        <div className={styles.critTop}>
-          <span className={styles.critLabel}>{c.label}</span>
-          <span className={styles.critBande} data-band={bande}>
-            {bandeCritereLabel(bande)}
-          </span>
-        </div>
-        <span className={styles.critSteps} data-band={bande} aria-hidden>
-          <span />
-          <span />
-          <span />
-          <span />
-        </span>
-        {c.commentaire && <p className={styles.critComment}>{c.commentaire}</p>}
-        {c.preuve && (
-          <p className={styles.critProof}>
-            <Quote size={12} strokeWidth={2.4} aria-hidden />
-            <span>{c.preuve}</span>
-          </p>
-        )}
-      </div>
-    </div>
   );
 }

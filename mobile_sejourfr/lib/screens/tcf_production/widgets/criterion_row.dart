@@ -20,9 +20,26 @@ import 'tcf_note_scale.dart';
 /// d'autres : les tables ci-dessous les couvrent tous, sans quoi l'historique
 /// tomberait sur l'icone et le libelle par defaut.
 class CriterionRow extends StatelessWidget {
-  const CriterionRow({super.key, required this.criterion});
+  const CriterionRow({
+    super.key,
+    required this.criterion,
+    this.showDetail = true,
+    this.onToggle,
+  });
 
   final CriterionScore criterion;
+
+  /// Commentaire et preuve. Replies dans la vue « en un coup d'œil » : ce qui
+  /// se lit d'un regard, c'est le nom du critere et sa bande — la
+  /// justification, on va la chercher.
+  final bool showDetail;
+
+  /// Non nul = la ligne est depliable : chevron, zone tactile, et le detail
+  /// pilote par [showDetail].
+  final VoidCallback? onToggle;
+
+  bool get _hasDetail =>
+      criterion.commentaire.isNotEmpty || criterion.preuve != null;
 
   /// Bande du critere : celle du serveur, ou celle que sa note vaut sur
   /// l'echelle du TCF quand l'evaluation est trop ancienne pour la porter.
@@ -79,6 +96,21 @@ class CriterionRow extends StatelessWidget {
     }
   }
 
+  /// Nom court du critere, pour la vue « en un coup d'œil ».
+  ///
+  /// Le `label` du serveur est une **definition** (« Communiquer : accomplir la
+  /// tache et enchainer les idees »), pas un nom : sur deux lignes, il pousse la
+  /// bande hors de vue et rend la liste illisible d'un regard. On garde donc le
+  /// nom court dans la ligne, et la definition complete reapparait quand on
+  /// deplie — elle n'est jamais perdue.
+  String? _shortLabelForCode(String code) => switch (code) {
+        'communiquer' => 'Communiquer',
+        'interagir' => 'Interagir',
+        'lexique' || 'vocabulaire' => 'Vocabulaire',
+        'morphosyntaxe' || 'grammaire' => 'Grammaire',
+        _ => null,
+      };
+
   /// Le backend joint desormais `label` depuis la grille de la tache. On le
   /// privilegie ; cette table sert de fallback pour les anciennes evaluations.
   String _labelForCode(String code) {
@@ -127,82 +159,132 @@ class CriterionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final expandable = onToggle != null && _hasDetail;
     final color = _color;
     final bande = _bande;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+    final fullLabel = criterion.label ?? _labelForCode(criterion.code);
+    final shortLabel = _shortLabelForCode(criterion.code) ?? fullLabel;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        border: Border.all(color: AppColors.line),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        boxShadow: AppShadows.card,
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: 40,
+                height: 40,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
                 ),
-                child: Icon(_iconForCode(criterion.code), size: 16, color: color),
+                child:
+                    Icon(_iconForCode(criterion.code), size: 19, color: color),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      shortLabel,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppFonts.ui(
+                        size: 14,
+                        weight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(AppRadii.pill),
+                      child: LinearProgressIndicator(
+                        value: _fillRatio,
+                        minHeight: 6,
+                        backgroundColor: AppColors.line2,
+                        valueColor: AlwaysStoppedAnimation<Color>(color),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(width: 10),
-              Expanded(
+              Flexible(
                 child: Text(
-                  criterion.label ?? _labelForCode(criterion.code),
+                  bande.displayName,
+                  textAlign: TextAlign.right,
                   style: AppFonts.ui(
-                    size: 14,
-                    weight: FontWeight.w600,
-                    color: AppColors.ink,
+                    size: 12,
+                    weight: FontWeight.w800,
+                    color: color,
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                bande.displayName,
-                textAlign: TextAlign.right,
-                style: AppFonts.ui(
-                  size: 12.5,
-                  weight: FontWeight.w700,
-                  color: color,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          // Barre alignee avec le label (42px = bubble 32 + gap 10).
-          Padding(
-            padding: const EdgeInsets.only(left: 42),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(2),
-              child: LinearProgressIndicator(
-                value: _fillRatio,
-                minHeight: 4,
-                backgroundColor: AppColors.line2,
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-              ),
-            ),
-          ),
-          if (criterion.commentaire.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.only(left: 42),
-              child: Text(
-                criterion.commentaire,
-                style: AppFonts.ui(
-                  size: 12.5,
-                  color: AppColors.muted,
-                  height: 1.45,
+          if (expandable) ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: InkWell(
+                onTap: onToggle,
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 2, right: 6),
+                  child: Text(
+                    showDetail ? 'Masquer le détail' : 'Voir pourquoi',
+                    style: AppFonts.ui(
+                      size: 13,
+                      weight: FontWeight.w800,
+                      color: AppColors.blue,
+                    ),
+                  ),
                 ),
               ),
             ),
           ],
-          if (criterion.preuve != null) ...[
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.only(left: 42),
-              child: _PreuveQuote(preuve: criterion.preuve!, color: color),
-            ),
+          if (showDetail && _hasDetail) ...[
+            const SizedBox(height: 10),
+            const Divider(height: 1, thickness: 1, color: AppColors.line),
+            const SizedBox(height: 10),
+            // La definition complete du critere ne s'affiche qu'ici : elle
+            // explique ce qu'on a mesure, elle n'a pas a tenir la ligne.
+            if (fullLabel != shortLabel) ...[
+              Text(
+                fullLabel,
+                style: AppFonts.ui(
+                  size: 12.5,
+                  weight: FontWeight.w700,
+                  color: AppColors.ink2,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 6),
+            ],
+            if (criterion.commentaire.isNotEmpty)
+              Text(
+                criterion.commentaire,
+                style: AppFonts.ui(
+                  size: 13,
+                  color: AppColors.muted,
+                  height: 1.55,
+                ),
+              ),
+            if (criterion.preuve != null) ...[
+              const SizedBox(height: 8),
+              _PreuveQuote(preuve: criterion.preuve!, color: color),
+            ],
           ],
         ],
       ),

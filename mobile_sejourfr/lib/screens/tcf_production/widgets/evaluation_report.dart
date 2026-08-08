@@ -6,12 +6,13 @@ import '../../../core/theme/app_theme.dart';
 import 'accomplishment_card.dart';
 import 'avertissements_card.dart';
 import 'correction_example.dart';
-import 'criterion_row.dart';
+import 'criteria_overview.dart';
 import 'feedback_block.dart';
 import 'improved_version_card.dart';
-import 'objective_card.dart';
-import 'priority_card.dart';
-import 'production_score_hero.dart';
+import 'production_text_card.dart';
+import 'results_hero.dart';
+import 'results_summary_tiles.dart';
+import 'results_section_head.dart';
 
 /// Limite de l'evaluation orale, mot pour mot (cf. `docs/notation-ia-eo-ee.md`
 /// §9). Le correcteur la renvoie normalement dans ses `avertissements` ; ce
@@ -27,18 +28,26 @@ const String kOralEvaluationLimitNotice =
 /// Corps commun des ecrans de resultats EE et EO : meme correction, meme ordre,
 /// un seul endroit a faire evoluer.
 ///
-/// L'ecran repond a trois questions, dans cet ordre, et range le reste :
-/// 1. **ai-je fait ce qu'on me demandait ?** — le verdict d'objectif, avant
-///    tout le reste ;
-/// 2. **combien, et ca vaut quoi ?** — la note AVEC l'echelle du TCF, dans un
-///    seul bloc : notre note est une estimation exprimee sur cette echelle,
-///    4,5/20 y vaut A2 ;
-/// 3. **que faire maintenant ?** — deux points forts, deux priorites, puis la
-///    version amelioree quand elle existe (ecrit uniquement).
+/// **Le contenu etait juste, sa restitution etait illisible** : le candidat
+/// traversait un bandeau « Évaluation terminée », une carte objectif, une carte
+/// note, deux blocs de puces et trois paragraphes d'explication avant le
+/// premier conseil. Personne ne lit ca. La refonte ne retire aucune
+/// information : elle **fusionne ce qui dit la meme chose** et **replie ce qui
+/// se consulte** au lieu de se lire.
 ///
-/// Tout le reste — avertissements, detail par critere, check-list de la
-/// consigne, exemples corriges, suggestions — vit dans « Voir l'analyse
-/// complete », **replie par defaut**. Rien n'est perdu : c'est range.
+/// Quatre sections, dans cet ordre :
+/// 1. **le verdict, la note et le niveau** — un seul hero ([ProductionResultsHero]) ;
+/// 2. **ce qui marche / a corriger en priorite** ([ResultsSummaryTiles]) : deux
+///    bandeaux pleine largeur, replies, qui ouvrent leur detail en dessous — les
+///    points traites et les points forts d'un cote, la priorite complete (avec
+///    sa technique et sa reecriture) de l'autre ;
+/// 3. **le profil par critere** ([CriteriaOverview]), une carte par critere,
+///    depliable — il vivait dans le repli, donc personne ne le voyait ;
+/// 4. **la production**, avec sa version amelioree en bascule ([ProductionTextCard]).
+///
+/// Le reste — avertissements, check-list de la consigne, exemples corriges,
+/// suggestions — vit dans « Voir l'analyse complète », **replie par defaut**.
+/// Rien n'est perdu : c'est range.
 ///
 /// Chaque bloc est optionnel : une evaluation ancienne n'expose ni objectif, ni
 /// niveau, ni accomplissement — les blocs concernes disparaissent et l'ecran
@@ -48,6 +57,8 @@ class EvaluationReport extends StatelessWidget {
     super.key,
     required this.evaluation,
     required this.isOral,
+    this.eyebrow,
+    this.productionText,
   });
 
   final EvaluationResult evaluation;
@@ -56,6 +67,15 @@ class EvaluationReport extends StatelessWidget {
   /// sont des reformulations et non des corrections d'ecriture, et aucune
   /// version amelioree n'est attendue.
   final bool isOral;
+
+  /// Situe la correction en tete du hero (« Expression écrite · Tâche 1 »).
+  final String? eyebrow;
+
+  /// Le texte rendu par le candidat. Fourni en expression ECRITE : il porte
+  /// alors la bascule vers la version amelioree, pour que la comparaison se
+  /// fasse au meme endroit. A l'oral, la transcription vit dans sa propre
+  /// feuille (dialogue en bulles) : ce parametre reste nul.
+  final String? productionText;
 
   String get _correctionsTitle =>
       isOral ? 'Reformulations pour plus de clarté' : 'Corrections';
@@ -78,8 +98,6 @@ class EvaluationReport extends StatelessWidget {
     final analyse = <Widget>[
       if (avertissements.isNotEmpty)
         AvertissementsCard(avertissements: avertissements),
-      if (feedback.scoresCriteres.isNotEmpty)
-        _CriteresCard(criteres: feedback.scoresCriteres),
       if (accomplissement != null && !accomplissement.isEmpty)
         AccomplishmentCard(accomplissement: accomplissement),
       if (feedback.exemplesCorriges.isNotEmpty)
@@ -95,29 +113,36 @@ class EvaluationReport extends StatelessWidget {
         ),
     ];
 
+    final production = productionText;
+    final versionAmelioree = isOral ? null : feedback.versionAmelioree;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ObjectiveCard(accomplissement: accomplissement),
-        ProductionScoreHero(evaluation: evaluation),
-        if (feedback.pointsForts.isNotEmpty)
-          FeedbackBlock(
-            kind: FeedbackKind.positive,
-            title: 'Points forts',
-            items: feedback.pointsForts,
+        ProductionResultsHero(evaluation: evaluation, eyebrow: eyebrow),
+        ResultsSummaryTiles(
+          accomplissement: accomplissement,
+          priorites: priorites,
+          pointsForts: feedback.pointsForts,
+        ),
+        CriteriaOverview(criteres: feedback.scoresCriteres),
+        if (production != null && production.isNotEmpty) ...[
+          ResultsSectionHead(
+            title: 'Votre rédaction',
+            hint: versionAmelioree == null ? null : 'Comparez en 10 secondes',
           ),
-        if (priorites.isNotEmpty)
-          FeedbackBlock.rich(
-            kind: FeedbackKind.improve,
-            title: priorites.length > 1 ? 'Vos priorités' : 'Votre priorité',
-            subtitle: 'À travailler en premier lors de votre prochaine '
-                'production — pas la peine de tout corriger d\'un coup.',
-            blocks: [
-              for (final (index, priorite) in priorites.indexed)
-                PriorityCard(priorite: priorite, rang: index + 1),
-            ],
+          const SizedBox(height: 8),
+          ProductionTextCard(
+            texte: production,
+            versionAmelioree: versionAmelioree,
+            // La phrase visee par la priorite n° 1, surlignee dans le texte :
+            // c'est ce qui rend « comparez en 10 secondes » vrai.
+            highlight: priorites.isEmpty ? null : priorites.first.exemple?.avant,
           ),
-        ImprovedVersionCard(texte: feedback.versionAmelioree),
+        ] else
+          // Pas de texte a comparer (oral, ou historique sans production
+          // servie) : la version amelioree garde sa carte autonome.
+          ImprovedVersionCard(texte: versionAmelioree),
         if (analyse.isNotEmpty) _FullAnalysis(children: analyse),
       ],
     );
@@ -185,43 +210,6 @@ class _FullAnalysisState extends State<_FullAnalysis> {
           ...widget.children,
         ],
       ],
-    );
-  }
-}
-
-/// Carte « Détail par critère » : une bande qualitative par critere, plus une
-/// note chiffree (cf. [CriterionRow]).
-class _CriteresCard extends StatelessWidget {
-  const _CriteresCard({required this.criteres});
-
-  final List<CriterionScore> criteres;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Détail par critère',
-            style: AppFonts.ui(
-              size: 15,
-              weight: FontWeight.w700,
-              color: AppColors.ink,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...criteres.map((c) => CriterionRow(criterion: c)),
-        ],
-      ),
     );
   }
 }

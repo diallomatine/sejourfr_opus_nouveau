@@ -1094,17 +1094,18 @@ avec compteurs, cartes de sujet à liseré de statut), `ProductionExamples`,
 `ProductionInputPage` + le chrome de `EeWritingForm`/`EoRecordingForm` (carte
 d'exercice : badge de contrainte, palier, titre d'intention, consigne, contexte,
 chips de format, zone de production, compteur flottant, actions),
-`ProductionResults` (accusé de traitement → écho de la production → retour IA →
-actions), `ProductionExams` (hero, 3 indicateurs, packs d'examen),
+`ProductionResults` (le rapport, puis les actions — l'accusé de traitement a
+disparu, cf. « rapport express »), `ProductionExams` (hero, 3 indicateurs, packs d'examen),
 `ProductionHistory`.
 
 - **Aucun contrat d'API n'a changé, aucun endpoint n'a été ajouté.** Une donnée
   que les DTO ne portent pas n'est pas affichée : à l'oral, l'écho de la
   production est la **transcription** — `ProductionSubmissionDto` n'expose pas
   d'URL audio (contrairement à `SkillAttemptDto`), donc pas de lecteur inventé.
-- **`ProductionFeedbackView` et ses blocs internes ne bougent pas** : leur ordre
-  et leurs règles de lecture sont des décisions de **notation**, pas de mise en
-  page (cf. la section dédiée plus bas).
+- **Les règles de lecture de `ProductionFeedbackView` ne bougent pas** (niveau ⇒
+  confiance, confiance haute muette, bande et non note par critère, échelle du
+  TCF affichée avec la note) : ce sont des décisions de **notation**. Sa **mise
+  en page**, elle, a été refondue — cf. « rapport express ».
 - Les props ajoutées aux formulaires partagés (`exerciseTitle`) sont
   **optionnelles**, comportement actuel par défaut — `ProductionSession` (chrono,
   auto-soumission, `examMode`, `timeoutSignal`) et le parcours d'examen TCF
@@ -1465,32 +1466,97 @@ retraits**, la parité web ⇄ mobile n'étant pas négociable. À ne pas rétab
   (3 px, en retrait vertical). Un liseré gris sur les sujets « à faire » lui
   retirait tout pouvoir de distinction.
 
-### Écran de résultat d'une production (6 blocs, parité mobile)
+### Écran de résultat d'une production — « rapport express » (parité mobile)
 
 `ProductionFeedbackView` (rendu par `ProductionResults`, routes
 `/entrainement/tcf/{ee,eo}/resultats/[submissionId]`) n'est **pas un rapport
 d'expertise pour un professeur** : c'est ce dont un candidat a besoin, dans
 l'ordre où il en a besoin, et une même erreur n'est expliquée qu'**une** fois.
-Six blocs, dans cet ordre exact (miroir mobile) :
 
-1. **Objectif de la tâche** (`ProductionObjectiveBanner`) — `accomplissement.
-   objectif` (`ATTEINT | PARTIELLEMENT_ATTEINT | NON_ATTEINT`) +
-   `objectif_resume`, trois traitements visuels distincts. **Absent des ~100
-   évaluations legacy → le bandeau n'est pas rendu du tout**, l'écran commence
-   à la note.
-2. **Note + échelle du TCF** (`ProductionScoreHero`) — la note, le niveau
-   observé, et **l'échelle officielle dessinée avec un curseur sur la note**.
-   Aucun pourcentage, aucune jauge « sur 20 points » : notre note EST celle du
-   TCF, un 4,5/20 vaut A2 et doit se lire comme tel.
-3. **Points forts** (≤ 2 côté backend).
-4. **Priorités** (≤ 2) — constat → « Comment faire » → avant/après (✗ / ✓).
-5. **Version améliorée** — `version_amelioree`, la production réécrite en
-   entier. **EE uniquement** : absente en EO par construction, sans trou visuel.
-6. **« Voir l'analyse complète »** (`ProductionFullAnalysis`, `<details>`
-   **replié par défaut**) — tout le reste, sans rien perdre, dans l'ordre
-   avertissements → **Détail par critère** → accomplissement → exemples
-   corrigés → **Suggestions**. La transcription EO / le texte soumis EE restent
-   en `<details>` séparés dans `ProductionResults`.
+**Passe 2026-08-08 — verdict client : « le contenu est bon, mais trop verbeux,
+un candidat ne lira pas tout ça ».** **Aucune information n'a été retirée** : ce
+qui disait deux fois la même chose a été **fusionné**, ce qui se consulte a été
+**replié**. Structure de référence : maquette « Résultats TCF — Rapport express »,
+**couleurs de l'application** (le `grep -nE "#[0-9a-fA-F]{3,8}"` doit rester
+vide : `white` / `color-mix()`, jamais un hex). **Menée dans la même passe que
+le mobile** (`evaluation_report.dart`) — les deux fronts sont identiques, écran
+par écran.
+
+**Quatre sections, dans cet ordre :**
+
+1. **Hero** (`ProductionResultsHero`) — le `.hero` de la maquette : dégradé de
+   marque + **halo clair** en haut à droite, eyebrow « Expression écrite ·
+   Tâche 1 », **verdict d'objectif** en gros, `objectif_resume`, **note /20 à
+   droite**, puis le panneau `.level` **translucide** (blanc 13 %, bordure
+   blanc 18 %) : niveau estimé + pastille + échelle du TCF. Les trois blocs
+   d'avant (accusé « Production évaluée », `ProductionObjectiveBanner`,
+   `ProductionScoreHero`) n'en font plus qu'un, et les deux composants sont
+   **supprimés**. Pas de verdict (≈ 100 évaluations legacy) → titre neutre
+   « Votre correction ». **Aucune pastille d'icône devant le verdict** : la
+   maquette n'en a pas, et « Objectif non atteint » se lit en toutes lettres.
+2. **Deux bandeaux pleine largeur, empilés et repliés** (`ResultsSummaryTiles`,
+   `<details>` natif) : **« Ce qui marche »** (vert — `N/M points traités`, ou
+   le compte de points forts sans check-list) et **« À corriger en priorité »**
+   (**rouge** — `N priorité(s)`). Chacun tient sur **une ligne** : titre,
+   chiffre, chevron. Appuyer ouvre le détail **dans le même encart, juste en
+   dessous** — points traités puis points forts d'un côté (séparés par un filet,
+   deux natures différentes), la ou les priorités **complètes** de l'autre
+   (`PriorityBody` : ni carte propre ni étiquette, le bandeau les porte déjà).
+   ⚠️ **La priorité vit désormais à UN SEUL endroit.** Elle était résumée en tête
+   puis répétée en entier plus bas : c'était la dernière redite du rapport. Le
+   rouge est assumé — c'est le seul bloc qui dit « à refaire », et il ne peint
+   aucun palier CECRL (la règle « jamais de rouge sur un niveau » n'est pas en
+   cause).
+3. **Profil par critère** (`CriteriaOverview`) — **une carte par critère**
+   (`.criterion` de la maquette : pastille 40×40, nom, barre 6 px, bande à
+   droite), **sortie du repli** (elle y était, donc personne ne la voyait).
+   Commentaire, preuve **et définition complète** se déplient carte par carte via
+   **« Voir pourquoi »**.
+4. **Votre rédaction** (`ProductionTextCard`) — le texte rendu **et** la version
+   améliorée en **bascule dans la même carte** : c'est une comparaison qu'on
+   demande au candidat, les deux ne peuvent pas vivre à deux endroits éloignés.
+   La phrase visée par la priorité n° 1 y est **surlignée** (`splitHighlight`,
+   première occurrence **exacte** ; aucune correspondance ⇒ aucun repère, jamais
+   un repère faux). Deux actions comme la maquette : « Voir la version
+   améliorée » (pleine) et « Masquer les repères » (douce).
+
+Puis **« Voir l'analyse complète »** (`ProductionFullAnalysis`), toujours
+**repliée par défaut** : avertissements → accomplissement détaillé → exemples
+corrigés → suggestions. Le **détail par critère** l'a quittée pour la section 3,
+les **points forts** pour le bandeau vert. La transcription EO reste dans son
+`<details>` séparé de `ProductionResults` (`ProductionSubmissionDto` ne porte pas
+d'URL audio — pas de lecteur inventé).
+
+**Trois arbitrages de la passe, à ne pas défaire :**
+- **Les points forts ne sont plus en clair.** Deux phrases entières = cinq lignes
+  de prose pour une information que « Ce qui marche » donne en un chiffre.
+- **La technique d'une priorité (`comment`) est repliée** derrière « Comment
+  faire ». Le correcteur y écrit jusqu'à huit lignes : à plat, c'était le plus
+  gros bloc du rapport et il chassait hors écran la seule chose vraiment
+  actionnable — la **réécriture**, qui elle **ne se replie jamais** (phrase barrée
+  en rouge, nouvelle en vert, sans étiquettes : la rature dit « avant » mieux que
+  le mot « avant »).
+- **Un critère se lit sous son NOM COURT** (Communiquer · Interagir · Vocabulaire ·
+  Grammaire, `shortLabel` dans `CriteriaOverview`). Le `label` du serveur est une
+  **définition** (« Communiquer : accomplir la tâche et enchaîner les idées ») :
+  sur deux lignes, il pousse la bande hors de vue. La définition réapparaît au
+  déplié.
+
+**Nouvelles règles pures** (`lib/production-feedback.ts`, testées) :
+`treatedPointsSummary` (le `N/M` du bandeau vert — **pistes exclues des deux
+côtés**, sinon une consigne entièrement remplie s'affiche « 3/5 ») et
+`splitHighlight` (le repérage exact dans la production). `niveauCecrlShort`
+(`lib/types.ts`) rend `A1_NON_ATTEINT` en **« <A1 »** — le tronquer en « A1 »
+annoncerait un niveau non atteint.
+
+**L'échelle sur le dégradé** (`HeroScale`) : cinq segments et **une seule ligne**
+de libellés. Sur du bleu, les teintes de palier ne se voient plus — le segment
+atteint passe donc en **blanc plein** et c'est la **pastille (blanche, texte
+teinté)** qui porte la couleur du niveau. Les **bornes chiffrées** (0 · 1 · 2-5 ·
+6-9 · 10-20) sont de la règle de lecture, pas du résultat : elles vivent dans le
+dépliant du panneau, avec `avertissementNiveau` (ou son repli). Ce dépliant est
+le `<details>` du panneau lui-même — une ligne « Comment lire cette note ? »
+écrite en toutes lettres coûtait une ligne de plus dans le bloc qu'on allège.
 
 Règles à ne pas défaire :
 
@@ -1502,20 +1568,21 @@ Règles à ne pas défaire :
   décisions dans un composant.
 - **L'échelle du TCF est dessinée à bandes de largeur ÉGALE**, pas à l'échelle
   réelle (B2 = la moitié des notes, « A1 non atteint » = une seule valeur :
-  proportionnelles, elles seraient illisibles). Le curseur, lui, est placé
-  proportionnellement DANS sa bande, avec 10 % d'inset de chaque côté pour
-  qu'une note pile au seuil (2/20) ne tombe pas sur une frontière. Une note à
-  décimale entre deux bandes (5,5) reste dans la bande **basse**, comme le
-  niveau calculé serveur.
+  proportionnelles, elles seraient illisibles). `tcfScalePosition` reste la règle
+  de placement (10 % d'inset, une note à décimale entre deux bandes reste dans la
+  bande **basse**, comme le niveau calculé serveur) ; le hero n'en consomme plus
+  que le `bandIndex` — sur cinq segments dont un plein, un curseur en plus serait
+  redondant.
 - **Le niveau n'est JAMAIS affiché sans sa confiance** (`EvaluationResultDto.
   niveauObserve` + `confiance` + `avertissementNiveau`, tous fournis par le
-  backend) — `canShowNiveau`, appliqué dans `ProductionScoreHero` : sans
-  confiance, l'en-tête retombe sur le repli « Note de la tâche ». Le seul
-  niveau qui fait foi reste celui du bilan d'épreuve — dit dans le pied.
+  backend) — `canShowNiveau`, appliqué dans `ProductionResultsHero` : sans
+  confiance, le sur-titre du panneau retombe sur « Note sur l'échelle du TCF ».
+  Le seul niveau qui fait foi reste celui du bilan d'épreuve — dit dans le
+  dépliant de la règle de lecture.
 - **Une confiance HAUTE ne s'affiche PAS** (`shouldShowConfiance`) : c'est le
   cas normal, l'écrire n'apprend rien et fait douter d'un résultat qui ne le
   mérite pas. Elle n'apparaît, avec ses `confiance_raisons`, que lorsqu'elle
-  nuance vraiment.
+  nuance vraiment — dans le panneau de niveau du hero.
 - **L'accomplissement se rend en TROIS groupes** (parité mobile) : points
   traités / manques obligatoires / pistes non abordées. Mélanger les deux
   derniers fait paniquer pour des points qui n'enlèvent rien
@@ -1543,8 +1610,8 @@ Règles à ne pas défaire :
   enregistrement.
 - `exemples_corriges[].gain` (ce que la reformulation démontre de plus) s'affiche
   sous l'explication quand il est là, absent sur les anciennes évaluations.
-- **Plafonds backend** : `points_forts` ≤ 2, `points_a_ameliorer` ≤ 2 (titre
-  « Vos priorités »), `exemples_corriges` ≤ 3. Ne pas rajouter de « voir plus ».
+- **Plafonds backend** : `points_forts` ≤ 2, `points_a_ameliorer` ≤ 2,
+  `exemples_corriges` ≤ 3. Ne pas rajouter de « voir plus ».
 - **La note /20 suit l'échelle du profil TCF IRN** : 0 = A1 non atteint, 1 = A1,
   2-5 = A2, 6-9 = B1, 10-20 = B2 ; la notation active v7/v4 est plafonnée à B2
   et ne renvoie jamais C1/C2. On n'affiche **aucune** correspondance TCF sur une tâche — une tâche

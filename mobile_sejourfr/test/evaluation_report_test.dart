@@ -8,13 +8,24 @@ import 'package:sejourfr_mobile/core/theme/app_theme.dart';
 import 'package:sejourfr_mobile/core/widgets/app_tag.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/criterion_row.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/evaluation_report.dart';
-import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_score_hero.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/widgets/results_hero.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/tcf_note_scale.dart';
 
-Widget _host(EvaluationResult eval, {bool isOral = false}) => MaterialApp(
+Widget _host(
+  EvaluationResult eval, {
+  bool isOral = false,
+  String? productionText,
+  String? eyebrow,
+}) =>
+    MaterialApp(
       home: Scaffold(
         body: SingleChildScrollView(
-          child: EvaluationReport(evaluation: eval, isOral: isOral),
+          child: EvaluationReport(
+            evaluation: eval,
+            isOral: isOral,
+            eyebrow: eyebrow,
+            productionText: productionText,
+          ),
         ),
       ),
     );
@@ -22,7 +33,14 @@ Widget _host(EvaluationResult eval, {bool isOral = false}) => MaterialApp(
 EvaluationResult _eval(Map<String, dynamic> json) =>
     EvaluationResult.fromJson(json);
 
-/// Deplie « Voir l'analyse complete » : tout le detail y vit, replie par defaut.
+/// L'échelle en version CLAIRE, hors hero : c'est là que vivent le curseur et
+/// les bornes chiffrées. Le hero, lui, la rend sur fond sombre.
+Widget _scaleHost(double note) => MaterialApp(
+      home: Scaffold(body: TcfNoteScale(note: note)),
+    );
+
+/// Deplie « Voir l'analyse complete » : le detail exhaustif y vit, replie par
+/// defaut.
 Future<void> _openFullAnalysis(WidgetTester tester) async {
   final header = find.text("Voir l'analyse complète");
   await tester.ensureVisible(header);
@@ -30,10 +48,36 @@ Future<void> _openFullAnalysis(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// Ouvre la regle de lecture de la note : elle vit derriere un geste, pas a
+/// plat entre la note et le premier conseil.
+Future<void> _openReadingRule(WidgetTester tester, {String? via}) async {
+  final target = find.text(via ?? 'NIVEAU ESTIMÉ');
+  await tester.ensureVisible(target);
+  await tester.tap(target);
+  await tester.pumpAndSettle();
+}
+
+/// Ouvre l'un des deux bandeaux de synthese : ils sont replies par defaut, et
+/// leur detail s'affiche DANS le bandeau, juste sous l'en-tete.
+Future<void> _openTile(WidgetTester tester, String title) async {
+  final header = find.text(title);
+  await tester.ensureVisible(header);
+  await tester.tap(header);
+  await tester.pumpAndSettle();
+}
+
+/// Deplie le detail d'un critere : le bouton « Voir pourquoi » de la maquette.
+Future<void> _openCriterion(WidgetTester tester) async {
+  final button = find.text('Voir pourquoi');
+  await tester.ensureVisible(button);
+  await tester.tap(button);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
 
-  group('objectif de la tâche', () {
+  group('hero : verdict, note et niveau dans un seul bloc', () {
     Map<String, dynamic> withObjectif(String objectif) => <String, dynamic>{
           'noteSurVingt': 4.5,
           'feedback': <String, dynamic>{
@@ -45,44 +89,53 @@ void main() {
           },
         };
 
-    testWidgets('atteint : verdict, résumé, et place en tête du rapport',
-        (tester) async {
-      await tester.pumpWidget(_host(_eval(withObjectif('ATTEINT'))));
+    testWidgets('le verdict, le resume et la note vivent dans le meme hero, '
+        'en tete du rapport', (tester) async {
+      await tester.pumpWidget(_host(
+        _eval(withObjectif('ATTEINT')),
+        eyebrow: 'Expression écrite · Tâche 1',
+      ));
 
-      expect(find.text('OBJECTIF DE LA TÂCHE'), findsOneWidget);
-      expect(find.text('Atteint'), findsOneWidget);
+      expect(find.text('EXPRESSION ÉCRITE · TÂCHE 1'), findsOneWidget);
+      expect(find.text('Objectif atteint'), findsOneWidget);
+      expect(find.textContaining("vous n'invitez personne"), findsOneWidget);
+      expect(find.text('4,5/20', findRichText: true), findsOneWidget);
+
+      // Un seul bloc : le verdict et la note sont dans le meme widget, et ce
+      // widget ouvre le rapport.
+      final hero = find.byType(ProductionResultsHero);
+      expect(hero, findsOneWidget);
       expect(
-        find.textContaining("vous n'invitez personne"),
+        find.descendant(of: hero, matching: find.text('Objectif atteint')),
         findsOneWidget,
       );
-      expect(find.byIcon(LucideIcons.circleCheck), findsOneWidget);
-
-      final objectifY = tester.getTopLeft(find.text('Atteint')).dy;
-      final noteY = tester.getTopLeft(find.text('NOTE DE LA TÂCHE')).dy;
-      expect(objectifY, lessThan(noteY));
+      expect(
+        find.descendant(
+          of: hero,
+          matching: find.text('4,5/20', findRichText: true),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.getTopLeft(hero).dy, lessThan(1));
     });
 
-    testWidgets('partiellement atteint : son propre traitement visuel',
+    testWidgets('partiellement atteint : son propre libellé',
         (tester) async {
       await tester
           .pumpWidget(_host(_eval(withObjectif('PARTIELLEMENT_ATTEINT'))));
 
-      expect(find.text('Partiellement atteint'), findsOneWidget);
-      expect(find.byIcon(LucideIcons.circleDashed), findsOneWidget);
-      expect(find.byIcon(LucideIcons.circleCheck), findsNothing);
-      expect(find.byIcon(LucideIcons.circleX), findsNothing);
+      expect(find.text('Objectif partiellement atteint'), findsOneWidget);
+      expect(find.text('Objectif atteint'), findsNothing);
     });
 
-    testWidgets('non atteint : son propre traitement visuel', (tester) async {
+    testWidgets('non atteint : son propre libellé', (tester) async {
       await tester.pumpWidget(_host(_eval(withObjectif('NON_ATTEINT'))));
 
-      expect(find.text('Non atteint'), findsOneWidget);
-      expect(find.byIcon(LucideIcons.circleX), findsOneWidget);
-      expect(find.byIcon(LucideIcons.circleCheck), findsNothing);
-      expect(find.byIcon(LucideIcons.circleDashed), findsNothing);
+      expect(find.text('Objectif non atteint'), findsOneWidget);
+      expect(find.text('Objectif atteint'), findsNothing);
     });
 
-    testWidgets('évaluation legacy sans objectif : pas de bloc, écran cohérent',
+    testWidgets('évaluation legacy sans objectif : titre neutre, note intacte',
         (tester) async {
       await tester.pumpWidget(_host(_eval(<String, dynamic>{
         'noteSurVingt': 4.5,
@@ -95,13 +148,123 @@ void main() {
         },
       })));
 
-      expect(find.text('OBJECTIF DE LA TÂCHE'), findsNothing);
-      expect(find.text('Atteint'), findsNothing);
-      expect(find.text('Partiellement atteint'), findsNothing);
-      expect(find.text('Non atteint'), findsNothing);
-      // Le rapport commence alors par la note, sans trou visuel.
-      expect(find.text('NOTE DE LA TÂCHE'), findsOneWidget);
+      expect(find.textContaining('Objectif '), findsNothing);
+      // Le hero reste coherent : titre neutre, note et echelle a leur place.
+      expect(find.text('Votre correction'), findsOneWidget);
       expect(find.text('4,5/20', findRichText: true), findsOneWidget);
+    });
+  });
+
+  // Le rapport se lit sur un telephone etroit, pas sur la fenetre par defaut
+  // du harnais de test (800 px). Un debordement y passerait inapercu.
+  testWidgets('aucun débordement sur un téléphone étroit (360 px)',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 780);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_host(
+      _eval(<String, dynamic>{
+        'noteSurVingt': 12.5,
+        'niveauObserve': 'B2',
+        'confiance': 'MOYENNE',
+        'feedback': <String, dynamic>{
+          'accomplissement': <String, dynamic>{
+            'objectif': 'PARTIELLEMENT_ATTEINT',
+            'objectif_resume': 'Vous annoncez la nouvelle mais vous n\'invitez '
+                'personne à venir.',
+            'points_traites': [
+              {'libelle': 'Nouvelle annoncée', 'obligatoire': true},
+            ],
+            'points_oublies': [
+              {'libelle': 'Invitation absente', 'obligatoire': true},
+            ],
+          },
+          'confiance_raisons': ['transcription partiellement incertaine'],
+          'points_forts': ['Le passé composé est employé à bon escient.'],
+          'points_a_ameliorer': [
+            {
+              'constat': 'Votre conclusion introduit une idée vague.',
+              'comment': 'Reliez-la directement à la séance proposée.',
+              'exemple': {
+                'avant': 'On va régler ça ensemble.',
+                'apres': 'J\'espère que cette date te convient.',
+              },
+            },
+          ],
+          'scores_criteres': [
+            {
+              'code': 'communiquer',
+              'note_sur_20': 13,
+              'bande': 'SATISFAISANT',
+              'commentaire': 'Les idées s\'enchaînent naturellement.',
+              'preuve': 'je te propose une autre séance',
+            },
+          ],
+        },
+      }),
+      eyebrow: 'Expression écrite · Tâche 1',
+      productionText: 'Bonjour Khalil, je t\'écris pour m\'excuser.',
+    ));
+
+    expect(tester.takeException(), isNull);
+  });
+
+  group('ce qui marche / à corriger en priorité', () {
+    testWidgets('deux bandeaux d\'une ligne, repliés, qui ouvrent leur détail '
+        'juste en dessous', (tester) async {
+      await tester.pumpWidget(_host(_eval(<String, dynamic>{
+        'noteSurVingt': 12,
+        'feedback': <String, dynamic>{
+          'accomplissement': <String, dynamic>{
+            'points_traites': [
+              {'libelle': 'Excuse', 'obligatoire': true},
+              {'libelle': 'Raison de l\'absence', 'obligatoire': true},
+              // Une piste traitee ne gonfle pas le compteur : elle n'etait pas
+              // demandee.
+              {'libelle': 'Ambiance du quartier', 'obligatoire': false},
+            ],
+            'points_oublies': [
+              {'libelle': 'Nouvelle séance', 'obligatoire': true},
+              {'libelle': 'Loyer', 'obligatoire': false},
+            ],
+          },
+          'points_a_ameliorer': [
+            {'constat': 'Votre conclusion reste vague.'},
+          ],
+        },
+      })));
+
+      // Chacun tient sur une ligne : un titre, un chiffre, un chevron.
+      expect(find.text('Ce qui marche'), findsOneWidget);
+      expect(find.text('2/3 points traités'), findsOneWidget);
+      expect(find.text('À corriger en priorité'), findsOneWidget);
+      expect(find.text('1 priorité'), findsOneWidget);
+
+      // Replies : aucun detail en clair.
+      expect(find.text('Excuse'), findsNothing);
+      expect(find.text('Votre conclusion reste vague.'), findsNothing);
+
+      await _openTile(tester, 'Ce qui marche');
+      expect(find.text('Excuse'), findsOneWidget);
+      expect(find.text('Raison de l\'absence'), findsOneWidget);
+      // La piste traitee n'a jamais compte : elle n'apparait pas non plus ici.
+      expect(find.text('Ambiance du quartier'), findsNothing);
+
+      await _openTile(tester, 'À corriger en priorité');
+      // La priorite vit a UN SEUL endroit : plus de resume en haut suivi du
+      // meme texte en entier plus bas.
+      expect(find.text('Votre conclusion reste vague.'), findsOneWidget);
+    });
+
+    testWidgets('rien à résumer : pas de rangée vide', (tester) async {
+      await tester.pumpWidget(_host(_eval(<String, dynamic>{
+        'noteSurVingt': 12,
+        'feedback': <String, dynamic>{},
+      })));
+
+      expect(find.text('Ce qui marche'), findsNothing);
+      expect(find.text('À corriger en priorité'), findsNothing);
     });
   });
 
@@ -116,16 +279,23 @@ void main() {
       })));
 
       expect(find.text('4,5/20', findRichText: true), findsOneWidget);
-      expect(find.text('Niveau observé sur cette tâche'), findsOneWidget);
+      expect(find.text('NIVEAU ESTIMÉ'), findsOneWidget);
       // Notre niveau est une estimation : on ne l'affirme pas sec.
       expect(find.text('Proche du niveau A2'), findsOneWidget);
-      // Les 5 paliers officiels et leurs notes, visibles sans déplier.
-      expect(find.text('A1 non atteint'), findsOneWidget);
+      // Les 5 paliers du TCF, en une seule ligne de libellés sous la barre :
+      // le palier atteint se lit sans déplier, ses bornes chiffrées non.
+      expect(find.text('<A1'), findsOneWidget);
+      expect(find.text('A2'), findsWidgets);
+      expect(find.text('2-5'), findsNothing);
+      expect(find.text('10-20'), findsNothing);
+
+      // Les bornes vivent dans la règle de lecture, avec la table complète.
+      await _openReadingRule(tester);
       expect(find.text('0'), findsOneWidget);
-      expect(find.text('1'), findsOneWidget);
       expect(find.text('2-5'), findsOneWidget);
       expect(find.text('6-9'), findsOneWidget);
       expect(find.text('10-20'), findsOneWidget);
+      expect(find.text('A1 non atteint'), findsOneWidget);
     });
 
     test('chaque palier de la table officielle reçoit sa note', () {
@@ -150,10 +320,7 @@ void main() {
 
     testWidgets('une note qui n\'est pas un nombre garde la règle de lecture, '
         'sans curseur', (tester) async {
-      await tester.pumpWidget(_host(_eval(<String, dynamic>{
-        'noteSurVingt': double.nan,
-        'feedback': <String, dynamic>{},
-      })));
+      await tester.pumpWidget(_scaleHost(double.nan));
 
       expect(find.byKey(TcfNoteScale.cursorKey), findsNothing);
       // Les cinq paliers restent affiches : la regle vaut toujours.
@@ -165,10 +332,7 @@ void main() {
         (tester) async {
       final positions = <double>[];
       for (final note in [0.0, 1.0, 4.5, 7.0, 15.0]) {
-        await tester.pumpWidget(_host(_eval(<String, dynamic>{
-          'noteSurVingt': note,
-          'feedback': <String, dynamic>{},
-        })));
+        await tester.pumpWidget(_scaleHost(note));
         positions
             .add(tester.getTopLeft(find.byKey(TcfNoteScale.cursorKey)).dx);
       }
@@ -207,16 +371,14 @@ void main() {
       expect(TcfNoteScale.positionInBand(6, 3), closeTo(0.1, 1e-9));
       // Dernier palier : dénominateur `max + 1` = 21, jamais 20 — un 20/20 ne
       // doit pas se coller à la bordure droite de la barre.
-      expect(TcfNoteScale.positionInBand(20, 4), closeTo(0.1 + 10 / 11 * 0.8, 1e-9));
+      expect(TcfNoteScale.positionInBand(20, 4),
+          closeTo(0.1 + 10 / 11 * 0.8, 1e-9));
       expect(TcfNoteScale.positionInBand(20, 4), lessThan(0.9));
     });
 
     testWidgets('curseur centré : un 0/20 tombe au milieu de sa case, pas au '
         'bord', (tester) async {
-      await tester.pumpWidget(_host(_eval(<String, dynamic>{
-        'noteSurVingt': 0,
-        'feedback': <String, dynamic>{},
-      })));
+      await tester.pumpWidget(_scaleHost(0));
 
       final cursor = tester.getRect(find.byKey(TcfNoteScale.cursorKey));
       final scale = tester.getRect(find.byType(TcfNoteScale));
@@ -234,8 +396,9 @@ void main() {
       })));
 
       expect(find.text('—/20', findRichText: true), findsOneWidget);
+      // Le hero rend l'échelle, sans palier actif ni curseur.
+      expect(find.byType(TcfNoteScale), findsOneWidget);
       expect(find.byKey(TcfNoteScale.cursorKey), findsNothing);
-      expect(find.text('10-20'), findsOneWidget);
     });
   });
 
@@ -322,7 +485,7 @@ void main() {
       expect(find.text('Confiance haute'), findsNothing);
       expect(find.text('transcription nette'), findsNothing);
       // Le niveau, lui, reste affiché.
-      expect(find.text('Niveau observé sur cette tâche'), findsOneWidget);
+      expect(find.text('NIVEAU ESTIMÉ'), findsOneWidget);
     });
 
     testWidgets('une confiance moyenne s\'affiche avec ses raisons',
@@ -337,8 +500,8 @@ void main() {
       })));
 
       expect(find.text('Confiance moyenne'), findsOneWidget);
-      expect(find.text('transcription partiellement incertaine'),
-          findsOneWidget);
+      expect(
+          find.text('transcription partiellement incertaine'), findsOneWidget);
       // Le repli n'apparait que faute de raisons.
       expect(find.text(kConfianceSansRaison), findsNothing);
     });
@@ -366,22 +529,24 @@ void main() {
 
       // Ni l'en-tête de la pastille, ni son libellé. Les paliers de l'échelle
       // citent bien « B1 », mais ils disent comment lire la note — ils
-      // n'attribuent aucun niveau au candidat : c'est pourquoi on cherche la
-      // pastille et non le texte « B1 ».
-      expect(find.text('Niveau observé sur cette tâche'), findsNothing);
+      // n'attribuent aucun niveau au candidat.
+      expect(find.text('NIVEAU ESTIMÉ'), findsNothing);
+      expect(find.text('NOTE SUR L\'ÉCHELLE DU TCF'), findsOneWidget);
       expect(find.text('Confiance moyenne'), findsNothing);
       expect(find.text('12/20', findRichText: true), findsOneWidget);
     });
   });
 
   group('portée de la note', () {
-    testWidgets('sans avertissement du backend : la phrase générique porte le '
-        'périmètre', (tester) async {
+    testWidgets('la règle de lecture se consulte, elle ne s\'impose pas entre '
+        'la note et le premier conseil', (tester) async {
       await tester.pumpWidget(_host(_eval(<String, dynamic>{
         'noteSurVingt': 7,
         'feedback': <String, dynamic>{},
       })));
 
+      expect(find.text(kNotePorteeSurLaTache), findsNothing);
+      await _openReadingRule(tester, via: 'NOTE SUR L\'ÉCHELLE DU TCF');
       expect(find.text(kNotePorteeSurLaTache), findsOneWidget);
     });
 
@@ -394,6 +559,7 @@ void main() {
         'feedback': <String, dynamic>{},
       })));
 
+      await _openReadingRule(tester, via: 'NOTE SUR L\'ÉCHELLE DU TCF');
       expect(
         find.text('Le niveau qui fait foi est celui du bilan des trois '
             'tâches.'),
@@ -405,8 +571,62 @@ void main() {
     });
   });
 
-  group('version améliorée', () {
-    final feedback = <String, dynamic>{
+  group('profil par critère', () {
+    final json = <String, dynamic>{
+      'noteSurVingt': 12.5,
+      'feedback': <String, dynamic>{
+        'scores_criteres': [
+          {
+            'code': 'lexique',
+            'label': 'Étendue du lexique',
+            'note_sur_20': 13,
+            'bande': 'SATISFAISANT',
+            'commentaire': 'Vocabulaire courant.',
+            'preuve': 'un petit appartement',
+          },
+        ],
+      },
+    };
+
+    testWidgets('visible sans déplier, et sous son NOM COURT — la définition '
+        'du serveur tient sur deux lignes et chasse la bande', (tester) async {
+      await tester.pumpWidget(_host(_eval(json)));
+
+      expect(find.text('Votre profil en un coup d\'œil'), findsOneWidget);
+      expect(find.text('Vocabulaire'), findsOneWidget);
+      expect(find.text('Étendue du lexique'), findsNothing);
+      expect(find.text('Satisfaisant'), findsOneWidget);
+      // Le critere se lit en bande, jamais en chiffres.
+      expect(find.text('13/20', findRichText: true), findsNothing);
+    });
+
+    testWidgets('la définition, le commentaire et la preuve se déplient ligne '
+        'par ligne', (tester) async {
+      await tester.pumpWidget(_host(_eval(json)));
+
+      expect(find.text('Vocabulaire courant.'), findsNothing);
+      expect(find.text('« un petit appartement »'), findsNothing);
+
+      await _openCriterion(tester);
+
+      // La definition du serveur n'est pas perdue : elle est rangee ici.
+      expect(find.text('Étendue du lexique'), findsOneWidget);
+      expect(find.text('Vocabulaire courant.'), findsOneWidget);
+      expect(find.text('« un petit appartement »'), findsOneWidget);
+    });
+
+    testWidgets('aucun critère : pas de section vide', (tester) async {
+      await tester.pumpWidget(_host(_eval(<String, dynamic>{
+        'noteSurVingt': 12,
+        'feedback': <String, dynamic>{},
+      })));
+
+      expect(find.text('Votre profil en un coup d\'œil'), findsNothing);
+    });
+  });
+
+  group('votre rédaction', () {
+    final json = <String, dynamic>{
       'noteSurVingt': 12,
       'feedback': <String, dynamic>{
         'version_amelioree': 'Bonjour Marie, je viens de trouver un '
@@ -414,28 +634,43 @@ void main() {
       },
     };
 
-    testWidgets('affichée en expression écrite', (tester) async {
-      await tester.pumpWidget(_host(_eval(feedback)));
+    testWidgets('le texte rendu et sa réécriture au même endroit, une seule '
+        'à la fois', (tester) async {
+      await tester.pumpWidget(_host(
+        _eval(json),
+        productionText: 'Bonjour Marie, j\'ai trouvé un appartement.',
+      ));
 
-      expect(find.text('Version améliorée'), findsOneWidget);
+      expect(find.text('Votre rédaction'), findsOneWidget);
       expect(
-        find.textContaining('je viens de trouver un appartement'),
+        find.text('Bonjour Marie, j\'ai trouvé un appartement.'),
         findsOneWidget,
       );
+      // La comparaison se demande : elle ne s'impose pas.
+      expect(find.textContaining('je viens de trouver'), findsNothing);
+
+      await tester.tap(find.text('Voir la version améliorée'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('je viens de trouver'), findsOneWidget);
+      expect(find.text('Masquer la version améliorée'), findsOneWidget);
+    });
+
+    testWidgets('sans texte rendu, la version améliorée garde sa carte',
+        (tester) async {
+      await tester.pumpWidget(_host(_eval(json)));
+
+      expect(find.text('Version améliorée'), findsOneWidget);
+      expect(find.textContaining('je viens de trouver'), findsOneWidget);
     });
 
     testWidgets('absente à l\'oral, sans trou visuel', (tester) async {
       // Meme charge utile : c'est l'epreuve qui decide, pas la presence du
       // champ — une eval orale ne doit jamais rendre ce bloc.
-      await tester.pumpWidget(_host(
-        _eval(<String, dynamic>{
-          'noteSurVingt': 12,
-          'feedback': <String, dynamic>{},
-        }),
-        isOral: true,
-      ));
+      await tester.pumpWidget(_host(_eval(json), isOral: true));
 
       expect(find.text('Version améliorée'), findsNothing);
+      expect(find.textContaining('je viens de trouver'), findsNothing);
     });
   });
 
@@ -480,7 +715,6 @@ void main() {
       await tester.pumpWidget(_host(_eval(json)));
 
       expect(find.text("Voir l'analyse complète"), findsOneWidget);
-      expect(find.text('Détail par critère'), findsNothing);
       expect(find.text('Ce que demandait la consigne'), findsNothing);
       expect(find.text('Production plus courte que demandé.'), findsNothing);
       expect(find.text('Suggestions'), findsNothing);
@@ -491,28 +725,31 @@ void main() {
       await tester.pumpWidget(_host(_eval(json)));
       await _openFullAnalysis(tester);
 
-      final avertissementY =
-          tester.getTopLeft(find.text('Production plus courte que demandé.')).dy;
-      final criteresY = tester.getTopLeft(find.text('Détail par critère')).dy;
+      final avertissementY = tester
+          .getTopLeft(find.text('Production plus courte que demandé.'))
+          .dy;
       final accomplissementY =
           tester.getTopLeft(find.text('Ce que demandait la consigne')).dy;
-      final exemplesY =
-          tester.getTopLeft(find.text('Corrections')).dy;
+      final exemplesY = tester.getTopLeft(find.text('Corrections')).dy;
       final suggestionsY = tester.getTopLeft(find.text('Suggestions')).dy;
 
-      expect(avertissementY, lessThan(criteresY));
-      expect(criteresY, lessThan(accomplissementY));
+      expect(avertissementY, lessThan(accomplissementY));
       expect(accomplissementY, lessThan(exemplesY));
       expect(exemplesY, lessThan(suggestionsY));
 
-      // Le detail par critere garde sa bande et sa preuve citee.
-      expect(find.text('Satisfaisant'), findsOneWidget);
-      expect(find.text('13/20', findRichText: true), findsNothing);
-      expect(find.text('« un petit appartement »'), findsOneWidget);
       // Les trois groupes de l'accomplissement restent distincts.
       expect(find.text('Invitation absente'), findsOneWidget);
       expect(find.text('Loyer non mentionné'), findsOneWidget);
       expect(find.textContaining("n'enlève aucun point"), findsOneWidget);
+    });
+
+    testWidgets('le détail par critère a quitté le repli pour le profil',
+        (tester) async {
+      await tester.pumpWidget(_host(_eval(json)));
+
+      expect(find.text('Votre profil en un coup d\'œil'), findsOneWidget);
+      await _openFullAnalysis(tester);
+      expect(find.text('Détail par critère'), findsNothing);
     });
 
     testWidgets('la consigne est rendue en TROIS groupes titrés et comptés',
@@ -530,7 +767,7 @@ void main() {
       expect(manquesY, lessThan(pistesY));
 
       // Chaque groupe annonce son compteur avant qu'on lise le détail.
-      expect(find.text('1'), findsNWidgets(4)); // 3 compteurs + palier « 1 »
+      expect(find.text('1'), findsNWidgets(3)); // les 3 compteurs de groupe
 
       // Un manque reste au-dessus de sa piste : le regroupement n'a pas
       // melange les deux.
@@ -546,9 +783,8 @@ void main() {
       expect(find.text('demandé'), findsNothing);
 
       // Le pied vit sous les pistes, et nulle part ailleurs.
-      final footY = tester
-          .getTopLeft(find.textContaining("n'enlève aucun point"))
-          .dy;
+      final footY =
+          tester.getTopLeft(find.textContaining("n'enlève aucun point")).dy;
       expect(footY, greaterThan(pistesY));
     });
 
@@ -561,17 +797,35 @@ void main() {
       expect(find.text('Corrections'), findsNothing);
     });
 
-    testWidgets('aucun détail à montrer : pas de section vide à déplier',
+    testWidgets('les points forts vivent dans « Ce qui marche », pas en prose',
         (tester) async {
       await tester.pumpWidget(_host(_eval(<String, dynamic>{
         'noteSurVingt': 12,
         'feedback': <String, dynamic>{
-          'points_forts': ['Message clair'],
+          'points_forts': ['Message clair', 'Temps du passé maîtrisés'],
         },
       })));
 
+      // Deux phrases entieres en clair, c'etait cinq lignes de prose pour une
+      // information que le bandeau donne en un chiffre.
+      expect(find.text('2 points forts'), findsOneWidget);
+      expect(find.text('Temps du passé maîtrisés'), findsNothing);
+      // Et surtout : plus de doublon dans « Voir l'analyse complète ».
       expect(find.text("Voir l'analyse complète"), findsNothing);
-      expect(find.text('Points forts'), findsOneWidget);
+
+      await _openTile(tester, 'Ce qui marche');
+      expect(find.text('Message clair'), findsOneWidget);
+      expect(find.text('Temps du passé maîtrisés'), findsOneWidget);
+    });
+
+    testWidgets('aucun détail à montrer : pas de section vide à déplier',
+        (tester) async {
+      await tester.pumpWidget(_host(_eval(<String, dynamic>{
+        'noteSurVingt': 12,
+        'feedback': <String, dynamic>{},
+      })));
+
+      expect(find.text("Voir l'analyse complète"), findsNothing);
     });
   });
 
@@ -642,20 +896,33 @@ void main() {
     });
 
     await tester.pumpWidget(_host(eval));
+    await _openTile(tester, 'À corriger en priorité');
 
-    expect(find.text('Votre priorité'), findsOneWidget);
-    expect(find.text('COMMENT FAIRE'), findsOneWidget);
-    expect(find.textContaining('Reliez-les avec un connecteur'), findsOneWidget);
+    // La demonstration ne se replie JAMAIS : c'est le bloc le plus court et le
+    // plus actionnable du rapport.
+    expect(find.text('AVANT → APRÈS'), findsOneWidget);
+    expect(find.text('Je cherche un travail. Je suis motivé.'), findsOneWidget);
     expect(
-      find.text('Votre phrase : Je cherche un travail. Je suis motivé.',
-          findRichText: true),
+      find.text('Je cherche un travail parce que je suis motivé.'),
       findsOneWidget,
     );
-    expect(
-      find.text('Réécrite : Je cherche un travail parce que je suis motivé.',
-          findRichText: true),
-      findsOneWidget,
+
+    // La technique, elle, est bornee a deux lignes — et se lit en entier d'un
+    // geste. Le pave de huit lignes etait le plus gros bloc du rapport.
+    final comment = tester.widget<Text>(
+      find.textContaining('Reliez-les avec un connecteur'),
     );
+    expect(comment.maxLines, 2);
+    expect(comment.overflow, TextOverflow.ellipsis);
+
+    await tester.tap(find.text('Comment faire'));
+    await tester.pumpAndSettle();
+
+    final ouvert = tester.widget<Text>(
+      find.textContaining('Reliez-les avec un connecteur'),
+    );
+    expect(ouvert.maxLines, isNull);
+    expect(find.text('Réduire'), findsOneWidget);
   });
 
   testWidgets('une priorité déjà en base sous forme de chaîne reste lisible',
@@ -669,13 +936,17 @@ void main() {
 
     await tester.pumpWidget(_host(eval));
 
-    expect(find.text('Vos priorités'), findsOneWidget);
+    // Le bandeau annonce le nombre ; le detail les numerote.
+    expect(find.text('2 priorités'), findsOneWidget);
+    await _openTile(tester, 'À corriger en priorité');
+    expect(find.text('PRIORITÉ 1'), findsOneWidget);
+    expect(find.text('PRIORITÉ 2'), findsOneWidget);
     expect(find.text('Penser à inviter'), findsOneWidget);
     expect(find.text('Varier les connecteurs'), findsOneWidget);
-    // Ni encadré technique ni démonstration : rien à inventer sur l'ancien
-    // format, et surtout pas de bloc vide.
-    expect(find.text('COMMENT FAIRE'), findsNothing);
-    expect(find.text('SUR VOTRE PRODUCTION'), findsNothing);
+    // Ni technique repliable ni démonstration : rien à inventer sur l'ancien
+    // format, et surtout pas de bloc vide ni de bouton mort.
+    expect(find.text('Comment faire'), findsNothing);
+    expect(find.text('AVANT → APRÈS'), findsNothing);
   });
 
   testWidgets('évaluation ancienne : ni objectif, ni niveau, et le critère se '
@@ -694,16 +965,18 @@ void main() {
     });
 
     await tester.pumpWidget(_host(eval));
-    expect(find.text('OBJECTIF DE LA TÂCHE'), findsNothing);
-    expect(find.text('Niveau observé sur cette tâche'), findsNothing);
+    expect(find.textContaining('Objectif '), findsNothing);
+    expect(find.text('NIVEAU ESTIMÉ'), findsNothing);
 
-    await _openFullAnalysis(tester);
-    expect(find.text('Détail par critère'), findsOneWidget);
-    expect(find.text('Richesse lexicale'), findsOneWidget);
+    expect(find.text('Vocabulaire'), findsOneWidget);
     // 13/20 vaut B2 au TCF : la bande le dit, un « 13/20 » scolaire suggérait
     // l'inverse. Seule la note globale reste chiffrée, en tête du rapport.
     expect(find.text('Très bonne maîtrise'), findsOneWidget);
     expect(find.text('13/20', findRichText: true), findsNothing);
+
+    // Le libellé complet de la table locale reste atteignable au déplié.
+    await _openCriterion(tester);
+    expect(find.text('Richesse lexicale'), findsOneWidget);
   });
 
   testWidgets('chaque code de critère a son icône et son libellé',

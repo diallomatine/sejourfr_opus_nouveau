@@ -16,10 +16,12 @@ import {
     hasAccomplishmentDetail,
     objectifPresentation,
     shouldShowConfiance,
+    splitHighlight,
     tcfBandRange,
     tcfNiveauTone,
     tcfNoteTone,
     tcfScalePosition,
+    treatedPointsSummary,
 } from "./production-feedback.ts";
 import {bandeCritereLabel, parseEeFeedback, type EvaluationResultDto} from "./types.ts";
 
@@ -441,5 +443,64 @@ describe("bilanNiveauPendingLabel — badge « Niveau global » sans niveau", ()
         // pas de note : « en cours » y était faux et sans fin.
         assert.equal(bilanNiveauPendingLabel(true), "Évaluation à relancer");
         assert.notEqual(bilanNiveauPendingLabel(true), bilanNiveauPendingLabel(false));
+    });
+});
+
+describe("treatedPointsSummary — le chiffre du bandeau « Ce qui marche »", () => {
+    const point = (libelle: string, obligatoire: boolean) => ({libelle, obligatoire});
+
+    it("ne compte QUE les points obligatoires, des deux côtés de la fraction", () => {
+        // Une piste traitée ne gonfle pas le numérateur, une piste ignorée ne
+        // gonfle pas le dénominateur : sinon une consigne entièrement remplie
+        // s'affiche « 3/5 » et le candidat croit avoir oublié quelque chose.
+        const summary = treatedPointsSummary({
+            objectif: null,
+            objectifResume: null,
+            pointsTraites: [
+                point("Excuse", true),
+                point("Raison", true),
+                point("Ambiance du quartier", false),
+            ],
+            pointsOublies: [point("Nouvelle séance", true), point("Loyer", false)],
+        });
+
+        assert.deepEqual(summary, {
+            done: 2,
+            total: 3,
+            libelles: ["Excuse", "Raison"],
+        });
+    });
+
+    it("ne dit rien quand la consigne n'exigeait rien d'identifiable", () => {
+        assert.equal(treatedPointsSummary(null), null);
+        assert.equal(
+            treatedPointsSummary({
+                objectif: null,
+                objectifResume: null,
+                pointsTraites: [point("Ambiance", false)],
+                pointsOublies: [],
+            }),
+            null,
+        );
+    });
+});
+
+describe("splitHighlight — repérer la phrase visée dans la production", () => {
+    const texte = "Bonjour Khalil. On va regler ça ensemble. À bientôt.";
+
+    it("découpe autour de la première occurrence exacte", () => {
+        assert.deepEqual(splitHighlight(texte, "On va regler ça ensemble."), {
+            before: "Bonjour Khalil. ",
+            match: "On va regler ça ensemble.",
+            after: " À bientôt.",
+        });
+    });
+
+    it("ne surligne RIEN si la phrase a été recomposée par le correcteur", () => {
+        // Un repère faux coûte plus cher que pas de repère : on ne cherche ni
+        // approximation ni casse différente.
+        assert.equal(splitHighlight(texte, "on va régler ça ensemble"), null);
+        assert.equal(splitHighlight(texte, "   "), null);
+        assert.equal(splitHighlight(texte, null), null);
     });
 });

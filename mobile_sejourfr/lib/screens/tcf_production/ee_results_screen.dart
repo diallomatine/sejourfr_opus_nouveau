@@ -16,7 +16,6 @@ import 'ee_session_controller.dart';
 import 'widgets/evaluation_loading_view.dart';
 import 'widgets/evaluation_report.dart';
 import 'widgets/production_app_header.dart';
-import 'widgets/results_eval_banner.dart';
 
 final _submissionFetcher = FutureProvider.autoDispose
     .family<ProductionSubmissionDto, String>((ref, id) {
@@ -140,7 +139,9 @@ class _Wrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
+      // Fond legerement teinte, comme la maquette : les cartes blanches du
+      // rapport ne se detachaient pas sur du blanc pur.
+      backgroundColor: AppColors.bg,
       appBar: ProductionAppHeader(
         title: 'Résultats',
         fallbackRoute: fallbackRoute,
@@ -210,17 +211,12 @@ class _ResultsBody extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
             children: [
-              const ResultsEvalBanner(
-                title: 'Évaluation terminée !',
-                subtitle: 'Voici votre correction détaillée.',
+              EvaluationReport(
+                evaluation: eval,
+                isOral: false,
+                eyebrow: 'Expression écrite · Tâche ${taskIndex + 1}',
+                productionText: submission.texteSoumis,
               ),
-              EvaluationReport(evaluation: eval, isOral: false),
-              if (submission.texteSoumis != null) ...[
-                const SizedBox(height: 4),
-                _SectionTitle('Votre rédaction'),
-                const SizedBox(height: 8),
-                _SubmittedTextCard(text: submission.texteSoumis!),
-              ],
             ],
           ),
         ),
@@ -280,53 +276,6 @@ class _ResultsBody extends ConsumerWidget {
         SnackBar(content: Text(ApiClient.toApiException(e).message)),
       );
     }
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: AppFonts.ui(
-        size: 15,
-        weight: FontWeight.w700,
-        color: AppColors.ink,
-      ),
-    );
-  }
-}
-
-/// Écho de la production (`.answer-box` du prototype) : ce que le candidat a
-/// réellement rendu, relu à côté de la correction.
-class _SubmittedTextCard extends StatelessWidget {
-  const _SubmittedTextCard({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Text(
-        text,
-        style: AppFonts.ui(
-          size: 13,
-          color: AppColors.ink,
-          height: 1.55,
-        ),
-      ),
-    );
   }
 }
 

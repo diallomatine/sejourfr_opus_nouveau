@@ -50,13 +50,29 @@ const List<TcfNoteBand> kTcfNoteBands = [
 /// moitie de la barre et un A1 (1) un trait invisible. Ce qu'on montre ici,
 /// c'est la suite des paliers, pas un axe metrique.
 class TcfNoteScale extends StatelessWidget {
-  const TcfNoteScale({super.key, required this.note});
+  const TcfNoteScale({super.key, required this.note}) : onDark = false;
+
+  /// Variante du hero : **sur le dégradé bleu**, cinq segments et **une seule
+  /// ligne** de libellés (les paliers, pas leurs bornes chiffrées).
+  ///
+  /// Deux raisons de ne pas y rejouer la version claire :
+  /// - les teintes de [CecrlColor] (ambre, bleu, vert) ne se voient plus sur un
+  ///   fond bleu — le segment actif y passe donc en **blanc plein**, et c'est la
+  ///   pastille de niveau, blanche à texte teinté, qui porte la couleur du
+  ///   palier ;
+  /// - les bornes chiffrées (0 · 1 · 2-5 · 6-9 · 10-20) demandaient une seconde
+  ///   ligne de libellés : c'est de la règle de lecture, pas du résultat. Elles
+  ///   vivent dans « Comment lire cette note ».
+  const TcfNoteScale.onDark({super.key, required this.note}) : onDark = true;
 
   /// Note 0..20 ; null quand la production n'a pas pu etre notee — la barre
   /// reste affichee (la regle de lecture vaut toujours), sans curseur. Une
   /// note qui n'est pas un nombre (`NaN`) est traitee pareil : pas de palier
   /// determine, donc pas de curseur.
   final double? note;
+
+  /// Rendu sur le dégradé du hero (cf. [TcfNoteScale.onDark]).
+  final bool onDark;
 
   static const cursorKey = ValueKey<String>('tcf-note-cursor');
 
@@ -134,6 +150,7 @@ class TcfNoteScale extends StatelessWidget {
   Widget build(BuildContext context) {
     final value = note;
     final activeIndex = value == null ? -1 : (bandIndexFor(value) ?? -1);
+    if (onDark) return _buildOnDark(activeIndex);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -206,6 +223,52 @@ class TcfNoteScale extends StatelessWidget {
                 child: _BandLabel(
                   band: kTcfNoteBands[i],
                   active: i == activeIndex,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOnDark(int activeIndex) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            for (var i = 0; i < kTcfNoteBands.length; i++) ...[
+              if (i > 0) const SizedBox(width: _gap),
+              Expanded(
+                child: Container(
+                  height: _barHeight,
+                  decoration: BoxDecoration(
+                    color: AppColors.white
+                        .withValues(alpha: i == activeIndex ? 1 : 0.18),
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 7),
+        Row(
+          children: [
+            for (var i = 0; i < kTcfNoteBands.length; i++) ...[
+              if (i > 0) const SizedBox(width: _gap),
+              Expanded(
+                child: Text(
+                  kTcfNoteBands[i].niveau.shortName,
+                  textAlign: TextAlign.center,
+                  style: AppFonts.ui(
+                    size: 9.5,
+                    weight:
+                        i == activeIndex ? FontWeight.w800 : FontWeight.w600,
+                    color: AppColors.white
+                        .withValues(alpha: i == activeIndex ? 1 : 0.55),
+                  ),
                 ),
               ),
             ],

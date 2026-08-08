@@ -1017,6 +1017,18 @@ export function niveauCecrlLabel(n: NiveauCecrl | null | undefined): string {
     return n === "A1_NON_ATTEINT" ? "A1 non atteint" : n;
 }
 
+/**
+ * Forme courte d'un niveau, pour les pastilles et les barres étroites.
+ *
+ * `A1_NON_ATTEINT` se rend **« <A1 »** : le tronquer en « A1 » annoncerait au
+ * candidat un niveau qu'il n'a justement pas atteint. Miroir de
+ * `NiveauCecrl.shortName` côté mobile.
+ */
+export function niveauCecrlShort(n: NiveauCecrl | null | undefined): string {
+    if (!n) return "—";
+    return n === "A1_NON_ATTEINT" ? "<A1" : n;
+}
+
 /** Phrase de correspondance officielle, à afficher au bilan d'une épreuve
  *  entière uniquement. Null quand le backend n'a pas de niveau exploitable. */
 export function correspondanceTcfPhrase(

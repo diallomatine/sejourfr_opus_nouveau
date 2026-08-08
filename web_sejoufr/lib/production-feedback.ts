@@ -255,6 +255,63 @@ export function groupAccomplishment(
     };
 }
 
+/** Ce que résume le bandeau « Ce qui marche » : les points **obligatoires**
+ *  traités sur ceux qui étaient demandés. */
+export interface TreatedPointsSummary {
+    done: number;
+    total: number;
+    libelles: string[];
+}
+
+/**
+ * Compteur du bandeau « Ce qui marche ».
+ *
+ * Les pistes sont exclues **des deux côtés** : ne pas traiter une piste
+ * n'enlève aucun point, l'inclure au dénominateur ferait lire « 3/5 » à une
+ * consigne entièrement remplie. `null` quand la consigne n'exigeait rien
+ * d'identifiable (évaluations antérieures aux rubriques v8) — le bandeau se
+ * rabat alors sur le compte de points forts.
+ */
+export function treatedPointsSummary(
+    acc: EeAccomplishment | null | undefined,
+): TreatedPointsSummary | null {
+    if (!acc) return null;
+    const groups = groupAccomplishment(acc);
+    const traites = groups.traites.filter((p) => p.obligatoire);
+    const total = traites.length + groups.manquesObligatoires.length;
+    if (total === 0) return null;
+    return {done: traites.length, total, libelles: traites.map((p) => p.libelle)};
+}
+
+/** Découpage d'un texte autour du passage à surligner. */
+export interface HighlightSplit {
+    before: string;
+    match: string;
+    after: string;
+}
+
+/**
+ * Repère dans la production la phrase visée par la priorité n° 1.
+ *
+ * **Première occurrence exacte, et rien d'autre** : si le correcteur a recomposé
+ * la phrase, on ne surligne rien plutôt que de désigner le mauvais passage. Un
+ * repère faux coûte plus cher que pas de repère.
+ */
+export function splitHighlight(
+    texte: string,
+    cible: string | null | undefined,
+): HighlightSplit | null {
+    const needle = (cible ?? "").trim();
+    if (!needle) return null;
+    const start = texte.indexOf(needle);
+    if (start < 0) return null;
+    return {
+        before: texte.slice(0, start),
+        match: texte.slice(start, start + needle.length),
+        after: texte.slice(start + needle.length),
+    };
+}
+
 export function hasAccomplishmentDetail(groups: AccomplishmentGroups): boolean {
     return (
         groups.traites.length +

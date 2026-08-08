@@ -3,14 +3,9 @@
 import Link from "next/link";
 import {useParams, useSearchParams} from "next/navigation";
 import {useEffect, useState} from "react";
-import {Check} from "lucide-react";
 import {ApiException, productionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
-import {
-  isSubmissionPending,
-  productionTaskTitle,
-  type ProductionSubmissionDto,
-} from "@/lib/types";
+import {isSubmissionPending, type ProductionSubmissionDto} from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
 import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
@@ -27,11 +22,14 @@ const MAX_POLLS = 40; // ~2 min
  * que l'évaluation n'a pas abouti (EO passe par TRANSCRIBING), affiche le détail
  * une fois EVALUATED, et propose « Réessayer » si FAILED.
  *
- * L'écran suit l'ordre de la maquette : **accusé de traitement** (la production
- * est enregistrée — c'est ce que le candidat vient vérifier), puis l'**écho de
- * sa production**, puis le retour détaillé, puis les actions de fin. Le contenu
- * du retour lui-même (`ProductionFeedbackView`) garde son ordre et ses règles
- * de lecture : ce sont des décisions de notation, pas de mise en page.
+ * **L'accusé de traitement a disparu** : « Production évaluée » au-dessus d'un
+ * hero qui annonce déjà le verdict et la note ne disait rien de plus, et coûtait
+ * le premier écran. Le rapport commence donc directement par
+ * `ProductionFeedbackView`, qui porte l'écho de la production à l'écrit (dans la
+ * carte « Votre rédaction », là où se fait la comparaison). À l'oral, la
+ * transcription reste dans son dépliant ici : `ProductionSubmissionDto` ne porte
+ * pas d'URL audio, et on n'invente pas un lecteur sur une donnée que l'API ne
+ * sert pas.
  */
 export function ProductionResults({config}: {config: ProductionConfig}) {
   const params = useParams<{submissionId: string}>();
@@ -145,51 +143,23 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
           </div>
         ) : submission.evaluation ? (
           <>
-            {/* Accusé de traitement : la production est enregistrée. C'est la
-                première chose qu'un candidat vient vérifier — avant même la
-                note. */}
-            <section className={`${s.card} ${s.panel} ${s.result}`}>
-              <div className={s.resultTitle}>
-                <span className={s.check} aria-hidden>
-                  <Check size={22} strokeWidth={3} />
-                </span>
-                <div>
-                  <h1 className={s.resultHeading}>Production évaluée</h1>
-                  <p className={s.resultSub}>
-                    Tâche {tacheNum} · {productionTaskTitle(config.epreuve, tacheNum)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Écho de la production : on relit ce qu'on a rendu en lisant le
-                  retour — à l'oral, on se réécoute. */}
-              {config.mode === "text" && submission.texteSoumis && (
-                <div className={s.answerBox}>
-                  <span className={s.answerLabel}>
-                    Votre production · {submission.motsCount ?? 0} mots
-                  </span>
-                  <p className={s.prodText}>{submission.texteSoumis}</p>
-                </div>
-              )}
-
-              {/* À l'oral, l'écho de la production est la transcription :
-                  `ProductionSubmissionDto` ne porte pas d'URL audio (contrairement
-                  à `SkillAttemptDto`), et on n'invente pas un lecteur sur une
-                  donnée que l'API ne sert pas. */}
-              {config.mode === "audio" && submission.transcription && (
-                <details className={s.answerBox}>
-                  <summary className={s.answerLabel}>Votre production · transcription</summary>
-                  <div className={s.aiPanel}>
-                    <TranscriptDialogue raw={submission.transcription} />
-                  </div>
-                </details>
-              )}
-            </section>
-
             <ProductionFeedbackView
               evaluation={submission.evaluation}
               isOral={config.mode === "audio"}
+              eyebrow={`${config.epreuve === "TCF_EO" ? "Expression orale" : "Expression écrite"} · Tâche ${tacheNum}`}
+              productionText={config.mode === "text" ? submission.texteSoumis : null}
+              motsCount={submission.motsCount}
             />
+
+            {/* À l'oral, l'écho de la production est la transcription. */}
+            {config.mode === "audio" && submission.transcription && (
+              <details className={s.answerBox}>
+                <summary className={s.answerLabel}>Votre production · transcription</summary>
+                <div className={s.aiPanel}>
+                  <TranscriptDialogue raw={submission.transcription} />
+                </div>
+              </details>
+            )}
 
             <div className={s.actions}>
               <Link href={backHref} className={`${s.primary} ${s.actionWide}`}>

@@ -133,9 +133,10 @@ lib/
     │                                    transcript_dialogue (transcription EO,
     │                                    ouverte en `showAppSheet`),
     │                                    evaluation_report (corps partagé EE/EO) +
-    │                                    ses 6 blocs : objective_card,
-    │                                    production_score_hero / tcf_note_scale,
-    │                                    priority_card, improved_version_card,
+    │                                    ses 6 sections : results_hero /
+    │                                    tcf_note_scale, results_quick_row,
+    │                                    criteria_overview, priority_card,
+    │                                    production_text_card, results_section_head,
     │                                    accomplishment_card, etc.
     ├── review/                    Favoris + erreurs récentes (tabs)
     └── profile/                   Compte + paramètres + logout + suppression de compte
@@ -891,32 +892,97 @@ entre T1/T2/T3** ; après T3 → bilan détaillé (`HistorySessionScreen` `?live
 résultats (EE + EO) est le widget partagé `widgets/evaluation_report.dart` : un seul endroit
 décide de l'ordre et de la forme de la correction, **y compris la note**. Le rapport prend un
 `isOral` (et plus un titre de corrections) : c'est lui qui en déduit le wording des exemples
-**et** la limite de l'évaluation orale. **6 blocs, dans cet ordre** :
+**et** la limite de l'évaluation orale.
 
-1. **Objectif de la tâche** (`objective_card.dart`) — verdict `accomplissement.objectif`
-   (`ATTEINT` / `PARTIELLEMENT_ATTEINT` / `NON_ATTEINT`, 3 traitements visuels) +
-   `objectif_resume`. Le champ est **absent des ~100 évaluations legacy** → le bloc disparaît.
-2. **Note + échelle TCF** (`production_score_hero.dart` + `tcf_note_scale.dart`) — note,
-   niveau observé et **règle de lecture** (A1 non atteint 0 · A1 1 · A2 2-5 · B1 6-9 ·
-   B2 10-20) avec un curseur sur la note, dans **un seul bloc**.
-3. **Points forts** (≤ 2).
-4. **Priorités** (≤ 2, `priority_card.dart`).
-5. **Version améliorée** (`improved_version_card.dart`) — `version_amelioree`, **EE
-   uniquement** (absente en EO par contrat, pas par bug).
-6. **« Voir l'analyse complète »** — section **repliée par défaut** qui contient tout le
-   reste, dans l'ordre du web : avertissements → détail par critère → accomplissement
-   détaillé → exemples corrigés → suggestions.
+**Passe « rapport express » (2026-08-08)** — verdict client : *« le contenu est bon, mais trop
+verbeux, un candidat ne lira pas tout ça »*. **Aucune information n'a été retirée** : ce qui
+disait deux fois la même chose a été **fusionné**, ce qui se consulte a été **replié**.
+Structure de référence : maquette « Résultats TCF — Rapport express », **couleurs de l'app**
+(zéro hex, `AppColors.*` / `AppFonts.*` / `LucideIcons.*`). **4 sections, dans cet ordre** :
 
-Aucune information n'a disparu : elle est soit remontée dans les blocs 1-5, soit rangée dans
-le bloc 6. La transcription EO et « Votre rédaction » (EE) restent dans leurs écrans.
+1. **Hero** (`results_hero.dart`) — le `.hero` de la maquette : dégradé de marque +
+   **halo clair** en haut à droite, eyebrow « Expression écrite · Tâche 1 », **verdict
+   d'objectif** en gros, `objectif_resume`, **note /20 à droite**, puis le panneau `.level`
+   **translucide** (blanc 13 %, bordure blanc 18 %) : niveau estimé + pastille + échelle du
+   TCF. Les trois cartes d'avant (bandeau « Évaluation terminée », `objective_card.dart`,
+   `production_score_hero.dart`) n'en font plus qu'une, et les trois fichiers sont
+   **supprimés**. Pas d'objectif (≈ 100 évaluations legacy) → titre neutre « Votre
+   correction », le hero tient quand même. **Aucune pastille d'icône devant le verdict** :
+   la maquette n'en a pas, et « Objectif non atteint » se lit en toutes lettres.
+2. **Deux bandeaux pleine largeur, empilés et repliés** (`results_summary_tiles.dart`) :
+   **« Ce qui marche »** (vert — `N/M points traités`, **obligatoires seulement** des deux
+   côtés ; repli sur le compte de points forts sans check-list) et **« À corriger en
+   priorité »** (**rouge** — `N priorité(s)`). Chacun tient sur **une ligne** : titre, chiffre,
+   chevron. Appuyer ouvre le détail **dans le même encart, juste en dessous** — points traités
+   puis points forts d'un côté (séparés par un filet, deux natures différentes), la ou les
+   priorités **complètes** de l'autre (`PriorityCard(embedded: true)` : ni carte ambre ni
+   étiquette, le bandeau les porte déjà). Un bandeau sans contenu ne s'affiche pas.
+   ⚠️ **La priorité vit désormais à UN SEUL endroit.** Elle était résumée en tête puis répétée
+   en entier plus bas : c'était la dernière redite du rapport. Le rouge est assumé ici — c'est
+   le seul bloc qui dit « à refaire », et il ne peint aucun niveau CECRL (la règle « jamais de
+   rouge sur un niveau » n'est pas en cause).
+3. **Profil par critère** (`criteria_overview.dart`) — **une carte par critère**
+   (`.criterion` de la maquette : pastille 40×40, nom, barre 6 px, bande à droite), **sortie
+   du repli** (elle y était, donc personne ne la voyait). Commentaire, preuve **et définition
+   complète** se déplient carte par carte via le bouton **« Voir pourquoi » / « Masquer le
+   détail »** (`CriterionRow.showDetail` + `onToggle`). Quatre lignes serrées dans une seule
+   carte se lisaient comme un tableau, pas comme quatre choses sur lesquelles appuyer.
+4. **Votre rédaction** (`production_text_card.dart`) — le texte rendu **et** la version
+   améliorée en **bascule dans la même carte** : c'est une comparaison qu'on demande au
+   candidat, les deux ne peuvent pas vivre à deux endroits éloignés. La phrase visée par la
+   priorité n° 1 y est **surlignée** (`highlight`, première occurrence **exacte** ; aucune
+   correspondance ⇒ aucun repère, jamais un repère faux). Deux actions comme la maquette :
+   « Voir la version améliorée » (pleine) et « Masquer les repères » (douce). Sans texte servi
+   (oral, historique), `improved_version_card.dart` garde sa carte autonome.
+
+Puis **« Voir l'analyse complète »**, toujours **repliée par défaut** : avertissements →
+accomplissement détaillé → exemples corrigés → suggestions (le détail par critère l'a quittée
+pour la section 3, les points forts pour le bandeau vert). La transcription EO reste dans sa
+feuille (dialogue en bulles).
+
+**Trois arbitrages de la passe, à ne pas défaire sans raison :**
+- **Les points forts ne sont plus en clair.** Deux phrases entières = cinq lignes de prose
+  entre le résumé et le profil, pour une information que « Ce qui marche » donne déjà en un
+  chiffre. Ils vivent dans le dépliant de ce bandeau — **et nulle part ailleurs**.
+- **La technique d'une priorité (`comment`) est bornée à 2 lignes** + « Comment faire » /
+  « Réduire ». Le correcteur y écrit jusqu'à huit lignes de consignes imbriquées : à plat,
+  c'était le plus gros bloc du rapport, et il chassait hors écran la seule chose vraiment
+  actionnable — la phrase réécrite, qui elle **ne se replie jamais**.
+- **Un critère se lit sous son NOM COURT** (`CriterionRow._shortLabelForCode` : Communiquer ·
+  Interagir · Vocabulaire · Grammaire). Le `label` du serveur est une **définition**
+  (« Communiquer : accomplir la tâche et enchaîner les idées ») : sur deux lignes, il pousse
+  la bande hors de vue. La définition réapparaît au déplié — elle n'est jamais perdue.
+
+Le fond des deux écrans de résultats passe de `white` à **`AppColors.bg`** : les cartes
+blanches du rapport ne se détachaient pas sur du blanc pur.
+
+`BeforeAfterLines.compact` rend l'avant/après **sans étiquettes** : l'ancienne phrase barrée
+en rouge, la nouvelle en vert. Deux lignes au lieu de quatre — la rature dit « avant » mieux
+que le mot « avant ». La forme étiquetée reste utilisée par les exemples corrigés du repli.
+
+Les intertitres sortent des cartes (`results_section_head.dart`) : chaque bloc portait son
+titre dans un encadré coloré, ce qui faisait lire le rapport comme une suite d'alertes.
 
 - **La note est celle du TCF, et son échelle est affichée avec elle** : séparées, la note se
   lisait comme une note scolaire française — « 4,5/20 » n'est pas une catastrophe, c'est un
   A2. `donut_chart_score.dart` (arc = un pourcentage de 20, exactement la lecture qu'on
-  corrige) et `niveau_observe_card.dart` sont **supprimés**, fusionnés dans
-  `ProductionScoreHero`. Les paliers de `TcfNoteScale` sont à **largeur égale** (pas
-  proportionnelle) et prennent leur teinte de `CecrlColor` : la barre dit le même palier que
-  la pastille.
+  corrige), `niveau_observe_card.dart`, puis `production_score_hero.dart` sont **supprimés**,
+  fusionnés dans `ProductionResultsHero`. Les paliers de `TcfNoteScale` sont à **largeur
+  égale** (pas proportionnelle) et prennent leur teinte de `CecrlColor` : la barre dit le même
+  palier que la pastille. **`TcfNoteScale.onDark`** est la variante du hero : sur le dégradé
+  bleu, les teintes de `CecrlColor` ne se voient plus, donc le palier actif y passe en **blanc
+  plein** et c'est la **pastille — blanche, texte teinté** — qui porte la couleur du niveau.
+  Elle n'affiche **qu'une ligne** de libellés (les paliers `<A1 · A1 · A2 · B1 · B2`) : les
+  bornes chiffrées sont de la règle de lecture, pas du résultat, et vivent dans la feuille.
+  La version claire (curseur + bornes sur deux lignes) est **inchangée** et reste testée telle
+  quelle.
+- **La règle de lecture de la note se consulte, elle ne s'impose plus** : `avertissementNiveau`
+  (ou son repli `kNotePorteeSurLaTache`) **plus la table des cinq paliers et de leurs bornes**
+  vivent dans une feuille, ouverte en **appuyant sur le panneau de niveau** (la pastille ⓘ à
+  côté du sur-titre en est le repère). Trois lignes de prose entre la note et le premier
+  conseil, c'était le cœur du reproche de verbosité — l'échelle, elle, **dessine** la règle et
+  reste visible. Une ligne « Comment lire cette note ? » écrite en toutes lettres coûtait une
+  ligne de plus dans le bloc que cette passe allège.
 - **La confiance ne s'affiche QUE si elle n'est pas `HAUTE`** (avec ses `confianceRaisons`) :
   une confiance haute est le cas normal, l'annoncer n'apprend rien et inquiète.
 - **Limite de l'évaluation orale** : le correcteur la renvoie normalement dans
@@ -925,17 +991,19 @@ le bloc 6. La transcription EO et « Votre rédaction » (EE) restent dans leurs
   même repli que le web). Jamais à l'écrit.
 - **Une priorité ENSEIGNE** : `points_a_ameliorer[]` est un **objet**
   `{constat, comment?, exemple?{avant, apres}}` (`PointAAmeliorer`), rendu par
-  `priority_card.dart` — `comment` = la technique réutilisable, mise en avant dans un encadré
-  « COMMENT FAIRE » ; `exemple` = la démonstration avant/après sur la phrase du candidat.
+  `priority_card.dart` — `comment` = la technique réutilisable, **bornée à 2 lignes** avec
+  « Comment faire » ; `exemple` = la démonstration avant/après sur la phrase du candidat,
+  **toujours visible**.
   ⚠ **Les deux formes coexistent en base** : les évaluations antérieures portent de simples
   **chaînes** — `PointAAmeliorer.fromJsonNullable` les accepte et les rend comme un `constat`
-  seul (aucun encadré vide). Ne jamais retirer cette tolérance.
+  seul (aucun encadré vide, aucun bouton mort). Ne jamais retirer cette tolérance.
 - `exemples_corriges[].gain` (facultatif) = ce que la reformulation démontre de plus, rendu en
   ligne verte sous l'explication.
 - **Par critère on affiche la bande, pas la note** : `CriterionScore.bande` (`BandeCritere`,
   calculée côté serveur) → « Très bonne maîtrise / Satisfaisant / En cours d'acquisition /
-  Fragile / Non évaluable », plus la `preuve` (citation littérale) sous le commentaire. La
-  **note globale /20 reste affichée** (bloc 2) et porte désormais **une décimale** (12,5) :
+  Fragile / Non évaluable », plus la `preuve` (citation littérale) sous le commentaire —
+  **dépliés à la demande** dans la section 4. La
+  **note globale /20 reste affichée** (dans le hero) et porte désormais **une décimale** (12,5) :
   tout affichage de note passe par `formatScore` (`core/utils/format_date.dart`), jamais par
   un arrondi local. La grille active n'a que **4 codes équipondérés** (`communiquer`, `interagir`,
   `lexique`, `morphosyntaxe`), mais la table icône↔libellé de `criterion_row.dart` garde
