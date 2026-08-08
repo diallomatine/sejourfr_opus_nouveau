@@ -7,10 +7,11 @@ import '../../../core/utils/format_date.dart';
 /// Ligne récap d'une tâche dans le bilan d'une session EE/EO.
 ///
 /// Layout : titre de la tâche en haut, sous-titre récap en bas ("Note 14/20",
-/// "Évaluation en cours…" ou "Non évaluée"). À droite : un chevron qui signale
-/// qu'on peut tapoter pour ouvrir l'évaluation détaillée. Le chevron disparaît
-/// quand la ligne n'est pas tappable (pending ou absence d'éval). Aucun niveau
-/// CECRL par tâche : il n'apparaît qu'au bilan d'épreuve (examen blanc).
+/// "Évaluation en cours…", "Évaluation échouée — à relancer" ou "Non évaluée").
+/// À droite : un chevron qui signale qu'on peut tapoter pour ouvrir
+/// l'évaluation détaillée. Le chevron disparaît quand la ligne n'est pas
+/// tappable (pending ou absence d'éval). Aucun niveau CECRL par tâche : il
+/// n'apparaît qu'au bilan d'épreuve (examen blanc).
 class TacheBilanRow extends StatelessWidget {
   const TacheBilanRow({
     super.key,
@@ -18,6 +19,7 @@ class TacheBilanRow extends StatelessWidget {
     this.score,
     this.pending = false,
     this.notRendered = false,
+    this.failed = false,
   });
 
   final String name;
@@ -31,10 +33,21 @@ class TacheBilanRow extends StatelessWidget {
   /// elle est comptée 0 au bilan et affichée « Non rendue ».
   final bool notRendered;
 
+  /// Quand `true`, la production a bien été rendue mais son évaluation IA a
+  /// échoué (submission `FAILED`). C'est le seul cas où le candidat a une
+  /// action à faire : relancer la correction depuis l'écran de résultat. On le
+  /// dit en rouge et on garde le chevron — sans lui, la ligne racontait « Non
+  /// évaluée » avec une icône « rien à voir ici », et le bouton « Réessayer
+  /// l'évaluation » restait à un tap invisible. Libellé aligné au mot près sur
+  /// le web (`ProductionSession`).
+  final bool failed;
+
   @override
   Widget build(BuildContext context) {
     final hasScore = score != null;
-    final isEvaluated = hasScore;
+    // Une tâche en échec reste tappable : c'est l'écran de résultat qui porte
+    // la relance.
+    final showChevron = hasScore || failed;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
@@ -65,6 +78,7 @@ class TacheBilanRow extends StatelessWidget {
                 _Subtitle(
                   pending: pending,
                   notRendered: notRendered,
+                  failed: failed,
                   score: hasScore ? formatScore(score!) : null,
                 ),
               ],
@@ -80,11 +94,11 @@ class TacheBilanRow extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             )
-          else if (isEvaluated)
-            const Icon(
+          else if (showChevron)
+            Icon(
               LucideIcons.chevronRight,
               size: 22,
-              color: AppColors.muted2,
+              color: failed ? AppColors.red : AppColors.muted2,
             )
           else
             const Padding(
@@ -104,25 +118,30 @@ class TacheBilanRow extends StatelessWidget {
 /// Sous-titre récap sous le nom de la tâche, selon l'état :
 /// - Score connu → "Note 14/20"
 /// - Évaluation en cours → "Évaluation IA en cours…"
+/// - Évaluation en échec → "Évaluation échouée — à relancer"
 /// - Aucune éval → "Non évaluée"
 class _Subtitle extends StatelessWidget {
   const _Subtitle({
     required this.pending,
     required this.score,
     this.notRendered = false,
+    this.failed = false,
   });
 
   final bool pending;
   final bool notRendered;
+  final bool failed;
   final String? score;
 
   @override
   Widget build(BuildContext context) {
     final (text, color) = notRendered
         ? ('Non rendue', AppColors.muted)
-        : switch ((pending, score)) {
-            (true, _) => ('Évaluation IA en cours…', AppColors.blue),
-            (false, final String s) when s.isNotEmpty =>
+        : switch ((pending, failed, score)) {
+            (true, _, _) => ('Évaluation IA en cours…', AppColors.blue),
+            (false, true, _) =>
+              ('Évaluation échouée — à relancer', AppColors.red),
+            (false, false, final String s) when s.isNotEmpty =>
               ('Note $s / 20', AppColors.ink2),
             _ => ('Non évaluée', AppColors.muted),
           };
@@ -130,7 +149,7 @@ class _Subtitle extends StatelessWidget {
       text,
       style: AppFonts.ui(
         size: 12,
-        weight: pending ? FontWeight.w600 : FontWeight.w500,
+        weight: pending || failed ? FontWeight.w600 : FontWeight.w500,
         color: color,
       ),
     );

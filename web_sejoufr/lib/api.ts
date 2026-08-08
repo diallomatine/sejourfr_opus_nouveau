@@ -27,14 +27,76 @@ import type {
   QuestionReviewResponse,
   QuestionType,
   RegisterRequest,
+  SkillAnalysisQuotaDto,
+  SkillAttemptDto,
+  SkillDetailDto,
+  SkillDto,
+  SkillPromptDto,
+  SkillReferenceDto,
+  SkillSection,
+  SkillSelfEvaluation,
+  SkillTaskProgressDto,
   StartAttemptRequest,
   SubmitAnswerRequest,
   SubmitProductionTextRequest,
+  SubmitSkillTextRequest,
   TargetProcedure,
   ThemeUserResponse,
   TokenResponse,
   UserStatsResponse,
 } from "./types";
+import {clearDataCache, invalidateCache} from "./data-cache";
+import {PRODUCTION_PROGRESS_PREFIXES} from "./production-catalog";
+import {SKILLS_CACHE_PREFIX} from "./skill-catalog";
+
+/**
+ * Invalidation du cache mémoire (`lib/data-cache.ts`) — **le seul endroit** où
+ * elle est décidée.
+ *
+ * Le catalogue du parcours TCF EE/EO (compétences, sujets, exemples) est mis en
+ * cache pour la session : c'est du contenu éditorial, et le recharger à chaque
+ * bascule de mode ou de tâche était précisément le défaut à corriger. Mais deux
+ * données bougent avec l'usage — l'historique des soumissions et les compteurs
+ * de progression / de quota. Elles sont donc purgées **ici, à la source**,
+ * juste après l'écriture qui les rend fausses : un écran qui oublierait de le
+ * faire afficherait une progression mensongère, et c'est le seul vrai piège de
+ * ce cache.
+ */
+function invalidateProductionProgress(): void {
+    for (const prefix of PRODUCTION_PROGRESS_PREFIXES) invalidateCache(prefix);
+}
+
+/** Une production de compétence (ou son analyse) change les compteurs de
+ *  l'épreuve entière : compétences, agrégat par tâche, détail d'une compétence. */
+function invalidateSkillProgress(): void {
+    invalidateCache(SKILLS_CACHE_PREFIX);
+}
+
+/** Après une écriture de production : l'historique et les bilans sont périmés. */
+function afterProductionWrite(sub: ProductionSubmissionDto): ProductionSubmissionDto {
+    invalidateProductionProgress();
+    return sub;
+}
+
+/**
+ * Pendant un polling, une production n'est vraiment « nouvelle » qu'en arrivant
+ * à son état terminal : c'est là que la note apparaît. Purger à ce moment-là
+ * évite qu'un écran des sujets, rouvert plus tard, affiche « Traité » sans note
+ * sur une production pourtant évaluée depuis longtemps.
+ */
+function afterProductionRead(sub: ProductionSubmissionDto): ProductionSubmissionDto {
+    if (sub.statut === "EVALUATED" || sub.statut === "FAILED") invalidateProductionProgress();
+    return sub;
+}
+
+/** Même règle côté compétences : le statut d'un petit sujet (« Validé », « À
+ *  renforcer ») se fixe à la fin de l'analyse, pas à la soumission. */
+function afterSkillAttempt(attempt: SkillAttemptDto): SkillAttemptDto {
+    if (attempt.statut === "EVALUATED" || attempt.statut === "FAILED" || attempt.statut === "RECORDED") {
+        invalidateSkillProgress();
+    }
+    return attempt;
+}
 
 // Base URL configurable via .env.local : NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
 export const API_BASE_URL =
@@ -72,6 +134,10 @@ export const tokenStorage = {
         localStorage.removeItem(ACCESS_TOKEN_KEY);
         localStorage.removeItem(REFRESH_TOKEN_KEY);
         document.cookie = `${ACCESS_TOKEN_KEY}=; path=/; max-age=0`;
+        // La session s'arrête ici : le cache mémoire porte la progression d'un
+        // candidat (sujets traités, notes, quotas). Le laisser en place le
+        // servirait au compte suivant ouvert dans le même onglet.
+        clearDataCache();
     },
 };
 
@@ -803,7 +869,7 @@ export const productionApi = {
             method: "POST",
             json: body,
             auth: true,
-        });
+        }).then(afterProductionWrite);
     },
 
     /** Soumet un audio EO (multipart). productionTaskId / attemptId en query
@@ -821,14 +887,14 @@ export const productionApi = {
         return apiFetch<ProductionSubmissionDto>(
             `/api/production-submissions?${qs.toString()}`,
             {method: "POST", body: fd, auth: true},
-        );
+        ).then(afterProductionWrite);
     },
 
     /** Récupère une submission (polling de l'évaluation IA). */
     getSubmission(id: string): Promise<ProductionSubmissionDto> {
         return apiFetch<ProductionSubmissionDto>(`/api/production-submissions/${id}`, {
             auth: true,
-        });
+        }).then(afterProductionRead);
     },
 
     /** Relance l'évaluation d'une submission FAILED (3 essais max). */
@@ -836,7 +902,7 @@ export const productionApi = {
         return apiFetch<ProductionSubmissionDto>(
             `/api/production-submissions/${id}/retry`,
             {method: "POST", auth: true},
-        );
+        ).then(afterProductionWrite);
     },
 
     /** Historique des soumissions de l'utilisateur (optionnellement par épreuve). */
@@ -865,6 +931,128 @@ export const productionApi = {
             `/api/attempts/${attemptId}/production-bilan`,
             {auth: true},
         );
+    },
+};
+
+// ============================================================================
+// COMPÉTENCES TCF — micro-exercices ciblés (voie parallèle aux productions)
+// Toutes les routes sont authentifiées : il n'existe aucun endpoint public.
+// ============================================================================
+
+export const skillApi = {
+    /** Résumé par tâche (3 entrées) pour l'écran de choix de tâche. */
+    progress(section: SkillSection): Promise<SkillTaskProgressDto[]> {
+        return apiFetch<SkillTaskProgressDto[]>(
+            `/api/skills/progress?section=${section}`,
+            {auth: true},
+        );
+    },
+
+    /** Les 8 compétences actives d'une tâche + progression du user courant.
+     *  Ne plus appeler directement depuis un écran : passer par
+     *  `loadSectionSkills` (`lib/skill-catalog.ts`), qui charge l'épreuve
+     *  entière en une fois et se sert de ceci comme repli. */
+    listSkills(taskCode: string): Promise<SkillDto[]> {
+        return apiFetch<SkillDto[]>(`/api/skills?taskCode=${taskCode}`, {auth: true});
+    },
+
+    /** Les 24 compétences d'une épreuve entière (3 tâches × 8), triées
+     *  `taskCode` puis `displayOrder`. C'est l'appel unique qui rend les
+     *  pastilles T1/T2/T3 instantanées : elles filtrent, elles ne rechargent pas. */
+    listSkillsBySection(section: SkillSection): Promise<SkillDto[]> {
+        return apiFetch<SkillDto[]>(`/api/skills?section=${section}`, {auth: true});
+    },
+
+    /** Compétence + ses 5 petits sujets avec leur statut. */
+    getSkill(skillId: string): Promise<SkillDetailDto> {
+        return apiFetch<SkillDetailDto>(`/api/skills/${skillId}`, {auth: true});
+    },
+
+    /** Sujet complet (sans les références — elles ont leur propre appel). */
+    getPrompt(promptId: string): Promise<SkillPromptDto> {
+        return apiFetch<SkillPromptDto>(`/api/skill-prompts/${promptId}`, {auth: true});
+    },
+
+    /** Les 3 références. 403 tant que le user n'a aucune tentative sur ce sujet
+     *  — c'est le garde serveur de la règle « pas de modèle avant de produire ». */
+    listReferences(promptId: string): Promise<SkillReferenceDto[]> {
+        return apiFetch<SkillReferenceDto[]>(
+            `/api/skill-prompts/${promptId}/references`,
+            {auth: true},
+        );
+    },
+
+    /** Soumet une production écrite (section EE). */
+    submitText(body: SubmitSkillTextRequest): Promise<SkillAttemptDto> {
+        return apiFetch<SkillAttemptDto>("/api/skill-attempts", {
+            method: "POST",
+            json: body,
+            auth: true,
+        }).then(afterSkillAttempt);
+    },
+
+    /** Soumet une production orale (section EO, multipart). Les identifiants
+     *  passent en query (`@RequestParam` côté backend) : poser `json` écraserait
+     *  le boundary du FormData. */
+    submitAudio(opts: {
+        skillPromptId: string;
+        audio: Blob;
+        durationSec: number;
+        selfEvaluation?: SkillSelfEvaluation | null;
+        requestAnalysis: boolean;
+        filename?: string;
+    }): Promise<SkillAttemptDto> {
+        const fd = new FormData();
+        fd.append("audio", opts.audio, opts.filename ?? audioFilename(opts.audio.type));
+        const qs = new URLSearchParams({
+            skillPromptId: opts.skillPromptId,
+            durationSec: String(opts.durationSec),
+            requestAnalysis: String(opts.requestAnalysis),
+        });
+        if (opts.selfEvaluation) qs.set("selfEvaluation", opts.selfEvaluation);
+        return apiFetch<SkillAttemptDto>(`/api/skill-attempts?${qs.toString()}`, {
+            method: "POST",
+            body: fd,
+            auth: true,
+        }).then(afterSkillAttempt);
+    },
+
+    /** Polling du résultat. 404 (pas 403) si la tentative n'est pas au user. */
+    getAttempt(id: string): Promise<SkillAttemptDto> {
+        return apiFetch<SkillAttemptDto>(`/api/skill-attempts/${id}`, {auth: true}).then(
+            afterSkillAttempt,
+        );
+    },
+
+    /** Historique des tentatives sur un sujet, plus récente d'abord. */
+    listAttempts(promptId: string, limit = 5): Promise<SkillAttemptDto[]> {
+        return apiFetch<SkillAttemptDto[]>(
+            `/api/skill-prompts/${promptId}/attempts?limit=${limit}`,
+            {auth: true},
+        );
+    },
+
+    /** Analyses IA restantes. `remaining === -1` = illimité (jamais affiché tel quel). */
+    analysisQuota(): Promise<SkillAnalysisQuotaDto> {
+        return apiFetch<SkillAnalysisQuotaDto>("/api/skills/analysis-quota", {auth: true});
+    },
+
+    /** Demande l'analyse IA d'une tentative déjà `RECORDED` (produite sans IA).
+     *  Sert au candidat qui produit d'abord et s'abonne ensuite : la production
+     *  est déjà en base, seule l'analyse manque. Consomme un quota. */
+    requestAnalysis(id: string): Promise<SkillAttemptDto> {
+        return apiFetch<SkillAttemptDto>(`/api/skill-attempts/${id}/analyse`, {
+            method: "POST",
+            auth: true,
+        }).then(afterSkillAttempt);
+    },
+
+    /** Relance l'analyse d'une tentative FAILED. Ne re-consomme pas le quota. */
+    retryAnalysis(id: string): Promise<SkillAttemptDto> {
+        return apiFetch<SkillAttemptDto>(`/api/skill-attempts/${id}/retry`, {
+            method: "POST",
+            auth: true,
+        }).then(afterSkillAttempt);
     },
 };
 

@@ -56,6 +56,7 @@ lib/
 │   ├── utils/
 │   │   └── selected_module.dart   Provider du module actif (CIVIQUE/TCF)
 │   └── widgets/                   Primitives UI réutilisables
+│       ├── audio_player.dart      SejourAudioPlayer (just_audio, source distante)
 │       ├── sejourfr_logo.dart     Cocarde + Wordmark + Tagline
 │       ├── app_button.dart        Primary / Secondary / Ghost / Danger
 │       ├── app_card.dart
@@ -90,24 +91,33 @@ lib/
     │   ├── production_exam_briefing_sheet.dart  Briefing modal examen 3-tâches EE/EO (enum vit dans tcf_production/)
     │   └── widgets/module_detail_widgets.dart Layout partagé (topbar, hero, stats, score card)
     │   (NB : TCF EE/EO n'a plus d'écran "détail" ni "sujets" ici — remplacés par
-    │    tcf_production/tcf_expression_screen.dart, cf. plus bas)
+    │    le parcours tcf_production/, cf. plus bas)
     ├── exam/                      Écrans de résultat et rapport d'examen blanc (le setup a été supprimé,
     │                              le tirage d'examen blanc se fera depuis la carte sombre des hubs)
     ├── question_runner/           Le runner partagé (le cœur de l'app)
     │   ├── runner_controller.dart Riverpod controller avec state d'attempt
     │   ├── runner_screen.dart
     │   └── widgets/
-    │       ├── audio_player.dart  SejourAudioPlayer (just_audio)
     │       ├── question_media_view.dart Dispatch image/audio/vidéo
+    │       │                      (le player vit dans core/widgets/audio_player.dart)
     │       ├── choice_tile.dart   4 états visuels
     │       ├── exam_timer.dart    Chrono décompte
     │       └── explanation_box.dart Bloc correction post-réponse
     ├── tcf_production/            EO + EE (productions évaluées par IA)
-    │   ├── tcf_expression_screen.dart   2 écrans : TcfExpressionScreen (hub /tcf/eo|ee :
-    │   │                                carte examen blanc + 3 tâches + historique) et
-    │   │                                TcfTaskTrainingScreen (/tcf/{eo,ee}/tache/:n : toggle
-    │   │                                Sujets/Exemples + liste ; tap sujet → fiche consigne+plan
-    │   │                                → Enregistrer/Rédiger ou Refaire/Voir le rapport).
+    │   ├── production_parcours_screen.dart  ProductionParcoursScreen — **l'écran
+    │   │                                unique du parcours** : en-tête, barre du module,
+    │   │                                tâche courante, et les 3 modes en IndexedStack.
+    │   │                                Toutes les routes de mode le construisent.
+    │   ├── production_subjects_tab_view.dart  mode « Sujets » (corps seul) :
+    │   │                                pastilles T1/T2/T3 + liste ; tap sujet →
+    │   │                                fiche consigne+plan → Enregistrer/Rédiger
+    │   │                                ou Refaire/Voir le rapport.
+    │   ├── production_exams_tab_view.dart  mode « Examens » (corps seul).
+    │   ├── production_catalog.dart      catalogue d'une épreuve (sujets +
+    │   │                                productions), mis en cache pour la session.
+    │   ├── competences/                 Module « Compétences TCF » : 4 écrans (liste,
+    │   │                                détail, petit sujet, résultat) + providers + widgets.
+    │   │                                Cf. § dédié plus bas.
     │   ├── tcf_production_module.dart   Enum TcfProductionModule (EO/EE) partagé écran + briefing
     │   ├── audio_recorder_service.dart  record 6 + permission_handler + audio_session
     │   ├── draft_service.dart           Brouillon EE en SharedPreferences
@@ -236,6 +246,14 @@ change un DTO, mettre à jour le model Dart correspondant.
 - Les controllers métier sont des `StateNotifier<AsyncValue<T>>` ou `StateNotifier<T>` exposés via un
   `StateNotifierProvider`.
 - Pour les listes serveur, utiliser `FutureProvider.autoDispose` + `ref.refresh(...)` pour le pull-to-refresh.
+- **Exception assumée : le contenu de catalogue d'un parcours qu'on parcourt par onglets.**
+  Un `autoDispose` jette ses données dès qu'on quitte l'écran, donc refetche au retour — ce
+  qui rendait le parcours TCF EE/EO lourd (une bascule = un appel). Le remède est
+  `ref.keepAlive()` **dans** le provider (l'erreur, elle, n'est jamais cachée :
+  `link.close()` dans le `catch`), et une **invalidation explicite** aux points où la
+  donnée du candidat change (soumission, analyse). Cf. `production_catalog.dart` et
+  `competences_providers.dart`. Ne pas cacher ce qui mesure la progression sans poser en
+  même temps son point d'invalidation.
 - Family providers pour les controllers paramétrés (ex: `runnerControllerProvider.family(attemptId)`).
 - `autoDispose` par défaut pour les providers liés à un écran — on garde la mémoire propre quand on quitte
   l'écran.
@@ -274,9 +292,9 @@ change un DTO, mettre à jour le model Dart correspondant.
   `didPopNext()`. ⚠ Ne pas se fier au `Future` d'un `context.push` pour ça : un flux qui fait
   des `pushReplacement` (briefing → résultats EE/EO) résout le push d'origine trop tôt, avant
   que la donnée (note d'évaluation) existe. L'observer est typé `PageRoute` → fermer un bottom
-  sheet ne déclenche pas de refetch. Pattern utilisé par `TcfTaskTrainingScreen` (liste des
-  sujets EE/EO). Combiner avec `async.when(skipLoadingOnReload: true)` pour éviter un spinner
-  plein écran au retour.
+  sheet ne déclenche pas de refetch. Pattern utilisé par `ProductionParcoursScreen` (parcours
+  EE/EO), qui n'invalide **que** la donnée du mode actif. Combiner avec
+  `async.when(skipLoadingOnReload: true)` pour éviter un spinner plein écran au retour.
 
 **UI**
 
@@ -516,9 +534,10 @@ pas « meilleur niveau » / « dernier examen » — il est annoté « partiel �
 - **TCF** = 4 modules officiels IRN + 1 bonus, **tous** avec un écran détail :
   - CO → `/tcf/co`, CE → `/tcf/ce` → `TcfQcmDetailScreen` → CTA "Commencer l'entraînement"
     → `POST /api/attempts` + push runner.
-  - EE → `/tcf/ee`, EO → `/tcf/eo` → `TcfExpressionScreen` : hub d'épreuve (carte examen
-    blanc + 3 tâches + historique). Tap une tâche → `TcfTaskTrainingScreen` (sujets +
-    exemples). Cf. § TCF Expression plus bas.
+  - EE / EO → **pas de hub d'épreuve** : on entre directement sur l'écran d'accueil du
+    parcours, `/tcf/{ee,eo}/tache/1/competences` (`AppRoutes.tcf{Ee,Eo}Entry`), et la
+    tâche se change par les pastilles T1/T2/T3. `/tcf/ee` et `/tcf/eo` restent déclarés
+    comme **alias en redirect**. Cf. § TCF Expression plus bas.
   - **Structure de la langue** → `/tcf/structure` → `TcfQcmDetailScreen` avec
     `TcfQcmModule.structure` (`questionType = STRUCTURE`). Bannière `_ModuleNoticeBanner`
     rendue sous le titre pour rappeler que le module n'est pas évalué au TCF IRN. Mêmes
@@ -554,8 +573,9 @@ bottom nav) :
   45 min, seuil 32) qui vit sur l'onglet Examens du hub.
 - `/tcf/co` et `/tcf/ce` → `TcfQcmDetailScreen` avec l'enum `TcfQcmModule.{co,ce}` qui porte
   l'intitulé, l'icône, le `QuestionType` et le label de durée.
-- `/tcf/eo` et `/tcf/ee` → `TcfExpressionScreen` (hub) ; `/tcf/{eo,ee}/tache/:n` →
-  `TcfTaskTrainingScreen`. Enum `TcfProductionModule.{eo,ee}` dans
+- `/tcf/eo` et `/tcf/ee` → alias en redirect vers l'entrée du parcours ;
+  `/tcf/{eo,ee}/tache/:n` → `ProductionParcoursScreen` (mode Sujets). Enum
+  `TcfProductionModule.{eo,ee}` dans
   `tcf_production/tcf_production_module.dart` (cf. § TCF Expression).
 
 Layout uniforme (`widgets/module_detail_widgets.dart`) :
@@ -665,28 +685,188 @@ Module distinct du runner QCM : l'utilisateur **produit** un audio (EO) ou un te
 qui le transcrit (Whisper) + le note via le correcteur unique configuré dans
 `sejourfr.production-evaluation` (DeepSeek par défaut) en 10-15 s. Cf. `CLAUDE.md` racine.
 
-**Deux écrans** (`tcf_expression_screen.dart`, remplacent l'ancien couple
-`TcfProductionDetailScreen` + `TcfProductionTaskSubjectsScreen` supprimés). Accents refonte
-2026 : **EO = rouge, EE = bleu** (cf. bloc IA de l'Accueil maquette).
+**Deux écrans**, un par fichier (`production_subjects_tab_view.dart`,
+`tcf_task_examples_screen.dart`) — le troisième, le hub d'épreuve
+(`tcf_expression_screen.dart`), est **supprimé** (cf. plus bas). Accents refonte 2026 :
+**EO = rouge, EE = bleu**, portés par `TcfProductionModule.accent` / `.accentDark`
+et **jamais recopiés**.
 
-1. **`TcfExpressionScreen`** — hub d'épreuve (`/tcf/eo`, `/tcf/ee`), même pattern que les
-   détails CO/CE : `ScreenHeader` + **3 cartes tâche** (`_TaskCard` maquette `MTasks` : chip
-   numéro 50, T1 EO badge « Présentation » rouge, description + nb de sujets) → push
-   `/tcf/{eo,ee}/tache/N` ; **historique en dessous** (stats, dernier examen blanc →
-   `…/sessions/{id}`, dernier entraînement → `…/resultats/{id}`, via `expressionHubProvider`) ;
-   bouton **« Examens blancs » fixé en bas** (`FixedActionBar`, accent du module) →
-   `ProductionExamsScreen` (10 slots).
+### Reprise sur la maquette client (passe 2026-08-06)
 
-2. **`TcfTaskTrainingScreen`** (`/tcf/{eo,ee}/tache/:n`) — entraînement d'une tâche :
-   `SegmentedTabs` **Sujets / Exemples**. Les **sujets** = lignes `production_tasks` du
-   (épreuve, tâche), marquées faite/non-faite (`listMine` → map
-   `production_task_id → dernière submission`), rendues en cartes maquette `MTask`
-   (`_ExerciseRow` : pastille mic/pen, énoncé, pill niveau + note /20, play/refaire).
-   **Tap un sujet non fait → l'entraînement démarre directement** (`startSingle(task)` +
-   briefing `/tcf/expression-{orale,ecrite}/t/0`) ; sujet fait → sheet Reprendre / Voir le
-   détail. La bannière de consigne (`_IntroCard`/`ConsigneCard`) est teintée accent module
-   avec liseré gauche 3 px. Segment **Exemples** = les **modèles**
-   (`GET /api/production-examples?…`) ; tap → modal texte + `explications` + audio EO.
+Le parcours entier suit `docs/skills/sejourfr_expression_ecrite_v3_competences.html`,
+comme le module Compétences avant lui — **c'est la même maquette, donc les mêmes
+briques**. Elles ont été **promues** de `competences/widgets/` vers
+`tcf_production/widgets/` et renommées `Production*` :
+
+- `production_hero.dart` — `ProductionHero` (+ `ProgressTrackOnDark`)
+- `production_task_pills.dart` — `ProductionTaskPills` (T1/T2/T3)
+- `production_blocks.dart` — `ProductionSectionHead`, `ProductionNotice`,
+  `ProductionTipline`, `ProductionIndexChip` (48×48 r16), `ProductionChevron`
+  (30×30), `PressableCard` (r23), `DashedBox`
+- `production_state_views.dart` — `ProductionErrorView`, `ProductionEmptyView`
+- `production_cards.dart` (**nouveau**) — `ProductionSubjectCard` (`.topic-card` +
+  liseré de statut). `ProductionTaskCard` (`.skill-card`, les 3 cartes de tâche du
+  hub) y vivait : supprimée avec le hub.
+- `production_common.dart` (**nouveau**) — `productionTaskMeta`, `SheetHandle`,
+  `BusyOverlay`, `MutedHint`, `ShowMoreButton`
+- `production_examples.dart` (**nouveau**) — `FeaturedExampleCard`, `StrategyCard`,
+  `ExampleDetailSheet`, `PlanSheet`
+
+⚠ **Ne pas recopier ces briques dans un écran** : elles sont partagées avec le module
+Compétences, une divergence se verrait au premier retouche.
+
+**Écrit et oral suivent exactement les mêmes écrans** : la maquette ne couvre que
+l'écrit, l'oral n'en diffère que par l'accent et par la zone de production
+(enregistreur au lieu de la saisie). Aucun écran, aucune section, aucun bloc
+supplémentaire d'un côté.
+
+**Navigation du module — `ProductionModuleBar`** (`widgets/production_module_bar.dart`) :
+la maquette a **deux** navigations pour les mêmes trois modes (`data-mode`). On ne
+reproduit **pas** `.mode-tabs` (barre du haut, redite) ; on reproduit `nav.bottom`,
+**barre fixe en bas** : carte blanche r22, padding 7, grille 3 colonnes gap 5, boutons
+r16 avec **icône au-dessus du libellé** (10 px, w800), sur un fondu vers le fond.
+Trois entrées : **Compétences · Sujets · Examens**, portées par
+`ProductionModuleTab`. Les chemins vivent dans `production_nav.dart` ; **une bascule ne
+navigue plus** — cf. « Un seul écran pour les trois modes » plus bas.
+⚠ **Aucune double barre** : les écrans du parcours TCF EE/EO sont déclarés **hors
+du `ShellRoute`** (cf. `app_router.dart`), la bottom nav globale n'y est pas rendue.
+Toute liste qui la porte réserve `ProductionModuleBar.reservedHeight` en bas.
+
+⚠ **Il n'y a plus rien au-dessus des trois modes.** Le hub d'épreuve est
+supprimé : les trois modes sont des **frères**, donc « retour » depuis l'un
+d'eux veut dire **quitter le parcours**, jamais sauter latéralement sur un
+autre mode. La règle vit à un seul endroit, `leaveProductionParcours`
+(`production_nav.dart`), appelé par le seul `ProductionParcoursScreen` : on
+dépile si on peut, sinon `/reviser`. Ne pas réécrire un `if (canPop)` local,
+et surtout ne pas y remettre `/tcf/{ee,eo}` en repli (ce path redirige vers le
+mode Compétences : le retour deviendrait une boucle).
+
+### Un seul écran pour les trois modes (passe fluidité 2026-08-06)
+
+Constat client : « changer de Compétences / Sujets / Examens, ou de Tâche 1/2/3,
+donne l'impression d'un appel au back et d'un changement d'écran lourd ». Deux
+causes, corrigées ensemble.
+
+1. **Chaque mode était une route**, et chaque bascule un `pushReplacement` :
+   l'arbre entier était démonté puis reconstruit (défilement perdu, animation de
+   page pour un déplacement latéral). Désormais **`ProductionParcoursScreen`**
+   (`production_parcours_screen.dart`) porte l'en-tête, la barre du module, la
+   tâche courante et le voile d'attente, et rend les trois corps
+   (`CompetencesTabView`, `ProductionSubjectsTabView`, `ProductionExamsTabView`)
+   dans un **`IndexedStack`**. Un mode quitté **reste monté** : filtres, « Voir
+   plus » et position de défilement survivent. Un mode **jamais ouvert n'est pas
+   construit** — on ne paie pas les appels d'un mode que le candidat n'a pas
+   demandé.
+   - Les chemins `/tcf/{ee,eo}/tache/:n{,/competences}` et
+     `/tcf/expression-{orale,ecrite}/examens?tache=N` **restent servis** (liens
+     profonds, retour arrière) : ils construisent tous cet écran avec le bon mode
+     de départ. En revanche **une bascule ne change plus l'URL** — c'est le prix
+     assumé, et c'est ce qui rend le retour arrière exact (une seule route à
+     dépiler = quitter le parcours).
+2. **Tous les providers étaient `autoDispose`**, donc quitter un mode jetait ses
+   données. Le cache est maintenant porté par **l'épreuve**, jamais par la tâche :
+   - `skillsSectionProvider` (`competences_providers.dart`) charge les **24
+     compétences de l'épreuve en un appel** (`GET /api/skills?section=EE|EO`) ;
+     `skillsListProvider` n'est plus qu'un **filtre local synchrone** par
+     `taskCode`. Les pastilles T1/T2/T3 ne touchent plus au réseau. **Repli**
+     conservé tant que le filtre `section` n'est pas déployé : les trois
+     `taskCode` en **une** passe parallèle, jamais un appel par bascule.
+   - `productionCatalogProvider` (`production_catalog.dart`) charge les sujets et
+     les productions de l'épreuve (`listTasks` + `listMine`, tous deux déjà portés
+     par l'épreuve — ils étaient redemandés à chaque tâche). `taskTrainingProvider`
+     et `expressionHubProvider` en **dérivent sans réseau** : arriver sur
+     « Examens » depuis « Sujets » ne coûte plus rien. Seuls les **modèles**
+     (`taskExamplesProvider`) restent portés par la tâche — l'endpoint exige
+     `tacheNumero`.
+   - **Ce qui reste frais.** Le cache ne doit jamais faire mentir la progression :
+     `productionCatalogProvider` et `skillsSectionProvider` sont invalidés
+     explicitement après une **soumission** ou une **analyse**
+     (`competence_prompt_screen`, `competence_result_screen`), au **retour d'un
+     flux poussé** (`ProductionParcoursScreen.didPopNext`, qui ne recharge que la
+     donnée du **mode actif** — un micro-sujet de compétence ne touche pas au
+     catalogue TCF), et au tiré-pour-rafraîchir. Le **quota d'analyses**
+     (`skillAnalysisQuotaProvider`) et les providers de détail
+     (`skillDetailProvider`, `skillPromptProvider`, `skillAttemptProvider`)
+     restent **`autoDispose`** : ils portent l'état du candidat sur un sujet
+     précis, on les veut frais à chaque ouverture.
+   - Les **bilans d'examen** (`examBilansProvider`) dépendent de la *liste d'ids*
+     des sessions, pas du catalogue entier : recharger le catalogue parce que le
+     candidat vient de produire un sujet ne relance pas N appels de bilan.
+   - Coût réseau, aller-retour T1 → T2 → T1 : **9 appels → 1** en Compétences,
+     **9 → 4** en Sujets (2 d'épreuve + 1 modèle par tâche visitée) ; tour des
+     trois modes : **7 → 2 + les bilans**. Verrouillé par
+     `test/production_parcours_caching_test.dart` (faux repositories qui
+     **comptent** les appels + test de widget prouvant que le mode quitté reste
+     monté).
+
+**« Exemples » n'est pas un mode** (la barre n'a que trois entrées) : c'est une
+ressource d'appoint, atteinte par un **bouton discret en tête de la liste des
+sujets** (`_ExamplesLink`) qui pousse `TcfTaskExamplesScreen`. Ne pas le
+réintroduire dans un toggle.
+
+1. **Le hub d'épreuve est SUPPRIMÉ** (passe 2026-08-06, demande client : « dès
+   qu'on vient du menu Réviser → EO ou EE, on arrive directement sur l'écran comme
+   celui du template »). `TcfExpressionScreen` — hero + 3 `ProductionTaskCard` +
+   historique récent + `FixedActionBar` « Examens blancs » — n'existe plus, parce
+   que la maquette n'a pas ce niveau : elle ouvre sur son écran d'accueil et change
+   de tâche par les **pastilles T1/T2/T3**.
+   - **Entrée du parcours** = le mode « Compétences » de la tâche 1
+     (`AppRoutes.tcf{Ee,Eo}Entry` = `/tcf/{ee,eo}/tache/1/competences`), le mode
+     actif par défaut de la maquette. Utilisée par Réviser
+     (`dashboardCategoryRoute`), l'Accueil (bloc IA) et les recommandations.
+   - **`/tcf/ee` et `/tcf/eo` restent des alias en redirect**, pas du code mort :
+     les écrans de résultats, de bilan de session et d'historique s'en servent
+     encore comme « racine de l'épreuve » quand la pile est vide.
+   - Ce que portait le hub : les **examens blancs** sont la 3ᵉ entrée de la barre
+     fixe du bas (`ProductionModuleTab.examens`) ; l'**historique récent** est
+     abandonné (« on l'oublie pour l'instant »), l'historique complet restant
+     atteignable par Profil → Mon entraînement → Mes historiques → EE/EO.
+   - `HubData` / `expressionHubProvider` (`expression_hub_data.dart`) **survivent** :
+     la page « Examens blancs » les consomme. La progression y reste calculée côté
+     client depuis les soumissions **déjà servies** par `listMine` (aucun endpoint
+     ajouté) : on repart des `tasks` publiées, donc un sujet retiré du catalogue ne
+     gonfle ni le numérateur ni le dénominateur, et un sujet repris deux fois ne
+     compte qu'une fois. Verrouillé par `test/production_parcours_test.dart`.
+
+2. **`ProductionSubjectsTabView`** (`/tcf/{eo,ee}/tache/:n`) — le mode « Sujets » :
+   `ProductionHero` (eyebrow « Tâche N », intention de la tâche, progression de la
+   tâche, pilule de contrainte lue sur le sujet), `ProductionTaskPills` (remontées
+   au parcours via `onTacheChanged`), le bouton **Exemples**, `ProductionSectionHead`,
+   `ExamFilterChips` **Tous / À faire / Traités** avec compteurs, puis les
+   **`ProductionSubjectCard`**. Barre du module en bas, « Sujets » actif.
+   **Tap un sujet non fait → l'entraînement démarre directement** (`startSingle` +
+   briefing `/tcf/expression-{orale,ecrite}/t/0`) ; sujet fait → sheet Voir le
+   détail / Refaire. Freemium inchangé : 1er sujet offert, suivants → paywall, le
+   verrou suit **l'index d'origine**, jamais l'index filtré.
+   - **Info one-time « Un essai gratuit par épreuve »** (`showAppSheet`, posée en
+     `initState` + post-frame) : 1 essai d'entraînement offert **par épreuve** +
+     1 examen blanc de production offert (règle backend
+     `ProductionAccessService.enforceQuota`). Mémorisée par épreuve dans
+     `SharedPreferences` sous **la même clé que le web**
+     (`sejourfr.prodQuotaInfo.TCF_{EE,EO}`, `prodQuotaInfoKey`), **jamais montrée
+     à un abonné TCF**. Le mobile ne l'avait **jamais eue** (elle n'existait que
+     sur le web, sur le hub d'épreuve supprimé) — ajoutée ici par parité.
+     ⚠️ Elle vit sur **cet écran et nulle part ailleurs** : c'est le seul de
+     l'épreuve où la règle s'applique, et il précède l'écran qui consomme
+     l'essai. **Surtout pas sur l'écran d'entrée** (mode « Compétences ») : les
+     micro-exercices ne verrouillent aucun sujet et ont leur **propre** quota
+     (analyses IA offertes) — l'y afficher annoncerait une règle fausse.
+   - Données : `taskTrainingProvider` (`task_training_data.dart`), **dérivé sans
+     réseau** de `productionCatalogProvider`. L'écran des exemples lit directement
+     `taskExamplesProvider` : il n'a que faire des productions du candidat.
+
+3. **`TcfTaskExamplesScreen`** (`/tcf/{eo,ee}/tache/:n/exemples`) — les **modèles**
+   (`GET /api/production-examples?…`, appel inchangé) : `FeaturedExampleCard` (lecteur
+   inline en oral, bouton corrigé à l'écrit), `StrategyCard` → `PlanSheet`,
+   `ProductionNotice`. 1er modèle offert, suivants → paywall.
+
+**Carte d'exercice** (`widgets/consigne_card.dart`, partagée EE + EO + écran de fin) :
+c'est le `.exercise` de la maquette — carte blanche r28, padding 18, pastille de
+critère teintée de l'accent + repère « Tâche i/N » à droite, titre d'intention,
+consigne, encadré de contexte, chips de contraintes. Les paramètres ajoutés
+(`step`, `contexte`, `requirements`) sont **optionnels** : les appelants historiques
+(variantes compactes `maxLines` des écrans d'enregistrement et de fin) sont
+inchangés.
 
 L'**examen blanc** (session 3 tâches enchaînées) reste fidèle au vrai TCF : **aucune correction
 entre T1/T2/T3** ; après T3 → bilan détaillé (`HistorySessionScreen` `?live=1`, polling IA).
@@ -885,7 +1065,7 @@ flag `isExam` + le `slotNumber`. Points d'entrée :
 `ProductionProgressStrip`, ancré sur `attempt.startedAt` + `timeLimitSeconds` (module ; survit à un
 kill/reprise) ou 1800 s côté front (examen complet, pas de `timeLimitSeconds` backend). À 0:00 :
 auto-soumission du texte courant **s'il est recevable** (mots ∈ [motsMin, motsMax],
-bornes strictes TCF IRN : 30–60 / 60–90 / 60–90), sinon rien ;
+bornes strictes TCF IRN : 30–60 / 40–90 / 40–90), sinon rien ;
 puis `finish` (module) / `markSubDone` (complet) ; puis bilan.
 
 **Chrono d'examen EO (15:00)** : `eo_briefing_screen` rend le même `ExamTimer` dans le `trailing` du
@@ -934,6 +1114,311 @@ Les ex `SessionProgressScreen` / `SessionBilanScreen` / `session_view.dart` ont 
 
 **Backend gotcha relayé** : le DTO `Attempt` du backend renvoie `totalQuestions=null` pour les attempts de
 type production. `core/models/attempt_models.dart` coerce `null → 0` pour ne pas casser le parsing existant.
+
+## Compétences TCF (`screens/tcf_production/competences/`)
+
+Espace **voisin** des sujets TCF complets, jamais un remplacement : on y travaille **un
+critère à la fois** sur de petits sujets de production ouverte. 6 tâches × 8 compétences ×
+5 petits sujets, chacun avec 3 références comparatives écrites en base.
+
+**Les 5 niveaux** : épreuve → tâche → *deux espaces* (Sujets | **Compétences** | Exemples)
+→ une compétence → un petit sujet → son résultat.
+
+### Fidélité au prototype client (passe de reprise)
+
+Le module suit **la maquette du client**
+(`docs/skills/sejourfr_expression_ecrite_v3_competences.html`) : structure,
+hiérarchie, géométrie **et navigation**. Trois règles qui ne se négocient pas :
+
+1. **On reproduit le prototype**, y compris son accueil (hero, pastilles de
+   tâche, encart pédagogique) et sa carte d'exercice.
+2. **Les couleurs restent celles de l'app** : `AppColors.*` / `AppFonts.*` /
+   `LucideIcons.*` exclusivement. Il manque une teinte ⇒ on **ajoute une entrée
+   au thème**, jamais un `Color(0xFF…)` dans un écran. Le module est à **zéro
+   hex** et doit le rester.
+3. **On ne reproduit PAS la barre d'onglets du haut** du prototype
+   (« Compétences | Sujets TCF | Examens blancs ») : cette navigation existe
+   déjà en bas de l'app.
+
+Ajouts au thème faits pour ça (`core/theme/app_theme.dart`) :
+- **`AppColors.amberDark`** — l'ambre **de texte**. `AppColors.amber` est un
+  ambre de *remplissage*, illisible en lettres : c'est lui qui avait produit le
+  hex en dur de `core/widgets/app_tag.dart`. Toute mention ambre écrite (badge
+  « À renforcer », tipline) passe par `amberDark`.
+- **`AppGradients.hero(from, to)`** + **`AppGradients.premium`** — un hero se
+  peint avec l'accent de son module, pas avec un dégradé écrit dans l'écran.
+
+Et deux conventions transverses :
+- **`TcfProductionModule.accent` / `.accentDark`** portent l'accent du module
+  (EO rouge, EE bleu). Les quatre écrans recopiaient le même ternaire :
+  ne pas le réintroduire.
+- **L'accent descend en paramètre optionnel** (bleu par défaut) dans les
+  widgets partagés utilisés par le module — `AppTag.compact`,
+  `ExamFilterChips.accent`, `WritingZone.accent`. La valeur par défaut préserve **au pixel près**
+  le rendu des appelants historiques : ne jamais la changer pour arranger un
+  seul écran.
+
+Briques de la maquette, dans `competences/widgets/` :
+`competences_hero.dart` (hero en dégradé + progression globale),
+`competences_task_pills.dart` (T1/T2/T3, filtre local — cf. la passe fluidité),
+`competences_blocks.dart` (intertitre, encart « notice », tipline ambre,
+pastille de numéro **48×48 r16 — une seule forme partout**, chevron 30×30,
+`PressableCard` = ombre douce + enfoncement au toucher, `DashedBox` = la
+bordure pointillée que Flutter n'a pas nativement).
+
+### L'écran d'un petit sujet — il fait produire, il n'explique pas
+
+Refonte 2026-08-06 (verdict client sur la version précédente : « beaucoup trop
+verbeux et pas du tout intuitif »). Référence :
+`~/Downloads/saisi_ee-competence.png`.
+
+**Le critère de réussite est mesurable et verrouillé par des tests** : la zone
+de production doit être **visible sans défiler** sur un téléphone standard
+(`test/competence_prompt_layout_test.dart`, qui pompe le vrai écran à 390×844
+et 375×812 et compare la position du champ au haut du `FixedActionBar`). Tout
+ce qu'on ajoute au-dessus de la carte « Ta réponse » se paie en défilement
+et fera tomber ces tests — c'est le but, ne pas les assouplir. Ce qu'on ajoute
+**sous** la zone (lecteur de réécoute, avertissement de transcription) ne les
+concerne pas : c'est là qu'on met la matière nouvelle.
+
+Structure, de haut en bas (`competence_prompt_screen.dart`) :
+1. en-tête (`ScreenHeader`) ;
+2. `_PromptMetaRow` — `Sujet i/N` à gauche, pilule de palier à droite ;
+3. `_SkillProgressBar` — libellé réduit à **« Progression »** ;
+4. `SkillChecklistCard` « Ce qu'il faut faire » ;
+5. `SkillSituationCard` « Situation » ;
+6. `SkillConstraintRow` — puce de longueur **puis** étiquettes de contrainte ;
+7. `SkillAnswerCard` « Ta réponse » — icône **crayon à l'écrit, micro à
+   l'oral** — zone de production + pied de carte (astuce à gauche,
+   compteur/durée à droite) ;
+8. à l'oral seulement : `SkillTranscriptNotice`, **sous** l'enregistreur ;
+9. **sous** la zone : le reste d'analyses offertes (compte gratuit uniquement),
+   tipline ;
+10. `FixedActionBar` : `Valider et comparer` · `Effacer`.
+
+**Ont été supprimés** (et leurs widgets avec — `criterion_highlight.dart`,
+`self_evaluation_picker.dart` et `analysis_toggle.dart` n'existent plus) : le
+fil d'Ariane sur deux lignes, les badges « Une compétence · un critère » et
+« Petit sujet i/N », le titre « Produis ta propre réponse. », le paragraphe
+d'objectif, l'encart « Compétence évaluée », l'encart « Pourquoi cet
+exercice ? », les puces méta « Accessible » / « Un seul critère »,
+**l'auto-évaluation** et **la bascule d'analyse IA**.
+
+**Parité écrit ⇄ oral par construction** : `SkillAnswerCard` est **une seule
+coque** pour les deux épreuves. Seuls changent le `child` (champ de saisie ⇄
+`SkillRecorderPanel`) et le `meta` (compteur de mots ⇄ durée). Ne pas refaire
+un écran oral à part.
+
+**Les 4 champs de guidage** (`SkillPromptDto.checklist`, `constraintTags`,
+`answerStarter`, `tip`, backend V026 + V306-311) sont **tous facultatifs** — un
+sujet créé depuis la console d'administration peut naître sans guidage. La
+dégradation est un contrat, pas un cas limite : pas de check-list ⇒ la carte
+retombe sur la **consigne** ; pas d'étiquette ⇒ seule la puce de longueur ; pas
+d'amorce ⇒ texte grisé neutre ; pas d'astuce ⇒ pied de carte réduit au
+compteur. **Jamais de carte vide, jamais de « null » à l'écran.**
+
+- La **puce de longueur** est générée par le front depuis les bornes en base
+  (`skillLengthHint`) — `≈ 15–35 mots` à l'écrit, `≈ 45 secondes` à l'oral.
+  Une étiquette de contrainte ne doit **jamais** la dupliquer. Règles alignées
+  au mot près sur le web (`lib/skill-guidance.ts`) : **au-delà de 60 s on écrit
+  en minutes** (`≈ 1 min 30`, jamais « 90 secondes »), et **une seule borne de
+  mots reste une consigne** (`≈ 15 mots minimum` / `≈ 35 mots maximum`) au lieu
+  de disparaître.
+- **Plafonds de guidage appliqués à l'affichage** : `skillChecklist` (4 gestes)
+  et `skillConstraintTags` (3 étiquettes), mêmes valeurs que le web. Le DTO
+  reste fidèle au serveur ; c'est le rendu qui tronque, pour qu'une saisie
+  d'administration trop généreuse déborde en base et non à l'écran (une 2ᵉ ligne
+  d'étiquettes coûte la ligne de flottaison).
+- La table **icône ↔ code d'étiquette** est unique et exhaustive
+  (`skillConstraintIcon`, `prompt_guidance.dart`), avec
+  `SkillConstraintIcon.unknown` comme repli d'un code non prévu. Ne pas
+  disperser un second `switch`.
+- Le **corps des cartes de guidage prend toute la largeur** : la référence
+  l'aligne sous le titre, mais sur un téléphone étroit ce retrait de 40 px
+  coûtait une ligne de repli par paragraphe — donc la zone de production sous la
+  ligne de flottaison. Adaptation responsive assumée.
+- `SkillRecorderPanel` **ne porte pas son propre cadre** : il vit dans
+  `SkillAnswerCard`, là où l'écrit met son champ. Lui rendre une bordure
+  blanche referait une carte dans une carte.
+- **Réécoute AVANT de valider** (parité web) : capture terminée ⇒ le panneau
+  monte le `SejourAudioPlayer` partagé sur le fichier **local** (rien n'est
+  encore parti sur le réseau) + l'invite « Réécoute ta réponse, refais-la ou
+  envoie-la à l'évaluation. ». Une coche et « Réenregistrer » faisaient envoyer
+  à l'évaluation une production que le candidat n'avait pas entendue. Le lecteur
+  partagé accepte désormais une URL `http(s)`, une URI `file://` **ou un chemin
+  brut** (`_setSource` route vers `setFilePath`) — c'est ce qui évite un second
+  lecteur pour trois lignes d'écart.
+- **Compteur du pied de carte** : format du web (`0:12 / 0:45` à l'oral —
+  écoulé / durée conseillée ; `20 / 35 mots` à l'écrit) et **trois teintes**
+  (`SkillMetaTone`) — neutre tant que rien n'est produit, **vert dans la
+  cible**, `amberDark` au-delà. Sans le vert, le candidat n'a que « rien » ou
+  « trop » et n'apprend jamais qu'il est bon.
+- **`SkillTranscriptNotice` (spec §15)** : la note se fonde sur la
+  transcription ; prononciation, accent et intonation ne sont **pas** évalués.
+  C'est le garde-fou central de l'oral — rendu sous l'enregistreur, jamais
+  au-dessus (le micro ne recule pas).
+- `SkillWritingField` est volontairement **distinct de `WritingZone`** (le gros
+  éditeur des sujets TCF complets, avec stats, barre de progression et
+  confirmation d'effacement) : ici le compteur et l'astuce vivent dans le pied
+  de la carte. Ne pas rebrancher `WritingZone` sur cet écran.
+
+Points de comportement à ne pas défaire :
+- **La consigne est traduite en gestes AVANT la production** : la check-list
+  remplace le critère abstrait, et l'ordre reste guidage → situation →
+  contraintes → saisie. Le critère brut du sujet n'est plus montré tel quel.
+- **La fourchette de longueur avertit, elle ne bloque pas** (règle 15). Le
+  plafond de 400 mots est un garde-fou **serveur** : il s'affiche en avertissement
+  et ne désactive plus le bouton de validation.
+- **L'analyse IA n'est pas une option, et elle ne se déverrouille pas.** L'écran
+  de saisie n'a plus de bascule : l'analyse est demandée dès que le compte y a
+  droit (abonné, ou analyses offertes restantes). Quand il n'y a plus droit, la
+  soumission part **sans** analyse au lieu d'échouer en 403 — c'est l'écran de
+  résultat qui invite à s'abonner. Reste, sous la zone de production et pour un
+  compte gratuit seulement, une **information** : « Ta réponse sera analysée par
+  l'IA. Il te reste N analyses offertes. » La retirer ferait consommer un quota
+  à l'insu du candidat ; la retransformer en interrupteur redonnerait une
+  décision à prendre au pire moment.
+- **Au résultat, l'analyse s'affiche dépliée** — c'est le retour qui vient
+  d'être mérité. Le bandeau « Analyse IA du critère » et son bouton « Voir » ne
+  subsistent **que** quand il n'y a rien à montrer (quota épuisé, production
+  sans analyse, analyse en échec) : son action ouvre alors `showPaywallSheet`.
+  Symétriquement, **les références comparatives sont repliées par défaut** dès
+  qu'une analyse est affichée (intertitre tappable, « Comparer » ⇄ « Masquer »),
+  et **ouvertes** quand il n'y a pas d'analyse — elles sont alors le seul retour
+  de l'écran. Replier ne coupe aucun appel : la liste est chargée de toute
+  façon, c'est elle qui décide si la section existe. L'ordre du contrat ne
+  bouge pas : accusé → production → analyse → références → actions.
+  Verrouillé par `test/competence_result_screen_test.dart` et
+  `test/competence_prompt_analysis_test.dart`.
+- **La barre « Progression · X/N »** de l'écran d'un petit sujet est **calculée
+  côté client** depuis `skillDetailProvider` (déjà en cache : l'écran est poussé
+  depuis le détail). Aucun endpoint n'a été inventé ; en deep link direct la
+  barre disparaît plutôt que d'afficher un chiffre faux.
+- **Le liseré vertical d'une carte de sujet n'existe QUE si le sujet est traité**
+  (3 px, en retrait de 17 px haut et bas) — un liseré gris permanent ne repère
+  plus rien.
+- **Couleurs des références** : `Insuffisant` rouge, `Attendu` vert,
+  `Très réussi` bleu (`skillReferenceColor`, `skill_references_tabs.dart`).
+  Ce n'est **pas** un niveau CECRL : la règle « jamais de rouge sur un niveau »
+  ne s'y applique pas, le rouge y dit « contre-exemple ». Le verdict `PARTIEL`,
+  lui, prend **`amberDark`** (`skillCriterionColor`) : cette couleur habille
+  aussi le **libellé**, et `amber` est un ambre de remplissage illisible en
+  lettres.
+- **Le titre des références part avec son contenu** (`_ReferencesSection`) :
+  aucune référence ⇒ ni intertitre « Compare avec les niveaux de référence », ni
+  widget vide dessous. Il reste pendant le chargement et sur erreur — là, il y a
+  bien quelque chose à annoncer.
+- **La validation reste dans un `FixedActionBar`** (§13.10), désormais avec le
+  bouton secondaire « Effacer » à côté.
+
+**Routes** (`AppRoutes`, `moduleKey ∈ {ee, eo}`) :
+- `/tcf/:moduleKey/tache/:tacheNumero/competences` → `ProductionParcoursScreen`
+  (mode Compétences ; le corps est `CompetencesTabView`)
+- `/tcf/:moduleKey/competences/:skillId` → `CompetenceDetailScreen`
+- `/tcf/:moduleKey/competences/:skillId/sujet/:promptId` → `CompetencePromptScreen`
+- `/tcf/:moduleKey/competences/resultat/:attemptId` → `CompetenceResultScreen`
+
+Les quatre patterns ont des longueurs de chemin différentes (`resultat` est un littéral) :
+aucune ambiguïté go_router, l'ordre de déclaration n'a pas d'effet.
+
+**Modèle / réseau** : `core/models/skill_models.dart` + `core/api/skill_repository.dart`
+(provider dans `core/api/repositories.dart`). ⚠ Le `Difficulty` de `core/models/enums.dart`
+porte les paliers CSP/CR/NAT/A2/B1/B2 et **n'est pas** le `Difficulty` EASY/MEDIUM/HARD du
+backend : ce dernier vit sous le nom `SkillDifficulty` dans `skill_models.dart`. Ne pas les
+fusionner.
+
+**State** (`competences_providers.dart`) : `skillsSectionProvider` charge **l'épreuve
+entière en un appel** et est **gardé en vie pour la session** (`ref.keepAlive`, erreur non
+cachée) ; `skillsListProvider` est un `Provider` **synchrone** qui filtre par `taskCode`
+(clé value-object `SkillsKey`) — changer de pastille ne coûte rien. Les lectures **par
+sujet** restent `FutureProvider.autoDispose.family` (`skillDetailProvider` /
+`skillPromptProvider` / `skillReferencesProvider` / `skillAttemptProvider` /
+`skillAnalysisQuotaProvider`) : elles portent l'état du candidat sur un sujet précis, on
+les veut fraîches. La soumission passe par un `StateNotifierProvider.autoDispose.family`
+(`skillSubmissionProvider`), après quoi `invalidateSkillsSection` **doit** être appelé —
+sans ça la liste afficherait un « X/N sujets traités » périmé. Les chemins se construisent
+dans `competences_nav.dart`, jamais recollés à la main.
+
+**Statuts d'un petit sujet** (dérivés **côté serveur**, jamais recalculés ici) :
+`TODO` « À faire » · `TREATED` « Fait » · `VALIDATED` « Validé » · `TO_REINFORCE`
+« À renforcer ». `TREATED` est l'état d'une production **sans** analyse IA : sans verdict de
+critère, l'afficher « Validé » ou « À renforcer » serait faux. `skill_status_badge.dart` est
+le **seul** endroit qui décide de la teinte d'un statut — badge, liseré vertical de carte et
+pastille de numéro en dérivent tous.
+
+**Deux textes de compétence, deux endroits** : `skill.generalCriterion` (« le critère
+général travaillé ») reste **toujours visible** dans l'encart **« Critère travaillé »** de la
+carte de résumé ; `skill.description` (« une courte explication ») n'est **plus dans le corps
+de la carte** — six lignes y repoussaient le critère et la liste des sujets (verdict client :
+« elle prend trop de place »). Elle vit derrière la **pastille d'information** en haut à
+droite de la carte (`_SkillInfoButton`, `competence_detail_screen.dart`) : dessin 30×30, zone
+tactile 44×44, libellé « À quoi sert cette compétence ? » en `Semantics` **et** en `Tooltip`,
+tap → `showAppSheet` (titre = nom de la compétence, corps = l'explication). **Description
+vide ou absente ⇒ pas de pastille du tout** — jamais un bouton qui ouvre une feuille vide.
+Verrouillé par `test/competence_detail_summary_test.dart` ; même geste côté web. Ne pas les
+rendre au même endroit, et ne confondre ni l'un ni l'autre avec `SkillPromptDto.uniqueCriterion`, le
+critère précis d'UN petit sujet. L'écran de sujet lit `skillDescription`,
+`skillGeneralCriterion`, `skillPromptCount` et `skillTargetLevel` **portés par le sujet
+lui-même** : le fil d'Ariane « Sujet i/N », le palier et l'encart n'entraînent **aucun**
+appel à `GET /api/skills/{id}`. ⚠ Supprimer un appel réseau ne doit jamais coûter un
+affichage : le palier est exigé sur l'écran d'un petit sujet (spec §3 niveau 5).
+
+**Réécoute de l'oral** (spec §15 : « l'oral conserve l'audio ») : l'écran de résultat d'une
+tentative EO monte `SejourAudioPlayer` (`core/widgets/audio_player.dart`, déplacé là depuis
+`question_runner/` le jour où un 3ᵉ domaine en a eu besoin) sur `attempt.audioUrl` — URL R2
+présignée 15 min. Le lecteur s'habille via `label`/`icon`/`accent`/`background` ; on ne le
+forke pas. La durée seule ne suffit pas : se réécouter en lisant l'analyse fait la moitié de
+la valeur pédagogique de l'oral. **Le même lecteur sert la réécoute d'avant validation** sur
+l'écran de saisie, monté sur le fichier local — deux lecteurs pour un même geste finiraient
+par diverger.
+
+**Libellés du bandeau « Sujet déjà traité »** (identiques au web, mot pour mot) : EE →
+**« Reprendre ma réponse »** (recharge la dernière production dans la zone d'écriture via
+`lastAttemptId`) ; EO → **« Écouter ma dernière réponse »** (ouvre l'écran de résultat de
+`lastAttemptId`). **Une seule action par section**, jamais deux. Le bandeau est
+**tenu sur une ligne** (toute la carte est tappable) : en pavé — pastille, deux
+lignes de méta, bouton pleine largeur — il suffisait à repousser la zone de
+production sous la ligne de flottaison dès la deuxième visite d'un sujet.
+
+**Règles UX à ne pas défaire** (spec §13) : la consigne est traduite en gestes **avant** la
+production ; les références n'apparaissent **jamais** avant qu'une tentative existe (garde
+serveur : 403) ; le statut se met à jour immédiatement au retour (`RouteAware.didPopNext` →
+`ref.invalidate` sur la liste et le détail) ; le retour IA est **au-dessus** des
+références ; l'accès au sujet suivant n'est jamais bloqué (`nextPromptId` nul ⇒ bouton
+désactivé, pas de verrou) ; le bouton de validation vit dans un `FixedActionBar`.
+
+**Jamais de note /20 ni de niveau CECRL sur un micro-exercice** (interdit par §9 de la
+spec) : l'analyse rend 4 champs courts — verdict, point réussi, priorité, reformulation —
+plus un verdict de critère `VALIDATED | PARTIAL | NOT_VALIDATED`. C'est une voie
+**parallèle** à la notation des productions complètes (rubriques v8), pas une réutilisation.
+
+**Freemium** : **aucun sujet n'est verrouillé**. Produire et lire les 3 références sont
+gratuits partout. Seule l'**analyse IA** est premium, avec des analyses offertes à vie aux
+comptes gratuits (`GET /api/skills/analysis-quota`). L'écran de sujet ne demande plus rien :
+il demande l'analyse quand `canAnalyse`, s'en passe sinon (aucun 403 provoqué), et se
+contente d'annoncer le reste du quota. `remaining == -1` signifie **illimité** et ne doit
+jamais s'afficher tel quel. Un 403 à la soumission passe quand même par
+`showPaywallOrError` — le serveur reste l'arbitre.
+
+**Oral** : la capture réutilise `AudioRecorderService` / `recordingControllerProvider`
+(panneau `SkillRecorderPanel`). Le plafond de capture est **180 s**, aligné sur la borne
+serveur — la durée conseillée du sujet reste indicative et ne coupe jamais la parole. La
+**transcription n'est produite que si une analyse IA est demandée** (on ne paie pas Whisper
+pour rien) : une tentative EO `RECORDED` n'a donc pas de texte à relire, et l'écran de
+résultat le dit au lieu d'afficher un vide.
+
+**Polling du résultat** : 3 s, arrêt sur `statut.isFinal` ou au bout de **120 s**.
+`RECORDED` et `FAILED` sont des statuts **finaux** : on saute le bloc IA et on va droit aux
+références. ⚠ **Le plafond est partagé avec le web** (`CompetenceResult`) et vaut désormais
+120 s des deux côtés : les deux fronts avaient suivi des contrats différents (90 s ici,
+40 tirages là-bas), donc une analyse aboutissant en 100 s réussissait sur le web et échouait
+sur mobile. On retient la plus généreuse — échouer une analyse qui allait aboutir est le pire
+des deux défauts. Le changer d'un seul côté rouvre l'écart.
+
+**Libellés figés par le contrat sur l'écran de résultat** (mot pour mot avec le web) :
+**« Ce qui est réussi »** / **« À travailler en priorité »** pour les deux blocs de retour, et
+**« Retour aux petits sujets »** pour l'action de sortie — « Retour aux sujets » se confondait
+avec le mode « Sujets » TCF, qui est un tout autre écran (spec §4).
 
 ## Examen blanc TCF complet (orchestration des 4 épreuves)
 

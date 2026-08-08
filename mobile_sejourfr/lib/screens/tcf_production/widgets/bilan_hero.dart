@@ -22,6 +22,7 @@ class BilanHero extends StatelessWidget {
     required this.moyenneSur20,
     required this.niveauGlobal,
     this.correspondanceTcf,
+    this.needsRetry = false,
   });
 
   /// Moyenne des notes /20 (null tant qu'aucune submission n'a été évaluée).
@@ -34,6 +35,12 @@ class BilanHero extends StatelessWidget {
   /// Fourchette de note officielle du TCF pour ce niveau (backend). Null tant
   /// qu'aucun niveau n'est exploitable — le bloc n'est alors pas rendu.
   final CorrespondanceTcf? correspondanceTcf;
+
+  /// Au moins une production rendue dont l'évaluation IA a échoué. Le serveur
+  /// suspend alors le niveau d'épreuve — il ne compte pas 0 une tâche que le
+  /// candidat a bien rendue. Le dire « en cours » serait faux et sans fin :
+  /// c'est une relance qui débloque le niveau. Même formulation que le web.
+  final bool needsRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -171,8 +178,9 @@ class BilanHero extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Grille officielle du TCF IRN. Notre note ci-dessus utilise la '
-                    'même échelle et porte, comme au TCF, sur l\'épreuve entière.',
+                    'Fourchette officielle du TCF IRN pour ce niveau. Notre note '
+                    'ci-dessus est une estimation, exprimée sur cette échelle ; elle '
+                    'porte, comme au TCF, sur l\'épreuve entière.',
                     style: AppFonts.ui(
                       size: 12,
                       color: Colors.white.withValues(alpha: 0.78),
@@ -183,7 +191,18 @@ class BilanHero extends StatelessWidget {
               ),
             ),
           ],
-          if (!hasResult) ...[
+          if (needsRetry) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Évaluation à relancer : ton niveau global reste en attente tant '
+              'qu\'une tâche n\'a pas été corrigée.',
+              style: AppFonts.ui(
+                size: 13,
+                color: Colors.white.withValues(alpha: 0.85),
+                height: 1.4,
+              ),
+            ),
+          ] else if (!hasResult) ...[
             const SizedBox(height: 12),
             Text(
               'L\'évaluation IA est en cours sur vos productions.',

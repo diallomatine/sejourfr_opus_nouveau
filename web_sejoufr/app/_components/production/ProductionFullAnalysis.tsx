@@ -233,7 +233,7 @@ function AccomplishmentItem({
  * Un critère, toujours rendu par sa **bande qualitative**.
  *
  * Les évaluations antérieures ne portent pas de `bande` : elle est alors
- * dérivée de la note sur la même échelle du TCF que celle du serveur
+ * dérivée de la note sur la même échelle (celle du TCF) que celle du serveur
  * ({@link critereBandeFromNote}). Plus aucun chiffre ni jauge sur un critère —
  * une jauge « note / 20 » se lirait comme un pourcentage de réussite alors
  * qu'un critère à 12 vaut B2, et un seuil maison ferait diverger l'ancien du

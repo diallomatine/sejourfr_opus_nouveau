@@ -15,7 +15,7 @@ import 'tcf_note_scale.dart';
 /// officielle du TCF ([TcfNoteScale.bandeFor]), pour qu'elles se rendent
 /// exactement comme les recentes. Aucun critere ne s'affiche plus en chiffres.
 ///
-/// La grille courante n'a que quatre codes (`communiquer`, `interagir`,
+/// Notre grille courante n'a que quatre codes (`communiquer`, `interagir`,
 /// `lexique`, `morphosyntaxe`), mais les evaluations deja en base en portent
 /// d'autres : les tables ci-dessous les couvrent tous, sans quoi l'historique
 /// tomberait sur l'icone et le libelle par defaut.

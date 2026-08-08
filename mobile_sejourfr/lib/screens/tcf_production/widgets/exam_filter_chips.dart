@@ -11,11 +11,16 @@ class ExamFilterChips extends StatelessWidget {
     required this.active,
     required this.labels,
     required this.onChanged,
+    this.accent = AppColors.blue,
   });
 
   final int active;
   final List<String> labels;
   final ValueChanged<int> onChanged;
+
+  /// Accent du module appelant (rouge en EO). Bleu par défaut : les appelants
+  /// historiques gardent leur rendu.
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -34,9 +39,12 @@ class ExamFilterChips extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: on ? AppColors.blue : AppColors.white,
+                color: on ? accent : AppColors.white,
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: on ? AppColors.blue : AppColors.line),
+                border: Border.all(
+                  color: on ? accent : AppColors.line,
+                  width: 1.5,
+                ),
               ),
               child: Text(
                 labels[i],

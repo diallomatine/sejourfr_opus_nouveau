@@ -31,7 +31,8 @@ const String kOralEvaluationLimitNotice =
 /// 1. **ai-je fait ce qu'on me demandait ?** — le verdict d'objectif, avant
 ///    tout le reste ;
 /// 2. **combien, et ca vaut quoi ?** — la note AVEC l'echelle du TCF, dans un
-///    seul bloc : notre note EST celle du TCF, 4,5/20 vaut A2 ;
+///    seul bloc : notre note est une estimation exprimee sur cette echelle,
+///    4,5/20 y vaut A2 ;
 /// 3. **que faire maintenant ?** — deux points forts, deux priorites, puis la
 ///    version amelioree quand elle existe (ecrit uniquement).
 ///

@@ -4,6 +4,15 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import {ChevronDown, Mic, MessagesSquare, Square, Volume2, X} from "lucide-react";
 import {realtimeApi} from "@/lib/api";
 import {GeminiLiveSession, type GeminiLiveState} from "@/lib/realtime/geminiLive";
+import {
+    needsRealtimeAcknowledgement,
+    realtimeFinishNotice,
+    resolveRealtimeFinish,
+    RT_FINISH_GIVE_UP_ACTION,
+    RT_FINISH_RETRY_ACTION,
+    RT_FINISH_SEE_RESULT_ACTION,
+    type RealtimeFinishResult,
+} from "@/lib/realtime-finish";
 import type {ProductionTaskDto, RealtimeSessionDescriptor, RealtimeSpeaker} from "@/lib/types";
 import {TranscriptDialogue} from "./TranscriptDialogue";
 
@@ -43,9 +52,13 @@ export function RealtimeEoRunner({
      *  indispensable au jeu de rôle T2 où le candidat mène l'interaction. */
     task: ProductionTaskDto;
     taskTitle: string;
-    /** `evaluated` = le candidat a parlé → une submission existe (résultat à
-     *  afficher). Faux = seul l'examinateur a parlé → rien à évaluer. */
-    onFinished: (evaluated: boolean) => void;
+    /** Session close SANS incident : `evaluated` (une submission existe) ou
+     *  `noSpeech` (le candidat n'a rien dit). Les issues à acquitter (envoi
+     *  raté, production perdue, transmission partielle) sont traitées ICI, dans
+     *  le runner, et ne remontent qu'une fois la décision prise par le
+     *  candidat — via `onFinished` si la relance a réussi, `onFatalError`
+     *  sinon. Un finish raté ne peut donc plus passer pour un succès. */
+    onFinished: (result: RealtimeFinishResult) => void;
     onFatalError: (message: string) => void;
 }) {
     const sessionId = descriptor.sessionId ?? "";
@@ -62,6 +75,10 @@ export function RealtimeEoRunner({
     const [showTranscript, setShowTranscript] = useState(false);
     // Consigne dépliée par défaut : le candidat garde son sujet sous les yeux.
     const [showSubject, setShowSubject] = useState(true);
+    // Issue de la clôture à faire acquitter par le candidat (null = déroulé
+    // nominal, on a déjà rendu la main à l'appelant).
+    const [notice, setNotice] = useState<RealtimeFinishResult | null>(null);
+    const [retrying, setRetrying] = useState(false);
 
     const liveRef = useRef<GeminiLiveSession | null>(null);
     const sheetBodyRef = useRef<HTMLDivElement | null>(null);
@@ -78,6 +95,14 @@ export function RealtimeEoRunner({
     const heardCloseRef = useRef(false);
     const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const capTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Comptage du relais de transcript, qui est best-effort : sans lui, un
+    // fragment perdu rétrécissait silencieusement la production notée. Ce sont
+    // ces trois compteurs qui rendent la perte DÉTECTABLE et permettent de
+    // distinguer « le candidat s'est tu » de « sa parole ne nous est pas
+    // parvenue » — deux messages opposés à ne jamais confondre.
+    const spokenRef = useRef(0);
+    const relayedRef = useRef(0);
+    const droppedRef = useRef(0);
 
     // Relais batché du transcript (~1,2 s) : capture serveur fiable du dialogue
     // (artefact de notation). On NE l'affiche PAS — on l'envoie seulement. Les
@@ -89,22 +114,59 @@ export function RealtimeEoRunner({
         if (!sessionId || pendingRef.current.length === 0) return sendChainRef.current;
         const batch = pendingRef.current;
         pendingRef.current = [];
-        const segments: {speaker: RealtimeSpeaker; text: string}[] = [];
+        const segments: {speaker: RealtimeSpeaker; text: string; turns: number}[] = [];
         for (const turn of batch) {
             const last = segments[segments.length - 1];
-            if (last && last.speaker === turn.speaker) last.text += ` ${turn.text}`;
-            else segments.push({...turn});
+            if (last && last.speaker === turn.speaker) {
+                last.text += ` ${turn.text}`;
+                last.turns += 1;
+            } else {
+                segments.push({...turn, turns: 1});
+            }
         }
         sendChainRef.current = sendChainRef.current.then(async () => {
             for (const seg of segments) {
                 try {
                     await realtimeApi.appendTranscript(sessionId, seg.speaker, seg.text);
+                    if (seg.speaker === "CANDIDATE") relayedRef.current += seg.turns;
                 } catch {
-                    // Best-effort : un fragment perdu ne doit pas casser la session.
+                    // Best-effort assumé : on NE renvoie PAS. `appendTranscript`
+                    // n'est pas idempotent — un renvoi après un succès dont la
+                    // réponse s'est perdue dupliquerait un tour, donc
+                    // fabriquerait de la parole et rendrait une citation
+                    // ambiguë (le contrôle de preuve littérale exige un match
+                    // unique). Une fusion douteuse est pire qu'un manque : on
+                    // compte la perte au lieu de la maquiller, et on l'annonce.
+                    droppedRef.current += seg.turns;
                 }
             }
         });
         return sendChainRef.current;
+    }, [sessionId]);
+
+    /** Clôt la session côté backend (une relance automatique : une coupure
+     *  passagère ne doit pas coûter une production, et `finish` est idempotent),
+     *  puis traduit le tout en issue honnête. */
+    const resolveFinish = useCallback(async (): Promise<RealtimeFinishResult> => {
+        let finishOk = false;
+        let serverEvaluated = false;
+        for (let attempt = 0; attempt < 2 && !finishOk; attempt++) {
+            if (attempt > 0) await new Promise((r) => setTimeout(r, 700));
+            try {
+                const st = await realtimeApi.finishSession(sessionId);
+                serverEvaluated = st.evaluated;
+                finishOk = true;
+            } catch {
+                // Rejoué une fois ; l'issue dira la vérité si ça ne passe pas.
+            }
+        }
+        return resolveRealtimeFinish({
+            finishOk,
+            serverEvaluated,
+            candidateTurnsSpoken: spokenRef.current,
+            candidateTurnsRelayed: relayedRef.current,
+            droppedTurns: droppedRef.current,
+        });
     }, [sessionId]);
 
     const finish = useCallback(async () => {
@@ -121,18 +183,29 @@ export function RealtimeEoRunner({
         // « rien de transcrit, impossible d'évaluer ».
         liveRef.current?.stop();
         await flush();
-        // `evaluated` : le backend note la session seulement si le candidat a
-        // parlé. En cas d'échec réseau du finish, on suppose évalué (comportement
-        // historique : on tente d'afficher le résultat plutôt que de bloquer).
-        let evaluated = true;
-        try {
-            const state = await realtimeApi.finishSession(sessionId);
-            evaluated = state.evaluated;
-        } catch {
-            // La session reste exploitable côté backend ; on continue.
+        const result = await resolveFinish();
+        // Une clôture ratée n'est PLUS confondue avec un succès : on n'appelle
+        // l'appelant que sur un déroulé nominal, sinon on affiche le panneau.
+        if (needsRealtimeAcknowledgement(result)) {
+            setFinishing(false);
+            setNotice(result);
+            return;
         }
-        onFinished(evaluated);
-    }, [flush, onFinished, sessionId]);
+        onFinished(result);
+    }, [flush, onFinished, resolveFinish]);
+
+    /** Relance demandée par le candidat : `finish` est idempotent côté backend
+     *  et le transcript est déjà en base — c'est bien l'ENVOI qu'on rejoue, pas
+     *  l'oral. On repasse d'abord les fragments encore en attente. */
+    const retryFinish = useCallback(async () => {
+        if (retrying) return;
+        setRetrying(true);
+        await flush();
+        const result = await resolveFinish();
+        setRetrying(false);
+        if (needsRealtimeAcknowledgement(result)) setNotice(result);
+        else onFinished(result);
+    }, [flush, onFinished, resolveFinish, retrying]);
 
     // Connexion Gemini Live (montée une seule fois).
     useEffect(() => {
@@ -140,6 +213,7 @@ export function RealtimeEoRunner({
             onStateChange: setState,
             onSpeakingChange: setExaminerSpeaking,
             onCandidateTranscript: (t) => {
+                spokenRef.current += 1;
                 pendingRef.current.push({speaker: "CANDIDATE", text: t});
                 setLines((prev) => [...prev, {speaker: "CANDIDATE", text: t}]);
             },
@@ -235,6 +309,68 @@ export function RealtimeEoRunner({
           : examinerSpeaking
             ? "Écoutez sa question, puis répondez à voix haute."
             : "Parlez naturellement, comme à un vrai oral.";
+
+    if (notice) {
+        const {title, message} = realtimeFinishNotice(notice);
+        return (
+            <div className="rtn">
+                <div className="rtn-card">
+                    <p className="rtn-title">{title}</p>
+                    <p className="rtn-msg">{message}</p>
+                </div>
+                <div className="rtn-actions">
+                    {notice.kind === "evaluated" ? (
+                        <button type="button" className="rtn-primary" onClick={() => onFinished(notice)}>
+                            {RT_FINISH_SEE_RESULT_ACTION}
+                        </button>
+                    ) : (
+                        <>
+                            {notice.kind === "retryable" && (
+                                <button
+                                    type="button"
+                                    className="rtn-primary"
+                                    onClick={() => void retryFinish()}
+                                    disabled={retrying}
+                                >
+                                    {retrying ? "Envoi en cours…" : RT_FINISH_RETRY_ACTION}
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                className="rtn-secondary"
+                                onClick={() => onFatalError(message)}
+                                disabled={retrying}
+                            >
+                                {RT_FINISH_GIVE_UP_ACTION}
+                            </button>
+                        </>
+                    )}
+                </div>
+                <style>{`
+                    .rtn { display: flex; flex-direction: column; gap: 16px; }
+                    .rtn-card {
+                        background: var(--color-red-light); border: 1px solid var(--color-red);
+                        border-radius: 14px; padding: 18px 16px;
+                    }
+                    .rtn-title {
+                        margin: 0 0 6px; font-family: var(--font-display); font-size: 19px;
+                        color: var(--color-ink);
+                    }
+                    .rtn-msg { margin: 0; font-size: 14px; line-height: 1.55; color: var(--color-ink-2); }
+                    .rtn-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+                    .rtn-primary, .rtn-secondary {
+                        flex: 1 1 200px; min-width: 0; border-radius: 12px; padding: 13px 20px;
+                        font-family: var(--font-sans); font-weight: 800; font-size: 14px; cursor: pointer;
+                    }
+                    .rtn-primary { border: none; background: var(--color-ink); color: white; }
+                    .rtn-secondary {
+                        border: 1px solid var(--color-line); background: white; color: var(--color-ink);
+                    }
+                    .rtn-primary:disabled, .rtn-secondary:disabled { opacity: 0.5; cursor: default; }
+                `}</style>
+            </div>
+        );
+    }
 
     return (
         <div className="rte">
@@ -337,18 +473,18 @@ export function RealtimeEoRunner({
                 .rte { position: relative; display: flex; flex-direction: column; gap: 18px; min-height: 60vh; }
                 .rte-strip {
                     display: flex; align-items: center; justify-content: space-between; gap: 12px;
-                    background: #fff; border: 1px solid var(--color-line);
+                    background: white; border: 1px solid var(--color-line);
                     border-radius: 14px; padding: 12px 14px;
                 }
                 .rte-id-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
                 .rte-name { font-family: var(--font-sans); font-weight: 800; font-size: 15px; color: var(--color-ink); }
                 .rte-ia {
                     font-family: var(--font-mono); font-weight: 700; font-size: 10px;
-                    color: var(--color-red-dark, #B5251E); background: #fff;
+                    color: var(--color-red-dark); background: white;
                     border: 1px solid var(--color-red); border-radius: 5px; padding: 1px 5px;
                 }
                 .rte-subject {
-                    background: var(--color-red-light, #FDECEB);
+                    background: var(--color-red-light);
                     border: 1px solid var(--color-red);
                     border-radius: 14px; overflow: hidden;
                 }
@@ -358,9 +494,9 @@ export function RealtimeEoRunner({
                 }
                 .rte-subject-eyebrow {
                     font-family: var(--font-mono); font-weight: 700; font-size: 11px;
-                    letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-red-dark, #B5251E);
+                    letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-red-dark);
                 }
-                .rte-subject-chev { color: var(--color-red-dark, #B5251E); transition: transform 0.18s ease; }
+                .rte-subject-chev { color: var(--color-red-dark); transition: transform 0.18s ease; }
                 .rte-subject-chev.is-open { transform: rotate(180deg); }
                 .rte-subject-body { padding: 0 14px 13px; }
                 .rte-subject-consigne {
@@ -368,7 +504,7 @@ export function RealtimeEoRunner({
                     line-height: 1.5; color: var(--color-ink);
                 }
                 .rte-subject-contexte {
-                    margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: var(--color-ink-2, #1F2950);
+                    margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: var(--color-ink-2);
                 }
                 .rte-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
                 .rte-live {
@@ -378,7 +514,7 @@ export function RealtimeEoRunner({
                 }
                 .rte-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-red); animation: rte-blink 1.4s ease-in-out infinite; }
                 .rte-timer { font-family: var(--font-mono); font-weight: 700; font-size: 20px; color: var(--color-red); line-height: 1; }
-                .rte-timer.is-urgent { color: var(--color-red-dark, #B5251E); }
+                .rte-timer.is-urgent { color: var(--color-red-dark); }
 
                 .rte-stage {
                     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -387,14 +523,14 @@ export function RealtimeEoRunner({
                 .rte-mic { position: relative; width: 180px; height: 180px; display: flex; align-items: center; justify-content: center; }
                 .rte-halo {
                     position: absolute; inset: 0; border-radius: 50%;
-                    background: var(--color-red-light, #FDECEB); opacity: 0.5;
+                    background: var(--color-red-light); opacity: 0.5;
                 }
                 .rte-mic.is-you .rte-halo { animation: rte-pulse 1.6s ease-out infinite; opacity: 1; }
-                .rte-mic.is-exam .rte-halo { background: var(--color-blue-light, #E8ECF8); opacity: 1; }
+                .rte-mic.is-exam .rte-halo { background: var(--color-blue-light); opacity: 1; }
                 .rte-disc {
                     position: relative; width: 108px; height: 108px; border-radius: 50%;
                     display: flex; align-items: center; justify-content: center;
-                    background: var(--color-red); color: #fff;
+                    background: var(--color-red); color: white;
                     box-shadow: 0 10px 30px rgba(225, 55, 47, 0.28);
                 }
                 .rte-mic.is-exam .rte-disc { background: var(--color-blue); box-shadow: 0 10px 30px rgba(30, 58, 140, 0.26); }
@@ -404,7 +540,7 @@ export function RealtimeEoRunner({
                 .rte-stop {
                     align-self: center; display: inline-flex; align-items: center; gap: 8px;
                     border: none; border-radius: 12px; padding: 13px 26px;
-                    background: var(--color-ink); color: #fff;
+                    background: var(--color-ink); color: white;
                     font-family: var(--font-sans); font-weight: 800; font-size: 14px; cursor: pointer;
                 }
                 .rte-stop:disabled { opacity: 0.5; cursor: default; }
@@ -413,14 +549,14 @@ export function RealtimeEoRunner({
                 .rte-see {
                     display: inline-flex; align-items: center; gap: 8px;
                     border: 1px solid var(--color-line); border-radius: 12px;
-                    padding: 10px 18px; background: #fff; color: var(--color-blue);
+                    padding: 10px 18px; background: white; color: var(--color-blue);
                     font-family: var(--font-sans); font-weight: 700; font-size: 13px; cursor: pointer;
                 }
-                .rte-see:hover { background: var(--color-blue-soft, #F4F6FC); }
+                .rte-see:hover { background: var(--color-blue-soft); }
 
                 .rte-sheet {
                     position: absolute; inset: 0; z-index: 5;
-                    background: #fff; border: 1px solid var(--color-line); border-radius: 14px;
+                    background: white; border: 1px solid var(--color-line); border-radius: 14px;
                     display: flex; flex-direction: column; overflow: hidden;
                 }
                 .rte-sheet-head {
@@ -430,7 +566,7 @@ export function RealtimeEoRunner({
                 .rte-sheet-title { font-family: var(--font-display); font-size: 18px; color: var(--color-ink); }
                 .rte-sheet-close {
                     display: inline-flex; border: none; cursor: pointer;
-                    background: var(--color-paper-2, #F2F1EC); border-radius: 9px; padding: 6px; color: var(--color-ink);
+                    background: var(--color-paper-2); border-radius: 9px; padding: 6px; color: var(--color-ink);
                 }
                 .rte-sheet-body {
                     flex: 1; overflow-y: auto; padding: 16px;

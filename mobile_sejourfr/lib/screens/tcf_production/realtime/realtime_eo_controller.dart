@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/realtime_repository.dart';
@@ -7,6 +8,7 @@ import '../../../core/api/repositories.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/models/realtime_models.dart';
 import '../../../core/realtime/gemini_live_client.dart';
+import 'realtime_finish.dart';
 
 /// Arguments d'une session realtime. Sert aussi de clé de family Riverpod :
 /// l'égalité porte sur [descriptor.sessionId] (stable pour une session donnée).
@@ -55,7 +57,8 @@ class RealtimeEoState {
     this.error,
     this.sessionsRemaining,
     this.transcript = const [],
-    this.evaluated = true,
+    this.finishResult,
+    this.retryingFinish = false,
   });
 
   final RealtimePhase phase;
@@ -65,10 +68,14 @@ class RealtimeEoState {
   final String? error;
   final int? sessionsRemaining;
 
-  /// À la clôture (phase `done`) : le candidat a-t-il parlé → une submission
-  /// existe-t-elle à afficher ? Faux si seul l'examinateur a parlé (rien à
-  /// évaluer) — l'écran l'annonce au lieu d'ouvrir un bilan « introuvable ».
-  final bool evaluated;
+  /// Issue de la clôture, renseignée uniquement en phase `done`. Remplace
+  /// l'ancien booléen `evaluated`, qui valait `true` même quand l'appel de
+  /// clôture avait échoué : un envoi raté était alors indistinguable d'un
+  /// succès et la production du candidat disparaissait sans trace.
+  final RealtimeFinishResult? finishResult;
+
+  /// Une relance de la clôture est en vol (bouton « Réessayer l'envoi »).
+  final bool retryingFinish;
 
   /// Dialogue candidat/examinateur, un élément par tour terminé (pour affichage
   /// à la demande — bouton « Voir ma transcription »).
@@ -84,7 +91,8 @@ class RealtimeEoState {
     String? error,
     int? sessionsRemaining,
     List<RealtimeLine>? transcript,
-    bool? evaluated,
+    RealtimeFinishResult? finishResult,
+    bool? retryingFinish,
   }) {
     return RealtimeEoState(
       phase: phase ?? this.phase,
@@ -94,7 +102,8 @@ class RealtimeEoState {
       error: error ?? this.error,
       sessionsRemaining: sessionsRemaining ?? this.sessionsRemaining,
       transcript: transcript ?? this.transcript,
-      evaluated: evaluated ?? this.evaluated,
+      finishResult: finishResult ?? this.finishResult,
+      retryingFinish: retryingFinish ?? this.retryingFinish,
     );
   }
 }
@@ -131,6 +140,16 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
   static const _capSeconds = 12;
 
   final List<({RealtimeSpeaker speaker, String text})> _pending = [];
+
+  // Comptage du relais de transcript, qui est best-effort : sans lui, un
+  // fragment perdu rétrécissait silencieusement la production notée. Ce sont
+  // ces trois compteurs qui rendent la perte DÉTECTABLE et permettent de
+  // distinguer « le candidat s'est tu » de « sa parole ne nous est pas
+  // parvenue » — deux messages opposés à ne jamais confondre.
+  int _candidateTurnsSpoken = 0;
+  int _candidateTurnsRelayed = 0;
+  int _droppedTurns = 0;
+  int? _sessionsRemaining;
 
   // Tous les envois de transcript passent par cette chaîne : l'ordre des lignes
   // est garanti côté backend, et `finish()` peut ATTENDRE que tout soit parti
@@ -215,6 +234,7 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
   void _enqueue(RealtimeSpeaker speaker, String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
+    if (speaker == RealtimeSpeaker.candidate) _candidateTurnsSpoken++;
     _pending.add((speaker: speaker, text: trimmed));
     // Chaque tour terminé = une ligne affichable (bouton « Voir ma transcription »).
     if (mounted) {
@@ -223,6 +243,13 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
       );
     }
   }
+
+  /// Injecte un tour de dialogue comme le ferait le transcripteur : c'est le
+  /// seul moyen de vérifier en test que « le candidat a parlé » et « sa parole
+  /// est arrivée au serveur » restent deux faits distincts.
+  @visibleForTesting
+  void debugEnqueueTurn(RealtimeSpeaker speaker, String text) =>
+      _enqueue(speaker, text);
 
   /// Envoie les fragments accumulés, en fusionnant les tours consécutifs d'un
   /// même locuteur (un appel backend par segment). Les envois sont chaînés sur
@@ -233,13 +260,17 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
     final batch = List.of(_pending);
     _pending.clear();
 
-    final segments = <({RealtimeSpeaker speaker, String text})>[];
+    final segments = <({RealtimeSpeaker speaker, String text, int turns})>[];
     for (final frag in batch) {
       if (segments.isNotEmpty && segments.last.speaker == frag.speaker) {
-        final merged = '${segments.last.text} ${frag.text}';
-        segments[segments.length - 1] = (speaker: frag.speaker, text: merged);
+        final last = segments.last;
+        segments[segments.length - 1] = (
+          speaker: frag.speaker,
+          text: '${last.text} ${frag.text}',
+          turns: last.turns + 1,
+        );
       } else {
-        segments.add(frag);
+        segments.add((speaker: frag.speaker, text: frag.text, turns: 1));
       }
     }
 
@@ -252,8 +283,17 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
             speaker: seg.speaker,
             text: seg.text,
           );
+          if (seg.speaker == RealtimeSpeaker.candidate) {
+            _candidateTurnsRelayed += seg.turns;
+          }
         } catch (_) {
-          // Best-effort : un fragment perdu ne doit pas casser la session.
+          // Best-effort assumé : on NE renvoie PAS. Un `appendTranscript` n'est
+          // pas idempotent — un renvoi après un succès dont la réponse s'est
+          // perdue dupliquerait un tour, donc fabriquerait de la parole et
+          // rendrait une citation ambiguë (le contrôle de preuve littérale
+          // exige un match unique). Une fusion douteuse est pire qu'un manque :
+          // on compte la perte au lieu de la maquiller, et on l'annonce.
+          _droppedTurns += seg.turns;
         }
       }
     });
@@ -282,20 +322,59 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
     // après `stop()`.
     await _flush();
 
-    try {
-      final res = await _repo.finishSession(_args.sessionId);
-      if (mounted) {
-        state = state.copyWith(
-          phase: RealtimePhase.done,
-          sessionsRemaining: res.sessionsRemaining,
-          evaluated: res.evaluated,
-        );
+    final result = await _resolveFinish();
+    if (mounted) {
+      state = state.copyWith(
+        phase: RealtimePhase.done,
+        sessionsRemaining: _sessionsRemaining,
+        finishResult: result,
+      );
+    }
+  }
+
+  /// Relance demandée par le candidat après un échec de clôture. `finish` est
+  /// idempotent côté backend et le transcript est déjà en base : c'est bien
+  /// l'ENVOI qu'on rejoue, pas l'oral. On repasse d'abord les fragments encore
+  /// en attente pour que la relance porte sur l'échange le plus complet.
+  Future<void> retryFinish() async {
+    if (!mounted || state.retryingFinish) return;
+    state = state.copyWith(retryingFinish: true);
+    await _flush();
+    final result = await _resolveFinish();
+    if (!mounted) return;
+    state = state.copyWith(
+      retryingFinish: false,
+      sessionsRemaining: _sessionsRemaining,
+      finishResult: result,
+    );
+  }
+
+  /// Appelle la clôture (une relance automatique : une coupure passagère ne
+  /// doit pas coûter une production, et `finish` est idempotent), puis traduit
+  /// le tout en issue honnête.
+  Future<RealtimeFinishResult> _resolveFinish() async {
+    var finishOk = false;
+    var serverEvaluated = false;
+    for (var attempt = 0; attempt < 2 && !finishOk; attempt++) {
+      if (attempt > 0) {
+        await Future<void>.delayed(const Duration(milliseconds: 700));
       }
-    } catch (e) {
-      if (mounted) {
-        state = state.copyWith(phase: RealtimePhase.done);
+      try {
+        final res = await _repo.finishSession(_args.sessionId);
+        serverEvaluated = res.evaluated;
+        _sessionsRemaining = res.sessionsRemaining;
+        finishOk = true;
+      } catch (_) {
+        // Rejoué une fois ; l'issue dira la vérité si ça ne passe toujours pas.
       }
     }
+    return resolveRealtimeFinish(
+      finishOk: finishOk,
+      serverEvaluated: serverEvaluated,
+      candidateTurnsSpoken: _candidateTurnsSpoken,
+      candidateTurnsRelayed: _candidateTurnsRelayed,
+      droppedTurns: _droppedTurns,
+    );
   }
 
   void _fail(String message) {

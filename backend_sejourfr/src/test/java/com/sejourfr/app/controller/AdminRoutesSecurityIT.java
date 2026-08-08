@@ -69,6 +69,18 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/admin/audio-drafts/pending-review/count"),
                 Arguments.of(HttpMethod.GET, "/api/admin/audio-questions/generation-logs"),
                 Arguments.of(HttpMethod.GET, "/api/admin/production/examples/audio/pending/count"),
+                // Module competences : les 10 routes de la console, une par une.
+                Arguments.of(HttpMethod.GET, "/api/admin/skills"),
+                Arguments.of(HttpMethod.GET, "/api/admin/skills/stats"),
+                Arguments.of(HttpMethod.GET, "/api/admin/skills/" + RANDOM_ID),
+                Arguments.of(HttpMethod.POST, "/api/admin/skills"),
+                Arguments.of(HttpMethod.PATCH, "/api/admin/skills/" + RANDOM_ID),
+                Arguments.of(HttpMethod.DELETE, "/api/admin/skills/" + RANDOM_ID),
+                Arguments.of(HttpMethod.GET, "/api/admin/skill-prompts/" + RANDOM_ID),
+                Arguments.of(HttpMethod.POST, "/api/admin/skill-prompts"),
+                Arguments.of(HttpMethod.PATCH, "/api/admin/skill-prompts/" + RANDOM_ID),
+                Arguments.of(HttpMethod.DELETE, "/api/admin/skill-prompts/" + RANDOM_ID),
+                Arguments.of(HttpMethod.PUT, "/api/admin/skill-prompts/" + RANDOM_ID + "/references"),
                 // quelques mutations pour couvrir POST/PUT/PATCH/DELETE sous /api/admin
                 Arguments.of(HttpMethod.POST, "/api/admin/exams"),
                 Arguments.of(HttpMethod.PUT, "/api/admin/themes/" + RANDOM_ID),

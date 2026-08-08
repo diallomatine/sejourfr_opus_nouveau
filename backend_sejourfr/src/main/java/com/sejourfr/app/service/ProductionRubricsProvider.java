@@ -42,22 +42,38 @@ public class ProductionRubricsProvider {
 
     private static final Logger log = LoggerFactory.getLogger(ProductionRubricsProvider.class);
     private static final String PATH_FORMAT = "prompts/production-rubrics-%s.json";
-    private static final Map<String, String> TOOL_SCHEMA_BY_RUBRICS_VERSION = Map.of(
-        "v3", "v2",
-        "v4", "v2",
-        "v4.1", "v2",
-        "v4.2", "v2",
-        "v5", "v3",
-        "v6", "v3",
-        "v7", "v4",
-        "v8", "v5"
+    private static final Map<String, String> TOOL_SCHEMA_BY_RUBRICS_VERSION = Map.ofEntries(
+        Map.entry("v3", "v2"),
+        Map.entry("v4", "v2"),
+        Map.entry("v4.1", "v2"),
+        Map.entry("v4.2", "v2"),
+        Map.entry("v5", "v3"),
+        Map.entry("v6", "v3"),
+        Map.entry("v7", "v4"),
+        Map.entry("v8", "v5"),
+        // v9 ne touche a AUCUN champ de sortie (elle ne change que les deux
+        // sections orales du prompt) : elle reste donc sur le contrat v5.
+        Map.entry("v9", "v5"),
+        // v10 et v11 non plus : elles n'ajoutent qu'une regle de LANGUE dans la
+        // section orale des artefacts (asymetrique EE/EO). Meme contrat v5.
+        // v11 SUCCEDE a v10 : meme regle, un tiers du texte en moins, sanction
+        // enoncee avant tolerance. v10 est conservee chargeable — c'est elle
+        // qu'a mesuree la campagne du 2026-08-07.
+        Map.entry("v10", "v5"),
+        Map.entry("v11", "v5"),
+        // v12 = v9 au bit pres pour tout ce qui note ; elle ne change que la
+        // FORME DE LA PREUVE (numero de segment au lieu d'une citation
+        // recopiee), donc elle exige le contrat de sortie v6. v9/v5 reste
+        // chargeable et activable : c'est le retour arriere, sans migration.
+        Map.entry("v12", "v6")
     );
 
     /**
      * Versions qui declarent le profil strict TCF IRN : {@code profile} et
      * {@code niveau_max} y sont verifies au chargement.
      */
-    private static final java.util.Set<String> PROFILS_TCF_IRN = java.util.Set.of("v7", "v8");
+    private static final java.util.Set<String> PROFILS_TCF_IRN =
+        java.util.Set.of("v7", "v8", "v9", "v10", "v11", "v12");
 
     private final ProductionEvaluationProperties props;
     private final ObjectMapper objectMapper;
@@ -136,7 +152,8 @@ public class ProductionRubricsProvider {
     /**
      * Verifie la paire rubriques/tool-schema avant la premiere evaluation.
      * Les fichiers historiques ne declaraient pas ce lien, donc la matrice
-     * reste explicite ici : v3-v4.2 -> v2, v5-v6 -> v3, v7 -> v4, v8 -> v5.
+     * reste explicite ici : v3-v4.2 -> v2, v5-v6 -> v3, v7 -> v4,
+     * v8/v9/v10/v11 -> v5, v12 -> v6.
      */
     private void validateDeclaredContract(Map<String, Object> root, String configuredVersion) {
         if (!configuredVersion.equals(String.valueOf(root.get("rubrics-version")))) {

@@ -24,6 +24,26 @@
   --color-paper-2: #ECEFF7;
   --color-green: #168F5B;
   --color-amber: #E8A317;
+  /* Ambre LISIBLE EN TEXTE. `--color-amber` est un ambre de remplissage : posé
+     sur du blanc, il ne passe aucun contraste. Tout libellé ambre (badge
+     « À renforcer », tipline, icône d'encart) prend celui-ci. */
+  --color-amber-dark: #8A6100;
+
+  /* Dégradés de bandeau (hero « Compétences »). Deuxième butée dérivée de la
+     couleur de marque elle-même : on éclaircit le bleu / le rouge, on
+     n'introduit aucune teinte nouvelle. */
+  --gradient-hero-blue: linear-gradient(
+    140deg,
+    var(--color-blue),
+    color-mix(in srgb, var(--color-blue) 84%, white)
+  );
+  --gradient-hero-red: linear-gradient(
+    140deg,
+    var(--color-red),
+    color-mix(in srgb, var(--color-red) 84%, white)
+  );
+  /* Bandeau sombre « analyse IA » : encre → bleu France. */
+  --gradient-ink-blue: linear-gradient(135deg, var(--color-ink), var(--color-blue));
 
   /* Fonts (variables injectées par next/font dans layout.tsx) */
   --font-sans: var(--font-jakarta), system-ui, sans-serif;

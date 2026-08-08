@@ -120,7 +120,7 @@ public class EvaluationAnthropicClient implements EvaluationLlmClient {
         long duration = System.currentTimeMillis() - start;
 
         if (response == null) {
-            throw new AiEvaluationException("Reponse Anthropic eval vide");
+            throw new AiEvaluationTransientException("Reponse Anthropic eval vide");
         }
 
         Outcome outcome = parseToolUseOutcome(response);
@@ -134,7 +134,10 @@ public class EvaluationAnthropicClient implements EvaluationLlmClient {
     @Recover
     public Outcome recover(AiEvaluationTransientException ex, String systemPrompt, String userPrompt) {
         log.error("Anthropic eval indisponible apres retries : {}", ex.getMessage());
-        throw new AiEvaluationException("Anthropic eval indisponible apres plusieurs tentatives", ex);
+        // Cause conservee dans le message : elle distingue une indisponibilite
+        // du fournisseur d'une sortie malformee (cf. OpenAiCompatibleEvalClient).
+        throw new AiEvaluationException(
+            "Anthropic eval indisponible apres plusieurs tentatives : " + ex.getMessage(), ex);
     }
 
     @Recover
@@ -175,10 +178,10 @@ public class EvaluationAnthropicClient implements EvaluationLlmClient {
         return body;
     }
 
-    private Outcome parseToolUseOutcome(JsonNode response) {
+    Outcome parseToolUseOutcome(JsonNode response) {
         JsonNode content = response.path("content");
         if (!content.isArray() || content.isEmpty()) {
-            throw new AiEvaluationException("Reponse Anthropic eval sans bloc content");
+            throw new AiEvaluationTransientException("Reponse Anthropic eval sans bloc content");
         }
         JsonNode toolBlock = null;
         for (JsonNode block : content) {
@@ -191,18 +194,19 @@ public class EvaluationAnthropicClient implements EvaluationLlmClient {
         }
         if (toolBlock == null) {
             String stopReason = response.hasNonNull("stop_reason") ? response.get("stop_reason").asString() : "unknown";
-            throw new AiEvaluationException("Pas de bloc tool_use " + TOOL_NAME + " (stop_reason=" + stopReason + ")");
+            throw new AiEvaluationTransientException(
+                "Pas de bloc tool_use " + TOOL_NAME + " (stop_reason=" + stopReason + ")");
         }
         JsonNode input = toolBlock.path("input");
         if (input.isMissingNode() || input.isNull()) {
-            throw new AiEvaluationException("Bloc tool_use sans champ input");
+            throw new AiEvaluationTransientException("Bloc tool_use sans champ input");
         }
 
         Map<String, Object> parsed;
         try {
             parsed = objectMapper.treeToValue(input, new TypeReference<Map<String, Object>>() {});
         } catch (Exception e) {
-            throw new AiEvaluationException("Input du tool_use non desorialisable : " + e.getMessage(), e);
+            throw new AiEvaluationTransientException("Input du tool_use non desorialisable : " + e.getMessage(), e);
         }
 
         JsonNode usage = response.path("usage");

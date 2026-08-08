@@ -198,7 +198,7 @@ class QuestionDto {
       );
 }
 
-/// Page<T> du backend Spring Data.
+/// `Page<T>` du backend Spring Data.
 class PageResponse<T> {
   PageResponse({
     required this.content,

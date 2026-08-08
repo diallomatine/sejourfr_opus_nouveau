@@ -271,6 +271,27 @@ public class ProductionEvaluationProperties {
         default double getTemperature() { return 0.0; }
 
         /**
+         * Faut-il envoyer le champ {@code temperature} : {@code auto} (defaut,
+         * detection par modele), {@code true} ou {@code false}. Les modeles a
+         * temperature figee (mesure : gpt-5.5 — « Only the default (1) value is
+         * supported ») exigent qu'on OMETTE le champ ; envoyer 1 reviendrait a
+         * choisir une notation non deterministe sans le dire.
+         */
+        default String getSendTemperature() {
+            return com.sejourfr.app.util.ChatCompletionDialect.AUTO;
+        }
+
+        /**
+         * Nom du champ de plafond de sortie : {@code auto} (defaut, detection par
+         * modele — cf. {@link com.sejourfr.app.util.ChatCompletionDialect}),
+         * {@code max_tokens} ou {@code max_completion_tokens}. Le PLAFOND lui-meme
+         * ({@link #getMaxTokens()}) est identique quel que soit le nom du champ.
+         */
+        default String getMaxTokensParam() {
+            return com.sejourfr.app.util.ChatCompletionDialect.AUTO;
+        }
+
+        /**
          * true → ajoute {@code "thinking":{"type":"disabled"}} a la requete.
          * Necessaire pour DeepSeek V4 (thinking mode actif par defaut refuse le
          * {@code tool_choice} force → 400). Faux pour OpenAI (champ inconnu, 400).
@@ -406,6 +427,8 @@ public class ProductionEvaluationProperties {
         private long retryBackoffMs;
         private String promptVersion;
         private double temperature;
+        private String sendTemperature = com.sejourfr.app.util.ChatCompletionDialect.AUTO;
+        private String maxTokensParam = com.sejourfr.app.util.ChatCompletionDialect.AUTO;
         private double costPerMillionInputTokens;
         private double costPerMillionOutputTokens;
 
@@ -420,6 +443,24 @@ public class ProductionEvaluationProperties {
 
         public void setTemperature(double temperature) {
             this.temperature = temperature;
+        }
+
+        @Override
+        public String getSendTemperature() {
+            return sendTemperature;
+        }
+
+        public void setSendTemperature(String sendTemperature) {
+            this.sendTemperature = sendTemperature;
+        }
+
+        @Override
+        public String getMaxTokensParam() {
+            return maxTokensParam;
+        }
+
+        public void setMaxTokensParam(String maxTokensParam) {
+            this.maxTokensParam = maxTokensParam;
         }
 
         public String getApiKey() {
@@ -508,8 +549,8 @@ public class ProductionEvaluationProperties {
      * endpoint {@code /chat/completions}, meme format {@code tools}/{@code tool_calls},
      * auth Bearer), donc le meme {@code OpenAiCompatibleEvalClient} la sert sans
      * code dedie. Renseigner {@code …deepseek.api-key} (DEEPSEEK_API_KEY). Le
-     * modele par defaut est {@code deepseek-v4-flash} (function calling supporte) ;
-     * surchargeable via {@code …deepseek.model}.
+     * modele est celui d'{@code application.yaml}, lui-meme surchargeable par
+     * {@code EVAL_DEEPSEEK_MODEL} : aucun nom de modele n'est ecrit ici.
      */
     public static class DeepSeek implements ChatCompletionSettings {
         // Toutes les valeurs viennent de application.yaml
@@ -523,6 +564,8 @@ public class ProductionEvaluationProperties {
         private String promptVersion;
         private boolean disableThinking;
         private double temperature;
+        private String sendTemperature = com.sejourfr.app.util.ChatCompletionDialect.AUTO;
+        private String maxTokensParam = com.sejourfr.app.util.ChatCompletionDialect.AUTO;
         private double costPerMillionInputTokens;
         private double costPerMillionOutputTokens;
 
@@ -537,6 +580,30 @@ public class ProductionEvaluationProperties {
 
         public void setTemperature(double temperature) {
             this.temperature = temperature;
+        }
+
+        /**
+         * Meme echappatoire que le bloc OpenAI : la forme de requete est
+         * NEGOCIEE par defaut ({@code auto}), et ces deux cles ne servent qu'a
+         * reprendre la main SANS code si la negociation ne suffisait pas. Les
+         * garder ici evite qu'une bascule de provider fasse perdre ce filet.
+         */
+        @Override
+        public String getSendTemperature() {
+            return sendTemperature;
+        }
+
+        public void setSendTemperature(String sendTemperature) {
+            this.sendTemperature = sendTemperature;
+        }
+
+        @Override
+        public String getMaxTokensParam() {
+            return maxTokensParam;
+        }
+
+        public void setMaxTokensParam(String maxTokensParam) {
+            this.maxTokensParam = maxTokensParam;
         }
 
         @Override

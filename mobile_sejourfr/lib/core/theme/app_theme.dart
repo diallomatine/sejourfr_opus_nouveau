@@ -38,6 +38,12 @@ class AppColors {
   static const amber = Color(0xFFE8A317);
   static const amberLight = Color(0xFFFCF1DA);
 
+  /// Ambre **de texte**. [amber] est un ambre de remplissage : illisible en
+  /// lettres sur fond clair. Toute mention ambre écrite (badge « À renforcer »,
+  /// tipline) passe par ici — c'est ce qui évite qu'un hex ressorte dans un
+  /// widget.
+  static const amberDark = Color(0xFF9A6A0B);
+
   // Alias sémantiques maquette.
   static const inkSoft = muted;
   static const inkFaint = muted2;
@@ -85,6 +91,24 @@ Color masteryColor(num value) {
   return AppColors.blue;
 }
 
+/// Rampe **pastel** de la barre de niveau A1 → B2, pensée pour rester lisible
+/// sur le dégradé foncé du bilan. Distincte de [CecrlColor] — qui reste la
+/// seule table à décider de la teinte d'un niveau **plein** (badge, pastille) :
+/// ici on peint un dégradé continu, pas un palier.
+const cecrlScaleRamp = <Color>[
+  Color(0xFFF87171), // A1
+  Color(0xFFFB923C), // A2
+  Color(0xFFFBBF24), // B1
+  Color(0xFF34D399), // B2
+];
+
+/// Bleu et rouge **officiels du drapeau** (Pantone Reflex Blue / Red 032).
+/// Volontairement hors palette produit : ils ne servent qu'au drapeau, jamais
+/// à peindre de l'interface. Ils vivent ici parce qu'aucune couleur ne se
+/// déclare ailleurs que dans ce fichier.
+const kFlagBlue = Color(0xFF0055A4);
+const kFlagRed = Color(0xFFEF4135);
+
 /// Libellé qualitatif d'une maîtrise 0-100 (cf. `masteryLabel` maquette).
 String masteryLabel(num value) {
   if (value >= 80) return 'Solide';
@@ -122,6 +146,23 @@ class AppShadows {
       offset: Offset(0, 2),
     ),
   ];
+}
+
+/// Dégradés réutilisables.
+///
+/// Un hero se peint avec l'accent de son module (bleu en EE, rouge en EO) :
+/// les deux tons viennent de [AppColors], jamais d'un hex écrit dans un écran.
+class AppGradients {
+  /// Dégradé de hero, 140° comme la maquette : ton foncé en haut à gauche,
+  /// accent plein en bas à droite.
+  static LinearGradient hero(Color from, Color to) => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [from, to],
+      );
+
+  /// Bandeau premium (analyse IA) : encre → Bleu France.
+  static LinearGradient get premium => hero(AppColors.ink, AppColors.blue);
 }
 
 /// Helpers typographiques.

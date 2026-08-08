@@ -30,8 +30,9 @@ class TcfNoteBand {
   String get label => niveau.displayName;
 }
 
-/// Table officielle du TCF, dans l'ordre. Notre note EST celle du TCF : 4,5/20
-/// n'est pas un 4,5 scolaire francais, c'est un A2.
+/// Table officielle du TCF, dans l'ordre. Nos notes sont des ESTIMATIONS
+/// exprimees sur cette echelle : 4,5/20 n'est pas un 4,5 scolaire francais,
+/// c'est un A2. Ce qui est officiel ici, c'est l'echelle, pas la correction.
 const List<TcfNoteBand> kTcfNoteBands = [
   TcfNoteBand(
       niveau: NiveauCecrl.a1NonAtteint, rangeLabel: '0', min: 0, max: 0),

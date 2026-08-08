@@ -147,7 +147,8 @@ export function tcfNoteTone(note: number | null | undefined): TcfNoteTone {
  * Bande qualitative d'un critère d'une évaluation **ancienne** — celles d'avant
  * que le serveur ne renvoie `bande`, seules à ne porter qu'une note.
  *
- * Depuis la grille v6, un critère se note sur la **même échelle du TCF** que la
+ * Depuis la grille v6, un critère se note sur la **même échelle du TCF** (celle
+ * sur laquelle nous exprimons nos estimations) que la
  * note globale : sa bande se lit donc sur {@link TCF_NOTE_BANDS}, exactement
  * comme le serveur la calcule aujourd'hui (`BandeCritere.of`, bornes 10 / 6 /
  * 2). D'où l'absence de tout seuil propre : un critère à 12 est un B2, pas un
@@ -261,4 +262,24 @@ export function hasAccomplishmentDetail(groups: AccomplishmentGroups): boolean {
             groups.pistesNonAbordees.length >
         0
     );
+}
+
+// ---------------------------------------------------------------------------
+// Bilan d'épreuve : ce qu'on écrit à la place du niveau global
+// ---------------------------------------------------------------------------
+
+/** Attente normale : le pipeline IA tourne encore sur au moins une tâche. */
+export const BILAN_NIVEAU_PENDING_LABEL = "Évaluation en cours…";
+
+/** Une correction a échoué de notre côté. Le serveur suspend alors le niveau
+ *  d'épreuve — il ne compte pas 0 une tâche que le candidat a bien rendue
+ *  (`ProductionSubmissionService.bilan`, garde `anyFailed`). L'annoncer « en
+ *  cours » était donc faux ET sans fin : rien ne tourne, c'est une relance qui
+ *  débloque le niveau. Vécu le 2026-08-06 sur un examen blanc EO dont deux
+ *  tâches sur trois avaient échoué. Miroir mobile : `BilanHero.needsRetry`. */
+export const BILAN_NIVEAU_RETRY_LABEL = "Évaluation à relancer";
+
+/** Texte du badge « Niveau global » tant qu'aucun niveau n'est calculable. */
+export function bilanNiveauPendingLabel(anyFailed: boolean): string {
+    return anyFailed ? BILAN_NIVEAU_RETRY_LABEL : BILAN_NIVEAU_PENDING_LABEL;
 }

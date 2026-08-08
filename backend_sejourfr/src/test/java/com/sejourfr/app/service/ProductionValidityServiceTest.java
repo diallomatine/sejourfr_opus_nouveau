@@ -279,4 +279,53 @@ class ProductionValidityServiceTest {
             ProductionValidityService.motsNormalises("un deux trois"), "un deux trois", 5))
             .isZero();
     }
+
+    // ------------------------------------------------ mots-outils ETRANGERS
+
+    @Test
+    void ratioMotsEtrangers_est_nul_sur_du_francais_courant() {
+        assertThat(ProductionValidityService.ratioMotsEtrangers(
+            ProductionValidityService.motsNormalises(
+                "Je travaille beaucoup pendant la semaine et le week-end je fais du sport "
+                    + "avec mes amis, on va souvent à la piscine.")))
+            .isZero();
+    }
+
+    @Test
+    void ratioMotsEtrangers_compte_les_mots_outils_d_une_autre_langue() {
+        assertThat(ProductionValidityService.ratioMotsEtrangers(
+            ProductionValidityService.motsNormalises("dus kan nog")))
+            .isEqualTo(1.0);
+    }
+
+    /**
+     * INVARIANT DE COMPOSITION — les deux listes doivent rester disjointes. Un
+     * mot present des deux cotes ferait monter la « matiere etrangere » d'une
+     * production francaise banale et desactiverait la purge de
+     * {@link EvaluationOralArtifactFilter}. Cf. le javadoc de
+     * {@code MOTS_OUTILS_ETRANGERS}.
+     */
+    @Test
+    void aucun_mot_outil_etranger_n_est_aussi_un_mot_outil_francais() {
+        assertThat(ProductionValidityService.MOTS_OUTILS_ETRANGERS)
+            .doesNotContainAnyElementsOf(ProductionValidityService.MOTS_OUTILS_FR);
+    }
+
+    /** Meme invariant, cote longueur : en dessous de 3 lettres, c'est du debris. */
+    @Test
+    void les_mots_outils_etrangers_font_au_moins_trois_lettres() {
+        assertThat(ProductionValidityService.MOTS_OUTILS_ETRANGERS)
+            .allSatisfy(mot -> assertThat(mot).hasSizeGreaterThanOrEqualTo(3));
+    }
+
+    /**
+     * Ces mots sont recherches sous leur forme NORMALISEE : un accent ou une
+     * apostrophe dans la liste ne pourrait jamais matcher.
+     */
+    @Test
+    void les_mots_outils_etrangers_sont_deja_normalises() {
+        assertThat(ProductionValidityService.MOTS_OUTILS_ETRANGERS)
+            .allSatisfy(mot -> assertThat(ProductionValidityService.motsNormalises(mot))
+                .containsExactly(mot));
+    }
 }

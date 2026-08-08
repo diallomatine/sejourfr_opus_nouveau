@@ -53,6 +53,10 @@ src/
 │   ├── calibration/         Calibration de la notation IA EO/EE : bandeau de
 │   │                        santé (biais vs dispersion), liste des productions
 │   │                        évaluées, fiche de détail + annotation humaine
+│   ├── skills/              Compétences TCF EE/EO : contenu éditorial (48
+│   │                        compétences, 240 petits sujets, 720 références).
+│   │                        Liste filtrée + détail + modals sujet/références
+│   │                        + statistiques d'usage
 │   ├── audioQuestions/      Génération assistée TCF CO : form + preview + audit
 │   │                        (modes WRITTEN_QUESTION / FULL_AUDIO — cf CLAUDE.md racine)
 │   └── exampleAudio/        Génération batch + validation des audios des exemples
@@ -98,9 +102,81 @@ Endpoints utilisés actuellement :
   `GET|POST /api/admin/calibration/submissions/{id}/human-note`,
   `GET /api/admin/calibration/stats`, `GET /api/admin/calibration/stats/niveau`
   (feature `calibration/`)
+- `GET|POST|PATCH|DELETE /api/admin/skills[/{id}]`, `GET /api/admin/skills/stats?section=`,
+  `GET|POST|PATCH|DELETE /api/admin/skill-prompts[/{id}]`,
+  `PUT /api/admin/skill-prompts/{id}/references` (feature `skills/` — module
+  Compétences TCF, §6 du contrat gelé)
 - `GET /api/production-tasks?epreuve=TCF_EE|TCF_EO` — catalogue des sujets, utilisé
   pour retrouver l'épreuve et la consigne d'une soumission (le DTO submission ne
   porte que `productionTaskId`). Route authentifiée, pas `/api/admin/**`.
+
+### Compétences TCF EE/EO (`features/skills/`)
+
+Console d'édition du **contenu** du module Compétences (48 compétences × 5 petits
+sujets × 3 références). Ce contenu est éditorial et vit en base : sans cet écran,
+corriger une faute de frappe dans un sujet imposerait une migration Flyway.
+
+- **Routes** : `/skills` (liste paginée, filtres `section` / `taskCode` / `active`
+  + recherche `q` debouncée 300 ms), `/skills/stats` (usage), `/skills/:id`
+  (détail + petits sujets). Le sujet et ses références s'éditent en **modal**
+  depuis le détail, pas sur une route à part.
+- **Deux textes distincts sur une compétence**, tous deux obligatoires et
+  `NOT NULL` en base : `description` (courte explication adressée au candidat —
+  ce qu'il travaille et pourquoi ça compte au TCF) et `generalCriterion` (le
+  critère général, ce qui sera observé dans les 5 petits sujets). Ne pas
+  confondre ce dernier avec `AdminSkillPromptDto.uniqueCriterion`, qui ne vaut
+  que pour **un** sujet. Le `POST` échoue en 400 sans `generalCriterion` ; le
+  `PATCH` tolère l'absence (« ne touche pas »), mais le front envoie toujours
+  les deux. Le détail les affiche sous deux intitulés séparés.
+- **`code` immuable** (compétence et sujet) : affiché en encart figé
+  « non modifiable » dès qu'on est en modification. Les seeds s'appuient dessus.
+- **Bornes de longueur pilotées par la section** : `EE` exige `recommendedMinWords`
+  **et** `recommendedMaxWords` (min < max) et interdit
+  `recommendedDurationSeconds` ; `EO` l'inverse. Le formulaire n'affiche **que**
+  le jeu autorisé et construit la charge utile depuis la section de la compétence
+  parente, jamais depuis l'état du formulaire — la base porte un CHECK, l'erreur
+  doit être impossible côté UI plutôt que renvoyée en 500.
+- **Guidage de l'écran de saisie (4 champs, nullables — V026)** : `checklist`
+  (2 à 4 gestes à l'impératif, 6 mots max chacun), `constraintTags` (1 à 3
+  `{label, icon}`, `icon` dans la liste fermée `SkillConstraintIcon` : TONE,
+  PERSON, TIME, PLACE, NUMBER, TENSE, STRUCTURE, EXAMPLE), `answerStarter`
+  (terminé par « … ») et `tip` (15 mots max, **sans** le préfixe « Astuce : »,
+  ajouté par les fronts). Ils pilotent l'écran candidat refondu — celui qui
+  *fait faire* l'exercice au lieu de le décrire.
+  - **Facultatifs mais structurants** : un sujet sans guidage reste publiable
+    (les fronts retombent sur la consigne) et le formulaire ne les exige pas,
+    mais un bandeau annonce « Guidage complet / partiel / sans guidage — sujet
+    incomplet », et le détail affiche les quatre en lecture (colonne « Guidage
+    de saisie »), pas seulement en édition.
+  - **`PATCH` à sémantique de REMPLACEMENT** sur ces quatre champs, comme les
+    bornes : un `null` **efface**, une liste vide vaut `null`. Le formulaire
+    envoie donc toujours les quatre — c'est la seule façon de retirer une
+    check-list posée par erreur.
+  - **Les bornes de comptage sont serveur** (`AdminSkillService`, 422 en cas
+    d'écart) : la console les rend improbables (compteurs de mots, boutons
+    d'ajout désactivés aux plafonds, icônes en sélection avec leur dessin —
+    `ConstraintIcon.tsx`, 8 SVG locaux, l'admin n'embarque aucune librairie
+    d'icônes). Deux pièges contre-intuitifs sont écrits en toutes lettres dans
+    l'aide du formulaire : une étiquette **ne redit jamais la longueur ni la
+    durée** (les fronts les rendent depuis les bornes du sujet — les saisir les
+    ferait diverger, et la console refuse un libellé contenant un chiffre ou
+    « mots/secondes/minutes »), et l'amorce **ne satisfait jamais à elle seule
+    le critère** du sujet.
+- **Les 3 références partent ensemble** (`PUT`, remplacement atomique, 3 niveaux
+  exigés sans doublon) : la modal ne permet ni d'ajouter ni de retirer un niveau,
+  et refuse de soumettre tant qu'un texte ou une note manque.
+- **Désactiver, pas supprimer** : le `DELETE` répond `409` dès qu'une tentative
+  candidat référence l'élément. La suppression est reléguée en bas de page, et le
+  409 est traduit en clair (« des candidats ont déjà travaillé ce sujet… »).
+- **`queryKey`** : `["adminSkills", filters]`, `["adminSkills", "detail", id]`,
+  `["adminSkills", "stats", section]`, `["adminSkillPrompts", "detail", id]`.
+  Toute mutation invalide `["adminSkills"]` (préfixe → liste, détail et stats) ;
+  les mutations de sujet invalident en plus `["adminSkillPrompts"]`, ce qui
+  rafraîchit bien la compétence parente (`promptCount`).
+- Les modals de sujet et de références **rechargent le sujet** par
+  `GET /api/admin/skill-prompts/{id}` au lieu de se fier au payload du détail :
+  un seul endroit garantit d'avoir le contexte, la consigne et les 3 références
+  complets.
 
 ### Calibration de la notation IA (`features/calibration/`)
 

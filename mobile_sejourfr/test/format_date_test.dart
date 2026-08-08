@@ -21,9 +21,9 @@ void main() {
       final local = utc.toLocal();
       expect(
         formatLongDateTime(utc),
-        formatLongDate(local) +
-            ' · ${local.hour.toString().padLeft(2, '0')}'
-                ':${local.minute.toString().padLeft(2, '0')}',
+        '${formatLongDate(local)} '
+        '· ${local.hour.toString().padLeft(2, '0')}'
+        ':${local.minute.toString().padLeft(2, '0')}',
       );
     });
   });

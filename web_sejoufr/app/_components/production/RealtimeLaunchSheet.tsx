@@ -157,7 +157,7 @@ export function RealtimeLaunchSheet({
                     }
                     .rls-sheet {
                         position: relative;
-                        width: 100%; max-width: 480px; background: #fff;
+                        width: 100%; max-width: 480px; background: white;
                         border-radius: 22px 22px 0 0;
                         padding: 10px 22px calc(22px + env(safe-area-inset-bottom));
                         box-shadow: 0 -20px 50px -20px rgba(15, 24, 57, 0.3);
@@ -191,20 +191,20 @@ export function RealtimeLaunchSheet({
                     .rls-option {
                         position: relative; width: 100%; display: flex; align-items: flex-start; gap: 12px;
                         text-align: left; border: 1.5px solid var(--color-line);
-                        border-radius: 14px; padding: 14px 38px 14px 14px; background: #fff;
+                        border-radius: 14px; padding: 14px 38px 14px 14px; background: white;
                         cursor: pointer; margin-bottom: 10px;
                     }
                     .rls-option:disabled { opacity: 0.5; cursor: default; }
                     .rls-rt:disabled { border-color: var(--color-line); background: var(--color-paper-2); }
-                    .rls-rt.is-locked { opacity: 1; cursor: pointer; border-style: dashed; border-color: var(--color-red); background: #fff; }
-                    .rls-rt.is-locked .rls-radio { color: var(--color-red); border-color: var(--color-red); background: #fff; }
-                    .rls-remaining.is-locked { color: var(--color-red-dark, #B5251E); background: var(--color-red-light, #FDECEB); }
-                    .rls-option.is-selected.rls-rt { border-color: var(--color-red); background: var(--color-red-light, #FDECEB); }
-                    .rls-option.is-selected.rls-classic { border-color: var(--color-blue); background: var(--color-blue-light, #E8ECF8); }
+                    .rls-rt.is-locked { opacity: 1; cursor: pointer; border-style: dashed; border-color: var(--color-red); background: white; }
+                    .rls-rt.is-locked .rls-radio { color: var(--color-red); border-color: var(--color-red); background: white; }
+                    .rls-remaining.is-locked { color: var(--color-red-dark); background: var(--color-red-light); }
+                    .rls-option.is-selected.rls-rt { border-color: var(--color-red); background: var(--color-red-light); }
+                    .rls-option.is-selected.rls-classic { border-color: var(--color-blue); background: var(--color-blue-light); }
                     .rls-opt-ico {
                         flex-shrink: 0; width: 40px; height: 40px; border-radius: 11px;
                         display: flex; align-items: center; justify-content: center;
-                        background: #fff; color: var(--color-red);
+                        background: white; color: var(--color-red);
                         border: 1px solid var(--color-line);
                     }
                     .rls-classic .rls-opt-ico { color: var(--color-blue); }
@@ -216,8 +216,8 @@ export function RealtimeLaunchSheet({
                     }
                     .rls-ia {
                         font-family: var(--font-mono); font-weight: 700; font-size: 10px;
-                        letter-spacing: 0.06em; color: var(--color-red-dark, #B5251E);
-                        background: #fff; border: 1px solid var(--color-red);
+                        letter-spacing: 0.06em; color: var(--color-red-dark);
+                        background: white; border: 1px solid var(--color-red);
                         border-radius: 5px; padding: 1px 5px; line-height: 1.4;
                     }
                     .rls-opt-desc { font-size: 12.5px; line-height: 1.45; color: var(--color-muted); }
@@ -225,7 +225,7 @@ export function RealtimeLaunchSheet({
                         position: absolute; top: 50%; right: 14px; transform: translateY(-50%);
                         width: 20px; height: 20px; border-radius: 50%;
                         display: flex; align-items: center; justify-content: center;
-                        border: 1.5px solid var(--color-line-2); background: #fff; color: #fff;
+                        border: 1.5px solid var(--color-line-2); background: white; color: white;
                     }
                     .rls-option.is-selected.rls-rt .rls-radio { background: var(--color-red); border-color: var(--color-red); }
                     .rls-option.is-selected.rls-classic .rls-radio { background: var(--color-blue); border-color: var(--color-blue); }
@@ -233,8 +233,8 @@ export function RealtimeLaunchSheet({
                         display: inline-flex; align-self: center; gap: 6px;
                         font-family: var(--font-mono); font-size: 11px; font-weight: 700;
                         letter-spacing: 0.02em;
-                        color: var(--color-red-dark, #B5251E);
-                        background: var(--color-red-light, #FDECEB);
+                        color: var(--color-red-dark);
+                        background: var(--color-red-light);
                         border-radius: 8px; padding: 6px 10px; margin: -2px 0 12px;
                     }
                     .rls-remaining.is-empty {
@@ -248,7 +248,7 @@ export function RealtimeLaunchSheet({
                     }
                     .rls-valider {
                         width: 100%; margin-top: 12px; border: none; border-radius: 12px; padding: 14px;
-                        background: var(--color-red); color: #fff;
+                        background: var(--color-red); color: white;
                         font-family: var(--font-sans); font-weight: 800; font-size: 15px; cursor: pointer;
                     }
                     .rls-valider:disabled { opacity: 0.6; cursor: default; }

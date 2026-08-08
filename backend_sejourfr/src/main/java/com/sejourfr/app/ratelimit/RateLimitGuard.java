@@ -79,6 +79,23 @@ public class RateLimitGuard {
         limiter.check("production:daily", key, props.getProductionDaily());
     }
 
+    /**
+     * Tentative sur un petit sujet de competence : meme double garde-fou que la
+     * production complete (burst anti-boucle + plafond journalier anti-facture),
+     * mais avec des seuils plus larges, un micro-exercice etant beaucoup plus
+     * court. S'applique a TOUTES les tentatives, analysees ou non : une
+     * production sans analyse ne coute pas de LLM mais insere quand meme une
+     * ligne, et c'est le seul frein a une boucle automatisee. Le quota freemium
+     * des analyses, lui, est gere ailleurs
+     * ({@code SkillAnalysisAccessService}) — ceci ne borne que le volume absolu.
+     */
+    public void checkSkillAttempt(UUID userId) {
+        if (!props.isEnabled() || userId == null) return;
+        String key = userId.toString();
+        limiter.check("skill-attempt:burst", key, props.getSkillAttemptBurst());
+        limiter.check("skill-attempt:daily", key, props.getSkillAttemptDaily());
+    }
+
     private String normalizeEmail(String email) {
         return email == null ? null : email.trim().toLowerCase();
     }

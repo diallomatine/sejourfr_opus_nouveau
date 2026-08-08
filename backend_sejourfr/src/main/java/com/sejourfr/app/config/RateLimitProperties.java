@@ -40,6 +40,15 @@ public class RateLimitProperties {
     private Limit productionBurst = new Limit(20, 600);
     /** Soumission production EE/EO : plafond journalier par utilisateur. */
     private Limit productionDaily = new Limit(200, 86400);
+    /**
+     * Tentative sur un petit sujet de competence : burst par utilisateur. Plus
+     * genereux que la production complete — un micro-exercice se traite en une
+     * minute, enchainer les cinq sujets d'une competence est le comportement
+     * NORMAL qu'on ne doit surtout pas freiner.
+     */
+    private Limit skillAttemptBurst = new Limit(40, 600);
+    /** Tentative sur un petit sujet : plafond journalier par utilisateur. */
+    private Limit skillAttemptDaily = new Limit(400, 86400);
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -70,6 +79,12 @@ public class RateLimitProperties {
 
     public Limit getProductionDaily() { return productionDaily; }
     public void setProductionDaily(Limit productionDaily) { this.productionDaily = productionDaily; }
+
+    public Limit getSkillAttemptBurst() { return skillAttemptBurst; }
+    public void setSkillAttemptBurst(Limit skillAttemptBurst) { this.skillAttemptBurst = skillAttemptBurst; }
+
+    public Limit getSkillAttemptDaily() { return skillAttemptDaily; }
+    public void setSkillAttemptDaily(Limit skillAttemptDaily) { this.skillAttemptDaily = skillAttemptDaily; }
 
     /** Une limite = {@code max} requetes autorisees par fenetre de {@code windowSeconds}. */
     public static class Limit {

@@ -138,8 +138,15 @@ public class ProductionRubricsValidator {
             rubrics.all().size());
     }
 
+    /**
+     * Bornes officielles du TCF IRN a l'ecrit : T1 30-60 mots, T2 et T3 40-90
+     * mots. Elles sont STRICTES (aucune tolerance) et portees par la base
+     * ({@code production_tasks.mots_min/mots_max}, contrainte
+     * {@code chk_prod_task_tcf_irn_ee_word_bounds}) ; ce controle de boot ne
+     * fait que refuser une tache active qui en sortirait.
+     */
     private static void validateEeTask(ProductionTask task, int tache, List<String> errors) {
-        int expectedMin = tache == 1 ? 30 : 60;
+        int expectedMin = tache == 1 ? 30 : 40;
         int expectedMax = tache == 1 ? 60 : 90;
         if (tache < 1 || tache > 3
                 || task.getMotsMin() == null || task.getMotsMin() != expectedMin

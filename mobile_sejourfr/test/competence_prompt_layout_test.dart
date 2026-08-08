@@ -1,0 +1,296 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:sejourfr_mobile/core/api/repositories.dart';
+import 'package:sejourfr_mobile/core/models/skill_models.dart';
+import 'package:sejourfr_mobile/core/widgets/fixed_action_bar.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/competences/competence_prompt_screen.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_answer_card.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_recorder_panel.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/tcf_production_module.dart';
+
+import 'support/skill_fixtures.dart';
+
+/// **Le critère de réussite de cet écran est mesurable** : la zone de
+/// production doit être visible sans défiler sur un téléphone standard.
+///
+/// Ces tests le vérifient sur le vrai écran (pas sur une recomposition de ses
+/// blocs), à deux tailles d'écran réelles, à l'écrit **et** à l'oral. Tout
+/// ajout au-dessus de la carte « Ta réponse » les fera tomber : c'est le but.
+///
+/// Ils verrouillent aussi ce qui a **disparu** — l'écran fait produire, il
+/// n'explique plus.
+
+/// iPhone 14/15/16 : la taille de référence.
+const Size _kStandardPhone = Size(390, 844);
+
+/// Un petit écran encore courant (iPhone 13 mini / SE moderne) : le pire cas
+/// qu'on accepte.
+const Size _kSmallPhone = Size(375, 812);
+
+Future<void> _pumpPrompt(
+  WidgetTester tester, {
+  required SkillPromptDto prompt,
+  Size size = _kStandardPhone,
+}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        skillRepositoryProvider.overrideWithValue(FakeSkillRepository(prompt: prompt)),
+      ],
+      child: MaterialApp(
+        home: CompetencePromptScreen(
+          module: prompt.section.isEo
+              ? TcfProductionModule.eo
+              : TcfProductionModule.ee,
+          skillId: 'c1',
+          promptId: 'p1',
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+/// Le bord haut de la barre d'action fixe : au-delà, plus rien n'est lisible
+/// sans défiler.
+double _foldOf(WidgetTester tester) =>
+    tester.getRect(find.byType(FixedActionBar)).top;
+
+/// La liste construit ses enfants à la demande : pour affirmer qu'un bloc est
+/// **absent**, il faut d'abord l'avoir fait défiler en entier.
+Future<void> _scrollListToEnd(WidgetTester tester) async {
+  for (var i = 0; i < 6; i++) {
+    await tester.drag(find.byType(ListView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+  }
+}
+
+void main() {
+  setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
+
+  group('la zone de production tient au-dessus de la ligne de flottaison', () {
+    testWidgets('à l\'écrit, sur un téléphone standard', (tester) async {
+      final prompt = SkillPromptDto.fromJson(promptJson({}));
+      await _pumpPrompt(tester, prompt: prompt);
+
+      final field = tester.getRect(find.byType(SkillWritingField));
+      final fold = _foldOf(tester);
+
+      expect(field.top, lessThan(fold),
+          reason: 'le champ commence sous la barre d\'action');
+      // Pas seulement un liseré : une vraie surface de saisie est offerte.
+      expect(field.bottom - field.top, greaterThan(80));
+      expect(field.bottom, lessThanOrEqualTo(fold),
+          reason: 'le champ déborde sous la barre d\'action');
+    });
+
+    testWidgets('à l\'écrit, sur un petit téléphone', (tester) async {
+      final prompt = SkillPromptDto.fromJson(promptJson({}));
+      await _pumpPrompt(tester, prompt: prompt, size: _kSmallPhone);
+
+      final field = tester.getRect(find.byType(SkillWritingField));
+      final visible = _foldOf(tester) - field.top;
+      expect(visible, greaterThan(80),
+          reason: 'presque rien du champ n\'est visible sans défiler');
+    });
+
+    testWidgets('à l\'oral, la carte de réponse est visible elle aussi',
+        (tester) async {
+      final prompt = SkillPromptDto.fromJson(promptJson({
+        'section': 'EO',
+        'recommendedMinWords': null,
+        'recommendedMaxWords': null,
+        'recommendedDurationSeconds': 45,
+      }));
+      await _pumpPrompt(tester, prompt: prompt);
+
+      final card = tester.getRect(find.byType(SkillAnswerCard));
+      expect(card.top, lessThan(_foldOf(tester)),
+          reason: 'l\'oral est resté sur l\'ancienne mise en page');
+    });
+  });
+
+  group('parité écrit ⇄ oral : même structure, même guidage', () {
+    testWidgets('les deux épreuves rendent check-list, situation et étiquettes',
+        (tester) async {
+      for (final section in ['EE', 'EO']) {
+        final prompt = SkillPromptDto.fromJson(promptJson({
+          'section': section,
+          if (section == 'EO') 'recommendedDurationSeconds': 45,
+        }));
+        await _pumpPrompt(tester, prompt: prompt);
+
+        expect(find.text("Ce qu'il faut faire"), findsOneWidget,
+            reason: '$section : pas de check-list');
+        expect(find.text('Saluez votre voisine'), findsOneWidget);
+        expect(find.text('Situation'), findsOneWidget,
+            reason: '$section : pas de situation');
+        expect(find.text('Ta réponse'), findsOneWidget);
+        expect(find.text('Vouvoiement'), findsOneWidget,
+            reason: '$section : pas d\'étiquette de contrainte');
+        expect(find.text('Ton poli'), findsOneWidget);
+      }
+    });
+
+    testWidgets('la longueur est une puce, à l\'unité de chaque épreuve',
+        (tester) async {
+      await _pumpPrompt(
+        tester,
+        prompt: SkillPromptDto.fromJson(promptJson({})),
+      );
+      expect(find.text('≈ 15–35 mots'), findsOneWidget);
+      expect(find.text('0 / 35 mots'), findsOneWidget);
+
+      await _pumpPrompt(
+        tester,
+        prompt: SkillPromptDto.fromJson(promptJson({
+          'section': 'EO',
+          'recommendedDurationSeconds': 45,
+        })),
+      );
+      expect(find.text('≈ 45 secondes'), findsOneWidget);
+      // À l'oral le compteur de mots devient la durée, **avec sa cible** —
+      // un chrono seul ne dit pas si on est court ou long (parité web).
+      expect(find.textContaining('mots'), findsNothing);
+      expect(find.text('0:00 / 0:45'), findsOneWidget);
+    });
+
+    testWidgets('la puce de durée se lit en minutes au-delà de 60 s',
+        (tester) async {
+      await _pumpPrompt(
+        tester,
+        prompt: SkillPromptDto.fromJson(promptJson({
+          'section': 'EO',
+          'recommendedDurationSeconds': 90,
+        })),
+      );
+
+      expect(find.text('≈ 1 min 30'), findsOneWidget);
+      expect(find.textContaining('90 secondes'), findsNothing);
+      expect(find.text('0:00 / 1:30'), findsOneWidget);
+    });
+  });
+
+  group('avertissement de transcription (spec §15)', () {
+    testWidgets('rendu à l\'oral, sous le panneau d\'enregistrement',
+        (tester) async {
+      final prompt = SkillPromptDto.fromJson(promptJson({
+        'section': 'EO',
+        'recommendedDurationSeconds': 45,
+      }));
+      await _pumpPrompt(tester, prompt: prompt);
+
+      final notice = find.byType(SkillTranscriptNotice);
+      // Il vit sous la carte de réponse : il faut défiler pour l'atteindre —
+      // c'est exactement ce qu'on veut, le micro ne recule pas d'un pixel.
+      expect(tester.getRect(find.byType(SkillAnswerCard)).top,
+          lessThan(_foldOf(tester)));
+      await tester.scrollUntilVisible(notice, 240);
+
+      expect(notice, findsOneWidget);
+      expect(
+        find.textContaining('prononciation'),
+        findsOneWidget,
+        reason: 'l\'avertissement ne dit pas ce qui n\'est PAS évalué',
+      );
+      expect(
+        tester.getRect(notice).top,
+        greaterThan(tester.getRect(find.byType(SkillAnswerCard)).top),
+      );
+    });
+
+    testWidgets('absent à l\'écrit', (tester) async {
+      await _pumpPrompt(
+        tester,
+        prompt: SkillPromptDto.fromJson(promptJson({})),
+      );
+      await _scrollListToEnd(tester);
+      expect(find.byType(SkillTranscriptNotice), findsNothing);
+    });
+  });
+
+  group('plafonds de guidage — une saisie admin trop généreuse ne déborde pas',
+      () {
+    testWidgets('4 gestes et 3 étiquettes au maximum', (tester) async {
+      await _pumpPrompt(
+        tester,
+        prompt: SkillPromptDto.fromJson(promptJson({
+          'checklist': ['Geste 1', 'Geste 2', 'Geste 3', 'Geste 4', 'Geste 5'],
+          'constraintTags': [
+            {'label': 'Tag 1', 'icon': 'PERSON'},
+            {'label': 'Tag 2', 'icon': 'TONE'},
+            {'label': 'Tag 3', 'icon': 'TIME'},
+            {'label': 'Tag 4', 'icon': 'PLACE'},
+          ],
+        })),
+      );
+
+      expect(find.text('Geste 4'), findsOneWidget);
+      expect(find.text('Geste 5'), findsNothing);
+      expect(find.text('Tag 3'), findsOneWidget);
+      expect(find.text('Tag 4'), findsNothing);
+    });
+  });
+
+  group('ce que l\'écran ne dit plus', () {
+    testWidgets('ni fil d\'Ariane, ni badges, ni encarts pédagogiques',
+        (tester) async {
+      await _pumpPrompt(
+        tester,
+        prompt: SkillPromptDto.fromJson(promptJson({})),
+      );
+
+      expect(find.text('Une compétence · un critère'), findsNothing);
+      expect(find.textContaining('Petit sujet 1/5'), findsNothing);
+      expect(find.text('Produis ta propre réponse.'), findsNothing);
+      expect(find.textContaining("L'objectif n'est pas d'écrire"), findsNothing);
+      expect(find.text('COMPÉTENCE ÉVALUÉE'), findsNothing);
+      expect(find.textContaining('Pourquoi cet exercice ?'), findsNothing);
+      expect(find.text('Accessible'), findsNothing);
+      expect(find.text('Un seul critère'), findsNothing);
+      // Le fil d'Ariane laisse place au seul repère utile.
+      expect(find.text('Sujet 1/5'), findsOneWidget);
+      expect(find.text('Progression'), findsOneWidget);
+      expect(find.text('A2'), findsOneWidget);
+    });
+  });
+
+  group('dégradation — un sujet sans guidage reste utilisable', () {
+    testWidgets('aucune carte vide, aucun « null » à l\'écran', (tester) async {
+      final prompt = SkillPromptDto.fromJson(promptJson({
+        'checklist': null,
+        'constraintTags': null,
+        'answerStarter': null,
+        'tip': null,
+        'recommendedMinWords': null,
+        'recommendedMaxWords': null,
+      }));
+      await _pumpPrompt(tester, prompt: prompt);
+
+      // La carte retombe sur la consigne au lieu de disparaître.
+      expect(find.text("Ce qu'il faut faire"), findsOneWidget);
+      expect(find.textContaining('saluez-la et dites qui vous êtes'),
+          findsOneWidget);
+      // Le champ garde un texte grisé neutre, et le pied ne montre que le
+      // compteur.
+      expect(find.byType(SkillWritingField), findsOneWidget);
+      expect(find.textContaining('Astuce'), findsNothing);
+      expect(find.text('0 mot'), findsOneWidget);
+
+      expect(find.textContaining('null'), findsNothing);
+      expect(tester.takeException(), isNull);
+
+      // Et la zone de production remonte, elle ne descend pas.
+      expect(
+        tester.getRect(find.byType(SkillWritingField)).top,
+        lessThan(_foldOf(tester)),
+      );
+    });
+  });
+}

@@ -1,0 +1,2366 @@
+/* ============================================================================
+   Compétences TCF — micro-exercices ciblés sur UN critère.
+
+   Géométrie reprise de la maquette client
+   (`docs/skills/sejourfr_expression_ecrite_v3_competences.html`) : rayons,
+   paddings, grilles, graisses et états de survol y sont lus littéralement.
+   Les **couleurs**, elles, restent celles de l'application — `var(--color-*)`
+   uniquement, aucune valeur en dur (le grep de vérification l'impose).
+
+   L'accent du module descend d'une seule variable, `--skill-accent`, posée sur
+   `.wrap` : bleu en Expression écrite, rouge en Expression orale. Aucun
+   composant ne choisit sa couleur lui-même.
+   Mobile-first : tout se lit à 360 px, les grilles ne s'ouvrent qu'ensuite.
+   ============================================================================ */
+
+/* ------------------------------------------------------------------- shell */
+
+/* Palette d'accent, isolée de la mise en page : les formulaires partagés
+   (`EeWritingForm`, `EoRecordingForm`) sont rendus aussi bien dans la colonne du
+   module que dans la session d'examen blanc, qui n'a pas de `.wrap`. Sans ce
+   porteur autonome, une carte d'exercice hors colonne perdait `--skill-accent`
+   et retombait sur du bleu en pleine épreuve orale. */
+.wrap,
+.accent {
+  --skill-accent: var(--color-blue);
+  --skill-accent-light: var(--color-blue-light);
+  --skill-accent-soft: var(--color-blue-soft);
+  --skill-hero: var(--gradient-hero-blue);
+  --skill-shadow: 0 5px 16px color-mix(in srgb, var(--color-ink) 6%, transparent);
+  --skill-shadow-lg: 0 10px 28px color-mix(in srgb, var(--color-ink) 9%, transparent),
+    0 2px 6px color-mix(in srgb, var(--color-ink) 5%, transparent);
+}
+
+/* Expression orale : l'accent du module EST le rouge. Sans ça, l'écran mêlait
+   le rouge de l'épreuve et le bleu des composants génériques. */
+.wrapEo,
+.accentEo {
+  --skill-accent: var(--color-red);
+  --skill-accent-light: var(--color-red-light);
+  --skill-accent-soft: var(--color-red-light);
+  --skill-hero: var(--gradient-hero-red);
+}
+
+.wrap {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 14px 16px 72px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Pile d'écran hors colonne (formulaires d'exercice) : même rythme vertical que
+   `.formStack`, mais c'est elle qui porte l'accent. */
+.accent {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .wrap {
+    padding: 30px 24px 80px;
+  }
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  align-self: flex-start;
+  margin-bottom: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-muted);
+  text-decoration: none;
+  border-radius: 8px;
+}
+
+.back:hover {
+  color: var(--skill-accent);
+}
+
+/* ------------------------------------------------------------------ hero */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--skill-hero);
+  color: white;
+  border-radius: 28px;
+  padding: 19px;
+  margin-bottom: 17px;
+  box-shadow: var(--skill-shadow-lg);
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  border: 28px solid color-mix(in srgb, white 7%, transparent);
+  border-radius: 50%;
+  right: -76px;
+  top: -72px;
+}
+
+.heroTop {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  opacity: 0.72;
+}
+
+.heroTitle {
+  font-family: var(--font-display);
+  margin: 5px 0 7px;
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: -0.45px;
+  font-weight: 600;
+  max-width: 34ch;
+  overflow-wrap: anywhere;
+}
+
+.heroText {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  opacity: 0.84;
+  max-width: 46ch;
+}
+
+.heroLevel {
+  align-self: flex-start;
+  flex: none;
+  background: color-mix(in srgb, white 17%, transparent);
+  border: 1px solid color-mix(in srgb, white 22%, transparent);
+  padding: 7px 9px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.heroProgress {
+  position: relative;
+  z-index: 1;
+  margin-top: 15px;
+}
+
+.heroProgressLabel {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: 7px;
+}
+
+.heroRail {
+  display: block;
+  height: 7px;
+  background: color-mix(in srgb, white 18%, transparent);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.heroRail > span {
+  display: block;
+  height: 100%;
+  background: white;
+  border-radius: inherit;
+  transition: width 0.25s ease;
+}
+
+/* --------------------------------------------------------- intertitres */
+
+.sectionHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 21px 2px 11px;
+}
+
+.sectionHeadTitle {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: -0.35px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.sectionHeadText {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+/* « Continuer » : un lien discret, pas une carte pleine largeur. */
+.headLink {
+  border: 0;
+  background: none;
+  padding: 4px;
+  border-radius: 8px;
+  color: var(--skill-accent);
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.headLink:hover {
+  text-decoration: underline;
+}
+
+/* -------------------------------------------------- pastilles de tâche */
+
+.taskPills {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 3px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.taskPills::-webkit-scrollbar {
+  display: none;
+}
+
+.taskPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  border: 1.5px solid var(--color-line);
+  background: white;
+  color: var(--color-muted);
+  border-radius: 999px;
+  padding: 10px 13px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.taskPill:hover {
+  border-color: var(--skill-accent);
+}
+
+.taskPillOn {
+  background: var(--skill-accent);
+  border-color: var(--skill-accent);
+  color: white;
+}
+
+.taskNum {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--skill-accent) 10%, transparent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.taskPillOn .taskNum {
+  background: color-mix(in srgb, white 18%, transparent);
+}
+
+/* ------------------------------------------------------------- cartes */
+
+.list {
+  display: grid;
+  gap: 11px;
+}
+
+.card {
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 23px;
+  box-shadow: var(--skill-shadow);
+}
+
+/* Carte cliquable (compétence, petit sujet) : grille 48 / 1fr / auto de la
+   maquette, survol qui lève la carte avec son ombre. */
+.rowCard {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 15px;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.rowCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--skill-shadow-lg);
+  border-color: color-mix(in srgb, var(--skill-accent) 28%, var(--color-line));
+}
+
+.rowCard:active {
+  transform: scale(0.985);
+}
+
+/* Liseré de statut : 3 px, en retrait vertical, et **uniquement** quand le
+   sujet a été traité — un sujet à faire n'a rien à signaler. */
+.rowCardDone::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 17px;
+  bottom: 17px;
+  width: 3px;
+  border-radius: 0 5px 5px 0;
+  background: var(--color-blue);
+}
+
+.rowCardValidated::after {
+  background: var(--color-green);
+}
+
+.rowCardReinforce::after {
+  background: var(--color-amber);
+}
+
+/* Pastille de numéro / icône : UNE seule forme dans tout le module. */
+.tile {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--skill-accent) 10%, transparent);
+  color: var(--skill-accent);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.tileDone {
+  background: color-mix(in srgb, var(--color-green) 12%, transparent);
+  color: var(--color-green);
+}
+
+.rowBody {
+  min-width: 0;
+}
+
+.rowTitle {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  line-height: 1.3;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.rowText {
+  display: block;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.38;
+  overflow-wrap: anywhere;
+}
+
+.rowMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 9px;
+}
+
+.rowAside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  min-width: 0;
+}
+
+.chev {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-paper-2);
+  color: var(--color-muted-2);
+}
+
+/* ---------------------------------------------------------- mini-barre */
+
+.mini {
+  display: block;
+  height: 5px;
+  flex: 1;
+  min-width: 60px;
+  background: var(--color-line-2);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.miniFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--skill-accent);
+  transition: width 0.25s ease;
+}
+
+.miniFillDone {
+  background: var(--color-green);
+}
+
+.count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------- badges */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 6px 9px;
+  border: 1px solid transparent;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.badgeTodo {
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+}
+
+.badgeTreated {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.badgeValidated {
+  background: color-mix(in srgb, var(--color-green) 12%, transparent);
+  color: var(--color-green);
+}
+
+.badgeReinforce {
+  background: color-mix(in srgb, var(--color-amber) 16%, transparent);
+  color: var(--color-amber-dark);
+}
+
+/* Pilule de palier : ambre, et le MÊME libellé partout (« A2 », jamais
+   « Niveau A2 » d'un écran à l'autre). */
+.levelPill {
+  background: color-mix(in srgb, var(--color-amber) 16%, transparent);
+  color: var(--color-amber-dark);
+}
+
+.metaText {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-muted-2);
+}
+
+/* -------------------------------------------------- encart d'information */
+
+.notice {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  padding: 14px;
+  border-radius: 20px;
+  background: white;
+  border: 1px solid var(--color-line);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+.notice strong {
+  display: block;
+  color: var(--color-ink);
+}
+
+.noticeIcon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-amber) 16%, transparent);
+  color: var(--color-amber-dark);
+}
+
+/* -------------------------------------------- résumé d'une compétence */
+
+.summary {
+  padding: 17px;
+}
+
+.summaryTop {
+  display: flex;
+  gap: 13px;
+  align-items: flex-start;
+}
+
+/* Colonne centrale du résumé : min-width 0 pour que le titre passe à la ligne
+   au lieu de repousser le bouton d'information hors de la carte à 360 px. */
+.summaryBody {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Bouton d'information : pastille discrète, mais zone cliquable 44 × 44. */
+.infoBtn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  margin: -6px -8px 0 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.infoDot {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--skill-accent) 10%, transparent);
+  color: var(--skill-accent);
+  transition: background 0.15s ease;
+}
+
+.infoBtn:hover .infoDot {
+  background: color-mix(in srgb, var(--skill-accent) 18%, transparent);
+}
+
+.infoBtn:focus-visible {
+  outline: 2px solid var(--skill-accent);
+  outline-offset: -4px;
+  border-radius: 14px;
+}
+
+.summaryTitle {
+  font-family: var(--font-display);
+  font-size: 19px;
+  margin: 6px 0;
+  letter-spacing: -0.35px;
+  font-weight: 600;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+/* L'explication de la compétence : texte courant, volontairement DISTINCT de
+   l'encart « Critère travaillé » juste en dessous — deux textes, deux endroits. */
+.summaryText {
+  font-size: 12px;
+  color: var(--color-muted);
+  line-height: 1.45;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.critBox {
+  margin-top: 13px;
+  border-radius: 17px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  padding: 12px;
+}
+
+.critLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-muted);
+  margin-bottom: 5px;
+}
+
+.critText {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------ filtres */
+
+.filterRow {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 0 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.filterRow::-webkit-scrollbar {
+  display: none;
+}
+
+.filter {
+  flex: none;
+  border: 1.5px solid var(--color-line);
+  background: white;
+  color: var(--color-muted);
+  border-radius: 999px;
+  padding: 9px 13px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.filter:hover {
+  border-color: var(--skill-accent);
+}
+
+.filterOn {
+  background: var(--skill-accent);
+  border-color: var(--skill-accent);
+  color: white;
+}
+
+/* ------------------------------------------------ écran d'un petit sujet */
+
+/* Où j'en suis · à quel palier. Une seule ligne, à la place du fil d'Ariane
+   sur deux lignes qui ouvrait l'écran : le titre du sujet et celui de la tâche
+   sont déjà dans l'en-tête, les répéter coûtait la moitié de la hauteur utile
+   avant la zone de production. */
+.compactLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.compactStep {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-muted);
+}
+
+/* Progression de la compétence, sur l'écran du sujet (barre fine, pas hero). */
+.inlineProgress {
+  margin: 0 0 12px;
+}
+
+.inlineProgressLabel {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-muted);
+  margin-bottom: 6px;
+}
+
+.rail {
+  display: block;
+  height: 7px;
+  background: var(--color-line-2);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.railFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--skill-accent);
+  transition: width 0.25s ease;
+}
+
+.previous {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin: 0 0 14px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--skill-accent) 22%, transparent);
+  background: var(--skill-accent-soft);
+  border-radius: 17px;
+}
+
+.previousBody {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.previousIcon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 12px;
+  background: var(--skill-accent-light);
+  color: var(--skill-accent);
+}
+
+.previousTitle {
+  display: block;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.previousText {
+  display: block;
+  margin: 3px 0 0;
+  color: var(--color-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.previousAction {
+  margin-left: auto;
+  border: 0;
+  background: white;
+  color: var(--skill-accent);
+  border-radius: 11px;
+  padding: 8px 9px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.previousAction:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------- tête de la carte d'exercice (M6) */
+
+.exerciseTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.criterionTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--skill-accent-light);
+  color: var(--skill-accent);
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.stepTag {
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  padding: 7px 9px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.exerciseTitle {
+  font-size: 20px;
+  line-height: 1.26;
+  letter-spacing: -0.45px;
+  font-weight: 800;
+  color: var(--color-ink);
+  margin: 15px 0 7px;
+}
+
+.exerciseIntro {
+  font-size: 12px;
+  line-height: 1.48;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+/* --------------------------------------- guidage d'un petit sujet (M6 bis)
+
+   Les deux cartes qui ouvrent l'écran de saisie — « Ce qu'il faut faire » et
+   « Situation » — plus la rangée de contraintes. Volontairement plus courtes
+   que `.exercise` : leur seul rôle est de tenir au-dessus de la zone de
+   production sur un écran de 360 px, ce que l'ancienne carte d'exercice
+   (titre d'intention + objectif + « Pourquoi cet exercice ? ») ne permettait
+   pas. Paddings et rayons repris de la capture client.
+   ------------------------------------------------------------------------- */
+
+.guideCard {
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  padding: 14px;
+  box-shadow: var(--skill-shadow);
+}
+
+.guideHead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.guideIcon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 11px;
+  background: var(--skill-accent-light);
+  color: var(--skill-accent);
+}
+
+.guideTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: var(--color-ink);
+}
+
+/* La check-list : des gestes, pas un critère abstrait. */
+.checklist {
+  list-style: none;
+  margin: 9px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.checkItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.checkDot {
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  flex: none;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--skill-accent) 45%, transparent);
+  color: var(--skill-accent);
+}
+
+/* Corps d'une carte de guidage : la situation, ou la consigne quand le sujet
+   n'a pas de check-list (dégradation — la carte n'est jamais vide). */
+.guideText {
+  margin: 9px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+/* Rangée de contraintes : longueur (dérivée des bornes) puis étiquettes. */
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+/* Padding volontairement serré : les trois puces d'un sujet doivent tenir sur
+   UNE ligne à 360 px. Une seconde ligne coûte ~42 px, prélevés exactement là
+   où on essaie de faire remonter la zone de production. */
+.chipItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.chipItem svg {
+  flex: none;
+  color: var(--color-muted);
+}
+
+/* ------------------------------------------------ zone de production (M6) */
+
+/* Carte « Ta réponse » : icône + titre, champ (ou enregistreur), puis un
+   pied qui porte l'astuce à gauche et le compteur à droite. Même coquille à
+   l'écrit et à l'oral — le parcours est identique, seule la zone change. */
+.answerCard {
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  padding: 14px;
+  box-shadow: var(--skill-shadow);
+}
+
+.answerHead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 10px;
+}
+
+.answerIcon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 11px;
+  background: var(--skill-accent-light);
+  color: var(--skill-accent);
+}
+
+.answerTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: var(--color-ink);
+}
+
+/* Amorce à l'oral : une suggestion de démarrage, pas un texte à réciter. */
+.starter {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  font-style: italic;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.answerFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 9px;
+}
+
+.answerTip {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.answerTip svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--color-amber-dark);
+}
+
+.answerCount {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-muted-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Sur un téléphone, chaque pixel gagné au-dessus de la carte « Ta réponse »
+   est un pixel de champ visible sans défiler — c'est le critère de réussite de
+   cet écran. On resserre le rythme, jamais la taille du texte : le guidage doit
+   rester lisible, sinon on n'a fait que déplacer le problème. */
+@media (max-width: 420px) {
+  .accent {
+    gap: 9px;
+  }
+
+  .back {
+    margin-bottom: 8px;
+  }
+
+  .compactLine {
+    margin-bottom: 6px;
+  }
+
+  .inlineProgress {
+    margin-bottom: 8px;
+  }
+
+  .guideCard,
+  .answerCard {
+    padding: 11px;
+  }
+
+  .guideIcon,
+  .answerIcon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .checklist {
+    gap: 6px;
+  }
+
+  .checkItem,
+  .guideText {
+    font-size: 13.5px;
+    line-height: 1.4;
+  }
+
+  /* Les trois puces d'un sujet tiennent alors sur une ligne : deux lignes de
+     puces coûtent 39 px, exactement ce qu'on essaie de rendre au champ. */
+  .chipItem {
+    gap: 4px;
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+
+  .answerHead {
+    margin-bottom: 8px;
+  }
+}
+
+/* ----------------------------------------------------- repères de format */
+
+/* Piles internes : les blocs du module s'espacent par `gap`, jamais par des
+   marges qui s'additionneraient à celui du conteneur. */
+.formStack {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.requirements {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.requirement {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--color-paper-2);
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 7px 9px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.why {
+  display: flex;
+  gap: 9px;
+  padding: 11px;
+  border-radius: 16px;
+  background: var(--color-paper);
+  border: 1px dashed var(--color-line);
+  color: var(--color-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.why strong {
+  color: var(--color-ink);
+}
+
+.whyIcon {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  flex: none;
+  border-radius: 9px;
+  background: var(--skill-accent-light);
+  color: var(--skill-accent);
+}
+
+.whyText {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Reliquat d'analyses offertes, seule information restée sous la zone de
+   production. Elle est un **élément de pile** (le pied du formulaire est une
+   colonne flex avec `gap`) : pas de marge propre, qui s'ajouterait au gap, et
+   `align-self` pour que la pilule garde sa largeur de contenu au lieu d'être
+   étirée sur toute la colonne. */
+.quota {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--color-paper-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+/* Rappel ambre : dit POURQUOI les références restent masquées (§13.2). */
+.tipline {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 10px;
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--color-amber) 16%, transparent);
+  color: var(--color-amber-dark);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.tipline b {
+  flex: none;
+}
+
+/* ------------------------------------------------------- écran de résultat */
+
+/* Carte de résultat : un seul panneau, du constat aux actions. */
+.panel {
+  padding: 18px;
+}
+
+.result {
+  animation: skillRise 0.28s ease both;
+}
+
+@keyframes skillRise {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Accusé de traitement : le sujet est marqué, la progression a bougé. */
+.resultTitle {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.check {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--color-green) 12%, transparent);
+  color: var(--color-green);
+}
+
+.resultHeading {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.resultSub {
+  margin: 3px 0 0;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.answerBox {
+  margin-top: 14px;
+  padding: 13px;
+  border-radius: 17px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+}
+
+.answerLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.065em;
+  color: var(--color-muted);
+}
+
+.prodText {
+  margin: 7px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--color-ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.player {
+  width: 100%;
+  max-width: 100%;
+  margin-top: 7px;
+}
+
+.player audio {
+  width: 100%;
+  max-width: 100%;
+}
+
+.transcriptLabel {
+  display: block;
+  margin: 12px 0 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.065em;
+  color: var(--color-muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 11px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 6px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--color-line);
+  background: white;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+/* -------------------------------------------------------------- verdict */
+
+/* Teinte franche (12 %) + bordure complète : le verdict doit se voir de loin.
+   NOT_VALIDATED est rouge — c'est un critère, pas un niveau CECRL (le projet
+   n'interdit le rouge que sur les paliers). */
+.verdict {
+  margin-top: 13px;
+  border-radius: 19px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-green) 32%, transparent);
+  background: color-mix(in srgb, var(--color-green) 12%, white);
+}
+
+.verdictPartial {
+  border-color: color-mix(in srgb, var(--color-amber) 38%, transparent);
+  background: color-mix(in srgb, var(--color-amber) 12%, white);
+}
+
+.verdictNot {
+  border-color: color-mix(in srgb, var(--color-red) 32%, transparent);
+  background: color-mix(in srgb, var(--color-red) 12%, white);
+}
+
+.verdictTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.verdictLabel {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+/* Pastille de statut à fond blanc, comme la maquette. */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: white;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.statusValidated {
+  color: var(--color-green);
+}
+
+.statusPartial {
+  color: var(--color-amber-dark);
+}
+
+.statusNot {
+  color: var(--color-red-dark);
+}
+
+.verdictText {
+  margin: 7px 0 0;
+  font-size: 12px;
+  line-height: 1.48;
+  color: var(--color-ink-2);
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------ retours */
+
+.feedbackGrid {
+  display: grid;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+@media (min-width: 760px) {
+  .feedbackGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.feedbackItem {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 17px;
+  border: 1px solid var(--color-line);
+  background: white;
+}
+
+.feedbackIcon {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  flex: none;
+  border-radius: 11px;
+}
+
+.feedbackIconGood {
+  background: color-mix(in srgb, var(--color-green) 12%, transparent);
+  color: var(--color-green);
+}
+
+.feedbackIconFocus {
+  background: color-mix(in srgb, var(--color-amber) 16%, transparent);
+  color: var(--color-amber-dark);
+}
+
+.feedbackTitle {
+  display: block;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.feedbackText {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.rewrite {
+  margin-top: 12px;
+  border-radius: 18px;
+  padding: 13px;
+  background: var(--skill-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--skill-accent) 20%, transparent);
+}
+
+.rewriteLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--skill-accent);
+}
+
+.rewriteText {
+  margin: 7px 0 0;
+  font-size: 13px;
+  line-height: 1.52;
+  color: var(--color-ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.rewriteNote {
+  display: block;
+  color: var(--color-muted);
+  font-size: 10px;
+  line-height: 1.35;
+  margin-top: 7px;
+}
+
+/* --------------------------------------------------- bandeau analyse IA */
+
+.premium {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 13px;
+  padding: 14px;
+  border-radius: 20px;
+  background: var(--gradient-ink-blue);
+  color: white;
+}
+
+.spark {
+  display: grid;
+  place-items: center;
+  width: 37px;
+  height: 37px;
+  flex: none;
+  border-radius: 13px;
+  background: color-mix(in srgb, white 14%, transparent);
+}
+
+.premiumCopy {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.premiumTitle {
+  display: block;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.premiumHint {
+  display: block;
+  font-size: 10px;
+  opacity: 0.78;
+  margin-top: 3px;
+  line-height: 1.35;
+}
+
+/* Le bouton du bandeau porte parfois une icône (relance) : `inline-flex` pour
+   qu'elle s'aligne sur le libellé au lieu de reposer sur la ligne de base. */
+.unlock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  border: 0;
+  background: white;
+  color: var(--color-ink);
+  border-radius: 12px;
+  padding: 9px 11px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.unlock:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Le retour de l'IA est rendu déplié : il porte donc son propre intertitre,
+   et c'est lui qui ouvre le bloc — pas un bandeau. */
+.aiPanel {
+  margin-top: 17px;
+}
+
+.aiPanel > .resultSectionTitle {
+  margin-top: 0;
+}
+
+/* ------------------------------------------------------ onglets références */
+
+.resultSectionTitle {
+  margin: 17px 0 8px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.15px;
+  color: var(--color-ink);
+}
+
+/* Dépliant des trois références : replié par défaut, l'analyse IA occupant la
+   place de contenu principal juste au-dessus. C'est un vrai bouton (clavier +
+   `aria-expanded`), pas un titre cliquable — l'action doit être annoncée. */
+.refSection {
+  margin-top: 17px;
+}
+
+.refToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 19px;
+  background: white;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.refToggle:hover {
+  border-color: var(--skill-accent);
+}
+
+.refToggleBody {
+  min-width: 0;
+}
+
+.refToggleTitle {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.15px;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.refToggleHint {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.refToggleAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--skill-accent);
+  white-space: nowrap;
+}
+
+.refChevron {
+  transition: transform 0.18s ease;
+}
+
+.refChevronOpen {
+  transform: rotate(180deg);
+}
+
+.refPanel {
+  margin-top: 11px;
+}
+
+.refTabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.refTab {
+  min-width: 0;
+  border: 1px solid var(--color-line);
+  background: white;
+  color: var(--color-muted);
+  border-radius: 13px;
+  padding: 9px 4px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  overflow-wrap: anywhere;
+}
+
+.refTab:hover {
+  border-color: var(--color-muted-2);
+}
+
+/* Code couleur des trois niveaux : insuffisant rouge, attendu vert, très
+   réussi bleu — identique au mobile. */
+.refTabInsufficient {
+  background: var(--color-red-light);
+  border-color: color-mix(in srgb, var(--color-red) 32%, transparent);
+  color: var(--color-red-dark);
+}
+
+.refTabExpected {
+  background: color-mix(in srgb, var(--color-green) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-green) 32%, transparent);
+  color: var(--color-green);
+}
+
+.refTabExcellent {
+  background: var(--color-blue-light);
+  border-color: color-mix(in srgb, var(--color-blue) 28%, transparent);
+  color: var(--color-blue);
+}
+
+.refBox {
+  margin-top: 9px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: 17px;
+  padding: 13px;
+}
+
+.refNote {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 0;
+  color: var(--color-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* -------------------------------------------------------------- actions */
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.actionWide {
+  grid-column: 1 / -1;
+}
+
+/* Sous 400 px, les libellés (gelés par le contrat) ne tiennent plus à deux
+   par ligne : on repasse en colonne unique plutôt que d'empiler trois lignes
+   de texte dans chaque bouton. */
+@media (max-width: 400px) {
+  .actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+.actions > * {
+  min-width: 0;
+  width: 100%;
+  text-align: center;
+}
+
+/* --------------------------------------------------------------- états */
+
+.pending {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 36px 16px;
+  text-align: center;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid var(--color-line);
+  border-top-color: var(--skill-accent);
+  animation: skillSpin 0.9s linear infinite;
+}
+
+@keyframes skillSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pendingText {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.error {
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 15px;
+  border: 1px solid color-mix(in srgb, var(--color-red) 26%, transparent);
+  background: var(--color-red-light);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-red-dark);
+  overflow-wrap: anywhere;
+}
+
+/* Un état vide et un chargement se rendent pareil : un texte doux, centré. */
+.empty {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.footLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: center;
+  margin-top: 22px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+.footLink:hover {
+  color: var(--skill-accent);
+}
+
+/* ================================================================= parcours
+   Briques ajoutées pour le parcours TCF complet (hub d'épreuve, sujets,
+   exercice, résultat, examens blancs, historique) : mêmes rayons, mêmes
+   paddings et mêmes graisses que la maquette, mais lues sur les blocs qui
+   n'existaient que dans le prototype (carte d'exercice, pack d'examen).
+   ========================================================================= */
+
+/* -------------------------------------------------- carte d'exercice (M6) */
+
+/* `.exercise` du prototype : la carte qui porte tout l'énoncé et la zone de
+   production. Rayon 28 comme le hero — c'est l'autre bloc « plein écran ». */
+.exercise {
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 28px;
+  padding: 18px;
+  box-shadow: var(--skill-shadow-lg);
+}
+
+/* Bloc « Contexte / Situation » sous la consigne. */
+.context {
+  margin: 15px 0 0;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  padding: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.contextLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-muted);
+  margin-bottom: 6px;
+}
+
+/* Tête de la zone de production : « Votre rédaction » + compteur. */
+.editorHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 16px 2px 8px;
+}
+
+.editorHeadTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.editorHeadHint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-muted-2);
+  white-space: nowrap;
+}
+
+.editor {
+  position: relative;
+}
+
+/* 16 px minimum : sous cette taille, iOS zoome au focus et fait déborder la
+   page horizontalement. Le padding bas laisse la place au compteur flottant. */
+.textarea {
+  display: block;
+  width: 100%;
+  min-height: 190px;
+  resize: vertical;
+  border: 1.5px solid var(--color-line);
+  border-radius: 20px;
+  padding: 15px 15px 38px;
+  outline: none;
+  background: white;
+  color: var(--color-ink);
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.textarea::placeholder {
+  color: var(--color-muted-2);
+}
+
+.textarea:focus {
+  border-color: var(--skill-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--skill-accent) 12%, transparent);
+}
+
+.textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Variante « carte » : le compteur vit dans le pied de carte et non en
+   surimpression, le champ n'a donc plus à réserver 38 px en bas. Déclarée
+   APRÈS `.textarea` — à spécificité égale, c'est l'ordre qui tranche, et
+   placée avant elle cette règle ne faisait rien. */
+.textareaBare {
+  min-height: 132px;
+  border-radius: 16px;
+  padding: 13px;
+}
+
+.counter {
+  position: absolute;
+  right: 13px;
+  bottom: 11px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-muted-2);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.counterOk {
+  color: var(--color-green);
+}
+
+.counterWarn {
+  color: var(--color-amber-dark);
+}
+
+/* Statistiques sous la zone de saisie (mots, caractères…). */
+.liveStats {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin: 7px 2px 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-muted-2);
+}
+
+.liveStats b {
+  color: var(--color-ink);
+}
+
+/* ----------------------------------------------------------- boutons M6 */
+
+/* `.actions` du prototype : action principale pleine largeur, secondaire au
+   chausse-pied à droite ; en colonne unique sous 420 px. */
+.actionRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+@media (max-width: 420px) {
+  .actionRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.primary,
+.secondary {
+  min-width: 0;
+  border: 0;
+  border-radius: 17px;
+  padding: 13px 15px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.primary {
+  background: var(--skill-accent);
+  color: white;
+  box-shadow: 0 7px 16px color-mix(in srgb, var(--skill-accent) 26%, transparent);
+}
+
+.primary:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.secondary {
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+}
+
+.secondary:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------- plan d'un modèle */
+
+.planList {
+  list-style: none;
+  margin: 11px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.planItem {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.planNum {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--skill-accent);
+}
+
+/* ------------------------------------------------- bandeau de progression */
+
+/* Chrono d'examen, épinglé au-dessus de la tâche courante. Il ne se colore
+   qu'à l'approche de la fin : un décompte rouge pendant 25 minutes n'informe
+   plus, il stresse. */
+.chrono {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--color-line);
+  background: white;
+  box-shadow: var(--skill-shadow);
+}
+
+.chronoLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.chronoTime {
+  flex: none;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.chronoUrgent {
+  border-color: color-mix(in srgb, var(--color-red) 40%, transparent);
+  background: var(--color-red-light);
+}
+
+.chronoUrgent .chronoTime,
+.chronoUrgent .chronoLabel {
+  color: var(--color-red-dark);
+}
+
+/* --------------------------------------------------------- statistiques */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+@media (max-width: 460px) {
+  .stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat {
+  min-width: 0;
+  padding: 13px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--color-line);
+  background: white;
+  box-shadow: var(--skill-shadow);
+}
+
+.statValue {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.statLabel {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.statSub {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+
+/* ------------------------------------------------------ pack d'examen blanc */
+
+.packGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 11px;
+}
+
+@media (min-width: 640px) {
+  .packGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.pack {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 16px;
+}
+
+.packTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.packTitle {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: var(--color-ink);
+}
+
+.packText {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.packActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.packBtn {
+  flex: 1 1 0;
+  min-width: 0;
+  border: 0;
+  border-radius: 15px;
+  padding: 11px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.packBtnStart {
+  background: var(--skill-accent);
+  color: white;
+}
+
+.packBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------- barre de modes du parcours */
+
+/* `<nav class="bottom">` du prototype : les trois modes du module (Compétences ·
+   Sujets · Examens), icône au-dessus du libellé.
+   **Décision de placement** : barre flottante en bas sous 900 px — l'idiome
+   mobile de la maquette, et le point où `DualChromeShell` replie sa navigation
+   latérale en tiroir. Au-delà, elle repasse **dans le flux**, en tête de
+   colonne : une barre flottante en bas d'un écran large entrerait en
+   concurrence avec la barre latérale de l'application, et deux navigations
+   superposées valent moins qu'une seule lisible. */
+.modeBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  padding: 10px 16px 14px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in srgb, var(--color-paper) 96%, transparent) 30%,
+    var(--color-paper)
+  );
+}
+
+.modeBarInner {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 7px;
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  background: white;
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--color-ink) 13%, transparent);
+}
+
+.modeBtn {
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--color-muted-2);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.modeBtnOn {
+  background: var(--skill-accent);
+  color: white;
+}
+
+/* Colonne du module quand elle porte la barre : le contenu ne doit jamais
+   finir sous elle. */
+.wrapBar {
+  padding-bottom: 118px;
+}
+
+@media (min-width: 900px) {
+  .modeBar {
+    position: static;
+    padding: 0;
+    background: none;
+    margin-bottom: 17px;
+  }
+
+  .modeBarInner {
+    max-width: 440px;
+    margin: 0;
+  }
+
+  .wrapBar {
+    padding-bottom: 80px;
+  }
+}
+
+/* ----------------------------------------------- accessibilité clavier */
+
+/* Exigence, pas finition : tout élément actionnable du module montre son
+   focus clavier, et s'enfonce au clic comme dans la maquette. */
+.back:focus-visible,
+.headLink:focus-visible,
+.taskPill:focus-visible,
+.rowCard:focus-visible,
+.filter:focus-visible,
+.refTab:focus-visible,
+.refToggle:focus-visible,
+.unlock:focus-visible,
+.previousAction:focus-visible,
+.footLink:focus-visible,
+.modeBtn:focus-visible,
+.primary:focus-visible,
+.secondary:focus-visible,
+.packBtn:focus-visible,
+.textarea:focus-visible {
+  outline: 2px solid var(--skill-accent);
+  outline-offset: 2px;
+}
+
+.headLink:active,
+.taskPill:active,
+.filter:active,
+.refTab:active,
+.unlock:active:not(:disabled),
+.previousAction:active:not(:disabled),
+.primary:active:not(:disabled),
+.secondary:active:not(:disabled),
+.packBtn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rowCard,
+  .headLink,
+  .taskPill,
+  .filter,
+  .refTab,
+  .refToggle,
+  .refChevron,
+  .unlock,
+  .previousAction,
+  .primary,
+  .secondary,
+  .packBtn,
+  .result {
+    transition: none;
+    animation: none;
+  }
+
+  .rowCard:hover,
+  .rowCard:active,
+  .headLink:active,
+  .taskPill:active,
+  .filter:active,
+  .refTab:active,
+  .unlock:active:not(:disabled),
+  .previousAction:active:not(:disabled),
+  .primary:active:not(:disabled),
+  .secondary:active:not(:disabled),
+  .packBtn:active:not(:disabled) {
+    transform: none;
+  }
+}

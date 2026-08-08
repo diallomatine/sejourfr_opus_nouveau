@@ -16,13 +16,12 @@ import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.util.ProductionPayloadSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.text.Normalizer;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -94,7 +93,7 @@ public class ProductionEvaluationService {
         submission.setStatut(SubmissionStatut.SUBMITTED);
 
         if (estOral) {
-            byte[] bytes = readBytes(audio);
+            byte[] bytes = ProductionPayloadSupport.readBytes(audio);
             validateAudio(bytes);
             // On uploade R2 AVANT de creer la row pour respecter le CHECK
             // `chk_prod_sub_audio_or_text` (media_url DOIT etre non-null pour
@@ -102,7 +101,7 @@ public class ProductionEvaluationService {
             // ne pre-assigne pas l'id de la submission (Hibernate refuse
             // "Detached entity" avec @UuidGenerator + id pre-set).
             UUID storageKeyId = UUID.randomUUID();
-            String extension = extractExtension(audio);
+            String extension = ProductionPayloadSupport.extractExtension(audio);
             ProductionAudioStorageService.StoredAudio stored = audioStorage.upload(
                 storageKeyId, bytes, audio.getContentType(), extension
             );
@@ -110,8 +109,8 @@ public class ProductionEvaluationService {
             submission.setMediaDurationSec(null); // sera mis a jour apres Whisper
             submission = submissionManager.save(submission);
         } else {
-            String clean = sanitize(texte);
-            int mots = compteMots(clean);
+            String clean = ProductionPayloadSupport.sanitizeText(texte);
+            int mots = ProductionPayloadSupport.countWords(clean);
             validateTextWordCount(mots, task);
             submission.setTexteSoumis(clean);
             submission.setMotsCount(mots);
@@ -270,35 +269,7 @@ public class ProductionEvaluationService {
             throw new BusinessException("Tache TCF_EE : ne pas envoyer un audio en plus du texte.");
         }
         if (estOral && audio != null && !audio.isEmpty()) {
-            validateAudioContentType(audio);
-        }
-    }
-
-    /**
-     * Garde-fou content-type avant stockage R2 / transcription : on rejette un
-     * type manifestement non-audio (text/html, image/svg+xml…), tout en
-     * tolerant l'absence de type ou {@code application/octet-stream} (certains
-     * clients mobiles n'etiquettent pas leur upload binaire). La cle R2 est un
-     * UUID genere serveur — pas de path-traversal possible via le nom de fichier.
-     */
-    private void validateAudioContentType(MultipartFile audio) {
-        String contentType = audio.getContentType();
-        if (contentType == null || contentType.isBlank()) {
-            return;
-        }
-        String lower = contentType.toLowerCase();
-        boolean ok = lower.startsWith("audio/") || lower.equals("application/octet-stream");
-        if (!ok) {
-            throw new BusinessException(
-                    "Type de fichier audio invalide (" + contentType + "). Formats acceptes : audio/*.");
-        }
-    }
-
-    private byte[] readBytes(MultipartFile audio) {
-        try {
-            return audio.getBytes();
-        } catch (IOException e) {
-            throw new BusinessException("Lecture du fichier audio impossible : " + e.getMessage());
+            ProductionPayloadSupport.validateAudioContentType(audio);
         }
     }
 
@@ -342,51 +313,4 @@ public class ProductionEvaluationService {
         }
     }
 
-    /**
-     * Extrait une extension de fichier sûre à utiliser comme suffixe de clé
-     * R2/S3. La valeur user-controlled (filename, content-type) est
-     * whitelistée par une regex stricte — sinon on retombe sur "bin".
-     *
-     * <p>Sans cette garde, un {@code originalFilename = "foo.x/../audio/<id>.mp3"}
-     * produit une key R2 contenant des slashes et {@code ..} (R2 stocke les
-     * clés en strings opaques, mais des proxies/CDN peuvent canoniser). Cf
-     * audit Vuln 7.
-     */
-    private static final java.util.regex.Pattern SAFE_EXTENSION =
-            java.util.regex.Pattern.compile("^[a-z0-9]{1,8}$");
-
-    private static String extractExtension(MultipartFile file) {
-        String name = file.getOriginalFilename();
-        if (name != null) {
-            int dot = name.lastIndexOf('.');
-            if (dot >= 0 && dot < name.length() - 1) {
-                String candidate = name.substring(dot + 1).toLowerCase();
-                if (SAFE_EXTENSION.matcher(candidate).matches()) {
-                    return candidate;
-                }
-            }
-        }
-        String ct = file.getContentType();
-        if (ct != null) {
-            return switch (ct) {
-                case "audio/webm" -> "webm";
-                case "audio/mpeg", "audio/mp3" -> "mp3";
-                case "audio/mp4", "audio/m4a", "audio/x-m4a" -> "m4a";
-                case "audio/ogg" -> "ogg";
-                case "audio/wav", "audio/x-wav" -> "wav";
-                default -> "bin";
-            };
-        }
-        return "bin";
-    }
-
-    private static String sanitize(String texte) {
-        String nfc = Normalizer.normalize(texte, Normalizer.Form.NFC);
-        return nfc.strip();
-    }
-
-    private static int compteMots(String texte) {
-        if (texte == null || texte.isBlank()) return 0;
-        return texte.trim().split("\\s+").length;
-    }
 }

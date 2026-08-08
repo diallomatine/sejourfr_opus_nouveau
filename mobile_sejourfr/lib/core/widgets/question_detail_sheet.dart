@@ -4,7 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../api/api_config.dart';
 import '../models/question_models.dart';
 import '../theme/app_theme.dart';
-import '../../screens/question_runner/widgets/audio_player.dart';
+import 'audio_player.dart';
 import '../../screens/question_runner/widgets/question_media_view.dart';
 
 /// Bottomsheet de détail d'une question : chips niveau/type, audio rejouable

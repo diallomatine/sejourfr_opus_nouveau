@@ -1,11 +1,84 @@
 "use client";
 
-import {useEffect, useRef, useState} from "react";
-import {Clock, Mic, RotateCcw, Square} from "lucide-react";
+import {useEffect, useRef, useState, type ReactNode} from "react";
+import {Clock, Lightbulb, Mic, RotateCcw, Square, Target} from "lucide-react";
 import {formatDurationSec, type ProductionTaskDto} from "@/lib/types";
+import {SkillAccent} from "@/app/_components/skill-ui/SkillLayout";
+import s from "@/app/_components/skill-ui/skill.module.css";
+import {type ProductionVoice} from "./config";
 import {EoTranscriptNotice} from "./EoTranscriptNotice";
 import {ProductionCriteriaCard} from "./ProductionCriteriaCard";
 import styles from "./production.module.css";
+
+/**
+ * Chrome de l'enregistreur dans les deux voix. Seules figurent ici les phrases
+ * réellement atteignables **hors** mode examen : le mode examen n'existe que
+ * sur les écrans de production TCF, qui vouvoient — dupliquer ses phrases
+ * n'aurait rien apporté qu'une occasion de les voir diverger.
+ */
+const COPY: Record<
+  ProductionVoice,
+  {
+    micSystem: string;
+    micDenied: string;
+    micNotFound: string;
+    micBusy: string;
+    micDefault: string;
+    blockInsecure: string;
+    blockUnsupported: string;
+    blockDenied: string;
+    recording: string;
+    recordingCapped: (cap: string) => string;
+    recorded: string;
+    idle: (range: string, cap: string) => string;
+  }
+> = {
+  vouvoiement: {
+    micSystem:
+      "C'est votre système qui bloque le micro du navigateur (le site, lui, est autorisé). macOS : Réglages Système → Confidentialité et sécurité → Microphone → activez votre navigateur, puis quittez-le et relancez-le.",
+    micDenied:
+      "Accès au micro refusé. Autorisez-le via l'icône à gauche de l'adresse → Microphone, et vérifiez aussi que votre système autorise ce navigateur à utiliser le micro (macOS : Réglages Système → Confidentialité et sécurité → Microphone). Puis réessayez.",
+    micNotFound: "Aucun microphone détecté. Branchez un micro puis réessayez.",
+    micBusy:
+      "Le micro est utilisé par une autre application (visioconférence, dictaphone…). Fermez-la puis réessayez.",
+    micDefault:
+      "Micro inaccessible. Autorisez le microphone dans votre navigateur, puis réessayez.",
+    blockInsecure:
+      "Le micro nécessite une connexion sécurisée (HTTPS) ou localhost. Ouvrez le site en https pour enregistrer.",
+    blockUnsupported:
+      "Votre navigateur ne supporte pas l'enregistrement audio. Essayez Chrome ou Firefox à jour.",
+    blockDenied:
+      "Le navigateur indique que le micro est bloqué pour ce site. Cliquez sur le micro pour réessayer — si rien ne se passe, autorisez-le via l'icône à gauche de l'adresse → Microphone.",
+    recording: "Enregistrement en cours… appuyez sur le carré pour arrêter.",
+    recordingCapped: (cap) =>
+      `Enregistrement en cours… appuyez sur le carré pour arrêter (arrêt automatique à ${cap}).`,
+    recorded: "Réécoutez votre réponse, refaites-la ou envoyez-la à l'évaluation.",
+    idle: (range, cap) =>
+      `Appuyez sur le micro pour autoriser et enregistrer${range}${cap}. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`,
+  },
+  tutoiement: {
+    micSystem:
+      "C'est ton système qui bloque le micro du navigateur (le site, lui, est autorisé). macOS : Réglages Système → Confidentialité et sécurité → Microphone → active ton navigateur, puis quitte-le et relance-le.",
+    micDenied:
+      "Accès au micro refusé. Autorise-le via l'icône à gauche de l'adresse → Microphone, et vérifie aussi que ton système autorise ce navigateur à utiliser le micro (macOS : Réglages Système → Confidentialité et sécurité → Microphone). Puis réessaie.",
+    micNotFound: "Aucun microphone détecté. Branche un micro puis réessaie.",
+    micBusy:
+      "Le micro est utilisé par une autre application (visioconférence, dictaphone…). Ferme-la puis réessaie.",
+    micDefault: "Micro inaccessible. Autorise le microphone dans ton navigateur, puis réessaie.",
+    blockInsecure:
+      "Le micro nécessite une connexion sécurisée (HTTPS) ou localhost. Ouvre le site en https pour enregistrer.",
+    blockUnsupported:
+      "Ton navigateur ne supporte pas l'enregistrement audio. Essaie Chrome ou Firefox à jour.",
+    blockDenied:
+      "Le navigateur indique que le micro est bloqué pour ce site. Clique sur le micro pour réessayer — si rien ne se passe, autorise-le via l'icône à gauche de l'adresse → Microphone.",
+    recording: "Enregistrement en cours… appuie sur le carré pour arrêter.",
+    recordingCapped: (cap) =>
+      `Enregistrement en cours… appuie sur le carré pour arrêter (arrêt automatique à ${cap}).`,
+    recorded: "Réécoute ta réponse, refais-la ou envoie-la à l'évaluation.",
+    idle: (range, cap) =>
+      `Appuie sur le micro pour autoriser et enregistrer${range}${cap}. La 1ʳᵉ fois, ton navigateur te demandera l'accès au micro.`,
+  },
+};
 
 /** Choisit un conteneur audio supporté par le navigateur (Chrome/FF: webm,
  *  Safari: mp4). Whisper accepte ces formats. */
@@ -23,26 +96,41 @@ function fmtTimer(sec: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+/**
+ * Pendant oral d'`AnswerCard` : la zone de production en carte (icône + titre,
+ * suggestion de démarrage, enregistreur, pied astuce / durée). L'écran d'un
+ * petit sujet est **structuré à l'identique** à l'écrit et à l'oral — seule la
+ * zone de production change, ici l'enregistreur au lieu du champ de saisie.
+ */
+export interface RecorderCard {
+  title: string;
+  icon?: ReactNode;
+  /** Amorce du sujet, proposée comme **suggestion de démarrage** (l'oral n'a
+   *  pas de texte grisé). Absente = aucune suggestion, pas de bloc vide. */
+  starter?: string | null;
+  /** Rappel du geste souvent oublié. Absent = seule la durée s'affiche. */
+  tip?: string | null;
+}
+
 /** Message précis selon le type d'échec de `getUserMedia`. */
-function micErrorMessage(name: string, message: string): string {
+function micErrorMessage(name: string, message: string, voice: ProductionVoice): string {
+  const copy = COPY[voice];
   // Chrome précise "Permission denied by system" quand c'est l'OS (et non le
   // site) qui bloque le navigateur — cas typique : site sur Autoriser mais
   // macOS n'a pas donné le micro à Chrome.
-  if (/system/i.test(message)) {
-    return "C'est votre système qui bloque le micro du navigateur (le site, lui, est autorisé). macOS : Réglages Système → Confidentialité et sécurité → Microphone → activez votre navigateur, puis quittez-le et relancez-le.";
-  }
+  if (/system/i.test(message)) return copy.micSystem;
   switch (name) {
     case "NotAllowedError":
     case "SecurityError":
-      return "Accès au micro refusé. Autorisez-le via l'icône à gauche de l'adresse → Microphone, et vérifiez aussi que votre système autorise ce navigateur à utiliser le micro (macOS : Réglages Système → Confidentialité et sécurité → Microphone). Puis réessayez.";
+      return copy.micDenied;
     case "NotFoundError":
     case "DevicesNotFoundError":
-      return "Aucun microphone détecté. Branchez un micro puis réessayez.";
+      return copy.micNotFound;
     case "NotReadableError":
     case "TrackStartError":
-      return "Le micro est utilisé par une autre application (visioconférence, dictaphone…). Fermez-la puis réessayez.";
+      return copy.micBusy;
     default:
-      return "Micro inaccessible. Autorisez le microphone dans votre navigateur, puis réessayez.";
+      return copy.micDefault;
   }
 }
 
@@ -57,6 +145,16 @@ export function EoRecordingForm({
   submitting,
   error,
   submitLabel = "Soumettre à l'évaluation",
+  consigneLabel,
+  exerciseTitle,
+  headerSlot,
+  promptSlot,
+  criteriaSlot,
+  answerCard,
+  footerSlot,
+  footerAlwaysVisible = false,
+  maxDurationSec,
+  voice = "vouvoiement",
   examMode = false,
   timeoutSignal = 0,
   onTimeout,
@@ -67,6 +165,53 @@ export function EoRecordingForm({
   submitting: boolean;
   error?: string | null;
   submitLabel?: string;
+  /** Remplace « Tâche N » sur le badge de contrainte (micro-exercices :
+   *  « Petit sujet · 2/5 »). */
+  consigneLabel?: string;
+  /** Titre d'intention affiché **dans** la carte d'exercice, au-dessus de la
+   *  consigne. Absent par défaut : les micro-exercices portent déjà le leur
+   *  dans `headerSlot`. */
+  exerciseTitle?: ReactNode;
+  /** Inséré tout en haut, **avant** la carte de consigne : intention de
+   *  l'exercice et critère travaillé. Rien par défaut. */
+  headerSlot?: ReactNode;
+  /** Remplace **entièrement** la carte d'exercice (badge, palier, consigne,
+   *  situation, chips de format). Absent = carte historique. Même prop, même
+   *  contenu qu'à l'écrit : le guidage d'un petit sujet. */
+  promptSlot?: ReactNode;
+  /** Remplace la carte de nos 4 critères. `null` la retire — les
+   *  micro-exercices « Compétences » n'évaluent QU'UN critère et affichent le
+   *  leur ici, juste au-dessus de l'enregistreur. */
+  criteriaSlot?: ReactNode;
+  /** Présente l'enregistreur en carte (icône + titre, suggestion de démarrage,
+   *  pied astuce / durée). Absent = panneau d'enregistrement historique. */
+  answerCard?: RecorderCard;
+  /** Inséré juste au-dessus des boutons Refaire / Envoyer, donc visible une fois
+   *  la prise enregistrée (auto-évaluation, options de soumission). */
+  footerSlot?: ReactNode;
+  /** Rend `footerSlot` **dès l'ouverture de l'écran**, et non plus seulement
+   *  après l'arrêt de l'enregistrement.
+   *
+   *  Ce qu'il porte dans le module « Compétences » — l'auto-évaluation, la
+   *  bascule « Analyser ma réponse avec l'IA » et le rappel « les références
+   *  n'apparaissent qu'après ta production » — est une **décision à prendre
+   *  avant de parler** : arrivée après coup, le candidat avait déjà consommé
+   *  une de ses analyses offertes sans le savoir. Faux par défaut : les écrans
+   *  de production TCF gardent leur pied d'après-prise. */
+  footerAlwaysVisible?: boolean;
+  /** Plafond **dur** de capture, en secondes, hors mode examen : la prise
+   *  s'arrête d'elle-même et la durée transmise est bornée à cette valeur.
+   *
+   *  C'est le reflet d'un garde **serveur** (`sejourfr.competences.analysis`),
+   *  pas un réglage d'affichage : sans lui, un enregistrement de cinq minutes
+   *  partait puis était refusé, production perdue. À ne pas confondre avec
+   *  `task.dureeMaxSec`, qui reste la durée **conseillée** (indicative) et
+   *  pilote seule le décompte du mode examen. Absent = aucune borne, le
+   *  comportement historique. */
+  maxDurationSec?: number | null;
+  /** Voix du chrome de l'enregistreur. Vouvoiement par défaut ; le module
+   *  « Compétences » tutoie. Ne touche jamais au texte du sujet. */
+  voice?: ProductionVoice;
   /** En examen blanc : décompte par tâche (dureeMaxSec), auto-stop à 0 et
    *  soumission immédiate au stop (manuel ou auto) — pas d'étape de réécoute. */
   examMode?: boolean;
@@ -109,6 +254,11 @@ export function EoRecordingForm({
   // `onSubmit` (le parent finalise l'épreuve au lieu d'enchaîner la tâche).
   const timeoutOnStopRef = useRef(false);
   const lastTimeoutSignalRef = useRef(0);
+
+  const copy = COPY[voice];
+  // Plafond dur de capture : hors examen seulement (en examen, c'est
+  // `task.dureeMaxSec` qui borne déjà la prise et déclenche la soumission).
+  const hardCapSec = !examMode && maxDurationSec != null && maxDurationSec > 0 ? maxDurationSec : null;
 
   // Nettoyage : stoppe le flux micro + révoque l'URL à la destruction.
   useEffect(() => {
@@ -246,8 +396,13 @@ export function EoRecordingForm({
             // Examen : auto-stop quand la durée max est atteinte.
             if (examMode && task.dureeMaxSec != null && next >= task.dureeMaxSec) {
               stopExam(next);
+            } else if (hardCapSec != null && next >= hardCapSec) {
+              // Hors examen : plafond dur du serveur. On coupe la capture au
+              // lieu d'envoyer un fichier qui sera refusé — le candidat garde
+              // ce qu'il a dit et peut le réécouter avant d'envoyer.
+              stopAtHardCap();
             }
-            return next;
+            return Math.min(next, hardCapSec ?? next);
           }),
         1000,
       );
@@ -258,7 +413,7 @@ export function EoRecordingForm({
           ? String((e as {message?: unknown}).message)
           : "";
       if (name === "NotAllowedError" || name === "SecurityError") setMicState("denied");
-      setPermError(micErrorMessage(name, message));
+      setPermError(micErrorMessage(name, message, voice));
     }
   }
 
@@ -269,6 +424,16 @@ export function EoRecordingForm({
       return;
     }
     recorderRef.current?.stop();
+  }
+
+  /** Arrête la capture au plafond dur (hors examen) : chemin d'arrêt normal —
+   *  le candidat retrouve sa prise, la réécoute, la refait ou l'envoie. */
+  function stopAtHardCap() {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
   }
 
   /** Arrête l'enregistrement en mode examen → soumission immédiate dans `onstop`. */
@@ -322,104 +487,182 @@ export function EoRecordingForm({
   const blocked = micState === "insecure" || micState === "unsupported";
   const blockMsg =
     micState === "insecure"
-      ? "Le micro nécessite une connexion sécurisée (HTTPS) ou localhost. Ouvrez le site en https pour enregistrer."
+      ? copy.blockInsecure
       : micState === "unsupported"
-        ? "Votre navigateur ne supporte pas l'enregistrement audio. Essayez Chrome ou Firefox à jour."
+        ? copy.blockUnsupported
         : micState === "denied"
-          ? "Le navigateur indique que le micro est bloqué pour ce site. Cliquez sur le micro pour réessayer — si rien ne se passe, autorisez-le via l'icône à gauche de l'adresse → Microphone."
+          ? copy.blockDenied
           : null;
 
-  return (
-    <>
-      <div className={styles.card}>
-        <p className={styles.cardLabel}>Consigne · Tâche {task.tacheNumero}</p>
-        <p className={styles.consigne}>{task.consigne}</p>
-        {task.contexte && <div className={styles.contexte}>{task.contexte}</div>}
-        <div className={styles.metaRow}>
-          {rangeLabel && (
-            <span className={styles.metaChip}>
-              <Clock size={13} strokeWidth={2} />
-              {rangeLabel}
-            </span>
-          )}
-          <span className={styles.metaChip}>
-            <Mic size={13} strokeWidth={2} />
-            Niveau {task.niveauCible}
-          </span>
-        </div>
-      </div>
+  // Corps de l'enregistreur, partagé par les deux présentations (panneau
+  // historique et carte de réponse) : le dupliquer serait la garantie de voir
+  // un correctif n'atterrir que d'un côté.
+  const recorder = (
+    <div className={styles.recorder}>
+      <div className={`${styles.timerBig} ${timerClass}`}>{fmtTimer(shownSec)}</div>
 
-      <ProductionCriteriaCard />
-
-      <EoTranscriptNotice />
-
-      <div className={styles.recorder}>
-        <div className={`${styles.timerBig} ${timerClass}`}>{fmtTimer(shownSec)}</div>
-
-        {phase === "recording" ? (
-          <button type="button" className={`${styles.recordCircle} ${styles.recordCircleRec}`} onClick={stop}>
-            <Square size={28} strokeWidth={2.2} fill="currentColor" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            className={styles.recordCircle}
-            onClick={handleStartClick}
-            disabled={submitting || blocked || (examMode && phase === "recorded")}
-            aria-label={phase === "recorded" ? "Réenregistrer" : "Démarrer l'enregistrement"}
-          >
-            <Mic size={32} strokeWidth={2} />
-          </button>
-        )}
-
-        <p className={styles.recordHint}>
-          {phase === "recording"
-            ? examCountdown
-              ? "Enregistrement en cours… arrêt automatique à 0:00, ou appuyez sur le carré pour soumettre."
-              : "Enregistrement en cours… appuyez sur le carré pour arrêter."
-            : phase === "recorded"
-              ? examMode
-                ? "Réponse envoyée à l'évaluation…"
-                : "Réécoutez votre réponse, refaites-la ou envoyez-la à l'évaluation."
-              : examCountdown
-                ? `Appuyez sur le micro : vous avez ${rangeLabel || formatDurationSec(max ?? 0)} et votre réponse est soumise dès l'arrêt. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`
-                : `Appuyez sur le micro pour autoriser et enregistrer${
-                    rangeLabel ? ` (durée conseillée ${rangeLabel})` : ""
-                  }. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`}
-        </p>
-
-        {!examMode && phase === "recorded" && audioUrl && (
-          <div className={styles.player}>
-            <audio src={audioUrl} controls preload="metadata" />
-          </div>
-        )}
-      </div>
-
-      {(blockMsg || permError || error) && (
-        <div className={styles.error}>{blockMsg ?? permError ?? error}</div>
+      {phase === "recording" ? (
+        <button
+          type="button"
+          className={`${styles.recordCircle} ${styles.recordCircleRec}`}
+          onClick={stop}
+          aria-label="Arrêter l'enregistrement"
+        >
+          <Square size={28} strokeWidth={2.2} fill="currentColor" />
+        </button>
+      ) : (
+        <button
+          type="button"
+          className={styles.recordCircle}
+          onClick={handleStartClick}
+          disabled={submitting || blocked || (examMode && phase === "recorded")}
+          aria-label={phase === "recorded" ? "Réenregistrer" : "Démarrer l'enregistrement"}
+        >
+          <Mic size={32} strokeWidth={2} />
+        </button>
       )}
 
+      <p className={styles.recordHint}>
+        {phase === "recording"
+          ? examCountdown
+            ? "Enregistrement en cours… arrêt automatique à 0:00, ou appuyez sur le carré pour soumettre."
+            : hardCapSec != null
+              ? copy.recordingCapped(fmtTimer(hardCapSec))
+              : copy.recording
+          : phase === "recorded"
+            ? examMode
+              ? "Réponse envoyée à l'évaluation…"
+              : copy.recorded
+            : examCountdown
+              ? `Appuyez sur le micro : vous avez ${rangeLabel || formatDurationSec(max ?? 0)} et votre réponse est soumise dès l'arrêt. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`
+              : copy.idle(
+                  rangeLabel ? ` (durée conseillée ${rangeLabel})` : "",
+                  hardCapSec != null ? `, ${formatDurationSec(hardCapSec)} maximum` : "",
+                )}
+      </p>
+
+      {!examMode && phase === "recorded" && audioUrl && (
+        <div className={styles.player}>
+          <audio src={audioUrl} controls preload="metadata" />
+        </div>
+      )}
+    </div>
+  );
+
+  // Pendant du compteur de mots : ce qui a été dit, sur ce qui est visé. Il
+  // prend les teintes du compteur de l'écrit (`counterWarn` = ambre LISIBLE),
+  // pas celles du gros chrono, qui sont calibrées pour du texte de 34 px.
+  const durationText = max != null ? `${fmtTimer(elapsed)} / ${fmtTimer(max)}` : fmtTimer(elapsed);
+  const durationClass = phase === "idle" ? "" : inRange ? s.counterOk : s.counterWarn;
+
+  return (
+    <SkillAccent accent="red">
+      {headerSlot}
+
+      {/* Même carte d'exercice qu'à l'écrit : le parcours est identique en EE
+          et en EO, seules la zone de production et la couleur d'accent
+          changent. */}
+      {promptSlot === undefined ? (
+        <section className={s.exercise}>
+          <div className={s.exerciseTop}>
+            <span className={s.criterionTag}>
+              <Target size={12} strokeWidth={2.4} aria-hidden />
+              {consigneLabel ?? `Tâche ${task.tacheNumero}`}
+            </span>
+            <span className={s.stepTag}>Niveau {task.niveauCible}</span>
+          </div>
+
+          {exerciseTitle && <h2 className={s.exerciseTitle}>{exerciseTitle}</h2>}
+          <p className={s.exerciseIntro}>{task.consigne}</p>
+
+          {task.contexte && (
+            <div className={s.context}>
+              <span className={s.contextLabel}>Situation</span>
+              {task.contexte}
+            </div>
+          )}
+
+          {rangeLabel && (
+            <div className={s.requirements}>
+              <span className={s.requirement}>
+                <Clock size={11} strokeWidth={2.4} aria-hidden />
+                {rangeLabel}
+              </span>
+            </div>
+          )}
+        </section>
+      ) : (
+        promptSlot
+      )}
+
+      {criteriaSlot === undefined ? <ProductionCriteriaCard /> : criteriaSlot}
+
+      {/* En carte, l'avertissement passe SOUS l'enregistreur : il reste dit, il
+          ne repousse plus le micro sous la ligne de flottaison. */}
+      {!answerCard && <EoTranscriptNotice voice={voice} />}
+
+      {answerCard ? (
+        <section className={s.answerCard}>
+          <div className={s.answerHead}>
+            {answerCard.icon && (
+              <span className={s.answerIcon} aria-hidden>
+                {answerCard.icon}
+              </span>
+            )}
+            <h2 className={s.answerTitle}>{answerCard.title}</h2>
+          </div>
+          {answerCard.starter && (
+            <p className={s.starter}>Pour démarrer : « {answerCard.starter} »</p>
+          )}
+          {recorder}
+          <div className={s.answerFoot}>
+            {answerCard.tip ? (
+              <span className={s.answerTip}>
+                <Lightbulb size={13} strokeWidth={2.2} aria-hidden />
+                Astuce : {answerCard.tip}
+              </span>
+            ) : (
+              <span />
+            )}
+            <span className={`${s.answerCount} ${durationClass}`} aria-live="polite">
+              {durationText}
+            </span>
+          </div>
+        </section>
+      ) : (
+        <div className={`${s.card} ${s.panel}`}>{recorder}</div>
+      )}
+
+      {answerCard && <EoTranscriptNotice voice={voice} />}
+
+      {(blockMsg || permError || error) && (
+        <div className={s.error}>{blockMsg ?? permError ?? error}</div>
+      )}
+
+      {/* Ce que porte ce pied — auto-évaluation, option d'analyse IA, rappel
+          sur les références — se décide AVANT de parler : c'est pour ça qu'il
+          peut être rendu dès l'ouverture de l'écran. */}
+      {!examMode && (footerAlwaysVisible || phase === "recorded") && footerSlot}
+
       {!examMode && phase === "recorded" && (
-        <div className={styles.submitRow}>
+        <div className={s.actionRow}>
           <button
             type="button"
-            className="btn btn-ghost"
+            className={s.primary}
             disabled={submitting}
-            onClick={redo}
-          >
-            <RotateCcw size={15} strokeWidth={2.2} style={{marginRight: 6}} />
-            Refaire
-          </button>
-          <button
-            type="button"
-            className={`btn btn-red btn-lg ${styles.grow}`}
-            disabled={submitting}
-            onClick={() => blobRef.current && onSubmit(blobRef.current, elapsed)}
+            onClick={() =>
+              blobRef.current &&
+              onSubmit(blobRef.current, Math.min(elapsed, hardCapSec ?? elapsed))
+            }
           >
             {submitting ? "Envoi en cours…" : submitLabel}
           </button>
+          <button type="button" className={s.secondary} disabled={submitting} onClick={redo}>
+            <RotateCcw size={15} strokeWidth={2.2} style={{marginRight: 6}} aria-hidden />
+            Refaire
+          </button>
         </div>
       )}
-    </>
+    </SkillAccent>
   );
 }

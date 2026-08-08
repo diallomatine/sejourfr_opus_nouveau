@@ -41,7 +41,13 @@ export function ConfirmSheet({
 
   return (
     <div className="cfs-overlay" onClick={onClose} role="presentation">
-      <div className="cfs-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div
+        className="cfs-sheet"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cfs-title"
+      >
         <div className="cfs-handle" aria-hidden />
         <div className={`cfs-icon cfs-icon-${tone}`} aria-hidden>
           {tone === "warning" ? (
@@ -50,7 +56,9 @@ export function ConfirmSheet({
             <Info size={22} strokeWidth={2} />
           )}
         </div>
-        <h2 className="cfs-title">{title}</h2>
+        <h2 id="cfs-title" className="cfs-title">
+          {title}
+        </h2>
         <p className="cfs-msg">{message}</p>
         {onConfirm ? (
           <>

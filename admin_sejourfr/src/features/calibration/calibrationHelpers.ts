@@ -52,9 +52,10 @@ export const BANDE_LABEL: Record<BandeCritere, string> = {
 
 /**
  * Libellé de repli quand le feedback ne porte pas de `label` — les 4 premiers
- * viennent de `production-rubrics-v5.json` (grille actuelle, calquée sur la
- * vraie grille TCF), les suivants de `production-rubrics-v4.json`/v3,
- * accents rétablis.
+ * viennent de `production-rubrics-v5.json` et suivantes (notre grille SejourFR,
+ * qui couvre les dimensions évaluées au TCF sans reprendre la grille de
+ * correction de France Éducation international), les suivants de
+ * `production-rubrics-v4.json`/v3, accents rétablis.
  */
 export const CRITERE_LABEL: Record<CritereCode, string> = {
   communiquer: "Communiquer un message clair",

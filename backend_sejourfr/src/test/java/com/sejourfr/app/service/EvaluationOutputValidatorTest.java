@@ -34,6 +34,104 @@ class EvaluationOutputValidatorTest {
             .isEmpty();
     }
 
+    // ------------------------------------------- contrat v6 : preuve par numero
+
+    /**
+     * Sous le contrat v6, la preuve est un ENTIER borne par le nombre de
+     * segments servis. C'est la seule chose a verifier, et une preuve inventee
+     * n'existe plus : il n'y a plus de texte a rapprocher.
+     */
+    @Test
+    void v6_accepte_une_preuve_qui_designe_un_segment_existant() {
+        assertThat(EvaluationOutputValidator.violations(
+            feedbackParNumero(1, 2, 3, 4), task(EpreuveType.TCF_EE), rubricsV12(), "v6",
+            TEXTE_EE)).isEmpty();
+    }
+
+    @Test
+    void v6_refuse_un_numero_hors_bornes() {
+        assertThat(EvaluationOutputValidator.violations(
+            feedbackParNumero(1, 2, 3, 99), task(EpreuveType.TCF_EE), rubricsV12(), "v6", TEXTE_EE))
+            .containsExactly(
+                "preuve_segment[morphosyntaxe] doit designer un segment numerote de la production");
+    }
+
+    @Test
+    void v6_refuse_le_zero_et_le_non_entier() {
+        assertThat(EvaluationOutputValidator.violations(
+            feedbackParNumero(0, 2, 3, 4), task(EpreuveType.TCF_EE), rubricsV12(), "v6", TEXTE_EE))
+            .anyMatch(v -> v.contains("doit designer un segment numerote"));
+
+        Map<String, Object> feedback = feedbackParNumero(1, 2, 3, 4);
+        scoreDe(feedback, "lexique").put("preuve_segment", "la phrase 2");
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubricsV12(), "v6", TEXTE_EE))
+            .containsExactly("preuve_segment[lexique] doit etre un numero de segment entier");
+    }
+
+    /** Une citation recopiee n'a plus sa place dans une sortie v6. */
+    @Test
+    void v6_refuse_une_preuve_textuelle() {
+        Map<String, Object> feedback = feedbackParNumero(1, 2, 3, 4);
+        scoreDe(feedback, "lexique").put("preuve", "il est lumineux");
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubricsV12(), "v6", TEXTE_EE))
+            .anyMatch(v -> v.contains("champ inattendu : preuve"));
+    }
+
+    /**
+     * SEUL le numero inexistant est degradable apres reessai — exactement comme
+     * l'etait une citation introuvable. Un champ absent ou non entier reste
+     * bloquant, comme l'etait une preuve vide.
+     */
+    @Test
+    void v6_seul_un_numero_inexistant_est_degradable() {
+        assertThat(EvaluationOutputValidator.singleUnmatchedProofCode(List.of(
+            "preuve_segment[lexique] doit designer un segment numerote de la production")))
+            .contains("lexique");
+        assertThat(EvaluationOutputValidator.singleUnmatchedProofCode(List.of(
+            "preuve_segment[lexique] doit etre un numero de segment entier")))
+            .isEmpty();
+    }
+
+    private static final String TEXTE_EE =
+        "Salut Marie ! J'ai déménagé samedi. Mon appartement est lumineux. Viens le voir ?";
+
+    private ProductionRubricsProvider rubricsV12() {
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        props.setRubricsVersion("v12");
+        ProductionRubricsProvider provider = new ProductionRubricsProvider(props, new ObjectMapper());
+        provider.load();
+        return provider;
+    }
+
+    private static Map<String, Object> feedbackParNumero(int communiquer, int interagir,
+                                                         int lexique, int morphosyntaxe) {
+        Map<String, Object> feedback = validFeedbackV5();
+        feedback.put("scores_criteres", new ArrayList<>(List.of(
+            scoreNumero("communiquer", communiquer), scoreNumero("interagir", interagir),
+            scoreNumero("lexique", lexique), scoreNumero("morphosyntaxe", morphosyntaxe))));
+        return feedback;
+    }
+
+    private static Map<String, Object> scoreNumero(String code, Object segment) {
+        Map<String, Object> score = new LinkedHashMap<>();
+        score.put("code", code);
+        score.put("note_sur_20", 7);
+        score.put("commentaire", "Commentaire centré sur le critère " + code + ".");
+        score.put("preuve_segment", segment);
+        return score;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> scoreDe(Map<String, Object> feedback, String code) {
+        for (Object raw : (List<Object>) feedback.get("scores_criteres")) {
+            Map<String, Object> score = (Map<String, Object>) raw;
+            if (code.equals(score.get("code"))) return score;
+        }
+        throw new IllegalArgumentException("critere absent : " + code);
+    }
+
     private ProductionRubricsProvider rubrics;
 
     @BeforeEach
@@ -113,6 +211,171 @@ class EvaluationOutputValidatorTest {
             feedback, task(EpreuveType.TCF_EO), rubrics, "v4"))
             .anyMatch(v -> v.contains("scores_criteres.commentaire"))
             .anyMatch(v -> v.contains("points_a_ameliorer"));
+    }
+
+    /**
+     * Le libelle brut ne suffisait pas : sur l'incident du 2026-08-06 le reessai
+     * n'a repare AUCUNE des deux violations orales, faute de savoir quel passage
+     * et quelle notion etaient rejetes. La violation porte desormais les deux.
+     */
+    @Test
+    void nomme_la_notion_interdite_et_le_passage_rejete() {
+        Map<String, Object> feedback = validFeedback();
+        feedback.put("suggestions", List.of("Cette reformulation évite les répétitions du début."));
+
+        List<String> violations = EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EO), rubrics, "v4");
+
+        List<String> orales = EvaluationOutputValidator.oralViolations(violations);
+        assertThat(orales).hasSize(1);
+        assertThat(orales.get(0))
+            .contains("suggestions")
+            .contains("element non evaluable")
+            .contains("« repetitions »")
+            .contains("Cette reformulation évite les répétitions du début.");
+    }
+
+    /**
+     * FRONTIERE DU GARDE-FOU ORAL (2026-08-06). {@code exemples_corriges} n'entre
+     * dans AUCUN calcul de note : une violation orale y est PURGEE par
+     * {@link EvaluationOralArtifactFilter}, elle ne detruit plus l'evaluation.
+     * Avant ce changement, deux {@code explication} rejetees ont fait perdre une
+     * tache d'examen blanc EO entiere.
+     */
+    @Test
+    void une_violation_orale_dans_un_exemple_corrige_n_est_plus_fatale() {
+        Map<String, Object> feedback = validFeedback();
+        feedback.put("exemples_corriges", List.of(Map.of(
+            "original", "je je voulais dire ça",
+            "corrige", "je voulais dire cela",
+            "explication", "Cette reformulation évite les répétitions du début.",
+            "gain", "un propos plus direct")));
+
+        assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EO), rubrics, "v4"))).isEmpty();
+    }
+
+    /** Les champs qui portent le JUGEMENT, eux, restent fatals. */
+    @Test
+    void les_champs_evaluatifs_restent_fatals() {
+        for (String champ : List.of("justification_niveau", "points_forts", "suggestions")) {
+            Map<String, Object> feedback = validFeedback();
+            String fautif = "La prononciation reste difficile à suivre.";
+            feedback.put(champ, "justification_niveau".equals(champ) ? fautif : List.of(fautif));
+
+            assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+                feedback, task(EpreuveType.TCF_EO), rubrics, "v4")))
+                .as(champ)
+                .hasSize(1);
+        }
+    }
+
+    // --------------------------------- deux faux positifs du garde-fou oral
+
+    /**
+     * CAS REEL : une evaluation a ete detruite pour « cette repetition alourdit la
+     * phrase … supprime le pronom repete » — une remarque de MORPHOSYNTAXE, pas de
+     * diction. Pire, les rubriques ORDONNENT au correcteur de peser « a-t-il du
+     * faire repeter ? » dans {@code communiquer} : le prompt commandait une notion
+     * que le validateur interdisait d'ecrire.
+     */
+    @Test
+    void la_repetition_syntaxique_n_est_plus_un_motif_oral_interdit() {
+        for (String remarque : List.of(
+            "Cette répétition alourdit la phrase : supprime le pronom répété.",
+            "La répétition du même connecteur « et » limite la variété des liens.",
+            "L'examinateur a dû faire répéter la question, ce qui coupe l'échange.")) {
+            Map<String, Object> feedback = validFeedback();
+            feedback.put("justification_niveau", remarque);
+
+            assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+                feedback, task(EpreuveType.TCF_EO), rubrics, "v4")))
+                .as(remarque)
+                .isEmpty();
+        }
+    }
+
+    /** La REPETITION comme defaut de diction, elle, reste refusee. */
+    @Test
+    void la_repetition_de_diction_reste_refusee() {
+        for (String remarque : List.of(
+            "Réduisez les répétitions pour gagner en clarté.",
+            "Évite les répétitions du début de ta réponse.",
+            "De nombreuses répétitions parsèment votre discours.",
+            "Le débit est régulier mais les répétitions gênent l'écoute.")) {
+            Map<String, Object> feedback = validFeedback();
+            feedback.put("justification_niveau", remarque);
+
+            assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+                feedback, task(EpreuveType.TCF_EO), rubrics, "v4")))
+                .as(remarque)
+                .hasSize(1);
+        }
+    }
+
+    /** « Mettre l'accent sur » est une tournure legitime, pas un reproche de diction. */
+    @Test
+    void mettre_l_accent_sur_n_est_plus_un_motif_oral_interdit() {
+        for (String remarque : List.of(
+            "Mets l'accent sur les liens logiques entre tes idées.",
+            "L'accent est mis sur la demande, ce qui rend le message clair.",
+            "Il faudrait mettre l'accent sur la justification de ton choix.")) {
+            Map<String, Object> feedback = validFeedback();
+            feedback.put("justification_niveau", remarque);
+
+            assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+                feedback, task(EpreuveType.TCF_EO), rubrics, "v4")))
+                .as(remarque)
+                .isEmpty();
+        }
+    }
+
+    @Test
+    void l_accent_de_diction_reste_refuse() {
+        for (String remarque : List.of(
+            "Votre accent rend certains mots difficiles à identifier.",
+            "Un accent marqué gêne la compréhension.")) {
+            Map<String, Object> feedback = validFeedback();
+            feedback.put("justification_niveau", remarque);
+
+            assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+                feedback, task(EpreuveType.TCF_EO), rubrics, "v4")))
+                .as(remarque)
+                .hasSize(1);
+        }
+    }
+
+    /**
+     * NON-REGRESSION : l'acquis principal — « on ne note jamais sur la
+     * prononciation » — reste entier. Aucun de ces jetons n'a bouge.
+     */
+    @Test
+    void les_autres_notions_de_diction_restent_toutes_interdites() {
+        for (String remarque : List.of(
+            "Le discours est haché par de nombreuses hésitations.",
+            "La fluidité reste limitée.",
+            "La prononciation gêne la compréhension.",
+            "Le débit de parole est trop lent.",
+            "L'intonation reste plate.",
+            "De longues pauses dans la réponse cassent le propos.",
+            "Les faux départs sont fréquents.",
+            "L'aisance fait défaut.",
+            "L'orthographe de la transcription est fautive.",
+            "La ponctuation manque.")) {
+            Map<String, Object> feedback = validFeedback();
+            feedback.put("justification_niveau", remarque);
+
+            assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+                feedback, task(EpreuveType.TCF_EO), rubrics, "v4")))
+                .as(remarque)
+                .hasSize(1);
+        }
+    }
+
+    @Test
+    void aucune_violation_orale_sur_une_sortie_conforme() {
+        assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+            validFeedback(), task(EpreuveType.TCF_EO), rubrics, "v4"))).isEmpty();
     }
 
     @Test

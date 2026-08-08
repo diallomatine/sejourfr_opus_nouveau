@@ -14,11 +14,119 @@
 > **dans la même passe**. Il doit toujours pouvoir être lu et compris par une personne non
 > technique. Pas de jargon non expliqué, pas de raccourci.
 
-**État actuel** : rubriques de notation **v8** (profil **TCF IRN**, plafonné à B2), format de
-réponse strict **v5**, examinateur vocal **v2**. Ce que ces numéros veulent dire, et où ils se
-changent, est expliqué en §15.
+**État actuel** : rubriques de notation **v12** (profil **TCF IRN**, plafonné à B2 — **la
+notation y est celle de la v9, au caractère près**), format de réponse strict **v6**,
+examinateur vocal **v2**. Ce que ces numéros veulent dire, et où ils se
+changent, est expliqué en §15. Pour la **seconde voie d'évaluation** — les micro-exercices par
+compétence, sans note ni niveau — les versions sont **v1 / v1** et tout est décrit au §11 bis.
 
-> 🆕 **Ce que change la v8 : le rapport, pas la note.** La façon de **noter** est celle de la
+> 🆕 **8 août 2026 — l'IA ne recopie plus vos phrases pour justifier sa note : elle les
+> DÉSIGNE.** C'est le changement le plus important de cette page, et il supprime une
+> catégorie entière de pannes. Explication complète au **§5.5**.
+>
+> **Le problème.** Chaque critère noté doit s'appuyer sur un extrait de votre production.
+> Jusqu'ici, l'IA **recopiait** cet extrait, et notre serveur vérifiait ensuite qu'il existait
+> bien, mot pour mot. Une IA qui recopie peut se tromper — pas sur le fond, sur la **copie** :
+> elle « nettoie » un bégaiement, elle normalise une graphie, elle recolle deux morceaux. Sa
+> preuve était juste, sa copie ne l'était pas, et la correction était refusée. Sur des
+> productions **orales**, le moteur en vigueur voyait ainsi **42,9 % de ses réponses
+> refusées** par nos propres contrôles.
+>
+> **Cas réel du 7 août 2026** (une vraie session d'oral) : deux corrections refusées coup sur
+> coup, puis une note rendue en mode dégradé. Les deux citations étaient pourtant **exactes**.
+> Le candidat avait bégayé — « une sœur qui se trouve **tous tous** chez moi », « j'aime bien
+> les **les films les films** comédies » — et l'IA avait simplement écrit la phrase sans le
+> bégaiement, ce que nos consignes lui demandent par ailleurs de ne pas juger.
+>
+> **Ce qu'on a fait**, dans cet ordre :
+> 1. **Les bégaiements ne font plus échouer une citation fidèle** — même traitement que les
+>    « euh » depuis le mois dernier. Un mot ou un petit groupe de mots répété d'affilée dans
+>    la production peut n'apparaître qu'une fois dans la citation. Cela ne dispense d'aucun
+>    autre mot, et le texte finalement affiché reste **le vôtre, bégaiements compris**.
+> 2. **Surtout : on a supprimé la recopie.** La production est désormais envoyée à l'IA
+>    **découpée en morceaux numérotés** — un numéro par prise de parole à l'oral, un numéro
+>    par phrase à l'écrit — et l'IA ne renvoie plus qu'un **numéro**. Inventer une citation
+>    n'est plus « interdit » : c'est **impossible**. La seule erreur qui lui reste possible est
+>    de donner un numéro qui n'existe pas, ce qui se voit immédiatement et se corrige en un
+>    aller-retour. Le serveur remplace ensuite le numéro par le texte exact du morceau : **ce
+>    que vous lisez à l'écran ne change pas d'un caractère**.
+>
+> **Ce qui n'a pas bougé** : l'échelle, les quatre critères, les seuils, les garde-fous, les
+> plafonds, les tests décisifs entre niveaux, les exemples de calibration, les consignes de
+> chaque tâche. **Rien de ce qui note n'a été touché**, et un test automatique le vérifie
+> fichier contre fichier.
+>
+> ⚠️ **À dire franchement : ce changement n'a PAS été passé au banc de mesure** (§12), parce
+> qu'une campagne de mesure appelle une IA payante et qu'aucun appel payant n'était autorisé.
+> Ce qui le rend défendable sans mesure : il ne touche aucune règle de notation, et le peu
+> qu'il change dans les consignes **retire une contrainte** au lieu d'en ajouter une. Le
+> retour en arrière tient en **deux variables** (`EVAL_RUBRICS_VERSION=v9` +
+> `EVAL_PROMPT_VERSION=v5`) et ne demande aucune migration.
+
+> 🆕 **Correcteur en vigueur : `deepseek-v4-flash`. Ce choix est en cours de réexamen.**
+> **Aucune règle de notation n'est en jeu** : mêmes rubriques v9, même format de réponse v5,
+> mêmes seuils, mêmes garde-fous. Seul le moteur qui lit les consignes est discuté.
+>
+> Trois moteurs ont été comparés sur les mêmes 48 cas les 7 et 8 août 2026 (§12.6). **Une
+> partie de cette comparaison s'est révélée faussée** : les trois campagnes n'ont pas accordé
+> le même nombre de réessais au correcteur (jusqu'à **9** pour `flash`, **3** pour
+> `deepseek-v4-pro`, **1** pour `gpt-5.4`), alors qu'en vraie utilisation il n'y a **qu'un
+> seul réessai** avant l'échec. Ce qui se lisait comme « `flash` ne perd jamais de
+> correction » disait en réalité « `flash` a eu neuf vies ». **Ce point est retiré du
+> dossier** ; il ne faut pas s'y appuyer.
+>
+> Ce qui reste établi, et qui est **contre-intuitif — le fait le plus important de cette
+> page** : **le modèle qui s'appelle « pro » coûte plus cher que celui qui s'appelle
+> « flash »** (1,12 $ contre 0,91 $ pour la même campagne de 48 corrections), sans lui être
+> supérieur : il **rate la moitié des cas-pièges** (4/8 contre 8/8) et classe **4 B2 sur 7 en
+> B1**. Le nom commercial d'un modèle ne dit rien de son aptitude à corriger une production
+> TCF, ni de son prix relatif. Un futur lecteur tenté de « corriger » ce choix en repassant
+> au « pro » parce que le nom sonne mieux ferait une erreur : **il faut remesurer**, et cette
+> fois à nombre de réessais égal.
+>
+> **Ce qu'on sait du coût réel du choix `flash`.** Une réponse de `flash` sur quatre est
+> **refusée par nos propres contrôles** (citation qui ne se retrouve pas mot pour mot dans la
+> production, conseil fondé sur un élément qu'on s'interdit de juger à l'oral) : **27,3 % de
+> ses appels, et 42,9 % sur les seules productions orales**. Chaque refus est un appel
+> facturé en double, et — en vraie utilisation, où le réessai est unique — **un risque réel
+> de correction non rendue**. `deepseek-v4-pro` refuse moins (17,9 % ; 31,2 % à l'oral),
+> `gpt-5.4` ne refuse jamais (0 %). C'est ce chiffre-là, et non la ligne « corrections
+> perdues » du banc, qui doit peser dans l'arbitrage. Comparaison colonne par colonne au
+> **§12.6** ; changer de moteur tient en trois lignes de configuration.
+
+> 🆕 **7 août 2026 — on ne vous reproche plus une langue étrangère que vous n'avez pas
+> parlée.** Le transcripteur de l'oral **en temps réel** change parfois de langue tout seul :
+> il rend en russe, en arabe ou en néerlandais un passage qu'il a mal capté. Le correcteur
+> reprochait alors au candidat d'« être passé à une autre langue ». Notre serveur **retire
+> désormais ces reproches du rapport**, automatiquement, et le dit franchement au candidat.
+> **À l'écrit, rien ne change** : là, c'est bien le candidat qui a tapé chaque mot, et une
+> langue étrangère reste une vraie non-réalisation. Un garde-fou chiffré empêche que cette
+> protection efface le cas d'un candidat qui répond **réellement** dans une autre langue. Ni la
+> note, ni le niveau, ni aucun seuil ne bougent. Détail complet, chiffres réels et versions de
+> grille écartées au **§8 quater**.
+
+> 🆕 **Ce que change la v9 : la lecture de l'oral.** La façon de **noter** est celle de la
+> v8 — mêmes critères, même échelle, mêmes seuils, mêmes garde-fous, mêmes exemples de
+> calibration, mêmes grilles par tâche, au caractère près. Deux sections seulement ont été
+> réécrites, et elles ne concernent que l'**oral** :
+>
+> 1. **Un mot mal transcrit n'est plus reproché au candidat.** Ce que l'IA lit est produit par
+>    une reconnaissance vocale faillible. Un mot qui n'existe pas en français, ou dont une
+>    relecture proche par le son rend la phrase cohérente, est un **artefact** : l'IA évalue ce
+>    que le candidat a voulu dire et ne cite ce passage **nulle part** (§8 bis). L'échappatoire
+>    est fermée : une vraie erreur de langue reste une erreur.
+> 2. **Le déroulé du dialogue compte.** L'examinateur a-t-il répondu à propos ? a-t-il dû faire
+>    répéter ? l'échange s'est-il maintenu ? Ces indices, tous lisibles dans le texte, entrent
+>    dans « communiquer » et « interagir » (§8 ter) — sans jamais toucher au garde-fou de
+>    l'oral : une relance de l'examinateur **n'est pas** une hésitation du candidat.
+>
+> Mesurée au banc contre un témoin v8 rejoué le même jour, **avec le même moteur et le même
+> budget de réessais** (ce qui rend cette comparaison-ci valide, à la différence de celle des
+> moteurs au §12.6) : accord exact **74,5 % → 81,3 %**, pièges évités **4/8 → 8/8**, appels
+> refusés par nos contrôles **37,3 % → 27,3 %**, corrections perdues **2,1 % → 0 %**. Un recul
+> à signaler : l'accord de confiance baisse (53,2 % → 45,8 %). Détail et réserves au **§12.4**.
+
+> 🆕 **Ce que la v8 avait changé : le rapport, pas la note.** La façon de **noter** est celle de la
 > v7, à l'identique — mêmes critères, même échelle, mêmes seuils, mêmes garde-fous, mêmes
 > exemples de calibration. Rien de ce qui produit une note n'a bougé, et aucune campagne de
 > mesure n'était donc nécessaire. Ce qui change, c'est **ce que le candidat lit**, parce que
@@ -45,8 +153,11 @@ changent, est expliqué en §15.
 > actif : SejourFR prépare uniquement le **TCF IRN**, dont le niveau rapporté ici s'arrête à
 > **B2**. Exactement quatre critères, refus de toute réponse incomplète avant correction, puis
 > une seule tentative automatique de réparation. Les bornes EE sont strictes : **30–60 mots en
-> T1 et 60–90 mots en T2/T3**, sans aucune marge au-delà du maximum (l'ancienne tolérance de
-> 20 % est supprimée).
+> T1 et 40–90 mots en T2/T3**, sans aucune marge (l'ancienne tolérance de 20 % est supprimée).
+> ⚠️ **Le minimum de T2/T3 valait 60 par erreur** jusqu'à la migration **V724** : une copie de
+> 40 à 59 mots, parfaitement recevable au TCF IRN, était **refusée à tort** avant d'atteindre
+> le correcteur. C'est corrigé, et les bornes ne sont plus écrites qu'à **un seul endroit** —
+> voir l'encadré du §2.
 
 ---
 
@@ -67,6 +178,13 @@ une IA joue le rôle d'un correcteur d'examen et attribue une note et des commen
 Chaque épreuve a **3 tâches** (T1, T2, T3), de difficulté croissante. Six tâches en tout :
 EE T1, EE T2, EE T3, EO T1, EO T2, EO T3.
 
+> **Deux façons d'être corrigé, à ne pas confondre.** Ce document décrit d'abord la correction
+> d'une **tâche complète** : une production entière, une note sur 20, un niveau. C'est la voie
+> principale, et c'est elle qui est mesurée (§12). Il existe aussi des **micro-exercices par
+> compétence**, où le candidat travaille **une seule capacité à la fois** et où l'IA ne rend
+> qu'un verdict sur cette capacité — **sans aucune note ni niveau**. Cette seconde voie est
+> décrite au **§11 bis**, et n'a **pas** de banc de mesure : c'est dit là-bas sans détour.
+
 ---
 
 ## 2. Les 6 tâches, en clair
@@ -74,14 +192,29 @@ EE T1, EE T2, EE T3, EO T1, EO T2, EO T3.
 | Tâche | Ce que le candidat doit faire | Format attendu | Niveau visé |
 |-------|-------------------------------|----------------|-------------|
 | **EE T1** | Écrire un **message court** : annoncer quelque chose, décrire, inviter | 30 à 60 mots | A2 |
-| **EE T2** | Écrire un **message développé** : raconter, décrire, expliquer, conseiller | 60 à 90 mots | B1 |
-| **EE T3** | **Donner son opinion** et l'argumenter, ou comparer | 60 à 90 mots | B2 |
+| **EE T2** | Écrire un **message développé** : raconter, décrire, expliquer, conseiller | 40 à 90 mots | B1 |
+| **EE T3** | **Donner son opinion** et l'argumenter, ou comparer | 40 à 90 mots | B2 |
 | **EO T1** | **Se présenter** et parler de soi, de son quotidien (entretien dirigé) | ~3 min (min. 2 min) | A2 |
 | **EO T2** | **Interagir** dans une situation de la vie courante (obtenir / donner des informations) | ~3 min 30 (min. 2 min) | B1 |
 | **EO T3** | **Donner un point de vue** en continu (petit monologue argumenté) | ~3 min 30 (min. 2 min) | B2 |
 
+> 🧭 **Ces bornes n'ont qu'UNE source.** Elles vivent en base (`production_tasks.mots_min` /
+> `mots_max`) et sont injectées telles quelles dans les consignes envoyées au correcteur, sous
+> « LONGUEUR ATTENDUE ». Elles ne sont **plus** recopiées dans la grille de notation ni dans le
+> contrat de sortie : celles-ci y **renvoient**. C'est la correction d'un vrai défaut — quand
+> la migration **V724** a abaissé le minimum de T2/T3 de 60 à **40** (il refusait des copies
+> recevables), la base et la grille se sont mises à dire deux choses contradictoires **dans le
+> même message** : « longueur attendue : 40 à 90 » d'un côté, « bornes respectées exactement —
+> 60 à 90 » de l'autre. Conséquence concrète pour le candidat : la version améliorée qu'on lui
+> rendait (§5.8) visait 60-90 mots même sur une copie de 45 mots parfaitement valide.
+> ⚠️ Les versions de grille **déjà livrées** (v8 à v11, contrat de sortie v5) gardent leurs
+> bornes historiques 60-90 : c'est la trace exacte de ce avec quoi les copies déjà corrigées
+> l'ont été, et on ne réécrit jamais une grille livrée. **Revenir en arrière sur la version des
+> consignes réintroduit donc la contradiction** — c'est écrit dans la configuration, à
+> l'endroit où le retour arrière est décrit.
+>
 > ⚠️ **TCF IRN ≠ TCF Canada — piège classique sur les longueurs.** Les bornes ci-dessus
-> (30-60 / 60-90 / 60-90 mots) sont bien celles du **TCF IRN**, l'examen que prépare
+> (30-60 / 40-90 / 40-90 mots) sont bien celles du **TCF IRN**, l'examen que prépare
 > SejourFR. Les valeurs **60-120 et 120-180 mots** que renvoient la plupart des pages web
 > appartiennent au **TCF Canada**, un autre examen. La confusion est très fréquente en ligne,
 > y compris sur des sites de préparation : **ne pas « corriger » nos bornes d'après une
@@ -141,6 +274,19 @@ en enregistrement.
 retrouver avec un texte transcrit décousu ou bizarre. **L'IA correctrice est prévenue de
 ça** et a des consignes strictes pour ne pas pénaliser le candidat à cause d'un défaut de
 transcription (voir §8).
+
+**Les deux machines qui transcrivent ne sont pas la même — et elles ne se trompent pas
+pareil.** C'est une distinction qui compte pour comprendre le §8 quater :
+
+| | Enregistrement (tâche 3, et tout l'oral asynchrone) | Temps réel (tâches 1 et 2) |
+|---|---|---|
+| Qui transcrit | *Whisper* | *Gemini Live*, la même IA qui joue l'examinateur |
+| Langue | **imposée : français.** On lui dit dans quelle langue écouter, elle n'a rien à deviner | **impossible à imposer.** L'outil ne propose aucun réglage de langue pour ce qu'il entend |
+| Défaut typique | des mots mal entendus (« Lille » → « l'île ») | des mots mal entendus **et** des passages restitués dans une **autre langue** |
+
+Cette différence n'est pas une hypothèse : sur nos données réelles, **aucune** des
+36 transcriptions faites par Whisper ne contient d'écriture étrangère, contre **6 sur 39**
+côté temps réel. Le §8 quater explique ce qu'on en a fait.
 
 ### 3.1 Une phrase coupée en deux est recollée avant d'être lue et notée
 
@@ -247,13 +393,29 @@ la confiance est plafonnée.
 
 ---
 
-## 5. Comment l'IA note : les quatre critères du TCF
+## 5. Comment l'IA note : les quatre critères de notre grille
 
-### 5.1 La grille est celle du vrai examen
+### 5.1 Notre grille, alignée sur ce qu'évalue le TCF
 
-**Depuis la version 5 des consignes, notre grille est celle du TCF**, et non plus une grille
-maison. Le TCF évalue les productions sur **quatre critères, qui pèsent exactement le même
-poids — 25 % chacun** :
+> ⚠️ **À lire avant tout le reste de cette section — ce que nous ne prétendons pas.**
+> Les quatre critères ci-dessous sont **la grille interne de SejourFR**. Ce n'est **pas** la
+> grille de correction de France Éducation international, l'organisme qui fait passer le TCF.
+> L'organisme officiel publie ses critères en **trois familles** — **linguistiques**,
+> **pragmatiques** et **sociolinguistiques** — et fait corriger **chaque production par
+> plusieurs évaluateurs humains indépendants**, selon une règle de calcul que nous ne
+> reproduisons pas et que nous n'avons pas. Notre note est une **estimation pédagogique**,
+> exprimée sur l'échelle du TCF IRN (§6.6) : c'est l'**échelle** qui est celle de l'examen,
+> pas la correction.
+>
+> Concrètement, ce qui ne se dit ni ici, ni dans l'application, ni nulle part ailleurs :
+> « votre note officielle serait… », « notre calcul reproduit le calcul officiel », « notre
+> grille est celle du vrai examen ». Ce qui se dit : « sur cette production, notre correcteur
+> situe votre niveau à B1, et au TCF le B1 correspond à 6-9/20 ».
+
+**Depuis la version 5 des consignes, notre grille est construite pour couvrir les dimensions
+que le TCF évalue** — linguistique, pragmatique, sociolinguistique — au lieu d'une grille
+maison bâtie sans référence. Elle le fait avec **quatre critères, qui pèsent exactement le
+même poids — 25 % chacun** :
 
 | Critère | Ce qu'il évalue |
 |---|---|
@@ -262,24 +424,31 @@ poids — 25 % chacun** :
 | **Lexique** | Le vocabulaire est-il **approprié** : étendue, précision, justesse ? |
 | **Morphosyntaxe** | La **correction grammaticale** : conjugaisons, accords, construction et variété des phrases. |
 
+Comment ces quatre critères se rattachent aux trois familles publiées par l'organisme
+officiel : *lexique* et *morphosyntaxe* relèvent du **linguistique** ; *communiquer* relève du
+**pragmatique** (accomplir, organiser, enchaîner) ; *interagir* couvre le
+**sociolinguistique** (registre, destinataire, politesse) et une partie du pragmatique
+(conduite de l'échange). Le recouvrement est **volontaire et revendiqué comme approximatif** :
+quatre critères à poids égaux ne sont pas trois familles, et un correcteur automatique n'est
+pas un jury.
+
 Les mêmes quatre critères, avec les mêmes poids, servent **sur les six tâches**. Ce qui
 distingue les tâches, ce ne sont plus des critères différents mais **les descripteurs et les
 consignes propres à chaque tâche** : « communiquer » ne veut pas dire la même chose quand on
-annonce un déménagement à un ami (EE T1) et quand on défend un point de vue (EO T3). C'est
-exactement la logique du TCF, où une seule grille sert les trois tâches d'une épreuve.
+annonce un déménagement à un ami (EE T1) et quand on défend un point de vue (EO T3).
 
-**Ce qui a changé, et pourquoi.** Nos versions 3 et 4 avaient été construites maison : 4
-critères universels puis 5 critères propres à chaque tâche, avec des poids variables
-(15 % à 30 %). Trois écarts avec le vrai examen ont motivé la refonte :
+**Ce qui a changé, et pourquoi.** Nos versions 3 et 4 avaient été construites sans référence :
+4 critères universels puis 5 critères propres à chaque tâche, avec des poids variables
+(15 % à 30 %). Trois défauts ont motivé la refonte :
 
-1. **5 critères à poids variables** là où le TCF en a **4 égaux** ;
+1. **5 critères à poids variables**, dont la pondération n'était justifiée par rien ;
 2. des **noms maison** (« réalisation de la consigne », « conduite de l'échange », « prise de
-   position », « chronologie du récit »…) qui changeaient d'une tâche à l'autre, alors que
-   ceux du TCF sont stables ;
-3. surtout, **l'accomplissement de la tâche était exclu du calcul du niveau**. Le TCF lui
-   donne 25 %. Conséquence observée sur de vraies copies : un message qui accomplit
-   parfaitement sa tâche, s'adresse correctement à son destinataire et se fait comprendre
-   ressortait **A2**, parce que deux des quatre critères du TCF ne pesaient **rien** chez nous.
+   position », « chronologie du récit »…) qui changeaient d'une tâche à l'autre, rendant deux
+   tâches incomparables entre elles ;
+3. surtout, **l'accomplissement de la tâche était exclu du calcul du niveau**. Conséquence
+   observée sur de vraies copies : un message qui accomplit parfaitement sa tâche, s'adresse
+   correctement à son destinataire et se fait comprendre ressortait **A2**, parce que la
+   dimension pragmatique et la dimension sociolinguistique ne pesaient **rien** chez nous.
 
 **Où sont passés les anciens critères ?** Ils n'ont pas disparu, ils ont été **absorbés** :
 
@@ -291,13 +460,13 @@ critères universels puis 5 critères propres à chaque tâche, avec des poids v
 | Justification et développement des arguments | **communiquer** |
 | Conduite de l'échange | **communiquer** |
 | Développement des réponses | **communiquer** |
-| Cohérence / organisation | **communiquer** — la formulation officielle range « enchaîner les idées » du côté de *communiquer* ; elle n'est donc plus notée à part, pour ne pas la compter deux fois |
+| Cohérence / organisation | **communiquer** — « enchaîner les idées » relève de la même dimension pragmatique qu'accomplir la tâche ; c'est donc noté là, et pas deux fois |
 | Adéquation au destinataire et au registre | **interagir** |
 
 Deux familles, qui ne jouent pas le même rôle mais qui pèsent désormais **autant** :
 
 - **Les critères de langue** — **lexique** et **morphosyntaxe**, notés en absolu sur
-  l'échelle du profil TCF IRN, de A1 non atteint à B2 ;
+  l'échelle du TCF IRN, de A1 non atteint à B2 ;
 - **Les critères de réalisation** — **communiquer** et **interagir**. Ils ne comptent pas des
   cases cochées : ils disent **à quel niveau** la tâche est accomplie. Accomplir une consigne
   A2 avec des moyens A2, c'est une réussite… de niveau A2.
@@ -329,15 +498,22 @@ qui traite tous les points d'une consigne simple dans un français pauvre remont
 indûment.** C'est précisément pour éviter ça que les versions précédentes l'excluaient du
 calcul.
 
-Le vrai TCF s'en protège autrement : par des **descripteurs par niveau**. « Communiquer » à
-un niveau B2, ce n'est pas cocher plus de cases, c'est justifier, nuancer, enchaîner — ce qui
-suppose une langue B2. Nous reproduisons ce mécanisme de deux façons :
+Un jury humain s'en protège par les **descripteurs par niveau** : « communiquer » à un niveau
+B2, ce n'est pas cocher plus de cases, c'est justifier, nuancer, enchaîner — ce qui suppose
+une langue B2. Un correcteur automatique, lui, se laisse plus facilement impressionner par une
+consigne intégralement traitée. Nous nous en protégeons donc de deux façons :
 
 1. **Des descripteurs de niveau pour les quatre critères**, tâche par tâche (tableau ci-dessus
    + descripteurs A1→B2 propres à chaque tâche).
 2. **Un garde-fou de couplage, opposable et vérifié par le serveur** : *communiquer* et
    *interagir* ne peuvent jamais dépasser de **plus d'un point** la moyenne de *lexique* et
-   *morphosyntaxe*. Exemple : lexique 1, morphosyntaxe 1 (moyenne 1) → *communiquer* et
+   *morphosyntaxe*.
+   > ⚠️ **Ce garde-fou est une invention SejourFR, pas une règle du TCF.** Aucun texte de
+   > France Éducation international ne le prévoit : c'est un réglage de **calibration** que
+   > nous avons ajouté parce qu'un correcteur automatique surévalue l'accomplissement d'une
+   > consigne simple. Il reste actif, et nous l'assumons par écrit plutôt que de le faire
+   > passer pour une exigence de l'examen. Il ne peut qu'**abaisser** une note, jamais la
+   > relever — c'est ce qui le rend sûr. Exemple : lexique 1, morphosyntaxe 1 (moyenne 1) → *communiquer* et
    *interagir* sont plafonnés à 2, même si la consigne est intégralement traitée. La règle
    est écrite dans les consignes données à l'IA **et** appliquée par le serveur avant le
    calcul de la note : si l'IA la dépasse, ses notes sont ramenées sous le plafond.
@@ -436,6 +612,55 @@ traité, la liste des oublis reste vide.
 
 ### 5.5 Preuves et priorités
 
+#### La preuve : un **numéro**, plus une citation recopiée (nouveau, format v6)
+
+**Chaque critère noté doit s'appuyer sur un passage réel de votre production.** Cette exigence
+n'a jamais bougé. Ce qui a changé le 8 août 2026, c'est **la façon dont l'IA la satisfait**.
+
+- **Avant.** L'IA **recopiait** un extrait de 3 à 15 mots, et le serveur allait ensuite le
+  chercher, caractère par caractère, dans votre production. Si l'extrait ne s'y retrouvait
+  pas exactement, la correction était refusée, l'IA avait droit à **une** tentative de
+  réparation, puis la correction échouait ou était rendue amputée d'une preuve.
+- **Le défaut de fond.** On demandait à une machine de **recopier**, puis on la sanctionnait
+  sur la qualité de sa copie — alors que ce qu'on voulait vérifier, c'est qu'elle ne parlait
+  pas d'un passage inventé. Une preuve **juste** pouvait être refusée pour une **copie**
+  imparfaite. Mesuré sur le moteur en vigueur : **27,3 % de ses réponses refusées, 42,9 % sur
+  les seules productions orales**.
+- **Maintenant.** La production est envoyée à l'IA **découpée en morceaux numérotés**, et l'IA
+  renvoie **le numéro** du morceau qui justifie sa note. Elle ne recopie plus rien, donc elle
+  ne peut plus se tromper en recopiant. **Inventer une preuve n'est plus interdit : c'est
+  devenu impossible.**
+
+**Comment on découpe**, et pourquoi ainsi :
+
+| Type de production | Un numéro = | Pourquoi |
+|---|---|---|
+| **Oral en dialogue** | une **prise de parole du candidat** | C'est ce que vous avez dit d'un seul trait : vous le reconnaissez à l'écran. Et surtout, **les prises de parole de l'examinateur ne portent aucun numéro** — l'IA les voit (le déroulé de l'échange compte, §8 ter) mais ne peut structurellement pas les désigner comme votre production. |
+| **Écrit, et oral sans dialogue** | une **phrase** | À l'écrit, la phrase est l'unité où se lisent la subordination, les connecteurs, les temps — exactement ce que les critères observent. |
+
+On ne découpe pas plus fin (par groupes de mots, par tranches) : il faudrait une coupure
+arbitraire, que l'IA ne saurait pas désigner de façon fiable et qui vous rendrait une preuve
+illisible. Une preuve doit rester un morceau de langue, pas un fragment. Cas limite assumé :
+un texte écrit **sans aucune ponctuation** forme un seul morceau — la preuve est alors peu
+précise, mais elle n'est jamais fausse.
+
+**Ce que vous voyez ne change pas.** Le serveur remplace le numéro par **le texte exact du
+morceau** avant d'enregistrer et d'afficher la correction. Le champ « preuve » de votre
+rapport reste ce qu'il a toujours été : un extrait littéral de ce que vous avez produit.
+
+**La seule erreur qui reste possible** est un numéro qui n'existe pas. Elle est repérée
+immédiatement (un entier comparé à une longueur de liste) et le message de réparation ne parle
+plus de recopie — il rappelle simplement de choisir un numéro dans la liste. Si, après cette
+unique réparation, le numéro est toujours faux, on retire cette preuve-là plutôt que de perdre
+toute la correction : la confiance est alors plafonnée à **moyenne** et vous en êtes averti,
+exactement comme avant.
+
+#### Ce qui reste vrai des anciennes règles
+
+Le contrôle « caractère par caractère » décrit ci-dessous **reste en place** et continue de
+s'appliquer si l'on revient à un format de réponse antérieur (v5 et avant). Il est aussi ce
+qui explique pourquoi le passage au numéro était nécessaire.
+
 - **Chaque critère noté doit s'appuyer sur une citation non vide** de la production (3 à 15
   mots). Le serveur cherche d'abord le passage continu correspondant, sans se laisser
   tromper par une différence de majuscule, d'accent, d'apostrophe, de tiret ou d'espace
@@ -472,6 +697,22 @@ traité, la liste des oublis reste vide.
   et unique ; l'élision ne fonctionne que **dans ce sens-là** — une citation qui contiendrait
   un mot absent de la production, hésitation comprise, reste refusée ; et le passage
   finalement affiché reste **le texte original exact**, hésitations incluses.
+- **Les bégaiements non plus** (nouveau, 8 août 2026). L'hésitation (« euh ») n'est pas la
+  forme la plus fréquente du bégaiement : c'est le **mot répété d'affilée**. Deux citations
+  parfaitement fidèles ont été refusées le même soir sur une vraie session — « une sœur qui se
+  trouve **tous tous** chez moi », « j'aime bien les **les films les films** comédies » — parce
+  que l'IA n'avait gardé qu'une occurrence, ce que les consignes lui demandent par ailleurs de
+  faire (on n'évalue pas les répétitions à l'oral). La tolérance d'**une seule** petite
+  différence ne suffisait pas : il y avait deux, puis trois mots en trop. Désormais, quand la
+  production répète immédiatement un mot — ou un petit groupe de mots, jusqu'à trois — la
+  citation peut n'en garder qu'une occurrence. Les garde-fous, eux, sont inchangés : cela ne
+  vaut **que** dans ce sens (une citation ne peut pas inventer une répétition absente) ; **aucun
+  mot porteur de sens n'est dispensé** ; une répétition portant sur un **nombre, un chiffre ou
+  une négation** n'est jamais effaçable (« vingt vingt euros », « je ne ne veux pas ») ; et le
+  passage affiché reste **votre texte, bégaiements compris**. En cas de doute — si l'ancienne
+  lecture trouvait déjà quelque chose — on ne touche à rien. Limite assumée : une répétition
+  **volontaire** (« c'est très très bien ») est traitée comme un bégaiement ; sans conséquence,
+  puisque le texte affiché reste le vôtre et qu'aucune note ne se calcule sur une citation.
 - **Quand une citation est refusée, on explique à l'IA ce qu'on attend d'elle.** La première
   version du message de réparation se contentait de lui renvoyer la liste des erreurs
   (« la preuve du critère lexique doit citer un passage réel »). Mesuré : sur 8 citations
@@ -670,7 +911,10 @@ Cinq règles l'encadrent :
   droit d'inventer un détail que vous n'avez pas donné (une adresse, un horaire, un argument) ;
 - **le palier juste au-dessus, pas l'excellence.** Un candidat A2 reçoit une version B1
   atteignable, jamais un modèle B2 : une version trop belle est décourageante et inutilisable ;
-- **les bornes de mots de la tâche sont respectées** (30–60 mots en T1, 60–90 en T2/T3) ;
+- **les bornes de mots de la tâche sont respectées** — celles de la tâche, telles qu'elles lui
+  sont annoncées (30–60 mots en T1, 40–90 en T2/T3 depuis la migration V724). Depuis les
+  consignes v12, la grille ne recopie plus ces chiffres : elle **renvoie** aux bornes
+  injectées, pour ne plus pouvoir les contredire (§2) ;
 - **elle applique les corrections des priorités au lieu de les répéter** : on voit la technique
   à l'œuvre, on ne la réexplique pas. Aucun commentaire ni parenthèse dans le texte ;
 - **le registre et le destinataire** de la consigne sont respectés, formule d'appel et de
@@ -766,7 +1010,7 @@ Trois garde-fous, non négociables :
 3. Le **bilan d'épreuve** reste le **seul** niveau qui fait foi.
 
 **Comment ce niveau est calculé.** Pas par l'IA : par le serveur, et **directement à partir de
-la note** — c'est-à-dire de la moyenne des quatre critères du TCF :
+la note** — c'est-à-dire de la moyenne de nos quatre critères :
 
 | Note de la tâche (moyenne des 4 critères) | Niveau |
 |---|---|
@@ -776,17 +1020,18 @@ la note** — c'est-à-dire de la moyenne des quatre critères du TCF :
 | au-dessus de 0, sous 2 | A1 |
 | exactement 0 | A1 non atteint |
 
-**C'est la table officielle du TCF, à l'identique** (§6.6). Deux changements successifs y ont
-mené :
+**C'est la table officielle du TCF, à l'identique** (§6.6) — l'**échelle**, donc, pas la
+correction : notre note est une estimation exprimée dessus (§5.1). Deux changements successifs
+y ont mené :
 
 - **version 5** : jusqu'à la 4.2, le niveau était calculé sur la moyenne de trois critères de
   langue seulement (lexique, morphosyntaxe, cohérence), et l'accomplissement de la tâche en
   était **explicitement exclu**. Le résultat était une carte qui pouvait afficher « 11/20 » et
   « proche du niveau A2 » côte à côte. La v5 a fait de la note et du niveau **deux lectures du
   même nombre** : ils ne peuvent plus se contredire *entre eux* ;
-- **version 6** : il restait une contradiction, avec le vrai examen cette fois. Une même carte
-  affichait « 12,5/20 » et « proche du niveau B1 » — or 12,5 vaut **B2** sur la grille
-  officielle. Un candidat qui connaît cette grille lisait donc deux choses opposées. La v6
+- **version 6** : il restait une contradiction, avec l'échelle officielle cette fois. Une même
+  carte affichait « 12,5/20 » et « proche du niveau B1 » — or 12,5 vaut **B2** sur la table
+  officielle. Un candidat qui connaît cette table lisait donc deux choses opposées. La v6
   supprime l'écart en adoptant l'échelle du TCF pour la note **et** pour chaque critère.
 
 Ce que cela ne veut pas dire : que réussir une tâche simple suffit. Le garde-fou de couplage
@@ -953,7 +1198,7 @@ les consignes distinguent explicitement « B2 tout juste atteint » (10-11) de �
 sous le niveau estimé, nous ajoutons la correspondance officielle :
 
 > Au TCF, le niveau B1 correspond à une note de 6 à 9 sur 20.
-> *Grille officielle du TCF IRN, sur l'épreuve entière.*
+> *Fourchette officielle du TCF IRN, sur l'épreuve entière.*
 
 C'est une **table de correspondance officielle**, pas une conversion que nous aurions
 inventée. Nous **ne transformons jamais** notre note en note de TCF : nous partons du
@@ -967,10 +1212,13 @@ sur la **même échelle**, ce qui rend l'affichage cohérent au lieu de simpleme
 
 **Ce qui reste interdit malgré tout : le raccourci « notre 13/20 = 13/20 au TCF ».** Même
 échelle ne veut pas dire même mesure. Notre note porte sur **une tâche** (ou sur la moyenne
-des trois), celle du TCF sur **l'épreuve entière**, corrigée par des examinateurs humains, sur
+des trois), elle est produite par **un seul correcteur automatique** appliquant **notre**
+grille (§5.1) ; celle du TCF porte sur **l'épreuve entière**, est établie par **plusieurs
+évaluateurs humains indépendants** appliquant la grille de France Éducation international, sur
 un sujet passé une seule fois en conditions réelles. Ce qu'on peut dire honnêtement, c'est :
-« sur cette production, l'IA situe votre niveau à B1, et au TCF le B1 correspond à 6-9/20 ».
-Ce qu'on ne peut pas dire, c'est « vous aurez 13/20 au TCF ».
+« sur cette production, notre correcteur situe votre niveau à B1, et au TCF le B1 correspond à
+6-9/20 ». Ce qu'on ne peut pas dire, c'est « vous aurez 13/20 au TCF », ni « votre note
+officielle serait 13/20 ».
 
 **Où cette correspondance n'apparaît pas, et pourquoi.** Jamais sur le résultat d'une **tâche
 isolée**. Au TCF, la note sur 20 récompense une épreuve entière ; une tâche seule n'a pas de
@@ -1087,13 +1335,15 @@ sont toutes encadrées par la règle du §5.6 : *ne pas sanctionner n'est pas cr
   candidat semble décousu ou incohérent, l'IA ne doit **pas** en conclure qu'il est
   « incompréhensible ». Elle reconstitue son intention à partir du dialogue et lui accorde le
   bénéfice du doute. Un texte bruité justifie une confiance **moyenne ou faible**, jamais une
-  note basse.
+  note basse. Depuis la grille **v9**, cette règle n'est plus une simple invitation : voir
+  **§8 bis**, qui explique exactement ce qu'est un mot mal transcrit et ce qu'on en fait.
 
-- **L'examinateur est le témoin de la compréhension.** Dans un dialogue (EO temps réel), si
-  l'examinateur a **répondu de façon cohérente** à ce que le candidat venait de dire, c'est la
-  **preuve** que le candidat s'est fait comprendre — même si son texte transcrit paraît fautif.
-  L'IA doit porter cette réussite de communication au crédit du candidat, **dans le critère
-  communiquer** — jamais dans le lexique ni la grammaire.
+- **L'examinateur est le témoin de la compréhension, et le déroulé de l'échange compte.**
+  Dans un dialogue (EO temps réel), si l'examinateur a **répondu de façon cohérente** à ce que
+  le candidat venait de dire, c'est la **preuve** que le candidat s'est fait comprendre — même
+  si son texte transcrit paraît fautif. Depuis **v9**, l'IA doit regarder le déroulé lui-même :
+  voir **§8 ter**. Cette réussite de communication se porte au crédit du candidat **dans
+  communiquer et interagir** — jamais dans le lexique ni la grammaire.
 
 - **On n'exige jamais l'exhaustivité.** Voir §5.3 : les pistes du sujet ne coûtent rien.
 
@@ -1116,7 +1366,294 @@ sont toutes encadrées par la règle du §5.6 : *ne pas sanctionner n'est pas cr
   reformulations de **phrase** qui améliorent vraiment la clarté. Jamais une correction
   d'orthographe, d'accent, de ponctuation ou d'un mot isolé — ce sont des artefacts de la
   machine de transcription, pas des erreurs du candidat. Le serveur applique ce filtre une
-  seconde fois, après l'IA, par sécurité.
+  seconde fois, après l'IA, par sécurité — et depuis le 7 août 2026 il l'applique aussi aux
+  **commentaires, priorités et suggestions** (§8 bis).
+
+---
+
+## 8 bis. Quand la machine de transcription se trompe (nouveau : grille v9)
+
+**Le problème, avec un cas réel.** Le 6 août 2026, un candidat passe une tâche d'expression
+orale. Il dit « **Lille** », « **sachant qu'à Paris** », « **pour traverser** ». La machine de
+transcription écrit « **l'île** », « **ça sent qu'à Paris** », « **par travers** ». L'IA
+correctrice, qui ne dispose que de ce texte, a reproché **les trois** au candidat — dans cinq
+endroits différents de son rapport, dont une priorité entière construite sur l'idée que « le
+nom de la ville n'est jamais donné ». Coût mesuré : environ **1,5 point sur 20** perdu, et
+surtout un rapport qui accuse quelqu'un de fautes qu'il n'a pas commises.
+
+Aucun de nos garde-fous ne pouvait le voir. Celui qui existait cherche des **mots** interdits
+(« prononciation », « fluidité », « débit »…) ; l'IA n'en avait employé aucun.
+
+### Ce qu'on a changé : la règle de l'artefact
+
+La grille **v9** dit maintenant au correcteur, noir sur blanc, que **ce qu'il lit n'a pas été
+écrit par le candidat** : c'est le résultat d'une reconnaissance vocale, qui transforme des
+sons en lettres sans comprendre. Il doit donc évaluer **ce que le candidat a manifestement
+voulu dire**, reconstruit à partir du contexte de la phrase.
+
+Un passage est un **artefact de transcription** dès qu'il présente l'un de ces trois signes :
+
+1. un mot qui **n'existe pas** en français ;
+2. un mot qui existe, mais dont une **relecture proche par le son** rend la phrase cohérente
+   (un nom de ville devenu nom commun, deux mots collés, un mot coupé en deux, un homophone) ;
+3. une suite de mots grammaticalement impossible **et** dont une relecture proche par le son
+   donne une phrase normale.
+
+Face à un artefact, deux obligations, toutes les deux absolues : retenir la lecture la plus
+plausible et évaluer **celle-là** ; et **ne le citer nulle part** — ni dans un commentaire, ni
+dans une priorité, ni dans une suggestion, ni dans un exemple corrigé, ni comme preuve. S'il
+n'y a rien d'autre à citer pour un critère, on **change de passage**.
+
+### Ce qui n'a PAS changé — l'échappatoire est fermée
+
+C'est le point délicat : une règle de doute mal écrite pourrait servir à excuser n'importe
+quelle faute. **Une vraie erreur de langue reste une erreur, et elle compte pleinement dans la
+note.** Aucune relecture proche par le son ne répare une conjugaison fautive, un accord
+manqué, un temps employé pour un autre, une préposition absente, des phrases juxtaposées, un
+vocabulaire pauvre ou un mot bien réel employé de travers.
+
+Autrement dit : **le doute porte sur la forme restituée par la machine, jamais sur la
+structure ni sur l'étendue du répertoire.** Le candidat bénéficie du doute sur ce qu'il a
+**voulu dire** ; jamais sur ce qu'il **n'a pas produit**. C'est la même règle qu'au §5.6 :
+lever une sanction n'accorde pas de point.
+
+**La règle de preuve, elle, ne bouge pas d'un iota.** Chaque critère porte toujours une
+citation recopiée **exactement** telle qu'elle apparaît, et le serveur la vérifie caractère
+par caractère. Le correcteur ne « corrige » donc jamais une citation pour la rendre
+plausible : il choisit simplement un autre passage.
+
+### Un filet automatique, en plus de la consigne
+
+Une consigne dans un prompt n'est jamais tenue à 100 %. Le serveur retire donc lui-même, après
+coup, **toute remarque qui ne tient que par un mot isolé cité de la transcription** — dans les
+commentaires de critère, les priorités et les suggestions, comme il le faisait déjà pour les
+exemples corrigés. Trois conditions doivent être réunies : la phrase **reproche** quelque
+chose, elle **cite** un passage qu'on retrouve réellement dans les paroles du candidat, et ce
+passage ne nomme **qu'un seul mot**. Un conseil qui cite un mot (« relie tes idées avec
+“parce que” ») n'est jamais touché.
+
+Quand une remarque est retirée, le candidat en est informé :
+
+> Une ou plusieurs remarques portaient sur un mot isolé de la transcription automatique :
+> elles ont été retirées. À l'oral, un mot mal transcrit n'est jamais compté comme une erreur
+> de votre part.
+
+**Ce filet ne touche ni la note, ni le niveau, ni un seuil, ni un barème** : il n'agit que sur
+le texte du rapport.
+
+**Sa limite, dite franchement.** Il ne reconnaît qu'un reproche portant sur **un seul mot**.
+Sur le cas réel, il aurait attrapé « l'île » et « par travers », **pas** « ça sent qu'à
+Paris » — trois mots que rien ne distingue d'une vraie faute de construction sans dictionnaire
+du français, et où une règle plus large supprimerait de **vraies** corrections. Ce cas-là
+repose entièrement sur la consigne donnée à l'IA, et c'est pour ça qu'elle a été mesurée au
+banc (§12.4).
+
+---
+
+## 8 ter. Le déroulé du dialogue compte (nouveau : grille v9)
+
+À l'oral en interaction, l'épreuve mesure la capacité à **échanger** et à **se faire
+comprendre**. Le meilleur témoin en est l'échange lui-même — et il est intégralement fourni au
+correcteur (les tours de l'examinateur **et** ceux du candidat). Jusqu'à v8, il ne s'en servait
+guère que pour donner le bénéfice du doute. Depuis **v9**, le déroulé devient un **élément
+d'appréciation** de `communiquer` et `interagir`, à travers trois indices tous lisibles dans le
+texte :
+
+1. **L'examinateur a-t-il répondu à propos ?** S'il enchaîne sur le contenu, ou reformule pour
+   avancer (« donc vous cherchez plutôt un studio ? »), c'est que le message **est passé** —
+   même si le texte transcrit du candidat paraît fautif. Au crédit du candidat.
+2. **A-t-il dû faire répéter ?** Une demande explicite (« pardon ? », « vous pouvez
+   répéter ? »), ou la **même question reposée** faute de réponse : le message n'est pas passé
+   du premier coup. Cela pèse, à la baisse.
+3. **L'échange s'est-il maintenu ?** Un candidat qui réagit, relance, pose une question,
+   conduit l'échange, se note dans `interagir`. À l'inverse, quelqu'un qui débite des blocs
+   sans jamais s'adresser à son interlocuteur y reste bas, même avec une langue correcte.
+
+### La frontière à ne pas franchir
+
+C'est le point sensible, et il est écrit tel quel dans la grille.
+
+- **Une relance de l'examinateur n'est pas une hésitation du candidat.** Ce qu'on observe,
+  c'est le **résultat** de l'échange (l'information est-elle passée ?), **jamais la manière de
+  parler**. Il reste absolument interdit de fonder la note, le niveau ou un conseil sur les
+  hésitations, les répétitions, les faux départs, l'aisance, la fluidité, le débit, les pauses,
+  la prononciation, l'accent, l'intonation, l'orthographe ou la ponctuation de la
+  transcription, et sur la durée. Quelqu'un à qui l'on demande de répéter peut très bien
+  parler : ce n'est pas sa façon de parler qu'on note.
+- **Une relance prévue par le scénario n'est pas une incompréhension.** L'examinateur joue un
+  rôle : poser la question suivante, ouvrir un thème, objecter pour faire parler, conclure.
+  Rien de tout cela ne compte contre le candidat. Seules comptent les demandes **explicites**
+  de répétition ou de clarification.
+- **Dans le doute, on porte au crédit du candidat.** Un échange qui s'est **poursuivi** est en
+  soi la preuve qu'une communication a eu lieu.
+- **Ces indices n'entrent que dans `communiquer` et `interagir`.** Le lexique et la
+  morphosyntaxe se notent sur les seules paroles du candidat, comme avant : réussir un échange
+  ne vaut jamais un point de vocabulaire ni de grammaire.
+- **La preuve reste prise dans une parole du candidat**, pour les quatre critères. L'IA peut
+  *décrire* ce que l'examinateur a fait ; elle ne le *cite* jamais comme preuve — le serveur
+  ne cherche les citations que dans les tours du candidat et la rejetterait.
+
+**Rien n'a changé côté technique** : le dialogue complet était déjà envoyé au correcteur, et
+la durée n'est toujours pas transmise. C'est uniquement la consigne qui change.
+
+---
+
+## 8 quater. Quand la machine de transcription change de langue
+
+**Le constat de départ, brut.** En regardant les corrections réellement rendues, on voyait
+l'IA reprocher à des candidats d'avoir parlé **russe**, **arabe**, **néerlandais** ou
+**anglais**. Or nous sommes une application de préparation au français : les candidats
+parlent français. Ce n'était pas eux qui changeaient de langue — **c'était notre
+transcripteur**.
+
+### Pourquoi ça n'arrive qu'à l'oral en temps réel
+
+L'examinateur vocal et le transcripteur du temps réel sont **la même IA**, et elle est
+multilingue par construction. Son éditeur l'annonce d'ailleurs comme une qualité : elle
+« change de langue naturellement au cours d'une conversation ». Résultat : quand un passage
+est mal articulé, couvert par un bruit, ou simplement peu audible, elle ne rend pas du
+charabia français — elle rend des mots d'**une autre langue**, parfois dans une **autre
+écriture**.
+
+Nous avons compté sur nos données réelles, en séparant les deux voies :
+
+| | Transcriptions portant une écriture non latine |
+|---|---|
+| Oral **enregistré** (Whisper) | **0 sur 36** |
+| Oral **temps réel** (examinateur vocal) | **6 sur 39**, soit 15 % |
+
+Côté corrections rendues : **5 corrections orales sur 72** reprochaient au candidat une langue
+étrangère, et **les cinq viennent de la voie temps réel**. À l'écrit, un seul cas sur 60 — et
+c'en est un **vrai**, le candidat avait bien écrit dans une autre langue.
+
+Le défaut est donc **entièrement** dans la voie temps réel. Deux chiffres donnent l'échelle
+du phénomène : les passages fautifs pèsent **de 6 à 24 caractères** dans des transcriptions
+de **1 700 à 3 900 caractères**, soit **moins de 1,5 % du texte**. Ce sont des miettes — mais
+des miettes que le correcteur reprochait au candidat.
+
+### Ce qu'on a essayé d'abord : imposer le français à la machine
+
+C'est la correction la plus propre, et c'est la première qu'on a cherchée. Elle marche pour
+l'oral **enregistré** : on dit à Whisper « écoute du français », et c'est déjà le cas depuis
+toujours — ce qui explique son score parfait ci-dessus.
+
+**Pour le temps réel, ce n'est pas possible.** L'outil ne propose aucun réglage de langue
+pour ce qu'il *entend*, et les modèles vocaux qu'on utilise **refusent** qu'on leur impose une
+langue — la demande ferait échouer l'ouverture de la session et renverrait tout le monde vers
+le mode enregistré. Nous le disons franchement plutôt que d'annoncer une correction qui
+n'existe pas.
+
+Ce qu'on a pu faire : **verrouiller la langue dans les consignes de l'examinateur vocal**
+(persona v3, §10) — celle-là est **livrée et active**. On lui dit explicitement que
+l'entretien est intégralement en français, que le candidat passe un examen **de** français et
+que ce qu'il prononce est donc du français — et qu'un passage mal compris est du français mal
+capté, jamais une phrase étrangère. C'est un **biais, pas une garantie** : nous ne pouvons pas
+mesurer son effet sans faire passer des oraux réels. Le vrai filet est ailleurs.
+
+### Ce qu'on a essayé ensuite, et qui n'a pas marché : mieux l'expliquer à l'IA
+
+Deux versions de la grille de notation (**v10** puis **v11**) ont été écrites pour dire au
+correcteur, noir sur blanc, qu'un fragment en langue étrangère à l'oral vient de la machine et
+ne doit pas être reproché. Les deux ont été **mesurées** contre la grille en service (v9), le
+même jour, sur le même modèle, avec les mêmes réglages qu'en production.
+
+| | v9 (en service) | v10 | v11 |
+|---|---|---|---|
+| Niveau exact | **81,8 %** | 75,6 % | 76,7 % |
+| Corrections perdues | **8,3 %** | 14,6 % | 10,4 % |
+| Pièges déjoués | **7/8** | 4/8 | 5/8 |
+
+**Les deux sont moins bonnes que ce qu'elles remplaçaient**, et v10 dérivait en plus sur deux
+cas de référence : une production **hors-sujet** remontait de « A1 non atteint » à « A1 », et
+une transcription simplement **bruitée** passait de A2 à B1. L'explication est simple et vaut
+d'être retenue : le texte ajouté (plus de 4 000 caractères) **diluait la sévérité du reste de
+la grille**. En demandant à l'IA d'être indulgente sur un point, on l'a rendue indulgente
+partout.
+
+Les deux versions sont **conservées** — nous ne supprimons jamais une grille livrée — mais
+elles **ne sont pas activées** et la voie est refermée. La leçon est générale : *une consigne
+est un vœu.* v9 interdisait **déjà** d'imputer un artefact de transcription au candidat, et le
+correcteur l'a fait quand même dans 5 corrections sur 72.
+
+### Le vrai filet : une vérification automatique, après coup
+
+Ce qui règle le problème n'est pas une consigne mais un **contrôle de notre serveur**, appliqué
+à la correction une fois qu'elle est rendue. Il est **livré et actif**.
+
+**Ce qu'il fait.** Sur une épreuve **orale** uniquement, il relit le rapport destiné au
+candidat et **retire les phrases qui lui reprochent d'avoir employé une autre langue**. Cela
+concerne les commentaires de chaque critère, les priorités d'amélioration, les conseils, les
+points forts, le résumé d'objectif et les exemples corrigés. Une priorité dont le constat
+disparaît est retirée en entier — on ne rend pas un demi-conseil. Un commentaire vidé n'est
+jamais laissé vide : il est remplacé par une phrase qui dit franchement pourquoi.
+
+**Le candidat est prévenu.** Un avertissement dédié apparaît dans son rapport : *une ou
+plusieurs remarques vous reprochaient d'être passé à une autre langue ; elles ont été retirées,
+ces passages viennent de notre transcription automatique.* Nous ne corrigeons rien en douce.
+
+**Ce qu'il ne fait pas.** Il ne touche **ni à la note, ni au niveau, ni à aucun seuil** : la
+même correction donne exactement le même résultat chiffré avec ou sans lui. C'est précisément
+ce qui permet de le livrer sans nouvelle campagne de mesure.
+
+**Ce qu'il ne touche jamais.** Les **raisons de confiance**. Quand le correcteur écrit
+« transcription temps réel partiellement incertaine (passages en russe et en néerlandais,
+artefacts de reconnaissance vocale) », il a **raison**, et il le dit au bon endroit : la langue
+étrangère y est traitée comme une gêne pour *lire* la production, pas comme une faute du
+candidat. C'est exactement là qu'elle doit vivre, et rien ne l'en retire.
+
+### À l'écrit, rien de tout cela ne s'applique
+
+**C'est volontaire, et c'est la partie la plus importante de la règle.** À l'écrit, aucune
+machine ne s'interpose entre le candidat et son texte : il a tapé chaque mot. Une phrase en
+anglais dans une production écrite est **une vraie non-réalisation** de la consigne, et elle
+doit remonter au candidat sans aucun bénéfice du doute. Le contrôle n'est donc **jamais**
+appliqué à l'expression écrite.
+
+L'asymétrie ne dit pas que l'oral est moins exigeant. Elle dit que **l'oral passe par une
+machine et l'écrit non**.
+
+### Le point délicat : ne pas effacer un vrai changement de langue
+
+Un candidat qui répond **réellement** en espagnol doit continuer d'être sanctionné — sinon
+cette protection deviendrait une porte de sortie. Le serveur ne juge donc pas « au feeling » :
+avant de retirer quoi que ce soit, il **mesure la production elle-même**, sur les seules
+paroles du candidat (jamais celles de l'examinateur).
+
+Deux mesures, deux plafonds. Au-dessus de **l'un ou l'autre**, **plus rien n'est retiré** :
+
+1. **La part d'écriture étrangère** (arabe, cyrillique…) doit rester **sous 15 %**. Sur nos
+   données réelles, les hallucinations plafonnent à **6,8 %** ; une production vraiment écrite
+   dans un autre alphabet en est proche de 100 %.
+2. **La part de mots-outils d'une autre langue** (« dus », « porque », « the », « however »…)
+   doit rester **sous 6 %**. Sur les 75 transcriptions réelles, le maximum observé est
+   **1,4 %** ; sur les 48 productions de référence du banc, 47 sont à **0 %** — et celle où le
+   candidat bascule vraiment en espagnol est à **12,5 %**.
+
+S'y ajoute une condition de bon sens : **au moins 40 mots exploitables**. En dessous, un seul
+mot pèserait plus que le seuil, et une production quasi muette est justement celle où un vrai
+changement de langue est le plus plausible.
+
+**Pourquoi deux mesures et pas une.** L'écriture ne trahit rien quand la langue s'écrit avec
+notre alphabet : anglais, néerlandais, espagnol passent inaperçus. Et compter les *mots
+français* ne suffit pas non plus — nous l'avons vérifié : la production de référence où le
+candidat bascule en espagnol contient **36 % de mots-outils français**, soit **plus que huit
+vraies transcriptions françaises** de nos données. Les langues voisines partagent trop de
+petits mots avec le français. Il fallait donc compter directement la matière **étrangère**.
+
+**En cas de doute, on ne retire rien.** Le sens de l'erreur est assumé : laisser passer un
+reproche injuste est moins grave qu'effacer la détection d'une production qui n'est pas en
+français.
+
+### Ce qui n'a pas bougé
+
+Un contrôle plus ancien vérifiait **déjà**, avant même d'appeler l'IA, qu'une production est
+bien en français (§4) : une production massivement dans une autre langue est refusée sans que
+l'IA ait son mot à dire. Il n'a pas changé. Le nouveau filet règle le sort des **fragments**
+qui passent sous ce seuil — et qui sont précisément ceux que notre transcripteur fabrique.
+
+N'ont pas bougé non plus : l'échelle, les quatre critères, les seuils, le garde-fou de
+couplage, les plafonds, les bandes affichées, la règle de preuve littérale et le garde-fou de
+l'oral.
 
 ---
 
@@ -1139,6 +1676,24 @@ Chaque correction orale porte donc cet avertissement, mot pour mot :
 Il est **interdit** à l'IA de présenter cette absence comme un avantage (« votre accent n'est
 pas pénalisé »), et interdit de dire quoi que ce soit de l'accent, de l'aisance ou de la
 fluidité — elle ne les a pas entendus.
+
+### Un garde-fou qui ne doit plus détruire une correction entière
+
+Cette interdiction est vérifiée automatiquement sur chaque champ, et jusqu'au 6 août 2026 elle
+était **fatale partout** : une seule phrase interdite, non réparée à la seconde tentative, et
+toute l'évaluation était perdue. C'est arrivé, sur une tâche d'examen blanc : deux **exemples
+corrigés** parlaient de « répétitions », la correction a échoué, la tâche a été perdue.
+
+C'était disproportionné. Les exemples corrigés **n'entrent dans aucun calcul** — la note est
+recalculée à partir des seuls critères —, ils sont plafonnés à trois, ils peuvent être une
+liste vide, et le serveur y jette déjà des entrées de lui-même. Désormais, une entrée fautive
+est simplement **supprimée**, et le reste de la correction est rendu au candidat.
+
+La frontière est explicite, et elle n'a bougé nulle part ailleurs. Restent **fatals**, parce
+qu'ils portent le jugement lui-même : la justification du niveau, les commentaires de chaque
+critère, les points forts, les priorités, les suggestions et le bloc d'accomplissement. Sont
+**purgés** : les exemples corrigés. Aucune tolérance n'a été ajoutée sur les notions
+interdites : ce sont exactement les mêmes.
 
 **Pourquoi on ne corrige pas ça tout de suite.** Deux obstacles sérieux :
 
@@ -1172,6 +1727,37 @@ joué par une IA vocale (technologie Google Gemini Live). Deux choses à bien di
   quelles questions poser ou quelles informations demander. En T2 (jeu de rôle), c'est le
   **candidat** qui mène et pose les questions ; l'examinateur **répond** et attend, sans
   prendre l'initiative.
+
+### Le verrou de langue (nouveau : persona v3)
+
+La même IA joue l'examinateur **et** écrit la transcription de l'échange. Elle est multilingue,
+et son éditeur en fait un argument : elle « change de langue naturellement au cours d'une
+conversation ». Pour un examen de français, c'est un défaut, pas une qualité — c'est lui qui
+faisait apparaître des passages en arabe ou en néerlandais dans les transcriptions
+(§8 quater).
+
+Ses consignes lui disaient déjà de **parler** exclusivement français. Elles lui disent
+maintenant, en plus, comment **entendre** :
+
+- l'entretien se déroule **intégralement en français, des deux côtés**, du premier au dernier
+  mot ;
+- le candidat passe un examen **de** français : par définition, ce qu'il prononce **est** du
+  français — même avec une prononciation approximative, un accent marqué, une phrase
+  inachevée ou un micro qui grésille ;
+- un passage mal compris est du français **mal capté**, jamais une phrase étrangère. Elle ne
+  doit ni lui substituer des mots d'une autre langue, ni écrire la parole du candidat dans une
+  autre écriture. Si elle n'a pas compris, elle demande simplement de répéter — en français ;
+- elle ne bascule jamais vers une autre langue, même si on le lui demande.
+
+**Honnêteté sur la portée.** C'est le seul levier que l'outil nous laisse : il n'existe aucun
+réglage permettant d'imposer la langue de ce qu'il entend. C'est donc un **biais donné au
+modèle, pas une garantie technique**, et son effet ne se mesure pas sur notre banc (qui rejoue
+des textes déjà transcrits, sans jamais appeler l'examinateur vocal). Le filet qui protège
+réellement le candidat est la vérification automatique décrite au §8 quater.
+
+Tout le reste de la persona est **inchangé** — conduite de l'entretien, fiche de scénario,
+interdiction de corriger la langue du candidat : v3 ajoute trois règles, elle n'en réécrit
+aucune.
 
 ### La fiche de scénario de la tâche 2
 
@@ -1269,6 +1855,190 @@ rendus.
 
 ---
 
+## 11 bis. L'autre voie : les micro-exercices par compétence
+
+Tout ce qui précède décrit la correction d'une **tâche complète** du TCF : le candidat rend un
+texte entier ou une prise de parole entière, et reçoit une note sur 20, un niveau, quatre
+critères, des citations, des priorités. C'est la voie principale, et elle ne change pas.
+
+Il en existe désormais une **seconde**, plus courte, qui ne la remplace pas : l'entraînement
+**par compétence**. Les deux cohabitent dans l'application, côte à côte, et un candidat peut
+n'utiliser que l'une des deux.
+
+### Ce que le candidat fait
+
+Une tâche du TCF, ce n'est pas une capacité unique : « écrire un message court », c'est en
+réalité savoir s'adresser à la bonne personne, annoncer clairement de quoi on parle, donner des
+informations précises, formuler une demande poliment… Chacune de ces capacités est appelée ici
+une **compétence**.
+
+Chaque tâche en compte **8**, et chaque compétence est travaillée sur **5 petits sujets** —
+soit **240 petits sujets** en tout. Un petit sujet tient en quelques phrases : un contexte, une
+consigne, et surtout **un seul critère**, affiché **avant** que le candidat commence à écrire ou
+à parler. On lui dit donc à l'avance exactement ce qui sera regardé, et rien d'autre ne le sera.
+
+C'est toute la différence avec une tâche complète : au lieu d'être jugé sur tout en même temps,
+il travaille **une chose à la fois**, et il sait laquelle.
+
+L'analyse par l'IA n'est d'ailleurs **pas automatique** : le candidat peut très bien produire sa
+réponse, la comparer aux exemples, et s'en tenir là. C'est pour cette raison qu'un sujet peut
+être marqué « **Fait** » plutôt que « Validé » ou « À renforcer » : sans analyse, il n'y a aucun
+verdict — le dire « validé » serait faux, le dire « à renforcer » serait faux **et**
+décourageant. Écrire, s'auto-évaluer et lire les exemples de référence est **gratuit et sans
+limite** sur tous les sujets ; c'est **l'analyse par l'IA** qui est réservée aux abonnés, avec
+**trois analyses offertes** pour essayer.
+
+### Pourquoi il n'y a ni note sur 20 ni niveau ici
+
+**C'est délibéré, et c'est la règle la plus importante de cette voie.**
+
+Une note sur 20 et un niveau CECRL portent, au TCF, sur une **production entière** — et notre
+propre note porte au minimum sur une tâche complète (§6.6). Mettre « 8/20 » ou « niveau A2 » sur
+deux phrases écrites pour travailler *une seule* capacité serait faux de deux façons :
+
+- **ce serait un chiffre sans support.** On ne peut pas déduire le niveau de français d'une
+  personne de trois lignes rédigées pour exercer un point précis. Le chiffre aurait l'air
+  sérieux sans rien mesurer de solide ;
+- **ce serait décourageant sans raison.** Un candidat qui réussit exactement ce qu'on lui
+  demandait — situer le moment et le lieu, par exemple — n'a aucune raison de recevoir « A1 »
+  parce que sa phrase est courte. Elle est courte parce que l'exercice est court.
+
+Le format de réponse imposé à l'IA **ne contient donc aucun champ** où loger une note ou un
+niveau. Ce n'est pas seulement une consigne qu'on lui donne et qu'elle pourrait oublier : il n'y
+a matériellement pas de case pour ça. Et les consignes lui interdisent explicitement d'en
+glisser un dans une phrase.
+
+Le progrès se lit autrement : par le **statut de chaque sujet** (« À faire », « Fait »,
+« Validé », « À renforcer ») et par le compte de sujets réussis dans une compétence. C'est une
+carte de ce qu'on maîtrise, pas une note.
+
+### Ce que l'IA renvoie : un verdict et trois phrases
+
+Le retour est volontairement **court**. Il tient en quatre éléments, et seulement quatre :
+
+| Élément | Ce que c'est |
+|---|---|
+| **Le verdict** | Une phrase qui dit si le critère annoncé est atteint. |
+| **Ce qui est réussi** | **Un seul** point réussi, concret, pris dans la production du candidat — pas un compliment de politesse. |
+| **À travailler en priorité** | **Une seule** amélioration, celle qui compte le plus, formulée de façon réalisable. |
+| **Une proposition améliorée** | Une reformulation courte qui **garde l'idée du candidat**. On améliore sa phrase, on ne la remplace pas par la nôtre. |
+
+Le verdict prend l'une de **trois valeurs**, et rien d'autre :
+
+| Verdict | En clair |
+|---|---|
+| **Critère validé** | La compétence est là, visible et compréhensible — **même s'il reste des fautes**, tant qu'elles ne bloquent pas la compréhension. |
+| **Critère partiellement atteint** | Le candidat a essayé et on voit ce qu'il vise, mais il manque quelque chose : une information, une précision, un développement, un lien logique. |
+| **Critère non atteint** | La compétence est absente, la consigne n'est pas traitée, ou la production est trop difficile à comprendre pour qu'on puisse juger. |
+
+Ces trois formulations sont **les mêmes sur le site et dans l'application** : un candidat qui
+s'entraîne sur son téléphone puis relit son retour sur ordinateur doit lire le même mot. Le
+troisième verdict se dit « non atteint » et non « à retravailler » : cette dernière tournure
+ressemblait trop à « À renforcer », qui désigne, lui, l'état d'un **sujet** dans la liste — pas
+le résultat d'**une** tentative.
+
+Quatre règles encadrent ce retour, et elles vont toutes dans le même sens — **ne pas noyer le
+candidat** :
+
+- **une seule priorité, jamais une liste.** C'est le point le plus important de cette voie. Dix
+  remarques sur un exercice de trois lignes, c'est décourageant et ça n'apprend rien ;
+- **on n'évalue que le critère annoncé.** Si le critère est « situer le moment et le lieu »,
+  l'IA n'a pas à commenter les accords, les accents, le vocabulaire ou la conclusion. Les fautes
+  sans rapport avec le critère ne sont pas sanctionnées ;
+- **si c'est réussi, on le dit franchement**, sans partir en chasse d'un défaut secondaire pour
+  avoir l'air rigoureux. Il est explicitement interdit d'inventer un reproche pour remplir le
+  retour ;
+- **la longueur n'est pas un critère en soi.** Une réponse très courte qui suffit au critère
+  demandé est validée. La longueur ne devient un problème que si elle empêche d'accomplir le
+  critère, ou si le sujet l'exigeait explicitement. Les longueurs conseillées affichées à
+  l'écran sont des **repères, jamais des barrières** : rien n'est refusé parce que c'est trop
+  court ou trop long.
+
+Les mots interdits sont les mêmes qu'ailleurs dans ce document : pas de « très mauvais », pas de
+« niveau faible », pas de « vous ne savez pas écrire ».
+
+### Les trois productions de référence, et pourquoi elles arrivent après
+
+Chaque petit sujet est accompagné de **trois réponses écrites à l'avance** par nous — jamais par
+l'IA — qui montrent la même consigne traitée à trois degrés :
+
+- une réponse **insuffisante** ;
+- une réponse **attendue**, celle qui correspond à ce que le TCF demande ;
+- une réponse **très réussie**.
+
+Chacune porte une note pédagogique très courte qui explique **pourquoi** elle est à ce niveau.
+Cela fait **720 réponses de référence** pour l'ensemble du module. Elles montrent une cible, pas
+un modèle unique à recopier : l'IA a d'ailleurs l'interdiction de comparer mécaniquement la
+production du candidat aux mots de ces références. Plusieurs formulations différentes peuvent
+être également correctes.
+
+**Elles ne s'affichent qu'une fois que le candidat a produit sa propre réponse.** Ce n'est pas
+un détail d'affichage, c'est une garantie tenue par le serveur : tant qu'il n'a rien rendu sur
+ce sujet, la demande est refusée, même si quelqu'un essayait de les récupérer autrement.
+
+La raison est pédagogique. Lire une bonne réponse **avant** d'écrire, c'est la recopier sans s'en
+rendre compte : on croit avoir appris alors qu'on a imité. En écrivant d'abord, puis en
+comparant, le candidat voit **l'écart réel** entre ce qu'il a produit et ce qui était attendu —
+et c'est cet écart qui enseigne. Il suffit d'avoir **essayé** : une tentative dont l'analyse a
+échoué ouvre quand même les références, parce que c'est précisément le moment où on en a besoin.
+
+### À l'oral, exactement la même limite qu'ailleurs
+
+Les compétences orales se travaillent en s'enregistrant. Ce qui est analysé, c'est la
+**transcription automatique** de ce que le candidat a dit — donc **ce qu'il dit, jamais la façon
+dont il le prononce**.
+
+L'IA n'a accès ni à la voix, ni à la durée de l'enregistrement, et il lui est **interdit** de
+fonder son verdict ou son conseil sur la prononciation, l'accent, l'intonation, le débit,
+l'aisance, la fluidité, les pauses, ou sur l'orthographe et la ponctuation d'un texte que le
+candidat n'a jamais écrit. Les hésitations que la transcription conserve (« euh », « heu ») ne
+sont pas comptées comme des erreurs : elles viennent de l'outil de transcription, pas d'une
+faute du candidat.
+
+C'est la même limite, pour les mêmes raisons, que celle expliquée au §9 — et elle est assumée de
+la même façon : mieux vaut ne pas juger la prononciation que la juger mal, en pénalisant
+systématiquement certains accents.
+
+Par économie, l'enregistrement n'est transcrit **que si une analyse est demandée** : on ne fait
+pas travailler la transcription pour un audio que personne ne corrigera. **L'audio, lui, est
+toujours conservé** — le candidat doit pouvoir se réécouter.
+
+### Ce qui n'a pas été mesuré — à dire franchement
+
+**Cette voie n'a pas de banc de mesure.** C'est sa principale faiblesse, et elle est réelle.
+
+Tout le §12 de ce document explique comment la notation sur 20 est vérifiée : un corpus de 48
+productions de référence, un niveau attendu écrit à l'avance pour chacune, des campagnes
+comparées avant/après à chaque changement de consigne, des chiffres publiés y compris quand ils
+sont mauvais. **Rien de tout cela n'existe pour les micro-exercices.**
+
+Concrètement, cela veut dire que :
+
+- **aucun corpus de référence** ne dit ce que « Validé », « Partiellement atteint » ou « Non
+  atteint » devrait valoir sur des productions connues d'avance. Personne n'a écrit, pour un
+  ensemble de réponses, le verdict qu'un correcteur humain aurait rendu ;
+- **aucune campagne n'a mesuré** à quelle fréquence l'IA tombe sur le bon verdict, ni si elle
+  penche vers l'indulgence ou vers la sévérité — alors que c'est justement le biais mesuré, et
+  documenté, sur la notation des tâches complètes ;
+- par conséquent, **une modification des consignes de cette voie serait aujourd'hui un pari**,
+  exactement la situation que le banc de mesure a été construit pour supprimer sur l'autre voie
+  (§12.1).
+
+Ce qui **est** garanti, en revanche, relève de la forme et non de la justesse : le format de
+réponse est strictement contrôlé (les quatre éléments, les trois verdicts, aucun champ
+imprévu, aucune longueur excessive), une réponse mal formée est renvoyée à l'IA **une seule
+fois** pour réparation puis abandonnée plutôt que rendue à moitié, et il est structurellement
+impossible qu'une note ou un niveau apparaisse. Autrement dit : **on sait que le retour aura la
+bonne forme ; on n'a pas encore mesuré qu'il dit juste.**
+
+La suite logique est la même que pour l'autre voie, et elle passe par les mêmes outils : faire
+annoter de vraies productions de candidats par des enseignants, puis en tirer un corpus de
+référence. Tant que ce n'est pas fait, ce module doit être lu comme un **entraînement guidé**,
+pas comme un verdict fiable sur une compétence. Un candidat qui veut savoir où il en est doit
+passer par une tâche complète.
+
+---
+
 ## 12. Comment on sait si l'IA note juste : le banc de mesure
 
 C'est le vrai apport de cette refonte, et le point le plus important de ce document.
@@ -1288,8 +2058,8 @@ une « A1 non atteint », une A1, deux A2, deux B1, une B2, et un **piège**. Po
 - le **niveau attendu**, et les niveaux **tolérés** (à un palier près) ;
 - une **fourchette de note** acceptable sur 20. Depuis la v6, elle n'est plus un jugement
   indépendant : elle se **déduit mécaniquement du niveau attendu** par la table officielle du
-  TCF (§6.6). C'est la conséquence directe de « notre note est celle du TCF » — si le niveau
-  est B1, la note ne peut être que dans 6-9. Lors de la bascule, ces fourchettes ont été
+  TCF (§6.6). C'est la conséquence directe du fait que notre note s'exprime sur l'échelle du
+  TCF — si le niveau est B1, la note ne peut être que dans 6-9. Lors de la bascule, ces fourchettes ont été
   régénérées à partir des niveaux existants ; **les niveaux, tolérances, confiances, pièges et
   productions n'ont pas été touchés.** On ne retouche jamais la référence pour faire passer
   une version — on peut la ré-exprimer sur une autre échelle, jamais l'ajuster ;
@@ -1305,7 +2075,9 @@ l'incompréhensibilité).
 
 Une **commande unique** rejoue tout le corpus contre l'IA, avec la version de consignes qu'on
 veut tester, et produit un rapport. Elle n'est **jamais** lancée automatiquement : elle appelle
-un modèle payant. Une campagne complète coûte environ **45 centimes**.
+un modèle payant. Une campagne complète coûte **91 centimes** avec le correcteur en vigueur
+(`deepseek-v4-flash`, grille v9) — c'était 45 centimes avec les grilles plus courtes d'avant
+la v9, et cela monte à **4,14 $** avec `gpt-5.4` (§12.6).
 
 ### 12.3 Ce qu'il mesure
 
@@ -1440,10 +2212,11 @@ Ce qu'il faut en retenir, et ce qu'il ne faut pas en conclure :
   même chiffre à la mesure près** : moins d'un point de note entre deux campagnes, c'est du
   bruit, pas un signal.
 
-**Troisième correction : la grille du TCF** (consignes **v5**, alors actives). Les deux
+**Troisième correction : la refonte de la grille** (consignes **v5**, alors actives). Les deux
 premières corrections portaient sur la sévérité ; celle-ci porte sur **ce qu'on mesure**. La
-grille maison (5 critères à poids variables, accomplissement exclu du niveau) a été remplacée
-par celle du TCF (4 critères égaux, accomplissement compris) — les raisons sont au §5.1.
+grille sans référence (5 critères à poids variables, accomplissement exclu du niveau) a été
+remplacée par notre grille actuelle, alignée sur les dimensions évaluées au TCF (4 critères
+égaux, accomplissement compris) — les raisons sont au §5.1.
 
 Mesure : **une campagne v4.2 relancée le même jour, sur le même modèle**, contre la v5. Trois
 avertissements avant de lire le tableau, parce qu'ils changent la lecture :
@@ -1562,6 +2335,65 @@ force (« le hors-sujet et le en-deçà du A1 valent 0, et ce 0 prime »). Ensei
 **sur une échelle resserrée, chaque borne doit être ancrée explicitement, et renforcer une
 borne peut en déplacer une autre.** Seule une campagne complète le montre.
 
+**Cinquième correction : les artefacts de transcription et le déroulé du dialogue** (consignes
+**v9**, aujourd'hui **actives**). Motif : l'incident du 6 août 2026 raconté au §8 bis — trois
+mots mal transcrits reprochés au candidat dans cinq endroits du rapport. Les deux sections
+**orales** des consignes ont été réécrites ; **rien d'autre n'a bougé** — les six grilles par
+tâche, les seuils, le garde-fou de couplage, les plafonds, les bandes et les 16 exemples de
+calibration sont ceux de la v8, au caractère près, et un test automatique le vérifie. C'est ce
+qui rend la mesure lisible : un seul changement à la fois.
+
+Mesure : **une campagne v8 rejouée le même jour, sur le même modèle (DeepSeek
+`deepseek-v4-flash`) et le même corpus**, contre la v9.
+
+| | v8 (témoin, même jour) | **v9** |
+|---|---|---|
+| productions mesurées | 47/48 | **48/48** |
+| **accord exact** | 35/47 — **74,5 %** | 39/48 — **81,3 %** |
+| **accord à un palier près** | 93,6 % | **97,9 %** |
+| **pièges évités** | **4/8** | **8/8** |
+| productions **A1 non atteint** correctement classées | 5/8 | **8/8** |
+| productions **A1** correctement classées | 3/8 | 3/8 |
+| productions **A2** correctement classées | 8/12 | **10/13** |
+| productions **B1** correctement classées | 12/12 | 12/12 |
+| productions **B2** correctement classées | **7/7** | 6/7 |
+| réponses inexploitables | 0 % | 0 % |
+| **appels refusés par nos contrôles** | 37,3 % (28 sur 75) | **27,3 %** (18 sur 66) |
+| **corrections perdues** | 1/48 — 2,1 % (citation refusée) | **0/48 — 0 %** |
+| écart de sévérité (référence − IA) | −0,57 | **−0,38** |
+| accord de **confiance** | **53,2 %** | 45,8 % |
+| coût de la campagne | 62 centimes | 91 centimes |
+
+Ce qu'il faut en retenir, et ce qu'il ne faut pas y lire :
+
+- **les quatre pièges que la v8 ratait sont tous évités.** Ce sont précisément ceux que la
+  nouvelle règle vise : les **deux transcriptions bruitées** (l'une perdue faute de citation
+  vérifiable, l'autre classée un palier trop haut), le **texte mémorisé** annoncé B1 au lieu de
+  A2, le hors-sujet et la production en langue étrangère. Sur l'oral en interaction (tâche 2),
+  l'accord exact passe de **71,4 % à 87,5 %** ;
+- **le correcteur se fait nettement moins refuser** : 37,3 % de ses appels étaient rejetés par
+  nos contrôles sous la v8, 27,3 % sous la v9. Le seul cas perdu de la v8 l'était pour une
+  citation refusée sur une transcription bruitée — exactement la situation où le correcteur est
+  invité, désormais, à citer un autre passage plutôt qu'un mot douteux. ⚠️ Contrairement à la
+  comparaison de **moteurs** du §12.6, cette comparaison-ci **est** valide : même modèle
+  (`deepseek-v4-flash`), même jour, **et même budget de réessais** (jusqu'à 10 côté v8, 9 côté
+  v9) — la ligne « corrections perdues » y est donc lisible ;
+- **attention à ne pas sur-attribuer.** Les consignes communes sont envoyées pour **toutes** les
+  tâches, y compris à l'écrit : le gain visible sur l'écrit tâche 3 (50 % → 75 %) n'a pas de
+  cause identifiable dans le changement, et sur douze cas il tient dans le bruit. Ce qui est
+  réellement attribuable à la v9, ce sont les résultats **oraux** et les pièges de
+  transcription ;
+- **deux reculs, dits franchement.** (a) Une production B2 sur sept ressort B1 : c'est le sens
+  **prudent** de l'erreur, et sur sept cas ce n'est pas un signal. (b) Plus gênant : l'**accord
+  de confiance baisse** (53,2 % → 45,8 %, et le correcteur se déclare « plus sûr que la
+  référence » sur 19 cas contre 13). C'est probablement une conséquence directe de la nouvelle
+  règle : en apprenant à lire à travers le bruit de transcription, l'IA cesse d'y voir un
+  obstacle à l'observation — alors que c'en est un. À surveiller à la prochaine campagne ;
+- **le point faible historique n'a pas bougé** : 3 productions A1 sur 8 seulement sont
+  correctement classées, les autres ressortant A2. La v9 ne s'y attaquait pas (§12.5) ;
+- **le prompt est plus long** : une campagne coûte 91 centimes au lieu de 62. C'est le prix des
+  deux sections réécrites, payé sur chaque correction.
+
 **Les seuils se règlent par rejeu hors ligne, jamais à l'intuition.** Les évaluations déjà
 jouées conservent la note de chaque critère : on peut donc rejouer le passage note → niveau
 avec d'autres seuils **sans un seul appel d'IA supplémentaire**. C'est ainsi qu'a été décidé,
@@ -1584,12 +2416,39 @@ Deux enseignements de ces rejeux, qui valent d'être écrits :
 
 Le banc sert autant à mesurer les progrès qu'à nommer ce qui ne va pas.
 
-- **Les trois corrections du §12.3 bis ne sont pas encore mesurées.** Limite de longueur
-  relevée, message de réparation enrichi, hésitations élidées : les trois sont raisonnées et
-  couvertes par des tests automatiques, mais **aucune campagne n'a encore comparé l'avant et
-  l'après**. Tant que ce n'est pas fait, le taux de corrections perdues annoncé plus haut reste
-  celui du diagnostic, pas celui du système corrigé. C'est exactement la dette que le §12.3 bis
-  décrit — on la nomme plutôt que de la reproduire.
+- **La confiance annoncée s'est dégradée avec la v9.** Elle n'était déjà juste que dans un cas
+  sur deux ; elle tombe à 45,8 %, et l'IA se déclare **plus sûre** qu'elle ne devrait sur 19
+  cas. L'explication la plus probable est directe : en apprenant à lire à travers le bruit de
+  transcription, elle a cessé d'y voir un obstacle à l'observation — alors que c'en est un. Ce
+  n'est pas une régression de **note**, mais c'est une régression, et elle est en tête de liste
+  pour la prochaine passe.
+
+- **La frontière A1 / A2 n'a toujours pas bougé.** 3 productions A1 sur 8 seulement sont
+  correctement classées ; les autres ressortent A2, dans la zone que la référence tolère. C'est
+  le prix de l'échelle officielle (le palier A1 n'y vaut qu'**une** valeur, 1) et aucune des
+  versions v6 à v9 ne s'y est attaquée. À trancher avec de vraies productions annotées, pas
+  avec huit cas synthétiques.
+
+- **Le filet automatique contre les mots mal transcrits ne couvre qu'un mot à la fois.** Il
+  attrape un reproche adossé à **un seul** mot cité de la transcription ; un artefact étalé sur
+  plusieurs mots lui échappe, faute de dictionnaire du français (§8 bis). Sur le cas réel qui a
+  déclenché tout ceci, il aurait attrapé deux artefacts sur trois. Le troisième repose
+  entièrement sur la consigne donnée à l'IA.
+
+- **Les trois corrections du §12.3 bis ne sont toujours mesurées qu'indirectement.** Limite de
+  longueur relevée, message de réparation enrichi, hésitations élidées : la campagne v9 montre
+  bien **zéro correction perdue** contre 2,1 % pour le témoin v8, mais ce chiffre mesure la
+  **nouvelle consigne orale**, pas ces trois corrections-là prises une par une. C'est exactement
+  la dette que le §12.3 bis décrit — on la nomme plutôt que de la reproduire.
+
+- **La seconde voie d'évaluation — les micro-exercices par compétence (§11 bis) — n'est pas
+  mesurée du tout.** Le banc décrit ici ne couvre **que** la notation des tâches complètes. Il
+  n'existe, pour les micro-exercices, **ni corpus de référence, ni campagne, ni chiffre** : rien
+  ne dit aujourd'hui à quelle fréquence le verdict « critère validé / partiellement atteint /
+  non validé » tombe juste, ni dans quel sens il se trompe. Ce qui y est contrôlé est **la forme**
+  de la réponse, pas sa justesse. C'est la même dette que celle décrite au §12.3 bis, sur un
+  périmètre neuf — et de loin la plus grosse zone non mesurée du système. Le détail, et ce que
+  cela implique pour le candidat, sont écrits au §11 bis.
 
 - **Le garde-fou de cohérence du bilan (§6.5 bis) est hors de portée de ce banc, par
   construction.** Le corpus porte un niveau attendu **par tâche** et **aucune** référence
@@ -1661,6 +2520,139 @@ Le banc sert autant à mesurer les progrès qu'à nommer ce qui ne va pas.
 
 ---
 
+### 12.6 Changer de correcteur : trois moteurs mesurés sur le même corpus
+
+Le correcteur est un **réglage**, pas une règle : la même grille v9 peut être lue par
+plusieurs moteurs. Trois l'ont été, sur les **mêmes 48 cas**, avec la même grille et le même
+format de réponse, 3 corrections en vol :
+
+- **DeepSeek `deepseek-v4-flash`** — le correcteur historique, **en vigueur aujourd'hui** ;
+- **OpenAI `gpt-5.4`** — essayé le 2026-08-07, le plus régulier mesuré, et le plus cher ;
+- **DeepSeek `deepseek-v4-pro`** — essayé le 2026-08-08.
+
+> 🛑 **Avertissement de lecture, ajouté après coup — à lire avant le tableau.** Ces trois
+> campagnes **ne se comparent pas ligne à ligne**. Elles n'ont pas accordé au correcteur le
+> même nombre de réessais : jusqu'à **9** pour `flash`, **3** pour `deepseek-v4-pro`, **1**
+> pour `gpt-5.4`. Or, en vraie utilisation, un candidat n'a droit qu'à **un seul réessai**
+> avant que la correction n'échoue. Toute ligne qui dépend du nombre d'essais — au premier
+> chef **« corrections perdues »** — mesure donc le réglage du banc, pas le modèle. La ligne
+> honnête, celle qui décrit ce qui arrive à un vrai candidat, est **« appels refusés par nos
+> contrôles »** : elle compte les réponses rejetées **rapportées aux appels réellement
+> passés**, indépendamment du nombre de vies accordées. Les lignes de justesse (accord,
+> paliers, pièges) et de coût, elles, restent comparables.
+
+> ⚠️ **Le fait à retenir, parce qu'il est contre-intuitif.** Sur ce travail précis — corriger
+> une production TCF avec citations obligatoires — **le modèle nommé « pro » coûte plus cher
+> que celui nommé « flash »** (1,12 $ contre 0,91 $ la campagne) **sans mieux noter** (pièges
+> 4/8 contre 8/8, B2 3/7 contre 6/7). Le nom commercial d'un modèle renseigne sur sa taille,
+> **pas** sur son prix relatif ni sur son aptitude à une tâche donnée. Quiconque voudrait
+> « remettre le bon modèle » doit **refaire la mesure d'abord**.
+
+| Ce qu'on mesure | **`deepseek-v4-flash`** (en vigueur) | `gpt-5.4` | `deepseek-v4-pro` |
+|---|---|---|---|
+| ~~Corrections rendues / perdues~~ | ⚠️ **NON COMPARABLE** — réessais accordés : 9 | ⚠️ réessais : 1 | ⚠️ réessais : 3 |
+| **Appels refusés par nos contrôles** *(la ligne qui décrit ce qu'un candidat subit)* | 27,3 % (18 appels sur 66) | **0 %** (0 sur 48) | 17,9 % (10 sur 56) |
+| …dont sur les seules productions **orales** | 42,9 % | **0 %** | 31,2 % |
+| …sur les productions **écrites** | **0 %** | **0 %** | **0 %** |
+| Accord exact (sur les corrections rendues) | 81,3 % | 81,3 % | 82,2 % |
+| Accord exact (sur les 48 cas, les perdues comptées ratées) | **81,3 %** | **81,3 %** | 77,1 % |
+| Accord à un palier près | **97,9 %** | **97,9 %** | 93,3 % |
+| Écart moyen (référence − IA) | −0,38 | **−0,19** | +0,50 (trop sévère) |
+| **A1 non atteint** (8 cas) | 8/8 | 8/8 | 8/8 |
+| A1 (8 cas) | 3/8 | 2/8 | **4/8** |
+| A2 (13 cas) | 10/13 | 11/13 | **12/13** |
+| B1 (12 cas) | **12/12** | **12/12** | 10/12 |
+| **B2** (7 cas) | **6/7** | **6/7** | 3/7 |
+| **Pièges évités** (8 cas) | **8/8** | 5/8 | 4/8 |
+| Cas ayant exigé un réessai | 7 | **0** | 4 |
+| Attente médiane par correction | 16,6 s | **12,9 s** | 29,5 s |
+| Attente **maximale** observée (cumul des réessais) | 5 min 44 s | **32 s** | 3 min 03 s |
+| Accord sur la confiance annoncée | 45,8 % | **54,2 %** | 53,3 % |
+| **Coût de la campagne** (48 corrections) | **0,91 $** | 4,14 $ | 1,12 $ |
+
+**Une conclusion a dû être retirée.** Ce paragraphe disait, dans une version précédente de ce
+document, que `deepseek-v4-pro` « perdait 3 corrections sur 48 là où `flash` n'en perdait
+aucune ». **C'était faux, et c'est important de le dire plutôt que de l'effacer en silence.**
+Une vérification ultérieure a montré que `flash` avait tourné avec **neuf** tentatives
+autorisées par cas (un cas en a consommé neuf), `pro` avec trois, `gpt-5.4` avec une. Un
+modèle à qui l'on accorde neuf essais finit évidemment par rendre quelque chose. La différence
+mesurait donc le **réglage du banc**, pas les modèles. En vraie utilisation, il n'y a **qu'un
+seul réessai**.
+
+**La bonne façon de poser la question : combien d'appels sont refusés ?** Cette mesure-là ne
+dépend pas du nombre de vies accordées, et c'est elle qui prédit ce qu'un candidat vivra.
+
+| | `flash` | `gpt-5.4` | `pro` |
+|---|---|---|---|
+| appels refusés, tous cas | 27,3 % | **0 %** | 17,9 % |
+| appels refusés, **productions orales** | **42,9 %** | **0 %** | 31,2 % |
+| appels refusés, productions écrites | 0 % | 0 % | 0 % |
+
+Deux enseignements. D'abord, **le problème est entièrement oral** : à l'écrit, les trois
+moteurs passent nos contrôles du premier coup, systématiquement. Ensuite, **`flash` est le
+moteur qui se fait le plus refuser** — près d'un appel oral sur deux. Ce que refusent nos
+contrôles, ce sont deux choses précises : une citation qui ne se retrouve pas mot pour mot
+dans la production du candidat, et un conseil fondé sur un élément qu'on s'interdit de juger
+à l'oral (accent, débit, hésitations). Ce ne sont **pas** des réponses illisibles : le défaut
+qui avait détruit une tâche d'examen réelle le 2026-08-06 — une réponse **tronquée ou
+corrompue** — n'est réapparu sur **aucune** des trois campagnes.
+
+**Ce que `deepseek-v4-pro` fait mieux, et moins bien.** Mieux : il se fait moins refuser
+(17,9 % contre 27,3 %) et il est le meilleur des trois sur le **bas de l'échelle** — A1 4/8,
+le meilleur score jamais obtenu sur ce palier fragile, et A2 12/13. Moins bien : il **rate la
+moitié des cas-pièges** (4/8 contre 8/8) — les cas construits exprès pour tromper : hors-sujet
+bien écrit, texte appris par cœur, transcription bruitée, réponse dans une autre langue — et
+il **reconnaît mal les très bons candidats** (3 B2 sur 7, contre 6/7 pour les deux autres).
+Ses erreurs vont dans le sens **sévère** (écart global +0,50, le seul positif des trois) : il
+sous-note plutôt qu'il ne flatte, ce qui est le sens d'erreur le moins dangereux — mais
+annoncer B1 à quatre candidats sur sept qui valent B2 reste une erreur. Et il **coûte 23 % de
+plus** que `flash`.
+
+**Une pointe d'attente à lire correctement.** Les 5 min 44 s de `flash` ne sont **pas** une
+correction qui a mis cinq minutes à s'écrire : c'est **neuf appels enchaînés** sur la même
+production, à cause des refus ci-dessus. Pris isolément, un appel de `flash` prend 16,3 s en
+médiane et **36 s au pire** — mesuré sur les 41 cas réglés en un seul appel. C'est ce
+chiffre-là, et pas la pointe, qui dimensionne le délai d'attente côté serveur (90 s, soit
+2,5 fois le pire appel observé).
+
+**Où en est la décision.** `deepseek-v4-flash` est le correcteur **en vigueur**, et **le choix
+est en cours de réexamen** : l'argument qui le soutenait le plus fortement — « il ne perd
+jamais de correction » — ne tient plus. Ce qui reste solide : il est **le moins cher** (0,91 $
+contre 1,12 $ et 4,14 $) et **le plus fiable sur les cas-pièges** (8/8). Ce qui joue contre
+lui : **42,9 % d'appels refusés à l'oral**, là où `gpt-5.4` n'en refuse aucun. `gpt-5.4` note
+**aussi juste** que lui (81,3 % tous les deux, pas mieux) et bien plus régulièrement, mais
+coûte **4,5 fois plus cher**. L'arbitrage revient au propriétaire ; ce document ne le
+préempte pas.
+
+**Revenir en arrière** ne demande ni migration ni recompilation : trois lignes dans le fichier
+d'environnement (le fournisseur, le modèle, ses deux tarifs), un redémarrage. Les blocs
+OpenAI et Anthropic restent complets et testés.
+
+**Changer de modèle ne demande plus de toucher au code.** Chaque fournisseur a ses petites
+manies : les uns veulent que la longueur maximale de réponse s'appelle `max_tokens`, les
+autres `max_completion_tokens` ; certains modèles refusent qu'on leur impose une notation
+déterministe. Avant, ces différences étaient écrites dans le programme : brancher un modèle
+nouveau demandait une modification et une recompilation. Désormais, **c'est le fournisseur
+lui-même qui nous le dit** — il renvoie un message d'erreur explicite, qui nomme souvent le
+réglage de remplacement — et le programme **corrige sa demande, réessaie une fois, et retient
+la bonne forme** jusqu'au redémarrage suivant.
+
+Le **tarif** suivait la même logique à l'envers : il vivait dans une liste écrite dans le
+code, si bien que le premier modèle absent de cette liste faisait échouer la construction du
+projet alors que rien n'était cassé. Il se déclare désormais **à côté du modèle, dans le même
+fichier d'environnement** : si le modèle se choisit là, son prix aussi. Ce qui reste
+verrouillé, c'est la **cohérence** — choisir un modèle sans poser ses deux tarifs fait échouer
+la construction, parce que le coût d'une correction est enregistré en base et qu'un tarif faux
+y resterait faux pour toujours. Ce qui n'est plus verrouillé, c'est le **choix** : aucun test
+ne dit plus quel moteur doit être utilisé.
+
+> ⚠️ **Un modèle qui impose sa propre température** (mesuré sur `gpt-5.5`) rend la notation
+> **non déterministe** : la même production peut ressortir avec une note légèrement
+> différente d'un jour à l'autre. Le programme s'y adapte sans planter, mais c'est un choix
+> à faire en connaissance de cause, pas par accident. `deepseek-v4-flash`, `deepseek-v4-pro`,
+> `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.2`, `gpt-4.1` et `gpt-4o-mini` acceptent tous la notation
+> déterministe.
+
 ## 13. Deux réglages **préparés mais éteints** (aucun effet aujourd'hui)
 
 Ces deux comportements sont écrits, testés et livrés, mais **désactivés**. Tant qu'ils ne
@@ -1729,16 +2721,24 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 
 | Ce qu'on veut changer | Fichier |
 |-----------------------|---------|
-| **Toutes les consignes de notation** (les 4 critères du TCF et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et tout ce qui se lit sur une note** : seuils note → niveau, écart du garde-fou, seuils des plafonds, bornes des bandes affichées) **et toutes les consignes de restitution** (confiance, anti-répétition, levier de progression, verdict, version améliorée, plafonds d'affichage) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v8.json` (version **active**, profil `TCF_IRN`, maximum B2). `v7` et les versions antérieures restent en place et chargeables. Un rollback change la **paire compatible** `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION` (v8/v5 → v7/v4, par exemple), jamais un seul côté du contrat. |
-| **Le format de réponse de l'IA** (note, confiance, accomplissement **et son verdict**, preuves, exemples corrigés, version améliorée…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v5.json` (version active : structure complète, quatre critères exacts, niveaux limités à B2, aucun champ imprévu, au plus 2 points forts / 2 priorités / 3 exemples corrigés) |
-| **Le correcteur utilisé partout** (async, fin de session temps réel, réparation, seconde passe, calibration) | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.provider` et le modèle du provider choisi. Défaut : DeepSeek / `deepseek-v4-flash`. Gemini reste l'examinateur vocal/transcripteur, jamais le correcteur. |
-| **Le comportement de l'examinateur vocal** (ton, cadre, interdiction d'orienter le candidat, ouverture T1/T2, façon de rendre la fiche de scénario T2…) | `backend_sejourfr/src/main/resources/prompts/realtime-personas-v2.json` (version active ; la v1, sans fiche de scénario, reste disponible en repli) |
+| **Toutes les consignes de notation** (nos 4 critères et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et tout ce qui se lit sur une note** : seuils note → niveau, écart du garde-fou, seuils des plafonds, bornes des bandes affichées) **et toutes les consignes de restitution** (confiance, anti-répétition, levier de progression, verdict, version améliorée, plafonds d'affichage) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v12.json` (version **active**, profil `TCF_IRN`, maximum B2). `v8`, `v7` et les versions antérieures restent en place et chargeables. ⚠️ **`v10` et `v11` existent aussi, et sont écartées** : elles ajoutaient une consigne sur la langue étrangère à l'oral et ont été **mesurées moins bonnes que v9** (§8 quater) — les activer ferait revenir ces chiffres. Un rollback change la **paire compatible** `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION` (v12/v6 → v9/v5 → v8/v5 → v7/v4), jamais un seul côté du contrat. ⚠️ **v12 est la seule version dont la notation n'a pas été mesurée au banc** — parce qu'elle ne la change pas : elle est la v9 au caractère près pour tout ce qui note (verrouillé par un test qui compare les deux fichiers), et ne modifie que **deux choses de forme** : la façon dont l'IA désigne sa preuve (§5.5), et le fait qu'elle ne **recopie plus** les bornes de mots des tâches EE — elle renvoie à celles qui lui sont injectées depuis la base (§2). Retour à la recopie littérale : `EVAL_RUBRICS_VERSION=v9` + `EVAL_PROMPT_VERSION=v5`, sans migration — ⚠️ **ce retour arrière réintroduit la contradiction sur les bornes de mots** (grille à 60-90, base à 40-90, §2). |
+| **Le format de réponse de l'IA** (note, confiance, accomplissement **et son verdict**, preuves, exemples corrigés, version améliorée…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v6.json` (version active : structure complète, quatre critères exacts, niveaux limités à B2, aucun champ imprévu, au plus 2 points forts / 2 priorités / 3 exemples corrigés). **La seule différence avec la v5** : la preuve d'un critère y est un **numéro de morceau** (un entier), plus une citation recopiée — c'est ce qui rend une preuve inventée impossible plutôt que simplement interdite (§5.5). La v5 reste en place et chargeable. |
+| **Le découpage de la production en morceaux numérotés** (une prise de parole du candidat à l'oral, une phrase à l'écrit) et sa **résolution en texte** avant affichage | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationProductionSegments.java`. Le découpage est **le même** pour ce qui est envoyé à l'IA, pour la vérification du numéro et pour le texte affiché — un seul point de vérité, comme pour le recollage des phrases coupées (§3.1) |
+| **Le correcteur utilisé partout** (async, fin de session temps réel, réparation, seconde passe, calibration) | Le **fichier d'environnement** (`.env`), pas le code : `EVAL_LLM_PROVIDER` et `EVAL_<FOURNISSEUR>_MODEL`. `application.yaml` ne porte que les **défauts** — aujourd'hui **DeepSeek / `deepseek-v4-flash`**, et **pas** son homonyme « pro », plus cher sans mieux noter. ⚠️ **Ce choix est en cours de réexamen** (§12.6). Les blocs OpenAI (`gpt-5.4`) et Anthropic restent complets et testés : basculer, c'est décommenter un bloc de trois lignes. Gemini reste l'examinateur vocal/transcripteur, jamais le correcteur. |
+| **La façon dont on parle à un fournisseur** (nom du réglage de longueur maximale, envoi ou non d'une température) | Personne ne l'écrit : elle est **négociée avec le fournisseur** au premier appel, à partir de ses messages d'erreur, puis retenue jusqu'au redémarrage (`backend_sejourfr/src/main/java/com/sejourfr/app/util/ChatCompletionDialectNegotiator.java`). Deux clés d'environnement par fournisseur permettent de reprendre la main sans code si besoin : `EVAL_<FOURNISSEUR>_MAX_TOKENS_PARAM` et `EVAL_<FOURNISSEUR>_SEND_TEMPERATURE` |
+| **Le tarif du modèle** (le coût d'une correction est enregistré en base : un tarif faux y reste faux) | Le **même fichier d'environnement que le modèle** : `EVAL_<FOURNISSEUR>_COST_INPUT` / `..._COST_OUTPUT` (défauts dans `application.yaml`). C'est délibéré : le prix doit voyager avec le modèle. Un test **fait échouer la construction du projet** si un modèle est choisi sans ses deux tarifs — mais il ne dit plus « tel modèle vaut tel prix », sinon essayer un modèle nouveau redeviendrait une modification de code |
+| **Le comportement de l'examinateur vocal** (ton, cadre, interdiction d'orienter le candidat, ouverture T1/T2, façon de rendre la fiche de scénario T2, **verrou de langue** §10) | `backend_sejourfr/src/main/resources/prompts/realtime-personas-v3.json` (version active ; v2 — sans verrou de langue — et v1 — sans fiche de scénario — restent disponibles en repli) |
 | **Les faits d'un jeu de rôle T2** (prix, délais, horaires, attitude du personnage) | colonne `agent_role_card` du sujet, en base — renseignée par les migrations `db/migration/300_tcf/production/eo/tache_2/` |
 | **Les seuils de niveau, les plafonds, les vérifications automatiques, les deux réglages éteints** | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.production-evaluation` |
 | **Le garde-fou de cohérence du bilan** (§6.5 bis — pas de B2 si la tâche 3 est sous B1) | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.coherence-bilan` — livré **actif**, contrairement aux deux réglages du §13. `EVAL_COHERENCE_BILAN_ENABLED=false` rend exactement les bilans d'avant |
 | **Le recollage des phrases coupées en deux à l'oral en temps réel** (§3.1) | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.recollage-tours.enabled` — livré **actif**, contrairement aux trois réglages du §13. La règle elle-même vit à **un seul endroit**, `backend_sejourfr/src/main/java/com/sejourfr/app/util/TranscriptTurnStitcher.java`, et s'applique en un seul point de lecture, ce qui garantit que le texte cité est le texte affiché |
+| **Le retrait automatique des reproches fondés sur un mot mal transcrit** (§8 bis), **le retrait des reproches de langue étrangère à l'oral** (§8 quater) et **la suppression — au lieu du rejet — d'un exemple corrigé fondé sur une notion non évaluable à l'oral** (§9) | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationOralArtifactFilter.java`. Ne touche **ni la note, ni le niveau, ni un seuil** : uniquement le texte du rapport, et **uniquement à l'oral**. Les deux plafonds qui protègent le cas « le candidat a vraiment changé de langue » sont écrits dans cette même classe, avec les chiffres qui les justifient ; la liste de mots-outils étrangers qu'ils utilisent vit avec son équivalent français dans `ProductionValidityService.java`. La frontière entre ce qui reste **fatal** et ce qui est **purgé** est écrite dans `EvaluationOutputValidator.java` |
 | **La patience / réactivité de l'examinateur vocal** (détection de fin de parole) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.realtime.gemini.vad` |
 | **La longueur maximale d'une réponse du correcteur** (§12.3 bis — au-delà, la réponse est coupée et la correction est perdue) | `backend_sejourfr/src/main/resources/application.yaml`, `max-tokens` des trois correcteurs de `sejourfr.production-evaluation` : **la même valeur pour les trois**, verrouillée par un test |
+| **Les consignes des micro-exercices par compétence** (§11 bis — ce que l'IA regarde, les trois verdicts, l'interdiction d'une note ou d'un niveau, la règle « une seule priorité », les limites de l'oral) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-rubrics-v1.json` (version active). Fichier **séparé** de celui des tâches complètes : les deux voies n'ont ni les mêmes règles ni le même but, et on ne veut pas qu'une modification de l'une déborde sur l'autre |
+| **Le format de réponse des micro-exercices** (les quatre éléments rendus, les trois verdicts, les longueurs maximales) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-tool-schema-v1.json` — **aucun champ n'y existe pour une note ou un niveau**, c'est ce qui rend leur apparition impossible plutôt que simplement interdite |
+| **Les réglages des micro-exercices** (longueur maximale acceptée, durée maximale d'un enregistrement, nombre d'analyses offertes) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.competences.analysis`. Le **correcteur**, lui, n'a pas de réglage propre : cette voie utilise le même que tout le reste (`sejourfr.production-evaluation.provider`) |
+| **Le contenu des micro-exercices** (les compétences, les petits sujets, les trois réponses de référence et leurs notes pédagogiques) | migrations `db/migration/300_tcf/competences/` — fichiers **générés**, à ne pas modifier à la main ; le volume publié est figé par un test automatique |
 | **Le corpus de référence du banc de mesure** | `backend_sejourfr/src/test/resources/calibration/golden-set-v1.json` |
 | **La grille officielle du TCF** (niveau → fourchette de note, §6.6) | `backend_sejourfr/src/main/java/com/sejourfr/app/enums/BandeNoteTcf.java` — dans le code et **pas** dans la configuration : c'est une donnée officielle, pas un réglage. Depuis la v6, la grille active la reprend à l'identique comme échelle de notation ; cet enum reste malgré tout la source officielle et sert à **afficher** la fourchette du niveau atteint |
 
@@ -1770,7 +2770,8 @@ audios de compréhension orale (autre pipeline), voir
 L'IA joue un correcteur d'examen **juste, pas complaisant**. Pour chaque tâche, elle note les
 **quatre critères du vrai TCF — communiquer, interagir, lexique, morphosyntaxe — à poids
 égal**, annonce d'abord **si l'objectif de la tâche est atteint**, dit **ce qui a été traité et
-ce qui a été oublié**, appuie chaque appréciation sur une **citation** de la production, donne
+ce qui a été oublié**, appuie chaque appréciation sur un **passage précis** de la production — qu'elle **désigne par son
+numéro** au lieu de le recopier, ce qui rend une preuve inventée impossible —, donne
 **au plus deux points forts et deux priorités, chacune avec un « comment » concret et un
 exemple avant / après pris dans la copie**, rend à l'écrit **la copie entière réécrite au
 palier au-dessus**, et déclare **à quel point elle est sûre d'elle** — une certitude de
@@ -1801,6 +2802,16 @@ note pour autant : au bilan d'une épreuve, on affiche le niveau estimé **et** 
 officielle de ce niveau, parce que notre note porte sur une tâche et celle du TCF sur une
 épreuve entière (§6.6).
 
+**À côté de cette correction complète, une seconde voie** (§11 bis) : des **micro-exercices**
+où le candidat travaille **une seule capacité à la fois**, annoncée avant qu'il écrive. L'IA n'y
+rend qu'un **verdict sur cette capacité** — critère validé, partiellement atteint ou non validé — avec
+un point réussi, **une seule** priorité et une reformulation qui garde son idée. **Aucune note
+sur 20, aucun niveau** : le format de réponse ne comporte même pas de case pour en loger un,
+parce qu'on ne déduit pas le niveau de français d'une personne de trois lignes écrites pour
+exercer un point précis. Trois réponses de référence — insuffisante, attendue, très réussie —
+s'ouvrent **après** sa propre production, jamais avant : lire la bonne réponse d'abord, c'est la
+recopier sans le savoir.
+
 Quatre choses qu'on **ne cache pas** :
 
 - le garde-fou « pas de B2 sans argumentation » (§6.5 bis) est allumé sur un
@@ -1813,4 +2824,8 @@ Quatre choses qu'on **ne cache pas** :
   officielle, le palier A1 ne vaut qu'**une seule valeur**, et 3 productions A1 sur 8
   ressortent A2 ; un cas de frontière B1/B2 résiste toujours ;
 - le corpus qui sert à cette mesure est **écrit à la main** : il doit être remplacé par de
-  vraies productions annotées par des enseignants.
+  vraies productions annotées par des enseignants ;
+- et cette mesure **ne couvre que la notation des tâches complètes**. Les micro-exercices par
+  compétence (§11 bis) n'ont **ni corpus de référence ni campagne** : on y contrôle la **forme**
+  du retour, pas sa justesse. C'est la plus grande zone non mesurée du système, et tant qu'elle
+  le reste, ce module est un **entraînement guidé**, pas un verdict fiable sur une compétence.

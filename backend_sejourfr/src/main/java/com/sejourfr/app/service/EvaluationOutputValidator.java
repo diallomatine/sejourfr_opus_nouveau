@@ -24,6 +24,23 @@ final class EvaluationOutputValidator {
     private static final String UNMATCHED_PROOF_SUFFIX =
         "] doit citer un passage reel de la production";
 
+    /**
+     * CONTRAT v6 — la preuve n'est plus une chaine recopiee mais un NUMERO de
+     * segment. Deux violations possibles, et deux seulement :
+     * <ul>
+     *   <li>{@link #MISSING_SEGMENT_SUFFIX} : champ absent, non numerique ou non
+     *       entier. Bloquant, comme l'etait une preuve vide ;</li>
+     *   <li>{@link #UNKNOWN_SEGMENT_SUFFIX} : entier hors de la liste servie.
+     *       C'est l'equivalent exact d'une citation non rattachable, donc le seul
+     *       cas degradable apres reessai.</li>
+     * </ul>
+     */
+    private static final String SEGMENT_PROOF_PREFIX = "preuve_segment[";
+    private static final String MISSING_SEGMENT_SUFFIX =
+        "] doit etre un numero de segment entier";
+    private static final String UNKNOWN_SEGMENT_SUFFIX =
+        "] doit designer un segment numerote de la production";
+
     private static final List<String> CHAMPS_V4 = List.of(
         "note_globale", "niveau_cecrl", "justification_niveau", "scores_criteres",
         "points_forts", "points_a_ameliorer", "suggestions", "exemples_corriges",
@@ -38,22 +55,85 @@ final class EvaluationOutputValidator {
     private static final String CHAMP_VERSION_AMELIOREE = "version_amelioree";
 
     /** Versions de tool-schema dont la STRUCTURE est verifiee champ par champ. */
-    private static final Set<String> SCHEMAS_STRICTS = Set.of("v4", "v5");
+    private static final Set<String> SCHEMAS_STRICTS = Set.of("v4", "v5", "v6");
+
+    /** Versions qui portent la RESTITUTION v5 (verdict, version amelioree, plafonds). */
+    private static final Set<String> SCHEMAS_RESTITUTION = Set.of("v5", "v6");
+
+    /** Versions dont la preuve est un NUMERO DE SEGMENT et non une citation. */
+    private static final String SCHEMA_PREUVE_PAR_NUMERO = "v6";
 
     private static final Set<String> OBJECTIFS =
         Set.of("ATTEINT", "PARTIELLEMENT_ATTEINT", "NON_ATTEINT");
 
+    /**
+     * NOTIONS DE DICTION, interdites sans condition : les entendre reprocher,
+     * c'est noter ce que nous n'avons pas entendu. {@code repetition} et
+     * {@code accent} n'y figurent plus (cf. {@link #MOTIFS_ORAUX_CONTEXTUELS}) ;
+     * tout le reste est inchange.
+     */
     private static final Pattern MOTIFS_ORAUX_INTERDITS = Pattern.compile(
-        "\\b(hesitation(?:s)?|repetition(?:s)?|faux[ -]?depart(?:s)?|hache(?:e|es|s)?|"
+        "\\b(hesitation(?:s)?|faux[ -]?depart(?:s)?|hache(?:e|es|s)?|"
             + "(?:vous |tu )?(?:hesitez|repetez)|(?:vous |tu )?parl(?:ez|es) (?:trop )?"
             + "(?:vite|lentement)|(?:longues? )?pauses? (?:dans|pendant) (?:la |votre )?"
             + "(?:reponse|prise de parole|parole|discours)|"
             + "(?:debit|rythme) (?:de (?:parole|voix|discours|l['’]elocution)|oral|"
             + "(?:trop )?(?:lent|rapide|saccade|irregulier))|"
-            + "fluidite|aisance|prononciation|accent|intonation|orthographe|"
+            + "fluidite|aisance|prononciation|intonation|orthographe|"
             + "ponctuation|temps de parole|duree (?:de l['’]|de la |du |d['’])?"
             + "(?:enregistrement|audio|production|reponse|prise de parole|parole)|"
             + "(?:enregistrement|audio) (?:trop )?court)\\b");
+
+    /**
+     * Mots qui designent le SUPPORT ORAL. Leur voisinage suffit a faire d'une
+     * « repetition » un reproche de diction ; seuls, ils ne sont pas interdits
+     * (« ton discours est clair » est un compliment legitime).
+     */
+    private static final String MARQUEURS_ORAUX =
+        "oral|orale|oralement|discours|parole|elocution|articulation|voix|"
+            + "enregistrement|audio|transcription|debit|fluidite|aisance|hesitation(?:s)?";
+
+    /**
+     * DEUX FAUX POSITIFS CORRIGES (2026-08-07) — une liste de MOTS ne sait pas
+     * distinguer la diction de la syntaxe.
+     *
+     * <ol>
+     *   <li><b>{@code repetition}</b> a detruit une evaluation reelle pour
+     *       « cette <i>repetition</i> alourdit la phrase … supprime le pronom
+     *       repete » : une remarque de MORPHOSYNTAXE. Pire, les rubriques
+     *       ORDONNENT au correcteur de peser « a-t-il du faire repeter ? » dans
+     *       {@code communiquer} — le prompt commandait une notion que le
+     *       validateur interdisait d'ecrire. La notion reste refusee dans ses
+     *       emplois de DICTION : consigne d'evitement portant sur « les
+     *       repetitions » en bloc, ou voisinage d'un {@link #MARQUEURS_ORAUX
+     *       marqueur oral}.</li>
+     *   <li><b>{@code accent}</b> capturait « mettre l'accent sur », tournure
+     *       parfaitement legitime. Il n'est refuse que hors de cet emploi
+     *       (« votre accent », « un accent marque »).</li>
+     * </ol>
+     *
+     * <p>Les autres jetons ({@code fluidite}, {@code prononciation},
+     * {@code debit}, {@code intonation}, {@code pauses}) ne bougent pas : « on ne
+     * note jamais sur la prononciation » reste entier.
+     *
+     * <p>Le groupe {@code noyau}, quand il existe, porte la notion a nommer dans
+     * la violation — sans lui le message citerait la fenetre entiere au lieu du
+     * mot rejete, et le reessai redeviendrait aveugle.
+     */
+    private static final List<Pattern> MOTIFS_ORAUX_CONTEXTUELS = List.of(
+        // Consigne d'evitement portant sur « les repetitions » en bloc : c'est la
+        // diction. « supprime le pronom repete » ne matche pas — l'objet y est un
+        // element de langue nomme, pas le defaut oral lui-meme.
+        Pattern.compile("\\b(?:evite|evitez|reduis|reduisez|supprime|supprimez|limite|limitez"
+            + "|espace|espacez|diminue|diminuez|corrige|corrigez)\\s+(?:les|vos|tes|ces)\\s+"
+            + "(?<noyau>repetitions)\\b"),
+        // Voisinage d'un marqueur oral, dans la meme phrase, dans les deux sens.
+        Pattern.compile("(?<noyau>repetition(?:s)?)\\b[^.!?]{0,80}?\\b(?:" + MARQUEURS_ORAUX + ")\\b"),
+        Pattern.compile("\\b(?:" + MARQUEURS_ORAUX + ")\\b[^.!?]{0,80}?\\b(?<noyau>repetition(?:s)?)\\b"),
+        // « accent » hors de l'idiome « mettre / porter l'accent SUR quelque
+        // chose », reconnu par la presence de « sur » dans la meme proposition.
+        // Un accent de DICTION n'est jamais mis « sur » quoi que ce soit.
+        Pattern.compile("\\b(?<noyau>accents?)\\b(?![^.!?;:]{0,40}?\\bsur\\b)"));
 
     private EvaluationOutputValidator() {
     }
@@ -80,17 +160,25 @@ final class EvaluationOutputValidator {
         // stricts (v4, v5). Les schemas anterieurs restent volontairement
         // tolerants : un rollback ne doit rien casser.
         boolean strict = SCHEMAS_STRICTS.contains(promptVersion);
-        boolean v5 = "v5".equals(promptVersion);
+        boolean restitution = SCHEMAS_RESTITUTION.contains(promptVersion);
+        boolean preuveParNumero = SCHEMA_PREUVE_PAR_NUMERO.equals(promptVersion);
         if (strict) {
             requireText(feedback.get("justification_niveau"), "justification_niveau", errors);
         }
 
         Set<String> expected = expectedCodes(task, rubrics, errors);
-        validateScores(feedback.get("scores_criteres"), expected, strict, production,
-            task == null ? null : task.getEpreuve(), errors);
+        EpreuveType epreuve = task == null ? null : task.getEpreuve();
+        // Sous le contrat v6, la seule chose a verifier sur une preuve est qu'un
+        // entier designe un segment servi. On recalcule donc la meme decoupe que
+        // celle envoyee au correcteur : elle est deterministe.
+        int nbSegments = preuveParNumero && production != null
+            ? EvaluationProductionSegments.of(production, epreuve).taille()
+            : 0;
+        validateScores(feedback.get("scores_criteres"), expected, strict, preuveParNumero,
+            nbSegments, production, epreuve, errors);
 
         if (strict) {
-            validateStructure(feedback, v5, task, errors);
+            validateStructure(feedback, restitution, task, errors);
         }
         if (task != null && task.getEpreuve() == EpreuveType.TCF_EO) {
             validateOralFeedback(feedback, errors);
@@ -121,6 +209,7 @@ final class EvaluationOutputValidator {
     }
 
     private static void validateScores(Object raw, Set<String> expected, boolean strict,
+                                       boolean preuveParNumero, int nbSegments,
                                        String production, EpreuveType epreuve,
                                        List<String> errors) {
         if (!(raw instanceof List<?> scores)) {
@@ -138,7 +227,9 @@ final class EvaluationOutputValidator {
                 continue;
             }
             if (strict) {
-                validateKeys(score, Set.of("code", "note_sur_20", "commentaire", "preuve"),
+                validateKeys(score, preuveParNumero
+                        ? Set.of("code", "note_sur_20", "commentaire", "preuve_segment")
+                        : Set.of("code", "note_sur_20", "commentaire", "preuve"),
                     "scores_criteres[" + i + "]", errors);
             }
             Object codeRaw = score.get("code");
@@ -150,7 +241,9 @@ final class EvaluationOutputValidator {
             }
             validateNumber(score.get("note_sur_20"), "note_sur_20[" + code + "]", errors);
             requireText(score.get("commentaire"), "commentaire[" + code + "]", errors);
-            if (strict) {
+            if (strict && preuveParNumero) {
+                validateSegmentProof(score.get("preuve_segment"), code, nbSegments, errors);
+            } else if (strict) {
                 Object preuve = score.get("preuve");
                 requireText(preuve, "preuve[" + code + "]", errors);
                 if (preuve instanceof String citation && !citation.isBlank() && production != null) {
@@ -168,20 +261,52 @@ final class EvaluationOutputValidator {
     }
 
     /**
-     * Identifie le seul cas degradable apres retry : une unique citation non
-     * rattachable. Toute autre violation, y compris une preuve vide, reste
-     * bloquante.
+     * PREUVE PAR NUMERO (contrat v6). Le correcteur ne recopie rien : il ne peut
+     * donc plus se tromper de graphie, seulement de numero. Deux cas, et deux
+     * seulement — un entier attendu, et un entier qui existe.
+     */
+    private static void validateSegmentProof(Object raw, String code, int nbSegments,
+                                             List<String> errors) {
+        if (!(raw instanceof Number number) || !estEntier(number)) {
+            errors.add(SEGMENT_PROOF_PREFIX + code + MISSING_SEGMENT_SUFFIX);
+            return;
+        }
+        int numero = number.intValue();
+        if (numero < 1 || numero > nbSegments) {
+            errors.add(SEGMENT_PROOF_PREFIX + code + UNKNOWN_SEGMENT_SUFFIX);
+        }
+    }
+
+    private static boolean estEntier(Number number) {
+        double valeur = number.doubleValue();
+        return Double.isFinite(valeur) && valeur == Math.rint(valeur)
+            && Math.abs(valeur) <= Integer.MAX_VALUE;
+    }
+
+    /**
+     * Identifie le seul cas degradable apres retry : une unique preuve non
+     * rattachable — citation introuvable (contrats v4/v5) ou numero de segment
+     * inexistant (contrat v6). Toute autre violation, y compris une preuve vide
+     * ou un {@code preuve_segment} non entier, reste bloquante.
      */
     static Optional<String> singleUnmatchedProofCode(List<String> violations) {
         if (violations == null || violations.size() != 1) return Optional.empty();
-        String violation = violations.get(0);
-        if (violation == null || !violation.startsWith(UNMATCHED_PROOF_PREFIX)
-                || !violation.endsWith(UNMATCHED_PROOF_SUFFIX)) {
+        return unmatchedProofCode(violations.get(0));
+    }
+
+    private static Optional<String> unmatchedProofCode(String violation) {
+        if (violation == null) return Optional.empty();
+        Optional<String> citation = codeEntre(violation, UNMATCHED_PROOF_PREFIX, UNMATCHED_PROOF_SUFFIX);
+        if (citation.isPresent()) return citation;
+        return codeEntre(violation, SEGMENT_PROOF_PREFIX, UNKNOWN_SEGMENT_SUFFIX);
+    }
+
+    private static Optional<String> codeEntre(String violation, String prefix, String suffix) {
+        if (!violation.startsWith(prefix) || !violation.endsWith(suffix)
+                || violation.length() <= prefix.length() + suffix.length()) {
             return Optional.empty();
         }
-        String code = violation.substring(
-            UNMATCHED_PROOF_PREFIX.length(),
-            violation.length() - UNMATCHED_PROOF_SUFFIX.length());
+        String code = violation.substring(prefix.length(), violation.length() - suffix.length());
         return code.isBlank() ? Optional.empty() : Optional.of(code);
     }
 
@@ -195,16 +320,14 @@ final class EvaluationOutputValidator {
         if (violations == null) return List.of();
         List<String> out = new ArrayList<>();
         for (String violation : violations) {
-            if (violation == null || !violation.startsWith(UNMATCHED_PROOF_PREFIX)
-                    || !violation.endsWith(UNMATCHED_PROOF_SUFFIX)) {
-                continue;
-            }
-            String code = violation.substring(
-                UNMATCHED_PROOF_PREFIX.length(),
-                violation.length() - UNMATCHED_PROOF_SUFFIX.length());
-            if (!code.isBlank()) out.add(code);
+            unmatchedProofCode(violation).ifPresent(out::add);
         }
         return List.copyOf(out);
+    }
+
+    /** Vrai si la violation porte sur un {@code preuve_segment} (contrat v6). */
+    static boolean estViolationDeSegment(String violation) {
+        return violation != null && violation.startsWith(SEGMENT_PROOF_PREFIX);
     }
 
     private static String unmatchedProofViolation(String code) {
@@ -219,10 +342,10 @@ final class EvaluationOutputValidator {
      * rollback vers v4 ne doit voir aucune de ces regles s'appliquer, d'ou le
      * drapeau plutot qu'une validation aveugle.
      */
-    private static void validateStructure(Map<String, Object> feedback, boolean v5,
+    private static void validateStructure(Map<String, Object> feedback, boolean restitution,
                                           ProductionTask task, List<String> errors) {
         Set<String> autorises = new LinkedHashSet<>(CHAMPS_V4);
-        if (v5) autorises.add(CHAMP_VERSION_AMELIOREE);
+        if (restitution) autorises.add(CHAMP_VERSION_AMELIOREE);
         validateKeys(feedback, autorises, "racine", errors);
         for (String field : CHAMPS_V4) {
             if (!feedback.containsKey(field) || feedback.get(field) == null) {
@@ -237,10 +360,10 @@ final class EvaluationOutputValidator {
         if (confiance == null || !Set.of("HAUTE", "MOYENNE", "FAIBLE").contains(confiance.toString())) {
             errors.add("confiance invalide");
         }
-        validateAccomplissement(feedback.get("accomplissement"), v5, errors);
+        validateAccomplissement(feedback.get("accomplissement"), restitution, errors);
         validatePointsAAmeliorer(feedback.get("points_a_ameliorer"), errors);
-        validateExemples(feedback.get("exemples_corriges"), v5, errors);
-        if (v5) {
+        validateExemples(feedback.get("exemples_corriges"), restitution, errors);
+        if (restitution) {
             validatePointsForts(feedback.get("points_forts"), errors);
             validateVersionAmelioree(feedback.get(CHAMP_VERSION_AMELIOREE), task, errors);
         }
@@ -271,13 +394,13 @@ final class EvaluationOutputValidator {
         requireText(raw, CHAMP_VERSION_AMELIOREE, errors);
     }
 
-    private static void validateAccomplissement(Object raw, boolean v5, List<String> errors) {
+    private static void validateAccomplissement(Object raw, boolean restitution, List<String> errors) {
         if (!(raw instanceof Map<?, ?> map)) {
             errors.add("accomplissement doit etre un objet");
             return;
         }
         Set<String> autorises = new LinkedHashSet<>(List.of("points_traites", "points_oublies"));
-        if (v5) {
+        if (restitution) {
             autorises.add("objectif");
             autorises.add("objectif_resume");
             Object objectif = map.get("objectif");
@@ -335,12 +458,12 @@ final class EvaluationOutputValidator {
         }
     }
 
-    private static void validateExemples(Object raw, boolean v5, List<String> errors) {
+    private static void validateExemples(Object raw, boolean restitution, List<String> errors) {
         if (!(raw instanceof List<?> exemples)) {
             errors.add("exemples_corriges doit etre une liste");
             return;
         }
-        if (v5 && exemples.size() > AiEvaluationService.MAX_EXEMPLES_CORRIGES) {
+        if (restitution && exemples.size() > AiEvaluationService.MAX_EXEMPLES_CORRIGES) {
             errors.add("exemples_corriges contient plus de "
                 + AiEvaluationService.MAX_EXEMPLES_CORRIGES + " entrees");
         }
@@ -357,6 +480,28 @@ final class EvaluationOutputValidator {
         }
     }
 
+    /**
+     * GARDE-FOU ORAL — <b>la frontiere entre ce qui est FATAL et ce qui est
+     * simplement PURGE</b>.
+     *
+     * <p>Sont scannes ici, et une violation y fait echouer l'evaluation apres
+     * l'unique reessai, les champs qui portent le JUGEMENT : {@code
+     * justification_niveau} (fondement de la note), {@code
+     * scores_criteres[].commentaire} (caracterisation de chaque critere), {@code
+     * points_forts}, {@code points_a_ameliorer}, {@code suggestions} et {@code
+     * accomplissement}. Y laisser passer une remarque fondee sur la
+     * prononciation ou le debit, c'est rendre au candidat une note batie sur ce
+     * que nous n'avons pas entendu.
+     *
+     * <p><b>{@code exemples_corriges} en est volontairement SORTI</b> (2026-08-06).
+     * Ce champ n'entre dans AUCUN calcul : la note est recalculee serveur depuis
+     * {@code scores_criteres}, il est plafonne a trois entrees et peut etre vide.
+     * Le rendre fatal detruisait des evaluations entieres — une tache d'examen
+     * blanc EO a ete perdue pour deux {@code explication} rejetees, alors que le
+     * serveur y jette deja des entrees (corrections orthographiques, mot isole).
+     * Le meme traitement s'y applique donc : {@link EvaluationOralArtifactFilter}
+     * SUPPRIME l'entree fautive, il ne detruit pas le rapport.
+     */
     private static void validateOralFeedback(Map<String, Object> feedback, List<String> errors) {
         scanText(feedback.get("justification_niveau"), "justification_niveau", errors);
         scanTextList(feedback.get("points_forts"), "points_forts", errors);
@@ -383,14 +528,7 @@ final class EvaluationOutputValidator {
                 }
             }
         }
-        if (feedback.get("exemples_corriges") instanceof List<?> exemples) {
-            for (Object item : exemples) {
-                if (item instanceof Map<?, ?> e) {
-                    scanText(e.get("explication"), "exemples_corriges.explication", errors);
-                    scanText(e.get("gain"), "exemples_corriges.gain", errors);
-                }
-            }
-        }
+        // `exemples_corriges` : PURGE, jamais fatal — cf. javadoc ci-dessus.
         if (feedback.get("accomplissement") instanceof Map<?, ?> accomplissement) {
             scanAccomplissement(accomplissement.get("points_traites"), errors);
             scanAccomplissement(accomplissement.get("points_oublies"), errors);
@@ -413,14 +551,75 @@ final class EvaluationOutputValidator {
         for (Object value : list) scanText(value, path, errors);
     }
 
-    private static void scanText(Object raw, String path, List<String> errors) {
-        if (!(raw instanceof String text) || text.isBlank()) return;
-        String normalized = Normalizer.normalize(text, Normalizer.Form.NFD)
+    /**
+     * Vrai si le texte mentionne une NOTION non evaluable a l'oral. Meme
+     * detection que {@link #scanText}, exposee sans construire de violation :
+     * elle sert a la PURGE des champs non fatals ({@code exemples_corriges}),
+     * pour que les deux traitements rejettent exactement les memes notions.
+     */
+    static boolean mentionneMotifOralInterdit(Object raw) {
+        if (!(raw instanceof String text) || text.isBlank()) return false;
+        return notionInterdite(normaliserPourScan(text)) != null;
+    }
+
+    /**
+     * Notion non evaluable a l'oral trouvee le plus a GAUCHE dans {@code texte}
+     * deja normalise, {@code null} sinon. Les motifs inconditionnels et les
+     * motifs contextuels sont lus par la meme methode, pour que la PURGE et la
+     * VIOLATION rejettent exactement les memes choses.
+     */
+    private static String notionInterdite(String texte) {
+        int position = Integer.MAX_VALUE;
+        String notion = null;
+        var inconditionnel = MOTIFS_ORAUX_INTERDITS.matcher(texte);
+        if (inconditionnel.find()) {
+            position = inconditionnel.start();
+            notion = inconditionnel.group();
+        }
+        for (Pattern motif : MOTIFS_ORAUX_CONTEXTUELS) {
+            var matcher = motif.matcher(texte);
+            if (!matcher.find()) continue;
+            int debut = matcher.start("noyau");
+            if (debut < position) {
+                position = debut;
+                notion = matcher.group("noyau");
+            }
+        }
+        return notion;
+    }
+
+    private static String normaliserPourScan(String text) {
+        return Normalizer.normalize(text, Normalizer.Form.NFD)
             .replaceAll("\\p{M}+", "")
             .toLowerCase(Locale.FRENCH);
-        if (MOTIFS_ORAUX_INTERDITS.matcher(normalized).find()) {
-            errors.add(path + " fonde le feedback oral sur un element non evaluable");
-        }
+    }
+
+    private static void scanText(Object raw, String path, List<String> errors) {
+        if (!(raw instanceof String text) || text.isBlank()) return;
+        String notion = notionInterdite(normaliserPourScan(text));
+        if (notion == null) return;
+        // La NOTION rejetee et le passage exact sont dans le message : sans eux,
+        // le reessai ne dit au correcteur ni quel champ ni quel mot revoir, et il
+        // resoumet la meme phrase (meme pathologie que les preuves refusees, cf.
+        // EvaluationRepairPrompt). C'est aussi ce qui rend le log exploitable.
+        errors.add(path + ORAL_VIOLATION_MARKER
+            + " — notion interdite « " + notion
+            + " », dans : « " + extrait(text) + " »");
+    }
+
+    /** Marqueur stable des violations du garde-fou oral (lu par le reessai). */
+    static final String ORAL_VIOLATION_MARKER = " fonde le feedback oral sur un element non evaluable";
+
+    private static final int EXTRAIT_MAX = 200;
+
+    private static String extrait(String text) {
+        String clean = text.strip().replaceAll("\\s+", " ");
+        return clean.length() <= EXTRAIT_MAX ? clean : clean.substring(0, EXTRAIT_MAX) + "…";
+    }
+
+    /** Violations du garde-fou oral, dans l'ordre, pour construire le reessai. */
+    static List<String> oralViolations(List<String> violations) {
+        return violations.stream().filter(v -> v.contains(ORAL_VIOLATION_MARKER)).toList();
     }
 
     private static void validateStringList(Object raw, String path, List<String> errors) {

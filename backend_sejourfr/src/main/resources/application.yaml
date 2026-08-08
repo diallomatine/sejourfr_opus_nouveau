@@ -215,12 +215,22 @@ sejourfr:
         Conserver les hesitations, les repetitions, et les eventuelles fautes
         grammaticales telles que prononcees.
   production-evaluation:
-    # Source unique du LLM correcteur : deepseek (defaut), openai ou anthropic.
-    # Runtime async, fin de session temps reel, seconde passe et banc de
-    # calibration lisent tous cette meme valeur. Pour switcher,
-    # changer cette valeur (ou EVAL_LLM_PROVIDER) et redemarrer le backend. Aucune
+    # Source unique du LLM correcteur : deepseek (defaut depuis le 2026-08-08),
+    # openai ou anthropic. Runtime async, fin de session temps reel, seconde
+    # passe et banc de calibration lisent tous cette meme valeur. Pour switcher,
+    # changer EVAL_LLM_PROVIDER dans le .env et redemarrer le backend. Aucune
     # migration ni changement cote mobile : le DTO + le tool schema sont
     # identiques, seule la maniere d'appeler le LLM change.
+    #
+    # /!\ REGLE : changer de correcteur OU de modele ne doit demander AUCUNE
+    # modification de code ni de ce fichier — une ligne de .env, un redemarrage.
+    # Trois mecanismes la garantissent, ne pas les defaire :
+    #   1. la FORME de la requete est negociee avec le fournisseur au premier
+    #      appel (ChatCompletionDialectNegotiator), jamais codee en dur ;
+    #   2. le MODELE de chaque bloc est un ${EVAL_*_MODEL:...} ;
+    #   3. le TARIF de chaque bloc est un ${EVAL_*_COST_*:...} — le prix voyage
+    #      donc avec le modele, dans la meme source (cf. EvaluationPricingTest).
+    # Les valeurs ci-dessous ne sont que des DEFAUTS, pas un catalogue.
     provider: ${EVAL_LLM_PROVIDER:deepseek}
     # Source UNIQUE de TOUTES les instructions d'eval (global + par tache) :
     # prompts/production-rubrics-<v>.json. Le system prompt et le user message
@@ -272,11 +282,108 @@ sejourfr:
     # obligatoire sur les taches ECRITES, points_forts plafonnes a 2 et
     # exemples_corriges a 3. Aucune campagne de banc n'est requise pour cette
     # bascule : la notation est inchangee par construction.
+    # v9 (ACTIVE) : MEME CONTRAT DE SORTIE (v5), aucun champ ajoute ni retire.
+    # Elle ne modifie que les DEUX SECTIONS ORALES du prompt (les six rubriques
+    # par tache, les seuils, le couplage, les plafonds, les bandes et les 16
+    # ancres few-shot sont ceux de v8, verrouilles par
+    # ProductionEvaluationContractTest) :
+    #  (a) le correcteur sait qu'il lit une TRANSCRIPTION AUTOMATIQUE et evalue
+    #      le SENS voulu ; un mot inexistant en francais, ou dont une relecture
+    #      proche par le son rend la phrase coherente, est un ARTEFACT et ne doit
+    #      etre cite NULLE PART. Aucune echappatoire : une vraie erreur de langue
+    #      reste une erreur et la regle de preuve litterale est inchangee ;
+    #  (b) en dialogue, le DEROULE DE L'ECHANGE (l'examinateur a-t-il repondu a
+    #      propos, a-t-il du faire repeter, l'echange s'est-il maintenu) devient
+    #      un element d'appreciation de communiquer et interagir — le garde-fou
+    #      oral reste entier, une relance n'est pas une hesitation, la preuve
+    #      reste prise dans un tour « Candidat : ».
+    # Motif : incident du 2026-08-06 (submission EO T3), trois artefacts de
+    # transcription imputes au candidat dans cinq champs, sans qu'aucun mot du
+    # garde-fou lexical n'apparaisse.
+    # Mesure (banc golden-set-v1, 48 cas, deepseek-v4-flash ; temoin v8 rejoue
+    # le MEME JOUR, meme modele, parallelisme 3) : accord exact 74,5 % -> 81,3 %,
+    # accord +/-1 palier 93,6 % -> 97,9 %, pieges evites 4/8 -> 8/8 (les deux
+    # transcriptions bruitees, le hors-sujet, le memorise et l'autre-langue),
+    # « A1 non atteint » 5/8 -> 8/8, A2 8/12 -> 10/13, B1 12/12 -> 12/12,
+    # 0 % de sortie invalide des deux cotes, cas perdus 2,1 % -> 0 %, ecart de
+    # severite (reference - IA) -0,57 -> -0,38. Deux reculs a dire : B2 7/7 ->
+    # 6/7 (un B2 ressorti B1, sens prudent, n=7) et l'accord de CONFIANCE
+    # 53,2 % -> 45,8 %, le correcteur se declarant plus sur qu'il ne devrait sur
+    # les transcriptions bruitees — consequence directe de la regle d'artefact,
+    # a surveiller. Le prompt est plus long : 62 -> 91 centimes la campagne.
+    # /!\ Toute nouvelle version de CONSIGNES DE NOTATION se mesure de la meme
+    # facon avant d'etre activee : campagne + temoin de la version precedente
+    # rejoue le MEME JOUR.
     # Matrice verifiee au demarrage : v3-v4.2 -> schema v2, v5-v6 -> schema v3,
-    # v7 -> schema v4, v8 -> schema v5. Un rollback change donc la paire
-    # EVAL_RUBRICS_VERSION + EVAL_PROMPT_VERSION (v8/v5 -> v7/v4, etc.) ; une
-    # combinaison incoherente bloque le demarrage.
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v8}
+    # v7 -> schema v4, v8/v9/v10/v11 -> schema v5, v12 -> schema v6. Un rollback
+    # change donc la paire EVAL_RUBRICS_VERSION + EVAL_PROMPT_VERSION ;
+    # une combinaison incoherente bloque le demarrage.
+    #
+    # ---------------------------------------------------------------------
+    # v10 et v11 : ECRITES, MESUREES MOINS BONNES QUE v9, NON ACTIVEES.
+    # NE PAS REESSAYER CETTE VOIE SANS LE SAVOIR.
+    # ---------------------------------------------------------------------
+    # Les deux ajoutaient a v9 une CONSIGNE demandant au correcteur de ne pas
+    # imputer au candidat un fragment en langue etrangere a l'oral. Mesurees le
+    # 2026-08-07 contre un temoin v9 du MEME JOUR, meme modele,
+    # calibration.retries=1 (comme la production) :
+    #   v9  : 81,8 % de niveaux exacts · 8,33 % de corrections perdues · 7/8 pieges
+    #   v10 : 75,6 % · 14,58 % · 4/8   (hors-sujet remonte de A1_NON_ATTEINT a A1,
+    #         transcription bruitee A2 -> B1 ; le bloc ajoute, +4197 caracteres,
+    #         diluait la severite du reste de la grille)
+    #   v11 : 76,7 % · 10,42 % · 5/8   (derives de v10 corrigees, mais toujours
+    #         en dessous du temoin)
+    # Conclusion : ecrire une consigne de plus n'a pas regle le probleme et a
+    # coute ailleurs. Le comportement est desormais tenu par un CONTROLE SERVEUR
+    # DETERMINISTE (EvaluationOralArtifactFilter, volet LANGUE), qui ne touche ni
+    # a la note, ni a un seuil, ni au prompt. Ordre de preference du depot :
+    # tool-schema > longueur plafonnee > controle serveur > consigne de rubrique.
+    # v10 et v11 restent CHARGEABLES (on ne supprime jamais une grille livree) et
+    # ne s'activent que par EVAL_RUBRICS_VERSION=v10|v11 — ce qui ferait revenir
+    # les chiffres ci-dessus.
+    #
+    # ---------------------------------------------------------------------
+    # v12 : ACTIVE. LA PREUVE SE DESIGNE PAR NUMERO, ELLE NE SE RECOPIE PLUS.
+    # ---------------------------------------------------------------------
+    # v12 = v9 AU BIT PRES pour tout ce qui note (echelle, quatre criteres,
+    # seuils, couplage, plafonds, bandes, tests decisifs A1/A2 et B1/B2, les
+    # 16 ancres few-shot, les six rubriques de tache — verrouille par
+    # ProductionEvaluationContractTest). SEULE change la forme de la PREUVE :
+    # la production part DECOUPEE EN SEGMENTS NUMEROTES et le correcteur
+    # renvoie `preuve_segment`, un ENTIER, au lieu de recopier un extrait
+    # (tool-schema v6). Le serveur resout le numero en texte avant
+    # persistance : `feedback_json.preuve` reste une chaine, les trois fronts
+    # ne changent pas d'une ligne.
+    # Motif : une citation recopiee peut etre JUSTE et refusee quand meme. Cas
+    # reel, submission e6f28822 (EO, deepseek-v4-flash) : deux appels refuses
+    # d'affilee, deux citations exactes au begaiement pres, puis mode degrade.
+    # Plus generalement, `flash` voyait 42,9 % de ses appels ORAUX refuses par
+    # nos propres controles. Avec un numero, inventer une preuve devient
+    # impossible PAR CONSTRUCTION : le seul defaut possible est un entier hors
+    # bornes, trivial a detecter et a reparer.
+    # Ordre de preference du depot respecte : c'est un changement de
+    # TOOL-SCHEMA, pas une consigne de rubrique de plus.
+    # /!\ NON MESUREE AU BANC — bascule livree sans campagne (aucun appel LLM
+    # paye n'etait autorise). Ce qui la rend defendable sans mesure : elle ne
+    # touche AUCUNE regle de notation, et le peu qu'elle change au prompt
+    # SUPPRIME une contrainte au lieu d'en ajouter une.
+    # v12 corrige AUSSI une contradiction envoyee au correcteur : les bornes de
+    # mots EE etaient recopiees en dur dans la grille (« taches 2 et 3 : 60 a 90
+    # mots ») a cote des bornes reellement injectees depuis production_tasks.
+    # Depuis la migration V724 (minimum T2/T3 60 -> 40), les deux se
+    # contredisaient. v12 ne redeclare plus rien : elle RENVOIE au bloc
+    # « LONGUEUR ATTENDUE » de l'enonce (verrou : EvaluationBornesMotsSourceUniqueTest).
+    # Retour arriere, sans migration : EVAL_RUBRICS_VERSION=v9 +
+    # EVAL_PROMPT_VERSION=v5 (les deux ensemble : la matrice refuse une paire
+    # incoherente au demarrage).
+    # /!\ CE RETOUR ARRIERE N'EST PAS UN RETOUR A UN ETAT SAIN : v9 (comme v8,
+    # v10, v11 et le tool-schema v5) porte encore les bornes historiques 60-90
+    # pour EE T2/T3, alors que la base dit 40-90. En v9, le correcteur recevra
+    # donc de nouveau deux longueurs contradictoires, et la version amelioree
+    # rendue au candidat visera 60-90 meme sur une copie de 45 mots parfaitement
+    # valide. C'est assume : on ne reecrit pas une grille livree, dont dependent
+    # des evaluations deja notees. Basculer en v9 en connaissance de cause.
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v12}
     # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
     # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
     # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).
@@ -464,19 +571,48 @@ sejourfr:
       # via EVAL_OPENAI_API_KEY si on veut une cle dediee.
       api-key: ${EVAL_OPENAI_API_KEY:${OPENAI_API_KEY:}}
       api-url: https://api.openai.com/v1/chat/completions
-      model: ${EVAL_OPENAI_MODEL:gpt-4o-mini}
+      # Defaut de repli, PAS le correcteur actif (cf. provider ci-dessus).
+      # gpt-5.4 : moderne ET compatible temperature 0 (gpt-5.5 refuse toute
+      # temperature autre que son defaut — voir send-temperature ci-dessous).
+      # Changer ce modele se fait par EVAL_OPENAI_MODEL, avec ses deux tarifs.
+      model: ${EVAL_OPENAI_MODEL:gpt-5.4}
       # 0 = notation déterministe (même texte → mêmes notes d'un run à l'autre).
       temperature: ${EVAL_OPENAI_TEMPERATURE:0}
-      # cf. le bloc « PLAFOND DE TOKENS DE SORTIE » ci-dessus.
+      # FORME DE LA REQUÊTE — négociée avec le fournisseur, pas codée en dur.
+      # Objectif : brancher un modèle qui n'existe pas encore aujourd'hui ne doit
+      # demander AUCUNE modification de code ni recompilation — une ligne de
+      # .env (EVAL_OPENAI_MODEL), un redémarrage. Sur un 400 du type
+      # « Unsupported parameter: 'max_tokens' … Use 'max_completion_tokens'
+      # instead » ou « Unsupported value: 'temperature' does not support 0 »,
+      # le client corrige la forme, rejoue une fois et MÉMORISE le résultat pour
+      # la durée du processus (cf. ChatCompletionDialectNegotiator). Un 400
+      # métier (tool-schema, contenu) n'y touche pas et remonte immédiatement.
+      #
+      # `auto` (défaut) = négociation. Les deux clés ci-dessous ne servent qu'à
+      # REPRENDRE LA MAIN sans code, et désactivent la négociation du champ
+      # concerné.
+      #   send-temperature : `false` = ne pas envoyer le champ du tout (valeur
+      #     distincte de 0 et de 1 — envoyer 1 reviendrait à accepter en douce
+      #     une notation non déterministe).
+      #   max-tokens-param : nom du champ de plafond, quel qu'il soit.
+      send-temperature: ${EVAL_OPENAI_SEND_TEMPERATURE:auto}
+      max-tokens-param: ${EVAL_OPENAI_MAX_TOKENS_PARAM:auto}
+      # cf. le bloc « PLAFOND DE TOKENS DE SORTIE » ci-dessus. La VALEUR ne change
+      # pas avec le nom du champ.
       max-tokens: 4000
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v5}
-      # Tarification gpt-4o-mini (USD / 1M tokens, mai 2026). A surcharger si
-      # on bascule sur gpt-4o ou gpt-5 (cout estime persiste dans ai_evaluations).
-      cost-per-million-input-tokens: 0.15
-      cost-per-million-output-tokens: 0.60
+      prompt-version: ${EVAL_PROMPT_VERSION:v6}
+      # Tarification gpt-5.4 (USD / 1M tokens, relevée sur la page tarifaire
+      # OpenAI le 2026-08-07 : 2,50 en entrée / 15,00 en sortie).
+      # ⚠ Ces deux valeurs vont AVEC `model` ci-dessus : le coût estimé est
+      # PERSISTÉ dans ai_evaluations.cout_centimes, un tarif faux y reste faux
+      # pour toujours. Le tarif se surcharge DANS LA MÊME SOURCE que le modèle :
+      # poser EVAL_OPENAI_MODEL sans EVAL_OPENAI_COST_INPUT/OUTPUT fait échouer
+      # le build (EvaluationPricingTest), exprès.
+      cost-per-million-input-tokens: ${EVAL_OPENAI_COST_INPUT:2.50}
+      cost-per-million-output-tokens: ${EVAL_OPENAI_COST_OUTPUT:15.00}
     anthropic:
       api-key: ${EVAL_ANTHROPIC_API_KEY:${ANTHROPIC_API_KEY:}}
       api-url: https://api.anthropic.com/v1/messages
@@ -487,25 +623,75 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v5}
-      cost-per-million-input-tokens: 3.0
-      cost-per-million-output-tokens: 15.0
-    # DeepSeek : API compatible OpenAI (meme client). Activer avec
-    # EVAL_LLM_PROVIDER=deepseek + EVAL_DEEPSEEK_API_KEY (ou DEEPSEEK_API_KEY).
+      prompt-version: ${EVAL_PROMPT_VERSION:v6}
+      # Tarif claude-sonnet-4-5 (USD / 1M tokens). Surchargeable comme le modèle,
+      # et dans la même source que lui.
+      cost-per-million-input-tokens: ${EVAL_ANTHROPIC_COST_INPUT:3.0}
+      cost-per-million-output-tokens: ${EVAL_ANTHROPIC_COST_OUTPUT:15.0}
+    # DeepSeek : API compatible OpenAI (meme client). CORRECTEUR ACTIF depuis le
+    # 2026-08-08 (cf. provider ci-dessus) — clé via EVAL_DEEPSEEK_API_KEY (ou
+    # DEEPSEEK_API_KEY).
     deepseek:
       api-key: ${EVAL_DEEPSEEK_API_KEY:${DEEPSEEK_API_KEY:}}
       api-url: https://api.deepseek.com/chat/completions
+      # deepseek-v4-flash : correcteur EN VIGUEUR — choix EN COURS DE REEXAMEN.
+      # /!\ CONTRE-INTUITIF, et c'est exactement pour ca que c'est ecrit ici :
+      # `deepseek-v4-pro`, le « grand » modele de la gamme V4, coute PLUS CHER
+      # que `flash` (0,435/0,87 contre 0,14/0,28 ; 1,12 $ contre 0,91 $ sur la
+      # meme campagne de 48 corrections) SANS mieux noter (pieges 4/8 contre
+      # 8/8, B2 3/7 contre 6/7). Le nom du modele ne dit rien de son prix
+      # relatif ni de son aptitude a corriger une production TCF. Ne pas
+      # « reparer » ce choix en repassant a `pro` sans avoir remesure au banc.
+      # /!\ NE PAS CITER la ligne « corrections perdues » des campagnes v9 :
+      # elles n'ont pas tourne avec le meme `calibration.retries` (9 / 3 / 1)
+      # alors que la PRODUCTION n'accorde qu'UN SEUL rejeu — cette metrique
+      # mesure le reglage du banc, pas le modele.
+      # Le defaut connu de `flash`, lui, ne depend pas du nombre d'essais :
+      # 27,3 % de ses appels sont refuses par nos controles serveur, et
+      # 42,9 % sur les seules productions ORALES (0 % en EE, chez les trois
+      # moteurs). `pro` : 17,9 % / 31,2 %. `gpt-5.4` : 0 % / 0 %.
+      # Detail des 3 campagnes v9 : docs/notation-ia-eo-ee.md §12.6.
+      # Se change par EVAL_DEEPSEEK_MODEL, avec ses deux tarifs.
       model: ${EVAL_DEEPSEEK_MODEL:deepseek-v4-flash}
       # DeepSeek V4 : thinking mode ON par défaut casse le tool_choice forcé (400).
       # On l'envoie {"thinking":{"type":"disabled"}} pour un tool_call déterministe.
       disable-thinking: ${EVAL_DEEPSEEK_DISABLE_THINKING:true}
       temperature: ${EVAL_DEEPSEEK_TEMPERATURE:0}
+      # FORME DE LA REQUÊTE — négociée, comme pour OpenAI : `auto` laisse le
+      # client déduire du 400 du fournisseur le nom du champ de plafond et
+      # l'acceptation de `temperature`. Ces deux clés ne servent qu'à reprendre
+      # la main SANS code si la négociation ne suffisait pas.
+      send-temperature: ${EVAL_DEEPSEEK_SEND_TEMPERATURE:auto}
+      max-tokens-param: ${EVAL_DEEPSEEK_MAX_TOKENS_PARAM:auto}
       # cf. le bloc « PLAFOND DE TOKENS DE SORTIE » ci-dessus.
       max-tokens: 4000
-      timeout-sec: 60
-      prompt-version: ${EVAL_PROMPT_VERSION:v5}
-      cost-per-million-input-tokens: 0.27
-      cost-per-million-output-tokens: 1.10
+      # BUDGET D'ATTENTE D'UN SEUL APPEL HTTP (read timeout), pas d'une
+      # correction. A ne pas dimensionner sur la duree d'un CAS du banc : le
+      # « pic a 5 min 44 » de `flash` est le cumul de NEUF appels sur un meme
+      # cas (rejeu de preuve + rejeu transitoire), pas un appel lent.
+      # Mesure v9, 48 cas, sur les cas resolus en UN appel : `flash` median
+      # 16,3 s, max 36,2 s ; `pro` median 28,8 s, max 66,7 s.
+      # 90 s = 2,5x le pire appel `flash` mesure, ET au-dessus du pire appel
+      # `pro` — donc un retour arriere vers `pro` reste 3 lignes de .env, sans
+      # second reglage a toucher. Un appel coupe n'est pas perdu : il repart
+      # en AiEvaluationTransientException, rejouee 3 fois (@Retryable), donc le
+      # pire cas d'attente est ~4 min 40 par evaluation au lieu de ~9 min a
+      # 180 s. Un vrai incident RESEAU n'est pas gouverne par cette valeur :
+      # le connect timeout est plafonne a 10 s (min(timeoutSec, 10), cf.
+      # OpenAiCompatibleEvalClient#buildRequestFactory) — au-dela, c'est un
+      # fournisseur qui a accepte la requete et genere.
+      timeout-sec: ${EVAL_DEEPSEEK_TIMEOUT_SEC:90}
+      prompt-version: ${EVAL_PROMPT_VERSION:v6}
+      # Tarif deepseek-v4-flash (USD / 1M tokens, relevé sur
+      # api-docs.deepseek.com le 2026-08-07 : 0,14 en entrée cache-miss / 0,28
+      # en sortie ; le tarif cache-hit, plus bas, n'est pas modélisé — on
+      # facture toujours au plein tarif, ce qui SURESTIME le coût, jamais
+      # l'inverse).
+      # Pour mémoire : deepseek-v4-pro vaut 0,435 / 0,87. L'ancien 0,27 / 1,10
+      # écrit ici datait de la gamme V3 et surestimait déjà 2 à 4× les coûts
+      # `flash` persistés dans ai_evaluations.cout_centimes.
+      cost-per-million-input-tokens: ${EVAL_DEEPSEEK_COST_INPUT:0.14}
+      cost-per-million-output-tokens: ${EVAL_DEEPSEEK_COST_OUTPUT:0.28}
 
   # Expression orale en TEMPS RÉEL (examinateur vocal IA, Tâches 1 & 2).
   # S'ajoute au pipeline async — ne le remplace pas. Schéma de connexion (A) :
@@ -516,8 +702,25 @@ sejourfr:
     provider: ${REALTIME_PROVIDER:gemini}
     # Gabarit de persona chargé (prompts/realtime-personas-<version>.json).
     # v2 = v1 + rendu de la fiche de scénario T2 (production_tasks.agent_role_card)
-    # quand le sujet en porte une. Repli sur v1 possible par variable d'env.
-    persona-version: ${REALTIME_PERSONA_VERSION:v2}
+    # quand le sujet en porte une. Repli sur v1/v2 possible par variable d'env.
+    #
+    # v3 = v2 + VERROU DE LANGUE (3 règles, tout le reste identique au caractère
+    # près, cf. RealtimePersonaV3Test). Motif : le modèle natif-audio est conçu
+    # pour « changer de langue naturellement en cours de conversation » ; sur un
+    # passage bruité ou mal articulé, il restitue la parole du candidat en arabe,
+    # en néerlandais ou en cyrillique. Mesuré en base : 6 transcriptions temps
+    # réel sur 39 portent une écriture non latine, contre 0 sur 36 côté Whisper
+    # asynchrone. L'API Live ne permet PAS d'imposer la langue à la
+    # transcription d'entrée (AudioTranscriptionConfig n'a aucun champ) et les
+    # modèles natif-audio REFUSENT speechConfig.languageCode — poser un code de
+    # langue ferait échouer l'émission du token et basculerait tout le temps
+    # réel en async. La system instruction est donc le SEUL levier disponible.
+    # C'est un biais, pas une garantie : le filet qui protège réellement le
+    # candidat est le contrôle serveur déterministe
+    # EvaluationOralArtifactFilter (volet LANGUE), livré ACTIF. La voie
+    # « écrire une consigne de plus » a été tentée (rubriques v10 et v11) et
+    # mesurée moins bonne que v9 — cf. rubrics-version plus haut.
+    persona-version: ${REALTIME_PERSONA_VERSION:v3}
     gemini:
       # Clé Google AI (Gemini API). Absente -> temps réel désactivé (fallback async).
       api-key: ${GEMINI_API_KEY:}
@@ -561,3 +764,42 @@ sejourfr:
     # Le QUOTA de sessions par pass vit désormais en base (colonne
     # plans.realtime_eo_sessions, migrations V018/V113) — éditable côté admin,
     # « adapté selon le pass ». Plus de mapping en config ici.
+
+  # Module « Competences TCF » : micro-entrainement EE/EO, une competence et un
+  # seul critere a la fois. VOIE PARALLELE a la notation des productions
+  # completes — pas de note sur 20, pas de niveau CECRL, pas les 4 criteres du
+  # TCF : un exercice de quelques phrases ne permet ni l'un ni l'autre. D'ou un
+  # namespace a part, pour qu'un retour arriere sur la grille des epreuves
+  # completes (EVAL_RUBRICS_VERSION) n'emporte pas au passage l'analyse des
+  # competences, et inversement.
+  # Le FOURNISSEUR, lui, reste celui de production-evaluation.provider : la
+  # regle « un seul correcteur configurable » vaut aussi ici.
+  # Les valeurs doivent rester identiques a celles de config/CompetenceProperties
+  # (deux sources qui divergent = un comportement different selon qu'une cle est
+  # presente ou non).
+  competences:
+    analysis:
+      # Consignes d'analyse : prompts/competence-analysis-rubrics-<v>.json.
+      rubrics-version: ${COMPETENCE_RUBRICS_VERSION:v1}
+      # Contrat de sortie : prompts/competence-analysis-tool-schema-<v>.json.
+      # Versionne separement des consignes — deux analyses produites avec le
+      # meme schema mais des consignes differentes ne sont pas comparables.
+      tool-schema-version: ${COMPETENCE_TOOL_SCHEMA_VERSION:v1}
+      # Plafond de tokens de SORTIE. 600 suffit largement : la reponse tient en
+      # cinq champs courts (verdict, point reussi, priorite, reformulation).
+      # C'est un plafond, pas une consommation.
+      max-tokens: 600
+      # Zero : sur un verdict de critere on veut de la reproductibilite, pas de
+      # la creativite.
+      temperature: 0
+      # Analyses IA offertes a vie aux comptes gratuits. Produire, s'auto-evaluer
+      # et lire les 3 productions de reference restent gratuits et ILLIMITES sur
+      # tous les sujets : ce quota ne borne QUE l'appel au correcteur.
+      free-analyses: 3
+      # Garde-fou ANTI-ABUS (cout LLM, taille de ligne), pas une regle
+      # pedagogique : les bornes recommandees d'un sujet restent indicatives et
+      # ne bloquent jamais une soumission.
+      max-text-words: 400
+      # Meme nature, cote oral : un micro-exercice se joue en une trentaine de
+      # secondes, 180 s ne cadre pas le candidat, cela coupe l'abus.
+      max-audio-duration-seconds: 180

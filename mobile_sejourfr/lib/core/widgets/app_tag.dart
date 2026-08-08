@@ -13,11 +13,18 @@ class AppTag extends StatelessWidget {
     required this.label,
     this.tone = TagTone.blue,
     this.icon,
+    this.compact = false,
   });
 
   final String label;
   final TagTone tone;
   final IconData? icon;
+
+  /// Pilule du prototype « Compétences » : plus petite (10 px) et beaucoup plus
+  /// grasse (w900), padding 9/6 — c'est cette graisse qui fait l'identité des
+  /// badges de la maquette. **Opt-in** : les appelants historiques gardent leur
+  /// rendu au pixel près.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +46,7 @@ class AppTag extends StatelessWidget {
         break;
       case TagTone.amber:
         bg = AppColors.amberLight;
-        fg = const Color(0xFF9A6A0B);
+        fg = AppColors.amberDark;
         break;
       case TagTone.neutral:
         bg = AppColors.surface3;
@@ -52,7 +59,9 @@ class AppTag extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: compact
+          ? const EdgeInsets.symmetric(horizontal: 9, vertical: 6)
+          : const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -64,14 +73,14 @@ class AppTag extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 13, color: fg),
+            Icon(icon, size: compact ? 11 : 13, color: fg),
             const SizedBox(width: 5),
           ],
           Text(
             label,
             style: AppFonts.ui(
-              size: 12,
-              weight: FontWeight.w600,
+              size: compact ? 10 : 12,
+              weight: compact ? FontWeight.w900 : FontWeight.w600,
               color: fg,
               height: 1.3,
             ),

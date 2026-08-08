@@ -99,5 +99,21 @@ tels quels, et couverts par des tests donc découpables sans risque si la logiqu
 - **Controller + droits** : `class XControllerSecurityIT extends AbstractIntegrationTest`,
   `@Autowired MockMvc/TestData/AuthTestSupport`. Matrice anonyme(401) / USER(403 sur admin) /
   rôle attendu(200/201) / body invalide(400). En-tête `Authorization: auth.bearer(user)`.
+- **Contenu publié figé par un test** (gabarit nouveau, réutilisable) :
+  `SkillSeedIT` (`src/test/java/.../migration/SkillSeedIT.java`). Quand une **règle produit
+  porte sur le contenu** et non sur le code, c'est un test qui la tient — pas le DDL. Ici le
+  volume du module Compétences TCF : **8 compétences actives par tâche** (× 6 tâches = 48),
+  **5 sujets actifs par compétence** (240), **3 références par sujet** (720), une par niveau
+  `INSUFFICIENT`/`EXPECTED`/`EXCELLENT` sans niveau manquant. Il vérifie aussi **l'absence de
+  code éditorial en double** (`skills.code`, `skill_prompts.code`) et la **cohérence EE/EO** :
+  un sujet EE porte des bornes en mots et jamais une durée, un sujet EO l'inverse.
+  - **Pourquoi un test plutôt qu'une contrainte** : la contrainte
+    `display_order BETWEEN 1 AND 8` gelait le catalogue — les 8 rangs légaux étant tous
+    seedés, l'admin ne pouvait plus rien créer. Elle a été desserrée, et la règle produit vit
+    désormais ici. Une contrainte DDL dit ce qui est *possible*, un test de seed dit ce qui est
+    *publié* : ne pas confondre les deux.
+  - **Reste tolérant au seed** au sens du projet : il exclut systématiquement les codes de
+    fixtures (`TST-%`), donc les tests qui créent leurs propres compétences ne le font pas
+    tomber.
 - Données : `TestData.user()/admin()/theme()` (séquence unique). Rollback auto (`@Transactional`
   sur la base) → pas de pollution inter-tests.

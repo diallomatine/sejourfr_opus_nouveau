@@ -12,6 +12,11 @@ import {
     type DashboardSummaryResponse,
     niveauCecrlLabel,
 } from "@/lib/types";
+import {
+    EE_CONFIG,
+    EO_CONFIG,
+    productionEntryHref,
+} from "@/app/_components/production/config";
 import {CategoryCard, type CategoryCta, ModuleHubHeader, ModuleStatsBand,} from "./ModuleHubParts";
 import moduleStyles from "./moduleHub.module.css";
 import styles from "./hub.module.css";
@@ -68,7 +73,7 @@ const TCF_CARDS: Array<{
         desc: "Rédiger des messages courts, analysés par l'IA.",
         chips: ["Message", "Courriel", "Argumentation"],
         exercise: {
-            href: "/entrainement/tcf/ee",
+            href: productionEntryHref(EE_CONFIG.base),
             icon: <PenLine size={18} strokeWidth={1.7}/>,
         },
     },
@@ -80,7 +85,7 @@ const TCF_CARDS: Array<{
         desc: "Répondre à l'oral, enregistré et analysé par l'IA.",
         chips: ["Se présenter", "Décrire", "Argumenter"],
         exercise: {
-            href: "/entrainement/tcf/eo",
+            href: productionEntryHref(EO_CONFIG.base),
             icon: <Mic size={18} strokeWidth={1.7}/>,
         },
     },

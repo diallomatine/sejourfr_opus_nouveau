@@ -57,7 +57,7 @@ class ProductionTaskManagerIT extends AbstractIntegrationTest {
             t.setDureeMinSec(60);
             t.setDureeMaxSec(180);
         } else {
-            t.setMotsMin(tache == 1 ? 30 : 60);
+            t.setMotsMin(tache == 1 ? 30 : 40);
             t.setMotsMax(tache == 1 ? 60 : 90);
             if (tache > 1) {
                 t.setContexte("Vous répondez aux participants d'un forum de test.");
@@ -163,7 +163,7 @@ class ProductionTaskManagerIT extends AbstractIntegrationTest {
                 assertThat(t.getMotsMin()).isEqualTo(30);
                 assertThat(t.getMotsMax()).isEqualTo(60);
             } else {
-                assertThat(t.getMotsMin()).isEqualTo(60);
+                assertThat(t.getMotsMin()).isEqualTo(40);
                 assertThat(t.getMotsMax()).isEqualTo(90);
                 assertThat(t.getContexte()).isNotBlank();
             }
@@ -178,7 +178,8 @@ class ProductionTaskManagerIT extends AbstractIntegrationTest {
         invalid.setTacheNumero((short) 2);
         invalid.setConsigne("Consigne hors bornes");
         invalid.setContexte("Vous répondez sur un forum.");
-        invalid.setMotsMin(40);
+        // 60-90 : les bornes d'avant V724, désormais refusées par la base.
+        invalid.setMotsMin(60);
         invalid.setMotsMax(90);
         invalid.setActive(true);
 
@@ -193,7 +194,8 @@ class ProductionTaskManagerIT extends AbstractIntegrationTest {
         invalid.setNiveauCible("B1");
         invalid.setTacheNumero((short) 2);
         invalid.setConsigne("Consigne sans destinataire");
-        invalid.setMotsMin(60);
+        // Bornes VALIDES : seule l'absence de contexte doit faire échouer.
+        invalid.setMotsMin(40);
         invalid.setMotsMax(90);
         invalid.setActive(true);
 

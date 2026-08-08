@@ -94,6 +94,61 @@ Cf. `exams-tcf.md`.
 
 Cf. `pipeline-evaluation-eo-ee.md`.
 
+## Compétences TCF (micro-entraînement EE/EO)
+
+Voie **parallèle** aux productions complètes : un « petit sujet » travaille **une seule
+compétence**, et l'IA ne rend qu'un verdict sur son critère unique — **jamais de note /20 ni
+de niveau CECRL**. Tous ces endpoints sont **authentifiés** ; aucun n'est public.
+
+- `GET /api/skills/progress?section=EE|EO` → 3 `SkillTaskProgressDto`, une par tâche
+  (`EE1..EE3` ou `EO1..EO3`). `section` est requis.
+- `GET /api/skills?taskCode=EE1|EE2|EE3|EO1|EO2|EO3` → les 8 compétences actives de la tâche,
+  avec la progression de l'utilisateur courant.
+- `GET /api/skills/{skillId}` → `SkillDetailDto` : la compétence + ses 5 sujets avec leur
+  statut (`TODO` / `TREATED` / `VALIDATED` / `TO_REINFORCE`), **dérivé serveur** — aucun
+  front ne le recalcule.
+- `GET /api/skills/analysis-quota` → `SkillAnalysisQuotaDto
+  {premium, unlimited, freeAnalysesTotal, freeAnalysesUsed, remaining}`. `remaining = -1`
+  signifie **illimité** : les fronts doivent le traiter comme tel et ne jamais l'afficher brut.
+- `GET /api/skill-prompts/{promptId}` → `SkillPromptDto`, le sujet complet pour l'écran de
+  production. **Ne contient jamais les références.** Porte aussi `nextPromptId` (premier sujet
+  `TODO` de la même compétence) et les champs `skill*` qui évitent un second appel.
+- `GET /api/skill-prompts/{promptId}/references` → les 3 références comparatives, ordonnées
+  `INSUFFICIENT`, `EXPECTED`, `EXCELLENT`. **403** tant que l'utilisateur n'a **aucune**
+  tentative sur ce sujet : les références ne s'ouvrent qu'après sa propre production. La garde
+  exige une tentative, pas une tentative *réussie*.
+- `GET /api/skill-prompts/{promptId}/attempts?limit=5` → historique de l'utilisateur sur ce
+  sujet, plus récent d'abord. `limit` borné **1..20**, défaut **5**.
+- `POST /api/skill-attempts` — **deux `@PostMapping` sur le même chemin, distingués par
+  `consumes`**, exactement comme `/api/production-submissions` :
+  - `application/json` (écrit EE) → `SubmitSkillTextRequest
+    {skillPromptId, texte, selfEvaluation?, requestAnalysis}` ;
+  - `multipart/form-data` (oral EO) → parts/params `audio`, `skillPromptId`, `durationSec`,
+    `selfEvaluation` (facultatif), `requestAnalysis`.
+
+  → **201** + `SkillAttemptDto`. La section du sujet et le média doivent concorder (un sujet
+  EE refuse un audio et inversement). Bornes anti-abus : **400 mots** en EE, **180 s** et la
+  taille audio max partagée avec les productions complètes en EO. Rate-limit dédié
+  (`skill-attempt` : 40 / 10 min et 400 / jour).
+- `GET /api/skill-attempts/{id}` → polling du résultat. La tentative d'un autre utilisateur
+  répond **404** (et non 403, qui confirmerait l'existence de l'id) — même convention que les
+  productions et les examens complets.
+- `POST /api/skill-attempts/{id}/analyse` → demande l'analyse IA d'une production **déjà rendue
+  sans elle** (statut `RECORDED`), pour l'utilisateur qui produit gratuitement puis s'abonne :
+  sans cet endpoint il devait refaire le sujet et perdait sa production. **Consomme le quota**,
+  et est refusé sur tout autre statut — sinon le quota serait contournable.
+- `POST /api/skill-attempts/{id}/retry` → relance une analyse `FAILED`. **Ne re-consomme pas**
+  le quota (l'échec n'est pas du fait du candidat), ce qui **impose** le plafond de 3 essais
+  (`retry_count`, appliqué en service *et* en base).
+
+**Freemium** : produire, s'auto-évaluer et lire les 3 références est **gratuit et illimité**
+pour tout compte inscrit — **aucun sujet n'est verrouillé**. Seule l'**analyse IA** est premium
+(module TCF, `hasTcf`), avec **3 analyses offertes à vie**, consommées **à l'acceptation** (au
+moment où `analysis_requested` est persisté) et non au succès.
+
+**Oral** : l'audio est conservé dans tous les cas ; la transcription Whisper n'est déclenchée
+**que si une analyse est demandée**. Cf. `notation-ia-eo-ee.md` §11 bis.
+
 ## Audience des landings
 
 - `POST /api/public/page-views` — public, sans authentification. Corps
@@ -126,6 +181,39 @@ visiteurs uniques. Cf. migration V020.
   `ai_evaluations.rubrics_version` (V022). DTO propre à l'admin — ces versions
   ne sont PAS ajoutées à `ProductionSubmissionDto` / `EvaluationResultDto`, que
   le web et le mobile consomment aussi.
+
+### Admin — Compétences TCF
+
+Console de contenu du module Compétences (cf. la section utilisateur plus haut).
+
+- `GET /api/admin/skills?section=&taskCode=&active=&q=&page=&size=` →
+  `PageResponse<AdminSkillDto>` (l'enveloppe maison : `content`, `page`, `size`,
+  `totalElements`, `totalPages`, `first`, `last` — pas un `Page` Spring brut). Tri imposé
+  `taskCode` ASC puis `displayOrder` ASC ; `q` cherche sans casse dans `code`, `title` et
+  `description` ; filtres dynamiques via `Specification` JPA.
+- `GET /api/admin/skills/{id}` → `AdminSkillDetailDto {skill, prompts[]}`, les sujets portant
+  leur `attemptCount` **et** leurs `references`.
+- `POST /api/admin/skills` · `PATCH /api/admin/skills/{id}` → `AdminSkillDto`. `code`,
+  `section` et `taskCode` sont **immuables** après création : les seeds générés s'appuient sur
+  `code`.
+- `DELETE /api/admin/skills/{id}` → **204**, ou **409** dès qu'un candidat a déjà produit sur
+  un de ses sujets. On **désactive** (`active=false`), on ne détruit jamais d'historique
+  candidat.
+- `GET /api/admin/skills/stats?section=` → `AdminSkillStatsDto[]`. `validatedRate` est
+  **null** quand `analysedCount == 0` — surtout pas `0.0`, qui se lirait comme « 0 % de
+  réussite » au lieu de « aucune analyse ».
+- `GET /api/admin/skill-prompts/{id}` → `AdminSkillPromptDto` complet, **références
+  comprises** ; c'est cet appel que font les modals d'édition, pas le détail de compétence.
+- `POST /api/admin/skill-prompts` → `section` n'est pas envoyée : le serveur la **déduit de la
+  compétence parente** (colonne dénormalisée, verrouillée par une FK composite).
+- `PATCH /api/admin/skill-prompts/{id}` → **sémantique de remplacement, pas de fusion** : un
+  `null` sur une borne de longueur signifie « efface », pas « ne touche pas ». Sans ça une
+  borne serait ineffaçable depuis l'admin, et un sujet EE pourrait garder une durée.
+- `DELETE /api/admin/skill-prompts/{id}` → **204**, ou **409** si des tentatives existent
+  (même règle que pour une compétence).
+- `PUT /api/admin/skill-prompts/{id}/references` → remplace les **3** références d'un seul coup
+  et de façon **atomique**. Corps `{references: [{level, text, pedagogicalNote} × 3]}` (un objet
+  enveloppe, pas un tableau nu) ; les 3 niveaux sont exigés, sans doublon.
 
 **Pagination** : `?size=` est plafonné à **100** sur toutes les listes paginées
 (`spring.data.web.pageable.max-page-size`), défaut 20.

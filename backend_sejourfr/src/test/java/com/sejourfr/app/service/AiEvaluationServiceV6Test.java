@@ -165,14 +165,49 @@ class AiEvaluationServiceV6Test {
         buildService();
     }
 
+    private EvaluationRefusalMetrics refusalMetrics;
+
     private void buildService() {
         ProductionRubricsProvider rubrics = new ProductionRubricsProvider(props, new ObjectMapper());
         rubrics.load();
         EvaluationPromptBuilder promptBuilder = new EvaluationPromptBuilder(new ObjectMapper(), rubrics);
+        refusalMetrics = new EvaluationRefusalMetrics();
         service = new AiEvaluationService(submissionManager, transcriptionManager, aiEvaluationManager,
             llmClient, promptBuilder, rubrics, new ProductionValidityService(props),
             new ProductionSecondePasseService(props, mock(EvaluationLlmClient.class), rubrics),
-            new ProductionFluiditeService(props), props);
+            new ProductionFluiditeService(props), refusalMetrics, props);
+    }
+
+    /**
+     * Ce que NOS controles refusent doit etre COMPTE, pas seulement logue : la
+     * liste des violations et la citation rejetee partaient dans la console, et
+     * une enquete n'a pu rattacher un motif qu'a 2 refus sur 102.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void chaque_refus_est_compte_par_phase_et_par_motif_avec_sa_citation() {
+        when(llmClient.getPromptVersion()).thenReturn("v4");
+        Map<String, Object> first = feedback(7, 7, 7, 7);
+        Map<String, Object> repaired = feedback(7, 7, 7, 7);
+        ((List<Map<String, Object>>) first.get("scores_criteres"))
+            .get(0).put("preuve", "citation totalement inventée absente");
+        ((List<Map<String, Object>>) repaired.get("scores_criteres"))
+            .get(0).put("preuve", "citation toujours inventée absente");
+        when(llmClient.evaluate(anyString(), anyString()))
+            .thenReturn(new EvaluationLlmClient.Outcome(first, 100, 20, 1))
+            .thenReturn(new EvaluationLlmClient.Outcome(repaired, 110, 30, 2));
+        ProductionSubmission sub = submission(task(EpreuveType.TCF_EE, 1), TEXTE_EE);
+
+        service.evaluate(sub.getId());
+
+        assertThat(refusalMetrics.compteurs()).containsExactlyInAnyOrderEntriesOf(Map.of(
+            "PREMIER_APPEL/PREUVE_NON_RATTACHEE", 1L,
+            "APRES_REESSAI/PREUVE_NON_RATTACHEE", 1L));
+        assertThat(refusalMetrics.derniersRefus()).hasSize(2);
+        assertThat(refusalMetrics.derniersRefus().get(0).citationsRefusees())
+            .containsExactly("communiquer : citation totalement inventée absente");
+        assertThat(refusalMetrics.derniersRefus().get(1).citationsRefusees())
+            .containsExactly("communiquer : citation toujours inventée absente");
     }
 
     @Test

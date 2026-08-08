@@ -39,12 +39,40 @@ mobile. Web : 1 examen blanc + 10 QCM d'entraînement par module pour convertir.
   Tiré dans les mêmes pools que `CO` (un filtre `CO` inclut `CO_IMAGE`). Publié depuis un
   `audio_question_draft` portant une image (`inline_svg` ou `image_url`). Image
   remplaçable côté admin via `POST /api/admin/{questions,audio-drafts}/{id}/image` (R2).
-- **Difficulty** : `EASY` / `MEDIUM` / `HARD`
+- **Difficulty** (questions QCM) : `CSP` / `CR` / `NAT` / `A2` / `B1` / `B2` — c'est l'axe
+  « procédure visée **ou** palier CECRL », **pas** une échelle facile/moyen/difficile. Ne pas y
+  ajouter `EASY/MEDIUM/HARD` : l'enum irrigue tous les DTO de questions, d'examens et de lots,
+  donc les 3 fronts (cf. `SkillDifficulty` ci-dessous, qui existe pour cette raison).
 - **MediaType** : `AUDIO` / `IMAGE` / `VIDEO`
 - **NiveauCecrl** (eval IA EO/EE) : `A1_NON_ATTEINT` / `A1` / `A2` / `B1` / `B2` / `C1` /
   `C2`. Distinct de `TargetLevel` (palier visé par l'utilisateur).
 - **SubmissionStatut** (EO/EE) : `SUBMITTED` → `TRANSCRIBING` (EO) → `EVALUATING` →
   `EVALUATED` | `FAILED`.
+- **Compétences TCF** (module de micro-entraînement EE/EO, voie parallèle aux productions
+  complètes — cf. la section dédiée plus bas) :
+  - **SkillSection** : `EE` / `EO`
+  - **SkillTaskCode** : `EE1` / `EE2` / `EE3` / `EO1` / `EO2` / `EO3`. Référentiel officiel
+    porté par l'**enum** (section, numéro de tâche, titre, palier cible), **pas** par une table.
+  - **SkillDifficulty** : `EASY` / `MEDIUM` / `HARD` (libellés FR *Accessible / Intermédiaire /
+    Exigeant*). Difficulté d'un sujet **à l'intérieur de sa compétence**, purement éditoriale :
+    aucune règle serveur ne s'y appuie et l'IA ne la reçoit pas. Enum **distinct** de
+    `Difficulty`, qui ne contient pas ces valeurs.
+  - **SkillReferenceLevel** : `INSUFFICIENT` / `EXPECTED` / `EXCELLENT` — les 3 références
+    comparatives d'un sujet, servies **seulement après** une production (403 sinon).
+  - **SkillSelfEvaluation** : `REUSSI` / `INCERTAIN` / `DIFFICILE` (« Je pense avoir réussi » /
+    « Je ne suis pas sûr » / « J'ai eu du mal »). Déclarative, facultative, **jamais** envoyée
+    au correcteur et sans effet sur le verdict.
+  - **SkillCriterionStatus** : `VALIDATED` / `PARTIAL` / `NOT_VALIDATED` (« Critère validé » /
+    « Critère partiellement atteint » / « **Critère non atteint** ») — le verdict IA sur le
+    **critère unique** du sujet. C'est tout ce que rend cette voie : **ni note /20, ni niveau
+    CECRL**. `NOT_VALIDATED` ne se dit **pas** « à retravailler » : cette formulation était
+    quasi synonyme du statut de sujet `TO_REINFORCE` et confondait le verdict d'**une
+    tentative** avec l'état d'**un sujet**.
+  - **SkillPromptStatus** : `TODO` / `TREATED` / `VALIDATED` / `TO_REINFORCE` (« À faire » /
+    « Fait » / « Validé » / « À renforcer »). **Dérivé serveur** (`SkillStatusResolver`),
+    jamais persisté, jamais recalculé par un front.
+  - **SkillAttemptStatut** : `RECORDED` (rendu sans analyse — état **final**) · `SUBMITTED` →
+    `TRANSCRIBING` (EO) → `EVALUATING` → `EVALUATED` | `FAILED`.
 - **Role** : `USER` / `ADMIN`
 - **AuthProvider** (exposé dans `/api/auth/me`) : `LOCAL` / `GOOGLE` / `APPLE`. Sur iOS,
   **Google ET Apple côte à côte** (Apple obligatoire d'après les guidelines App Store dès
@@ -213,12 +241,36 @@ Le « quoi » et le « pourquoi » vivent dans `docs/notation-ia-eo-ee.md` (réf
 grand public, **à tenir exhaustive et à jour dans la même passe** — cf. la règle
 dédiée plus bas). Ici, uniquement de quoi se repérer.
 
-- **Versions actives** : rubriques `production-rubrics-v8.json`, tool-schema de
-  sortie `production-evaluation-tool-schema-v5.json`, persona vocale
-  `realtime-personas-v2.json`. **v7/v4, v6/v3, v5/v3, v4.2/v2, v4.1/v2, v4/v2 et
-  v3/v2 restent chargeables et validées** : un retour arrière change la paire
-  `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION`, aucune migration. **On
-  versionne, on ne réécrit jamais** une rubrique livrée.
+- **Versions actives** : rubriques `production-rubrics-v12.json`, tool-schema de
+  sortie `production-evaluation-tool-schema-v6.json`, persona vocale
+  `realtime-personas-v3.json`. **v9/v5, v8/v5, v7/v4, v6/v3, v5/v3, v4.2/v2,
+  v4.1/v2, v4/v2 et v3/v2 restent chargeables et validées** : un retour arrière
+  change la paire `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION`, aucune migration.
+  **On versionne, on ne réécrit jamais** une rubrique livrée. **v10 et v11 sont
+  chargeables mais MESURÉES MOINS BONNES que v9 — ne pas les réactiver** (détail
+  dans le filet de langue étrangère, plus bas).
+- **v12 / v6 = LA PREUVE SE DÉSIGNE PAR NUMÉRO, elle n'est plus recopiée.** v12 est
+  **v9 au bit près pour tout ce qui note** (échelle, 4 critères, seuils, couplage,
+  plafonds, bandes, tests décisifs, les 16 ancres few-shot — verrouillé par
+  `ProductionEvaluationContractTest`) ; seules changent les 5 sections qui décrivent
+  la preuve. La production part au correcteur **découpée en segments numérotés**
+  (`EvaluationProductionSegments` : EO dialogué = un tour `Candidat :` ; EE et EO
+  monologue = une phrase). **Les tours `Examinateur :` sont montrés mais SANS
+  numéro** → citer l'examinateur devient structurellement impossible.
+  `scores_criteres[].preuve` (string) devient `preuve_segment` (entier ≥ 1), et
+  `AiEvaluationService.resolvePreuveSegments` **résout le numéro en texte avant
+  persistance** : `feedback_json.preuve` reste une chaîne, **aucun miroir DTO à
+  propager** sur les 3 fronts (vérifié). **Inventer une preuve devient impossible par
+  construction**, pas « interdit » : les seules violations possibles sont un entier
+  hors bornes (dégradable après réessai, comme une citation non rattachable) ou un
+  non-entier (bloquant, comme une preuve vide). Motif : `PREUVE_NON_RATTACHEE` était
+  le premier poste de refus — **42,9 % des appels sur les productions orales**.
+  `EvaluationProofMatcher` reste en place pour les contrats ≤ v5 (retour arrière) :
+  ne pas le supprimer, mais il n'est plus exercé en production.
+  ⚠️ **Bascule NON mesurée au banc** (l'utilisateur interdit les appels payants).
+  Défendable sans mesure parce qu'aucune règle de notation ne bouge et que le seul
+  changement de prompt **retire** une contrainte. Retour arrière :
+  `EVAL_RUBRICS_VERSION=v9` + `EVAL_PROMPT_VERSION=v5`.
 - **v4** = critères propres à chaque tâche (5 par tâche, fini les 4 universels),
   obligatoires vs pistes, bloc accomplissement, confiance, preuve littérale,
   2 priorités max. **v4.1** = correction de l'indulgence du **bas** d'échelle
@@ -227,7 +279,16 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   appliquée au **haut** : `TEST DECISIF B1 vs B2` opposable — deux marqueurs B2
   à citer littéralement, dont un pris dans « objection envisagée puis traitée »
   ou « lexique précis ».
-- **v5 = la grille RÉELLE du TCF**, en remplacement de la grille maison :
+- **v5 = NOTRE grille, alignée sur les dimensions évaluées au TCF**, en
+  remplacement de la grille maison précédente. ⚠️ **Ne pas la présenter comme « la
+  grille du vrai examen »** : France Éducation international publie ses critères en
+  **trois familles** (linguistiques, pragmatiques, sociolinguistiques) et fait
+  corriger chaque production par **plusieurs évaluateurs humains indépendants**,
+  selon une règle de calcul que nous ne reproduisons pas. Nos quatre critères sont
+  une grille **SejourFR**, et notre note une **estimation pédagogique exprimée sur
+  l'échelle du TCF IRN**. Formules bannies partout (doc, fronts) : « votre note
+  officielle serait », « notre calcul reproduit le calcul officiel », « notre grille
+  est celle du vrai examen ». Structure :
   **4 critères équipondérés à 0,25**, **codes identiques sur les 6 tâches** —
   `communiquer` (accomplir la tâche + enchaîner les idées), `interagir`
   (adéquation à la situation et au destinataire), `lexique`, `morphosyntaxe`.
@@ -244,7 +305,10 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     `sejourfr.production-evaluation.niveau-cecrl` (celui-ci ne sert plus qu'aux
     grilles v3→v4.2). C'est ce qui garde le retour arrière à **une seule
     variable**.
-  - **Garde-fou de couplage** (ce qui remplace l'exclusion) : `communiquer` et
+  - **Garde-fou de couplage — invention SejourFR, PAS une règle TCF** (aucun texte
+    de France Éducation international ne le prévoit ; c'est un réglage de
+    calibration, ajouté parce qu'un correcteur automatique surévalue
+    l'accomplissement, et il ne peut qu'**abaisser**) : `communiquer` et
     `interagir` ne dépassent jamais de plus de **4 points** la moyenne de
     `lexique`+`morphosyntaxe`. Écrit dans le prompt **et** appliqué serveur
     (`AiEvaluationService.applyCouplage`, `sejourfr.production-evaluation.couplage`,
@@ -316,11 +380,6 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     (langue notée 7/20 = bande A2 de v5) ; c'est le décalage bandes/seuils de v5
     qui affichait A1, pas son jugement. Le palier A1 ne vaut qu'**une valeur**
     sur la grille officielle : c'est la nouvelle zone fragile.
-  - ⚠️ **Texte d'interface à corriger côté fronts** (aucun DTO ne change) : la
-    mention « notre échelle est plus fine que celle du TCF » est devenue fausse.
-    Web `ProductionScoreHero.tsx`, `ProductionSession.tsx`, `lib/types.ts` ;
-    mobile `donut_chart_score.dart`, `bilan_hero.dart`,
-    `production_models.dart`.
 - **v8 = la RESTITUTION, version active (rubriques v8 / tool-schema v5).** Elle
   ne touche à **rien** de ce qui note : échelle, quatre critères, seuils,
   `couplage.ecart_max=1`, plafonds, bandes, tests décisifs A1/A2 et B1/B2 et les
@@ -369,6 +428,63 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   `MOYENNE` et un avertissement serveur est ajouté. Deux preuves, une preuve vide ou toute
   autre violation font échouer la submission sans note partielle. Sur un retry réparé ou
   dégradé, tokens d'entrée, tokens de sortie et coût des deux appels sont additionnés.
+- **Changer de LLM ou de modèle ne touche AUCUN `.java` ni `.yaml`** — exigence du
+  propriétaire, verrouillée par les tests. Trois mécanismes : la **forme de requête**
+  (`max_tokens` vs `max_completion_tokens`, `temperature` envoyée ou omise) est
+  **négociée** (`ChatCompletionDialectNegotiator` : déduit le remplacement du 400 du
+  fournisseur, rejoue **une fois**, mémorise par processus ; un **400 métier** ne
+  renégocie **jamais** ; les heuristiques par famille ne sont qu'un point de départ) ;
+  le **modèle et ses deux tarifs** sont des `${EVAL_*_MODEL/COST_INPUT/COST_OUTPUT}` ;
+  le même dialecte sert `CompetenceOpenAiCompatibleClient` — sinon une bascule casse
+  le module Compétences en silence. `EvaluationPricingTest` ne fige plus une table
+  « tel modèle = tel prix » (elle rendait rouge tout changement de modèle) mais une
+  **cohérence** : tarif présent, positif, plausible, **posé dans la même source que le
+  modèle**. `CalibrationEnvTest` vérifie un environnement **cohérent**, plus quel
+  provider est choisi. `EvaluationProviderSwapTest` prouve qu'un modèle inédit se
+  branche sur les 3 providers par 4 variables.
+- **Correcteur actif : DeepSeek `deepseek-v4-flash`** (`.env`, défaut YAML aligné) —
+  **choix mesuré, pas par défaut**. Trois campagnes v9 sur les 48 cas ont départagé
+  `flash`, `deepseek-v4-pro` et `gpt-5.4` :
+
+  | | `flash` | `pro` | `gpt-5.4` |
+  |---|---|---|---|
+  | **appels refusés — tous cas** | 27,3 % | 17,9 % | **0 %** |
+  | **appels refusés — ORAL** | **42,9 %** | 31,2 % | **0 %** |
+  | appels refusés — écrit | **0 %** | **0 %** | **0 %** |
+  | accord exact | **81,3 %** | 77,1 % | **81,3 %** |
+  | pièges | **8/8** | 4/8 | 5/8 |
+  | B2 · A1 · A2 | 6/7 · 3/8 · 10/13 | 3/7 · **4/8** · **12/13** | 6/7 · 2/8 · 11/13 |
+  | latence médiane / max **par appel** | 16,3 s / 36 s | 28,8 s / 67 s | **12,9 s / 32 s** |
+  | coût 48 corrections | **0,91 $** | 1,12 $ | 4,14 $ |
+
+  ⚠️ **La ligne « corrections perdues » de ces campagnes est NON COMPARABLE et a été
+  retirée** : `calibration.retries` valait **9 / 3 / 1**. `flash` n'a pas moins perdu,
+  il a eu neuf vies. En production il n'y a qu'**un** réessai — figer `retims` entre
+  témoin et candidat, et le reporter dans le rapport. Ne jamais rechoisir un modèle
+  sur cette colonne.
+  ⚠️ **`pro` est plus cher que `flash`** — le nom ne dit rien de l'aptitude à cette
+  tâche. `gpt-5.4` est le seul sans aucun appel refusé, mais 4,5× le prix (écarté sur
+  le coût, 2026-08-08). **Choix en cours de réexamen.**
+  **Le rejet est un problème purement ORAL** : 0 % d'appels refusés en EE chez les
+  trois moteurs. Et ce ne sont pas des JSON cassés — ce sont **nos validateurs** qui
+  refusent des sorties bien formées. Tarifs relevés le 2026-08-07 sur
+  api-docs.deepseek.com : flash 0,14 / 0,28 ; pro 0,435 / 0,87 — **l'ancien
+  0,27 / 1,10 du YAML était faux** et surestimait 2 à 4× les coûts déjà persistés.
+  `timeout-sec` deepseek 60 → **90** (read timeout **par appel** : pire appel `flash`
+  36 s, `pro` 67 s ; les « 5 min » d'un rapport sont un **cas entier**, pas un appel).
+  Bascule = un bloc de 3 lignes de `.env`. Détail : `docs/notation-ia-eo-ee.md` §12.6.
+- **Une sortie LLM malformée est TRANSITOIRE, donc rejouée** (`@Retryable` des deux
+  clients) : absence de `tool_calls`, `finish_reason=length`, arguments vides,
+  JSON illisible, réponse vide. Seuls la configuration absente et les 4xx sont
+  terminaux. Motif : un unique échantillon corrompu (mesuré : du texte arabe
+  glissé au milieu de `scores_criteres`) détruisait la tâche sans recours. Le
+  `@Recover` **conserve la cause** dans le message, sinon la ventilation
+  `MotifPerte` du banc reclasse une troncature en « fournisseur indisponible ».
+- **Un message de réessai ne vaut que s'il est actionnable** — vrai pour les
+  preuves (cf. `EvaluationRepairPrompt`) **comme pour le garde-fou oral** :
+  une violation orale nomme désormais la notion interdite et cite le passage
+  rejeté, et le prompt de réparation donne la sortie sûre. Renvoyer le seul
+  libellé brut de la violation ne répare rien (mesuré : 0/8 sur les preuves).
 - **Preuves opposables (schémas v4 et v5)** : chaque critère porte une citation non vide. Le
   serveur privilégie le passage contigu exact, puis ne tolère, à partir de 4
   tokens, qu'une seule édition de token : insertion/suppression réservée à une liste
@@ -393,6 +509,22 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   Whisper est littérale, et le prompt interdit par ailleurs d'évaluer les
   hésitations — sans cette élision, le correcteur ne pouvait pas satisfaire les
   deux consignes.
+- **Élision des répétitions immédiates** (`EvaluationProofMatcher`, contrats ≤ v5) :
+  même famille que l'élision des disfluences, **sens production → citation
+  uniquement**. Un bloc de 1 à 3 tokens **immédiatement répété** dans la production
+  peut n'apparaître qu'une fois dans la citation. Motif : le correcteur dédouble les
+  bégaiements — ce que la grille lui ordonne par ailleurs de ne pas évaluer — et deux
+  citations JUSTES ont été refusées d'affilée sur une même production réelle
+  (`une sœur qui se trouve tous tous chez moi`, `j'aime bien les les films les films
+  comédies`), soit 2 et 3 suppressions, hors de la tolérance d'**une seule** édition.
+  **Deux lectures, jamais mélangées** : la lecture stricte garde le comportement
+  historique au bit près et **gagne toujours** ; l'élision n'est tentée que si la
+  première ne trouve **rien**. L'élision se fait **avant** l'appariement et ne
+  consomme donc pas le budget d'édition. Aucun bloc contenant un nombre, un chiffre
+  ou une négation n'est élidable ; ambiguïté = refus ; le passage restitué reste la
+  **sous-chaîne originale exacte**, bégaiements compris. Limite assumée : une
+  répétition légitime (`très très bien`) est élidable — sans conséquence, le texte
+  affiché reste celui du candidat.
 - **Message de réessai** (`EvaluationRepairPrompt`) : le retry ne renvoie plus la
   seule liste brute des violations (mesuré : **0 preuve réparée sur 8**, le
   modèle resoumettait la même citation). Il rappelle **la citation refusée,
@@ -400,6 +532,46 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   apparaît, pas d'ellipse, pas de recomposition, un seul tour `Candidat :` en EO)
   et suggère de re-citer plus court. **Aucun contrôle serveur n'est relâché** :
   on aide le correcteur à respecter la vérification.
+- **Mot coupé par la transcription** (`EvaluationProofMatcher`, 2026-08-07) : un token
+  de la citation peut recoller **plusieurs tokens consécutifs de la production** dont
+  la concaténation est identique — **sens unique production → citation**, exactement
+  comme l'élision des disfluences. Motif : sur une transcription hachée
+  (« j'ai ach eté cette ves te »), presque aucun passage n'était citable, et la grille
+  ordonne pourtant de « changer de passage » — on demandait l'impossible. Quatre
+  garde-fous, tous dans le sens « en cas de doute, on ne fusionne pas » : ≤ 3
+  fragments ; **blancs horizontaux seuls** entre fragments (ni apostrophe, ni trait
+  d'union, ni ponctuation, ni saut de ligne — donc jamais à travers un tour
+  `Examinateur :`) ; aucun fragment négation / nombre / chiffre / disfluence ; le mot
+  recollé n'est jamais une négation ni un token chiffré. Contiguïté, match unique,
+  écart de nombre/négation, tolérance d'une seule édition, tours `Candidat :` :
+  **inchangés** ; le passage restitué reste la **sous-chaîne originale exacte**,
+  coupures comprises. La voie *fuzzy* (une édition) n'en bénéficie **pas** :
+  mot coupé **plus** édition = cas doublement dégradé. Limite assumée et testée : deux
+  mots voisins soudés par la citation passent — sans conséquence, rien n'est inventé
+  et le passage affiché reste le texte réel.
+- **Garde-fou oral : deux faux positifs corrigés** — `repetition` n'est plus interdit
+  que dans ses emplois de **diction** (consigne d'évitement portant sur « les
+  répétitions » en bloc, ou voisinage d'un marqueur oral dans la même phrase) : il
+  détruisait des évaluations pour des remarques de **morphosyntaxe** et levait une
+  **contradiction interne** du dépôt, la rubrique v9 §19 *ordonnant* de peser « a-t-il
+  dû faire répéter ? ». `accent` n'est refusé que hors de l'idiome « mettre l'accent
+  **sur** ». `fluidite`, `prononciation`, `debit`, `intonation`, `pauses`,
+  `hesitation`, `orthographe` : **inchangés** — l'acquis « on ne note jamais sur la
+  prononciation » est entier. Aucune campagne requise : rien de ce qui note ne bouge.
+- **`EvaluationRefusalMetrics`** : ce que nos contrôles refusent est **compté par
+  (phase, motif)**, plus seulement logué, et le refus **après réessai** est logué lui
+  aussi (il ne l'était pas). Le banc en tire, par tentative, les violations **et la
+  citation refusée** — y compris celles du premier appel, que l'exception ne porte pas.
+  Sans ça, 98 % des refus étaient sans motif traçable et toute action sur les contrôles
+  était un pari.
+- **Banc — deux métriques à ne plus confondre** : `sorties_refusees_pct` (÷ appels LLM,
+  ce que refusent nos contrôles) ≠ `echec_production_pct` (`tentativesRatees /
+  tentatives`, **la seule qui décrit ce que vit un candidat**, puisqu'en production il
+  n'y a qu'**un** réessai). `appels_rates_pct` est supprimé : il comptait les
+  tentatives de la boucle externe en se présentant comme un taux par appel, et
+  sous-estimait les refus d'un facteur ~2. **`calibration.retries` est figé dans le
+  rapport** et `-Dcalibration.temoin=<rapport.json>` fait **échouer** une campagne dont
+  le témoin n'a pas tourné au même nombre de réessais.
 - **Plafond de tokens de SORTIE = 4000**, identique sur les trois providers
   (`sejourfr.production-evaluation.{openai,anthropic,deepseek}.max-tokens`,
   figé par `EvaluationTokenBudgetTest`). À 2000 — valeur d'avant les quatre
@@ -420,10 +592,17 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   prononciation, accent, intonation, orthographe/ponctuation de la transcription
   ou durée. Seules les `confiance_raisons` peuvent expliquer une transcription
   incertaine.
-- **Bornes EE strictes TCF IRN** : T1 `30–60`, T2/T3 `60–90`. La tolérance
+- **Bornes EE strictes TCF IRN** : T1 `30–60`, **T2/T3 `40–90`**. La tolérance
   historique de 20 % est supprimée : serveur, web, mobile et auto-soumission
   appliquent exactement les bornes DB. Les tâches T2/T3 ont un contexte/destinataire et les neuf exemples
   livrés restent dans la fourchette. Les anciennes submissions sont préservées.
+  ⚠️ **Le minimum de T2/T3 a valu 60 par erreur** jusqu'à `V724` (2026-08-08) : une
+  copie de **40 à 59 mots**, pourtant recevable à l'examen, était **refusée sur les
+  trois surfaces**. `V723` figeait même `mots_min = 60` par contrainte SQL.
+  **Source de vérité unique : `production_tasks.mots_min/mots_max`**, injectée dans
+  le prompt par `EvaluationPromptBuilder`. Ne jamais réécrire ces bornes en dur —
+  ni dans une rubrique, ni dans un tool-schema, ni dans un texte de front : c'est
+  exactement ce qui a produit une consigne contradictoire au correcteur.
 - **Un seul correcteur configurable** : `sejourfr.production-evaluation.provider`
   dans `application.yaml` (défaut `deepseek`, modèle `deepseek-v4-flash`) pilote
   l'async, la fin de session temps réel, la seconde passe et le banc. La seconde
@@ -445,6 +624,30 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   version à un **rerun de l'ancienne le même jour** (le bruit inter-campagnes
   vaut ~1 pt de note / ~2 pts de pourcentage, et un seul cas qui bascule sur 12
   ne prouve rien).
+  🛑 **INTERDIT DE LANCER UNE CAMPAGNE SANS DEMANDE EXPLICITE DE L'UTILISATEUR**
+  (règle posée le 2026-08-07, elle prime sur tout le reste de ce fichier). Le banc
+  appelle un LLM payant, c'est **l'argent de l'utilisateur**. Aucun agent ne le
+  déclenche « pour vérifier », « pour mesurer avant/après » ou « parce que la règle
+  du dépôt l'exige » : il faut une phrase de l'utilisateur qui le demande. En
+  l'absence de campagne, on **livre quand même** — en disant franchement ce qui est
+  mesuré et ce qui est estimé. La règle « toute modif d'une consigne de notation se
+  mesure avant/après » devient donc : *on propose la mesure, on ne la lance pas.*
+  Corollaire : **une bascule de LLM ou de modèle ne demande AUCUNE campagne** — le
+  contrat de sortie (tool-schema strict, `additionalProperties:false`, longueurs
+  plafonnées) et les **contrôles serveur déterministes** sont ce qui tient la
+  qualité, pas la mesure a posteriori.
+- **Ce qui tient la qualité, ce sont les CONTRAINTES DURES, pas les consignes.**
+  Ordre de préférence, du plus fiable au moins fiable, à respecter quand on veut
+  corriger un comportement du correcteur : (1) **le tool-schema** — un champ absent
+  du schéma ne peut pas être produit ; (2) **une longueur plafonnée** (`maxLength`,
+  budget en mots déclaré par la grille, comme le module Compétences : 20 / 30 /
+  35 mots) ; (3) **un contrôle serveur déterministe** qui refuse ou purge
+  (`EvaluationOutputValidator`, `EvaluationOralArtifactFilter`, `capListe`) ; (4) en
+  **dernier** recours, une consigne dans la rubrique. Une consigne est un vœu : v9
+  §17 interdisait déjà d'imputer un artefact de transcription au candidat, et le
+  correcteur l'a fait dans 5 évaluations EO sur 72. Ne jamais répondre à un
+  comportement indésirable par « on va mieux lui expliquer » quand un plafond ou un
+  filtre serveur peut le rendre **impossible**.
   Convention de signe partout : **écart = référence − IA** (négatif = IA trop
   indulgente). **Toute modif d'une consigne de notation ou d'un seuil se mesure
   avant/après** — sinon c'est un pari. La contrainte de preuve littérale a été la
@@ -457,7 +660,9 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   invalide**. Avant, un rejet de preuve tombait dans `erreurAppel` et la doc
   affichait « 0 % de sortie invalide » pendant qu'un tiers des cas se perdait.
 - **Une seule échelle depuis v6** (0 → A1 non atteint, 1 → A1, 2-5 → A2,
-  6-9 → B1, **10-20 → B2**) : notre note **est** celle du TCF. La table
+  6-9 → B1, **10-20 → B2**) : notre note **s'exprime sur l'échelle** du TCF — elle
+  n'est pas la note officielle, qui est produite par plusieurs correcteurs humains.
+  La table
   officielle vit toujours dans l'enum `BandeNoteTcf` (code, pas config — donnée
   officielle, pas réglage) ; la grille active la reprend telle quelle dans
   `commun.niveau`. On ne **convertit** toujours rien : `correspondanceTcf`
@@ -514,6 +719,46 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     candidat 461 → 183 (-60,3 %), médiane 6 → 14 tokens par tour candidat,
     tours candidat sous 4 tokens 26,9 % → 15,3 %. Sur 388 frontières « même
     locuteur », **37 sont refusées** par les garde-fous 3 et 4 (34 + 3).
+- **Filet déterministe de langue étrangère à l'oral** (`EvaluationOralArtifactFilter`,
+  volet LANGUE, livré **ACTIF** le 2026-08-07). Le transcripteur temps réel (Gemini
+  natif-audio) hallucine des passages en langue/écriture étrangère — **6
+  transcriptions realtime sur 39**, contre **0 sur 36** côté Whisper, où la langue est
+  imposée ; l'API Live ne permet **pas** de l'imposer à l'entrée, et les modèles
+  natif-audio rejettent un code de langue. Le correcteur l'imputait au candidat dans
+  **5 évaluations EO sur 72** (« *Éviter de passer à une autre langue pendant
+  l'épreuve* »). Le serveur retire ces phrases de `scores_criteres[].commentaire`,
+  `points_a_ameliorer`, `suggestions`, `points_forts`,
+  `accomplissement.objectif_resume` et `exemples_corriges`, pose
+  `AVERTISSEMENT_LANGUE`, et **ne touche ni la note, ni le niveau, ni un seuil**.
+  - **Jamais `confiance_raisons`** : « transcription partiellement incertaine
+    (passages en russe et en néerlandais) » est le **bon** comportement — là, la
+    langue étrangère est une limite d'**observation**. **Jamais en EE** : à l'écrit le
+    candidat tape chaque mot, une langue étrangère est une vraie non-réalisation.
+    L'asymétrie vient de la **machine**, pas du niveau exigé.
+  - **Garde-fou contre la neutralisation d'une VRAIE bascule de langue** (piège
+    `AUTRE_LANGUE` du corpus) : deux mesures sur les seuls tours `Candidat :` —
+    lettres non latines ≤ **15 %** ET mots-outils étrangers ≤ **6 %**, avec ≥ **40**
+    mots exploitables. Au-dessus de l'un **ou** l'autre, ou en cas de doute, **on ne
+    purge rien**. Calibré sur les données réelles : artefacts ≤ 6,8 % / ≤ 1,4 %, piège
+    espagnol à 12,5 %. ⚠️ **Le ratio de mots-outils FRANÇAIS ne sépare pas** — le
+    piège en affiche 36 %, plus que 8 vraies transcriptions françaises (les langues
+    romanes partagent trop de petits mots) ; d'où
+    `ProductionValidityService.MOTS_OUTILS_ETRANGERS`, miroir de `MOTS_OUTILS_FR`,
+    verrouillé par test.
+  - **Rubriques v10 et v11 : écrites, mesurées MOINS BONNES que v9, NON ACTIVÉES, ne
+    pas réessayer cette voie.** Elles répondaient au même problème par une **consigne**
+    — illustration directe de la règle « les contraintes dures priment sur les
+    consignes ». Campagne du 2026-08-07, témoin v9 du même jour, même modèle,
+    `retries=1` : accord exact 81,8 % (v9) contre 75,6 % et 76,7 % ; échec en
+    production 8,33 % contre 14,58 % et 10,42 % ; pièges 7/8 contre 4/8 et 5/8. v10
+    remontait en plus un hors-sujet de `A1_NON_ATTEINT` à `A1` : le bloc ajouté
+    (+4197 caractères) **diluait la sévérité du reste**. Elles restent chargeables.
+  - **Persona `realtime-personas-v3.json`** (défaut) = v2 + verrou de langue dans la
+    system instruction. **Biais, pas garantie**, et non mesurable au banc.
+  - Frontières assumées : la purge ne se déclenche que sur un marqueur d'une **liste
+    fermée** (une formulation qui y échappe passe) ; `MOTS_OUTILS_ETRANGERS` couvre 6
+    langues, une vraie production en turc ou polonais n'est protégée que par le
+    contrôle amont `ratioMotsOutils < 0,10`.
 - **Deux drapeaux livrés ÉTEINTS** (`sejourfr.production-evaluation`) :
   `fluidite.enabled` (débit/pauses, informatif) et `seconde-passe.enabled` (2ᵉ
   lecture en zone floue, même provider/modèle). À `false`, ils ne changent
@@ -553,6 +798,132 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   (profil par épreuve) applique un **plancher** là où `ProductionBilanService`
   (bilan d'épreuve) applique une **moyenne**. Les deux décrivent pourtant « le
   niveau de l'épreuve ». À arbitrer.
+
+## Module « Compétences TCF » (micro-entraînement EE/EO)
+
+Voie **parallèle** aux productions complètes, pas une réutilisation : le candidat
+travaille **une micro-compétence à la fois** sur un « petit sujet » de quelques
+phrases, et l'IA ne rend qu'un **verdict sur le critère unique du sujet** —
+**aucune note /20, aucun niveau CECRL** (le tool-schema ne prévoit aucun champ
+pour les loger). Schéma en `V025`, contenu seedé en `V300..V305`.
+
+**Où ça vit** — tables `skills`, `skill_prompts`, `skill_references`,
+`user_skill_attempts` (DDL `00_schema/V025__schema_competences_tcf.sql`, seed
+`300_tcf/competences/V300..V305`). Backend : `service/competence/` (analyse IA) +
+`SkillService` / `SkillAttemptService` / `SkillStatusResolver` /
+`SkillAnalysisAccessService` / `AdminSkillService`. **12 endpoints utilisateur**
+(`/api/skills*`, `/api/skill-attempts*`, `/api/skill-prompts*`) et **11 endpoints
+admin** (`/api/admin/skills*`, `/api/admin/skill-prompts*`) — détail dans
+`docs/api-endpoints.md`. Fronts : web `app/_components/competences/` + routes
+`…/entrainement/tcf/{ee,eo}/tache/[n]/competences/…`, mobile
+`lib/screens/tcf_production/competences/` + `core/models/skill_models.dart` ;
+point d'entrée = 3ᵉ onglet « Compétences » à côté de « Sujets » et « Exemples »,
+qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
+
+- **Contrat de l'analyse IA** : rubriques
+  `prompts/competence-analysis-rubrics-v1.json` + tool-schema
+  `prompts/competence-analysis-tool-schema-v1.json` (`profile: TCF_IRN`, paire
+  `rubrics-version` ⇄ `tool_schema_version` validée au boot, même convention que
+  les productions complètes — **aucune consigne de notation en dur dans le Java**).
+  Sortie stricte à **5 champs**, `additionalProperties: false` : `status`
+  (`VALIDATED|PARTIAL|NOT_VALIDATED`), `verdict`, `success_point`,
+  `improvement_priority`, `improved_version`. **Une seule** priorité
+  d'amélioration, jamais une liste. Contraintes de longueur **en mots** déclarées
+  par la grille (20 / 30 / 35), doublées de `maxLength` en caractères dans le
+  schéma ; le validateur tolère ×1,2 avant de rejeter. Sortie invalide → **un seul
+  rejeu** avec les violations, puis **échec net** (`FAILED`) — jamais d'analyse
+  partielle.
+- **Config** : `sejourfr.competences.analysis` (`max-tokens: 600`,
+  `temperature: 0`, `free-analyses: 3`, `max-text-words: 400`,
+  `max-audio-duration-seconds: 180`), POJO `CompetenceProperties` **aux mêmes
+  valeurs par défaut que le YAML**. Le **fournisseur LLM n'a pas de réglage
+  propre** : `CompetenceLlmConfig` lit
+  `sejourfr.production-evaluation.provider`, comme tout le reste (règle « un seul
+  correcteur configurable »). Ne pas lui en donner un second.
+- **Volume figé** : 6 tâches (`EE1..EE3`, `EO1..EO3`) × **8 compétences** × **5
+  sujets** × **3 références** (`INSUFFICIENT`/`EXPECTED`/`EXCELLENT`) = 48 / 240 /
+  720. Les 6 tâches sont un référentiel officiel (**enum `SkillTaskCode`, pas de
+  table**). Ce compte est verrouillé par **`SkillSeedIT`**, pas par le DDL : la
+  contrainte `display_order BETWEEN 1 AND 8` gelait le catalogue (les 8 rangs
+  légaux étant tous seedés, l'admin ne pouvait plus rien créer) — elle est passée
+  à **50**, et la règle produit vit désormais dans le test. Ne pas la remettre.
+- **Les seeds sont GÉNÉRÉS**, jamais écrits à la main. Le générateur est
+  **versionné** dans `backend_sejourfr/tools/competences/` (`generer_seed.py` +
+  `contenu/*.json`, une fiche par tâche) et se rejoue par
+  `cd backend_sejourfr && python3 tools/competences/generer_seed.py` (Python 3
+  seul, aucune dépendance). **On édite le JSON puis on régénère, jamais le SQL** :
+  modifier un `V300..V305` à la main désynchronise les deux et la régénération
+  suivante écrase le correctif. Le script valide le contenu (8×5×3, cohérence
+  EE mots / EO durée, unicité des codes) et **refuse de générer** sur du contenu
+  non conforme ; les UUID sont déterministes (uuid5 sur le code métier), donc
+  stables d'un environnement à l'autre.
+  - Il ne sert qu'à **republier depuis une base propre**. Une fois les migrations
+    appliquées, le **contenu vivant s'édite depuis la console d'administration**
+    (`admin/features/skills/`) — c'est la base qui fait foi, pas le JSON.
+  - Le générateur a vécu hors dépôt jusqu'au 2026-08-06 : les six migrations
+    portaient « ne pas éditer à la main » sans que le seul outil autorisé à les
+    produire soit trouvable.
+- **Deux textes distincts sur une compétence**, à ne jamais rendre au même
+  endroit : `skills.description` = la courte explication (encart « Pourquoi cet
+  exercice ? »), `skills.general_criterion` = le critère général travaillé (encart
+  « Critère travaillé »). Et **ni l'un ni l'autre** n'est
+  `skill_prompts.unique_criterion`, qui est le critère précis d'**un** sujet.
+- **Freemium** : produire, s'auto-évaluer et lire les 3 références est **gratuit
+  et illimité** pour tout compte inscrit — **aucun sujet n'est verrouillé**. Seule
+  l'**analyse IA** est premium (`hasTcf`), avec **3 analyses offertes à vie**. Le
+  quota se consomme à l'**acceptation** (`analysis_requested = true`), pas au
+  succès : sinon un retry après échec fournisseur en offrirait davantage.
+- **Statut d'un sujet dérivé serveur**, jamais recalculé par un front
+  (`SkillStatusResolver`) : `TODO` / **`TREATED`** / `VALIDATED` / `TO_REINFORCE`.
+  `TREATED` (« Fait ») est le 4ᵉ statut qu'impose le freemium — une production
+  sans analyse n'a pas de verdict, l'afficher « Validé » ou « À renforcer » serait
+  faux.
+- **Libellés FR = contrat gelé sur les 4 couches.** Ces chaînes ne transitent pas
+  par le réseau : le backend, le web, le mobile et l'admin en tiennent chacun une
+  copie écrite à la main, donc rien n'empêche une couche de dériver — et c'est
+  arrivé (`NOT_VALIDATED` affiché en trois formulations différentes). Elles sont
+  désormais figées par un test **par couche**, sur exactement les mêmes chaînes :
+  `SkillLabelsTest` (backend), `lib/skill-labels.test.ts` (web),
+  `test/skill_models_test.dart` (mobile). Un libellé qui bouge, ce sont **quatre**
+  fichiers à changer dans la même passe. Côté fronts, on lit toujours la constante
+  partagée (`SKILL_*_LABEL` en TS, le `label` de l'enum en Dart) — jamais une
+  chaîne recopiée dans un composant, qui est exactement la façon dont le web avait
+  décroché.
+- **Garde des références** : `GET /api/skill-prompts/{id}/references` exige **au
+  moins une tentative**, jamais « une tentative réussie » — l'écran de résultat
+  d'une tentative `FAILED` est précisément le moment où le candidat en a besoin.
+- **`POST /api/skill-attempts/{id}/analyse`** : demande l'analyse d'une production
+  déjà `RECORDED` (rendue sans IA), pour le candidat qui produit gratuitement puis
+  s'abonne — sans elle, il devait refaire le sujet et **perdait sa production**.
+  Refusé (422) sur tout autre statut, sinon le quota serait contournable.
+- **`POST .../retry`** ne re-consomme pas le quota (l'échec n'est pas du fait du
+  candidat) : c'est ce qui **impose** le plafond persisté `retry_count` ≤ 3,
+  appliqué dans le service (422) **et** en base.
+- **Transcription Whisper seulement si une analyse est demandée** (on ne paie pas
+  pour un audio que personne ne corrigera) ; l'**audio est conservé dans tous les
+  cas** — les deux fronts doivent permettre de se réécouter sur l'écran de
+  résultat EO. Pipeline async **sans transaction englobante**, même invariant que
+  `ProductionPipelineAsyncRunner` (+ `SkillAnalysisFailureRecorder` en
+  `REQUIRES_NEW` pour rendre `FAILED` durable).
+- **Garde-fou EO, identique à celui des productions complètes** : la **durée n'est
+  jamais envoyée** au correcteur, et la grille lui interdit de fonder verdict ou
+  conseils sur la prononciation, l'accent, l'intonation, le débit, la fluidité,
+  l'aisance, les pauses, les hésitations transcrites, l'orthographe ou la
+  ponctuation d'une transcription automatique. Ne pas relâcher d'un côté ce qui
+  est verrouillé de l'autre.
+- **Rate-limit dédié** `RateLimitGuard.checkSkillAttempt` (`skill-attempt:burst`
+  40 / 10 min, `skill-attempt:daily` 400 / jour) : borne le coût LLM **et**
+  l'inflation de `user_skill_attempts`. Bornes anti-abus (≠ règles pédagogiques,
+  les `recommendedMin/MaxWords` restent **indicatifs et jamais bloquants**) :
+  400 mots en EE, 180 s en EO, taille audio max partagée avec
+  `production-evaluation`.
+- **Libellés gelés du bandeau « Sujet déjà traité »**, une seule action par
+  section : EE « Reprendre ma réponse » (préremplit), EO « Écouter ma dernière
+  réponse » (ouvre le résultat).
+- `SkillPromptDto` porte `skillPromptCount` / `skillDescription` /
+  `skillGeneralCriterion` / `skillTargetLevel` **exprès** : l'écran de production
+  affiche le fil d'Ariane « Sujet i/5 », l'encart d'explication et le palier
+  **sans second appel** à `GET /api/skills/{skillId}`.
 
 ## Identité visuelle (résumé)
 
@@ -647,6 +1018,14 @@ avant de toucher.
 
 - **Pas de README ni de docs générés automatiquement.** Ne créer un `.md` que si
   l'utilisateur le demande.
+- 🛑 **Aucun test ni aucune mesure qui appelle un LLM payant sans demande explicite
+  de l'utilisateur.** Vaut pour le banc de calibration (`CalibrationBenchTest`) et
+  pour tout script qui interroge un fournisseur. C'est son argent. On propose la
+  mesure et son coût estimé, il décide. Un smoke test d'un ou deux appels pour
+  vérifier qu'une chaîne technique répond est toléré ; une campagne ne l'est pas.
+  Avant de lancer une analyse, se demander d'abord si une **requête SQL sur la base
+  locale** répond à la question — c'est gratuit, immédiat, et c'est le plus souvent
+  le cas quand il s'agit de regarder ce que l'IA a réellement produit.
 - **Code direct + brèves explications.** Pas de récap de fin de message ni de narration
   d'étapes triviales.
 - **Décisions structurantes** : proposer des options avec leurs tradeoffs, pas imposer.
@@ -1143,6 +1522,11 @@ Référence à consulter quand le contexte le demande — pas chargé par défau
   **toujours compréhensible par un non-informaticien** (voir aussi la règle dédiée ci-dessous).
 - `docs/ia/ANALYSE_SPEC_EVALUATION_IA.md` — décisions produit de la refonte de notation et
   leurs raisons (ce qu'on a retenu de la spec externe, ce qu'on a refusé, et pourquoi)
+- `docs/skills/SEJOURFR_SPEC_COMPETENCES_EE_EO.md` — spec fonctionnelle du module Compétences
+  TCF : les 48 compétences rédigées une par une, règles de création des petits sujets,
+  comportement attendu de l'analyse IA. Le contenu publié fait foi (cf. `SkillSeedIT`) ;
+  l'explication grand public de cette voie d'évaluation est dans `docs/notation-ia-eo-ee.md`
+  §11 bis
 - `docs/refonte-entrainement.md` — statut refonte hubs Civique/TCF (mobile + web)
 - `docs/roadmap.md` — roadmap commune (Stripe, refresh JWT web, tests, etc.)
 - `docs/audio-pipeline/` — spec exhaustive du pipeline audio CO (10 fichiers)

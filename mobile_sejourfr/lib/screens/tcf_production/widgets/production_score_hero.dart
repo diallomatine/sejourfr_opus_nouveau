@@ -10,9 +10,11 @@ import 'tcf_note_scale.dart';
 /// lecture du TCF sous les yeux.
 ///
 /// Pourquoi ensemble : separes, la note se lisait comme une note scolaire
-/// francaise. « 4,5/20 » n'est pas une catastrophe, c'est un A2 — notre note
-/// EST celle du TCF (0 = A1 non atteint, 1 = A1, 2-5 = A2, 6-9 = B1,
-/// 10-20 = B2). L'echelle est donc affichee avec la note, pas ailleurs.
+/// francaise. « 4,5/20 » n'est pas une catastrophe, c'est un A2 — notre note est
+/// une ESTIMATION exprimee sur l'echelle du TCF (0 = A1 non atteint, 1 = A1,
+/// 2-5 = A2, 6-9 = B1, 10-20 = B2). L'echelle est celle de l'examen ; la
+/// correction, elle, est la notre. L'echelle est donc affichee avec la note,
+/// pas ailleurs.
 ///
 /// Deux regles non negociables :
 /// - jamais de niveau sans sa confiance ([EvaluationResult.hasNiveauObserve]) ;
@@ -26,9 +28,9 @@ import 'tcf_note_scale.dart';
 /// la phrase generique, il ne s'y ajoute pas. Les deux disent la meme chose ;
 /// les empiler est exactement la repetition que cette refonte corrige.
 const String kNotePorteeSurLaTache =
-    'Cette note est celle du TCF, sur la même échelle que l\'examen officiel : '
-    'c\'est elle qui donne le niveau. Elle porte ici sur cette seule tâche — au '
-    'TCF, la note sur 20 est celle de l\'épreuve entière, vos trois tâches.';
+    'Cette note est une estimation, exprimée sur l\'échelle du TCF : c\'est elle '
+    'qui donne le niveau. Elle porte ici sur cette seule tâche — au TCF, la note '
+    'sur 20 est celle de l\'épreuve entière, vos trois tâches.';
 
 /// Repli quand le correcteur signale une confiance basse sans dire pourquoi :
 /// une pastille seule laisse le candidat sans explication.

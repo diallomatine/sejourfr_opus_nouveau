@@ -14,12 +14,7 @@ class CecrlScale extends StatelessWidget {
   final bool dark;
 
   static const _labels = ['A1', 'A2', 'B1', 'B2'];
-  static const _gradient = LinearGradient(colors: [
-    Color(0xFFF87171), // rose A1
-    Color(0xFFFB923C), // orange A2
-    Color(0xFFFBBF24), // ambre B1
-    Color(0xFF34D399), // vert B2
-  ]);
+  static const _gradient = LinearGradient(colors: cecrlScaleRamp);
 
   @override
   Widget build(BuildContext context) {

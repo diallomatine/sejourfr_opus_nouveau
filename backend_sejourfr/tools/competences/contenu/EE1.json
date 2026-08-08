@@ -1,0 +1,1936 @@
+{
+  "taskCode": "EE1",
+  "section": "EE",
+  "taskTitle": "Écrire un message court",
+  "taskTargetLevel": "A2",
+  "skills": [
+    {
+      "code": "EE1-C1",
+      "title": "Adapter le message au destinataire",
+      "description": "On n'écrit pas de la même façon à un ami, à un voisin, à un employeur ou à une administration. Cette compétence entraîne le choix du ton, du tutoiement ou du vouvoiement et des formules de politesse, que le TCF observe dès la première ligne.",
+      "targetLevel": "A2",
+      "displayOrder": 1,
+      "prompts": [
+        {
+          "code": "EE1-C1-S1",
+          "title": "Un mot pour votre voisine",
+          "context": "Vous partez trois jours et vos plantes ont besoin d'eau. Vous connaissez peu votre voisine du deuxième étage.",
+          "instruction": "Écrivez les deux premières phrases de votre message : saluez-la et dites qui vous êtes.",
+          "uniqueCriterion": "Employer une salutation et un vouvoiement adaptés à une voisine que l'on connaît peu.",
+          "recommendedMinWords": 15,
+          "recommendedMaxWords": 35,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "checklist": [
+            "Saluez votre voisine",
+            "Dites qui vous êtes",
+            "Écrivez deux phrases"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Ton poli",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour Madame, je suis votre voisin du…",
+          "tip": "commencez par bonjour, puis présentez-vous en quelques mots",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Salut, c'est moi ton voisin du dessus. Tu peux arroser mes plantes cette semaine ?",
+              "pedagogicalNote": "Le tutoiement et « salut » sont trop familiers pour une voisine peu connue."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour Madame, je suis votre voisin du troisième étage. Je pars trois jours et je voudrais vous demander un service.",
+              "pedagogicalNote": "La salutation et le vouvoiement conviennent à une voisine que l'on connaît peu."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour Madame Léger, je suis Amadou, votre voisin du troisième étage. Je me permets de vous écrire car je pars trois jours.",
+              "pedagogicalNote": "Le nom et « je me permets » rendent le ton juste et naturel."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C1-S2",
+          "title": "Proposer une sortie à une amie",
+          "context": "Votre amie Sofia vient de terminer ses examens. Vous voulez lui proposer d'aller au cinéma ce week-end.",
+          "instruction": "Écrivez-lui un court message pour lui proposer cette sortie.",
+          "uniqueCriterion": "Employer un ton amical et le tutoiement du début à la fin du message.",
+          "recommendedMinWords": 15,
+          "recommendedMaxWords": 35,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "checklist": [
+            "Ouvrez avec un bonjour amical",
+            "Proposez le cinéma ce week-end",
+            "Tutoyez-la jusqu'à la fin"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Ton amical",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Salut Sofia, bravo pour ces examens…",
+          "tip": "gardez le même tutoiement de la première à la dernière ligne",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Madame, je vous informe que je souhaite vous proposer une sortie au cinéma samedi. Cordialement.",
+              "pedagogicalNote": "Ce ton administratif ne convient pas à une amie proche."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Salut Sofia ! Tes examens sont enfin finis, bravo. Ça te dit d'aller au cinéma samedi après-midi ?",
+              "pedagogicalNote": "Le tutoiement et le ton détendu conviennent bien à une amie."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Coucou Sofia ! Bravo, tes examens sont derrière toi. On se fait un cinéma samedi après-midi pour fêter ça ? Dis-moi vite !",
+              "pedagogicalNote": "Le ton reste amical et vivant, sans jamais quitter le tutoiement."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C1-S3",
+          "title": "Signaler une fuite au propriétaire",
+          "context": "Un tuyau fuit sous l'évier de votre cuisine. Vous écrivez à votre propriétaire, que vous n'avez rencontré qu'une seule fois.",
+          "instruction": "Écrivez le début de votre message : formule d'appel, présentation, puis annonce du problème.",
+          "uniqueCriterion": "S'adresser au propriétaire avec une formule d'appel formelle et le vouvoiement.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 45,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "checklist": [
+            "Ouvrez par Bonjour Monsieur",
+            "Présentez-vous comme locataire",
+            "Annoncez la fuite",
+            "Vouvoyez tout le message"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Formule d'appel",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour Monsieur, je suis votre locataire…",
+          "tip": "une formule d'appel formelle vaut mieux qu'un simple salut",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Salut, il y a de l'eau sous l'évier depuis hier. Tu peux venir voir quand ?",
+              "pedagogicalNote": "Le tutoiement n'est pas adapté à un propriétaire : il faut vouvoyer."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour Monsieur, je suis votre locataire de l'appartement 12. Je vous écris car un tuyau fuit sous l'évier de la cuisine.",
+              "pedagogicalNote": "La formule d'appel et le vouvoiement sont corrects et suffisent ici."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour Monsieur Renaud, je suis Leïla Benali, votre locataire du 12 rue des Lilas. Je me permets de vous signaler une fuite sous l'évier de la cuisine.",
+              "pedagogicalNote": "L'identification complète et « je me permets » donnent un ton formel juste."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C1-S4",
+          "title": "Écrire au service client",
+          "context": "Votre connexion internet ne fonctionne plus depuis deux jours. Vous écrivez au service client de votre opérateur.",
+          "instruction": "Rédigez un court courriel qui commence et se termine par les formules adaptées à un service client.",
+          "uniqueCriterion": "Encadrer le message par une formule d'appel et une formule de clôture formelles.",
+          "recommendedMinWords": 30,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "checklist": [
+            "Commencez par Madame, Monsieur",
+            "Exposez le problème de connexion",
+            "Terminez par une formule de clôture"
+          ],
+          "constraintTags": [
+            {
+              "label": "Ton formel",
+              "icon": "TONE"
+            },
+            {
+              "label": "Ouverture et clôture",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Madame, Monsieur, ma connexion internet ne…",
+          "tip": "la signature ferme le message aussi sûrement que la formule d'appel l'ouvre",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, ma connexion ne marche plus depuis deux jours. Merci de régler ça rapidement.",
+              "pedagogicalNote": "Il manque une formule d'appel formelle et une formule de clôture."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Madame, Monsieur, ma connexion internet ne fonctionne plus depuis deux jours. Pouvez-vous m'indiquer la marche à suivre ? Cordialement, Rachid Mansour.",
+              "pedagogicalNote": "Le message est bien encadré par deux formules adaptées à un service client."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Madame, Monsieur, je suis client chez vous depuis 2023 et ma connexion internet est interrompue depuis deux jours. Je vous remercie de bien vouloir intervenir. Cordialement, Rachid Mansour.",
+              "pedagogicalNote": "Ouverture, remerciement et signature forment un ensemble cohérent et formel."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C1-S5",
+          "title": "Un message à votre responsable",
+          "context": "Vous travaillez dans un supermarché. Vous écrivez à votre responsable, Madame Fontaine, au sujet de votre planning de la semaine prochaine.",
+          "instruction": "Écrivez-lui un message complet sur ce sujet, du bonjour jusqu'à la signature.",
+          "uniqueCriterion": "Garder un ton professionnel et le vouvoiement dans tout le message, salutation et clôture comprises.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 70,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "checklist": [
+            "Saluez Madame Fontaine",
+            "Exposez votre demande de planning",
+            "Vouvoyez du début à la fin",
+            "Signez votre message"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Ton professionnel",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour Madame Fontaine, je vous écris…",
+          "tip": "une fin familière efface un début professionnel, restez constant jusqu'à la signature",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour Madame Fontaine, je voulais savoir pour le planning de la semaine prochaine. J'aimerais changer mon mardi soir. Bisous, à demain !",
+              "pedagogicalNote": "Le début convient, mais la clôture familière casse le ton professionnel."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour Madame Fontaine, je vous écris au sujet du planning de la semaine prochaine. Je suis inscrit mardi soir, mais je dois accompagner ma fille à un rendez-vous médical. Est-ce que je peux travailler mardi matin à la place ? Merci de votre réponse. Cordialement, Ivan Petrov.",
+              "pedagogicalNote": "Le vouvoiement et le ton restent professionnels du début à la fin."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour Madame Fontaine, j'espère que vous allez bien. Je me permets de vous écrire au sujet du planning de la semaine prochaine : je suis inscrit mardi soir, mais je dois accompagner ma fille chez le médecin. Serait-il possible de travailler mardi matin à la place ? Je reste disponible pour en discuter. Cordialement, Ivan Petrov.",
+              "pedagogicalNote": "Le registre professionnel est tenu partout, avec une ouverture et une clôture soignées."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Savoir choisir une formule, un ton et un niveau de politesse adaptés : ami, voisin, collègue, administration, responsable."
+    },
+    {
+      "code": "EE1-C2",
+      "title": "Annoncer clairement l'objet du message",
+      "description": "Le lecteur doit comprendre dès la première phrase pourquoi vous écrivez. Cette compétence entraîne l'annonce nette de l'objet : informer, prévenir, annuler, remercier, demander ou répondre.",
+      "targetLevel": "A2",
+      "displayOrder": 2,
+      "prompts": [
+        {
+          "code": "EE1-C2-S1",
+          "title": "Annuler un rendez-vous chez le dentiste",
+          "context": "Vous avez un rendez-vous chez le dentiste jeudi à 15 h. Vous ne pourrez pas y aller.",
+          "instruction": "Écrivez la première phrase du message que vous envoyez au cabinet dentaire.",
+          "uniqueCriterion": "Annoncer l'annulation du rendez-vous dès la première phrase.",
+          "recommendedMinWords": 12,
+          "recommendedMaxWords": 30,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "checklist": [
+            "Saluez le cabinet dentaire",
+            "Annoncez l'annulation dès le début",
+            "Écrivez une seule phrase"
+          ],
+          "constraintTags": [
+            {
+              "label": "Objet en premier",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Ton poli",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour, je vous écris au sujet…",
+          "tip": "dites l'essentiel avant d'expliquer, votre lecteur comprend immédiatement",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, j'ai un petit problème avec la journée de jeudi, je vous explique.",
+              "pedagogicalNote": "Le lecteur ne sait pas encore que le rendez-vous est annulé."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je vous écris pour annuler mon rendez-vous de jeudi à 15 h.",
+              "pedagogicalNote": "L'objet du message est annoncé immédiatement : c'est ce qui est demandé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, je dois malheureusement annuler mon rendez-vous du jeudi 12 mars à 15 h avec le docteur Aubry.",
+              "pedagogicalNote": "L'annulation est annoncée d'emblée et le rendez-vous est identifié sans ambiguïté."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C2-S2",
+          "title": "Remercier une voisine",
+          "context": "Votre voisine a gardé votre chat pendant vos deux semaines d'absence. Vous voulez lui écrire.",
+          "instruction": "Écrivez un court message dont la première phrase dit clairement pourquoi vous écrivez.",
+          "uniqueCriterion": "Indiquer dès la première phrase qu'il s'agit d'un remerciement.",
+          "recommendedMinWords": 15,
+          "recommendedMaxWords": 35,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "checklist": [
+            "Ouvrez par un bonjour",
+            "Remerciez-la dès la première phrase",
+            "Précisez pourquoi vous la remerciez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Merci en ouverture",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour Madame Diaz, je vous écris…",
+          "tip": "placez le merci avant vos nouvelles du voyage",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour Madame Diaz, je suis bien rentrée hier soir, le voyage a été très long.",
+              "pedagogicalNote": "Rien n'annonce le remerciement : le lecteur attend encore l'objet du message."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour Madame Diaz, je voulais vous remercier d'avoir gardé mon chat pendant mon absence. Tout s'est très bien passé.",
+              "pedagogicalNote": "Le remerciement arrive en premier : l'objet du message est clair."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour Madame Diaz, un grand merci d'avoir gardé Minou pendant mes deux semaines d'absence. Il était en pleine forme à mon retour.",
+              "pedagogicalNote": "Le merci ouvre le message et la suite ne fait que le préciser."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C2-S3",
+          "title": "Prévenir d'un changement de réunion",
+          "context": "Vous travaillez dans une entreprise de nettoyage. La réunion d'équipe de mardi est déplacée à jeudi.",
+          "instruction": "Écrivez un message à vos collègues. La première phrase doit dire de quoi il s'agit.",
+          "uniqueCriterion": "Annoncer dès la première phrase qu'il s'agit d'un changement de date de la réunion.",
+          "recommendedMinWords": 20,
+          "recommendedMaxWords": 40,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "checklist": [
+            "Adressez-vous à toute l'équipe",
+            "Annoncez d'emblée le report",
+            "Précisez le nouveau jour"
+          ],
+          "constraintTags": [
+            {
+              "label": "Information en tête",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Ton professionnel",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour à tous, la réunion d'équipe…",
+          "tip": "commencez par ce qui change, les détails viennent juste après",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour à tous, j'espère que vous allez bien. La semaine va être chargée, il y a beaucoup de chantiers en cours.",
+              "pedagogicalNote": "Le message ne dit pas encore que la réunion change de date."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour à tous, la réunion d'équipe de mardi est reportée à jeudi. Elle aura lieu à 9 h dans la salle habituelle.",
+              "pedagogicalNote": "Le changement est annoncé tout de suite, la précision vient après."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour à tous, petit changement : la réunion d'équipe de mardi est déplacée à jeudi 9 h, dans la même salle. Merci de noter la nouvelle date.",
+              "pedagogicalNote": "« Petit changement » annonce l'objet et prépare le lecteur à l'information."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C2-S4",
+          "title": "Demande d'information au secrétariat",
+          "context": "Vous voulez vous inscrire à une formation de français dans un centre de votre ville. Vous avez besoin de renseignements.",
+          "instruction": "Écrivez un courriel au secrétariat. Annoncez le but de votre message avant de donner les détails.",
+          "uniqueCriterion": "Annoncer en une phrase qu'il s'agit d'une demande d'information, avant tout autre détail.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 45,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "checklist": [
+            "Ouvrez par une salutation",
+            "Dites que vous demandez des informations",
+            "Posez ensuite vos questions"
+          ],
+          "constraintTags": [
+            {
+              "label": "But d'abord",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Ton formel",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour, je souhaite m'inscrire à votre…",
+          "tip": "annoncez votre but avant de raconter votre parcours personnel",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, je suis arrivée en France il y a deux ans et je travaille tous les matins. J'ai vu votre centre sur internet.",
+              "pedagogicalNote": "Le lecteur lit des informations personnelles sans savoir ce qui est demandé."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je vous écris pour obtenir des informations sur votre formation de français. Je voudrais connaître les horaires et le tarif.",
+              "pedagogicalNote": "L'objet est annoncé d'abord, les questions viennent ensuite : c'est clair."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Madame, Monsieur, je souhaite m'inscrire à votre formation de français et je vous écris pour obtenir quelques renseignements : horaires, tarif et documents à fournir.",
+              "pedagogicalNote": "Une seule phrase installe le but du message et annonce les questions."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C2-S5",
+          "title": "Réclamation après un trajet annulé",
+          "context": "Votre bus longue distance a été annulé sans que personne ne vous prévienne. Vous avez payé 42 euros et vous voulez être remboursé.",
+          "instruction": "Écrivez un message à la compagnie. Le but de votre message doit apparaître avant les explications.",
+          "uniqueCriterion": "Annoncer la demande de remboursement avant de raconter ce qui s'est passé.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 70,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "checklist": [
+            "Ouvrez par Madame, Monsieur",
+            "Demandez le remboursement dès le début",
+            "Racontez ensuite l'annulation"
+          ],
+          "constraintTags": [
+            {
+              "label": "Demande en tête",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Ton posé",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Madame, Monsieur, je vous écris au…",
+          "tip": "votre demande d'abord, votre histoire ensuite, le lecteur suivra bien mieux",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Madame, Monsieur, samedi dernier, j'attendais le bus de 7 h à Lyon. Il n'est jamais arrivé. J'ai attendu une heure, puis j'ai pris un taxi et je suis arrivé très en retard à Grenoble. C'était vraiment compliqué pour moi.",
+              "pedagogicalNote": "Le récit occupe tout le message ; la demande n'apparaît jamais clairement."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Madame, Monsieur, je vous écris pour demander le remboursement de mon billet de 42 euros. Mon bus Lyon-Grenoble du samedi 8 mars a été annulé sans information et j'ai dû prendre un taxi.",
+              "pedagogicalNote": "La demande ouvre le message ; les explications la justifient ensuite."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Madame, Monsieur, je vous demande le remboursement de mon billet de 42 euros (réservation 5482). Mon bus Lyon-Grenoble du samedi 8 mars n'est jamais parti et aucune information ne nous a été donnée sur place. Je vous remercie de votre réponse.",
+              "pedagogicalNote": "L'objet est net dès la première ligne, le reste vient l'appuyer."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Faire comprendre immédiatement pourquoi on écrit : informer, prévenir, annuler, remercier, demander ou répondre."
+    },
+    {
+      "code": "EE1-C3",
+      "title": "Donner des informations pratiques précises",
+      "description": "Un message utile contient des informations exactes : quand, où, avec qui, combien, comment. Cette compétence entraîne la précision des détails pratiques, très souvent attendue dans les sujets du TCF.",
+      "targetLevel": "A2",
+      "displayOrder": 3,
+      "prompts": [
+        {
+          "code": "EE1-C3-S1",
+          "title": "Inviter un ami à un anniversaire",
+          "context": "Vous fêtez votre anniversaire samedi chez vous. Vous écrivez à votre ami Mehdi.",
+          "instruction": "Écrivez-lui un court message avec les informations dont il a besoin pour venir.",
+          "uniqueCriterion": "Indiquer un lieu précis et une heure précise.",
+          "recommendedMinWords": 15,
+          "recommendedMaxWords": 35,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "checklist": [
+            "Annoncez la fête de samedi",
+            "Donnez l'adresse exacte",
+            "Indiquez l'heure de début"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Lieu précis",
+              "icon": "PLACE"
+            },
+            {
+              "label": "Heure précise",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Salut Mehdi, je fête mon anniversaire…",
+          "tip": "sans adresse ni heure, votre invité ne peut pas venir",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Salut Mehdi ! Je fête mon anniversaire samedi, viens, ce sera vraiment sympa !",
+              "pedagogicalNote": "L'heure et le lieu manquent : Mehdi ne peut pas venir."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Salut Mehdi ! Je fête mon anniversaire samedi chez moi, au 8 rue Pasteur, à partir de 19 h.",
+              "pedagogicalNote": "Le lieu et l'heure sont donnés : le message est utilisable."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Salut Mehdi ! Je fête mon anniversaire samedi chez moi, 8 rue Pasteur, bâtiment B, à partir de 19 h 30. Tu peux venir ?",
+              "pedagogicalNote": "Chaque détail, du bâtiment à l'horaire, évite une question de plus."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C3-S2",
+          "title": "Se retrouver à la gare",
+          "context": "Vous arrivez en train à Bordeaux demain. Votre cousine vient vous chercher à la gare.",
+          "instruction": "Écrivez-lui un message avec les informations utiles pour vous retrouver.",
+          "uniqueCriterion": "Indiquer l'heure d'arrivée et le point de rendez-vous exact.",
+          "recommendedMinWords": 15,
+          "recommendedMaxWords": 35,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "checklist": [
+            "Donnez votre heure d'arrivée exacte",
+            "Fixez un point de rendez-vous précis"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Heure exacte",
+              "icon": "TIME"
+            },
+            {
+              "label": "Repère précis",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Coucou, j'arrive demain à Bordeaux en…",
+          "tip": "écrivez 14 h 20 plutôt que dans l'après-midi",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Coucou, j'arrive à Bordeaux demain dans l'après-midi. On se retrouve à la gare ?",
+              "pedagogicalNote": "« Dans l'après-midi » et « à la gare » restent beaucoup trop vagues."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Coucou, j'arrive demain à 14 h 20 à la gare Saint-Jean. On se retrouve devant l'entrée principale ?",
+              "pedagogicalNote": "L'heure exacte et le point de rendez-vous permettent de se trouver."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Coucou, j'arrive demain à 14 h 20, gare Saint-Jean, voie 6. Je t'attends devant la sortie principale, à côté de la boulangerie.",
+              "pedagogicalNote": "Voie, sortie et repère visuel : impossible de se manquer."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C3-S3",
+          "title": "Expliquer comment venir chez vous",
+          "context": "Une amie vient dîner chez vous pour la première fois. Votre immeuble a un code et vous habitez au quatrième étage.",
+          "instruction": "Écrivez-lui un message pour qu'elle trouve votre appartement sans avoir à vous appeler.",
+          "uniqueCriterion": "Donner trois informations pratiques : l'adresse, le code d'entrée et l'étage.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 45,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "checklist": [
+            "Écrivez votre adresse complète",
+            "Indiquez le code d'entrée",
+            "Précisez l'étage"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Coucou, voici comment arriver chez moi…",
+          "tip": "un seul détail oublié et votre amie devra vous appeler",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'habite près du parc, dans le grand immeuble gris. Sonne quand tu arrives et je descends t'ouvrir.",
+              "pedagogicalNote": "Sans adresse, code ni étage, votre amie devra vous appeler."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "J'habite au 14 avenue Jean Jaurès. Le code de la porte est 2580A et je suis au quatrième étage, porte de gauche.",
+              "pedagogicalNote": "Adresse, code et étage : les trois informations utiles sont là."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "J'habite au 14 avenue Jean Jaurès, juste en face du parc. Le code de la porte est 2580A. Prends l'escalier B jusqu'au quatrième étage : c'est la porte de gauche.",
+              "pedagogicalNote": "Les trois informations sont précises et l'ordre suit le trajet."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C3-S4",
+          "title": "Confirmer un rendez-vous en préfecture",
+          "context": "Vous accompagnez votre frère à la préfecture pour le renouvellement de son titre de séjour. Vous lui envoyez les informations.",
+          "instruction": "Écrivez-lui un message avec tout ce qu'il doit savoir pour ce rendez-vous.",
+          "uniqueCriterion": "Indiquer la date, l'heure et les documents à apporter.",
+          "recommendedMinWords": 30,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "checklist": [
+            "Rappelez la date du rendez-vous",
+            "Indiquez l'heure exacte",
+            "Listez les documents à apporter"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Date et heure",
+              "icon": "TIME"
+            },
+            {
+              "label": "Liste de documents",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Le rendez-vous à la préfecture est…",
+          "tip": "nommez chaque document plutôt que d'écrire simplement tes papiers",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le rendez-vous à la préfecture est confirmé. N'oublie pas tes papiers, on se retrouve directement là-bas.",
+              "pedagogicalNote": "Ni date, ni heure, ni liste : « tes papiers » ne suffit pas."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le rendez-vous est le mardi 4 avril à 9 h 30 à la préfecture. Apporte ton passeport, ton ancien titre de séjour et un justificatif de domicile.",
+              "pedagogicalNote": "Date, heure et documents sont donnés : ton frère peut s'organiser."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Rendez-vous mardi 4 avril à 9 h 30 à la préfecture, guichet 7. Apporte ton passeport, ton ancien titre de séjour, un justificatif de domicile de moins de trois mois et deux photos.",
+              "pedagogicalNote": "Le guichet et la validité du justificatif évitent un déplacement pour rien."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C3-S5",
+          "title": "Organiser une livraison au magasin",
+          "context": "Vous travaillez dans un magasin. Une livraison importante arrive la semaine prochaine et vous devez prévenir toute l'équipe.",
+          "instruction": "Écrivez un message à vos collègues avec les informations nécessaires pour s'organiser.",
+          "uniqueCriterion": "Donner quatre informations pratiques : le jour, l'heure, le lieu et la personne à contacter.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 70,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "checklist": [
+            "Annoncez le jour et l'heure",
+            "Précisez le lieu de livraison",
+            "Nommez la personne à contacter"
+          ],
+          "constraintTags": [
+            {
+              "label": "Quatre informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Ton professionnel",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour à tous, une livraison importante…",
+          "tip": "vérifiez que chacun sait où, quand et avec qui se présenter",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour à tous, une grosse livraison arrive la semaine prochaine. Il faudra être présents et bien s'organiser, ce sera une longue journée. Merci d'avance à chacun.",
+              "pedagogicalNote": "Le message annonce l'événement mais ne donne aucune information exploitable."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour à tous, la livraison arrive mercredi 12 à 7 h, à l'entrée de la réserve. Sonia s'occupe de la réception : voyez avec elle si vous avez une question.",
+              "pedagogicalNote": "Jour, heure, lieu et contact : chacun sait où se présenter."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour à tous, la livraison arrive mercredi 12 à 7 h précises, au quai de la réserve, porte arrière. Sonia Karimi supervise la réception et reste joignable au 06 12 34 56 78. Merci d'être sur place à 6 h 45.",
+              "pedagogicalNote": "Chaque information est complète, jusqu'à l'heure où il faut être présent."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Indiquer correctement une date, une heure, un lieu, une personne, une quantité ou une modalité."
+    },
+    {
+      "code": "EE1-C4",
+      "title": "Formuler une demande polie",
+      "description": "Demander sans donner l'impression d'exiger : c'est ce que le TCF attend d'un message adressé à un voisin, un employeur ou un service. Cette compétence entraîne la demande à la fois claire et polie.",
+      "targetLevel": "A2",
+      "displayOrder": 4,
+      "prompts": [
+        {
+          "code": "EE1-C4-S1",
+          "title": "Demander un service à un voisin",
+          "context": "Vous attendez un colis important mais vous travaillez toute la journée. Votre voisin est souvent chez lui.",
+          "instruction": "Écrivez-lui un court message pour lui demander de réceptionner ce colis.",
+          "uniqueCriterion": "Formuler la demande avec une forme polie, par exemple « pourriez-vous » ou « s'il vous plaît ».",
+          "recommendedMinWords": 15,
+          "recommendedMaxWords": 35,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "checklist": [
+            "Saluez votre voisin",
+            "Expliquez que vous attendez un colis",
+            "Formulez la demande poliment"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Forme polie",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour, je reçois un colis demain…",
+          "tip": "remplacez l'impératif par pourriez-vous, votre voisin se sentira libre d'accepter",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, je reçois un colis demain. Prenez-le pour moi, je travaille toute la journée.",
+              "pedagogicalNote": "L'impératif sans politesse transforme la demande en ordre."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je reçois un colis demain et je travaille toute la journée. Pourriez-vous le prendre pour moi, s'il vous plaît ?",
+              "pedagogicalNote": "« Pourriez-vous » et « s'il vous plaît » rendent la demande polie."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour Monsieur Wei, je reçois un colis demain et je serai au travail. Seriez-vous d'accord pour le réceptionner ? Je le récupérerai en rentrant, vers 19 h.",
+              "pedagogicalNote": "La demande est polie et laisse au voisin la possibilité de refuser."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C4-S2",
+          "title": "Demander le cours à sa formatrice",
+          "context": "Vous suivez une formation de français. Vous avez manqué le cours de lundi et un document a été distribué.",
+          "instruction": "Écrivez un message à votre formatrice pour obtenir ce document.",
+          "uniqueCriterion": "Exprimer la demande poliment, avec une formule de politesse ou un verbe au conditionnel.",
+          "recommendedMinWords": 15,
+          "recommendedMaxWords": 35,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "checklist": [
+            "Rappelez votre absence de lundi",
+            "Demandez le document au conditionnel"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Conditionnel",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "Bonjour Madame, j'étais absent au cours…",
+          "tip": "pourriez-vous et serait-il possible adoucissent n'importe quelle demande",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, j'étais absent lundi. Envoyez-moi le document du cours aujourd'hui.",
+              "pedagogicalNote": "La demande est claire mais l'impératif sec manque de politesse."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour Madame, j'étais absent au cours de lundi. Pourriez-vous m'envoyer le document distribué ce jour-là ? Merci beaucoup.",
+              "pedagogicalNote": "Le conditionnel et le remerciement suffisent à rendre la demande polie."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour Madame Lambert, je n'ai pas pu assister au cours de lundi. Serait-il possible de recevoir le document distribué ce jour-là ? Je vous remercie par avance.",
+              "pedagogicalNote": "« Serait-il possible » et le remerciement anticipé sonnent naturels et polis."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C4-S3",
+          "title": "Modifier son horaire de travail",
+          "context": "Vous commencez à 8 h dans un restaurant. Pendant deux semaines, vous devez amener votre fils à l'école à 8 h 20.",
+          "instruction": "Écrivez à votre responsable pour demander un changement d'horaire.",
+          "uniqueCriterion": "Formuler la demande poliment et laisser à la personne la possibilité de répondre non.",
+          "recommendedMinWords": 30,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "checklist": [
+            "Expliquez votre contrainte du matin",
+            "Demandez le changement poliment",
+            "Laissez la porte ouverte au refus"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Demande, pas décision",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour Madame, pendant deux semaines je…",
+          "tip": "une question laisse le choix, une annonce le retire",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, à partir de lundi je viendrai à 9 h parce que je dois emmener mon fils à l'école.",
+              "pedagogicalNote": "Ce n'est pas une demande mais une décision annoncée au responsable."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour Madame, pendant deux semaines je dois emmener mon fils à l'école le matin. Serait-il possible de commencer à 9 h au lieu de 8 h ? Merci de me dire ce que vous en pensez.",
+              "pedagogicalNote": "La demande est polie et la réponse reste entre les mains du responsable."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour Madame Okonkwo, je dois emmener mon fils à l'école pendant deux semaines. Serait-il envisageable de commencer à 9 h et de terminer plus tard le soir ? Si ce n'est pas possible, je m'organiserai autrement. Merci beaucoup.",
+              "pedagogicalNote": "La solution proposée et l'ouverture au refus rendent la demande vraiment polie."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C4-S4",
+          "title": "Demander une attestation au cabinet médical",
+          "context": "Votre employeur vous demande une attestation de votre médecin après votre consultation de la semaine dernière.",
+          "instruction": "Écrivez un message au secrétariat du cabinet pour obtenir ce document.",
+          "uniqueCriterion": "Demander le document avec une formule de politesse et remercier à la fin du message.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 45,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "checklist": [
+            "Rappelez votre consultation",
+            "Demandez l'attestation poliment",
+            "Remerciez à la fin"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Remerciement final",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour, j'ai consulté le docteur Silva…",
+          "tip": "un remerciement final coûte trois secondes et change le ton",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, il me faut une attestation pour ma consultation de la semaine dernière. C'est urgent.",
+              "pedagogicalNote": "« Il me faut » et « urgent » pèsent : la politesse manque ici."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, j'ai consulté le docteur Silva mardi dernier. Pourriez-vous m'établir une attestation de consultation pour mon employeur ? Je vous remercie.",
+              "pedagogicalNote": "Demande polie et remerciement final : les deux éléments attendus sont là."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, j'ai consulté le docteur Silva le mardi 3 juin. Mon employeur me demande une attestation de consultation : pourriez-vous me l'établir quand vous aurez un moment ? Je vous remercie sincèrement.",
+              "pedagogicalNote": "« Quand vous aurez un moment » adoucit la demande sans la rendre floue."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C4-S5",
+          "title": "Demander un rendez-vous à la mairie",
+          "context": "Vous devez déposer un dossier de demande de logement social. Le site internet ne propose aucun créneau disponible.",
+          "instruction": "Écrivez un courriel à la mairie pour demander un rendez-vous.",
+          "uniqueCriterion": "Exprimer la demande de façon polie et directe, sans exiger et sans s'excuser à l'excès.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 70,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "checklist": [
+            "Exposez votre besoin de rendez-vous",
+            "Demandez une date poliment",
+            "Évitez les excuses répétées"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Poli et direct",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Madame, Monsieur, je souhaite déposer un…",
+          "tip": "trop d'excuses repoussent la demande, allez-y simplement et poliment",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Madame, Monsieur, je suis vraiment désolé de vous déranger, je sais que vous êtes très occupés et j'espère que je ne prends pas trop de votre temps. Excusez-moi encore de vous écrire aujourd'hui.",
+              "pedagogicalNote": "Les excuses répétées occupent la place de la demande, qui n'arrive jamais."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Madame, Monsieur, je souhaite déposer un dossier de demande de logement social, mais aucun créneau n'est disponible en ligne. Pourriez-vous me proposer un rendez-vous ? Je suis disponible les lundis et jeudis matin. Cordialement, Nadia Haddad.",
+              "pedagogicalNote": "La demande est directe, polie, et l'excès d'excuses est évité."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Madame, Monsieur, je souhaite déposer un dossier de demande de logement social. Le site ne propose aucun créneau ce mois-ci : pourriez-vous m'indiquer une date de rendez-vous ? Je suis disponible les lundis et jeudis matin, et je peux me déplacer rapidement si une place se libère. Cordialement, Nadia Haddad.",
+              "pedagogicalNote": "Demande nette, ton respectueux et disponibilité claire : rien à ajouter."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Demander une information, une aide, un document, une autorisation ou un service de manière claire."
+    },
+    {
+      "code": "EE1-C5",
+      "title": "Inviter, proposer, accepter ou refuser",
+      "description": "Inviter, proposer, dire oui ou dire non : ce sont les messages les plus fréquents au TCF. Cette compétence entraîne des réponses nettes, qui ne laissent jamais le lecteur dans le doute.",
+      "targetLevel": "A2",
+      "displayOrder": 5,
+      "prompts": [
+        {
+          "code": "EE1-C5-S1",
+          "title": "Inviter un voisin à la fête",
+          "context": "Les habitants de votre immeuble organisent un repas dans la cour samedi soir. Vous voulez inviter votre nouveau voisin.",
+          "instruction": "Écrivez-lui un court message pour l'inviter.",
+          "uniqueCriterion": "Formuler une invitation claire, en précisant le jour et l'activité.",
+          "recommendedMinWords": 15,
+          "recommendedMaxWords": 35,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "checklist": [
+            "Nommez l'activité prévue",
+            "Précisez le jour",
+            "Formulez clairement l'invitation"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Jour précis",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour, les habitants de l'immeuble organisent…",
+          "tip": "dites clairement quoi et quand, sinon ce n'est pas une invitation",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, il y a des choses sympas prévues dans l'immeuble en ce moment, si jamais cela vous intéresse.",
+              "pedagogicalNote": "Ce n'est pas une invitation : ni jour, ni activité, ni proposition nette."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, les habitants de l'immeuble organisent un repas dans la cour samedi soir. Vous êtes invité à venir avec nous.",
+              "pedagogicalNote": "L'invitation, le jour et l'activité sont clairs : le voisin peut répondre."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, nous organisons un repas entre voisins samedi soir à 19 h dans la cour. Je serais content que vous veniez : chacun apporte un plat.",
+              "pedagogicalNote": "L'invitation est chaleureuse, précise, et dit comment y participer."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C5-S2",
+          "title": "Refuser une sortie",
+          "context": "Votre ami Thomas vous propose d'aller voir un match de football dimanche. Vous ne pouvez pas y aller.",
+          "instruction": "Répondez-lui par un court message.",
+          "uniqueCriterion": "Refuser clairement, sans laisser croire que vous viendrez peut-être.",
+          "recommendedMinWords": 15,
+          "recommendedMaxWords": 35,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "checklist": [
+            "Dites clairement que vous refusez",
+            "Évitez le peut-être"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Réponse nette",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Salut Thomas, merci pour ta proposition…",
+          "tip": "un on verra bien laisse votre ami dans le doute",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Salut Thomas ! Dimanche, c'est un peu compliqué pour moi. On verra bien, je te redis.",
+              "pedagogicalNote": "Thomas ne sait pas si vous venez : le refus n'est pas dit."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Salut Thomas ! Merci pour la proposition, mais je ne peux pas venir dimanche : je travaille toute la journée.",
+              "pedagogicalNote": "Le refus est net et la raison évite tout malentendu."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Salut Thomas ! Merci d'avoir pensé à moi, mais je ne pourrai pas venir dimanche, je travaille jusqu'à 20 h. Une prochaine fois avec plaisir !",
+              "pedagogicalNote": "Le non est clair, le ton reste amical et la porte reste ouverte."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C5-S3",
+          "title": "Accepter la proposition d'un collègue",
+          "context": "Votre collègue Awa vous propose d'échanger votre samedi de travail contre son mercredi.",
+          "instruction": "Répondez-lui par un message.",
+          "uniqueCriterion": "Accepter explicitement et confirmer le jour de chacun.",
+          "recommendedMinWords": 20,
+          "recommendedMaxWords": 40,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "checklist": [
+            "Dites clairement que vous acceptez",
+            "Confirmez votre jour et le sien"
+          ],
+          "constraintTags": [
+            {
+              "label": "Accord explicite",
+              "icon": "TONE"
+            },
+            {
+              "label": "Deux jours confirmés",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Bonjour Awa, merci pour ta proposition…",
+          "tip": "ça m'arrangerait n'est pas encore un oui, écrivez-le franchement",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour Awa, c'est gentil de me proposer ça, ça m'arrangerait bien en ce moment.",
+              "pedagogicalNote": "Le message ne dit pas si vous acceptez l'échange proposé."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour Awa, oui, j'accepte l'échange avec plaisir. Je travaillerai ton mercredi et tu prends mon samedi.",
+              "pedagogicalNote": "L'accord est explicite et le jour de chacun est confirmé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour Awa, c'est d'accord pour l'échange : je prends ton mercredi 14 et tu fais mon samedi 17. Je préviens la responsable aujourd'hui.",
+              "pedagogicalNote": "L'accord, les dates et l'étape suivante ne laissent aucun doute."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C5-S4",
+          "title": "Proposer une révision à deux",
+          "context": "Vous préparez le TCF avec Ana, une camarade de votre cours. Vous voulez réviser avec elle avant l'examen.",
+          "instruction": "Écrivez-lui un message pour lui proposer une séance de révision.",
+          "uniqueCriterion": "Faire une proposition claire en offrant deux moments possibles.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 45,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "checklist": [
+            "Proposez une séance de révision",
+            "Offrez deux moments possibles"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Deux créneaux",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Salut Ana, l'examen approche et je…",
+          "tip": "deux options valent mieux qu'une, votre camarade choisit plus vite",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Salut Ana, il faudrait qu'on révise ensemble avant l'examen, ce serait bien pour nous deux.",
+              "pedagogicalNote": "L'intention est là, mais aucune proposition concrète n'est faite."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Salut Ana, ça te dit de réviser ensemble avant l'examen ? Je suis libre mardi après-midi ou samedi matin, comme tu préfères.",
+              "pedagogicalNote": "La proposition est nette et les deux créneaux permettent de choisir."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Salut Ana, je te propose qu'on révise l'expression écrite ensemble. Mardi après-midi à la bibliothèque ou samedi matin chez moi : dis-moi ce qui t'arrange le mieux.",
+              "pedagogicalNote": "Le sujet, les deux options et le lieu rendent la proposition facile à accepter."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C5-S5",
+          "title": "Refuser et proposer autre chose",
+          "context": "Votre voisine vous demande de garder ses deux enfants vendredi soir. Vous n'êtes pas disponible ce soir-là.",
+          "instruction": "Répondez-lui par un message.",
+          "uniqueCriterion": "Refuser clairement et proposer une autre solution.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 70,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "checklist": [
+            "Refusez clairement pour vendredi soir",
+            "Proposez une autre solution"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Refus puis solution",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour Madame, merci de penser à…",
+          "tip": "un non clair suivi d'une solution reste un message aidant",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour Madame Traoré, vendredi soir ce n'est pas facile pour moi, j'ai déjà quelque chose de prévu et je rentre tard. Je suis désolée, c'est vraiment dommage.",
+              "pedagogicalNote": "Le refus est compris, mais aucune autre solution n'est proposée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour Madame Traoré, je ne peux malheureusement pas garder vos enfants vendredi soir, je travaille jusqu'à 21 h. En revanche, je suis libre samedi après-midi si cela peut vous aider.",
+              "pedagogicalNote": "Le refus est clair et l'alternative rend le message utile."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour Madame Traoré, je suis désolée, je ne peux pas garder vos enfants vendredi soir : je termine à 21 h. Je peux les garder samedi après-midi, ou vous donner le numéro de Julie, du deuxième étage, qui fait souvent du baby-sitting.",
+              "pedagogicalNote": "Un non net et deux solutions concrètes : le message reste vraiment aidant."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Formuler une invitation ou une proposition et répondre clairement à celle d'une autre personne."
+    },
+    {
+      "code": "EE1-C6",
+      "title": "S'excuser et expliquer une raison",
+      "description": "S'excuser sans se perdre en explications : le TCF attend une excuse claire suivie d'une raison compréhensible, en quelques mots seulement. Cette compétence entraîne ce couple excuse + cause.",
+      "targetLevel": "A2",
+      "displayOrder": 6,
+      "prompts": [
+        {
+          "code": "EE1-C6-S1",
+          "title": "Prévenir d'un retard",
+          "context": "Vous devez rejoindre votre amie Camille à 18 h au restaurant. Vous aurez une vingtaine de minutes de retard.",
+          "instruction": "Écrivez-lui un court message.",
+          "uniqueCriterion": "Présenter une excuse et donner la raison du retard.",
+          "recommendedMinWords": 12,
+          "recommendedMaxWords": 30,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "checklist": [
+            "Prévenez Camille de votre retard",
+            "Présentez vos excuses",
+            "Donnez la raison"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Excuse et raison",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Salut Camille, petit contretemps ce soir…",
+          "tip": "une excuse sans raison laisse toujours une question en suspens",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Salut Camille, je vais avoir un peu de retard, à tout de suite !",
+              "pedagogicalNote": "L'excuse et la raison manquent toutes les deux."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Salut Camille, désolée, j'aurai vingt minutes de retard : mon bus est bloqué dans les embouteillages.",
+              "pedagogicalNote": "Excuse et raison en une phrase : c'est exactement ce qui est attendu."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Salut Camille, je suis vraiment désolée : mon bus est bloqué depuis dix minutes. J'arriverai vers 18 h 20, commence sans moi !",
+              "pedagogicalNote": "L'excuse, la cause et l'heure d'arrivée règlent la situation d'un coup."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C6-S2",
+          "title": "Un livre rendu en retard",
+          "context": "Vous deviez rapporter un livre à la médiathèque il y a une semaine. Vous l'avez oublié.",
+          "instruction": "Écrivez un message à la médiathèque.",
+          "uniqueCriterion": "S'excuser du retard et en donner la raison.",
+          "recommendedMinWords": 15,
+          "recommendedMaxWords": 35,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "checklist": [
+            "Excusez-vous pour le retard",
+            "Expliquez la raison de l'oubli"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Excuse puis cause",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour, je devais rapporter un livre…",
+          "tip": "annoncer votre passage ne remplace pas les excuses attendues",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, je passerai rendre le livre cette semaine, je n'ai pas eu le temps avant.",
+              "pedagogicalNote": "Aucune excuse n'est présentée, seulement une explication rapide."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je suis désolé pour ce retard : j'ai oublié de rapporter le livre avant mon déplacement. Je le rapporte demain.",
+              "pedagogicalNote": "L'excuse est présentée et la raison est simple mais suffisante."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, je vous prie de m'excuser pour ce retard : j'ai été absent une semaine pour raisons familiales et le livre est resté chez moi. Je le rapporte demain matin.",
+              "pedagogicalNote": "Excuse formelle et raison crédible, sans récit inutile."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C6-S3",
+          "title": "Expliquer une absence au travail",
+          "context": "Vous n'êtes pas venu travailler hier et vous n'avez pas pu prévenir votre responsable à temps.",
+          "instruction": "Écrivez-lui un message aujourd'hui.",
+          "uniqueCriterion": "Présenter une excuse et donner une raison précise de l'absence.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 45,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "checklist": [
+            "Présentez vos excuses au responsable",
+            "Donnez une raison précise"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Raison précise",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Bonjour Monsieur, au sujet de mon…",
+          "tip": "je n'ai pas pu venir n'explique toujours pas pourquoi",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour Monsieur, désolé pour hier, je n'ai pas pu venir. Je serai là aujourd'hui normalement.",
+              "pedagogicalNote": "L'excuse est là, mais la raison de l'absence reste inconnue."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour Monsieur, je vous prie de m'excuser pour mon absence d'hier. Ma fille était malade et j'ai dû l'emmener aux urgences.",
+              "pedagogicalNote": "Excuse claire et raison précise : le responsable comprend la situation."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour Monsieur Delaunay, je vous prie de m'excuser pour mon absence d'hier. Ma fille a été hospitalisée dans la nuit et je n'ai pas pu prévenir plus tôt. Je vous apporte le certificat aujourd'hui.",
+              "pedagogicalNote": "L'excuse, la raison et le justificatif ferment le sujet proprement."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C6-S4",
+          "title": "S'excuser du bruit",
+          "context": "Vous avez fait des travaux dans votre appartement samedi matin. Votre voisine du dessous a été dérangée.",
+          "instruction": "Écrivez-lui un mot que vous glisserez dans sa boîte aux lettres.",
+          "uniqueCriterion": "S'excuser pour le bruit et en expliquer la cause, sans longue justification.",
+          "recommendedMinWords": 25,
+          "recommendedMaxWords": 45,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "checklist": [
+            "Excusez-vous pour le bruit",
+            "Expliquez la cause en une phrase"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Explication courte",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour Madame, au sujet de samedi…",
+          "tip": "une cause en une phrase vaut mieux qu'une longue justification",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, j'espère que le bruit de samedi ne vous a pas trop dérangée. Bon week-end à vous.",
+              "pedagogicalNote": "Le bruit est évoqué, mais l'excuse et la cause manquent."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour Madame, je m'excuse pour le bruit de samedi matin : je devais changer le carrelage de la salle de bain.",
+              "pedagogicalNote": "Excuse et cause en une phrase, sans se justifier longuement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour Madame Nguyen, je vous prie d'excuser le bruit de samedi matin : je remplaçais le carrelage de la salle de bain. Les travaux sont terminés, vous ne serez plus dérangée.",
+              "pedagogicalNote": "L'excuse, la cause et la fin du dérangement rassurent la voisine."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C6-S5",
+          "title": "Justifier l'absence de son enfant",
+          "context": "Votre fils n'est pas allé à l'école mardi ni mercredi. L'enseignante demande un mot des parents.",
+          "instruction": "Écrivez ce mot à l'enseignante.",
+          "uniqueCriterion": "Présenter une excuse et expliquer clairement la raison de l'absence.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 70,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "checklist": [
+            "Présentez vos excuses pour son absence",
+            "Expliquez clairement la raison"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Excuse et raison",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour Madame, je vous écris au…",
+          "tip": "signaler l'absence ne suffit pas, excusez-la et expliquez-la",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour Madame, mon fils Yanis n'était pas à l'école mardi et mercredi. Il reviendra jeudi normalement. Merci de votre compréhension.",
+              "pedagogicalNote": "L'absence est signalée, mais ni excuse ni raison n'apparaissent."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour Madame, je vous prie d'excuser l'absence de mon fils Yanis mardi et mercredi. Il avait beaucoup de fièvre et le médecin lui a demandé de rester à la maison deux jours. Il revient jeudi.",
+              "pedagogicalNote": "Excuse et raison précise : le mot remplit exactement son rôle."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour Madame Perrin, je vous prie d'excuser l'absence de Yanis mardi 12 et mercredi 13. Il a eu une forte fièvre et le médecin a conseillé deux jours de repos. Il reprendra jeudi et rattrapera les exercices ce week-end. Cordialement, Fatou Sow.",
+              "pedagogicalNote": "L'excuse, la cause et la suite donnée font un mot complet et sûr."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Présenter une excuse compréhensible et donner une cause suffisante sans écrire un récit trop long."
+    },
+    {
+      "code": "EE1-C7",
+      "title": "Décrire simplement une personne, un lieu ou une situation",
+      "description": "Décrire, c'est donner les quelques détails qui permettent à l'autre de se représenter une personne, un lieu ou une situation. Cette compétence entraîne la description courte, concrète et utile au lecteur.",
+      "targetLevel": "A2",
+      "displayOrder": 7,
+      "prompts": [
+        {
+          "code": "EE1-C7-S1",
+          "title": "Décrire un studio à louer",
+          "context": "Vous quittez votre studio le mois prochain et un ami cherche un logement. Vous voulez lui en parler.",
+          "instruction": "Écrivez-lui un court message pour décrire ce studio.",
+          "uniqueCriterion": "Donner au moins deux caractéristiques concrètes du logement.",
+          "recommendedMinWords": 15,
+          "recommendedMaxWords": 35,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "checklist": [
+            "Annoncez que le studio se libère",
+            "Donnez deux caractéristiques concrètes"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Détails concrets",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Salut, mon studio se libère le…",
+          "tip": "très bien ne décrit rien, préférez une surface ou un loyer",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Salut, mon studio se libère le mois prochain, il est vraiment très bien, tu devrais le prendre.",
+              "pedagogicalNote": "« Très bien » ne décrit rien : votre ami ignore à quoi s'attendre."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Salut, mon studio se libère le mois prochain. Il fait 25 m², il est au calme et le loyer est de 480 euros.",
+              "pedagogicalNote": "Surface, environnement et loyer suffisent à se faire une idée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Salut, mon studio se libère le mois prochain : 25 m², cuisine équipée, grande fenêtre côté cour, très calme. Le loyer est de 480 euros charges comprises.",
+              "pedagogicalNote": "Chaque détail est concret et répond à une vraie question du locataire."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C7-S2",
+          "title": "Qui viendra chercher les clés",
+          "context": "Vous ne pouvez pas être présent pour rendre les clés à l'agence immobilière. Votre belle-sœur viendra à votre place.",
+          "instruction": "Écrivez un message à l'agence pour qu'on la reconnaisse à son arrivée.",
+          "uniqueCriterion": "Donner deux ou trois caractéristiques qui permettent de reconnaître la personne.",
+          "recommendedMinWords": 20,
+          "recommendedMaxWords": 40,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "checklist": [
+            "Annoncez la venue de votre belle-sœur",
+            "Donnez son nom",
+            "Décrivez deux détails reconnaissables"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Détails reconnaissables",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Bonjour, ma belle-sœur viendra chercher les…",
+          "tip": "imaginez la personne qui l'attend, que doit-elle repérer d'un coup d'œil",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, ma belle-sœur viendra chercher les clés à ma place vendredi matin, merci de les lui donner.",
+              "pedagogicalNote": "Rien ne permet à l'agence de reconnaître la personne annoncée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, ma belle-sœur Rita Costa viendra chercher les clés vendredi matin. Elle a une cinquantaine d'années, les cheveux courts et gris, et elle porte des lunettes.",
+              "pedagogicalNote": "Le nom et deux détails physiques suffisent à l'identifier."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, ma belle-sœur Rita Costa passera vendredi vers 10 h. Elle a une cinquantaine d'années, les cheveux courts et gris, des lunettes rondes, et elle aura sa pièce d'identité.",
+              "pedagogicalNote": "Les détails sont précis et la pièce d'identité lève tout doute."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C7-S3",
+          "title": "Un sac oublié dans le bus",
+          "context": "Vous avez laissé votre sac dans le bus hier soir. Vous écrivez au service des objets trouvés.",
+          "instruction": "Écrivez un message décrivant le sac que vous avez perdu.",
+          "uniqueCriterion": "Décrire le sac avec des caractéristiques précises : couleur, taille et contenu.",
+          "recommendedMinWords": 30,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "checklist": [
+            "Signalez l'oubli dans le bus",
+            "Donnez la couleur et la taille",
+            "Décrivez le contenu du sac"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois précisions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Bonjour, j'ai oublié mon sac dans…",
+          "tip": "un détail unique, comme une fermeture cassée, fait toute la différence",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, j'ai oublié mon sac dans le bus 27 hier soir. Est-ce que quelqu'un l'a rapporté ? C'est très important pour moi.",
+              "pedagogicalNote": "Sans description, le service ne peut pas retrouver le sac."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, j'ai oublié mon sac dans le bus 27 hier soir. C'est un sac à dos noir de taille moyenne, avec un cahier bleu et une trousse rouge à l'intérieur.",
+              "pedagogicalNote": "Couleur, taille et contenu permettent une recherche efficace."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, j'ai oublié mon sac dans le bus 27 hier vers 19 h. C'est un sac à dos noir de taille moyenne, avec une bande grise sur le devant et une fermeture cassée à droite. Il contient un cahier bleu et une trousse rouge.",
+              "pedagogicalNote": "Le détail de la fermeture cassée rend le sac identifiable entre tous."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C7-S4",
+          "title": "Parler de votre quartier",
+          "context": "Un ami installé à l'étranger cherche un logement dans votre ville. Il vous demande si votre quartier lui conviendrait.",
+          "instruction": "Écrivez-lui un message pour lui décrire votre quartier.",
+          "uniqueCriterion": "Donner trois caractéristiques utiles du quartier.",
+          "recommendedMinWords": 30,
+          "recommendedMaxWords": 55,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "checklist": [
+            "Choisissez trois caractéristiques du quartier",
+            "Restez concret et utile"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Trois caractéristiques",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Salut, mon quartier pourrait bien te…",
+          "tip": "agréable reste un avis, le tramway à cinq minutes est une information",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Salut, mon quartier est très agréable, les gens sont sympas et j'aime bien y habiter depuis trois ans.",
+              "pedagogicalNote": "L'avis est donné, mais rien n'est décrit concrètement."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Salut, mon quartier est calme et bien desservi : il y a le tramway à cinq minutes, un marché le samedi et plusieurs écoles.",
+              "pedagogicalNote": "Transports, commerces et écoles : trois informations vraiment utiles."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Salut, mon quartier est calme et pratique : tramway à cinq minutes, marché le samedi matin, deux écoles et un centre de santé. Les loyers sont un peu plus bas qu'au centre-ville.",
+              "pedagogicalNote": "La description est concrète et anticipe la question du budget."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C7-S5",
+          "title": "Décrire un vol à l'assurance",
+          "context": "Votre vélo a été volé devant la gare pendant que vous étiez au travail. Vous déclarez ce vol à votre assurance.",
+          "instruction": "Écrivez un message qui décrit ce qui s'est passé et le vélo volé.",
+          "uniqueCriterion": "Décrire la situation et le vélo assez précisément pour être compris sans photo.",
+          "recommendedMinWords": 45,
+          "recommendedMaxWords": 70,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "checklist": [
+            "Racontez précisément le vol",
+            "Décrivez le vélo en détail"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Description précise",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Ton formel",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Madame, Monsieur, je déclare le vol…",
+          "tip": "écrivez comme si votre assureur ne verra jamais aucune photo",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Madame, Monsieur, mon vélo a été volé devant la gare. Je suis très ennuyé car j'en ai besoin tous les jours pour aller travailler. Je compte sur vous pour m'aider rapidement.",
+              "pedagogicalNote": "Le message dit la conséquence mais ne décrit ni la scène ni le vélo."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Madame, Monsieur, mon vélo a été volé jeudi 5 juin devant la gare de Rennes. Je l'avais attaché au parking à vélos vers 8 h et il avait disparu à 18 h. C'est un vélo de ville vert, de marque Btwin, avec un panier à l'avant.",
+              "pedagogicalNote": "Lieu, moment et description du vélo : le dossier est compréhensible."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Madame, Monsieur, je déclare le vol de mon vélo, jeudi 5 juin, au parking à vélos de la gare de Rennes. Je l'avais attaché avec un antivol en U à 8 h ; à 18 h, seul l'antivol coupé restait au sol. C'est un vélo de ville vert de marque Btwin, avec un panier avant et une selle marron.",
+              "pedagogicalNote": "L'antivol coupé et les détails du vélo racontent la scène avec précision."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Donner quelques caractéristiques utiles et compréhensibles adaptées au contexte du message."
+    },
+    {
+      "code": "EE1-C8",
+      "title": "Relier les informations dans un message complet",
+      "description": "Un message complet ne tient pas en une phrase : il annonce, informe, puis se termine. Cette compétence entraîne l'enchaînement de plusieurs phrases simples et la clôture naturelle du message.",
+      "targetLevel": "A2",
+      "displayOrder": 8,
+      "prompts": [
+        {
+          "code": "EE1-C8-S1",
+          "title": "Changer le lieu d'un rendez-vous",
+          "context": "Vous deviez retrouver votre amie Lucie devant le musée samedi. Le musée est fermé ce jour-là.",
+          "instruction": "Écrivez-lui un message en trois phrases : annoncez le changement, donnez le nouveau lieu, puis terminez le message.",
+          "uniqueCriterion": "Enchaîner trois phrases : l'annonce, la nouvelle information, puis une formule finale.",
+          "recommendedMinWords": 30,
+          "recommendedMaxWords": 60,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 1,
+          "checklist": [
+            "Annoncez le changement",
+            "Donnez le nouveau lieu",
+            "Terminez par une formule finale"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tutoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Trois phrases",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Salut Lucie, petite nouvelle pour samedi…",
+          "tip": "une annonce sans nouveau lieu laisse votre amie sans solution",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Salut Lucie, le musée est fermé samedi.",
+              "pedagogicalNote": "L'annonce est là, mais ni le nouveau lieu ni la clôture n'apparaissent."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Salut Lucie, le musée est fermé samedi, donc on ne peut pas s'y retrouver. On peut se voir au café de la place à 14 h. Dis-moi si ça te va !",
+              "pedagogicalNote": "Les trois étapes sont là et le message se termine naturellement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Salut Lucie, petite mauvaise nouvelle : le musée est fermé samedi. Je te propose qu'on se retrouve plutôt au café de la place, à 14 h. Confirme-moi et je réserve une table. À samedi !",
+              "pedagogicalNote": "Les phrases s'enchaînent sans effort et la fin appelle une réponse."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C8-S2",
+          "title": "Reporter une réunion d'équipe",
+          "context": "La réunion d'équipe prévue jeudi ne peut pas avoir lieu. Elle est reportée au lundi suivant.",
+          "instruction": "Écrivez un message à votre collègue Sarah en trois phrases : le changement, la nouvelle date, une formule finale.",
+          "uniqueCriterion": "Enchaîner l'annonce, la nouvelle date et une phrase de clôture polie.",
+          "recommendedMinWords": 30,
+          "recommendedMaxWords": 60,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "EASY",
+          "displayOrder": 2,
+          "checklist": [
+            "Annoncez le report",
+            "Donnez la nouvelle date",
+            "Terminez par une phrase polie"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois phrases",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Clôture polie",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour Sarah, la réunion de jeudi…",
+          "tip": "une réunion reportée sans nouvelle date laisse toute l'équipe bloquée",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour Sarah, la réunion de jeudi est annulée. Merci.",
+              "pedagogicalNote": "La nouvelle date manque et la clôture est trop brève pour informer."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour Sarah, la réunion de jeudi est reportée. Elle aura lieu lundi 15 à 10 h dans la salle 2. Bonne journée à toi.",
+              "pedagogicalNote": "Les trois éléments s'enchaînent et le message se termine correctement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour Sarah, la réunion de jeudi ne peut pas se tenir, faute de salle disponible. Elle est donc reportée au lundi 15 à 10 h, en salle 2. Merci de prévenir Karim, et bonne journée !",
+              "pedagogicalNote": "« Donc » relie les phrases et la fin distribue une consigne utile."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C8-S3",
+          "title": "Message complet au propriétaire",
+          "context": "Le chauffage de votre appartement ne fonctionne plus depuis deux jours. Vous écrivez à votre propriétaire.",
+          "instruction": "Écrivez un message qui annonce le problème, donne une précision et se termine poliment.",
+          "uniqueCriterion": "Relier les phrases avec au moins un mot de liaison et terminer par une formule de clôture.",
+          "recommendedMinWords": 35,
+          "recommendedMaxWords": 65,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 3,
+          "checklist": [
+            "Annoncez la panne de chauffage",
+            "Ajoutez une précision utile",
+            "Reliez vos phrases par un connecteur",
+            "Terminez par une formule de clôture"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Connecteurs",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour Monsieur, le chauffage ne fonctionne…",
+          "tip": "donc, mais et car suffisent à relier vos phrases entre elles",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour Monsieur, le chauffage ne marche plus. Il fait froid. Deux jours. Merci.",
+              "pedagogicalNote": "Les informations sont posées sans lien et la clôture reste très sèche."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour Monsieur, le chauffage ne fonctionne plus depuis mardi, donc l'appartement est très froid le matin. J'ai essayé de le rallumer, mais rien ne change. Pouvez-vous appeler un technicien ? Cordialement, Yasmine.",
+              "pedagogicalNote": "« Donc » et « mais » relient les phrases, et la clôture est correcte."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour Monsieur Aubert, le chauffage ne fonctionne plus depuis mardi soir, et la température ne dépasse pas 15 degrés le matin. J'ai vérifié le thermostat, mais l'appareil ne redémarre pas. Pourriez-vous faire intervenir un technicien cette semaine ? Je vous remercie. Cordialement, Yasmine Belkacem.",
+              "pedagogicalNote": "Les liens logiques guident la lecture jusqu'à la demande et à la signature."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C8-S4",
+          "title": "Reporter un rendez-vous administratif",
+          "context": "Vous avez un rendez-vous à la caisse d'allocations familiales lundi. Vous ne pourrez pas vous y rendre.",
+          "instruction": "Écrivez un courriel qui explique la situation et demande un autre rendez-vous.",
+          "uniqueCriterion": "Enchaîner les informations dans un ordre logique et terminer par une formule de clôture.",
+          "recommendedMinWords": 40,
+          "recommendedMaxWords": 70,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 4,
+          "checklist": [
+            "Rappelez le rendez-vous prévu",
+            "Expliquez votre empêchement",
+            "Demandez une autre date",
+            "Terminez par une formule de clôture"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Ordre logique",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Madame, Monsieur, j'ai un rendez-vous lundi…",
+          "tip": "rappelez le rendez-vous avant d'expliquer, votre lecteur suivra sans effort",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Madame, Monsieur, je voudrais un autre rendez-vous. Lundi je travaille. Mon dossier est le 774512. Voilà.",
+              "pedagogicalNote": "Les informations arrivent dans le désordre et la fin manque de clôture."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Madame, Monsieur, j'ai un rendez-vous lundi 9 juin à 14 h pour mon dossier 774512. Je ne pourrai pas m'y rendre car je travaille ce jour-là. Pourriez-vous me proposer une autre date ? Cordialement, Boubacar Diarra.",
+              "pedagogicalNote": "L'ordre est logique : rappel, empêchement, demande, puis clôture."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Madame, Monsieur, j'ai rendez-vous le lundi 9 juin à 14 h pour mon dossier n° 774512. Je ne pourrai malheureusement pas m'y présenter, car je travaille ce jour-là jusqu'à 18 h. Pourriez-vous me proposer une autre date, de préférence un mercredi ? Je vous remercie par avance. Cordialement, Boubacar Diarra.",
+              "pedagogicalNote": "Chaque phrase prépare la suivante et la clôture referme le message."
+            }
+          ]
+        },
+        {
+          "code": "EE1-C8-S5",
+          "title": "Suspendre son inscription au club",
+          "context": "Vous êtes inscrit dans un club de natation. Vous devez arrêter pendant trois mois pour raisons de santé.",
+          "instruction": "Écrivez au responsable du club : annoncez votre situation, expliquez, posez votre question et terminez le message.",
+          "uniqueCriterion": "Enchaîner quatre informations dans un message suivi et le terminer par une formule adaptée.",
+          "recommendedMinWords": 45,
+          "recommendedMaxWords": 70,
+          "recommendedDurationSeconds": null,
+          "difficultyLevel": "HARD",
+          "displayOrder": 5,
+          "checklist": [
+            "Annoncez votre interruption",
+            "Expliquez la raison de santé",
+            "Posez votre question au responsable",
+            "Terminez par une formule adaptée"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Quatre étapes",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour Monsieur, je dois malheureusement interrompre…",
+          "tip": "avancez étape par étape, chaque phrase prépare la suivante",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, je dois arrêter la natation trois mois. Est-ce que je peux revenir après ? Merci.",
+              "pedagogicalNote": "Le message va trop vite : pas d'explication, pas de vraie clôture."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour Monsieur, je vous informe que je dois interrompre la natation pendant trois mois. Mon médecin m'a interdit le sport après une opération de l'épaule. Est-il possible de suspendre mon inscription et de la reprendre en septembre ? Merci et bonne journée.",
+              "pedagogicalNote": "Les quatre informations se suivent et le message se ferme correctement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour Monsieur Roussel, je dois malheureusement interrompre la natation pendant trois mois. Mon médecin m'a interdit le sport à la suite d'une opération de l'épaule, et la reprise est prévue en septembre. Pourriez-vous me dire s'il est possible de suspendre mon inscription plutôt que de l'annuler ? Je vous remercie. Cordialement, Elena Marku.",
+              "pedagogicalNote": "Le message avance étape par étape et se termine par une clôture soignée."
+            }
+          ]
+        }
+      ],
+      "generalCriterion": "Enchaîner plusieurs phrases simples et terminer le message naturellement."
+    }
+  ]
+}

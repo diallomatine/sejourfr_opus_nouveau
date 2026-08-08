@@ -21,11 +21,15 @@ import styles from "./production.module.css";
 /**
  * La note et **l'échelle sur laquelle elle se lit**.
  *
- * Notre note EST celle du TCF (0 → A1 non atteint, 1 → A1, 2-5 → A2, 6-9 → B1,
- * 10-20 → B2). Sans cette échelle sous les yeux, un 4,5/20 se lit comme une
- * catastrophe scolaire alors qu'il vaut A2 : c'est exactement ce que cette
- * carte corrige. D'où l'absence de tout pourcentage et de toute jauge « sur 20
- * points » — ce serait redire l'échelle française qu'on cherche à désamorcer.
+ * Notre note est une **estimation pédagogique exprimée sur l'échelle du TCF**
+ * (0 → A1 non atteint, 1 → A1, 2-5 → A2, 6-9 → B1, 10-20 → B2) : l'échelle est
+ * bien celle de l'examen, la correction est la nôtre — elle n'est pas celle de
+ * France Éducation international, qui fait corriger chaque production par
+ * plusieurs évaluateurs humains indépendants. Sans cette échelle sous les yeux,
+ * un 4,5/20 se lit comme une catastrophe scolaire alors qu'il vaut A2 : c'est
+ * exactement ce que cette carte corrige. D'où l'absence de tout pourcentage et
+ * de toute jauge « sur 20 points » — ce serait redire l'échelle française qu'on
+ * cherche à désamorcer.
  *
  * Deux règles vivent ici, et nulle part ailleurs :
  *
@@ -178,8 +182,8 @@ function TcfScale({
         ))}
       </div>
       <p className={styles.scaleFoot}>
-        Notre note est celle du TCF : elle se lit sur cette échelle, pas comme
-        une note scolaire sur 20.
+        Notre note est une estimation, exprimée sur l&apos;échelle du TCF : elle
+        se lit ainsi, pas comme une note scolaire sur 20.
       </p>
     </div>
   );

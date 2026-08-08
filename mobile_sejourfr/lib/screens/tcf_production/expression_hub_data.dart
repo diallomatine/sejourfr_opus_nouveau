@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/api/repositories.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
+import 'production_catalog.dart';
 
 /// Session d'examen blanc TCF EE/EO : un attempt avec ses 3 (ou plus)
 /// soumissions. Le niveau global d'une session n'est plus dérivé ici par tâche
@@ -37,10 +37,31 @@ class ExamSession {
 class HubData {
   const HubData(
       {required this.countByTache,
+      required this.doneByTache,
       required this.exams,
       required this.singles});
 
   final Map<int, int> countByTache;
+
+  /// Sujets **distincts déjà produits** par tâche. Calculé côté client depuis
+  /// les soumissions déjà servies par `listMine` (aucun endpoint ajouté) : un
+  /// sujet repris deux fois ne compte qu'une fois, et les soumissions faites
+  /// en examen blanc comptent comme les autres — le candidat a bien traité ce
+  /// sujet.
+  final Map<int, int> doneByTache;
+
+  /// Total des sujets de l'épreuve, toutes tâches confondues.
+  int get totalSubjects =>
+      countByTache.values.fold(0, (sum, value) => sum + value);
+
+  /// Sujets distincts déjà produits, toutes tâches confondues.
+  int get doneSubjects =>
+      doneByTache.values.fold(0, (sum, value) => sum + value);
+
+  /// Progression globale de l'épreuve, 0-100. `0` tant qu'aucun sujet n'est
+  /// publié : on n'affiche jamais une barre pleine sur un contenu vide.
+  double get percent =>
+      totalSubjects == 0 ? 0 : (doneSubjects / totalSubjects) * 100;
 
   /// Sessions d'examen blanc, les plus récentes d'abord.
   final List<ExamSession> exams;
@@ -50,17 +71,42 @@ class HubData {
   final List<ProductionSubmissionDto> singles;
 }
 
-/// Source unique des données du hub EE/EO et de la page « Examens blancs ».
-final expressionHubProvider = FutureProvider.autoDispose
-    .family<HubData, EpreuveType>((ref, epreuve) async {
-  final repo = ref.watch(productionRepositoryProvider);
-  final tasks = await repo.listTasks(epreuve: epreuve);
+/// Vue d'épreuve EE/EO, **dérivée sans réseau** du catalogue déjà chargé.
+/// Alimentait le hub d'épreuve (supprimé) ; sert désormais la page « Examens
+/// blancs » du parcours.
+///
+/// Provider synchrone : arriver sur le mode « Examens » depuis « Sujets » ne
+/// coûte plus les deux appels d'épreuve, ils ont déjà été payés.
+final expressionHubProvider =
+    Provider.autoDispose.family<AsyncValue<HubData>, EpreuveType>(
+  (ref, epreuve) =>
+      ref.watch(productionCatalogProvider(epreuve)).whenData(buildHubData),
+);
+
+/// Agrégation pure du catalogue d'une épreuve. Extraite du provider pour être
+/// réutilisable (les bilans d'examen en ont besoin) et testable sans réseau.
+HubData buildHubData(ProductionCatalog catalog) {
+  final tasks = catalog.tasks;
   final countByTache = <int, int>{};
   for (final t in tasks) {
     countByTache[t.tacheNumero] = (countByTache[t.tacheNumero] ?? 0) + 1;
   }
 
-  final subs = await repo.listMine(epreuve: epreuve, limit: 200);
+  final subs = catalog.submissions;
+
+  // Sujets distincts traités, par tâche. On repart des `tasks` (et non du
+  // `tacheNumero` porté par la soumission) pour ne compter que des sujets
+  // encore publiés — sinon un sujet retiré du catalogue gonflerait le
+  // dénominateur d'un côté et le numérateur de l'autre.
+  final treatedTaskIds =
+      subs.map((s) => s.productionTaskId).whereType<String>().toSet();
+  final doneByTache = <int, int>{};
+  for (final t in tasks) {
+    if (treatedTaskIds.contains(t.id)) {
+      doneByTache[t.tacheNumero] = (doneByTache[t.tacheNumero] ?? 0) + 1;
+    }
+  }
+
   final byAttempt = <String, List<ProductionSubmissionDto>>{};
   for (final s in subs) {
     final id = s.attemptId;
@@ -78,5 +124,9 @@ final expressionHubProvider = FutureProvider.autoDispose
   }
   exams.sort((a, b) => b.lastSubmittedAt.compareTo(a.lastSubmittedAt));
   singles.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
-  return HubData(countByTache: countByTache, exams: exams, singles: singles);
-});
+  return HubData(
+      countByTache: countByTache,
+      doneByTache: doneByTache,
+      exams: exams,
+      singles: singles);
+}

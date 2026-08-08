@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/providers/shared_prefs_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
@@ -11,16 +11,6 @@ import '../../core/widgets/eyebrow.dart';
 import '../../core/widgets/sejourfr_logo.dart';
 
 const _kOnboardingSeenKey = 'sejourfr.onboardingSeen';
-
-/// Instance synchrone de SharedPreferences. Préchargée dans main.dart et
-/// injectée via `ProviderScope.overrides`. Lire ce provider sans override
-/// lèvera une erreur (volontaire : on veut un état toujours disponible
-/// dès le premier frame).
-final sharedPrefsProvider = Provider<SharedPreferences>((_) {
-  throw UnimplementedError(
-    'sharedPrefsProvider doit être overridé dans main.dart',
-  );
-});
 
 /// Flag synchrone "l'onboarding a déjà été vu". Initialisé depuis les
 /// prefs au tout premier read, puis mis à jour à la fin de l'onboarding.

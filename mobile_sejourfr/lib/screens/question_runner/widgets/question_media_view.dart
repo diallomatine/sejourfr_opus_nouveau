@@ -8,7 +8,7 @@ import '../../../core/api/api_config.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/question_models.dart';
 import '../../../core/theme/app_theme.dart';
-import 'audio_player.dart';
+import '../../../core/widgets/audio_player.dart';
 
 /// Affiche le média associé à une question TCF.
 ///

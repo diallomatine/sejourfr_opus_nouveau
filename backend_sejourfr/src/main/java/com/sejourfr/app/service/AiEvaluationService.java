@@ -91,6 +91,7 @@ public class AiEvaluationService {
     private final ProductionValidityService validityService;
     private final ProductionSecondePasseService secondePasseService;
     private final ProductionFluiditeService fluiditeService;
+    private final EvaluationRefusalMetrics refusalMetrics;
     private final ProductionEvaluationProperties props;
 
     private static BigDecimal extractNote(Map<String, Object> feedback) {
@@ -212,15 +213,28 @@ public class AiEvaluationService {
             return persistProductionInvalide(sub, task, verdict);
         }
 
+        // Contrat v6 : la production part DECOUPEE EN SEGMENTS NUMEROTES et le
+        // correcteur ne renvoie qu'un numero. Une meme decoupe sert au prompt, a
+        // la validation et a la resolution — elle est deterministe, donc les
+        // trois lisent exactement la meme chose.
+        EvaluationProductionSegments segments = preuveParNumero(llmClient.getPromptVersion())
+                ? EvaluationProductionSegments.of(input.production(), task.getEpreuve())
+                : null;
+        if (segments != null && segments.taille() == 0) {
+            throw new AiEvaluationException("Aucun segment citable dans la production de la submission "
+                    + submissionId + " : rien a soumettre au correcteur.");
+        }
+
         String systemPrompt = promptBuilder.buildSystemPrompt();
-        String userPrompt = promptBuilder.buildUserPrompt(task, input.production(), input.litteral(), null);
+        String userPrompt = promptBuilder.buildUserPrompt(
+                task, input.production(), input.litteral(), null, segments);
 
         ValidatedOutcome validated = evaluateValidated(
                 llmClient, systemPrompt, userPrompt, task, input.production(), submissionId);
         EvaluationLlmClient.Outcome outcome = validated.outcome();
         ProductionSecondePasseService.Passe passe = postProcess(
-                outcome, llmClient.getModelName(), sub, task, verdict, input.production(),
-                validated.avertissements(), submissionId);
+                outcome, llmClient.getModelName(), llmClient.getPromptVersion(), segments,
+                sub, task, verdict, input.production(), validated.avertissements(), submissionId);
 
         int tokensIn = nz(outcome.inputTokens());
         int tokensOut = nz(outcome.outputTokens());
@@ -242,8 +256,9 @@ public class AiEvaluationService {
                             client2, systemPrompt, userPrompt, task, input.production(), submissionId);
                     EvaluationLlmClient.Outcome outcome2 = validated2.outcome();
                     ProductionSecondePasseService.Passe passe2 = postProcess(
-                            outcome2, client2.getModelName(), sub, task, verdict,
-                            input.production(), validated2.avertissements(), submissionId);
+                            outcome2, client2.getModelName(), client2.getPromptVersion(), segments,
+                            sub, task, verdict, input.production(), validated2.avertissements(),
+                            submissionId);
                     passe = secondePasseService.arbitrer(passe, passe2, raisons, submissionId);
                     tokensIn += nz(outcome2.inputTokens());
                     tokensOut += nz(outcome2.outputTokens());
@@ -305,8 +320,15 @@ public class AiEvaluationService {
                 first.feedback(), task, rubrics, client.getPromptVersion(), production);
         if (violations.isEmpty()) return new ValidatedOutcome(first, List.of());
 
-        log.warn("Sortie LLM invalide submission={} modele={} — retry semantique unique : {}",
-                submissionId, client.getModelName(), violations);
+        // COMPTEUR PAR MOTIF, pas seulement une trace : sans lui on ne savait pas,
+        // en exploitation, ce que nos propres controles refusaient (cf.
+        // EvaluationRefusalMetrics). La liste brute reste logue pour le debug.
+        EvaluationRefusalMetrics.Refus refus = refusalMetrics.enregistrer(
+                EvaluationRefusalMetrics.Phase.PREMIER_APPEL, violations, first.feedback());
+        log.warn("Sortie LLM refusee submission={} modele={} phase=PREMIER_APPEL motifs={} "
+                        + "citations_refusees={} cumul={} — retry semantique unique : {}",
+                submissionId, client.getModelName(), refus.motifs(), refus.citationsRefusees(),
+                refusalMetrics.compteurs(), violations);
         // Le reessai rappelle la citation refusee critere par critere et enonce
         // la regle de la preuve : sans cela il ne reparait rien (cf.
         // EvaluationRepairPrompt). Aucun controle n'est relache pour autant.
@@ -317,8 +339,19 @@ public class AiEvaluationService {
         List<String> remaining = EvaluationOutputValidator.violations(
                 repaired.feedback(), task, rubrics, client.getPromptVersion(), production);
         if (!remaining.isEmpty()) {
+            EvaluationRefusalMetrics.Refus refusFinal = refusalMetrics.enregistrer(
+                    EvaluationRefusalMetrics.Phase.APRES_REESSAI, remaining, repaired.feedback());
+            log.warn("Sortie LLM refusee submission={} modele={} phase=APRES_REESSAI motifs={} "
+                            + "citations_refusees={} cumul={}",
+                    submissionId, client.getModelName(), refusFinal.motifs(),
+                    refusFinal.citationsRefusees(), refusalMetrics.compteurs());
             String promptVersion = client.getPromptVersion();
+            // v6 y reste eligible, meme si le cas y devient tres improbable : un
+            // numero hors bornes est l'exact equivalent d'une citation non
+            // rattachable, et perdre une correction entiere pour un entier faux
+            // serait le defaut qu'on vient justement de supprimer.
             var unmatchedProof = "v4".equals(promptVersion) || "v5".equals(promptVersion)
+                    || preuveParNumero(promptVersion)
                 ? EvaluationOutputValidator.singleUnmatchedProofCode(remaining)
                 : java.util.Optional.<String>empty();
             if (unmatchedProof.isPresent()) {
@@ -367,9 +400,12 @@ public class AiEvaluationService {
                 continue;
             }
             Map<String, Object> score = new LinkedHashMap<>((Map<String, Object>) rawMap);
-            if (criterionCode.equals(String.valueOf(score.get("code")))
-                    && score.remove("preuve") != null) {
-                removed++;
+            if (criterionCode.equals(String.valueOf(score.get("code")))) {
+                // Contrat v6 : la preuve est un numero, la retirer est la meme
+                // operation. Un seul des deux champs existe a la fois.
+                Object retiree = score.remove("preuve");
+                if (retiree == null) retiree = score.remove("preuve_segment");
+                if (retiree != null) removed++;
             }
             scores.add(score);
         }
@@ -414,7 +450,8 @@ public class AiEvaluationService {
      * seraient pas comparables.
      */
     private ProductionSecondePasseService.Passe postProcess(
-            EvaluationLlmClient.Outcome outcome, String modele,
+            EvaluationLlmClient.Outcome outcome, String modele, String toolSchemaVersion,
+            EvaluationProductionSegments segments,
             ProductionSubmission sub, ProductionTask task,
             ProductionValidityService.Verdict verdict, String production,
             List<String> validationWarnings, UUID submissionId) {
@@ -445,13 +482,22 @@ public class AiEvaluationService {
         if (task.getEpreuve() == EpreuveType.TCF_EO) {
             feedback.remove(CHAMP_VERSION_AMELIOREE);
         }
-        // Le contrat v4 rejette une preuve absente/ambigue avant ce
-        // post-traitement, sauf l'unique preuve retiree explicitement apres un
-        // second appel autrement valide. Les passages acceptes sont remplaces
-        // par leur sous-chaine originale exacte : le candidat ne voit jamais
-        // une recopie approximative ou inventee. Sur un ancien contrat, une
-        // preuve sans match conservateur est retiree.
-        canonicalizePreuves(feedback, production, task.getEpreuve(), submissionId);
+        // PREUVE. Deux chemins, un seul resultat pour les fronts : le champ
+        // `preuve` du feedback porte TOUJOURS un extrait litteral de la
+        // production, jamais une recopie approximative ou inventee.
+        //   - contrat v6 : le correcteur a renvoye un NUMERO de segment, deja
+        //     valide comme existant ; le serveur le remplace par le texte exact
+        //     du segment. Aucun rapprochement, donc aucun refus possible ;
+        //   - contrats anterieurs : le correcteur a recopie un extrait, deja
+        //     rapproche par le validateur (sauf l'unique preuve retiree apres un
+        //     second appel autrement valide) ; on le remplace par sa sous-chaine
+        //     originale exacte, et une preuve sans match conservateur est
+        //     retiree.
+        if (preuveParNumero(toolSchemaVersion)) {
+            resolvePreuveSegments(feedback, segments, submissionId);
+        } else {
+            canonicalizePreuves(feedback, production, task.getEpreuve(), submissionId);
+        }
         // EO : `exemples_corriges` ne doit garder que des reformulations de
         // clarte (niveau phrase). On retire les corrections purement
         // orthographiques (accents/casse/ponctuation) et les corrections de mot
@@ -460,6 +506,29 @@ public class AiEvaluationService {
         // de prompt. EE : intact (l'orthographe compte a l'ecrit).
         if (task.getEpreuve() == EpreuveType.TCF_EO) {
             stripOrthographicCorrections(feedback);
+            // MEME LOGIQUE, ETENDUE AUX AUTRES CHAMPS DE RESTITUTION
+            // (commentaires de critere, priorites, suggestions) : un reproche
+            // adosse a UN SEUL mot de la transcription est un artefact de
+            // reconnaissance vocale, pas une erreur du candidat. Purge egalement
+            // les exemples corriges qui se fondent sur une notion orale
+            // interdite — ce champ n'entre dans aucun calcul, le rejeter
+            // detruisait des evaluations entieres. Aucun effet sur la note :
+            // tout ceci est de la restitution, appliquee avant le calcul mais
+            // sur des champs qu'aucun calcul ne lit.
+            var purge = EvaluationOralArtifactFilter.purge(feedback, production);
+            if (purge.aPurge()) {
+                log.info("Restitution orale purgee submission={} : {} remarque(s) de niveau mot, "
+                        + "{} remarque(s) de langue etrangere, {} exemple(s) corrige(s) fondes "
+                        + "sur un element non evaluable.",
+                    submissionId, purge.remarquesRetirees(), purge.remarquesLangueRetirees(),
+                    purge.exemplesRetires());
+            }
+            if (purge.remarquesRetirees() > 0) {
+                addAvertissement(feedback, EvaluationOralArtifactFilter.AVERTISSEMENT_ARTEFACT);
+            }
+            if (purge.remarquesLangueRetirees() > 0) {
+                addAvertissement(feedback, EvaluationOralArtifactFilter.AVERTISSEMENT_LANGUE);
+            }
         }
         // Joint le `label` des criteres a chaque score (le LLM ne renvoie que le
         // `code`). Source = la rubrique de la tache (fallback DB) : evite au mobile
@@ -708,6 +777,46 @@ public class AiEvaluationService {
             }
         }
         return false;
+    }
+
+    /** Contrat de sortie dont la preuve est un NUMERO de segment (v6 et au-dela). */
+    static boolean preuveParNumero(String toolSchemaVersion) {
+        return "v6".equals(toolSchemaVersion);
+    }
+
+    /**
+     * CONTRAT v6 : remplace le {@code preuve_segment} rendu par le correcteur par
+     * le TEXTE ORIGINAL EXACT du segment designe, sous la cle {@code preuve}.
+     *
+     * <p>C'est ce qui rend la bascule invisible des trois fronts : le contrat
+     * expose ({@code AiEvaluation.feedback_json}, donc {@code EvaluationResultDto}
+     * et ses miroirs web/mobile) continue de porter un champ {@code preuve}
+     * textuel, exactement comme avant. Aucun miroir de DTO a propager.
+     *
+     * <p>Le numero a deja ete valide comme existant ; le seul cas ou une preuve
+     * reste absente ici est celui du mode degrade, qui l'a explicitement retiree.
+     */
+    @SuppressWarnings("unchecked")
+    private void resolvePreuveSegments(Map<String, Object> feedback,
+                                       EvaluationProductionSegments segments, UUID submissionId) {
+        if (segments == null || !(feedback.get("scores_criteres") instanceof List<?> scores)) return;
+        int nonResolus = 0;
+        for (Object s : scores) {
+            if (!(s instanceof Map<?, ?> rawMap)) continue;
+            Map<String, Object> sm = (Map<String, Object>) rawMap;
+            Object numero = sm.remove("preuve_segment");
+            if (!(numero instanceof Number n)) continue;
+            var texte = segments.texte(n.intValue());
+            if (texte.isEmpty()) {
+                nonResolus++;
+                continue;
+            }
+            sm.put("preuve", texte.get());
+        }
+        if (nonResolus > 0) {
+            log.warn("{} preuve(s) sans segment correspondant submission={} — numero hors bornes "
+                    + "apres validation, ce qui ne devrait pas arriver.", nonResolus, submissionId);
+        }
     }
 
     /** Canonicalise les preuves valides et retire celles sans passage unique. */

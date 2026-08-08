@@ -22,13 +22,17 @@ IconData dashboardCategoryIcon(String code) => switch (code) {
 
 /// Route de l'écran détail d'une catégorie du dashboard (« s'entraîner sur
 /// cette catégorie »). Les thèmes civique routent vers leur détail via
-/// `themeId` ; les épreuves TCF vers leur hub d'épreuve.
+/// `themeId` ; les épreuves QCM vers leur hub d'épreuve.
+///
+/// **EE/EO n'ont plus de hub** : on entre directement sur l'écran d'accueil du
+/// parcours (mode « Compétences » de la tâche 1), le changement de tâche s'y
+/// faisant par les pastilles T1/T2/T3.
 String dashboardCategoryRoute(DashboardCategoryStat stat) => switch (stat.code) {
       'TCF_CO' => AppRoutes.tcfCoDetail,
       'TCF_CE' => AppRoutes.tcfCeDetail,
       'TCF_STRUCTURE' => AppRoutes.tcfStructureDetail,
-      'TCF_EE' => AppRoutes.tcfEeDetail,
-      'TCF_EO' => AppRoutes.tcfEoDetail,
+      'TCF_EE' => AppRoutes.tcfEeEntry,
+      'TCF_EO' => AppRoutes.tcfEoEntry,
       _ => AppRoutes.civiqueThemeDetail
           .replaceFirst(':themeId', stat.themeId ?? ''),
     };

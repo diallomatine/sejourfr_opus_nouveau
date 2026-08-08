@@ -202,6 +202,26 @@ class TestDataFactoryIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void skill() {
+        assertThat(data.skill().getId()).isNotNull();
+    }
+
+    @Test
+    void skillPrompt() {
+        assertThat(data.skillPrompt().getId()).isNotNull();
+    }
+
+    @Test
+    void skillReference() {
+        assertThat(data.skillReference().getId()).isNotNull();
+    }
+
+    @Test
+    void userSkillAttempt() {
+        assertThat(data.userSkillAttempt().getId()).isNotNull();
+    }
+
+    @Test
     void socialIdentity() {
         assertThat(data.socialIdentity().email()).isNotNull();
     }

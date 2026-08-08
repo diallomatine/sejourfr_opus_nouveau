@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 /// Drapeau France 3 bandes (12×18) — signal officiel sur les pages d'examens
-/// blancs TCF (QCM CO/CE/Structure et EE/EO). Couleurs locales hardcodées :
-/// ce sont des couleurs nationales (Pantone Reflex Blue / Red 032), distinctes
-/// de la palette produit AppColors et utilisées uniquement ici.
+/// blancs TCF (QCM CO/CE/Structure et EE/EO). Ses couleurs sont nationales
+/// (Pantone Reflex Blue / Red 032), distinctes de la palette produit : elles
+/// sont déclarées dans le thème (`kFlagBlue` / `kFlagRed`) comme toutes les
+/// autres, et ne servent qu'ici.
 class FlagBadge extends StatelessWidget {
   const FlagBadge({super.key});
-
-  // Bleu et rouge officiels du drapeau, hors palette produit.
-  // ignore: avoid_redundant_argument_values
-  static const Color _flagBlue = Color(0xFF0055A4);
-  static const Color _flagRed = Color(0xFFEF4135);
 
   @override
   Widget build(BuildContext context) {
@@ -21,9 +19,9 @@ class FlagBadge extends StatelessWidget {
         width: 18,
         child: Row(
           children: [
-            Expanded(child: ColoredBox(color: _flagBlue)),
+            Expanded(child: ColoredBox(color: kFlagBlue)),
             Expanded(child: ColoredBox(color: Colors.white)),
-            Expanded(child: ColoredBox(color: _flagRed)),
+            Expanded(child: ColoredBox(color: kFlagRed)),
           ],
         ),
       ),

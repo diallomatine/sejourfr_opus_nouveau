@@ -52,11 +52,11 @@ export function TranscriptDialogue({lines, raw}: {lines?: TranscriptTurn[]; raw?
                 .td { display: flex; flex-direction: column; gap: 10px; }
                 .td-mono { margin: 0; font-size: 14px; line-height: 1.5; color: var(--color-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
                 .td-bubble { max-width: 80%; padding: 9px 13px; border-radius: 14px; display: flex; flex-direction: column; gap: 3px; }
-                .td-bubble.is-exam { align-self: flex-start; background: var(--color-blue-light, #E8ECF8); border-bottom-left-radius: 4px; }
-                .td-bubble.is-you { align-self: flex-end; background: var(--color-red-light, #FDECEB); border-bottom-right-radius: 4px; }
+                .td-bubble.is-exam { align-self: flex-start; background: var(--color-blue-light); border-bottom-left-radius: 4px; }
+                .td-bubble.is-you { align-self: flex-end; background: var(--color-red-light); border-bottom-right-radius: 4px; }
                 .td-who { font-family: var(--font-mono); font-weight: 700; font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; }
                 .td-bubble.is-exam .td-who { color: var(--color-blue); }
-                .td-bubble.is-you .td-who { color: var(--color-red-dark, #B5251E); }
+                .td-bubble.is-you .td-who { color: var(--color-red-dark); }
                 .td-text { margin: 0; font-size: 14px; line-height: 1.45; color: var(--color-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
             `}</style>
         </div>

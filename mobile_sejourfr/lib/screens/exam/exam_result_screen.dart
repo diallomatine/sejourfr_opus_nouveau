@@ -120,9 +120,7 @@ class _ResultView extends StatelessWidget {
     final percent = total == 0 ? 0 : ((score / total) * 100).round();
     final errors = total - score;
 
-    final duration = attempt.finishedAt != null
-        ? attempt.finishedAt!.difference(attempt.startedAt)
-        : null;
+    final duration = attempt.finishedAt?.difference(attempt.startedAt);
 
     final breakdown = _computeBreakdown(attempt);
 
@@ -144,7 +142,7 @@ class _ResultView extends StatelessWidget {
                 const SizedBox(height: 18),
                 _StatsRow(
                   percent: percent,
-                  durationMinutes: duration == null ? null : duration.inMinutes,
+                  durationMinutes: duration?.inMinutes,
                   errors: errors,
                 ),
                 const SizedBox(height: 24),

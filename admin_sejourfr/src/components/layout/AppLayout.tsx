@@ -75,6 +75,7 @@ export function AppLayout() {
           ↳ Questions · TCF
         </NavItem>
         <NavItem to="/themes">↳ Thématiques</NavItem>
+        <NavItem to="/skills">↳ Compétences EE/EO</NavItem>
         <NavItem to="/exams">↳ Examens blancs</NavItem>
 
         <div className={styles.navSection}>Generation IA</div>

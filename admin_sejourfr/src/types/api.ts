@@ -704,7 +704,8 @@ export type BandeCritere =
 
 /**
  * `communiquer` · `interagir` · `lexique` · `morphosyntaxe` sont les 4 codes
- * de la grille v5 (calquée sur la vraie grille TCF). Les autres codes ont
+ * de notre grille SejourFR depuis la v5 (alignée sur les dimensions évaluées au
+ * TCF, sans reprendre la grille de correction officielle). Les autres codes ont
  * disparu au fil des versions (v4 puis v3) mais restent portés par les
  * évaluations antérieures en base — on les garde ici pour ne pas planter sur
  * l'historique.
@@ -961,4 +962,244 @@ export interface PageViewStatsResponse {
   ctaClicks: number;
   sources: PageViewSourceStat[];
   daily: PageViewDailyStat[];
+}
+
+// ============ COMPÉTENCES TCF (EE/EO) — surface admin ============
+// Miroir du §6 du contrat gelé « module Compétences TCF ».
+// Le contenu (48 compétences, 240 sujets, 720 références) est éditorial :
+// il vit en base et s'édite ici, pas en migration Flyway.
+
+export type SkillSection = "EE" | "EO";
+
+export type SkillTaskCode = "EE1" | "EE2" | "EE3" | "EO1" | "EO2" | "EO3";
+
+/**
+ * Difficulté d'un petit sujet — enum backend `SkillDifficulty`. Le contrat
+ * annonçait réutiliser `Difficulty`, mais celui-ci vaut CSP/CR/NAT/A2/B1/B2
+ * (axe procédure/palier des questions QCM) : le backend a créé un enum dédié
+ * plutôt que d'exposer EASY/MEDIUM/HARD à tous les DTO de questions.
+ */
+export type SkillDifficultyLevel = "EASY" | "MEDIUM" | "HARD";
+
+export type SkillReferenceLevel = "INSUFFICIENT" | "EXPECTED" | "EXCELLENT";
+
+/** Palier visé par une compétence. La colonne `skills.target_level` accepte A1, contrairement à `TargetLevel`. */
+export type SkillTargetLevel = "A1" | "A2" | "B1" | "B2";
+
+export interface SkillReferenceDto {
+  level: SkillReferenceLevel;
+  text: string;
+  pedagogicalNote: string;
+}
+
+/**
+ * Famille d'icône d'une étiquette de contrainte — enum backend
+ * `SkillConstraintIcon`, **liste fermée**. Elle décrit une famille, pas un
+ * dessin : chaque front choisit son icône. Ajouter une valeur suppose de la
+ * mapper côté web ET mobile dans la même passe.
+ */
+export type SkillConstraintIcon =
+  | "TONE"
+  | "PERSON"
+  | "TIME"
+  | "PLACE"
+  | "NUMBER"
+  | "TENSE"
+  | "STRUCTURE"
+  | "EXAMPLE";
+
+/**
+ * Étiquette de contrainte lue depuis le serveur (record `SkillConstraintTag`,
+ * stocké en JSONB). Elle dit **comment** produire, jamais **combien** : ni
+ * longueur ni durée, que les fronts rendent déjà depuis `recommendedMinWords` /
+ * `recommendedMaxWords` / `recommendedDurationSeconds`.
+ */
+export interface SkillConstraintTagDto {
+  /** 1 à 3 mots. */
+  label: string;
+  icon: SkillConstraintIcon;
+}
+
+/**
+ * Même forme sur le fil à l'écriture (`SkillConstraintTagInput`), à un détail
+ * près : côté Java `icon` y est une **chaîne** et non l'enum, pour que le
+ * service rende un 422 français énumérant la liste fermée au lieu d'un 400
+ * technique du convertisseur. La console, elle, ne peut envoyer qu'une valeur
+ * de l'union — l'icône se choisit, elle ne se saisit pas.
+ */
+export interface SkillConstraintTagInput {
+  label: string;
+  icon: SkillConstraintIcon;
+}
+
+export interface AdminSkillDto {
+  id: string;
+  section: SkillSection;
+  taskCode: SkillTaskCode;
+  /** Immuable après création : les seeds et les codes de sujets s'appuient dessus. */
+  code: string;
+  title: string;
+  /** Courte explication adressée au candidat : ce qu'il travaille et pourquoi ça compte au TCF. */
+  description: string;
+  /**
+   * Critère général observé dans les 5 petits sujets de la compétence.
+   * Colonne `skills.general_criterion`, NOT NULL. À ne pas confondre avec
+   * `AdminSkillPromptDto.uniqueCriterion`, propre à un seul sujet.
+   */
+  generalCriterion: string;
+  targetLevel: SkillTargetLevel;
+  displayOrder: number;
+  active: boolean;
+  promptCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminSkillPromptDto {
+  id: string;
+  skillId: string;
+  skillCode: string;
+  section: SkillSection;
+  /** Immuable après création. */
+  code: string;
+  title: string;
+  context: string;
+  instruction: string;
+  uniqueCriterion: string;
+  /**
+   * Guidage de l'écran de saisie — les quatre champs qui suivent sont
+   * **facultatifs** (colonnes nullables, V026) : un sujet peut naître sans eux
+   * et les fronts se dégradent alors sur la consigne. La console affiche « à
+   * compléter » plutôt que de casser.
+   *
+   * `checklist` : 2 à 4 gestes à l'impératif, 6 mots maximum chacun.
+   */
+  checklist: string[] | null;
+  /** 1 à 3 étiquettes. Jamais la longueur ni la durée : elles diviseraient la vérité. */
+  constraintTags: SkillConstraintTagDto[] | null;
+  /** Amorce grisée du champ de réponse, terminée par « … ». */
+  answerStarter: string | null;
+  /** Sans le préfixe « Astuce : » — les fronts l'ajoutent. */
+  tip: string | null;
+  /** Renseigné en section EE uniquement (CHECK en base). */
+  recommendedMinWords: number | null;
+  recommendedMaxWords: number | null;
+  /** Renseigné en section EO uniquement (CHECK en base). */
+  recommendedDurationSeconds: number | null;
+  difficultyLevel: SkillDifficultyLevel;
+  displayOrder: number;
+  active: boolean;
+  references: SkillReferenceDto[];
+  attemptCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminSkillDetailDto {
+  skill: AdminSkillDto;
+  prompts: AdminSkillPromptDto[];
+}
+
+export interface AdminSkillStatsDto {
+  skillId: string;
+  code: string;
+  title: string;
+  section: SkillSection;
+  taskCode: SkillTaskCode;
+  promptCount: number;
+  attemptCount: number;
+  analysedCount: number;
+  /** Ratio 0..1, calculé sur les seules tentatives analysées. Null si aucune. */
+  validatedRate: number | null;
+}
+
+export interface AdminSkillFilters {
+  section?: SkillSection;
+  taskCode?: SkillTaskCode;
+  active?: boolean;
+  q?: string;
+  page?: number;
+  size?: number;
+}
+
+/**
+ * POST : `generalCriterion` est **obligatoire** (colonne NOT NULL). L'omettre
+ * fait échouer la création en 400. `section` est déduite du `taskCode` côté
+ * serveur ; une valeur contradictoire est refusée en 422, d'où l'envoi
+ * systématique de la section calculée depuis le `taskCode`.
+ */
+export interface AdminSkillCreateRequest {
+  section: SkillSection;
+  taskCode: SkillTaskCode;
+  code: string;
+  title: string;
+  description: string;
+  generalCriterion: string;
+  targetLevel: SkillTargetLevel;
+  displayOrder: number;
+  active: boolean;
+}
+
+/**
+ * PATCH : le `code`, la `section` et le `taskCode` ne sont jamais modifiables.
+ * Toutes les colonnes visées sont NOT NULL, donc un champ absent vaut « ne
+ * touche pas » ; le front envoie néanmoins toujours tous les champs.
+ */
+export interface AdminSkillUpdateRequest {
+  title: string;
+  description: string;
+  generalCriterion: string;
+  targetLevel: SkillTargetLevel;
+  displayOrder: number;
+  active: boolean;
+}
+
+/**
+ * POST : les quatre champs de guidage sont facultatifs. Une liste vide vaut
+ * `null` côté serveur (« aucune étiquette » et « je n'en envoie pas » décrivent
+ * le même sujet) ; fournis, ils sont validés — 2 à 4 gestes, 1 à 3 étiquettes,
+ * icône dans la liste fermée — et **tout est vérifié avant la moindre
+ * écriture**, donc un refus ne laisse jamais un sujet à moitié modifié.
+ */
+export interface AdminSkillPromptCreateRequest {
+  skillId: string;
+  code: string;
+  title: string;
+  context: string;
+  instruction: string;
+  uniqueCriterion: string;
+  checklist: string[] | null;
+  constraintTags: SkillConstraintTagInput[] | null;
+  answerStarter: string | null;
+  tip: string | null;
+  recommendedMinWords: number | null;
+  recommendedMaxWords: number | null;
+  recommendedDurationSeconds: number | null;
+  difficultyLevel: SkillDifficultyLevel;
+  displayOrder: number;
+  active: boolean;
+}
+
+/**
+ * PATCH : tous les champs éditables sont envoyés à chaque fois, y compris les
+ * bornes de longueur à `null`. Un `null` vaut « efface », pas « ne touche pas » :
+ * c'est ce qui garantit qu'un sujet EE ne porte jamais de durée et inversement
+ * (CHECK `skill_prompts`). Le `code` et le `skillId` sont absents : immuables.
+ *
+ * **Les quatre champs de guidage suivent la même règle de remplacement** :
+ * leurs colonnes sont nullables, donc un `null` y désigne un état atteignable
+ * (« ce sujet n'a pas de guidage ») et non un état impossible. Sans cela, une
+ * check-list posée par erreur serait ineffaçable depuis la console.
+ */
+export type AdminSkillPromptUpdateRequest = Omit<
+  AdminSkillPromptCreateRequest,
+  "skillId" | "code"
+>;
+
+/**
+ * PUT atomique des 3 références d'un sujet : les 3 niveaux exactement, sans
+ * doublon. Le backend remplace, il ne fusionne pas.
+ */
+export interface AdminSkillReferencesUpdateRequest {
+  references: SkillReferenceDto[];
 }

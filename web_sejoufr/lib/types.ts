@@ -500,10 +500,12 @@ export interface EvaluationResultDto {
 }
 
 /** Fourchette de note officielle du TCF IRN correspondant à un niveau CECRL, sur
- *  les épreuves d'expression. Grille officielle (0 → A1 non atteint, 1 → A1,
- *  2-5 → A2, 6-9 → B1, 10-20 → B2). Nos notes suivent la MÊME échelle : la
- *  fourchette se lit donc directement, sans conversion. N'accompagne que le
- *  bilan d'une épreuve entière — au TCF, une tâche isolée n'a pas de note. */
+ *  les épreuves d'expression. Table officielle (0 → A1 non atteint, 1 → A1,
+ *  2-5 → A2, 6-9 → B1, 10-20 → B2). Nos notes sont des ESTIMATIONS exprimées sur
+ *  cette MÊME échelle : la fourchette se lit donc directement, sans conversion —
+ *  ce qui est officiel ici, c'est l'échelle, pas la correction, qui reste la
+ *  nôtre. N'accompagne que le bilan d'une épreuve entière — au TCF, une tâche
+ *  isolée n'a pas de note. */
 export interface CorrespondanceTcfDto {
     niveau: NiveauCecrl;
     scoreTcfMin: number;
@@ -557,6 +559,320 @@ export interface SubmitProductionTextRequest {
     productionTaskId: string;
     attemptId: string;
     texte: string;
+}
+
+// ============================================================================
+// COMPÉTENCES TCF (EE/EO) — micro-exercices ciblés sur UN critère
+//
+// Voie PARALLÈLE aux productions complètes ci-dessus, et volontairement plus
+// pauvre : un petit sujet n'a NI note /20 NI niveau CECRL (interdit par la spec
+// §9 — une phrase de 15 mots ne situe pas un candidat sur l'échelle du TCF).
+// Le seul verdict est `SkillCriterionStatus`, qui porte sur le critère unique
+// du sujet. Miroirs de Skill* côté Java.
+// ============================================================================
+
+/** Épreuve productive d'une compétence. Pendant « court » d'`EpreuveType`. */
+export type SkillSection = "EE" | "EO";
+
+/** Tâche TCF porteuse des compétences (3 par épreuve). */
+export type SkillTaskCode = "EE1" | "EE2" | "EE3" | "EO1" | "EO2" | "EO3";
+
+/** Les 3 productions de référence livrées avec chaque petit sujet. */
+export type SkillReferenceLevel = "INSUFFICIENT" | "EXPECTED" | "EXCELLENT";
+
+/** Ressenti déclaré par le candidat avant validation. Facultatif, et sans
+ *  aucune influence sur le verdict IA — c'est un miroir, pas une note. */
+export type SkillSelfEvaluation = "REUSSI" | "INCERTAIN" | "DIFFICILE";
+
+/** Verdict de l'IA sur le critère unique du sujet (spec §8). */
+export type SkillCriterionStatus = "VALIDATED" | "PARTIAL" | "NOT_VALIDATED";
+
+/** Libellés FR du verdict (contrat gelé — à ne pas reformuler, et à ne pas
+ *  recopier dans un composant : c'est cette recopie qui avait fait diverger le
+ *  web du mobile). Miroir de l'enum backend `SkillCriterionStatus` et de
+ *  `SkillCriterionStatus` côté Flutter ; figé par `lib/skill-labels.test.ts`.
+ *
+ *  `NOT_VALIDATED` se dit « Critère non atteint » et non « à retravailler » :
+ *  cette dernière formulation était quasi synonyme du statut de sujet
+ *  `TO_REINFORCE` (« À renforcer ») et mélangeait le verdict d'UNE tentative
+ *  avec l'état d'UN sujet. */
+export const SKILL_CRITERION_STATUS_LABEL: Record<SkillCriterionStatus, string> = {
+    VALIDATED: "Critère validé",
+    PARTIAL: "Critère partiellement atteint",
+    NOT_VALIDATED: "Critère non atteint",
+};
+
+/** Miroir du vrai `enums.Difficulty` Java (EASY/MEDIUM/HARD). Le `Difficulty`
+ *  historique de ce fichier ne l'est PAS : il encode un niveau de cible
+ *  (CSP/CR/NAT/A2/B1/B2) pour les tags de QCM. Les deux ne se mélangent pas. */
+export type SkillDifficulty = "EASY" | "MEDIUM" | "HARD";
+
+/** Libellés FR de la difficulté d'un petit sujet (contrat gelé). « Accessible »
+ *  décrit le sujet sans juger celui qui le traite — un sujet annoncé « facile »
+ *  puis raté humilie le candidat. */
+export const SKILL_DIFFICULTY_LABEL: Record<SkillDifficulty, string> = {
+    EASY: "Accessible",
+    MEDIUM: "Intermédiaire",
+    HARD: "Exigeant",
+};
+
+/** Statut d'un petit sujet pour l'utilisateur courant. **Dérivé côté backend**,
+ *  jamais recalculé par les fronts. `TREATED` couvre le cas freemium : produit
+ *  sans analyse IA, donc sans verdict de critère — « Validé » comme
+ *  « À renforcer » y seraient tous les deux faux. */
+export type SkillPromptStatus = "TODO" | "TREATED" | "VALIDATED" | "TO_REINFORCE";
+
+/** Cycle de vie d'une tentative. `RECORDED` est un état FINAL : production
+ *  enregistrée sans analyse demandée (ou plus autorisée). */
+export type SkillAttemptStatut =
+    | "RECORDED"
+    | "SUBMITTED"
+    | "TRANSCRIBING"
+    | "EVALUATING"
+    | "EVALUATED"
+    | "FAILED";
+
+/** Libellés FR des statuts de sujet (contrat gelé — à ne pas reformuler). */
+export const SKILL_PROMPT_STATUS_LABEL: Record<SkillPromptStatus, string> = {
+    TODO: "À faire",
+    TREATED: "Fait",
+    VALIDATED: "Validé",
+    TO_REINFORCE: "À renforcer",
+};
+
+/** Libellés FR de l'auto-évaluation (contrat gelé — à ne pas reformuler). */
+export const SKILL_SELF_EVALUATION_LABEL: Record<SkillSelfEvaluation, string> = {
+    REUSSI: "Je pense avoir réussi",
+    INCERTAIN: "Je ne suis pas sûr",
+    DIFFICILE: "J'ai eu du mal",
+};
+
+/** Ordre d'affichage + libellés des onglets de références. */
+export const SKILL_REFERENCE_LEVELS: readonly SkillReferenceLevel[] = [
+    "INSUFFICIENT",
+    "EXPECTED",
+    "EXCELLENT",
+];
+
+export const SKILL_REFERENCE_LEVEL_LABEL: Record<SkillReferenceLevel, string> = {
+    INSUFFICIENT: "Insuffisant",
+    EXPECTED: "Attendu",
+    EXCELLENT: "Très réussi",
+};
+
+/** GET /api/skills/progress?section= — une entrée par tâche (EE1→EE3). */
+export interface SkillTaskProgressDto {
+    taskCode: SkillTaskCode;
+    section: SkillSection;
+    title: string;
+    targetLevel: string;
+    skillCount: number;
+    promptCount: number;
+    /** Sujets ayant au moins une tentative. */
+    attemptedCount: number;
+    validatedCount: number;
+    toReinforceCount: number;
+}
+
+/** Une compétence (8 par tâche) + la progression du user courant. */
+export interface SkillDto {
+    id: string;
+    section: SkillSection;
+    taskCode: string;
+    code: string; // "EE1-C1"
+    title: string;
+    /** Courte explication de ce que l'exercice apporte — encart « Pourquoi cet
+     *  exercice ? ». À ne pas rendre au même endroit que `generalCriterion`. */
+    description: string;
+    /** Critère général travaillé par la compétence — encart « Critère travaillé ».
+     *  Distinct de `SkillPromptDto.uniqueCriterion`, qui vise UN petit sujet. */
+    generalCriterion: string;
+    targetLevel: string;
+    displayOrder: number;
+    promptCount: number;
+    attemptedCount: number;
+    validatedCount: number;
+    toReinforceCount: number;
+}
+
+/** Un petit sujet dans la liste d'une compétence. */
+export interface SkillPromptSummaryDto {
+    id: string;
+    code: string; // "EE1-C1-S1"
+    title: string;
+    uniqueCriterion: string;
+    difficultyLevel: SkillDifficulty;
+    displayOrder: number;
+    /** EE — indicatifs, JAMAIS bloquants (spec §8 règle 15). */
+    recommendedMinWords: number | null;
+    recommendedMaxWords: number | null;
+    /** EO — indicatif, jamais bloquant. */
+    recommendedDurationSeconds: number | null;
+    status: SkillPromptStatus;
+    attemptCount: number;
+    lastAttemptAt: string | null;
+}
+
+/** Familles d'icônes des étiquettes de contrainte. **Liste fermée**, partagée
+ *  telle quelle par le backend, le web, le mobile et l'admin : chaque front la
+ *  mappe sur son propre jeu d'icônes.
+ *
+ *  TONE = registre / politesse · PERSON = destinataire, vouvoiement ·
+ *  TIME = moment ou durée · PLACE = lieu · NUMBER = quantité ·
+ *  TENSE = temps du récit · STRUCTURE = enchaînement · EXAMPLE = illustration. */
+export type SkillConstraintIcon =
+    | "TONE"
+    | "PERSON"
+    | "TIME"
+    | "PLACE"
+    | "NUMBER"
+    | "TENSE"
+    | "STRUCTURE"
+    | "EXAMPLE";
+
+/** Une contrainte de production, lisible d'un coup d'œil : 1 à 3 mots + son
+ *  icône. Dit **comment** produire, jamais **quoi** — et **jamais la longueur**,
+ *  qui est dérivée des bornes par le front (`lengthChipLabel`). */
+export interface SkillConstraintTagDto {
+    label: string;
+    icon: SkillConstraintIcon;
+}
+
+/** GET /api/skills/{skillId}. */
+export interface SkillDetailDto {
+    skill: SkillDto;
+    prompts: SkillPromptSummaryDto[];
+}
+
+/** GET /api/skill-prompts/{promptId} — écran de production. Ne porte JAMAIS
+ *  les références : elles n'apparaissent qu'après une tentative (§13.2). */
+export interface SkillPromptDto {
+    id: string;
+    skillId: string;
+    skillCode: string;
+    skillTitle: string;
+    /** Nombre de sujets de la compétence — dénominateur du « Sujet i/5 ». Évite
+     *  d'appeler `GET /api/skills/{skillId}` juste pour compter. */
+    skillPromptCount: number;
+    /** `SkillDto.description` recopiée : encart « Pourquoi cet exercice ? ». */
+    skillDescription: string;
+    /** `SkillDto.generalCriterion` recopié : le critère général de la compétence,
+     *  à ne pas confondre avec `uniqueCriterion` (celui de CE sujet). */
+    skillGeneralCriterion: string;
+    /** Palier CECRL de la compétence (`A1`..`B2`), exigé sur l'écran d'un petit
+     *  sujet (spec §3 niveau 5) — porté ici pour ne pas rouvrir un appel à
+     *  `GET /api/skills/{skillId}` rien que pour lui. */
+    skillTargetLevel: string;
+    section: SkillSection;
+    taskCode: string;
+    taskTitle: string;
+    code: string;
+    title: string;
+    context: string;
+    instruction: string;
+    uniqueCriterion: string;
+    recommendedMinWords: number | null;
+    recommendedMaxWords: number | null;
+    recommendedDurationSeconds: number | null;
+    difficultyLevel: SkillDifficulty;
+    displayOrder: number;
+    /* ------------------------------------------------------------ guidage
+       Les quatre champs ci-dessous sont **tous nullables** : un sujet créé
+       depuis la console d'administration peut naître sans guidage, et les
+       colonnes DB (V026) sont nullables sur les 240 lignes existantes. Les
+       fronts se dégradent — jamais de carte vide, jamais de « null » à
+       l'écran. Règles de lecture : `lib/skill-guidance.ts`. */
+    /** 2 à 4 gestes à l'impératif, dans l'ordre où les accomplir. */
+    checklist: string[] | null;
+    /** 1 à 3 contraintes de forme. La longueur n'y figure jamais. */
+    constraintTags: SkillConstraintTagDto[] | null;
+    /** Amorce de réponse (4-8 mots) : texte grisé du champ à l'écrit,
+     *  suggestion de démarrage à l'oral. */
+    answerStarter: string | null;
+    /** Le geste le plus souvent oublié, en une phrase. Le mot « Astuce : »
+     *  n'est **pas** dans la valeur — c'est le front qui l'ajoute. */
+    tip: string | null;
+    status: SkillPromptStatus;
+    attemptCount: number;
+    lastAttemptAt: string | null;
+    /** Dernière tentative, pour relire / reprendre une ancienne production. */
+    lastAttemptId: string | null;
+    /** Premier sujet TODO de la MÊME compétence — null s'il n'en reste aucun.
+     *  Alimente « Sujet suivant à travailler », qui se désactive alors. */
+    nextPromptId: string | null;
+}
+
+/** GET /api/skill-prompts/{promptId}/references — 403 tant qu'aucune tentative. */
+export interface SkillReferenceDto {
+    level: SkillReferenceLevel;
+    text: string;
+    pedagogicalNote: string;
+}
+
+/** Sortie IA d'un micro-exercice : 5 champs courts, et rien d'autre. */
+export interface SkillAnalysisDto {
+    status: SkillCriterionStatus;
+    verdict: string;
+    successPoint: string;
+    improvementPriority: string;
+    improvedVersion: string;
+}
+
+export interface SkillAttemptDto {
+    id: string;
+    skillPromptId: string;
+    skillPromptCode: string;
+    statut: SkillAttemptStatut;
+    analysisRequested: boolean;
+    writtenProduction: string | null;
+    /** URL R2 présignée (15 min) — jamais la clé brute. EO uniquement. */
+    audioUrl: string | null;
+    audioDurationSec: number | null;
+    transcript: string | null;
+    wordsCount: number | null;
+    selfEvaluation: SkillSelfEvaluation | null;
+    criterionStatus: SkillCriterionStatus | null;
+    analysis: SkillAnalysisDto | null;
+    errorMessage: string | null;
+    createdAt: string;
+}
+
+/** Body JSON de POST /api/skill-attempts (section EE). */
+export interface SubmitSkillTextRequest {
+    skillPromptId: string;
+    texte: string;
+    selfEvaluation?: SkillSelfEvaluation | null;
+    /** False = production enregistrée sans passer par l'IA (statut RECORDED). */
+    requestAnalysis: boolean;
+}
+
+/** GET /api/skills/analysis-quota. `remaining === -1` signifie **illimité** :
+ *  aucune surface ne doit afficher cette valeur telle quelle. */
+export interface SkillAnalysisQuotaDto {
+    premium: boolean;
+    unlimited: boolean;
+    freeAnalysesTotal: number;
+    freeAnalysesUsed: number;
+    remaining: number;
+}
+
+/** True tant que l'analyse est en vol (le résultat doit être re-poll). */
+export function isSkillAttemptPending(a: {statut: SkillAttemptStatut}): boolean {
+    return (
+        a.statut === "SUBMITTED" ||
+        a.statut === "TRANSCRIBING" ||
+        a.statut === "EVALUATING"
+    );
+}
+
+/** Section « compétences » d'une épreuve productive. */
+export function skillSectionOf(epreuve: EpreuveType): SkillSection {
+    return epreuve === "TCF_EO" ? "EO" : "EE";
+}
+
+/** Code de tâche à partir de la section et du numéro de tâche (1..3). */
+export function skillTaskCodeOf(section: SkillSection, tacheNumero: number): SkillTaskCode {
+    return `${section}${tacheNumero}` as SkillTaskCode;
 }
 
 // ============================================================================
@@ -809,7 +1125,7 @@ export interface EeFeedback {
     /** Ce que le candidat a traité / oublié de la consigne. Null (et non pas
      *  listes vides) quand l'évaluation ne porte pas l'information. */
     accomplissement: EeAccomplishment | null;
-    /** Exactement 4 critères depuis la grille TCF (`communiquer`, `interagir`,
+    /** Exactement 4 critères depuis notre grille SejourFR (`communiquer`, `interagir`,
      *  `lexique`, `morphosyntaxe`) — les évaluations plus anciennes en portent
      *  5 aux codes propres à chaque tâche. */
     criteres: EeCriterion[];
@@ -1007,12 +1323,12 @@ export function parseEeFeedback(
 
 /** Libellé de repli pour un critère EE/EO si le backend n'a pas fourni `label`
  *  (il le fournit depuis la rubrique de la tâche : cette table n'est qu'un
- *  filet, jamais la source). Les quatre premiers codes sont ceux de la grille
- *  réelle du TCF, identiques sur les six tâches ; tous les suivants restent
- *  portés par les évaluations déjà en base. */
+ *  filet, jamais la source). Les quatre premiers codes sont ceux de notre grille
+ *  SejourFR, identiques sur les six tâches ; tous les suivants restent portés par
+ *  les évaluations déjà en base. */
 export function eeCriterionLabel(code: string): string {
     switch (code) {
-        // --- grille TCF : les 4 critères équipondérés des six tâches ---
+        // --- notre grille : les 4 critères équipondérés des six tâches ---
         case "communiquer":
             return "Communiquer : accomplir la tâche et enchaîner les idées";
         case "interagir":
