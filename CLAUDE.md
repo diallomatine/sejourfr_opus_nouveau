@@ -252,14 +252,39 @@ Le « quoi » et le « pourquoi » vivent dans `docs/notation-ia-eo-ee.md` (réf
 grand public, **à tenir exhaustive et à jour dans la même passe** — cf. la règle
 dédiée plus bas). Ici, uniquement de quoi se repérer.
 
-- **Versions actives** : rubriques `production-rubrics-v13.json`, tool-schema de
-  sortie `production-evaluation-tool-schema-v7.json`, persona vocale
-  `realtime-personas-v3.json`. **v12/v6, v9/v5, v8/v5, v7/v4, v6/v3, v5/v3, v4.2/v2,
-  v4.1/v2, v4/v2 et v3/v2 restent chargeables et validées** : un retour arrière
+- **Versions actives** : rubriques `production-rubrics-v14.json`, tool-schema de
+  sortie `production-evaluation-tool-schema-v8.json`, persona vocale
+  `realtime-personas-v3.json`. **v13/v7, v12/v6, v9/v5, v8/v5, v7/v4, v6/v3, v5/v3,
+  v4.2/v2, v4.1/v2, v4/v2 et v3/v2 restent chargeables et validées** : un retour arrière
   change la paire `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION`, aucune migration.
   **On versionne, on ne réécrit jamais** une rubrique livrée. **v10 et v11 sont
   chargeables mais MESURÉES MOINS BONNES que v9 — ne pas les réactiver** (détail
   dans le filet de langue étrangère, plus bas).
+- **v14 / v8 = `version_amelioree` N'EST PLUS PRODUITE.** v14 est **v13 au bit près
+  pour tout ce qui note** (échelle, 4 critères, seuils `commun.niveau`, `couplage`,
+  `plafonds`, `bandes_criteres`, tests décisifs A1/A2 et B1/B2, les 16 ancres,
+  descripteurs et barème des 6 tâches — verrouillé par
+  `ProductionEvaluationContractTest`, qui reconstruit v13 depuis v14 en y **remettant**
+  les fragments retirés) ; elle **retire** la section dédiée (23 sections au lieu de
+  24), sa ligne dans « une erreur, un seul endroit », sa mention dans les champs
+  obligatoires et dans la règle d'accentuation, et la dernière phrase des 6 consignes
+  de tâche. Le tool-schema v8 est **v7 sans la propriété `version_amelioree`**, verrou :
+  **égalité stricte** de tout le reste (`required` inchangé, `additionalProperties:false`,
+  seule la `description` s'étoffe et doit commencer par celle de v7). Motif : les fronts
+  ne l'affichent plus (texte modèle = `version_ciblee`, 2ᵉ appel) et elle réécrivait la
+  production **au même niveau** que le candidat — recopiée et resoumise, même note au
+  dixième près. Mesure sur les 12 évaluations EE qui la portent : **297 caractères,
+  54 mots, ~5,7 % du JSON de sortie ⇒ ~90 tokens de sortie par correction écrite**
+  (≈ 0,003 ¢ chez `deepseek-v4-flash` — le vrai gain n'est pas l'argent, c'est un champ
+  obligatoire de moins qui peut faire échouer une soumission EE).
+  Répercussions serveur : `EvaluationToolSchema.versionAmelioree()` (**première capacité
+  qu'un rang POSTÉRIEUR retire** — s'ouvre en v5, se referme en v8), validateur qui ne
+  l'exige plus sous v8 mais **la tolère** (une évaluation perdue coûte plus cher qu'un
+  champ ignoré) et `AiEvaluationService` qui la retire sous v8 **comme il le faisait déjà
+  en EO**. Legacy intact : les `feedback_json` déjà persistés la gardent.
+  ⚠️ **Bascule NON mesurée au banc** (aucune règle de notation ne bouge, et le prompt
+  **perd** du texte au lieu d'en gagner — à l'inverse de v10/v11). Retour arrière :
+  `EVAL_RUBRICS_VERSION=v13` + `EVAL_PROMPT_VERSION=v7`.
 - **v13 / v7 = LE FRANÇAIS RENDU AU CANDIDAT EST ACCENTUÉ.** v13 est **v12 au bit
   près** (rubriques de tâche, `commun.niveau/couplage/plafonds/bandes_criteres`, les
   16 ancres, les 23 sections — verrouillé par `ProductionEvaluationContractTest`) ;
@@ -330,10 +355,10 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
 - **VERSION AU NIVEAU VISÉ — SECOND APPEL LLM SÉPARÉ, EE seulement** (`service/versionciblee/`,
   livré **ACTIF**). Rend au candidat sa réponse **réécrite au palier qu'il VISE**
   (`User.targetLevel`, repli `production_tasks.niveau_cible`) + **2 à 3 leviers** concrets.
-  Distinct de `version_amelioree`, qui vise le palier **juste au-dessus**.
-  ⚠️ **C'est désormais LE texte modèle affiché sur un résultat EE** : les fronts ont
-  retiré `version_amelioree` de l'écran (champ toujours produit et persisté, plus
-  aucun lecteur). Motif mesuré en base : elle était **au même niveau que la copie**,
+  Distinct de `version_amelioree`, qui visait le palier **juste au-dessus**.
+  ⚠️ **C'est LE seul texte modèle d'un résultat EE** : les fronts ont retiré
+  `version_amelioree` de l'écran, puis **v14/v8 l'a retirée du contrat de sortie** —
+  elle n'est plus ni demandée ni produite (legacy persisté intact). Motif mesuré en base : elle était **au même niveau que la copie**,
   sans étiquette de palier — recopiée telle quelle et resoumise, elle rendait la
   **même note au dixième près**. `version_ciblee`, elle, **nomme son niveau**.
   ⚠️ **L'appel est séparé de la correction, c'est la raison même du montage** : le prompt de
@@ -489,7 +514,8 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   - **nouveau contrat exposé aux fronts** : `accomplissement.objectif`
     (`ATTEINT|PARTIELLEMENT_ATTEINT|NON_ATTEINT`, enum `ObjectifTache`) +
     `accomplissement.objectif_resume` (phrase candidat), et `version_amelioree`
-    (string racine) **obligatoire en EE, absente en EO** (retirée serveur). Le
+    (string racine) **obligatoire en EE, absente en EO** (retirée serveur) —
+    ⚠️ champ **supprimé du contrat en v14/v8**, cf. plus haut. Le
     verdict ne regarde que les points **obligatoires**, est indépendant de la
     note, et le serveur l'**abaisse** à `PARTIELLEMENT_ATTEINT` s'il vaut
     `ATTEINT` malgré un `points_oublies` `obligatoire=true` (jamais l'inverse,
@@ -899,6 +925,43 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     fermée** (une formulation qui y échappe passe) ; `MOTS_OUTILS_ETRANGERS` couvre 6
     langues, une vraie production en turc ou polonais n'est protégée que par le
     contrôle amont `ratioMotsOutils < 0,10`.
+- **Volet FORME du même filet — une faute de grammaire ORALE est une STRUCTURE, jamais
+  la forme d'un mot** (`EvaluationOralArtifactFilter`, livré **ACTIF** le 2026-08-09).
+  Cas réel : « « abit à Lille » (j'habite) » reproché en `morphosyntaxe` alors que le
+  candidat avait dit « j'habite » — la transcription avait mangé le « j'h ». Mesure sur
+  les 142 évaluations en base (passages cités, présents verbatim, absents d'un
+  dictionnaire de 475 k formes) : **9 EO sur 75 (12,0 %), 0 EE sur 67**. **Zéro à
+  l'écrit** ⇒ la cause est la machine, pas le niveau. Règle : un reproche ancré dont une
+  citation ne nomme qu'**1 ou 2 mots porteurs** est purgé ; **0 mot porteur**
+  (« pour ne pas que ») = structure pure, **conservée** ; **≥ 3** = structure, conservée.
+  **EO seulement, critère `morphosyntaxe` + priorités qui le relisent seulement** —
+  jamais `lexique` (deux faux positifs réels mesurés : `chronoposte`, `ESN`, ce dernier
+  cité en **point fort**), jamais l'écrit. Ni note, ni niveau, ni seuil ne bougent ;
+  avertissement candidat + compteur `ARTEFACT_ORAL_FORME`. **Coût assumé et mesuré** :
+  11 phrases sur 75 commentaires EO tomberaient, dont ~7 portaient AUSSI une vraie faute
+  — la phrase entière part (retirer une citation au milieu d'une énumération rendrait un
+  texte mutilé). Corollaire honnête : **ça ne change aucune note**, donc le palier du cas
+  réel (A2 → B1 si on retirait les 3 fautes) n'est **pas** corrigé.
+  Au passage, `reprocheDeNiveauMot` (volet MOT) exige désormais ≥ 1 mot porteur :
+  il purgeait par inadvertance les citations 100 % mots-outils, qui sont de vrais
+  reproches de grammaire. Resserrement pur.
+- **Indicateur de qualité de transcription** (`TranscriptionQualityAudit`, migration
+  `V027`). Whisper renvoie `segments[].avg_logprob/no_speech_prob/compression_ratio` dans
+  `verbose_json` — **payés depuis toujours, jamais lus** ; le temps réel n'expose rien.
+  Deux taux **déterministes et gratuits** sur les seuls tours `Candidat :` : **formes
+  suspectes** (mots de 1-3 lettres absents d'un inventaire fermé d'~290 entrées, incluant
+  `MOTS_OUTILS_FR`) > **10 %**, ou **collages** (deux formes suspectes qui se suivent) >
+  **2 %** ⇒ transcription **dégradée**. Plancher 40 mots. **Pas de dictionnaire français
+  embarqué** (2-4 Mo de jar, licence tierce) : mesuré sur les 123 productions mesurables
+  de la base, l'inventaire fermé **sépare mieux** qu'un OOV brut (les mots longs
+  hors-vocabulaire sont des noms propres, sigles et néologismes d'apprenant). La coupure
+  colle **exactement** à la fenêtre du bug « mot coupé » : 8 sessions du 28/06 au 04/07 à
+  **18,29-26,94 %**, les 24 suivantes **< 4,84 %**, aucune observation entre les deux.
+  Déclenche **deux choses et rien d'autre** : le volet FORME passe en mode large, et la
+  **confiance** est plafonnée `FAIBLE` avec sa raison (obstacle à l'**observation**, pas
+  défaut du candidat). **Note, niveau et seuils ne bougent jamais.** Les deux taux + les
+  3 indicateurs Whisper sont **persistés** sur `transcriptions` (index partiel
+  `idx_transcription_degradee`) : le bug de juillet aurait été visible **en une requête**.
 - **Deux drapeaux livrés ÉTEINTS** (`sejourfr.production-evaluation`) :
   `fluidite.enabled` (débit/pauses, informatif) et `seconde-passe.enabled` (2ᵉ
   lecture en zone floue, même provider/modèle). À `false`, ils ne changent

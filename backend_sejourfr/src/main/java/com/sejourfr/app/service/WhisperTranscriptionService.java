@@ -64,6 +64,12 @@ public class WhisperTranscriptionService {
         t.setPromptUtilise(props.getWhisper().getLiteralModePrompt());
         t.setAudioDurationSec(detectedDuration);
         t.setCoutEstimeCentimes(estimerCout(detectedDuration));
+        t.setAvgLogprob(result.quality().avgLogprob());
+        t.setNoSpeechProb(result.quality().noSpeechProb());
+        t.setCompressionRatio(result.quality().compressionRatio());
+        t.setSegmentsCount(result.quality().segmentsCount() > 0
+            ? result.quality().segmentsCount() : null);
+        TranscriptionQualityAudit.renseigner(t, result.texte());
         transcriptionManager.save(t);
 
         sub.setStatut(SubmissionStatut.EVALUATING);

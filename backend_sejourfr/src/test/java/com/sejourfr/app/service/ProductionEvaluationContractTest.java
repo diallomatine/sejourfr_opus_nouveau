@@ -516,6 +516,170 @@ class ProductionEvaluationContractTest {
     }
 
     /**
+     * v14 = v13 AU BIT PRES pour TOUT ce qui note. Elle ne fait que RETIRER ce
+     * qui decrivait {@code version_amelioree} — un champ qu'aucun front
+     * n'affiche plus, et qui reecrivait la production au meme niveau que le
+     * candidat. Ce test est le verrou de cette promesse, et il compte double :
+     * la bascule est livree SANS campagne de banc, donc la seule chose qui
+     * garantisse qu'elle ne deplace pas une note, c'est qu'aucune regle de
+     * notation n'a bouge d'un caractere.
+     *
+     * <p>La comparaison est faite en SENS INVERSE des tests precedents : on
+     * reconstruit v13 a partir de v14 en y REMETTANT les fragments retires, et
+     * on exige l'egalite. Un seul caractere modifie ailleurs casse le test.
+     */
+    @Test
+    void v14NeRetireQueCeQuiDecritLaVersionAmelioree() throws Exception {
+        Map<String, Object> v13 = resource("prompts/production-rubrics-v13.json");
+        Map<String, Object> v14 = resource("prompts/production-rubrics-v14.json");
+
+        assertThat(v14)
+            .containsEntry("rubrics-version", "v14")
+            .containsEntry("profile", "TCF_IRN")
+            .containsEntry("tool_schema_version", "v8")
+            .containsEntry("niveau_max", "B2");
+        assertThat(resourceText("prompts/production-rubrics-v14.json"))
+            .doesNotContain("\"C1\"", "\"C2\"");
+
+        // (1) TOUT ce qui note : identique au bit pres.
+        Map<String, Object> communV13 = map(v13.get("commun"));
+        Map<String, Object> communV14 = map(v14.get("commun"));
+        for (String bloc : List.of("niveau", "couplage", "plafonds", "bandes_criteres", "few_shot")) {
+            assertThat(communV14.get(bloc))
+                .as("v14 ne touche pas a commun." + bloc + " : la notation est celle de v13")
+                .isEqualTo(communV13.get(bloc));
+        }
+
+        // (2) Les six rubriques de tache : seule la DERNIERE PHRASE disparait.
+        Map<String, Object> rubricsV13 = map(v13.get("rubrics"));
+        Map<String, Object> rubricsV14 = map(v14.get("rubrics"));
+        assertThat(rubricsV14.keySet()).isEqualTo(rubricsV13.keySet());
+        for (String tache : rubricsV13.keySet()) {
+            Map<String, Object> blocV13 = new java.util.LinkedHashMap<>(map(rubricsV13.get(tache)));
+            Map<String, Object> blocV14 = new java.util.LinkedHashMap<>(map(rubricsV14.get(tache)));
+
+            String consignesV13 = String.valueOf(blocV13.remove("consignes_correcteur"));
+            String consignesV14 = String.valueOf(blocV14.remove("consignes_correcteur"));
+            assertThat(consignesV13)
+                .as(tache + " : v13 portait bien la consigne retiree")
+                .contains(tache.startsWith("EE_")
+                    ? "VERSION AMELIOREE obligatoire"
+                    : "AUCUNE version_amelioree sur une tache orale");
+            assertThat(consignesV14)
+                .as(tache + " : v14 est v13 tronquee de sa derniere phrase, rien d'autre")
+                .isEqualTo(consignesV13.substring(0,
+                    consignesV13.indexOf(tache.startsWith("EE_")
+                        ? " VERSION AMELIOREE obligatoire"
+                        : " AUCUNE version_amelioree sur une tache orale")));
+            assertThat(consignesV14)
+                .as(tache + " : plus une seule mention du champ retire")
+                .doesNotContain("version_amelioree", "VERSION AMELIOREE");
+
+            assertThat(blocV14)
+                .as(tache + " : intitule, criteres, bareme et descripteurs sont ceux de v13")
+                .isEqualTo(blocV13);
+        }
+
+        // (3) Les sections : une de moins, et trois retouches ENUMEREES.
+        List<?> sectionsV13 = list(communV13.get("sections"));
+        List<?> sectionsV14 = list(communV14.get("sections"));
+        assertThat(sectionsV14)
+            .as("une seule section retiree : celle qui decrivait la version amelioree")
+            .hasSize(sectionsV13.size() - 1);
+        assertThat(sectionsV13.stream().map(s -> map(s).get("titre").toString()).toList())
+            .containsOnlyOnce(TITRE_VERSION_AMELIOREE);
+        assertThat(sectionsV14.stream().map(s -> map(s).get("titre").toString()).toList())
+            .as("le bloc dedie a disparu, et lui seul")
+            .doesNotContain(TITRE_VERSION_AMELIOREE)
+            .containsExactlyElementsOf(sectionsV13.stream()
+                .map(s -> map(s).get("titre").toString())
+                .filter(t -> !TITRE_VERSION_AMELIOREE.equals(t))
+                .toList());
+
+        // Chaque section restante DOIT etre celle de v13, aux trois seuls
+        // fragments enumeres pres. On les retire de v13 et on exige l'egalite :
+        // un caractere modifie ailleurs casse le test.
+        for (String fragment : List.of(VERSION_AMELIOREE_LIGNE, VERSION_AMELIOREE_CHAMPS,
+                VERSION_AMELIOREE_ACCENTUATION)) {
+            assertThat(sectionsV13.stream()
+                    .filter(s -> map(s).get("contenu").toString().contains(fragment))
+                    .count())
+                .as("v13 portait bien, une seule fois, le fragment : " + fragment)
+                .isEqualTo(1);
+        }
+        List<?> attendu = sectionsV13.stream()
+            .filter(s -> !TITRE_VERSION_AMELIOREE.equals(map(s).get("titre")))
+            .map(s -> {
+                Map<String, Object> copie = new java.util.LinkedHashMap<>(map(s));
+                copie.put("contenu", String.valueOf(copie.get("contenu"))
+                    .replace(VERSION_AMELIOREE_LIGNE, "")
+                    .replace(VERSION_AMELIOREE_CHAMPS, "")
+                    .replace(VERSION_AMELIOREE_ACCENTUATION, ""));
+                return copie;
+            })
+            .toList();
+        assertThat(sectionsV14)
+            .as("hors les trois fragments enumeres, chaque section est celle de v13")
+            .isEqualTo(attendu);
+
+        // (4) Plus aucune consigne ne parle du champ retire.
+        assertThat(sectionsV14.stream()
+                .map(s -> map(s).get("contenu").toString())
+                .reduce("", (a, b) -> a + "\n" + b))
+            .as("le correcteur n'entend plus parler de version_amelioree")
+            .doesNotContain("version_amelioree");
+    }
+
+    /**
+     * Le contrat de sortie v8 : celui de v7, PRIVE de {@code version_amelioree}.
+     * Le verrou est une egalite STRICTE de tout ce qui reste — meme esprit que
+     * l'egalite apres repli des accents entre v7 et v6 : aucune reformulation ne
+     * peut se glisser dans une passe de suppression.
+     */
+    @Test
+    void v8NeRetireQueLaVersionAmelioreeDeV7() throws Exception {
+        Map<String, Object> v7 = resource("prompts/production-evaluation-tool-schema-v7.json");
+        Map<String, Object> v8 = resource("prompts/production-evaluation-tool-schema-v8.json");
+
+        Map<String, Object> propsV7 = new java.util.LinkedHashMap<>(map(v7.get("properties")));
+        assertThat(propsV7.remove("version_amelioree"))
+            .as("v7 portait bien le champ retire").isNotNull();
+        assertThat(map(v8.get("properties")))
+            .as("v8 = v7 sans version_amelioree, et STRICTEMENT rien d'autre")
+            .isEqualTo(propsV7);
+
+        assertThat(strings(v8.get("required")))
+            .as("le champ n'etait pas obligatoire a la racine : la liste ne bouge pas")
+            .containsExactlyElementsOf(strings(v7.get("required")));
+        assertThat(v8.get("additionalProperties")).isEqualTo(false);
+        assertAllObjectsClosed(v8, "root");
+
+        // Tout le reste du fichier, cle par cle : identique, sauf le numero de
+        // contrat et la description, qui ne peut que S'ETOFFER.
+        for (String cle : map(v7).keySet()) {
+            if (List.of("properties", "title", "description").contains(cle)) continue;
+            assertThat(v8.get(cle)).as(cle).isEqualTo(v7.get(cle));
+        }
+        assertThat(v8.keySet()).isEqualTo(v7.keySet());
+        assertThat(String.valueOf(v8.get("title")))
+            .isEqualTo(String.valueOf(v7.get("title")).replace("v7", "v8"));
+        assertThat(String.valueOf(v8.get("description")))
+            .as("on ajoute, on ne reecrit pas")
+            .startsWith(String.valueOf(v7.get("description")))
+            .contains("RETIRE un seul champ");
+    }
+
+    /** La ligne de « une erreur, un seul endroit » qui donnait un role au champ. */
+    private static final String VERSION_AMELIOREE_LIGNE =
+        "- version_amelioree (taches ecrites) : MONTRE le resultat en contexte, "
+            + "sans rien reexpliquer.\n";
+    /** Sa mention dans la liste des champs obligatoires. */
+    private static final String VERSION_AMELIOREE_CHAMPS =
+        ", et version_amelioree sur toute tache ECRITE (jamais sur une tache orale)";
+    /** Sa mention dans la liste des champs soumis a la regle d'accentuation. */
+    private static final String VERSION_AMELIOREE_ACCENTUATION = "`version_amelioree`, ";
+
+    /**
      * Le contrat de sortie v7 : celui de v6, ses descriptions ACCENTUEES. Le
      * verrou est une egalite apres repli des accents — ainsi, aucune
      * reformulation ne peut se glisser dans la passe d'accentuation. Seules
@@ -785,7 +949,8 @@ class ProductionEvaluationContractTest {
         "v10, v5",
         "v11, v5",
         "v12, v6",
-        "v13, v7"
+        "v13, v7",
+        "v14, v8"
     })
     void chaqueVersionDeRubriquesAccepteUniquementSonToolSchema(
             String rubricsVersion, String toolSchemaVersion) {
@@ -811,7 +976,8 @@ class ProductionEvaluationContractTest {
         "v10, v4, v5",
         "v11, v4, v5",
         "v12, v5, v6",
-        "v13, v6, v7"
+        "v13, v6, v7",
+        "v14, v7, v8"
     })
     void unePaireRubriquesToolSchemaIncompatibleEchoueAuChargement(
             String rubricsVersion, String activeSchema, String expectedSchema) {

@@ -7,8 +7,13 @@ référence pédagogique exhaustive reste [`notation-ia-eo-ee.md`](notation-ia-e
 
 - Profil : **TCF IRN uniquement**.
 - Niveau de sortie maximal : **B2** ; C1 et C2 ne font pas partie du contrat actif.
-- Rubriques : `prompts/production-rubrics-v12.json`.
-- Tool-schema : `prompts/production-evaluation-tool-schema-v6.json`.
+- Rubriques : `prompts/production-rubrics-v14.json`.
+- Tool-schema : `prompts/production-evaluation-tool-schema-v8.json`.
+- ⚠️ **`version_amelioree` n'est plus produite ni affichée.** Elle a quitté le tool-schema
+  en **v8** ; le serveur la retire même si une sortie récalcitrante la renvoie
+  (`AiEvaluationService.postProcess`). Le texte modèle rendu au candidat est
+  `version_ciblee`, produit par un appel séparé. Les mentions de ce champ plus bas
+  décrivent l'historique des versions v5→v7, pas le contrat actif.
 - 🆕 **`v12` / `v6` = LA PREUVE SE DÉSIGNE PAR UN NUMÉRO DE SEGMENT.** `v12` est `v9` **au bit
   près** pour tout ce qui note (échelle, 4 critères, seuils, couplage, plafonds, bandes, tests
   décisifs A1/A2 et B1/B2, les 16 ancres few-shot, les 6 rubriques de tâche — verrouillé par
@@ -90,9 +95,9 @@ référence pédagogique exhaustive reste [`notation-ia-eo-ee.md`](notation-ia-e
   note jamais ; le transcript final revient dans le même pipeline correcteur.
 - EE : T1 **30–60 mots**, T2/T3 **40–90 mots**, bornes strictes.
 
-La v7 déclare `profile=TCF_IRN`, `niveau_max=B2` et `tool_schema_version=v4`.
-`ProductionRubricsProvider` refuse au chargement une paire incompatible (par exemple v7/v3).
-Les versions v6/v3 restent intactes pour rollback ; on versionne, on ne réécrit pas.
+La grille active déclare `profile=TCF_IRN`, `niveau_max=B2` et `tool_schema_version=v8`.
+`ProductionRubricsProvider` refuse au chargement une paire incompatible (par exemple v14/v6).
+Les paires antérieures restent intactes pour rollback ; on versionne, on ne réécrit pas.
 
 ## Parcours des données
 
@@ -316,7 +321,7 @@ pas la correction.
 les bornes de mots et la production. Pour l'EO, il n'ajoute **aucun bloc durée**. Les niveaux
 présentés au modèle s'arrêtent à B2.
 
-Les quatre critères v7, équipondérés, sont toujours :
+Les quatre critères, équipondérés depuis v5, sont toujours :
 
 1. `communiquer` ;
 2. `interagir` ;
@@ -414,6 +419,61 @@ correction sur :
 une confiance moindre sans modifier la note. Après validation, le filtre historique
 `stripOrthographicCorrections` retire encore les corrections EO purement orthographiques.
 
+## Filet oral, volet FORME (2026-08-09)
+
+`EvaluationOralArtifactFilter` gagne un troisième volet, à côté de MOT et LANGUE. **Il ne
+s'applique qu'à l'oral, qu'au critère `morphosyntaxe` et aux priorités qui le relisent** —
+jamais au lexique, jamais aux points forts, jamais à `confiance_raisons`, jamais à l'écrit.
+
+Règle : à l'oral, une faute de grammaire est une **structure**. Elle se cite soit sur au
+moins **3 mots porteurs de sens**, soit sur des **mots-outils seuls** (`« pour ne pas que »`,
+0 mot porteur — conservé, c'est une structure pure). Un reproche ancré qui ne nomme qu'**un
+ou deux** mots pleins nomme une *forme*, pas une structure : la phrase est purgée.
+
+- Motif mesuré sur les 142 évaluations en base : passages cités, présents verbatim dans la
+  production et absents d'un dictionnaire français de 475 000 formes → **9 évaluations EO
+  sur 75, 0 EE sur 67**. Zéro à l'écrit : la cause est la machine, pas le niveau.
+- Sur une transcription mesurée **dégradée** (voir ci-dessous), la condition de longueur
+  tombe : aucun reproche de grammaire ancré n'est opposable si le texte lu n'est pas celui
+  qui a été dit.
+- **Ni la note, ni le niveau, ni un seuil ne bougent** — comme les deux autres volets. Le
+  candidat reçoit un avertissement dédié, et le compteur `ARTEFACT_ORAL_FORME`
+  (`EvaluationPurgeMetrics`) dit combien de remarques ce volet retire.
+- **Coût assumé, mesuré** : sur les 75 commentaires de morphosyntaxe EO en base, **11
+  phrases** tomberaient, dont environ sept portaient *aussi* une vraie faute — la phrase
+  entière part, parce qu'ôter une citation au milieu d'une énumération rendrait un texte
+  mutilé. On perd du conseil, jamais un point.
+
+## Indicateur de qualité de transcription (2026-08-09)
+
+`TranscriptionQualityAudit` mesure, sur les seuls tours `Candidat :`, deux taux
+déterministes et gratuits :
+
+1. **formes suspectes** — part des mots de 1 à 3 lettres absents d'un inventaire fermé
+   (~290 entrées, dont `ProductionValidityService.MOTS_OUTILS_FR`). Seuil **10 %** ;
+2. **collages** — part des positions où deux formes suspectes se suivent (`ves te`,
+   `com me commer cial`), signature du mot coupé. Seuil **2 %**.
+
+Plancher de 40 mots exploitables, sinon « non mesurable » et aucune conséquence.
+
+**Pas de dictionnaire français embarqué** : il aurait pesé 2 à 4 Mo dans le jar, des dizaines
+de Mo en mémoire et une licence tierce. Mesure sur les 123 productions mesurables de la base
+(63 EE, 28 EO Whisper, 32 EO temps réel) : l'inventaire fermé sépare mieux qu'un taux de mots
+hors-vocabulaire brut, parce que les mots *longs* hors-vocabulaire sont surtout des noms
+propres, des sigles et des néologismes d'apprenant. La séparation colle exactement à la
+fenêtre du bug « mot coupé » : les 8 sessions mesurables du 28 juin au 4 juillet 2026 sont
+entre **18,29 % et 26,94 %**, les 24 suivantes toutes **sous 4,84 %**, et il n'existe aucune
+observation entre les deux.
+
+Ce que l'indicateur déclenche, et rien de plus :
+
+- le volet FORME passe en mode large ;
+- la **confiance** est plafonnée à `FAIBLE`, avec sa raison — une transcription abîmée est un
+  obstacle à l'**observation**, pas un défaut du candidat.
+
+**La note, le niveau et les seuils ne bougent jamais.** Verrouillé par
+`AiEvaluationServiceTranscriptionQualiteTest`.
+
 ## Calcul serveur
 
 Après validation et post-traitement :
@@ -463,7 +523,15 @@ continuer à dépasser, mais il n'est pas recevable tant qu'il n'est pas corrig�
 - `production_tasks` : sujets, contexte et bornes ;
 - `production_examples` : modèles pédagogiques ;
 - `production_submissions` : rendus et statuts ;
-- `transcriptions` : texte Whisper ou transcript temps réel ;
+- `transcriptions` : texte Whisper ou transcript temps réel, **plus les indicateurs de
+  qualité** (migration `V027`) :
+  - `avg_logprob`, `no_speech_prob`, `compression_ratio`, `segments_count` — renvoyés par
+    Whisper dans `verbose_json`, donc **payés depuis toujours et jetés jusqu'ici** ;
+    `NULL` en temps réel, qui n'expose rien ;
+  - `taux_formes_suspectes`, `taux_collages`, `qualite_degradee` — indicateur maison,
+    calculé sur le texte final, donc renseigné pour **les deux** sources. C'est ce qui rend
+    la question « nos transcriptions se dégradent-elles ? » répondable en une requête SQL
+    (index partiel `idx_transcription_degradee`) ;
 - `ai_evaluations` : résultat structuré, modèle, version, tokens et coût ;
 - `human_calibration_notes` : annotations humaines.
 
@@ -479,8 +547,8 @@ Le banc reste payant et n'est jamais lancé par `./mvnw verify` :
   -Dtest=CalibrationBenchTest \
   -DfailIfNoTests=false \
   -Dcalibration.enabled=true \
-  -Dcalibration.rubrics=v7 \
-  -Dcalibration.prompt=v4 \
+  -Dcalibration.rubrics=v14 \
+  -Dcalibration.prompt=v8 \
   -Dcalibration.label=<nom>
 ```
 
@@ -492,24 +560,26 @@ bornes restent des références historiques explicites.
 
 Une rubrique et son schéma forment une paire :
 
-- actif : v7 / v4 ;
-- rollback immédiat : v6 / v3 ;
+- actif : **v14 / v8** ;
+- rollback immédiat : v13 / v7 ;
 - versions plus anciennes : utiliser la paire documentée dans l'historique du projet.
+  ⚠️ v10 et v11 sont chargeables mais **mesurées moins bonnes que v9** — ne pas les
+  réactiver.
 
 Exemple :
 
 ```bash
-EVAL_RUBRICS_VERSION=v6 EVAL_PROMPT_VERSION=v3 ./mvnw spring-boot:run
+EVAL_RUBRICS_VERSION=v13 EVAL_PROMPT_VERSION=v7 ./mvnw spring-boot:run
 ```
 
-Aucune migration de données n'est nécessaire pour changer de paire. Ne jamais modifier v6 ou
-v3 pour corriger v7/v4.
+Aucune migration de données n'est nécessaire pour changer de paire. Ne jamais modifier une
+grille livrée pour corriger la grille active.
 
 ## Vérifications automatiques
 
 - `ProductionRubricsValidator` : couverture, poids, codes, bornes EE et contextes T2/T3 ;
-- `ProductionEvaluationContractTest` : métadonnées v7, échelle, quatre critères, bornes et
-  fermeture récursive du schéma v4 ;
+- `ProductionEvaluationContractTest` : métadonnées de la grille active, échelle, quatre
+  critères, bornes et fermeture récursive du tool-schema ;
 - `EvaluationOutputValidatorTest` et `EvaluationProofMatcherTest` : sorties
   partielles/dupliquées/non finies/C1, feedback EO interdit, variantes typographiques,
   unicité, éditions de token et exclusion des tours examinateur ;

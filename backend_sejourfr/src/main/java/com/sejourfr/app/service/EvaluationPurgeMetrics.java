@@ -34,6 +34,14 @@ public class EvaluationPurgeMetrics {
         ARTEFACT_ORAL_MOT,
         /** Reproche d'avoir parle une autre langue, produit par le transcripteur. */
         ARTEFACT_ORAL_LANGUE,
+        /**
+         * Reproche de GRAMMAIRE portant sur la forme d'un ou deux mots, la ou une
+         * faute orale est une structure. Compte a part de
+         * {@link #ARTEFACT_ORAL_MOT} : ce volet-la est le seul a purger des
+         * reproches qui peuvent etre justes, et c'est ce compteur qui dira s'il
+         * coute trop cher.
+         */
+        ARTEFACT_ORAL_FORME,
         /** Marqueur classe A2 vendu comme le levier d'un palier superieur. */
         MARQUEUR_PALIER,
         /**

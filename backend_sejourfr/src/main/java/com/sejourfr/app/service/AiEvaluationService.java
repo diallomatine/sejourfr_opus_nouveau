@@ -466,8 +466,18 @@ public class AiEvaluationService {
         if (!avertissements.isEmpty()) {
             feedback.put("avertissements", avertissements);
         }
+        // QUALITE DE LA TRANSCRIPTION, mesuree sur le texte que LIT le
+        // correcteur. Deux usages, et deux seulement : plafonner la confiance
+        // (obstacle a l'observation) et elargir le volet FORME du filet oral.
+        // Ni la note, ni le niveau, ni un seuil n'en dependent. A l'ecrit, on ne
+        // mesure rien : aucune machine ne s'interpose entre le candidat et son
+        // texte.
+        TranscriptionQualityAudit.Mesure qualite = task.getEpreuve() == EpreuveType.TCF_EO
+            ? TranscriptionQualityAudit.mesurer(production)
+            : TranscriptionQualityAudit.Mesure.nonMesurable(0);
+        logQualiteTranscription(qualite, sub, submissionId);
         // Confiance (schema v2) : lue, normalisee, puis PLAFONNEE serveur.
-        applyConfiance(feedback, sub, verdict, submissionId);
+        applyConfiance(feedback, sub, verdict, qualite, submissionId);
         // Accomplissement (schema v2) : conserve tel quel, structure normalisee.
         // Aucun point `obligatoire: false` (une simple piste du sujet) n'entre
         // dans un quelconque calcul de note — c'est une regle produit.
@@ -476,11 +486,17 @@ public class AiEvaluationService {
         // le sens PRUDENT quand il se contredit lui-meme — jamais l'inverse,
         // exactement comme la confiance, qu'il peut abaisser mais pas relever.
         applyObjectifCoherence(feedback, submissionId);
-        // EO : `version_amelioree` (schema v5) n'a aucun sens sur un echange
-        // oral — on ne rend pas au candidat un dialogue modele, et le garde-fou
-        // oral interdit de parler de la forme orale. La rubrique l'interdit
-        // deja ; ce filet garantit qu'aucune sortie orale n'en porte.
-        if (task.getEpreuve() == EpreuveType.TCF_EO) {
+        // `version_amelioree` (schemas v5 a v7). Deux raisons de la retirer, et
+        // le retrait est le meme :
+        //   - EO : elle n'a aucun sens sur un echange oral — on ne rend pas au
+        //     candidat un dialogue modele, et le garde-fou oral interdit de
+        //     parler de la forme orale ;
+        //   - contrat v8 : elle a quitte le schema. Plus aucun front ne
+        //     l'affiche (le texte modele rendu au candidat est `version_ciblee`,
+        //     produit par un appel separe), et elle reecrivait la production AU
+        //     MEME NIVEAU que le candidat. Le schema ferme suffit en theorie ;
+        //     ce filet garantit qu'une sortie recalcitrante n'en persiste pas.
+        if (task.getEpreuve() == EpreuveType.TCF_EO || !versionAmelioree(toolSchemaVersion)) {
             feedback.remove(CHAMP_VERSION_AMELIOREE);
         }
         // PREUVE. Deux chemins, un seul resultat pour les fronts : le champ
@@ -516,13 +532,14 @@ public class AiEvaluationService {
             // detruisait des evaluations entieres. Aucun effet sur la note :
             // tout ceci est de la restitution, appliquee avant le calcul mais
             // sur des champs qu'aucun calcul ne lit.
-            var purge = EvaluationOralArtifactFilter.purge(feedback, production);
+            var purge = EvaluationOralArtifactFilter.purge(feedback, production, qualite.degradee());
             if (purge.aPurge()) {
                 log.info("Restitution orale purgee submission={} : {} remarque(s) de niveau mot, "
-                        + "{} remarque(s) de langue etrangere, {} exemple(s) corrige(s) fondes "
-                        + "sur un element non evaluable.",
+                        + "{} remarque(s) de langue etrangere, {} reproche(s) de forme en "
+                        + "morphosyntaxe, {} exemple(s) corrige(s) fondes sur un element non "
+                        + "evaluable.",
                     submissionId, purge.remarquesRetirees(), purge.remarquesLangueRetirees(),
-                    purge.exemplesRetires());
+                    purge.remarquesFormeRetirees(), purge.exemplesRetires());
             }
             if (purge.remarquesRetirees() > 0) {
                 addAvertissement(feedback, EvaluationOralArtifactFilter.AVERTISSEMENT_ARTEFACT);
@@ -530,10 +547,15 @@ public class AiEvaluationService {
             if (purge.remarquesLangueRetirees() > 0) {
                 addAvertissement(feedback, EvaluationOralArtifactFilter.AVERTISSEMENT_LANGUE);
             }
+            if (purge.remarquesFormeRetirees() > 0) {
+                addAvertissement(feedback, EvaluationOralArtifactFilter.AVERTISSEMENT_FORME);
+            }
             purgeMetrics.enregistrer(EvaluationPurgeMetrics.Filtre.ARTEFACT_ORAL_MOT,
                 purge.remarquesRetirees(), 0);
             purgeMetrics.enregistrer(EvaluationPurgeMetrics.Filtre.ARTEFACT_ORAL_LANGUE,
                 purge.remarquesLangueRetirees(), purge.exemplesRetires());
+            purgeMetrics.enregistrer(EvaluationPurgeMetrics.Filtre.ARTEFACT_ORAL_FORME,
+                purge.remarquesFormeRetirees(), 0);
         }
         // Joint le `label` des criteres a chaque score (le LLM ne renvoie que le
         // `code`). Source = la rubrique de la tache (fallback DB) : evite au mobile
@@ -613,6 +635,35 @@ public class AiEvaluationService {
         addAvertissement(feedback, EvaluationPalierMarqueurFilter.AVERTISSEMENT_MARQUEUR_PALIER);
         purgeMetrics.enregistrer(EvaluationPurgeMetrics.Filtre.MARQUEUR_PALIER,
             purge.remarquesRetirees(), purge.entreesRetirees());
+    }
+
+    /**
+     * OBSERVABILITE de la qualite de transcription. Une ligne par evaluation
+     * orale, avec les deux taux et la source : c'est ce qui manquait pour voir le
+     * bug « mot coupe en deux » (28 juin → 4 juillet 2026), reste six semaines en
+     * production parce qu'aucun chiffre ne le disait. Les taux sont AUSSI
+     * persistes sur {@code transcriptions}, pour que la meme question se pose en
+     * une requete SQL plutot qu'en fouillant des logs.
+     */
+    private void logQualiteTranscription(TranscriptionQualityAudit.Mesure qualite,
+                                         ProductionSubmission sub, UUID submissionId) {
+        if (!qualite.mesurable()) return;
+        if (qualite.degradee()) {
+            log.warn("Transcription DEGRADEE submission={} source={} mots={} formesSuspectes={} "
+                    + "collages={} formes={}",
+                submissionId, sub.getSource(), qualite.mots(),
+                pourcent(qualite.tauxFormesSuspectes()), pourcent(qualite.tauxCollages()),
+                qualite.formes());
+            return;
+        }
+        log.info("Qualite transcription submission={} source={} mots={} formesSuspectes={} "
+                + "collages={}",
+            submissionId, sub.getSource(), qualite.mots(),
+            pourcent(qualite.tauxFormesSuspectes()), pourcent(qualite.tauxCollages()));
+    }
+
+    private static String pourcent(double taux) {
+        return String.format(java.util.Locale.ROOT, "%.2f%%", taux * 100);
     }
 
     /**
@@ -729,7 +780,8 @@ public class AiEvaluationService {
      * l'absence d'information n'est pas une certitude.
      */
     private void applyConfiance(Map<String, Object> feedback, ProductionSubmission sub,
-                                ProductionValidityService.Verdict verdict, UUID submissionId) {
+                                ProductionValidityService.Verdict verdict,
+                                TranscriptionQualityAudit.Mesure qualite, UUID submissionId) {
         ConfianceEvaluation declaree = ConfianceEvaluation.parse(feedback.get("confiance"));
         if (declaree == null) {
             log.warn("confiance absente ou invalide ({}) submission={} — MOYENNE par defaut.",
@@ -746,6 +798,15 @@ public class AiEvaluationService {
         if (sub.getSource() == ProductionSubmissionSource.REALTIME) {
             plafond = ConfianceEvaluation.min(plafond, ConfianceEvaluation.MOYENNE);
             raisonsServeur.add("transcription produite en direct pendant l'échange, donc partiellement incertaine");
+        }
+        // TRANSCRIPTION MESUREE ABIMEE (mots coupes, debris de formes) : le
+        // correcteur n'a pas lu ce que le candidat a dit. C'est un obstacle a
+        // l'OBSERVATION, donc exactement ce que la confiance doit dire — et
+        // rien d'autre : la note et le niveau sont hors de portee de ce filet.
+        if (qualite.degradee()) {
+            plafond = ConfianceEvaluation.min(plafond, ConfianceEvaluation.FAIBLE);
+            raisonsServeur.add("transcription automatique visiblement dégradée (mots coupés ou "
+                + "fragments non reconnaissables), ce qui limite ce que nous pouvons observer");
         }
 
         ConfianceEvaluation finale = ConfianceEvaluation.min(declaree, plafond);
@@ -841,6 +902,15 @@ public class AiEvaluationService {
      */
     static boolean preuveParNumero(String toolSchemaVersion) {
         return EvaluationToolSchema.of(toolSchemaVersion).preuveParNumero();
+    }
+
+    /**
+     * Contrat de sortie qui porte encore {@code version_amelioree} (v5 a v7).
+     * Meme registre, meme raison que {@link #preuveParNumero(String)} : la
+     * question se pose au CONTRAT, jamais a une egalite litterale.
+     */
+    static boolean versionAmelioree(String toolSchemaVersion) {
+        return EvaluationToolSchema.of(toolSchemaVersion).versionAmelioree();
     }
 
     /**

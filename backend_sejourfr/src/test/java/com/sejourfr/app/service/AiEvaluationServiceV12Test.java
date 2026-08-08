@@ -299,6 +299,35 @@ class AiEvaluationServiceV12Test {
         return s;
     }
 
+    // ------------------------------------------- rubriques v14 / tool-schema v8
+
+    /**
+     * SOUS v14/v8 LE CHAMP NE PART PLUS AU CORRECTEUR ET NE REVIENT PLUS. Le
+     * prompt n'en parle plus (aucune consigne a suivre), et si une sortie en
+     * portait une malgre tout, le serveur la retire — a l'ECRIT comme a l'oral.
+     * Tout le reste de la correction est inchange : meme note, meme niveau,
+     * meme preuve resolue en texte.
+     */
+    @Test
+    void v14_ne_demande_plus_et_ne_persiste_plus_la_version_amelioree_a_l_ecrit() {
+        props.setRubricsVersion("v14");
+        when(llmClient.getPromptVersion()).thenReturn("v8");
+        buildService();
+
+        stubLlm(feedbackEcrit(7, 7, 7, 7));
+        AiEvaluation evaluation = service.evaluate(submissionEcrite().getId());
+
+        assertThat(userPromptEnvoye())
+            .as("le correcteur n'entend plus parler du champ retire")
+            .doesNotContain("version_amelioree", "VERSION AMELIOREE");
+        assertThat(evaluation.getFeedbackJson())
+            .doesNotContainKey("version_amelioree")
+            .containsEntry("niveau_cecrl", "B1");
+        assertThat(evaluation.getNoteSur20()).isEqualByComparingTo("7.0");
+        assertThat(score(evaluation.getFeedbackJson(), "communiquer").get("preuve"))
+            .isEqualTo("Salut Paul !");
+    }
+
     private static Map<String, Object> feedbackEcrit(Number communiquer, Number interagir,
                                                      Number lexique, Number morphosyntaxe) {
         Map<String, Object> f = base();

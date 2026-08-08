@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *
  * <p>Les capacites attendues ne sont pas recopiees a la main : elles sont LUES
  * dans le fichier de schema (marqueurs observables ci-dessous). Un futur schema
- * v8 devra donc etre enregistre, et ses drapeaux seront confrontes a son propre
+ * v9 devra donc etre enregistre, et ses drapeaux seront confrontes a son propre
  * contenu — pas a une table d'a-cote qu'on oublie de mettre a jour.
  */
 class EvaluationToolSchemaContractTest {
@@ -59,6 +59,7 @@ class EvaluationToolSchemaContractTest {
         v11, v5
         v12, v6
         v13, v7
+        v14, v8
         """;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -124,8 +125,23 @@ class EvaluationToolSchemaContractTest {
     void laPreuveParNumeroVautPourV6EtAuDela() {
         assertThat(AiEvaluationService.preuveParNumero("v6")).isTrue();
         assertThat(AiEvaluationService.preuveParNumero("v7")).isTrue();
+        assertThat(AiEvaluationService.preuveParNumero("v8")).isTrue();
         assertThat(AiEvaluationService.preuveParNumero("v5")).isFalse();
         assertThat(AiEvaluationService.preuveParNumero("v4")).isFalse();
+    }
+
+    /**
+     * {@code version_amelioree} est la premiere capacite qu'une version
+     * POSTERIEURE retire. Elle vaut donc « v5 a v7 », bornee des deux cotes —
+     * et le retrait serveur du champ suit exactement ce drapeau.
+     */
+    @Test
+    void laVersionAmelioreeVautDeV5AV7EtPlusApres() {
+        assertThat(AiEvaluationService.versionAmelioree("v4")).isFalse();
+        assertThat(AiEvaluationService.versionAmelioree("v5")).isTrue();
+        assertThat(AiEvaluationService.versionAmelioree("v6")).isTrue();
+        assertThat(AiEvaluationService.versionAmelioree("v7")).isTrue();
+        assertThat(AiEvaluationService.versionAmelioree("v8")).isFalse();
     }
 
     /**
@@ -157,8 +173,12 @@ class EvaluationToolSchemaContractTest {
      * <ul>
      *   <li>structure verifiee champ par champ ⇔ schema ferme
      *       ({@code additionalProperties: false}) ;</li>
-     *   <li>controles de restitution ⇔ {@code version_amelioree} et
-     *       {@code accomplissement.objectif} au contrat ;</li>
+     *   <li>controles de restitution ⇔ {@code accomplissement.objectif} au
+     *       contrat ;</li>
+     *   <li>{@code version_amelioree} exigee ⇔ propriete presente dans le
+     *       schema. Cette capacite-la s'OUVRE en v5 et se REFERME en v8 : la
+     *       lire sur {@code restitution()} rendrait le registre faux des que le
+     *       champ disparait ;</li>
      *   <li>preuve par numero ⇔ {@code preuve_segment} exige sur chaque
      *       critere.</li>
      * </ul>
@@ -177,8 +197,8 @@ class EvaluationToolSchemaContractTest {
             .as(schemaVersion + " : une preuve est un numero OU une citation, jamais les deux")
             .isNotEqualTo(requisParCritere.contains("preuve"));
 
-        assertThat(schema.restitution())
-            .as(schemaVersion + " : restitution <-> version_amelioree au contrat")
+        assertThat(schema.versionAmelioree())
+            .as(schemaVersion + " : version_amelioree exigee <-> version_amelioree au contrat")
             .isEqualTo(proprietes.containsKey("version_amelioree"));
         assertThat(schema.restitution())
             .as(schemaVersion + " : restitution <-> accomplissement.objectif au contrat")

@@ -2,8 +2,17 @@
 
 > **Archive de conception initiale — ne pas utiliser comme référence du pipeline actuel.**
 > La notation active est décrite dans `docs/pipeline-evaluation-eo-ee.md` et
-> `docs/notation-ia-eo-ee.md` : profil TCF IRN plafonné à B2, rubriques v7, schéma v4 et
-> correcteur unique choisi dans `application.yaml`.
+> `docs/notation-ia-eo-ee.md` : profil TCF IRN plafonné à B2, **rubriques v14 /
+> tool-schema v8** et correcteur unique choisi dans `application.yaml`.
+>
+> Ce qui suit décrit un modèle de données et un contrat de sortie qui **n'existent plus** :
+> le schéma réel est `production_tasks` / `production_submissions` / `transcriptions` /
+> `ai_evaluations` (pas `production_attempts`), les critères sont `communiquer` /
+> `interagir` / `lexique` / `morphosyntaxe` (pas `pertinence` / `grammaire` /
+> `vocabulaire` / `coherence` / `prononciation`, cette dernière étant même **interdite**
+> par le garde-fou EO), et **`version_amelioree` n'est plus ni produite ni affichée**
+> (retirée du tool-schema en v8 ; le texte modèle rendu au candidat est `version_ciblee`,
+> issu d'un appel séparé). Conservé pour l'historique des décisions, rien d'autre.
 
 ## Contexte du projet
 

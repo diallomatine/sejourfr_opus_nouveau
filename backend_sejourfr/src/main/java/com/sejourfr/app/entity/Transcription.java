@@ -53,6 +53,37 @@ public class Transcription {
     @Column(name = "cout_estime_centimes")
     private Integer coutEstimeCentimes;
 
+    /**
+     * QUALITE RENVOYEE PAR WHISPER (verbose_json), payee depuis toujours et lue
+     * depuis le 2026-08-09 seulement. {@code null} en temps reel : Gemini
+     * natif-audio n'expose aucun indicateur de confiance.
+     */
+    @Column(name = "avg_logprob")
+    private Double avgLogprob;
+
+    @Column(name = "no_speech_prob")
+    private Double noSpeechProb;
+
+    @Column(name = "compression_ratio")
+    private Double compressionRatio;
+
+    @Column(name = "segments_count")
+    private Integer segmentsCount;
+
+    /**
+     * QUALITE MESUREE PAR NOUS, sur le texte final — donc disponible pour les
+     * DEUX sources, temps reel compris. Cf. {@code TranscriptionQualityAudit}.
+     * {@code null} quand la production est trop courte pour conclure.
+     */
+    @Column(name = "taux_formes_suspectes")
+    private Double tauxFormesSuspectes;
+
+    @Column(name = "taux_collages")
+    private Double tauxCollages;
+
+    @Column(name = "qualite_degradee")
+    private Boolean qualiteDegradee;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -84,6 +115,27 @@ public class Transcription {
 
     public Integer getCoutEstimeCentimes() { return coutEstimeCentimes; }
     public void setCoutEstimeCentimes(Integer coutEstimeCentimes) { this.coutEstimeCentimes = coutEstimeCentimes; }
+
+    public Double getAvgLogprob() { return avgLogprob; }
+    public void setAvgLogprob(Double avgLogprob) { this.avgLogprob = avgLogprob; }
+
+    public Double getNoSpeechProb() { return noSpeechProb; }
+    public void setNoSpeechProb(Double noSpeechProb) { this.noSpeechProb = noSpeechProb; }
+
+    public Double getCompressionRatio() { return compressionRatio; }
+    public void setCompressionRatio(Double compressionRatio) { this.compressionRatio = compressionRatio; }
+
+    public Integer getSegmentsCount() { return segmentsCount; }
+    public void setSegmentsCount(Integer segmentsCount) { this.segmentsCount = segmentsCount; }
+
+    public Double getTauxFormesSuspectes() { return tauxFormesSuspectes; }
+    public void setTauxFormesSuspectes(Double tauxFormesSuspectes) { this.tauxFormesSuspectes = tauxFormesSuspectes; }
+
+    public Double getTauxCollages() { return tauxCollages; }
+    public void setTauxCollages(Double tauxCollages) { this.tauxCollages = tauxCollages; }
+
+    public Boolean getQualiteDegradee() { return qualiteDegradee; }
+    public void setQualiteDegradee(Boolean qualiteDegradee) { this.qualiteDegradee = qualiteDegradee; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

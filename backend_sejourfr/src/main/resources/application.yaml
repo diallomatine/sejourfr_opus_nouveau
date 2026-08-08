@@ -315,7 +315,8 @@ sejourfr:
     # facon avant d'etre activee : campagne + temoin de la version precedente
     # rejoue le MEME JOUR.
     # Matrice verifiee au demarrage : v3-v4.2 -> schema v2, v5-v6 -> schema v3,
-    # v7 -> schema v4, v8/v9/v10/v11 -> schema v5, v12 -> schema v6. Un rollback
+    # v7 -> schema v4, v8/v9/v10/v11 -> schema v5, v12 -> schema v6,
+    # v13 -> schema v7, v14 -> schema v8. Un rollback
     # change donc la paire EVAL_RUBRICS_VERSION + EVAL_PROMPT_VERSION ;
     # une combinaison incoherente bloque le demarrage.
     #
@@ -384,7 +385,7 @@ sejourfr:
     # valide. C'est assume : on ne reecrit pas une grille livree, dont dependent
     # des evaluations deja notees. Basculer en v9 en connaissance de cause.
     #
-    # v13 (ACTIVE) = v12 AU BIT PRES pour tout ce qui note ET pour toute la
+    # v13 = v12 AU BIT PRES pour tout ce qui note ET pour toute la
     # restitution — memes seuils, memes criteres, memes plafonds, memes bandes,
     # memes 16 ancres, memes six rubriques de tache, memes 23 sections. SEULE
     # ADDITION : une 24e section qui exige que le francais RENDU AU CANDIDAT
@@ -399,7 +400,34 @@ sejourfr:
     # (regle du depot). Verrou : ProductionEvaluationContractTest.
     # Retour arriere, sans migration : EVAL_RUBRICS_VERSION=v12 +
     # EVAL_PROMPT_VERSION=v6.
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v13}
+    #
+    # v14 (ACTIVE) = v13 AU BIT PRES pour TOUT ce qui note : echelle, quatre
+    # criteres, seuils, couplage, plafonds, bandes, tests decisifs A1/A2 et
+    # B1/B2, les 16 ancres few-shot, les descripteurs et le bareme des six
+    # taches. SEUL RETRAIT : tout ce qui decrivait `version_amelioree` (la
+    # section dediee — 23 sections au lieu de 24 —, sa ligne dans « une erreur,
+    # un seul endroit », sa mention dans les champs obligatoires et dans la
+    # regle d'accentuation, et la derniere phrase des six consignes de tache).
+    # Le tool-schema v8 va avec : c'est v7 sans cette propriete, rien d'autre.
+    # Motif : plus aucun front ne l'affiche depuis que le texte modele rendu au
+    # candidat est `version_ciblee` (appel separe, « la marche au-dessus »), or
+    # elle reecrivait la production AU MEME NIVEAU que le candidat — mesure en
+    # base : recopiee telle quelle et resoumise, elle rend la meme note au
+    # dixieme pres. On payait donc des tokens de SORTIE a chaque correction
+    # ECRITE pour un champ que personne ne lit (mesure sur les 12 evaluations
+    # EE qui la portent : 297 caracteres, 54 mots, ~5,7 % du JSON de sortie,
+    # soit ~90 tokens de sortie par correction ecrite).
+    # Ordre de preference du depot respecte : c'est un changement de
+    # TOOL-SCHEMA, pas une consigne de rubrique de plus.
+    # /!\ NON MESUREE AU BANC — comme v12 et v13, et pour la meme raison : aucune
+    # regle de notation ne bouge, et le peu qui change au prompt RETIRE une
+    # contrainte au lieu d'en ajouter une (a l'inverse de v10/v11, mesurees
+    # moins bonnes parce qu'elles AJOUTAIENT du texte).
+    # Retour arriere, sans migration : EVAL_RUBRICS_VERSION=v13 +
+    # EVAL_PROMPT_VERSION=v7 (les deux ensemble : la matrice refuse une paire
+    # incoherente au demarrage).
+    # Matrice : v13 -> schema v7, v14 -> schema v8.
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v14}
     # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
     # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
     # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).
@@ -660,7 +688,7 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v7}
+      prompt-version: ${EVAL_PROMPT_VERSION:v8}
       # Tarification gpt-5.4 (USD / 1M tokens, relevée sur la page tarifaire
       # OpenAI le 2026-08-07 : 2,50 en entrée / 15,00 en sortie).
       # ⚠ Ces deux valeurs vont AVEC `model` ci-dessus : le coût estimé est
@@ -680,7 +708,7 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v7}
+      prompt-version: ${EVAL_PROMPT_VERSION:v8}
       # Tarif claude-sonnet-4-5 (USD / 1M tokens). Surchargeable comme le modèle,
       # et dans la même source que lui.
       cost-per-million-input-tokens: ${EVAL_ANTHROPIC_COST_INPUT:3.0}
@@ -738,7 +766,7 @@ sejourfr:
       # OpenAiCompatibleEvalClient#buildRequestFactory) — au-dela, c'est un
       # fournisseur qui a accepte la requete et genere.
       timeout-sec: ${EVAL_DEEPSEEK_TIMEOUT_SEC:90}
-      prompt-version: ${EVAL_PROMPT_VERSION:v7}
+      prompt-version: ${EVAL_PROMPT_VERSION:v8}
       # Tarif deepseek-v4-flash (USD / 1M tokens, relevé sur
       # api-docs.deepseek.com le 2026-08-07 : 0,14 en entrée cache-miss / 0,28
       # en sortie ; le tarif cache-hit, plus bas, n'est pas modélisé — on

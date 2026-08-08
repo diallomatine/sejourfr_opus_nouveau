@@ -1230,8 +1230,10 @@ public class ProductionEvaluationProperties {
     /**
      * « Version au niveau visé » : la réponse du candidat réécrite au palier
      * qu'il VISE (son {@code TargetLevel}), plus deux à trois leviers concrets
-     * pour l'atteindre. <b>EE uniquement</b>, en miroir de la règle
-     * {@code version_amelioree} (obligatoire à l'écrit, retirée à l'oral).
+     * pour l'atteindre. <b>EE uniquement</b>, comme l'était
+     * {@code version_amelioree} — qu'elle a REMPLACÉE sur l'écran du candidat,
+     * puis rendue inutile : ce champ ne survit que dans les contrats de sortie
+     * v5 à v7, il a quitté le v8.
      *
      * <p><b>SECOND APPEL LLM, totalement séparé de la correction — c'est la
      * raison même de la fonctionnalité, pas un détail d'implémentation.</b> Le

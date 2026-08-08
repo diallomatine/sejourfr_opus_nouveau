@@ -71,7 +71,13 @@ public class ProductionRubricsProvider {
         // Rien de ce qui note ne bouge. Le contrat de sortie v7 est celui de
         // v6 avec ses descriptions accentuees et la meme reserve de citation :
         // aucun champ ajoute, aucun champ retire.
-        Map.entry("v13", "v7")
+        Map.entry("v13", "v7"),
+        // v14 = v13 au bit pres pour tout ce qui note ; elle RETIRE les seules
+        // consignes qui decrivaient `version_amelioree`, champ qu'aucun front
+        // n'affiche plus. Le contrat de sortie v8 est v7 sans cette propriete :
+        // aucun champ ajoute, aucune autre regle changee. v13/v7 reste
+        // chargeable et activable : c'est le retour arriere, sans migration.
+        Map.entry("v14", "v8")
     );
 
     private final ProductionEvaluationProperties props;
@@ -152,7 +158,7 @@ public class ProductionRubricsProvider {
      * Verifie la paire rubriques/tool-schema avant la premiere evaluation.
      * Les fichiers historiques ne declaraient pas ce lien, donc la matrice
      * reste explicite ici : v3-v4.2 -> v2, v5-v6 -> v3, v7 -> v4,
-     * v8/v9/v10/v11 -> v5, v12 -> v6, v13 -> v7.
+     * v8/v9/v10/v11 -> v5, v12 -> v6, v13 -> v7, v14 -> v8.
      *
      * <p>La matrice seule ne suffisait pas : elle prouvait que la paire etait
      * COHERENTE, jamais que le contrat de sortie etait APPLIQUE. Le tool-schema

@@ -94,6 +94,66 @@ class EvaluationOutputValidatorTest {
             .isEmpty();
     }
 
+    // -------------------------------- contrat v8 : plus de version amelioree
+
+    /**
+     * SOUS v8 LE CHAMP N'EXISTE PLUS. Une sortie ecrite qui ne le porte pas est
+     * complete — c'est tout l'objet de la bascule : ne plus payer des tokens de
+     * sortie pour un texte que plus aucun front n'affiche.
+     */
+    @Test
+    void v8_n_exige_plus_la_version_amelioree_sur_une_tache_ecrite() {
+        Map<String, Object> feedback = feedbackParNumero(1, 2, 3, 4);
+        feedback.remove("version_amelioree");
+
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubricsV12(), "v8", TEXTE_EE)).isEmpty();
+    }
+
+    /**
+     * Un correcteur qui la produirait quand meme ne fait pas echouer la
+     * soumission : le serveur la retire. Une evaluation perdue coute plus cher
+     * qu'un champ ignore — meme arbitrage que le retrait a l'oral.
+     */
+    @Test
+    void v8_tolere_sa_presence_sans_jamais_l_exiger() {
+        Map<String, Object> feedback = feedbackParNumero(1, 2, 3, 4);
+
+        assertThat(feedback).containsKey("version_amelioree");
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubricsV12(), "v8", TEXTE_EE)).isEmpty();
+    }
+
+    /**
+     * REVERSIBILITE : le retour arriere v14/v8 -> v13/v7 se fait par deux
+     * variables d'environnement, et il doit revoir la regle s'appliquer. Sinon
+     * la bascule ne serait pas reversible, seulement irreversible en douceur.
+     */
+    @Test
+    void v7_continue_d_exiger_la_version_amelioree_sur_une_tache_ecrite() {
+        Map<String, Object> feedback = feedbackParNumero(1, 2, 3, 4);
+        feedback.remove("version_amelioree");
+
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubricsV12(), "v7", TEXTE_EE))
+            .anyMatch(v -> v.contains("version_amelioree doit etre une chaine non vide"));
+    }
+
+    /** Tout le reste du contrat v6 continue de s'appliquer sous v8. */
+    @Test
+    void v8_conserve_la_preuve_par_numero_et_les_plafonds_de_restitution() {
+        assertThat(EvaluationOutputValidator.violations(
+            feedbackParNumero(1, 2, 3, 99), task(EpreuveType.TCF_EE), rubricsV12(), "v8", TEXTE_EE))
+            .containsExactly(
+                "preuve_segment[morphosyntaxe] doit designer un segment numerote de la production");
+
+        Map<String, Object> feedback = feedbackParNumero(1, 2, 3, 4);
+        feedback.put("points_forts", List.of("un", "deux", "trois"));
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubricsV12(), "v8", TEXTE_EE))
+            .anyMatch(v -> v.contains("points_forts contient plus de 2 entrees"));
+    }
+
     private static final String TEXTE_EE =
         "Salut Marie ! J'ai déménagé samedi. Mon appartement est lumineux. Viens le voir ?";
 

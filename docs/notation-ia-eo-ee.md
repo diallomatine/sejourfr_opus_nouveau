@@ -213,10 +213,10 @@ compétence, sans note ni niveau — les versions sont **v2 / v2** et tout est d
 >    atteint / non atteint », avec une phrase qui dit ce que le candidat a fait (§5.4).
 > 6. **Au plus deux points forts** et **au plus trois exemples corrigés** (§5.5).
 > 7. **À l'écrit, un texte modèle de la copie entière**, avec les seules idées du candidat.
->    ⚠️ Celui qui s'affiche est désormais la **version au niveau VISÉ** (§5.9), qui nomme son
->    palier ; la « version améliorée » du palier juste au-dessus (§5.8) est toujours produite
->    mais **n'est plus montrée** — recopiée telle quelle, elle rendait la même note. Rien de
->    tel à l'oral.
+>    ⚠️ Le seul qui existe est la **version au niveau VISÉ** (§5.9), qui nomme son palier ; la
+>    « version améliorée » du palier juste au-dessus (§5.8) a été retirée de l'écran, puis
+>    **supprimée de la correction** par les consignes v14 — recopiée telle quelle, elle rendait
+>    la même note. Rien de tel à l'oral.
 
 > 🔒 **Ce que verrouille toujours la v7, conservé tel quel en v8.** C1/C2 sont hors du contrat
 > actif : SejourFR prépare uniquement le **TCF IRN**, dont le niveau rapporté ici s'arrête à
@@ -275,7 +275,8 @@ EE T1, EE T2, EE T3, EO T1, EO T2, EO T3.
 > recevables), la base et la grille se sont mises à dire deux choses contradictoires **dans le
 > même message** : « longueur attendue : 40 à 90 » d'un côté, « bornes respectées exactement —
 > 60 à 90 » de l'autre. Conséquence concrète pour le candidat : la version améliorée qu'on lui
-> rendait (§5.8) visait 60-90 mots même sur une copie de 45 mots parfaitement valide.
+> rendait alors (§5.8, depuis supprimée) visait 60-90 mots même sur une copie de 45 mots
+> parfaitement valide.
 > ⚠️ Les versions de grille **déjà livrées** (v8 à v11, contrat de sortie v5) gardent leurs
 > bornes historiques 60-90 : c'est la trace exacte de ce avec quoi les copies déjà corrigées
 > l'ont été, et on ne réécrit jamais une grille livrée. **Revenir en arrière sur la version des
@@ -944,7 +945,7 @@ en avait un. Désormais chaque zone du rapport a **un rôle, et un seul** :
 | **Points à améliorer** | **Enseigne.** C'est le **seul** endroit où l'on explique comment corriger. |
 | **Exemples corrigés** | **Démontrent** le palier au-dessus, sur des phrases **différentes** de celles déjà utilisées dans les priorités. |
 | **Suggestions** | Uniquement ce qui n'a été traité **nulle part** ailleurs. |
-| **Version améliorée** (écrit) | **Montre** le résultat en contexte, sans rien réexpliquer (§5.8). |
+| ~~**Version améliorée** (écrit)~~ | Supprimée par les consignes v14 (§5.8) : le texte modèle de l'écrit est la **version au niveau visé** (§5.9). |
 
 Deux interdits précis, ce sont les répétitions les plus fréquentes : réexpliquer dans le
 « comment » ce qui est déjà dit dans le « constat », et réutiliser la même phrase du candidat
@@ -968,11 +969,17 @@ justificatif interne du niveau — que le candidat ne voit pas — continue de d
 sans détour. On dit la même chose au candidat, autrement. Et un point **obligatoire** de la
 consigne réellement non traité, lui, reste un vrai manque : on le dit, simplement.
 
-### 5.8 La version améliorée de votre texte (écrit uniquement, v8)
+### 5.8 La version améliorée de votre texte — **supprimée** (écrit, v8 → v14)
 
-À l'écrit, le rapport se termine désormais par **votre production réécrite en entier**, telle
-que vous auriez pu l'écrire au palier juste au-dessus. C'est le pendant naturel de la règle
-précédente : au lieu d'accumuler des remarques sur des phrases isolées, on montre le résultat.
+> 🛑 **Ce bloc n'existe plus.** Il a d'abord été retiré de l'écran, puis, depuis les consignes
+> **v14**, il n'est **même plus produit** par le correcteur. Ce qui suit décrit ce qu'il était,
+> parce que les corrections faites avant cette bascule le contiennent encore et restent
+> lisibles telles quelles. Le texte modèle de votre résultat écrit, aujourd'hui, c'est la
+> **version au niveau visé** du §5.9.
+
+À l'écrit, le rapport se terminait par **votre production réécrite en entier**, telle
+que vous auriez pu l'écrire au palier juste au-dessus. C'était le pendant naturel de la règle
+précédente : au lieu d'accumuler des remarques sur des phrases isolées, on montrait le résultat.
 
 Cinq règles l'encadrent :
 
@@ -994,11 +1001,31 @@ n'a aucun sens pédagogique, et cela reviendrait à commenter la forme orale, ce
 interdisons (§9). Si le correcteur en produit une malgré tout, le serveur la retire avant
 l'affichage.
 
-#### ⚠️ Cette version n'est plus affichée au candidat (nouveau)
+#### ⚠️ Pourquoi elle a disparu — d'abord de l'écran, puis de la correction
 
-Elle est **toujours produite** et conservée avec la correction — rien n'a été supprimé du côté
-serveur — mais **aucun écran ne la montre plus**. C'est la **version au niveau visé** du §5.9
-qui a pris sa place comme texte modèle du résultat écrit.
+Cela s'est fait en **deux temps**, et il vaut la peine de les distinguer.
+
+**Temps 1 — retirée de l'écran.** Plus aucun écran ne la montrait, mais le correcteur
+continuait de l'écrire à chaque correction écrite, et elle restait conservée avec la
+correction. C'est la **version au niveau visé** du §5.9 qui avait pris sa place comme texte
+modèle du résultat écrit.
+
+**Temps 2 (consignes v14) — retirée de la correction elle-même.** Un texte que personne ne lit
+n'en reste pas moins **écrit** par l'IA, et tout ce que l'IA écrit se paie : c'était en moyenne
+**297 caractères, 54 mots — environ 5,7 % de tout ce que le correcteur produit** sur une copie
+écrite (mesuré sur les corrections réelles qui la portent). Les consignes **v14** ne la
+demandent donc plus, et le **format de réponse v8** ne prévoit même plus de case pour la loger :
+elle est devenue impossible à produire, pas seulement inutile.
+
+> **Ce que cette bascule ne change pas, et comment nous le savons.** v14 est la v13 **au
+> caractère près** pour tout ce qui note : l'échelle, les quatre critères, les seuils, le
+> garde-fou de couplage, les plafonds, les bandes affichées, les tests décisifs A1/A2 et B1/B2,
+> les descripteurs et le barème des six tâches, et les 16 exemples de calibration. Ce n'est pas
+> une promesse : un test compare les deux fichiers et **casse la construction** si un seul de
+> ces éléments bouge. Comme pour v12 et v13, aucune campagne de mesure n'a été lancée — et pour
+> la même raison : rien de ce qui note ne change, et le peu qui change dans les consignes
+> **enlève** du texte au lieu d'en ajouter. Retour en arrière si besoin : une paire de
+> variables (`EVAL_RUBRICS_VERSION=v13` + `EVAL_PROMPT_VERSION=v7`), sans rien migrer.
 
 La raison mérite d'être dite, parce qu'elle est instructive : cette version était **au même
 niveau que la production du candidat**. Elle était le texte le plus visible et le plus copiable
@@ -1016,11 +1043,11 @@ tête d'écran.
 
 ### 5.9 La version au niveau que **vous** visez (écrit uniquement, nouveau)
 
-> 📌 **C'est désormais LE texte modèle de votre résultat écrit.** La version améliorée du §5.8
-> a été retirée de l'écran ; celle-ci a pris sa place, en évidence, avec ses leviers juste en
-> dessous sous le titre « Ce qui vous en sépare ».
+> 📌 **C'est LE seul texte modèle de votre résultat écrit.** La version améliorée du §5.8 a été
+> retirée de l'écran puis supprimée de la correction ; celle-ci a pris sa place, en évidence,
+> avec ses leviers juste en dessous sous le titre « Ce qui vous en sépare ».
 
-La version améliorée du §5.8 montre **le palier juste au-dessus**. C'est utile, mais ce n'est
+La version améliorée du §5.8 montrait **le palier juste au-dessus**. C'est utile, mais ce n'est
 pas toujours ce dont vous avez besoin : quelqu'un qui prépare une **naturalisation** doit
 atteindre le **B2**, et s'il écrit aujourd'hui du A2, voir une version B1 ne lui dit pas où est
 l'arrivée.
@@ -1114,7 +1141,7 @@ Votre correction, votre note et votre niveau ne changent jamais à cause de cela
 Il n'y a alors pas de « marche au-dessus » à vous montrer : le texte modèle n'aurait aucun sens
 (vous écrivez déjà à ce niveau-là). Mais **cette section ne disparaît plus en silence**.
 
-C'était un vrai défaut : depuis que la version améliorée du §5.8 a été retirée de l'écran, ce
+C'était un vrai défaut : depuis que la version améliorée du §5.8 a disparu, ce
 bloc est le **seul** texte modèle du rapport. Le candidat qui **réussissait** se retrouvait donc
 avec un résultat plus vide que celui qui échouait, sans un mot d'explication — sa réussite avait
 exactement la même tête qu'une panne.
@@ -1768,6 +1795,9 @@ du français, et où une règle plus large supprimerait de **vraies** correction
 repose entièrement sur la consigne donnée à l'IA, et c'est pour ça qu'elle a été mesurée au
 banc (§12.4).
 
+Depuis le 2026-08-09, ce filet a été **élargi au seul terrain où la règle est claire** : la
+grammaire. Voir §8 sexies.
+
 ---
 
 ## 8 ter. Le déroulé du dialogue compte (nouveau : grille v9)
@@ -2079,6 +2109,135 @@ dire laquelle dérive.
 
 ---
 
+## 8 sexies. À l'oral, une faute de grammaire est une **structure**, jamais la forme d'un mot
+
+### Ce qui s'est passé
+
+Un candidat a dit « **j'habite à Lille** ». La transcription automatique a mangé le début du
+mot et a écrit « **abit à Lille** ». Le correcteur, qui ne lit que la transcription, l'a
+consciencieusement rangé dans les erreurs de grammaire :
+
+> quelques erreurs perceptibles : « abit à Lille » (j'habite)…
+
+**On reprochait au candidat un défaut de notre propre machine.** Ce n'est pas un détail de
+présentation : c'est la phrase que le candidat lit sous son critère de grammaire, et c'est
+elle qui justifie sa note à ses yeux.
+
+### Ce que la mesure a montré
+
+Nous avons repris les **142 évaluations** déjà rendues et cherché, dans les phrases de
+reproche, les passages cités entre guillemets qui figurent bien dans la production mais
+n'existent dans **aucun** dictionnaire français (475 000 formes) :
+
+| | évaluations concernées | dont défaut machine | dont vraie faute |
+|---|---|---|---|
+| **Oral (75)** | 9 — 12,0 % | **9** | **0** |
+| **Écrit (67)** | 4 — 6,0 % | **0** | **4** |
+
+**Zéro à l'écrit, non nul à l'oral.** La cause est donc la machine, pas le niveau du
+candidat : à l'écrit il tape chaque lettre lui-même, une forme fautive y est une vraie faute.
+
+### La règle qu'on en a tirée
+
+À l'oral, une faute de grammaire s'entend sur un **enchaînement** : un accord à distance, un
+temps mal choisi, une construction de verbe, une subordonnée. Elle se cite donc de deux
+façons, et de deux seulement :
+
+- sur **au moins trois mots pleins** (« je suis des nationalités guinéennes ») — c'est une
+  structure, elle est **conservée** ;
+- sur des **mots-outils seuls** (« pour ne pas que ») — c'est aussi une structure, elle est
+  **conservée**.
+
+Entre les deux — un ou deux mots pleins isolés (« abit à Lille », « zérer ») — le reproche ne
+décrit pas une structure : il nomme une **forme**. Or une forme isolée est exactement ce que
+la reconnaissance vocale fabrique, et une faute de forme courte (« les enfant ») est de toute
+façon **inaudible** : c'est de l'orthographe, que notre grille interdit déjà de reprocher à
+l'oral. La remarque est donc retirée, et le candidat est prévenu :
+
+> Une ou plusieurs remarques de grammaire portaient sur la forme d'un ou deux mots de la
+> transcription automatique : elles ont été retirées.
+
+**Où ça s'applique, et nulle part ailleurs** : à l'**oral** seulement, sur le **critère de
+grammaire** et sur les priorités qui le reprennent. Jamais sur le vocabulaire — une remarque
+de vocabulaire porte légitimement sur un mot, et la même règle y aurait supprimé deux
+remarques justes que nous avons retrouvées en base (dont une citée en **point fort**). Jamais
+à l'écrit.
+
+### Ce que ça coûte, et pourquoi on l'accepte
+
+La phrase entière est retirée, pas seulement la citation fautive : retirer une citation au
+milieu d'une énumération rendrait au candidat une phrase mutilée. Conséquence mesurée sur les
+75 commentaires de grammaire à l'oral déjà rendus : **11 phrases** disparaîtraient, dont
+environ sept contenaient *aussi* une vraie faute. On perd donc du conseil.
+
+C'est un choix assumé : **reprocher à quelqu'un une faute que notre machine a inventée coûte
+plus cher que taire une faute réelle**. Le candidat garde par ailleurs ses priorités de
+travail, ses exemples corrigés et sa note.
+
+### Ce que ça ne répare pas — à dire franchement
+
+Sur le cas réel ci-dessus, le correcteur citait **trois** fautes, et les trois étaient des
+défauts de transcription. Notre règle en identifie **une seule** (« abit à Lille ») ; les deux
+autres (« j'aimerais bien que start up », « on se rend compte ») sont du français
+parfaitement valide, que rien ne distingue d'une vraie maladresse. Comme elles vivent dans la
+même phrase, elles partent avec — mais par ricochet, pas parce qu'on sait les reconnaître.
+
+Et surtout : **ce filet ne touche ni la note, ni le niveau, ni un seuil**, comme tous les
+autres filets de ce document. Le candidat du cas réel reste donc à sa note. Ce qui change,
+c'est qu'on cesse de lui reprocher quelque chose qu'il n'a pas dit.
+
+---
+
+## 8 septies. Savoir **quand** la transcription est abîmée
+
+### Le problème : on payait un signal qu'on jetait
+
+Notre transcripteur écrit (Whisper) nous renvoie, à chaque correction, des indicateurs de
+confiance sur ce qu'il a entendu. **Nous ne les lisions pas.** Et notre transcripteur en temps
+réel, lui, n'en renvoie aucun — alors que c'est la source la plus fragile.
+
+Résultat concret : entre le **28 juin et le 4 juillet 2026**, un défaut a coupé les mots en
+morceaux dans toutes les sessions orales en temps réel (« l'emplo yé de l'age nce de location
+de voi ture »). Il a fallu des semaines pour le voir, parce qu'**aucun chiffre ne le disait**.
+
+### Ce qu'on mesure maintenant, sans rien payer de plus
+
+Deux comptages simples sur les seules paroles du candidat :
+
+1. la part de **mots très courts inconnus** — un mot français de trois lettres appartient à
+   une liste courte et fermée ; un débris de mot coupé (« nce », « voi », « lou ») n'y est
+   jamais ;
+2. la part de **collages** — deux débris qui se suivent (« ves te », « com me commer cial »),
+   la signature du mot coupé.
+
+Nous n'embarquons **pas** de dictionnaire français complet : il aurait pesé plusieurs
+mégaoctets pour un résultat moins net. Vérification faite sur les 123 productions
+exploitables de notre base, la liste courte sépare parfaitement : les 8 sessions de la
+semaine du défaut sont entre **18 % et 27 %** de mots courts inconnus, les 24 sessions
+suivantes toutes **sous 5 %**. Il n'existe **aucune** production entre les deux. Le seuil est
+posé à **10 %**, au milieu de ce fossé.
+
+### Ce que ça déclenche — et rien de plus
+
+Quand une transcription est déclarée abîmée :
+
+- **plus aucun reproche de grammaire adossé à une citation n'est retenu** : le correcteur n'a
+  pas lu ce que le candidat a dit, aucun de ces reproches n'est opposable ;
+- la **confiance** de l'évaluation est abaissée, avec sa raison écrite noir sur blanc. C'est
+  exactement le bon endroit : la confiance dit la certitude du **correcteur**, et une
+  transcription abîmée est un obstacle à l'**observation**, pas un défaut du candidat.
+
+**La note, le niveau et les seuils ne bougent jamais.**
+
+### Et pour la suite
+
+Les deux comptages sont désormais **enregistrés** à côté de chaque transcription, avec les
+indicateurs de Whisper qu'on jetait. La question « nos transcriptions se dégradent-elles ? »
+se répond maintenant en une seule requête. C'est l'argument principal de tout ce chantier :
+sans cela, on répare un cas et on reste aveugle au suivant.
+
+---
+
 ## 9. L'oral : ce que nous ne savons pas évaluer
 
 **C'est une limite technique, pas un choix pédagogique — et le candidat en est informé.**
@@ -2367,9 +2526,10 @@ Dans cet ordre :
    remplacée par un encart « Objectif atteint » quand le niveau visé est déjà tenu, et absente
    sans conséquence si ce second appel échoue.
    Rien de tel à l'oral.
-9 bis. La **version améliorée** du palier juste au-dessus (§5.8) est toujours produite et
-   conservée, mais **n'est plus affichée** : elle était au même niveau que la copie, et la
-   recopier ne changeait pas la note.
+9 bis. La **version améliorée** du palier juste au-dessus (§5.8) n'existe plus : retirée de
+   l'écran, puis **supprimée de la correction** par les consignes v14 — elle était au même
+   niveau que la copie, et la recopier ne changeait pas la note. Les corrections faites avant
+   la conservent, et restent lisibles.
 10. *(Inactif aujourd'hui)* Sur une production orale, un encart **débit et pauses** —
     informations factuelles, hors note. Voir §13.
 
@@ -3246,8 +3406,8 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 
 | Ce qu'on veut changer | Fichier |
 |-----------------------|---------|
-| **Toutes les consignes de notation** (nos 4 critères et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et tout ce qui se lit sur une note** : seuils note → niveau, écart du garde-fou, seuils des plafonds, bornes des bandes affichées) **et toutes les consignes de restitution** (confiance, anti-répétition, levier de progression, verdict, version améliorée, plafonds d'affichage) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v13.json` (version **active**, profil `TCF_IRN`, maximum B2 — **c'est la v12 au caractère près, plus une seule section : le français rendu au candidat doit être accentué, et ce qui est cité de lui recopié tel quel**, §10 bis). `v8`, `v7` et les versions antérieures restent en place et chargeables. ⚠️ **`v10` et `v11` existent aussi, et sont écartées** : elles ajoutaient une consigne sur la langue étrangère à l'oral et ont été **mesurées moins bonnes que v9** (§8 quater) — les activer ferait revenir ces chiffres. Un rollback change la **paire compatible** `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION` (v13/v7 → v12/v6 → v9/v5 → v8/v5 → v7/v4), jamais un seul côté du contrat. ⚠️ **v12 et v13 sont les seules versions dont la notation n'a pas été mesurée au banc** — parce qu'elle ne la change pas : elle est la v9 au caractère près pour tout ce qui note (verrouillé par un test qui compare les deux fichiers), et ne modifie que **deux choses de forme** : la façon dont l'IA désigne sa preuve (§5.5), et le fait qu'elle ne **recopie plus** les bornes de mots des tâches EE — elle renvoie à celles qui lui sont injectées depuis la base (§2). Retour à la recopie littérale : `EVAL_RUBRICS_VERSION=v9` + `EVAL_PROMPT_VERSION=v5`, sans migration — ⚠️ **ce retour arrière réintroduit la contradiction sur les bornes de mots** (grille à 60-90, base à 40-90, §2). |
-| **Le format de réponse de l'IA** (note, confiance, accomplissement **et son verdict**, preuves, exemples corrigés, version améliorée…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v7.json` (version active — **v6 avec ses consignes réaccentuées et la règle « ce qu'on cite se recopie tel quel » ; un test garantit que seuls des accents ont changé**, §10 bis) ; structure figée depuis v6 : structure complète, quatre critères exacts, niveaux limités à B2, aucun champ imprévu, au plus 2 points forts / 2 priorités / 3 exemples corrigés). **La seule différence avec la v5** : la preuve d'un critère y est un **numéro de morceau** (un entier), plus une citation recopiée — c'est ce qui rend une preuve inventée impossible plutôt que simplement interdite (§5.5). La v5 reste en place et chargeable. |
+| **Toutes les consignes de notation** (nos 4 critères et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et tout ce qui se lit sur une note** : seuils note → niveau, écart du garde-fou, seuils des plafonds, bornes des bandes affichées) **et toutes les consignes de restitution** (confiance, anti-répétition, levier de progression, verdict, plafonds d'affichage) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v14.json` (version **active**, profil `TCF_IRN`, maximum B2 — **c'est la v13 au caractère près pour tout ce qui note ; elle ne fait que retirer les consignes décrivant la « version améliorée », supprimée du rapport**, §5.8). `v13` (accentuation, §10 bis), `v12`, `v9`, `v8`, `v7` et les versions antérieures restent en place et chargeables. ⚠️ **`v10` et `v11` existent aussi, et sont écartées** : elles ajoutaient une consigne sur la langue étrangère à l'oral et ont été **mesurées moins bonnes que v9** (§8 quater) — les activer ferait revenir ces chiffres. Un rollback change la **paire compatible** `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION` (v14/v8 → v13/v7 → v12/v6 → v9/v5 → v8/v5 → v7/v4), jamais un seul côté du contrat. ⚠️ **v12, v13 et v14 sont les seules versions dont la notation n'a pas été mesurée au banc** — parce qu'elle ne la change pas : elle est la v9 au caractère près pour tout ce qui note (verrouillé par un test qui compare les deux fichiers), et ne modifie que **deux choses de forme** : la façon dont l'IA désigne sa preuve (§5.5), et le fait qu'elle ne **recopie plus** les bornes de mots des tâches EE — elle renvoie à celles qui lui sont injectées depuis la base (§2). Retour à la recopie littérale : `EVAL_RUBRICS_VERSION=v9` + `EVAL_PROMPT_VERSION=v5`, sans migration — ⚠️ **ce retour arrière réintroduit la contradiction sur les bornes de mots** (grille à 60-90, base à 40-90, §2). |
+| **Le format de réponse de l'IA** (note, confiance, accomplissement **et son verdict**, preuves, exemples corrigés…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v8.json` (version active — **v7 privée de la seule case `version_amelioree` ; un test exige l'égalité stricte de tout le reste**, §5.8 ; `v7` = v6 réaccentuée, §10 bis) ; structure figée depuis v6 : structure complète, quatre critères exacts, niveaux limités à B2, aucun champ imprévu, au plus 2 points forts / 2 priorités / 3 exemples corrigés). **La seule différence avec la v5** : la preuve d'un critère y est un **numéro de morceau** (un entier), plus une citation recopiée — c'est ce qui rend une preuve inventée impossible plutôt que simplement interdite (§5.5). La v5 reste en place et chargeable. |
 | **Le découpage de la production en morceaux numérotés** (une prise de parole du candidat à l'oral, une phrase à l'écrit) et sa **résolution en texte** avant affichage | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationProductionSegments.java`. Le découpage est **le même** pour ce qui est envoyé à l'IA, pour la vérification du numéro et pour le texte affiché — un seul point de vérité, comme pour le recollage des phrases coupées (§3.1) |
 | **Le correcteur utilisé partout** (async, fin de session temps réel, réparation, seconde passe, calibration) | Le **fichier d'environnement** (`.env`), pas le code : `EVAL_LLM_PROVIDER` et `EVAL_<FOURNISSEUR>_MODEL`. `application.yaml` ne porte que les **défauts** — aujourd'hui **DeepSeek / `deepseek-v4-flash`**, et **pas** son homonyme « pro », plus cher sans mieux noter. ⚠️ **Ce choix est en cours de réexamen** (§12.6). Les blocs OpenAI (`gpt-5.4`) et Anthropic restent complets et testés : basculer, c'est décommenter un bloc de trois lignes. Gemini reste l'examinateur vocal/transcripteur, jamais le correcteur. |
 | **La façon dont on parle à un fournisseur** (nom du réglage de longueur maximale, envoi ou non d'une température) | Personne ne l'écrit : elle est **négociée avec le fournisseur** au premier appel, à partir de ses messages d'erreur, puis retenue jusqu'au redémarrage (`backend_sejourfr/src/main/java/com/sejourfr/app/util/ChatCompletionDialectNegotiator.java`). Deux clés d'environnement par fournisseur permettent de reprendre la main sans code si besoin : `EVAL_<FOURNISSEUR>_MAX_TOKENS_PARAM` et `EVAL_<FOURNISSEUR>_SEND_TEMPERATURE` |

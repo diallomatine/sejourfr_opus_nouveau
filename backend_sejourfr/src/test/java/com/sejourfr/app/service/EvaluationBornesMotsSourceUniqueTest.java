@@ -30,7 +30,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>Mettre le chiffre a jour aux quatre endroits n'aurait fait que reporter le
  * probleme au prochain changement de bornes. La grille RENVOIE desormais au bloc
- * injecte ; ce test interdit qu'on y remette un chiffre.
+ * injecte ; ce test interdit qu'on y remette un chiffre. Depuis le tool-schema
+ * v8, {@code version_amelioree} a quitte le contrat : le schema ne parle plus du
+ * tout de longueur, ce qui clot le sujet de son cote.
  *
  * <p>Il porte sur les versions ACTIVES lues dans {@code application.yaml}, donc
  * il protege aussi les versions futures. Les versions LIVREES (v8..v11, schema
@@ -81,9 +83,21 @@ class EvaluationBornesMotsSourceUniqueTest {
             assertThat(plagesTrouvees(schema))
                 .as("tool-schema actif (%s, via %s)", version, cle)
                 .isEmpty();
-            assertThat(schema)
-                .as("tool-schema actif (%s) : il doit RENVOYER aux bornes injectees", version)
-                .contains("LONGUEUR ATTENDUE");
+            // Le RENVOI n'a de sens que si le schema reclame encore un texte
+            // dont la longueur compte. Depuis v8, `version_amelioree` a quitte
+            // le contrat : il n'y a plus de longueur a annoncer, donc plus rien
+            // a renvoyer — et c'est la meilleure garantie possible contre la
+            // rechute, un chiffre qu'on n'ecrit pas ne peut pas se contredire.
+            if (schema.contains("version_amelioree")) {
+                assertThat(schema)
+                    .as("tool-schema actif (%s) : il doit RENVOYER aux bornes injectees", version)
+                    .contains("LONGUEUR ATTENDUE");
+            } else {
+                assertThat(schema)
+                    .as("tool-schema actif (%s) : plus aucun champ de longueur, "
+                        + "donc plus aucune borne a annoncer", version)
+                    .doesNotContain("LONGUEUR ATTENDUE");
+            }
         }
     }
 

@@ -190,6 +190,11 @@ public class ProductionEvaluationService {
         t.setLangueDetectee("fr");
         t.setModeleUtilise("realtime");
         t.setAudioDurationSec(durationSec);
+        // Le temps reel n'expose AUCUN indicateur de confiance (Gemini
+        // natif-audio), alors que c'est la source la plus abimee. L'indicateur
+        // maison, lui, se calcule sur le texte final : il vaut pour les deux
+        // sources, et c'est ce qui rend la table comparable.
+        TranscriptionQualityAudit.renseigner(t, t.getTexte());
         transcriptionManager.save(t);
 
         // Examen complet : auto-finalise le sous-attempt EO à 3 productions.

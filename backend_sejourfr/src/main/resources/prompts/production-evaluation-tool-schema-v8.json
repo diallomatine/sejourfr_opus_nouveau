@@ -1,0 +1,264 @@
+{
+  "type": "object",
+  "required": [
+    "note_globale",
+    "niveau_cecrl",
+    "justification_niveau",
+    "scores_criteres",
+    "points_forts",
+    "points_a_ameliorer",
+    "suggestions",
+    "exemples_corriges",
+    "confiance",
+    "confiance_raisons",
+    "accomplissement"
+  ],
+  "properties": {
+    "note_globale": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 20,
+      "description": "Note sur 20 = moyenne des quatre critères équipondérés. Échelle TCF IRN : 0 = A1 non atteint, 1 = A1, 2 à 5 = A2, 6 à 9 = B1, 10 à 20 = B2. Le serveur la recalcule."
+    },
+    "niveau_cecrl": {
+      "type": "string",
+      "enum": [
+        "A1_NON_ATTEINT",
+        "A1",
+        "A2",
+        "B1",
+        "B2"
+      ],
+      "description": "Niveau observé dans le profil TCF IRN, limité à B2. Il doit correspondre à la bande de note_globale."
+    },
+    "justification_niveau": {
+      "type": "string",
+      "minLength": 30,
+      "description": "Obligatoire : 2 à 3 phrases citant des marqueurs concrets (de préférence des passages littéraux de la production) qui justifient le niveau_cecrl attribué. Exemple : 'Niveau B1 : emploi de \"pour + infinitif\" et passé composé maîtrisé, paragraphe descriptif cohérent.'"
+    },
+    "confiance": {
+      "type": "string",
+      "enum": [
+        "HAUTE",
+        "MOYENNE",
+        "FAIBLE"
+      ],
+      "description": "Obligatoire : degré de certitude de CETTE évaluation, c'est-à-dire de TON observation. Elle ne dit JAMAIS ce que vaut la production. HAUTE = tu as pu lire ou entendre l'intégralité de ce que le candidat a produit et la consigne est claire — c'est le cas NORMAL, y compris quand la production est très faible ou très fautive. MOYENNE = un obstacle matériel limite ton observation (transcription partiellement incertaine, passages illisibles, échange interrompu, consigne ambiguë, production trop BRÈVE pour contenir des marqueurs observables). FAIBLE = obstacle majeur (transcription très bruitée ou tronquée, tâche interrompue avant toute production observable). Deux interdits symétriques : la confiance ne modifie JAMAIS la note, et la note ne modifie JAMAIS la confiance — un niveau bas est une OBSERVATION, pas un doute. Une confiance FAIBLE n'autorise ni le hors-sujet, ni la mention 'incompréhensible'."
+    },
+    "confiance_raisons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "1 à 3 raisons courtes, factuelles et compréhensibles par le candidat, qui expliquent le niveau de confiance. UNIQUEMENT des obstacles à l'observation : 'transcription temps réel partiellement incertaine', 'échange interrompu avant la fin', 'douze mots produits, trop peu pour observer la syntaxe'. INTERDIT : justifier la confiance par la qualité de la production ('trop pauvre pour observer la grammaire', 'trop de fautes pour juger'). Sur une production orale, mentionner ici la limite 'évaluation fondée sur la transcription, la voix n'est pas analysée' quand elle pèse sur le jugement."
+    },
+    "accomplissement": {
+      "type": "object",
+      "required": [
+        "objectif",
+        "objectif_resume",
+        "points_traites",
+        "points_oublies"
+      ],
+      "description": "Ce que le candidat a fait / n'a pas fait par rapport à la consigne, et le VERDICT de la tâche. Affiché AVANT le détail de langue : libellés courts (5 à 12 mots), langue simple, sans jargon. La distinction obligatoire/piste est capitale : un point 'piste' non traité n'a AUCUNE conséquence sur la note, ne fait jamais basculer le verdict et ne doit jamais être présenté comme un manque.",
+      "properties": {
+        "objectif": {
+          "type": "string",
+          "enum": [
+            "ATTEINT",
+            "PARTIELLEMENT_ATTEINT",
+            "NON_ATTEINT"
+          ],
+          "description": "Verdict de la tâche, affiché en tête de l'écran du candidat. ATTEINT si et seulement si points_oublies ne contient AUCUNE entrée obligatoire=true. PARTIELLEMENT_ATTEINT : au moins un point obligatoire manque, mais la consigne est traitée dans son ensemble. NON_ATTEINT : réservé au hors-sujet ou à l'absence de traitement de la consigne. Une piste non abordée (obligatoire=false) ne fait JAMAIS basculer ce verdict. Le verdict est INDÉPENDANT de la note et du niveau : une consigne intégralement traitée avec des moyens A1 est ATTEINTE et se note quand même dans la bande A1/A2."
+        },
+        "objectif_resume": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Une phrase courte adressée au candidat, qui dit CE QU'IL A FAIT, en langue simple et sans jargon. Ex. 'Tu invites clairement ton amie, tu donnes le lieu et tu demandes d'apporter quelque chose.' Jamais de note, jamais de niveau, jamais de reproche."
+        },
+        "points_traites": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "libelle",
+              "obligatoire"
+            ],
+            "properties": {
+              "libelle": {
+                "type": "string",
+                "description": "Point de la consigne effectivement traité, formulé du point de vue de la consigne (ex. 'Nouvelle annoncée', 'Logement décrit')."
+              },
+              "obligatoire": {
+                "type": "boolean",
+                "description": "true = point exigé par la consigne (compte dans la note) ; false = piste suggérée par le sujet, abordée spontanément (n'influence pas la note)."
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "Points effectivement traités. Un point partiellement traité figure ici, avec la réserve exprimée dans le commentaire du critère communiquer."
+        },
+        "points_oublies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "libelle",
+              "obligatoire"
+            ],
+            "properties": {
+              "libelle": {
+                "type": "string",
+                "description": "Point non traité, formulé du point de vue de la consigne (ex. 'Invitation absente')."
+              },
+              "obligatoire": {
+                "type": "boolean",
+                "description": "true = manque réel, exigé par la consigne, qui pèse sur le critère communiquer ; false = simple piste non abordée, informative, SANS aucune conséquence sur la note."
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "Points non traités. Ne jamais fabriquer un manque pour remplir la liste : si tous les points obligatoires sont traités, cette liste ne contient que des pistes, ou reste vide."
+        }
+      },
+      "additionalProperties": false
+    },
+    "scores_criteres": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "EXACTEMENT quatre critères, une seule fois chacun : communiquer, interagir, lexique, morphosyntaxe. Chacun désigne sa preuve par le NUMÉRO d'un segment de la production, jamais par une citation recopiée.",
+      "items": {
+        "type": "object",
+        "required": [
+          "code",
+          "note_sur_20",
+          "commentaire",
+          "preuve_segment"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "communiquer",
+              "interagir",
+              "lexique",
+              "morphosyntaxe"
+            ],
+            "description": "Code du critère, recopié EXACTEMENT depuis la grille passée dans le prompt."
+          },
+          "note_sur_20": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20,
+            "description": "Note du critère sur l'échelle TCF IRN : 0 = A1 non atteint, 1 = A1, 2-5 = A2, 6-9 = B1, 10-20 = B2. Communiquer et interagir ne dépassent jamais de plus de 1 point la moyenne de lexique et morphosyntaxe."
+          },
+          "commentaire": {
+            "type": "string",
+            "description": "Commentaire portant sur CE critère précisément (pas sur la production en général), en lien avec la description du critère dans la grille de la tâche. Il CARACTÉRISE le critère et s'appuie sur sa preuve : il ne fait pas la leçon, n'explique pas comment corriger et ne reprend pas un point déjà traité ailleurs — enseigner est le rôle de points_a_ameliorer. Ne déclare jamais absent un point listé dans accomplissement.points_traites : s'il est maladroit, il est présent, et la réserve porte sur la forme."
+          },
+          "preuve_segment": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Obligatoire : le NUMÉRO du segment de la production qui justifie la note de ce critère. La production t'est fournie découpée en segments numérotés entre crochets ; tu renvoies UNIQUEMENT l'entier correspondant, jamais de texte. Tu ne recopies donc rien et tu ne peux pas te tromper de graphie : choisis le segment le plus directement lié à ton constat. Le numéro doit exister dans la liste fournie. À l'oral en interaction, seuls les tours 'Candidat :' portent un numéro — les tours 'Examinateur :' te sont montrés pour comprendre l'échange, ils ne sont pas citables. Si le critère est très faible, désigne quand même le segment qui montre le plus directement cette limite et explique-la dans le commentaire."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "points_forts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "AU MAXIMUM 2 vrais points forts, appuyés sur ce que la production contient réellement (pas de compliment de courtoisie). Une seule entrée suffit s'il n'y a qu'une vraie réussite. À l'oral, ne jamais féliciter la prononciation, l'accent, l'aisance ou la fluidité : ils ne sont pas évalués.",
+      "maxItems": 2
+    },
+    "points_a_ameliorer": {
+      "type": "array",
+      "maxItems": 2,
+      "description": "AU MAXIMUM 2 priorités, la plus importante en premier. Chacune doit ENSEIGNER : un constat, puis COMMENT faire, puis la démonstration sur une phrase du candidat. Une priorité sans 'comment' concret n'apprend rien et est refusée. C'est le SEUL endroit où l'on explique comment corriger : un même fait de langue n'est traité qu'à un seul endroit du rapport. Ne jamais y faire figurer une piste du sujet non abordée, un moyen linguistique que la consigne n'exigeait pas (c'est un levier de progression, pas un manque), un point déjà listé dans accomplissement.points_traites, ni l'orthographe/la ponctuation d'une production orale. Cas hors-sujet : une entrée dont le constat est la phrase EXACTE 'Production hors-sujet : la consigne n'a pas été traitée.'",
+      "items": {
+        "type": "object",
+        "required": [
+          "constat",
+          "comment"
+        ],
+        "properties": {
+          "constat": {
+            "type": "string",
+            "description": "Ce qui ne va pas, en une phrase, appuyé sur SA production. Ex. 'Vos idées sont posées les unes après les autres, sans lien entre elles.'"
+          },
+          "comment": {
+            "type": "string",
+            "minLength": 40,
+            "description": "COMMENT s'y prendre : une technique RÉUTILISABLE, appliquée à SON texte — la règle à appliquer, le mot-outil à employer, la tournure modèle, la question à se poser en se relisant. Doit contenir un verbe d'action adressé au candidat (remplace, ajoute, commence par, relis, utilise, transforme). Ne RÉEXPLIQUE PAS le constat autrement tourné. INTERDIT : 'améliorer la ponctuation pour plus de clarté', 'pratiquer l'utilisation de connecteurs', 'enrichir son vocabulaire', 'travailler la grammaire' — ce sont des constats déguisés."
+          },
+          "exemple": {
+            "type": "object",
+            "required": [
+              "avant",
+              "apres"
+            ],
+            "description": "Démonstration de la technique sur la production du candidat. À omettre uniquement si la production ne contient littéralement aucune phrase exploitable.",
+            "properties": {
+              "avant": {
+                "type": "string",
+                "description": "Phrase EXACTE du candidat, recopiée telle quelle. C'est une CITATION : tu la recopies sans rien corriger — fautes, accents manquants et maladresses compris. La règle d'accentuation vaut pour le français que TU écris, jamais pour les mots du candidat : lui montrer une phrase qu'il n'a pas écrite fausserait la démonstration."
+              },
+              "apres": {
+                "type": "string",
+                "description": "La même phrase, réécrite en appliquant la technique."
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "suggestions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Recommandations pédagogiques (règles à réviser, exercices), formulées comme un conseil d'entraînement et non comme un reproche. C'est ici que vont les remarques secondaires écartées de points_a_ameliorer — et UNIQUEMENT ce qui n'a été traité nulle part ailleurs : jamais la reprise d'une priorité, d'un commentaire de critère ou d'un exemple corrigé. Un moyen linguistique que la consigne n'exigeait pas se formule ici comme un levier ('ce qui te ferait gagner un niveau : ...'), jamais comme un manque."
+    },
+    "exemples_corriges": {
+      "type": "array",
+      "description": "1 à 3 REFORMULATIONS (trois au maximum) qui feraient GAGNER UN NIVEAU : une juxtaposition transformée en subordonnée, deux phrases fusionnées par un connecteur logique, un mot passe-partout remplacé par un terme précis, une affirmation transformée en argument justifié, une concession transformée en objection traitée. Elles portent sur des phrases DIFFÉRENTES de celles déjà utilisées dans points_a_ameliorer : une erreur ne se traite qu'à un seul endroit. JAMAIS une virgule ajoutée, un accent, une majuscule ou une faute de frappe : ces micro-corrections ne font progresser personne. À l'ORAL : uniquement des reformulations de PHRASE améliorant la clarté (jamais un mot isolé, jamais l'orthographe, l'accentuation ou la ponctuation). Liste vide plutôt que des corrections cosmétiques ou des redites.",
+      "items": {
+        "type": "object",
+        "required": [
+          "original",
+          "corrige",
+          "explication",
+          "gain"
+        ],
+        "properties": {
+          "original": {
+            "type": "string",
+            "description": "Citation EXACTE de la production. C'est une CITATION : tu la recopies sans rien corriger — fautes, accents manquants et maladresses compris. La règle d'accentuation vaut pour le français que TU écris, jamais pour les mots du candidat : lui montrer une phrase qu'il n'a pas écrite fausserait la démonstration."
+          },
+          "corrige": {
+            "type": "string",
+            "description": "La reformulation, au palier au-dessus."
+          },
+          "explication": {
+            "type": "string",
+            "description": "Pourquoi cette version est meilleure, en langue simple."
+          },
+          "gain": {
+            "type": "string",
+            "description": "Ce que la version corrigée DÉMONTRE de plus, en une phrase. Ex. 'cette version emploie une subordonnée relative, marqueur attendu au B1'."
+          }
+        },
+        "additionalProperties": false
+      },
+      "maxItems": 3
+    }
+  },
+  "title": "Évaluation TCF IRN v8",
+  "description": "Contrat strict de sortie pour la notation TCF IRN, limitée au niveau B2. Identique à v5 pour TOUT ce qui note et pour toute la restitution ; v6 ne change que la forme de la PREUVE : chaque critère renvoie `preuve_segment`, le numéro d'un segment de la production, au lieu d'une citation recopiée. Une preuve inventée devient impossible par construction, et le serveur résout le numéro en texte avant persistance (le champ `preuve` exposé aux clients ne change pas). v7 = v6 pour TOUT ce qui note et pour toute la restitution ; elle n'ajoute qu'une exigence de FORME, l'ACCENTUATION : tout le texte français que TU écris dans ce contrat est lu par un candidat qui apprend le français, donc il est orthographié et ACCENTUÉ correctement (é, è, ê, à, ù, û, î, ô, ë, ï, ç). « déjà », jamais « deja » ; « après », jamais « apres » ; « très », jamais « tres » ; « été », jamais « ete » ; « réussi », jamais « reussi ». Seule exception : ce que tu RECOPIES du candidat (`points_a_ameliorer.exemple.avant`, `exemples_corriges.original`) se recopie tel quel, fautes et accents manquants compris. v8 = v7 pour TOUT ce qui note et pour toute la restitution ; elle RETIRE un seul champ, la réécriture complète de la production, qui n'est plus affichée à personne. Aucun autre champ, aucune autre règle ne change.",
+  "additionalProperties": false
+}

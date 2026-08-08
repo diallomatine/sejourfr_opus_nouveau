@@ -47,10 +47,16 @@ final class EvaluationOutputValidator {
         "confiance", "confiance_raisons", "accomplissement");
 
     /**
-     * Champ v5 : la production ECRITE reecrite en entier au palier au-dessus.
-     * Obligatoire en EE, interdit d'usage en EO (une tache orale ne se reecrit
-     * pas en dialogue modele) — cf. {@code AiEvaluationService}, qui le retire
-     * defensivement des sorties orales.
+     * Champ v5 a v7 : la production ECRITE reecrite en entier au palier
+     * au-dessus. Obligatoire en EE sous ces contrats, interdit d'usage en EO
+     * (une tache orale ne se reecrit pas en dialogue modele) — cf.
+     * {@code AiEvaluationService}, qui le retire defensivement des sorties
+     * orales.
+     *
+     * <p>SOUS v8 IL N'EXISTE PLUS : il n'est plus dans le schema, plus exige, et
+     * le serveur le retire de toute sortie. Il reste TOLERE a la racine (un
+     * correcteur qui le produirait quand meme ne fait pas echouer la
+     * soumission) : une evaluation perdue coute plus cher qu'un champ ignore.
      */
     private static final String CHAMP_VERSION_AMELIOREE = "version_amelioree";
 
@@ -172,7 +178,7 @@ final class EvaluationOutputValidator {
             nbSegments, production, epreuve, errors);
 
         if (strict) {
-            validateStructure(feedback, restitution, task, errors);
+            validateStructure(feedback, schema, task, errors);
         }
         if (task != null && task.getEpreuve() == EpreuveType.TCF_EO) {
             validateOralFeedback(feedback, errors);
@@ -332,13 +338,18 @@ final class EvaluationOutputValidator {
      * Structure d'une sortie sur contrat strict. {@code v5} ajoute — et exige —
      * ce que v4 ne connait pas : le verdict {@code accomplissement.objectif} et
      * son resume, {@code version_amelioree} sur les taches ECRITES, et les
-     * plafonds de restitution (2 points forts, 3 exemples corriges). Un
-     * rollback vers v4 ne doit voir aucune de ces regles s'appliquer, d'ou le
-     * drapeau plutot qu'une validation aveugle.
+     * plafonds de restitution (2 points forts, 3 exemples corriges). {@code v8}
+     * retire la seule {@code version_amelioree}, sans toucher au reste. Un
+     * rollback vers v4 ne doit voir aucune de ces regles s'appliquer, et un
+     * rollback vers v7 doit les revoir toutes : d'ou une lecture du CONTRAT
+     * plutot qu'une validation aveugle.
      */
-    private static void validateStructure(Map<String, Object> feedback, boolean restitution,
+    private static void validateStructure(Map<String, Object> feedback, EvaluationToolSchema schema,
                                           ProductionTask task, List<String> errors) {
+        boolean restitution = schema.restitution();
         Set<String> autorises = new LinkedHashSet<>(CHAMPS_V4);
+        // TOLERE sous tous les contrats de restitution, y compris v8 ou il n'est
+        // plus demande : le serveur le retire, il ne detruit pas le rapport.
         if (restitution) autorises.add(CHAMP_VERSION_AMELIOREE);
         validateKeys(feedback, autorises, "racine", errors);
         for (String field : CHAMPS_V4) {
@@ -359,6 +370,8 @@ final class EvaluationOutputValidator {
         validateExemples(feedback.get("exemples_corriges"), restitution, errors);
         if (restitution) {
             validatePointsForts(feedback.get("points_forts"), errors);
+        }
+        if (schema.versionAmelioree()) {
             validateVersionAmelioree(feedback.get(CHAMP_VERSION_AMELIOREE), task, errors);
         }
     }
@@ -377,7 +390,9 @@ final class EvaluationOutputValidator {
 
     /**
      * {@code version_amelioree} : obligatoire et non vide sur une tache ECRITE
-     * (c'est le dernier bloc de l'ecran du candidat), jamais exigee ailleurs.
+     * SOUS LES CONTRATS v5 A v7 (elle y etait le dernier bloc de l'ecran du
+     * candidat), jamais exigee ailleurs — ni en EO, ni sous v8, ou le champ a
+     * quitte le schema.
      * Sur une tache ORALE, sa presence n'est pas une violation — elle est
      * simplement retiree par le serveur : reecrire un dialogue n'a aucun sens
      * pedagogique, mais cela ne vaut pas de perdre une evaluation entiere.
