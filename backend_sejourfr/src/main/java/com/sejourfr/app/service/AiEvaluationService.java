@@ -345,13 +345,13 @@ public class AiEvaluationService {
                             + "citations_refusees={} cumul={}",
                     submissionId, client.getModelName(), refusFinal.motifs(),
                     refusFinal.citationsRefusees(), refusalMetrics.compteurs());
-            String promptVersion = client.getPromptVersion();
-            // v6 y reste eligible, meme si le cas y devient tres improbable : un
-            // numero hors bornes est l'exact equivalent d'une citation non
-            // rattachable, et perdre une correction entiere pour un entier faux
-            // serait le defaut qu'on vient justement de supprimer.
-            var unmatchedProof = "v4".equals(promptVersion) || "v5".equals(promptVersion)
-                    || preuveParNumero(promptVersion)
+            // Le mode degrade n'existe que sur les contrats STRICTS (v4 et
+            // au-dela) : ce sont les seuls a exiger une preuve. v6+ y reste
+            // eligible, meme si le cas y devient tres improbable — un numero hors
+            // bornes est l'exact equivalent d'une citation non rattachable, et
+            // perdre une correction entiere pour un entier faux serait le defaut
+            // qu'on vient justement de supprimer.
+            var unmatchedProof = EvaluationToolSchema.of(client.getPromptVersion()).strict()
                 ? EvaluationOutputValidator.singleUnmatchedProofCode(remaining)
                 : java.util.Optional.<String>empty();
             if (unmatchedProof.isPresent()) {
@@ -797,9 +797,17 @@ public class AiEvaluationService {
         return false;
     }
 
-    /** Contrat de sortie dont la preuve est un NUMERO de segment (v6 et au-dela). */
+    /**
+     * Contrat de sortie dont la preuve est un NUMERO de segment (v6 et au-dela).
+     *
+     * <p>La reponse vient du REGISTRE {@link EvaluationToolSchema}, pas d'une
+     * egalite litterale : une version livree mais non enregistree echouerait ici
+     * au lieu de faire croire, en silence, que la preuve est une citation — ce
+     * qui revenait a servir au correcteur une production non decoupee alors que
+     * son schema lui reclamait un numero de segment.
+     */
     static boolean preuveParNumero(String toolSchemaVersion) {
-        return "v6".equals(toolSchemaVersion);
+        return EvaluationToolSchema.of(toolSchemaVersion).preuveParNumero();
     }
 
     /**

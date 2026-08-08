@@ -74,13 +74,6 @@ public class ProductionRubricsProvider {
         Map.entry("v13", "v7")
     );
 
-    /**
-     * Versions qui declarent le profil strict TCF IRN : {@code profile} et
-     * {@code niveau_max} y sont verifies au chargement.
-     */
-    private static final java.util.Set<String> PROFILS_TCF_IRN =
-        java.util.Set.of("v7", "v8", "v9", "v10", "v11", "v12", "v13");
-
     private final ProductionEvaluationProperties props;
     private final ObjectMapper objectMapper;
     /** Bloc {@code commun} (sections + few_shot), global a toutes les taches. */
@@ -160,6 +153,13 @@ public class ProductionRubricsProvider {
      * Les fichiers historiques ne declaraient pas ce lien, donc la matrice
      * reste explicite ici : v3-v4.2 -> v2, v5-v6 -> v3, v7 -> v4,
      * v8/v9/v10/v11 -> v5, v12 -> v6, v13 -> v7.
+     *
+     * <p>La matrice seule ne suffisait pas : elle prouvait que la paire etait
+     * COHERENTE, jamais que le contrat de sortie etait APPLIQUE. Le tool-schema
+     * v7 a ainsi pu entrer en service, boot vert, pendant que le validateur
+     * l'ignorait et retombait en mode tolerant. La resolution par
+     * {@link EvaluationToolSchema} ferme ce trou : une version non enregistree
+     * empeche le demarrage, avant tout appel paye.
      */
     private void validateDeclaredContract(Map<String, Object> root, String configuredVersion) {
         if (!configuredVersion.equals(String.valueOf(root.get("rubrics-version")))) {
@@ -172,6 +172,7 @@ public class ProductionRubricsProvider {
             throw new IllegalStateException("version de rubriques sans contrat de sortie supporte : "
                 + configuredVersion);
         }
+        EvaluationToolSchema schema = EvaluationToolSchema.of(expectedSchema);
 
         Object declaredSchema = root.get("tool_schema_version");
         if (declaredSchema != null && !expectedSchema.equals(declaredSchema.toString())) {
@@ -179,7 +180,10 @@ public class ProductionRubricsProvider {
                 + configuredVersion + " -> " + declaredSchema + ", matrice -> " + expectedSchema);
         }
 
-        if (PROFILS_TCF_IRN.contains(configuredVersion)) {
+        // Profil TCF IRN strict : propriete des rubriques qui portent un contrat
+        // de sortie ferme (v4 et au-dela), et non d'une liste de versions figee
+        // — c'est exactement la meme famille de defaut que celle corrigee ici.
+        if (schema.profilTcfIrnRequis()) {
             Object profile = root.get("profile");
             if (!"TCF_IRN".equals(String.valueOf(profile))) {
                 throw new IllegalStateException("profil de rubriques non supporte : " + profile);

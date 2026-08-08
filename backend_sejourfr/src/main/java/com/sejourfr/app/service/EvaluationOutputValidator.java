@@ -54,15 +54,6 @@ final class EvaluationOutputValidator {
      */
     private static final String CHAMP_VERSION_AMELIOREE = "version_amelioree";
 
-    /** Versions de tool-schema dont la STRUCTURE est verifiee champ par champ. */
-    private static final Set<String> SCHEMAS_STRICTS = Set.of("v4", "v5", "v6");
-
-    /** Versions qui portent la RESTITUTION v5 (verdict, version amelioree, plafonds). */
-    private static final Set<String> SCHEMAS_RESTITUTION = Set.of("v5", "v6");
-
-    /** Versions dont la preuve est un NUMERO DE SEGMENT et non une citation. */
-    private static final String SCHEMA_PREUVE_PAR_NUMERO = "v6";
-
     private static final Set<String> OBJECTIFS =
         Set.of("ATTEINT", "PARTIELLEMENT_ATTEINT", "NON_ATTEINT");
 
@@ -156,12 +147,15 @@ final class EvaluationOutputValidator {
         if (niveau == null || !NIVEAUX_TCF_IRN.contains(niveau.toString())) {
             errors.add("niveau_cecrl doit appartenir au profil TCF IRN et ne jamais depasser B2");
         }
-        // La structure n'est verifiee champ par champ que sur les contrats
-        // stricts (v4, v5). Les schemas anterieurs restent volontairement
-        // tolerants : un rollback ne doit rien casser.
-        boolean strict = SCHEMAS_STRICTS.contains(promptVersion);
-        boolean restitution = SCHEMAS_RESTITUTION.contains(promptVersion);
-        boolean preuveParNumero = SCHEMA_PREUVE_PAR_NUMERO.equals(promptVersion);
+        // Ce que le contrat ACTIF fait appliquer. Une version inconnue n'est pas
+        // « pas de validation » : c'est une erreur de mise en service, et elle
+        // echoue ici comme au boot (cf. EvaluationToolSchema). Les schemas
+        // anterieurs a v4 restent volontairement tolerants : un rollback ne doit
+        // rien casser.
+        EvaluationToolSchema schema = EvaluationToolSchema.of(promptVersion);
+        boolean strict = schema.strict();
+        boolean restitution = schema.restitution();
+        boolean preuveParNumero = schema.preuveParNumero();
         if (strict) {
             requireText(feedback.get("justification_niveau"), "justification_niveau", errors);
         }
