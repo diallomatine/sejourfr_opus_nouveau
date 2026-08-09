@@ -4,7 +4,6 @@ import Link from "next/link";
 import {useCallback, useEffect, useMemo, useState, type ReactNode} from "react";
 import {
   ArrowRight,
-  BarChart3,
   CalendarCheck,
   ChevronDown,
   Clock3,
@@ -144,7 +143,6 @@ export function LearningPlanView() {
           role="alert"
         >
           <button className={styles.primaryButton} type="button" onClick={() => void load()}>Réessayer</button>
-          <Link className={styles.secondaryButton} href="/statistiques">Voir ma progression</Link>
         </EmptyCard>
       </PlanShell>
     );
@@ -165,7 +163,6 @@ export function LearningPlanView() {
           <Link className={styles.primaryButton} href="/diagnostic">Faire mon diagnostic <ArrowRight size={17} aria-hidden /></Link>
         </EmptyCard>
         <ClassicTraining />
-        <ProgressionLink />
       </PlanShell>
     );
   }
@@ -184,7 +181,6 @@ export function LearningPlanView() {
         >
           <Link className={styles.primaryButton} href="/diagnostic">Reprendre mon diagnostic <ArrowRight size={17} aria-hidden /></Link>
         </EmptyCard>
-        <ProgressionLink />
       </PlanShell>
     );
   }
@@ -267,7 +263,6 @@ function ActivePlan({plan, targetLevel}: {plan: LearningPlanDto; targetLevel: st
       <ObservedSkills skills={observed} total={plan.observedSkillCount} />
 
       <div className={styles.bottomGrid}>
-        <ProgressionLink />
         <section className={styles.diagnosticLink}>
           <span className={styles.sectionIcon} aria-hidden><ListChecks size={20} /></span>
           <div>
@@ -614,16 +609,6 @@ function ClassicTraining() {
         <Link href="/entrainement/tcf/ee"><FilePenLine size={19} aria-hidden /><span><b>Expression écrite</b><small>Productions et compétences</small></span><ArrowRight size={16} aria-hidden /></Link>
         <Link href="/entrainement/tcf/eo"><Headphones size={19} aria-hidden /><span><b>Expression orale</b><small>Enregistrements et simulations</small></span><ArrowRight size={16} aria-hidden /></Link>
       </div>
-    </section>
-  );
-}
-
-function ProgressionLink() {
-  return (
-    <section className={styles.progressionLink}>
-      <span className={styles.sectionIcon} aria-hidden><BarChart3 size={20} /></span>
-      <div><b>Votre progression détaillée</b><small>Scores, séries et évolution par épreuve</small></div>
-      <Link href="/statistiques">Voir ma progression <ArrowRight size={15} aria-hidden /></Link>
     </section>
   );
 }

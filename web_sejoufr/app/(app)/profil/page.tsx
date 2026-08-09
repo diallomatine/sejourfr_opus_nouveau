@@ -224,6 +224,18 @@ export default function ProfilPage() {
                     </span>
                     <span className="pr-chevron" aria-hidden>›</span>
                 </button>
+                {/* « Ma progression » a quitté l'écran Plan : le Plan dit quoi
+                    travailler maintenant, la progression se consulte. C'est
+                    aussi la seule entrée vers /statistiques, absent de la barre
+                    latérale. Miroir de la ligne du Profil mobile. */}
+                <Link href="/statistiques" className="pr-row">
+                    <span className="pr-row-icon" aria-hidden>▦</span>
+                    <span className="pr-row-body">
+                        <span className="pr-row-title">Ma progression</span>
+                        <span className="pr-row-sub">Maîtrise par parcours et niveau estimé</span>
+                    </span>
+                    <span className="pr-chevron" aria-hidden>›</span>
+                </Link>
             </div>
 
             {/* ---- Danger ---- */}

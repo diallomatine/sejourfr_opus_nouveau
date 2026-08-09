@@ -489,66 +489,135 @@ class _SkillSnapshotCard extends StatelessWidget {
       );
 }
 
-class _SkillSnapshotRow extends StatelessWidget {
+/// Une compétence observée, **repliée par défaut**.
+///
+/// Déplié, le diagnostic alignait une douzaine d'explications de trois à quatre
+/// lignes : le candidat y voyait un mur de texte et n'en lisait aucune. Replié,
+/// il lit d'abord le **verdict** (titre + statut) et n'ouvre que ce qui
+/// l'intéresse. Rien n'est retiré — tout est à un geste.
+class _SkillSnapshotRow extends StatefulWidget {
   const _SkillSnapshotRow({required this.skill, required this.divider});
 
   final DiagnosticSkillObservation skill;
   final bool divider;
 
   @override
+  State<_SkillSnapshotRow> createState() => _SkillSnapshotRowState();
+}
+
+class _SkillSnapshotRowState extends State<_SkillSnapshotRow> {
+  bool _open = false;
+
+  @override
   Widget build(BuildContext context) {
+    final skill = widget.skill;
     final tone = skill.status.color;
+    final detail = skill.explanation;
+    final evidence = skill.evidence;
+    // Sans détail, l'encart n'a rien à ouvrir : ni chevron, ni zone tactile.
+    final expandable = detail != null || evidence != null;
+
+    final header = Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: tone.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppRadii.md),
+          ),
+          child: Icon(_statusIcon(skill.status), size: 18, color: tone),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Text(
+            skill.skillTitle,
+            style: AppFonts.ui(size: 13.5, weight: FontWeight.w700, height: 1.3),
+          ),
+        ),
+        const SizedBox(width: 8),
+        AppTag(
+          label: skill.status.label,
+          tone: _statusTone(skill.status),
+          compact: true,
+        ),
+        if (expandable) ...[
+          const SizedBox(width: 4),
+          AnimatedRotation(
+            turns: _open ? 0.5 : 0,
+            duration: const Duration(milliseconds: 180),
+            child: const Icon(
+              LucideIcons.chevronDown,
+              size: 18,
+              color: AppColors.inkFaint,
+            ),
+          ),
+        ],
+      ],
+    );
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        border: divider
+        border: widget.divider
             ? const Border(bottom: BorderSide(color: AppColors.lineSoft))
             : null,
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: tone.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppRadii.md),
-            ),
-            child: Icon(_statusIcon(skill.status), size: 18, color: tone),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  skill.skillTitle,
-                  style: AppFonts.ui(size: 13.5, weight: FontWeight.w700),
+          if (expandable)
+            Semantics(
+              button: true,
+              expanded: _open,
+              label: '${skill.skillTitle} · ${skill.status.label}',
+              child: InkWell(
+                onTap: () => setState(() => _open = !_open),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: header,
                 ),
-                if (skill.explanation != null) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    skill.explanation!,
-                    style: AppFonts.ui(
-                      size: 11.5,
-                      height: 1.35,
-                      color: AppColors.inkSoft,
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: header,
+            ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: !_open
+                ? const SizedBox(width: double.infinity)
+                : Padding(
+                    padding: const EdgeInsets.only(left: 49, bottom: 13),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (detail != null)
+                          Text(
+                            detail,
+                            style: AppFonts.ui(
+                              size: 12,
+                              height: 1.4,
+                              color: AppColors.inkSoft,
+                            ),
+                          ),
+                        if (evidence != null) ...[
+                          if (detail != null) const SizedBox(height: 7),
+                          Text(
+                            '« ${evidenceExcerpt(evidence)} »',
+                            style: AppFonts.ui(
+                              size: 11.5,
+                              height: 1.4,
+                              color: AppColors.inkFaint,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: AppTag(
-              label: skill.status.label,
-              tone: _statusTone(skill.status),
-              compact: true,
-            ),
           ),
         ],
       ),
@@ -734,7 +803,13 @@ class _NextPrioritiesCard extends StatelessWidget {
 /// Carte d'une production. Elle met enfin à l'écran ce que le contrat serveur
 /// portait sans jamais l'afficher : le résumé, l'accomplissement de la
 /// consigne, l'efficacité du message et les points à travailler.
-class _ProductionCard extends StatelessWidget {
+/// Le bilan d'une production, **replié par défaut**.
+///
+/// Même raison que les compétences observées : résumé de cinq lignes, deux
+/// pastilles d'état et deux points à travailler multi-lignes, fois deux
+/// productions — le candidat voyait un mur. Replié, il lit l'épreuve et son
+/// niveau estimé, et n'ouvre que celle qui l'intéresse.
+class _ProductionCard extends StatefulWidget {
   const _ProductionCard({
     required this.title,
     required this.icon,
@@ -750,40 +825,107 @@ class _ProductionCard extends StatelessWidget {
   final DiagnosticProductionResult production;
 
   @override
+  State<_ProductionCard> createState() => _ProductionCardState();
+}
+
+class _ProductionCardState extends State<_ProductionCard> {
+  bool _open = false;
+
+  @override
   Widget build(BuildContext context) {
+    final production = widget.production;
+    final accent = widget.accent;
     final weaknesses = production.weaknesses.take(2).toList(growable: false);
     return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: accentSoft,
-                  borderRadius: BorderRadius.circular(AppRadii.md),
+          Semantics(
+            button: true,
+            expanded: _open,
+            label:
+                '${widget.title} · niveau estimé ${production.levelEstimate.shortName}',
+            child: InkWell(
+              onTap: () => setState(() => _open = !_open),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: widget.accentSoft,
+                        borderRadius: BorderRadius.circular(AppRadii.md),
+                      ),
+                      child: Icon(widget.icon, size: 18, color: accent),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Text(
+                        widget.title,
+                        style: AppFonts.ui(size: 14.5, weight: FontWeight.w800),
+                      ),
+                    ),
+                    AppTag(
+                      label: production.levelEstimate.shortName,
+                      tone: production.levelEstimate.tagTone,
+                      compact: true,
+                    ),
+                    const SizedBox(width: 4),
+                    AnimatedRotation(
+                      turns: _open ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 180),
+                      child: const Icon(
+                        LucideIcons.chevronDown,
+                        size: 18,
+                        color: AppColors.inkFaint,
+                      ),
+                    ),
+                  ],
                 ),
-                child: Icon(icon, size: 18, color: accent),
               ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Text(
-                  title,
-                  style: AppFonts.ui(size: 14.5, weight: FontWeight.w800),
-                ),
-              ),
-              AppTag(
-                label: production.levelEstimate.shortName,
-                tone: production.levelEstimate.tagTone,
-                compact: true,
-              ),
-            ],
+            ),
           ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: !_open
+                ? const SizedBox(width: double.infinity)
+                : _ProductionDetail(
+                    production: production,
+                    accent: accent,
+                    weaknesses: weaknesses,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProductionDetail extends StatelessWidget {
+  const _ProductionDetail({
+    required this.production,
+    required this.accent,
+    required this.weaknesses,
+  });
+
+  final DiagnosticProductionResult production;
+  final Color accent;
+  final List<String> weaknesses;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           if (production.summary != null) ...[
-            const SizedBox(height: 11),
             Text(
               production.summary!,
               style: AppFonts.ui(
@@ -792,8 +934,8 @@ class _ProductionCard extends StatelessWidget {
                 color: AppColors.inkSoft,
               ),
             ),
+            const SizedBox(height: 11),
           ],
-          const SizedBox(height: 11),
           Wrap(
             spacing: 7,
             runSpacing: 7,

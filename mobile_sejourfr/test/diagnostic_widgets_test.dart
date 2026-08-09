@@ -117,13 +117,25 @@ void main() {
     expect(find.text('Priorité 2'), findsOneWidget);
     expect(find.text('Priorité 3'), findsOneWidget);
 
-    // Le gisement jusqu'ici jamais affiché : résumé, accomplissement de la
-    // consigne, efficacité du message et points à travailler.
+    // Les deux productions sont des encarts REPLIÉS : on voit l'épreuve, pas
+    // encore son bilan. C'est ce qui évite le mur de texte à l'ouverture.
     expect(find.text('Vos deux productions'), findsOneWidget);
-    expect(find.text('Production exploitable.'), findsNWidgets(2));
-    expect(find.text('Consigne accomplie'), findsNWidgets(2));
-    expect(find.text('Message clair'), findsNWidgets(2));
-    expect(find.text('À préciser'), findsNWidgets(2));
+    expect(find.text('Expression écrite'), findsWidgets);
+    expect(find.text('Expression orale'), findsWidgets);
+    expect(find.text('Production exploitable.'), findsNothing);
+    expect(find.text('Consigne accomplie'), findsNothing);
+
+    // Ouvrir l'encart écrit révèle le gisement jusqu'ici jamais affiché :
+    // résumé, accomplissement de la consigne, efficacité du message et points
+    // à travailler. L'encart oral, lui, reste fermé.
+    // « Expression écrite » apparaît aussi dans le héros des niveaux : on vise
+    // l'en-tête tappable de l'encart, pas le libellé du héros.
+    await tester.tap(find.widgetWithText(InkWell, 'Expression écrite'));
+    await tester.pumpAndSettle();
+    expect(find.text('Production exploitable.'), findsOneWidget);
+    expect(find.text('Consigne accomplie'), findsOneWidget);
+    expect(find.text('Message clair'), findsOneWidget);
+    expect(find.text('À préciser'), findsOneWidget);
 
     await tester.tap(find.textContaining('Commencer l’exercice'));
     expect(openedExercise, same(_recommendedExercise));

@@ -153,6 +153,16 @@ class ProfileScreen extends ConsumerWidget {
                         sub: user.email,
                         onTap: () => context.push(AppRoutes.personalInfo),
                       ),
+                      // « Ma progression » a quitté l'écran Plan : le Plan dit
+                      // quoi travailler maintenant, la progression se consulte.
+                      // Elle n'est plus dans la barre du bas (remplacée par
+                      // Plan), donc c'est ici qu'on la retrouve.
+                      ListRow(
+                        icon: LucideIcons.chartColumn,
+                        title: 'Ma progression',
+                        sub: 'Maîtrise par parcours et niveau estimé',
+                        onTap: () => context.push(AppRoutes.progress),
+                      ),
                       ListRow(
                         icon: LucideIcons.dumbbell,
                         title: 'Mon entraînement',

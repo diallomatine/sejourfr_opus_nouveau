@@ -136,7 +136,6 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
                     plan: value,
                     objective: objective,
                     onOpenDiagnostic: () => context.push(AppRoutes.diagnostic),
-                    onOpenProgress: () => context.push(AppRoutes.progress),
                     onOpenRecommended: _openRecommended,
                     onOpenSkill: _openSkill,
                   ),
@@ -162,7 +161,6 @@ class _PlanContent extends StatelessWidget {
     required this.plan,
     required this.objective,
     required this.onOpenDiagnostic,
-    required this.onOpenProgress,
     required this.onOpenRecommended,
     required this.onOpenSkill,
   });
@@ -170,7 +168,6 @@ class _PlanContent extends StatelessWidget {
   final LearningPlan plan;
   final String? objective;
   final VoidCallback onOpenDiagnostic;
-  final VoidCallback onOpenProgress;
   final ValueChanged<PlanRecommendedExercise> onOpenRecommended;
   final SkillOpener onOpenSkill;
 
@@ -184,7 +181,6 @@ class _PlanContent extends StatelessWidget {
           actionLabel: 'Faire mon diagnostic',
           actionIcon: LucideIcons.sparkles,
           onAction: onOpenDiagnostic,
-          onOpenProgress: onOpenProgress,
         ),
       LearningPlanState.diagnosticInProgress => _PlanEmptyState(
           title: 'Votre diagnostic est en cours',
@@ -193,13 +189,11 @@ class _PlanContent extends StatelessWidget {
           actionLabel: 'Reprendre le diagnostic',
           actionIcon: LucideIcons.play,
           onAction: onOpenDiagnostic,
-          onOpenProgress: onOpenProgress,
         ),
       LearningPlanState.active => _ActivePlan(
           plan: plan,
           objective: objective,
           onOpenDiagnostic: onOpenDiagnostic,
-          onOpenProgress: onOpenProgress,
           onOpenRecommended: onOpenRecommended,
           onOpenSkill: onOpenSkill,
         ),
@@ -212,7 +206,6 @@ class _ActivePlan extends StatelessWidget {
     required this.plan,
     required this.objective,
     required this.onOpenDiagnostic,
-    required this.onOpenProgress,
     required this.onOpenRecommended,
     required this.onOpenSkill,
   });
@@ -220,7 +213,6 @@ class _ActivePlan extends StatelessWidget {
   final LearningPlan plan;
   final String? objective;
   final VoidCallback onOpenDiagnostic;
-  final VoidCallback onOpenProgress;
   final ValueChanged<PlanRecommendedExercise> onOpenRecommended;
   final SkillOpener onOpenSkill;
 
@@ -286,13 +278,6 @@ class _ActivePlan extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 22),
-        AppButton(
-          label: 'Voir ma progression',
-          variant: AppButtonVariant.outline,
-          icon: LucideIcons.chartColumn,
-          onPressed: onOpenProgress,
-        ),
-        const SizedBox(height: 8),
         AppButton(
           label: 'Voir mon diagnostic',
           variant: AppButtonVariant.ghost,
@@ -1082,7 +1067,6 @@ class _PlanEmptyState extends StatelessWidget {
     required this.actionLabel,
     required this.actionIcon,
     required this.onAction,
-    required this.onOpenProgress,
   });
 
   final String title;
@@ -1090,7 +1074,6 @@ class _PlanEmptyState extends StatelessWidget {
   final String actionLabel;
   final IconData actionIcon;
   final VoidCallback onAction;
-  final VoidCallback onOpenProgress;
 
   @override
   Widget build(BuildContext context) => ListView(
@@ -1136,13 +1119,6 @@ class _PlanEmptyState extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 14),
-          AppButton(
-            label: 'Voir ma progression',
-            variant: AppButtonVariant.ghost,
-            icon: LucideIcons.chartColumn,
-            onPressed: onOpenProgress,
           ),
         ],
       );

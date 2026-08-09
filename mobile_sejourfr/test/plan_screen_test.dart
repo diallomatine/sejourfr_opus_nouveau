@@ -49,11 +49,15 @@ void main() {
     expect(find.text('Commencer'), findsOneWidget);
 
     await tester.scrollUntilVisible(
-      find.text('Voir ma progression'),
+      find.text('Voir mon diagnostic'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('Voir ma progression'), findsOneWidget);
+    expect(find.text('Voir mon diagnostic'), findsOneWidget);
+
+    // « Voir ma progression » a quitté le Plan pour le Profil : le Plan dit
+    // quoi travailler maintenant, la progression se consulte ailleurs.
+    expect(find.text('Voir ma progression'), findsNothing);
   });
 
   testWidgets(

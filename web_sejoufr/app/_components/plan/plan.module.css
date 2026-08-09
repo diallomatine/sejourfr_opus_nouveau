@@ -588,7 +588,6 @@
 /* --------------------------------------------------------- cartes d'appoint */
 
 .emptyCard,
-.progressionLink,
 .diagnosticLink,
 .classic {
   border: 1px solid var(--color-line);
@@ -683,14 +682,14 @@
   outline-offset: 3px;
 }
 
+/* Une seule carte depuis que « Ma progression » a rejoint le Profil : la grille
+   ne sert plus qu'à poser l'espacement. */
 .bottomGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-top: 30px;
 }
 
-.progressionLink,
 .diagnosticLink {
   display: flex;
   align-items: center;
@@ -699,23 +698,15 @@
   padding: 18px;
 }
 
-.progressionLink > div,
 .diagnosticLink > div {
   display: grid;
   min-width: 0;
   flex: 1;
 }
 
-.progressionLink b,
 .diagnosticLink b {
   color: var(--color-ink);
   font-size: 14px;
-}
-
-.progressionLink small {
-  margin-top: 2px;
-  color: var(--color-muted);
-  font-size: 12px;
 }
 
 .diagnosticLink span {
@@ -724,7 +715,6 @@
   font-weight: 700;
 }
 
-.progressionLink > a,
 .diagnosticLink > a {
   display: inline-flex;
   align-items: center;
@@ -774,10 +764,6 @@
 
 .classic a small {
   color: var(--color-muted);
-}
-
-.page > .progressionLink {
-  margin-top: 16px;
 }
 
 /* ---------------------------------------------------------------- squelette */
@@ -830,11 +816,6 @@
   }
 }
 
-@media (max-width: 900px) {
-  .bottomGrid {
-    grid-template-columns: 1fr;
-  }
-}
 
 @media (max-width: 768px) {
   .page {
@@ -906,13 +887,11 @@
     gap: 6px;
   }
 
-  .progressionLink,
   .diagnosticLink {
     align-items: flex-start;
     flex-wrap: wrap;
   }
 
-  .progressionLink > a,
   .diagnosticLink > a {
     width: 100%;
     margin-left: 51px;

@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  ChevronDown,
   ClipboardCheck,
   Clock3,
   FilePenLine,
@@ -594,24 +595,7 @@ function DiagnosticResult({
                 Aucune compétence n&apos;a été observée avec assez de confiance sur ces deux productions.
               </p>
             ) : (
-              observations.map((skill) => (
-                <article
-                  key={skill.skillId}
-                  className={styles.snapshotRow}
-                  data-tone={LEARNING_PLAN_SKILL_STATUS_TONE[skill.status]}
-                >
-                  <span className={styles.snapshotIcon} aria-hidden>
-                    <ToneIcon tone={LEARNING_PLAN_SKILL_STATUS_TONE[skill.status]} />
-                  </span>
-                  <div>
-                    <b>{skill.skillTitle}</b>
-                    {skill.explanation && <small>{skill.explanation}</small>}
-                  </div>
-                  <span className={styles.snapshotStatus}>
-                    {LEARNING_PLAN_SKILL_STATUS_LABEL[skill.status]}
-                  </span>
-                </article>
-              ))
+              observations.map((skill) => <SkillDisclosure key={skill.skillId} skill={skill} />)
             )}
           </div>
         </section>
@@ -724,6 +708,55 @@ function ResultBlockHead({id, title, text}: {id: string; title: string; text: st
   );
 }
 
+/**
+ * Une compétence observée, **repliée par défaut**.
+ *
+ * Déplié, le diagnostic alignait une douzaine d'explications de trois à quatre
+ * lignes : le candidat y voyait un mur de texte et n'en lisait aucune. Replié,
+ * il lit d'abord le verdict (titre + statut) et n'ouvre que ce qui l'intéresse.
+ * Rien n'est retiré — tout est à un clic.
+ *
+ * `<details>` plutôt qu'un état React : le repli natif est accessible au clavier
+ * et survit à un rendu sans qu'on ait à le gérer. Miroir de
+ * `_SkillSnapshotRow` côté mobile.
+ */
+function SkillDisclosure({skill}: {skill: DiagnosticSkillObservationDto}) {
+  const tone = LEARNING_PLAN_SKILL_STATUS_TONE[skill.status];
+  const head = (
+    <>
+      <span className={styles.snapshotIcon} aria-hidden><ToneIcon tone={tone} /></span>
+      <b>{skill.skillTitle}</b>
+      <span className={styles.snapshotStatus}>
+        {LEARNING_PLAN_SKILL_STATUS_LABEL[skill.status]}
+      </span>
+    </>
+  );
+
+  // Sans détail, l'encart n'a rien à ouvrir : il reste une simple ligne.
+  if (!skill.explanation && !skill.evidence) {
+    return (
+      <article className={styles.snapshotRow} data-tone={tone}>
+        <div className={styles.snapshotHead}>{head}</div>
+      </article>
+    );
+  }
+
+  return (
+    <details className={styles.snapshotRow} data-tone={tone}>
+      <summary className={styles.snapshotHead}>
+        {head}
+        <ChevronDown className={styles.snapshotChevron} size={16} aria-hidden />
+      </summary>
+      <div className={styles.snapshotDetail}>
+        {skill.explanation && <p>{skill.explanation}</p>}
+        {skill.evidence && (
+          <p className={styles.snapshotEvidence}>«&nbsp;{evidenceExcerpt(skill.evidence)}&nbsp;»</p>
+        )}
+      </div>
+    </details>
+  );
+}
+
 /** Pictogramme du signal : acquis / à consolider / prioritaire. */
 function ToneIcon({tone}: {tone: DiagnosticSignalTone}) {
   if (tone === "good") return <Check size={16} strokeWidth={3} />;
@@ -763,36 +796,43 @@ function ProductionSummary({
     );
   }
 
+  // Replié par défaut, même raison que les compétences observées : un résumé de
+  // cinq lignes, deux signaux et jusqu'à trois points à travailler, fois deux
+  // productions, se lisaient comme un mur. On montre l'épreuve et son niveau
+  // estimé ; le reste est à un clic. Miroir de `_ProductionCard` côté mobile.
   return (
-    <article className={styles.production}>
-      <div className={styles.productionHead}>
+    <details className={styles.production}>
+      <summary className={styles.productionHead}>
         <span className={styles.productionIcon} aria-hidden>{icon}</span>
         <div>
           <b>{label}</b>
           <span>Estimation : {niveauEstimateLabel(production.levelEstimate)}</span>
         </div>
+        <ChevronDown className={styles.productionChevron} size={16} aria-hidden />
+      </summary>
+
+      <div className={styles.productionDetail}>
+        {production.summary && <p className={styles.productionSummary}>{production.summary}</p>}
+
+        <ul className={styles.productionSignals}>
+          <li data-tone={DIAGNOSTIC_TASK_COMPLETION_TONE[production.taskCompletion]}>
+            {DIAGNOSTIC_TASK_COMPLETION_LABEL[production.taskCompletion]}
+          </li>
+          <li data-tone={DIAGNOSTIC_COMMUNICATION_TONE[production.communicationStatus]}>
+            {DIAGNOSTIC_COMMUNICATION_LABEL[production.communicationStatus]}
+          </li>
+        </ul>
+
+        {production.weaknesses.length > 0 && (
+          <div className={styles.productionWeak}>
+            <b>À travailler</b>
+            <ul>
+              {production.weaknesses.slice(0, 3).map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          </div>
+        )}
       </div>
-
-      {production.summary && <p className={styles.productionSummary}>{production.summary}</p>}
-
-      <ul className={styles.productionSignals}>
-        <li data-tone={DIAGNOSTIC_TASK_COMPLETION_TONE[production.taskCompletion]}>
-          {DIAGNOSTIC_TASK_COMPLETION_LABEL[production.taskCompletion]}
-        </li>
-        <li data-tone={DIAGNOSTIC_COMMUNICATION_TONE[production.communicationStatus]}>
-          {DIAGNOSTIC_COMMUNICATION_LABEL[production.communicationStatus]}
-        </li>
-      </ul>
-
-      {production.weaknesses.length > 0 && (
-        <div className={styles.productionWeak}>
-          <b>À travailler</b>
-          <ul>
-            {production.weaknesses.slice(0, 3).map((item) => <li key={item}>{item}</li>)}
-          </ul>
-        </div>
-      )}
-    </article>
+    </details>
   );
 }
 

@@ -574,7 +574,14 @@
   line-height: 1.45;
 }
 
-.snapshotRow {
+/* Encart rétractable : la ligne porte le verdict, le détail vit derrière un
+   clic. La grille est sur l'en-tête, pas sur la carte — sinon `<details>` ne
+   peut plus empiler son contenu déplié sous le titre. */
+.snapshotRow + .snapshotRow {
+  border-top: 1px solid var(--color-line-2);
+}
+
+.snapshotHead {
   display: grid;
   grid-template-columns: 39px minmax(0, 1fr) auto;
   align-items: center;
@@ -582,8 +589,49 @@
   padding: 13px 0;
 }
 
-.snapshotRow + .snapshotRow {
-  border-top: 1px solid var(--color-line-2);
+details.snapshotRow > .snapshotHead {
+  grid-template-columns: 39px minmax(0, 1fr) auto auto;
+  cursor: pointer;
+  list-style: none;
+}
+
+/* Safari/Chrome posent leur propre triangle : on le retire, on rend le nôtre. */
+details.snapshotRow > .snapshotHead::-webkit-details-marker {
+  display: none;
+}
+
+details.snapshotRow > .snapshotHead:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+
+.snapshotChevron {
+  flex: none;
+  color: var(--color-muted-2);
+  transition: transform 0.18s ease;
+}
+
+details.snapshotRow[open] .snapshotChevron {
+  transform: rotate(180deg);
+}
+
+/* Aligné sous le titre, pas sous le pictogramme : 39px + la gouttière. */
+.snapshotDetail {
+  padding: 0 0 13px 51px;
+}
+
+.snapshotDetail p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.snapshotDetail .snapshotEvidence {
+  margin-top: 7px;
+  color: var(--color-muted-2);
+  font-size: 12px;
 }
 
 .snapshotIcon {
@@ -599,14 +647,6 @@
   color: var(--color-ink);
   font-size: 13.5px;
   overflow-wrap: anywhere;
-}
-
-.snapshotRow small {
-  display: block;
-  margin-top: 3px;
-  color: var(--color-muted);
-  font-size: 11.5px;
-  line-height: 1.4;
 }
 
 .snapshotStatus {
@@ -827,6 +867,42 @@
   display: flex;
   align-items: center;
   gap: 11px;
+}
+
+/* Encart rétractable : l'épreuve et son niveau restent lisibles, le bilan
+   s'ouvre à la demande. `<details>` natif — accessible au clavier, sans état
+   React à gérer. */
+details.production > .productionHead {
+  cursor: pointer;
+  list-style: none;
+}
+
+details.production > .productionHead::-webkit-details-marker {
+  display: none;
+}
+
+details.production > .productionHead:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
+  outline-offset: 3px;
+  border-radius: 12px;
+}
+
+.productionChevron {
+  flex: none;
+  margin-left: auto;
+  color: var(--color-muted-2);
+  transition: transform 0.18s ease;
+}
+
+details.production[open] .productionChevron {
+  transform: rotate(180deg);
+}
+
+/* La carte est une grille : le détail se replie dans une seule cellule, donc il
+   porte lui-même l'espacement de ses blocs. */
+.productionDetail {
+  display: grid;
+  gap: 12px;
 }
 
 .productionIcon {
