@@ -25,7 +25,8 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
      * {@code @Transactional}, donc accéder à la task en lazy hors session lève une
      * {@code LazyInitializationException} (bug relancé après échec d'éval).
      */
-    @Query("SELECT s FROM ProductionSubmission s JOIN FETCH s.productionTask WHERE s.id = :id")
+    @Query("SELECT s FROM ProductionSubmission s JOIN FETCH s.productionTask "
+        + "JOIN FETCH s.attempt WHERE s.id = :id")
     Optional<ProductionSubmission> findByIdWithTask(@Param("id") UUID id);
 
     /**
@@ -35,18 +36,27 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
      * appel HTTP au LLM — un accès lazy hors session y lèverait une
      * {@code LazyInitializationException}.
      */
-    @Query("SELECT s FROM ProductionSubmission s JOIN FETCH s.productionTask JOIN FETCH s.user "
+    @Query("SELECT s FROM ProductionSubmission s JOIN FETCH s.productionTask JOIN FETCH s.attempt "
+        + "JOIN FETCH s.user "
         + "WHERE s.id = :id")
     Optional<ProductionSubmission> findByIdWithTaskAndUser(@Param("id") UUID id);
 
-    /** Historique d'un utilisateur (timeline descendante). */
-    List<ProductionSubmission> findByUserIdOrderBySubmittedAtDesc(UUID userId, Pageable pageable);
+    /** Historique standard : le diagnostic possède son écran agrégé dédié. */
+    @Query("""
+            SELECT s FROM ProductionSubmission s
+            WHERE s.user.id = :userId
+              AND s.productionTask.diagnosticCode IS NULL
+            ORDER BY s.submittedAt DESC
+            """)
+    List<ProductionSubmission> findStandardByUser(
+            @Param("userId") UUID userId, Pageable pageable);
 
     /** Quota freemium / anti-abus : compteur cumulatif (a vie) par epreuve. */
     @Query("""
             SELECT COUNT(s) FROM ProductionSubmission s
             WHERE s.user.id = :userId
               AND s.productionTask.epreuve = :epreuve
+              AND s.productionTask.diagnosticCode IS NULL
             """)
     long countByUserAndEpreuve(@Param("userId") UUID userId, @Param("epreuve") EpreuveType epreuve);
 
@@ -60,6 +70,7 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
             SELECT COUNT(s) FROM ProductionSubmission s
             WHERE s.user.id = :userId
               AND s.productionTask.epreuve = :epreuve
+              AND s.productionTask.diagnosticCode IS NULL
               AND s.attempt.slotNumber IS NULL
               AND s.attempt.parentAttempt IS NULL
             """)
@@ -95,6 +106,8 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
     long countByAttemptAndTache(@Param("attemptId") UUID attemptId,
                                 @Param("tacheNumero") short tacheNumero);
 
+    long countByAttemptId(UUID attemptId);
+
     /**
      * Nombre de TÂCHES DISTINCTES soumises dans un attempt, restreint à
      * l'épreuve de cet attempt. Sert à l'auto-finalisation d'une sous-épreuve
@@ -115,6 +128,7 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
             SELECT s FROM ProductionSubmission s
             WHERE s.user.id = :userId
               AND s.productionTask.epreuve = :epreuve
+              AND s.productionTask.diagnosticCode IS NULL
             ORDER BY s.submittedAt DESC
             """)
     List<ProductionSubmission> findByUserAndEpreuve(
@@ -123,8 +137,16 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
             Pageable pageable
     );
 
-    /** Submissions non-finalisees (pour reprise / monitoring). */
-    List<ProductionSubmission> findByStatutOrderBySubmittedAtAsc(SubmissionStatut statut);
+    /** Calibration standard uniquement : le profil diagnostic n'a pas de /20. */
+    @Query("""
+            SELECT s FROM ProductionSubmission s
+            WHERE s.statut = :statut
+              AND s.diagnostic = false
+              AND s.productionTask.diagnosticCode IS NULL
+            ORDER BY s.submittedAt ASC
+            """)
+    List<ProductionSubmission> findStandardByStatut(
+            @Param("statut") SubmissionStatut statut);
 
     /**
      * Pour le hub d'entrainement : derniere submission par numero de tache
@@ -143,6 +165,7 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
               WHERE ps2.user_id = :userId
                 AND pt2.epreuve = CAST(:epreuve AS varchar)
                 AND pt2.niveau_cible = :niveau
+                AND pt2.diagnostic_code IS NULL
               ORDER BY pt2.tache_numero, ps2.submitted_at DESC
             )
             ORDER BY pt.tache_numero ASC

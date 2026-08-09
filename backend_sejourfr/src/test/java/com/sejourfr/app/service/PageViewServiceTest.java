@@ -66,6 +66,28 @@ class PageViewServiceTest {
     }
 
     @Test
+    void track_rejectsKnownEventOnWrongScreen() {
+        assertThatThrownBy(() -> service.track(new PageViewRequest(
+                "/reussir", "tiktok", PageViewEvent.DIAGNOSTIC_COMPLETED)))
+                .isInstanceOf(BusinessException.class);
+
+        verify(manager, never()).increment(anyString(), anyString(), any(), any());
+    }
+
+    @Test
+    void track_acceptsTheDiagnosticAndPlanFunnelEvents() {
+        service.track(new PageViewRequest(
+                "/diagnostic", "instagram", PageViewEvent.DIAGNOSTIC_RESULT_VIEWED));
+        service.track(new PageViewRequest(
+                "/plan", "instagram", PageViewEvent.PLAN_RECOMMENDED_EXERCISE_STARTED));
+
+        verify(manager).increment(eq("/diagnostic"), eq("instagram"),
+                eq(PageViewEvent.DIAGNOSTIC_RESULT_VIEWED), any());
+        verify(manager).increment(eq("/plan"), eq("instagram"),
+                eq(PageViewEvent.PLAN_RECOMMENDED_EXERCISE_STARTED), any());
+    }
+
+    @Test
     void track_foldsUnknownSourceIntoOther() {
         service.track(new PageViewRequest("/reussir", "reseau-invente-123", PageViewEvent.CTA));
 
@@ -100,6 +122,7 @@ class PageViewServiceTest {
         assertThat(stats.sources().getFirst().views()).isEqualTo(140);
         assertThat(stats.sources().getFirst().ctaRate()).isEqualTo(25.0);
         assertThat(stats.sources().getLast().ctaRate()).isEqualTo(50.0);
+        assertThat(stats.events()).containsEntry("VIEW", 160L).containsEntry("CTA", 45L);
     }
 
     @Test

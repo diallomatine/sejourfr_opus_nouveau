@@ -7,6 +7,7 @@ import '../../core/api/repositories.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
+import '../plan/learning_plan_provider.dart';
 
 /// Une "session EO" = 3 taches consecutives partageant 1 meme attempt parent.
 /// Similaire a EeSessionController mais pour l'oral.
@@ -61,9 +62,14 @@ class EoSessionState {
 }
 
 class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
-  EoSessionNotifier(this._repo) : super(const AsyncData(EoSessionState.empty()));
+  EoSessionNotifier(
+    this._repo, {
+    void Function()? onPlanChanged,
+  })  : _onPlanChanged = onPlanChanged ?? _noop,
+        super(const AsyncData(EoSessionState.empty()));
 
   final ProductionRepository _repo;
+  final void Function() _onPlanChanged;
 
   /// (Re)demarre une **session d'examen blanc module EO** sur le slot donné :
   /// crée un attempt d'examen (`exam:true, slotNumber:N`) puis charge les 3
@@ -109,7 +115,8 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
   Future<void> startSingle({required ProductionTaskDto task}) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final attempt = await _repo.startProductionAttempt(epreuve: EpreuveType.tcfEo);
+      final attempt =
+          await _repo.startProductionAttempt(epreuve: EpreuveType.tcfEo);
       return EoSessionState(
         attempt: attempt,
         tasks: [task],
@@ -176,6 +183,7 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
     );
     final updated = {...current.submissions, taskIndex: submission};
     state = AsyncData(current.copyWith(submissions: updated));
+    _onPlanChanged();
     return submission;
   }
 
@@ -191,6 +199,7 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
     final fresh = await _repo.getSubmission(existing.id);
     final updated = {...current.submissions, taskIndex: fresh};
     state = AsyncData(current.copyWith(submissions: updated));
+    if (fresh.statut.isFinal) _onPlanChanged();
   }
 
   /// Finalise l'attempt d'examen courant (`POST /finish`). À appeler après la
@@ -214,5 +223,11 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
 
 final eoSessionProvider =
     StateNotifierProvider<EoSessionNotifier, AsyncValue<EoSessionState>>(
-  (ref) => EoSessionNotifier(ref.watch(productionRepositoryProvider)),
+  (ref) => EoSessionNotifier(
+    ref.watch(productionRepositoryProvider),
+    onPlanChanged: () =>
+        ref.read(learningPlanRevisionProvider.notifier).state++,
+  ),
 );
+
+void _noop() {}

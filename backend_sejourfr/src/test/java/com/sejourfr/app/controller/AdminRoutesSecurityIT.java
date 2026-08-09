@@ -69,6 +69,11 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/admin/audio-drafts/pending-review/count"),
                 Arguments.of(HttpMethod.GET, "/api/admin/audio-questions/generation-logs"),
                 Arguments.of(HttpMethod.GET, "/api/admin/production/examples/audio/pending/count"),
+                // Audio fixe diagnostic : statut/HEAD R2 et génération explicite.
+                Arguments.of(HttpMethod.GET,
+                        "/api/admin/diagnostics/INITIAL_TCF/versions/1/instruction-audio"),
+                Arguments.of(HttpMethod.POST,
+                        "/api/admin/diagnostics/INITIAL_TCF/versions/1/instruction-audio"),
                 // Module competences : les 10 routes de la console, une par une.
                 Arguments.of(HttpMethod.GET, "/api/admin/skills"),
                 Arguments.of(HttpMethod.GET, "/api/admin/skills/stats"),

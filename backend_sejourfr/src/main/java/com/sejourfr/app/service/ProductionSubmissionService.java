@@ -70,9 +70,9 @@ public class ProductionSubmissionService {
         // enforceQuota ; ceci ne fait que couper l'abus (boucle, compte premium
         // qui martele l'endpoint de notation).
         rateLimitGuard.checkProductionSubmission(userId);
-        ProductionTask task = loadActiveTask(productionTaskId);
+        ProductionTask task = loadSubmittableTask(productionTaskId);
         assertEpreuve(task, EpreuveType.TCF_EO);
-        enforceQuota(userId, task.getEpreuve(), attemptId);
+        enforceQuota(userId, task, attemptId);
 
         ProductionSubmission saved = evaluationService.submitAndEvaluate(
                 userId, productionTaskId, attemptId, audio, null);
@@ -82,9 +82,9 @@ public class ProductionSubmissionService {
     public ProductionSubmissionDto submitText(SubmitProductionTextRequest req) {
         UUID userId = currentUser.getId();
         rateLimitGuard.checkProductionSubmission(userId);
-        ProductionTask task = loadActiveTask(req.productionTaskId());
+        ProductionTask task = loadSubmittableTask(req.productionTaskId());
         assertEpreuve(task, EpreuveType.TCF_EE);
-        enforceQuota(userId, task.getEpreuve(), req.attemptId());
+        enforceQuota(userId, task, req.attemptId());
 
         ProductionSubmission saved = evaluationService.submitAndEvaluate(
                 userId, req.productionTaskId(), req.attemptId(), null, req.texte());
@@ -219,6 +219,12 @@ public class ProductionSubmissionService {
                 .orElseThrow(() -> new NotFoundException("Tache introuvable : " + taskId));
     }
 
+    private ProductionTask loadSubmittableTask(UUID taskId) {
+        return taskManager.findById(taskId)
+                .filter(ProductionTask::isActive)
+                .orElseThrow(() -> new NotFoundException("Tache introuvable : " + taskId));
+    }
+
     private void assertEpreuve(ProductionTask task, EpreuveType expected) {
         if (task.getEpreuve() != expected) {
             throw new BusinessException("Cette route attend une tache " + expected + " ; recu " + task.getEpreuve());
@@ -231,6 +237,10 @@ public class ProductionSubmissionService {
      */
     private void enforceQuota(UUID userId, EpreuveType epreuve, UUID attemptId) {
         accessService.enforceQuota(userId, epreuve, attemptId);
+    }
+
+    private void enforceQuota(UUID userId, ProductionTask task, UUID attemptId) {
+        accessService.enforceQuota(userId, task, attemptId);
     }
 
     private ProductionSubmissionDto mapWithSignedAudioIfPresent(ProductionSubmission sub) {

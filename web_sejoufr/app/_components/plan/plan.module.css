@@ -1,0 +1,534 @@
+.page {
+  width: min(100%, 1080px);
+  margin: 0 auto;
+  padding: 34px 28px 56px;
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 9px;
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.header h1 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: clamp(29px, 4vw, 40px);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.header > p:last-child {
+  margin: 9px 0 0;
+  color: var(--color-muted);
+}
+
+.emptyCard,
+.current,
+.section,
+.recheck,
+.progressionLink,
+.diagnosticLink,
+.classic {
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-paper) 94%, var(--color-blue-light));
+}
+
+.emptyCard {
+  padding: clamp(28px, 5vw, 48px);
+  text-align: center;
+}
+
+.emptyIcon,
+.sectionIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: var(--color-blue);
+  background: var(--color-blue-light);
+  border-radius: 13px;
+}
+
+.emptyIcon {
+  width: 58px;
+  height: 58px;
+  margin-bottom: 17px;
+}
+
+.sectionIcon {
+  width: 39px;
+  height: 39px;
+}
+
+.emptyCard h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: clamp(22px, 3vw, 29px);
+}
+
+.emptyCard > p {
+  max-width: 560px;
+  margin: 10px auto 0;
+  color: var(--color-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 23px;
+}
+
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+  min-height: 45px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 10px 19px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.primaryButton {
+  color: var(--color-paper);
+  background: var(--color-blue);
+}
+
+.primaryButton:hover {
+  background: var(--color-blue-dark);
+}
+
+.secondaryButton {
+  border-color: var(--color-line);
+  color: var(--color-blue);
+  background: var(--color-blue-soft);
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.page a:focus-visible,
+.moreSkills summary:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
+  outline-offset: 3px;
+}
+
+.current {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(250px, 0.55fr);
+  gap: 28px;
+  padding: clamp(24px, 5vw, 40px);
+  border-color: color-mix(in srgb, var(--color-blue) 28%, var(--color-line));
+  background: var(--color-blue-soft);
+}
+
+.sectionPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 5px 9px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.current h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: clamp(24px, 4vw, 34px);
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.currentCopy > p:not(.eyebrow) {
+  margin: 10px 0 0;
+  color: var(--color-ink-2);
+}
+
+.current blockquote {
+  margin: 18px 0 0;
+  padding-left: 14px;
+  border-left: 3px solid var(--color-blue);
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.currentAction {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  flex-direction: column;
+  gap: 9px;
+  padding: 20px;
+  border: 1px solid var(--color-line);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--color-paper) 94%, var(--color-blue-light));
+}
+
+.currentAction > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-blue);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.currentAction > b {
+  margin-bottom: 7px;
+  color: var(--color-ink);
+  line-height: 1.35;
+}
+
+.section,
+.classic {
+  margin-top: 16px;
+  padding: 22px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 17px;
+}
+
+.sectionHead > div {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.sectionHead h2,
+.recheck h2,
+.classic h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 19px;
+}
+
+.sectionHead > span {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.priorityRows,
+.skillGrid {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.priorityRows li,
+.skillGrid li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 13px;
+}
+
+.priorityNumber {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 50%;
+  color: var(--color-blue);
+  background: var(--color-blue-light);
+  font-weight: 800;
+}
+
+.priorityBody,
+.skillGrid li > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+}
+
+.priorityBody b,
+.skillGrid b {
+  overflow: hidden;
+  color: var(--color-ink);
+  text-overflow: ellipsis;
+}
+
+.priorityBody small,
+.skillGrid small,
+.progressionLink small {
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.priorityRows li > a,
+.progressionLink > a,
+.diagnosticLink > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  color: var(--color-blue);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.skillGrid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.skillSection {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 10px;
+  color: var(--color-blue);
+  background: var(--color-blue-light);
+}
+
+.status {
+  flex: none;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: var(--color-blue);
+  background: var(--color-blue-light);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.status[data-status="SOLID"] {
+  color: var(--color-green);
+  background: color-mix(in srgb, var(--color-green) 12%, var(--color-paper));
+}
+
+.moreSkills {
+  margin-top: 13px;
+}
+
+.moreSkills summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  color: var(--color-blue);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.moreSkills[open] summary {
+  margin-bottom: 12px;
+}
+
+.recheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 20px 22px;
+}
+
+.recheck p {
+  margin: 5px 0 0;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.bottomGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.progressionLink,
+.diagnosticLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 18px;
+}
+
+.progressionLink > div,
+.diagnosticLink > div {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+}
+
+.progressionLink b,
+.diagnosticLink b {
+  color: var(--color-ink);
+  font-size: 14px;
+}
+
+.diagnosticLink span {
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.classic {
+  margin-top: 16px;
+}
+
+.classic > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.classic a {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 15px;
+  border: 1px solid var(--color-line);
+  border-radius: 13px;
+  color: var(--color-blue);
+}
+
+.classic a > span {
+  display: grid;
+  flex: 1;
+}
+
+.classic a b {
+  color: var(--color-ink);
+}
+
+.classic a small {
+  color: var(--color-muted);
+}
+
+.page > .progressionLink {
+  margin-top: 16px;
+}
+
+.skeletonHead,
+.skeletonHero,
+.skeletonGrid span {
+  border-radius: 17px;
+  background: linear-gradient(90deg, var(--color-line), var(--color-blue-soft), var(--color-line));
+  background-size: 200% 100%;
+  animation: loading 1.4s linear infinite;
+}
+
+.skeletonHead {
+  width: 42%;
+  height: 75px;
+  margin-bottom: 24px;
+}
+
+.skeletonHero {
+  height: 300px;
+}
+
+.skeletonGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.skeletonGrid span {
+  height: 190px;
+}
+
+@keyframes loading {
+  to { background-position: -200% 0; }
+}
+
+@media (max-width: 900px) {
+  .current {
+    grid-template-columns: 1fr;
+  }
+
+  .bottomGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 66px 18px 42px;
+  }
+
+  .skillGrid,
+  .classic > div {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .page {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .priorityRows li,
+  .progressionLink,
+  .diagnosticLink {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .priorityRows li > a,
+  .progressionLink > a,
+  .diagnosticLink > a {
+    width: 100%;
+    margin-left: 42px;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeletonHead,
+  .skeletonHero,
+  .skeletonGrid span {
+    animation: none;
+  }
+}

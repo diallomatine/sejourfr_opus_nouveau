@@ -51,7 +51,12 @@ Cf. `exams-tcf.md`.
   ce sont les 30 erreurs les plus récentes *correspondant à la demande*. Un
   filtre `CO` inclut `CO_IMAGE` (règle transverse du projet).
 - `GET /api/me/stats?module=...` — toute la réponse est scopée au module,
-  `attemptsTotal` compris.
+  `attemptsTotal` compris. Les deux attempts techniques du diagnostic initial
+  sont exclus de ce compteur et de l'historique `/api/me/attempts`.
+- `GET /api/me/plan` → `LearningPlanDto`. `state` vaut `NEEDS_DIAGNOSTIC`,
+  `DIAGNOSTIC_IN_PROGRESS` ou `ACTIVE`; une fois actif, le serveur fournit
+  `currentPriority`, au plus deux `nextPriorities`, les compétences observées
+  et l'exercice recommandé. Les clients ne trient ni ne recalculent ces priorités.
 - `GET /api/me/dashboard` — agrégat unique du tableau de bord + hubs web :
   streak de jours d'activité (courant + record, fuseau Europe/Paris), nb
   d'examens blancs finis (global + `civiqueMockExams`/`tcfMockExams` par
@@ -94,6 +99,44 @@ Cf. `exams-tcf.md`.
   `finishedAt` ; les soumissions suivantes sont refusées).
 
 Cf. `pipeline-evaluation-eo-ee.md`.
+
+## Diagnostic initial TCF et Plan
+
+Parcours **authentifié**, offert une fois par version et distinct d'un examen
+blanc : une EE hybride de 100–130 mots puis une EO enregistrée de 2–3 minutes.
+Il ne consomme pas les quotas d'entraînement, n'écrit aucune évaluation notée
+`/20` et ne crée pas de `TCF_COMPLET`.
+
+- `GET /api/diagnostics/current` → `DiagnosticResponse` de la version active.
+  Renvoie `status=NOT_STARTED` sans créer de données si le candidat ne l'a pas
+  commencé ; sinon permet la reprise sur un autre appareil.
+- `POST /api/diagnostics` → crée ou reprend idempotemment la session active,
+  avec ses deux attempts et ses deux exercices. Deux appels concurrents
+  aboutissent à la même session.
+- `GET /api/diagnostics/{sessionId}` → même DTO agrégé. Une session d'un autre
+  utilisateur répond **404**, pour ne pas révéler son existence.
+- `POST /api/diagnostics/{sessionId}/retry-analysis` → relance seulement une
+  session `FAILED`, avec rate-limit et plafond `max-session-retries`; si les
+  deux analyses sont déjà présentes, la synthèse déterministe est simplement
+  rejouée sans appel IA.
+
+`DiagnosticResponse` contient `sessionId`, le code/version, `status`,
+`nextStep` (`PRESENTATION|WRITTEN|ORAL|ANALYSIS|RESULT`), les deux
+`DiagnosticExerciseDto`, puis `result` quand il est prêt. Les rendus réutilisent
+`POST /api/production-submissions` avec les `productionTaskId` et `attemptId`
+fournis. Le bypass du quota n'est accordé que pour la paire exacte de cette
+session ; les contrôles d'appartenance, type EE/EO, taille/durée, rate-limit,
+R2 et Whisper restent actifs. Une seule submission est admise par attempt.
+
+Le résultat distingue accomplissement, communication, niveau estimé prudent
+(maximum B2, non officiel), compétences observées, preuve exacte, confiance et
+priorités. Au plus trois priorités globales sont renvoyées. `result.nextAction`
+est toujours un micro-exercice actif du catalogue, y compris lorsqu'aucune
+priorité n'est assez fiable (repli sur une compétence observée puis sur
+l'allowlist). Le Plan est dérivé et ordonné côté serveur depuis des observations
+sourcées ; une ligne `NOT_OBSERVED` reste historisée mais n'efface jamais une
+preuve antérieure. Le Plan reste séparé de l'historique et des statistiques de
+progression.
 
 ## Compétences TCF (micro-entraînement EE/EO)
 
@@ -153,13 +196,17 @@ moment où `analysis_requested` est persisté) et non au succès.
 ## Audience des landings
 
 - `POST /api/public/page-views` — public, sans authentification. Corps
-  `{path, source, event}` avec `event = VIEW | CTA`. Répond **204** (émis en
-  `sendBeacon`, la réponse n'est jamais lue). Le backend n'accepte qu'un `path`
-  de la liste blanche `PageViewService.TRACKED_PATHS` et normalise `source`
+  `{path, source, event}`. Répond **204** (émis en `sendBeacon`, la réponse
+  n'est jamais lue). Le backend vérifie la paire dans
+  `PageViewService.EVENTS_BY_PATH` et normalise `source`
   (`tiktok|instagram|whatsapp|facebook|youtube|direct`, tout le reste →
   `autre`) : c'est ce qui borne la table face à un endpoint ouvert.
-- `GET /api/admin/page-views?path=/reussir&days=30` — agrégat par source et par
-  jour (`PageViewStatsResponse`).
+- Chemins/événements : `/reussir` accepte `VIEW`, `CTA` et
+  `SOCIAL_LANDING_DIAGNOSTIC_CLICKED`; `/diagnostic` accepte les six étapes
+  `DIAGNOSTIC_*` du parcours et `DIAGNOSTIC_TO_PREMIUM_CLICKED`; `/plan`
+  accepte `PLAN_OPENED`, `PLAN_RECOMMENDED_EXERCISE_STARTED` et le clic Premium.
+- `GET /api/admin/page-views?path=/reussir&days=30` — agrégat par source, par
+  jour et compte brut par événement (`PageViewStatsResponse.events`).
 - `GET /api/admin/page-views/paths` — pages mesurées, pour le sélecteur admin.
 
 **Aucune donnée personnelle** : ni IP, ni user-agent, ni identifiant de
@@ -168,7 +215,7 @@ visiteurs uniques. Cf. migration V020.
 
 ## Admin
 
-- `/api/admin/{dashboard,questions,themes,conversations,media,passages,audio-questions,calibration/{submissions,stats},page-views}`
+- `/api/admin/{dashboard,questions,themes,conversations,media,passages,audio-questions,calibration/{submissions,stats},page-views,diagnostics}`
 - `GET /api/admin/questions?module=&themeId=&difficulty=&type=&active=&media=&search=&page=&size=`
   — `media` vaut `AUDIO | IMAGE | VIDEO | NONE` (`NONE` = questions sans média
   principal ; le filtre porte sur `question.media`, pas sur l'audio secondaire
@@ -228,6 +275,21 @@ Console de contenu du module Compétences (cf. la section utilisateur plus haut)
   et les fronts réaffichent alors « Sujet N ». C'est la seule surface d'écriture du catalogue
   de sujets : consigne, bornes, activation et fiche de scénario T2 restent pilotées par les
   migrations de contenu.
+
+### Audio fixe du diagnostic
+
+- `GET /api/admin/diagnostics/{code}/versions/{version}/instruction-audio` →
+  `DiagnosticInstructionAudioDto`, avec la tâche EO, la clé R2 stable, l'URL,
+  l'état de configuration Azure/R2 et le résultat d'un HEAD sur l'objet.
+- `POST /api/admin/diagnostics/{code}/versions/{version}/instruction-audio` →
+  vérifie d'abord la clé déterministe de l'UUID de tâche ; si l'objet existe,
+  répare seulement son URL (même sans Azure), sinon génère explicitement la
+  consigne avec Azure Speech, l'envoie dans R2 et persiste l'URL.
+
+Il n'existe volontairement aucun CRUD admin des sujets diagnostiques : contenu,
+bornes, version, URL fixe et allowlists restent **seed-only**. La migration ne
+fait aucun appel externe : V755 référence l'objet préalablement généré et vérifié.
+L'audio n'est jamais généré au boot ou au démarrage candidat.
 
 **Pagination** : `?size=` est plafonné à **100** sur toutes les listes paginées
 (`spring.data.web.pageable.max-page-size`), défaut 20.

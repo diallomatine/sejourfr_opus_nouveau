@@ -33,7 +33,16 @@ public class ProductionTaskManager {
 
     /** Variante qui filtre les taches desactivees (vue cote utilisateur final). */
     public Optional<ProductionTask> findActiveById(UUID id) {
-        return repository.findById(id).filter(ProductionTask::isActive);
+        return repository.findById(id)
+                .filter(ProductionTask::isActive)
+                .filter(task -> !task.isDiagnostic());
+    }
+
+    /** Lookup candidat réservé au parcours diagnostic. */
+    public Optional<ProductionTask> findActiveDiagnosticById(UUID id) {
+        return repository.findById(id)
+                .filter(ProductionTask::isActive)
+                .filter(ProductionTask::isDiagnostic);
     }
 
     /**
@@ -42,28 +51,45 @@ public class ProductionTaskManager {
      */
     public List<ProductionTask> findActive(EpreuveType epreuve, String niveauCible, Short tacheNumero) {
         if (niveauCible != null && tacheNumero != null) {
-            return repository.findByEpreuveAndNiveauCibleAndTacheNumeroAndActiveTrueOrderByCreatedAtAsc(
+            return repository.findByEpreuveAndNiveauCibleAndTacheNumeroAndActiveTrueAndDiagnosticCodeIsNullOrderByCreatedAtAsc(
                     epreuve, niveauCible, tacheNumero);
         }
         if (niveauCible != null) {
-            return repository.findByEpreuveAndNiveauCibleAndActiveTrueOrderByTacheNumeroAsc(
+            return repository.findByEpreuveAndNiveauCibleAndActiveTrueAndDiagnosticCodeIsNullOrderByTacheNumeroAsc(
                     epreuve, niveauCible);
         }
         if (tacheNumero != null) {
-            return repository.findByEpreuveAndTacheNumeroAndActiveTrueOrderByNiveauCibleAscCreatedAtAsc(
+            return repository.findByEpreuveAndTacheNumeroAndActiveTrueAndDiagnosticCodeIsNullOrderByNiveauCibleAscCreatedAtAsc(
                     epreuve, tacheNumero);
         }
-        return repository.findByEpreuveAndActiveTrueOrderByNiveauCibleAscTacheNumeroAsc(epreuve);
+        return repository.findByEpreuveAndActiveTrueAndDiagnosticCodeIsNullOrderByNiveauCibleAscTacheNumeroAsc(epreuve);
     }
 
     /** Toutes les taches actives (toutes epreuves/niveaux) — validation des rubriques au boot. */
     public List<ProductionTask> findAllActive() {
-        return repository.findByActiveTrue();
+        return repository.findByActiveTrueAndDiagnosticCodeIsNull();
+    }
+
+    public Optional<Integer> findLatestActiveDiagnosticVersion(String code) {
+        return repository.findLatestActiveDiagnosticVersion(code);
+    }
+
+    public Optional<ProductionTask> findActiveDiagnostic(
+            String code, int version, EpreuveType epreuve) {
+        return repository.findByDiagnosticCodeAndDiagnosticVersionAndEpreuveAndActiveTrue(
+                code, version, epreuve);
     }
 
     /** Catalogue d'une epreuve, <b>desactivees comprises</b> : console admin uniquement. */
     public List<ProductionTask> findAllByEpreuve(EpreuveType epreuve) {
         return repository.findByEpreuveOrderByNiveauCibleAscTacheNumeroAsc(epreuve);
+    }
+
+    /** Catalogue administrable classique ; les sujets diagnostic restent seed-only. */
+    public List<ProductionTask> findAllStandardByEpreuve(EpreuveType epreuve) {
+        return repository.findByEpreuveOrderByNiveauCibleAscTacheNumeroAsc(epreuve).stream()
+                .filter(task -> !task.isDiagnostic())
+                .toList();
     }
 
     public ProductionTask save(ProductionTask task) {

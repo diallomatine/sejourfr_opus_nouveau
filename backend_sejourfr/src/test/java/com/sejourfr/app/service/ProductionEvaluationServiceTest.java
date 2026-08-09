@@ -71,7 +71,8 @@ class ProductionEvaluationServiceTest {
         // Gardes de session + quota : collaborateur REEL (pur), pour que les
         // regles verifiees ici soient celles qui tournent en production.
         ProductionAccessService accessService = new ProductionAccessService(
-                subscriptionService, attemptManager, submissionManager);
+                subscriptionService, attemptManager, submissionManager,
+                mock(com.sejourfr.app.manager.DiagnosticSessionManager.class));
         service = new ProductionEvaluationService(
                 taskManager, submissionManager, transcriptionManager, attemptManager,
                 userManager, audioStorage, pipelineRunner, accessService, props);
@@ -531,7 +532,7 @@ class ProductionEvaluationServiceTest {
         User other = new User();
         other.setId(UUID.randomUUID());
         s.setUser(other);
-        when(submissionManager.findByIdWithTask(s.getId())).thenReturn(Optional.of(s));
+        when(submissionManager.findByIdWithTaskAndUser(s.getId())).thenReturn(Optional.of(s));
 
         assertThatThrownBy(() -> service.retry(s.getId(), userId)).isInstanceOf(BusinessException.class);
     }
@@ -540,7 +541,7 @@ class ProductionEvaluationServiceTest {
     void retry_submission_non_failed_refuse() {
         ProductionSubmission s = failedSubmission((short) 0);
         s.setStatut(SubmissionStatut.EVALUATED);
-        when(submissionManager.findByIdWithTask(s.getId())).thenReturn(Optional.of(s));
+        when(submissionManager.findByIdWithTaskAndUser(s.getId())).thenReturn(Optional.of(s));
 
         assertThatThrownBy(() -> service.retry(s.getId(), userId)).isInstanceOf(BusinessException.class);
     }
@@ -548,7 +549,7 @@ class ProductionEvaluationServiceTest {
     @Test
     void retry_plafond_atteint_refuse() {
         ProductionSubmission s = failedSubmission((short) 3); // max = 3
-        when(submissionManager.findByIdWithTask(s.getId())).thenReturn(Optional.of(s));
+        when(submissionManager.findByIdWithTaskAndUser(s.getId())).thenReturn(Optional.of(s));
 
         assertThatThrownBy(() -> service.retry(s.getId(), userId)).isInstanceOf(BusinessException.class);
         verify(pipelineRunner, never()).runPipelineAsync(any(), anyBoolean());
@@ -557,12 +558,41 @@ class ProductionEvaluationServiceTest {
     @Test
     void retry_valide_incremente_repasse_en_SUBMITTED_et_relance() {
         ProductionSubmission s = failedSubmission((short) 1);
-        when(submissionManager.findByIdWithTask(s.getId())).thenReturn(Optional.of(s));
+        when(submissionManager.findByIdWithTaskAndUser(s.getId())).thenReturn(Optional.of(s));
 
         ProductionSubmission result = service.retry(s.getId(), userId);
 
         assertThat(result.getStatut()).isEqualTo(SubmissionStatut.SUBMITTED);
         assertThat(result.getRetryCount()).isEqualTo((short) 2);
         verify(pipelineRunner).runPipelineAsync(eq(s.getId()), eq(false));
+    }
+
+    @Test
+    void retryGeneriqueRefuseToujoursUneSubmissionDiagnostic() {
+        ProductionSubmission s = failedSubmission((short) 0);
+        s.setDiagnostic(true);
+        s.getProductionTask().setDiagnosticCode("INITIAL_TCF");
+        s.getProductionTask().setDiagnosticVersion(1);
+        when(submissionManager.findByIdWithTaskAndUser(s.getId())).thenReturn(Optional.of(s));
+
+        assertThatThrownBy(() -> service.retry(s.getId(), userId))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("relance du diagnostic");
+        verify(pipelineRunner, never()).runPipelineAsync(any(), anyBoolean());
+    }
+
+    @Test
+    void retryDiagnosticUtiliseLePlafondDeSessionEtRelanceLaBonneBranche() {
+        ProductionSubmission s = failedSubmission((short) 1);
+        s.setDiagnostic(true);
+        s.getProductionTask().setDiagnosticCode("INITIAL_TCF");
+        s.getProductionTask().setDiagnosticVersion(1);
+        when(submissionManager.findByIdWithTaskAndUser(s.getId())).thenReturn(Optional.of(s));
+
+        ProductionSubmission result = service.retryDiagnostic(s.getId(), userId, 2);
+
+        assertThat(result.getRetryCount()).isEqualTo((short) 2);
+        assertThat(result.getStatut()).isEqualTo(SubmissionStatut.SUBMITTED);
+        verify(pipelineRunner).runPipelineAsync(s.getId(), false);
     }
 }

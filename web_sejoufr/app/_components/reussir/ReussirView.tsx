@@ -11,10 +11,12 @@ import {
 } from "react";
 import {
   detectTrafficSource,
-  trackCtaClick,
+  trackAudienceEvent,
   trackPageView,
+  withTrafficSource,
   type TrafficSource,
 } from "@/lib/audience";
+import { diagnosticApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { SOCIAL_ACCOUNTS, STORE_LINKS } from "@/lib/site";
 import type { PlanPublicResponse } from "@/lib/types";
@@ -22,7 +24,7 @@ import styles from "./reussir.module.css";
 
 /**
  * Landing de bio réseaux (`/reussir`) — page autoportante, un seul objectif :
- * envoyer le visiteur sur la démo gratuite, puis sur un pass.
+ * envoyer le visiteur sur le diagnostic gratuit, puis sur son Plan et un pass.
  *
  * Le trafic vient de TikTok, Instagram, WhatsApp, Facebook ou d'un partage
  * direct : le titre reste neutre et c'est un badge qui fait le « message
@@ -30,8 +32,6 @@ import styles from "./reussir.module.css";
  */
 
 type Parcours = "tcf" | "civique";
-
-const DEMO_HREF = "/entrainement?module=TCF";
 
 /** Chemin mesuré côté backend (liste blanche `PageViewService.TRACKED_PATHS`). */
 const TRACKED_PATH = "/reussir";
@@ -44,9 +44,6 @@ const NETWORKS: Record<string, { label: string; icon: ReactElement }> = {
   facebook: { label: "Facebook", icon: <FacebookIcon /> },
   youtube: { label: "YouTube", icon: <YouTubeIcon /> },
 };
-
-const TRANSCRIPT =
-  "Je m'appelle Fatou, j'ai 31 ans et je vis à Lyon depuis quatre ans. Je travaille comme aide-soignante, et si je demande la nationalité, c'est parce que ma vie est ici…";
 
 export function ReussirView({ plans }: { plans: PlanPublicResponse[] }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -111,16 +108,13 @@ function Hero() {
             </p>
 
             <h1 className={styles.h1} data-rv>
-              Ton titre de séjour se joue sur un <em>niveau de français</em>.
+              Tu prépares le TCF&nbsp;? Découvre d&apos;abord <em>ce qui te bloque</em>.
             </h1>
 
             <p className={styles.lead} data-rv>
-              Depuis janvier&nbsp;2026, le <strong>TCF&nbsp;IRN</strong>{" "}
-              et
-              l&apos;<strong>examen civique</strong>{" "}
-              conditionnent ta carte de séjour, ta
-              carte de résident ou ta naturalisation. SejourFR t&apos;entraîne jusqu&apos;au
-              niveau exact qu&apos;on te demande&nbsp;— et te dit quand tu y es.
+              Fais <strong>1 exercice écrit et 1 oral</strong>. SejourFR analyse tes
+              réponses, estime ton niveau de production et te montre les compétences à
+              travailler en priorité.
             </p>
 
             <ul className={styles.levelChips} data-rv>
@@ -136,23 +130,23 @@ function Hero() {
             </ul>
 
             <div className={styles.ctaRow} data-rv>
-              <DemoCta />
+              <DiagnosticCta />
             </div>
 
             <ul className={styles.trust} data-rv>
               <li>
-                <CheckDot /> Sans inscription
+                <CheckDot /> 2 exercices
               </li>
               <li>
                 <CheckDot /> Sans carte bancaire
               </li>
               <li>
-                <CheckDot /> 2 minutes
+                <CheckDot /> ≈ 8 à 10 min
               </li>
             </ul>
           </div>
 
-          <LiveSessionCard />
+          <DiagnosticPreviewCard />
         </div>
       </div>
     </section>
@@ -160,17 +154,46 @@ function Hero() {
 }
 
 /**
- * Le CTA de démo, partagé par le hero, le bloc final et la barre collante.
+ * Le CTA diagnostic, partagé par le hero, le bloc final et la barre collante.
  * Passer par un composant unique garantit que les trois points d'entrée sont
  * mesurés de la même façon — un bouton ajouté ailleurs sans lui serait un trou
  * silencieux dans le taux de conversion.
  */
-function DemoCta({ label = "Tester gratuitement" }: { label?: string }) {
+function DiagnosticCta({ compact = false }: { compact?: boolean }) {
+  const {status, user} = useAuth();
+  const origin = useOrigin();
+  const [completedForUserId, setCompletedForUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !user) return;
+    let cancelled = false;
+    diagnosticApi.currentCached().then((diagnostic) => {
+      if (!cancelled) {
+        setCompletedForUserId(diagnostic.status === "COMPLETED" ? user.id : null);
+      }
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [status, user]);
+
+  const completed = Boolean(user && completedForUserId === user.id);
+  const diagnosticDestination = withTrafficSource("/diagnostic", origin);
+  const planDestination = withTrafficSource("/plan", origin);
+  const destination = completed
+    ? planDestination
+    : status === "authenticated" && user
+      ? diagnosticDestination
+      : `/inscription?next=${encodeURIComponent(diagnosticDestination)}`;
+  const label = completed
+    ? "Voir mon plan"
+    : compact
+      ? "Faire mon diagnostic"
+      : "Faire mon diagnostic gratuit";
+
   return (
     <Link
-      href={DEMO_HREF}
+      href={destination}
       className={styles.btn}
-      onClick={() => trackCtaClick(TRACKED_PATH)}
+      onClick={() => trackAudienceEvent("/reussir", "SOCIAL_LANDING_DIAGNOSTIC_CLICKED")}
     >
       {label}
       <ArrowIcon />
@@ -178,105 +201,30 @@ function DemoCta({ label = "Tester gratuitement" }: { label?: string }) {
   );
 }
 
-/** Démo animée : l'examinateur vocal en session, avec son compteur de quota. */
-function LiveSessionCard() {
-  const cardRef = useRef<HTMLDivElement | null>(null);
-  const seen = useInView(cardRef);
-  const [typed, setTyped] = useState("");
-  const [seconds, setSeconds] = useState(84);
-  const reduced = usePrefersReducedMotion();
-  // Mouvement réduit : on affiche le transcript complet d'emblée plutôt que
-  // de le taper — dérivé du rendu, pas d'état à synchroniser.
-  const transcript = reduced ? TRANSCRIPT : typed;
-
-  useEffect(() => {
-    if (!seen || reduced) return;
-    let n = 0;
-    const id = window.setInterval(() => {
-      n += 1;
-      setTyped(TRANSCRIPT.slice(0, n));
-      if (n >= TRANSCRIPT.length) window.clearInterval(id);
-    }, 25);
-    return () => window.clearInterval(id);
-  }, [seen, reduced]);
-
-  useEffect(() => {
-    if (!seen || reduced) return;
-    const id = window.setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => window.clearInterval(id);
-  }, [seen, reduced]);
-
-  const clock = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(
-    seconds % 60,
-  ).padStart(2, "0")}`;
-
+/** Exemple clairement présenté comme tel : il visualise la valeur livrée par
+ *  le diagnostic, sans se substituer au résultat réel calculé par le backend. */
+function DiagnosticPreviewCard() {
   return (
-    <div className={styles.cardInk} ref={cardRef} data-rv>
+    <div className={`${styles.cardInk} ${styles.diagnosticPreview}`} data-rv>
       <div className={styles.sessHead}>
-        <span className={styles.live}>
-          <span className={styles.pulse} aria-hidden />
-          Simulation orale en direct
-        </span>
-        <span className={styles.clock}>{clock}</span>
+        <span className={styles.live}>Votre diagnostic</span>
+        <span className={styles.clock}>Exemple de résultat</span>
       </div>
-
-      <Waveform />
-
-      <div className={`${styles.bubble} ${styles.bubbleEx}`}>
-        <span className={styles.who}>
-          <MicIcon /> Examinateur IA
-        </span>
-        Pouvez-vous vous présenter, puis m&apos;expliquer pourquoi vous souhaitez vous
-        installer durablement en France&nbsp;?
+      <div className={styles.diagnosticLevels}>
+        <span><small>Expression écrite</small><b>B1</b></span>
+        <span><small>Expression orale</small><b>B1</b></span>
+        <span><small>Objectif</small><b>B2</b></span>
       </div>
-
-      <div className={`${styles.bubble} ${styles.bubbleYou}`}>
-        <span className={styles.who}>Vous</span>
-        {transcript}
-        <span className={styles.caret} aria-hidden />
+      <div className={styles.diagnosticPriorities}>
+        <span className={styles.who}><SparkIcon /> Vos priorités</span>
+        <ol>
+          <li><i>1</i><span>Développer un argument</span></li>
+          <li><i>2</i><span>Structurer votre prise de parole</span></li>
+          <li><i>3</i><span>Stabiliser les temps du récit</span></li>
+        </ol>
       </div>
-
-      <p className={styles.quota}>
-        <span className={styles.quotaDots} aria-hidden>
-          {Array.from({ length: 12 }, (_, i) => (
-            <i key={i} data-used={i < 3 ? "" : undefined} />
-          ))}
-        </span>
-        <span className={styles.quotaLbl}>
-          Simulation <b>3</b> sur <b>60</b>{" "}
-          · pass Intégral 3&nbsp;mois
-        </span>
-      </p>
+      <p className={styles.diagnosticPlan}><CheckDot /> Une action concrète dans votre Plan</p>
     </div>
-  );
-}
-
-function Waveform() {
-  const bars = useMemo(
-    () =>
-      Array.from({ length: 34 }, (_, i) => ({
-        height: `${28 + Math.round(Math.abs(Math.sin(i * 1.7)) * 62)}%`,
-        delay: `${(i * 0.05).toFixed(2)}s`,
-        duration: `${(0.95 + (i % 4) * 0.13).toFixed(2)}s`,
-      })),
-    [],
-  );
-
-  return (
-    <span className={styles.wave} aria-hidden>
-      {bars.map((b, i) => (
-        <i
-          key={i}
-          style={
-            {
-              "--h": b.height,
-              animationDelay: b.delay,
-              animationDuration: b.duration,
-            } as React.CSSProperties
-          }
-        />
-      ))}
-    </span>
   );
 }
 
@@ -973,10 +921,10 @@ function FinalSection() {
         <div className={styles.finalGrid}>
           <div>
             <h2 className={styles.h2} data-rv>
-              Commence par une <em>série offerte</em>. Maintenant.
+              Commence par ton <em>diagnostic gratuit</em>. Maintenant.
             </h2>
             <div className={styles.ctaRow} data-rv>
-              <DemoCta />
+              <DiagnosticCta />
             </div>
             <div className={styles.stores} data-rv>
               <a
@@ -1110,11 +1058,11 @@ function StickyCta() {
     <div className={`${styles.sticky} ${shown ? styles.stickyOn : ""}`}>
       <div className={styles.stickyInner}>
         <span className={styles.stickyTxt}>
-          Série offerte
+          2 exercices
           <br />
-          Sans compte
+          ≈ 8 à 10 min
         </span>
-        <DemoCta label="Commencer" />
+        <DiagnosticCta compact />
       </div>
     </div>
   );

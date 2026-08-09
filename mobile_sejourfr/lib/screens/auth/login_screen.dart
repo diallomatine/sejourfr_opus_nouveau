@@ -149,9 +149,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       suffixIcon: IconButton(
                         onPressed: () => setState(() => _obscure = !_obscure),
                         icon: Icon(
-                          _obscure
-                              ? LucideIcons.eye
-                              : LucideIcons.eyeOff,
+                          _obscure ? LucideIcons.eye : LucideIcons.eyeOff,
                           color: AppColors.muted,
                         ),
                       ),
@@ -170,7 +168,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () => context.push(AppRoutes.forgotPassword),
+                        onPressed: () => context.push(
+                          authFlowLocation(
+                            AppRoutes.forgotPassword,
+                            GoRouterState.of(context)
+                                .uri
+                                .queryParameters['redirect'],
+                          ),
+                        ),
                         child: Text(
                           'Mot de passe oublié ?',
                           style: AppFonts.ui(
@@ -206,7 +211,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: () => context.push(AppRoutes.register),
+                          onTap: () => context.push(
+                            authFlowLocation(
+                              AppRoutes.register,
+                              GoRouterState.of(context)
+                                  .uri
+                                  .queryParameters['redirect'],
+                            ),
+                          ),
                           child: Text(
                             'Créer un compte',
                             style: AppFonts.ui(

@@ -3,6 +3,7 @@ package com.sejourfr.app.service.competence;
 import com.sejourfr.app.entity.UserSkillAttempt;
 import com.sejourfr.app.enums.SkillAttemptStatut;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
+import com.sejourfr.app.service.LearningPlanObservationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -45,6 +46,7 @@ public class SkillAnalysisAsyncRunner {
     private final SkillTranscriptionService transcriptionService;
     private final CompetenceAnalysisService analysisService;
     private final SkillAnalysisFailureRecorder failureRecorder;
+    private final LearningPlanObservationService learningPlanObservationService;
 
     /**
      * @param estOral vrai pour une production orale : la transcription Whisper
@@ -69,6 +71,16 @@ public class SkillAnalysisAsyncRunner {
                 attemptManager.save(attempt);
             }
             analysisService.analyse(attemptId);
+            // L'analyse ciblée est déjà durable et EVALUATED à ce stade. Le
+            // Plan est un enrichissement best-effort : une panne de son écriture
+            // ne doit jamais rétrograder la tentative en FAILED ni autoriser un
+            // retry payant d'une analyse qui a réussi.
+            try {
+                learningPlanObservationService.recordSkillAttempt(attemptId);
+            } catch (Exception observationError) {
+                log.warn("Observation Plan ignorée pour la tentative {} : {}",
+                        attemptId, observationError.getMessage());
+            }
             log.info("Analyse de competence terminee pour la tentative {}", attemptId);
         } catch (Exception e) {
             log.warn("Analyse de competence en echec pour la tentative {} : {}",

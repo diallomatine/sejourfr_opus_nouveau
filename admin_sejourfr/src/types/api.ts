@@ -1005,6 +1005,21 @@ export interface PageViewDailyStat {
   ctaClicks: number;
 }
 
+/** Allowlist du compteur agrégé backend ; valeurs absentes = zéro occurrence. */
+export type PageViewEvent =
+  | "VIEW"
+  | "CTA"
+  | "DIAGNOSTIC_VIEWED"
+  | "DIAGNOSTIC_STARTED"
+  | "DIAGNOSTIC_WRITTEN_COMPLETED"
+  | "DIAGNOSTIC_ORAL_COMPLETED"
+  | "DIAGNOSTIC_COMPLETED"
+  | "DIAGNOSTIC_RESULT_VIEWED"
+  | "PLAN_OPENED"
+  | "PLAN_RECOMMENDED_EXERCISE_STARTED"
+  | "SOCIAL_LANDING_DIAGNOSTIC_CLICKED"
+  | "DIAGNOSTIC_TO_PREMIUM_CLICKED";
+
 /**
  * Audience agrégée d'une landing. Compte des VUES, pas des visiteurs uniques :
  * aucun identifiant de terminal n'est posé côté navigateur (cf. migration V020).
@@ -1016,6 +1031,8 @@ export interface PageViewStatsResponse {
   ctaClicks: number;
   sources: PageViewSourceStat[];
   daily: PageViewDailyStat[];
+  /** Compteurs bruts du funnel, toujours agrégés et anonymes. */
+  events: Partial<Record<PageViewEvent, number>>;
 }
 
 // ============ COMPÉTENCES TCF (EE/EO) — surface admin ============

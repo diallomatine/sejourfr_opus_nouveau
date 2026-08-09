@@ -4,6 +4,7 @@ import { pageViewsApi } from "../../api/pageViewsApi";
 import { PageHeader } from "../../components/ui/PageHeader";
 import type {
   PageViewDailyStat,
+  PageViewEvent,
   PageViewSourceStat,
   PageViewStatsResponse,
 } from "../../types/api";
@@ -21,6 +22,23 @@ const SOURCE_LABELS: Record<string, string> = {
   direct: "Accès direct",
   autre: "Autre",
 };
+
+const EVENT_LABELS: Record<PageViewEvent, string> = {
+  VIEW: "Page vue",
+  CTA: "CTA historique cliqué",
+  DIAGNOSTIC_VIEWED: "Diagnostic vu",
+  DIAGNOSTIC_STARTED: "Diagnostic démarré",
+  DIAGNOSTIC_WRITTEN_COMPLETED: "Écrit terminé",
+  DIAGNOSTIC_ORAL_COMPLETED: "Oral terminé",
+  DIAGNOSTIC_COMPLETED: "Diagnostic analysé",
+  DIAGNOSTIC_RESULT_VIEWED: "Résultat consulté",
+  PLAN_OPENED: "Plan ouvert",
+  PLAN_RECOMMENDED_EXERCISE_STARTED: "Exercice recommandé démarré",
+  SOCIAL_LANDING_DIAGNOSTIC_CLICKED: "CTA diagnostic social cliqué",
+  DIAGNOSTIC_TO_PREMIUM_CLICKED: "CTA Premium depuis diagnostic",
+};
+
+const EVENT_ORDER = Object.keys(EVENT_LABELS) as PageViewEvent[];
 
 export function AudiencePage() {
   const [days, setDays] = useState<number>(30);
@@ -103,7 +121,11 @@ export function AudiencePage() {
 }
 
 function StatsView({ stats }: { stats: PageViewStatsResponse }) {
-  const empty = stats.views === 0 && stats.ctaClicks === 0;
+  const totalEvents = Object.values(stats.events).reduce(
+    (total, count) => total + (count ?? 0),
+    0,
+  );
+  const empty = totalEvents === 0;
   const globalRate = stats.views > 0 ? (stats.ctaClicks * 100) / stats.views : null;
 
   if (empty) {
@@ -125,6 +147,20 @@ function StatsView({ stats }: { stats: PageViewStatsResponse }) {
           value={globalRate === null ? "—" : `${globalRate.toFixed(1).replace(".", ",")} %`}
         />
       </div>
+
+      <section className={styles.panel}>
+        <h2 className={styles.panelTitle}>Étapes du funnel</h2>
+        <ul className={styles.events}>
+          {EVENT_ORDER.filter((event) => (stats.events[event] ?? 0) > 0).map(
+            (event) => (
+              <li key={event}>
+                <span>{EVENT_LABELS[event]}</span>
+                <strong>{(stats.events[event] ?? 0).toLocaleString("fr-FR")}</strong>
+              </li>
+            ),
+          )}
+        </ul>
+      </section>
 
       <section className={styles.panel}>
         <h2 className={styles.panelTitle}>Par provenance</h2>

@@ -232,19 +232,92 @@ cliquent son CTA, découpé par réseau de provenance.
   **Ne pas ajouter de déduplication persistante sans repasser sur la page
   légale.** Conséquence assumée : on compte des **vues**, pas des visiteurs
   uniques.
-- **Deux listes blanches** dans `PageViewService` (`TRACKED_PATHS`,
-  `KNOWN_SOURCES`) : l'endpoint d'écriture étant public, elles sont la seule
-  chose qui empêche un tiers de créer des dimensions à volonté. Ajouter une
-  landing mesurée = l'ajouter à `TRACKED_PATHS`.
-- **Web** : `lib/audience.ts` (`detectTrafficSource`, `trackPageView`,
-  `trackCtaClick`) — même détection de provenance que le badge du hero, un seul
-  endroit qui décide « ce visiteur vient de TikTok ».
-- **Admin** : `features/audience/` — vues, clics, taux de clic par réseau et
-  série journalière, sur 7 / 30 / 90 jours.
+- **Deux allowlists** dans `PageViewService` : `EVENTS_BY_PATH` borne à la fois
+  les chemins et les événements admis sur chaque écran, `KNOWN_SOURCES` borne
+  les provenances (tout le reste devient `autre`). L'endpoint d'écriture étant
+  public, elles empêchent un tiers de créer des dimensions à volonté. Les pages
+  suivies sont `/reussir`, `/diagnostic` et `/plan`.
+- **Web** : `lib/audience.ts` garde la détection de provenance ;
+  `lib/audience-events.ts` envoie les événements typés. Le funnel diagnostic
+  ajoute dix événements : vue/démarrage, fin EE, fin EO, fin d'analyse, vue du
+  résultat, ouverture du Plan, lancement de l'exercice recommandé, clic landing
+  sociale vers le diagnostic et clic diagnostic/Plan vers Premium.
+- **Admin** : `features/audience/` — vues, clics, taux de clic par réseau,
+  série journalière et compte brut de chaque événement du funnel, sur 7 / 30 /
+  90 jours. `PageViewStatsResponse.events` est un `Map<String, Long>` ; ne pas
+  reconstruire le funnel depuis les deux anciens totaux `views`/`ctaClicks`.
 - Reste à faire avant l'ouverture publique : un **rate-limit par IP** sur
   `POST /api/public/page-views`, même chantier que la démo invitée. Sans lui, un
   bot peut gonfler un compteur — donnée fausse, mais ni fuite ni inflation de
   stockage.
+
+## Diagnostic initial TCF et Plan personnalisé
+
+Le diagnostic est un **parcours authentifié distinct** des examens blancs et de
+la notation standard. Il comporte exactement deux exercices hybrides fixes par
+version : une EE de 100–130 mots, puis une EO enregistrée de 2–3 minutes. Ils
+vivent dans `production_tasks` pour réutiliser la soumission, R2 et Whisper,
+mais portent `diagnostic_code` + `diagnostic_version` ; tous les catalogues,
+tirages, historiques, statistiques, quotas, outils admin standard, validateurs
+de rubriques et files de calibration doivent garder le filtre
+`diagnostic_code IS NULL`. Ce n'est jamais un `TCF_COMPLET`.
+
+- **Agrégat** : `diagnostic_sessions` enveloppe les deux attempts EE/EO, avec
+  unicité `(user, code, version)` **et** unicité séparée de chaque attempt. Les
+  états persistés sont `IN_PROGRESS`, `ANALYZING`, `COMPLETED`, `FAILED` ; le DTO
+  ajoute `NOT_STARTED` quand aucune session n'existe. `POST /api/diagnostics`
+  est idempotent et sûr en concurrence ; `GET /api/diagnostics/current` permet
+  la reprise cross-device, `GET /api/diagnostics/{id}` protège l'IDOR par 404,
+  et `POST .../{id}/retry-analysis` est borné/configuré et rate-limité.
+- **Soumission stricte** : les routes de production existantes sont réutilisées,
+  mais le bypass de quota n'est accordé que si la tâche, l'attempt, l'utilisateur,
+  la session courante et l'étape concordent. Une tâche diagnostique seule ne
+  suffit jamais. Une seule submission diagnostique est admise par attempt ; la
+  route générique `/production-submissions/{id}/retry` la refuse au profit du
+  retry agrégé. Audio, taille, durée, rate-limit et Whisper restent appliqués.
+- **Contrat IA séparé** : `diagnostic-analysis-rubrics-v1.json` et
+  `diagnostic-analysis-tool-schema-v1.json`, configurés sous
+  `sejourfr.diagnostic.analysis`, ne produisent **aucune note /20**. Le schéma
+  impose l'allowlist exacte des compétences de la tâche, codes uniques, preuve
+  par segment réel, confiance et cohérence statut/observation/priorité, avec au
+  plus deux priorités par production. Une réponse vide/illisible est transitoire
+  et une seule réparation de format est tentée. **On versionne ces deux fichiers,
+  on ne réécrit jamais une version livrée.**
+- **Bifurcation persistée** : `production_submissions.is_diagnostic` décide du
+  pipeline async. Une submission diagnostique réutilise Whisper si nécessaire,
+  puis `DiagnosticProductionAnalysisService` ; elle ne passe jamais dans
+  `AiEvaluationService`, `ai_evaluations`, la version ciblée, le profil TCF ni la
+  calibration. L'assemblage des deux analyses est déterministe, sans troisième
+  appel LLM, limite les priorités globales à trois et renvoie toujours un
+  `nextAction` réellement disponible, même si aucune priorité n'est assez
+  fiable. La relance agrégée réserve `FAILED → ANALYZING` sous verrou pessimiste
+  puis déclenche l'async après commit ; une session `COMPLETED` n'est jamais
+  rétrogradée par un recorder tardif.
+- **Plan source de vérité serveur** : `GET /api/me/plan` renvoie les états
+  `NEEDS_DIAGNOSTIC`, `DIAGNOSTIC_IN_PROGRESS` ou `ACTIVE`, les priorités déjà
+  ordonnées et l'exercice recommandé. `learning_plan_observations` conserve
+  `skill_id`, source typée + `source_id`, preuve, explication, confiance, date et
+  indicateur de baseline. Les fronts affichent cet ordre sans le recalculer ;
+  `NOT_OBSERVED` est conservé dans l'historique mais n'annule jamais la dernière
+  observation probante d'une compétence ;
+  l'écran historique/Progression reste secondaire et séparé.
+- **Plan vivant** : après une correction v14/v8 réussie d'une future production
+  complète standard, une observation structurée séparée utilise les skill IDs de
+  sa tâche ; son échec best-effort ne dégrade jamais la correction. Les
+  micro-exercices alimentent aussi le Plan une fois évalués, mais une réussite
+  isolée devient au mieux `TO_REINFORCE`, jamais `SOLID`.
+- **Contenu et audio seed-only** : V755 crée la version `INITIAL_TCF/1`, ses deux
+  sujets et leurs allowlists de huit compétences. La console de sujets standard
+  refuse de les modifier. V755 ne génère aucun média : elle référence l'objet R2
+  fixe, produit une fois explicitement et vérifié en HTTP 200. `GET
+  /api/admin/diagnostics/{code}/versions/{version}/instruction-audio` inspecte
+  son état ; `POST` le génère ou répare idempotemment son URL sous la clé stable
+  dérivée de l'UUID de tâche. Rien n'est généré au boot ni au démarrage candidat.
+
+Les migrations structurantes sont V029 (agrégats/observations et séparation des
+tâches), V030 (événements du funnel) et V755 (contenu initial). La suppression de
+compte purge observations et sessions **avant** les attempts. Le détail grand
+public du jugement et de ses limites est dans `docs/notation-ia-eo-ee.md`.
 
 ## Notation IA des productions EE/EO — repères
 

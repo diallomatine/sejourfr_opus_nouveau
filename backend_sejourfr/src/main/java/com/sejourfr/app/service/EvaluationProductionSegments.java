@@ -54,10 +54,10 @@ import java.util.regex.Matcher;
  * compris — le meme invariant que celui du rapprochement litteral : le texte
  * cite au candidat EST celui qu'il a produit.
  */
-final class EvaluationProductionSegments {
+public final class EvaluationProductionSegments {
 
     /** Un segment citable : son numero (1-based) et son texte original exact. */
-    record Segment(int numero, String texte) {
+    public record Segment(int numero, String texte) {
     }
 
     /**
@@ -75,23 +75,23 @@ final class EvaluationProductionSegments {
         this.segments = segments;
     }
 
-    static EvaluationProductionSegments of(String production, EpreuveType epreuve) {
+    public static EvaluationProductionSegments of(String production, EpreuveType epreuve) {
         String texte = production == null ? "" : production;
         if (texte.isBlank()) return new EvaluationProductionSegments(List.of(), List.of());
         return epreuve == EpreuveType.TCF_EO ? depuisTranscription(texte) : depuisPhrases(texte);
     }
 
     /** Nombre de segments CITABLES. Un numero valide vaut 1..taille(). */
-    int taille() {
+    public int taille() {
         return segments.size();
     }
 
-    List<Segment> segments() {
+    public List<Segment> segments() {
         return segments;
     }
 
     /** Texte original exact du segment {@code numero}, vide si le numero n'existe pas. */
-    Optional<String> texte(int numero) {
+    public Optional<String> texte(int numero) {
         if (numero < 1 || numero > segments.size()) return Optional.empty();
         return Optional.of(segments.get(numero - 1).texte());
     }
@@ -101,7 +101,7 @@ final class EvaluationProductionSegments {
      * segments citables prefixes de leur numero entre crochets. Un tour
      * d'examinateur est conserve tel quel, sans numero.
      */
-    String rendu() {
+    public String rendu() {
         StringBuilder sb = new StringBuilder();
         for (Bloc bloc : blocs) {
             if (sb.length() > 0) sb.append('\n');

@@ -24,6 +24,7 @@ function ConnexionInner() {
   const search = useSearchParams();
   const { login, status, user } = useAuth();
   const nextHref = safeInternalPath(search.get("next"), "/dashboard");
+  const registerHref = `/inscription?next=${encodeURIComponent(nextHref)}`;
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -137,7 +138,7 @@ function ConnexionInner() {
 
         <p className={`${styles.switchLine} ${styles.switchLineTop}`}>
           Nouveau sur SejourFR ?{" "}
-          <Link href="/inscription" className={`${styles.switchLink} ${styles.switchLinkRed}`}>
+          <Link href={registerHref} className={`${styles.switchLink} ${styles.switchLinkRed}`}>
             Créer un compte gratuit →
           </Link>
         </p>

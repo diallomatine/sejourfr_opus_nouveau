@@ -81,7 +81,8 @@ class ProductionSubmissionServiceTest {
         // Quota freemium : collaborateur REEL (la regle a ete factorisee dans
         // ProductionAccessService pour que la voie temps reel l'applique aussi).
         ProductionAccessService accessService = new ProductionAccessService(
-                subscriptionService, attemptManager, submissionManager);
+                subscriptionService, attemptManager, submissionManager,
+                mock(com.sejourfr.app.manager.DiagnosticSessionManager.class));
         service = new ProductionSubmissionService(
                 evaluationService, submissionManager, attemptManager, taskManager,
                 mapper, taskMapper, currentUser, bilanService,
@@ -120,7 +121,7 @@ class ProductionSubmissionServiceTest {
 
     @Test
     void submitText_tache_introuvable_renvoie_404() {
-        when(taskManager.findActiveById(taskId)).thenReturn(Optional.empty());
+        when(taskManager.findById(taskId)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.submitText(req())).isInstanceOf(NotFoundException.class);
     }
 
@@ -128,13 +129,13 @@ class ProductionSubmissionServiceTest {
     void submitText_tache_oral_refuse_sur_la_route_ecrite() {
         ProductionTask oral = eeTask();
         oral.setEpreuve(EpreuveType.TCF_EO);
-        when(taskManager.findActiveById(taskId)).thenReturn(Optional.of(oral));
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(oral));
         assertThatThrownBy(() -> service.submitText(req())).isInstanceOf(BusinessException.class);
     }
 
     @Test
     void submitText_premium_passe_sans_verifier_le_quota() {
-        when(taskManager.findActiveById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
         when(subscriptionService.hasTcf(userId)).thenReturn(true);
         stubEvaluatedSubmission();
 
@@ -148,7 +149,7 @@ class ProductionSubmissionServiceTest {
 
     @Test
     void submitText_gratuit_premier_essai_entrainement_autorise() {
-        when(taskManager.findActiveById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
         when(attemptManager.findById(attemptId)).thenReturn(Optional.of(attempt()));
         when(attemptManager.countProductionExamSessions(userId)).thenReturn(0L);
@@ -162,7 +163,7 @@ class ProductionSubmissionServiceTest {
 
     @Test
     void submitText_gratuit_quota_entrainement_epuise_refuse() {
-        when(taskManager.findActiveById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
         when(attemptManager.findById(attemptId)).thenReturn(Optional.of(attempt()));
         when(attemptManager.countProductionExamSessions(userId)).thenReturn(0L);
@@ -176,7 +177,7 @@ class ProductionSubmissionServiceTest {
     void submitText_gratuit_session_examen_slotNumber_bypass_le_quota() {
         Attempt examSlot = attempt();
         examSlot.setSlotNumber(1);
-        when(taskManager.findActiveById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
         when(attemptManager.findById(attemptId)).thenReturn(Optional.of(examSlot));
         stubEvaluatedSubmission();
@@ -192,7 +193,7 @@ class ProductionSubmissionServiceTest {
     void submitText_gratuit_epreuve_terminee_refuse() {
         Attempt finished = attempt();
         finished.setFinishedAt(Instant.now());
-        when(taskManager.findActiveById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
         when(attemptManager.findById(attemptId)).thenReturn(Optional.of(finished));
 
@@ -201,7 +202,7 @@ class ProductionSubmissionServiceTest {
 
     @Test
     void submitText_gratuit_deux_sessions_examen_consomment_les_essais() {
-        when(taskManager.findActiveById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
         when(attemptManager.findById(attemptId)).thenReturn(Optional.of(attempt()));
         when(attemptManager.countProductionExamSessions(userId)).thenReturn(2L);

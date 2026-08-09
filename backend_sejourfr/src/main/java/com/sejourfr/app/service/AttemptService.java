@@ -300,6 +300,27 @@ public class AttemptService {
     }
 
     /**
+     * Crée l'attempt vide d'une étape diagnostic. Le purpose n'est pas deviné
+     * depuis TRAINING : il devient durable par la FK de diagnostic_sessions,
+     * créée dans la même transaction par DiagnosticSessionCreator.
+     */
+    @Transactional
+    public Attempt createDiagnosticProductionAttempt(UUID userId, EpreuveType epreuve) {
+        if (epreuve != EpreuveType.TCF_EE && epreuve != EpreuveType.TCF_EO) {
+            throw new BusinessException("Une étape diagnostic doit être TCF_EE ou TCF_EO.");
+        }
+        User user = userManager.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
+        Attempt attempt = new Attempt();
+        attempt.setUser(user);
+        attempt.setType(AttemptType.TRAINING);
+        attempt.setModule(Module.TCF);
+        attempt.setEpreuve(epreuve);
+        attempt.setStartedAt(Instant.now());
+        return attemptManager.save(attempt);
+    }
+
+    /**
      * Verrou freemium commun à TOUS les examens blancs QCM (branche legacy,
      * examens module CO/CE/STRUCTURE, templates) : le slot 1 est offert et
      * rejouable à volonté pour tout compte inscrit, les slots 2+ sont réservés

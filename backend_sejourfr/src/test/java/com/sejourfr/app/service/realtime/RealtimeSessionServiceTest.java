@@ -71,7 +71,8 @@ class RealtimeSessionServiceTest {
         // Gardes de session : collaborateur REEL (pur) pour exercer les regles
         // reellement appliquees a l'ouverture d'une session temps reel.
         ProductionAccessService accessService = new ProductionAccessService(
-                subscriptionService, attemptManager, productionSubmissionManager);
+                subscriptionService, attemptManager, productionSubmissionManager,
+                org.mockito.Mockito.mock(com.sejourfr.app.manager.DiagnosticSessionManager.class));
         service = new RealtimeSessionService(sessionManager, quotaService, personaBuilder,
                 tokenBroker, productionTaskManager, attemptManager, productionEvaluationService,
                 accessService, userSubscriptionManager, props);

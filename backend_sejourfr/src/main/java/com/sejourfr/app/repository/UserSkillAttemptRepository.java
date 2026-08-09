@@ -23,6 +23,7 @@ public interface UserSkillAttemptRepository extends JpaRepository<UserSkillAttem
      */
     @Query("""
             SELECT a FROM UserSkillAttempt a
+            JOIN FETCH a.user
             JOIN FETCH a.skillPrompt p
             JOIN FETCH p.skill
             WHERE a.id = :id

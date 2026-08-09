@@ -34,6 +34,9 @@ lib/
 │   │   ├── api_client.dart        Client Dio (intercepteurs JWT, refresh auto)
 │   │   ├── api_config.dart        Base URL via .env (Env.read)
 │   │   ├── api_exception.dart     ApiException typée
+│   │   ├── diagnostic_repository.dart  Reprise/démarrage/polling du diagnostic TCF
+│   │   ├── learning_plan_repository.dart  Plan adaptatif de l'utilisateur
+│   │   ├── audience_repository.dart  Événements agrégés publics (sans donnée perso)
 │   │   ├── auth_repository.dart
 │   │   ├── themes_repository.dart
 │   │   ├── attempts_repository.dart
@@ -48,6 +51,7 @@ lib/
 │   │   ├── enums.dart             AppModule, Difficulty, QuestionType, MediaType, UserRole
 │   │   ├── auth_models.dart
 │   │   ├── question_models.dart
+│   │   ├── diagnostic_models.dart Diagnostic, observations et plan (miroirs serveur)
 │   │   └── attempt_models.dart
 │   ├── router/
 │   │   └── app_router.dart        Routes + redirects auth
@@ -69,7 +73,14 @@ lib/
     ├── home/
     │   └── widgets/               module_switch.dart
     ├── shell/
-    │   └── main_shell.dart        Bottom nav 5 onglets : Accueil · Civique · TCF · Progression · Profil
+    │   └── main_shell.dart        Bottom nav 5 onglets : Accueil · Réviser · Examens · Plan · Profil
+    ├── diagnostic/               Parcours initial EE + EO, reprise serveur et résultat léger
+    │   ├── diagnostic_controller.dart  StateNotifier + soumissions standard + polling
+    │   ├── diagnostic_screen.dart
+    │   └── widgets/              Présentation, écrit, oral, analyse, résultat
+    ├── plan/                     Priorité immédiate + séance recommandée + observations
+    │   ├── learning_plan_provider.dart
+    │   └── plan_screen.dart
     ├── hub/
     │   └── widgets/hub_home_widgets.dart  Widgets partagés des 2 home hubs
     │                                     (HubHomeHeader, ExamBlancHero, EpreuveCard, SectionLabel/Counter/Link)
@@ -436,7 +447,7 @@ activé (pas de clé à fournir).
 ## Bottom nav et hubs Civique / TCF
 
 **Refonte 2026 — nouvelle nav** : la bottom nav a 5 onglets **Accueil · Réviser · Examens ·
-Progrès · Profil** (cf. maquette) :
+Plan · Profil** (cf. maquette) :
 
 - **Accueil** (`screens/home/`) : carte « À travailler en priorité » (catégorie la plus faible),
   3 stat cards (maîtrise/streak/niveau TCF), « Mes parcours », bloc IA EE/EO, raccourci examens.
@@ -446,8 +457,10 @@ Progrès · Profil** (cf. maquette) :
 - **Examens** (`screens/examens/`) : examens blancs complets des 2 parcours derrière un toggle
   (`examensParcoursProvider`). Embarque `TcfFullExamsView` et `CiviqueFullExamsView` (corps
   extraits des écrans pleine page, qui restent pour les push profonds).
-- **Progrès** (`screens/progres/`) : 3 anneaux de synthèse + listes encartées par parcours +
-  `RecoScreen` (route `/progress/recommandations`). L'ancien `screens/stats/` est **supprimé**.
+- **Plan** (`screens/plan/`, route `/plan`) : priorité serveur immédiate, exercice de compétence
+  recommandé, deux priorités suivantes au maximum et huit compétences observées au maximum.
+  L'écran **Progrès** (`screens/progres/`, route `/progress`) reste fonctionnel mais secondaire,
+  via « Voir ma progression » ; `RecoScreen` reste sur `/progress/recommandations`.
 - **Profil** (`screens/profile/`) : carte identité, 3 stats, carte « Mon pass » →
   `ManageSubscriptionScreen` (carte gradient maquette + détails + inclusions, paywall pour
   prolonger), objectif, groupes compte/aide, déconnexion + suppression via `showAppSheet`.
@@ -477,6 +490,34 @@ chaîne** — « D'après 1 épreuve sur 4 » — rendue dans le nouveau `hint` 
 Profil, gelée en miroir du web par `test/estimated_tcf_level_test.dart`. Elle
 **constate un périmètre**, elle ne reproche pas un inachèvement, et ne porte aucun
 chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc rien non plus.
+
+## Diagnostic TCF initial et Plan personnalisé
+
+- `/diagnostic` est hors shell. `DiagnosticController` lit d'abord
+  `GET /api/diagnostics/current` et reprend toujours l'étape renvoyée par le serveur ; il ne
+  conserve aucune étape métier uniquement en mémoire. Démarrage/reprise :
+  `POST /api/diagnostics`, détail/polling : `GET /api/diagnostics/{sessionId}`, relance :
+  `POST /api/diagnostics/{sessionId}/retry-analysis`.
+- Les réponses utilisent le pipeline de production existant : EE en JSON et EO en multipart via
+  `ProductionRepository`. La zone écrite réutilise `WritingZone` avec les bornes du DTO ; l'oral
+  réutilise `AudioRecorderService`, `RecordingWaveform` et `SejourAudioPlayer`. Les permissions
+  micro restent centralisées dans le service existant.
+- `GET /api/me/plan` est la seule source de hiérarchie du Plan. L'app ne déduit ni statut, ni
+  priorité, ni faux score vers l'objectif. Après une production EE/EO, un micro-exercice ou une
+  mutation du diagnostic, `learningPlanRevisionProvider` est incrémenté : un Plan ou un Accueil
+  qui l'observe est rechargé, sans provoquer de requête réseau si aucun écran ne l'observe. Le
+  retour d'un entraînement poussé au-dessus de Plan force aussi une relecture
+  (`RouteAware.didPopNext`).
+- L'Accueil suit trois états serveur : invitation dismissible avant diagnostic, reprise de la
+  session interrompue, puis priorité du jour après résultat. Il ne réaffiche jamais l'invitation
+  générique une fois le diagnostic terminé.
+- Les liens profonds protégés conservent leur destination dans `redirect` jusqu'à la connexion,
+  y compris lors d'un démarrage à froid tant que `AuthLoading` n'a pas encore résolu le token ;
+  `safePostLoginDestination` refuse tout schéma/hôte externe et toute boucle vers l'auth.
+- L'audience agrégée utilise uniquement `POST /api/public/page-views` avec `{path, source:
+  "direct", event}` : `direct` est la seule source backend compatible avec une ouverture native.
+  Aucun identifiant ni contenu de production n'est envoyé et un échec analytics ne bloque jamais
+  le parcours.
 
 **Les anciens hubs sont supprimés** : `screens/tcf/`, `screens/hub/`, `civique_screen.dart`
 et leurs widgets n'existent plus. `/civique` et `/tcf` sont des **redirects** vers `/reviser`

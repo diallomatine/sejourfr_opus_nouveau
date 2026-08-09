@@ -10,10 +10,12 @@ export const DUAL_CHROME_PREFIXES = [
  *  Partagé entre SiteHeader (burger unique) et shouldHideGlobalChrome. */
 export const APP_GROUP_PREFIXES = [
   "/dashboard",
+  "/diagnostic",
   "/historique",
   "/paiement",
   "/parcours",
   "/profil",
+  "/plan",
   "/recommandations",
   "/revision",
   "/statistiques",

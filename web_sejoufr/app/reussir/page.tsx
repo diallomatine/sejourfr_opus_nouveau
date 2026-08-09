@@ -5,16 +5,22 @@ import { SITE } from "@/lib/site";
 import type { PlanPublicResponse } from "@/lib/types";
 
 export const metadata: Metadata = {
-  title: "SejourFR — TCF IRN et examen civique préparés pour de vrai",
+  title: "Diagnostic TCF gratuit — découvrez vos priorités | SejourFR",
   description:
-    "Le lien de la bio : entraînez-vous au TCF IRN (A2, B1, B2) et à l'examen civique dans les conditions du jour J, avec un examinateur IA qui vous fait passer l'oral.",
+    "Faites un exercice écrit et un oral en 8 à 10 minutes. SejourFR estime votre niveau de production et construit votre plan de travail personnalisé.",
   alternates: { canonical: "/reussir" },
   openGraph: {
-    title: "SejourFR — préparez votre TCF IRN et votre examen civique",
+    title: "Tu prépares le TCF ? Découvre d'abord ce qui te bloque.",
     description:
-      "Un examinateur IA qui vous parle, vous note sur 20 et vous dit quoi corriger. Série offerte, sans inscription.",
+      "Un écrit, un oral enregistré et une analyse personnalisée en 8 à 10 minutes, sans carte bancaire.",
     type: "website",
     url: `${SITE.url}/reussir`,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Diagnostic TCF gratuit — SejourFR",
+    description:
+      "Découvrez vos priorités à partir d'un exercice écrit et d'un oral enregistré.",
   },
 };
 

@@ -5,23 +5,32 @@ import {useEffect, useMemo, useState} from "react";
 import {
     ArrowRight,
     ChevronRight,
+    ClipboardCheck,
     Flame,
     GraduationCap,
     LayoutGrid,
     Lightbulb,
+    Sparkles,
     Target,
     Trophy,
     Waves,
     Zap,
 } from "lucide-react";
 import {CategoryBarLine, ReinforceRow} from "@/app/_components/ReinforceRow";
-import {attemptApi, dashboardApi} from "@/lib/api";
+import {attemptApi, dashboardApi, diagnosticApi, learningPlanApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {masteryHint, moduleAverage} from "@/lib/dashboard";
+import {
+    diagnosticCompletedExerciseCount,
+    diagnosticDashboardState,
+    recommendedExerciseHref,
+} from "@/lib/diagnostic";
 import {
     type AttemptSummaryResponse,
     type DashboardCategoryStat,
     type DashboardSummaryResponse,
+    type DiagnosticResponse,
+    type LearningPlanDto,
     estimatedTcfLevelScopeLabel,
     isProductionAttempt,
     niveauCecrlShort,
@@ -30,7 +39,8 @@ import {
 /**
  * Tableau de bord (refonte web_refonte) : un seul appel agrégé
  * GET /api/me/dashboard (streak, examens blancs, réussite globale, niveau
- * TCF estimé, catégories par module) + listMine pour le bandeau "reprendre".
+ * TCF estimé, catégories par module), historique des attempts, puis les vues
+ * légères Diagnostic/Plan qui pilotent la carte d'action prioritaire.
  * Les recommandations complètes vivent sur /recommandations.
  */
 
@@ -40,19 +50,26 @@ export default function DashboardPage() {
 
     const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
     const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
+    const [diagnostic, setDiagnostic] = useState<DiagnosticResponse | null>(null);
+    const [plan, setPlan] = useState<LearningPlanDto | null>(null);
+    const [diagnosticDismissed, setDiagnosticDismissed] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         if (status !== "authenticated" || !user) return;
         let cancelled = false;
         (async () => {
-            const [sum, atts] = await Promise.all([
+            const [sum, atts, currentDiagnostic, currentPlan] = await Promise.all([
                 dashboardApi.summaryCached().catch((): DashboardSummaryResponse | null => null),
                 attemptApi.listMine({limit: 10}).catch((): AttemptSummaryResponse[] => []),
+                diagnosticApi.currentCached().catch((): DiagnosticResponse | null => null),
+                learningPlanApi.getCached().catch((): LearningPlanDto | null => null),
             ]);
             if (cancelled) return;
             setSummary(sum);
             setAttempts(atts);
+            setDiagnostic(currentDiagnostic);
+            setPlan(currentPlan);
             setLoading(false);
         })();
         return () => {
@@ -131,6 +148,15 @@ export default function DashboardPage() {
                     Entraînement du jour
                 </Link>
             </header>
+
+            {diagnostic && (
+                <DashboardPlanCard
+                    diagnostic={diagnostic}
+                    plan={plan}
+                    dismissed={diagnosticDismissed}
+                    onDismiss={() => setDiagnosticDismissed(true)}
+                />
+            )}
 
             <section className="stat-grid" aria-label="Vos indicateurs">
                 <article className="stat-card">
@@ -243,6 +269,76 @@ export default function DashboardPage() {
 
             <style>{dashStyles}</style>
         </main>
+    );
+}
+
+function DashboardPlanCard({
+                               diagnostic,
+                               plan,
+                               dismissed,
+                               onDismiss,
+                           }: {
+    diagnostic: DiagnosticResponse;
+    plan: LearningPlanDto | null;
+    dismissed: boolean;
+    onDismiss: () => void;
+}) {
+    const state = diagnosticDashboardState(diagnostic);
+    if (state === "NOT_STARTED" && dismissed) return null;
+
+    if (state === "NOT_STARTED") {
+        return (
+            <section className="dash-plan-card" aria-labelledby="dash-plan-title">
+                <span className="dash-plan-icon" aria-hidden><ClipboardCheck size={24}/></span>
+                <div className="dash-plan-copy">
+                    <span className="dash-plan-kicker">Votre point de départ</span>
+                    <h2 id="dash-plan-title">Découvrez ce qui vous bloque au TCF</h2>
+                    <p>On analyse votre écrit et votre oral pour construire votre premier plan.</p>
+                    <span className="dash-plan-meta">2 exercices · ≈ 8 à 10 min</span>
+                </div>
+                <div className="dash-plan-actions">
+                    <Link href="/diagnostic" className="dash-cta">Faire mon diagnostic <ArrowRight size={15} aria-hidden/></Link>
+                    <button type="button" onClick={onDismiss}>Plus tard</button>
+                </div>
+            </section>
+        );
+    }
+
+    if (state === "IN_PROGRESS") {
+        const done = diagnosticCompletedExerciseCount(diagnostic);
+        const analyzing = diagnostic.status === "ANALYZING" || diagnostic.nextStep === "ANALYSIS";
+        return (
+            <section className="dash-plan-card" aria-labelledby="dash-plan-title">
+                <span className="dash-plan-icon" aria-hidden><Sparkles size={24}/></span>
+                <div className="dash-plan-copy">
+                    <span className="dash-plan-kicker">Diagnostic en cours</span>
+                    <h2 id="dash-plan-title">{analyzing ? "Votre analyse est en préparation" : "Reprenez votre diagnostic"}</h2>
+                    <p>{analyzing ? "Vos deux réponses sont enregistrées ; vous pouvez revenir voir le résultat." : "Continuez exactement à l'étape où vous vous êtes arrêté."}</p>
+                    <span className="dash-plan-meta">{done} / 2 terminé{done > 1 ? "s" : ""}</span>
+                </div>
+                <div className="dash-plan-actions">
+                    <Link href="/diagnostic" className="dash-cta">{analyzing ? "Voir l'analyse" : "Reprendre mon diagnostic"}<ArrowRight size={15} aria-hidden/></Link>
+                </div>
+            </section>
+        );
+    }
+
+    const priority = plan?.currentPriority ?? null;
+    const exercise = priority?.recommendedExercise ?? null;
+    return (
+        <section className="dash-plan-card dash-plan-card-active" aria-labelledby="dash-plan-title">
+            <span className="dash-plan-icon" aria-hidden><Target size={24}/></span>
+            <div className="dash-plan-copy">
+                <span className="dash-plan-kicker">Votre priorité du jour</span>
+                <h2 id="dash-plan-title">{priority?.title ?? "Continuez votre plan personnalisé"}</h2>
+                <p>{priority?.explanation ?? "Retrouvez l'action que votre dernier diagnostic a placée en tête."}</p>
+                {exercise && <span className="dash-plan-meta">{exercise.title} · {exercise.estimatedMinutes} min</span>}
+            </div>
+            <div className="dash-plan-actions">
+                <Link href="/plan" className="dash-cta">Continuer mon plan <ArrowRight size={15} aria-hidden/></Link>
+                {exercise && <Link href={recommendedExerciseHref(exercise)}>Commencer directement</Link>}
+            </div>
+        </section>
     );
 }
 
@@ -422,6 +518,82 @@ const dashStyles = `
   .dash-cta:hover { background: var(--color-blue-dark); }
   .dash-cta-sm { padding: 9px 16px; font-size: 13px; margin-top: 0; }
 
+  /* ===== point d'entrée diagnostic / priorité du Plan ===== */
+  .dash-plan-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 17px;
+    margin-bottom: 22px;
+    padding: 20px;
+    border: 1px solid color-mix(in srgb, var(--color-blue) 24%, var(--color-line));
+    border-radius: 17px;
+    background: var(--color-blue-soft);
+  }
+  .dash-plan-card-active {
+    border-color: color-mix(in srgb, var(--color-green) 24%, var(--color-line));
+  }
+  .dash-plan-icon {
+    display: inline-flex;
+    width: 48px; height: 48px;
+    align-items: center; justify-content: center;
+    border-radius: 14px;
+    color: var(--color-blue);
+    background: var(--color-blue-light);
+  }
+  .dash-plan-copy { min-width: 0; }
+  .dash-plan-kicker {
+    color: var(--color-blue);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+  }
+  .dash-plan-copy h2 {
+    margin: 3px 0 2px;
+    color: var(--color-ink);
+    font-size: 18px;
+    line-height: 1.3;
+  }
+  .dash-plan-copy p {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 13px;
+  }
+  .dash-plan-meta {
+    display: inline-block;
+    margin-top: 6px;
+    color: var(--color-blue);
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .dash-plan-actions {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .dash-plan-actions .dash-cta { margin: 0; white-space: nowrap; }
+  .dash-plan-actions > button,
+  .dash-plan-actions > a:not(.dash-cta) {
+    border: 0;
+    padding: 3px;
+    color: var(--color-muted);
+    background: transparent;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dash-plan-actions > button:hover,
+  .dash-plan-actions > a:not(.dash-cta):hover { color: var(--color-blue); text-decoration: underline; }
+  .dash-plan-actions > button:focus-visible,
+  .dash-plan-actions > a:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
+    outline-offset: 3px;
+  }
+
   /* ===== stat cards ===== */
   .stat-grid {
     display: grid;
@@ -592,9 +764,20 @@ const dashStyles = `
     .dash { padding: 64px 18px 40px; }
     .dash-head { flex-direction: column; }
     .dash-cta { margin-top: 0; }
+    .dash-plan-card { grid-template-columns: auto minmax(0, 1fr); }
+    .dash-plan-actions {
+      grid-column: 1 / -1;
+      align-items: stretch;
+      flex-direction: row;
+      justify-content: flex-end;
+    }
   }
   @media (max-width: 560px) {
     .stat-grid { grid-template-columns: 1fr; }
     .module-row { grid-template-columns: 1fr; gap: 6px; }
+    .dash-plan-card { grid-template-columns: 1fr; }
+    .dash-plan-icon { width: 42px; height: 42px; }
+    .dash-plan-actions { grid-column: auto; flex-direction: column; }
+    .dash-plan-actions .dash-cta { width: 100%; justify-content: center; white-space: normal; }
   }
 `;

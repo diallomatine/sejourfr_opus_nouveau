@@ -14,11 +14,59 @@
 > **dans la même passe**. Il doit toujours pouvoir être lu et compris par une personne non
 > technique. Pas de jargon non expliqué, pas de raccourci.
 
-**État actuel** : rubriques de notation **v13** (profil **TCF IRN**, plafonné à B2 — **la
-notation y est celle de la v9, au caractère près**), format de réponse strict **v7**,
-examinateur vocal **v2**. Ce que ces numéros veulent dire, et où ils se
+**État actuel** : rubriques de notation **v14** (profil **TCF IRN**, plafonné à B2 — **la
+notation y est celle de la v9, au caractère près**), format de réponse strict **v8**,
+examinateur vocal **v3**. Ce que ces numéros veulent dire, et où ils se
 changent, est expliqué en §15. Pour la **seconde voie d'évaluation** — les micro-exercices par
 compétence, sans note ni niveau — les versions sont **v2 / v2** et tout est décrit au §11 bis.
+Le diagnostic initial et l'observateur du Plan utilisent une **troisième voie**, elle aussi
+sans note sur 20, avec leurs propres consignes et format **v1 / v1** décrits juste dessous.
+
+> 🆕 **9 août 2026 — un diagnostic court initialise un Plan de travail, sans se faire passer
+> pour un examen TCF.** Le candidat réalise deux exercices hybrides fixes et versionnés : un
+> écrit de **100 à 130 mots**, puis un oral enregistré de **2 à 3 minutes** précédé d'une
+> consigne audio fixe. Ce ne sont ni les tâches officielles 1, 2 ou 3, ni un `TCF_COMPLET`.
+> Le diagnostic est offert une fois par version à chaque compte et ne consomme aucun quota
+> d'entraînement EE/EO.
+>
+> **Ce que l'IA fait, dans cet ordre.** Elle vérifie l'accomplissement de l'exercice, puis si
+> la communication fonctionne, observe uniquement les compétences autorisées pour ce sujet,
+> et enfin propose une estimation prudente entre « A1 non atteint » et B2. Elle ne produit
+> **aucune note sur 20** et cette estimation n'est jamais présentée comme un résultat officiel
+> du TCF. Une compétence absente est dite « non observée » : elle n'est pas inventée ni
+> transformée en faiblesse. Chaque constat observé désigne un morceau réel de la production ;
+> le serveur remplace ce numéro par le texte exact avant de l'enregistrer et de l'afficher.
+>
+> **À l'oral, l'IA ne reçoit que la transcription.** Elle peut donc parler du contenu, du
+> lexique, de la grammaire et de la cohérence. Elle ne peut rien conclure sur la prononciation,
+> l'accent, l'intonation, le débit, la qualité acoustique ou une véritable interaction avec un
+> examinateur. La consigne audio est créée explicitement par un administrateur, stockée et
+> vérifiée dans R2 ; elle n'est jamais régénérée au démarrage d'une session.
+>
+> **Le résultat commun est assemblé par le serveur, sans troisième appel.** Chaque production
+> déclenche un appel d'analyse et, seulement si le format reçu est invalide, une unique demande
+> de réparation. Les deux réponses structurées sont ensuite réunies de façon déterministe :
+> au plus deux priorités peuvent venir d'une production et au plus trois figurent dans le Plan.
+> Le contrat exige exactement l'allowlist du sujet, des codes sans doublon, une preuve réelle,
+> un niveau de confiance et des textes courts. Une réponse vide, illisible ou sans appel de
+> l'outil est considérée comme transitoire et peut être relancée dans la limite prévue.
+>
+> **Le Plan reste distinct des statistiques.** Il conserve des observations sourcées
+> (`diagnostic écrit`, `diagnostic oral`, `production complète écrite/orale` ou
+> `micro-exercice`), leur date, leur preuve, leur confiance et le fait qu'elles appartiennent
+> ou non au diagnostic de référence. Les productions complètes futures gardent leur correction
+> v14/v8 habituelle ; une observation structurée séparée actualise ensuite le Plan, et son
+> échec ne peut jamais faire échouer la correction déjà obtenue. Un micro-exercice ciblé peut
+> confirmer qu'un point reste prioritaire, mais **une seule réussite ne suffit jamais à déclarer
+> une compétence solide**.
+>
+> **Séparation technique volontaire.** Les consignes
+> `diagnostic-analysis-rubrics-v1.json` et le format
+> `diagnostic-analysis-tool-schema-v1.json` ne passent jamais par la notation v14/v8, la table
+> des évaluations notées, la version au niveau visé ou la calibration. Comme pour tout contrat
+> livré, on créera une nouvelle version au lieu de réécrire v1. Les invariants et formats ont
+> été testés sans appeler de fournisseur payant ; aucune campagne de mesure comparative du
+> jugement pédagogique n'a donc été menée pour cette première version.
 
 > 🆕 **8 août 2026 — sur une tâche isolée, plus de note sur 20 : votre niveau, et où vous en
 > êtes DANS ce niveau.** Explication complète aux **§6.2 bis** et **§6.3 bis**.
@@ -3428,6 +3476,9 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 | **Le format de réponse des micro-exercices** (les quatre éléments rendus, les trois verdicts, les longueurs maximales) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-tool-schema-v2.json` (consignes réaccentuées, contrat inchangé) — **aucun champ n'y existe pour une note ou un niveau**, c'est ce qui rend leur apparition impossible plutôt que simplement interdite |
 | **Les réglages des micro-exercices** (longueur maximale acceptée, durée maximale d'un enregistrement, nombre d'analyses offertes) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.competences.analysis`. Le **correcteur**, lui, n'a pas de réglage propre : cette voie utilise le même que tout le reste (`sejourfr.production-evaluation.provider`) |
 | **Le contenu des micro-exercices** (les compétences, les petits sujets, les trois réponses de référence et leurs notes pédagogiques) | migrations `db/migration/300_tcf/competences/` — fichiers **générés**, à ne pas modifier à la main ; le volume publié est figé par un test automatique |
+| **Les consignes du diagnostic initial et de l'observateur du Plan** (accomplissement avant langue, limites de l'oral transcrit, allowlist de compétences, aucune note officielle) | `backend_sejourfr/src/main/resources/prompts/diagnostic-analysis-rubrics-v1.json`, fichier **séparé** de la notation et des micro-exercices. Le même contrat sert à la baseline et aux observations de productions complètes, avec un `analysis_type` explicite ; une nouvelle règle durable crée une nouvelle version au lieu de réécrire v1 |
+| **Le format structuré du diagnostic/Plan** (niveau prudent ≤ B2, accomplissement, communication, preuves segmentées, confiance et priorités) | `backend_sejourfr/src/main/resources/prompts/diagnostic-analysis-tool-schema-v1.json`, renforcé par `DiagnosticAnalysisValidator` : clés exactes, allowlist exhaustive sans doublon, numéros de segment entiers et existants, cohérence observation/statut/preuve/priorité et maximum deux priorités par production. Aucun champ de note `/20` n'existe |
+| **Les réglages du diagnostic** (versions, plafond de sortie, température et relances de session) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.diagnostic.analysis`. Le fournisseur/modèle reste celui de `sejourfr.production-evaluation`, mais la persistance et le pipeline sont séparés de `ai_evaluations` et de la calibration |
 | **La version au niveau que le candidat vise** (§5.9 — ce que la réécriture conserve de lui, la forme des leviers, la règle d'accentuation) | `backend_sejourfr/src/main/resources/prompts/production-version-ciblee-rubrics-v1.json` et son contrat de sortie `production-version-ciblee-tool-schema-v1.json`. Fichiers **séparés de la grille de notation**, exactement comme pour les micro-exercices : c'est un **second correcteur**, qui ne note rien et à qui l'on ne montre pas la grille. Aucun champ n'y existe pour une note ou un niveau |
 | **Le coupe-circuit de cette version au niveau visé** | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.version-ciblee` — livré **actif**. `EVAL_VERSION_CIBLEE_ENABLED=false` supprime le second appel et l'encart, sans rien changer d'autre. Le **fournisseur** reste celui de tout le reste (`production-evaluation.provider`) |
 | **La situation dans le palier** (§6.3 bis — « A2 solide ») et **ses libellés** | `backend_sejourfr/src/main/java/com/sejourfr/app/enums/SituationDansNiveau.java`. Les bornes viennent de la **grille active**, pas de ce fichier ; les trois libellés y sont figés par un test, avec la règle qui les gouverne : aucun ne nomme un manque |

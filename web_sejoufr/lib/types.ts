@@ -592,6 +592,133 @@ export interface SubmitProductionTextRequest {
 }
 
 // ============================================================================
+// DIAGNOSTIC TCF + PLAN PERSONNALISÉ
+// Miroirs stricts des records Diagnostic* / LearningPlan* côté Java. Le front
+// affiche les décisions du serveur : il ne recalcule ni niveau ni priorité.
+// ============================================================================
+
+export type DiagnosticJourneyStatus =
+    | "NOT_STARTED"
+    | "IN_PROGRESS"
+    | "ANALYZING"
+    | "COMPLETED"
+    | "FAILED";
+
+export type DiagnosticStep = "PRESENTATION" | "WRITTEN" | "ORAL" | "ANALYSIS" | "RESULT";
+
+export type DiagnosticTaskCompletion = "COMPLETED" | "PARTIAL" | "NOT_COMPLETED";
+export type DiagnosticCommunicationStatus = "EFFECTIVE" | "PARTIAL" | "INEFFECTIVE";
+export type LearningPlanState = "NEEDS_DIAGNOSTIC" | "DIAGNOSTIC_IN_PROGRESS" | "ACTIVE";
+export type LearningPlanSkillStatus = "NOT_OBSERVED" | "PRIORITY" | "TO_REINFORCE" | "SOLID";
+export type ObservationConfidence = "LOW" | "MEDIUM" | "HIGH";
+
+export interface DiagnosticExerciseDto {
+    productionTaskId: string;
+    attemptId: string;
+    epreuve: Extract<EpreuveType, "TCF_EE" | "TCF_EO">;
+    title: string;
+    instruction: string;
+    helperText: string | null;
+    wordsMin: number | null;
+    wordsMax: number | null;
+    durationMinSeconds: number | null;
+    durationMaxSeconds: number | null;
+    instructionAudioUrl: string | null;
+    submissionId: string | null;
+    submissionStatus: SubmissionStatut | null;
+}
+
+export interface PlanRecommendedExerciseDto {
+    skillPromptId: string;
+    skillId: string;
+    skillCode: string;
+    title: string;
+    section: SkillSection;
+    estimatedMinutes: number;
+}
+
+export interface DiagnosticSkillObservationDto {
+    skillId: string;
+    skillCode: string;
+    skillTitle: string;
+    section: SkillSection;
+    observed: boolean;
+    status: LearningPlanSkillStatus;
+    evidence: string | null;
+    explanation: string | null;
+    confidence: ObservationConfidence;
+    priority: boolean;
+}
+
+export interface DiagnosticProductionResultDto {
+    levelEstimate: NiveauCecrl | null;
+    taskCompletion: DiagnosticTaskCompletion;
+    communicationStatus: DiagnosticCommunicationStatus;
+    summary: string | null;
+    strengths: string[];
+    weaknesses: string[];
+    skills: DiagnosticSkillObservationDto[];
+}
+
+export interface DiagnosticResultDto {
+    written: DiagnosticProductionResultDto | null;
+    oral: DiagnosticProductionResultDto | null;
+    strengths: string[];
+    priorities: DiagnosticSkillObservationDto[];
+    mainPriorityExplanation: string | null;
+    nextAction: PlanRecommendedExerciseDto | null;
+}
+
+export interface DiagnosticResponse {
+    sessionId: string | null;
+    diagnosticCode: string | null;
+    diagnosticVersion: number | null;
+    status: DiagnosticJourneyStatus;
+    nextStep: DiagnosticStep;
+    written: DiagnosticExerciseDto | null;
+    oral: DiagnosticExerciseDto | null;
+    result: DiagnosticResultDto | null;
+    startedAt: string | null;
+    completedAt: string | null;
+    errorMessage: string | null;
+    canRetry: boolean;
+}
+
+export interface LearningPlanPriorityDto {
+    skillId: string;
+    skillCode: string;
+    title: string;
+    section: SkillSection;
+    status: LearningPlanSkillStatus;
+    explanation: string | null;
+    evidence: string | null;
+    confidence: ObservationConfidence;
+    observedAt: string;
+    recommendedExercise: PlanRecommendedExerciseDto | null;
+}
+
+export interface LearningPlanSkillDto {
+    skillId: string;
+    skillCode: string;
+    title: string;
+    section: SkillSection;
+    status: LearningPlanSkillStatus;
+    lastObservedAt: string;
+}
+
+export interface LearningPlanDto {
+    state: LearningPlanState;
+    diagnosticSessionId: string | null;
+    diagnosticCompletedAt: string | null;
+    currentPriority: LearningPlanPriorityDto | null;
+    nextPriorities: LearningPlanPriorityDto[];
+    observedSkills: LearningPlanSkillDto[];
+    observedSkillCount: number;
+    activitiesThisWeek: number;
+    progressionAvailable: boolean;
+}
+
+// ============================================================================
 // COMPÉTENCES TCF (EE/EO) — micro-exercices ciblés sur UN critère
 //
 // Voie PARALLÈLE aux productions complètes ci-dessus, et volontairement plus

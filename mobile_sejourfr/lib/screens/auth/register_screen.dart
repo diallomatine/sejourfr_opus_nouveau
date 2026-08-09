@@ -100,7 +100,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       final err = ApiClient.toApiException(e);
       setState(() {
         _fieldErrors = err.fieldErrors;
-        _error = err.statusCode == 409 ? 'Un compte existe déjà avec cet email.' : err.message;
+        _error = err.statusCode == 409
+            ? 'Un compte existe déjà avec cet email.'
+            : err.message;
       });
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -125,171 +127,183 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(28, 0, 28, 32),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 8),
-                  const Eyebrow('§ Création de compte'),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Inscrivez-vous',
-                    style: AppFonts.display(
-                      size: 30,
-                      weight: FontWeight.w600,
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 8),
+                    const Eyebrow('§ Création de compte'),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Inscrivez-vous',
+                      style: AppFonts.display(
+                        size: 30,
+                        weight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Quelques infos suffisent pour démarrer.',
-                    style: AppFonts.ui(
-                      size: 14,
-                      color: AppColors.muted,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  AuthFormField.field(
-                    label: 'Prénom',
-                    controller: _firstName,
-                    prefixIcon: LucideIcons.userRound,
-                    validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requis' : null,
-                  ),
-                  const SizedBox(height: 14),
-                  AuthFormField.field(
-                    label: 'Nom',
-                    controller: _lastName,
-                    prefixIcon: LucideIcons.idCard,
-                    validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requis' : null,
-                  ),
-                  const SizedBox(height: 14),
-                  AuthFormField.field(
-                    label: 'Email',
-                    controller: _email,
-                    keyboardType: TextInputType.emailAddress,
-                    autofillHints: const [AutofillHints.email],
-                    prefixIcon: LucideIcons.mail,
-                    validator: (v) {
-                      final s = v?.trim() ?? '';
-                      if (s.isEmpty) return 'Email requis';
-                      if (!s.contains('@')) return 'Format invalide';
-                      return _fieldError('email');
-                    },
-                  ),
-                  const SizedBox(height: 14),
-                  AuthFormField.field(
-                    label: 'Mot de passe',
-                    controller: _password,
-                    obscureText: _obscure,
-                    autofillHints: const [AutofillHints.newPassword],
-                    prefixIcon: LucideIcons.lock,
-                    suffixIcon: IconButton(
-                      onPressed: () => setState(() => _obscure = !_obscure),
-                      icon: Icon(
-                        _obscure ? LucideIcons.eye : LucideIcons.eyeOff,
+                    const SizedBox(height: 6),
+                    Text(
+                      'Quelques infos suffisent pour démarrer.',
+                      style: AppFonts.ui(
+                        size: 14,
                         color: AppColors.muted,
                       ),
                     ),
-                    validator: (v) {
-                      if ((v?.length ?? 0) < 8) return 'Au moins 8 caractères';
-                      return _fieldError('password');
-                    },
-                  ),
-                  const SizedBox(height: 14),
-                  AuthFormField.field(
-                    label: 'Confirmer le mot de passe',
-                    controller: _passwordConfirm,
-                    obscureText: _obscure,
-                    prefixIcon: LucideIcons.lock,
-                    validator: (v) => (v?.isEmpty ?? true) ? 'Confirmation requise' : null,
-                  ),
-                  const SizedBox(height: 18),
-                  AppCheckbox(
-                    value: _accepted,
-                    labelTappable: false,
-                    onChanged: (v) => setState(() {
-                      _accepted = v;
-                      if (v && _error == _acceptError) _error = null;
-                    }),
-                    label: Text.rich(
-                      TextSpan(
-                        style: AppFonts.ui(
-                          size: 12.5,
+                    const SizedBox(height: 24),
+                    AuthFormField.field(
+                      label: 'Prénom',
+                      controller: _firstName,
+                      prefixIcon: LucideIcons.userRound,
+                      validator: (v) =>
+                          (v?.trim().isEmpty ?? true) ? 'Requis' : null,
+                    ),
+                    const SizedBox(height: 14),
+                    AuthFormField.field(
+                      label: 'Nom',
+                      controller: _lastName,
+                      prefixIcon: LucideIcons.idCard,
+                      validator: (v) =>
+                          (v?.trim().isEmpty ?? true) ? 'Requis' : null,
+                    ),
+                    const SizedBox(height: 14),
+                    AuthFormField.field(
+                      label: 'Email',
+                      controller: _email,
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
+                      prefixIcon: LucideIcons.mail,
+                      validator: (v) {
+                        final s = v?.trim() ?? '';
+                        if (s.isEmpty) return 'Email requis';
+                        if (!s.contains('@')) return 'Format invalide';
+                        return _fieldError('email');
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    AuthFormField.field(
+                      label: 'Mot de passe',
+                      controller: _password,
+                      obscureText: _obscure,
+                      autofillHints: const [AutofillHints.newPassword],
+                      prefixIcon: LucideIcons.lock,
+                      suffixIcon: IconButton(
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                        icon: Icon(
+                          _obscure ? LucideIcons.eye : LucideIcons.eyeOff,
                           color: AppColors.muted,
-                          height: 1.5,
                         ),
-                        children: [
-                          const TextSpan(text: 'J\'ai lu et j\'accepte les '),
-                          TextSpan(
-                            text: 'Conditions d\'utilisation',
-                            style: AppFonts.ui(
-                              size: 12.5,
-                              color: AppColors.blue,
-                              weight: FontWeight.w700,
-                              height: 1.5,
-                            ),
-                            recognizer: _cguTap,
+                      ),
+                      validator: (v) {
+                        if ((v?.length ?? 0) < 8) {
+                          return 'Au moins 8 caractères';
+                        }
+                        return _fieldError('password');
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    AuthFormField.field(
+                      label: 'Confirmer le mot de passe',
+                      controller: _passwordConfirm,
+                      obscureText: _obscure,
+                      prefixIcon: LucideIcons.lock,
+                      validator: (v) =>
+                          (v?.isEmpty ?? true) ? 'Confirmation requise' : null,
+                    ),
+                    const SizedBox(height: 18),
+                    AppCheckbox(
+                      value: _accepted,
+                      labelTappable: false,
+                      onChanged: (v) => setState(() {
+                        _accepted = v;
+                        if (v && _error == _acceptError) _error = null;
+                      }),
+                      label: Text.rich(
+                        TextSpan(
+                          style: AppFonts.ui(
+                            size: 12.5,
+                            color: AppColors.muted,
+                            height: 1.5,
                           ),
-                          const TextSpan(text: ' et la '),
-                          TextSpan(
-                            text: 'Politique de confidentialité',
-                            style: AppFonts.ui(
-                              size: 12.5,
-                              color: AppColors.blue,
-                              weight: FontWeight.w700,
-                              height: 1.5,
+                          children: [
+                            const TextSpan(text: 'J\'ai lu et j\'accepte les '),
+                            TextSpan(
+                              text: 'Conditions d\'utilisation',
+                              style: AppFonts.ui(
+                                size: 12.5,
+                                color: AppColors.blue,
+                                weight: FontWeight.w700,
+                                height: 1.5,
+                              ),
+                              recognizer: _cguTap,
                             ),
-                            recognizer: _privacyTap,
-                          ),
-                          const TextSpan(text: '.'),
-                        ],
+                            const TextSpan(text: ' et la '),
+                            TextSpan(
+                              text: 'Politique de confidentialité',
+                              style: AppFonts.ui(
+                                size: 12.5,
+                                color: AppColors.blue,
+                                weight: FontWeight.w700,
+                                height: 1.5,
+                              ),
+                              recognizer: _privacyTap,
+                            ),
+                            const TextSpan(text: '.'),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 14),
-                    AuthFormField.errorBox(_error!),
-                  ],
-                  const SizedBox(height: 22),
-                  AppButton(
-                    label: 'Créer mon compte',
-                    onPressed: _submitting ? null : _submit,
-                    isLoading: _submitting,
-                  ),
-                  SocialAuthButtons(
-                    onError: (msg) => setState(() => _error = msg),
-                    canProceed: _ensureAccepted,
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Déjà un compte ? ',
-                        style: AppFonts.ui(
-                          size: 14,
-                          color: AppColors.muted,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => context.pop(),
-                        child: Text(
-                          'Se connecter',
+                    if (_error != null) ...[
+                      const SizedBox(height: 14),
+                      AuthFormField.errorBox(_error!),
+                    ],
+                    const SizedBox(height: 22),
+                    AppButton(
+                      label: 'Créer mon compte',
+                      onPressed: _submitting ? null : _submit,
+                      isLoading: _submitting,
+                    ),
+                    SocialAuthButtons(
+                      onError: (msg) => setState(() => _error = msg),
+                      canProceed: _ensureAccepted,
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Déjà un compte ? ',
                           style: AppFonts.ui(
                             size: 14,
-                            color: AppColors.blue,
-                            weight: FontWeight.w700,
+                            color: AppColors.muted,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                        GestureDetector(
+                          onTap: () => context.go(
+                            authFlowLocation(
+                              AppRoutes.login,
+                              GoRouterState.of(context)
+                                  .uri
+                                  .queryParameters['redirect'],
+                            ),
+                          ),
+                          child: Text(
+                            'Se connecter',
+                            style: AppFonts.ui(
+                              size: 14,
+                              color: AppColors.blue,
+                              weight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      ),
       ),
     );
   }

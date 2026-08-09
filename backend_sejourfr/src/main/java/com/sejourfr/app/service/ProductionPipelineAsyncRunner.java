@@ -8,6 +8,9 @@ import com.sejourfr.app.exception.AiEvaluationException;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.service.versionciblee.ProductionVersionCibleeService;
+import com.sejourfr.app.service.diagnostic.DiagnosticProductionAnalysisService;
+import com.sejourfr.app.service.diagnostic.DiagnosticSessionCoordinator;
+import com.sejourfr.app.service.diagnostic.DiagnosticSessionFailureRecorder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -47,6 +50,9 @@ public class ProductionPipelineAsyncRunner {
     private final AiEvaluationService aiEvaluationService;
     private final ProductionPipelineFailureRecorder failureRecorder;
     private final ProductionVersionCibleeService versionCibleeService;
+    private final DiagnosticProductionAnalysisService diagnosticAnalysisService;
+    private final DiagnosticSessionCoordinator diagnosticSessionCoordinator;
+    private final DiagnosticSessionFailureRecorder diagnosticFailureRecorder;
 
     /**
      * Lance le pipeline d'évaluation IA en arrière-plan. Re-fetch la
@@ -68,6 +74,14 @@ public class ProductionPipelineAsyncRunner {
         }
         EpreuveType epreuve = submission.getProductionTask().getEpreuve();
         try {
+            if (submission.isDiagnostic() != submission.getProductionTask().isDiagnostic()) {
+                throw new AiEvaluationException("Purpose diagnostic incohérent avec la tâche");
+            }
+            if (submission.isDiagnostic()) {
+                // Synchronise IN_PROGRESS/ANALYZING dès la persistance de la
+                // seconde production, avant les appels externes potentiellement longs.
+                diagnosticSessionCoordinator.onAnalysisCompleted(submission.getId());
+            }
             if (estOral) {
                 boolean hasTranscription = transcriptionManager
                         .existsBySubmissionId(submission.getId());
@@ -80,6 +94,16 @@ public class ProductionPipelineAsyncRunner {
             } else {
                 submission.setStatut(SubmissionStatut.EVALUATING);
                 submissionManager.save(submission);
+            }
+            // Bifurcation sur un purpose PERSISTÉ. Un sujet diagnostic ne doit
+            // jamais atteindre AiEvaluationService, ai_evaluations, la version
+            // ciblée, le profil de niveau ou la calibration /20.
+            if (submission.isDiagnostic()) {
+                diagnosticAnalysisService.analyseDiagnostic(submission.getId());
+                diagnosticSessionCoordinator.onAnalysisCompleted(submission.getId());
+                log.info("Pipeline diagnostic OK pour submission {} (epreuve={})",
+                        submissionId, epreuve);
+                return CompletableFuture.completedFuture(null);
             }
             AiEvaluation eval = aiEvaluationService.evaluate(submission.getId());
             if (eval == null) {
@@ -99,12 +123,26 @@ public class ProductionPipelineAsyncRunner {
             // on ne veut pas dependre — d'ou l'appel deliberement place apres
             // le log de succes, sur une evaluation deja commitee.
             versionCibleeService.enrichir(submissionId);
+
+            // Le Plan reste vivant grâce à une voie structurée explicite avec
+            // skill IDs. Un échec de cet enrichissement ne dégrade jamais la
+            // correction /20 déjà obtenue.
+            try {
+                diagnosticAnalysisService.observeStandardProduction(submissionId);
+            } catch (Exception observationError) {
+                log.warn("Observation Plan ignorée pour submission {} : {}",
+                        submissionId, observationError.getMessage());
+            }
         } catch (Exception e) {
             log.warn("Pipeline async FAILED pour submission {} : {}",
                     submissionId, e.getMessage(), e);
             // Toujours une transaction NEUVE : elle isole aussi FAILED d'un
             // futur changement transactionnel dans un service appele.
             failureRecorder.markFailed(submissionId, e.getMessage());
+            if (submission.isDiagnostic() || submission.getProductionTask().isDiagnostic()) {
+                diagnosticFailureRecorder.markFailedByAttempt(
+                        submission.getAttempt().getId(), e.getMessage());
+            }
         }
         return CompletableFuture.completedFuture(null);
     }

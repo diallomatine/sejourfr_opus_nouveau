@@ -39,6 +39,11 @@ Backend Spring Boot Java 21 séparé, qui tourne sur `http://localhost:8080`.
 | POST    | `/api/attempts/{id}/answers`           | soumettre une réponse                           | oui  |
 | POST    | `/api/attempts/{id}/finish`            | finaliser                                       | oui  |
 | GET     | `/api/me/dashboard`                    | agrégat dashboard (streak, stats, catégories)   | oui  |
+| GET     | `/api/diagnostics/current`             | état/reprise du diagnostic TCF initial          | oui  |
+| POST    | `/api/diagnostics`                     | démarrer ou reprendre (idempotent)               | oui  |
+| GET     | `/api/diagnostics/{sessionId}`         | polling et résultat d'un diagnostic              | oui  |
+| POST    | `/api/diagnostics/{id}/retry-analysis` | relancer une analyse échouée sans ressaisie      | oui  |
+| GET     | `/api/me/plan`                         | priorité courante et Plan personnalisé           | oui  |
 | GET     | `/api/billing/plans`                   | liste plans actifs (publique, ISR 30min)        | non  |
 | GET     | `/api/billing/payment-link?planCode=…` | Checkout Session Stripe (mode subscription)     | oui  |
 | GET     | `/api/billing/subscription-status`     | statut Premium agrégé (Stripe + Apple + Google) | oui  |
@@ -88,6 +93,10 @@ app/
 │   │                              #   examens blancs, streak, niveau TCF estimé), 2 cards
 │   │                              #   catégories TCF/Civique, "À renforcer en priorité" (top 3),
 │   │                              #   bandeaux reprendre/onboarding
+│   ├── diagnostic/page.tsx       # ★ diagnostic initial : présentation → EE → EO enregistré
+│   │                              #   → analyse asynchrone → résultat, reprise pilotée backend
+│   ├── plan/page.tsx             # ★ action prioritaire, suivantes, compétences observées,
+│   │                              #   accès secondaire à l'ancienne Progression
 │   ├── recommandations/page.tsx  # ★ liste complète des catégories triées faibles d'abord
 │   │                              #   (tag module, CTA Réviser) + raccourcis erreurs/favoris
 │   │                              #   vers /revision (qui n'a plus d'entrée sidebar)
@@ -126,8 +135,11 @@ app/
 lib/
 ├── api.ts                        # authApi, themeApi, attemptApi, examApi, billingApi,
 │                                 #   userContentApi (favoris/wrong/reviewQuestion/targetPath),
-│                                 #   statsApi, dashboardApi (summary + summaryCached mémo 30s,
-│                                 #   partagé sidebar/dashboard), tokenStorage, ApiException
+│                                 #   statsApi, dashboardApi, diagnosticApi, learningPlanApi,
+│                                 #   caches/invalidation, tokenStorage, ApiException
+├── diagnostic.ts                 # helpers purs : état dashboard, adaptation exercice,
+│                                 #   route exacte du micro-exercice recommandé
+├── audience-events.ts            # allowlist fermée path × événement, miroir backend
 ├── chrome-routes.ts              # APP_GROUP_PREFIXES + DUAL_CHROME_PREFIXES +
 │                                 #   shouldHideGlobalChrome (connecté sur route app → pas de
 │                                 #   header/footer/bandeau marketing, la sidebar porte tout)
@@ -417,11 +429,17 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   pas de capture à re-shooter à chaque refonte de l'app, rien à charger. Les
   badges stores viennent de `STORE_LINKS` (`lib/site.ts`), partagés avec le
   bloc final.
-- **Mesure d'audience** : `lib/audience.ts` envoie une vue au montage et un
-  clic à chaque CTA de démo, en `sendBeacon` (survit à la navigation).
-  Les trois CTA passent par le composant `DemoCta` — un bouton ajouté sans
-  lui serait un trou silencieux dans le taux de conversion. Aucun cookie ni
-  stockage navigateur (cf. CLAUDE.md racine).
+- **Acquisition = diagnostic** (2026-08-09) : le hero promet 1 écrit + 1 oral
+  enregistré en ≈ 8 à 10 min, sans carte bancaire. Son visuel est un **exemple
+  de résultat diagnostic** ; la simulation orale temps réel reste dans la
+  section IA suivante comme bénéfice avancé. Les trois CTA passent par
+  `DiagnosticCta` : compte connecté → `/diagnostic`, visiteur →
+  `/inscription?next=%2Fdiagnostic`, diagnostic déjà terminé → `/plan`.
+- **Mesure d'audience** : `lib/audience.ts` utilise `sendBeacon` (survit à la
+  navigation), sans cookie ni stockage navigateur. `lib/audience-events.ts`
+  borne strictement les couples chemin/événement autorisés par le backend.
+  `/reussir` envoie `VIEW` et `SOCIAL_LANDING_DIAGNOSTIC_CLICKED` ; les étapes
+  diagnostic et Plan ont leurs événements dédiés, sans réponse ni identifiant.
 - Liens sociaux dans `lib/site.ts` (`SOCIAL_ACCOUNTS`) : une entrée à
   `url: null` **n'est pas rendue** — on ne publie jamais un lien vers un compte
   qui n'existe pas encore.
@@ -430,12 +448,54 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
 
 - **`/inscription?next=<chemin interne>`** (miroir de `/connexion`) : passé par
   `safeInternalPath` (anti open-redirect), utilisé après `register`, après le
-  sign-in Google, et propagé au lien « Se connecter ». Sans le paramètre, le
+  sign-in Google, et propagé au lien « Se connecter ». `/connexion` le propage
+  réciproquement au lien « Créer un compte gratuit » : un visiteur venu de
+  `/reussir` retombe donc toujours sur `/diagnostic`. Sans le paramètre, le
   comportement historique (`/dashboard`) est inchangé.
 - **`/paiement?plan=<code>`** : met en évidence le pass ciblé (`.otp-pass.is-targeted`)
   et scrolle dessus au montage. Le gate non-connecté de `/paiement` conserve
   désormais l'URL complète (module + plan) dans son `?next=`, et propose
   inscription **et** connexion.
+
+## Diagnostic TCF initial + Plan (2026-08-09)
+
+- **Le backend décide du parcours** : `DiagnosticResponse.status` et
+  `nextStep` font foi. `/diagnostic` ne déduit pas l'étape depuis le navigateur
+  et ne demande jamais de refaire une production dont `submissionId` existe.
+  États : `NOT_STARTED`, `IN_PROGRESS`, `ANALYZING`, `COMPLETED`, `FAILED` ;
+  reprise : `PRESENTATION`, `WRITTEN`, `ORAL`, `ANALYSIS`, `RESULT`.
+- **Deux exercices SejourFR, pas un examen officiel** : EE réutilise
+  `EeWritingForm`, EO réutilise `EoRecordingForm` sans `onModeChoice` (donc
+  aucun temps réel). Les cartes de consigne sont propres au diagnostic afin de
+  ne montrer ni numéro de tâche officielle ni niveau factice. L'audio EO fixe
+  vient de `DiagnosticExerciseDto.instructionAudioUrl`.
+- **Soumissions existantes** : EE → JSON et EO → multipart sur
+  `POST /api/production-submissions`, avec les `productionTaskId` / `attemptId`
+  fournis par le diagnostic. Ensuite seul `GET /api/diagnostics/{id}` est pollé
+  jusqu'à la décision serveur. `retry-analysis` conserve les deux productions.
+- **Restitution prudente** : aucun `/20`, maximum 3 points solides et 3
+  priorités, seulement les compétences `observed`, mention « estimation
+  d'entraînement, non officielle ». Le détail est replié ; le CTA principal
+  ouvre `/plan`.
+- **Plan ≠ Progression** : `/plan` rend les trois états
+  `NEEDS_DIAGNOSTIC`, `DIAGNOSTIC_IN_PROGRESS`, `ACTIVE`. En actif, il affiche
+  une seule priorité immédiate et au maximum 2 suivantes (3 priorités au total),
+  les compétences observées,
+  la réévaluation et le micro-exercice fourni par `recommendedExercise`.
+  `/statistiques` reste l'historique chiffré et est accessible par « Voir ma
+  progression », mais n'a plus d'entrée principale dans `AppSidebar`.
+- **Cache** : dashboard mutualise les requêtes en vol de
+  `diagnosticApi.currentCached()` sans conserver le snapshot résolu (le pipeline
+  peut le faire évoluer sans écriture du navigateur), et conserve
+  `learningPlanApi.getCached()`. Toute production complète ou tentative de
+  compétence terminale purge les préfixes concernés dans `lib/api.ts`; les
+  écrans `/diagnostic` et `/plan` lisent directement le serveur pour ne pas
+  figer une analyse asynchrone.
+- **Accueil** : carte non bloquante en trois états — invitation (+ « Plus
+  tard » local), reprise avec `N / 2`, puis priorité du jour et accès au Plan.
+- **Routes protégées** : `middleware.ts` protège `/diagnostic` et `/plan` et
+  conserve le chemin dans `?next=` ; `lib/chrome-routes.ts` les range dans le
+  shell app avec sidebar/drawer.
 
 ## Stratégie produit — parité fonctionnelle avec le mobile
 
@@ -1853,9 +1913,10 @@ redirect `/`. Type miroir `AccountDeletionResponse` dans `lib/types.ts`.
 1. **Refresh token automatique** — intercepteur dans `apiFetch` qui rejoue la
    requête après un 401 si un refresh token est disponible. Le mobile le fait
    via Dio interceptor.
-2. **Middleware Next** pour protéger les routes auth — lecture du cookie
-   `sejourfr.accessToken` et redirect vers `/connexion` si absent. Aujourd'hui
-   géré côté client par `useAuth` mais flash possible au SSR.
+2. **Étendre le Middleware Next si une nouvelle route privée apparaît** — il
+   lit déjà le cookie `sejourfr.accessToken` et protège `/dashboard`,
+   `/paiement`, `/diagnostic` et `/plan`, avec retour `?next=`. Les autres
+   écrans historiques restent encore gardés côté client par `useAuth`.
 3. **Mode sombre** — non prévu pour l'instant, mais le design system est
    compatible (variables CSS centralisées).
 

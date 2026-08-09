@@ -50,6 +50,8 @@ public class ProductionSubmissionManager {
         return repository.countByAttemptAndTache(attemptId, tacheNumero);
     }
 
+    public long countByAttempt(UUID attemptId) { return repository.countByAttemptId(attemptId); }
+
     /** Tâches distinctes soumises dans un attempt, restreint à son épreuve. */
     public long countDistinctTachesByAttemptAndEpreuve(UUID attemptId, EpreuveType epreuve) {
         return repository.countDistinctTachesByAttemptAndEpreuve(attemptId, epreuve);
@@ -75,7 +77,7 @@ public class ProductionSubmissionManager {
 
     /** Historique utilisateur, tri descendant, plafonne par {@code limit}. */
     public List<ProductionSubmission> findRecentByUser(UUID userId, int limit) {
-        return repository.findByUserIdOrderBySubmittedAtDesc(userId, PageRequest.of(0, limit));
+        return repository.findStandardByUser(userId, PageRequest.of(0, limit));
     }
 
     /** Historique utilisateur filtre par epreuve, tri descendant, plafonne par {@code limit}. */
@@ -90,6 +92,6 @@ public class ProductionSubmissionManager {
 
     /** Submissions par statut, tri par date de soumission asc (calibration admin). */
     public List<ProductionSubmission> findByStatutOrderedBySubmittedAt(SubmissionStatut statut) {
-        return repository.findByStatutOrderBySubmittedAtAsc(statut);
+        return repository.findStandardByStatut(statut);
     }
 }
