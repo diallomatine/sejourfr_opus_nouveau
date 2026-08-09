@@ -5,6 +5,7 @@ import '../../../core/models/enums.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_tag.dart';
+import '../../../core/widgets/pressable_card.dart';
 import '../production_result_labels.dart';
 import 'production_blocks.dart';
 import 'production_common.dart';

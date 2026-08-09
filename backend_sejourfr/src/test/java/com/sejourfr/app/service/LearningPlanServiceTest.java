@@ -3,8 +3,8 @@ package com.sejourfr.app.service;
 import com.sejourfr.app.config.DiagnosticProperties;
 import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.LearningPlanObservation;
+import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.entity.Skill;
-import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanState;
 import com.sejourfr.app.enums.ObservationConfidence;
@@ -12,17 +12,21 @@ import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
-import com.sejourfr.app.manager.SkillPromptManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -31,7 +35,8 @@ class LearningPlanServiceTest {
     private ProductionTaskManager taskManager;
     private DiagnosticSessionManager sessionManager;
     private LearningPlanObservationManager observationManager;
-    private SkillPromptManager promptManager;
+    private RecommendedExerciseSelector exerciseSelector;
+    private SkillProgressCounter progressCounter;
     private LearningPlanService service;
     private final UUID userId = UUID.randomUUID();
 
@@ -40,9 +45,10 @@ class LearningPlanServiceTest {
         taskManager = mock(ProductionTaskManager.class);
         sessionManager = mock(DiagnosticSessionManager.class);
         observationManager = mock(LearningPlanObservationManager.class);
-        promptManager = mock(SkillPromptManager.class);
+        exerciseSelector = mock(RecommendedExerciseSelector.class);
+        progressCounter = mock(SkillProgressCounter.class);
         service = new LearningPlanService(new DiagnosticProperties(), taskManager,
-                sessionManager, observationManager, promptManager);
+                sessionManager, observationManager, exerciseSelector, progressCounter);
     }
 
     @Test
@@ -96,16 +102,7 @@ class LearningPlanServiceTest {
         when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
                 reinforceNewest, priorityOlder, priorityThird, reinforceFourth, solid));
         when(observationManager.countSince(any(), any())).thenReturn(2L);
-        when(promptManager.findActiveBySkillId(any())).thenAnswer(invocation -> {
-            SkillPrompt prompt = new SkillPrompt();
-            prompt.setId(UUID.randomUUID());
-            prompt.setSkill(List.of(reinforceNewest, priorityOlder, priorityThird, reinforceFourth)
-                    .stream().map(LearningPlanObservation::getSkill)
-                    .filter(skill -> skill.getId().equals(invocation.getArgument(0)))
-                    .findFirst().orElse(null));
-            prompt.setTitle("Exercice ciblé");
-            return List.of(prompt);
-        });
+        stubExercisesForEverySkill();
 
         var result = service.get(userId);
 
@@ -167,6 +164,69 @@ class LearningPlanServiceTest {
         assertThat(result.observedSkills()).singleElement()
                 .extracting(item -> item.status())
                 .isEqualTo(LearningPlanSkillStatus.PRIORITY);
+    }
+
+    @Test
+    void chaquePrioriteEtChaqueCompetenceObserveePorteSaProgressionReelle() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        LearningPlanObservation priority = observation(
+                "EE1-C4", LearningPlanSkillStatus.PRIORITY, Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(priority));
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+        stubExercisesForEverySkill();
+        UUID skillId = priority.getSkill().getId();
+        Map<UUID, SkillProgressCounter.SkillProgress> counts = new LinkedHashMap<>();
+        counts.put(skillId, new SkillProgressCounter.SkillProgress(5, 3, 1, 2));
+        when(progressCounter.bySkillIds(eq(userId), anyCollection())).thenReturn(counts);
+
+        var result = service.get(userId);
+
+        assertThat(result.currentPriority().promptCount()).isEqualTo(5);
+        assertThat(result.currentPriority().attemptedCount()).isEqualTo(3);
+        assertThat(result.currentPriority().validatedCount()).isEqualTo(1);
+        assertThat(result.observedSkills()).singleElement().satisfies(skill -> {
+            assertThat(skill.promptCount()).isEqualTo(5);
+            assertThat(skill.attemptedCount()).isEqualTo(3);
+            assertThat(skill.validatedCount()).isEqualTo(1);
+        });
+    }
+
+    @Test
+    void uneCompetenceSansSujetActifNaPasDeCompteurInvente() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        LearningPlanObservation priority = observation(
+                "EO3-C7", LearningPlanSkillStatus.PRIORITY, Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(priority));
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+        when(exerciseSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of());
+        when(progressCounter.bySkillIds(eq(userId), anyCollection())).thenReturn(Map.of());
+
+        var result = service.get(userId);
+
+        assertThat(result.currentPriority().recommendedExercise()).isNull();
+        assertThat(result.currentPriority().promptCount()).isZero();
+        assertThat(result.currentPriority().attemptedCount()).isZero();
+        assertThat(result.currentPriority().validatedCount()).isZero();
+    }
+
+    /** Le choix DU sujet est vérifié par {@code RecommendedExerciseSelectorTest}. */
+    private void stubExercisesForEverySkill() {
+        when(exerciseSelector.selectAll(eq(userId), anyCollection())).thenAnswer(invocation -> {
+            Collection<Skill> skills = invocation.getArgument(1);
+            Map<UUID, PlanRecommendedExerciseDto> exercises = new LinkedHashMap<>();
+            for (Skill skill : skills) {
+                exercises.put(skill.getId(), new PlanRecommendedExerciseDto(
+                        UUID.randomUUID(), skill.getId(), skill.getCode(), "Exercice ciblé",
+                        skill.getSection(), 3));
+            }
+            return exercises;
+        });
     }
 
     private static LearningPlanObservation observation(

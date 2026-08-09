@@ -557,13 +557,23 @@ export function RowChevron() {
 
 /* -------------------------------------------------------------- badges */
 
-export type SkillBadgeTone = "todo" | "treated" | "validated" | "reinforce" | "level";
+/** `priority` est la seule teinte **rouge** du module : elle sert au Plan, qui
+ *  réutilise ces cartes pour les mêmes compétences et a besoin d'un cran plus
+ *  fort que `reinforce`. Ajout additif — aucune autre teinte ne change. */
+export type SkillBadgeTone =
+  | "todo"
+  | "treated"
+  | "validated"
+  | "reinforce"
+  | "priority"
+  | "level";
 
 const BADGE_CLASS: Record<SkillBadgeTone, string> = {
   todo: s.badgeTodo,
   treated: s.badgeTreated,
   validated: s.badgeValidated,
   reinforce: s.badgeReinforce,
+  priority: s.badgePriority,
   level: s.levelPill,
 };
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {useCallback, useEffect, useMemo, useRef, useState, type ReactNode} from "react";
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   Check,
@@ -10,10 +11,13 @@ import {
   Clock3,
   FilePenLine,
   Headphones,
+  Info,
   Mic,
   RotateCcw,
   Sparkles,
   Target,
+  TrendingUp,
+  Zap,
 } from "lucide-react";
 import {EeWritingForm, clearEeDraft} from "@/app/_components/production/EeWritingForm";
 import {EoRecordingForm} from "@/app/_components/production/EoRecordingForm";
@@ -24,13 +28,22 @@ import {
 } from "@/lib/audience";
 import {useAuth} from "@/lib/auth-context";
 import {
+  DIAGNOSTIC_COMMUNICATION_LABEL,
+  DIAGNOSTIC_COMMUNICATION_TONE,
+  DIAGNOSTIC_TASK_COMPLETION_LABEL,
+  DIAGNOSTIC_TASK_COMPLETION_TONE,
+  type DiagnosticSignalTone,
   diagnosticExerciseAsProductionTask,
   LEARNING_PLAN_SKILL_STATUS_LABEL,
+  LEARNING_PLAN_SKILL_STATUS_TONE,
   niveauEstimateLabel,
+  productionSectionLabel,
   recommendedExerciseHref,
 } from "@/lib/diagnostic";
+import { evidenceExcerpt } from "@/lib/evidence-excerpt";
 import type {
   DiagnosticExerciseDto,
+  DiagnosticProductionResultDto,
   DiagnosticResponse,
   DiagnosticSkillObservationDto,
 } from "@/lib/types";
@@ -519,77 +532,267 @@ function DiagnosticResult({
     );
   }
 
+  const mainPriority = result.priorities[0] ?? null;
+  const otherPriorities = result.priorities.slice(1, 3);
+
   return (
     <DiagnosticShell>
-      <section className={styles.result}>
+      <div className={styles.result}>
         <header className={styles.resultHeader}>
-          <span className={styles.successIcon} aria-hidden><Check size={24} /></span>
-          <p className={styles.eyebrow}>Votre diagnostic TCF</p>
-          <h1>Voici votre point de départ</h1>
-          <p>Une estimation prudente de vos productions, puis une action concrète.</p>
+          <span className={styles.doneBadge}>
+            <i aria-hidden><Check size={11} strokeWidth={3.4} /></i> Diagnostic terminé
+          </span>
+          <h1>On sait maintenant quoi travailler.</h1>
+          <p className={styles.resultLead}>
+            Vos productions écrite et orale ont permis d&apos;identifier les compétences qui
+            vous feront progresser le plus vite.
+          </p>
         </header>
 
-        <div className={styles.levelGrid} aria-label="Niveaux de production estimés">
-          <article><span>Expression écrite</span><b>{niveauEstimateLabel(result.written?.levelEstimate)}</b></article>
-          <article><span>Expression orale</span><b>{niveauEstimateLabel(result.oral?.levelEstimate)}</b></article>
-          <article><span>Votre objectif</span><b>{targetLevel ?? "À définir"}</b></article>
-        </div>
-        <p className={styles.disclaimer}>Estimation d&apos;entraînement, non officielle.</p>
+        {/* Bandeau : les deux niveaux estimés, seuls chiffres mis en avant. */}
+        <section className={styles.levelHero} aria-label="Niveaux estimés">
+          <p className={styles.levelHeroLabel}>Niveaux estimés aujourd&apos;hui</p>
+          <div className={styles.levelHeroGrid}>
+            <div>
+              <span><FilePenLine size={13} aria-hidden /> Expression écrite</span>
+              <b>{niveauEstimateLabel(result.written?.levelEstimate)}</b>
+            </div>
+            <div>
+              <span><Mic size={13} aria-hidden /> Expression orale</span>
+              <b>{niveauEstimateLabel(result.oral?.levelEstimate)}</b>
+            </div>
+          </div>
+          <p className={styles.levelHeroFoot}>
+            <span>Objectif&nbsp;: <b>{targetLevel ?? "à définir"}</b></span>
+            <span>Estimation d&apos;entraînement, non officielle.</span>
+          </p>
+        </section>
 
-        <div className={styles.resultColumns}>
-          <ResultList title="Vos points solides" icon={<Check size={18} />} items={result.strengths.slice(0, 3)} empty="Ils apparaîtront avec vos prochaines productions." />
-          <section className={styles.resultCard}>
-            <h2><Target size={18} aria-hidden /> Vos priorités</h2>
-            {result.priorities.length > 0 ? (
-              <ol className={styles.priorityList}>
-                {result.priorities.slice(0, 3).map((priority) => (
+        <p className={styles.note}>
+          <Info size={15} aria-hidden />
+          Cette estimation est pédagogique : elle ne remplace pas un résultat officiel du TCF.
+        </p>
+
+        {/* ------------------------------------ ce que le diagnostic révèle */}
+        <section aria-labelledby="reveal-title">
+          <ResultBlockHead
+            id="reveal-title"
+            title="Ce que votre diagnostic révèle"
+            text="Pas une liste de vingt erreurs : seulement ce qui est le plus utile pour avancer."
+          />
+          <div className={styles.snapshot}>
+            {result.strengths.length > 0 && (
+              <div className={styles.snapshotStrengths}>
+                <b>Ce qui fonctionne déjà</b>
+                <ul>
+                  {result.strengths.slice(0, 3).map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              </div>
+            )}
+            {observations.length === 0 ? (
+              <p className={styles.emptyText}>
+                Aucune compétence n&apos;a été observée avec assez de confiance sur ces deux productions.
+              </p>
+            ) : (
+              observations.map((skill) => (
+                <article
+                  key={skill.skillId}
+                  className={styles.snapshotRow}
+                  data-tone={LEARNING_PLAN_SKILL_STATUS_TONE[skill.status]}
+                >
+                  <span className={styles.snapshotIcon} aria-hidden>
+                    <ToneIcon tone={LEARNING_PLAN_SKILL_STATUS_TONE[skill.status]} />
+                  </span>
+                  <div>
+                    <b>{skill.skillTitle}</b>
+                    {skill.explanation && <small>{skill.explanation}</small>}
+                  </div>
+                  <span className={styles.snapshotStatus}>
+                    {LEARNING_PLAN_SKILL_STATUS_LABEL[skill.status]}
+                  </span>
+                </article>
+              ))
+            )}
+          </div>
+        </section>
+
+        {/* ------------------------------------------------- priorité n°1 */}
+        {mainPriority && (
+          <section aria-labelledby="priority-title">
+            <ResultBlockHead
+              id="priority-title"
+              title="Votre priorité n°1"
+              text="C'est ici que votre plan commencera."
+            />
+            <article className={styles.priorityCard}>
+              <div className={styles.priorityTop}>
+                <span className={styles.priorityImpact}><Zap size={13} aria-hidden /> Impact élevé</span>
+                <span className={styles.priorityRank}>Priorité 1/{result.priorities.length}</span>
+              </div>
+              <h3>{mainPriority.skillTitle}</h3>
+              {(result.mainPriorityExplanation ?? mainPriority.explanation) && (
+                <p>{result.mainPriorityExplanation ?? mainPriority.explanation}</p>
+              )}
+              {mainPriority.evidence && (
+                <blockquote className={styles.priorityEvidence}>
+                  <span>Extrait de votre production</span>
+                  «&nbsp;{evidenceExcerpt(mainPriority.evidence)}&nbsp;»
+                </blockquote>
+              )}
+              {result.nextAction && (
+                <Link className={styles.priorityCta} href={recommendedExerciseHref(result.nextAction)}>
+                  <span>{result.nextAction.title}</span>
+                  <span className={styles.priorityCtaMeta}>
+                    {result.nextAction.estimatedMinutes} min ·{" "}
+                    {productionSectionLabel(result.nextAction.section)}
+                    <ArrowRight size={15} aria-hidden />
+                  </span>
+                </Link>
+              )}
+            </article>
+            {otherPriorities.length > 0 && (
+              <ol className={styles.nextPriorities}>
+                {otherPriorities.map((priority, index) => (
                   <li key={priority.skillId}>
-                    <b>{priority.skillTitle}</b>
-                    {priority.explanation && <span>{priority.explanation}</span>}
+                    <span aria-hidden>{index + 2}</span>
+                    <div>
+                      <b>{priority.skillTitle}</b>
+                      {priority.explanation && <small>{priority.explanation}</small>}
+                    </div>
                   </li>
                 ))}
               </ol>
-            ) : <p className={styles.emptyText}>Aucune priorité fiable n&apos;a pu être isolée.</p>}
-          </section>
-        </div>
-
-        {result.nextAction && (
-          <section className={styles.nextAction}>
-            <span className={styles.eyebrow}>À travailler maintenant</span>
-            <h2>{result.nextAction.title}</h2>
-            {result.mainPriorityExplanation && <p>{result.mainPriorityExplanation}</p>}
-            <span>{result.nextAction.estimatedMinutes} min · {result.nextAction.section === "EE" ? "écrit" : "oral"}</span>
+            )}
           </section>
         )}
 
-        <div className={styles.resultActions}>
-          <Link href={planHref} className={styles.primaryButton}>Voir mon plan <ArrowRight size={17} aria-hidden /></Link>
-          {result.nextAction && <Link href={recommendedExerciseHref(result.nextAction)} className={styles.secondaryButton}>Commencer l&apos;exercice recommandé</Link>}
-        </div>
-
-        <details className={styles.details}>
-          <summary>Voir le diagnostic complet</summary>
-          <div className={styles.observations}>
-            {observations.length === 0 ? <p>Aucune autre compétence n&apos;a été observée avec assez de confiance.</p> : observations.map((skill) => (
-              <article key={skill.skillId}>
-                <div><b>{skill.skillTitle}</b><span data-status={skill.status}>{LEARNING_PLAN_SKILL_STATUS_LABEL[skill.status]}</span></div>
-                {skill.evidence && <p><strong>Exemple observé :</strong> {skill.evidence}</p>}
-                {skill.explanation && <p>{skill.explanation}</p>}
-              </article>
-            ))}
+        {/* ---------------------------------------------- vos 2 productions */}
+        <section aria-labelledby="productions-title">
+          <ResultBlockHead
+            id="productions-title"
+            title="Vos deux productions"
+            text="Ce que chacune a montré, avant le détail complet."
+          />
+          <div className={styles.productions}>
+            <ProductionSummary kind="written" production={result.written} />
+            <ProductionSummary kind="oral" production={result.oral} />
           </div>
-        </details>
-      </section>
+        </section>
+
+        {/* ------------------------------------------------------ CTA final */}
+        <section className={styles.ctaBox}>
+          <span className={styles.ctaSpark} aria-hidden><Sparkles size={20} /></span>
+          <h2>Votre plan est prêt</h2>
+          <p>
+            Il commence par vos priorités les plus importantes, puis se réordonne avec chacune
+            de vos nouvelles productions.
+          </p>
+          <Link href={planHref} className={styles.primaryButton}>
+            Découvrir mon plan <ArrowRight size={17} aria-hidden />
+          </Link>
+
+          <details className={styles.details}>
+            <summary>Voir le diagnostic complet</summary>
+            <div className={styles.observations}>
+              {observations.length === 0 ? (
+                <p>Aucune autre compétence n&apos;a été observée avec assez de confiance.</p>
+              ) : observations.map((skill) => (
+                <article key={skill.skillId}>
+                  <div>
+                    <b>{skill.skillTitle}</b>
+                    <span data-status={skill.status}>{LEARNING_PLAN_SKILL_STATUS_LABEL[skill.status]}</span>
+                  </div>
+                  {skill.evidence && <p><strong>Exemple observé :</strong> {evidenceExcerpt(skill.evidence)}</p>}
+                  {skill.explanation && <p>{skill.explanation}</p>}
+                </article>
+              ))}
+            </div>
+          </details>
+        </section>
+      </div>
     </DiagnosticShell>
   );
 }
 
-function ResultList({title, icon, items, empty}: {title: string; icon: ReactNode; items: string[]; empty: string}) {
+/** Intertitre + phrase d'un bloc du résultat. */
+function ResultBlockHead({id, title, text}: {id: string; title: string; text: string}) {
   return (
-    <section className={styles.resultCard}>
-      <h2>{icon}{title}</h2>
-      {items.length > 0 ? <ul>{items.map((item) => <li key={item}>{item}</li>)}</ul> : <p className={styles.emptyText}>{empty}</p>}
-    </section>
+    <div className={styles.blockHead}>
+      <h2 id={id}>{title}</h2>
+      <p>{text}</p>
+    </div>
+  );
+}
+
+/** Pictogramme du signal : acquis / à consolider / prioritaire. */
+function ToneIcon({tone}: {tone: DiagnosticSignalTone}) {
+  if (tone === "good") return <Check size={16} strokeWidth={3} />;
+  if (tone === "mid") return <TrendingUp size={16} strokeWidth={2.6} />;
+  if (tone === "weak") return <AlertCircle size={16} strokeWidth={2.6} />;
+  return <Info size={16} strokeWidth={2.6} />;
+}
+
+/**
+ * Carte d'une production du diagnostic.
+ *
+ * Elle expose `summary`, `taskCompletion`, `communicationStatus` et
+ * `weaknesses` — quatre champs servis depuis le premier jour et qu'aucun écran
+ * n'affichait, alors que c'est exactement ce qui rend le résultat
+ * compréhensible : ce que le candidat a réussi à faire passer, et ce qui
+ * manquait.
+ */
+function ProductionSummary({
+  kind,
+  production,
+}: {
+  kind: "written" | "oral";
+  production: DiagnosticProductionResultDto | null;
+}) {
+  const label = kind === "written" ? "Expression écrite" : "Expression orale";
+  const icon = kind === "written" ? <FilePenLine size={17} /> : <Mic size={17} />;
+
+  if (!production) {
+    return (
+      <article className={styles.production}>
+        <div className={styles.productionHead}>
+          <span className={styles.productionIcon} aria-hidden>{icon}</span>
+          <div><b>{label}</b></div>
+        </div>
+        <p className={styles.emptyText}>Cette production n&apos;a pas encore été analysée.</p>
+      </article>
+    );
+  }
+
+  return (
+    <article className={styles.production}>
+      <div className={styles.productionHead}>
+        <span className={styles.productionIcon} aria-hidden>{icon}</span>
+        <div>
+          <b>{label}</b>
+          <span>Estimation : {niveauEstimateLabel(production.levelEstimate)}</span>
+        </div>
+      </div>
+
+      {production.summary && <p className={styles.productionSummary}>{production.summary}</p>}
+
+      <ul className={styles.productionSignals}>
+        <li data-tone={DIAGNOSTIC_TASK_COMPLETION_TONE[production.taskCompletion]}>
+          {DIAGNOSTIC_TASK_COMPLETION_LABEL[production.taskCompletion]}
+        </li>
+        <li data-tone={DIAGNOSTIC_COMMUNICATION_TONE[production.communicationStatus]}>
+          {DIAGNOSTIC_COMMUNICATION_LABEL[production.communicationStatus]}
+        </li>
+      </ul>
+
+      {production.weaknesses.length > 0 && (
+        <div className={styles.productionWeak}>
+          <b>À travailler</b>
+          <ul>
+            {production.weaknesses.slice(0, 3).map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </div>
+      )}
+    </article>
   );
 }
 

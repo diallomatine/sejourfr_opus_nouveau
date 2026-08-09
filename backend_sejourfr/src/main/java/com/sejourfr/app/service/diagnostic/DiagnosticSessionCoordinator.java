@@ -2,6 +2,7 @@ package com.sejourfr.app.service.diagnostic;
 
 import com.sejourfr.app.entity.DiagnosticProductionAnalysis;
 import com.sejourfr.app.entity.DiagnosticSession;
+import com.sejourfr.app.entity.DiagnosticTaskSkill;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.enums.AttemptStatus;
 import com.sejourfr.app.enums.DiagnosticSessionStatus;
@@ -11,6 +12,7 @@ import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
+import com.sejourfr.app.manager.DiagnosticTaskSkillManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,6 +36,7 @@ public class DiagnosticSessionCoordinator {
     private final DiagnosticProductionAnalysisManager analysisManager;
     private final DiagnosticSessionManager sessionManager;
     private final AttemptManager attemptManager;
+    private final DiagnosticTaskSkillManager taskSkillManager;
 
     /**
      * Réserve atomiquement une relance. Le verrou de l'agrégat empêche deux
@@ -132,7 +135,7 @@ public class DiagnosticSessionCoordinator {
         }
 
         session.setStatus(DiagnosticSessionStatus.ANALYZING);
-        session.setSummaryJson(buildSummary(writtenAnalysis, oralAnalysis));
+        session.setSummaryJson(buildSummary(session, writtenAnalysis, oralAnalysis));
         session.setCompletedAt(Instant.now());
         session.setStatus(DiagnosticSessionStatus.COMPLETED);
         session.setErrorMessage(null);
@@ -155,7 +158,9 @@ public class DiagnosticSessionCoordinator {
     }
 
     private Map<String, Object> buildSummary(
-            DiagnosticProductionAnalysis written, DiagnosticProductionAnalysis oral) {
+            DiagnosticSession session,
+            DiagnosticProductionAnalysis written,
+            DiagnosticProductionAnalysis oral) {
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("written_submission_id", written.getSubmission().getId().toString());
         summary.put("oral_submission_id", oral.getSubmission().getId().toString());
@@ -165,19 +170,91 @@ public class DiagnosticSessionCoordinator {
         strengths.addAll(strings(oral.getAnalysisJson().get("strengths")));
         summary.put("strengths", strengths.stream().limit(3).toList());
 
-        List<Map<String, Object>> priorities = new ArrayList<>();
-        priorities.addAll(prioritySkills(written.getAnalysisJson()));
-        priorities.addAll(prioritySkills(oral.getAnalysisJson()));
-        priorities.sort(Comparator
-                .comparingInt((Map<String, Object> item) -> confidenceRank(item.get("confidence")))
-                .reversed()
-                .thenComparing(item -> String.valueOf(item.get("skill_code"))));
-        List<Map<String, Object>> selected = priorities.stream().limit(3).toList();
+        List<Map<String, Object>> selected = mergePriorities(
+                ranked(written.getAnalysisJson(), session.getWrittenTask().getId()),
+                ranked(oral.getAnalysisJson(), session.getOralTask().getId()));
         summary.put("priority_skill_codes", selected.stream()
                 .map(item -> String.valueOf(item.get("skill_code"))).toList());
         summary.put("main_priority_explanation", selected.isEmpty() ? null
                 : selected.getFirst().get("explanation"));
         return summary;
+    }
+
+    /**
+     * Ordonne les priorités d'UNE production : confiance décroissante, puis rang
+     * de la compétence dans l'allowlist du sujet
+     * ({@code diagnostic_task_skills.display_order}).
+     *
+     * <p>Ce rang n'est pas décoratif : c'est l'ordre éditorial d'importance des
+     * huit compétences observables par ce sujet. Une compétence absente de
+     * l'allowlist — cas qui ne devrait pas exister, le validateur la refuse —
+     * passe en dernier, puis on retombe sur le code pour rester déterministe.
+     */
+    private List<RankedPriority> ranked(Map<String, Object> analysis, UUID taskId) {
+        Map<String, Short> order = new LinkedHashMap<>();
+        for (DiagnosticTaskSkill allowed : taskSkillManager.findActiveByTaskId(taskId)) {
+            order.put(allowed.getSkill().getCode(), allowed.getDisplayOrder());
+        }
+        List<RankedPriority> priorities = new ArrayList<>();
+        for (Map<String, Object> item : prioritySkills(analysis)) {
+            String code = String.valueOf(item.get("skill_code"));
+            priorities.add(new RankedPriority(
+                    item, code, confidenceRank(item.get("confidence")),
+                    order.getOrDefault(code, Short.MAX_VALUE)));
+        }
+        priorities.sort(Comparator
+                .comparingInt(RankedPriority::confidence).reversed()
+                .thenComparingInt(RankedPriority::order)
+                .thenComparing(RankedPriority::skillCode));
+        return priorities;
+    }
+
+    /** Une priorité et ses deux clés de tri, résolues une seule fois. */
+    private record RankedPriority(
+            Map<String, Object> item, String skillCode, int confidence, int order) {}
+
+    /**
+     * Fusionne les priorités des deux productions, au plus trois.
+     *
+     * <p><b>Pourquoi pas un tri global.</b> Le départage historique se faisait
+     * sur l'ordre alphabétique du code de compétence : « EE… » précède toujours
+     * « EO… », donc l'écrit passait mécaniquement devant l'oral et les
+     * compétences C1/C2 devant les autres. Un rang alphabétique ne dit rien de
+     * l'importance pédagogique.
+     *
+     * <p>La règle retenue, à confiance égale : le rang d'allowlist le plus bas
+     * gagne ; à rang égal, on <b>alterne</b> écrit et oral plutôt que de servir
+     * un bloc de trois priorités écrites — un plan qui ne parlerait que d'une
+     * seule épreuve serait faux, le diagnostic en observe deux. La toute
+     * première égalité parfaite revient à l'écrit, produit en premier dans le
+     * parcours. Entièrement déterministe.
+     */
+    private static List<Map<String, Object>> mergePriorities(
+            List<RankedPriority> written, List<RankedPriority> oral) {
+        List<Map<String, Object>> merged = new ArrayList<>(3);
+        int w = 0;
+        int o = 0;
+        Boolean lastWasWritten = null;
+        while (merged.size() < 3 && (w < written.size() || o < oral.size())) {
+            boolean takeWritten;
+            if (o >= oral.size()) {
+                takeWritten = true;
+            } else if (w >= written.size()) {
+                takeWritten = false;
+            } else {
+                int cmp = comparePriority(written.get(w), oral.get(o));
+                takeWritten = cmp != 0 ? cmp < 0 : !Boolean.TRUE.equals(lastWasWritten);
+            }
+            merged.add(takeWritten ? written.get(w++).item() : oral.get(o++).item());
+            lastWasWritten = takeWritten;
+        }
+        return merged;
+    }
+
+    /** Négatif = la priorité écrite passe devant ; zéro = égalité résiduelle. */
+    private static int comparePriority(RankedPriority written, RankedPriority oral) {
+        int byConfidence = Integer.compare(oral.confidence(), written.confidence());
+        return byConfidence != 0 ? byConfidence : Integer.compare(written.order(), oral.order());
     }
 
     @SuppressWarnings("unchecked")

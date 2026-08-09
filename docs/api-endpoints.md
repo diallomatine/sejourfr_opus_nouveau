@@ -57,6 +57,13 @@ Cf. `exams-tcf.md`.
   `DIAGNOSTIC_IN_PROGRESS` ou `ACTIVE`; une fois actif, le serveur fournit
   `currentPriority`, au plus deux `nextPriorities`, les compétences observées
   et l'exercice recommandé. Les clients ne trient ni ne recalculent ces priorités.
+  `LearningPlanPriorityDto` **et** `LearningPlanSkillDto` portent
+  `promptCount` / `attemptedCount` / `validatedCount` (int) — même sémantique et
+  même calcul serveur que les compteurs de `SkillDto` (module Compétences) :
+  sujets **actifs** de la compétence, sujets déjà tentés par ce candidat, sujets
+  validés. Aucun front ne les recalcule. `recommendedExercise.estimatedMinutes`
+  est **dérivé du sujet** (durée de parole conseillée en EO, fourchette de mots
+  en EE), plus une constante par épreuve.
 - `GET /api/me/dashboard` — agrégat unique du tableau de bord + hubs web :
   streak de jours d'activité (courant + record, fuseau Europe/Paris), nb
   d'examens blancs finis (global + `civiqueMockExams`/`tcfMockExams` par

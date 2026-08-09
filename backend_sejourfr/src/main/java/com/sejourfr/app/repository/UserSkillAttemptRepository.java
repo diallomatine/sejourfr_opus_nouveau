@@ -99,6 +99,25 @@ public interface UserSkillAttemptRepository extends JpaRepository<UserSkillAttem
             @Param("userId") UUID userId,
             @Param("skillId") UUID skillId);
 
+    /**
+     * Meme principe, pour un ensemble de competences quelconque (le Plan
+     * melange des competences de taches differentes : jusqu'a 11 d'un coup).
+     */
+    @Query("""
+            SELECT a FROM UserSkillAttempt a
+            JOIN FETCH a.skillPrompt p
+            JOIN FETCH p.skill s
+            WHERE a.user.id = :userId
+              AND s.id IN :skillIds
+              AND a.createdAt = (
+                    SELECT MAX(a2.createdAt) FROM UserSkillAttempt a2
+                    WHERE a2.user.id = :userId AND a2.skillPrompt.id = p.id
+              )
+            """)
+    List<UserSkillAttempt> findLatestPerPromptBySkillIds(
+            @Param("userId") UUID userId,
+            @Param("skillIds") Collection<UUID> skillIds);
+
     /** Nombre de tentatives par sujet : {@code [skillPromptId, count]}. */
     @Query("""
             SELECT a.skillPrompt.id, COUNT(a)

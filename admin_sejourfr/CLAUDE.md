@@ -342,4 +342,4 @@ Pas encore d'API côté backend, donc pas implémenté ici :
 - Quand l'écran **clients** sera ajouté, créer `features/users/` sur le même modèle (`features/subscriptions/` existe depuis le lot 4c).
 - Pour l'upload de médias dans le formulaire question : ajouter un composant `MediaPicker` qui appelle `POST /api/admin/media/upload` (multipart) ou `POST /api/admin/media/from-url`, puis remplit `mediaId` dans le `QuestionWriteRequest`.
 - Si la pagination des questions devient lourde, envisager un `useInfiniteQuery` plutôt que des boutons précédent/suivant.
-- Tests : aucun pour l'instant. Quand on en ajoutera, partir sur Vitest + React Testing Library.
+- 🛑 **Tests : on n'en écrit PAS sur ce sous-projet** (règle posée le 2026-08-09, cf. § Tests du `CLAUDE.md` racine). Ni Vitest, ni React Testing Library, ni test de libellé. La vérification d'un changement admin, c'est `npx tsc --noEmit` + le build. Toute la couverture de règles métier vit côté backend, d'où elle protège les trois fronts d'un seul endroit.

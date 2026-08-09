@@ -57,9 +57,18 @@ enum LearningPlanState {
       );
 }
 
+/// Statut d'une compétence dans le Plan, **dérivé serveur**.
+///
+/// ⚠️ **Libellés gelés, miroir mot pour mot du web**
+/// (`LEARNING_PLAN_SKILL_STATUS_LABEL`, `web_sejoufr/lib/diagnostic.ts`). Les
+/// deux fronts en tiennent chacun une copie écrite à la main : un libellé qui
+/// bouge, ce sont deux fichiers à changer dans la même passe, et deux tests
+/// (`test/diagnostic_models_test.dart` côté mobile). Le mobile disait
+/// « À évaluer / Priorité », le web « Non observée / Prioritaire » — c'est le
+/// web qui fait référence.
 enum LearningPlanSkillStatus {
-  notObserved('NOT_OBSERVED', 'À évaluer'),
-  priority('PRIORITY', 'Priorité'),
+  notObserved('NOT_OBSERVED', 'Non observée'),
+  priority('PRIORITY', 'Prioritaire'),
   toReinforce('TO_REINFORCE', 'À renforcer'),
   solid('SOLID', 'Solide');
 
@@ -92,13 +101,18 @@ enum ObservationConfidence {
 }
 
 enum DiagnosticTaskCompletion {
-  completed('COMPLETED'),
-  partial('PARTIAL'),
-  notCompleted('NOT_COMPLETED');
+  completed('COMPLETED', 'Consigne accomplie'),
+  partial('PARTIAL', 'Consigne partiellement accomplie'),
+  notCompleted('NOT_COMPLETED', 'Consigne non accomplie');
 
-  const DiagnosticTaskCompletion(this.wire);
+  const DiagnosticTaskCompletion(this.wire, this.label);
 
   final String wire;
+
+  /// Libellé candidat des cartes « Vos productions ». Miroir mot pour mot de
+  /// `DIAGNOSTIC_TASK_COMPLETION_LABEL` (`web_sejoufr/lib/diagnostic.ts`),
+  /// gelé des deux côtés par test.
+  final String label;
 
   static DiagnosticTaskCompletion fromWire(String value) =>
       DiagnosticTaskCompletion.values.firstWhere(
@@ -108,13 +122,17 @@ enum DiagnosticTaskCompletion {
 }
 
 enum DiagnosticCommunicationStatus {
-  effective('EFFECTIVE'),
-  partial('PARTIAL'),
-  ineffective('INEFFECTIVE');
+  effective('EFFECTIVE', 'Message clair'),
+  partial('PARTIAL', 'Message compris avec effort'),
+  ineffective('INEFFECTIVE', 'Message difficile à suivre');
 
-  const DiagnosticCommunicationStatus(this.wire);
+  const DiagnosticCommunicationStatus(this.wire, this.label);
 
   final String wire;
+
+  /// Libellé candidat, même usage que [DiagnosticTaskCompletion.label] :
+  /// miroir de `DIAGNOSTIC_COMMUNICATION_LABEL` côté web.
+  final String label;
 
   static DiagnosticCommunicationStatus fromWire(String value) =>
       DiagnosticCommunicationStatus.values.firstWhere(
@@ -405,6 +423,9 @@ class LearningPlanPriority {
     this.explanation,
     this.evidence,
     this.recommendedExercise,
+    this.promptCount = 0,
+    this.attemptedCount = 0,
+    this.validatedCount = 0,
   });
 
   final String skillId;
@@ -417,6 +438,13 @@ class LearningPlanPriority {
   final ObservationConfidence confidence;
   final DateTime observedAt;
   final PlanRecommendedExercise? recommendedExercise;
+
+  /// Compteurs de petits sujets de la compétence, **servis par le serveur** —
+  /// mêmes champs que `SkillDto` du module Compétences, pour que le Plan et
+  /// « Réviser → Compétences » parlent de la même progression.
+  final int promptCount;
+  final int attemptedCount;
+  final int validatedCount;
 
   factory LearningPlanPriority.fromJson(Map<String, dynamic> json) =>
       LearningPlanPriority(
@@ -439,6 +467,9 @@ class LearningPlanPriority {
             : PlanRecommendedExercise.fromJson(
                 json['recommendedExercise'] as Map<String, dynamic>,
               ),
+        promptCount: (json['promptCount'] as num? ?? 0).toInt(),
+        attemptedCount: (json['attemptedCount'] as num? ?? 0).toInt(),
+        validatedCount: (json['validatedCount'] as num? ?? 0).toInt(),
       );
 }
 
@@ -450,6 +481,9 @@ class LearningPlanSkill {
     required this.section,
     required this.status,
     required this.lastObservedAt,
+    this.promptCount = 0,
+    this.attemptedCount = 0,
+    this.validatedCount = 0,
   });
 
   final String skillId;
@@ -458,6 +492,11 @@ class LearningPlanSkill {
   final SkillSection section;
   final LearningPlanSkillStatus status;
   final DateTime lastObservedAt;
+
+  /// Cf. [LearningPlanPriority.promptCount] — mêmes compteurs, même source.
+  final int promptCount;
+  final int attemptedCount;
+  final int validatedCount;
 
   factory LearningPlanSkill.fromJson(Map<String, dynamic> json) =>
       LearningPlanSkill(
@@ -470,6 +509,9 @@ class LearningPlanSkill {
         ),
         lastObservedAt: _date(json['lastObservedAt']) ??
             DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        promptCount: (json['promptCount'] as num? ?? 0).toInt(),
+        attemptedCount: (json['attemptedCount'] as num? ?? 0).toInt(),
+        validatedCount: (json['validatedCount'] as num? ?? 0).toInt(),
       );
 }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../models/diagnostic_models.dart';
 import '../models/enums.dart';
 
 /// Palette SejourFR — refonte 2026 (maquette `SejourFR_Mobile_Autonome.html`).
@@ -78,6 +79,21 @@ extension CecrlColor on NiveauCecrl {
           AppColors.amber,
         NiveauCecrl.b1 => AppColors.blue,
         NiveauCecrl.b2 || NiveauCecrl.c1 || NiveauCecrl.c2 => AppColors.green,
+      };
+}
+
+/// Teinte d'un statut de compétence du Plan — **seule** table qui en décide,
+/// partagée par le Plan et le résultat du diagnostic (les deux écrans lisent
+/// les mêmes observations serveur, ils ne doivent pas les peindre autrement).
+///
+/// `AppColors.amber` est un ambre de **remplissage** : illisible en lettres,
+/// d'où `amberDark` pour « À renforcer ».
+extension LearningPlanSkillStatusColor on LearningPlanSkillStatus {
+  Color get color => switch (this) {
+        LearningPlanSkillStatus.priority => AppColors.red,
+        LearningPlanSkillStatus.toReinforce => AppColors.amberDark,
+        LearningPlanSkillStatus.solid => AppColors.green,
+        LearningPlanSkillStatus.notObserved => AppColors.inkFaint,
       };
 }
 

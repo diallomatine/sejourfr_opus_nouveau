@@ -203,7 +203,12 @@ Migration globale faite — ne plus introduire de `Icons.*` Material (seule exce
 `ListGroup`/`ListRow`/`SectionTitle` (listes encartées), `SegmentedTabs` + `parcoursSegments()`
 (toggle TCF rouge / Civique bleu), `ProgressRing`, `ProgressTrack`, `StatValueCard`,
 `showAppSheet` (bottom sheet à poignée), `AppButton` (pill — variants primary/accent/soft/
-outline/ghost/danger), `AppCard` (r=18), `AppTag` (badge pill, tones).
+outline/ghost/danger), `AppCard` (r=18), `AppTag` (badge pill, tones),
+`PressableCard` + `CardChevron` (`pressable_card.dart` — carte cliquable à retour au toucher,
+promue de `tcf_production/widgets/production_blocks.dart` quand le Plan a repris l'anatomie de
+la carte de compétence ; `ProductionChevron` s'appelle désormais `CardChevron`),
+`GradientHero` (`gradient_hero.dart` — bloc dégradé + anneau décoratif des maquettes
+Diagnostic / Plan).
 
 **Le logo** reste le lockup `core/widgets/sejourfr_logo.dart` (Cocarde + Wordmark + Tagline).
 
@@ -508,6 +513,26 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   qui l'observe est rechargé, sans provoquer de requête réseau si aucun écran ne l'observe. Le
   retour d'un entraînement poussé au-dessus de Plan force aussi une relecture
   (`RouteAware.didPopNext`).
+- **Le Plan se lit comme un chemin**, pas comme une pile de cartes : héros (« niveau estimé →
+  objectif » + 3 compteurs réels), « À faire maintenant », puis **« Votre parcours » — des
+  étapes numérotées, verticales et reliées** (étape 1 = `currentPriority` marquée EN COURS,
+  étapes suivantes = `nextPriorities` marquées À VENIR, étape finale = la réévaluation). Le
+  niveau estimé du héros vient **exclusivement** de `dashboardProvider`
+  (`estimatedTcfLevel`) et dégrade sur le seul objectif quand il manque — jamais de recalcul.
+- **Compteurs de sujets sur les DTO du Plan** : `LearningPlanPriority` et `LearningPlanSkill`
+  portent `promptCount` / `attemptedCount` / `validatedCount`, mêmes champs que `SkillDto`.
+  Ils alimentent les anneaux du parcours et les cartes « Mes compétences observées », qui
+  reprennent l'anatomie de `CompetenceCard` (Réviser → Compétences) et le **libellé partagé**
+  `skillProgressLabel` (`core/utils/skill_progress.dart`, dont `competenceProgressLabel`
+  n'est plus qu'une application au `SkillDto`).
+- **Libellés de `LearningPlanSkillStatus` gelés** sur ceux du web (« Non observée /
+  Prioritaire / À renforcer / Solide », `web_sejoufr/lib/diagnostic.ts`), verrouillés par
+  `test/diagnostic_models_test.dart`. Leur **teinte** vit à un seul endroit :
+  `LearningPlanSkillStatus.color` (`core/theme/app_theme.dart`), partagée Plan ⇄ Diagnostic.
+- **Le résultat du diagnostic affiche enfin `summary`, `taskCompletion`, `communicationStatus`
+  et `weaknesses`** (deux cartes « Vos productions »), en plus des compétences observées et de
+  la priorité n°1. **Aucun pourcentage de progression vers un palier**, ni sur le Plan ni sur
+  le diagnostic : le brief l'interdit et le serveur n'en publie aucun.
 - L'Accueil suit trois états serveur : invitation dismissible avant diagnostic, reprise de la
   session interrompue, puis priorité du jour après résultat. Il ne réaffiche jamais l'invitation
   générique une fois le diagnostic terminé.
@@ -1996,9 +2021,13 @@ Backend : anonymisation (cf. CLAUDE.md racine + `docs/api-endpoints.md`).
 - ~~**In-app purchase** (Premium)~~ ✅ fait au lot 4d (cf. section dédiée plus bas).
 - **Mode sombre** : la palette est prête (l'identité visuelle marche en dark), mais `buildAppTheme()` ne fait
   que le clair pour l'instant.
-- **Tests** : aucun pour l'instant. Quand on en ajoutera, Vitest n'existe pas en Flutter — c'est
-  `flutter_test` + `mockito` ou `mocktail` pour les mocks. Tester d'abord les controllers Riverpod, c'est là
-  que la logique vit.
+- 🛑 **Tests : on n'en écrit PLUS sur ce sous-projet** (règle posée le 2026-08-09, cf. § Tests du
+  `CLAUDE.md` racine). Aucun nouveau `*_test.dart` — ni test de widget, ni test de modèle, ni gel de
+  libellé, ni test de layout. La vérification d'un changement mobile, c'est `flutter analyze` (zéro
+  warning nouveau), et le propriétaire teste lui-même à l'écran. Les tests déjà présents dans `test/`
+  restent en place et doivent rester verts : un test qui devient rouge à cause d'un changement voulu
+  se **met à jour ou se supprime**, il ne bloque jamais le changement. Toute la couverture de règles
+  métier vit côté backend.
 - **Accessibilité** : les tailles de police suivent le `MediaQuery.textScaling` (clampé entre 0.9 et 1.2 dans
   `app.dart` pour éviter les layouts cassés). Les Semantics pourraient être ajoutés sur les boutons et tags.
 - **Animations** : transitions de routes par défaut. Le runner pourrait bénéficier d'un fade ou slide entre

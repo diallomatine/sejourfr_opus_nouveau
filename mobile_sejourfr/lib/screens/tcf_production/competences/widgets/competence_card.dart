@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/models/skill_models.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/skill_progress.dart';
+import '../../../../core/widgets/pressable_card.dart';
 import '../../../../core/widgets/progress_ring.dart';
-import '../../widgets/production_blocks.dart';
 
 /// Ligne d'une compétence, structure de la maquette client : **anneau de
 /// progression** (« 2/5 »), titre, état en clair, chevron.
@@ -74,7 +75,7 @@ class CompetenceCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            const ProductionChevron(),
+            const CardChevron(),
           ],
         ),
       ),
@@ -85,23 +86,11 @@ class CompetenceCard extends StatelessWidget {
 /// État d'une compétence en une phrase, depuis les **compteurs servis par
 /// `GET /api/skills`** — aucun agrégat inventé.
 ///
-/// ⚠️ **Libellé gelé**, miroir mot pour mot du web
-/// (`competenceProgressLabel`, `lib/skill-progress.ts`). Les deux fronts en
-/// tiennent chacun une copie écrite à la main : un libellé qui bouge, ce sont
-/// deux fichiers à changer dans la même passe, et deux tests.
-String competenceProgressLabel(SkillDto skill) {
-  final total = skill.promptCount;
-  if (total == 0) return 'Bientôt disponible';
-
-  final attempted = skill.attemptedCount.clamp(0, total);
-  if (attempted == 0) return '$total à découvrir';
-
-  final validated = skill.validatedCount.clamp(0, attempted);
-  final head = validated > 0
-      ? '$validated réussi${validated > 1 ? 's' : ''}'
-      : '$attempted commencé${attempted > 1 ? 's' : ''}';
-
-  final remaining = total - attempted;
-  if (remaining == 0) return head;
-  return '$head · $remaining restant${remaining > 1 ? 's' : ''}';
-}
+/// La règle vit dans `core/utils/skill_progress.dart` depuis que le Plan la
+/// lit aussi, sur les compteurs de `GET /api/me/plan` : ici on ne fait que
+/// l'appliquer à un [SkillDto].
+String competenceProgressLabel(SkillDto skill) => skillProgressLabel(
+      promptCount: skill.promptCount,
+      attemptedCount: skill.attemptedCount,
+      validatedCount: skill.validatedCount,
+    );

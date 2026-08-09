@@ -3,13 +3,17 @@ package com.sejourfr.app.service.diagnostic;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.DiagnosticProductionAnalysis;
 import com.sejourfr.app.entity.DiagnosticSession;
+import com.sejourfr.app.entity.DiagnosticTaskSkill;
 import com.sejourfr.app.entity.ProductionSubmission;
+import com.sejourfr.app.entity.ProductionTask;
+import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.enums.AttemptStatus;
 import com.sejourfr.app.enums.DiagnosticSessionStatus;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
+import com.sejourfr.app.manager.DiagnosticTaskSkillManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +35,7 @@ class DiagnosticSessionCoordinatorTest {
     private DiagnosticProductionAnalysisManager analysisManager;
     private DiagnosticSessionManager sessionManager;
     private AttemptManager attemptManager;
+    private DiagnosticTaskSkillManager taskSkillManager;
     private DiagnosticSessionCoordinator coordinator;
 
     @BeforeEach
@@ -39,8 +44,10 @@ class DiagnosticSessionCoordinatorTest {
         analysisManager = mock(DiagnosticProductionAnalysisManager.class);
         sessionManager = mock(DiagnosticSessionManager.class);
         attemptManager = mock(AttemptManager.class);
+        taskSkillManager = mock(DiagnosticTaskSkillManager.class);
         coordinator = new DiagnosticSessionCoordinator(
-                submissionManager, analysisManager, sessionManager, attemptManager);
+                submissionManager, analysisManager, sessionManager, attemptManager,
+                taskSkillManager);
     }
 
     @Test
@@ -78,6 +85,56 @@ class DiagnosticSessionCoordinatorTest {
         verify(sessionManager).save(session);
         verify(attemptManager).save(writtenAttempt);
         verify(attemptManager).save(oralAttempt);
+    }
+
+    /**
+     * Échouerait avec l'ancien départage alphabétique du code de compétence, qui
+     * faisait toujours passer « EE… » devant « EO… ».
+     */
+    @Test
+    void aConfianceEgaleLordreEditorialDeLallowlistLemporteSurLalphabet() {
+        Attempt writtenAttempt = attempt();
+        Attempt oralAttempt = attempt();
+        ProductionSubmission written = submission(writtenAttempt);
+        ProductionSubmission oral = submission(oralAttempt);
+        DiagnosticSession session = session(writtenAttempt, oralAttempt);
+        stubCompleted(session, written, oral,
+                List.of(priority("EE1-C1", "HIGH")), List.of(priority("EO1-C2", "HIGH")));
+        when(taskSkillManager.findActiveByTaskId(session.getWrittenTask().getId()))
+                .thenReturn(List.of(allowed("EE1-C1", 5)));
+        when(taskSkillManager.findActiveByTaskId(session.getOralTask().getId()))
+                .thenReturn(List.of(allowed("EO1-C2", 1)));
+
+        coordinator.onAnalysisCompleted(written.getId());
+
+        assertThat(session.getSummaryJson().get("priority_skill_codes"))
+                .asList().containsExactly("EO1-C2", "EE1-C1");
+    }
+
+    /**
+     * Même confiance et même rang d'allowlist : le Plan alterne écrit et oral
+     * plutôt que de servir un bloc de priorités d'une seule épreuve. L'ancien
+     * tri alphabétique rendait ici {@code EE1-C1, EE1-C2, EO1-C1}.
+     */
+    @Test
+    void aEgaliteResiduelleLesPrioritesAlternentEcritEtOral() {
+        Attempt writtenAttempt = attempt();
+        Attempt oralAttempt = attempt();
+        ProductionSubmission written = submission(writtenAttempt);
+        ProductionSubmission oral = submission(oralAttempt);
+        DiagnosticSession session = session(writtenAttempt, oralAttempt);
+        stubCompleted(session, written, oral,
+                List.of(priority("EE1-C1", "HIGH"), priority("EE1-C2", "HIGH")),
+                List.of(priority("EO1-C1", "HIGH")));
+        when(taskSkillManager.findActiveByTaskId(session.getWrittenTask().getId()))
+                .thenReturn(List.of(allowed("EE1-C1", 1), allowed("EE1-C2", 2)));
+        when(taskSkillManager.findActiveByTaskId(session.getOralTask().getId()))
+                .thenReturn(List.of(allowed("EO1-C1", 2)));
+
+        coordinator.onAnalysisCompleted(written.getId());
+
+        assertThat(session.getSummaryJson().get("priority_skill_codes"))
+                .asList().containsExactly("EE1-C1", "EO1-C1", "EE1-C2");
     }
 
     @Test
@@ -160,6 +217,27 @@ class DiagnosticSessionCoordinatorTest {
         assertThat(oralAttempt.getFinishedAt()).isNull();
     }
 
+    /** Les deux productions rendues, évaluées et analysées : l'assemblage peut se faire. */
+    private void stubCompleted(
+            DiagnosticSession session,
+            ProductionSubmission written,
+            ProductionSubmission oral,
+            List<Map<String, Object>> writtenPriorities,
+            List<Map<String, Object>> oralPriorities) {
+        when(submissionManager.findById(written.getId())).thenReturn(Optional.of(written));
+        when(sessionManager.findByAttemptIdWithContent(written.getAttempt().getId()))
+                .thenReturn(Optional.of(session));
+        when(sessionManager.findByIdForUpdate(session.getId())).thenReturn(Optional.of(session));
+        when(submissionManager.findByAttemptId(written.getAttempt().getId()))
+                .thenReturn(List.of(written));
+        when(submissionManager.findByAttemptId(oral.getAttempt().getId()))
+                .thenReturn(List.of(oral));
+        when(analysisManager.findBySubmissionId(written.getId()))
+                .thenReturn(Optional.of(analysis(written, writtenPriorities)));
+        when(analysisManager.findBySubmissionId(oral.getId()))
+                .thenReturn(Optional.of(analysis(oral, oralPriorities)));
+    }
+
     private static Attempt attempt() {
         Attempt attempt = new Attempt();
         attempt.setId(UUID.randomUUID());
@@ -180,8 +258,28 @@ class DiagnosticSessionCoordinatorTest {
         session.setId(UUID.randomUUID());
         session.setWrittenAttempt(written);
         session.setOralAttempt(oral);
+        session.setWrittenTask(task());
+        session.setOralTask(task());
         session.setStatus(DiagnosticSessionStatus.IN_PROGRESS);
         return session;
+    }
+
+    private static ProductionTask task() {
+        ProductionTask task = new ProductionTask();
+        task.setId(UUID.randomUUID());
+        return task;
+    }
+
+    /** Une entrée d'allowlist : la compétence et son rang éditorial sur le sujet. */
+    private static DiagnosticTaskSkill allowed(String code, int order) {
+        Skill skill = new Skill();
+        skill.setId(UUID.randomUUID());
+        skill.setCode(code);
+        skill.setActive(true);
+        DiagnosticTaskSkill link = new DiagnosticTaskSkill();
+        link.setSkill(skill);
+        link.setDisplayOrder((short) order);
+        return link;
     }
 
     private static DiagnosticProductionAnalysis analysis(

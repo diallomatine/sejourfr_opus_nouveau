@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/models/skill_models.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/format_date.dart';
+import '../../../../core/widgets/pressable_card.dart';
 import '../../widgets/production_blocks.dart';
 import 'skill_status_badge.dart';
 
@@ -69,7 +70,7 @@ class SkillPromptCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                const ProductionChevron(),
+                const CardChevron(),
               ],
             ),
           ),

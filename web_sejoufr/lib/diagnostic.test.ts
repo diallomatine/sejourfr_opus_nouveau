@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  competenceHref,
+  DIAGNOSTIC_COMMUNICATION_LABEL,
+  DIAGNOSTIC_TASK_COMPLETION_LABEL,
   diagnosticCompletedExerciseCount,
   diagnosticDashboardState,
+  LEARNING_PLAN_SKILL_STATUS_LABEL,
+  productionSectionLabel,
   requiresDiagnosticRevalidation,
   recommendedExerciseHref,
 } from "./diagnostic.ts";
@@ -69,4 +74,56 @@ test("la recommandation ouvre le micro-exercice exact à partir du code canoniqu
     "/entrainement/tcf/eo/tache/2/competences/skill-3/prompt-7",
   );
   assert.equal(recommendedExerciseHref(null), "/entrainement?module=TCF");
+});
+
+test("le Plan et « Réviser → Compétences » ouvrent la même fiche de compétence", () => {
+  assert.equal(
+    competenceHref({skillId: "skill-3", skillCode: "EE1-C4", section: "EE"}),
+    "/entrainement/tcf/ee/tache/1/competences/skill-3",
+  );
+  // Code hors convention : route générique, jamais une tâche inventée.
+  assert.equal(
+    competenceHref({skillId: "skill-9", skillCode: "INCONNU", section: "EO"}),
+    "/entrainement/tcf/eo/tache/1/competences",
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Libellés gelés.
+//
+// Ces chaînes ne viennent PAS du backend : le web et le mobile en tiennent
+// chacun une copie écrite à la main, donc rien n'empêche une couche de dériver —
+// et c'est arrivé (`NOT_OBSERVED` : « Non observée » ici, « À évaluer » sur
+// mobile ; `PRIORITY` : « Prioritaire » ici, « Priorité » là-bas). **Le web fait
+// référence** : un échec ici veut dire qu'un libellé a bougé et que la copie
+// mobile (`diagnostic_models.dart`) doit bouger dans la même passe — pas qu'il
+// faut mettre le test à jour tout seul.
+// Même technique que `skill-labels.test.ts` pour le module Compétences.
+// ---------------------------------------------------------------------------
+
+test("l'état d'une compétence du Plan : les quatre libellés sont gelés", () => {
+  assert.deepEqual(LEARNING_PLAN_SKILL_STATUS_LABEL, {
+    NOT_OBSERVED: "Non observée",
+    PRIORITY: "Prioritaire",
+    TO_REINFORCE: "À renforcer",
+    SOLID: "Solide",
+  });
+});
+
+test("les deux verdicts de production du diagnostic sont gelés", () => {
+  assert.deepEqual(DIAGNOSTIC_TASK_COMPLETION_LABEL, {
+    COMPLETED: "Consigne accomplie",
+    PARTIAL: "Consigne partiellement accomplie",
+    NOT_COMPLETED: "Consigne non accomplie",
+  });
+  assert.deepEqual(DIAGNOSTIC_COMMUNICATION_LABEL, {
+    EFFECTIVE: "Message clair",
+    PARTIAL: "Message compris avec effort",
+    INEFFECTIVE: "Message difficile à suivre",
+  });
+});
+
+test("le nom d'une épreuve de production s'écrit à un seul endroit", () => {
+  assert.equal(productionSectionLabel("EE"), "Expression écrite");
+  assert.equal(productionSectionLabel("EO"), "Expression orale");
 });

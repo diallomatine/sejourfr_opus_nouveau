@@ -1,11 +1,29 @@
+/* ============================================================================
+   Plan personnalisé.
+
+   Langage visuel repris de la maquette client
+   (`docs/diagnostiques/diagnostique-rapport.html`) : bandeau en dégradé bleu
+   avec son anneau décoratif, grands rayons (20-26 px), ombres douces portées,
+   pastilles chiffrées, chemin d'étapes relié. Les **couleurs** restent celles de
+   l'application — `var(--color-*)` / `var(--gradient-*)` uniquement, aucune
+   valeur en dur ; les teintes absentes des tokens sont dérivées en
+   `color-mix()`.
+
+   ⚠️ Ce que la maquette contient et qu'on NE reprend PAS : le pourcentage
+   « du plan maîtrisé » et les scores en % par priorité. Le brief §20/§23
+   les interdit — on n'affiche que des compteurs réellement servis par l'API.
+   ============================================================================ */
+
 .page {
   width: min(100%, 1080px);
   margin: 0 auto;
   padding: 34px 28px 56px;
 }
 
+/* ------------------------------------------------------------ tête d'écran */
+
 .header {
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .eyebrow {
@@ -31,19 +49,550 @@
 }
 
 .header > p:last-child {
+  max-width: 62ch;
   margin: 9px 0 0;
   color: var(--color-muted);
 }
 
+/* Intertitre + phrase d'explication d'un bloc, même rythme que le module
+   Compétences (`SectionHead`) mais avec sa mesure d'appoint à droite. */
+.blockHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 30px 2px 13px;
+}
+
+.blockHead h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: clamp(19px, 2.4vw, 22px);
+  letter-spacing: -0.02em;
+}
+
+.blockHead p {
+  max-width: 60ch;
+  margin: 5px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.blockHead > span {
+  flex: none;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------ bandeau héros */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(20px, 3.5vw, 28px);
+  border-radius: 26px;
+  color: var(--color-paper);
+  background: linear-gradient(145deg, var(--color-blue-dark), var(--color-blue));
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--color-blue) 22%, transparent);
+}
+
+/* Anneau décoratif de la maquette. */
+.hero::after {
+  content: "";
+  position: absolute;
+  top: -46px;
+  right: -50px;
+  width: 152px;
+  height: 152px;
+  border: 24px solid color-mix(in srgb, var(--color-paper) 7%, transparent);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.heroTop {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.heroLabel {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.78;
+}
+
+/* « A1 non atteint » est un libellé long : la ligne s'enroule plutôt que de
+   déborder du bandeau à 360 px. */
+.heroLevelLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 11px;
+  margin: 8px 0 0;
+  font-size: clamp(26px, 5.5vw, 40px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.heroArrow {
+  font-size: 0.62em;
+  font-weight: 700;
+  opacity: 0.6;
+}
+
+.heroTarget {
+  color: var(--color-paper);
+}
+
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 8px 11px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-paper) 14%, transparent);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.heroCopy {
+  position: relative;
+  z-index: 1;
+  max-width: 56ch;
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0.88;
+}
+
+.heroScope {
+  margin: 7px 0 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.72;
+}
+
+/* Pastilles chiffrées — uniquement des compteurs réellement servis. */
+.heroStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.heroStats li {
+  display: grid;
+  gap: 3px;
+  padding: 12px 13px;
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--color-paper) 12%, transparent);
+}
+
+.heroStats b {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.heroStats span {
+  font-size: 11px;
+  line-height: 1.3;
+  opacity: 0.82;
+}
+
+.heroFoot {
+  margin: 15px 0 0;
+  padding-top: 13px;
+  border-top: 1px solid color-mix(in srgb, var(--color-paper) 16%, transparent);
+  font-size: 11.5px;
+  opacity: 0.7;
+}
+
+/* ------------------------------------------------------- à faire maintenant */
+
+.today {
+  padding: clamp(18px, 3vw, 24px);
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  background: var(--color-paper);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--color-ink) 7%, transparent);
+}
+
+.todayTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.todayPill {
+  display: inline-flex;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--color-red-light);
+  color: var(--color-red-dark);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.today h3 {
+  margin: 11px 0 6px;
+  color: var(--color-ink);
+  font-size: clamp(20px, 3vw, 26px);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.todayTop p {
+  max-width: 60ch;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.todayDuration {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.todayTask {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 13px;
+  border: 1px solid var(--color-line-2);
+  border-radius: 16px;
+  background: var(--color-blue-soft);
+}
+
+.todayTaskIcon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 13px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.todayTask > span:last-child {
+  display: grid;
+  min-width: 0;
+}
+
+.todayTask b {
+  color: var(--color-ink);
+  font-size: 14px;
+}
+
+.todayTask small {
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.todayCta {
+  width: 100%;
+  margin-top: 15px;
+}
+
+/* ------------------------------------------------------ le chemin d'étapes */
+
+.path {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Une étape = pastille de rang + carte. Le filet vertical relie les pastilles :
+   c'est lui qui fait lire l'ensemble comme un chemin. */
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 14px;
+  padding-bottom: 14px;
+}
+
+.step::before {
+  content: "";
+  position: absolute;
+  top: 42px;
+  bottom: -2px;
+  left: 18px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--color-blue) 32%, var(--color-line)),
+    var(--color-line)
+  );
+}
+
+.stepLast {
+  padding-bottom: 0;
+}
+
+.stepLast::before {
+  display: none;
+}
+
+.stepMark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 13px;
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.stepMarkCurrent {
+  border-color: transparent;
+  background: var(--color-blue);
+  color: var(--color-paper);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--color-blue) 26%, transparent);
+}
+
+.stepCard {
+  padding: 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--color-paper);
+}
+
+.stepCardCurrent {
+  border-color: color-mix(in srgb, var(--color-blue) 26%, var(--color-line));
+  background: linear-gradient(
+    150deg,
+    var(--color-blue-soft),
+    color-mix(in srgb, var(--color-paper) 96%, var(--color-blue-light))
+  );
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--color-blue) 10%, transparent);
+}
+
+.stepCardFinal {
+  background: color-mix(in srgb, var(--color-paper) 94%, var(--color-blue-light));
+}
+
+.stepHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 11px;
+}
+
+.stepState {
+  display: inline-flex;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.stepState[data-state="current"] {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.stepState[data-state="later"] {
+  background: color-mix(in srgb, var(--color-green) 12%, transparent);
+  color: var(--color-green);
+}
+
+.stepMeta {
+  overflow: hidden;
+  color: var(--color-muted-2);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stepBody {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+}
+
+.stepBodyText {
+  min-width: 0;
+  flex: 1;
+}
+
+.stepTitle {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.stepText {
+  margin: 8px 0 0;
+  color: var(--color-ink-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* L'exercice recommandé d'une étape : même anatomie que `.todayTask`, en plus
+   compact — miroir de `_ExerciseRow` côté mobile. */
+.stepTask {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 13px;
+  padding: 11px;
+  border: 1px solid var(--color-line-2);
+  border-radius: 14px;
+  background: var(--color-paper);
+}
+
+.stepTaskIcon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 12px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.stepTask > span:last-child {
+  display: grid;
+  min-width: 0;
+}
+
+.stepTask b {
+  color: var(--color-ink);
+  font-size: 13.5px;
+}
+
+.stepTask small {
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+/* Le bouton d'action de l'étape courante. Variante douce (fond bleu clair),
+   comme `AppButtonVariant.soft` côté mobile : l'action forte de l'écran est
+   « Commencer » dans « À faire maintenant », celle-ci la relaie. */
+.stepCtaStrong {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 11px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--color-blue-light);
+  color: var(--color-blue-dark);
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+.stepCtaStrong:hover {
+  background: color-mix(in srgb, var(--color-blue-light) 82%, var(--color-blue));
+}
+
+/* ------------------------------------------------- compétences observées */
+
+/* Même rythme vertical que `.list` du module Compétences ; c'est la seule chose
+   que cette pile ajoute — la carte, elle, est intégralement empruntée. */
+.skillGrid {
+  display: grid;
+  gap: 11px;
+}
+
+/* Colonne de droite d'une carte de compétence : pastille d'état + chevron.
+   La carte elle-même vient du module Compétences (`skill.module.css`). */
+.skillAside {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  flex: none;
+}
+
+.moreSkills {
+  margin-top: 12px;
+}
+
+.moreSkills summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  color: var(--color-blue);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.moreSkills[open] summary {
+  margin-bottom: 11px;
+}
+
+/* --------------------------------------------------------- cartes d'appoint */
+
 .emptyCard,
-.current,
-.section,
-.recheck,
 .progressionLink,
 .diagnosticLink,
 .classic {
   border: 1px solid var(--color-line);
-  border-radius: 18px;
+  border-radius: 20px;
   background: color-mix(in srgb, var(--color-paper) 94%, var(--color-blue-light));
 }
 
@@ -97,13 +646,13 @@
 .primaryButton,
 .secondaryButton {
   display: inline-flex;
-  min-height: 45px;
+  min-height: 46px;
   align-items: center;
   justify-content: center;
   gap: 8px;
   border: 1px solid transparent;
-  border-radius: 999px;
-  padding: 10px 19px;
+  border-radius: 14px;
+  padding: 11px 19px;
   font: inherit;
   font-size: 14px;
   font-weight: 800;
@@ -113,6 +662,7 @@
 .primaryButton {
   color: var(--color-paper);
   background: var(--color-blue);
+  box-shadow: 0 9px 20px color-mix(in srgb, var(--color-blue) 20%, transparent);
 }
 
 .primaryButton:hover {
@@ -133,244 +683,11 @@
   outline-offset: 3px;
 }
 
-.current {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(250px, 0.55fr);
-  gap: 28px;
-  padding: clamp(24px, 5vw, 40px);
-  border-color: color-mix(in srgb, var(--color-blue) 28%, var(--color-line));
-  background: var(--color-blue-soft);
-}
-
-.sectionPill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 12px;
-  padding: 5px 9px;
-  border: 1px solid var(--color-line);
-  border-radius: 999px;
-  color: var(--color-muted);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.current h2 {
-  margin: 0;
-  color: var(--color-ink);
-  font-size: clamp(24px, 4vw, 34px);
-  letter-spacing: -0.025em;
-  line-height: 1.15;
-}
-
-.currentCopy > p:not(.eyebrow) {
-  margin: 10px 0 0;
-  color: var(--color-ink-2);
-}
-
-.current blockquote {
-  margin: 18px 0 0;
-  padding-left: 14px;
-  border-left: 3px solid var(--color-blue);
-  color: var(--color-muted);
-  font-size: 13px;
-}
-
-.currentAction {
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  flex-direction: column;
-  gap: 9px;
-  padding: 20px;
-  border: 1px solid var(--color-line);
-  border-radius: 15px;
-  background: color-mix(in srgb, var(--color-paper) 94%, var(--color-blue-light));
-}
-
-.currentAction > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-blue);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.currentAction > b {
-  margin-bottom: 7px;
-  color: var(--color-ink);
-  line-height: 1.35;
-}
-
-.section,
-.classic {
-  margin-top: 16px;
-  padding: 22px;
-}
-
-.sectionHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 15px;
-  margin-bottom: 17px;
-}
-
-.sectionHead > div {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-}
-
-.sectionHead h2,
-.recheck h2,
-.classic h2 {
-  margin: 0;
-  color: var(--color-ink);
-  font-size: 19px;
-}
-
-.sectionHead > span {
-  color: var(--color-muted);
-  font-size: 12px;
-}
-
-.priorityRows,
-.skillGrid {
-  display: grid;
-  gap: 9px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.priorityRows li,
-.skillGrid li {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  padding: 13px 14px;
-  border: 1px solid var(--color-line);
-  border-radius: 13px;
-}
-
-.priorityNumber {
-  display: inline-flex;
-  width: 30px;
-  height: 30px;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  border-radius: 50%;
-  color: var(--color-blue);
-  background: var(--color-blue-light);
-  font-weight: 800;
-}
-
-.priorityBody,
-.skillGrid li > span:nth-child(2) {
-  display: grid;
-  min-width: 0;
-  flex: 1;
-}
-
-.priorityBody b,
-.skillGrid b {
-  overflow: hidden;
-  color: var(--color-ink);
-  text-overflow: ellipsis;
-}
-
-.priorityBody small,
-.skillGrid small,
-.progressionLink small {
-  margin-top: 2px;
-  color: var(--color-muted);
-  font-size: 12px;
-}
-
-.priorityRows li > a,
-.progressionLink > a,
-.diagnosticLink > a {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  flex: none;
-  color: var(--color-blue);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.skillGrid {
-  grid-template-columns: 1fr 1fr;
-}
-
-.skillSection {
-  display: inline-flex;
-  width: 34px;
-  height: 34px;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  border-radius: 10px;
-  color: var(--color-blue);
-  background: var(--color-blue-light);
-}
-
-.status {
-  flex: none;
-  padding: 4px 8px;
-  border-radius: 999px;
-  color: var(--color-blue);
-  background: var(--color-blue-light);
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.status[data-status="SOLID"] {
-  color: var(--color-green);
-  background: color-mix(in srgb, var(--color-green) 12%, var(--color-paper));
-}
-
-.moreSkills {
-  margin-top: 13px;
-}
-
-.moreSkills summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-  color: var(--color-blue);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.moreSkills[open] summary {
-  margin-bottom: 12px;
-}
-
-.recheck {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  margin-top: 16px;
-  padding: 20px 22px;
-}
-
-.recheck p {
-  margin: 5px 0 0;
-  color: var(--color-muted);
-  font-size: 14px;
-}
-
 .bottomGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  margin-top: 16px;
+  margin-top: 30px;
 }
 
 .progressionLink,
@@ -395,14 +712,38 @@
   font-size: 14px;
 }
 
+.progressionLink small {
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
 .diagnosticLink span {
   color: var(--color-muted);
   font-size: 11px;
   font-weight: 700;
 }
 
+.progressionLink > a,
+.diagnosticLink > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  color: var(--color-blue);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .classic {
   margin-top: 16px;
+  padding: 22px;
+}
+
+.classic h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 19px;
 }
 
 .classic > div {
@@ -418,7 +759,7 @@
   gap: 11px;
   padding: 15px;
   border: 1px solid var(--color-line);
-  border-radius: 13px;
+  border-radius: 14px;
   color: var(--color-blue);
 }
 
@@ -439,10 +780,12 @@
   margin-top: 16px;
 }
 
+/* ---------------------------------------------------------------- squelette */
+
 .skeletonHead,
 .skeletonHero,
 .skeletonGrid span {
-  border-radius: 17px;
+  border-radius: 20px;
   background: linear-gradient(90deg, var(--color-line), var(--color-blue-soft), var(--color-line));
   background-size: 200% 100%;
   animation: loading 1.4s linear infinite;
@@ -473,11 +816,21 @@
   to { background-position: -200% 0; }
 }
 
-@media (max-width: 900px) {
-  .current {
-    grid-template-columns: 1fr;
+/* -------------------------------------------------------------- responsive */
+
+/* Desktop : le chemin garde sa colonne unique (c'est ce qui le fait lire comme
+   un chemin), mais les cartes de compétences passent sur deux colonnes. */
+@media (min-width: 900px) {
+  .path {
+    max-width: 760px;
   }
 
+  .skillGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 900px) {
   .bottomGrid {
     grid-template-columns: 1fr;
   }
@@ -488,9 +841,34 @@
     padding: 66px 18px 42px;
   }
 
-  .skillGrid,
   .classic > div {
     grid-template-columns: 1fr;
+  }
+
+  .heroStats {
+    grid-template-columns: 1fr;
+  }
+
+  .heroStats li {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+  }
+}
+
+@media (max-width: 620px) {
+  .heroTop {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .todayTop {
+    flex-direction: column;
+  }
+
+  .todayDuration {
+    order: -1;
   }
 }
 
@@ -500,18 +878,44 @@
     padding-left: 14px;
   }
 
-  .priorityRows li,
+  .step {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 11px;
+  }
+
+  .step::before {
+    top: 34px;
+    left: 14px;
+  }
+
+  .stepMark {
+    width: 30px;
+    height: 30px;
+    border-radius: 11px;
+    font-size: 12px;
+  }
+
+  .stepHead {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .skillAside {
+    flex-direction: column-reverse;
+    gap: 6px;
+  }
+
   .progressionLink,
   .diagnosticLink {
     align-items: flex-start;
     flex-wrap: wrap;
   }
 
-  .priorityRows li > a,
   .progressionLink > a,
   .diagnosticLink > a {
     width: 100%;
-    margin-left: 42px;
+    margin-left: 51px;
   }
 
   .primaryButton,

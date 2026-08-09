@@ -253,6 +253,13 @@ standard 36px, variante `.cocarde.lg` à 56px.
 
 ## Conventions de code
 
+- 🛑 **Tests : on n'en écrit PLUS sur ce sous-projet** (règle posée le 2026-08-09, cf. § Tests du
+  `CLAUDE.md` racine). Aucun nouveau `*.test.ts` — ni test de helper, ni gel de libellé, ni test de
+  composant. La vérification d'un changement web, c'est `npx tsc --noEmit` + `npm run build`, et le
+  propriétaire teste lui-même à l'écran. Les tests déjà présents (`npm test`, runner natif de Node)
+  restent en place et doivent rester verts : un test qui devient rouge à cause d'un changement voulu
+  se **met à jour ou se supprime**, il ne bloque jamais le changement. Toute la couverture de règles
+  métier vit côté backend, d'où elle protège les trois fronts d'un seul endroit.
 - **🏆 RÈGLE D'OR — TOUT est responsive.** Chaque page et chaque composant doit fonctionner
   parfaitement du **mobile (~360 px)** au **desktop (1280+)**. Aucune page n'est « finie » tant
   qu'elle n'a pas été pensée mobile-first et vérifiée mentalement à **360 / 768 / 1280**. Concrètement :

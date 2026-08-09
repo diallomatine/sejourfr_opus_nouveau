@@ -438,6 +438,13 @@
   color: var(--color-amber-dark);
 }
 
+/* Cran au-dessus de `.badgeReinforce`, réservé au Plan : une compétence
+   prioritaire. Rouge de marque, jamais une teinte nouvelle. */
+.badgePriority {
+  background: color-mix(in srgb, var(--color-red) 10%, transparent);
+  color: var(--color-red-dark);
+}
+
 /* Pilule de palier : ambre, et le MÊME libellé partout (« A2 », jamais
    « Niveau A2 » d'un écran à l'autre). */
 .levelPill {

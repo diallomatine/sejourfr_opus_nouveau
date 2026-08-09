@@ -35,6 +35,9 @@ public interface SkillRepository extends JpaRepository<Skill, UUID>,
     /** Le code editorial est unique et immuable : c'est l'ancre des seeds et de l'admin. */
     Optional<Skill> findByCode(String code);
 
+    /** Resolution en lot des codes editoriaux : une requete, pas une par code. */
+    List<Skill> findByCodeIn(Collection<String> codes);
+
     /**
      * Nombre de competences actives par tache. Renvoie {@code [taskCode, count]} :
      * les taches sans aucune competence active sont ABSENTES du resultat — au

@@ -684,7 +684,23 @@ export interface DiagnosticResponse {
     canRetry: boolean;
 }
 
-export interface LearningPlanPriorityDto {
+/**
+ * Compteurs de sujets d'une compétence, servis par le Plan **exactement** comme
+ * `GET /api/skills` les sert au module Compétences — mêmes trois champs, mêmes
+ * bornes. C'est ce qui permet au Plan de réutiliser `SkillRing` et
+ * `competenceProgressLabel` sans recalculer quoi que ce soit : les deux écrans
+ * parlent des mêmes compétences, ils doivent en dire la même chose.
+ */
+interface LearningPlanSkillCounters {
+    /** Nombre de petits sujets publiés pour la compétence. */
+    promptCount: number;
+    /** Sujets déjà tentés par ce candidat. */
+    attemptedCount: number;
+    /** Sujets dont le critère a été validé. */
+    validatedCount: number;
+}
+
+export interface LearningPlanPriorityDto extends LearningPlanSkillCounters {
     skillId: string;
     skillCode: string;
     title: string;
@@ -697,7 +713,7 @@ export interface LearningPlanPriorityDto {
     recommendedExercise: PlanRecommendedExerciseDto | null;
 }
 
-export interface LearningPlanSkillDto {
+export interface LearningPlanSkillDto extends LearningPlanSkillCounters {
     skillId: string;
     skillCode: string;
     title: string;

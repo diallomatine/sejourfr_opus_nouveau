@@ -80,14 +80,23 @@ interface SkillCounters {
  * deux fronts en tiennent chacun une copie écrite à la main : un libellé qui
  * bouge, ce sont deux fichiers à changer dans la même passe, et deux tests.
  */
+/**
+ * Un compteur absent vaut 0, jamais `NaN`. Le mobile pose ce repli au décodage
+ * (`fromJson`) ; le web n'a pas de couche de parsing, donc il le pose ici — sans
+ * ça, une réponse servie par un backend plus ancien affichait « NaN commencé ».
+ */
+function counter(value: number | undefined | null): number {
+  return Number.isFinite(value) ? Math.max(0, value as number) : 0;
+}
+
 export function competenceProgressLabel(skill: SkillCounters): string {
-  const total = Math.max(0, skill.promptCount);
+  const total = counter(skill.promptCount);
   if (total === 0) return "Bientôt disponible";
 
-  const attempted = Math.min(Math.max(0, skill.attemptedCount), total);
+  const attempted = Math.min(counter(skill.attemptedCount), total);
   if (attempted === 0) return `${total} à découvrir`;
 
-  const validated = Math.min(Math.max(0, skill.validatedCount), attempted);
+  const validated = Math.min(counter(skill.validatedCount), attempted);
   const head =
     validated > 0
       ? `${validated} réussi${validated > 1 ? "s" : ""}`

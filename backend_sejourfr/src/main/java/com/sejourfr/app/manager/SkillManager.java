@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +39,21 @@ public class SkillManager {
 
     public Optional<Skill> findByCode(String code) {
         return repository.findByCode(code);
+    }
+
+    /**
+     * Resolution en lot de codes editoriaux, indexee par code. Les codes
+     * inconnus sont simplement absents de la map — un code que le correcteur a
+     * invente n'existe pas, il ne doit pas faire echouer la lecture.
+     */
+    public Map<String, Skill> findByCodes(Collection<String> codes) {
+        Map<String, Skill> bySkillCode = new LinkedHashMap<>();
+        // Un IN vide est un SQL invalide : on n'interroge pas la base pour rien.
+        if (codes.isEmpty()) return bySkillCode;
+        for (Skill skill : repository.findByCodeIn(codes)) {
+            bySkillCode.put(skill.getCode(), skill);
+        }
+        return bySkillCode;
     }
 
     /** Les 8 competences actives d'une tache, dans l'ordre pedagogique. */

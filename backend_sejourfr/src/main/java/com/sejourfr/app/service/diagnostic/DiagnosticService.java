@@ -12,7 +12,6 @@ import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.Skill;
-import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.enums.DiagnosticJourneyStatus;
 import com.sejourfr.app.enums.DiagnosticSessionStatus;
 import com.sejourfr.app.enums.DiagnosticStep;
@@ -24,8 +23,8 @@ import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.SkillManager;
-import com.sejourfr.app.manager.SkillPromptManager;
 import com.sejourfr.app.service.ProductionEvaluationService;
+import com.sejourfr.app.service.RecommendedExerciseSelector;
 import com.sejourfr.app.ratelimit.RateLimitGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -56,7 +55,7 @@ public class DiagnosticService {
     private final ProductionSubmissionManager submissionManager;
     private final DiagnosticProductionAnalysisManager analysisManager;
     private final SkillManager skillManager;
-    private final SkillPromptManager promptManager;
+    private final RecommendedExerciseSelector exerciseSelector;
     private final ProductionEvaluationService evaluationService;
     private final DiagnosticSessionCoordinator coordinator;
     private final RateLimitGuard rateLimitGuard;
@@ -65,7 +64,7 @@ public class DiagnosticService {
         String code = properties.getInitialCode();
         int version = activeVersion(code);
         return sessionManager.findByUserAndVersionWithContent(userId, code, version)
-                .map(this::toResponse)
+                .map(session -> toResponse(userId, session))
                 .orElseGet(() -> notStarted(code, version));
     }
 
@@ -74,7 +73,7 @@ public class DiagnosticService {
         int version = activeVersion(code);
         DiagnosticSession existing = sessionManager
                 .findByUserAndVersionWithContent(userId, code, version).orElse(null);
-        if (existing != null) return toResponse(existing);
+        if (existing != null) return toResponse(userId, existing);
         try {
             sessionCreator.create(userId, code, version);
         } catch (DataIntegrityViolationException concurrentStart) {
@@ -85,13 +84,13 @@ public class DiagnosticService {
                 .findByUserAndVersionWithContent(userId, code, version)
                 .orElseThrow(() -> new IllegalStateException(
                         "La session diagnostic n'a pas pu être créée ni retrouvée"));
-        return toResponse(created);
+        return toResponse(userId, created);
     }
 
     public DiagnosticResponse detail(UUID userId, UUID sessionId) {
         DiagnosticSession session = sessionManager.findOwnedWithContent(sessionId, userId)
                 .orElseThrow(() -> new NotFoundException("Diagnostic introuvable : " + sessionId));
-        return toResponse(session);
+        return toResponse(userId, session);
     }
 
     public DiagnosticResponse retryAnalysis(UUID userId, UUID sessionId) {
@@ -114,11 +113,11 @@ public class DiagnosticService {
     }
 
     @Transactional(readOnly = true)
-    protected DiagnosticResponse toResponse(DiagnosticSession session) {
+    protected DiagnosticResponse toResponse(UUID userId, DiagnosticSession session) {
         ProductionSubmission writtenSubmission = submission(session.getWrittenAttempt().getId());
         ProductionSubmission oralSubmission = submission(session.getOralAttempt().getId());
         DiagnosticResultDto result = session.getStatus() == DiagnosticSessionStatus.COMPLETED
-                ? result(session, writtenSubmission, oralSubmission) : null;
+                ? result(userId, session, writtenSubmission, oralSubmission) : null;
         return new DiagnosticResponse(
                 session.getId(), session.getDiagnosticCode(), session.getDiagnosticVersion(),
                 DiagnosticJourneyStatus.valueOf(session.getStatus().name()),
@@ -159,6 +158,7 @@ public class DiagnosticService {
     }
 
     private DiagnosticResultDto result(
+            UUID userId,
             DiagnosticSession session,
             ProductionSubmission writtenSubmission,
             ProductionSubmission oralSubmission) {
@@ -172,7 +172,7 @@ public class DiagnosticService {
                 ? Map.of() : session.getSummaryJson();
         List<DiagnosticSkillObservationDto> priorities = strings(summary.get("priority_skill_codes"))
                 .stream().map(observations::get).filter(Objects::nonNull).limit(3).toList();
-        PlanRecommendedExerciseDto next = recommendedAction(observations, priorities);
+        PlanRecommendedExerciseDto next = recommendedAction(userId, observations, priorities);
         return new DiagnosticResultDto(
                 written, oral, strings(summary.get("strengths")), priorities,
                 nullableText(summary.get("main_priority_explanation")), next);
@@ -182,9 +182,14 @@ public class DiagnosticService {
      * Garantit une action concrète même si aucune priorité n'est assez fiable :
      * on préfère une priorité, puis une compétence à renforcer, puis toute
      * compétence réellement observée, et enfin une compétence de l'allowlist.
-     * Le premier micro-exercice actif réellement disponible est renvoyé.
+     *
+     * <p>Le sujet renvoyé pour la compétence retenue est choisi par
+     * {@link RecommendedExerciseSelector} — le même code que le Plan, pour que
+     * les deux écrans proposent le même exercice, et qui fait avancer le
+     * candidat au lieu de lui resservir le sujet de rang 1.
      */
     PlanRecommendedExerciseDto recommendedAction(
+            UUID userId,
             Map<String, DiagnosticSkillObservationDto> observations,
             List<DiagnosticSkillObservationDto> priorities) {
         Map<String, DiagnosticSkillObservationDto> candidates = new LinkedHashMap<>();
@@ -199,9 +204,16 @@ public class DiagnosticService {
         observations.values().forEach(
                 item -> candidates.putIfAbsent(item.skillCode(), item));
 
-        for (DiagnosticSkillObservationDto candidate : candidates.values()) {
-            Skill skill = skillManager.findByCode(candidate.skillCode()).orElse(null);
-            PlanRecommendedExerciseDto exercise = recommendedExercise(skill);
+        // Cascade évaluée en lot : les 8 compétences de l'allowlist se résolvent
+        // en une requête de compétences + deux du sélecteur, pas 3 par candidat.
+        Map<String, Skill> skills = skillManager.findByCodes(candidates.keySet());
+        Map<UUID, PlanRecommendedExerciseDto> exercises =
+                exerciseSelector.selectAll(userId, candidates.keySet().stream()
+                        .map(skills::get).filter(Objects::nonNull).toList());
+        for (String code : candidates.keySet()) {
+            Skill skill = skills.get(code);
+            if (skill == null) continue;
+            PlanRecommendedExerciseDto exercise = exercises.get(skill.getId());
             if (exercise != null) return exercise;
         }
         throw new IllegalStateException(
@@ -235,16 +247,6 @@ public class DiagnosticService {
                 analysis.getLevelEstimate(), analysis.getTaskCompletion(),
                 analysis.getCommunicationStatus(), nullableText(json.get("summary")),
                 strings(json.get("strengths")), strings(json.get("weaknesses")), skills);
-    }
-
-    private PlanRecommendedExerciseDto recommendedExercise(Skill skill) {
-        if (skill == null) return null;
-        SkillPrompt prompt = promptManager.findActiveBySkillId(skill.getId()).stream()
-                .findFirst().orElse(null);
-        if (prompt == null) return null;
-        return new PlanRecommendedExerciseDto(
-                prompt.getId(), skill.getId(), skill.getCode(), prompt.getTitle(),
-                skill.getSection(), skill.getSection() == com.sejourfr.app.enums.SkillSection.EO ? 5 : 4);
     }
 
     private int activeVersion(String code) {

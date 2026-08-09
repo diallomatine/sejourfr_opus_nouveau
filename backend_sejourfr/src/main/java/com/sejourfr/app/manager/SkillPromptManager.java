@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,6 +57,40 @@ public class SkillPromptManager {
     /** Les sujets actifs d'une competence, dans l'ordre d'affichage. */
     public List<SkillPrompt> findActiveBySkillId(UUID skillId) {
         return repository.findBySkillIdAndActiveTrueOrderByDisplayOrderAsc(skillId);
+    }
+
+    /**
+     * Les sujets actifs de plusieurs competences, indexes par competence et
+     * dans l'ordre d'affichage. Les competences sans sujet actif sont
+     * <b>presentes avec une liste vide</b> : l'appelant n'a pas a distinguer
+     * « competence inconnue » de « competence sans sujet publie ».
+     */
+    public Map<UUID, List<SkillPrompt>> findActiveBySkillIds(Collection<UUID> skillIds) {
+        Map<UUID, List<SkillPrompt>> bySkill = new LinkedHashMap<>();
+        for (UUID id : skillIds) {
+            bySkill.put(id, new ArrayList<>());
+        }
+        // Un IN vide est un SQL invalide : on n'interroge pas la base pour rien.
+        if (skillIds.isEmpty()) return bySkill;
+        for (SkillPrompt prompt : repository.findActiveBySkillIds(skillIds)) {
+            bySkill.computeIfAbsent(prompt.getSkill().getId(), k -> new ArrayList<>()).add(prompt);
+        }
+        return bySkill;
+    }
+
+    /**
+     * Nombre de sujets actifs par competence active, pour un ensemble de
+     * competences quelconque. Comme sa jumelle par tache, une competence sans
+     * sujet actif est absente : au caller de combler a zero.
+     */
+    public Map<UUID, Long> countActiveBySkillIds(Collection<UUID> skillIds) {
+        Map<UUID, Long> counts = new HashMap<>();
+        // Un IN vide est un SQL invalide : on n'interroge pas la base pour rien.
+        if (skillIds.isEmpty()) return counts;
+        for (Object[] row : repository.countActiveBySkillIds(skillIds)) {
+            counts.put((UUID) row[0], ((Number) row[1]).longValue());
+        }
+        return counts;
     }
 
     /**

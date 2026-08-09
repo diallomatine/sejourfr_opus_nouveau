@@ -293,9 +293,31 @@ de rubriques et files de calibration doivent garder le filtre
   fiable. La relance agrégée réserve `FAILED → ANALYZING` sous verrou pessimiste
   puis déclenche l'async après commit ; une session `COMPLETED` n'est jamais
   rétrogradée par un recorder tardif.
+- **Départage des priorités : allowlist puis alternance, jamais l'alphabet**
+  (`DiagnosticSessionCoordinator`). À confiance égale (`HIGH>MEDIUM>LOW`), c'est
+  le rang de la compétence dans l'allowlist de son sujet
+  (`diagnostic_task_skills.display_order`, l'ordre éditorial d'importance) qui
+  tranche ; à égalité résiduelle, écrit et oral **alternent** au lieu d'être
+  groupés (la première égalité parfaite revient à l'écrit, produit en premier).
+  L'ancien départage se faisait sur l'ordre **alphabétique du code**, ce qui
+  faisait mécaniquement passer toutes les priorités `EE…` devant les `EO…` et les
+  compétences C1/C2 devant les autres. Déterministe, aucun appel LLM.
+- **L'exercice recommandé doit faire avancer** — règle unique partagée par le
+  Plan et l'écran de résultat du diagnostic (`RecommendedExerciseSelector`, seul
+  endroit) : (1) premier sujet **jamais tenté** par `display_order` croissant,
+  (2) sinon le sujet `TO_REINFORCE` dont la dernière tentative est la plus
+  ancienne, (3) sinon le sujet tenté le plus anciennement, (4) sinon rien. Statut
+  dérivé par `SkillStatusResolver`, chargement en lot (2 requêtes quel que soit
+  le nombre de compétences). Avant, les deux appelants prenaient le sujet de rang
+  1 et le resservaient indéfiniment. `estimatedMinutes` est **dérivé du sujet**
+  (EO : temps de parole conseillé × 3 pour lecture/préparation ; EE : milieu de
+  la fourchette de mots à 12 mots/minute ; repli 5/4 min si la donnée manque).
 - **Plan source de vérité serveur** : `GET /api/me/plan` renvoie les états
   `NEEDS_DIAGNOSTIC`, `DIAGNOSTIC_IN_PROGRESS` ou `ACTIVE`, les priorités déjà
-  ordonnées et l'exercice recommandé. `learning_plan_observations` conserve
+  ordonnées, l'exercice recommandé et, sur chaque priorité comme sur chaque
+  compétence observée, `promptCount`/`attemptedCount`/`validatedCount` — mêmes
+  compteurs, même calcul (`SkillProgressCounter` + `SkillProgressTally`) que
+  `SkillDto` du module Compétences, jamais un second calcul parallèle. `learning_plan_observations` conserve
   `skill_id`, source typée + `source_id`, preuve, explication, confiance, date et
   indicateur de baseline. Les fronts affichent cet ordre sans le recalculer ;
   `NOT_OBSERVED` est conservé dans l'historique mais n'annule jamais la dernière
@@ -1198,10 +1220,16 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
   par le réseau : le backend, le web, le mobile et l'admin en tiennent chacun une
   copie écrite à la main, donc rien n'empêche une couche de dériver — et c'est
   arrivé (`NOT_VALIDATED` affiché en trois formulations différentes). Elles sont
-  désormais figées par un test **par couche**, sur exactement les mêmes chaînes :
+  figées par un test **par couche**, sur exactement les mêmes chaînes :
   `SkillLabelsTest` (backend), `lib/skill-labels.test.ts` (web),
   `test/skill_models_test.dart` (mobile). Un libellé qui bouge, ce sont **quatre**
-  fichiers à changer dans la même passe. Côté fronts, on lit toujours la constante
+  fichiers à changer dans la même passe.
+  ⚠️ **Les tests front cités ici sont un héritage** : depuis le 2026-08-09 on
+  n'écrit plus de test sur les fronts (cf. § Tests). Le gel de libellé n'y est donc
+  plus reproduit pour un nouveau contrat — seul `SkillLabelsTest` continue de
+  l'assurer côté backend, et la concordance des copies front se vérifie **à la
+  lecture**. Ne pas créer de nouveau `*.test.ts` / `*_test.dart` pour ça.
+  Côté fronts, on lit toujours la constante
   partagée (`SKILL_*_LABEL` en TS, le `label` de l'enum en Dart) — jamais une
   chaîne recopiée dans un composant, qui est exactement la façon dont le web avait
   décroché.
@@ -1390,9 +1418,10 @@ les demandes de clarification, les **arbitrages et décisions** (on ne délègue
 produit), la synthèse des retours d'agents, et la mise à jour de ce fichier.
 
 **Ce qui ne change pas** : un agent hérite de **toutes** les règles de ce CLAUDE.md et du
-CLAUDE.md local de son sous-projet — parité web ⇄ mobile ⇄ admin, tests dans la même passe,
-hygiène d'architecture, pas de `.md` non demandé. C'est à Claude principal de le rappeler
-dans le prompt de l'agent et de **vérifier à la restitution** que ça a été respecté.
+CLAUDE.md local de son sous-projet — parité web ⇄ mobile ⇄ admin, **tests backend dans la
+même passe et aucun test front** (cf. § Tests), hygiène d'architecture, pas de `.md` non
+demandé. C'est à Claude principal de le rappeler dans le prompt de l'agent et de **vérifier
+à la restitution** que ça a été respecté — y compris qu'aucun agent front n'a créé de test.
 
 ### Hygiène d'architecture (non négociable)
 
@@ -1433,13 +1462,41 @@ lisible — pas de patch rapide qui s'accumule.
   web l'autorisait déjà (rejouable à volonté) — le fix a aligné mobile + backend sur le
   comportement web, pas l'inverse.
 
-### Tests (non négociable)
+### Tests — BACKEND UNIQUEMENT (règle posée le 2026-08-09)
 
-**Tout code ajouté ou modifié doit être couvert par des tests, dans la même passe.**
-Une feature, un bugfix, une règle métier, un endpoint, une migration à impact logique ne
-se ferment pas sans test(s) qui verrouillent le comportement. Avant un refactor d'un bloc
-existant non couvert : écrire d'abord le filet de tests, puis refactorer. Pas d'exception
-« je testerai plus tard ».
+🛑 **On n'écrit plus AUCUN test sur les fronts.** Ni `web_sejoufr`, ni `admin_sejourfr`, ni
+`mobile_sejourfr` : pas de `*.test.ts`, pas de `flutter_test`, pas de test de widget, pas de
+test de libellé gelé, pas de test de layout. **Les seuls tests du dépôt sont ceux du
+backend**, unitaires (`*Test`) et d'intégration (`*IT`). Cette règle **prime** sur toute
+consigne de test écrite ailleurs dans ce fichier ou dans un `CLAUDE.md` local, et sur
+l'habitude « tests dans la même passe » — qui ne vaut désormais **que** pour le backend.
+
+Ce que ça implique concrètement :
+
+- Un changement purement front (écran, style, libellé, composant, provider, routing) se
+  ferme **sans test**. On vérifie par `npx tsc --noEmit` / `npm run build` côté web et admin,
+  `flutter analyze` côté mobile — la compilation et l'analyse statique, rien de plus.
+- **Ne pas créer** de nouveau fichier de test front, même « juste pour geler un libellé ».
+  Les libellés miroirs (`SKILL_*_LABEL`, statuts du plan, verdicts de production…) restent à
+  tenir à la main dans la même passe, mais leur **respect ne se vérifie plus par un test** :
+  c'est une relecture, pas une assertion.
+- **Les tests front existants ne sont pas supprimés d'office** (ils tournent, ils sont verts,
+  les jeter est une passe à part). En revanche on ne les étend plus, et un test front qui
+  devient rouge à cause d'un changement voulu se **met à jour ou se supprime** — il ne
+  justifie jamais de renoncer au changement.
+- La parité web ⇄ mobile ⇄ admin reste **non négociable** : elle se vérifie désormais par
+  lecture croisée des deux implémentations, pas par un test de chaque côté.
+
+**Le backend, lui, ne bouge pas d'un pouce** : tout code ajouté ou modifié y est couvert par
+des tests **dans la même passe**. Une feature, un bugfix, une règle métier, un endpoint, une
+migration à impact logique ne se ferment pas sans test(s) qui verrouillent le comportement.
+Avant un refactor d'un bloc existant non couvert : écrire d'abord le filet de tests, puis
+refactorer. Pas d'exception « je testerai plus tard ».
+
+C'est là que le raisonnement tient : le backend est la **source de vérité** des DTO, des
+règles métier et du freemium ; un test qui y fige une règle protège les trois fronts d'un
+seul endroit, alors qu'un test front ne protège qu'une surface d'affichage — la moins
+coûteuse à corriger, et celle que le propriétaire vérifie lui-même à l'écran.
 
 Bonnes pratiques pour ce projet (cf. `docs/plan-tests-backend.md`, infra déjà en place) :
 

@@ -32,8 +32,7 @@
 }
 
 .intro,
-.stateCard,
-.result {
+.stateCard {
   border: 1px solid var(--color-line);
   border-radius: 24px;
   background: color-mix(in srgb, var(--color-paper) 92%, var(--color-blue-light));
@@ -48,8 +47,7 @@
 }
 
 .heroIcon,
-.stateIcon,
-.successIcon {
+.stateIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -139,6 +137,8 @@
   color: var(--color-ink);
 }
 
+/* Rayon 14 px, aligné sur le Plan : les deux écrans du parcours diagnostic →
+   plan doivent avoir exactement le même bouton. */
 .primaryButton,
 .secondaryButton {
   display: inline-flex;
@@ -147,7 +147,7 @@
   justify-content: center;
   gap: 8px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 14px;
   padding: 11px 20px;
   font: inherit;
   font-size: 14px;
@@ -159,6 +159,7 @@
 .primaryButton {
   color: var(--color-paper);
   background: var(--color-blue);
+  box-shadow: 0 9px 20px color-mix(in srgb, var(--color-blue) 20%, transparent);
 }
 
 .primaryButton:hover:not(:disabled) {
@@ -229,8 +230,7 @@
   color: var(--color-muted);
 }
 
-.actions,
-.resultActions {
+.actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -349,142 +349,656 @@
   width: 100%;
 }
 
+/* ============================================================================
+   Écran RÉSULTAT du diagnostic.
+
+   Langage visuel repris de `docs/diagnostiques/diagnostique.html` : badge de fin
+   vert, bandeau en dégradé bleu avec anneau décoratif, cartes à grands rayons,
+   pastilles de statut colorées, carte de priorité rosée, encart CTA. Couleurs
+   **exclusivement** issues des tokens (`var(--color-*)`), teintes manquantes
+   dérivées en `color-mix()`.
+
+   ⚠️ Ce que la maquette contient et qu'on NE reprend PAS : aucune « formule »
+   inventée, aucun pourcentage de progression. Ce qui est affiché vient du DTO.
+   ============================================================================ */
+
 .result {
-  padding: clamp(24px, 5vw, 46px);
+  display: grid;
+  gap: 26px;
 }
 
 .resultHeader {
-  text-align: center;
+  max-width: 62ch;
 }
 
-.successIcon {
-  width: 52px;
-  height: 52px;
-  margin-bottom: 16px;
-  color: var(--color-green);
+.doneBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
+  border-radius: 999px;
   background: color-mix(in srgb, var(--color-green) 12%, var(--color-paper));
+  color: var(--color-green);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
-.resultHeader > p:last-child {
-  margin: 12px 0 0;
-  color: var(--color-muted);
-}
-
-.levelGrid,
-.resultColumns {
+.doneBadge i {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--color-green);
+  color: var(--color-paper);
+}
+
+.resultHeader h1 {
+  margin: 14px 0 0;
+  font-size: clamp(28px, 5vw, 40px);
+}
+
+.resultLead {
+  margin: 10px 0 0;
+  color: var(--color-muted);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+/* ----------------------------------------------------- bandeau des niveaux */
+
+.levelHero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(20px, 3.5vw, 26px);
+  border-radius: 25px;
+  color: var(--color-paper);
+  background: linear-gradient(145deg, var(--color-blue-dark), var(--color-blue));
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--color-blue) 22%, transparent);
+}
+
+.levelHero::after {
+  content: "";
+  position: absolute;
+  top: -58px;
+  right: -55px;
+  width: 150px;
+  height: 150px;
+  border: 25px solid color-mix(in srgb, var(--color-paper) 7%, transparent);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.levelHeroLabel {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.levelHeroGrid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
-  margin-top: 28px;
+  margin-top: 14px;
 }
 
-.levelGrid article {
+.levelHeroGrid > div {
   display: grid;
-  gap: 5px;
-  padding: 18px;
-  border: 1px solid var(--color-line);
-  border-radius: 15px;
-  text-align: center;
+  gap: 7px;
+  padding: 14px 16px;
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--color-paper) 12%, transparent);
 }
 
-.levelGrid span {
-  color: var(--color-muted);
+.levelHeroGrid span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+/* « A1 non atteint » est un libellé long : il doit pouvoir passer à la ligne
+   plutôt que déborder du bandeau à 360 px. */
+.levelHeroGrid b {
+  font-size: clamp(26px, 5.5vw, 40px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.levelHeroFoot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--color-paper) 16%, transparent);
   font-size: 12px;
   font-weight: 700;
 }
 
-.levelGrid b {
-  color: var(--color-blue);
-  font-size: 25px;
+.levelHeroFoot > span:last-child {
+  font-weight: 500;
+  opacity: 0.72;
 }
 
-.resultColumns {
-  grid-template-columns: 1fr 1fr;
+.levelHeroFoot b {
+  font-size: 14px;
 }
 
-.resultCard,
-.nextAction {
-  padding: 22px;
-  border: 1px solid var(--color-line);
-  border-radius: 16px;
-}
-
-.resultCard h2,
-.nextAction h2 {
+.note {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 14px;
-  color: var(--color-ink);
-  font-size: 18px;
+  align-items: flex-start;
+  gap: 9px;
+  margin: -14px 0 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
-.resultCard h2 svg {
+.note svg {
+  flex: none;
+  margin-top: 1px;
   color: var(--color-blue);
 }
 
-.resultCard ul,
-.priorityList {
-  display: grid;
-  gap: 10px;
+/* --------------------------------------------------------- intertitres */
+
+.blockHead {
+  margin: 0 2px 13px;
+}
+
+.blockHead h2 {
   margin: 0;
-  padding-left: 20px;
-  color: var(--color-ink-2);
+  color: var(--color-ink);
+  font-size: clamp(19px, 2.4vw, 22px);
+  letter-spacing: -0.02em;
 }
 
-.priorityList li {
-  padding-left: 4px;
-}
-
-.priorityList b,
-.priorityList span {
-  display: block;
-}
-
-.priorityList span {
-  margin-top: 2px;
+.blockHead p {
+  max-width: 62ch;
+  margin: 5px 0 0;
   color: var(--color-muted);
   font-size: 13px;
+  line-height: 1.45;
+}
+
+/* ----------------------------------------- ce que le diagnostic révèle */
+
+.snapshot {
+  padding: 8px 18px;
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  background: var(--color-paper);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--color-ink) 6%, transparent);
+}
+
+.snapshotStrengths {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-line-2);
+}
+
+.snapshotStrengths b {
+  color: var(--color-green);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.snapshotStrengths ul {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0 0;
+  padding-left: 19px;
+  color: var(--color-ink-2);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.snapshotRow {
+  display: grid;
+  grid-template-columns: 39px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+}
+
+.snapshotRow + .snapshotRow {
+  border-top: 1px solid var(--color-line-2);
+}
+
+.snapshotIcon {
+  display: grid;
+  place-items: center;
+  width: 39px;
+  height: 39px;
+  border-radius: 13px;
+}
+
+.snapshotRow b {
+  display: block;
+  color: var(--color-ink);
+  font-size: 13.5px;
+  overflow-wrap: anywhere;
+}
+
+.snapshotRow small {
+  display: block;
+  margin-top: 3px;
+  color: var(--color-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.snapshotStatus {
+  flex: none;
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* Une seule échelle de teintes, partagée avec les signaux de production. */
+.snapshotRow[data-tone="good"] .snapshotIcon,
+.snapshotRow[data-tone="good"] .snapshotStatus {
+  background: color-mix(in srgb, var(--color-green) 12%, transparent);
+  color: var(--color-green);
+}
+
+.snapshotRow[data-tone="mid"] .snapshotIcon,
+.snapshotRow[data-tone="mid"] .snapshotStatus {
+  background: color-mix(in srgb, var(--color-amber) 16%, transparent);
+  color: var(--color-amber-dark);
+}
+
+.snapshotRow[data-tone="weak"] .snapshotIcon,
+.snapshotRow[data-tone="weak"] .snapshotStatus {
+  background: var(--color-red-light);
+  color: var(--color-red-dark);
+}
+
+.snapshotRow[data-tone="none"] .snapshotIcon,
+.snapshotRow[data-tone="none"] .snapshotStatus {
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+}
+
+/* ------------------------------------------------------- priorité n°1 */
+
+.priorityCard {
+  padding: clamp(17px, 3vw, 22px);
+  border: 1px solid color-mix(in srgb, var(--color-red) 20%, var(--color-line));
+  border-radius: 22px;
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--color-red-light) 70%, var(--color-paper)),
+    var(--color-paper)
+  );
+}
+
+.priorityTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.priorityImpact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-red-dark);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.priorityRank {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.priorityCard h3 {
+  margin: 12px 0 7px;
+  color: var(--color-ink);
+  font-size: clamp(19px, 3vw, 24px);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.priorityCard > p {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--color-ink-2);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.priorityEvidence {
+  display: grid;
+  gap: 5px;
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-red) 14%, var(--color-line));
+  border-radius: 15px;
+  background: var(--color-paper);
+  color: var(--color-ink-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.priorityEvidence span {
+  color: var(--color-red-dark);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.priorityCta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 15px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.priorityCta:hover {
+  border-color: color-mix(in srgb, var(--color-blue) 32%, var(--color-line));
+}
+
+.priorityCta > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.priorityCtaMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.nextPriorities {
+  display: grid;
+  gap: 9px;
+  margin: 11px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nextPriorities li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 15px;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: var(--color-paper);
+}
+
+.nextPriorities li > span {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  flex: none;
+  border-radius: 9px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.nextPriorities b {
+  display: block;
+  color: var(--color-ink);
+  font-size: 13.5px;
+}
+
+.nextPriorities small {
+  display: block;
+  margin-top: 3px;
+  color: var(--color-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+/* ------------------------------------------------------ les 2 productions */
+
+.productions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.production {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 17px;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--color-paper);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--color-ink) 5%, transparent);
+}
+
+.productionHead {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.productionIcon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 13px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.productionHead > div {
+  display: grid;
+  min-width: 0;
+}
+
+.productionHead b {
+  color: var(--color-ink);
+  font-size: 14px;
+}
+
+.productionHead span {
+  margin-top: 2px;
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.productionSummary {
+  margin: 0;
+  color: var(--color-ink-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.productionSignals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.productionSignals li {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.productionSignals li[data-tone="good"] {
+  background: color-mix(in srgb, var(--color-green) 12%, transparent);
+  color: var(--color-green);
+}
+
+.productionSignals li[data-tone="mid"] {
+  background: color-mix(in srgb, var(--color-amber) 16%, transparent);
+  color: var(--color-amber-dark);
+}
+
+.productionSignals li[data-tone="weak"] {
+  background: var(--color-red-light);
+  color: var(--color-red-dark);
+}
+
+.productionSignals li[data-tone="none"] {
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+}
+
+.productionWeak {
+  padding-top: 12px;
+  border-top: 1px solid var(--color-line-2);
+}
+
+.productionWeak b {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.productionWeak ul {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0 0;
+  padding-left: 19px;
+  color: var(--color-ink-2);
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
 .emptyText {
   margin: 0;
   color: var(--color-muted);
-}
-
-.nextAction {
-  margin-top: 14px;
-  border-color: color-mix(in srgb, var(--color-blue) 28%, var(--color-line));
-  background: var(--color-blue-soft);
-}
-
-.nextAction h2 {
-  margin: 0;
-  font-size: 22px;
-}
-
-.nextAction p {
-  margin: 8px 0;
-  color: var(--color-ink-2);
-}
-
-.nextAction > span:last-child {
-  color: var(--color-blue);
   font-size: 13px;
-  font-weight: 800;
 }
 
+/* --------------------------------------------------------------- CTA final */
+
+.ctaBox {
+  padding: clamp(22px, 4vw, 30px);
+  border: 1px solid color-mix(in srgb, var(--color-blue) 16%, var(--color-line));
+  border-radius: 24px;
+  background: var(--color-blue-soft);
+  text-align: center;
+}
+
+.ctaSpark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 12px;
+  border-radius: 15px;
+  background: var(--color-blue);
+  color: var(--color-paper);
+}
+
+.ctaBox h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: clamp(20px, 3vw, 25px);
+  letter-spacing: -0.02em;
+}
+
+.ctaBox > p {
+  max-width: 46ch;
+  margin: 8px auto 18px;
+  color: var(--color-muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.ctaBox .primaryButton {
+  width: min(100%, 360px);
+}
+
+/* Le repli EST le CTA secondaire : un seul élément, aucun JS. */
 .details {
-  margin-top: 30px;
-  padding-top: 22px;
-  border-top: 1px solid var(--color-line);
+  margin-top: 6px;
+  text-align: left;
 }
 
 .details summary {
-  width: fit-content;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  width: min(100%, 360px);
+  margin: 0 auto;
+  padding: 10px 18px;
+  border-radius: 14px;
   cursor: pointer;
   color: var(--color-blue);
+  font-size: 14px;
   font-weight: 800;
+  list-style: none;
+}
+
+.details summary::-webkit-details-marker {
+  display: none;
+}
+
+.details[open] summary {
+  background: color-mix(in srgb, var(--color-paper) 70%, transparent);
 }
 
 .observations {
@@ -496,7 +1010,8 @@
 .observations article {
   padding: 16px;
   border: 1px solid var(--color-line);
-  border-radius: 13px;
+  border-radius: 16px;
+  background: var(--color-paper);
 }
 
 .observations article > div {
@@ -506,14 +1021,28 @@
   gap: 12px;
 }
 
+/* Mêmes teintes que les pastilles du haut d'écran : un même état ne peut pas
+   être bleu ici et rouge trois blocs plus haut. */
 .observations span {
   flex: none;
-  padding: 4px 8px;
+  padding: 5px 9px;
   border-radius: 999px;
-  background: var(--color-blue-light);
-  color: var(--color-blue);
-  font-size: 11px;
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
   font-weight: 800;
+  white-space: nowrap;
+}
+
+.observations span[data-status="PRIORITY"] {
+  background: var(--color-red-light);
+  color: var(--color-red-dark);
+}
+
+.observations span[data-status="TO_REINFORCE"] {
+  background: color-mix(in srgb, var(--color-amber) 16%, transparent);
+  color: var(--color-amber-dark);
 }
 
 .observations span[data-status="SOLID"] {
@@ -571,6 +1100,25 @@
   }
 }
 
+@media (max-width: 620px) {
+  /* Deux niveaux côte à côte tiennent jusqu'ici ; en dessous ils s'empilent
+     plutôt que de casser le chiffre sur deux lignes. */
+  .levelHeroGrid,
+  .productions {
+    grid-template-columns: 1fr;
+  }
+
+  .priorityCta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .priorityCta > span:first-child {
+    white-space: normal;
+  }
+}
+
 @media (max-width: 520px) {
   .page {
     padding-right: 14px;
@@ -578,14 +1126,18 @@
   }
 
   .intro,
-  .stateCard,
-  .result {
+  .stateCard {
     border-radius: 18px;
   }
 
-  .levelGrid,
-  .resultColumns {
-    grid-template-columns: 1fr;
+  .snapshotRow {
+    grid-template-columns: 39px minmax(0, 1fr);
+    row-gap: 8px;
+  }
+
+  .snapshotStatus {
+    grid-column: 2;
+    justify-self: start;
   }
 
   .primaryButton,
@@ -593,7 +1145,6 @@
     width: 100%;
   }
 
-  .resultActions,
   .actions {
     display: grid;
     grid-template-columns: 1fr;

@@ -61,78 +61,92 @@ void main() {
     expect(_submitButton(tester).onPressed, isNull);
   });
 
-  testWidgets('le résultat reste léger avec trois priorités au maximum',
+  /// Écran long : on lui donne une fenêtre haute plutôt que d'enchaîner les
+  /// `scrollUntilVisible`, qui s'arrêtent dès que l'élément est *construit*
+  /// (cache du viewport) et pas quand il est réellement visible. Bonus : un
+  /// débordement de mise en page fait échouer le test.
+  Future<void> pumpTall(WidgetTester tester, Widget child) async {
+    tester.view.physicalSize = const Size(400, 3200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: child)));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets(
+      'le résultat rend les niveaux, les compétences observées et les deux productions',
       (tester) async {
     PlanRecommendedExercise? openedExercise;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: DiagnosticResultView(
-            result: DiagnosticResult(
-              strengths: const ['Message clair'],
-              priorities: [
-                for (var index = 0; index < 3; index++)
-                  _priority('Priorité ${index + 1}'),
-              ],
-              mainPriorityExplanation:
-                  'Ajoutez une raison et un exemple concret.',
-              nextAction: _recommendedExercise,
-            ),
-            objective: 'B2',
-            onOpenPlan: () {},
-            onOpenRecommended: (exercise) => openedExercise = exercise,
-          ),
+    await pumpTall(
+      tester,
+      DiagnosticResultView(
+        result: DiagnosticResult(
+          written: _production(NiveauCecrl.b1, SkillSection.ee),
+          oral: _production(NiveauCecrl.a2, SkillSection.eo),
+          strengths: const ['Vocabulaire du quotidien maîtrisé'],
+          priorities: [
+            for (var index = 0; index < 3; index++)
+              _priority('Priorité ${index + 1}'),
+          ],
+          mainPriorityExplanation: 'Ajoutez une raison et un exemple concret.',
+          nextAction: _recommendedExercise,
         ),
+        objective: 'B2',
+        onOpenPlan: () {},
+        onOpenRecommended: (exercise) => openedExercise = exercise,
       ),
     );
 
+    expect(find.text('Diagnostic terminé'), findsOneWidget);
     expect(find.text('Objectif : B2'), findsOneWidget);
+    // Les deux niveaux estimés, côte à côte dans le héros.
+    expect(find.text('B1'), findsWidgets);
+    expect(find.text('A2'), findsWidgets);
+
+    // Ce que le diagnostic révèle : compétences observées, teintées par statut.
+    expect(find.text('Ce que votre diagnostic révèle'), findsOneWidget);
+    expect(find.text('Observée EE'), findsOneWidget);
+    expect(find.text('Observée EO'), findsOneWidget);
+    // Libellé de statut aligné sur le web.
+    expect(find.text('Prioritaire'), findsWidgets);
+
+    // La priorité n°1 est mise en avant, les suivantes restent listées.
+    expect(find.text('IMPACT ÉLEVÉ'), findsOneWidget);
+    expect(find.text('Priorité 1/3'), findsOneWidget);
     expect(find.text('Priorité 1'), findsOneWidget);
     expect(find.text('Priorité 2'), findsOneWidget);
     expect(find.text('Priorité 3'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('À TRAVAILLER MAINTENANT'),
-      250,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('Donner une raison et un exemple'), findsOneWidget);
-    expect(find.text('4 min · écrit'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Commencer l’exercice'),
-      180,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -160));
-    await tester.pump();
-    await tester.tap(find.text('Commencer l’exercice'));
+
+    // Le gisement jusqu'ici jamais affiché : résumé, accomplissement de la
+    // consigne, efficacité du message et points à travailler.
+    expect(find.text('Vos deux productions'), findsOneWidget);
+    expect(find.text('Production exploitable.'), findsNWidgets(2));
+    expect(find.text('Consigne accomplie'), findsNWidgets(2));
+    expect(find.text('Message clair'), findsNWidgets(2));
+    expect(find.text('À préciser'), findsNWidgets(2));
+
+    await tester.tap(find.textContaining('Commencer l’exercice'));
     expect(openedExercise, same(_recommendedExercise));
-    expect(find.text('Voir mon plan'), findsOneWidget);
+    expect(find.text('Découvrir mon plan'), findsOneWidget);
   });
 
-  testWidgets('le résultat sans exercice recommande le Plan en repli',
+  testWidgets('le résultat sans exercice ne propose que le plan',
       (tester) async {
     var openedPlan = false;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: DiagnosticResultView(
-            result: DiagnosticResult(
-              strengths: const ['Message clair'],
-              priorities: [_priority('Priorité 1')],
-            ),
-            onOpenPlan: () => openedPlan = true,
-            onOpenRecommended: (_) {},
-          ),
+    await pumpTall(
+      tester,
+      DiagnosticResultView(
+        result: DiagnosticResult(
+          strengths: const ['Vocabulaire du quotidien maîtrisé'],
+          priorities: [_priority('Priorité 1')],
         ),
+        onOpenPlan: () => openedPlan = true,
+        onOpenRecommended: (_) {},
       ),
     );
 
-    await tester.scrollUntilVisible(
-      find.text('Commencer mon plan'),
-      250,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.text('Commencer mon plan'));
+    expect(find.textContaining('Commencer l’exercice'), findsNothing);
+    await tester.tap(find.text('Découvrir mon plan'));
     expect(openedPlan, isTrue);
   });
 }
@@ -162,6 +176,20 @@ DiagnosticSkillObservation _priority(String title) =>
       status: LearningPlanSkillStatus.priority,
       confidence: ObservationConfidence.medium,
       priority: true,
+    );
+
+DiagnosticProductionResult _production(
+  NiveauCecrl level,
+  SkillSection section,
+) =>
+    DiagnosticProductionResult(
+      levelEstimate: level,
+      taskCompletion: DiagnosticTaskCompletion.completed,
+      communicationStatus: DiagnosticCommunicationStatus.effective,
+      summary: 'Production exploitable.',
+      strengths: const ['Message compréhensible'],
+      weaknesses: const ['À préciser'],
+      skills: [_priority('Observée ${section.wire}')],
     );
 
 const _recommendedExercise = PlanRecommendedExercise(

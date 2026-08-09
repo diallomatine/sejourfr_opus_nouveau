@@ -90,9 +90,9 @@ public class SkillService {
             promptCountByTask.merge(skill.getTaskCode(), (int) prompts, Integer::sum);
         }
 
-        Map<SkillTaskCode, Tally> tallies = new EnumMap<>(SkillTaskCode.class);
+        Map<SkillTaskCode, SkillProgressTally> tallies = new EnumMap<>(SkillTaskCode.class);
         for (SkillTaskCode code : taskCodes) {
-            tallies.put(code, new Tally());
+            tallies.put(code, new SkillProgressTally());
         }
         for (UserSkillAttempt attempt : latestByPrompt.values()) {
             SkillPrompt prompt = attempt.getSkillPrompt();
@@ -102,7 +102,7 @@ public class SkillService {
 
         List<SkillTaskProgressDto> out = new ArrayList<>(taskCodes.size());
         for (SkillTaskCode code : taskCodes) {
-            Tally tally = tallies.get(code);
+            SkillProgressTally tally = tallies.get(code);
             out.add(new SkillTaskProgressDto(
                     code,
                     section,
@@ -110,9 +110,9 @@ public class SkillService {
                     code.getTargetLevel(),
                     skillCounts.getOrDefault(code, 0L).intValue(),
                     promptCountByTask.getOrDefault(code, 0),
-                    tally.attempted,
-                    tally.validated,
-                    tally.toReinforce));
+                    tally.attempted(),
+                    tally.validated(),
+                    tally.toReinforce()));
         }
         return out;
     }
@@ -155,23 +155,24 @@ public class SkillService {
         Map<UUID, UserSkillAttempt> latestByPrompt =
                 attemptManager.findLatestPerPromptByTaskCodes(userId, scope);
 
-        Map<UUID, Tally> tallyBySkill = new HashMap<>();
+        Map<UUID, SkillProgressTally> tallyBySkill = new HashMap<>();
         for (UserSkillAttempt attempt : latestByPrompt.values()) {
             SkillPrompt prompt = attempt.getSkillPrompt();
             if (!isVisible(prompt)) continue;
-            tallyBySkill.computeIfAbsent(prompt.getSkill().getId(), k -> new Tally())
+            tallyBySkill.computeIfAbsent(prompt.getSkill().getId(), k -> new SkillProgressTally())
                     .add(statusResolver.resolve(attempt));
         }
 
         List<SkillDto> out = new ArrayList<>(skills.size());
         for (Skill skill : skills) {
-            Tally tally = tallyBySkill.getOrDefault(skill.getId(), new Tally());
+            SkillProgressTally tally = tallyBySkill.getOrDefault(
+                    skill.getId(), new SkillProgressTally());
             out.add(skillMapper.toDto(
                     skill,
                     promptCountBySkill.getOrDefault(skill.getId(), 0L).intValue(),
-                    tally.attempted,
-                    tally.validated,
-                    tally.toReinforce));
+                    tally.attempted(),
+                    tally.validated(),
+                    tally.toReinforce()));
         }
         return out;
     }
@@ -187,7 +188,7 @@ public class SkillService {
                 attemptManager.findLatestPerPromptBySkill(userId, skillId);
         Map<UUID, Long> attemptCounts = attemptManager.countPerPromptBySkill(userId, skillId);
 
-        Tally tally = new Tally();
+        SkillProgressTally tally = new SkillProgressTally();
         List<SkillPromptSummaryDto> summaries = new ArrayList<>(prompts.size());
         for (SkillPrompt prompt : prompts) {
             UserSkillAttempt latest = latestByPrompt.get(prompt.getId());
@@ -201,7 +202,7 @@ public class SkillService {
         }
 
         SkillDto dto = skillMapper.toDto(
-                skill, prompts.size(), tally.attempted, tally.validated, tally.toReinforce);
+                skill, prompts.size(), tally.attempted(), tally.validated(), tally.toReinforce());
         return new SkillDetailDto(dto, summaries);
     }
 
@@ -317,19 +318,5 @@ public class SkillService {
     /** Un sujet ne compte dans la progression que s'il est encore affichable. */
     private static boolean isVisible(SkillPrompt prompt) {
         return prompt.isActive() && prompt.getSkill().isActive();
-    }
-
-    /** Compteurs de progression accumules sur un ensemble de sujets. */
-    private static final class Tally {
-        private int attempted;
-        private int validated;
-        private int toReinforce;
-
-        void add(SkillPromptStatus status) {
-            if (!status.isAttempted()) return;
-            attempted++;
-            if (status == SkillPromptStatus.VALIDATED) validated++;
-            if (status == SkillPromptStatus.TO_REINFORCE) toReinforce++;
-        }
     }
 }
