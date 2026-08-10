@@ -1061,7 +1061,7 @@ export const skillApi = {
         return apiFetch<SkillDto[]>(`/api/skills?section=${section}`, {auth: true});
     },
 
-    /** Compétence + ses 5 petits sujets avec leur statut. */
+    /** Compétence + ses 15 petits sujets avec leur statut. */
     getSkill(skillId: string): Promise<SkillDetailDto> {
         return apiFetch<SkillDetailDto>(`/api/skills/${skillId}`, {auth: true});
     },

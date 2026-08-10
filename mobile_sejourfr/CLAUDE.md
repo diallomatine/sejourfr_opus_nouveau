@@ -1507,7 +1507,7 @@ Deux champs backend nouveaux, câblés dans la même passe (miroirs :
 
 Espace **voisin** des sujets TCF complets, jamais un remplacement : on y travaille **un
 critère à la fois** sur de petits sujets de production ouverte. 6 tâches × 8 compétences ×
-5 petits sujets, chacun avec 3 références comparatives écrites en base.
+15 petits sujets, chacun avec 3 références comparatives écrites en base.
 
 **Les 5 niveaux** : épreuve → tâche → *deux espaces* (Sujets | **Compétences** | Exemples)
 → une compétence → un petit sujet → son résultat.

@@ -912,7 +912,7 @@ export interface SkillDto extends SkillLockable {
 
 /** Un petit sujet dans la liste d'une compétence. Porte le même `locked` que
  *  `SkillPromptDto` : c'est cette forme-là que sert `GET /api/skills/{id}`,
- *  donc c'est elle qui décide du cadenas dans la liste des 5 sujets. */
+ *  donc c'est elle qui décide du cadenas dans la liste des 15 sujets. */
 export interface SkillPromptSummaryDto extends SkillLockable {
     id: string;
     code: string; // "EE1-C1-S1"

@@ -92,7 +92,7 @@ final skillsListProvider = Provider.autoDispose
 void invalidateSkillsSection(WidgetRef ref, SkillSection section) =>
     ref.invalidate(skillsSectionProvider(section));
 
-/// Une compétence + ses 5 petits sujets avec statut.
+/// Une compétence + ses 15 petits sujets avec statut.
 final skillDetailProvider =
     FutureProvider.autoDispose.family<SkillDetail, String>(
   (ref, skillId) => ref.watch(skillRepositoryProvider).getSkillDetail(skillId),

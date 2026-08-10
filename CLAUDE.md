@@ -1186,11 +1186,12 @@ Voie **parallèle** aux productions complètes, pas une réutilisation : le cand
 travaille **une micro-compétence à la fois** sur un « petit sujet » de quelques
 phrases, et l'IA ne rend qu'un **verdict sur le critère unique du sujet** —
 **aucune note /20, aucun niveau CECRL** (le tool-schema ne prévoit aucun champ
-pour les loger). Schéma en `V025`, contenu seedé en `V300..V305`.
+pour les loger). Schéma en `V025`, contenu seedé en `V300..V305` (lot 1) puis
+`V312..V317` (lot 2).
 
 **Où ça vit** — tables `skills`, `skill_prompts`, `skill_references`,
 `user_skill_attempts` (DDL `00_schema/V025__schema_competences_tcf.sql`, seed
-`300_tcf/competences/V300..V305`). Backend : `service/competence/` (analyse IA) +
+`300_tcf/competences/V300..V317`). Backend : `service/competence/` (analyse IA) +
 `SkillService` / `SkillAttemptService` / `SkillStatusResolver` /
 `SkillAnalysisAccessService` / `AdminSkillService`. **12 endpoints utilisateur**
 (`/api/skills*`, `/api/skill-attempts*`, `/api/skill-prompts*`) et **11 endpoints
@@ -1224,9 +1225,9 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
   propre** : `CompetenceLlmConfig` lit
   `sejourfr.production-evaluation.provider`, comme tout le reste (règle « un seul
   correcteur configurable »). Ne pas lui en donner un second.
-- **Volume figé** : 6 tâches (`EE1..EE3`, `EO1..EO3`) × **8 compétences** × **5
-  sujets** × **3 références** (`INSUFFICIENT`/`EXPECTED`/`EXCELLENT`) = 48 / 240 /
-  720. Les 6 tâches sont un référentiel officiel (**enum `SkillTaskCode`, pas de
+- **Volume figé** : 6 tâches (`EE1..EE3`, `EO1..EO3`) × **8 compétences** × **15
+  sujets** × **3 références** (`INSUFFICIENT`/`EXPECTED`/`EXCELLENT`) = 48 / 720 /
+  2160. Les 6 tâches sont un référentiel officiel (**enum `SkillTaskCode`, pas de
   table**). Ce compte est verrouillé par **`SkillSeedIT`**, pas par le DDL : la
   contrainte `display_order BETWEEN 1 AND 8` gelait le catalogue (les 8 rangs
   légaux étant tous seedés, l'admin ne pouvait plus rien créer) — elle est passée
@@ -1236,11 +1237,19 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
   `contenu/*.json`, une fiche par tâche) et se rejoue par
   `cd backend_sejourfr && python3 tools/competences/generer_seed.py` (Python 3
   seul, aucune dépendance). **On édite le JSON puis on régénère, jamais le SQL** :
-  modifier un `V300..V305` à la main désynchronise les deux et la régénération
-  suivante écrase le correctif. Le script valide le contenu (8×5×3, cohérence
-  EE mots / EO durée, unicité des codes) et **refuse de générer** sur du contenu
-  non conforme ; les UUID sont déterministes (uuid5 sur le code métier), donc
-  stables d'un environnement à l'autre.
+  modifier un `V300..V317` à la main désynchronise les deux et la régénération
+  suivante écrase le correctif. Le script valide le contenu (8×15×3, cohérence
+  EE mots / EO durée, unicité des codes **et unicité éditoriale** — pas deux fois
+  le même titre ni la même situation dans une tâche, quasi-doublons de contexte
+  détectés par trigrammes) et **refuse de générer** sur du contenu non conforme ;
+  les UUID sont déterministes (uuid5 sur le code métier), donc stables d'un
+  environnement à l'autre.
+  - **Deux lots, parce que le lot 1 est déjà appliqué.** Les sujets de
+    `display_order` 1-5 sortent en `V300..V305` (+ guidage `V306..V311`), ceux de
+    6-15 en `V312..V317`. Régénérer doit rendre `V300..V311` **au bit près** —
+    toute autre sortie invaliderait leur somme de contrôle Flyway sur les bases
+    qui les ont jouées. Un nouveau lot de contenu = de nouvelles migrations,
+    jamais une réécriture des précédentes.
   - Il ne sert qu'à **republier depuis une base propre**. Une fois les migrations
     appliquées, le **contenu vivant s'édite depuis la console d'administration**
     (`admin/features/skills/`) — c'est la base qui fait foi, pas le JSON.

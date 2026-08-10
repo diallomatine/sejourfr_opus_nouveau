@@ -145,7 +145,7 @@ class SkillControllerIT extends AbstractIntegrationTest {
                 .filter(s -> s.id().equals(target.getId())).findFirst().orElseThrow();
 
         assertThat(touched.attemptedCount()).isEqualTo(1);
-        assertThat(touched.promptCount()).isEqualTo(5);
+        assertThat(touched.promptCount()).isEqualTo(15);
         // Le lot de tentatives couvre les 3 taches : aucune ne doit deborder
         // sur une competence voisine.
         assertThat(wholeExam).filteredOn(s -> !s.id().equals(target.getId()))

@@ -353,7 +353,7 @@ class SkillPromptSummary {
       );
 }
 
-/// Détail d'une compétence : la compétence + ses 5 petits sujets.
+/// Détail d'une compétence : la compétence + ses 15 petits sujets.
 class SkillDetail {
   const SkillDetail({required this.skill, required this.prompts});
 

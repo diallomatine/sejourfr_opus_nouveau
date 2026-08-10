@@ -41,7 +41,7 @@ function shortDate(iso: string): string {
 
 /**
  * Niveau 4 de la spec, écran d'une compétence : ce qu'elle travaille, où en est
- * le candidat, et ses 5 petits sujets.
+ * le candidat, et ses 15 petits sujets.
  *
  * La progression affichée est le nombre de **sujets traités**, pas de sujets
  * validés (spec §12) : on ne veut pas laisser croire qu'il faut tout valider

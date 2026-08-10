@@ -1314,7 +1314,7 @@ disparu, cf. « rapport express »), `ProductionExams` (hero, 3 indicateurs, pac
 Troisième espace d'une tâche productive, **à côté** des sujets TCF complets et
 des exemples (spec `docs/skills/SEJOURFR_SPEC_COMPETENCES_EE_EO.md`, contrat
 gelé partagé backend/mobile/admin). Un petit sujet entraîne **un seul critère**,
-pas une copie entière : 6 tâches × 8 compétences × 5 sujets, chacun livré avec
+pas une copie entière : 6 tâches × 8 compétences × 15 sujets, chacun livré avec
 3 productions de référence.
 
 **Ce n'est pas la voie de notation des productions.** Un micro-exercice n'a
@@ -1328,7 +1328,7 @@ sujet. Ne jamais réintroduire `ProductionScoreHero`/`formatNoteSur20` ici.
   `…/tache/[n]/competences`, ce n'est pas un état d'onglet local.
 - **Routes** (wrappers minces injectant `EE_CONFIG`/`EO_CONFIG`, comme toutes
   les pages production), sous `/entrainement/tcf/{ee,eo}/tache/[n]/competences` :
-  `/` (les 8 compétences) · `/[skillId]` (5 sujets + filtres) ·
+  `/` (les 8 compétences) · `/[skillId]` (15 sujets + filtres) ·
   `/[skillId]/[promptId]` (production) ·
   `/[skillId]/[promptId]/resultat/[attemptId]` (retour + références).
 - **Composants** `app/_components/competences/` : `CompetencesList`,

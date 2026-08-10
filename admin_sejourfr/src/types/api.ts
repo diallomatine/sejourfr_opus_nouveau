@@ -1113,7 +1113,7 @@ export interface AdminSkillDto {
   /** Courte explication adressée au candidat : ce qu'il travaille et pourquoi ça compte au TCF. */
   description: string;
   /**
-   * Critère général observé dans les 5 petits sujets de la compétence.
+   * Critère général observé dans les 15 petits sujets de la compétence.
    * Colonne `skills.general_criterion`, NOT NULL. À ne pas confondre avec
    * `AdminSkillPromptDto.uniqueCriterion`, propre à un seul sujet.
    */

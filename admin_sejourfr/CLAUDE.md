@@ -119,7 +119,7 @@ Endpoints utilisés actuellement :
 
 ### Compétences TCF EE/EO (`features/skills/`)
 
-Console d'édition du **contenu** du module Compétences (48 compétences × 5 petits
+Console d'édition du **contenu** du module Compétences (48 compétences × 15 petits
 sujets × 3 références). Ce contenu est éditorial et vit en base : sans cet écran,
 corriger une faute de frappe dans un sujet imposerait une migration Flyway.
 
@@ -130,7 +130,7 @@ corriger une faute de frappe dans un sujet imposerait une migration Flyway.
 - **Deux textes distincts sur une compétence**, tous deux obligatoires et
   `NOT NULL` en base : `description` (courte explication adressée au candidat —
   ce qu'il travaille et pourquoi ça compte au TCF) et `generalCriterion` (le
-  critère général, ce qui sera observé dans les 5 petits sujets). Ne pas
+  critère général, ce qui sera observé dans les 15 petits sujets). Ne pas
   confondre ce dernier avec `AdminSkillPromptDto.uniqueCriterion`, qui ne vaut
   que pour **un** sujet. Le `POST` échoue en 400 sans `generalCriterion` ; le
   `PATCH` tolère l'absence (« ne touche pas »), mais le front envoie toujours

@@ -241,7 +241,7 @@ export function SkillDetailPage() {
             {prompts.length === 0 ? (
               <EmptyState
                 title="Aucun petit sujet"
-                description="Une compétence sert au moins 5 petits sujets. Commencez par en créer un."
+                description="Une compétence sert 15 petits sujets. Commencez par en créer un."
               />
             ) : (
               <div className={tableStyles.tableWrap}>
