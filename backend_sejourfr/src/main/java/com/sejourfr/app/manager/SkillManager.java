@@ -95,6 +95,21 @@ public class SkillManager {
     }
 
     /**
+     * La premiere competence active de chaque tache, indexee par tache. Une
+     * tache sans aucune competence active est simplement absente de la map.
+     *
+     * <p>Une seule requete de 6 lignes : c'est le socle du verrou freemium du
+     * module, evalue a chaque ecran.
+     */
+    public Map<SkillTaskCode, UUID> findFirstActiveIdPerTaskCode() {
+        Map<SkillTaskCode, UUID> firstIds = new EnumMap<>(SkillTaskCode.class);
+        for (Object[] row : repository.findFirstActiveIdPerTaskCode()) {
+            firstIds.put((SkillTaskCode) row[0], (UUID) row[1]);
+        }
+        return firstIds;
+    }
+
+    /**
      * Toutes les competences d'une epreuve, <b>desactivees comprises</b>, dans
      * l'ordre d'affichage de la console. {@code null} = toutes les epreuves.
      * Reserve a l'admin (statistiques).

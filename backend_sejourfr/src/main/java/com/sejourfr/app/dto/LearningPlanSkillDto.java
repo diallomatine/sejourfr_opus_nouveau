@@ -20,5 +20,11 @@ public record LearningPlanSkillDto(
         Instant lastObservedAt,
         int promptCount,
         int attemptedCount,
-        int validatedCount
+        int validatedCount,
+        /**
+         * {@code true} quand ce candidat ne peut pas produire sur cette
+         * compétence. La compétence reste affichée avec son historique : seul
+         * l'accès est verrouillé.
+         */
+        boolean locked
 ) {}

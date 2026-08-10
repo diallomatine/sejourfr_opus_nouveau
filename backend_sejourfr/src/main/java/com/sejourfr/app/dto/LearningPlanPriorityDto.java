@@ -26,5 +26,12 @@ public record LearningPlanPriorityDto(
         PlanRecommendedExerciseDto recommendedExercise,
         int promptCount,
         int attemptedCount,
-        int validatedCount
+        int validatedCount,
+        /**
+         * {@code true} quand ce candidat ne peut pas produire sur la compétence
+         * de cette priorité. Le Plan reste <b>intégralement visible</b> : on
+         * pose un cadenas, on ne masque jamais une priorité — masquer priverait
+         * le candidat du résultat de sa propre production.
+         */
+        boolean locked
 ) {}

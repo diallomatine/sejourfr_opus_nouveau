@@ -13,11 +13,16 @@ import org.springframework.stereotype.Component;
 @Component
 public class SkillMapper {
 
+    /**
+     * {@code locked} est passe, pas devine : la regle d'acces appartient a
+     * {@code SkillAccessService} et se resout une fois pour toute une liste.
+     */
     public SkillDto toDto(Skill skill,
                           int promptCount,
                           int attemptedCount,
                           int validatedCount,
-                          int toReinforceCount) {
+                          int toReinforceCount,
+                          boolean locked) {
         return new SkillDto(
                 skill.getId(),
                 skill.getSection(),
@@ -31,6 +36,7 @@ public class SkillMapper {
                 promptCount,
                 attemptedCount,
                 validatedCount,
-                toReinforceCount);
+                toReinforceCount,
+                locked);
     }
 }

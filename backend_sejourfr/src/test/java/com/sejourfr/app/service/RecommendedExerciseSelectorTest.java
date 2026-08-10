@@ -30,6 +30,7 @@ class RecommendedExerciseSelectorTest {
 
     private SkillPromptManager promptManager;
     private UserSkillAttemptManager attemptManager;
+    private SkillAccessService accessService;
     private RecommendedExerciseSelector selector;
     private final UUID userId = UUID.randomUUID();
 
@@ -37,8 +38,11 @@ class RecommendedExerciseSelectorTest {
     void setUp() {
         promptManager = mock(SkillPromptManager.class);
         attemptManager = mock(UserSkillAttemptManager.class);
+        accessService = mock(SkillAccessService.class);
+        when(accessService.resolve(userId))
+                .thenReturn(SkillAccessService.SkillAccess.UNLIMITED);
         selector = new RecommendedExerciseSelector(
-                promptManager, attemptManager, new SkillStatusResolver());
+                promptManager, attemptManager, new SkillStatusResolver(), accessService);
     }
 
     @Test

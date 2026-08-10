@@ -27,7 +27,7 @@ import {clearEeDraft, EeWritingForm, setEeDraft} from "@/app/_components/product
 import {EoRecordingForm} from "@/app/_components/production/EoRecordingForm";
 import {type ProductionConfig} from "@/app/_components/production/config";
 import {PromptGuidance} from "./PromptGuidance";
-import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
+import {SkillLockedCard, SkillShell} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
 
 /**
@@ -322,6 +322,25 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
           <p className={s.empty}>Chargement du sujet…</p>
         ) : !prompt || !task ? (
           <p className={s.empty}>Sujet introuvable.</p>
+        ) : prompt.locked ? (
+          /* Sujet verrouillé atteint par son URL (lien, historique, retour
+             arrière). On garde le repère « où suis-je » et on retire la zone de
+             production : le serveur refuserait la soumission en 403, et laisser
+             produire pour rien ferait perdre la réponse au candidat. Le contenu
+             du sujet n'est pas déroulé — il fait partie de ce qui s'achète. */
+          <>
+            <div className={s.compactLine}>
+              <span className={s.compactStep}>
+                Sujet {prompt.displayOrder}
+                {total > 0 ? `/${total}` : ""}
+              </span>
+              <span className={`${s.badge} ${s.levelPill}`}>{prompt.skillTargetLevel}</span>
+            </div>
+            <SkillLockedCard
+              title="Ce sujet demande l'abonnement Intégral"
+              text="L'abonnement ouvre tous les petits sujets de chaque compétence et l'analyse IA sans limite. Ton plan personnalisé et tes résultats déjà obtenus, eux, restent visibles."
+            />
+          </>
         ) : (
           <>
             {/* Où j'en suis et à quel palier, en une ligne. L'ancien fil

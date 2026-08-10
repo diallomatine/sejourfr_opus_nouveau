@@ -68,6 +68,7 @@ test("la recommandation ouvre le micro-exercice exact à partir du code canoniqu
     title: "Structurer une réponse",
     section: "EO",
     estimatedMinutes: 6,
+    locked: false,
   };
   assert.equal(
     recommendedExerciseHref(exercise),

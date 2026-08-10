@@ -36,6 +36,14 @@ public class RateLimitProperties {
     private Limit contact = new Limit(5, 3600);
     /** Demo guest : par IP (inflation de la table attempts par bot). */
     private Limit demo = new Limit(60, 600);
+    /**
+     * Sujets du diagnostic servis sans compte : par IP. Lecture de contenu
+     * seede — aucune ecriture, aucun appel LLM, aucune donnee personnelle — que
+     * le visiteur rappelle a chaque etape ou rechargement. Plafond double de
+     * celui de la demo pour cette raison : on coupe la boucle automatisee, on
+     * ne gene pas un candidat qui revient sur ses pas.
+     */
+    private Limit publicDiagnostic = new Limit(120, 600);
     /** Soumission production EE/EO : burst par utilisateur (cout LLM). */
     private Limit productionBurst = new Limit(20, 600);
     /** Soumission production EE/EO : plafond journalier par utilisateur. */
@@ -73,6 +81,9 @@ public class RateLimitProperties {
 
     public Limit getDemo() { return demo; }
     public void setDemo(Limit demo) { this.demo = demo; }
+
+    public Limit getPublicDiagnostic() { return publicDiagnostic; }
+    public void setPublicDiagnostic(Limit publicDiagnostic) { this.publicDiagnostic = publicDiagnostic; }
 
     public Limit getProductionBurst() { return productionBurst; }
     public void setProductionBurst(Limit productionBurst) { this.productionBurst = productionBurst; }

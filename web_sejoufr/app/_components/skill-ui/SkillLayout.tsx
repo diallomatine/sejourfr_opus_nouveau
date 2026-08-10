@@ -3,11 +3,13 @@
 import Link from "next/link";
 import {
   ArrowLeft,
+  ArrowRight,
   ChevronRight,
   ClipboardCheck,
   Clock,
   FileText,
   Info,
+  Lock,
   Mic,
   PenLine,
 } from "lucide-react";
@@ -670,6 +672,58 @@ export function SkillRowCard({
     >
       {inner}
     </button>
+  );
+}
+
+/* -------------------------------------------------------- verrou freemium */
+
+/**
+ * Unique chemin d'abonnement du parcours TCF. Le module Compétences est ouvert
+ * par le pass **Intégral** : on pré-sélectionne donc le module, comme
+ * `PaywallSheet` le fait déjà, et on ne fabrique surtout pas un second parcours
+ * de paiement.
+ */
+export const SKILL_PREMIUM_HREF = "/paiement?module=INTEGRAL";
+
+/** Pastille « Premium » d'une carte verrouillée — une seule formulation dans
+ *  tout le module, cadenas compris. */
+export function SkillLockBadge() {
+  return (
+    <SkillBadge tone="todo" icon={<Lock size={10} aria-hidden />}>
+      Premium
+    </SkillBadge>
+  );
+}
+
+/**
+ * Invitation à s'abonner, affichée **à la place** d'une zone de production
+ * verrouillée (accès direct par URL à un sujet fermé).
+ *
+ * Le verrou est celui du serveur (`locked`), qui refuserait la soumission en
+ * 403 : laisser le candidat écrire puis perdre sa production serait le pire des
+ * deux mondes. On ne masque donc que la saisie, jamais l'endroit où il se
+ * trouve.
+ */
+export function SkillLockedCard({
+  title,
+  text,
+  ctaLabel = "Voir l'abonnement Intégral",
+}: {
+  title: string;
+  text: string;
+  ctaLabel?: string;
+}) {
+  return (
+    <section className={`${s.card} ${s.lockCard}`}>
+      <span className={s.lockCardIcon} aria-hidden>
+        <Lock size={24} strokeWidth={2.2} />
+      </span>
+      <h2 className={s.lockCardTitle}>{title}</h2>
+      <p className={s.lockCardText}>{text}</p>
+      <Link href={SKILL_PREMIUM_HREF} className={`${s.primary} ${s.lockCardCta}`}>
+        {ctaLabel} <ArrowRight size={16} aria-hidden />
+      </Link>
+    </section>
   );
 }
 

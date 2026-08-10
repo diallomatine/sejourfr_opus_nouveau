@@ -105,6 +105,81 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
                         .value(aRenforcer.getId().toString()));
     }
 
+    /**
+     * Le verrou freemium ne masque RIEN du Plan : la priorite, ses compteurs et
+     * l'exercice recommande sont servis en entier, avec un simple {@code locked}.
+     * La competence de la priorite n&deg;1 reste ouverte meme si elle n'est pas
+     * la premiere de sa tache — sinon l'etape 1 du Plan serait inatteignable.
+     */
+    @Test
+    void sansAccesTcfLaCompetenceDeLaPrioriteResteOuverteEtLePlanResteEntier() throws Exception {
+        User user = data.user();
+        // TestData cree la competence apres les 8 rangs seedes : elle n'est
+        // donc PAS la premiere de sa tache, et n'est ouverte que par le Plan.
+        Skill skill = data.skill(SkillTaskCode.EE1);
+        SkillPrompt premier = data.skillPrompt(skill);
+        data.skillPrompt(skill);
+        observation(user, skill);
+        completedSession(user);
+
+        mvc.perform(get("/api/me/plan")
+                        .header(HttpHeaders.AUTHORIZATION, auth.bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentPriority.skillCode").value(skill.getCode()))
+                .andExpect(jsonPath("$.currentPriority.locked").value(false))
+                .andExpect(jsonPath("$.currentPriority.promptCount").value(2))
+                .andExpect(jsonPath("$.observedSkills[0].locked").value(false))
+                // Ses 2 premiers sujets sont ouverts : l'exercice recommande
+                // (le rang 1, jamais tente) est donc jouable tout de suite.
+                .andExpect(jsonPath("$.currentPriority.recommendedExercise.skillPromptId")
+                        .value(premier.getId().toString()))
+                .andExpect(jsonPath("$.currentPriority.recommendedExercise.locked").value(false));
+    }
+
+    /**
+     * Au-dela des 2 sujets offerts, l'exercice recommande reste DESIGNE et
+     * visible : on pose le cadenas, on ne detourne pas le Plan vers un sujet
+     * ouvert qui ne serait plus la priorite mesuree.
+     */
+    @Test
+    void auDelaDesDeuxSujetsOffertsLExerciceRecommandeEstDesigneMaisVerrouille()
+            throws Exception {
+        User user = data.user();
+        Skill skill = data.skill(SkillTaskCode.EE2);
+        SkillPrompt premier = data.skillPrompt(skill);
+        SkillPrompt second = data.skillPrompt(skill);
+        SkillPrompt troisieme = data.skillPrompt(skill);
+        data.userSkillAttempt(user, premier);
+        data.userSkillAttempt(user, second);
+        observation(user, skill);
+        completedSession(user);
+
+        mvc.perform(get("/api/me/plan")
+                        .header(HttpHeaders.AUTHORIZATION, auth.bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentPriority.locked").value(false))
+                .andExpect(jsonPath("$.currentPriority.recommendedExercise.skillPromptId")
+                        .value(troisieme.getId().toString()))
+                .andExpect(jsonPath("$.currentPriority.recommendedExercise.locked").value(true));
+    }
+
+    @Test
+    void unAbonneTcfNaAucunCadenasSurSonPlan() throws Exception {
+        User user = data.user();
+        data.userSubscription(user, data.plan());
+        Skill skill = data.skill(SkillTaskCode.EE3);
+        data.skillPrompt(skill);
+        observation(user, skill);
+        completedSession(user);
+
+        mvc.perform(get("/api/me/plan")
+                        .header(HttpHeaders.AUTHORIZATION, auth.bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentPriority.locked").value(false))
+                .andExpect(jsonPath("$.currentPriority.recommendedExercise.locked").value(false))
+                .andExpect(jsonPath("$.observedSkills[0].locked").value(false));
+    }
+
     private void analysed(UserSkillAttempt attempt, SkillCriterionStatus criterion) {
         attempt.setAnalysisRequested(true);
         attempt.setStatut(SkillAttemptStatut.EVALUATED);

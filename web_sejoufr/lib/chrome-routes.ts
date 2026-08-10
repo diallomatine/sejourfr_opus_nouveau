@@ -1,6 +1,7 @@
 /** Routes "duales" — accessibles aux guests ET aux connectés. Les connectés
  *  voient en plus la sidebar via le DualChromeShell. */
 export const DUAL_CHROME_PREFIXES = [
+  "/diagnostic",
   "/entrainement",
   "/examens-blancs",
   "/sessions",
@@ -10,7 +11,6 @@ export const DUAL_CHROME_PREFIXES = [
  *  Partagé entre SiteHeader (burger unique) et shouldHideGlobalChrome. */
 export const APP_GROUP_PREFIXES = [
   "/dashboard",
-  "/diagnostic",
   "/historique",
   "/paiement",
   "/parcours",

@@ -46,6 +46,9 @@ import java.util.UUID;
  *       competence, puis croises en memoire.</li>
  *   <li><b>Les references ne sortent qu'apres la production</b> — la garde est
  *       ici, pas seulement dans l'interface.</li>
+ *   <li><b>Ce qui est ouvert vient de {@link SkillAccessService}</b>, resolu
+ *       UNE fois par ecran : ce service ne fait que reporter {@code locked}
+ *       dans les DTO, il ne redecide rien.</li>
  * </ul>
  *
  * <p>Le denominateur des compteurs (« X sujets sur Y ») ne retient que les
@@ -60,6 +63,7 @@ public class SkillService {
     private final SkillPromptManager promptManager;
     private final UserSkillAttemptManager attemptManager;
     private final SkillStatusResolver statusResolver;
+    private final SkillAccessService accessService;
     private final SkillMapper skillMapper;
     private final SkillPromptMapper promptMapper;
     private final SkillReferenceMapper referenceMapper;
@@ -163,6 +167,9 @@ public class SkillService {
                     .add(statusResolver.resolve(attempt));
         }
 
+        // Une seule resolution du verrou pour les 24 competences de l'ecran.
+        SkillAccessService.SkillAccess access = accessService.resolve(userId);
+
         List<SkillDto> out = new ArrayList<>(skills.size());
         for (Skill skill : skills) {
             SkillProgressTally tally = tallyBySkill.getOrDefault(
@@ -172,7 +179,8 @@ public class SkillService {
                     promptCountBySkill.getOrDefault(skill.getId(), 0L).intValue(),
                     tally.attempted(),
                     tally.validated(),
-                    tally.toReinforce()));
+                    tally.toReinforce(),
+                    access.isSkillLocked(skill.getId())));
         }
         return out;
     }
@@ -187,6 +195,9 @@ public class SkillService {
         Map<UUID, UserSkillAttempt> latestByPrompt =
                 attemptManager.findLatestPerPromptBySkill(userId, skillId);
         Map<UUID, Long> attemptCounts = attemptManager.countPerPromptBySkill(userId, skillId);
+        // Une seule resolution pour la competence ET ses 5 sujets : le cadenas
+        // doit se voir sur la liste, pas seulement a l'ouverture d'un sujet.
+        SkillAccessService.SkillAccess access = accessService.resolve(userId);
 
         SkillProgressTally tally = new SkillProgressTally();
         List<SkillPromptSummaryDto> summaries = new ArrayList<>(prompts.size());
@@ -198,11 +209,13 @@ public class SkillService {
                     prompt,
                     status,
                     attemptCounts.getOrDefault(prompt.getId(), 0L).intValue(),
-                    latest == null ? null : latest.getCreatedAt()));
+                    latest == null ? null : latest.getCreatedAt(),
+                    access.isPromptLocked(prompt.getId())));
         }
 
         SkillDto dto = skillMapper.toDto(
-                skill, prompts.size(), tally.attempted(), tally.validated(), tally.toReinforce());
+                skill, prompts.size(), tally.attempted(), tally.validated(), tally.toReinforce(),
+                access.isSkillLocked(skill.getId()));
         return new SkillDetailDto(dto, summaries);
     }
 
@@ -232,7 +245,8 @@ public class SkillService {
                 (int) attemptCount,
                 latest == null ? null : latest.getCreatedAt(),
                 latest == null ? null : latest.getId(),
-                nextTodoPromptId(siblings, promptId, latestByPrompt));
+                nextTodoPromptId(siblings, promptId, latestByPrompt),
+                accessService.resolve(userId).isPromptLocked(promptId));
     }
 
     /**

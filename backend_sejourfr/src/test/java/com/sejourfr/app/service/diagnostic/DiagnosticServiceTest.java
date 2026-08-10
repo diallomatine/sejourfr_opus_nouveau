@@ -10,7 +10,6 @@ import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
-import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.ratelimit.RateLimitGuard;
 import com.sejourfr.app.service.ProductionEvaluationService;
@@ -36,7 +35,7 @@ class DiagnosticServiceTest {
             mock(RecommendedExerciseSelector.class);
 
     private final DiagnosticService service = new DiagnosticService(
-            new DiagnosticProperties(), mock(ProductionTaskManager.class),
+            new DiagnosticProperties(), mock(DiagnosticContentResolver.class),
             mock(DiagnosticSessionManager.class), mock(DiagnosticSessionCreator.class),
             mock(ProductionSubmissionManager.class),
             mock(DiagnosticProductionAnalysisManager.class), skills, exerciseSelector,
@@ -95,7 +94,7 @@ class DiagnosticServiceTest {
     private static PlanRecommendedExerciseDto exercise(Skill skill) {
         return new PlanRecommendedExerciseDto(
                 UUID.randomUUID(), skill.getId(), skill.getCode(), "Écrire à un proche",
-                skill.getSection(), 4);
+                skill.getSection(), 4, false);
     }
 
     private static Skill skill(String code) {

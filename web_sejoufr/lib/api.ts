@@ -26,6 +26,7 @@ import type {
   ProductionExampleDto,
   ProductionSubmissionDto,
   ProductionTaskDto,
+  PublicDiagnosticResponse,
   QuestionReviewResponse,
   QuestionType,
   RegisterRequest,
@@ -785,6 +786,18 @@ function fetchLearningPlan(): Promise<LearningPlanDto> {
 
 export const diagnosticApi = {
     current: fetchCurrentDiagnostic,
+
+    /**
+     * Sujets du diagnostic pour un **visiteur non connecté**. Aucune session
+     * n'est créée : le serveur n'a rien à rattacher tant qu'il n'y a pas de
+     * compte. Les deux sujets suffisent pour produire ; l'écrit et l'oral sont
+     * gardés sur l'appareil jusqu'à l'inscription.
+     */
+    publicCurrent(): Promise<PublicDiagnosticResponse> {
+        return apiFetch<PublicDiagnosticResponse>("/api/public/diagnostics/current", {
+            auth: false,
+        });
+    },
 
     currentCached(): Promise<DiagnosticResponse> {
         return cached(`${DIAGNOSTIC_CACHE_PREFIX}current`, fetchCurrentDiagnostic);

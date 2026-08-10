@@ -46,10 +46,21 @@ export function diagnosticCompletedExerciseCount(
   ).length;
 }
 
+/**
+ * Sujet de diagnostic, dans la seule forme qui sert à **produire** : ce que
+ * la version publique (visiteur) et la version de session (connecté) ont en
+ * commun. Les identifiants de session (`attemptId`, `submissionId`) n'existent
+ * qu'après le compte et ne servent qu'à soumettre, jamais à afficher.
+ */
+export type DiagnosticExerciseContent = Omit<
+  DiagnosticExerciseDto,
+  "attemptId" | "submissionId" | "submissionStatus"
+>;
+
 /** Adapte le sujet diagnostic au composant de production existant, sans lui
  *  inventer de tâche officielle ni de niveau cible. */
 export function diagnosticExerciseAsProductionTask(
-  exercise: DiagnosticExerciseDto,
+  exercise: DiagnosticExerciseContent,
 ): ProductionTaskDto {
   return {
     id: exercise.productionTaskId,

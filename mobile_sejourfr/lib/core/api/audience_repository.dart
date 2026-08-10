@@ -7,6 +7,10 @@ enum AudienceEvent {
   diagnosticStarted('DIAGNOSTIC_STARTED'),
   diagnosticWrittenCompleted('DIAGNOSTIC_WRITTEN_COMPLETED'),
   diagnosticOralCompleted('DIAGNOSTIC_ORAL_COMPLETED'),
+
+  /// Écran de demande de compte, affiché au visiteur qui a fini ses deux
+  /// productions. C'est la mesure de conversion du parcours invité.
+  diagnosticAccountRequired('DIAGNOSTIC_ACCOUNT_REQUIRED'),
   diagnosticCompleted('DIAGNOSTIC_COMPLETED'),
   diagnosticResultViewed('DIAGNOSTIC_RESULT_VIEWED'),
   planOpened('PLAN_OPENED'),

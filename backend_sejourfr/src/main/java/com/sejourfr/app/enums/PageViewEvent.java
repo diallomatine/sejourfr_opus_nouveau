@@ -15,6 +15,13 @@ public enum PageViewEvent {
     DIAGNOSTIC_ORAL_COMPLETED,
     DIAGNOSTIC_COMPLETED,
     DIAGNOSTIC_RESULT_VIEWED,
+    /**
+     * Le visiteur a produit ses deux réponses sans compte et atteint l'écran qui
+     * en demande un. C'est LA mesure de conversion du parcours invité : tout ce
+     * qui est compté avant est joué hors base, cet événement est le premier
+     * point où l'on sait combien de visiteurs vont jusqu'au bout.
+     */
+    DIAGNOSTIC_ACCOUNT_REQUIRED,
     PLAN_OPENED,
     PLAN_RECOMMENDED_EXERCISE_STARTED,
     SOCIAL_LANDING_DIAGNOSTIC_CLICKED,

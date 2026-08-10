@@ -20,6 +20,7 @@ import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/gradient_hero.dart';
+import '../../core/widgets/premium_lock.dart';
 import '../../core/widgets/pressable_card.dart';
 import '../../core/widgets/progress_ring.dart';
 import '../../core/widgets/screen_header.dart';
@@ -92,6 +93,13 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
   }
 
   void _openRecommended(PlanRecommendedExercise exercise) {
+    // Garde de dernier recours : un exercice verrouillé n'est jamais « démarré »
+    // (l'événement d'audience mentirait) et n'ouvre pas un écran qui refuserait
+    // la soumission. Les cartes ouvrent déjà le paywall d'elles-mêmes.
+    if (exercise.locked) {
+      unawaited(showTcfLockPaywall(context));
+      return;
+    }
     unawaited(_track(AudienceEvent.planRecommendedExerciseStarted));
     context.push(
       competencePromptPath(
@@ -490,6 +498,7 @@ class _NowCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final exercise = priority.recommendedExercise;
+    final locked = _isLocked(priority, exercise);
     return AppCard(
       border: Border.all(color: AppColors.blue.withValues(alpha: 0.22)),
       child: Column(
@@ -504,6 +513,10 @@ class _NowCard extends StatelessWidget {
                 compact: true,
               ),
               const Spacer(),
+              if (locked) ...[
+                const PremiumLockTag(),
+                const SizedBox(width: 6),
+              ],
               AppTag(
                 label: priority.section.wire,
                 tone: TagTone.neutral,
@@ -528,15 +541,33 @@ class _NowCard extends StatelessWidget {
             const SizedBox(height: 15),
             _ExerciseRow(exercise: exercise),
             const SizedBox(height: 13),
-            Semantics(
-              label: 'Commencer l’exercice recommandé ${exercise.title}',
-              button: true,
-              child: AppButton(
-                label: 'Commencer',
-                iconRight: LucideIcons.arrowRight,
-                onPressed: () => onOpenRecommended(exercise),
+            if (locked) ...[
+              AppButton(
+                label: 'Débloquer cet exercice',
+                icon: LucideIcons.lock,
+                variant: AppButtonVariant.soft,
+                onPressed: () => unawaited(showTcfLockPaywall(context)),
               ),
-            ),
+              const SizedBox(height: 9),
+              Text(
+                'Cet exercice fait partie de l’abonnement Intégral. Votre plan, '
+                'lui, reste entier.',
+                style: AppFonts.ui(
+                  size: 11.5,
+                  height: 1.4,
+                  color: AppColors.inkFaint,
+                ),
+              ),
+            ] else
+              Semantics(
+                label: 'Commencer l’exercice recommandé ${exercise.title}',
+                button: true,
+                child: AppButton(
+                  label: 'Commencer',
+                  iconRight: LucideIcons.arrowRight,
+                  onPressed: () => onOpenRecommended(exercise),
+                ),
+              ),
           ] else ...[
             const SizedBox(height: 16),
             AppButton(
@@ -551,6 +582,10 @@ class _NowCard extends StatelessWidget {
   }
 }
 
+/// L'exercice recommandé, annoncé **à l'identique qu'il soit verrouillé ou
+/// non** (miroir du web) : le candidat doit savoir ce que son plan lui
+/// recommande. Le verrou se dit dans l'en-tête et dans le bouton, pas en
+/// effaçant l'information.
 class _ExerciseRow extends StatelessWidget {
   const _ExerciseRow({required this.exercise});
 
@@ -737,12 +772,21 @@ class _CurrentStepCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final exercise = priority.recommendedExercise;
+    final locked = _isLocked(priority, exercise);
     return AppCard(
       border: Border.all(color: AppColors.blue.withValues(alpha: 0.22)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppTag(label: 'EN COURS', tone: TagTone.blue, compact: true),
+          Row(
+            children: [
+              const AppTag(label: 'EN COURS', tone: TagTone.blue, compact: true),
+              if (locked) ...[
+                const SizedBox(width: 6),
+                const PremiumLockTag(),
+              ],
+            ],
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -781,13 +825,22 @@ class _CurrentStepCard extends StatelessWidget {
             const SizedBox(height: 12),
             _ExerciseRow(exercise: exercise),
             const SizedBox(height: 11),
-            AppButton(
-              label: 'Continuer cette étape',
-              variant: AppButtonVariant.soft,
-              iconRight: LucideIcons.arrowRight,
-              height: 46,
-              onPressed: () => onOpenRecommended(exercise),
-            ),
+            if (locked)
+              AppButton(
+                label: 'Débloquer cette étape',
+                icon: LucideIcons.lock,
+                variant: AppButtonVariant.soft,
+                height: 46,
+                onPressed: () => unawaited(showTcfLockPaywall(context)),
+              )
+            else
+              AppButton(
+                label: 'Continuer cette étape',
+                variant: AppButtonVariant.soft,
+                iconRight: LucideIcons.arrowRight,
+                height: 46,
+                onPressed: () => onOpenRecommended(exercise),
+              ),
           ],
         ],
       ),
@@ -827,19 +880,34 @@ class _NextStepCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Text(
-                    _skillMeta(priority.skillCode, priority.section),
-                    style: AppFonts.ui(
-                      size: 11,
-                      weight: FontWeight.w600,
-                      color: AppColors.inkFaint,
-                    ),
+                  // Le cadenas s'ajoute à « À VENIR », il ne le remplace pas :
+                  // l'étape est bien à venir, et elle demande en plus un
+                  // abonnement. Tout le reste de l'étape reste lisible.
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 5,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (priority.locked) const PremiumLockTag(),
+                      Text(
+                        _skillMeta(priority.skillCode, priority.section),
+                        style: AppFonts.ui(
+                          size: 11,
+                          weight: FontWeight.w600,
+                          color: AppColors.inkFaint,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            const AppTag(label: 'À VENIR', tone: TagTone.neutral, compact: true),
+            const AppTag(
+              label: 'À VENIR',
+              tone: TagTone.neutral,
+              compact: true,
+            ),
           ],
         ),
       );
@@ -955,7 +1023,16 @@ class _ObservedSkillsSectionState extends State<_ObservedSkillsSection> {
             padding: const EdgeInsets.only(bottom: 8),
             child: _ObservedSkillCard(
               skill: skill,
-              onTap: () => widget.onOpenSkill(skill.skillId, skill.section),
+              // Verrouillée, la carte reste lisible et tappable : le tap ouvre
+              // l'offre au lieu d'une liste de sujets qu'on ne pourrait pas
+              // produire.
+              onTap: () {
+                if (skill.locked) {
+                  unawaited(showTcfLockPaywall(context));
+                  return;
+                }
+                widget.onOpenSkill(skill.skillId, skill.section);
+              },
             ),
           ),
         if (widget.skills.length > 4)
@@ -1009,15 +1086,25 @@ class _ObservedSkillCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    skill.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppFonts.ui(
-                      size: 14.5,
-                      weight: FontWeight.w700,
-                      height: 1.25,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          skill.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppFonts.ui(
+                            size: 14.5,
+                            weight: FontWeight.w700,
+                            height: 1.25,
+                          ),
+                        ),
+                      ),
+                      if (skill.locked) ...[
+                        const SizedBox(width: 8),
+                        const PremiumLockTag(),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Text.rich(
@@ -1178,6 +1265,15 @@ class _PlanError extends StatelessWidget {
         ],
       );
 }
+
+/// Une étape est fermée si le serveur a verrouillé **la priorité** ou
+/// **l'exercice** qu'elle recommande — deux booléens distincts, aucun des deux
+/// n'est déduit de l'autre côté app.
+bool _isLocked(
+  LearningPlanPriority priority,
+  PlanRecommendedExercise? exercise,
+) =>
+    priority.locked || (exercise?.locked ?? false);
 
 String _skillMeta(String skillCode, SkillSection section) {
   final label = section == SkillSection.eo ? 'Expression orale' : 'Expression écrite';

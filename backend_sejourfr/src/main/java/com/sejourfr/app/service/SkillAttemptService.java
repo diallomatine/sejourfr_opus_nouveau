@@ -32,10 +32,18 @@ import java.util.UUID;
  * Cas d'usage « rendre une production sur un petit sujet » et lecture des
  * tentatives.
  *
- * <p><b>Ce qui est gratuit</b> : produire, s'auto-evaluer, relire ses
- * productions — sur tous les sujets, sans limite. Aucun sujet n'est verrouille.
- * <b>Ce qui est premium</b> : l'analyse IA, avec 3 analyses offertes a vie
- * (cf. {@link SkillAnalysisAccessService}).
+ * <p><b>Deux verrous distincts, jamais confondus</b> :
+ * <ul>
+ *   <li><b>ce sur quoi on peut produire</b> — {@link SkillAccessService}. Depuis
+ *       le 2026-08-10 un compte sans acces TCF ne travaille que la premiere
+ *       competence de chaque tache (ses 2 premiers sujets) et la competence de
+ *       la priorite n&deg;1 de son Plan. Le refus est <b>serveur</b> (403) : le
+ *       cadenas des fronts n'est qu'un affichage ;</li>
+ *   <li><b>l'analyse IA</b> — {@link SkillAnalysisAccessService}, 3 analyses
+ *       offertes a vie, inchangees.</li>
+ * </ul>
+ * Sur un sujet ouvert, s'auto-evaluer, relire ses productions et consulter les
+ * references restent gratuits et illimites.
  *
  * <p>Volontairement decouple des epreuves completes : une tentative n'est
  * rattachee a AUCUN {@code attempt}. Un micro-exercice n'est pas une session
@@ -65,6 +73,7 @@ public class SkillAttemptService {
     private final SkillPromptManager promptManager;
     private final UserSkillAttemptManager attemptManager;
     private final UserManager userManager;
+    private final SkillAccessService accessService;
     private final SkillAnalysisAccessService analysisAccessService;
     private final SkillAnalysisAsyncRunner analysisRunner;
     private final ProductionAudioStorageService audioStorage;
@@ -80,6 +89,7 @@ public class SkillAttemptService {
         rateLimitGuard.checkSkillAttempt(userId);
 
         SkillPrompt prompt = loadActivePrompt(req.skillPromptId());
+        accessService.assertCanProduce(userId, prompt);
         assertSection(prompt, SkillSection.EE);
 
         String texte = ProductionPayloadSupport.sanitizeText(req.texte());
@@ -116,6 +126,7 @@ public class SkillAttemptService {
         rateLimitGuard.checkSkillAttempt(userId);
 
         SkillPrompt prompt = loadActivePrompt(skillPromptId);
+        accessService.assertCanProduce(userId, prompt);
         assertSection(prompt, SkillSection.EO);
 
         if (audio == null || audio.isEmpty()) {
@@ -177,6 +188,7 @@ public class SkillAttemptService {
         rateLimitGuard.checkSkillAttempt(userId);
 
         UserSkillAttempt attempt = loadOwnAttempt(attemptId);
+        accessService.assertCanProduce(userId, attempt.getSkillPrompt());
         // RECORDED est le seul etat analysable : c'est l'etat final d'une
         // production rendue sans IA. Tout autre statut signifie qu'une analyse a
         // deja ete acceptee — la relancer par ici contournerait le quota, alors
@@ -208,6 +220,7 @@ public class SkillAttemptService {
         rateLimitGuard.checkSkillAttempt(userId);
 
         UserSkillAttempt attempt = loadOwnAttempt(attemptId);
+        accessService.assertCanProduce(userId, attempt.getSkillPrompt());
         if (attempt.getStatut() != SkillAttemptStatut.FAILED) {
             throw new IllegalStateException(
                     "Seule une analyse en échec peut être relancée (statut actuel : "

@@ -21,7 +21,6 @@ import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
-import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.service.ProductionEvaluationService;
 import com.sejourfr.app.service.RecommendedExerciseSelector;
@@ -43,13 +42,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DiagnosticService {
 
-    private static final String WRITTEN_HELPER =
-            "Cet exercice nous aide à observer plusieurs compétences en une seule production.";
-    private static final String ORAL_HELPER =
-            "Enregistrez votre réponse : ce diagnostic n'utilise pas de conversation en temps réel.";
-
     private final DiagnosticProperties properties;
-    private final ProductionTaskManager taskManager;
+    private final DiagnosticContentResolver content;
     private final DiagnosticSessionManager sessionManager;
     private final DiagnosticSessionCreator sessionCreator;
     private final ProductionSubmissionManager submissionManager;
@@ -61,16 +55,16 @@ public class DiagnosticService {
     private final RateLimitGuard rateLimitGuard;
 
     public DiagnosticResponse current(UUID userId) {
-        String code = properties.getInitialCode();
-        int version = activeVersion(code);
+        String code = content.activeCode();
+        int version = content.activeVersion(code);
         return sessionManager.findByUserAndVersionWithContent(userId, code, version)
                 .map(session -> toResponse(userId, session))
                 .orElseGet(() -> notStarted(code, version));
     }
 
     public DiagnosticResponse startOrResume(UUID userId) {
-        String code = properties.getInitialCode();
-        int version = activeVersion(code);
+        String code = content.activeCode();
+        int version = content.activeVersion(code);
         DiagnosticSession existing = sessionManager
                 .findByUserAndVersionWithContent(userId, code, version).orElse(null);
         if (existing != null) return toResponse(userId, existing);
@@ -140,8 +134,7 @@ public class DiagnosticService {
             ProductionTask task, UUID attemptId, ProductionSubmission submission) {
         return new DiagnosticExerciseDto(
                 task.getId(), attemptId, task.getEpreuve(), task.getTitre(), task.getConsigne(),
-                task.getEpreuve() == com.sejourfr.app.enums.EpreuveType.TCF_EE
-                        ? WRITTEN_HELPER : ORAL_HELPER,
+                DiagnosticContentResolver.helperText(task.getEpreuve()),
                 task.getMotsMin(), task.getMotsMax(), task.getDureeMinSec(), task.getDureeMaxSec(),
                 task.getInstructionAudioUrl(), submission == null ? null : submission.getId(),
                 submission == null ? null : submission.getStatut());
@@ -247,11 +240,6 @@ public class DiagnosticService {
                 analysis.getLevelEstimate(), analysis.getTaskCompletion(),
                 analysis.getCommunicationStatus(), nullableText(json.get("summary")),
                 strings(json.get("strengths")), strings(json.get("weaknesses")), skills);
-    }
-
-    private int activeVersion(String code) {
-        return taskManager.findLatestActiveDiagnosticVersion(code)
-                .orElseThrow(() -> new IllegalStateException("Aucun diagnostic actif : " + code));
     }
 
     private ProductionSubmission submission(UUID attemptId) {

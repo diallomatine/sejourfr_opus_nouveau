@@ -73,11 +73,22 @@ public class RecommendedExerciseSelector {
     private final SkillPromptManager promptManager;
     private final UserSkillAttemptManager attemptManager;
     private final SkillStatusResolver statusResolver;
+    private final SkillAccessService accessService;
 
     /** Exercice recommande pour une competence, vide si elle n'a aucun sujet actif. */
     public Optional<PlanRecommendedExerciseDto> select(UUID userId, Skill skill) {
         if (skill == null) return Optional.empty();
         return Optional.ofNullable(selectAll(userId, List.of(skill)).get(skill.getId()));
+    }
+
+    /**
+     * Comme {@link #selectAll(UUID, Collection, SkillAccessService.SkillAccess)},
+     * en resolvant le verrou d'acces ici. A utiliser quand l'appelant n'en a pas
+     * deja besoin par ailleurs.
+     */
+    public Map<UUID, PlanRecommendedExerciseDto> selectAll(
+            UUID userId, Collection<Skill> skills) {
+        return selectAll(userId, skills, accessService.resolve(userId));
     }
 
     /**
@@ -88,9 +99,16 @@ public class RecommendedExerciseSelector {
      * sujets et les dernieres tentatives sont chargees en lot. C'est la raison
      * d'etre de cette signature — les deux appelants ont plusieurs competences
      * candidates a evaluer d'affilee.
+     *
+     * <p><b>Le verrou est reporte, jamais applique a la selection</b> : un sujet
+     * verrouille reste recommande, avec {@code locked = true}. Savoir quoi
+     * travailler est precisement ce que le Plan apporte ; le detourner vers un
+     * sujet ouvert lui ferait dire autre chose que la priorite mesuree.
+     * L'{@code access} est passe par l'appelant quand il l'a deja resolu, pour
+     * ne pas le recalculer deux fois sur le meme ecran.
      */
     public Map<UUID, PlanRecommendedExerciseDto> selectAll(
-            UUID userId, Collection<Skill> skills) {
+            UUID userId, Collection<Skill> skills, SkillAccessService.SkillAccess access) {
         Map<UUID, Skill> bySkillId = new LinkedHashMap<>();
         for (Skill skill : skills) {
             if (skill != null) bySkillId.putIfAbsent(skill.getId(), skill);
@@ -110,7 +128,8 @@ public class RecommendedExerciseSelector {
             if (chosen == null) continue;
             out.put(entry.getKey(), new PlanRecommendedExerciseDto(
                     chosen.getId(), skill.getId(), skill.getCode(), chosen.getTitle(),
-                    skill.getSection(), estimatedMinutes(chosen, skill.getSection())));
+                    skill.getSection(), estimatedMinutes(chosen, skill.getSection()),
+                    access.isPromptLocked(chosen.getId())));
         }
         return out;
     }

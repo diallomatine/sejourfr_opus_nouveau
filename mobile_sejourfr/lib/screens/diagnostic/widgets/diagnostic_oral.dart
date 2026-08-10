@@ -23,9 +23,10 @@ class DiagnosticOralStep extends StatelessWidget {
     required this.onOpenSettings,
     required this.onSubmit,
     this.errorMessage,
+    this.submitLabel = 'Envoyer mon oral',
   });
 
-  final DiagnosticExercise exercise;
+  final DiagnosticExerciseView exercise;
   final RecordingState recording;
   final bool isSubmitting;
   final VoidCallback onStart;
@@ -34,6 +35,11 @@ class DiagnosticOralStep extends StatelessWidget {
   final VoidCallback onOpenSettings;
   final VoidCallback onSubmit;
   final String? errorMessage;
+
+  /// En régime invité rien n'est envoyé : la production reste sur le
+  /// téléphone jusqu'à la création du compte, le bouton ne doit donc pas
+  /// promettre un envoi.
+  final String submitLabel;
 
   int get _maxSeconds => exercise.durationMaxSeconds ?? 180;
 
@@ -91,7 +97,7 @@ class DiagnosticOralStep extends StatelessWidget {
             onPressed: onStop,
           ),
         RecordingPhase.finished => AppButton(
-            label: 'Envoyer mon oral',
+            label: submitLabel,
             iconRight: LucideIcons.arrowRight,
             isLoading: isSubmitting,
             onPressed:

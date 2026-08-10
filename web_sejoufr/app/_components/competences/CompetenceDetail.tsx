@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {useParams, useRouter} from "next/navigation";
 import {useRef, useState} from "react";
-import {Check, Info, Sparkles} from "lucide-react";
+import {Check, Info, Lock, Sparkles} from "lucide-react";
 import {skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {cached} from "@/lib/data-cache";
@@ -19,11 +19,18 @@ import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
 import {type ProductionConfig} from "@/app/_components/production/config";
 import {ConfirmSheet} from "@/app/_components/hub/ConfirmSheet";
+import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {CompetenceStatusBadge, promptCardToneClass} from "./CompetenceStatusBadge";
-import {MiniBar, RowChevron, SectionHead, SkillShell} from "@/app/_components/skill-ui/SkillLayout";
+import {
+  MiniBar,
+  RowChevron,
+  SectionHead,
+  SkillLockBadge,
+  SkillShell,
+} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
 
-type Filter = "all" | "todo" | "done";
+type Filter = "all" | "todo" | "done" | "locked";
 
 /** Date courte d'une dernière tentative (« 4 août »). */
 function shortDate(iso: string): string {
@@ -51,6 +58,7 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
 
   const [filter, setFilter] = useState<Filter>("all");
   const [infoOpen, setInfoOpen] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
   const infoButtonRef = useRef<HTMLButtonElement>(null);
 
   // Mémorisé pour la session : aller sur un petit sujet puis revenir à la liste
@@ -70,16 +78,38 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
 
   const skill = data?.skill;
   const prompts = data?.prompts ?? [];
+  /* Trois seaux **disjoints**, dont la somme fait exactement « Tous » — un
+     compteur qui ne totalise pas est un compteur qui ment.
+     - « Traités » décrit l'HISTORIQUE : un sujet produit y reste, même si le
+       verrou est retombé dessus depuis (pass expiré) ;
+     - « À faire » décrit ce qui est RÉELLEMENT ouvrable maintenant, donc jamais
+       un sujet verrouillé — l'y compter enverrait le candidat sur le paiement
+       en croyant ouvrir un exercice ;
+     - « Verrouillés » n'existe que s'il y en a. Le verrou vient du serveur, on
+       ne le recalcule pas.
+     La barre de progression, elle, garde `prompts.length` au dénominateur : la
+     compétence a bien N sujets, l'abonnement ne change pas ce qu'elle contient. */
   const treated = prompts.filter((p) => p.status !== "TODO");
-  const todo = prompts.filter((p) => p.status === "TODO");
-  const shown = filter === "all" ? prompts : filter === "done" ? treated : todo;
+  const openTodo = prompts.filter((p) => p.status === "TODO" && !p.locked);
+  const lockedTodo = prompts.filter((p) => p.status === "TODO" && p.locked);
+  const shown =
+    filter === "all"
+      ? prompts
+      : filter === "done"
+        ? treated
+        : filter === "locked"
+          ? lockedTodo
+          : openTodo;
   const pct = progressPercent(treated.length, prompts.length);
-  const firstTodo = todo[0];
+  const firstTodo = openTodo[0];
 
   const chips: [Filter, string, number][] = [
     ["all", "Tous", prompts.length],
-    ["todo", SKILL_PROMPT_STATUS_LABEL.TODO, todo.length],
+    ["todo", SKILL_PROMPT_STATUS_LABEL.TODO, openTodo.length],
     ["done", "Traités", treated.length],
+    ...(lockedTodo.length > 0
+      ? ([["locked", "Verrouillés", lockedTodo.length]] as [Filter, string, number][])
+      : []),
   ];
 
   return (
@@ -166,7 +196,9 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
               <p className={s.empty}>
                 {filter === "done"
                   ? "Aucun sujet traité pour l'instant."
-                  : "Tous les sujets ont été traités."}
+                  : filter === "locked"
+                    ? "Aucun sujet verrouillé."
+                    : "Tous les sujets ouverts ont été traités."}
               </p>
             ) : (
               <div className={s.list}>
@@ -174,7 +206,11 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                   <PromptCard
                     key={p.id}
                     prompt={p}
-                    onOpen={() => router.push(`${base}/${skill.id}/${p.id}`)}
+                    onOpen={
+                      p.locked
+                        ? () => setPaywallOpen(true)
+                        : () => router.push(`${base}/${skill.id}/${p.id}`)
+                    }
                   />
                 ))}
               </div>
@@ -183,6 +219,14 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
             <Link href={`${config.base}/tache/${n}`} className={s.footLink}>
               ← Revenir aux sujets TCF complets
             </Link>
+
+            <PaywallSheet
+              open={paywallOpen}
+              onClose={() => setPaywallOpen(false)}
+              module="INTEGRAL"
+              title="Tous les petits sujets"
+              message="Ce sujet est réservé à l'abonnement Intégral. Il ouvre tous les petits sujets de chaque compétence, les 8 compétences de chaque tâche et l'analyse IA sans limite. Ton plan personnalisé, lui, reste entier."
+            />
 
             <ConfirmSheet
               open={infoOpen && !!skill.description}
@@ -201,16 +245,29 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   );
 }
 
+/** Un sujet verrouillé garde son titre, son rang et son historique : ce qui
+ *  change, c'est la pastille (cadenas), la mention « Premium » et la
+ *  destination du clic. Le verrou est celui du serveur. */
 function PromptCard({prompt, onOpen}: {prompt: SkillPromptSummaryDto; onOpen: () => void}) {
   const done = prompt.status !== "TODO";
+  const locked = prompt.locked;
   return (
     <button
       type="button"
       className={`${s.card} ${s.rowCard} ${promptCardToneClass(prompt.status)}`}
       onClick={onOpen}
     >
-      <span className={`${s.tile} ${done ? s.tileDone : ""}`} aria-hidden>
-        {done ? <Check size={22} strokeWidth={2.8} /> : prompt.displayOrder}
+      <span
+        className={`${s.tile} ${locked ? s.tileLocked : done ? s.tileDone : ""}`}
+        aria-hidden
+      >
+        {locked ? (
+          <Lock size={20} />
+        ) : done ? (
+          <Check size={22} strokeWidth={2.8} />
+        ) : (
+          prompt.displayOrder
+        )}
       </span>
       {/* Le critère unique ne s'affiche plus sous le titre (parité mobile) : il
           est répété par la check-list de l'écran de saisie, et il faisait de
@@ -228,7 +285,9 @@ function PromptCard({prompt, onOpen}: {prompt: SkillPromptSummaryDto; onOpen: ()
         )}
       </span>
       <span className={s.rowAside}>
-        {done ? (
+        {locked ? (
+          <SkillLockBadge />
+        ) : done ? (
           <span className={s.metaText}>{SKILL_DIFFICULTY_LABEL[prompt.difficultyLevel]}</span>
         ) : (
           <CompetenceStatusBadge status={prompt.status} />

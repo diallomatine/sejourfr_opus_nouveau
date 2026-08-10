@@ -19,7 +19,7 @@ class DiagnosticWrittenStep extends StatelessWidget {
     this.errorMessage,
   });
 
-  final DiagnosticExercise exercise;
+  final DiagnosticExerciseView exercise;
   final TextEditingController controller;
   final int wordCount;
   final bool isSubmitting;

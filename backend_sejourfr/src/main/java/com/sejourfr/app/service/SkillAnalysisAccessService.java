@@ -13,10 +13,12 @@ import java.util.UUID;
 /**
  * Budget freemium des analyses IA du module competences.
  *
- * <p><b>Ce qui est gratuit et illimite pour tout compte inscrit</b> : produire
- * sur n'importe quel sujet, s'auto-evaluer, lire les 3 references. Aucun sujet
- * n'est verrouille. <b>Seule l'analyse IA est premium</b>, avec 3 analyses
- * offertes a vie aux comptes gratuits.
+ * <p><b>Ne decide QUE du budget d'analyses</b>, jamais de ce sur quoi le
+ * candidat peut produire : depuis le 2026-08-10 c'est {@link SkillAccessService}
+ * qui ouvre ou ferme une competence et un sujet. Sur un sujet <b>ouvert</b>,
+ * produire, s'auto-evaluer et lire les 3 references restent gratuits et
+ * illimites ; l'analyse IA reste premium, avec 3 analyses offertes a vie aux
+ * comptes gratuits. Les deux verrous se cumulent et ne se remplacent pas.
  *
  * <p><b>Le quota se consomme a l'ACCEPTATION, pas au succes.</b> C'est
  * volontaire : compter les analyses reussies rendrait le retry gratuit d'une

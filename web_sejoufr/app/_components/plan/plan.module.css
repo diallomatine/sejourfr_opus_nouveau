@@ -330,6 +330,34 @@
   margin-top: 15px;
 }
 
+/* ------------------------------------------------------- verrou freemium */
+
+/* Le cadenas s'ajoute, il ne remplace rien : la pastille « Priorité n°1 » reste
+   à sa place, la mention Premium se pose à côté. Le Plan reste lisible en
+   entier — c'est le résultat des productions du candidat. */
+.lockAside {
+  display: inline-flex;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* Une phrase, sous le bouton : dire ce qui est fermé ET ce qui reste ouvert.
+   Un cadenas sans explication se lit « c'est cassé ». */
+.lockNote {
+  margin: 9px 0 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+@media (max-width: 400px) {
+  .lockAside {
+    display: flex;
+    margin: 8px 0 0;
+  }
+}
+
 /* ------------------------------------------------------ le chemin d'étapes */
 
 .path {
@@ -415,11 +443,15 @@
   background: color-mix(in srgb, var(--color-paper) 94%, var(--color-blue-light));
 }
 
+/* L'état à gauche, le code de compétence à droite — et, entre les deux, la
+   pastille de verrou quand il y en a une. `flex-wrap` + `margin-left: auto`
+   plutôt que `space-between` : à trois éléments, `space-between` aurait écarté
+   le verrou au milieu de la ligne, et rien ne serait passé à 360 px. */
 .stepHead {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 10px;
   margin-bottom: 11px;
 }
 
@@ -448,6 +480,7 @@
 }
 
 .stepMeta {
+  margin-left: auto;
   overflow: hidden;
   color: var(--color-muted-2);
   font-family: var(--font-mono);

@@ -30,6 +30,13 @@ public record SkillDto(
         int promptCount,
         int attemptedCount,
         int validatedCount,
-        int toReinforceCount
+        int toReinforceCount,
+        /**
+         * {@code true} quand ce candidat <b>ne peut pas produire</b> sur cette
+         * compétence : les fronts affichent un cadenas et renvoient vers le
+         * paiement. Toujours {@code false} pour un abonné TCF. Décidé par
+         * {@code SkillAccessService}, jamais recalculé par un front.
+         */
+        boolean locked
 ) {
 }

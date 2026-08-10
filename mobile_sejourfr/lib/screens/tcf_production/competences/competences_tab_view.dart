@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/models/skill_models.dart';
+import '../../../core/widgets/premium_lock.dart';
 import '../tcf_production_module.dart';
 import 'competences_nav.dart';
 import 'competences_providers.dart';
@@ -52,8 +55,16 @@ class _CompetencesTabViewState extends ConsumerState<CompetencesTabView> {
 
   Color get _accent => widget.module.accent;
 
-  void _open(SkillDto skill) =>
-      context.push(competenceDetailPath(widget.module, skill.id));
+  /// Le verrou freemium vient du serveur (`skill.locked`) : verrouillée, la
+  /// compétence reste dans la liste et lisible, mais son tap ouvre l'offre au
+  /// lieu de sujets sur lesquels rien ne pourrait être produit.
+  void _open(SkillDto skill) {
+    if (skill.locked) {
+      unawaited(showTcfLockPaywall(context));
+      return;
+    }
+    context.push(competenceDetailPath(widget.module, skill.id));
+  }
 
   @override
   Widget build(BuildContext context) {

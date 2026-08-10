@@ -141,10 +141,19 @@ enum DiagnosticCommunicationStatus {
       );
 }
 
-class DiagnosticExercise {
-  const DiagnosticExercise({
+/// Ce qu'un exercice de diagnostic montre au candidat, quelle que soit sa
+/// provenance. Deux sources le produisent :
+///  - [DiagnosticExercise], servi par la session d'un compte, qui porte en plus
+///    l'attempt et l'éventuelle soumission ;
+///  - [PublicDiagnosticExercise], servi par le catalogue public à un visiteur
+///    sans compte — il n'a ni `attemptId` ni `submissionId`, qui n'existent
+///    qu'une fois la session créée, donc qu'après l'inscription.
+///
+/// Les écrans de production (consigne, écrit, oral) sont typés sur cette vue :
+/// ils rendent le même exercice dans les deux régimes.
+abstract class DiagnosticExerciseView {
+  const DiagnosticExerciseView({
     required this.productionTaskId,
-    required this.attemptId,
     required this.epreuve,
     required this.title,
     required this.instruction,
@@ -154,12 +163,9 @@ class DiagnosticExercise {
     this.durationMinSeconds,
     this.durationMaxSeconds,
     this.instructionAudioUrl,
-    this.submissionId,
-    this.submissionStatus,
   });
 
   final String productionTaskId;
-  final String attemptId;
   final EpreuveType epreuve;
   final String title;
   final String instruction;
@@ -169,6 +175,26 @@ class DiagnosticExercise {
   final int? durationMinSeconds;
   final int? durationMaxSeconds;
   final String? instructionAudioUrl;
+}
+
+class DiagnosticExercise extends DiagnosticExerciseView {
+  const DiagnosticExercise({
+    required super.productionTaskId,
+    required this.attemptId,
+    required super.epreuve,
+    required super.title,
+    required super.instruction,
+    required super.helperText,
+    super.wordsMin,
+    super.wordsMax,
+    super.durationMinSeconds,
+    super.durationMaxSeconds,
+    super.instructionAudioUrl,
+    this.submissionId,
+    this.submissionStatus,
+  });
+
+  final String attemptId;
   final String? submissionId;
   final SubmissionStatut? submissionStatus;
 
@@ -189,6 +215,65 @@ class DiagnosticExercise {
         submissionStatus: json['submissionStatus'] == null
             ? null
             : SubmissionStatut.fromWire(json['submissionStatus'] as String),
+      );
+}
+
+/// Exercice servi par `GET /api/public/diagnostics/current` — **sans jeton**.
+class PublicDiagnosticExercise extends DiagnosticExerciseView {
+  const PublicDiagnosticExercise({
+    required super.productionTaskId,
+    required super.epreuve,
+    required super.title,
+    required super.instruction,
+    required super.helperText,
+    super.wordsMin,
+    super.wordsMax,
+    super.durationMinSeconds,
+    super.durationMaxSeconds,
+    super.instructionAudioUrl,
+  });
+
+  factory PublicDiagnosticExercise.fromJson(Map<String, dynamic> json) =>
+      PublicDiagnosticExercise(
+        productionTaskId: json['productionTaskId'] as String,
+        epreuve: EpreuveType.fromWire(json['epreuve'] as String),
+        title: json['title'] as String? ?? '',
+        instruction: json['instruction'] as String? ?? '',
+        helperText: json['helperText'] as String? ?? '',
+        wordsMin: (json['wordsMin'] as num?)?.toInt(),
+        wordsMax: (json['wordsMax'] as num?)?.toInt(),
+        durationMinSeconds: (json['durationMinSeconds'] as num?)?.toInt(),
+        durationMaxSeconds: (json['durationMaxSeconds'] as num?)?.toInt(),
+        instructionAudioUrl: _trimmedOrNull(json['instructionAudioUrl']),
+      );
+}
+
+/// Les deux sujets du diagnostic tels qu'un visiteur les reçoit avant tout
+/// compte. Il n'y a **ni session, ni attempt, ni soumission** ici : rien n'est
+/// créé côté serveur tant que le visiteur ne s'est pas inscrit.
+class PublicDiagnostic {
+  const PublicDiagnostic({
+    required this.diagnosticCode,
+    required this.diagnosticVersion,
+    required this.written,
+    required this.oral,
+  });
+
+  final String diagnosticCode;
+  final int diagnosticVersion;
+  final PublicDiagnosticExercise written;
+  final PublicDiagnosticExercise oral;
+
+  factory PublicDiagnostic.fromJson(Map<String, dynamic> json) =>
+      PublicDiagnostic(
+        diagnosticCode: json['diagnosticCode'] as String? ?? '',
+        diagnosticVersion: (json['diagnosticVersion'] as num? ?? 0).toInt(),
+        written: PublicDiagnosticExercise.fromJson(
+          json['written'] as Map<String, dynamic>,
+        ),
+        oral: PublicDiagnosticExercise.fromJson(
+          json['oral'] as Map<String, dynamic>,
+        ),
       );
 }
 
@@ -281,6 +366,7 @@ class PlanRecommendedExercise {
     required this.title,
     required this.section,
     required this.estimatedMinutes,
+    this.locked = false,
   });
 
   final String skillPromptId;
@@ -290,6 +376,12 @@ class PlanRecommendedExercise {
   final SkillSection section;
   final int estimatedMinutes;
 
+  /// Verrou freemium **calculé par le serveur** : ce candidat ne peut pas
+  /// produire sur ce micro-exercice. Le Plan reste affiché en entier — seul le
+  /// bouton devient une invitation à s'abonner. Aucune règle n'est recalculée
+  /// ici (cf. `SkillDto.locked`).
+  final bool locked;
+
   factory PlanRecommendedExercise.fromJson(Map<String, dynamic> json) =>
       PlanRecommendedExercise(
         skillPromptId: json['skillPromptId'] as String,
@@ -298,6 +390,7 @@ class PlanRecommendedExercise {
         title: json['title'] as String? ?? '',
         section: SkillSection.fromWire(json['section'] as String),
         estimatedMinutes: (json['estimatedMinutes'] as num? ?? 0).toInt(),
+        locked: json['locked'] as bool? ?? false,
       );
 }
 
@@ -426,6 +519,7 @@ class LearningPlanPriority {
     this.promptCount = 0,
     this.attemptedCount = 0,
     this.validatedCount = 0,
+    this.locked = false,
   });
 
   final String skillId;
@@ -445,6 +539,11 @@ class LearningPlanPriority {
   final int promptCount;
   final int attemptedCount;
   final int validatedCount;
+
+  /// Verrou freemium servi par le serveur. L'étape reste **entièrement
+  /// lisible** — masquer une priorité priverait le candidat du résultat de sa
+  /// propre production ; seul le passage à l'exercice est verrouillé.
+  final bool locked;
 
   factory LearningPlanPriority.fromJson(Map<String, dynamic> json) =>
       LearningPlanPriority(
@@ -470,6 +569,7 @@ class LearningPlanPriority {
         promptCount: (json['promptCount'] as num? ?? 0).toInt(),
         attemptedCount: (json['attemptedCount'] as num? ?? 0).toInt(),
         validatedCount: (json['validatedCount'] as num? ?? 0).toInt(),
+        locked: json['locked'] as bool? ?? false,
       );
 }
 
@@ -484,6 +584,7 @@ class LearningPlanSkill {
     this.promptCount = 0,
     this.attemptedCount = 0,
     this.validatedCount = 0,
+    this.locked = false,
   });
 
   final String skillId;
@@ -497,6 +598,11 @@ class LearningPlanSkill {
   final int promptCount;
   final int attemptedCount;
   final int validatedCount;
+
+  /// Cf. [LearningPlanPriority.locked]. La carte reste lisible : le candidat
+  /// garde le résultat de ses propres productions, seul l'entraînement est
+  /// verrouillé.
+  final bool locked;
 
   factory LearningPlanSkill.fromJson(Map<String, dynamic> json) =>
       LearningPlanSkill(
@@ -512,6 +618,7 @@ class LearningPlanSkill {
         promptCount: (json['promptCount'] as num? ?? 0).toInt(),
         attemptedCount: (json['attemptedCount'] as num? ?? 0).toInt(),
         validatedCount: (json['validatedCount'] as num? ?? 0).toInt(),
+        locked: json['locked'] as bool? ?? false,
       );
 }
 

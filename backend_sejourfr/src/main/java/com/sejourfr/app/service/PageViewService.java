@@ -58,6 +58,10 @@ public class PageViewService {
                     PageViewEvent.DIAGNOSTIC_ORAL_COMPLETED,
                     PageViewEvent.DIAGNOSTIC_COMPLETED,
                     PageViewEvent.DIAGNOSTIC_RESULT_VIEWED,
+                    // Parcours invité : les deux productions sont faites, le
+                    // compte est demandé. Compté à part des vues et des clics
+                    // CTA — c'est une étape de funnel, lue dans `events`.
+                    PageViewEvent.DIAGNOSTIC_ACCOUNT_REQUIRED,
                     PageViewEvent.DIAGNOSTIC_TO_PREMIUM_CLICKED),
             "/plan", EnumSet.of(
                     PageViewEvent.PLAN_OPENED,

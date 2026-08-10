@@ -67,6 +67,17 @@ public class RateLimitGuard {
     }
 
     /**
+     * Lecture publique des sujets du diagnostic : borne large par IP. Cet
+     * endpoint ne fait qu'ecrire zero ligne et lire du contenu seede, mais il
+     * est ouvert : la limite existe pour couper une boucle automatisee, pas
+     * pour compter les consultations d'un visiteur reel.
+     */
+    public void checkPublicDiagnostic(String ip) {
+        if (!props.isEnabled()) return;
+        limiter.check("public-diagnostic", ip, props.getPublicDiagnostic());
+    }
+
+    /**
      * Soumission production EE/EO (Whisper + Claude/OpenAI) : double garde-fou
      * par utilisateur — burst court (anti-boucle) + plafond journalier
      * (anti-facture). Applique a tous les tiers : le quota freemium reste gere

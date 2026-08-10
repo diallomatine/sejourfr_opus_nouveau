@@ -46,7 +46,7 @@ class DiagnosticProgress extends StatelessWidget {
 class DiagnosticExerciseCard extends StatelessWidget {
   const DiagnosticExerciseCard({super.key, required this.exercise});
 
-  final DiagnosticExercise exercise;
+  final DiagnosticExerciseView exercise;
 
   @override
   Widget build(BuildContext context) {

@@ -324,10 +324,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isOnTargetPath = loc == AppRoutes.targetPath;
       final isOnSplash = loc == AppRoutes.splash;
       // Pages publiques : la WebView légale (CGU / confidentialité) est
-      // ouverte depuis login & inscription, et la page « À propos »
-      // (disclaimer non-affiliation) doit rester consultable sans compte.
-      final isOnPublicPage =
-          loc == AppRoutes.helpWebview || loc == AppRoutes.about;
+      // ouverte depuis login & inscription, la page « À propos » (disclaimer
+      // non-affiliation) doit rester consultable sans compte, et le
+      // **diagnostic** se fait entièrement avant l'inscription — le compte
+      // n'est demandé qu'au moment d'envoyer les deux productions à l'analyse.
+      // Le Plan (`/plan`), lui, reste authentifié : il n'existe qu'après.
+      final isOnPublicPage = loc == AppRoutes.helpWebview ||
+          loc == AppRoutes.about ||
+          loc == AppRoutes.diagnostic;
 
       // Si user connecté : pas d'auth flow, pas d'onboarding, pas de splash.
       if (isAuth) {
@@ -355,7 +359,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       // (main.dart) donc disponible dès le premier frame.
       final onboardingSeen = ref.read(onboardingSeenProvider);
 
-      if (!onboardingSeen && !isOnOnboarding) {
+      // Une page publique reste atteignable même sur une installation neuve :
+      // un lien profond vers le diagnostic ne doit pas se perdre dans
+      // l'onboarding puis l'écran de connexion.
+      if (!onboardingSeen && !isOnOnboarding && !isOnPublicPage) {
         return authFlowLocation(
           AppRoutes.onboarding,
           consumeDestination(state.uri.toString()),

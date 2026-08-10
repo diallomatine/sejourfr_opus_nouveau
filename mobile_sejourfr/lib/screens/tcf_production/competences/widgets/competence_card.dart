@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/models/skill_models.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/skill_progress.dart';
+import '../../../../core/widgets/premium_lock.dart';
 import '../../../../core/widgets/pressable_card.dart';
 import '../../../../core/widgets/progress_ring.dart';
 
@@ -16,6 +17,11 @@ import '../../../../core/widgets/progress_ring.dart';
 /// La progression se lit en **sujets traités** (et non validés — §12 de la
 /// spec) : c'est ce que dit l'anneau. Les sujets réussis, eux, sont nommés
 /// dans le libellé.
+///
+/// Une compétence **verrouillée** (`skill.locked`, calculé serveur) reste
+/// entièrement lisible : titre et état ne bougent pas, l'anneau cède la place
+/// au cadenas et la pilule « Premium » dit ce qui l'ouvrirait. Où mène le tap,
+/// c'est l'appelant qui en décide — cette carte ne fait qu'annoncer le verrou.
 class CompetenceCard extends StatelessWidget {
   const CompetenceCard({
     super.key,
@@ -39,16 +45,22 @@ class CompetenceCard extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            ProgressRing(
-              value: skill.progress * 100,
-              size: 46,
-              stroke: 5,
-              color: tone,
-              label: '${skill.attemptedCount}',
-              sub: '/${skill.promptCount}',
-              textColor: tone,
-              subColor: AppColors.inkFaint,
-            ),
+            // Verrouillée, la compétence n'a pas d'anneau : il n'aurait rien à
+            // raconter. Le cadenas prend sa place, à la même taille (miroir du
+            // web) — le reste de la carte ne bouge pas d'un pixel.
+            if (skill.locked)
+              const PremiumLockTile(size: 46)
+            else
+              ProgressRing(
+                value: skill.progress * 100,
+                size: 46,
+                stroke: 5,
+                color: tone,
+                label: '${skill.attemptedCount}',
+                sub: '/${skill.promptCount}',
+                textColor: tone,
+                subColor: AppColors.inkFaint,
+              ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -63,13 +75,24 @@ class CompetenceCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    competenceProgressLabel(skill),
-                    style: AppFonts.ui(
-                      size: 11.5,
-                      weight: FontWeight.w600,
-                      color: AppColors.inkSoft,
-                    ),
+                  // Le libellé de progression **reste** sur une compétence
+                  // verrouillée : un candidat qui y a déjà produit garde le
+                  // compte de ses sujets traités, le cadenas ne l'efface pas.
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 5,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (skill.locked) const PremiumLockTag(),
+                      Text(
+                        competenceProgressLabel(skill),
+                        style: AppFonts.ui(
+                          size: 11.5,
+                          weight: FontWeight.w600,
+                          color: AppColors.inkSoft,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

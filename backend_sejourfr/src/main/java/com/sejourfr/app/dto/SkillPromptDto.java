@@ -90,6 +90,14 @@ public record SkillPromptDto(
          * suivant a travailler » se desactive alors, sans jamais bloquer la
          * navigation.
          */
-        UUID nextPromptId
+        UUID nextPromptId,
+        /**
+         * {@code true} quand ce candidat <b>ne peut pas produire</b> sur ce
+         * sujet : les fronts affichent un cadenas et renvoient vers le
+         * paiement. Toujours {@code false} pour un abonné TCF. Décidé par
+         * {@code SkillAccessService} — le serveur refuse aussi la soumission
+         * (403), l'affichage n'est pas la garde.
+         */
+        boolean locked
 ) {
 }

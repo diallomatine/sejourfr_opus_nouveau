@@ -181,6 +181,10 @@ class _FakeDiagnosticGateway implements DiagnosticGateway {
   int get detailCalls => _detailIndex;
 
   @override
+  Future<PublicDiagnostic> publicCurrent() =>
+      throw UnimplementedError('Ces cas couvrent le parcours connecté.');
+
+  @override
   Future<DiagnosticJourney> current() async => currentJourney;
 
   @override

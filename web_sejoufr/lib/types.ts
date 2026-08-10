@@ -628,7 +628,49 @@ export interface DiagnosticExerciseDto {
     submissionStatus: SubmissionStatut | null;
 }
 
-export interface PlanRecommendedExerciseDto {
+/**
+ * Sujets du diagnostic servis **sans authentification**
+ * (`GET /api/public/diagnostics/current`) : de quoi produire son écrit et son
+ * oral avant même d'avoir un compte.
+ *
+ * Ni `attemptId` ni `submissionId` : ils n'existent qu'une fois la session
+ * créée côté serveur, donc **après** l'inscription. Le visiteur produit
+ * d'abord, le serveur enregistre ensuite.
+ */
+export interface PublicDiagnosticExerciseDto {
+    productionTaskId: string;
+    epreuve: Extract<EpreuveType, "TCF_EE" | "TCF_EO">;
+    title: string;
+    instruction: string;
+    helperText: string | null;
+    wordsMin: number | null;
+    wordsMax: number | null;
+    durationMinSeconds: number | null;
+    durationMaxSeconds: number | null;
+    instructionAudioUrl: string | null;
+}
+
+export interface PublicDiagnosticResponse {
+    diagnosticCode: string;
+    diagnosticVersion: number;
+    written: PublicDiagnosticExerciseDto;
+    oral: PublicDiagnosticExerciseDto;
+}
+
+/**
+ * Verrou freemium d'une brique de production, **posé et imposé par le serveur**.
+ *
+ * `true` ⇒ ce candidat ne peut pas produire dessus : le web n'affiche qu'un
+ * cadenas et renvoie vers `/paiement`. Aucun front ne recalcule la règle (quelle
+ * compétence est ouverte, combien de sujets par compétence) — elle vit dans le
+ * backend, qui répond 403 de toute façon. Un serveur qui ne servirait pas encore
+ * le champ laisse donc tout **ouvert**, jamais tout fermé.
+ */
+interface SkillLockable {
+    locked: boolean;
+}
+
+export interface PlanRecommendedExerciseDto extends SkillLockable {
     skillPromptId: string;
     skillId: string;
     skillCode: string;
@@ -700,7 +742,7 @@ interface LearningPlanSkillCounters {
     validatedCount: number;
 }
 
-export interface LearningPlanPriorityDto extends LearningPlanSkillCounters {
+export interface LearningPlanPriorityDto extends LearningPlanSkillCounters, SkillLockable {
     skillId: string;
     skillCode: string;
     title: string;
@@ -713,7 +755,7 @@ export interface LearningPlanPriorityDto extends LearningPlanSkillCounters {
     recommendedExercise: PlanRecommendedExerciseDto | null;
 }
 
-export interface LearningPlanSkillDto extends LearningPlanSkillCounters {
+export interface LearningPlanSkillDto extends LearningPlanSkillCounters, SkillLockable {
     skillId: string;
     skillCode: string;
     title: string;
@@ -848,7 +890,7 @@ export interface SkillTaskProgressDto {
 }
 
 /** Une compétence (8 par tâche) + la progression du user courant. */
-export interface SkillDto {
+export interface SkillDto extends SkillLockable {
     id: string;
     section: SkillSection;
     taskCode: string;
@@ -868,8 +910,10 @@ export interface SkillDto {
     toReinforceCount: number;
 }
 
-/** Un petit sujet dans la liste d'une compétence. */
-export interface SkillPromptSummaryDto {
+/** Un petit sujet dans la liste d'une compétence. Porte le même `locked` que
+ *  `SkillPromptDto` : c'est cette forme-là que sert `GET /api/skills/{id}`,
+ *  donc c'est elle qui décide du cadenas dans la liste des 5 sujets. */
+export interface SkillPromptSummaryDto extends SkillLockable {
     id: string;
     code: string; // "EE1-C1-S1"
     title: string;
@@ -919,7 +963,7 @@ export interface SkillDetailDto {
 
 /** GET /api/skill-prompts/{promptId} — écran de production. Ne porte JAMAIS
  *  les références : elles n'apparaissent qu'après une tentative (§13.2). */
-export interface SkillPromptDto {
+export interface SkillPromptDto extends SkillLockable {
     id: string;
     skillId: string;
     skillCode: string;

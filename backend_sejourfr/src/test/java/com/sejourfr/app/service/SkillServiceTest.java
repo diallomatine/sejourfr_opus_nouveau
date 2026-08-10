@@ -58,6 +58,7 @@ class SkillServiceTest {
     @Mock private SkillPromptManager promptManager;
     @Mock private UserSkillAttemptManager attemptManager;
     @Mock private CurrentUser currentUser;
+    @Mock private SkillAccessService accessService;
 
     private SkillService service;
 
@@ -66,9 +67,13 @@ class SkillServiceTest {
     @BeforeEach
     void setUp() {
         service = new SkillService(skillManager, promptManager, attemptManager,
-                new SkillStatusResolver(), new SkillMapper(), new SkillPromptMapper(),
-                new SkillReferenceMapper(), currentUser);
+                new SkillStatusResolver(), accessService, new SkillMapper(),
+                new SkillPromptMapper(), new SkillReferenceMapper(), currentUser);
         when(currentUser.getId()).thenReturn(userId);
+        // Par defaut, aucun verrou : ce fichier teste la lecture du catalogue.
+        // Le verrou freemium a son propre test (SkillAccessServiceTest).
+        when(accessService.resolve(userId))
+                .thenReturn(SkillAccessService.SkillAccess.UNLIMITED);
     }
 
     // ------------------------------------------------------------------------

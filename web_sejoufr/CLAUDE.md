@@ -39,6 +39,7 @@ Backend Spring Boot Java 21 séparé, qui tourne sur `http://localhost:8080`.
 | POST    | `/api/attempts/{id}/answers`           | soumettre une réponse                           | oui  |
 | POST    | `/api/attempts/{id}/finish`            | finaliser                                       | oui  |
 | GET     | `/api/me/dashboard`                    | agrégat dashboard (streak, stats, catégories)   | oui  |
+| GET     | `/api/public/diagnostics/current`      | sujets EE/EO du diagnostic pour un visiteur     | non  |
 | GET     | `/api/diagnostics/current`             | état/reprise du diagnostic TCF initial          | oui  |
 | POST    | `/api/diagnostics`                     | démarrer ou reprendre (idempotent)               | oui  |
 | GET     | `/api/diagnostics/{sessionId}`         | polling et résultat d'un diagnostic              | oui  |
@@ -93,8 +94,6 @@ app/
 │   │                              #   examens blancs, streak, niveau TCF estimé), 2 cards
 │   │                              #   catégories TCF/Civique, "À renforcer en priorité" (top 3),
 │   │                              #   bandeaux reprendre/onboarding
-│   ├── diagnostic/page.tsx       # ★ diagnostic initial : présentation → EE → EO enregistré
-│   │                              #   → analyse asynchrone → résultat, reprise pilotée backend
 │   ├── plan/page.tsx             # ★ action prioritaire, suivantes, compétences observées,
 │   │                              #   accès secondaire à l'ancienne Progression
 │   ├── recommandations/page.tsx  # ★ liste complète des catégories triées faibles d'abord
@@ -125,6 +124,9 @@ app/
 │   │                              #   timer si MOCK_EXAM via QuestionRunner)
 │   ├── paiement/page.tsx, succes/page.tsx        # Stripe Payment Link
 │
+├── diagnostic/page.tsx           # ★ route DUALE (guest + connecté) : présentation → EE → EO
+│                                 #   enregistré → (invité : écran de compte) → analyse
+│                                 #   asynchrone → résultat. Cf. section dédiée.
 ├── inscription/, connexion/, mot-de-passe-oublie/, reinitialiser-mot-de-passe/
 ├── a-propos/page.tsx             # disclaimer non-affiliation + sources officielles (conformité
 │                                 #   stores ; LegalPageLayout, miroir de l'écran /about mobile ;
@@ -500,9 +502,58 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   figer une analyse asynchrone.
 - **Accueil** : carte non bloquante en trois états — invitation (+ « Plus
   tard » local), reprise avec `N / 2`, puis priorité du jour et accès au Plan.
-- **Routes protégées** : `middleware.ts` protège `/diagnostic` et `/plan` et
-  conserve le chemin dans `?next=` ; `lib/chrome-routes.ts` les range dans le
-  shell app avec sidebar/drawer.
+- **Routes** : `middleware.ts` ne protège plus que `/plan` (et `/dashboard`,
+  `/paiement`) ; `/diagnostic` est une route **duale**
+  (`DUAL_CHROME_PREFIXES`), sous `app/diagnostic/`, hors du groupe `(app)` :
+  `DiagnosticView` porte lui-même le `DualChromeShell` (sidebar pour un compte,
+  fond applicatif nu + header/footer publics pour un visiteur).
+
+### Diagnostic en INVITÉ — produire d'abord, créer le compte ensuite (2026-08-10)
+
+Le mur d'inscription est passé **après** les deux productions : un visiteur
+ouvre `/diagnostic`, rédige, s'enregistre, puis on lui demande un compte pour
+lancer l'analyse. `/reussir` pointe donc directement sur `/diagnostic`, sans
+détour par `/inscription`.
+
+- **Deux régimes, deux composants** dans `DiagnosticView.tsx` :
+  `GuestDiagnostic` (sujets via `diagnosticApi.publicCurrent()`, productions
+  gardées localement) et `ConnectedDiagnostic` (**le parcours serveur
+  historique, inchangé** : session, polling, reprise cross-device, retry). Un
+  visiteur déjà connecté ne voit aucune différence avec avant.
+- **`GET /api/public/diagnostics/current`** ne sert que les **sujets**
+  (`PublicDiagnosticResponse` / `PublicDiagnosticExerciseDto` dans
+  `lib/types.ts`) : ni `attemptId`, ni `submissionId` — ils n'existent qu'une
+  fois la session créée, donc après le compte.
+- 🛑 **On ne perd JAMAIS une production.** `lib/diagnostic-local-store.ts`
+  écrit le texte EE **et le Blob audio EO** dans **IndexedDB** (clé
+  `code/vN`) — `localStorage` ne stocke pas de binaire ; l'audio est persisté en
+  `ArrayBuffer` + type MIME et rebâti en `Blob` à la lecture. Ça survit à un
+  rafraîchissement, à une fermeture d'onglet et à un sign-in social qui quitte
+  la page. Écriture impossible (navigation privée, quota) ⇒ la production reste
+  en mémoire dans l'onglet **et on le dit** au candidat.
+- **Ordre des opérations après authentification** (`runHandoff`) : `POST
+  /api/diagnostics` → soumission de l'écrit → attente de son enregistrement
+  (`refreshAfterSubmission`) → soumission de l'oral → attente → **et seulement
+  là** `clearLocalDiagnostic`. Toute sortie anticipée (erreur réseau, session
+  déjà terminée, sujets d'une autre version) **laisse le travail intact** et
+  propose de réessayer. Le démarrage est verrouillé par un `ref` : `user`
+  change d'identité à chaque `refreshUser()`, rejouer la reprise renverrait les
+  mêmes productions deux fois.
+- **Compte qui a déjà un diagnostic** : `POST /api/diagnostics` est idempotent
+  et peut renvoyer une session `COMPLETED` — une tâche n'accepte qu'une
+  soumission. On n'envoie alors rien, on affiche le résultat existant avec un
+  bandeau honnête (`HandoffNotice`) et un bouton explicite pour supprimer les
+  réponses gardées sur l'appareil. Jamais de suppression silencieuse.
+- **Écran de demande de compte** (`DiagnosticAccountGate.tsx`) : inscription
+  **et** connexion (+ Google), en modale de page — pas de navigation vers
+  `/inscription`, qui ferait perdre le contexte. Il montre un **exemple**
+  illustratif du bilan, badgé « Exemple — pas votre résultat » et légendé
+  « valeurs fictives » : aucun résultat réel n'est calculé avant le compte
+  (l'analyse coûte deux appels LLM payés).
+- **Audience** : le funnel reste mesurable en invité (`/api/public/page-views`
+  est public). Nouvel événement **`DIAGNOSTIC_ACCOUNT_REQUIRED`** (allowlist
+  `lib/audience-events.ts`, miroir backend) émis à l'affichage de l'écran de
+  compte — c'est LA mesure de conversion du parcours.
 
 ## Stratégie produit — parité fonctionnelle avec le mobile
 

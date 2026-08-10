@@ -1,6 +1,7 @@
 package com.sejourfr.app.controller;
 
 import com.sejourfr.app.dto.SkillDto;
+import com.sejourfr.app.dto.SkillPromptDto;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.entity.User;
@@ -14,6 +15,7 @@ import com.sejourfr.app.support.TestData;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
@@ -24,6 +26,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -163,8 +166,130 @@ class SkillControllerIT extends AbstractIntegrationTest {
     }
 
     // ------------------------------------------------------------------------
+    // Verrou freemium (2026-08-10) : ce qui est ouvert a un compte gratuit
+    // ------------------------------------------------------------------------
+
+    @Test
+    void sansAccesTcfSeuleLaPremiereCompetenceDeChaqueTacheEstOuverte() throws Exception {
+        List<SkillDto> skills = list(testData.user(), "?section=EE");
+
+        // Une seule ouverte par tache, soit 3 sur les 24 de l'epreuve.
+        assertThat(skills).filteredOn(skill -> !skill.locked())
+                .hasSize(3)
+                .allMatch(skill -> skill.displayOrder() == 1);
+        assertThat(skills).filteredOn(skill -> skill.displayOrder() > 1)
+                .isNotEmpty()
+                .allMatch(SkillDto::locked);
+    }
+
+    @Test
+    void unAbonneTcfNaAucuneCompetenceVerrouillee() throws Exception {
+        User abonne = testData.user();
+        testData.userSubscription(abonne, testData.plan());
+
+        assertThat(list(abonne, "?section=EO")).isNotEmpty().allMatch(skill -> !skill.locked());
+    }
+
+    @Test
+    void dansUneCompetenceOuverteLesDeuxPremiersSujetsLeSontEtPasLeTroisieme()
+            throws Exception {
+        User user = testData.user();
+        Skill ouverte = skillManager.findActiveByTaskCode(SkillTaskCode.EE1).getFirst();
+        List<SkillPrompt> prompts = promptManager.findActiveBySkillId(ouverte.getId());
+
+        assertThat(locked(user, prompts.get(0))).isFalse();
+        assertThat(locked(user, prompts.get(1))).isFalse();
+        assertThat(locked(user, prompts.get(2))).isTrue();
+    }
+
+    @Test
+    void tousLesSujetsDUneCompetenceVerrouilleeLeSont() throws Exception {
+        User user = testData.user();
+        Skill verrouillee = skillManager.findActiveByTaskCode(SkillTaskCode.EE1).get(1);
+        SkillPrompt premierSujet = promptManager.findActiveBySkillId(verrouillee.getId()).getFirst();
+
+        assertThat(locked(user, premierSujet)).isTrue();
+    }
+
+    /**
+     * L'ecran « liste des 5 sujets » est celui ou la regle des 2 sujets doit se
+     * VOIR : sans {@code locked} sur la carte, le candidat ne decouvrait le
+     * verrou qu'en ouvrant le sujet.
+     */
+    @Test
+    void leDetailDUneCompetenceOuverteCadenasseLesSujetsAuDelaDesDeuxPremiers()
+            throws Exception {
+        User user = testData.user();
+        Skill ouverte = skillManager.findActiveByTaskCode(SkillTaskCode.EE1).getFirst();
+
+        mockMvc.perform(get("/api/skills/" + ouverte.getId())
+                        .header(HttpHeaders.AUTHORIZATION, auth.bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.skill.locked").value(false))
+                .andExpect(jsonPath("$.prompts[0].locked").value(false))
+                .andExpect(jsonPath("$.prompts[1].locked").value(false))
+                .andExpect(jsonPath("$.prompts[2].locked").value(true))
+                .andExpect(jsonPath("$.prompts[3].locked").value(true))
+                .andExpect(jsonPath("$.prompts[4].locked").value(true));
+    }
+
+    @Test
+    void leDetailDUnAbonneTcfNaAucunSujetCadenasse() throws Exception {
+        User abonne = testData.user();
+        testData.userSubscription(abonne, testData.plan());
+        Skill skill = skillManager.findActiveByTaskCode(SkillTaskCode.EE1).get(3);
+
+        mockMvc.perform(get("/api/skills/" + skill.getId())
+                        .header(HttpHeaders.AUTHORIZATION, auth.bearer(abonne)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.skill.locked").value(false))
+                .andExpect(jsonPath("$.prompts[0].locked").value(false))
+                .andExpect(jsonPath("$.prompts[4].locked").value(false));
+    }
+
+    /** L'affichage n'est pas la garde : le serveur refuse la production. */
+    @Test
+    void produireSurUnSujetVerrouilleRepond403() throws Exception {
+        User user = testData.user();
+        Skill verrouillee = skillManager.findActiveByTaskCode(SkillTaskCode.EE1).get(1);
+        SkillPrompt sujet = promptManager.findActiveBySkillId(verrouillee.getId()).getFirst();
+
+        mockMvc.perform(post("/api/skill-attempts")
+                        .header(HttpHeaders.AUTHORIZATION, auth.bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"skillPromptId\":\"" + sujet.getId()
+                                + "\",\"texte\":\"Bonjour Madame, je vous écris pour vous prévenir.\","
+                                + "\"requestAnalysis\":false}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(containsString("accès TCF")));
+    }
+
+    @Test
+    void produireSurUnSujetOuvertResteAccepte() throws Exception {
+        User user = testData.user();
+        Skill ouverte = skillManager.findActiveByTaskCode(SkillTaskCode.EE1).getFirst();
+        SkillPrompt sujet = promptManager.findActiveBySkillId(ouverte.getId()).getFirst();
+
+        mockMvc.perform(post("/api/skill-attempts")
+                        .header(HttpHeaders.AUTHORIZATION, auth.bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"skillPromptId\":\"" + sujet.getId()
+                                + "\",\"texte\":\"Bonjour Madame, je vous écris pour vous prévenir.\","
+                                + "\"requestAnalysis\":false}"))
+                .andExpect(status().isCreated());
+    }
+
+    // ------------------------------------------------------------------------
     // Interne
     // ------------------------------------------------------------------------
+
+    private boolean locked(User user, SkillPrompt prompt) throws Exception {
+        String body = mockMvc.perform(get("/api/skill-prompts/" + prompt.getId())
+                        .header(HttpHeaders.AUTHORIZATION, auth.bearer(user)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readValue(body, SkillPromptDto.class).locked();
+    }
 
     private List<SkillDto> list(User user, String query) throws Exception {
         String body = mockMvc.perform(get("/api/skills" + query)

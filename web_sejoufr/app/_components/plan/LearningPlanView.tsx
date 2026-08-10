@@ -10,6 +10,7 @@ import {
   FilePenLine,
   Headphones,
   ListChecks,
+  Lock,
   Mic,
   RotateCcw,
   Sparkles,
@@ -40,9 +41,11 @@ import {
 import {useTrafficSource} from "@/lib/use-traffic-source";
 import {
   RowChevron,
+  SKILL_PREMIUM_HREF,
   SkillAccent,
   SkillBadge,
   type SkillBadgeTone,
+  SkillLockBadge,
   SkillRing,
 } from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
@@ -61,6 +64,16 @@ const SKILL_BADGE_TONE: Record<LearningPlanSkillStatus, SkillBadgeTone> = {
 /** Nombre de compétences observées affichées avant le repli — le brief §20
  *  interdit de dérouler les 48 d'un coup. */
 const VISIBLE_SKILLS = 6;
+
+/**
+ * Un cadenas du Plan qui renvoie au paiement, c'est LA mesure de conversion du
+ * verrou freemium : sans elle, on saurait combien de candidats voient le Plan,
+ * jamais combien le verrou en envoie vers l'abonnement. L'événement est
+ * autorisé côté serveur sur `/plan` — et c'est le seul qu'on émette ici.
+ */
+function trackPremiumClick() {
+  trackAudienceEvent("/plan", "DIAGNOSTIC_TO_PREMIUM_CLICKED");
+}
 
 function formatDate(value: string | null): string | null {
   if (!value) return null;
@@ -352,13 +365,21 @@ function PlanHero({
 
 /* ------------------------------------------------------- à faire maintenant */
 
+/**
+ * Le verrou ne retire **rien** de ce que le candidat a appris de sa propre
+ * production : la priorité, son explication et l'exercice visé restent écrits.
+ * Seule la destination du bouton change — ouvrir un sujet que le serveur
+ * refusera en 403 ne rendrait service à personne.
+ */
 function TodayCard({priority}: {priority: LearningPlanPriorityDto}) {
   const exercise = priority.recommendedExercise;
+  const locked = priority.locked || exercise?.locked === true;
   return (
     <section className={styles.today} aria-labelledby="today-title">
       <div className={styles.todayTop}>
         <div>
           <span className={styles.todayPill}>Priorité n°1</span>
+          {locked && <span className={styles.lockAside}><SkillLockBadge /></span>}
           <h3 id="today-title">{priority.title}</h3>
           <p>{priority.explanation ?? "Cette compétence est votre prochaine priorité utile."}</p>
         </div>
@@ -381,7 +402,21 @@ function TodayCard({priority}: {priority: LearningPlanPriorityDto}) {
         </div>
       )}
 
-      {exercise ? (
+      {locked ? (
+        <>
+          <Link
+            className={`${styles.primaryButton} ${styles.todayCta}`}
+            href={SKILL_PREMIUM_HREF}
+            onClick={trackPremiumClick}
+          >
+            <Lock size={16} aria-hidden /> Débloquer cet exercice
+          </Link>
+          <p className={styles.lockNote}>
+            Cet exercice fait partie de l&apos;abonnement Intégral. Votre plan, lui,
+            reste entier.
+          </p>
+        </>
+      ) : exercise ? (
         <Link
           className={`${styles.primaryButton} ${styles.todayCta}`}
           href={recommendedExerciseHref(exercise)}
@@ -452,6 +487,9 @@ function PathStep({
 }) {
   const exercise = priority.recommendedExercise;
   const done = priority.promptCount > 0 && priority.attemptedCount >= priority.promptCount;
+  // Le verrou est **lu**, jamais déduit du rang de l'étape : si le serveur
+  // change sa règle d'ouverture, cet écran suit sans une ligne à retoucher.
+  const locked = priority.locked || exercise?.locked === true;
   return (
     <li className={`${styles.step} ${current ? styles.stepCurrent : ""}`}>
       <span className={`${styles.stepMark} ${current ? styles.stepMarkCurrent : ""}`} aria-hidden>
@@ -462,6 +500,7 @@ function PathStep({
           <span className={styles.stepState} data-state={current ? "current" : "next"}>
             {current ? "En cours" : "À venir"}
           </span>
+          {locked && <SkillLockBadge />}
           <span className={styles.stepMeta}>
             {priority.skillCode} · {productionSectionLabel(priority.section)}
           </span>
@@ -496,14 +535,25 @@ function PathStep({
                 <small>{productionSectionLabel(exercise.section)} · {exercise.estimatedMinutes} min</small>
               </span>
             </div>
-            <Link
-              className={styles.stepCtaStrong}
-              href={recommendedExerciseHref(exercise)}
-              aria-label={`Continuer cette étape : ${priority.title}`}
-              onClick={() => trackAudienceEvent("/plan", "PLAN_RECOMMENDED_EXERCISE_STARTED")}
-            >
-              Continuer cette étape <ArrowRight size={16} aria-hidden />
-            </Link>
+            {locked ? (
+              <Link
+                className={styles.stepCtaStrong}
+                href={SKILL_PREMIUM_HREF}
+                aria-label={`Débloquer cette étape : ${priority.title}`}
+                onClick={trackPremiumClick}
+              >
+                <Lock size={15} aria-hidden /> Débloquer cette étape
+              </Link>
+            ) : (
+              <Link
+                className={styles.stepCtaStrong}
+                href={recommendedExerciseHref(exercise)}
+                aria-label={`Continuer cette étape : ${priority.title}`}
+                onClick={() => trackAudienceEvent("/plan", "PLAN_RECOMMENDED_EXERCISE_STARTED")}
+              >
+                Continuer cette étape <ArrowRight size={16} aria-hidden />
+              </Link>
+            )}
           </>
         )}
       </div>
@@ -547,10 +597,18 @@ function ObservedSkills({skills, total}: {skills: LearningPlanSkillDto[]; total:
   );
 }
 
+/** Verrouillée, la compétence garde son anneau, son état et sa pastille : c'est
+ *  le résultat de la propre production du candidat, le masquer serait le lui
+ *  reprendre. Seule la destination change. */
 function SkillCard({skill}: {skill: LearningPlanSkillDto}) {
   const done = skill.promptCount > 0 && skill.attemptedCount >= skill.promptCount;
+  const locked = skill.locked;
   return (
-    <Link href={competenceHref(skill)} className={`${s.card} ${s.rowCard} ${s.ringRow}`}>
+    <Link
+      href={locked ? SKILL_PREMIUM_HREF : competenceHref(skill)}
+      onClick={locked ? trackPremiumClick : undefined}
+      className={`${s.card} ${s.rowCard} ${s.ringRow}`}
+    >
       <SkillRing attempted={skill.attemptedCount} total={skill.promptCount} done={done} />
       <span className={s.rowBody}>
         <span className={s.rowTitle}>{skill.title}</span>
@@ -558,6 +616,7 @@ function SkillCard({skill}: {skill: LearningPlanSkillDto}) {
         <span className={s.rowState}>{competenceProgressLabel(skill)}</span>
       </span>
       <span className={styles.skillAside}>
+        {locked && <SkillLockBadge />}
         <SkillBadge tone={SKILL_BADGE_TONE[skill.status]}>
           {LEARNING_PLAN_SKILL_STATUS_LABEL[skill.status]}
         </SkillBadge>

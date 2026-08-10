@@ -133,6 +133,19 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
   freeSlots=1`, mobile briefing + pages examens). Le `slotNumber` est validé
   **1..20** (`AttemptService.MOCK_EXAM_SLOTS`, aligné sur les grilles des
   fronts) et ne pilote pas la composition (questions tirées du même pool).
+- **Compte gratuit, module Compétences TCF** (micro-entraînement EE/EO) : **une
+  seule compétence ouverte par tâche** (la première de sa `SkillTaskCode`, soit
+  6 pour les 6 tâches) **+ la compétence de la priorité n°1 du Plan**, et **2
+  sujets** par compétence ouverte. Le reste est verrouillé — cadenas côté
+  fronts, **403 côté serveur** (`SkillAccessService.assertCanProduce`). Les **3
+  analyses IA offertes à vie** sont un verrou distinct, inchangé, qui se cumule.
+  Règle posée le **2026-08-10**, elle **révoque** l'ancienne (« aucun sujet n'est
+  verrouillé ») ; détail et motif dans la section *Module « Compétences TCF »*.
+- **Compte gratuit, Plan personnalisé** : le Plan est **entièrement visible**,
+  diagnostic compris. Aucune priorité, aucune compétence observée, aucun
+  compteur n'est masqué — seul un `locked` est posé. Sa priorité n°1 est
+  toujours **jouable** (cf. ci-dessus) : c'est ce qui garde le Plan utilisable
+  sans abonnement.
 - **Compte gratuit, examen blanc TCF complet** (`/api/full-tcf-exams`,
   orchestré CO→CE→EE→EO) : **examen 1 offert** (slot 1, même grille que les
   abonnés) avec **EE + EO évaluées une seule fois à vie**. Au-delà, l'examen 1
@@ -253,8 +266,8 @@ cliquent son CTA, découpé par réseau de provenance.
 
 ## Diagnostic initial TCF et Plan personnalisé
 
-Le diagnostic est un **parcours authentifié distinct** des examens blancs et de
-la notation standard. Il comporte exactement deux exercices hybrides fixes par
+Le diagnostic est un **parcours distinct** des examens blancs et de la notation
+standard. Il comporte exactement deux exercices hybrides fixes par
 version : une EE de 100–130 mots, puis une EO enregistrée de 2–3 minutes. Ils
 vivent dans `production_tasks` pour réutiliser la soumission, R2 et Whisper,
 mais portent `diagnostic_code` + `diagnostic_version` ; tous les catalogues,
@@ -262,6 +275,26 @@ tirages, historiques, statistiques, quotas, outils admin standard, validateurs
 de rubriques et files de calibration doivent garder le filtre
 `diagnostic_code IS NULL`. Ce n'est jamais un `TCF_COMPLET`.
 
+- **Parcours : productions en invité → compte → analyse.** Un visiteur fait ses
+  **deux productions AVANT** qu'on lui demande un compte, le crée au moment
+  d'« Analyser mes réponses », et l'analyse IA ne tourne qu'ensuite. **Les
+  productions restent CÔTÉ CLIENT tant qu'il n'y a pas de compte** : aucune
+  session diagnostique anonyme, aucune ligne en base, aucun audio d'invité sur
+  R2 — `diagnostic_sessions.user_id` reste `NOT NULL`, ne rien rendre nullable.
+  Le seul besoin serveur est donc **servir les deux sujets** :
+  `GET /api/public/diagnostics/current` (public, rate-limité par IP à 120 / 10
+  min, `PublicDiagnosticResponse` **sans** `attemptId`/`submissionId`/
+  `submissionStatus`). La **version active et ses deux sujets se résolvent en un
+  seul endroit** (`DiagnosticContentResolver`, partagé par la lecture publique,
+  la création de session et la restitution) : deux résolutions séparées feraient
+  soumettre une production pour un sujet que le candidat n'a jamais lu. Funnel :
+  `DIAGNOSTIC_ACCOUNT_REQUIRED` sur `/diagnostic` est LA mesure de conversion —
+  tout ce qui précède se joue hors base. Après inscription, l'enchaînement
+  `POST /api/diagnostics` → écrit → oral **coup sur coup** est accepté sans
+  assouplir aucune garde (`DiagnosticPostSignupSequenceIT`) ; un compte au
+  diagnostic **déjà terminé** récupère sa session `COMPLETED` (200, avec son
+  `result`, jamais de seconde session) et toute nouvelle production est refusée
+  en **422** — c'est au front d'afficher le message.
 - **Agrégat** : `diagnostic_sessions` enveloppe les deux attempts EE/EO, avec
   unicité `(user, code, version)` **et** unicité séparée de chaque attempt. Les
   états persistés sont `IN_PROGRESS`, `ANALYZING`, `COMPLETED`, `FAILED` ; le DTO
@@ -323,6 +356,19 @@ de rubriques et files de calibration doivent garder le filtre
   `NOT_OBSERVED` est conservé dans l'historique mais n'annule jamais la dernière
   observation probante d'une compétence ;
   l'écran historique/Progression reste secondaire et séparé.
+  **L'ordre des priorités vit dans `LearningPlanPriorityResolver`**, extrait de
+  `LearningPlanService` le 2026-08-10 parce qu'un second lecteur en dépend :
+  `SkillAccessService` ouvre la compétence de la priorité n°1 à un compte
+  gratuit. Deux copies auraient fini par désigner deux « étapes n°1 »
+  différentes.
+- **Le Plan reste intégralement visible sans abonnement** : aucune priorité,
+  aucune compétence observée, aucun compteur, aucun exercice recommandé n'est
+  masqué à un compte gratuit — masquer priverait le candidat du résultat de sa
+  propre production. Seuls les **accès** sont verrouillés, signalés par
+  `locked` sur `LearningPlanPriorityDto`, `LearningPlanSkillDto` et
+  `PlanRecommendedExerciseDto`. L'exercice recommandé reste **désigné** même
+  verrouillé : savoir quoi travailler est ce que le Plan apporte, on ne le
+  détourne pas vers un sujet ouvert qui ne serait plus la priorité mesurée.
 - **Plan vivant** : après une correction v14/v8 réussie d'une future production
   complète standard, une observation structurée séparée utilise les skill IDs de
   sa tâche ; son échec best-effort ne dégrade jamais la correction. Les
@@ -1206,11 +1252,41 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
   exercice ? »), `skills.general_criterion` = le critère général travaillé (encart
   « Critère travaillé »). Et **ni l'un ni l'autre** n'est
   `skill_prompts.unique_criterion`, qui est le critère précis d'**un** sujet.
-- **Freemium** : produire, s'auto-évaluer et lire les 3 références est **gratuit
-  et illimité** pour tout compte inscrit — **aucun sujet n'est verrouillé**. Seule
-  l'**analyse IA** est premium (`hasTcf`), avec **3 analyses offertes à vie**. Le
-  quota se consomme à l'**acceptation** (`analysis_requested = true`), pas au
-  succès : sinon un retry après échec fournisseur en offrirait davantage.
+- **Freemium — règle en vigueur depuis le 2026-08-10.** ⚠️ **L'ancienne règle
+  (« aucun sujet n'est verrouillé, seule l'analyse IA est premium ») est
+  RÉVOQUÉE** : elle ouvrait les 240 sujets à un compte gratuit, si bien que le
+  module entier — le cœur de l'entraînement quotidien — ne donnait aucune raison
+  de payer, et les 3 analyses offertes étaient la seule friction. Ne pas la
+  réintroduire au motif qu'elle est encore écrite quelque part : ce qui suit
+  fait foi. Pour un compte **sans accès TCF** (`hasTcf == false`) :
+  - **une seule compétence ouverte par tâche**, celle de `display_order` le plus
+    bas encore actif (= rang 1 sur le contenu publié) → **6 compétences** pour
+    les 6 tâches ;
+  - **plus la compétence de la priorité n°1 de son Plan**, si elle n'y est pas
+    déjà. Sans cette exception, un diagnostic désignant une compétence de rang 5
+    cadenasserait l'**étape 1** du Plan et rendrait le Plan entier inutilisable —
+    or c'est la colonne vertébrale du produit ;
+  - dans une compétence ouverte, **les 2 premiers sujets actifs** seulement ;
+  - **les 3 analyses IA offertes à vie ne bougent pas** : un sujet ouvert reste
+    analysable dans la limite du quota existant (`free-analyses`, décompte
+    inchangé). Sur un sujet ouvert, produire, s'auto-évaluer, se relire et lire
+    les 3 références restent gratuits et illimités ; la garde des références
+    (« au moins une tentative ») est inchangée.
+  - Un **abonné TCF** n'a aucun verrou.
+  **Une seule autorité : `SkillAccessService`** (`SkillAccess.isSkillLocked` /
+  `isPromptLocked`), qui s'appuie sur `LearningPlanPriorityResolver` — extrait
+  exprès pour que l'ordre des priorités du Plan et le verrou ne puissent pas
+  diverger. Aucun mapper, aucun controller, aucun front ne réimplémente la
+  règle : les DTO portent un `locked` (`SkillDto`, `SkillPromptDto`,
+  `SkillPromptSummaryDto`, `LearningPlanPriorityDto`, `LearningPlanSkillDto`,
+  `PlanRecommendedExerciseDto`), et le verrou est **opposable serveur** —
+  `SkillAccessService.assertCanProduce` rend **403** à la création d'une
+  tentative comme sur `analyse` et `retry`, même philosophie que
+  `AttemptService.enforceMockExamSlotAccess`. Résolution **groupée** (4 requêtes
+  au plus, 1 seule pour un abonné) : un écran, c'est 24 compétences × 5 sujets.
+  Le quota d'analyses, lui, se consomme toujours à l'**acceptation**
+  (`analysis_requested = true`), pas au succès : sinon un retry après échec
+  fournisseur en offrirait davantage.
 - **Statut d'un sujet dérivé serveur**, jamais recalculé par un front
   (`SkillStatusResolver`) : `TODO` / **`TREATED`** / `VALIDATED` / `TO_REINFORCE`.
   `TREATED` (« Fait ») est le 4ᵉ statut qu'impose le freemium — une production

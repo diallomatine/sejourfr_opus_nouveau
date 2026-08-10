@@ -8,7 +8,6 @@ import com.sejourfr.app.enums.DiagnosticSessionStatus;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
-import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.AttemptService;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +24,7 @@ import java.util.UUID;
 public class DiagnosticSessionCreator {
 
     private final UserManager userManager;
-    private final ProductionTaskManager taskManager;
+    private final DiagnosticContentResolver content;
     private final AttemptService attemptService;
     private final DiagnosticSessionManager sessionManager;
 
@@ -33,10 +32,11 @@ public class DiagnosticSessionCreator {
     public DiagnosticSession create(UUID userId, String code, int version) {
         User user = userManager.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
-        ProductionTask writtenTask = taskManager.findActiveDiagnostic(code, version, EpreuveType.TCF_EE)
-                .orElseThrow(() -> new IllegalStateException("Sujet diagnostic EE actif introuvable"));
-        ProductionTask oralTask = taskManager.findActiveDiagnostic(code, version, EpreuveType.TCF_EO)
-                .orElseThrow(() -> new IllegalStateException("Sujet diagnostic EO actif introuvable"));
+        // Mêmes sujets que ceux servis publiquement au visiteur sans compte
+        // (cf. DiagnosticContentResolver) : ce qu'il a rédigé avant de
+        // s'inscrire doit correspondre à la tâche de la session créée ici.
+        ProductionTask writtenTask = content.writtenTask(code, version);
+        ProductionTask oralTask = content.oralTask(code, version);
         Attempt writtenAttempt = attemptService.createDiagnosticProductionAttempt(userId, EpreuveType.TCF_EE);
         Attempt oralAttempt = attemptService.createDiagnosticProductionAttempt(userId, EpreuveType.TCF_EO);
 

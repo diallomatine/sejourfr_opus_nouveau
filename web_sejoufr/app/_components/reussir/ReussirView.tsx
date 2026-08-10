@@ -178,11 +178,10 @@ function DiagnosticCta({ compact = false }: { compact?: boolean }) {
   const completed = Boolean(user && completedForUserId === user.id);
   const diagnosticDestination = withTrafficSource("/diagnostic", origin);
   const planDestination = withTrafficSource("/plan", origin);
-  const destination = completed
-    ? planDestination
-    : status === "authenticated" && user
-      ? diagnosticDestination
-      : `/inscription?next=${encodeURIComponent(diagnosticDestination)}`;
+  // Un visiteur va **directement** sur le diagnostic : depuis le 2026-08-10 il
+  // fait ses deux productions avant qu'on lui demande un compte. Le passer par
+  // /inscription reviendrait à remettre le mur avant la valeur.
+  const destination = completed ? planDestination : diagnosticDestination;
   const label = completed
     ? "Voir mon plan"
     : compact

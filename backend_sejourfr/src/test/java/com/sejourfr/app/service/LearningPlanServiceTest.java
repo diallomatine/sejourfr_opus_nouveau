@@ -21,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,6 +38,7 @@ class LearningPlanServiceTest {
     private LearningPlanObservationManager observationManager;
     private RecommendedExerciseSelector exerciseSelector;
     private SkillProgressCounter progressCounter;
+    private SkillAccessService accessService;
     private LearningPlanService service;
     private final UUID userId = UUID.randomUUID();
 
@@ -47,8 +49,15 @@ class LearningPlanServiceTest {
         observationManager = mock(LearningPlanObservationManager.class);
         exerciseSelector = mock(RecommendedExerciseSelector.class);
         progressCounter = mock(SkillProgressCounter.class);
+        accessService = mock(SkillAccessService.class);
+        // Le resolveur de priorites est utilise POUR DE VRAI : c'est le meme
+        // ordre que consomme SkillAccessService, on ne le double pas.
+        when(accessService.resolve(userId))
+                .thenReturn(SkillAccessService.SkillAccess.UNLIMITED);
         service = new LearningPlanService(new DiagnosticProperties(), taskManager,
-                sessionManager, observationManager, exerciseSelector, progressCounter);
+                sessionManager, observationManager,
+                new LearningPlanPriorityResolver(observationManager),
+                exerciseSelector, progressCounter, accessService);
     }
 
     @Test
@@ -204,7 +213,7 @@ class LearningPlanServiceTest {
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
         when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(priority));
         when(observationManager.countSince(any(), any())).thenReturn(0L);
-        when(exerciseSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of());
+        when(exerciseSelector.selectAll(eq(userId), anyCollection(), any())).thenReturn(Map.of());
         when(progressCounter.bySkillIds(eq(userId), anyCollection())).thenReturn(Map.of());
 
         var result = service.get(userId);
@@ -215,15 +224,66 @@ class LearningPlanServiceTest {
         assertThat(result.currentPriority().validatedCount()).isZero();
     }
 
+    /**
+     * Le Plan reste INTEGRALEMENT visible pour un compte sans acces TCF : rien
+     * n'est masque, ni une priorite, ni une competence observee, ni un
+     * compteur. Seul {@code locked} passe a vrai — masquer priverait le candidat
+     * du resultat de sa propre production.
+     */
+    @Test
+    void sansAccesTcfLePlanResteVisibleEtSeContenteDePoserLeCadenas() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        LearningPlanObservation priority = observation(
+                "EE1-C4", LearningPlanSkillStatus.PRIORITY, Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(priority));
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+        stubExercisesForEverySkill();
+        // Rien d'ouvert : la competence de la priorite est verrouillee.
+        when(accessService.resolve(userId)).thenReturn(
+                new SkillAccessService.SkillAccess(false, Set.of(), Set.of()));
+
+        var result = service.get(userId);
+
+        assertThat(result.currentPriority()).isNotNull();
+        assertThat(result.currentPriority().skillCode()).isEqualTo("EE1-C4");
+        assertThat(result.currentPriority().locked()).isTrue();
+        assertThat(result.observedSkills()).singleElement()
+                .satisfies(skill -> assertThat(skill.locked()).isTrue());
+        assertThat(result.observedSkillCount()).isEqualTo(1);
+    }
+
+    @Test
+    void unAbonneTcfNaAucunCadenasSurSonPlan() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        LearningPlanObservation priority = observation(
+                "EE1-C4", LearningPlanSkillStatus.PRIORITY, Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(priority));
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        assertThat(result.currentPriority().locked()).isFalse();
+        assertThat(result.observedSkills()).singleElement()
+                .satisfies(skill -> assertThat(skill.locked()).isFalse());
+    }
+
     /** Le choix DU sujet est vérifié par {@code RecommendedExerciseSelectorTest}. */
     private void stubExercisesForEverySkill() {
-        when(exerciseSelector.selectAll(eq(userId), anyCollection())).thenAnswer(invocation -> {
+        when(exerciseSelector.selectAll(eq(userId), anyCollection(), any()))
+                .thenAnswer(invocation -> {
             Collection<Skill> skills = invocation.getArgument(1);
             Map<UUID, PlanRecommendedExerciseDto> exercises = new LinkedHashMap<>();
             for (Skill skill : skills) {
                 exercises.put(skill.getId(), new PlanRecommendedExerciseDto(
                         UUID.randomUUID(), skill.getId(), skill.getCode(), "Exercice ciblé",
-                        skill.getSection(), 3));
+                        skill.getSection(), 3, false));
             }
             return exercises;
         });

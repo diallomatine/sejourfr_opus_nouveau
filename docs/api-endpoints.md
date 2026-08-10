@@ -64,6 +64,14 @@ Cf. `exams-tcf.md`.
   validés. Aucun front ne les recalcule. `recommendedExercise.estimatedMinutes`
   est **dérivé du sujet** (durée de parole conseillée en EO, fourchette de mots
   en EE), plus une constante par épreuve.
+  **Le Plan reste intégralement visible sans abonnement** : rien n'est masqué,
+  seul `locked: boolean` est posé sur `LearningPlanPriorityDto`,
+  `LearningPlanSkillDto` et `PlanRecommendedExerciseDto` (même sémantique que
+  dans le module Compétences : `true` ⇒ ce candidat ne peut pas produire
+  dessus). La compétence de `currentPriority` est **toujours ouverte** à un
+  compte gratuit — sinon l'étape 1 du Plan serait inatteignable. L'exercice
+  recommandé, lui, peut sortir `locked: true` : il reste désigné, avec un
+  cadenas.
 - `GET /api/me/dashboard` — agrégat unique du tableau de bord + hubs web :
   streak de jours d'activité (courant + record, fuseau Europe/Paris), nb
   d'examens blancs finis (global + `civiqueMockExams`/`tcfMockExams` par
@@ -109,11 +117,38 @@ Cf. `pipeline-evaluation-eo-ee.md`.
 
 ## Diagnostic initial TCF et Plan
 
-Parcours **authentifié**, offert une fois par version et distinct d'un examen
-blanc : une EE hybride de 100–130 mots puis une EO enregistrée de 2–3 minutes.
-Il ne consomme pas les quotas d'entraînement, n'écrit aucune évaluation notée
-`/20` et ne crée pas de `TCF_COMPLET`.
+Parcours offert une fois par version et distinct d'un examen blanc : une EE
+hybride de 100–130 mots puis une EO enregistrée de 2–3 minutes. Il ne consomme
+pas les quotas d'entraînement, n'écrit aucune évaluation notée `/20` et ne crée
+pas de `TCF_COMPLET`.
 
+**Les deux productions se font sans compte, l'analyse exige un compte.** Le
+visiteur lit les sujets sur une route publique, rédige et s'enregistre côté
+client, puis crée son compte au moment d'« Analyser mes réponses ». Rien n'est
+persisté avant : ni session diagnostique anonyme, ni attempt, ni audio invité
+sur R2 (`diagnostic_sessions.user_id` reste `NOT NULL`).
+
+- `GET /api/public/diagnostics/current` → `PublicDiagnosticResponse`,
+  **public**, sans authentification, rate-limité par IP (120 requêtes / 10 min,
+  `sejourfr.rate-limit.public-diagnostic` — lecture de contenu seedé, la borne
+  ne sert qu'à couper une boucle automatisée). Champs : `diagnosticCode`,
+  `diagnosticVersion`, `written` et `oral`, chacun un
+  `PublicDiagnosticExerciseDto` (`productionTaskId`, `epreuve`, `title`,
+  `instruction`, `helperText`, `wordsMin`, `wordsMax`, `durationMinSeconds`,
+  `durationMaxSeconds`, `instructionAudioUrl`). **Pas** de `attemptId`,
+  `submissionId` ni `submissionStatus` : ils n'existent qu'une fois la session
+  créée, donc après l'inscription. La version servie est la même que celle que
+  `POST /api/diagnostics` utilisera (résolution partagée,
+  `DiagnosticContentResolver`).
+- Après l'inscription, les fronts enchaînent `POST /api/diagnostics` puis les
+  deux `POST /api/production-submissions` **coup sur coup** : cette séquence est
+  acceptée telle quelle (verrouillée par `DiagnosticPostSignupSequenceIT`).
+  ⚠️ Un compte qui avait **déjà terminé** ce diagnostic reçoit sa session
+  existante en `status=COMPLETED`, `nextStep=RESULT` avec son `result` — jamais
+  d'erreur, jamais de seconde session ; les deux soumissions qui suivraient sont
+  alors refusées en **422** (« Ce diagnostic n'accepte plus de nouvelle
+  production. »). C'est au front de lire `status` et de proposer le résultat
+  existant plutôt que d'envoyer les productions.
 - `GET /api/diagnostics/current` → `DiagnosticResponse` de la version active.
   Renvoie `status=NOT_STARTED` sans créer de données si le candidat ne l'a pas
   commencé ; sinon permet la reprise sur un autre appareil.
@@ -192,10 +227,24 @@ de niveau CECRL**. Tous ces endpoints sont **authentifiés** ; aucun n'est publi
   le quota (l'échec n'est pas du fait du candidat), ce qui **impose** le plafond de 3 essais
   (`retry_count`, appliqué en service *et* en base).
 
-**Freemium** : produire, s'auto-évaluer et lire les 3 références est **gratuit et illimité**
-pour tout compte inscrit — **aucun sujet n'est verrouillé**. Seule l'**analyse IA** est premium
-(module TCF, `hasTcf`), avec **3 analyses offertes à vie**, consommées **à l'acceptation** (au
-moment où `analysis_requested` est persisté) et non au succès.
+**Freemium (règle du 2026-08-10 — révoque « aucun sujet n'est verrouillé »)** : pour un compte
+**sans accès TCF**, seules sont ouvertes **la première compétence de chaque tâche** (6 au
+total) **plus la compétence de la priorité n°1 de son Plan**, et dans chacune **les 2 premiers
+sujets actifs**. Sur un sujet ouvert, produire, s'auto-évaluer et lire les 3 références restent
+gratuits et illimités. Un abonné TCF n'a aucun verrou.
+- **`locked: boolean`** est porté par `SkillDto`, `SkillPromptDto`, `SkillPromptSummaryDto`,
+  `LearningPlanPriorityDto`, `LearningPlanSkillDto` et `PlanRecommendedExerciseDto`. Sémantique
+  unique : `true` ⇒ **ce candidat ne peut pas produire** sur cette compétence / ce sujet → les
+  fronts affichent un cadenas et renvoient vers le paiement. Toujours `false` pour un abonné
+  TCF. **Décidé par `SkillAccessService`, jamais recalculé par un front.**
+- **Le verrou est opposable** : `POST /api/skill-attempts` (JSON et multipart),
+  `POST /api/skill-attempts/{id}/analyse` et `.../retry` répondent **403** sur un sujet
+  verrouillé, avant tout traitement — aucune ligne créée, aucun audio uploadé.
+- **L'analyse IA reste un verrou distinct et cumulé** : **3 analyses offertes à vie**,
+  consommées **à l'acceptation** (au moment où `analysis_requested` est persisté) et non au
+  succès. Inchangé.
+- La garde des **références** (« au moins une tentative sur ce sujet ») est **inchangée** et
+  indépendante de `locked`.
 
 **Oral** : l'audio est conservé dans tous les cas ; la transcription Whisper n'est déclenchée
 **que si une analyse est demandée**. Cf. `notation-ia-eo-ee.md` §11 bis.
@@ -210,7 +259,10 @@ moment où `analysis_requested` est persisté) et non au succès.
   `autre`) : c'est ce qui borne la table face à un endpoint ouvert.
 - Chemins/événements : `/reussir` accepte `VIEW`, `CTA` et
   `SOCIAL_LANDING_DIAGNOSTIC_CLICKED`; `/diagnostic` accepte les six étapes
-  `DIAGNOSTIC_*` du parcours et `DIAGNOSTIC_TO_PREMIUM_CLICKED`; `/plan`
+  `DIAGNOSTIC_*` du parcours, `DIAGNOSTIC_ACCOUNT_REQUIRED` (le visiteur a
+  produit ses deux réponses sans compte et atteint l'écran qui en demande un —
+  la mesure de conversion du parcours invité) et
+  `DIAGNOSTIC_TO_PREMIUM_CLICKED`; `/plan`
   accepte `PLAN_OPENED`, `PLAN_RECOMMENDED_EXERCISE_STARTED` et le clic Premium.
 - `GET /api/admin/page-views?path=/reussir&days=30` — agrégat par source, par
   jour et compte brut par événement (`PageViewStatsResponse.events`).

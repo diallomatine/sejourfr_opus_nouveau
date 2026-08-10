@@ -241,6 +241,7 @@ class SkillDto {
     required this.attemptedCount,
     required this.validatedCount,
     required this.toReinforceCount,
+    this.locked = false,
   });
 
   final String id;
@@ -264,6 +265,12 @@ class SkillDto {
   final int validatedCount;
   final int toReinforceCount;
 
+  /// Verrou freemium **calculé par le serveur** : ce candidat ne peut pas
+  /// produire sur cette compétence. Aucun front ne recalcule la règle (quelle
+  /// compétence est offerte, combien de sujets sont ouverts) — on reflète ce
+  /// booléen, et un 403 reste l'arbitre final.
+  final bool locked;
+
   /// Progression 0..1 sur les sujets **traités** (pas sur les sujets validés :
   /// la spec §12 demande de ne pas laisser croire qu'il faut tout valider).
   double get progress =>
@@ -285,6 +292,7 @@ class SkillDto {
         attemptedCount: (json['attemptedCount'] as num?)?.toInt() ?? 0,
         validatedCount: (json['validatedCount'] as num?)?.toInt() ?? 0,
         toReinforceCount: (json['toReinforceCount'] as num?)?.toInt() ?? 0,
+        locked: json['locked'] as bool? ?? false,
       );
 }
 
@@ -303,6 +311,7 @@ class SkillPromptSummary {
     this.recommendedMaxWords,
     this.recommendedDurationSeconds,
     this.lastAttemptAt,
+    this.locked = false,
   });
 
   final String id;
@@ -317,6 +326,10 @@ class SkillPromptSummary {
   final int? recommendedMaxWords;
   final int? recommendedDurationSeconds;
   final DateTime? lastAttemptAt;
+
+  /// Cf. [SkillDto.locked] — verrou freemium servi par le serveur, jamais
+  /// déduit du rang du sujet dans sa compétence.
+  final bool locked;
 
   factory SkillPromptSummary.fromJson(Map<String, dynamic> json) =>
       SkillPromptSummary(
@@ -336,6 +349,7 @@ class SkillPromptSummary {
         lastAttemptAt: json['lastAttemptAt'] == null
             ? null
             : DateTime.tryParse(json['lastAttemptAt'] as String)?.toLocal(),
+        locked: json['locked'] as bool? ?? false,
       );
 }
 
@@ -396,6 +410,7 @@ class SkillPromptDto {
     this.lastAttemptAt,
     this.lastAttemptId,
     this.nextPromptId,
+    this.locked = false,
   });
 
   final String id;
@@ -454,6 +469,11 @@ class SkillPromptDto {
   final String? lastAttemptId;
   final String? nextPromptId;
 
+  /// Cf. [SkillDto.locked]. Un lien profond sur un sujet verrouillé ouvre
+  /// l'écran **sans zone de production** : le serveur refuserait la soumission
+  /// de toute façon (403), autant ne pas laisser produire pour rien.
+  final bool locked;
+
   factory SkillPromptDto.fromJson(Map<String, dynamic> json) => SkillPromptDto(
         id: json['id'] as String,
         skillId: json['skillId'] as String,
@@ -489,6 +509,7 @@ class SkillPromptDto {
             : DateTime.tryParse(json['lastAttemptAt'] as String)?.toLocal(),
         lastAttemptId: json['lastAttemptId'] as String?,
         nextPromptId: json['nextPromptId'] as String?,
+        locked: json['locked'] as bool? ?? false,
       );
 }
 

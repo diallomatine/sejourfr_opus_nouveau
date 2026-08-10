@@ -87,6 +87,23 @@ class PageViewServiceTest {
                 eq(PageViewEvent.PLAN_RECOMMENDED_EXERCISE_STARTED), any());
     }
 
+    /**
+     * Mesure de conversion du parcours invité : tout ce qui précède se joue
+     * hors base, cet événement est le premier point de comptage.
+     */
+    @Test
+    void track_acceptsTheGuestAccountRequiredStepOnDiagnosticOnly() {
+        service.track(new PageViewRequest(
+                "/diagnostic", "tiktok", PageViewEvent.DIAGNOSTIC_ACCOUNT_REQUIRED));
+
+        verify(manager).increment(eq("/diagnostic"), eq("tiktok"),
+                eq(PageViewEvent.DIAGNOSTIC_ACCOUNT_REQUIRED), any());
+
+        assertThatThrownBy(() -> service.track(new PageViewRequest(
+                "/plan", "tiktok", PageViewEvent.DIAGNOSTIC_ACCOUNT_REQUIRED)))
+                .isInstanceOf(BusinessException.class);
+    }
+
     @Test
     void track_foldsUnknownSourceIntoOther() {
         service.track(new PageViewRequest("/reussir", "reseau-invente-123", PageViewEvent.CTA));

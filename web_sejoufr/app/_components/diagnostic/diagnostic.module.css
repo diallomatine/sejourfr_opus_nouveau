@@ -257,10 +257,23 @@
   font-size: clamp(28px, 4vw, 36px);
 }
 
-.exerciseHeader > p:last-child {
+.exerciseSub {
   margin: 9px 0 0;
   color: var(--color-muted);
   font-size: 14px;
+}
+
+/* Rappel de conservation quand le candidat reprend là où il s'était arrêté. */
+.exerciseNote {
+  display: inline-flex;
+  align-items: center;
+  margin: 12px 0 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-green) 10%, var(--color-paper));
+  color: var(--color-green);
+  font-size: 12.5px;
+  font-weight: 700;
 }
 
 .prompt {
@@ -347,6 +360,451 @@
 
 .audioInstruction audio {
   width: 100%;
+}
+
+/* ============================================================================
+   ÉCRAN DE DEMANDE DE COMPTE (parcours invité).
+
+   Il arrive après les deux productions : le visiteur a tout fait, il ne manque
+   que le compte auquel rattacher l'analyse. Deux colonnes au-dessus de 900 px —
+   le formulaire à gauche, un EXEMPLE de bilan à droite —, empilées en dessous
+   avec le formulaire en premier : sur un téléphone, l'action prime sur
+   l'illustration.
+   ============================================================================ */
+
+.gate {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.gateMain {
+  padding: clamp(22px, 4vw, 34px);
+  border: 1px solid var(--color-line);
+  border-radius: 24px;
+  background: var(--color-paper);
+  box-shadow: 0 22px 54px color-mix(in srgb, var(--color-ink) 8%, transparent);
+}
+
+.gateMain h1 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: clamp(24px, 3.6vw, 32px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+}
+
+.gateLead {
+  margin: 10px 0 0;
+  color: var(--color-muted);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+.gateRecap {
+  display: grid;
+  gap: 9px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gateRecap li {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--color-green) 5%, var(--color-paper));
+}
+
+.gateRecap li > span {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.gateRecap b {
+  color: var(--color-ink);
+  font-size: 13.5px;
+}
+
+.gateRecap small {
+  grid-column: 2;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.gateRecap i {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-green);
+  color: var(--color-paper);
+}
+
+.gateSafety {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 14px 0 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.gateSafety svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--color-green);
+}
+
+.gateTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 22px 0 18px;
+  padding: 5px;
+  border-radius: 15px;
+  background: var(--color-paper-2);
+}
+
+.gateTab,
+.gateTabActive {
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.gateTab {
+  background: transparent;
+  color: var(--color-muted);
+}
+
+.gateTab:hover {
+  color: var(--color-ink);
+}
+
+.gateTabActive {
+  border-color: var(--color-line);
+  background: var(--color-paper);
+  color: var(--color-blue);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-ink) 6%, transparent);
+}
+
+.gateForm {
+  display: grid;
+  gap: 14px;
+}
+
+.gateRow2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.gateMentions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.gateMention,
+.gateMentionActive {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 11px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--color-paper);
+  cursor: pointer;
+  text-align: left;
+}
+
+.gateMentionActive {
+  border-color: var(--color-blue);
+  background: var(--color-blue-soft);
+}
+
+.gateMention input,
+.gateMentionActive input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.gateMention:focus-within,
+.gateMentionActive:focus-within {
+  outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
+  outline-offset: 2px;
+}
+
+.gateMention b,
+.gateMentionActive b {
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.gateMention span,
+.gateMentionActive span {
+  color: var(--color-muted);
+  font-size: 11.5px;
+  line-height: 1.25;
+}
+
+.gateMention small,
+.gateMentionActive small {
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.gateCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.gateCheck input {
+  flex: none;
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-blue);
+}
+
+.gateCheck a {
+  color: var(--color-blue);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.gateForm .primaryButton {
+  width: 100%;
+}
+
+.gateHelp {
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+}
+
+.gateHelp a {
+  color: var(--color-blue);
+  font-weight: 700;
+}
+
+.gateNoCard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: 16px 0 0;
+  color: var(--color-muted-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------- exemple (jamais un résultat) */
+
+.gateSample {
+  position: sticky;
+  top: 22px;
+  padding: clamp(18px, 3vw, 24px);
+  border: 1px dashed color-mix(in srgb, var(--color-blue) 32%, var(--color-line));
+  border-radius: 24px;
+  background: var(--color-blue-soft);
+}
+
+.gateSampleTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 14px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: var(--color-blue);
+  color: var(--color-paper);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gateSampleCard {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 19px;
+  background: var(--color-paper);
+}
+
+.gateSampleLevels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.gateSampleLevels > div {
+  display: grid;
+  gap: 4px;
+  padding: 12px 13px;
+  border-radius: 15px;
+  background: linear-gradient(145deg, var(--color-blue-dark), var(--color-blue));
+  color: var(--color-paper);
+}
+
+.gateSampleLevels span {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.82;
+}
+
+.gateSampleLevels b {
+  font-size: clamp(24px, 4vw, 30px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.gateSampleLabel {
+  margin: 0 0 6px;
+  color: var(--color-green);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.gateSampleList {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--color-ink-2);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.gateSampleBlock {
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--color-line-2);
+}
+
+.gateSamplePriority {
+  display: grid;
+  gap: 5px;
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--color-red) 18%, var(--color-line));
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--color-red-light) 55%, var(--color-paper));
+}
+
+.gateSamplePriorityTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--color-red-dark);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.gateSamplePriority b {
+  color: var(--color-ink);
+  font-size: 13.5px;
+  line-height: 1.3;
+}
+
+.gateSamplePriority span {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.gateSampleFoot {
+  margin: 13px 0 0;
+  color: var(--color-muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+/* --------------------------------------------- reprise après inscription */
+
+.handoffNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 15px 17px;
+  border: 1px solid color-mix(in srgb, var(--color-amber) 34%, var(--color-line));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-amber) 9%, var(--color-paper));
+}
+
+.handoffNotice > span {
+  flex: none;
+  margin-top: 1px;
+  color: var(--color-amber-dark);
+}
+
+.handoffNotice b {
+  color: var(--color-ink);
+  font-size: 14px;
+}
+
+.handoffNotice p {
+  margin: 5px 0 0;
+  color: var(--color-ink-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.handoffNotice button {
+  margin-top: 10px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-blue);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 /* ============================================================================
@@ -1158,6 +1616,18 @@ details.production[open] .productionChevron {
   50% { transform: scale(1.06); }
 }
 
+/* L'exemple passe SOUS le formulaire : sur un téléphone, l'action prime sur
+   l'illustration — on ne fait pas scroller un visiteur convaincu. */
+@media (max-width: 900px) {
+  .gate {
+    grid-template-columns: 1fr;
+  }
+
+  .gateSample {
+    position: static;
+  }
+}
+
 @media (max-width: 768px) {
   .page {
     padding: 66px 18px 40px;
@@ -1229,6 +1699,24 @@ details.production[open] .productionChevron {
   .observations article > div {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .gateRow2,
+  .gateMentions {
+    grid-template-columns: 1fr;
+  }
+
+  .gateMention,
+  .gateMentionActive {
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: center;
+    column-gap: 10px;
+  }
+
+  .gateMention b,
+  .gateMentionActive b {
+    grid-row: span 2;
+    align-self: center;
   }
 }
 

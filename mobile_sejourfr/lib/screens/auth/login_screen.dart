@@ -230,6 +230,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 6),
+                    // Le diagnostic se fait entièrement sans compte : on ne
+                    // demande l'inscription qu'au moment d'envoyer les deux
+                    // productions à l'analyse.
+                    Center(
+                      child: TextButton(
+                        onPressed: () => context.push(AppRoutes.diagnostic),
+                        child: Text(
+                          'Tester mon niveau sans compte',
+                          style: AppFonts.ui(
+                            size: 13.5,
+                            color: AppColors.muted,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

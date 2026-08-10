@@ -76,6 +76,7 @@ class BackendSpy {
               attemptedCount: 0,
               validatedCount: 0,
               toReinforceCount: 0,
+              locked: false,
             }),
           ),
         ),

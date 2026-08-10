@@ -5,6 +5,7 @@ export type AudienceEvent =
   | "DIAGNOSTIC_STARTED"
   | "DIAGNOSTIC_WRITTEN_COMPLETED"
   | "DIAGNOSTIC_ORAL_COMPLETED"
+  | "DIAGNOSTIC_ACCOUNT_REQUIRED"
   | "DIAGNOSTIC_COMPLETED"
   | "DIAGNOSTIC_RESULT_VIEWED"
   | "PLAN_OPENED"
@@ -61,6 +62,9 @@ export const AUDIENCE_EVENTS_BY_PATH = {
     "DIAGNOSTIC_STARTED",
     "DIAGNOSTIC_WRITTEN_COMPLETED",
     "DIAGNOSTIC_ORAL_COMPLETED",
+    // Écran de demande de compte : c'est LA mesure de conversion du parcours
+    // invité — deux productions faites, il ne manque que le compte.
+    "DIAGNOSTIC_ACCOUNT_REQUIRED",
     "DIAGNOSTIC_COMPLETED",
     "DIAGNOSTIC_RESULT_VIEWED",
     "DIAGNOSTIC_TO_PREMIUM_CLICKED",

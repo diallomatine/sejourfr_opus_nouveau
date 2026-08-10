@@ -2568,6 +2568,67 @@
   grid-template-columns: 46px minmax(0, 1fr) auto;
 }
 
+/* ------------------------------------------------------- verrou freemium */
+
+/* Le cadenas ne cache RIEN : la carte reste lisible, elle change seulement de
+   destination (le paiement au lieu de la production). D'où une pastille
+   éteinte plutôt qu'une carte grisée — grisée, elle serait lue « indisponible »
+   alors qu'elle est « disponible en Intégral ». Le verrou vient du serveur ;
+   aucune règle n'est décidée ici. */
+.tileLocked {
+  background: color-mix(in srgb, var(--color-muted-2) 14%, transparent);
+  color: var(--color-muted);
+}
+
+/* Invitation pleine largeur, à la place de la zone de saisie d'un sujet
+   verrouillé atteint par son URL. */
+.lockCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+  padding: clamp(20px, 5vw, 30px) clamp(16px, 4vw, 26px);
+  text-align: center;
+}
+
+.lockCardIcon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: var(--skill-accent-light);
+  color: var(--skill-accent);
+}
+
+.lockCardTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(19px, 3.4vw, 23px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.22;
+  color: var(--color-ink);
+}
+
+.lockCardText {
+  max-width: 46ch;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.lockCardCta {
+  margin-top: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 320px;
+}
+
 /* ----------------------------------------------- accessibilité clavier */
 
 /* Exigence, pas finition : tout élément actionnable du module montre son

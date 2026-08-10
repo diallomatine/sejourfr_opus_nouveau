@@ -498,11 +498,36 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
 
 ## Diagnostic TCF initial et Plan personnalisé
 
-- `/diagnostic` est hors shell. `DiagnosticController` lit d'abord
-  `GET /api/diagnostics/current` et reprend toujours l'étape renvoyée par le serveur ; il ne
-  conserve aucune étape métier uniquement en mémoire. Démarrage/reprise :
-  `POST /api/diagnostics`, détail/polling : `GET /api/diagnostics/{sessionId}`, relance :
-  `POST /api/diagnostics/{sessionId}/retry-analysis`.
+- `/diagnostic` est hors shell **et publique** (allowlist `isOnPublicPage` du redirect global,
+  à côté de `/about` ; elle échappe aussi à l'onboarding pour qu'un lien profond n'atterrisse
+  pas sur `/login`). `/plan` reste authentifié.
+- **Le visiteur produit AVANT d'avoir un compte.** `DiagnosticController` a deux régimes,
+  choisis par `authControllerProvider.select((s) => s is AuthAuthenticated)` :
+  - **invité** : sujets lus sur `GET /api/public/diagnostics/current` (`PublicDiagnostic` /
+    `PublicDiagnosticExercise`, **sans `attemptId` ni `submissionId`** — ils n'existent
+    qu'après la session), étape courante déduite de la production locale
+    (`DiagnosticGuestStep`), puis écran de demande de compte ;
+  - **connecté** : parcours serveur **inchangé** (`GET /api/diagnostics/current`,
+    `POST /api/diagnostics`, `GET /api/diagnostics/{sessionId}`, `…/retry-analysis`).
+- **La production n'est jamais gardée seulement en mémoire** — `diagnosticControllerProvider`
+  est `autoDispose` et l'arbre est reconstruit au moment précis de l'inscription.
+  `DiagnosticDraftStore` (`screens/diagnostic/diagnostic_draft_service.dart`, patron
+  d'`EeDraftService`) écrit le texte dans `SharedPreferences` (autosave 2 s + à la validation)
+  et **recopie l'audio dans le dossier de l'application** — on persiste le **nom** du fichier,
+  jamais son chemin absolu (le conteneur iOS change d'identifiant). Survit au kill de l'app, au
+  détour par Google/Apple sign-in et à la bascule d'`AuthState`. À la relecture, un audio
+  disparu n'est pas annoncé.
+- **Ordre d'envoi post-inscription, à ne pas relâcher** : `POST /api/diagnostics` → écrit →
+  attente de l'accusé de réception → oral → attente du sien → **et seulement là**
+  `DiagnosticDraftStore.clear()`. Un envoi partiel ou en échec **garde tout** et propose de
+  réessayer (`canRetrySync`). Un compte qui a **déjà** un diagnostic est détecté avant toute
+  soumission (statut non `IN_PROGRESS`, ou deux `submissionId` déjà posés) : on le dit
+  (`noticeMessage`, `DiagnosticAlreadyDoneView`) au lieu de boucler sur une erreur, et la copie
+  locale n'est effacée que sur confirmation explicite.
+- L'écran de demande de compte (`DiagnosticAccountGate`) **n'affiche aucun résultat réel** —
+  l'analyse coûte deux appels LLM. Il montre un **exemple** étiqueté comme tel (badge
+  « EXEMPLE » + phrase « ce ne sont pas vos réponses ») et ouvre l'inscription **ou** la
+  connexion avec `redirect=/diagnostic`.
 - Les réponses utilisent le pipeline de production existant : EE en JSON et EO en multipart via
   `ProductionRepository`. La zone écrite réutilise `WritingZone` avec les bornes du DTO ; l'oral
   réutilise `AudioRecorderService`, `RecordingWaveform` et `SejourAudioPlayer`. Les permissions
@@ -525,6 +550,14 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   reprennent l'anatomie de `CompetenceCard` (Réviser → Compétences) et le **libellé partagé**
   `skillProgressLabel` (`core/utils/skill_progress.dart`, dont `competenceProgressLabel`
   n'est plus qu'une application au `SkillDto`).
+- **Le Plan reste visible en entier même verrouillé** (freemium Compétences, cf. § dédié) :
+  `locked` sur `LearningPlanPriority` / `LearningPlanSkill` / `PlanRecommendedExercise`
+  n'ôte **aucune** information — ni une priorité, ni une compétence observée, ni un
+  compteur, ni l'anneau. Il ajoute la pilule « Premium » et remplace le CTA (« Commencer » /
+  « Continuer cette étape ») par « Débloquer cet exercice » / « Débloquer cette étape », qui
+  ouvre `showTcfLockPaywall`. `_ExerciseRow` annonce l'exercice recommandé **à l'identique**,
+  verrouillé ou non. **Ne pas coder « l'étape 1 est toujours ouverte »** : le serveur
+  déverrouille la priorité n°1, l'app lit `locked`, toujours.
 - **Libellés de `LearningPlanSkillStatus` gelés** sur ceux du web (« Non observée /
   Prioritaire / À renforcer / Solide », `web_sejoufr/lib/diagnostic.ts`), verrouillés par
   `test/diagnostic_models_test.dart`. Leur **teinte** vit à un seul endroit :
@@ -542,7 +575,9 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
 - L'audience agrégée utilise uniquement `POST /api/public/page-views` avec `{path, source:
   "direct", event}` : `direct` est la seule source backend compatible avec une ouverture native.
   Aucun identifiant ni contenu de production n'est envoyé et un échec analytics ne bloque jamais
-  le parcours.
+  le parcours. La route étant publique (`skipAuth`), **le funnel reste mesurable en invité** ;
+  `DIAGNOSTIC_ACCOUNT_REQUIRED` (émis une fois, à l'affichage de l'écran de demande de compte)
+  est la mesure de conversion du parcours.
 
 **Les anciens hubs sont supprimés** : `screens/tcf/`, `screens/hub/`, `civique_screen.dart`
 et leurs widgets n'existent plus. `/civique` et `/tcf` sont des **redirects** vers `/reviser`
@@ -1746,9 +1781,44 @@ spec) : l'analyse rend 4 champs courts — verdict, point réussi, priorité, re
 plus un verdict de critère `VALIDATED | PARTIAL | NOT_VALIDATED`. C'est une voie
 **parallèle** à la notation des productions complètes (rubriques v8), pas une réutilisation.
 
-**Freemium** : **aucun sujet n'est verrouillé**. Produire et lire les 3 références sont
-gratuits partout. Seule l'**analyse IA** est premium, avec des analyses offertes à vie aux
-comptes gratuits (`GET /api/skills/analysis-quota`). L'écran de sujet ne demande plus rien :
+**Freemium (refonte 2026-08-10) — le module n'est plus gratuit et illimité.** Sans
+abonnement TCF, le serveur n'ouvre qu'**une compétence par tâche** (plus celle de la
+priorité n°1 du Plan) et, dans une compétence ouverte, **ses 2 premiers sujets**. Un abonné
+TCF n'a aucun verrou. ⚠ **Ces règles ne sont écrites nulle part dans l'app** : le serveur
+les calcule et publie un booléen **`locked`** sur `SkillDto`, `SkillPromptSummary`,
+`SkillPromptDto` et, côté Plan, `LearningPlanPriority` / `LearningPlanSkill` /
+`PlanRecommendedExercise` (défaut `false` si le champ manque). L'app **reflète** ce
+booléen — jamais un « si l'index dépasse N alors cadenas », et le 403 serveur reste
+l'arbitre final.
+- **Rien n'est masqué, tout est annoncé** : une compétence, un sujet, une étape du Plan ou
+  une compétence observée verrouillés restent **affichés et lisibles** (titre, état,
+  compteurs). Masquer priverait le candidat du résultat de sa propre production. Ce qui
+  change : le cadenas (`PremiumLockTile`) prend la place de l'anneau de progression ou du
+  numéro de sujet — un anneau à zéro n'a rien à raconter —, la pilule `PremiumLockTag`
+  s'ajoute au statut, et le tap ouvre `showTcfLockPaywall` (le paywall existant, pré-réglé
+  sur Intégral, **jamais un second parcours d'achat**). Le chevron, lui, reste.
+- **Un seul jeu de libellés**, dans `core/widgets/premium_lock.dart`, **miroir mot pour mot
+  du web** (`app/_components/skill-ui/SkillLayout.tsx`) : `kPremiumLockTagLabel`
+  « **Premium** » et `kPremiumLockCta` « **Voir l'abonnement Intégral** » (wording neutre,
+  guidelines Apple 3.1.1). Côté Plan, les deux CTA sont ceux de `LearningPlanView` :
+  « **Débloquer cet exercice** » (À faire maintenant) et « **Débloquer cette étape** »
+  (étape 1), plus la note « Cet exercice fait partie de l'abonnement Intégral. Votre plan,
+  lui, reste entier. »
+- **Les compteurs ne mentent pas** (`CompetenceDetailScreen`) : un sujet verrouillé sort du
+  filtre « À faire » (il n'est pas à faire, il n'est pas ouvert), reste dans « Tous » et
+  dans « Traités » s'il a déjà été produit — un abonnement échu ne réécrit pas l'historique.
+  Un **4ᵉ filtre « Verrouillés · N »** apparaît quand il y en a, et c'est lui qui rend la
+  somme juste (`Tous = À faire + Traités + Verrouillés`) ; il disparaît avec le dernier
+  sujet verrouillé et l'écran retombe alors sur « Tous ». L'action de la `FixedActionBar`
+  vise toujours un sujet **ouvert**, et devient « Voir l'abonnement Intégral » quand il n'en
+  reste aucun.
+- **Lien profond sur un sujet verrouillé** : `CompetencePromptScreen` rend
+  `_LockedPromptView` — on garde le repère « Sujet i/N » + palier et **rien d'autre** : ni
+  consigne, ni situation, ni zone de production, ni barre de validation. Le contenu du sujet
+  fait partie de ce qui s'achète, et laisser produire ferait perdre la réponse sur le 403.
+
+Les **3 analyses IA offertes à vie** ne changent pas (`GET /api/skills/analysis-quota`) :
+elles restent la seule chose que le quota décompte. L'écran de sujet ne demande plus rien :
 il demande l'analyse quand `canAnalyse`, s'en passe sinon (aucun 403 provoqué), et se
 contente d'annoncer le reste du quota. `remaining == -1` signifie **illimité** et ne doit
 jamais s'afficher tel quel. Un 403 à la soumission passe quand même par
