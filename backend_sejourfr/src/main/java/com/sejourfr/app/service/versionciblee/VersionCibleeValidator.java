@@ -1,7 +1,9 @@
 package com.sejourfr.app.service.versionciblee;
 
+import com.sejourfr.app.util.PlafondMots;
 import com.sejourfr.app.util.ProductionPayloadSupport;
 import com.sejourfr.app.util.ProductionTextBounds;
+import com.sejourfr.app.util.SegmentsSurlignage;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -24,22 +26,18 @@ import java.util.Set;
  * {@code maxLength}), un contrôle serveur déterministe ensuite, la consigne en
  * dernier. Ce validateur est le deuxième étage.
  *
- * <h2>Les deux contrôles qui n'existent nulle part ailleurs</h2>
- * <ul>
- *   <li><b>ÉCRIT — l'extrait est DANS le texte.</b> Le front SURLIGNE chaque
- *       {@code segments[].extrait} dans {@code exemple_cible.texte}. Un extrait
- *       qui n'y figure pas ne se surligne pas : au mieux il ne s'affiche nulle
- *       part, au pire il s'affiche comme une citation du texte modèle alors
- *       qu'il n'en fait pas partie — c'est-à-dire une phrase inventée présentée
- *       comme un extrait ;</li>
- *   <li><b>ORAL — le numéro de segment existe.</b> Le modèle ne recopie rien, il
- *       DÉSIGNE : le seul défaut possible est un entier hors bornes, et c'est un
- *       entier à comparer à une taille de liste (technique du contrat de
- *       correction v12, qui a supprimé la catégorie entière des citations
- *       introuvables).</li>
- * </ul>
- * Ces deux violations-là ouvrent droit à la seule réparation payée : elles sont
- * mécaniques et nommables.
+ * <h2>Le contrôle qui n'existe nulle part ailleurs : ORAL — le numéro de segment existe</h2>
+ * Le modèle ne recopie rien, il DÉSIGNE : le seul défaut possible est un entier
+ * hors bornes, et c'est un entier à comparer à une taille de liste (technique du
+ * contrat de correction v12, qui a supprimé la catégorie entière des citations
+ * introuvables). Avec la longueur du texte modèle, c'est la seule violation qui
+ * ouvre droit à la réparation payée : elle est mécanique et nommable.
+ *
+ * <p><b>Les {@code segments} de l'ÉCRIT ne sont plus validés ici</b> (2026-08-11).
+ * Ils sont un confort de lecture, pas la section : un extrait introuvable ou un
+ * apport trop long fait retirer <b>ce segment</b>
+ * ({@link SegmentsSurlignage}), pas tomber le texte modèle que le
+ * candidat vient chercher.
  *
  * <p>Toutes les violations sont collectées, jamais la première seulement : le
  * message de réparation doit être complet, sinon on paie un appel par violation.
@@ -108,21 +106,14 @@ public class VersionCibleeValidator {
 
     /** Nombre minimal de leviers : un seul ne montre pas un chemin, il montre un détail. */
     static final int MIN_LEVIERS = 2;
-    /** Deux segments au minimum : un seul ne montre pas une différence, il montre un mot. */
-    static final int MIN_SEGMENTS = 2;
-    static final int MAX_SEGMENTS = 3;
-    /** Idem à l'oral : deux passages redits, sinon ce n'est pas un chemin. */
+    /**
+     * Deux passages redits au minimum, sinon ce n'est pas un chemin — <b>à
+     * l'ORAL seulement</b>, où les {@code reformulations} SONT la section : sans
+     * elles il ne reste rien à montrer. À l'écrit, le texte modèle reste servi
+     * même sans aucun segment (cf. {@link SegmentsSurlignage}).
+     */
     static final int MIN_REFORMULATIONS = 2;
     static final int MAX_REFORMULATIONS = 3;
-
-    /**
-     * Tolérance appliquée aux plafonds de longueur avant rejet, identique à
-     * celle du module Compétences : un plafond est une consigne pédagogique
-     * (« trois mots »), pas un contrat machine. Perdre le bloc parce qu'une
-     * étiquette fait quatre mots au lieu de trois serait absurde ; à huit mots,
-     * en revanche, ce n'est plus une étiquette.
-     */
-    static final double TOLERANCE_LONGUEUR = 1.2;
 
     /**
      * Prefixe des violations de LONGUEUR DU TEXTE MODELE. Il permet de les
@@ -130,9 +121,6 @@ public class VersionCibleeValidator {
      * a une reparation (cf. {@link #uniquementReparables(List)}).
      */
     static final String VIOLATION_LONGUEUR = "texte fait ";
-
-    /** Prefixe des violations « extrait introuvable dans le texte modele ». */
-    static final String VIOLATION_EXTRAIT = "extrait introuvable";
 
     /** Prefixe des violations « numero de segment hors bornes ». */
     static final String VIOLATION_SEGMENT = "numero de segment";
@@ -205,13 +193,15 @@ public class VersionCibleeValidator {
 
     /**
      * Vrai quand TOUTES les violations sont MECANIQUES et nommables : longueur du
-     * texte modele, extrait introuvable, numero de segment hors bornes. Ce sont
-     * les seules qui ouvrent droit a la reparation payee — on peut dire au modele
-     * ce qui a ete refuse et l'operation exacte a faire, et le depot a mesure
-     * qu'un reessai non actionnable repare zero cas sur huit.
+     * texte modele, numero de segment hors bornes. Ce sont les seules qui ouvrent
+     * droit a la reparation payee — on peut dire au modele ce qui a ete refuse et
+     * l'operation exacte a faire, et le depot a mesure qu'un reessai non
+     * actionnable repare zero cas sur huit.
      *
-     * <p>Une sortie structurellement fausse (cle en trop, levier vide, un seul
-     * segment) n'ouvre droit a aucun second appel : le bloc reste un confort.
+     * <p>Une sortie structurellement fausse (cle en trop, levier vide) n'ouvre
+     * droit a aucun second appel : le bloc reste un confort. Un extrait
+     * introuvable n'en vaut plus un non plus — il ne coute plus qu'un surlignage,
+     * et payer un appel pour un surlignage serait disproportionne.
      */
     static boolean uniquementReparables(List<String> violations) {
         return !violations.isEmpty() && violations.stream().allMatch(VersionCibleeValidator::reparable);
@@ -219,7 +209,6 @@ public class VersionCibleeValidator {
 
     private static boolean reparable(String violation) {
         return violation != null && (violation.startsWith(VIOLATION_LONGUEUR)
-            || violation.startsWith(VIOLATION_EXTRAIT)
             || violation.startsWith(VIOLATION_SEGMENT));
     }
 
@@ -319,6 +308,16 @@ public class VersionCibleeValidator {
 
     // ----------------------------------------------------------- exemple cible
 
+    /**
+     * L'ILLUSTRATION ECRITE SE JOUE SUR SON TEXTE, ET SUR LUI SEUL.
+     *
+     * <p>Seuls le texte modele et la forme du bloc sont juges ici : c'est le texte
+     * que le candidat vient chercher, et lui seul doit pouvoir faire tomber la
+     * section. Les {@code segments} ne sont plus inspectes — ils passent par
+     * {@link SegmentsSurlignage}, qui retire ceux qu'il ne peut pas
+     * surligner et laisse le texte servi. Une liste absente, mal typee ou vide
+     * n'est donc plus une violation : c'est un texte sans surlignage.
+     */
     private void validerExempleCible(Object brut, ProductionTextBounds bornes,
                                      List<String> violations) {
         String prefixe = VersionCibleeFields.EXEMPLE_CIBLE;
@@ -329,32 +328,6 @@ public class VersionCibleeValidator {
 
         String texte = champTexte(bloc, VersionCibleeFields.TEXTE, prefixe, violations);
         if (texte != null) validerLongueurTexte(texte, bornes, violations);
-
-        Object segments = bloc.get(VersionCibleeFields.SEGMENTS);
-        if (!(segments instanceof List<?> liste)) {
-            violations.add(prefixe + "." + VersionCibleeFields.SEGMENTS + " doit etre une liste");
-            return;
-        }
-        validerCardinalite(prefixe + "." + VersionCibleeFields.SEGMENTS, liste.size(),
-            MIN_SEGMENTS, MAX_SEGMENTS, violations);
-        int i = 0;
-        for (Object item : liste) {
-            i++;
-            String p = prefixe + "." + VersionCibleeFields.SEGMENTS + "[" + i + "]";
-            Map<String, Object> segment = asMap(item, p, violations);
-            if (segment == null) continue;
-            clesEnTrop(segment, p, violations,
-                VersionCibleeFields.EXTRAIT, VersionCibleeFields.APPORT);
-            String extrait = champTexte(segment, VersionCibleeFields.EXTRAIT, p, violations);
-            champTexte(segment, VersionCibleeFields.APPORT, p, violations);
-            // LE controle central : le front surligne cet extrait DANS le texte.
-            // On ne compare ni a la casse pres relachee, ni apres normalisation :
-            // le surlignage se fait sur la chaine exacte, la verification aussi.
-            if (extrait != null && texte != null && !texte.contains(extrait)) {
-                violations.add(VIOLATION_EXTRAIT + " dans le texte modele — " + p + " : \""
-                    + extrait + "\"");
-            }
-        }
     }
 
     // --------------------------------------------------------- reformulations
@@ -465,10 +438,15 @@ public class VersionCibleeValidator {
         return texte;
     }
 
+    /**
+     * Plafond PEDAGOGIQUE, avec sa tolerance reelle ({@link PlafondMots#tolere}).
+     * L'ancienne formule {@code floor(plafond * 1,2)} n'accordait AUCUNE marge sur
+     * les petits plafonds — sur {@code apport}, declare a 3 mots, elle tolerait 3.
+     */
     private static void validerPlafond(String chemin, String texte, Integer plafond,
                                        List<String> violations) {
         if (plafond == null) return;
-        int max = (int) Math.floor(plafond * TOLERANCE_LONGUEUR);
+        int max = PlafondMots.tolere(plafond);
         int mots = compterMots(texte);
         if (mots > max) {
             violations.add(chemin + " fait " + mots + " mots, le maximum est " + plafond
@@ -501,8 +479,6 @@ public class VersionCibleeValidator {
     }
 
     static int compterMots(String texte) {
-        String normalise = texte.trim();
-        if (normalise.isEmpty()) return 0;
-        return normalise.split("\\s+").length;
+        return PlafondMots.compter(texte);
     }
 }

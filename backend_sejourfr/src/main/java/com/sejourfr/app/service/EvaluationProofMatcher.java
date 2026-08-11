@@ -1,12 +1,11 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.util.TexteNormalise;
 
-import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -344,13 +343,14 @@ final class EvaluationProofMatcher {
         return List.copyOf(out);
     }
 
+    /**
+     * Forme comparee d'un token. La regle vit desormais dans
+     * {@link TexteNormalise#mot(String)} — elle y a ete DEPLACEE, pas reecrite —
+     * pour que le rapprochement de preuve et la recherche d'un extrait a surligner
+     * ne puissent pas normaliser differemment.
+     */
     private static String normalizeToken(String raw) {
-        String compatible = Normalizer.normalize(raw, Normalizer.Form.NFKC)
-            .toLowerCase(Locale.FRENCH)
-            .replace("œ", "oe")
-            .replace("æ", "ae");
-        return Normalizer.normalize(compatible, Normalizer.Form.NFD)
-            .replaceAll("\\p{M}+", "");
+        return TexteNormalise.mot(raw);
     }
 
     private static void collectExact(String production, List<Token> source, List<Token> needle,

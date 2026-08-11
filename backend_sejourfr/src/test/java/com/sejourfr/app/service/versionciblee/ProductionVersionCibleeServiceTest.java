@@ -44,8 +44,9 @@ import static org.mockito.Mockito.when;
  * <p>Ce que verrouille cette classe :
  * <ul>
  *   <li>rien n'est produit quand le niveau visé est <b>déjà atteint</b> ;</li>
- *   <li>À L'ÉCRIT, l'extrait surligné est une sous-chaîne EXACTE du texte
- *       modèle — accepté, réparé une fois, puis abandonné ;</li>
+ *   <li>À L'ÉCRIT, un extrait qu'on ne peut pas surligner fait tomber CE SEGMENT,
+ *       jamais le texte modèle : la comparaison neutralise la typographie et
+ *       l'extrait servi est la sous-chaîne ORIGINALE exacte du texte ;</li>
  *   <li>À L'ORAL, la production n'est jamais réécrite : le numéro de passage est
  *       résolu en texte, l'examinateur n'est pas désignable, une transcription
  *       dégradée n'émet aucun appel, et une reformulation qui ne change que la
@@ -101,6 +102,7 @@ class ProductionVersionCibleeServiceTest {
     private TranscriptionManager transcriptionManager;
     private VersionCibleeLlmClient llmClient;
     private EvaluationPurgeMetrics purgeMetrics;
+    private VersionCibleeMetrics metrics;
     private ProductionEvaluationProperties props;
     private ProductionVersionCibleeService service;
 
@@ -123,10 +125,11 @@ class ProductionVersionCibleeServiceTest {
             new VersionCibleeRubricsProvider(props, new ObjectMapper());
         rubrics.load();
         purgeMetrics = new EvaluationPurgeMetrics();
+        metrics = new VersionCibleeMetrics();
         return new ProductionVersionCibleeService(
             submissionManager, aiEvaluationManager, transcriptionManager, llmClient,
             new VersionCibleePromptBuilder(new ObjectMapper(), rubrics),
-            new VersionCibleeValidator(rubrics), rubrics, purgeMetrics, props);
+            new VersionCibleeValidator(rubrics), rubrics, purgeMetrics, metrics, props);
     }
 
     // ------------------------------------------------------ ÉCRIT, cas nominal
@@ -204,17 +207,17 @@ class ProductionVersionCibleeServiceTest {
     // -------------------------------------------- ÉCRIT, l'extrait surlignable
 
     /**
-     * LE CONTRÔLE CENTRAL DE L'ÉCRIT. Le front SURLIGNE l'extrait dans le texte
-     * modèle : un extrait absent s'afficherait comme une citation du modèle alors
-     * qu'il n'en fait pas partie. UNE réparation nommée, puis l'abandon de
-     * l'exemple cible — jamais de surlignage faux.
+     * LA DÉCISION PRODUIT DU 2026-08-11 : <b>afficher le texte sans surlignage
+     * vaut mieux que ne rien afficher</b>. Le texte réécrit est ce que le candidat
+     * vient chercher — c'est le seul texte modèle d'un résultat écrit depuis le
+     * retrait de {@code version_amelioree} ; les segments n'y attirent que l'œil.
      *
-     * <p><b>Et lui SEUL</b> : les leviers et la tournure à retenir ne dépendent
-     * d'aucune citation, ils sont servis.
+     * <p>Un extrait introuvable fait donc tomber <b>ce segment</b>, plus la
+     * section, et il ne vaut plus aucun appel payé.
      */
     @Test
     @SuppressWarnings("unchecked")
-    void ecrit_extraitIntrouvable_uneReparationNommee_puisSeulLExempleCibleTombe() {
+    void ecrit_extraitIntrouvable_leSegmentEstRetire_etLeTexteEstServi() {
         ProductionSubmission sub = submissionEcrite(TargetLevel.B2);
         AiEvaluation eval = eval(NiveauCecrl.A2, sub.getId());
         stubLlm(sortieEcrite(VERSION_CONFORME_45_MOTS,
@@ -224,40 +227,111 @@ class ProductionVersionCibleeServiceTest {
 
         service.enrichir(sub.getId());
 
-        Map<String, Object> bloc = bloc(eval, VersionCibleeFields.BLOC);
-        assertThat(bloc).doesNotContainKey(VersionCibleeFields.EXEMPLE_CIBLE);
-        assertThat((List<Object>) bloc.get(VersionCibleeFields.LEVIERS)).hasSize(2);
-        assertThat((Map<String, Object>) bloc.get(VersionCibleeFields.A_RETENIR))
-            .containsKeys(VersionCibleeFields.FORMULE, VersionCibleeFields.EXPLICATION);
-        ArgumentCaptor<String> prompts = ArgumentCaptor.forClass(String.class);
-        verify(llmClient, times(2)).produire(anyString(), prompts.capture(), any());
-        assertThat(prompts.getAllValues().get(1))
-            .contains("extrait introuvable")
-            .contains("un passage que le texte ne contient pas")
-            .contains("COURTS et CONTIGUS");
+        Map<String, Object> exemple = (Map<String, Object>)
+            bloc(eval, VersionCibleeFields.BLOC).get(VersionCibleeFields.EXEMPLE_CIBLE);
+        assertThat(exemple.get(VersionCibleeFields.TEXTE)).isEqualTo(VERSION_CONFORME_45_MOTS);
+        assertThat((List<Object>) exemple.get(VersionCibleeFields.SEGMENTS)).hasSize(1);
+        // Aucun appel de plus : un surlignage ne vaut pas une reparation payee.
+        verify(llmClient, times(1)).produire(anyString(), anyString(), any());
+        assertThat(metrics.compteurs())
+            .containsEntry("SEGMENT_RETIRE/EXTRAIT_INTROUVABLE", 1L);
     }
 
-    /** Réparé, l'extrait est accepté et le bloc rendu — les DEUX appels sont payés. */
+    /** TOUS les segments perdus : le texte est servi seul, sans surlignage. */
     @Test
     @SuppressWarnings("unchecked")
-    void ecrit_extraitReparé_leBlocEstRendu() {
+    void ecrit_tousLesSegmentsInvalides_leTexteEstServiSansSurlignage() {
         ProductionSubmission sub = submissionEcrite(TargetLevel.B2);
         AiEvaluation eval = eval(NiveauCecrl.A2, sub.getId());
-        when(llmClient.produire(anyString(), anyString(), any()))
-            .thenReturn(new VersionCibleeLlmClient.Outcome(sortieEcrite(VERSION_CONFORME_45_MOTS,
-                List.of("introuvable ici", "mot mot"), levierValide(), levierValide()), 300, 200, 1))
-            .thenReturn(new VersionCibleeLlmClient.Outcome(sortieEcriteConforme(), 400, 150, 2));
+        stubLlm(sortieEcrite(VERSION_CONFORME_45_MOTS,
+            List.of("premier passage inventé", "second passage inventé"),
+            levierValide(), levierValide()));
 
         service.enrichir(sub.getId());
 
         Map<String, Object> exemple = (Map<String, Object>)
             bloc(eval, VersionCibleeFields.BLOC).get(VersionCibleeFields.EXEMPLE_CIBLE);
-        String texte = String.valueOf(exemple.get(VersionCibleeFields.TEXTE));
-        for (Object segment : (List<Object>) exemple.get(VersionCibleeFields.SEGMENTS)) {
-            assertThat(texte).contains(
-                String.valueOf(((Map<String, Object>) segment).get(VersionCibleeFields.EXTRAIT)));
-        }
-        assertThat(eval.getTokensInput()).isEqualTo(700);
+        assertThat(exemple.get(VersionCibleeFields.TEXTE)).isEqualTo(VERSION_CONFORME_45_MOTS);
+        assertThat((List<Object>) exemple.get(VersionCibleeFields.SEGMENTS)).isEmpty();
+        verify(llmClient, times(1)).produire(anyString(), anyString(), any());
+        assertThat(metrics.compteurs())
+            .containsEntry("SEGMENT_RETIRE/EXTRAIT_INTROUVABLE", 2L);
+    }
+
+    /**
+     * LA NORMALISATION TYPOGRAPHIQUE, et son invariant : l'extrait persisté est la
+     * <b>sous-chaîne originale exacte</b>. Le modèle rend une apostrophe droite là
+     * où son propre texte porte une apostrophe courbe — le segment survit, et le
+     * front reçoit un extrait qui existe littéralement dans le texte qu'il
+     * affiche.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void ecrit_extraitAApostropheDroite_retrouveEtRestitueALIdentiqueDuTexte() {
+        ProductionSubmission sub = submissionEcrite(TargetLevel.B2);
+        AiEvaluation eval = eval(NiveauCecrl.A2, sub.getId());
+        String texte = motsFactices(43) + " j’ai emménagé";
+        stubLlm(sortieEcrite(texte, List.of("j'ai emménagé"), levierValide(), levierValide()));
+
+        service.enrichir(sub.getId());
+
+        Map<String, Object> exemple = (Map<String, Object>)
+            bloc(eval, VersionCibleeFields.BLOC).get(VersionCibleeFields.EXEMPLE_CIBLE);
+        List<Map<String, Object>> segments =
+            (List<Map<String, Object>>) exemple.get(VersionCibleeFields.SEGMENTS);
+        assertThat(segments).hasSize(1);
+        String extrait = String.valueOf(segments.get(0).get(VersionCibleeFields.EXTRAIT));
+        assertThat(extrait).isEqualTo("j’ai emménagé");
+        assertThat(texte).contains(extrait);
+        assertThat(metrics.compteurs()).isEmpty();
+    }
+
+    /**
+     * TOLÉRANCE RÉELLE SUR UN PLAFOND DE 3. L'étiquette d'un passage vaut 3 mots ;
+     * l'ancienne formule {@code floor(3 × 1,2)} n'en tolérait aucun de plus. Quatre
+     * mots passent désormais, cinq non — et le coût se limite à ce segment.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void ecrit_apportDeQuatreMotsPasse_deCinqMotsLeSegmentEstRetire() {
+        ProductionSubmission sub = submissionEcrite(TargetLevel.B2);
+        AiEvaluation eval = eval(NiveauCecrl.A2, sub.getId());
+        Map<String, Object> sortie = sortieEcriteConforme();
+        Map<String, Object> exemple =
+            (Map<String, Object>) sortie.get(VersionCibleeFields.EXEMPLE_CIBLE);
+        exemple.put(VersionCibleeFields.SEGMENTS, new ArrayList<>(List.of(
+            segment("mot mot", "plus précis et net"),
+            segment("mot mot mot", "plus précis et net encore"))));
+        stubLlm(sortie);
+
+        service.enrichir(sub.getId());
+
+        Map<String, Object> servi = (Map<String, Object>)
+            bloc(eval, VersionCibleeFields.BLOC).get(VersionCibleeFields.EXEMPLE_CIBLE);
+        List<Map<String, Object>> segments =
+            (List<Map<String, Object>>) servi.get(VersionCibleeFields.SEGMENTS);
+        assertThat(segments).hasSize(1);
+        assertThat(segments.get(0).get(VersionCibleeFields.APPORT))
+            .isEqualTo("plus précis et net");
+        assertThat(metrics.compteurs()).containsEntry("SEGMENT_RETIRE/MALFORME", 1L);
+    }
+
+    /** Au-delà de trois passages, le texte n'est plus mis en évidence : on tronque. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void ecrit_plusDeTroisSegments_lesSurnumerairesSontTronques() {
+        ProductionSubmission sub = submissionEcrite(TargetLevel.B2);
+        AiEvaluation eval = eval(NiveauCecrl.A2, sub.getId());
+        stubLlm(sortieEcrite(VERSION_CONFORME_45_MOTS,
+            List.of("mot mot", "mot mot mot", "mot mot mot mot", "mot mot mot mot mot"),
+            levierValide(), levierValide()));
+
+        service.enrichir(sub.getId());
+
+        Map<String, Object> exemple = (Map<String, Object>)
+            bloc(eval, VersionCibleeFields.BLOC).get(VersionCibleeFields.EXEMPLE_CIBLE);
+        assertThat((List<Object>) exemple.get(VersionCibleeFields.SEGMENTS)).hasSize(3);
+        assertThat(metrics.compteurs()).containsEntry("SEGMENT_RETIRE/EN_TROP", 1L);
     }
 
     // -------------------------------------------------- ÉCRIT, longueur modèle
@@ -289,6 +363,11 @@ class ProductionVersionCibleeServiceTest {
             .contains("30 a 60 mots")
             .contains("RETIRANT au moins 3 mots")
             .contains("Ne coupe PAS le texte en cours de phrase");
+        // L'APPEL PAYE ET LA SECTION PERDUE SONT COMPTES, a part l'un de l'autre :
+        // sans eux, personne ne peut dire combien de candidats perdent ce texte.
+        assertThat(metrics.compteurs())
+            .containsEntry("REPARATION/TEXTE_HORS_BORNES", 1L)
+            .containsEntry("SECTION/ILLUSTRATION/TEXTE_HORS_BORNES", 1L);
     }
 
     /** Un modèle TROP COURT est tout aussi irrecevable : le plancher compte aussi. */
@@ -555,6 +634,12 @@ class ProductionVersionCibleeServiceTest {
             .contains("LEVIER(S) REFUSÉ(S)")
             .contains("REFORMULATION(S) REFUSÉE(S)");
         verify(aiEvaluationManager, never()).save(any());
+        // Le BLOC perdu se compte sur les leviers, jamais sur une section
+        // facultative : « il a perdu son illustration » et « il n'a rien eu » ne
+        // doivent pas etre le meme chiffre.
+        assertThat(metrics.compteurs())
+            .containsEntry("REPARATION/PURGE_LEVIERS", 1L)
+            .containsEntry("SECTION/LEVIERS/PURGE_LEVIERS", 1L);
     }
 
     /**

@@ -597,10 +597,25 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   une version inconnue échoue au BOOT, jamais de repli muet)** :
   - **commun** : `leviers[2..3]` = objets `{action ≤ 6 mots impératif, exemple ≤ 5 mots}`
     (fini la chaîne libre de 25 mots) + `a_retenir {formule ≤ 8 mots, explication ≤ 14 mots}` ;
-  - **EE** : `exemple_cible {texte, segments[2..3] {extrait, apport ≤ 3 mots}}` — `texte` garde
-    les bornes `production_tasks.mots_min/max` (recomptées serveur), et chaque `extrait` doit
-    être une **sous-chaîne exacte** de `texte` (le front surligne ; sinon 1 réparation puis
-    abandon de **`exemple_cible` seul** — jamais de surlignage faux) ;
+  - **EE** : `exemple_cible {texte, segments[0..3] {extrait, apport ≤ 3 mots}}` — `texte` garde
+    les bornes `production_tasks.mots_min/max` (recomptées serveur). ⚠️ **Les segments sont
+    FACULTATIFS** (règle du 2026-08-11, elle **révoque** « 2 segments minimum, sinon ce n'est
+    pas un chemin », qui ne vaut que pour les `reformulations` orales) : un extrait
+    introuvable, un apport trop long ou un objet mal formé fait retirer **ce segment**
+    (`VersionCibleeSegmentFilter`), l'`exemple_cible` survit dès que son `texte` est valide, et
+    la section ne tombe que si le **texte** est fautif. Motif : le texte réécrit est ce que le
+    candidat vient chercher — **afficher le texte sans surlignage vaut mieux que ne rien
+    afficher**. Un extrait introuvable ne vaut **plus de réparation payée** (il ne coûte qu'un
+    surlignage). Les 3 fronts étaient **déjà** prêts (web `asActionExempleCible` n'exige que
+    `texte`, mobile idem) ;
+  - **la comparaison extrait ⇄ texte neutralise la TYPOGRAPHIE** (`util/TexteNormalise`, NFKC,
+    apostrophes courbes/droites, espaces insécables, tirets longs, ligatures, suites de blancs)
+    **et rien d'autre** — ni casse, ni accents, ni appariement flou ; puis l'extrait servi est
+    **remplacé par la sous-chaîne ORIGINALE exacte**, comme `resolvePreuveSegments`, pour que le
+    front surligne par simple recherche de chaîne. Motif : nos textes portent des apostrophes
+    courbes, le modèle rend des droites (ou l'inverse), et un extrait **juste** était déclaré
+    introuvable. `EvaluationProofMatcher.normalizeToken` a été **déplacé** dans ce même fichier
+    (`TexteNormalise.mot`, au bit près) : une seule normalisation, deux couches ;
   - **EO** : ⚠️ **la production orale n'est JAMAIS réécrite** (rendre un beau texte à la place
     d'une transcription est trompeur). `exemple_cible` est remplacé par
     `reformulations[2..3] {segment_numero, reformule, apport}` — **désignation par NUMÉRO**
@@ -653,10 +668,25 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   ajoute `niveau_vise` / `niveau_constate` (⚠️ données de logique : ne pas en faire une étiquette
   de palier sur l'exemple, autre chantier).
   **UNE seule réparation par bloc, tous motifs confondus** (`VersionCibleeRepairPrompt`) — pas
-  une par section — et seulement sur du **mécanique nommable** : longueur du texte, extrait
-  introuvable, numéro hors bornes, leviers purgés, reformulations purgées. Sortie
-  structurellement fausse ⇒ **zéro** second appel payé, et **leviers** structurellement faux ⇒
-  aucune réparation non plus (le bloc est condamné, payer ne rachèterait rien).
+  une par section — et seulement sur du **mécanique nommable** : longueur du texte, numéro hors
+  bornes, leviers purgés, reformulations purgées. Sortie structurellement fausse ⇒ **zéro**
+  second appel payé, et **leviers** structurellement faux ⇒ aucune réparation non plus (le bloc
+  est condamné, payer ne rachèterait rien).
+  **Tolérance des plafonds pédagogiques : `PlafondMots.tolere` = `max(plafond+1,
+  floor(plafond×1,2))`** (2026-08-11). L'ancienne formule seule était **fictive sur les petits
+  plafonds** : sur `apport` (3 mots) elle tolérait 3, soit **zéro marge**, exactement là où la
+  tolérance avait été écrite pour servir. Effet mesuré, plafond par plafond : `apport` 3→**4**
+  (avant : 3) ; `exemple` 6, `action` 7, `formule` 9, `explication` 16, `reformule` 72,
+  `ce_qui_manque` 30 — **inchangés**. Même correction, même passe, sur le module Compétences
+  (`CompetenceAnalysisValidator` : `strength_tag`/`focus_tag` 3→**4** ;
+  `CompetenceNiveauViseValidator` : `apport` 3→**4**). Ne s'applique **pas** aux bornes du
+  texte modèle (`ProductionTextBounds`), qui restent au mot près.
+  **Compteurs `VersionCibleeMetrics`** (troisième famille, à ne pas mélanger avec
+  `EvaluationRefusalMetrics` « un refus coûte la tâche » ni `EvaluationPurgeMetrics` « une purge
+  retire une phrase ») : **section abandonnée** par section × motif, **réparation payée** par
+  motif, **segment retiré** par motif. Sans eux, la disparition intermittente de la section
+  n'avait que deux `log.info` pour l'expliquer et aucune de ces décisions n'était jugeable sur
+  des chiffres.
   **Best-effort, jamais bloquant** : lancé par `ProductionPipelineAsyncRunner` **après** que
   l'éval est persistée et `EVALUATED`, **hors transaction** (invariant du runner), le service
   avale toute exception, **aucun rejeu** (c'est un confort, pas une correction). Rien n'est
@@ -1473,17 +1503,37 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
     constaté, si l'analyse ne porte aucun niveau (contrat v1/v2), si le palier
     visé est introuvable, ou si `niveau-vise.enabled=false`. Économie réelle, pas
     seulement un bloc absent.
-  - **Deux contrôles serveur.** (1) chaque `segments[].extrait` doit être une
-    **sous-chaîne exacte** de `exemple_cible.texte` — le front surligne par simple
-    recherche de chaîne ; sinon **une** réparation actionnable (extrait nommé +
-    texte redonné) puis **abandon du bloc**, jamais de segment inventé affiché.
+  - **Deux contrôles serveur.** (1) **les `segments` sont un confort de lecture,
+    le texte est la pièce centrale** (aligné sur `version_ciblee` le
+    **2026-08-12**) : un segment introuvable dans `exemple_cible.texte`, mal
+    formé ou au-delà du 3ᵉ est **retiré**, `exemple_cible` survit dès que son
+    `texte` est valide (présent, non vide), et la section ne tombe que si le
+    **texte** est fautif. Un extrait introuvable **n'ouvre plus droit à
+    réparation payée** — il ne coûte que son surlignage. La comparaison neutralise
+    la **typographie** (`util/TexteNormalise`) et l'extrait servi est la
+    **sous-chaîne originale exacte** du texte, le front surlignant par simple
+    recherche de chaîne : rien d'inventé n'est jamais affiché. **Mécanique
+    partagée** avec les productions — `util/SegmentsSurlignage`, câblé sur les
+    noms de champs de chaque contrat — précisément parce que deux copies avaient
+    divergé (l'ancienne règle « un extrait introuvable emporte tout le bloc »
+    était restée dure ici après avoir été assouplie là-bas). Le tool-schema v1
+    continue d'exiger 2 à 3 segments : **aucune version de contrat n'a bougé**,
+    seul le serveur a cessé de punir.
     (2) filet marqueurs A2 sur les leviers, **3ᵉ occurrence** du même défaut :
     `EvaluationMarqueursA2.designe` est réutilisé tel quel (le levier est inspecté
     comme `action + « exemple »`, ce qu'il est sémantiquement), et
     `EvaluationMarqueursA2.sousLeNiveauVise` a été **extrait** à cette occasion,
     `VersionCibleeLevierFilter` l'utilisant désormais aussi. Reste < 2 leviers ⇒
     une réparation, puis abandon. **Une seule réparation par bloc, tous motifs
-    confondus.** Compté `EvaluationPurgeMetrics.MARQUEUR_PALIER_LEVIER_COMPETENCE`.
+    confondus** — et c'est désormais le **seul** motif qui en vaut une. Compté
+    `EvaluationPurgeMetrics.MARQUEUR_PALIER_LEVIER_COMPETENCE`.
+  - **Compteurs `CompetenceNiveauViseMetrics`** (bloc abandonné par motif,
+    réparation payée, segment retiré) : famille **distincte** de
+    `VersionCibleeMetrics` (même mesure, mais sur l'écran des productions), de
+    `EvaluationRefusalMetrics` (un refus coûte la tâche) et de
+    `EvaluationPurgeMetrics` (une purge retire une phrase). Pas de compteur « par
+    section » ici : les 3 champs du contrat sont requis ensemble, le bloc tombe
+    d'un bloc — seul un **segment** peut disparaître seul.
   - **Niveau visé = `TargetProcedure.niveauVise(procedure, targetLevel)`**, la
     démarche fait **plancher** ; repli sur `skills.target_level`. Ne jamais
     réécrire cette table.

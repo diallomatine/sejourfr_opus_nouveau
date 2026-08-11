@@ -57,6 +57,7 @@ class CompetenceNiveauViseServiceTest {
     private UserSkillAttemptManager attemptManager;
     private CompetenceNiveauViseLlmClient client;
     private CompetenceProperties props;
+    private CompetenceNiveauViseMetrics metrics;
     private CompetenceNiveauViseService service;
 
     @BeforeEach
@@ -70,11 +71,12 @@ class CompetenceNiveauViseServiceTest {
         CompetenceNiveauViseRubricsProvider rubrics =
             new CompetenceNiveauViseRubricsProvider(props, new ObjectMapper());
         rubrics.load();
+        metrics = new CompetenceNiveauViseMetrics();
         service = new CompetenceNiveauViseService(
             attemptManager, client,
             new CompetenceNiveauVisePromptBuilder(new ObjectMapper(), rubrics),
-            new CompetenceNiveauViseValidator(rubrics),
-            new EvaluationPurgeMetrics(), props);
+            new CompetenceNiveauViseValidator(rubrics), rubrics,
+            new EvaluationPurgeMetrics(), metrics, props);
     }
 
     // ------------------------------------------------------------ fabriques
@@ -161,6 +163,40 @@ class CompetenceNiveauViseServiceTest {
         assertThat(attempt.getAnalysisJson())
             .containsEntry(CompetenceAnalysisFields.FOCUS_TAG, "Plus de politesse");
         verify(attemptManager).save(attempt);
+    }
+
+    /**
+     * L'EXTRAIT SERVI EST LA SOUS-CHAINE ORIGINALE EXACTE du texte modele.
+     *
+     * <p>Le validateur compare desormais apres neutralisation typographique — un
+     * extrait a l'apostrophe courbe est retrouve dans un texte a l'apostrophe
+     * droite. Sans cette resolution, le front recevrait l'extrait tel que rendu
+     * par le modele et son surlignage, une simple recherche de chaine, echouerait
+     * en silence.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void lExtraitPersisteEstUneSousChaineLitteraleDuTexteModele() {
+        UserSkillAttempt attempt = attempt("A2", TargetProcedure.CR, null);
+        Map<String, Object> sortie = CompetenceNiveauViseValidatorTest.sortieValide();
+        Map<String, Object> exemple =
+            (Map<String, Object>) sortie.get(CompetenceNiveauViseFields.EXEMPLE_CIBLE);
+        List<Map<String, Object>> segments =
+            (List<Map<String, Object>>) exemple.get(CompetenceNiveauViseFields.SEGMENTS);
+        segments.get(0).put(CompetenceNiveauViseFields.EXTRAIT,
+            "serait-il possible d’obtenir un rendez-vous");
+        when(client.produire(anyString(), anyString())).thenReturn(outcome(sortie));
+
+        service.enrichir(ATTEMPT_ID);
+
+        Map<String, Object> servi = (Map<String, Object>)
+            bloc(attempt).get(CompetenceNiveauViseFields.EXEMPLE_CIBLE);
+        String texte = String.valueOf(servi.get(CompetenceNiveauViseFields.TEXTE));
+        for (Map<String, Object> segment
+            : (List<Map<String, Object>>) servi.get(CompetenceNiveauViseFields.SEGMENTS)) {
+            assertThat(texte).contains(
+                String.valueOf(segment.get(CompetenceNiveauViseFields.EXTRAIT)));
+        }
     }
 
     @Test
@@ -273,60 +309,74 @@ class CompetenceNiveauViseServiceTest {
 
     // --------------------------------------------------------- reparation
 
+    /**
+     * ⚠️ REMPLACE trois gels de l'ancienne regle (« un extrait introuvable
+     * declenche une reparation », « son message nomme l'extrait », « il abandonne
+     * le bloc apres reparation »). Le surlignage ne vaut plus un appel paye : le
+     * segment tombe, le texte reste.
+     */
     @Test
-    void unExtraitIntrouvableDeclencheUneSeuleReparationPuisPasse() {
+    @SuppressWarnings("unchecked")
+    void unExtraitIntrouvableRetireLeSegment_sansAppelPayeEtSansPerdreLeTexte() {
         UserSkillAttempt attempt = attempt("A2", TargetProcedure.NAT, null);
-        Map<String, Object> fautive = CompetenceNiveauViseValidatorTest.sortieValide();
-        segments(fautive).get(0).put(
+        Map<String, Object> sortie = CompetenceNiveauViseValidatorTest.sortieValide();
+        segments(sortie).get(0).put(
             CompetenceNiveauViseFields.EXTRAIT, "veuillez agreer mes salutations");
-        when(client.produire(anyString(), anyString()))
-            .thenReturn(outcome(fautive))
-            .thenReturn(outcome(CompetenceNiveauViseValidatorTest.sortieValide()));
+        when(client.produire(anyString(), anyString())).thenReturn(outcome(sortie));
 
         service.enrichir(ATTEMPT_ID);
 
-        verify(client, times(2)).produire(anyString(), anyString());
-        assertThat(bloc(attempt)).isNotNull();
-        // Les deux appels ont ete factures.
-        assertThat(attempt.getTokensInput()).isEqualTo(2600);
+        verify(client, times(1)).produire(anyString(), anyString());
+        Map<String, Object> servi = (Map<String, Object>)
+            bloc(attempt).get(CompetenceNiveauViseFields.EXEMPLE_CIBLE);
+        assertThat(servi.get(CompetenceNiveauViseFields.TEXTE)).isNotNull();
+        assertThat((List<?>) servi.get(CompetenceNiveauViseFields.SEGMENTS)).hasSize(1);
+        assertThat(metrics.compteurs())
+            .containsEntry("SEGMENT_RETIRE/EXTRAIT_INTROUVABLE", 1L);
+        assertThat(metrics.compteurs().keySet())
+            .as("un surlignage ne vaut pas un appel paye")
+            .noneMatch(cle -> cle.startsWith("REPARATION/"));
     }
 
+    /** TOUS les segments perdus : le texte est servi seul, sans surlignage. */
     @Test
-    void leMessageDeReparationNommeLExtraitRefuseEtDonneLeTexte() {
-        attempt("A2", TargetProcedure.NAT, null);
-        Map<String, Object> fautive = CompetenceNiveauViseValidatorTest.sortieValide();
-        segments(fautive).get(0).put(
-            CompetenceNiveauViseFields.EXTRAIT, "veuillez agreer mes salutations");
-        when(client.produire(anyString(), anyString()))
-            .thenReturn(outcome(fautive))
-            .thenReturn(outcome(CompetenceNiveauViseValidatorTest.sortieValide()));
+    @SuppressWarnings("unchecked")
+    void tousLesSegmentsInvalides_leTexteEstServiSansSurlignage() {
+        UserSkillAttempt attempt = attempt("A2", TargetProcedure.NAT, null);
+        Map<String, Object> sortie = CompetenceNiveauViseValidatorTest.sortieValide();
+        Map<String, Object> exemple =
+            (Map<String, Object>) sortie.get(CompetenceNiveauViseFields.EXEMPLE_CIBLE);
+        exemple.put(CompetenceNiveauViseFields.SEGMENTS, List.of(
+            "pas un objet",
+            Map.of(CompetenceNiveauViseFields.EXTRAIT, "phrase inventee",
+                CompetenceNiveauViseFields.APPORT, "plus poli")));
+        when(client.produire(anyString(), anyString())).thenReturn(outcome(sortie));
 
         service.enrichir(ATTEMPT_ID);
 
-        ArgumentCaptor<String> prompts = ArgumentCaptor.forClass(String.class);
-        verify(client, times(2)).produire(anyString(), prompts.capture());
-        String reparation = prompts.getAllValues().get(1);
-        // Le depot a mesure qu'un reessai non actionnable repare 0 cas sur 8 : on
-        // nomme l'extrait refuse ET on redonne le texte dans lequel on l'a cherche.
-        assertThat(reparation)
-            .contains("veuillez agreer mes salutations")
-            .contains("serait-il possible d'obtenir un rendez-vous")
-            .contains("caractère pour caractère");
+        verify(client, times(1)).produire(anyString(), anyString());
+        Map<String, Object> servi = (Map<String, Object>)
+            bloc(attempt).get(CompetenceNiveauViseFields.EXEMPLE_CIBLE);
+        assertThat(servi.get(CompetenceNiveauViseFields.TEXTE)).isNotNull();
+        assertThat((List<?>) servi.get(CompetenceNiveauViseFields.SEGMENTS)).isEmpty();
+        assertThat(metrics.compteurs())
+            .containsEntry("SEGMENT_RETIRE/MALFORME", 1L)
+            .containsEntry("SEGMENT_RETIRE/EXTRAIT_INTROUVABLE", 1L);
     }
 
+    /** Le TEXTE, lui, tient toujours la section : sans lui, plus de bloc du tout. */
     @Test
-    void unExtraitEncoreIntrouvableApresReparationAbandonneLeBloc() {
+    void unTexteModeleFautifFaitTomberLaSection() {
         UserSkillAttempt attempt = attempt("A2", TargetProcedure.NAT, null);
         Map<String, Object> fautive = CompetenceNiveauViseValidatorTest.sortieValide();
-        segments(fautive).get(0).put(CompetenceNiveauViseFields.EXTRAIT, "phrase inventee");
+        exempleCible(fautive).put(CompetenceNiveauViseFields.TEXTE, "   ");
         when(client.produire(anyString(), anyString())).thenReturn(outcome(fautive));
 
         service.enrichir(ATTEMPT_ID);
 
-        // UNE seule reparation, puis abandon : on ne surligne jamais un passage
-        // que le modele n'a pas ecrit.
-        verify(client, times(2)).produire(anyString(), anyString());
+        verify(client, times(1)).produire(anyString(), anyString());
         assertThat(bloc(attempt)).isNull();
+        assertThat(metrics.compteurs()).containsEntry("BLOC_ABANDONNE/STRUCTURE", 1L);
     }
 
     @Test
@@ -340,6 +390,18 @@ class CompetenceNiveauViseServiceTest {
 
         verify(client, times(1)).produire(anyString(), anyString());
         assertThat(bloc(attempt)).isNull();
+        assertThat(metrics.compteurs()).containsEntry("BLOC_ABANDONNE/STRUCTURE", 1L);
+    }
+
+    @Test
+    void uneSortieVideEstCompteeAPart() {
+        UserSkillAttempt attempt = attempt("A2", TargetProcedure.NAT, null);
+        when(client.produire(anyString(), anyString())).thenReturn(outcome(Map.of()));
+
+        service.enrichir(ATTEMPT_ID);
+
+        assertThat(bloc(attempt)).isNull();
+        assertThat(metrics.compteurs()).containsEntry("BLOC_ABANDONNE/SORTIE_HORS_CONTRAT", 1L);
     }
 
     // ------------------------------------------------------- filet A2
@@ -378,12 +440,20 @@ class CompetenceNiveauViseServiceTest {
 
         verify(client, times(2)).produire(anyString(), anyString());
         assertThat(bloc(attempt)).isNull();
+        // UN appel paye, et il est compte : c'est le seul motif qui en vaut un.
+        assertThat(metrics.compteurs())
+            .containsEntry("REPARATION/PURGE_LEVIERS", 1L)
+            .containsEntry("BLOC_ABANDONNE/PURGE_LEVIERS", 1L);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> exempleCible(Map<String, Object> sortie) {
+        return (Map<String, Object>) sortie.get(CompetenceNiveauViseFields.EXEMPLE_CIBLE);
     }
 
     @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> segments(Map<String, Object> sortie) {
-        Map<String, Object> exemple =
-            (Map<String, Object>) sortie.get(CompetenceNiveauViseFields.EXEMPLE_CIBLE);
-        return (List<Map<String, Object>>) exemple.get(CompetenceNiveauViseFields.SEGMENTS);
+        return (List<Map<String, Object>>)
+            exempleCible(sortie).get(CompetenceNiveauViseFields.SEGMENTS);
     }
 }

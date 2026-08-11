@@ -3,6 +3,7 @@ package com.sejourfr.app.service.versionciblee;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.util.ProductionPayloadSupport;
 import com.sejourfr.app.util.ProductionTextBounds;
+import com.sejourfr.app.util.SegmentsSurlignage;
 
 import java.util.List;
 import java.util.Map;
@@ -10,9 +11,14 @@ import java.util.Map;
 /**
  * Messages de LA SEULE tentative de reparation d'un bloc « version au niveau
  * vise ». <b>Une reparation par bloc, tous motifs confondus</b> : longueur du
- * texte modele, extrait introuvable, numero de segment hors bornes, leviers
- * refuses, reformulations retirees. Deux appels de reparation pour deux motifs
- * seraient deux appels payes sur un bloc de confort.
+ * texte modele, numero de segment hors bornes, leviers refuses, reformulations
+ * retirees. Deux appels de reparation pour deux motifs seraient deux appels payes
+ * sur un bloc de confort.
+ *
+ * <p><b>Un extrait introuvable ne se repare plus</b> (2026-08-11) : il ne coute
+ * plus qu'un surlignage — le segment est retire, le texte modele reste servi
+ * ({@link SegmentsSurlignage}) — et payer un appel pour un surlignage
+ * serait disproportionne.
  *
  * <p><b>Pourquoi un message et pas la liste brute des violations.</b> Le depot a
  * mesure la difference : sur 8 preuves rejetees, un reessai ne portant que le
@@ -32,7 +38,9 @@ import java.util.Map;
  * entier seulement quand ce sont les leviers qui tombent. On ne tronque JAMAIS un
  * texte modele et on ne « rattrape » jamais un extrait a la main : une version
  * coupee au milieu d'une phrase enseignerait une faute, et un surlignage
- * approximatif afficherait un passage que le modele n'a pas ecrit.
+ * approximatif afficherait un passage que le modele n'a pas ecrit (seule la
+ * TYPOGRAPHIE est neutralisee avant comparaison, et le passage restitue reste la
+ * sous-chaine originale exacte).
  */
 final class VersionCibleeRepairPrompt {
 
@@ -57,7 +65,6 @@ final class VersionCibleeRepairPrompt {
         }
 
         boolean longueur = contient(violations, VersionCibleeValidator.VIOLATION_LONGUEUR);
-        boolean extrait = contient(violations, VersionCibleeValidator.VIOLATION_EXTRAIT);
         boolean segment = contient(violations, VersionCibleeValidator.VIOLATION_SEGMENT);
 
         if (longueur && bornes != null) {
@@ -81,18 +88,6 @@ final class VersionCibleeRepairPrompt {
                     .append("que d'inventer un fait nouveau : aucune information absente de sa ")
                     .append("production ne doit apparaître.");
             }
-        }
-
-        if (extrait) {
-            sb.append("\n\nLES EXTRAITS. Le serveur cherche chaque `segments[].extrait` dans ")
-                .append("`exemple_cible.texte`, caractère pour caractère — mêmes mots, mêmes ")
-                .append("accents, mêmes espaces, même ponctuation, même apostrophe. Il ne ")
-                .append("rattrape rien : une reformulation, un raccourci par points de ")
-                .append("suspension, ou deux morceaux éloignés recollés sont introuvables, donc ")
-                .append("refusés. Le front SURLIGNE ces passages dans le texte ; un extrait ")
-                .append("absent ne se surligne pas.");
-            sb.append("\n\nCE QU'IL FAUT FAIRE : choisis des extraits COURTS et CONTIGUS, que tu ")
-                .append("recopies depuis ton propre texte par simple copie.");
         }
 
         if (segment) {

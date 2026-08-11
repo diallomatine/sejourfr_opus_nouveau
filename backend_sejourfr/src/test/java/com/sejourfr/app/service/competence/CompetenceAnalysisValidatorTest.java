@@ -161,14 +161,30 @@ class CompetenceAnalysisValidatorTest {
             .anySatisfy(v -> assertThat(v).contains("verdict", "25 mots", "maximum est 20"));
     }
 
+    /**
+     * TOLERANCE REELLE SUR UN PETIT PLAFOND (2026-08-11). L'ancienne formule
+     * {@code floor(3 * 1,2)} rendait 3 : sur les etiquettes de trois mots, la
+     * tolerance annoncee n'existait pas, et une analyse deja payee se perdait pour
+     * un mot. Un plafond tolere desormais toujours au moins un mot de plus.
+     */
+    @Test
+    void uneEtiquetteDUnMotDeTropPasse() {
+        Map<String, Object> sortie = sortieValide();
+        sortie.put(CompetenceAnalysisFields.FOCUS_TAG, mots(4)); // plafond 3, tolere 4
+
+        assertThat(validator.violations(sortie))
+            .as("perdre une analyse deja payee pour un mot serait absurde")
+            .isEmpty();
+    }
+
     @Test
     void uneEtiquetteBavardeEstRefusee() {
         Map<String, Object> sortie = sortieValide();
-        // Plafond 3, tolerance 1,2 -> 3 : quatre mots, c'est deja une phrase.
-        sortie.put(CompetenceAnalysisFields.FOCUS_TAG, mots(4));
+        // Plafond 3, tolere 4 : a cinq mots, ce n'est plus une etiquette.
+        sortie.put(CompetenceAnalysisFields.FOCUS_TAG, mots(5));
 
         assertThat(validator.violations(sortie))
-            .anySatisfy(v -> assertThat(v).contains("focus_tag", "4 mots", "maximum est 3"));
+            .anySatisfy(v -> assertThat(v).contains("focus_tag", "5 mots", "maximum est 3"));
     }
 
     @Test

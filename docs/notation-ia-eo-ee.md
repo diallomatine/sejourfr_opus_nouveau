@@ -1266,20 +1266,38 @@ serveur — jamais par une simple consigne, qui dans ce projet n'est qu'un vœu 
 | la **formule** à retenir | **8 mots** |
 | son **explication** | **14 mots** |
 
-Deux ou trois leviers, jamais un inventaire ; deux ou trois passages surlignés, jamais tout le
+Deux ou trois leviers, jamais un inventaire ; jusqu'à trois passages surlignés, jamais tout le
 texte ; **une seule** chose à retenir.
+
+Ces plafonds sont des consignes de forme, pas des règles de calcul : le serveur **tolère
+toujours au moins un mot de plus** avant de refuser (et 20 % au-delà sur les plafonds élevés).
+Il faut le dire, parce que ça n'a pas toujours été vrai : la marge de 20 % appliquée seule ne
+donnait **aucun mot de tolérance** sur les étiquettes de trois mots, si bien qu'une étiquette de
+quatre mots — « plus poli et net » — faisait disparaître tout un encart déjà payé. Corrigé le
+11 août 2026, sur cet encart comme sur celui du module Compétences.
 
 Les autres règles sont celles du §5.8, avec un ajout : **c'est toujours votre réponse** — même
 situation, mêmes faits, mêmes prénoms, mêmes chiffres, même position. Si vous êtes contre une
 idée, la version l'est aussi : on ne change pas votre avis, on vous donne les moyens de le
 défendre.
 
-> **Les passages surlignés sont vérifiés, pas crus sur parole.** L'IA désigne deux ou trois
-> extraits de son propre texte modèle ; le serveur **les y recherche caractère pour caractère**.
-> S'il n'en trouve pas un, une seule correction est demandée, puis **la version modèle
-> disparaît** — un surlignage approximatif afficherait comme « extrait du modèle » une phrase
-> que le modèle n'a jamais écrite. **Vos leviers et votre « à retenir », eux, restent** : ils ne
-> reposent sur aucune citation (voir « ce qui tombe, et ce qui reste » plus bas).
+> **Les passages surlignés sont vérifiés, pas crus sur parole — mais ils ne coûtent qu'eux-mêmes.**
+> L'IA désigne deux ou trois extraits de son propre texte modèle ; le serveur **les y
+> recherche**, et n'affiche que ceux qu'il retrouve réellement : un surlignage approximatif
+> présenterait comme « extrait du modèle » une phrase que le modèle n'a jamais écrite.
+> **Un passage qu'il ne retrouve pas est simplement retiré, et le texte modèle reste affiché** —
+> sans son surlignage. C'est la règle depuis le 11 août 2026, et elle remplace la précédente
+> (« un extrait introuvable et toute la version modèle disparaît ») : **le texte réécrit est ce
+> que vous venez chercher, un texte sans surlignage vaut mieux qu'un écran vide.** Vos leviers
+> et votre « à retenir » restent eux aussi, comme avant : ils ne reposent sur aucune citation
+> (voir « ce qui tombe, et ce qui reste » plus bas).
+>
+> **La recherche ignore la typographie, et rien d'autre.** Apostrophe droite ou courbe, espace
+> insécable, tiret long ou court, retour à la ligne : ces différences-là ne comptent pas, parce
+> qu'elles viennent du clavier et non du sens — c'est même la cause la plus fréquente d'un
+> passage juste déclaré introuvable. En revanche les mots, les accents et les majuscules doivent
+> correspondre, et le passage finalement surligné est **celui de votre texte, tel qu'il
+> s'affiche**, jamais une version retouchée.
 
 #### Cette version respecte la longueur de l'exercice — c'est vérifié, pas demandé
 
@@ -1371,7 +1389,14 @@ qu'elles ne dépendent pas les unes des autres :
 |---|---|
 | **Les leviers** | Rien n'est affiché du tout : un plan d'action sans levier n'apprend rien. |
 | **La version modèle** (écrit) / **les reformulations** (oral) | **Elle seule** disparaît. Vos leviers et votre « à retenir » restent. |
+| **Un passage surligné dans la version modèle** (écrit) | **Lui seul** disparaît : le texte reste affiché, simplement sans ce surlignage. |
 | **La tournure à retenir** | **Elle seule** disparaît. |
+
+Cette dernière ligne est récente (11 août 2026) et elle **remplace** une règle plus dure : un
+seul passage introuvable emportait auparavant toute la version modèle. La raison du changement
+tient en une phrase : **le texte réécrit est ce que vous venez chercher, le surlignage n'est
+qu'une aide à la lecture** — et depuis que la « version améliorée » du §5.8 n'existe plus, ce
+texte est le seul modèle de tout votre rapport.
 
 > **Pourquoi cette règle a été écrite.** Sur une tâche d'oral en temps réel, la transcription
 > était hachée — mots coupés, répétitions, un tour réduit à un bruit. Les reformulations ont
@@ -3027,11 +3052,18 @@ tirer vers le niveau qui compte pour lui.
 
 **Trois contrôles automatiques, avant que le candidat voie quoi que ce soit :**
 
-- **les passages surlignés sont réellement dans le texte.** Le serveur cherche chaque extrait,
-  caractère pour caractère, dans l'exemple cible. S'il ne l'y trouve pas — passage reformulé,
-  raccourci, recomposé — il redemande une fois à l'IA de recopier proprement, en lui nommant
-  l'extrait fautif et en lui redonnant son propre texte. Si ça échoue encore, **tout le bloc est
-  abandonné**. On ne surligne jamais une phrase que l'IA n'a pas écrite ;
+- **les passages surlignés sont réellement dans le texte — mais ils ne coûtent qu'eux-mêmes.**
+  Le serveur cherche chaque extrait dans l'exemple cible — en ignorant la seule typographie
+  (apostrophe droite ou courbe, espace insécable, tiret long), et en affichant ensuite le
+  passage **tel qu'il est dans le texte**. S'il ne l'y trouve pas — passage reformulé,
+  raccourci, recomposé — **ce passage-là est simplement retiré, et l'exemple cible reste
+  affiché**, sans son surlignage. On ne surligne jamais une phrase que l'IA n'a pas écrite, et
+  on ne fait plus payer un texte entier pour une aide à la lecture. Seul un **texte** absent ou
+  vide fait tomber cette partie. *(Règle du 12 août 2026 : elle **remplace** la précédente — un
+  seul extrait introuvable déclenchait une reprise payante puis emportait tout le bloc, leviers
+  et tournure à retenir compris, qui ne reposent pourtant sur aucune citation. C'est exactement
+  la règle des productions complètes, §5.9 : les deux surfaces, qui portent le même encart,
+  partagent désormais le même contrôle.)* ;
 - **un levier ne vend jamais un moyen déjà acquis.** « et », « mais », « alors », « après »,
   « aussi », « parce que » sont des moyens du niveau A2 : proposés comme la clé du B1 ou du B2,
   ils sont **retirés**. C'est le même contrôle qu'aux §8 quinquies et §5.9, pour le même défaut

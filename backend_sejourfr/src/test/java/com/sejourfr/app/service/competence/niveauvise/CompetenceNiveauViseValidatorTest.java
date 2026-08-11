@@ -15,11 +15,13 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Le validateur du SECOND appel, et surtout le controle qui n'existe nulle part
- * ailleurs : <b>chaque {@code extrait} est une sous-chaine exacte du texte
- * modele</b>. Le front surligne ces passages ; un extrait absent afficherait au
- * candidat une phrase presentee comme un morceau du modele alors qu'elle n'en
- * fait pas partie.
+ * Le validateur du SECOND appel — et ce qu'il ne juge PLUS.
+ *
+ * <p>Depuis le 2026-08-12 (alignement sur les productions), les {@code segments}
+ * ne passent plus par ici : ils sont un confort de lecture, filtres un a un par
+ * {@code SegmentsSurlignage} et verrouilles par {@code SegmentsSurlignageTest}.
+ * Ce que ce validateur tient, c'est la <b>structure</b> du bloc et son
+ * <b>texte</b> : eux seuls peuvent faire tomber la section.
  */
 class CompetenceNiveauViseValidatorTest {
 
@@ -104,55 +106,68 @@ class CompetenceNiveauViseValidatorTest {
         assertThat(validator.violations(Map.of(), MAX_LEVIERS)).isNotEmpty();
     }
 
-    // ---------------------------------------- extrait sous-chaine du texte
+    // -------------------------------- le texte, et lui seul, tient la section
 
+    /**
+     * ⚠️ REMPLACE l'ancien gel « un extrait invente est refuse » : il faisait
+     * tomber tout le bloc — leviers et tournure a retenir compris — pour un
+     * surlignage. Le segment fautif est desormais RETIRE par
+     * {@code SegmentsSurlignage} ; le validateur, lui, n'a plus rien a en dire.
+     */
     @Test
-    void unExtraitInventeEstRefuse() {
+    void unExtraitInventeNEstPlusUneViolation() {
         Map<String, Object> sortie = sortieValide();
         segments(sortie).get(0).put(
             CompetenceNiveauViseFields.EXTRAIT, "veuillez agreer mes salutations");
 
-        List<String> violations = validator.violations(sortie, MAX_LEVIERS);
-
-        assertThat(violations).anySatisfy(v -> assertThat(v)
-            .startsWith(CompetenceNiveauViseValidator.VIOLATION_EXTRAIT)
-            .contains("veuillez agreer mes salutations"));
-        assertThat(CompetenceNiveauViseValidator.uniquementExtraits(violations))
-            .as("ce defaut-la, et lui seul, ouvre droit a une reparation")
-            .isTrue();
-    }
-
-    @Test
-    void unExtraitReformuleOuRaccourciEstRefuse() {
-        Map<String, Object> sortie = sortieValide();
-        // Le passage existe... presque : ellipse au milieu, casse changee.
-        segments(sortie).get(0).put(
-            CompetenceNiveauViseFields.EXTRAIT, "Serait-il possible… un rendez-vous");
-
-        assertThat(validator.violations(sortie, MAX_LEVIERS)).anySatisfy(v -> assertThat(v)
-            .startsWith(CompetenceNiveauViseValidator.VIOLATION_EXTRAIT));
-    }
-
-    @Test
-    void unExtraitRecopieMotPourMotEstAccepte() {
-        Map<String, Object> sortie = sortieValide();
-        segments(sortie).get(0).put(CompetenceNiveauViseFields.EXTRAIT, "jeudi prochain");
-
         assertThat(validator.violations(sortie, MAX_LEVIERS)).isEmpty();
     }
 
+    /** ⚠️ REMPLACE « moins de deux segments est refuse » et « un apport bavard est refuse ». */
     @Test
-    void uneViolationDeStructureNouvreDroitAAucuneReparation() {
+    void desSegmentsAbsentsMalTypesOuUniquesNeFontPlusTomberLaSection() {
+        Map<String, Object> sansSegments = sortieValide();
+        exempleCible(sansSegments).remove(CompetenceNiveauViseFields.SEGMENTS);
+        assertThat(validator.violations(sansSegments, MAX_LEVIERS)).isEmpty();
+
+        Map<String, Object> malTypes = sortieValide();
+        exempleCible(malTypes).put(CompetenceNiveauViseFields.SEGMENTS, "pas une liste");
+        assertThat(validator.violations(malTypes, MAX_LEVIERS)).isEmpty();
+
+        Map<String, Object> unSeul = sortieValide();
+        exempleCible(unSeul).put(CompetenceNiveauViseFields.SEGMENTS,
+            List.of(segment("jeudi prochain", mots(12))));
+        assertThat(validator.violations(unSeul, MAX_LEVIERS)).isEmpty();
+    }
+
+    /** Le TEXTE, lui, reste obligatoire : sans lui il n'y a plus rien a montrer. */
+    @Test
+    void unTexteModeleAbsentOuVideFaitTomberLaSection() {
+        Map<String, Object> absent = sortieValide();
+        exempleCible(absent).remove(CompetenceNiveauViseFields.TEXTE);
+        assertThat(validator.violations(absent, MAX_LEVIERS))
+            .anySatisfy(v -> assertThat(v).contains("exemple_cible.texte", "absent"));
+
+        Map<String, Object> vide = sortieValide();
+        exempleCible(vide).put(CompetenceNiveauViseFields.TEXTE, "   ");
+        assertThat(validator.violations(vide, MAX_LEVIERS))
+            .anySatisfy(v -> assertThat(v).contains("exemple_cible.texte", "vide"));
+    }
+
+    @Test
+    void uneCleHorsContratDansLExempleCibleResteUneViolation() {
         Map<String, Object> sortie = sortieValide();
-        sortie.put("bonus", "x");
-        segments(sortie).get(0).put(CompetenceNiveauViseFields.EXTRAIT, "phrase inventee");
+        exempleCible(sortie).put("note", 14);
 
-        List<String> violations = validator.violations(sortie, MAX_LEVIERS);
+        assertThat(validator.violations(sortie, MAX_LEVIERS))
+            .anySatisfy(v -> assertThat(v).contains("cle hors contrat", "exemple_cible.note"));
+    }
 
-        assertThat(violations).hasSizeGreaterThanOrEqualTo(2);
-        assertThat(CompetenceNiveauViseValidator.uniquementExtraits(violations))
-            .as("une sortie structurellement fausse ne merite pas un second appel paye")
-            .isFalse();
+    /** Une sortie vide se compte a part : elle ne se corrige pas comme un champ fautif. */
+    @Test
+    void uneSortieVideEstNommeeCommeTelle() {
+        assertThat(validator.violations(Map.of(), MAX_LEVIERS)).singleElement().satisfies(v ->
+            assertThat(v).startsWith(CompetenceNiveauViseValidator.VIOLATION_SORTIE_VIDE));
     }
 
     // ------------------------------------------------------------- leviers
@@ -201,27 +216,6 @@ class CompetenceNiveauViseValidatorTest {
             .anySatisfy(v -> assertThat(v).contains("leviers[1].action", "8 mots", "maximum est 6"));
     }
 
-    // ------------------------------------------------------------ segments
-
-    @Test
-    void moinsDeDeuxSegmentsEstRefuse() {
-        Map<String, Object> sortie = sortieValide();
-        exempleCible(sortie).put(CompetenceNiveauViseFields.SEGMENTS,
-            List.of(segment("jeudi prochain", "plus precis")));
-
-        assertThat(validator.violations(sortie, MAX_LEVIERS))
-            .anySatisfy(v -> assertThat(v).contains("segments", "il en faut 2 a 3"));
-    }
-
-    @Test
-    void unApportBavardEstRefuse() {
-        Map<String, Object> sortie = sortieValide();
-        segments(sortie).get(0).put(CompetenceNiveauViseFields.APPORT, mots(5));
-
-        assertThat(validator.violations(sortie, MAX_LEVIERS))
-            .anySatisfy(v -> assertThat(v).contains("apport", "5 mots", "maximum est 3"));
-    }
-
     // ----------------------------------------------------------- a retenir
 
     @Test
@@ -250,7 +244,7 @@ class CompetenceNiveauViseValidatorTest {
         Map<String, Object> sortie = sortieValide();
         sortie.put("bonus", "x");
         sortie.remove(CompetenceNiveauViseFields.A_RETENIR);
-        segments(sortie).get(0).put(CompetenceNiveauViseFields.EXTRAIT, "phrase inventee");
+        exempleCible(sortie).remove(CompetenceNiveauViseFields.TEXTE);
 
         // Une violation par appel couterait un appel LLM par violation.
         assertThat(validator.violations(sortie, MAX_LEVIERS)).hasSize(3);

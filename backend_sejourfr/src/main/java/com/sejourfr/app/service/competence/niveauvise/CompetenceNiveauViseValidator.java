@@ -1,5 +1,7 @@
 package com.sejourfr.app.service.competence.niveauvise;
 
+import com.sejourfr.app.util.PlafondMots;
+import com.sejourfr.app.util.SegmentsSurlignage;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -21,13 +23,18 @@ import java.util.Set;
  * {@code maxLength}), un controle serveur deterministe ensuite, la consigne en
  * dernier. Ce validateur est le deuxieme etage.
  *
- * <h2>Le controle qui n'existe nulle part ailleurs : l'extrait est DANS le texte</h2>
- * Le front SURLIGNE chaque {@code segments[].extrait} dans
- * {@code exemple_cible.texte}. Un extrait qui n'y figure pas ne se surligne pas :
- * au mieux il ne s'affiche nulle part, au pire il s'affiche comme une citation du
- * texte modele alors qu'il n'en fait pas partie — c'est-a-dire une phrase
- * inventee presentee comme un extrait. Le serveur exige donc une <b>sous-chaine
- * exacte</b>, et cette violation-la ouvre droit a la seule reparation payee.
+ * <h2>Les {@code segments} ne sont plus juges ici</h2>
+ * (2026-08-12, alignement sur les productions.) Ils sont un <b>confort de
+ * lecture</b>, pas la section : un extrait introuvable ou un apport trop long
+ * fait retirer <b>ce segment</b> ({@link SegmentsSurlignage}), pas tomber le
+ * texte modele que le candidat vient chercher. L'{@code exemple_cible} se joue
+ * donc sur son <b>texte</b> et sur la forme du bloc, et sur eux seuls : une liste
+ * de segments absente, mal typee, vide ou reduite a un element n'est plus une
+ * violation, c'est un texte sans surlignage.
+ *
+ * <p>⚠️ L'ancienne regle — un seul extrait introuvable emportait tout le bloc, et
+ * ouvrait droit a la reparation payee — est <b>revoquee</b>. Elle etait plus dure
+ * ici que sur les productions, qui portent pourtant le meme bloc.
  *
  * <p>Toutes les violations sont collectees, jamais la premiere seulement : le
  * message de reparation doit etre complet, sinon on paie un appel par violation.
@@ -37,25 +44,25 @@ public class CompetenceNiveauViseValidator {
 
     /** Deux leviers au minimum : un seul ne montre pas un chemin, il montre un detail. */
     static final int MIN_LEVIERS = 2;
-    /** Deux segments au minimum : un seul ne montre pas une difference, il montre un mot. */
-    static final int MIN_SEGMENTS = 2;
-    static final int MAX_SEGMENTS = 3;
 
     /**
-     * Tolerance appliquee aux plafonds de longueur avant rejet, identique a
-     * celle du reste du module : un plafond est une consigne pedagogique (« trois
-     * mots »), pas un contrat machine. Perdre le bloc parce qu'une etiquette fait
-     * quatre mots au lieu de trois serait absurde ; a huit mots, en revanche, ce
-     * n'est plus une etiquette.
+     * Tolerance appliquee aux plafonds de longueur avant rejet, resolue par
+     * {@link PlafondMots#tolere(int)} — identique au reste du depot : un plafond
+     * est une consigne pedagogique (« trois mots »), pas un contrat machine.
+     * Perdre le bloc parce qu'une etiquette fait quatre mots au lieu de trois
+     * serait absurde ; a huit mots, en revanche, ce n'est plus une etiquette.
+     *
+     * <p>⚠️ L'ancienne formule {@code floor(plafond * 1,2)} ne tolerait RIEN sur
+     * {@code apport}, declare a 3 mots par la grille.
      */
-    static final double TOLERANCE_LONGUEUR = 1.2;
+    static final double TOLERANCE_LONGUEUR = PlafondMots.TOLERANCE;
 
     /**
-     * Prefixe des violations « extrait introuvable dans le texte ». Il permet de
-     * les distinguer des violations de structure : seules celles-ci ouvrent droit
-     * a une reparation (cf. {@link #uniquementExtraits(List)}).
+     * Prefixe de LA violation qui dit « rien n'est exploitable ». Elle permet de
+     * compter separement une sortie hors contrat d'un champ fautif — les deux
+     * abandonnent le bloc, mais ne se corrigent pas de la meme facon.
      */
-    static final String VIOLATION_EXTRAIT = "extrait introuvable";
+    static final String VIOLATION_SORTIE_VIDE = "sortie vide";
 
     private final CompetenceNiveauViseRubricsProvider rubrics;
 
@@ -70,7 +77,8 @@ public class CompetenceNiveauViseValidator {
     public List<String> violations(Map<String, Object> sortie, int maxLeviers) {
         List<String> violations = new ArrayList<>();
         if (sortie == null || sortie.isEmpty()) {
-            violations.add("sortie vide : leviers, exemple_cible et a_retenir sont obligatoires");
+            violations.add(VIOLATION_SORTIE_VIDE
+                + " : leviers, exemple_cible et a_retenir sont obligatoires");
             return violations;
         }
 
@@ -87,22 +95,6 @@ public class CompetenceNiveauViseValidator {
             violations.add("cle hors contrat : " + enTrop);
         }
         return violations;
-    }
-
-    /**
-     * Vrai quand TOUTES les violations portent sur un extrait introuvable dans le
-     * texte modele. C'est le seul cas de violation de contenu ou une reparation
-     * est tentee : le defaut est MECANIQUE et nommable (on peut citer l'extrait
-     * refuse et rappeler la regle), donc reparable par un message actionnable —
-     * le depot a mesure qu'un reessai non actionnable repare zero cas sur huit.
-     *
-     * <p>Une sortie structurellement fausse (cle en trop, levier vide, un seul
-     * segment) n'ouvre droit a aucun second appel paye : le bloc reste un
-     * confort.
-     */
-    static boolean uniquementExtraits(List<String> violations) {
-        return !violations.isEmpty()
-            && violations.stream().allMatch(v -> v != null && v.startsWith(VIOLATION_EXTRAIT));
     }
 
     // ------------------------------------------------------------- leviers
@@ -135,6 +127,14 @@ public class CompetenceNiveauViseValidator {
 
     // ------------------------------------------------------- exemple cible
 
+    /**
+     * L'EXEMPLE CIBLE SE JOUE SUR SON TEXTE, ET SUR LUI SEUL.
+     *
+     * <p>Seuls le texte modele et la forme du bloc sont juges ici : c'est le texte
+     * que le candidat vient chercher, et lui seul doit pouvoir faire tomber la
+     * section. Les {@code segments} passent par {@link SegmentsSurlignage}, qui
+     * retire ceux qu'il ne peut pas surligner et laisse le texte servi.
+     */
     private void validerExempleCible(Object brut, List<String> violations) {
         String prefixe = CompetenceNiveauViseFields.EXEMPLE_CIBLE;
         Map<String, Object> bloc = asMap(brut, prefixe, violations);
@@ -142,37 +142,7 @@ public class CompetenceNiveauViseValidator {
         clesEnTrop(bloc, prefixe, violations,
             CompetenceNiveauViseFields.TEXTE, CompetenceNiveauViseFields.SEGMENTS);
 
-        String texte = champTexte(bloc, CompetenceNiveauViseFields.TEXTE, prefixe, violations);
-
-        Object segments = bloc.get(CompetenceNiveauViseFields.SEGMENTS);
-        if (!(segments instanceof List<?> liste)) {
-            violations.add(prefixe + "." + CompetenceNiveauViseFields.SEGMENTS
-                + " doit etre une liste");
-            return;
-        }
-        if (liste.size() < MIN_SEGMENTS || liste.size() > MAX_SEGMENTS) {
-            violations.add(prefixe + "." + CompetenceNiveauViseFields.SEGMENTS + " compte "
-                + liste.size() + " element(s), il en faut " + MIN_SEGMENTS + " a " + MAX_SEGMENTS);
-        }
-        int i = 0;
-        for (Object item : liste) {
-            i++;
-            String p = prefixe + "." + CompetenceNiveauViseFields.SEGMENTS + "[" + i + "]";
-            Map<String, Object> segment = asMap(item, p, violations);
-            if (segment == null) continue;
-            clesEnTrop(segment, p, violations,
-                CompetenceNiveauViseFields.EXTRAIT, CompetenceNiveauViseFields.APPORT);
-            String extrait = champTexte(
-                segment, CompetenceNiveauViseFields.EXTRAIT, p, violations);
-            champTexte(segment, CompetenceNiveauViseFields.APPORT, p, violations);
-            // LE controle central : le front surligne cet extrait DANS le texte.
-            // On ne compare ni a la casse pres relachee, ni apres normalisation :
-            // le surlignage se fait sur la chaine exacte, la verification aussi.
-            if (extrait != null && texte != null && !texte.contains(extrait)) {
-                violations.add(VIOLATION_EXTRAIT + " dans le texte modele — " + p + " : \""
-                    + extrait + "\"");
-            }
-        }
+        champTexte(bloc, CompetenceNiveauViseFields.TEXTE, prefixe, violations);
     }
 
     // ----------------------------------------------------------- a retenir
@@ -212,7 +182,7 @@ public class CompetenceNiveauViseValidator {
         }
         Integer plafond = rubrics.contraintesLongueur().get(cle);
         if (plafond != null) {
-            int max = (int) Math.floor(plafond * TOLERANCE_LONGUEUR);
+            int max = PlafondMots.tolere(plafond);
             int mots = compterMots(texte);
             if (mots > max) {
                 violations.add(chemin + " fait " + mots + " mots, le maximum est " + plafond
@@ -247,8 +217,6 @@ public class CompetenceNiveauViseValidator {
     }
 
     static int compterMots(String texte) {
-        String normalise = texte.trim();
-        if (normalise.isEmpty()) return 0;
-        return normalise.split("\\s+").length;
+        return PlafondMots.compter(texte);
     }
 }

@@ -2,6 +2,7 @@ package com.sejourfr.app.service.competence;
 
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.SkillCriterionStatus;
+import com.sejourfr.app.util.PlafondMots;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -44,13 +45,18 @@ import java.util.Set;
 public class CompetenceAnalysisValidator {
 
     /**
-     * Tolerance appliquee aux plafonds de longueur avant rejet. Les plafonds
-     * sont une consigne pedagogique (« une phrase courte »), pas un contrat
-     * machine : perdre une analyse deja payee parce qu'un verdict fait 21 mots
-     * au lieu de 20 serait absurde. Au-dela de cette marge, en revanche, le
-     * correcteur ne respecte plus la forme demandee et on le lui redemande.
+     * Tolerance appliquee aux plafonds de longueur avant rejet, resolue par
+     * {@link PlafondMots#tolere(int)}. Les plafonds sont une consigne pedagogique
+     * (« une phrase courte »), pas un contrat machine : perdre une analyse deja
+     * payee parce qu'un verdict fait 21 mots au lieu de 20 serait absurde.
+     *
+     * <p>⚠️ L'ancienne formule {@code floor(plafond * 1,2)} n'accordait AUCUNE
+     * marge sur les petits plafonds : {@code strength_tag} et {@code focus_tag}
+     * valent <b>3 mots</b> sous le contrat actif, et 3 x 1,2 arrondi vers le bas
+     * fait 3. La tolerance n'existait donc pas la ou elle etait le plus
+     * necessaire.
      */
-    static final double TOLERANCE_LONGUEUR = 1.2;
+    static final double TOLERANCE_LONGUEUR = PlafondMots.TOLERANCE;
 
     /** Les seuls niveaux du profil TCF IRN : C1 et C2 n'existent pas ici. */
     static final List<NiveauCecrl> NIVEAUX_TCF_IRN = List.of(
@@ -152,7 +158,7 @@ public class CompetenceAnalysisValidator {
     private void validerLongueur(String cle, String texte, List<String> violations) {
         Integer max = rubrics.contraintesLongueur().get(cle);
         if (max == null) return; // Pas de plafond declare pour ce champ (improved_version).
-        int plafond = (int) Math.floor(max * TOLERANCE_LONGUEUR);
+        int plafond = PlafondMots.tolere(max);
         int mots = compterMots(texte);
         if (mots > plafond) {
             violations.add(cle + " fait " + mots + " mots, le maximum est " + max
@@ -161,8 +167,6 @@ public class CompetenceAnalysisValidator {
     }
 
     static int compterMots(String texte) {
-        String normalise = texte.trim();
-        if (normalise.isEmpty()) return 0;
-        return normalise.split("\\s+").length;
+        return PlafondMots.compter(texte);
     }
 }

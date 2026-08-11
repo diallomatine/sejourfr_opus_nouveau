@@ -15,6 +15,7 @@ import com.sejourfr.app.service.EvaluationProductionSegments;
 import com.sejourfr.app.service.EvaluationPurgeMetrics;
 import com.sejourfr.app.service.TranscriptionQualityAudit;
 import com.sejourfr.app.util.ProductionTextBounds;
+import com.sejourfr.app.util.SegmentsSurlignage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -83,6 +84,14 @@ import java.util.UUID;
  * dépendent d'aucune citation. La fragilité des citations à l'oral ne doit pas
  * emporter des contenus qui n'en dépendent pas.
  *
+ * <p><b>ET UN SEGMENT QUI TOMBE N'EMPORTE PAS SON TEXTE</b> (2026-08-11). À
+ * l'écrit, les {@code segments} sont un confort de lecture : un extrait
+ * introuvable ou mal formé est <b>retiré</b> ({@link SegmentsSurlignage}),
+ * l'{@code exemple_cible} survit dès que son {@code texte} est valide, et la
+ * section ne tombe que si le <b>texte</b> lui-même est fautif. Afficher le texte
+ * sans surlignage vaut mieux que ne rien afficher — c'est le seul texte modèle
+ * d'un résultat écrit depuis le retrait de {@code version_amelioree}.
+ *
  * <p><b>BEST-EFFORT, JAMAIS BLOQUANT — invariant à ne pas casser.</b> Cette
  * méthode ne lève aucune exception : un timeout, une sortie invalide, une clé
  * API absente laissent l'évaluation {@code EVALUATED} et complète, le bloc étant
@@ -97,6 +106,16 @@ import java.util.UUID;
 @Slf4j
 public class ProductionVersionCibleeService {
 
+    /**
+     * Filet des passages à surligner, câblé sur les champs du contrat v2 écrit.
+     * La mécanique est <b>partagée</b> avec le module Compétences, qui porte le
+     * même bloc {@code exemple_cible} : deux copies auraient fini par juger
+     * différemment le même défaut — c'est précisément ce qui est arrivé quand
+     * cette règle n'a été assouplie que d'un côté.
+     */
+    private static final SegmentsSurlignage SEGMENTS =
+        SegmentsSurlignage.surLesChamps(VersionCibleeFields.EXTRAIT, VersionCibleeFields.APPORT);
+
     private final ProductionSubmissionManager submissionManager;
     private final AiEvaluationManager aiEvaluationManager;
     private final TranscriptionManager transcriptionManager;
@@ -105,6 +124,7 @@ public class ProductionVersionCibleeService {
     private final VersionCibleeValidator validator;
     private final VersionCibleeRubricsProvider rubrics;
     private final EvaluationPurgeMetrics purgeMetrics;
+    private final VersionCibleeMetrics metrics;
     private final ProductionEvaluationProperties props;
 
     /**
@@ -177,6 +197,7 @@ public class ProductionVersionCibleeService {
         // n'en vaut aucune (mesure : un reessai non actionnable repare 0 cas / 8).
         String reparation = messageDeReparation(sortie, materiau, vise);
         if (reparation != null) {
+            metrics.reparationPayee(motifReparation(sortie));
             log.info("Version au niveau vise a reparer submission={} ({}) — une reparation.",
                 submissionId, sortie.motifs());
             VersionCibleeLlmClient.Outcome reparee =
@@ -187,6 +208,7 @@ public class ProductionVersionCibleeService {
 
         if (!sortie.leviersUtilisables()) {
             // Le bloc n'est abandonne EN ENTIER que la : plus rien a montrer.
+            compterBlocAbandonne(sortie);
             log.warn("Version au niveau vise abandonnee submission={} modele={} : {}",
                 submissionId, llmClient.getModelName(), sortie.motifs());
             return;
@@ -198,6 +220,7 @@ public class ProductionVersionCibleeService {
                 sortie.sectionsAbandonnees(), submissionId, sortie.motifs());
         }
 
+        compterSectionsAbandonnees(sortie);
         compterPurges(sortie, submissionId, vise);
 
         eval.setFeedbackJson(feedbackAvecBloc(eval.getFeedbackJson(), sortie, constate, vise));
@@ -304,12 +327,18 @@ public class ProductionVersionCibleeService {
      * @param reformulations reformulations CONSERVÉES, numéro déjà résolu en texte
      * @param reformulationsRetirees reformulations retirées par
      *                    {@link VersionCibleeReformulationFilter}
+     * @param segments    passages à surligner CONSERVÉS, extrait déjà résolu en
+     *                    sous-chaîne originale exacte du texte modèle
+     * @param segmentsRetires passages retirés par {@link SegmentsSurlignage} —
+     *                    ils ne coûtent QUE leur surlignage, jamais le texte
      */
     private record Sortie(VersionCibleeVariante variante, Map<String, Object> brute,
                           VersionCibleeValidator.Rapport rapport,
                           List<Object> leviers, List<Object> leviersRetires,
                           List<Map<String, Object>> reformulations,
-                          List<Map<String, Object>> reformulationsRetirees) {
+                          List<Map<String, Object>> reformulationsRetirees,
+                          List<Map<String, Object>> segments,
+                          List<SegmentsSurlignage.Retire> segmentsRetires) {
 
         private boolean racineSaine() {
             return rapport.de(VersionCibleeValidator.Section.RACINE).isEmpty();
@@ -327,9 +356,13 @@ public class ProductionVersionCibleeService {
 
         /**
          * L'illustration ({@code exemple_cible} à l'écrit, {@code reformulations}
-         * à l'oral) est servable. Fausse ⇒ <b>cette section seule</b> tombe : le
-         * contrat en impose deux au minimum, et une seule ne montre pas un
-         * chemin, elle montre un détail.
+         * à l'oral) est servable. Fausse ⇒ <b>cette section seule</b> tombe.
+         *
+         * <p><b>Les deux variantes ne se jugent pas pareil</b>, et c'est une
+         * décision produit : à l'ORAL les {@code reformulations} SONT la section
+         * — moins de deux, il ne reste rien à montrer. À l'ÉCRIT, la section est
+         * le <b>texte réécrit</b> ; les segments n'en sont que le surlignage, et
+         * un texte sans surlignage vaut mieux qu'un écran vide.
          */
         boolean illustrationUtilisable() {
             if (!racineSaine()) return false;
@@ -371,6 +404,9 @@ public class ProductionVersionCibleeService {
                 motifs.add(reformulationsRetirees.size()
                     + " reformulation(s) retiree(s), il n'en reste que " + reformulations.size());
             }
+            for (SegmentsSurlignage.Retire retire : segmentsRetires) {
+                motifs.add("segment retire (" + retire.motif() + ") : " + retire.libelle());
+            }
             return motifs;
         }
     }
@@ -396,14 +432,33 @@ public class ProductionVersionCibleeService {
                 ? VersionCibleeLevierFilter.purge(leviers(brute, maxLeviers), vise)
                 : new VersionCibleeLevierFilter.Resultat(List.of(), List.of());
 
+        boolean illustrationSaine = racineSaine
+            && rapport.de(VersionCibleeValidator.Section.ILLUSTRATION).isEmpty();
+
         VersionCibleeReformulationFilter.Resultat reformulations =
-            racineSaine && materiau.variante() == VersionCibleeVariante.ORAL
-                && rapport.de(VersionCibleeValidator.Section.ILLUSTRATION).isEmpty()
+            illustrationSaine && materiau.variante() == VersionCibleeVariante.ORAL
                 ? VersionCibleeReformulationFilter.purge(resoudre(brute, materiau.segments()))
                 : new VersionCibleeReformulationFilter.Resultat(List.of(), List.of());
 
+        SegmentsSurlignage.Resultat segments =
+            illustrationSaine && materiau.variante() == VersionCibleeVariante.ECRIT
+                    && rubrics.contrat().planDAction()
+                ? SEGMENTS.purge(segmentsBruts(brute), texteModele(brute),
+                    rubrics.contraintesLongueur().get(VersionCibleeFields.APPORT))
+                : new SegmentsSurlignage.Resultat(List.of(), List.of());
+
         return new Sortie(materiau.variante(), brute, rapport, leviers.gardes(), leviers.retires(),
-            reformulations.gardes(), reformulations.retires());
+            reformulations.gardes(), reformulations.retires(),
+            segments.gardes(), segments.retires());
+    }
+
+    /** Valeur brute de {@code exemple_cible.segments}, ou {@code null}. */
+    private static Object segmentsBruts(Map<String, Object> brute) {
+        if (brute == null
+            || !(brute.get(VersionCibleeFields.EXEMPLE_CIBLE) instanceof Map<?, ?> m)) {
+            return null;
+        }
+        return m.get(VersionCibleeFields.SEGMENTS);
     }
 
     /**
@@ -413,10 +468,11 @@ public class ProductionVersionCibleeService {
      * <p>Y ouvrent droit les seuls défauts <b>mécaniques et nommables</b>, donc
      * réparables par un message qui dit ce qui a été refusé et l'opération exacte
      * à faire (le dépôt a mesuré qu'un réessai non actionnable répare <b>0 cas
-     * sur 8</b>) : longueur du texte modèle, extrait introuvable, numéro de
-     * passage hors bornes, leviers purgés, reformulations purgées. Une sortie
-     * structurellement fausse (clé en trop, champ vide, quatre leviers) n'ouvre
-     * droit à aucun second appel : le bloc reste un confort.
+     * sur 8</b>) : longueur du texte modèle, numéro de passage hors bornes,
+     * leviers purgés, reformulations purgées. Une sortie structurellement fausse
+     * (clé en trop, champ vide, quatre leviers) n'ouvre droit à aucun second
+     * appel : le bloc reste un confort. Un <b>extrait introuvable</b> non plus,
+     * depuis qu'il ne coûte que son surlignage.
      *
      * <p><b>Une seule réparation par bloc, tous motifs confondus</b> : les motifs
      * présents tiennent dans le même message. Elle est tentée pour une section
@@ -443,7 +499,61 @@ public class ProductionVersionCibleeService {
             sortie.leviers(), sortie.reformulationsRetirees(), vise);
     }
 
+    /**
+     * Motif de LA réparation payée. Une violation mécanique prime sur une purge :
+     * c'est elle qu'on redemande en premier dans le message.
+     */
+    private static VersionCibleeMetrics.Motif motifReparation(Sortie sortie) {
+        List<String> violations = sortie.rapport().toutes();
+        if (!violations.isEmpty()) return VersionCibleeMetrics.motif(violations);
+        return sortie.leviersRetires().isEmpty()
+            ? VersionCibleeMetrics.Motif.PURGE_REFORMULATIONS
+            : VersionCibleeMetrics.Motif.PURGE_LEVIERS;
+    }
+
+    /**
+     * Le bloc ENTIER n'arrive pas à l'écran. Compté sur la section qui l'a
+     * emporté — {@code RACINE} (sortie hors contrat) ou {@code LEVIERS} —, sans
+     * quoi « le candidat a perdu son illustration » et « il n'a rien eu du tout »
+     * seraient le même chiffre.
+     */
+    private void compterBlocAbandonne(Sortie sortie) {
+        List<String> racine = sortie.rapport().de(VersionCibleeValidator.Section.RACINE);
+        if (!racine.isEmpty()) {
+            metrics.sectionAbandonnee(VersionCibleeValidator.Section.RACINE,
+                VersionCibleeMetrics.Motif.SORTIE_HORS_CONTRAT);
+            return;
+        }
+        List<String> leviers = sortie.rapport().de(VersionCibleeValidator.Section.LEVIERS);
+        metrics.sectionAbandonnee(VersionCibleeValidator.Section.LEVIERS,
+            leviers.isEmpty() ? VersionCibleeMetrics.Motif.PURGE_LEVIERS
+                : VersionCibleeMetrics.motif(leviers));
+    }
+
+    /** Sections FACULTATIVES perdues alors que le bloc, lui, est servi. */
+    private void compterSectionsAbandonnees(Sortie sortie) {
+        if (!sortie.illustrationUtilisable()) {
+            List<String> violations =
+                sortie.rapport().de(VersionCibleeValidator.Section.ILLUSTRATION);
+            metrics.sectionAbandonnee(VersionCibleeValidator.Section.ILLUSTRATION,
+                violations.isEmpty() ? VersionCibleeMetrics.Motif.PURGE_REFORMULATIONS
+                    : VersionCibleeMetrics.motif(violations));
+        }
+        if (!sortie.aRetenirUtilisable()) {
+            metrics.sectionAbandonnee(VersionCibleeValidator.Section.A_RETENIR,
+                VersionCibleeMetrics.motif(
+                    sortie.rapport().de(VersionCibleeValidator.Section.A_RETENIR)));
+        }
+    }
+
     private void compterPurges(Sortie sortie, UUID submissionId, TargetLevel vise) {
+        if (!sortie.segmentsRetires().isEmpty()) {
+            log.info("Passage(s) a surligner retire(s) submission={} — le texte modele reste "
+                    + "servi : {}", submissionId,
+                sortie.segmentsRetires().stream().map(SegmentsSurlignage.Retire::libelle)
+                    .toList());
+            sortie.segmentsRetires().forEach(retire -> metrics.segmentRetire(retire.motif()));
+        }
         if (!sortie.leviersRetires().isEmpty()) {
             log.info("Levier(s) A2 vendu(s) comme la marche vers {} retire(s) submission={} : {}",
                 vise, submissionId,
@@ -537,8 +647,14 @@ public class ProductionVersionCibleeService {
                 if (sortie.variante() == VersionCibleeVariante.ORAL) {
                     bloc.put(VersionCibleeFields.REFORMULATIONS, sortie.reformulations());
                 } else {
-                    bloc.put(VersionCibleeFields.EXEMPLE_CIBLE,
-                        sortie.brute().get(VersionCibleeFields.EXEMPLE_CIBLE));
+                    // RECONSTRUIT, jamais recopie tel quel : les segments servis
+                    // sont ceux que le filet a gardes, extrait deja resolu en
+                    // sous-chaine ORIGINALE exacte du texte. La liste peut etre
+                    // vide — un texte sans surlignage reste un texte modele.
+                    Map<String, Object> exemple = new LinkedHashMap<>();
+                    exemple.put(VersionCibleeFields.TEXTE, texteModele(sortie.brute()));
+                    exemple.put(VersionCibleeFields.SEGMENTS, sortie.segments());
+                    bloc.put(VersionCibleeFields.EXEMPLE_CIBLE, exemple);
                 }
             }
             if (sortie.aRetenirUtilisable()) {

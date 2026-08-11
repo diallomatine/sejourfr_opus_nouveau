@@ -6,17 +6,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Messages de la SEULE tentative de reparation d'un bloc « pour viser X » :
- * extrait introuvable dans le texte modele, ou leviers refuses parce qu'ils
- * vendent un moyen deja acquis.
+ * Message de la SEULE tentative de reparation d'un bloc « pour viser X » : des
+ * leviers refuses parce qu'ils vendent un moyen deja acquis. <b>Une reparation
+ * par bloc, tous motifs confondus</b> — deux appels de reparation seraient deux
+ * appels payes sur un bloc de confort.
+ *
+ * <p><b>Un extrait introuvable ne se repare plus</b> (2026-08-12, alignement sur
+ * les productions) : il ne coute plus qu'un surlignage — le segment est retire, le
+ * texte modele reste servi ({@link com.sejourfr.app.util.SegmentsSurlignage}) — et
+ * payer un appel pour un surlignage serait disproportionne.
  *
  * <p><b>Pourquoi un message et pas la liste brute des violations.</b> Le depot a
  * mesure la difference : sur 8 preuves rejetees, un reessai ne portant que le
  * libelle de la violation en reparait <b>zero</b> (cf.
  * {@code EvaluationRepairPrompt}). On dit donc au modele ce qu'il ne peut pas
- * deviner — l'extrait exact qui a ete cherche, le texte dans lequel on l'a
- * cherche, et l'operation exacte a faire — et on lui rappelle de ne rien changer
- * d'autre.
+ * deviner — ce qui a ete refuse et l'operation exacte a faire — et on lui rappelle
+ * de ne rien changer d'autre.
  *
  * <p><b>Aucun controle n'est relache.</b> Le serveur revalide a l'identique ; si
  * la seconde sortie echoue encore, le bloc est abandonne. On ne « rattrape »
@@ -26,29 +31,6 @@ import java.util.Map;
 final class CompetenceNiveauViseRepairPrompt {
 
     private CompetenceNiveauViseRepairPrompt() {
-    }
-
-    /** Reparation des EXTRAITS introuvables dans {@code exemple_cible.texte}. */
-    static String pourExtraits(String userPrompt, List<String> violations, String texte) {
-        StringBuilder sb = new StringBuilder(userPrompt);
-        sb.append("\n\nTA SORTIE PRÉCÉDENTE A ÉTÉ REJETÉE PAR LE SERVEUR : un ou plusieurs ")
-            .append("`segments[].extrait` ne se trouvent PAS dans `exemple_cible.texte`.");
-        sb.append("\n\nCE QUE LE SERVEUR A REFUSÉ :");
-        for (String violation : violations) {
-            sb.append("\n- ").append(violation);
-        }
-        sb.append("\n\nLE TEXTE DANS LEQUEL IL A CHERCHÉ :\n").append(texte);
-        sb.append("\n\nCE QUE LE SERVEUR FAIT : il cherche chaque extrait dans ce texte, ")
-            .append("caractère pour caractère — mêmes mots, mêmes accents, mêmes espaces, même ")
-            .append("ponctuation, même apostrophe. Il ne rattrape rien : une reformulation, un ")
-            .append("raccourci par points de suspension, ou deux morceaux éloignés recollés sont ")
-            .append("introuvables, donc refusés. Le front SURLIGNE ces passages dans le texte ; ")
-            .append("un extrait absent ne se surligne pas.");
-        sb.append("\n\nCE QU'IL FAUT FAIRE : reprends `exemple_cible.texte` À L'IDENTIQUE, puis ")
-            .append("choisis des extraits COURTS et CONTIGUS que tu recopies depuis ce texte par ")
-            .append("simple copie. Ne change ni les leviers, ni la tournure à retenir. Rappelle ")
-            .append("l'outil ").append(CompetenceNiveauViseFields.TOOL_NAME).append('.');
-        return sb.toString();
     }
 
     /**
