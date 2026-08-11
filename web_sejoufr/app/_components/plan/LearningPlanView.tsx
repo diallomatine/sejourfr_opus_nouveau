@@ -223,7 +223,10 @@ function ActivePlan({plan, targetLevel}: {plan: LearningPlanDto; targetLevel: st
   const steps = useMemo<Array<{priority: LearningPlanPriorityDto; current: boolean}>>(
     () => [
       ...(plan.currentPriority ? [{priority: plan.currentPriority, current: true}] : []),
-      ...plan.nextPriorities.slice(0, 3).map((priority) => ({priority, current: false})),
+      // Une courante + **deux** suivantes, comme le serveur en sert au plus
+      // (`LearningPlanPriorityResolver.MAX_PRIORITIES = 3`) et comme le mobile
+      // en affiche (`plan.nextPriorities.take(2)`).
+      ...plan.nextPriorities.slice(0, 2).map((priority) => ({priority, current: false})),
     ],
     [plan.currentPriority, plan.nextPriorities],
   );
@@ -367,9 +370,15 @@ function PlanHero({
 
 /**
  * Le verrou ne retire **rien** de ce que le candidat a appris de sa propre
- * production : la priorité, son explication et l'exercice visé restent écrits.
- * Seule la destination du bouton change — ouvrir un sujet que le serveur
- * refusera en 403 ne rendrait service à personne.
+ * production : la priorité et l'exercice visé restent écrits. Seule la
+ * destination du bouton change — ouvrir un sujet que le serveur refusera en
+ * 403 ne rendrait service à personne.
+ *
+ * Le constat détaillé de l'observation (`priority.explanation`) n'est PAS
+ * affiché ici : c'est le résultat d'une production déjà faite, il raconte le
+ * passé sur une carte qui annonce l'action à mener. Le champ reste sur le DTO
+ * (`LearningPlanPriorityDto.explanation`) et peut être servi ailleurs — ne
+ * pas le réafficher sur cette carte.
  */
 function TodayCard({priority}: {priority: LearningPlanPriorityDto}) {
   const exercise = priority.recommendedExercise;
@@ -381,7 +390,6 @@ function TodayCard({priority}: {priority: LearningPlanPriorityDto}) {
           <span className={styles.todayPill}>Priorité n°1</span>
           {locked && <span className={styles.lockAside}><SkillLockBadge /></span>}
           <h3 id="today-title">{priority.title}</h3>
-          <p>{priority.explanation ?? "Cette compétence est votre prochaine priorité utile."}</p>
         </div>
         {exercise && (
           <span className={styles.todayDuration}>

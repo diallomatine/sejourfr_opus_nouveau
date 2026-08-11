@@ -1717,6 +1717,29 @@
   color: var(--color-muted);
 }
 
+/* Attente du plan d'action (second appel LLM) : une ligne discrète à
+   l'emplacement du bloc, jamais un écran de chargement — le rapport reste
+   entièrement lisible pendant le sursis. Cf. `ActionPlanPending`. */
+.planPending {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 14px 2px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.planPendingSpinner {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--color-line);
+  border-top-color: var(--skill-accent);
+  animation: skillSpin 0.9s linear infinite;
+}
+
 .error {
   padding: 12px 14px;
   margin-bottom: 14px;

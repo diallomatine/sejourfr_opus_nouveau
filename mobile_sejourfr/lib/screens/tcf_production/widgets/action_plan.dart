@@ -37,6 +37,79 @@ const String kActionPlanExempleTitle = 'Une version plus aboutie';
 /// trois passages redits — la production n'est jamais reecrite en entier.
 const String kActionPlanReformulationsTitle = 'Des versions plus abouties';
 
+// ---------------------------------------------------------------------------
+// L'attente du plan d'action
+//
+// Ce bloc vient d'un SECOND appel LLM, lance par le serveur **apres** que la
+// correction est persistee et la soumission passee a EVALUATED (invariant
+// backend : il ne doit jamais pouvoir retarder ni faire echouer la correction).
+// Un ecran qui s'arrete net sur EVALUATED s'affiche donc sans plan alors qu'il
+// arrive dix a quinze secondes plus tard, et le candidat devait sortir puis
+// revenir pour le voir.
+//
+// Le sursis, son indicateur et son libelle vivent ici, a cote des blocs qu'ils
+// annoncent, et servent **les deux ecrans** qui rendent ce plan : le rapport
+// d'une production EE/EO et le resultat d'un micro-exercice de competence.
+// ---------------------------------------------------------------------------
+
+/// Sursis de polling accorde au second appel, **une seule valeur pour les deux
+/// ecrans** (les competences ont vecu a 10 s, les productions n'avaient rien :
+/// deux durees pour la meme attente n'avaient aucune justification).
+///
+/// Miroir web : `ACTION_PLAN_GRACE_MS`. Le budget de polling global de chaque
+/// ecran reste la **borne dure** : ce sursis s'y ajoute, il ne le remplace pas.
+const Duration kActionPlanGrace = Duration(seconds: 15);
+
+/// Libelle de l'indicateur d'attente. **Contrat gele**, miroir mot pour mot de
+/// `ACTION_PLAN_PENDING_LABEL` cote web — et tutoye, comme tout ce qui entoure
+/// ce plan.
+const String kActionPlanPendingLabel = 'On prépare tes conseils…';
+
+/// Ce que voit le candidat pendant le sursis : un petit spinner et une ligne, a
+/// **l'emplacement exact** ou le plan apparaitra.
+///
+/// Trois regles, a ne pas defaire :
+/// - **non bloquant** — ni overlay, ni ecran de chargement, ni squelette qui
+///   remplace le rapport : tout le reste reste lisible et utilisable ;
+/// - **il disparait en silence** a la fin du sursis si rien n'arrive. Aucun
+///   message d'echec, aucun « indisponible » : un plan absent est un cas NORMAL
+///   (objectif deja atteint, oral degrade, second appel reste muet) ;
+/// - **il ne s'arme que dans la fenetre qui suit l'analyse.** Un rapport rouvert
+///   trois jours plus tard n'attend rien : c'est aux ecrans de ne le rendre que
+///   pendant leur polling, et seulement s'ils ont vu la correction en vol.
+///
+/// Le spinner est la brique deja employee par `EvaluationLoadingView` pour son
+/// etape active — pas un composant de plus.
+class ActionPlanPending extends StatelessWidget {
+  const ActionPlanPending({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.blue,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              kActionPlanPendingLabel,
+              style: AppFonts.ui(size: 13, color: AppColors.muted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// « Pour viser B1 » : les 2 a 3 leviers du second appel, du plus rentable au
 /// moins rentable — l'ordre du serveur, jamais retrie.
 ///

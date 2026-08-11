@@ -2,6 +2,7 @@
 
 import {situationView} from "@/lib/production-feedback";
 import {parseEeFeedback, type EvaluationResultDto, type TargetLevel} from "@/lib/types";
+import {ActionPlanPending} from "@/app/_components/skill-ui/ActionPlan";
 import {CriteriaOverview} from "./CriteriaOverview";
 import {EvaluationNotice} from "./EvaluationNotice";
 import {ProductionActionPlan} from "./ProductionActionPlan";
@@ -77,6 +78,7 @@ export function ProductionFeedbackView({
   productionText,
   motsCount,
   targetLevel = null,
+  actionPlanPending = false,
 }: {
   evaluation: EvaluationResultDto;
   /** EO : `exemples_corriges` sont des reformulations de clarté (jamais de
@@ -93,6 +95,10 @@ export function ProductionFeedbackView({
   /** Palier TCF visé par la démarche du candidat, pour le rappel d'enjeu du
    *  hero. `null` = inconnu → aucun rappel n'est affiché. */
   targetLevel?: TargetLevel | null;
+  /** Le sursis accordé au second appel court encore : la place du plan
+   *  d'action porte un indicateur discret. Posé par l'écran, qui est le seul à
+   *  savoir si quelque chose tourne encore (cf. `ProductionResults`). */
+  actionPlanPending?: boolean;
 }) {
   const fb = parseEeFeedback(evaluation);
   // Les évaluations les plus anciennes ne portent pas l'avertissement de
@@ -153,6 +159,11 @@ export function ProductionFeedbackView({
           l'annonce au lieu de laisser un trou — le candidat qui réussit avait un
           rapport plus vide que celui qui échoue. */}
       <TargetLevelReachedCard atteint={niveauViseAtteint} />
+
+      {/* Le second appel tourne encore : une ligne à la place du bloc, le temps
+          du sursis. Elle s'efface en silence s'il ne vient rien, et ne bloque
+          jamais la lecture du reste. */}
+      {actionPlanPending && !versionCiblee && !niveauViseAtteint && <ActionPlanPending />}
     </div>
   );
 }

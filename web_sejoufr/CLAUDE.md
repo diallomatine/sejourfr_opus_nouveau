@@ -512,6 +512,12 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   miroir mot pour mot de `_StepDoneLines` côté mobile. Un compte gratuit plafonne
   à 2/5 (2 sujets ouverts par compétence) : `stepCompleted` reste faux et le CTA
   reste « Débloquer cette étape » — rien ne laisse croire l'étape finissable.
+- **`priority.explanation` n'est affiché sur AUCUNE carte d'action** — ni
+  « À faire maintenant » (`TodayCard`), ni les étapes du parcours, ni la carte
+  « Votre priorité du jour » du tableau de bord. C'est le constat d'une
+  production **déjà faite** : il raconte le passé sur une carte qui annonce
+  l'action à mener. Le champ reste sur le DTO et vit dans le diagnostic ; le
+  mobile ne l'a jamais affiché sur ces cartes — ne pas le rebrancher.
 - **Cache** : dashboard mutualise les requêtes en vol de
   `diagnosticApi.currentCached()` sans conserver le snapshot résolu (le pipeline
   peut le faire évoluer sans écriture du navigateur), et conserve
@@ -1680,11 +1686,12 @@ retraits**, la parité web ⇄ mobile n'étant pas négociable. À ne pas rétab
     (parité stricte avec `_VerdictCard` côté mobile).
   - **Course du second appel** : quand la tentative devient `EVALUATED` avec
     `levelProgress`, une situation ≠ `OBJECTIF_ATTEINT` et `niveauVise` encore
-    absent, on poursuit le polling **10 s au maximum**
-    (`skillNiveauViseMayStillArrive` + `SKILL_NIVEAU_VISE_GRACE_MS` dans
-    `lib/skill-result-view.ts`, miroir mobile), le budget global restant la
-    borne dure. Sans ce sursis, un écran s'affichait sans leviers alors qu'ils
-    arrivaient une seconde plus tard.
+    absent, on poursuit le polling **15 s au maximum**
+    (`skillNiveauViseMayStillArrive`, `lib/skill-result-view.ts`, + la durée
+    `ACTION_PLAN_GRACE_MS` — cf. « Le sursis du plan d'action » plus bas), le
+    budget global restant la borne dure. Sans ce sursis, un écran s'affichait
+    sans leviers alors qu'ils arrivaient une seconde plus tard ; pendant qu'il
+    court, la place du bloc porte `<ActionPlanPending />`.
   Les
   références ne sont **jamais** visibles avant d'avoir produit (§13.2, doublé
   d'un 403 serveur). **Polling 3 s, plafond 120 s — valeur de parité, partagée
@@ -1796,6 +1803,37 @@ par écran.
    vérifie qu'un texte atteint le palier annoncé — un candidat a recopié un
    exemple étiqueté B2 et l'analyse l'a noté B1. Seul l'**objectif** est nommé.
    Chaque section se masque indépendamment ; bloc absent ⇒ rien du tout.
+
+### Le sursis du plan d'action (2026-08-11)
+
+Le plan d'action vient d'un **second appel LLM**, lancé côté serveur **après**
+que la correction est persistée et la soumission passée à `EVALUATED` — hors
+transaction, pour qu'il ne puisse jamais retarder ni faire échouer la
+correction. **Ce comportement serveur est volontaire et ne change pas** : le
+correctif est entièrement côté front. L'écran s'affichait sans plan alors qu'il
+arrivait dix à quinze secondes plus tard, et le candidat devait sortir puis
+revenir pour le voir.
+
+- **Le polling existant est prolongé**, pas doublé : `ProductionResults` garde sa
+  boucle unique (3 s, `MAX_POLLS` = borne dure) et continue **15 s au maximum**
+  après `EVALUATED` tant que le feedback ne porte ni `version_ciblee` ni
+  `niveau_vise_atteint` (`productionActionPlanMayStillArrive`,
+  `lib/production-feedback.ts`).
+- **Durée, libellé et indicateur vivent à un seul endroit par front**, dans
+  `app/_components/skill-ui/ActionPlan.tsx` — partagé avec le résultat d'un
+  micro-exercice, qui attend exactement le même bloc :
+  `ACTION_PLAN_GRACE_MS` (**15 s**, miroir de `kActionPlanGrace` côté mobile ;
+  l'ancien `SKILL_NIVEAU_VISE_GRACE_MS` à 10 s est **supprimé**, deux durées pour
+  la même attente n'avaient aucune justification), `ACTION_PLAN_PENDING_LABEL`
+  (**« On prépare tes conseils… »**, contrat gelé) et `<ActionPlanPending />`.
+- **Ce que voit le candidat** : un petit spinner et une ligne, à l'emplacement
+  du bloc. **Non bloquant** (le rapport reste entièrement lisible), et il
+  **disparaît en silence** à la fin du sursis — pas de message d'échec, pas de
+  « indisponible » : un plan absent est un cas normal.
+- ⚠️ **Jamais sur un rapport rouvert plus tard.** Les deux règles exigent
+  `observedInFlight` — l'écran a vu la correction dans un statut non final depuis
+  son ouverture. Une correction de trois jours ne poste donc **qu'un seul appel**,
+  ne poll pas et n'annonce aucun conseil. Ne pas relâcher cette condition.
 
 ⚠️ **« Voir l'analyse complète » n'existe plus (contrat v15 / tool-schema v9,
 2026-08-11).** Le correcteur ne produit plus `exemples_corriges` ni

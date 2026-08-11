@@ -1177,6 +1177,40 @@ Structure de référence : maquette « Résultats TCF — Rapport express », **
    l'analyse l'a noté B1. Seul l'**objectif** est nommé. Chaque section se masque
    indépendamment ; bloc absent ⇒ rien du tout.
 
+### Le sursis du plan d'action (2026-08-11)
+
+Le plan d'action vient d'un **second appel LLM**, lancé côté serveur **après**
+que la correction est persistée et la soumission passée à `EVALUATED` — hors
+transaction, pour qu'il ne puisse jamais retarder ni faire échouer la
+correction. **Ce comportement serveur est volontaire et ne change pas** : le
+correctif est entièrement côté app. L'écran s'affichait sans plan alors qu'il
+arrivait dix à quinze secondes plus tard, et le candidat devait sortir puis
+revenir pour le voir.
+
+- **Le polling existant est prolongé**, pas doublé. Les deux écrans de résultat
+  (`ee_results_screen` / `eo_results_screen`) recopiaient la même boucle : elle
+  est désormais arbitrée par **`ProductionResultPollGuard`**
+  (`production_result_polling.dart`, avec `kProductionPollInterval` 3 s et
+  `kProductionPollMaxDuration` 90 s = borne dure). Après `EVALUATED`, il
+  prolonge **15 s au maximum** tant que le feedback ne porte ni `versionCiblee`
+  ni `niveauViseAtteint`.
+- **Durée, libellé et indicateur vivent à un seul endroit**, dans
+  `widgets/action_plan.dart` — déjà partagé avec le résultat d'un
+  micro-exercice, qui attend exactement le même bloc : `kActionPlanGrace`
+  (**15 s**, miroir de `ACTION_PLAN_GRACE_MS` côté web ; l'ancien
+  `_niveauViseGrace` à 10 s des Compétences est **supprimé**),
+  `kActionPlanPendingLabel` (**« On prépare tes conseils… »**, contrat gelé) et
+  le widget `ActionPlanPending` (le petit `CircularProgressIndicator` déjà
+  employé par `EvaluationLoadingView`, pas un composant de plus).
+- **Ce que voit le candidat** : un petit spinner et une ligne, à l'emplacement
+  du bloc. **Non bloquant** (le rapport reste entièrement lisible et
+  défilable), et il **disparaît en silence** à la fin du sursis — pas de message
+  d'échec, pas de « indisponible » : un plan absent est un cas normal.
+- ⚠️ **Jamais sur un rapport rouvert plus tard.** Le garde et
+  `_awaitsNiveauVise` (Compétences) exigent tous deux d'avoir **vu la correction
+  en vol** depuis l'ouverture de l'écran. Une correction de trois jours ne poll
+  donc pas et n'annonce aucun conseil. Ne pas relâcher cette condition.
+
 ⚠️ **« Voir l'analyse complète » n'existe plus (contrat v15 / tool-schema v9, 2026-08-11).**
 Le correcteur ne produit plus `exemples_corriges` ni `suggestions`, et ce repli — que
 personne n'ouvrait — part avec eux : `_FullAnalysis`, `_CorrectionsCard`,
@@ -1757,10 +1791,12 @@ Points de comportement à ne pas défaire :
     est atteint. Ni message d'échec, ni spinner, ni encart d'excuse — les trois
     sections disparaissent, la carte de niveau se suffit.
   - **Course de l'appel 2** : quand la tentative passe `EVALUATED` avec un
-    niveau, un objectif non atteint et pas de `niveauVise`, le polling continue
-    **10 s de plus au maximum** (`_niveauViseGrace`, valeur partagée avec le
-    web) — sinon l'écran s'arrête une seconde avant l'arrivée des leviers. Le
-    budget global de 120 s reste la borne dure.
+    niveau, un objectif non atteint, pas de `niveauVise` **et que l'analyse a
+    été vue en vol**, le polling continue **15 s de plus au maximum**
+    (`kActionPlanGrace`, `widgets/action_plan.dart` — cf. « Le sursis du plan
+    d'action » plus bas) — sinon l'écran s'arrête une seconde avant l'arrivée
+    des leviers. Le budget global de 120 s reste la borne dure, et pendant le
+    sursis la place du bloc porte `ActionPlanPending`.
   - **Deux générations d'analyses cohabitent sans migration** : `levelProgress`
     absent ⇒ contrat v1/v2 ⇒ on retombe **intégralement** sur l'affichage
     historique (point réussi / priorité / proposition améliorée), chaque bloc

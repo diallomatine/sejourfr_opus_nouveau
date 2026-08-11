@@ -415,6 +415,45 @@ export function demarcheRappel(
 // l'objectif — « Pour viser B2 » —, qui lui est exact.
 // ---------------------------------------------------------------------------
 
+/**
+ * `true` quand le plan d'action peut encore arriver, donc quand il faut
+ * continuer de poller et l'annoncer au candidat.
+ *
+ * Le plan (`version_ciblee`) et son cas exclusif (`niveau_vise_atteint`)
+ * viennent d'un **second appel LLM**, lancé par le serveur *après* que la
+ * correction est persistée et la soumission passée à `EVALUATED` — hors
+ * transaction, pour qu'il ne puisse jamais retarder ni faire échouer la
+ * correction. Un écran qui s'arrête net sur `EVALUATED` s'affiche donc sans
+ * plan alors qu'il arrive dix à quinze secondes plus tard : le candidat devait
+ * sortir puis revenir. Durée du sursis : `ACTION_PLAN_GRACE_MS`
+ * (`app/_components/skill-ui/ActionPlan`), commune avec le résultat d'un
+ * micro-exercice, qui attend exactement le même bloc.
+ *
+ * ⚠️ `observedInFlight` — l'écran a vu la correction dans un statut non final
+ * depuis son ouverture — est ce qui interdit d'attendre sur un rapport **rouvert
+ * plus tard** : là, plus rien ne tourne côté serveur, le plan est déjà persisté
+ * ou définitivement absent. Sans cette condition, une correction de trois jours
+ * afficherait « on prépare tes conseils » pendant quinze secondes pour rien.
+ *
+ * L'absence de plan reste un cas **normal** (objectif déjà atteint sans que le
+ * serveur l'ait dit, oral dégradé, second appel muet ou refusé) : à la fin du
+ * sursis on rend l'écran tel quel, sans message, sans erreur.
+ */
+export function productionActionPlanMayStillArrive(input: {
+    evaluated: boolean;
+    /** La correction s'est terminée sous les yeux du candidat. */
+    observedInFlight: boolean;
+    hasVersionCiblee: boolean;
+    hasNiveauViseAtteint: boolean;
+}): boolean {
+    return (
+        input.evaluated &&
+        input.observedInFlight &&
+        !input.hasVersionCiblee &&
+        !input.hasNiveauViseAtteint
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Niveau visé déjà atteint
 // ---------------------------------------------------------------------------

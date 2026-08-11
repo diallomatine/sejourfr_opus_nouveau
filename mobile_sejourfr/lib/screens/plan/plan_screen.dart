@@ -526,17 +526,6 @@ class _NowCard extends StatelessWidget {
           ),
           const SizedBox(height: 13),
           Text(priority.title, style: AppFonts.display(size: 20)),
-          if (priority.explanation != null) ...[
-            const SizedBox(height: 7),
-            Text(
-              priority.explanation!,
-              style: AppFonts.ui(
-                size: 13.5,
-                color: AppColors.inkSoft,
-                height: 1.4,
-              ),
-            ),
-          ],
           if (exercise != null) ...[
             const SizedBox(height: 15),
             _ExerciseRow(exercise: exercise),

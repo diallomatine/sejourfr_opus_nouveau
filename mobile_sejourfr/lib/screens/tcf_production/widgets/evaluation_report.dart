@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/enums.dart';
 import '../../../core/models/production_models.dart';
+import 'action_plan.dart';
 import 'criteria_overview.dart';
 import 'evaluation_notice.dart';
 import 'production_action_plan.dart';
@@ -81,6 +82,7 @@ class EvaluationReport extends StatelessWidget {
     this.eyebrow,
     this.productionText,
     this.targetLevel,
+    this.actionPlanPending = false,
   });
 
   final EvaluationResult evaluation;
@@ -100,6 +102,12 @@ class EvaluationReport extends StatelessWidget {
   /// Palier vise par la demarche du candidat, pour le rappel d'enjeu du hero.
   /// `null` = inconnu → aucun rappel n'est affiche.
   final TargetLevel? targetLevel;
+
+  /// Le sursis accorde au second appel court encore : la place du plan d'action
+  /// porte [ActionPlanPending] plutot qu'un trou. Pose par l'ecran, seul a
+  /// savoir si quelque chose tourne encore (cf. [ProductionResultPollGuard]) ;
+  /// un rapport rouvert plus tard vaut toujours `false`.
+  final bool actionPlanPending;
 
   /// Une tache orale porte toujours la limite de l'oral, meme si le correcteur
   /// a rendu une liste vide.
@@ -162,6 +170,13 @@ class EvaluationReport extends StatelessWidget {
         // l'annonce au lieu de laisser un trou — le candidat qui reussit avait
         // un rapport plus vide que celui qui echoue.
         TargetLevelReachedCard(atteint: niveauViseAtteint),
+        // Le second appel tourne encore : une ligne a la place du bloc, le
+        // temps du sursis. Elle s'efface en silence s'il ne vient rien, et ne
+        // bloque jamais la lecture du reste.
+        if (actionPlanPending &&
+            versionCiblee == null &&
+            niveauViseAtteint == null)
+          const ActionPlanPending(),
       ],
     );
   }

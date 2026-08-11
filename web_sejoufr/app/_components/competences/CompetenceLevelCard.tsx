@@ -86,6 +86,8 @@ export function CompetenceLevelCard({
 
       <LevelGauge scale={progress.scale} cursorIndex={progress.cursorIndex} />
 
+      {/* Les deux puces sont indépendantes : chacune disparaît si son champ est
+          absent. */}
       {(strengthTag || focusTag) && (
         <div className={s.tagRow}>
           {strengthTag && (
@@ -103,7 +105,9 @@ export function CompetenceLevelCard({
         </div>
       )}
 
-      <p className={s.criterionVerdict}>{verdict}</p>
+      {/* Verdict vide (analyse dégradée) ⇒ pas de paragraphe fantôme sous les
+          puces. Même garde que `SkillLevelCard` côté mobile. */}
+      {verdict.trim().length > 0 && <p className={s.criterionVerdict}>{verdict}</p>}
     </section>
   );
 }
@@ -118,11 +122,16 @@ export function CompetenceLevelCard({
  * et ne réordonne rien.
  */
 function LevelGauge({scale, cursorIndex}: {scale: NiveauCecrl[]; cursorIndex: number}) {
-  if (scale.length === 0) return null;
+  // Une échelle d'un seul cran ne situe rien : pas de jauge du tout, comme sur
+  // mobile (`SkillLevelCard` : `progress.scale.length > 1`). Le contrat serveur
+  // en promet trois — c'est un garde-fou de rendu, pas une règle.
+  if (scale.length < 2) return null;
 
+  // `last >= 1` garanti par la garde ci-dessus : plus de division par zéro à
+  // couvrir ici.
   const last = scale.length - 1;
   const cursor = Math.min(Math.max(cursorIndex, 0), last);
-  const percent = last === 0 ? 100 : (cursor / last) * 100;
+  const percent = (cursor / last) * 100;
 
   return (
     <div className={s.gauge}>
@@ -134,7 +143,7 @@ function LevelGauge({scale, cursorIndex}: {scale: NiveauCecrl[]; cursorIndex: nu
             className={`${s.gaugeDot} ${i <= cursor ? s.gaugeDotOn : ""} ${
               i === cursor ? s.gaugeDotNow : ""
             }`}
-            style={{left: last === 0 ? "100%" : `${(i / last) * 100}%`}}
+            style={{left: `${(i / last) * 100}%`}}
           />
         ))}
       </div>

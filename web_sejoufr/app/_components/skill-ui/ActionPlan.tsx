@@ -49,6 +49,68 @@ export const ACTION_PLAN_EXEMPLE_TITLE = "Une version plus aboutie";
  *  trois passages redits — la production n'est jamais réécrite en entier. */
 export const ACTION_PLAN_REFORMULATIONS_TITLE = "Des versions plus abouties";
 
+/* ---------------------------------------------------------------------------
+ * L'attente du plan d'action
+ *
+ * Ce bloc vient d'un SECOND appel LLM, lancé par le serveur **après** que la
+ * correction est persistée et la soumission passée à `EVALUATED` (invariant
+ * backend : il ne doit jamais pouvoir retarder ni faire échouer la correction).
+ * Un écran qui s'arrête net sur `EVALUATED` s'affiche donc sans plan alors
+ * qu'il arrive dix à quinze secondes plus tard, et le candidat devait sortir
+ * puis revenir pour le voir.
+ *
+ * Le sursis, son indicateur et son libellé vivent ici, à côté des blocs qu'ils
+ * annoncent, et servent **les deux écrans** qui rendent ce plan : le rapport
+ * d'une production EE/EO et le résultat d'un micro-exercice de compétence.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Sursis de polling accordé au second appel, **une seule valeur pour les deux
+ * écrans** (les compétences ont vécu à 10 s, les productions n'avaient rien :
+ * deux durées pour la même attente n'avaient aucune justification).
+ *
+ * Déclaré en **durée** et non en nombre de tirages : c'est en traduisant chacun
+ * de son côté que les deux fronts avaient divergé sur le budget de polling
+ * principal. Miroir mobile : `kActionPlanGrace`.
+ *
+ * Le budget de polling global de chaque écran reste la **borne dure** : ce
+ * sursis s'y ajoute, il ne le remplace pas.
+ */
+export const ACTION_PLAN_GRACE_MS = 15_000;
+
+/**
+ * Libellé de l'indicateur d'attente. **Contrat gelé**, miroir mot pour mot de
+ * `kActionPlanPendingLabel` côté mobile — et tutoyé, comme tout ce qui entoure
+ * ce plan.
+ */
+export const ACTION_PLAN_PENDING_LABEL = "On prépare tes conseils…";
+
+/**
+ * Ce que voit le candidat pendant le sursis : un petit spinner et une ligne, à
+ * **l'emplacement exact** où le plan apparaîtra.
+ *
+ * Trois règles, à ne pas défaire :
+ * - **non bloquant** — ce n'est ni un overlay, ni un écran de chargement, ni un
+ *   squelette qui remplace le rapport : tout le reste reste lisible et
+ *   utilisable pendant l'attente ;
+ * - **il disparaît en silence** à la fin du sursis si rien n'arrive. Aucun
+ *   message d'échec, aucun « indisponible » : un plan absent est un cas NORMAL
+ *   (objectif déjà atteint, oral dégradé, second appel resté muet) ;
+ * - **il ne s'arme que dans la fenêtre qui suit l'analyse.** Un rapport rouvert
+ *   trois jours plus tard n'attend rien : c'est aux écrans de ne le rendre que
+ *   pendant leur polling (cf. `productionActionPlanMayStillArrive` et
+ *   `skillNiveauViseMayStillArrive`, qui exigent tous deux d'avoir vu la
+ *   correction en vol).
+ */
+export function ActionPlanPending() {
+  return (
+    <p className={s.planPending} role="status" aria-live="polite">
+      <span className={s.planPendingSpinner} aria-hidden />
+      {ACTION_PLAN_PENDING_LABEL}
+    </p>
+  );
+}
+
 /** Trois teintes de pastille qui tournent : elles distinguent les leviers les
  *  uns des autres, elles ne les classent pas — l'ordre du serveur porte déjà la
  *  rentabilité (du plus au moins rentable). */

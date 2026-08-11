@@ -618,7 +618,10 @@ class AccomplissementPoint {
   factory AccomplissementPoint.fromJson(Map<String, dynamic> json) =>
       AccomplissementPoint(
         libelle: (json['libelle'] as String? ?? '').trim(),
-        obligatoire: json['obligatoire'] as bool? ?? false,
+        // Absent/non booleen => obligatoire : on ne minimise jamais un manque.
+        // Miroir web (`r.obligatoire !== false`) ; inatteignable si le champ
+        // `required` du tool-schema v9 est respecte.
+        obligatoire: json['obligatoire'] != false,
       );
 }
 

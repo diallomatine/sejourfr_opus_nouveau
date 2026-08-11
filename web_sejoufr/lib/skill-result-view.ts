@@ -109,40 +109,41 @@ export function referencesOpenByDefault(view: SkillResultAnalysisView): boolean 
 }
 
 /**
- * Sursis de polling accordé au **second appel** (« pour viser X »).
+ * `true` quand le bloc « pour viser X » peut encore arriver et mérite qu'on
+ * continue de poller — et qu'on l'annonce au candidat.
  *
  * Ce bloc est produit **après** que la tentative est passée `EVALUATED` : il est
  * best-effort, hors transaction. Un polling qui s'arrête net sur `EVALUATED`
  * affiche donc un écran sans leviers alors qu'ils arrivent une seconde plus
- * tard. Dix secondes au maximum, à la cadence existante, puis on rend l'écran
- * tel quel — **jamais d'erreur** : l'absence du bloc est un cas normal.
+ * tard. La durée du sursis est commune aux deux écrans qui rendent ce plan :
+ * `ACTION_PLAN_GRACE_MS` (`app/_components/skill-ui/ActionPlan`).
  *
- * Valeur de parité avec le mobile : elle est déclarée en **durée**, pas en
- * nombre de tirages (c'est en la traduisant chacun de son côté que les deux
- * fronts avaient divergé sur le budget de polling principal).
- */
-export const SKILL_NIVEAU_VISE_GRACE_MS = 10_000;
-
-/**
- * `true` quand le bloc « pour viser X » peut encore arriver et mérite qu'on
- * continue de poller.
+ * Cinq conditions, toutes nécessaires : l'analyse est terminée, elle porte bien
+ * la progression de niveau (donc c'est un contrat v3, pas une analyse ancienne),
+ * l'objectif n'est **pas** atteint (auquel cas le second appel n'est jamais
+ * lancé), le bloc n'est pas déjà là — et **l'écran a vu l'analyse en vol**.
  *
- * Quatre conditions, toutes nécessaires : l'analyse est terminée, elle porte
- * bien la progression de niveau (donc c'est un contrat v3, pas une analyse
- * ancienne), l'objectif n'est **pas** atteint (auquel cas le second appel n'est
- * jamais lancé) et le bloc n'est pas déjà là.
+ * ⚠️ Cette dernière condition est ce qui interdit d'attendre (et d'afficher un
+ * indicateur) sur un résultat **rouvert plus tard** : là, plus rien ne tourne
+ * côté serveur, le bloc est déjà persisté ou définitivement absent. Un écran
+ * consulté trois jours après ne doit ni poller, ni annoncer des conseils qui ne
+ * viendront pas.
  *
  * Le budget de polling global reste la borne dure : ce sursis s'y ajoute, il ne
  * le remplace pas.
  */
 export function skillNiveauViseMayStillArrive(input: {
     evaluated: boolean;
+    /** L'écran a observé la tentative dans un statut non final depuis son
+     *  ouverture : l'analyse s'est terminée sous les yeux du candidat. */
+    observedInFlight: boolean;
     hasLevelProgress: boolean;
     objectifAtteint: boolean;
     hasNiveauVise: boolean;
 }): boolean {
     return (
         input.evaluated &&
+        input.observedInFlight &&
         input.hasLevelProgress &&
         !input.objectifAtteint &&
         !input.hasNiveauVise

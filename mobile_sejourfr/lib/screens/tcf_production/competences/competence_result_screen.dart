@@ -84,31 +84,41 @@ class _CompetenceResultScreenState
   /// aboutir est le pire des deux défauts. À changer des deux côtés.
   static const Duration _pollMaxDuration = Duration(seconds: 120);
 
-  /// Sursis accordé au **second appel LLM** (« pour viser X »), produit après
-  /// que la tentative est passée `EVALUATED`, best-effort et hors transaction.
-  /// S'arrêter net sur `EVALUATED` afficherait un écran sans leviers alors
-  /// qu'ils arrivent une seconde plus tard. **Valeur partagée avec le web.**
-  static const Duration _niveauViseGrace = Duration(seconds: 10);
-
   Timer? _poll;
   DateTime _pollStartedAt = DateTime.now();
 
-  /// Fin du sursis ci-dessus, posée au premier tirage qui voit la tentative
-  /// finalisée sans son bloc « pour viser X ».
+  /// Fin du sursis accordé au second appel (`kActionPlanGrace`), posée au
+  /// premier tirage qui voit la tentative finalisée sans son bloc « pour
+  /// viser X ». La durée vit dans `widgets/action_plan.dart`, à côté du bloc
+  /// qu'elle attend, et vaut la même chose sur le rapport de production.
   DateTime? _niveauViseDeadline;
+
+  /// L'analyse a été observée **en vol** depuis l'ouverture de l'écran. C'est
+  /// ce qui interdit d'attendre — et d'afficher un indicateur — sur un résultat
+  /// rouvert plus tard : là, plus rien ne tourne côté serveur.
+  bool _observedInFlight = false;
+
+  /// Le sursis court : la place du bloc porte [ActionPlanPending].
+  bool _niveauVisePending = false;
   bool _retrying = false;
 
-  /// Le bloc du second appel est encore attendu : niveau connu, objectif non
-  /// atteint, et rien n'est arrivé. Toute autre combinaison est un état final —
-  /// notamment `OBJECTIF_ATTEINT`, où le serveur ne produit **rien** par
-  /// construction : l'attendre ferait tourner le polling pour rien.
+  /// Le bloc du second appel est encore attendu : analyse vue en vol, niveau
+  /// connu, objectif non atteint, et rien n'est arrivé. Toute autre combinaison
+  /// est un état final — notamment `OBJECTIF_ATTEINT`, où le serveur ne produit
+  /// **rien** par construction : l'attendre ferait tourner le polling pour rien.
   bool _awaitsNiveauVise(SkillAttemptDto attempt) {
     final analysis = attempt.analysis;
     final progress = analysis?.levelProgress;
-    return attempt.statut == SkillAttemptStatut.evaluated &&
+    return _observedInFlight &&
+        attempt.statut == SkillAttemptStatut.evaluated &&
         progress != null &&
         !progress.situation.isObjectifAtteint &&
         analysis!.niveauVise == null;
+  }
+
+  void _setNiveauVisePending(bool value) {
+    if (_niveauVisePending == value || !mounted) return;
+    setState(() => _niveauVisePending = value);
   }
 
   /// `null` = l'utilisateur n'a pas tranché → on suit la règle par défaut :
@@ -141,25 +151,35 @@ class _CompetenceResultScreenState
     _poll?.cancel();
     _pollStartedAt = DateTime.now();
     _niveauViseDeadline = null;
+    _setNiveauVisePending(false);
     _poll = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (!mounted) {
         timer.cancel();
         return;
       }
       final value = ref.read(skillAttemptProvider(widget.attemptId)).valueOrNull;
+      if (value != null && !value.statut.isFinal) {
+        // Vu en vol : l'analyse s'achève sous les yeux du candidat, donc le
+        // second appel, lui, tourne encore.
+        _observedInFlight = true;
+      }
       if (value != null && value.statut.isFinal) {
         // Statut final : on ne prolonge que pour le second appel, au rythme
         // courant et sans jamais afficher d'erreur si rien n'arrive.
         if (!_awaitsNiveauVise(value)) {
+          _setNiveauVisePending(false);
           timer.cancel();
           return;
         }
         final deadline =
-            _niveauViseDeadline ??= DateTime.now().add(_niveauViseGrace);
+            _niveauViseDeadline ??= DateTime.now().add(kActionPlanGrace);
         if (DateTime.now().isAfter(deadline)) {
+          // Fin du sursis sans rien : l'indicateur s'efface en silence.
+          _setNiveauVisePending(false);
           timer.cancel();
           return;
         }
+        _setNiveauVisePending(true);
       }
       // Le budget global reste la borne dure, sursis compris.
       if (DateTime.now().difference(_pollStartedAt) > _pollMaxDuration) {
@@ -299,6 +319,10 @@ class _CompetenceResultScreenState
                 ActionPlanMemoCard(memo: niveauVise.aRetenir!),
               ],
             ],
+            // Le second appel tourne encore : une ligne à sa place, le temps du
+            // sursis, sans rien bloquer.
+            if (niveauVise == null && _niveauVisePending)
+              const ActionPlanPending(),
           ] else ...[
             // Analyse d'avant le contrat v3 : pas de carte niveau, donc pas de
             // pastille pour loger le verdict → le gros bloc historique reste

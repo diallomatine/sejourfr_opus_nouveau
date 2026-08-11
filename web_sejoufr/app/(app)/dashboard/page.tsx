@@ -330,8 +330,12 @@ function DashboardPlanCard({
             <span className="dash-plan-icon" aria-hidden><Target size={24}/></span>
             <div className="dash-plan-copy">
                 <span className="dash-plan-kicker">Votre priorité du jour</span>
+                {/* Le titre de la priorité, et rien d'autre : `explanation` est le
+                    constat d'une production déjà faite — il raconte le passé sur une
+                    carte qui annonce l'action à mener, et il vit déjà dans le Plan.
+                    Miroir du mobile (`_DiagnosticPriorityCard`, home_screen.dart), qui
+                    n'a jamais affiché autre chose que le titre. */}
                 <h2 id="dash-plan-title">{priority?.title ?? "Continuez votre plan personnalisé"}</h2>
-                <p>{priority?.explanation ?? "Retrouvez l'action que votre dernier diagnostic a placée en tête."}</p>
                 {exercise && <span className="dash-plan-meta">{exercise.title} · {exercise.estimatedMinutes} min</span>}
             </div>
             <div className="dash-plan-actions">

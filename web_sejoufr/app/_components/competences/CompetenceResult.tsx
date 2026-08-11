@@ -19,7 +19,6 @@ import {
   skillNiveauViseMayStillArrive,
   skillResultAnalysisView,
   skillResultBannerAction,
-  SKILL_NIVEAU_VISE_GRACE_MS,
   type SkillResultAnalysisView,
 } from "@/lib/skill-result-view";
 import {
@@ -41,9 +40,11 @@ import {CompetenceLevelCard} from "./CompetenceLevelCard";
 import {CompetenceReferences} from "./CompetenceReferences";
 import {
   ACTION_PLAN_EXEMPLE_TITLE,
+  ACTION_PLAN_GRACE_MS,
   ActionPlanExemple,
   ActionPlanLeviers,
   ActionPlanMemoCard,
+  ActionPlanPending,
   pourViserTitle,
 } from "@/app/_components/skill-ui/ActionPlan";
 import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
@@ -126,6 +127,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
   const [retrying, setRetrying] = useState(false);
   const [pollKey, setPollKey] = useState(0);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [niveauVisePending, setNiveauVisePending] = useState(false);
   const [prodOpen, setProdOpen] = useState(false);
   const prodPanelId = useId();
 
@@ -135,13 +137,15 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
   // **Sursis après `EVALUATED`** : le bloc « pour viser X » vient d'un SECOND
   // appel, lancé une fois l'évaluation persistée. S'arrêter net sur
   // `EVALUATED` afficherait un écran sans leviers alors qu'ils arrivent une
-  // seconde plus tard. La règle (dix secondes, même cadence, jamais d'erreur)
-  // vit dans `lib/skill-result-view.ts`, partagée mot pour mot avec le mobile ;
-  // le budget global reste la borne dure.
+  // seconde plus tard. La règle vit dans `lib/skill-result-view.ts` et sa durée
+  // (`ACTION_PLAN_GRACE_MS`) est commune au rapport de production, qui attend
+  // exactement le même bloc ; le budget global reste la borne dure, et pendant
+  // le sursis la place du bloc porte un indicateur discret — jamais d'erreur.
   useEffect(() => {
     if (status !== "authenticated" || !attemptId) return;
     let cancelled = false;
     let polls = 0;
+    let observedInFlight = false;
     let graceStartedAt: number | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
     async function tick() {
@@ -151,20 +155,36 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
         setAttempt(a);
 
         let again = isSkillAttemptPending(a);
+        // Vu en vol : l'analyse s'achève sous les yeux du candidat, donc le
+        // second appel tourne encore. Un résultat rouvert plus tard n'entre
+        // jamais ici — un seul appel, aucun sursis, aucun indicateur.
+        if (again) observedInFlight = true;
+
+        let pending = false;
         if (!again) {
           const waiting = skillNiveauViseMayStillArrive({
             evaluated: a.statut === "EVALUATED",
+            observedInFlight,
             hasLevelProgress: a.analysis?.levelProgress != null,
             objectifAtteint: a.analysis?.levelProgress?.situation === "OBJECTIF_ATTEINT",
             hasNiveauVise: a.analysis?.niveauVise != null,
           });
           if (waiting) {
             graceStartedAt ??= Date.now();
-            again = Date.now() - graceStartedAt < SKILL_NIVEAU_VISE_GRACE_MS;
+            again = Date.now() - graceStartedAt < ACTION_PLAN_GRACE_MS;
+            pending = again;
           }
         }
 
-        if (again && polls < MAX_POLLS) {
+        const continues = again && polls < MAX_POLLS;
+        // Fin du sursis sans rien : l'indicateur s'efface en silence. Il
+        // s'efface AUSSI quand c'est le budget global qui coupe la boucle —
+        // sans ce `continues`, plus aucun tirage ne viendrait le retirer et le
+        // spinner resterait à l'écran indéfiniment (le mobile, lui, remet son
+        // drapeau à faux dès que le budget est épuisé).
+        setNiveauVisePending(pending && continues);
+
+        if (continues) {
           polls += 1;
           timer = setTimeout(tick, POLL_MS);
         }
@@ -285,7 +305,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                 </p>
               </div>
             ) : analysis ? (
-              <AnalysisView analysis={analysis} />
+              <AnalysisView analysis={analysis} niveauVisePending={niveauVisePending} />
             ) : (
               <AnalysisBanner
                 view={view}
@@ -416,7 +436,15 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
  * Le verdict n'a plus de section propre en v3 : `status` et `verdict` sont
  * rendus en compact dans `CompetenceLevelCard` (pastille + ligne de texte).
  */
-function AnalysisView({analysis}: {analysis: SkillAnalysisDto}) {
+function AnalysisView({
+  analysis,
+  niveauVisePending = false,
+}: {
+  analysis: SkillAnalysisDto;
+  /** Le sursis accordé au second appel court encore : la place du plan porte
+   *  un indicateur discret, qui s'efface en silence s'il ne vient rien. */
+  niveauVisePending?: boolean;
+}) {
   const progress = analysis.levelProgress ?? null;
   const cible = analysis.niveauVise ?? null;
 
@@ -462,6 +490,9 @@ function AnalysisView({analysis}: {analysis: SkillAnalysisDto}) {
           {cible.aRetenir && <ActionPlanMemoCard memo={cible.aRetenir} />}
         </>
       )}
+      {/* Le second appel tourne encore : une ligne à sa place, le temps du
+          sursis, sans bloquer la lecture de la carte de niveau. */}
+      {!cible && niveauVisePending && <ActionPlanPending />}
     </section>
   );
 }
