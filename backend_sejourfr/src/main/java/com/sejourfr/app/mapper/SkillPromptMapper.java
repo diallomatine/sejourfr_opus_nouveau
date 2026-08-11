@@ -24,7 +24,7 @@ public class SkillPromptMapper {
 
     /**
      * Carte de sujet dans la liste d'une competence. {@code locked} est
-     * <b>passe</b>, resolu une seule fois pour les 5 sujets de l'ecran : la
+     * <b>passe</b>, resolu une seule fois pour les sujets de l'ecran : la
      * regle d'acces appartient a {@code SkillAccessService}.
      */
     public SkillPromptSummaryDto toSummaryDto(SkillPrompt prompt,

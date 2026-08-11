@@ -29,13 +29,14 @@ final class EvaluationRepairPrompt {
     }
 
     static String build(String userPrompt, List<String> violations,
-                        Map<String, Object> feedback, EpreuveType epreuve) {
+                        Map<String, Object> feedback, EpreuveType epreuve,
+                        EvaluationToolSchema schema) {
         StringBuilder sb = new StringBuilder(userPrompt);
         sb.append("\n\nTA SORTIE PRECEDENTE A ETE REJETEE PAR LE SERVEUR. ")
             .append("Corrige exactement ces violations et rappelle l'outil submit_evaluation :\n- ")
             .append(String.join("\n- ", violations));
 
-        appendGardeFouOral(sb, violations);
+        appendGardeFouOral(sb, violations, schema);
 
         // CONTRAT v6 : le correcteur ne recopie plus rien, donc la « regle de la
         // citation » n'a plus d'objet — la seule erreur possible est un numero,
@@ -109,7 +110,8 @@ final class EvaluationRepairPrompt {
      * lui donne la sortie sure — supprimer la remarque, ou la ramener sur ce qui
      * est observable dans une transcription.
      */
-    private static void appendGardeFouOral(StringBuilder sb, List<String> violations) {
+    private static void appendGardeFouOral(StringBuilder sb, List<String> violations,
+                                           EvaluationToolSchema schema) {
         List<String> orales = EvaluationOutputValidator.oralViolations(violations);
         if (orales.isEmpty()) return;
 
@@ -131,10 +133,17 @@ final class EvaluationRepairPrompt {
             .append("\n- CE QU'IL FAUT FAIRE : supprimer la remarque, ou la ramener sur ce qui ")
             .append("est visible dans le texte — choix et precision du lexique, construction ")
             .append("des phrases, enchainement des idees, adequation au destinataire, reponse ")
-            .append("a la consigne ;")
-            .append("\n- si un exemple corrige ne tient que par une remarque interdite, ")
-            .append("SUPPRIME cet exemple : `exemples_corriges` peut etre une liste vide ;")
-            .append("\n- seul `confiance_raisons` peut mentionner une transcription incertaine.")
+            .append("a la consigne ;");
+        // Ce rappel ne vaut que si le CONTRAT ACTIF porte encore le champ :
+        // sous le tool-schema v9 il n'existe plus, et nommer au correcteur un
+        // champ absent de son schema est le meilleur moyen de le lui faire
+        // produire — donc de faire echouer le reessai qu'on essaie de reparer.
+        // La question se pose au contrat, jamais au contenu de la sortie.
+        if (schema.exemplesEtSuggestions()) {
+            sb.append("\n- si un exemple corrige ne tient que par une remarque interdite, ")
+                .append("SUPPRIME cet exemple : `exemples_corriges` peut etre une liste vide ;");
+        }
+        sb.append("\n- seul `confiance_raisons` peut mentionner une transcription incertaine.")
             .append("\nReprends tes autres champs a l'identique : ne change QUE ce qui est signale.");
     }
 

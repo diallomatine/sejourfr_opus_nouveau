@@ -773,6 +773,9 @@ class _CurrentStepCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final exercise = priority.recommendedExercise;
     final locked = _isLocked(priority, exercise);
+    // Une étape, ce sont les 5 premiers sujets de la compétence — jamais ses 15.
+    // L'état « terminée » est **servi**, jamais déduit d'une comparaison locale.
+    final done = priority.stepCompleted;
     return AppCard(
       border: Border.all(color: AppColors.blue.withValues(alpha: 0.22)),
       child: Column(
@@ -780,7 +783,11 @@ class _CurrentStepCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const AppTag(label: 'EN COURS', tone: TagTone.blue, compact: true),
+              AppTag(
+                label: done ? 'TERMINÉE' : 'EN COURS',
+                tone: done ? TagTone.success : TagTone.blue,
+                compact: true,
+              ),
               if (locked) ...[
                 const SizedBox(width: 6),
                 const PremiumLockTag(),
@@ -791,8 +798,8 @@ class _CurrentStepCard extends StatelessWidget {
           Row(
             children: [
               _SkillRing(
-                promptCount: priority.promptCount,
-                attemptedCount: priority.attemptedCount,
+                promptCount: priority.stepPromptCount,
+                attemptedCount: priority.stepAttemptedCount,
                 color: AppColors.blue,
               ),
               const SizedBox(width: 12),
@@ -804,6 +811,10 @@ class _CurrentStepCard extends StatelessWidget {
                       priority.title,
                       style: AppFonts.display(size: 17, height: 1.2),
                     ),
+                    if (done) ...[
+                      const SizedBox(height: 5),
+                      _StepDoneLines(priority: priority),
+                    ],
                     const SizedBox(height: 4),
                     Text(
                       _skillMeta(priority.skillCode, priority.section),
@@ -859,8 +870,8 @@ class _NextStepCard extends StatelessWidget {
         child: Row(
           children: [
             _SkillRing(
-              promptCount: priority.promptCount,
-              attemptedCount: priority.attemptedCount,
+              promptCount: priority.stepPromptCount,
+              attemptedCount: priority.stepAttemptedCount,
               color: AppColors.inkFaint,
               size: 40,
             ),
@@ -879,6 +890,10 @@ class _NextStepCard extends StatelessWidget {
                       height: 1.25,
                     ),
                   ),
+                  if (priority.stepCompleted) ...[
+                    const SizedBox(height: 4),
+                    _StepDoneLines(priority: priority),
+                  ],
                   const SizedBox(height: 3),
                   // Le cadenas s'ajoute à « À VENIR », il ne le remplace pas :
                   // l'étape est bien à venir, et elle demande en plus un
@@ -911,6 +926,53 @@ class _NextStepCard extends StatelessWidget {
           ],
         ),
       );
+}
+
+/// Ce qu'on dit d'une étape **terminée**, à un seul endroit (parité mot pour mot
+/// avec `LearningPlanView` côté web).
+///
+/// Une étape terminée **reste affichée** — les priorités ne changent qu'à
+/// l'arrivée d'une nouvelle observation, donc à la prochaine production. Sans la
+/// première ligne, un candidat qui a fini son étape et la voit toujours là croit
+/// à un bug. La seconde ne s'affiche que lorsqu'elle apprend quelque chose :
+/// terminer n'est pas tout réussir.
+class _StepDoneLines extends StatelessWidget {
+  const _StepDoneLines({required this.priority});
+
+  final LearningPlanPriority priority;
+
+  @override
+  Widget build(BuildContext context) {
+    final partiallyValidated =
+        priority.stepValidatedCount < priority.stepPromptCount;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Réévaluée à ta prochaine production.',
+          style: AppFonts.ui(
+            size: 12,
+            weight: FontWeight.w600,
+            height: 1.35,
+            color: AppColors.green,
+          ),
+        ),
+        if (partiallyValidated) ...[
+          const SizedBox(height: 3),
+          Text(
+            '${priority.stepValidatedCount} validés sur '
+            '${priority.stepPromptCount}',
+            style: AppFonts.ui(
+              size: 11,
+              weight: FontWeight.w700,
+              height: 1.35,
+              color: AppColors.inkFaint,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 }
 
 class _ReassessmentStepCard extends StatelessWidget {

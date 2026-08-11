@@ -127,8 +127,9 @@ void main() {
         .widgetList<ProgressRing>(find.byType(ProgressRing))
         .toList(growable: false);
 
-    // Étape 1 : 2 sujets traités sur 5 — jamais un pourcentage d'avancement
-    // inventé, et jamais « % du plan maîtrisé ».
+    // Étape 1 : 2 sujets traités sur les 5 de l'ÉTAPE (`step*`), pas sur les 15
+    // de la compétence — jamais un pourcentage d'avancement inventé, et jamais
+    // « % du plan maîtrisé ».
     expect(rings.first.label, '2');
     expect(rings.first.sub, '/5');
     expect(rings.first.value, closeTo(40, 0.01));
@@ -182,12 +183,20 @@ DashboardSummary _summary(NiveauCecrl? level) => DashboardSummary(
       tcf: const [],
     );
 
+/// ⚠️ Deux jeux de compteurs : `promptCount` décrit la **compétence entière**
+/// (15 sujets, ce que lisent les cartes « compétences observées »),
+/// `stepPromptCount` décrit l'**étape** (les 5 premiers). C'est le second que
+/// l'anneau du parcours affiche.
 LearningPlanPriority _priority({
   required String skillId,
   required String title,
   required SkillSection section,
-  int promptCount = 5,
+  int promptCount = 15,
   int attemptedCount = 0,
+  int stepPromptCount = 5,
+  int stepAttemptedCount = 0,
+  int stepValidatedCount = 0,
+  bool stepCompleted = false,
   PlanRecommendedExercise? exercise,
   String? evidence,
 }) =>
@@ -203,6 +212,10 @@ LearningPlanPriority _priority({
       recommendedExercise: exercise,
       promptCount: promptCount,
       attemptedCount: attemptedCount,
+      stepPromptCount: stepPromptCount,
+      stepAttemptedCount: stepAttemptedCount,
+      stepValidatedCount: stepValidatedCount,
+      stepCompleted: stepCompleted,
     );
 
 final _activePlan = LearningPlan(
@@ -214,6 +227,7 @@ final _activePlan = LearningPlan(
     title: 'Développer un argument',
     section: SkillSection.ee,
     attemptedCount: 2,
+    stepAttemptedCount: 2,
     evidence: 'Parce que c’est utile.',
     exercise: const PlanRecommendedExercise(
       skillPromptId: 'prompt-1',

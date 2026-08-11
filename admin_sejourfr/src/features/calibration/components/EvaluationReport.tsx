@@ -254,7 +254,19 @@ function PointsColumn({
   );
 }
 
-/** Ce que le candidat lit dans l'application, regroupé en fin de fiche. */
+/**
+ * Ce que le correcteur a rédigé pour le candidat, regroupé en fin de fiche.
+ *
+ * ⚠️ **Trois de ces blocs n'existent plus dans le contrat de sortie** :
+ * `version_amelioree` (retirée en v14/v8), puis `exemples_corriges` et
+ * `suggestions` (retirés en v15/v9). La console de calibration les affiche
+ * quand même — elle relit des évaluations **déjà en base**, dont une centaine
+ * les portent, et comparer deux grilles suppose de voir ce que chacune rendait.
+ * Chaque bloc se masque seul quand son champ manque (et le bloc entier
+ * disparaît quand ils manquent tous) : c'est ce qui rend l'écran tolérant à une
+ * évaluation v9, qui n'en porte plus aucun. Les écrans candidat, eux, ne les
+ * affichent plus du tout.
+ */
 function WrittenFeedback({ evaluation }: { evaluation: EvaluationResultDto }) {
   const feedback = evaluation.feedback;
   const pointsForts = feedback?.points_forts ?? [];
@@ -300,7 +312,10 @@ function WrittenFeedback({ evaluation }: { evaluation: EvaluationResultDto }) {
 
         {suggestions.length > 0 && (
           <div>
-            <div className={styles.writtenHeading}>Suggestions</div>
+            <div className={styles.writtenHeading}>
+              Suggestions
+              <em className={styles.obsolete}> contrat ≤ v14</em>
+            </div>
             <ul className={styles.plainList}>
               {suggestions.map((item, index) => (
                 <li key={index}>{item}</li>
@@ -311,7 +326,10 @@ function WrittenFeedback({ evaluation }: { evaluation: EvaluationResultDto }) {
 
         {exemples.length > 0 && (
           <div className={styles.exemplesBlock}>
-            <div className={styles.writtenHeading}>Exemples corrigés</div>
+            <div className={styles.writtenHeading}>
+              Exemples corrigés
+              <em className={styles.obsolete}> contrat ≤ v14</em>
+            </div>
             <ul className={styles.exemples}>
               {exemples.map((exemple, index) => (
                 <ExempleRow key={index} exemple={exemple} />
@@ -324,6 +342,7 @@ function WrittenFeedback({ evaluation }: { evaluation: EvaluationResultDto }) {
           <div className={styles.versionAmelioreeBlock}>
             <div className={styles.writtenHeading}>
               Version améliorée (réécriture complète — EE uniquement)
+              <em className={styles.obsolete}> contrat ≤ v13</em>
             </div>
             <p className={styles.versionAmelioree}>{versionAmelioree}</p>
           </div>

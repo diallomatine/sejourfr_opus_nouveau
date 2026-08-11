@@ -1,3 +1,4 @@
+import 'action_plan.dart';
 import 'enums.dart';
 
 /// Miroir mobile des DTOs backend du pipeline EO/EE (cf. PRODUCTION_TASKS_SPEC_V2.md
@@ -342,23 +343,35 @@ class EvaluationFeedback {
   }
 }
 
-/// La reponse du candidat **reecrite au palier qu'il vise**, plus ce qui l'en
-/// separe. Produite par un SECOND appel LLM, totalement separe de la
-/// correction : le correcteur n'apprend jamais quel niveau vise le candidat,
-/// sinon il alignerait sa note dessus.
+/// Le **plan d'action** du candidat vers le palier qu'il vise. Produit par un
+/// SECOND appel LLM, totalement separe de la correction : le correcteur
+/// n'apprend jamais quel niveau vise le candidat, sinon il alignerait sa note
+/// dessus.
 ///
-/// **EE uniquement.** Le bloc est absent dans tous ces cas parfaitement
-/// normaux : a l'oral, sur les evaluations anterieures, et quand le second
-/// appel a echoue. Rien ne s'affiche alors — ni squelette, ni « non
-/// disponible ».
+/// **EE et EO.** Le bloc est absent dans tous ces cas parfaitement normaux :
+/// evaluations anterieures, second appel en echec, et — a l'oral —
+/// transcription trop abimee pour reformuler quoi que ce soit. Rien ne
+/// s'affiche alors : ni squelette, ni « non disponible ».
+///
+/// **Trois formes, une seule cle** — on distingue l'ecrit de l'oral a la
+/// presence de [exempleCible] ou de [reformulations] :
+/// - **v2, ecrit** : [leviers] + [exempleCible] + [aRetenir] ;
+/// - **v2, oral** : [leviers] + [reformulations] + [aRetenir]. **Aucun texte
+///   modele complet** — la production orale n'est jamais reecrite en entier ;
+/// - **v1** (une centaine d'evaluations deja en base) : [texte] +
+///   [ceQuiManque], ecrit seulement.
 ///
 /// Quand le palier vise est **deja atteint**, ce n'est pas ce bloc qui manque :
 /// c'est [NiveauViseAtteint] qui prend sa place. Les deux sont exclusifs.
 class VersionCiblee {
   const VersionCiblee({
     required this.niveauVise,
-    required this.texte,
     this.niveauConstate,
+    this.leviers = const [],
+    this.exempleCible,
+    this.reformulations = const [],
+    this.aRetenir,
+    this.texte,
     this.ceQuiManque = const [],
   });
 
@@ -369,29 +382,63 @@ class VersionCiblee {
   /// Palier reellement observe sur cette tache. Absent si inconnu.
   final NiveauCecrl? niveauConstate;
 
-  /// Le modele redige au niveau vise. **Jamais la production du candidat.**
-  final String texte;
+  /// v2 : 2 a 3 leviers, **dans l'ordre du backend** (du plus rentable au moins
+  /// rentable) — ne jamais retrier cote front.
+  final List<ActionPlanLevier> leviers;
 
-  /// 2 a 3 leviers, **dans l'ordre du backend** (du plus rentable au moins
-  /// rentable) : ne jamais retrier cote front.
+  /// v2, ECRIT : la reponse reecrite au niveau vise, segments surlignables.
+  final ActionPlanExempleCible? exempleCible;
+
+  /// v2, ORAL : 2 a 3 passages redits au niveau vise. Exclusif du precedent.
+  final List<ActionPlanReformulation> reformulations;
+
+  /// v2 : la tournure a emporter ailleurs.
+  final ActionPlanMemo? aRetenir;
+
+  /// v1 (legacy) : le modele redige au niveau vise. **Jamais la production du
+  /// candidat.** Null sous le contrat v2.
+  final String? texte;
+
+  /// v1 (legacy) : les leviers en texte libre, ordre du backend preserve.
   final List<String> ceQuiManque;
 
   /// Null des qu'il manque de quoi l'afficher honnetement : sans palier vise on
-  /// ne saurait pas au nom de quoi ce texte est montre, et sans texte il n'y a
-  /// rien a montrer.
+  /// ne saurait pas au nom de quoi ce plan est montre, et sans la moindre
+  /// section il n'y a rien a montrer.
   static VersionCiblee? fromJsonNullable(Object? raw) {
     if (raw is! Map<String, dynamic>) return null;
     final vise = _targetLevelOrNull(_trimmedOrNull(raw['niveau_vise']));
+    if (vise == null) return null;
+
+    final leviers = ActionPlanLevier.listFrom(raw['leviers']);
+    final exempleCible =
+        ActionPlanExempleCible.fromJsonNullable(raw['exemple_cible']);
+    final reformulations =
+        ActionPlanReformulation.listFrom(raw['reformulations']);
+    final aRetenir = ActionPlanMemo.fromJsonNullable(raw['a_retenir']);
     final texte = _trimmedOrNull(raw['texte']);
-    if (vise == null || texte == null) return null;
+    final ceQuiManque = ((raw['ce_qui_manque'] as List?) ?? const [])
+        .map((e) => e.toString().trim())
+        .where((e) => e.isNotEmpty)
+        .toList(growable: false);
+
+    final vide = leviers.isEmpty &&
+        exempleCible == null &&
+        reformulations.isEmpty &&
+        aRetenir == null &&
+        texte == null &&
+        ceQuiManque.isEmpty;
+    if (vide) return null;
+
     return VersionCiblee(
       niveauVise: vise,
       niveauConstate: _niveauCecrlOrNull(_trimmedOrNull(raw['niveau_constate'])),
+      leviers: leviers,
+      exempleCible: exempleCible,
+      reformulations: reformulations,
+      aRetenir: aRetenir,
       texte: texte,
-      ceQuiManque: ((raw['ce_qui_manque'] as List?) ?? const [])
-          .map((e) => e.toString().trim())
-          .where((e) => e.isNotEmpty)
-          .toList(growable: false),
+      ceQuiManque: ceQuiManque,
     );
   }
 }

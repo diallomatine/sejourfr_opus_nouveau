@@ -493,6 +493,25 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   la réévaluation et le micro-exercice fourni par `recommendedExercise`.
   `/statistiques` reste l'historique chiffré et est accessible par « Voir ma
   progression », mais n'a plus d'entrée principale dans `AppSidebar`.
+- **Une ÉTAPE, ce sont les 5 premiers sujets de la compétence, pas ses 15.**
+  `LearningPlanPriorityDto` porte **deux** jeux de compteurs :
+  `promptCount`/`attemptedCount`/`validatedCount` = la **compétence entière**
+  (ce que lisent les cartes « compétences observées », inchangées), et
+  `stepPromptCount`/`stepAttemptedCount`/`stepValidatedCount`/`stepCompleted` =
+  l'**étape**. L'anneau d'une étape (`PathStep` → `SkillRing`) lit le second
+  couple — « 2/5 », jamais « 2/15 ». Ne pas les mélanger : c'est le seul piège
+  de cet écran. `stepCompleted` est **servi**, plus déduit d'un
+  `attemptedCount >= promptCount` local.
+- **Une étape peut être TERMINÉE, et elle reste affichée** : le badge passe de
+  « En cours » à « Terminée » (état `done`, vert), et une ligne apparaît sous le
+  titre — « Réévaluée à ta prochaine production. ». Les priorités ne changent
+  qu'à l'arrivée d'une nouvelle observation, donc à la prochaine production :
+  sans cette phrase, un candidat qui a fini son étape et la voit toujours là
+  croit à un bug. Terminée **sans** être toute validée ⇒ une seconde ligne
+  discrète « N validés sur M » (rien quand tout est validé). Libellés gelés,
+  miroir mot pour mot de `_StepDoneLines` côté mobile. Un compte gratuit plafonne
+  à 2/5 (2 sujets ouverts par compétence) : `stepCompleted` reste faux et le CTA
+  reste « Débloquer cette étape » — rien ne laisse croire l'étape finissable.
 - **Cache** : dashboard mutualise les requêtes en vol de
   `diagnosticApi.currentCached()` sans conserver le snapshot résolu (le pipeline
   peut le faire évoluer sans écriture du navigateur), et conserve
@@ -1076,7 +1095,7 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
   - **Composants partagés** `app/_components/production/` : `ProductionFeedbackView`
     (orchestre les 6 blocs de l'écran de résultat, cf. section dédiée) avec
     `ProductionObjectiveBanner`, `ProductionScoreHero` (note + échelle TCF),
-    `ProductionFullAnalysis` (le repli) et `FeedbackList` ;
+    `EvaluationNotice` (la note « à savoir ») ;
     `ProductionCriteriaCard` (les 4 critères annoncés avant de produire),
     `SubmissionRow`, `EeWritingForm`, `EoRecordingForm` + `production.module.css`.
   - **Gating** (source backend) : entraînement par tâche = **2 essais gratuits à
@@ -1333,7 +1352,9 @@ sujet. Ne jamais réintroduire `ProductionScoreHero`/`formatNoteSur20` ici.
   `/[skillId]/[promptId]/resultat/[attemptId]` (retour + références).
 - **Composants** `app/_components/competences/` : `CompetencesList`,
   `CompetenceDetail`, `CompetencePrompt`, `CompetenceResult`,
-  `CompetenceReferences`, `CompetenceStatusBadge`. (`SelfEvaluationPicker` a été
+  `CompetenceReferences`, `CompetenceStatusBadge`, plus les 4 blocs du retour v3
+  (`CompetenceLevelCard`, plus les blocs **partagés** du plan d'action —
+  `skill-ui/ActionPlan.tsx`). (`SelfEvaluationPicker` a été
   **supprimé** — cf. « Allègements », plus bas.)
   Les briques de mise en page et leur feuille de style ont été **promues en
   partagé** dans `app/_components/skill-ui/` (`SkillLayout.tsx` +
@@ -1376,10 +1397,18 @@ sujet. Ne jamais réintroduire `ProductionScoreHero`/`formatNoteSur20` ici.
   pourcentages pour la même tâche.
 - **Types** `lib/types.ts` (section COMPÉTENCES) : `SkillDto`, `SkillDetailDto`,
   `SkillPromptDto`, `SkillPromptSummaryDto`, `SkillReferenceDto`,
-  `SkillAttemptDto`, `SkillAnalysisDto`, `SkillAnalysisQuotaDto` + les enums et
+  `SkillAttemptDto`, `SkillAnalysisDto` (+ `SkillLevelProgressDto`,
+  `SkillNiveauViseDto`, `SkillLevierDto`, `SkillExempleCibleDto`,
+  `SkillSegmentDto`, `SkillARetenirDto`, `SituationNiveauVise`),
+  `SkillAnalysisQuotaDto` + les enums et
   les tables de libellés FR (`SKILL_PROMPT_STATUS_LABEL`,
-  `SKILL_SELF_EVALUATION_LABEL`, `SKILL_REFERENCE_LEVEL_LABEL`) — **libellés
-  gelés par le contrat, à ne pas reformuler**. ⚠️ `SkillDifficulty`
+  `SKILL_SELF_EVALUATION_LABEL`, `SKILL_REFERENCE_LEVEL_LABEL`,
+  `SKILL_SITUATION_NIVEAU_VISE_LABEL`) — **libellés
+  gelés par le contrat, à ne pas reformuler**. ⚠️ `SkillAnalysisDto` porte
+  **deux générations de champs** (v1/v2 `successPoint`/`improvementPriority`/
+  `improvedVersion`, v3 `strengthTag`/`focusTag`/`levelProgress`/`niveauVise`),
+  **toutes nullables et sans migration** : afficher ce qu'on trouve, ne jamais
+  supposer un champ présent. ⚠️ `SkillDifficulty`
   (`EASY|MEDIUM|HARD`) est le **vrai** `enums.Difficulty` Java ; le `Difficulty`
   historique de ce fichier encode un niveau de cible (CSP/CR/NAT/A2/B1/B2) et
   n'a rien à voir. Client : namespace `skillApi` dans `lib/api.ts`.
@@ -1610,14 +1639,53 @@ retraits**, la parité web ⇄ mobile n'étant pas négociable. À ne pas rétab
     l'analyse d'une tentative déjà `RECORDED` — le cas « produire d'abord,
     s'abonner ensuite ». Le client existe, **l'UI reste à brancher** (le bandeau
     de résultat renvoie aujourd'hui vers « refaire le sujet »).
-- **Ordre imposé de l'écran de résultat** (§13.4) : **accusé de traitement**
-  (« Sujet marqué comme traité » — la progression a bougé, c'est ce que le
-  candidat vient chercher) → `Ta production` → verdict →
-  `Ce qui est réussi` / `À travailler en priorité` → `Proposition améliorée` →
-  **puis seulement** le dépliant de références (replié ; ouvert, ses onglets
-  `Insuffisant | Attendu | Très réussi`) → les 3 actions
-  (`Retour aux petits sujets`, `Refaire ce sujet`,
-  `Sujet suivant à travailler` via `nextPromptId`, désactivé si null). Les
+- **Ordre imposé de l'écran de résultat — contrat d'analyse v3** : bandeau de
+  confirmation (`Production analysée` / `Progression mise à jour` ; une
+  tentative **sans** analyse garde l'accusé historique « Sujet marqué comme
+  traité », l'annoncer analysée serait faux) → **carte `TON NIVEAU`** (niveau
+  démontré en très grand, puce `Objectif {targetLevel}`, `situationLabel` rendu
+  **tel quel**, jauge à 3 crans, puces `strengthTag` / `focusTag`) →
+  `Pour viser {niveau}` (leviers) → `Une version plus aboutie` (texte réécrit,
+  extraits surlignés, puce par segment) → `À retenir` → `Ta production`
+  **repliée** → dépliant de références (replié) → 2 actions (`Sujet suivant` via
+  `nextPromptId`, désactivé si null ; `S'entraîner sur ce point`, primaire
+  pleine largeur, qui **refait le sujet courant**). Le retour en arrière reste la
+  flèche de l'en-tête. Blocs : `CompetenceLevelCard`, puis le **plan d'action
+  partagé** `skill-ui/ActionPlan.tsx` (`ActionPlanLeviers`,
+  `ActionPlanExemple`, `ActionPlanReformulations`, `ActionPlanMemoCard` +
+  les libellés gelés `pourViserTitle` / `ACTION_PLAN_EXEMPLE_TITLE` /
+  `ACTION_PLAN_REFORMULATIONS_TITLE`). ⚠️ **Ces blocs sont partagés avec le
+  rapport de correction EE/EO** (`production/ProductionActionPlan.tsx`) depuis
+  qu'il rend le même plan : ils ne se recopient pas. Ils rendent le **corps
+  seul** — chaque écran pose son propre intertitre.
+  - **Rien n'est calculé côté front** : `levelReached`, `targetLevel`,
+    `situation`, `situationLabel`, `scale` (toujours 3 crans) et `cursorIndex`
+    sont dérivés serveur (`SkillLevelProgressResolver`). Ne jamais recomposer la
+    phrase de situation ni recalculer une position de curseur.
+  - **`extrait` est garanti sous-chaîne exacte** de `exempleCible.texte` : on
+    surligne par recherche de chaîne, en nœuds React (`<mark>`), **jamais** de
+    `dangerouslySetInnerHTML`. Introuvable ⇒ texte brut, aucun surlignage
+    inventé, aucun rendu cassé.
+  - **`niveauVise == null` est un cas NORMAL** (second appel best-effort,
+    objectif déjà atteint, sortie refusée) : les sections leviers / exemple /
+    mémo disparaissent, sans message d'échec, sans spinner, sans encart
+    d'excuse.
+  - **Repli legacy v1/v2** : `levelProgress == null` ⇒ pas de carte de niveau, on
+    retombe **intégralement** sur l'affichage historique (intertitre
+    « Analyse IA du critère », verdict du critère, `Ce qui est réussi` /
+    `À travailler en priorité`, `Proposition améliorée`). Ces analyses sont déjà
+    en base et n'ont pas été migrées : aucune régression admise. Sous v3, le
+    verdict du critère n'est **pas** réaffiché — la carte de niveau ouvre
+    l'écran, deux verdicts empilés se disputeraient la première lecture
+    (parité stricte avec `_VerdictCard` côté mobile).
+  - **Course du second appel** : quand la tentative devient `EVALUATED` avec
+    `levelProgress`, une situation ≠ `OBJECTIF_ATTEINT` et `niveauVise` encore
+    absent, on poursuit le polling **10 s au maximum**
+    (`skillNiveauViseMayStillArrive` + `SKILL_NIVEAU_VISE_GRACE_MS` dans
+    `lib/skill-result-view.ts`, miroir mobile), le budget global restant la
+    borne dure. Sans ce sursis, un écran s'affichait sans leviers alors qu'ils
+    arrivaient une seconde plus tard.
+  Les
   références ne sont **jamais** visibles avant d'avoir produit (§13.2, doublé
   d'un 403 serveur). **Polling 3 s, plafond 120 s — valeur de parité, partagée
   mot pour mot avec le mobile** et déclarée en **durée** (`POLL_BUDGET_MS`), pas
@@ -1694,8 +1762,9 @@ par écran.
    le compte de points forts sans check-list) et **« À corriger en priorité »**
    (**rouge** — `N priorité(s)`). Chacun tient sur **une ligne** : titre,
    chiffre, chevron. Appuyer ouvre le détail **dans le même encart, juste en
-   dessous** — points traités puis points forts d'un côté (séparés par un filet,
-   deux natures différentes), la ou les priorités **complètes** de l'autre
+   dessous** — points traités puis points **oubliés** (intertitre rouge, depuis
+   v15/v9) puis points forts d'un côté (ces derniers séparés par un filet, deux
+   natures différentes), la ou les priorités **complètes** de l'autre
    (`PriorityBody` : ni carte propre ni étiquette, le bandeau les porte déjà).
    ⚠️ **La priorité vit désormais à UN SEUL endroit.** Elle était résumée en tête
    puis répétée en entier plus bas : c'était la dernière redite du rapport. Le
@@ -1713,14 +1782,43 @@ par écran.
    priorité n° 1 y est **surlignée** (`splitHighlight`, première occurrence
    **exacte** ; aucune correspondance ⇒ aucun repère, jamais un repère faux),
    avec pour seule action « Masquer les repères » (douce). Puis, juste en
-   dessous, le **seul texte modèle** de la page : `TargetLevelVersionCard`.
+   dessous, le **plan d'action** : `ProductionActionPlan`.
 
-Puis **« Voir l'analyse complète »** (`ProductionFullAnalysis`), toujours
-**repliée par défaut** : avertissements → accomplissement détaillé → exemples
-corrigés → suggestions. Le **détail par critère** l'a quittée pour la section 3,
-les **points forts** pour le bandeau vert. La transcription EO reste dans son
-`<details>` séparé de `ProductionResults` (`ProductionSubmissionDto` ne porte pas
-d'URL audio — pas de lecteur inventé).
+5. **Le plan d'action** (`ProductionActionPlan`, `version_ciblee`) — les mêmes
+   blocs que le retour d'un micro-exercice de compétence, via les composants
+   **partagés** `skill-ui/ActionPlan.tsx` : « Pour viser {niveau} » (leviers
+   action / exemple), puis « Une version plus aboutie » à l'écrit (texte réécrit,
+   extraits surlignés, puce par segment) ou « Des versions plus abouties » à
+   l'oral (une ligne par reformulation : `original` atténué, `reformule` en
+   accent, puce `apport`), puis « À retenir ». ⚠️ **Le titre n'étiquette plus un
+   texte d'un palier** : l'ancien bloc « LA MARCHE AU-DESSUS » / « Au niveau B2,
+   votre réponse pourrait ressembler à ceci » est **supprimé**, parce que rien ne
+   vérifie qu'un texte atteint le palier annoncé — un candidat a recopié un
+   exemple étiqueté B2 et l'analyse l'a noté B1. Seul l'**objectif** est nommé.
+   Chaque section se masque indépendamment ; bloc absent ⇒ rien du tout.
+
+⚠️ **« Voir l'analyse complète » n'existe plus (contrat v15 / tool-schema v9,
+2026-08-11).** Le correcteur ne produit plus `exemples_corriges` ni
+`suggestions`, et ce repli — que personne n'ouvrait — part avec eux :
+`ProductionFullAnalysis.tsx` et `FeedbackList.tsx` sont **supprimés**, ainsi que
+les classes CSS `.details*`, `.limits*`, `.acc*`, `.subBlock/.subTitle`, `.fb*`
+et `.corr*`. Les deux champs restent **typés et parsés** dans `lib/types.ts`
+(une centaine d'évaluations en base les portent) et **aucun écran candidat ne
+les lit**. Ce qui vivait dans le repli sans venir du LLM a été **remonté**, pas
+perdu :
+- **« À savoir sur cette évaluation »** (`avertissements`, écrit par le
+  **serveur** : limite de l'oral, purges automatiques) devient une **note
+  discrète sous le hero** (`EvaluationNotice.tsx`) — ni `<details>`, ni carte
+  pleine, et rien du tout quand la liste est vide ;
+- **la check-list de la consigne** vit désormais dans le dépliant du bandeau
+  **« Ce qui marche »** : `treatedPointsSummary` rend aussi `oublies`, affichés
+  sous un intertitre rouge « Points oubliés ». Sans eux, le candidat lisait
+  « 2/3 points traités » sans jamais savoir lequel manquait. Les **pistes non
+  abordées**, qui ne coûtent aucun point, ne sont plus rendues — d'où le retrait
+  de `hasAccomplishmentDetail`, devenu orphelin (`groupAccomplishment` reste,
+  c'est lui qui garantit qu'aucune piste ne se glisse dans la fraction).
+La transcription EO reste dans son `<details>` séparé de `ProductionResults`
+(`ProductionSubmissionDto` ne porte pas d'URL audio — pas de lecteur inventé).
 
 **Trois arbitrages de la passe, à ne pas défaire :**
 - **Les points forts ne sont plus en clair.** Deux phrases entières = cinq lignes
@@ -1827,10 +1925,11 @@ Règles à ne pas défaire :
   cas normal, l'écrire n'apprend rien et fait douter d'un résultat qui ne le
   mérite pas. Elle n'apparaît, avec ses `confiance_raisons`, que lorsqu'elle
   nuance vraiment — dans le panneau de niveau du hero.
-- **L'accomplissement se rend en TROIS groupes** (parité mobile) : points
-  traités / manques obligatoires / pistes non abordées. Mélanger les deux
-  derniers fait paniquer pour des points qui n'enlèvent rien
-  (`obligatoire: false` = simple piste suggérée par le sujet).
+- **Une piste n'est pas un manque** (`obligatoire: false` = simple idée
+  suggérée par le sujet, qui n'enlève aucun point) : elle ne compte ni au
+  numérateur ni au dénominateur de « N/M points traités », et depuis v15/v9 elle
+  n'est plus affichée du tout. Seuls les points **exigés** non traités le sont,
+  dans le dépliant de « Ce qui marche ».
 - **Un critère s'affiche en bande, pas en note** (`scores_criteres[].bande`,
   calculée serveur) : une IA ne distingue pas honnêtement un 13 d'un 14 — et
   depuis le 2026-08-08 le rapport d'une tâche ne porte plus **aucun** chiffre.
@@ -1852,10 +1951,11 @@ Règles à ne pas défaire :
   évaluations déjà en base portent de simples chaînes, rendues en `constat` seul.
   Ne pas présumer que le serveur normalise à la lecture d'un ancien
   enregistrement.
-- `exemples_corriges[].gain` (ce que la reformulation démontre de plus) s'affiche
-  sous l'explication quand il est là, absent sur les anciennes évaluations.
-- **Plafonds backend** : `points_forts` ≤ 2, `points_a_ameliorer` ≤ 2,
-  `exemples_corriges` ≤ 3. Ne pas rajouter de « voir plus ».
+- `exemplesCorriges` et `suggestions` restent **parsés** (rétrocompatibilité)
+  mais ne sont **plus affichés nulle part** : le contrat v15 / tool-schema v9 ne
+  les produit plus.
+- **Plafonds backend** : `points_forts` ≤ 2, `points_a_ameliorer` ≤ 2. Ne pas
+  rajouter de « voir plus ».
 - **La note /20 suit l'échelle du profil TCF IRN** : 0 = A1 non atteint, 1 = A1,
   2-5 = A2, 6-9 = B1, 10-20 = B2 ; la notation active v7/v4 est plafonnée à B2
   et ne renvoie jamais C1/C2. On n'affiche **aucune** correspondance TCF sur une tâche — une tâche
@@ -1875,9 +1975,10 @@ Règles à ne pas défaire :
   modif de cet écran.
 - L'avertissement « évaluation fondée sur la transcription, la voix n'est pas
   analysée » vient désormais du backend en tête de `feedback.avertissements`
-  (EO), et se lit dans le bloc 6. `EoTranscriptNotice` ne sert plus qu'**avant**
-  l'enregistrement (`EoRecordingForm`) ; le résultat garde un repli statique du
-  même message si l'évaluation ne porte aucun avertissement (éval v3).
+  (EO). `EoTranscriptNotice` ne sert plus qu'**avant**
+  l'enregistrement (`EoRecordingForm`) ; le résultat le rend dans
+  `EvaluationNotice`, sous le hero, avec un repli statique du même message si
+  l'évaluation ne porte aucun avertissement (éval v3).
 
 
 ### Situation dans le palier + version au niveau visé (2026-08-08, 3ᵉ lot)
@@ -1897,16 +1998,27 @@ Deux champs backend nouveaux, câblés dans la même passe (miroirs :
   (donc rien sans confiance), rien quand le backend n'envoie pas de cran (évals
   antérieures, `A1_NON_ATTEINT`, C1/C2). Libellés gelés par test des deux côtés
   (`SITUATION_LIBELLES` / `SITUATION_QUALIFICATIFS`).
-- **`feedback.version_ciblee`** (`{niveau_vise, niveau_constate?, texte,
-  ce_qui_manque[]}`, **EE uniquement**) → `EeFeedback.versionCiblee` +
-  `TargetLevelVersionCard`, rendue **juste sous** la carte de rédaction : c'est
-  le **seul texte modèle** de la page (teinte bleue, section titrée à part,
-  titre qui nomme le niveau visé, sous-titre qui dit explicitement que ce texte
-  n'est pas celui du candidat). L'ordre de `ce_qui_manque` vient du backend (du
-  plus rentable au moins rentable) : **ne jamais le retrier**. Bloc absent ⇒
-  **rien n'est rendu** (EO, éval antérieure, second appel en échec, niveau visé
-  déjà atteint) — pas de squelette, pas de « non disponible » : le rapport se
-  termine alors sur le profil par critère puis l'analyse complète.
+- **`feedback.version_ciblee`** → `EeFeedback.versionCiblee` +
+  `ProductionActionPlan`, rendu **juste sous** la carte de rédaction. **EE ET
+  EO** depuis le contrat v2 (le `isOral` qui l'annulait a été retiré). **Trois
+  formes, une seule clé**, distinguées à la présence de `exemple_cible` ou de
+  `reformulations` — cf. `EeVersionCiblee` dans `lib/types.ts` :
+  - **v2, écrit** : `leviers[2..3]{action, exemple}` + `exemple_cible{texte,
+    segments[2..3]{extrait, apport}}` + `a_retenir{formule, explication}` ;
+  - **v2, oral** : idem, mais `reformulations[2..3]{original, reformule,
+    apport}` **à la place de** `exemple_cible`. **Aucun texte modèle complet à
+    l'oral** — la production n'est jamais réécrite en entier ;
+  - **v1** (une centaine d'évaluations en base) : `texte` + `ce_qui_manque[]`,
+    écrit seulement. Rendu comme avant, **sans l'étiquette de palier** sur le
+    texte.
+  Chaque `segments[].extrait` est **garanti sous-chaîne exacte** de
+  `exemple_cible.texte` : on surligne par recherche de chaîne, en nœuds React,
+  **jamais** de `dangerouslySetInnerHTML` ; un extrait introuvable ⇒ texte brut.
+  L'ordre des leviers vient du backend (du plus rentable au moins rentable) :
+  **ne jamais le retrier**. Bloc absent ⇒ **rien n'est rendu** (éval antérieure,
+  second appel en échec, oral dégradé, niveau visé déjà atteint) — pas de
+  squelette, pas de « non disponible ». Chaque sous-bloc se masque
+  **indépendamment**.
 - ⚠️ **`version_amelioree` N'EST PLUS AFFICHÉE NULLE PART (2026-08-08).** Elle
   réécrit la production au niveau **déjà constaté** et vivait en bascule sous la
   rédaction, sans mention de niveau : c'était le texte le plus visible et le

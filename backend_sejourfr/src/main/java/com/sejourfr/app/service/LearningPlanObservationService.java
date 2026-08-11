@@ -100,9 +100,12 @@ public class LearningPlanObservationService {
         String production = attempt.getWrittenProduction() != null
                 ? attempt.getWrittenProduction() : attempt.getTranscript();
         observation.setEvidence(truncate(production, 500));
-        Map<String, Object> result = attempt.getAnalysisJson();
-        observation.setExplanation(result == null ? null
-                : nullableText(result.get(CompetenceAnalysisFields.IMPROVEMENT_PRIORITY)));
+        // Repli VERSION PAR VERSION : la priorite d'amelioration (contrat v1/v2)
+        // n'existe plus sous v3, ou l'axe de progres tient en trois mots. Sans ce
+        // repli, la bascule aurait vide en silence l'explication de toutes les
+        // observations issues des micro-exercices.
+        observation.setExplanation(
+                nullableText(CompetenceAnalysisFields.explication(attempt.getAnalysisJson())));
         observation.setConfidence(ObservationConfidence.MEDIUM);
         observation.setBaseline(false);
         observation.setObservedAt(attempt.getUpdatedAt());

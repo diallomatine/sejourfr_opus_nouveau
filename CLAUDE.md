@@ -75,13 +75,20 @@ mobile. Web : 1 examen blanc + 10 QCM d'entraînement par module pour convertir.
     au correcteur et sans effet sur le verdict.
   - **SkillCriterionStatus** : `VALIDATED` / `PARTIAL` / `NOT_VALIDATED` (« Critère validé » /
     « Critère partiellement atteint » / « **Critère non atteint** ») — le verdict IA sur le
-    **critère unique** du sujet. C'est tout ce que rend cette voie : **ni note /20, ni niveau
-    CECRL**. `NOT_VALIDATED` ne se dit **pas** « à retravailler » : cette formulation était
-    quasi synonyme du statut de sujet `TO_REINFORCE` et confondait le verdict d'**une
-    tentative** avec l'état d'**un sujet**.
+    **critère unique** du sujet. **Ni note /20 — jamais —, mais le niveau CECRL est rendu
+    depuis le contrat v3** (cf. la section dédiée). `NOT_VALIDATED` ne se dit **pas** « à
+    retravailler » : cette formulation était quasi synonyme du statut de sujet `TO_REINFORCE`
+    et confondait le verdict d'**une tentative** avec l'état d'**un sujet**.
   - **SkillPromptStatus** : `TODO` / `TREATED` / `VALIDATED` / `TO_REINFORCE` (« À faire » /
     « Fait » / « Validé » / « À renforcer »). **Dérivé serveur** (`SkillStatusResolver`),
     jamais persisté, jamais recalculé par un front.
+  - **SituationNiveauVise** : `OBJECTIF_ATTEINT` / `PROCHE` / `EN_CHEMIN` (« Tu as atteint ton
+    objectif » / « Tu es proche du niveau visé » / « Encore du chemin vers ton objectif »).
+    Compare le `level_reached` d'une micro-production au palier qu'exige la démarche.
+    **Dérivé serveur** (`SkillLevelProgressResolver`), jamais persisté, jamais recalculé par un
+    front. À ne pas confondre avec `SituationDansNiveau`, qui situe une production **dans son
+    propre palier** (« A2 solide ») : celui-ci la situe **par rapport à l'objectif**. Aucun des
+    3 libellés ne nomme un manque.
   - **SkillAttemptStatut** : `RECORDED` (rendu sans analyse — état **final**) · `SUBMITTED` →
     `TRANSCRIBING` (EO) → `EVALUATING` → `EVALUATED` | `FAILED`.
 - **Role** : `USER` / `ADMIN`
@@ -143,9 +150,16 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
   verrouillé ») ; détail et motif dans la section *Module « Compétences TCF »*.
 - **Compte gratuit, Plan personnalisé** : le Plan est **entièrement visible**,
   diagnostic compris. Aucune priorité, aucune compétence observée, aucun
-  compteur n'est masqué — seul un `locked` est posé. Sa priorité n°1 est
-  toujours **jouable** (cf. ci-dessus) : c'est ce qui garde le Plan utilisable
-  sans abonnement.
+  compteur n'est masqué — seul un `locked` est posé. La compétence de sa
+  priorité n°1 reste **ouverte** (cf. ci-dessus), donc l'étape n°1 se
+  **commence** sans payer. ⚠️ **Elle ne se termine pas** : une étape vaut 5
+  sujets, `FREE_PROMPTS_PER_SKILL` en ouvre 2, donc un compte gratuit plafonne à
+  **2/5** et **aucune étape n'est finissable sans abonnement** (arbitré le
+  2026-08-11). Cela **révoque** la formulation précédente (« sa priorité n°1 est
+  jouable, c'est ce qui garde le Plan utilisable sans abonnement ») : ce qui
+  reste gratuit, c'est **lire** son Plan et **commencer** son étape, pas la
+  finir. Ne pas « corriger » `FREE_PROMPTS_PER_SKILL` à 5 pour rétablir
+  l'ancienne phrase.
 - **Compte gratuit, examen blanc TCF complet** (`/api/full-tcf-exams`,
   orchestré CO→CE→EE→EO) : **examen 1 offert** (slot 1, même grille que les
   abonnés) avec **EE + EO évaluées une seule fois à vie**. Au-delà, l'examen 1
@@ -335,6 +349,36 @@ de rubriques et files de calibration doivent garder le filtre
   L'ancien départage se faisait sur l'ordre **alphabétique du code**, ce qui
   faisait mécaniquement passer toutes les priorités `EE…` devant les `EO…` et les
   compétences C1/C2 devant les autres. Déterministe, aucun appel LLM.
+- **Une étape du Plan = les 5 premiers sujets actifs de sa compétence**, par
+  `display_order` croissant (`LearningPlanStep.PROMPTS_PAR_ETAPE`, arbitré le
+  2026-08-11). **Dérivé, jamais persisté** : aucune table, aucune migration, le
+  périmètre se relit du rang d'affichage — mêmes 5 sujets pour tout le monde,
+  ils ne bougent jamais. Avant, une étape exigeait les **15** sujets (« 2/15 »),
+  que personne n'allait finir. Une compétence publiant moins de 5 sujets a une
+  étape plus courte : le périmètre vaut ce qui existe, **aucun dénominateur
+  n'est inventé**. « Tous distincts » est **acquis par construction**
+  (`latestObservedBySkill` ne garde qu'une observation par compétence) : **ne
+  jamais construire de mécanisme d'unicité inter-étapes**, il serait mort-né.
+- **Compteurs d'étape À CÔTÉ des compteurs de compétence, jamais à leur place.**
+  `LearningPlanPriorityDto` porte les deux : `promptCount`/`attemptedCount`/
+  `validatedCount` = la **compétence** (15 sujets, sémantique de `SkillDto`,
+  inchangée) ; `stepPromptCount`/`stepAttemptedCount`/`stepValidatedCount`/
+  `stepCompleted` = l'**étape** (5 sujets). C'est le second jeu que les fronts
+  affichent sur l'anneau d'une étape. Détourner le premier à 5 ferait dire
+  « /5 » au Plan et « /15 » à la fiche de compétence pour une même compétence.
+  `LearningPlanSkillDto` (compétences observées) **n'est pas une étape** et ne
+  porte que les compteurs de compétence. Un seul calcul dans
+  `SkillProgressCounter` (+ `SkillProgressTally`, `SkillStatusResolver`), **2
+  requêtes** quel que soit le nombre de compétences.
+- **Achèvement d'une étape, dérivé serveur** (`LearningPlanStep.Progress
+  .completed()`, jamais persisté, jamais recalculé par un front — philosophie
+  `SkillStatusResolver` / `SituationDansNiveau`) : terminée quand ses 5 sujets
+  ont été **traités** (`status.isAttempted()`, tout sauf `TODO`). **Terminée ≠
+  tout validé** — `stepValidatedCount` reste l'information distincte. Une étape
+  sans sujet actif n'est jamais terminée. ⚠️ **Une étape terminée ne disparaît
+  pas du Plan** : les priorités ne changent qu'à l'arrivée d'une nouvelle
+  observation (`LearningPlanObservationService`), donc à la prochaine
+  production. C'est le comportement correct — aux fronts de le dire clairement.
 - **L'exercice recommandé doit faire avancer** — règle unique partagée par le
   Plan et l'écran de résultat du diagnostic (`RecommendedExerciseSelector`, seul
   endroit) : (1) premier sujet **jamais tenté** par `display_order` croissant,
@@ -342,7 +386,13 @@ de rubriques et files de calibration doivent garder le filtre
   ancienne, (3) sinon le sujet tenté le plus anciennement, (4) sinon rien. Statut
   dérivé par `SkillStatusResolver`, chargement en lot (2 requêtes quel que soit
   le nombre de compétences). Avant, les deux appelants prenaient le sujet de rang
-  1 et le resservaient indéfiniment. `estimatedMinutes` est **dérivé du sujet**
+  1 et le resservaient indéfiniment. **Le périmètre est celui de l'ÉTAPE** : le
+  choix se fait parmi les 5 premiers sujets actifs (`LearningPlanStep.scope`),
+  jamais sur les 15 — sinon « Continuer cette étape » enverrait hors étape et
+  l'anneau « x/5 » ne bougerait pas. Les **4 branches sont intactes**, seul
+  l'ensemble sur lequel elles s'appliquent est réduit, et la borne vaut pour les
+  **deux** appelants : le diagnostic désigne la compétence de la priorité n°1,
+  il doit pointer dans les mêmes 5. `estimatedMinutes` est **dérivé du sujet**
   (EO : temps de parole conseillé × 3 pour lecture/préparation ; EE : milieu de
   la fourchette de mots à 12 mots/minute ; repli 5/4 min si la donnée manque).
 - **Plan source de vérité serveur** : `GET /api/me/plan` renvoie les états
@@ -350,7 +400,8 @@ de rubriques et files de calibration doivent garder le filtre
   ordonnées, l'exercice recommandé et, sur chaque priorité comme sur chaque
   compétence observée, `promptCount`/`attemptedCount`/`validatedCount` — mêmes
   compteurs, même calcul (`SkillProgressCounter` + `SkillProgressTally`) que
-  `SkillDto` du module Compétences, jamais un second calcul parallèle. `learning_plan_observations` conserve
+  `SkillDto` du module Compétences, jamais un second calcul parallèle (les
+  compteurs d'**étape** s'ajoutent à côté, cf. ci-dessus). `learning_plan_observations` conserve
   `skill_id`, source typée + `source_id`, preuve, explication, confiance, date et
   indicateur de baseline. Les fronts affichent cet ordre sans le recalculer ;
   `NOT_OBSERVED` est conservé dans l'historique mais n'annule jamais la dernière
@@ -369,6 +420,8 @@ de rubriques et files de calibration doivent garder le filtre
   `PlanRecommendedExerciseDto`. L'exercice recommandé reste **désigné** même
   verrouillé : savoir quoi travailler est ce que le Plan apporte, on ne le
   détourne pas vers un sujet ouvert qui ne serait plus la priorité mesurée.
+  **Visible ≠ finissable** : les compteurs d'étape sont servis en entier, mais
+  un compte gratuit plafonne à 2/5 (cf. § Freemium).
 - **Plan vivant** : après une correction v14/v8 réussie d'une future production
   complète standard, une observation structurée séparée utilise les skill IDs de
   sa tâche ; son échec best-effort ne dégrade jamais la correction. Les
@@ -393,14 +446,56 @@ Le « quoi » et le « pourquoi » vivent dans `docs/notation-ia-eo-ee.md` (réf
 grand public, **à tenir exhaustive et à jour dans la même passe** — cf. la règle
 dédiée plus bas). Ici, uniquement de quoi se repérer.
 
-- **Versions actives** : rubriques `production-rubrics-v14.json`, tool-schema de
-  sortie `production-evaluation-tool-schema-v8.json`, persona vocale
-  `realtime-personas-v3.json`. **v13/v7, v12/v6, v9/v5, v8/v5, v7/v4, v6/v3, v5/v3,
+- **Versions actives** : rubriques `production-rubrics-v15.json`, tool-schema de
+  sortie `production-evaluation-tool-schema-v9.json`, persona vocale
+  `realtime-personas-v3.json`. **v14/v8, v13/v7, v12/v6, v9/v5, v8/v5, v7/v4, v6/v3, v5/v3,
   v4.2/v2, v4.1/v2, v4/v2 et v3/v2 restent chargeables et validées** : un retour arrière
   change la paire `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION`, aucune migration.
   **On versionne, on ne réécrit jamais** une rubrique livrée. **v10 et v11 sont
   chargeables mais MESURÉES MOINS BONNES que v9 — ne pas les réactiver** (détail
   dans le filet de langue étrangère, plus bas).
+- **v15 / v9 = `exemples_corriges` ET `suggestions` NE SONT PLUS PRODUITS.** v15 est **v14
+  au bit près pour tout ce qui note** (échelle, 4 critères, seuils `commun.niveau`,
+  `couplage`, `plafonds`, `bandes_criteres`, tests décisifs A1/A2 et B1/B2, les 16 ancres,
+  descripteurs et barème des 6 tâches, et **les 23 sections restent 23** — aucune n'est
+  ajoutée, retirée ni renommée) ; elle **retire uniquement les fragments qui décrivaient les
+  deux champs** : le bloc EXEMPLES CORRIGES et le renvoi vers `suggestions` de la section
+  « preuves et priorités », leurs deux lignes de « une erreur, un seul endroit », le
+  paragraphe oral qui bornait les exemples à la clarté, les étapes 10-11 de la méthode, le
+  plafond « 3 exemples corrigés », leurs mentions dans la règle d'accentuation et dans les 6
+  consignes de tâche. Verrou : `ProductionEvaluationContractTest` **reconstruit v15 depuis
+  v14** en appliquant la liste **énumérée** des retraits et exige l'égalité. Le tool-schema v9
+  est **v8 sans ces deux propriétés ni leurs entrées `required`**, verrou : **égalité stricte**
+  de tout le reste (`additionalProperties:false` récursif, titres, descriptions ; seule la
+  `description` racine s'étoffe et doit commencer par celle de v8).
+  Motif : le bloc replié **« Voir l'analyse complète »** de l'écran de résultat EE/EO — le seul
+  endroit où ces deux champs étaient affichés — disparaît. On cesse de payer des tokens de
+  sortie pour des pavés que personne ne lit, et la place gagnée finance un second appel plus
+  utile (`version_ciblee`).
+  ⚠️ **Ce qui NE sort PAS, et pourquoi** : `accomplissement` reste au contrat (son `objectif`
+  et son `objectif_resume` alimentent le bandeau du haut, `points_traites` le compteur « Ce qui
+  marche », et `points_oublies[].obligatoire` pilote `applyObjectifCoherence`) ;
+  `avertissements` n'a **jamais** été dans le tool-schema — c'est le serveur qui l'écrit
+  (`buildAvertissements`/`addAvertissement`), il est produit tel quel.
+  Répercussions serveur : `EvaluationToolSchema.exemplesEtSuggestions()` (**deuxième capacité
+  qu'un rang POSTÉRIEUR retire**, après `versionAmelioree()` — vaut depuis toujours, se referme
+  en v9) ; **`EvaluationOutputValidator.CHAMPS_V4` devient dépendante du rang** — c'était une
+  redéclaration EN DUR des champs obligatoires, en doublon du `required` du JSON : la laisser
+  telle quelle aurait fait **rejeter 100 % des évaluations**. Elle est scindée en
+  `CHAMPS_STRICTS_SOCLE` + `CHAMPS_RESTITUTION_LONGUE`, la seconde n'étant exigée que si
+  `schema.exemplesEtSuggestions()`. Les deux champs restent **tolérés** à la racine sous v9
+  puis retirés par `AiEvaluationService` (même arbitrage que `version_amelioree` : une
+  évaluation perdue coûte plus cher qu'un champ ignoré) ; `persistProductionInvalide` ne les
+  pose plus ; `EvaluationRepairPrompt` reçoit le contrat et cesse de nommer
+  `exemples_corriges` (nommer un champ absent du schéma, c'est le faire produire). Les filtres
+  (`EvaluationOralArtifactFilter`, `EvaluationPalierMarqueurFilter`, `capListe`,
+  `stripOrthographicCorrections`) sont déjà no-op sur un champ absent — **inchangés**, ils
+  restent exercés en retour arrière. **Legacy intact** : les 100+ `feedback_json` déjà
+  persistés gardent les deux champs, rien ne les migre, la console de calibration admin les
+  affiche toujours.
+  ⚠️ **Bascule NON mesurée au banc** (aucune règle de notation ne bouge, et le prompt **perd**
+  du texte au lieu d'en gagner — même raisonnement que v12/v13/v14, à l'inverse de v10/v11).
+  Retour arrière : `EVAL_RUBRICS_VERSION=v14` + `EVAL_PROMPT_VERSION=v8`.
 - **v14 / v8 = `version_amelioree` N'EST PLUS PRODUITE.** v14 est **v13 au bit près
   pour tout ce qui note** (échelle, 4 critères, seuils `commun.niveau`, `couplage`,
   `plafonds`, `bandes_criteres`, tests décisifs A1/A2 et B1/B2, les 16 ancres,
@@ -493,10 +588,53 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   `null` si pas de note, `A1_NON_ATTEINT` (bande d'un seul point) ou C1/C2. Note hors bande
   (niveau **plafonné**) → ramenée dans la bande affichée. Libellés figés par
   `SituationDansNiveauTest` ; **à mirrorer sur les 3 fronts**.
-- **VERSION AU NIVEAU VISÉ — SECOND APPEL LLM SÉPARÉ, EE seulement** (`service/versionciblee/`,
-  livré **ACTIF**). Rend au candidat sa réponse **réécrite au palier qu'il VISE**
-  (`User.targetLevel`, repli `production_tasks.niveau_cible`) + **2 à 3 leviers** concrets.
-  Distinct de `version_amelioree`, qui visait le palier **juste au-dessus**.
+- **VERSION AU NIVEAU VISÉ — SECOND APPEL LLM SÉPARÉ, EE *et* EO** (`service/versionciblee/`,
+  livré **ACTIF**). Rend au candidat un **plan d'action** vers le palier qu'il VISE
+  (`User.targetLevel` avec plancher `TargetProcedure.niveauVise`, repli
+  `production_tasks.niveau_cible`). Distinct de `version_amelioree`, qui visait le palier
+  **juste au-dessus**.
+  **Contrat v2 (`VersionCibleeContrat`, registre par rang comme `EvaluationToolSchema` —
+  une version inconnue échoue au BOOT, jamais de repli muet)** :
+  - **commun** : `leviers[2..3]` = objets `{action ≤ 6 mots impératif, exemple ≤ 5 mots}`
+    (fini la chaîne libre de 25 mots) + `a_retenir {formule ≤ 8 mots, explication ≤ 14 mots}` ;
+  - **EE** : `exemple_cible {texte, segments[2..3] {extrait, apport ≤ 3 mots}}` — `texte` garde
+    les bornes `production_tasks.mots_min/max` (recomptées serveur), et chaque `extrait` doit
+    être une **sous-chaîne exacte** de `texte` (le front surligne ; sinon 1 réparation puis
+    abandon de **`exemple_cible` seul** — jamais de surlignage faux) ;
+  - **EO** : ⚠️ **la production orale n'est JAMAIS réécrite** (rendre un beau texte à la place
+    d'une transcription est trompeur). `exemple_cible` est remplacé par
+    `reformulations[2..3] {segment_numero, reformule, apport}` — **désignation par NUMÉRO**
+    (technique v12 qui a fait tomber `PREUVE_NON_RATTACHEE`, 42,9 % des appels oraux), via
+    `EvaluationProductionSegments` (**appelée, jamais recopiée**) ; tours `Examinateur :`
+    montrés **sans numéro** ⇒ non désignables par construction. Le serveur **résout le numéro
+    en texte** (`original`) avant persistance, comme `resolvePreuveSegments` : **aucun miroir
+    DTO ne transporte d'entier** ;
+  - **deux tool-schemas** (`…-tool-schema-v2.json` / `…-tool-schema-oral-v2.json`), chargés au
+    boot par variante (`VersionCibleeTools`) ; les fondre en un seul aurait supposé des champs
+    facultatifs, c'est-à-dire plus de contrat.
+  **Trois garde-fous oraux, exigence du propriétaire** (« c'est la formulation des phrases
+  qu'on reformule, pas les erreurs de transcription ») : (1) `TranscriptionQualityAudit
+  .degradee` ⇒ **aucun appel émis**, gratuit et honnête ; (2) `VersionCibleeReformulationFilter`
+  retire toute reformulation dont l'apport tient à **1 ou 2 mots pleins REMPLACÉS SUR PLACE** —
+  règle du volet FORME extraite dans **`EvaluationOralForme`** (2ᵉ occurrence ⇒ extraction,
+  partagée avec `EvaluationOralArtifactFilter`) ; l'alignement **positionnel** est le cœur :
+  subordonner/réordonner déplace les mots, donc n'est jamais purgé ; (3) durée **jamais
+  envoyée**, ni prononciation/accent/débit/fluidité/hésitations/orthographe. Moins de 2
+  reformulations restantes ⇒ **1** réparation nommée puis abandon de la **section
+  `reformulations` seule**. Purges comptées
+  `EvaluationPurgeMetrics.REFORMULATION_ORALE_FORME` (à part de `ARTEFACT_ORAL_FORME`).
+  ⚠️ **UNE SECTION QUI TOMBE N'EMPORTE PAS LE BLOC** (règle posée le 2026-08-11, elle
+  **révoque** l'ancienne « moins de 2 ⇒ le bloc entier est abandonné »). `exemple_cible` /
+  `reformulations` et `a_retenir` sont **facultatives** : inexploitables après l'unique
+  réparation, elles tombent **seules** et le reste est servi. Seuls les **leviers** portent le
+  bloc — purgés sous leur minimum et non réparés, tout est abandonné (comportement conservé).
+  Motif, mesuré sur une tâche 1 d'EO en temps réel : sur une transcription hachée les
+  reformulations sont **légitimement** purgées (elles ne corrigeraient qu'un artefact de notre
+  machine) et le candidat perdait **aussi** ses leviers et son « à retenir », qui ne dépendent
+  d'aucune citation — la fragilité des citations à l'oral ne doit pas emporter des contenus qui
+  n'en dépendent pas. Le validateur range donc ses violations **par section**
+  (`VersionCibleeValidator.Section`), et les trois fronts conditionnent déjà chaque section
+  indépendamment.
   ⚠️ **C'est LE seul texte modèle d'un résultat EE** : les fronts ont retiré
   `version_amelioree` de l'écran, puis **v14/v8 l'a retirée du contrat de sortie** —
   elle n'est plus ni demandée ni produite (legacy persisté intact). Motif mesuré en base : elle était **au même niveau que la copie**,
@@ -507,21 +645,33 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   il aligne sa note dessus (v10/v11 ont mesuré qu'un simple bloc ajouté à la grille fait tomber
   l'accord exact de 81,8 % à 75,6 %). **Ne pas fusionner les deux appels.** Verrou :
   `VersionCibleeContractTest`.
-  Prompts versionnés `production-version-ciblee-{rubrics,tool-schema}-v1.json`, paire validée au
-  boot ; **aucune consigne en dur dans le Java** ; français **accentué** (leçon v13/v7).
-  Sortie stricte à 2 champs (`texte`, `ce_qui_manque[2..3]`), `additionalProperties:false`,
-  `maxLength` + budget en mots déclaré par la grille (25) + plafond serveur — **aucun champ où
-  loger une note ou un niveau**. Le serveur ajoute `niveau_vise` / `niveau_constate`.
+  Prompts versionnés `production-version-ciblee-{rubrics,tool-schema[-oral]}-v2.json`, paire
+  validée au boot ; **aucune consigne en dur dans le Java** ; français **accentué** (leçon
+  v13/v7). `additionalProperties:false`, chaque plafond **déclaré en mots par la grille** ET
+  doublé d'un `maxLength` + plafond serveur (tolérance ×1,2 sur les plafonds pédagogiques, **pas**
+  sur les bornes du texte modèle) — **aucun champ où loger une note ou un niveau**. Le serveur
+  ajoute `niveau_vise` / `niveau_constate` (⚠️ données de logique : ne pas en faire une étiquette
+  de palier sur l'exemple, autre chantier).
+  **UNE seule réparation par bloc, tous motifs confondus** (`VersionCibleeRepairPrompt`) — pas
+  une par section — et seulement sur du **mécanique nommable** : longueur du texte, extrait
+  introuvable, numéro hors bornes, leviers purgés, reformulations purgées. Sortie
+  structurellement fausse ⇒ **zéro** second appel payé, et **leviers** structurellement faux ⇒
+  aucune réparation non plus (le bloc est condamné, payer ne rachèterait rien).
   **Best-effort, jamais bloquant** : lancé par `ProductionPipelineAsyncRunner` **après** que
   l'éval est persistée et `EVALUATED`, **hors transaction** (invariant du runner), le service
   avale toute exception, **aucun rejeu** (c'est un confort, pas une correction). Rien n'est
-  produit si le niveau visé est **≤** au niveau constaté, à l'oral, ou drapeau éteint.
-  Persistance dans `feedback_json.version_ciblee` — **aucune migration**. Tokens/coût du 2ᵉ
+  produit si le niveau visé est **≤** au niveau constaté (bloc `niveau_vise_atteint` à la place)
+  ou si le drapeau est éteint.
+  Persistance dans `feedback_json.version_ciblee` — **aucune migration**. Un front distingue
+  l'écrit de l'oral à la présence de `exemple_cible` ou de `reformulations`. Tokens/coût du 2ᵉ
   appel **additionnés** à ceux de l'éval. Provider = `production-evaluation.provider` (règle
   « un seul correcteur configurable »), réglages propres sous
-  `production-evaluation.version-ciblee` (`enabled`, `max-tokens: 1200`, `max-leviers: 3`).
-  Retour arrière : `EVAL_VERSION_CIBLEE_ENABLED=false`. **Aucune campagne requise** : rien de ce
-  qui note ne bouge, par construction. Le banc (`CalibrationRunner`) n'emprunte pas ce chemin.
+  `production-evaluation.version-ciblee` (`enabled`, `max-tokens: 1600`, `max-leviers: 3`).
+  Retour arrière : `EVAL_VERSION_CIBLEE_ENABLED=false`, ou **v1** par
+  `EVAL_VERSION_CIBLEE_RUBRICS_VERSION=v1` + `EVAL_VERSION_CIBLEE_TOOL_SCHEMA_VERSION=v1`
+  (sortie `texte` + `ce_qui_manque[string]`, oral muet) — **aucune migration**, on versionne, on
+  ne réécrit jamais. **Aucune campagne requise** : rien de ce qui note ne bouge, par
+  construction. Le banc (`CalibrationRunner`) n'emprunte pas ce chemin.
 - **v4** = critères propres à chaque tâche (5 par tâche, fini les 4 universels),
   obligatoires vs pistes, bloc accomplissement, confiance, preuve littérale,
   2 priorités max. **v4.1** = correction de l'indulgence du **bas** d'échelle
@@ -1184,10 +1334,19 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
 
 Voie **parallèle** aux productions complètes, pas une réutilisation : le candidat
 travaille **une micro-compétence à la fois** sur un « petit sujet » de quelques
-phrases, et l'IA ne rend qu'un **verdict sur le critère unique du sujet** —
-**aucune note /20, aucun niveau CECRL** (le tool-schema ne prévoit aucun champ
-pour les loger). Schéma en `V025`, contenu seedé en `V300..V305` (lot 1) puis
+phrases. Schéma en `V025`, contenu seedé en `V300..V305` (lot 1) puis
 `V312..V317` (lot 2).
+
+⚠️ **RÈGLE RÉVOQUÉE À MOITIÉ le 2026-08-11 : niveau OUI, note /20 NON.**
+L'ancienne formule « cette voie ne rend ni note /20 ni niveau CECRL » **ne vaut
+plus pour le niveau**. Elle laissait le candidat sans réponse à « où j'en suis »,
+alors que c'est exactement ce qu'il vient chercher : sa démarche exige un palier
+(CSP→A2, CR→B1, NAT→B2) et l'écran ne le situait nulle part. Depuis le contrat
+**v3**, le correcteur attribue un `level_reached` (`A1_NON_ATTEINT|A1|A2|B1|B2`,
+profil TCF IRN, **jamais C1/C2**). **La note /20 reste interdite et le restera** :
+aucun champ du tool-schema ne peut la loger, et c'est le schéma qui tient la
+règle, pas une consigne. Ne pas réintroduire l'ancienne formule au motif qu'elle
+est encore écrite quelque part — ce qui suit fait foi.
 
 **Où ça vit** — tables `skills`, `skill_prompts`, `skill_references`,
 `user_skill_attempts` (DDL `00_schema/V025__schema_competences_tcf.sql`, seed
@@ -1202,29 +1361,155 @@ admin** (`/api/admin/skills*`, `/api/admin/skill-prompts*`) — détail dans
 point d'entrée = 3ᵉ onglet « Compétences » à côté de « Sujets » et « Exemples »,
 qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
 
-- **Contrat de l'analyse IA** : rubriques
-  `prompts/competence-analysis-rubrics-v2.json` + tool-schema
-  `prompts/competence-analysis-tool-schema-v2.json` (**v2/v2 = v1/v1 plus la règle
-  d'accentuation, même technique et mêmes verrous que v13/v7 côté productions** ;
-  v1/v1 reste chargeable via `COMPETENCE_RUBRICS_VERSION=v1` +
-  `COMPETENCE_TOOL_SCHEMA_VERSION=v1`) (`profile: TCF_IRN`, paire
-  `rubrics-version` ⇄ `tool_schema_version` validée au boot, même convention que
-  les productions complètes — **aucune consigne de notation en dur dans le Java**).
-  Sortie stricte à **5 champs**, `additionalProperties: false` : `status`
-  (`VALIDATED|PARTIAL|NOT_VALIDATED`), `verdict`, `success_point`,
-  `improvement_priority`, `improved_version`. **Une seule** priorité
-  d'amélioration, jamais une liste. Contraintes de longueur **en mots** déclarées
-  par la grille (20 / 30 / 35), doublées de `maxLength` en caractères dans le
-  schéma ; le validateur tolère ×1,2 avant de rejeter. Sortie invalide → **un seul
-  rejeu** avec les violations, puis **échec net** (`FAILED`) — jamais d'analyse
-  partielle.
+- **DEUX APPELS LLM SÉPARÉS, invariant à ne pas casser.** L'**appel 1** juge et
+  **ne connaît jamais le palier visé par le candidat** ; l'**appel 2** (« pour
+  viser X ») reçoit niveau constaté + niveau visé et produit le plan d'action.
+  Motif **mesuré** côté productions : donner l'objectif au correcteur fait tomber
+  l'accord exact de **81,8 % à 75,6 %** (campagnes v10/v11). Montage calqué sur
+  `service/versionciblee/`. **Ne pas fusionner.** Le `targetLevel` présent dans le
+  prompt de l'appel 1 est celui de la **compétence** (donnée éditoriale du sujet,
+  comme `production_tasks.niveau_cible`), jamais celui de la personne — verrou :
+  `CompetenceAnalysisServiceTest`, `CompetenceAnalysisContractTest`.
+- **Contrat de l'analyse (appel 1)** : rubriques
+  `prompts/competence-analysis-rubrics-v4.json` + tool-schema
+  `prompts/competence-analysis-tool-schema-v4.json` (`profile: TCF_IRN`, paire
+  `rubrics-version` ⇄ `tool_schema_version` validée au boot — **aucune consigne de
+  notation en dur dans le Java**). **v3 = v2 au bit près pour tout ce qui JUGE**
+  (rôle et périmètre, les 3 verdicts et leur règle de décision, la brièveté qui
+  n'est pas un défaut, le garde-fou oral, `commun.statuts`) — verrouillé par
+  `CompetenceAnalysisContractTest`, qui compare les blocs et **reconstruit** la
+  section d'accentuation de v2 depuis celle de v3 (2 éditions inversées, technique
+  de `ProductionEvaluationContractTest`). Sortie stricte à **5 champs** (6 sous
+  v4), `additionalProperties: false` : `status` (`VALIDATED|PARTIAL|NOT_VALIDATED`),
+  **`level_reached`** (`A1_NON_ATTEINT|A1|A2|B1|B2`), `verdict` (20 mots),
+  **`strength_tag`** et **`focus_tag`** (**3 mots** chacun — des étiquettes, pas
+  des phrases). **Retirés du contrat** : `success_point`,
+  `improvement_priority`, `improved_version` — même mouvement que v14/v8 côté
+  productions (retirer un champ du schéma est la façon la plus fiable de le faire
+  disparaître) ; les leviers de l'appel 2 les remplacent.
+  ⚠️ **Legacy non migré** : les `analysis_json` déjà persistés portent les 5
+  anciennes clés. `SkillAnalysisDto` les expose encore, **tous nullables**, et le
+  jeu de clés attendu d'une NOUVELLE sortie suit la version du contrat
+  (`CompetenceAnalysisFields.cles(toolSchemaVersion)`) — c'est ce qui garde
+  `COMPETENCE_RUBRICS_VERSION=v2` + `COMPETENCE_TOOL_SCHEMA_VERSION=v2` (ou v1)
+  réellement jouable. `LearningPlanObservationService` replie
+  `improvement_priority` → `focus_tag` → `verdict`.
+  Contraintes de longueur **en mots** déclarées par la grille (20 / 3 / 3),
+  doublées de `maxLength` en caractères dans le schéma ; le validateur tolère
+  ×1,2 avant de rejeter. Sortie invalide → **un seul rejeu** avec les violations,
+  puis **échec net** (`FAILED`) — jamais d'analyse partielle.
+- **v4 = LE NIVEAU DEVIENT OPPOSABLE, il ne se nomme plus à vue** (2026-08-11).
+  Sous v3 le correcteur écrivait `level_reached` d'après cinq lignes de
+  descripteurs, **sans note, sans seuil, sans ancre chiffrée et sans aucun
+  contrôle serveur en aval**, alors qu'une production complète **dérive** le sien
+  d'une note contrainte par `applyCouplage`/`applyPlafonds` : deux grandeurs
+  portaient le nom de la même échelle CECRL sans être commensurables. v4 est
+  **v3 au bit près pour tout ce qui juge** (`commun.statuts`, `commun.niveaux`,
+  `commun.contraintes_longueur`, et toutes les sections sauf deux) — verrou
+  `CompetenceAnalysisContractTest`, qui **reconstruit v3 depuis v4** en inversant
+  les 2 seules éditions (« Les cinq champs à produire » → « six » + un paragraphe
+  ajouté **en fin** de section ; « des cinq prévus » → « des six prévus » dans les
+  interdictions) et vérifie que les 6 ancres de v3 sont reprises **au numéro de
+  preuve près**.
+  - **Preuve par NUMÉRO, jamais par citation** — même technique que le contrat
+    **v12** des productions, pour la même raison mesurée (`PREUVE_NON_RATTACHEE`
+    = 42,9 % des appels sur les productions orales). La production part au
+    correcteur **découpée en segments numérotés** par
+    **`EvaluationProductionSegments`** — la classe des productions complètes,
+    **appelée, jamais recopiée** (EE = une phrase, EO = un tour `Candidat :`, les
+    tours examinateur montrés **sans numéro**). Nouveau champ **`level_evidence`**
+    = **entier ≥ 1**, **optionnel dans le schéma** : seuls B1 et B2 se démontrent,
+    et l'exiger partout pousserait à désigner un segment « par défaut ».
+  - **`CompetenceLevelEvidenceGuard` est la seule autorité.** Numéro absent sur un
+    B1/B2, hors bornes, ou non entier ⇒ **une** réparation actionnable
+    (`CompetenceEvidenceRepairPrompt` : nomme le numéro refusé, rappelle les
+    bornes **réelles**, redonne les deux sorties sûres — technique
+    `EvaluationRepairPrompt`, motif mesuré : un libellé brut répare **0 preuve
+    sur 8**). Cette réparation est **partagée** avec celle du validateur : une
+    sortie malformée et une preuve manquante partent dans le **même** message, on
+    ne double pas les appels. Après elle, le serveur **abaisse d'un palier, une
+    seule fois, et ne relève JAMAIS** (philosophie `applyCouplage` /
+    `applyPlafonds` / `applyConfiance`).
+  - 🛑 **Une preuve manquante ne fait JAMAIS échouer l'analyse** — c'est pourquoi
+    `level_evidence` est **volontairement hors du `CompetenceAnalysisValidator`**,
+    qui a le pouvoir de rendre `FAILED`. Une analyse perdue coûte au candidat sa
+    production et son quota ; un niveau prudent ne lui coûte qu'un affichage.
+  - **Le numéro est résolu en TEXTE avant persistance** (comme
+    `resolvePreuveSegments`) : `analysis_json.level_evidence` porte le passage,
+    jamais l'entier, donc **aucun miroir DTO à propager sur les 3 fronts**. Le
+    passage **n'est exposé à aucun front** (rien ne l'affiche — pas d'API morte),
+    mais il est **persisté** : c'est ce qui permettra de répondre en une requête
+    SQL à « sur quoi ce B2 était-il fondé ? ».
+  - Abaissements comptés par **`CompetenceLevelDowngradeMetrics`** (motif +
+    `avant->après`), **distinct** de `EvaluationRefusalMetrics` (un refus coûte la
+    tâche) et de `EvaluationPurgeMetrics` (une purge retire une phrase) : les
+    mélanger rendrait la mesure illisible.
+  - ⚠️ **AUCUNE campagne ne l'appuie, et il faut le dire** : le corpus de
+    calibration (48 cas) est celui des **productions complètes**, il n'existe
+    **aucun corpus pour la voie Compétences**. Ce qui tient la règle, c'est la
+    contrainte dure (schéma `integer`/`minimum:1` + contrôle serveur), pas une
+    mesure a posteriori.
+  - Retour arrière : `COMPETENCE_RUBRICS_VERSION=v3` +
+    `COMPETENCE_TOOL_SCHEMA_VERSION=v3` — sous v3 le découpage n'est même pas
+    calculé et le prompt repart **inchangé d'un octet**
+    (`CompetenceAnalysisFields.porteLaPreuveDuNiveau`).
+- **Contrat du plan d'action (appel 2)** : `service/competence/niveauvise/` +
+  `prompts/competence-niveau-vise-{rubrics,tool-schema}-v1.json`. Sortie stricte à
+  **3 champs**, `additionalProperties: false` : `leviers[2..3]`
+  `{action ≤6 mots impératif, exemple ≤5 mots}`, `exemple_cible`
+  `{texte, segments[2..3] {extrait, apport ≤3 mots}}`, `a_retenir`
+  `{formule ≤8 mots, explication ≤14 mots}`. **Aucun champ de note, de verdict ni
+  de niveau** : le serveur pose lui-même `niveau_vise` / `niveau_constate`.
+  Persisté dans `user_skill_attempts.analysis_json.pour_viser` — **aucune
+  migration**.
+  - **Best-effort, jamais bloquant** : lancé par `SkillAnalysisAsyncRunner`
+    **après** que l'analyse est persistée et `EVALUATED`, **hors transaction**
+    (même invariant que `ProductionPipelineAsyncRunner`), toute exception avalée,
+    **aucun rejeu**. Si le bloc manque, l'écran reste utile. ⚠️ Conséquence
+    assumée : la tentative passe `EVALUATED` **avant** l'arrivée du bloc — les
+    fronts doivent traiter `niveauVise == null` comme un cas NORMAL, pas une
+    erreur (même course que `version_ciblee` côté productions).
+  - **Aucun appel émis** si le visé n'est pas **strictement au-dessus** du
+    constaté, si l'analyse ne porte aucun niveau (contrat v1/v2), si le palier
+    visé est introuvable, ou si `niveau-vise.enabled=false`. Économie réelle, pas
+    seulement un bloc absent.
+  - **Deux contrôles serveur.** (1) chaque `segments[].extrait` doit être une
+    **sous-chaîne exacte** de `exemple_cible.texte` — le front surligne par simple
+    recherche de chaîne ; sinon **une** réparation actionnable (extrait nommé +
+    texte redonné) puis **abandon du bloc**, jamais de segment inventé affiché.
+    (2) filet marqueurs A2 sur les leviers, **3ᵉ occurrence** du même défaut :
+    `EvaluationMarqueursA2.designe` est réutilisé tel quel (le levier est inspecté
+    comme `action + « exemple »`, ce qu'il est sémantiquement), et
+    `EvaluationMarqueursA2.sousLeNiveauVise` a été **extrait** à cette occasion,
+    `VersionCibleeLevierFilter` l'utilisant désormais aussi. Reste < 2 leviers ⇒
+    une réparation, puis abandon. **Une seule réparation par bloc, tous motifs
+    confondus.** Compté `EvaluationPurgeMetrics.MARQUEUR_PALIER_LEVIER_COMPETENCE`.
+  - **Niveau visé = `TargetProcedure.niveauVise(procedure, targetLevel)`**, la
+    démarche fait **plancher** ; repli sur `skills.target_level`. Ne jamais
+    réécrire cette table.
+- **Dérivé serveur `SkillLevelProgressResolver`** (jamais un front, jamais le
+  LLM) : compare `level_reached` au palier visé et rend `SituationNiveauVise` +
+  son libellé, l'**échelle de 3 crans** se terminant sur l'objectif (B2 →
+  A2·B1·B2) et l'**index du curseur** (ramené dans l'échelle s'il est en dessous
+  du premier cran). Exposé par `SkillLevelProgressDto`. Le palier visé est
+  **recalculé à la lecture**, jamais figé dans l'analyse : un candidat qui passe
+  de CR à NAT vise soudain le B2, et ses tentatives passées doivent l'afficher.
+  Libellés gelés par `SkillLabelsTest`, **à mirrorer sur web et mobile**.
 - **Config** : `sejourfr.competences.analysis` (`max-tokens: 600`,
   `temperature: 0`, `free-analyses: 3`, `max-text-words: 400`,
-  `max-audio-duration-seconds: 180`), POJO `CompetenceProperties` **aux mêmes
-  valeurs par défaut que le YAML**. Le **fournisseur LLM n'a pas de réglage
-  propre** : `CompetenceLlmConfig` lit
+  `max-audio-duration-seconds: 180`) et `sejourfr.competences.niveau-vise`
+  (`enabled: true`, `max-tokens: 900`, `temperature: 0`, `max-leviers: 3`), POJO
+  `CompetenceProperties` **aux mêmes valeurs par défaut que le YAML**. Le
+  **fournisseur LLM n'a de réglage propre ni pour l'un ni pour l'autre** :
+  `CompetenceLlmConfig` et `CompetenceNiveauViseLlmConfig` lisent
   `sejourfr.production-evaluation.provider`, comme tout le reste (règle « un seul
-  correcteur configurable »). Ne pas lui en donner un second.
+  correcteur configurable »). Ne pas leur en donner un second.
+  Retours arrière, sans migration : `COMPETENCE_RUBRICS_VERSION=v2` +
+  `COMPETENCE_TOOL_SCHEMA_VERSION=v2` pour l'analyse,
+  `COMPETENCE_NIVEAU_VISE_ENABLED=false` pour le plan d'action.
+  ⚠️ **Bascule v3 NON mesurée au banc** : il n'existe aucun corpus de
+  micro-productions avec un niveau attendu (cf. `docs/notation-ia-eo-ee.md`
+  §11 bis, qui le dit franchement au lecteur).
 - **Volume figé** : 6 tâches (`EE1..EE3`, `EO1..EO3`) × **8 compétences** × **15
   sujets** × **3 références** (`INSUFFICIENT`/`EXPECTED`/`EXCELLENT`) = 48 / 720 /
   2160. Les 6 tâches sont un référentiel officiel (**enum `SkillTaskCode`, pas de
@@ -1263,7 +1548,7 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
   `skill_prompts.unique_criterion`, qui est le critère précis d'**un** sujet.
 - **Freemium — règle en vigueur depuis le 2026-08-10.** ⚠️ **L'ancienne règle
   (« aucun sujet n'est verrouillé, seule l'analyse IA est premium ») est
-  RÉVOQUÉE** : elle ouvrait les 240 sujets à un compte gratuit, si bien que le
+  RÉVOQUÉE** : elle ouvrait les 720 sujets à un compte gratuit, si bien que le
   module entier — le cœur de l'entraînement quotidien — ne donnait aucune raison
   de payer, et les 3 analyses offertes étaient la seule friction. Ne pas la
   réintroduire au motif qu'elle est encore écrite quelque part : ce qui suit
@@ -1275,7 +1560,12 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
     déjà. Sans cette exception, un diagnostic désignant une compétence de rang 5
     cadenasserait l'**étape 1** du Plan et rendrait le Plan entier inutilisable —
     or c'est la colonne vertébrale du produit ;
-  - dans une compétence ouverte, **les 2 premiers sujets actifs** seulement ;
+  - dans une compétence ouverte, **les 2 premiers sujets actifs** seulement
+    (`SkillAccessService.FREE_PROMPTS_PER_SKILL`). ⚠️ **Ne pas l'aligner sur les
+    5 sujets d'une étape du Plan** (`LearningPlanStep.PROMPTS_PAR_ETAPE`) : les
+    deux constantes disent des choses différentes, et le plafond à **2/5** sur
+    l'étape n°1 est la conséquence voulue — aucune étape n'est finissable sans
+    abonnement (arbitré le 2026-08-11) ;
   - **les 3 analyses IA offertes à vie ne bougent pas** : un sujet ouvert reste
     analysable dans la limite du quota existant (`free-analyses`, décompte
     inchangé). Sur un sujet ouvert, produire, s'auto-évaluer, se relire et lire

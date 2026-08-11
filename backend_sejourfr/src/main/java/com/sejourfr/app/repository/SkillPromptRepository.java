@@ -61,22 +61,6 @@ public interface SkillPromptRepository extends JpaRepository<SkillPrompt, UUID> 
     List<SkillPrompt> findActiveBySkillIds(@Param("skillIds") Collection<UUID> skillIds);
 
     /**
-     * Nombre de sujets actifs par competence active, pour un ensemble de
-     * competences quelconque. Meme regle de visibilite que
-     * {@link #countActiveBySkillForTaskCodes} — c'est le meme denominateur,
-     * seule la facon de designer les competences change.
-     */
-    @Query("""
-            SELECT p.skill.id, COUNT(p)
-            FROM SkillPrompt p
-            WHERE p.skill.id IN :skillIds
-              AND p.active = true
-              AND p.skill.active = true
-            GROUP BY p.skill.id
-            """)
-    List<Object[]> countActiveBySkillIds(@Param("skillIds") Collection<UUID> skillIds);
-
-    /**
      * Vue admin des sujets d'une competence : DESACTIVES COMPRIS. La console
      * doit pouvoir rouvrir un sujet retire du catalogue, donc le voir.
      */

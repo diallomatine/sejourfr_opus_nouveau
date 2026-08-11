@@ -10,6 +10,9 @@
 /// [SkillDifficulty] pour que les deux ne se confondent jamais.
 library;
 
+import 'action_plan.dart';
+import 'enums.dart';
+
 /// Épreuve productive d'une compétence. Miroir de `SkillSection` (backend).
 enum SkillSection {
   ee('EE'),
@@ -207,6 +210,25 @@ String? _trimmedOrNull(Object? raw) {
   if (raw is! String) return null;
   final value = raw.trim();
   return value.isEmpty ? null : value;
+}
+
+/// Lectures **tolérantes** des deux enums de niveau : `fromWire` lève sur une
+/// valeur inconnue, ce qu'on ne veut jamais sur un bloc best-effort — un palier
+/// non reconnu doit faire disparaître la carte, pas planter l'écran.
+NiveauCecrl? _niveauOrNull(Object? raw) {
+  if (raw is! String) return null;
+  for (final niveau in NiveauCecrl.values) {
+    if (niveau.wire == raw) return niveau;
+  }
+  return null;
+}
+
+TargetLevel? _targetLevelOrNull(Object? raw) {
+  if (raw is! String) return null;
+  for (final level in TargetLevel.values) {
+    if (level.wire == raw) return level;
+  }
+  return null;
 }
 
 List<String> _stringList(Object? raw) {
@@ -534,30 +556,194 @@ class SkillReferenceDto {
       );
 }
 
-/// L'analyse IA ciblée : 4 champs courts, **aucune note /20, aucun niveau
-/// CECRL** (interdits sur un micro-exercice, cf. §9 de la spec).
+/// Où en est le candidat **par rapport au palier qu'il vise**, après une
+/// micro-production. Miroir de `SituationNiveauVise` (backend).
+///
+/// ⚠ Le serveur envoie déjà `situationLabel` prêt à afficher : c'est **lui**
+/// qu'on rend. [label] n'est qu'un repli local, gelé sur les mêmes chaînes que
+/// `SkillLabelsTest` — aucun front ne recompose cette phrase.
+///
+/// Aucun libellé ne nomme un manque : « Encore du chemin » décrit une distance,
+/// pas un échec.
+enum SituationNiveauVise {
+  objectifAtteint('OBJECTIF_ATTEINT', 'Tu as atteint ton objectif'),
+  proche('PROCHE', 'Tu es proche du niveau visé'),
+  enChemin('EN_CHEMIN', 'Encore du chemin vers ton objectif');
+
+  const SituationNiveauVise(this.wire, this.label);
+
+  final String wire;
+  final String label;
+
+  static SituationNiveauVise? fromWireNullable(Object? raw) {
+    if (raw is! String) return null;
+    for (final situation in SituationNiveauVise.values) {
+      if (situation.wire == raw) return situation;
+    }
+    return null;
+  }
+
+  bool get isObjectifAtteint => this == SituationNiveauVise.objectifAtteint;
+}
+
+/// Le niveau démontré par une micro-production, son objectif et la jauge.
+///
+/// **Tout est dérivé serveur** (`SkillLevelProgressResolver`) : la situation,
+/// son libellé, les trois crans de l'échelle et la position du curseur. L'app
+/// n'ordonne rien, ne devine aucun palier et ne recalcule aucune position —
+/// cette table de correspondance a déjà vécu en six copies divergentes.
+class SkillLevelProgressDto {
+  const SkillLevelProgressDto({
+    required this.levelReached,
+    required this.targetLevel,
+    required this.situation,
+    required this.situationLabel,
+    required this.scale,
+    required this.cursorIndex,
+  });
+
+  /// Le niveau démontré par CETTE production (jamais C1/C2 : profil TCF IRN).
+  final NiveauCecrl levelReached;
+
+  /// Le palier visé, plancher posé par la démarche du candidat.
+  final TargetLevel targetLevel;
+  final SituationNiveauVise situation;
+
+  /// Libellé FR **posé par le serveur**, affiché tel quel.
+  final String situationLabel;
+
+  /// Les trois crans de la jauge, du plus bas au plus haut ; le dernier est
+  /// toujours le niveau visé.
+  final List<NiveauCecrl> scale;
+
+  /// Index du niveau démontré dans [scale] (0..2), déjà borné par le serveur.
+  final int cursorIndex;
+
+  static SkillLevelProgressDto? fromJsonNullable(Object? json) {
+    if (json is! Map) return null;
+    final reached = _niveauOrNull(json['levelReached']);
+    final target = _targetLevelOrNull(json['targetLevel']);
+    final situation = SituationNiveauVise.fromWireNullable(json['situation']);
+    if (reached == null || target == null || situation == null) return null;
+    final raw = json['scale'];
+    return SkillLevelProgressDto(
+      levelReached: reached,
+      targetLevel: target,
+      situation: situation,
+      situationLabel:
+          _trimmedOrNull(json['situationLabel']) ?? situation.label,
+      scale: raw is! List
+          ? const <NiveauCecrl>[]
+          : raw.map(_niveauOrNull).whereType<NiveauCecrl>().toList(
+                growable: false,
+              ),
+      cursorIndex: (json['cursorIndex'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// Le plan d'action « pour viser X », produit par un **second appel LLM** séparé
+/// de l'analyse.
+///
+/// **Son absence est un cas NORMAL, jamais une erreur** : l'appel est
+/// best-effort, et il n'a pas lieu quand l'objectif est déjà atteint. Aucun
+/// écran ne doit afficher de message d'échec, de spinner ni d'excuse quand ce
+/// bloc manque.
+class SkillNiveauViseDto {
+  const SkillNiveauViseDto({
+    required this.niveauVise,
+    required this.niveauConstate,
+    required this.leviers,
+    required this.exempleCible,
+    required this.aRetenir,
+  });
+
+  final TargetLevel niveauVise;
+  final NiveauCecrl? niveauConstate;
+
+  /// 2 à 3 leviers, du plus rentable au moins rentable.
+  final List<ActionPlanLevier> leviers;
+  final ActionPlanExempleCible? exempleCible;
+  final ActionPlanMemo? aRetenir;
+
+  static SkillNiveauViseDto? fromJsonNullable(Object? json) {
+    if (json is! Map) return null;
+    final niveauVise = _targetLevelOrNull(json['niveauVise']);
+    if (niveauVise == null) return null;
+    final leviers = ActionPlanLevier.listFrom(json['leviers']);
+    final exempleCible =
+        ActionPlanExempleCible.fromJsonNullable(json['exempleCible']);
+    final aRetenir = ActionPlanMemo.fromJsonNullable(json['aRetenir']);
+    // Un bloc vide de bout en bout vaut son absence : les trois sections
+    // disparaissent au lieu de laisser trois intertitres orphelins.
+    if (leviers.isEmpty && exempleCible == null && aRetenir == null) return null;
+    return SkillNiveauViseDto(
+      niveauVise: niveauVise,
+      niveauConstate: _niveauOrNull(json['niveauConstate']),
+      leviers: leviers,
+      exempleCible: exempleCible,
+      aRetenir: aRetenir,
+    );
+  }
+}
+
+/// L'analyse IA ciblée. **Aucune note /20** : un micro-exercice n'en porte pas,
+/// et le tool-schema de sortie ne prévoit aucun champ pour en loger une. Le
+/// **niveau CECRL**, lui, est rendu depuis le contrat v3 ([levelProgress]).
+///
+/// **Deux générations de champs cohabitent, sans migration** : les analyses
+/// persistées sous v1/v2 portent [successPoint] / [improvementPriority] /
+/// [improvedVersion] ; celles produites sous v3 portent [strengthTag],
+/// [focusTag] et [levelProgress]. Tout est nullable sauf `status` et `verdict` —
+/// on affiche ce qu'on trouve, on ne suppose jamais qu'un champ est présent.
 class SkillAnalysisDto {
   const SkillAnalysisDto({
     required this.status,
     required this.verdict,
-    required this.successPoint,
-    required this.improvementPriority,
-    required this.improvedVersion,
+    this.strengthTag,
+    this.focusTag,
+    this.levelProgress,
+    this.niveauVise,
+    this.successPoint,
+    this.improvementPriority,
+    this.improvedVersion,
   });
 
   final SkillCriterionStatus status;
   final String verdict;
-  final String successPoint;
-  final String improvementPriority;
-  final String improvedVersion;
+
+  /// v3 : ce qui est réussi, en 3 mots. Une étiquette, pas une phrase.
+  final String? strengthTag;
+
+  /// v3 : l'axe de progrès, en 3 mots.
+  final String? focusTag;
+
+  /// v3 : le niveau démontré, l'objectif, la situation et la jauge.
+  final SkillLevelProgressDto? levelProgress;
+
+  /// Le plan d'action du second appel. `null` = cas normal.
+  final SkillNiveauViseDto? niveauVise;
+
+  final String? successPoint;
+  final String? improvementPriority;
+  final String? improvedVersion;
+
+  /// Une analyse d'avant le contrat v3 : elle ne porte ni niveau, ni étiquettes,
+  /// et c'est son trio de textes longs qu'il faut rendre.
+  bool get isLegacy => levelProgress == null;
 
   factory SkillAnalysisDto.fromJson(Map<String, dynamic> json) =>
       SkillAnalysisDto(
         status: SkillCriterionStatus.fromWire(json['status'] as String),
         verdict: json['verdict'] as String? ?? '',
-        successPoint: json['successPoint'] as String? ?? '',
-        improvementPriority: json['improvementPriority'] as String? ?? '',
-        improvedVersion: json['improvedVersion'] as String? ?? '',
+        strengthTag: _trimmedOrNull(json['strengthTag']),
+        focusTag: _trimmedOrNull(json['focusTag']),
+        levelProgress:
+            SkillLevelProgressDto.fromJsonNullable(json['levelProgress']),
+        niveauVise: SkillNiveauViseDto.fromJsonNullable(json['niveauVise']),
+        successPoint: _trimmedOrNull(json['successPoint']),
+        improvementPriority: _trimmedOrNull(json['improvementPriority']),
+        improvedVersion: _trimmedOrNull(json['improvedVersion']),
       );
 }
 

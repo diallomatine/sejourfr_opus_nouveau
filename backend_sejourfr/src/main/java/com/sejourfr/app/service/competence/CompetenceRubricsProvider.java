@@ -42,14 +42,31 @@ public class CompetenceRubricsProvider {
     private static final String PATH_FORMAT = "prompts/competence-analysis-rubrics-%s.json";
 
     /**
-     * Paires rubriques -> tool-schema supportees. v2 = v1 pour tout ce qui
-     * juge, plus une exigence de FORME (le francais rendu au candidat est
-     * accentue ; ce qui est cite reste tel quel) ; son contrat de sortie v2 est
-     * celui de v1 avec ses descriptions accentuees, sans un champ de plus ni de
-     * moins. v1/v1 reste chargeable : c'est le retour arriere.
+     * Paires rubriques -> tool-schema supportees.
+     *
+     * <p>v2 = v1 pour tout ce qui juge, plus une exigence de FORME (le francais
+     * rendu au candidat est accentue ; ce qui est cite reste tel quel) ; son
+     * contrat de sortie v2 est celui de v1 avec ses descriptions accentuees.
+     *
+     * <p>v3 = v2 au bit pres pour tout ce qui JUGE (role, les trois verdicts et
+     * leurs definitions, la brievete, le garde-fou oral, l'accentuation). Ce
+     * qu'elle change : le correcteur attribue desormais un <b>niveau CECRL</b>
+     * ({@code level_reached}) et rend deux etiquettes de trois mots au lieu de
+     * trois pavés de texte. La <b>note sur 20 reste interdite</b> — aucun champ
+     * du contrat ne peut la loger.
+     *
+     * <p>v4 = v3 au bit pres pour tout ce qui JUGE (role, perimetre, les trois
+     * verdicts et leur regle de decision, l'attribution du niveau, la brievete,
+     * le garde-fou oral, le ton, l'accentuation, les plafonds de longueur). Ce
+     * qu'elle ajoute : {@code level_evidence}, le NUMERO du segment qui demontre
+     * un B1 ou un B2. Le niveau cesse d'etre nomme a vue — sans preuve, le
+     * serveur l'abaisse d'un palier.
+     *
+     * <p>v1/v1, v2/v2 et v3/v3 restent chargeables : c'est le retour arriere, et
+     * on versionne sans jamais reecrire une version livree.
      */
     private static final Map<String, String> TOOL_SCHEMA_BY_RUBRICS_VERSION =
-        Map.of("v1", "v1", "v2", "v2");
+        Map.of("v1", "v1", "v2", "v2", "v3", "v3", "v4", "v4");
 
     /** Le module ne sert que le TCF IRN : aucune autre grille n'est acceptee. */
     private static final String PROFILE_ATTENDU = "TCF_IRN";
@@ -148,6 +165,17 @@ public class CompetenceRubricsProvider {
     /** Version des consignes actives, persistee sur chaque tentative analysee. */
     public String getVersion() {
         return props.getAnalysis().getRubricsVersion();
+    }
+
+    /**
+     * Version du CONTRAT DE SORTIE actif. Elle decide des cles attendues d'une
+     * sortie ({@link CompetenceAnalysisFields#cles(String)}) : le validateur et
+     * la normalisation lisent cette source-la, jamais une liste en dur, sinon un
+     * retour arriere sur le tool-schema laisserait le serveur reclamer les
+     * champs d'une autre version.
+     */
+    public String getToolSchemaVersion() {
+        return props.getAnalysis().getToolSchemaVersion();
     }
 
     /**

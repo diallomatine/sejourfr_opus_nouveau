@@ -603,12 +603,25 @@ final class EvaluationProofMatcher {
      * doivent lire un passage de la meme facon.
      */
     static int significantTokenCount(String text) {
-        if (text == null || text.isBlank()) return 0;
-        int count = 0;
+        return significantTokens(text).size();
+    }
+
+    /**
+     * Tokens PORTEURS DE SENS d'un texte, NORMALISES, dans l'ordre.
+     *
+     * <p>Meme lecture que {@link #significantTokenCount(String)}, dont elle est
+     * l'implementation : ce sont deux vues d'un seul decoupage, pas deux
+     * decoupages. Elle sert a {@link EvaluationOralForme} pour comparer deux
+     * formulations d'un meme enonce — savoir COMBIEN de mots pleins les separent
+     * demande la liste, pas seulement un total.
+     */
+    static List<String> significantTokens(String text) {
+        if (text == null || text.isBlank()) return List.of();
+        List<String> out = new ArrayList<>();
         for (Token token : tokens(text, 0)) {
-            if (isSignificant(token.normalized())) count++;
+            if (isSignificant(token.normalized())) out.add(token.normalized());
         }
-        return count;
+        return out;
     }
 
     private static List<String> specialTokens(List<Token> tokens) {

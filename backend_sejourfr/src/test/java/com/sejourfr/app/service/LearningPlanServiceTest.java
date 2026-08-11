@@ -175,6 +175,12 @@ class LearningPlanServiceTest {
                 .isEqualTo(LearningPlanSkillStatus.PRIORITY);
     }
 
+    /**
+     * Les compteurs de COMPETENCE (15 sujets, semantique de {@code SkillDto})
+     * et ceux de l'ETAPE (5 sujets) voyagent cote a cote : le Plan n'en
+     * detourne aucun, sinon la fiche de competence et le Plan se
+     * contrediraient sur une meme competence.
+     */
     @Test
     void chaquePrioriteEtChaqueCompetenceObserveePorteSaProgressionReelle() {
         DiagnosticSession completed = new DiagnosticSession();
@@ -186,21 +192,56 @@ class LearningPlanServiceTest {
         when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(priority));
         when(observationManager.countSince(any(), any())).thenReturn(0L);
         stubExercisesForEverySkill();
-        UUID skillId = priority.getSkill().getId();
-        Map<UUID, SkillProgressCounter.SkillProgress> counts = new LinkedHashMap<>();
-        counts.put(skillId, new SkillProgressCounter.SkillProgress(5, 3, 1, 2));
-        when(progressCounter.bySkillIds(eq(userId), anyCollection())).thenReturn(counts);
+        stubProgress(priority, new SkillProgressCounter.SkillProgress(
+                15, 4, 2, 2, new LearningPlanStep.Progress(5, 2, 1)));
 
         var result = service.get(userId);
 
-        assertThat(result.currentPriority().promptCount()).isEqualTo(5);
-        assertThat(result.currentPriority().attemptedCount()).isEqualTo(3);
-        assertThat(result.currentPriority().validatedCount()).isEqualTo(1);
+        assertThat(result.currentPriority().promptCount()).isEqualTo(15);
+        assertThat(result.currentPriority().attemptedCount()).isEqualTo(4);
+        assertThat(result.currentPriority().validatedCount()).isEqualTo(2);
+        assertThat(result.currentPriority().stepPromptCount()).isEqualTo(5);
+        assertThat(result.currentPriority().stepAttemptedCount()).isEqualTo(2);
+        assertThat(result.currentPriority().stepValidatedCount()).isEqualTo(1);
+        assertThat(result.currentPriority().stepCompleted()).isFalse();
+        // La carte « competence observee » n'est PAS une etape : elle garde les
+        // seuls compteurs de competence, sans champ d'etape.
         assertThat(result.observedSkills()).singleElement().satisfies(skill -> {
-            assertThat(skill.promptCount()).isEqualTo(5);
-            assertThat(skill.attemptedCount()).isEqualTo(3);
-            assertThat(skill.validatedCount()).isEqualTo(1);
+            assertThat(skill.promptCount()).isEqualTo(15);
+            assertThat(skill.attemptedCount()).isEqualTo(4);
+            assertThat(skill.validatedCount()).isEqualTo(2);
         });
+    }
+
+    /**
+     * Une etape terminee <b>reste affichee</b> : les priorites ne changent qu'a
+     * l'arrivee d'une nouvelle observation, donc a la prochaine production. La
+     * faire disparaitre se lirait comme un bug et priverait le candidat de son
+     * resultat.
+     */
+    @Test
+    void uneEtapeTermineeResteDansLePlan() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        LearningPlanObservation priority = observation(
+                "EE1-C4", LearningPlanSkillStatus.PRIORITY, Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(priority));
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+        stubExercisesForEverySkill();
+        stubProgress(priority, new SkillProgressCounter.SkillProgress(
+                15, 5, 2, 3, new LearningPlanStep.Progress(5, 5, 2)));
+
+        var result = service.get(userId);
+
+        assertThat(result.currentPriority()).isNotNull();
+        assertThat(result.currentPriority().skillCode()).isEqualTo("EE1-C4");
+        assertThat(result.currentPriority().stepCompleted()).isTrue();
+        // Terminee n'est pas « tout valide » — les deux restent distincts.
+        assertThat(result.currentPriority().stepValidatedCount()).isEqualTo(2);
+        // Et l'exercice recommande reste designe : rien ne s'eteint.
+        assertThat(result.currentPriority().recommendedExercise()).isNotNull();
     }
 
     @Test
@@ -222,6 +263,11 @@ class LearningPlanServiceTest {
         assertThat(result.currentPriority().promptCount()).isZero();
         assertThat(result.currentPriority().attemptedCount()).isZero();
         assertThat(result.currentPriority().validatedCount()).isZero();
+        assertThat(result.currentPriority().stepPromptCount()).isZero();
+        assertThat(result.currentPriority().stepAttemptedCount()).isZero();
+        assertThat(result.currentPriority().stepValidatedCount()).isZero();
+        // Rien a faire n'est pas « fini » : une etape vide n'est jamais terminee.
+        assertThat(result.currentPriority().stepCompleted()).isFalse();
     }
 
     /**
@@ -272,6 +318,13 @@ class LearningPlanServiceTest {
         assertThat(result.currentPriority().locked()).isFalse();
         assertThat(result.observedSkills()).singleElement()
                 .satisfies(skill -> assertThat(skill.locked()).isFalse());
+    }
+
+    private void stubProgress(
+            LearningPlanObservation observation, SkillProgressCounter.SkillProgress progress) {
+        Map<UUID, SkillProgressCounter.SkillProgress> counts = new LinkedHashMap<>();
+        counts.put(observation.getSkill().getId(), progress);
+        when(progressCounter.bySkillIds(eq(userId), anyCollection())).thenReturn(counts);
     }
 
     /** Le choix DU sujet est vérifié par {@code RecommendedExerciseSelectorTest}. */

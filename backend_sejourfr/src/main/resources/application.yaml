@@ -401,7 +401,7 @@ sejourfr:
     # Retour arriere, sans migration : EVAL_RUBRICS_VERSION=v12 +
     # EVAL_PROMPT_VERSION=v6.
     #
-    # v14 (ACTIVE) = v13 AU BIT PRES pour TOUT ce qui note : echelle, quatre
+    # v14 = v13 AU BIT PRES pour TOUT ce qui note : echelle, quatre
     # criteres, seuils, couplage, plafonds, bandes, tests decisifs A1/A2 et
     # B1/B2, les 16 ancres few-shot, les descripteurs et le bareme des six
     # taches. SEUL RETRAIT : tout ce qui decrivait `version_amelioree` (la
@@ -426,8 +426,41 @@ sejourfr:
     # Retour arriere, sans migration : EVAL_RUBRICS_VERSION=v13 +
     # EVAL_PROMPT_VERSION=v7 (les deux ensemble : la matrice refuse une paire
     # incoherente au demarrage).
-    # Matrice : v13 -> schema v7, v14 -> schema v8.
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v14}
+    #
+    # v15 (ACTIVE) = v14 AU BIT PRES pour TOUT ce qui note : echelle, quatre
+    # criteres, seuils `commun.niveau`, couplage, plafonds, bandes, tests
+    # decisifs A1/A2 et B1/B2, les 16 ancres few-shot, les descripteurs et le
+    # bareme des six taches. SEUL RETRAIT : tout ce qui decrivait
+    # `exemples_corriges` et `suggestions` (le bloc EXEMPLES CORRIGES et le
+    # renvoi vers suggestions de la section « preuves et priorites », leurs deux
+    # lignes dans « une erreur, un seul endroit », le paragraphe oral qui
+    # bornait les exemples a la clarte, les etapes 10-11 de la methode, le
+    # plafond « 3 exemples corriges », leurs mentions dans la regle
+    # d'accentuation et dans les six consignes de tache). Le tool-schema v9 va
+    # avec : c'est v8 sans ces deux proprietes ni leurs entrees `required`,
+    # rien d'autre.
+    # Motif : le bloc replie « Voir l'analyse complete » de l'ecran de resultat
+    # EE/EO — le seul endroit ou ces deux champs etaient affiches — disparait.
+    # On cesse donc de payer des tokens de SORTIE pour des paves que personne
+    # ne lit, et la place gagnee finance un second appel plus utile
+    # (`version_ciblee`). Ce qui compte se dit desormais dans `accomplissement`,
+    # `points_forts`, `points_a_ameliorer` et les commentaires de critere.
+    # `accomplissement` et `avertissements` RESTENT produits : le premier
+    # alimente le bandeau du haut, le compteur « Ce qui marche » et le controle
+    # serveur `applyObjectifCoherence` ; le second est ecrit par le SERVEUR
+    # (limite assumee de l'oral, signalement des purges) et n'a jamais ete dans
+    # le tool-schema.
+    # Ordre de preference du depot respecte : c'est un changement de
+    # TOOL-SCHEMA, pas une consigne de rubrique de plus.
+    # /!\ NON MESUREE AU BANC — comme v12, v13 et v14, et pour la meme raison :
+    # aucune regle de notation ne bouge, et le peu qui change au prompt RETIRE
+    # du texte au lieu d'en ajouter (a l'inverse de v10/v11, mesurees moins
+    # bonnes parce qu'elles AJOUTAIENT du texte).
+    # Retour arriere, sans migration : EVAL_RUBRICS_VERSION=v14 +
+    # EVAL_PROMPT_VERSION=v8 (les deux ensemble : la matrice refuse une paire
+    # incoherente au demarrage).
+    # Matrice : v13 -> schema v7, v14 -> schema v8, v15 -> schema v9.
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v15}
     # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
     # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
     # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).
@@ -620,14 +653,16 @@ sejourfr:
     version-ciblee:
       enabled: ${EVAL_VERSION_CIBLEE_ENABLED:true}
       # Consignes : prompts/production-version-ciblee-rubrics-<v>.json.
-      rubrics-version: ${EVAL_VERSION_CIBLEE_RUBRICS_VERSION:v1}
+      rubrics-version: ${EVAL_VERSION_CIBLEE_RUBRICS_VERSION:v2}
       # Contrat de sortie : prompts/production-version-ciblee-tool-schema-<v>.json.
       # Paire rubriques <-> tool-schema verifiee au demarrage, comme partout.
-      tool-schema-version: ${EVAL_VERSION_CIBLEE_TOOL_SCHEMA_VERSION:v1}
+      tool-schema-version: ${EVAL_VERSION_CIBLEE_TOOL_SCHEMA_VERSION:v2}
       # Plafond de tokens de SORTIE, PROPRE a cet appel — pas les 4000 d'une
-      # correction complete : la sortie tient en un texte de 40 a 90 mots et deux
-      # ou trois phrases. C'est un plafond, pas une consommation.
-      max-tokens: 1200
+      # correction complete : la sortie tient en un texte de 40 a 90 mots, deux ou
+      # trois leviers courts et une tournure a retenir. C'est un plafond, pas une
+      # consommation ; il monte a 1600 avec le contrat v2, qui ajoute les segments
+      # surlignes (ecrit) ou les reformulations (oral).
+      max-tokens: 1600
       # Zero : deux lectures du meme texte doivent rendre la meme version.
       temperature: 0
       # Plafond SERVEUR du nombre de leviers (le tool-schema en demande 2 a 3).
@@ -688,7 +723,7 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v8}
+      prompt-version: ${EVAL_PROMPT_VERSION:v9}
       # Tarification gpt-5.4 (USD / 1M tokens, relevée sur la page tarifaire
       # OpenAI le 2026-08-07 : 2,50 en entrée / 15,00 en sortie).
       # ⚠ Ces deux valeurs vont AVEC `model` ci-dessus : le coût estimé est
@@ -708,7 +743,7 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v8}
+      prompt-version: ${EVAL_PROMPT_VERSION:v9}
       # Tarif claude-sonnet-4-5 (USD / 1M tokens). Surchargeable comme le modèle,
       # et dans la même source que lui.
       cost-per-million-input-tokens: ${EVAL_ANTHROPIC_COST_INPUT:3.0}
@@ -766,7 +801,7 @@ sejourfr:
       # OpenAiCompatibleEvalClient#buildRequestFactory) — au-dela, c'est un
       # fournisseur qui a accepte la requete et genere.
       timeout-sec: ${EVAL_DEEPSEEK_TIMEOUT_SEC:90}
-      prompt-version: ${EVAL_PROMPT_VERSION:v8}
+      prompt-version: ${EVAL_PROMPT_VERSION:v9}
       # Tarif deepseek-v4-flash (USD / 1M tokens, relevé sur
       # api-docs.deepseek.com le 2026-08-07 : 0,14 en entrée cache-miss / 0,28
       # en sortie ; le tarif cache-hit, plus bas, n'est pas modélisé — on
@@ -865,13 +900,27 @@ sejourfr:
   competences:
     analysis:
       # Consignes d'analyse : prompts/competence-analysis-rubrics-<v>.json.
-      rubrics-version: ${COMPETENCE_RUBRICS_VERSION:v2}
+      # v4 = v3 au bit pres pour tout ce qui JUGE (verdicts, regle de decision,
+      # attribution du niveau, brievete, garde-fou oral, accentuation, plafonds).
+      # Ce qu'elle ajoute : `level_evidence`, le NUMERO du segment de la
+      # production qui DEMONTRE un B1 ou un B2 — meme technique que la preuve par
+      # numero du contrat v12 des productions completes, qui a supprime la
+      # categorie entiere des « citations introuvables ». Sans preuve
+      # exploitable, le serveur ABAISSE le niveau d'un palier ; il ne le releve
+      # jamais et ne perd jamais l'analyse pour autant.
+      # /!\ Aucune campagne de mesure n'appuie ce choix et c'est assume : le
+      # corpus de calibration (48 cas) est celui des productions completes, il
+      # n'existe aucun corpus pour la voie Competences. Ce qui tient la regle,
+      # c'est la contrainte dure (schema + controle serveur), pas une mesure.
+      # La note /20 reste interdite : aucun champ ne peut la loger.
+      # Retour arriere : v3 + v3 (ou v2 + v2, ou v1 + v1).
+      rubrics-version: ${COMPETENCE_RUBRICS_VERSION:v4}
       # Contrat de sortie : prompts/competence-analysis-tool-schema-<v>.json.
       # Versionne separement des consignes — deux analyses produites avec le
       # meme schema mais des consignes differentes ne sont pas comparables.
-      tool-schema-version: ${COMPETENCE_TOOL_SCHEMA_VERSION:v2}
+      tool-schema-version: ${COMPETENCE_TOOL_SCHEMA_VERSION:v4}
       # Plafond de tokens de SORTIE. 600 suffit largement : la reponse tient en
-      # cinq champs courts (verdict, point reussi, priorite, reformulation).
+      # cinq champs courts (verdict, niveau, deux etiquettes de trois mots).
       # C'est un plafond, pas une consommation.
       max-tokens: 600
       # Zero : sur un verdict de critere on veut de la reproductibilite, pas de
@@ -888,6 +937,25 @@ sejourfr:
       # Meme nature, cote oral : un micro-exercice se joue en une trentaine de
       # secondes, 180 s ne cadre pas le candidat, cela coupe l'abus.
       max-audio-duration-seconds: 180
+    # SECOND appel « pour viser X », emis APRES l'analyse et separement d'elle :
+    # l'analyse ne doit jamais apprendre quel niveau le candidat vise, sinon elle
+    # aligne son jugement dessus (mesure v10/v11 : accord exact 81,8 % -> 75,6 %).
+    # Best-effort : a false, ou en cas d'echec, le bloc est absent et l'analyse
+    # reste complete.
+    niveau-vise:
+      enabled: ${COMPETENCE_NIVEAU_VISE_ENABLED:true}
+      # Consignes : prompts/competence-niveau-vise-rubrics-<v>.json.
+      rubrics-version: ${COMPETENCE_NIVEAU_VISE_RUBRICS_VERSION:v1}
+      # Contrat de sortie : prompts/competence-niveau-vise-tool-schema-<v>.json.
+      # Paire rubriques <-> tool-schema verifiee au demarrage, comme partout.
+      tool-schema-version: ${COMPETENCE_NIVEAU_VISE_TOOL_SCHEMA_VERSION:v1}
+      # Plafond de tokens de SORTIE, propre a cet appel : deux ou trois leviers
+      # de six mots, un texte court, une tournure. C'est un plafond.
+      max-tokens: 900
+      # Zero : deux lectures de la meme production doivent rendre le meme plan.
+      temperature: 0
+      # Plafond SERVEUR du nombre de leviers (le tool-schema en demande 2 a 3).
+      max-leviers: 3
 
   # Diagnostic initial : même fournisseur/modèle que production-evaluation,
   # mais contrat et consignes séparés (aucune note /20, aucune tâche officielle).

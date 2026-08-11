@@ -107,3 +107,44 @@ export const REFERENCES_OPEN_BY_DEFAULT = false;
 export function referencesOpenByDefault(view: SkillResultAnalysisView): boolean {
     return view === "ANALYSIS" ? REFERENCES_OPEN_BY_DEFAULT : true;
 }
+
+/**
+ * Sursis de polling accordé au **second appel** (« pour viser X »).
+ *
+ * Ce bloc est produit **après** que la tentative est passée `EVALUATED` : il est
+ * best-effort, hors transaction. Un polling qui s'arrête net sur `EVALUATED`
+ * affiche donc un écran sans leviers alors qu'ils arrivent une seconde plus
+ * tard. Dix secondes au maximum, à la cadence existante, puis on rend l'écran
+ * tel quel — **jamais d'erreur** : l'absence du bloc est un cas normal.
+ *
+ * Valeur de parité avec le mobile : elle est déclarée en **durée**, pas en
+ * nombre de tirages (c'est en la traduisant chacun de son côté que les deux
+ * fronts avaient divergé sur le budget de polling principal).
+ */
+export const SKILL_NIVEAU_VISE_GRACE_MS = 10_000;
+
+/**
+ * `true` quand le bloc « pour viser X » peut encore arriver et mérite qu'on
+ * continue de poller.
+ *
+ * Quatre conditions, toutes nécessaires : l'analyse est terminée, elle porte
+ * bien la progression de niveau (donc c'est un contrat v3, pas une analyse
+ * ancienne), l'objectif n'est **pas** atteint (auquel cas le second appel n'est
+ * jamais lancé) et le bloc n'est pas déjà là.
+ *
+ * Le budget de polling global reste la borne dure : ce sursis s'y ajoute, il ne
+ * le remplace pas.
+ */
+export function skillNiveauViseMayStillArrive(input: {
+    evaluated: boolean;
+    hasLevelProgress: boolean;
+    objectifAtteint: boolean;
+    hasNiveauVise: boolean;
+}): boolean {
+    return (
+        input.evaluated &&
+        input.hasLevelProgress &&
+        !input.objectifAtteint &&
+        !input.hasNiveauVise
+    );
+}

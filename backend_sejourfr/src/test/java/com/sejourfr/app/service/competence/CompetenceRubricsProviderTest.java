@@ -40,6 +40,35 @@ class CompetenceRubricsProviderTest {
             .containsEntry("improvement_priority", 35);
     }
 
+    /**
+     * v4 est la version ACTIVE. Elle garde les plafonds des deux etiquettes et la
+     * table des cinq niveaux du profil TCF IRN, que le builder rend au correcteur
+     * — v4 ne change rien de ce qui juge, elle rend le niveau OPPOSABLE. Le
+     * provider expose aussi la version du contrat de sortie, dont depend le jeu
+     * de cles attendu.
+     */
+    @Test
+    void chargeLesPlafondsDesEtiquettesEtLesNiveauxEnV4() {
+        CompetenceRubricsProvider provider = load("v4", "v4");
+
+        assertThat(provider.getVersion()).isEqualTo("v4");
+        assertThat(provider.getToolSchemaVersion()).isEqualTo("v4");
+        assertThat(provider.contraintesLongueur())
+            .containsEntry("verdict", 20)
+            .containsEntry("strength_tag", 3)
+            .containsEntry("focus_tag", 3);
+        assertThat((Map<?, ?>) provider.getCommun().get("niveaux")).hasSize(5);
+    }
+
+    @Test
+    void lesQuatreVersionsRestentChargeables() {
+        // On versionne, on ne reecrit jamais : v1, v2 et v3 doivent continuer de
+        // demarrer, c'est ce qui rend le retour arriere reel.
+        for (String version : List.of("v1", "v2", "v3", "v4")) {
+            assertThat(load(version, version).getVersion()).isEqualTo(version);
+        }
+    }
+
     @Test
     void lesPlafondsChargesSontImmuables() {
         CompetenceRubricsProvider provider = load("v1", "v1");

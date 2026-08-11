@@ -4,6 +4,7 @@ import com.sejourfr.app.entity.UserSkillAttempt;
 import com.sejourfr.app.enums.SkillAttemptStatut;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
 import com.sejourfr.app.service.LearningPlanObservationService;
+import com.sejourfr.app.service.competence.niveauvise.CompetenceNiveauViseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -45,6 +46,7 @@ public class SkillAnalysisAsyncRunner {
     private final UserSkillAttemptManager attemptManager;
     private final SkillTranscriptionService transcriptionService;
     private final CompetenceAnalysisService analysisService;
+    private final CompetenceNiveauViseService niveauViseService;
     private final SkillAnalysisFailureRecorder failureRecorder;
     private final LearningPlanObservationService learningPlanObservationService;
 
@@ -71,6 +73,12 @@ public class SkillAnalysisAsyncRunner {
                 attemptManager.save(attempt);
             }
             analysisService.analyse(attemptId);
+            // SECOND APPEL, séparé de l'analyse : « pour viser X ». Il tourne
+            // ICI, après que l'analyse est persistée et hors de sa transaction —
+            // c'est ce qui garantit que le correcteur n'a jamais appris quel
+            // niveau vise le candidat. Le service n'échoue jamais : au pire le
+            // bloc est absent, et l'écran reste utile sans lui.
+            niveauViseService.enrichir(attemptId);
             // L'analyse ciblée est déjà durable et EVALUATED à ce stade. Le
             // Plan est un enrichissement best-effort : une panne de son écriture
             // ne doit jamais rétrograder la tentative en FAILED ni autoriser un

@@ -4,14 +4,17 @@ import com.sejourfr.app.entity.UserSkillAttempt;
 import com.sejourfr.app.enums.SkillAttemptStatut;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
 import com.sejourfr.app.service.LearningPlanObservationService;
+import com.sejourfr.app.service.competence.niveauvise.CompetenceNiveauViseService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -22,6 +25,7 @@ class SkillAnalysisAsyncRunnerTest {
     private UserSkillAttemptManager attempts;
     private SkillTranscriptionService transcription;
     private CompetenceAnalysisService analysis;
+    private CompetenceNiveauViseService niveauVise;
     private SkillAnalysisFailureRecorder failureRecorder;
     private LearningPlanObservationService observations;
     private SkillAnalysisAsyncRunner runner;
@@ -31,10 +35,47 @@ class SkillAnalysisAsyncRunnerTest {
         attempts = mock(UserSkillAttemptManager.class);
         transcription = mock(SkillTranscriptionService.class);
         analysis = mock(CompetenceAnalysisService.class);
+        niveauVise = mock(CompetenceNiveauViseService.class);
         failureRecorder = mock(SkillAnalysisFailureRecorder.class);
         observations = mock(LearningPlanObservationService.class);
         runner = new SkillAnalysisAsyncRunner(
-                attempts, transcription, analysis, failureRecorder, observations);
+                attempts, transcription, analysis, niveauVise, failureRecorder, observations);
+    }
+
+    /**
+     * L'ORDRE est l'invariant du montage a deux appels : le bloc « pour viser »
+     * ne part qu'APRES que l'analyse a ete persistee, hors de sa transaction.
+     * L'inverser reviendrait a faire connaitre l'objectif au correcteur.
+     */
+    @Test
+    void leBlocPourViserNestDemandeQuApresLanalyse() {
+        UUID attemptId = UUID.randomUUID();
+        UserSkillAttempt attempt = new UserSkillAttempt();
+        attempt.setId(attemptId);
+        attempt.setStatut(SkillAttemptStatut.SUBMITTED);
+        when(attempts.findByIdWithPrompt(attemptId)).thenReturn(Optional.of(attempt));
+
+        runner.runAsync(attemptId, false).join();
+
+        InOrder ordre = inOrder(analysis, niveauVise);
+        ordre.verify(analysis).analyse(attemptId);
+        ordre.verify(niveauVise).enrichir(attemptId);
+    }
+
+    /** Une analyse en echec ne paie jamais le second appel. */
+    @Test
+    void uneAnalyseEnEchecNeDeclenchePasLeSecondAppel() {
+        UUID attemptId = UUID.randomUUID();
+        UserSkillAttempt attempt = new UserSkillAttempt();
+        attempt.setId(attemptId);
+        attempt.setStatut(SkillAttemptStatut.SUBMITTED);
+        when(attempts.findByIdWithPrompt(attemptId)).thenReturn(Optional.of(attempt));
+        doThrow(new IllegalStateException("analyse indisponible"))
+                .when(analysis).analyse(attemptId);
+
+        runner.runAsync(attemptId, false).join();
+
+        verify(niveauVise, never()).enrichir(attemptId);
     }
 
     @Test

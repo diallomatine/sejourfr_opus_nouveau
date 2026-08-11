@@ -12,35 +12,54 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_tag.dart';
 import '../../../core/widgets/audio_player.dart';
+import '../../../core/widgets/list_group.dart';
 import '../../../core/widgets/paywall_sheet.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../tcf_production_module.dart';
+import '../widgets/action_plan.dart';
 import '../widgets/evaluation_loading_view.dart';
 import 'competences_nav.dart';
 import 'competences_providers.dart';
 import '../widgets/production_state_views.dart';
+import 'widgets/skill_level_card.dart';
 import 'widgets/skill_references_tabs.dart';
 import 'widgets/skill_status_badge.dart';
 
 /// Résultat d'une tentative sur un petit sujet.
 ///
-/// Ordre du contrat, inchangé : accusé de traitement → `Ta production` →
-/// analyse IA → références comparatives → les trois actions. Le retour IA reste
-/// **au-dessus** des références (§13.4).
+/// L'écran doit se comprendre en trois secondes : **où j'en suis**, **ce qu'il
+/// me manque pour le niveau que je vise**, **à quoi ça ressemble quand c'est
+/// bien fait**. D'où l'ordre, strict et partagé avec le web : confirmation →
+/// carte NIVEAU (verdict du critère compact dedans) → « Pour viser X » →
+/// « Une version plus aboutie » → « À retenir » →
+/// `Ta production` (repliée) → références comparatives (repliées) → actions.
 ///
-/// **L'analyse est dépliée d'emblée** : c'est le retour que le candidat vient
-/// de mériter, il n'a pas à le déverrouiller. Le bandeau premium et son bouton
-/// « Voir » ne subsistent donc que quand il n'y a **rien** à montrer — quota
+/// Le verdict du critère unique **n'est plus un bloc autonome** en v3 : il vit
+/// en pastille (rangée du haut, à côté de la puce « Objectif ») et en une
+/// ligne de texte sous les puces `strengthTag`/`focusTag`, tous deux dans
+/// `SkillLevelCard`. Ça réintroduisait le pavé que la refonte avait supprimé.
+///
+/// Le bandeau du haut est **conditionnel** : « Production analysée » /
+/// « Progression mise à jour » seulement quand une analyse existe, sinon les
+/// libellés historiques « Sujet marqué comme traité » / « La progression de
+/// la compétence a été mise à jour. » — annoncer « analysée » une production
+/// qui ne l'est pas serait faux.
+///
+/// **Tout le texte affiché est déjà plafonné en mots côté serveur** : aucune
+/// phrase d'accompagnement n'est ajoutée ici.
+///
+/// **Aucune note /20** : interdite sur un micro-exercice, le tool-schema ne
+/// prévoit aucun champ pour en loger une. Le **niveau CECRL**, lui, est rendu
+/// depuis le contrat v3 — entièrement dérivé serveur.
+///
+/// Une analyse d'avant v3 (`levelProgress == null`) retombe **intégralement**
+/// sur l'affichage historique (`_VerdictCard` en bloc autonome, point réussi,
+/// priorité, proposition améliorée) : aucune régression sur les analyses déjà
+/// en base.
+///
+/// Le bandeau premium ne subsiste que quand il n'y a **rien** à montrer — quota
 /// épuisé, production sans analyse, analyse en échec — et son action ouvre
 /// alors le paywall.
-///
-/// Symétriquement, la comparaison aux niveaux de référence est **repliée** tant
-/// qu'une analyse est affichée : deux blocs longs dépliés noyaient le retour
-/// personnalisé sous des textes génériques. Sans analyse, elle reste ouverte —
-/// elle est alors le seul retour de l'écran.
-///
-/// Aucune note /20 et aucun niveau CECRL : interdits sur un micro-exercice
-/// (§9 de la spec). Le sujet ne juge qu'un critère.
 class CompetenceResultScreen extends ConsumerStatefulWidget {
   const CompetenceResultScreen({
     super.key,
@@ -65,14 +84,41 @@ class _CompetenceResultScreenState
   /// aboutir est le pire des deux défauts. À changer des deux côtés.
   static const Duration _pollMaxDuration = Duration(seconds: 120);
 
+  /// Sursis accordé au **second appel LLM** (« pour viser X »), produit après
+  /// que la tentative est passée `EVALUATED`, best-effort et hors transaction.
+  /// S'arrêter net sur `EVALUATED` afficherait un écran sans leviers alors
+  /// qu'ils arrivent une seconde plus tard. **Valeur partagée avec le web.**
+  static const Duration _niveauViseGrace = Duration(seconds: 10);
+
   Timer? _poll;
   DateTime _pollStartedAt = DateTime.now();
+
+  /// Fin du sursis ci-dessus, posée au premier tirage qui voit la tentative
+  /// finalisée sans son bloc « pour viser X ».
+  DateTime? _niveauViseDeadline;
   bool _retrying = false;
+
+  /// Le bloc du second appel est encore attendu : niveau connu, objectif non
+  /// atteint, et rien n'est arrivé. Toute autre combinaison est un état final —
+  /// notamment `OBJECTIF_ATTEINT`, où le serveur ne produit **rien** par
+  /// construction : l'attendre ferait tourner le polling pour rien.
+  bool _awaitsNiveauVise(SkillAttemptDto attempt) {
+    final analysis = attempt.analysis;
+    final progress = analysis?.levelProgress;
+    return attempt.statut == SkillAttemptStatut.evaluated &&
+        progress != null &&
+        !progress.situation.isObjectifAtteint &&
+        analysis!.niveauVise == null;
+  }
 
   /// `null` = l'utilisateur n'a pas tranché → on suit la règle par défaut :
   /// références repliées quand une analyse est affichée, ouvertes quand elle
   /// est le seul retour de l'écran.
   bool? _referencesExpanded;
+
+  /// La production est repliée d'emblée : l'écran doit se lire en trois
+  /// secondes, et le candidat vient de l'écrire ou de la dire.
+  bool _productionExpanded = false;
 
   Color get _accent => widget.module.accent;
 
@@ -94,6 +140,7 @@ class _CompetenceResultScreenState
   void _startPolling() {
     _poll?.cancel();
     _pollStartedAt = DateTime.now();
+    _niveauViseDeadline = null;
     _poll = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (!mounted) {
         timer.cancel();
@@ -101,9 +148,20 @@ class _CompetenceResultScreenState
       }
       final value = ref.read(skillAttemptProvider(widget.attemptId)).valueOrNull;
       if (value != null && value.statut.isFinal) {
-        timer.cancel();
-        return;
+        // Statut final : on ne prolonge que pour le second appel, au rythme
+        // courant et sans jamais afficher d'erreur si rien n'arrive.
+        if (!_awaitsNiveauVise(value)) {
+          timer.cancel();
+          return;
+        }
+        final deadline =
+            _niveauViseDeadline ??= DateTime.now().add(_niveauViseGrace);
+        if (DateTime.now().isAfter(deadline)) {
+          timer.cancel();
+          return;
+        }
       }
+      // Le budget global reste la borne dure, sursis compris.
       if (DateTime.now().difference(_pollStartedAt) > _pollMaxDuration) {
         timer.cancel();
         return;
@@ -199,43 +257,79 @@ class _CompetenceResultScreenState
         ref.watch(skillReferencesProvider(attempt.skillPromptId));
     final quota = ref.watch(skillAnalysisQuotaProvider).valueOrNull;
     final canAnalyse = quota?.canAnalyse ?? true;
+    final progress = analysis?.levelProgress;
+    final niveauVise = analysis?.niveauVise;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
       children: [
-        // M8 — le prototype ouvre sur l'accusé de traitement, pas sur la
-        // production : c'est lui qui confirme que la progression a bougé.
-        const _TreatedHeader(),
-        const SizedBox(height: 14),
-        _ProductionCard(
-          attempt: attempt,
-          isEo: widget.module.isEo,
-          accent: _accent,
-        ),
+        // L'écran ouvre sur la confirmation, pas sur la production : c'est elle
+        // qui dit que la progression a bougé.
+        _TreatedHeader(analysed: analysis != null),
         if (analysis != null) ...[
-          // Aucun bandeau, aucun bouton « Voir » : l'analyse s'ouvre d'elle-même.
-          const SizedBox(height: 13),
-          _VerdictCard(analysis: analysis),
-          const SizedBox(height: 9),
-          _FeedbackItem(
-            // Libellés figés par le contrat, mot pour mot avec le web.
-            label: 'Ce qui est réussi',
-            text: analysis.successPoint,
-            color: AppColors.green,
-            soft: AppColors.greenLight,
-            icon: LucideIcons.check,
-          ),
-          const SizedBox(height: 9),
-          _FeedbackItem(
-            label: 'À travailler en priorité',
-            text: analysis.improvementPriority,
-            color: AppColors.amberDark,
-            soft: AppColors.amberLight,
-            icon: LucideIcons.arrowRight,
-          ),
-          if (analysis.improvedVersion.trim().isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _RewriteCard(text: analysis.improvedVersion),
+          if (progress != null) ...[
+            // Le verdict sur le critère unique reste ce que ce module promet,
+            // mais en discret : pastille + ligne de texte dans la carte de
+            // niveau, plus de gros bloc `_VerdictCard` autonome.
+            const SizedBox(height: 13),
+            SkillLevelCard(
+              progress: progress,
+              criterionStatus: analysis.status,
+              verdict: analysis.verdict,
+              strengthTag: analysis.strengthTag,
+              focusTag: analysis.focusTag,
+            ),
+            // Le second appel est best-effort : son absence est un cas NORMAL,
+            // pas une erreur — aucun message, aucun spinner, aucune excuse.
+            if (niveauVise != null) ...[
+              if (niveauVise.leviers.isNotEmpty) ...[
+                const SizedBox(height: 18),
+                SectionTitle(title: pourViserTitle(niveauVise.niveauVise)),
+                const SizedBox(height: 9),
+                ActionPlanLeviers(leviers: niveauVise.leviers),
+              ],
+              if (niveauVise.exempleCible != null) ...[
+                const SizedBox(height: 18),
+                const SectionTitle(title: kActionPlanExempleTitle),
+                const SizedBox(height: 9),
+                ActionPlanExempleCard(exemple: niveauVise.exempleCible!),
+              ],
+              if (niveauVise.aRetenir != null) ...[
+                const SizedBox(height: 14),
+                ActionPlanMemoCard(memo: niveauVise.aRetenir!),
+              ],
+            ],
+          ] else ...[
+            // Analyse d'avant le contrat v3 : pas de carte niveau, donc pas de
+            // pastille pour loger le verdict → le gros bloc historique reste
+            // seul responsable de l'afficher.
+            const SizedBox(height: 13),
+            _VerdictCard(analysis: analysis),
+            if (analysis.successPoint != null) ...[
+              const SizedBox(height: 9),
+              _FeedbackItem(
+                // Libellés figés par le contrat, mot pour mot avec le web.
+                label: 'Ce qui est réussi',
+                text: analysis.successPoint!,
+                color: AppColors.green,
+                soft: AppColors.greenLight,
+                icon: LucideIcons.check,
+              ),
+            ],
+            if (analysis.improvementPriority != null) ...[
+              const SizedBox(height: 9),
+              _FeedbackItem(
+                label: 'À travailler en priorité',
+                text: analysis.improvementPriority!,
+                color: AppColors.amberDark,
+                soft: AppColors.amberLight,
+                icon: LucideIcons.arrowRight,
+              ),
+            ],
+            if (analysis.improvedVersion != null) ...[
+              const SizedBox(height: 12),
+              _RewriteCard(text: analysis.improvedVersion!),
+            ],
           ],
         ] else ...[
           if (!canAnalyse) ...[
@@ -261,6 +355,23 @@ class _CompetenceResultScreenState
           ),
         ],
         const SizedBox(height: 17),
+        // La production quitte la vue principale mais reste à un tap : en EO le
+        // candidat doit pouvoir se réécouter depuis l'écran de résultat.
+        _SectionToggle(
+          title: 'Ta production',
+          expanded: _productionExpanded,
+          onToggle: () =>
+              setState(() => _productionExpanded = !_productionExpanded),
+        ),
+        if (_productionExpanded) ...[
+          const SizedBox(height: 8),
+          _ProductionCard(
+            attempt: attempt,
+            isEo: widget.module.isEo,
+            accent: _accent,
+          ),
+        ],
+        const SizedBox(height: 17),
         // Le titre part avec son contenu : un sujet sans référence n'affiche
         // pas « Compare avec… » au-dessus du vide (et n'expose plus les onglets
         // à une liste vide, qui les faisait échouer à l'initialisation).
@@ -276,11 +387,7 @@ class _CompetenceResultScreenState
               ref.invalidate(skillReferencesProvider(attempt.skillPromptId)),
         ),
         const SizedBox(height: 20),
-        _Actions(
-          module: widget.module,
-          prompt: prompt,
-          onBackToList: () => _back(prompt?.skillId),
-        ),
+        _Actions(module: widget.module, prompt: prompt),
       ],
     );
   }
@@ -322,7 +429,13 @@ class _ReferencesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _ReferencesHeader(expanded: expanded, onToggle: onToggle),
+        _SectionToggle(
+          title: 'Compare avec les niveaux de référence',
+          expanded: expanded,
+          onToggle: onToggle,
+          // Le libellé dit ce qui va se passer, pas l'état courant.
+          collapsedLabel: 'Comparer',
+        ),
         if (expanded) ...[
           const SizedBox(height: 8),
           async.when(
@@ -343,16 +456,26 @@ class _ReferencesSection extends StatelessWidget {
   }
 }
 
-/// L'intertitre des références, tappable sur toute sa largeur : titre à gauche,
-/// action explicite à droite (« Comparer » ⇄ « Masquer ») avec son chevron.
+/// L'intertitre d'une section repliable, tappable sur toute sa largeur : titre
+/// à gauche, action explicite à droite avec son chevron.
 ///
-/// Le libellé dit ce qui va se passer, pas l'état courant — « Comparer » invite
-/// au geste que la section propose.
-class _ReferencesHeader extends StatelessWidget {
-  const _ReferencesHeader({required this.expanded, required this.onToggle});
+/// Partagé par les deux sections repliées de l'écran (la production et les
+/// références) : deux copies auraient divergé au premier ajustement.
+class _SectionToggle extends StatelessWidget {
+  const _SectionToggle({
+    required this.title,
+    required this.expanded,
+    required this.onToggle,
+    this.collapsedLabel = 'Afficher',
+  });
 
+  final String title;
   final bool expanded;
   final VoidCallback onToggle;
+
+  /// Le libellé de repli est toujours « Masquer » ; seule l'invite à ouvrir
+  /// change, parce qu'elle nomme le geste que la section propose.
+  final String collapsedLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -369,14 +492,11 @@ class _ReferencesHeader extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Text(
-                  'Compare avec les niveaux de référence',
-                  style: AppFonts.display(size: 15),
-                ),
+                child: Text(title, style: AppFonts.display(size: 15)),
               ),
               const SizedBox(width: 10),
               Text(
-                expanded ? 'Masquer' : 'Comparer',
+                expanded ? 'Masquer' : collapsedLabel,
                 style: AppFonts.ui(
                   size: 11.5,
                   weight: FontWeight.w800,
@@ -397,10 +517,17 @@ class _ReferencesHeader extends StatelessWidget {
   }
 }
 
-/// `.result-title` du prototype : pastille verte 38×38 à coche, « Sujet marqué
-/// comme traité », puis la conséquence sur la progression.
+/// Bandeau de confirmation : pastille verte à coche, ce qui vient de se passer,
+/// puis la conséquence sur la progression.
+///
+/// Libellés gelés en miroir du web, **conditionnés à la présence d'une
+/// analyse** : annoncer « analysée » une production `RECORDED`/`FAILED` ou
+/// bloquée par le quota serait faux.
 class _TreatedHeader extends StatelessWidget {
-  const _TreatedHeader();
+  const _TreatedHeader({required this.analysed});
+
+  /// `true` quand la tentative porte une analyse IA (v3 ou legacy).
+  final bool analysed;
 
   @override
   Widget build(BuildContext context) {
@@ -422,12 +549,14 @@ class _TreatedHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Sujet marqué comme traité',
+                analysed ? 'Production analysée' : 'Sujet marqué comme traité',
                 style: AppFonts.display(size: 17),
               ),
               const SizedBox(height: 3),
               Text(
-                'La progression de la compétence a été mise à jour.',
+                analysed
+                    ? 'Progression mise à jour'
+                    : 'La progression de la compétence a été mise à jour.',
                 style: AppFonts.ui(size: 11, color: AppColors.inkSoft),
               ),
             ],
@@ -902,68 +1031,47 @@ class _NoAnalysisCard extends StatelessWidget {
   }
 }
 
-/// `.triple-actions` : deux actions secondaires côte à côte, l'action
-/// principale sur toute la largeur.
+/// Les deux suites possibles : passer au sujet suivant, ou reprendre celui-ci.
 ///
-/// « Sujet suivant à travailler » se désactive quand `nextPromptId` est nul —
-/// on ne bloque jamais l'accès au sujet suivant, il n'y en a simplement plus
-/// (§13.7).
+/// « Sujet suivant » se désactive quand `nextPromptId` est nul — on ne bloque
+/// jamais l'accès au sujet suivant, il n'y en a simplement plus. Le retour en
+/// arrière reste la flèche de l'en-tête : il n'a pas sa place en bas d'écran.
 class _Actions extends StatelessWidget {
-  const _Actions({
-    required this.module,
-    required this.prompt,
-    required this.onBackToList,
-  });
+  const _Actions({required this.module, required this.prompt});
 
   final TcfProductionModule module;
   final SkillPromptDto? prompt;
-  final VoidCallback onBackToList;
 
   @override
   Widget build(BuildContext context) {
     final next = prompt?.nextPromptId;
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: AppButton(
-                // « Retour aux sujets » se confondait avec le mode « Sujets »
-                // TCF, qui est un tout autre écran (spec §4).
-                label: 'Retour aux petits sujets',
-                variant: AppButtonVariant.outline,
-                height: 46,
-                onPressed: onBackToList,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: AppButton(
-                label: 'Refaire ce sujet',
-                variant: AppButtonVariant.outline,
-                height: 46,
-                onPressed: prompt == null
-                    ? null
-                    : () => context.pushReplacement(
-                          competencePromptPath(
-                              module, prompt!.skillId, prompt!.id),
-                        ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
         AppButton(
-          label: 'Sujet suivant à travailler',
-          icon: LucideIcons.arrowRight,
-          variant: module.isEo
-              ? AppButtonVariant.accent
-              : AppButtonVariant.primary,
+          label: 'Sujet suivant',
+          iconRight: LucideIcons.arrowRight,
+          variant: AppButtonVariant.outline,
           height: 46,
           onPressed: (prompt == null || next == null)
               ? null
               : () => context.pushReplacement(
                     competencePromptPath(module, prompt!.skillId, next),
+                  ),
+        ),
+        const SizedBox(height: 8),
+        AppButton(
+          // Refait le sujet courant : c'est là que se retravaille le point que
+          // l'analyse vient de nommer.
+          label: 'S\'entraîner sur ce point',
+          icon: LucideIcons.rotateCcw,
+          variant: module.isEo
+              ? AppButtonVariant.accent
+              : AppButtonVariant.primary,
+          height: 46,
+          onPressed: prompt == null
+              ? null
+              : () => context.pushReplacement(
+                    competencePromptPath(module, prompt!.skillId, prompt!.id),
                   ),
         ),
       ],

@@ -1,16 +1,16 @@
 package com.sejourfr.app.service.versionciblee;
 
-import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.service.EvaluationMarqueursA2;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
- * FILET DETERMINISTE sur les leviers {@code version_ciblee.ce_qui_manque} : un
- * moyen que notre grille classe <b>A2</b> ne peut pas etre ce qui separe le
- * candidat d'un palier <b>superieur</b>.
+ * FILET DETERMINISTE sur les leviers de la version au niveau vise : un moyen que
+ * notre grille classe <b>A2</b> ne peut pas etre ce qui separe le candidat d'un
+ * palier <b>superieur</b>.
  *
  * <h2>Le defaut, verbatim, releve en base</h2>
  * Un bloc {@code niveau_vise: B1} portait le levier « Relier les phrases avec des
@@ -23,9 +23,9 @@ import java.util.List;
  * {@code EvaluationPalierMarqueurFilter}, sous un autre contrat.
  *
  * <p>Il est devenu urgent le jour ou les fronts ont retire {@code version_amelioree}
- * de l'ecran : {@code version_ciblee} est desormais LE texte modele mis en
- * evidence sur un resultat EE, ses leviers juste en dessous. Le mauvais conseil
- * est passe de discret a proeminent.
+ * de l'ecran : {@code version_ciblee} est desormais LE plan d'action mis en
+ * evidence sur un resultat de production. Le mauvais conseil est passe de discret
+ * a proeminent.
  *
  * <h2>Pourquoi c'est plus SÛR ici que cote correcteur</h2>
  * Cote correcteur, le palier revendique doit se deviner dans la phrase
@@ -33,8 +33,22 @@ import java.util.List;
  * champ structure du bloc, pose par le SERVEUR, jamais par le modele. La moitie
  * fragile du jugement disparait donc, et il ne reste que la detection du
  * marqueur, partagee mot pour mot avec l'autre filet
- * ({@link EvaluationMarqueursA2#designe(String)}) — a la deuxieme occurrence, on
- * extrait.
+ * ({@link EvaluationMarqueursA2#designe(String)}) — la liste n'est recopiee nulle
+ * part.
+ *
+ * <h2>Deux formes de levier, une seule regle</h2>
+ * <ul>
+ *   <li>contrat v1 : le levier est une PHRASE de 25 mots, inspectee telle
+ *       quelle ;</li>
+ *   <li>contrat v2 : le levier est un couple {@code {action, exemple}}, et
+ *       {@code exemple} est par definition un bout de langue a recopier. Le cas
+ *       fautif type y devient {@code exemple = "parce que"} — un marqueur A2
+ *       servi comme la cle du B1. Il est donc inspecte <b>entre guillemets</b>,
+ *       ce qu'il est semantiquement, et le filet partage y voit une citation.
+ *       L'{@code action}, elle, est inspectee telle quelle : une formule de rejet
+ *       qu'elle contiendrait (« au lieu de poser "mais" seul ») masque la suite,
+ *       exactement comme ailleurs — c'est le sens SÛR de l'erreur.</li>
+ * </ul>
  *
  * <h2>Frontieres — en cas de doute, on ne purge pas</h2>
  * <ul>
@@ -46,15 +60,15 @@ import java.util.List;
  *       {@link EvaluationMarqueursA2} ignore tout ce qui suit une formule de
  *       rejet ;</li>
  *   <li>une citation qui <b>contient</b> un marqueur sans s'y reduire
- *       (« Physiquement... mais... », « mais ce que j'apprecie surtout ») ne
- *       compte pas : l'egalite avec le marqueur doit etre exacte.</li>
+ *       (« ce qui me permettrait de ») ne compte pas : l'egalite avec le marqueur
+ *       doit etre exacte.</li>
  * </ul>
  *
  * <h2>Le levier tombe en ENTIER</h2>
- * On ne purge pas la phrase mais l'element de liste : la grille impose « une
- * seule phrase » par levier, et un demi-levier ne s'applique pas. Ce que fait le
- * service du trou ainsi cree — une reparation, puis l'abandon du bloc — est
- * documente dans {@code ProductionVersionCibleeService}.
+ * On ne purge pas la phrase mais l'element de liste : action et exemple forment
+ * un couple, et un demi-levier ne s'applique pas. Ce que fait le service du trou
+ * ainsi cree — une reparation, puis l'abandon du bloc — est documente dans
+ * {@link ProductionVersionCibleeService}.
  */
 final class VersionCibleeLevierFilter {
 
@@ -63,25 +77,28 @@ final class VersionCibleeLevierFilter {
      * @param retires leviers retires, pour le log, le compteur de purges et le
      *                message de reparation (qui les nomme un par un)
      */
-    record Resultat(List<String> gardes, List<String> retires) {
+    record Resultat(List<Object> gardes, List<Object> retires) {
     }
 
     private VersionCibleeLevierFilter() {
     }
 
     /**
-     * @param leviers leviers deja valides (non nuls, non vides, sous plafond)
+     * @param leviers leviers deja valides ; chaine sous le contrat v1, couple
+     *                {@code {action, exemple}} sous le contrat v2.
      * @param vise    palier VISE par le candidat, pose par le serveur. Null ou
      *                A2 : rien n'est purge.
      */
-    static Resultat purge(List<String> leviers, TargetLevel vise) {
+    static Resultat purge(List<Object> leviers, TargetLevel vise) {
         if (leviers == null || leviers.isEmpty()) return new Resultat(List.of(), List.of());
-        if (!marqueursA2SousLeNiveauVise(vise)) return new Resultat(List.copyOf(leviers), List.of());
+        if (!EvaluationMarqueursA2.sousLeNiveauVise(vise)) {
+            return new Resultat(List.copyOf(leviers), List.of());
+        }
 
-        List<String> gardes = new ArrayList<>();
-        List<String> retires = new ArrayList<>();
-        for (String levier : leviers) {
-            if (EvaluationMarqueursA2.designe(levier)) {
+        List<Object> gardes = new ArrayList<>();
+        List<Object> retires = new ArrayList<>();
+        for (Object levier : leviers) {
+            if (EvaluationMarqueursA2.designe(phraseInspectable(levier))) {
                 retires.add(levier);
             } else {
                 gardes.add(levier);
@@ -91,13 +108,28 @@ final class VersionCibleeLevierFilter {
     }
 
     /**
-     * Vrai quand les marqueurs de {@link EvaluationMarqueursA2#MARQUEURS_A2} sont
-     * classes <b>au niveau vise ou en dessous</b> — c'est-a-dire des que le
-     * candidat vise plus haut que A2. Les designer comme la marche suivante n'a
-     * alors aucun sens : il les emploie deja.
+     * Le levier vendu comme phrase inspectable : sous v2, l'action telle quelle
+     * puis l'exemple entre guillemets — c'est ce qu'il est, un bout de langue
+     * cite.
      */
-    private static boolean marqueursA2SousLeNiveauVise(TargetLevel vise) {
-        return vise != null
-            && NiveauCecrl.valueOf(vise.name()).ordinal() > NiveauCecrl.A2.ordinal();
+    static String phraseInspectable(Object levier) {
+        if (!(levier instanceof Map<?, ?> couple)) return texte(levier);
+        String action = texte(couple.get(VersionCibleeFields.ACTION));
+        String exemple = texte(couple.get(VersionCibleeFields.EXEMPLE));
+        if (exemple.isEmpty()) return action;
+        return action.isEmpty() ? "« " + exemple + " »" : action + " : « " + exemple + " »";
+    }
+
+    /** Libelle court d'un levier, pour un log ou un message de reparation. */
+    static String libelle(Object levier) {
+        if (!(levier instanceof Map<?, ?> couple)) return texte(levier);
+        String action = texte(couple.get(VersionCibleeFields.ACTION));
+        String exemple = texte(couple.get(VersionCibleeFields.EXEMPLE));
+        if (exemple.isEmpty()) return action;
+        return action + " — « " + exemple + " »";
+    }
+
+    private static String texte(Object valeur) {
+        return valeur == null ? "" : valeur.toString().trim();
     }
 }

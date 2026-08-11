@@ -79,21 +79,6 @@ public class SkillPromptManager {
     }
 
     /**
-     * Nombre de sujets actifs par competence active, pour un ensemble de
-     * competences quelconque. Comme sa jumelle par tache, une competence sans
-     * sujet actif est absente : au caller de combler a zero.
-     */
-    public Map<UUID, Long> countActiveBySkillIds(Collection<UUID> skillIds) {
-        Map<UUID, Long> counts = new HashMap<>();
-        // Un IN vide est un SQL invalide : on n'interroge pas la base pour rien.
-        if (skillIds.isEmpty()) return counts;
-        for (Object[] row : repository.countActiveBySkillIds(skillIds)) {
-            counts.put((UUID) row[0], ((Number) row[1]).longValue());
-        }
-        return counts;
-    }
-
-    /**
      * Nombre de sujets actifs par competence active, pour un ensemble de taches.
      * Les competences sans sujet actif sont absentes de la map : c'est a
      * l'appelant, qui connait la liste des competences a afficher, de combler a

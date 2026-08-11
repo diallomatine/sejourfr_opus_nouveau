@@ -27,7 +27,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -71,6 +73,12 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.currentPriority.promptCount").value(3))
                 .andExpect(jsonPath("$.currentPriority.attemptedCount").value(2))
                 .andExpect(jsonPath("$.currentPriority.validatedCount").value(1))
+                // L'étape vaut ce que la compétence publie quand elle a moins de
+                // 5 sujets : aucun dénominateur n'est inventé.
+                .andExpect(jsonPath("$.currentPriority.stepPromptCount").value(3))
+                .andExpect(jsonPath("$.currentPriority.stepAttemptedCount").value(2))
+                .andExpect(jsonPath("$.currentPriority.stepValidatedCount").value(1))
+                .andExpect(jsonPath("$.currentPriority.stepCompleted").value(false))
                 // Le sujet jamais traité, pas le rang 1 déjà validé.
                 .andExpect(jsonPath("$.currentPriority.recommendedExercise.skillPromptId")
                         .value(jamaisTente.getId().toString()))
@@ -103,6 +111,82 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.currentPriority.validatedCount").value(1))
                 .andExpect(jsonPath("$.currentPriority.recommendedExercise.skillPromptId")
                         .value(aRenforcer.getId().toString()));
+    }
+
+    /**
+     * Une etape, ce sont les 5 premiers sujets actifs — pas les 15 de la
+     * competence. Les deux jeux de compteurs sont servis cote a cote, et
+     * l'exercice recommande ne sort jamais de l'etape.
+     */
+    @Test
+    void uneEtapeVautCinqSujetsQuelQueSoitLeCatalogueDeLaCompetence() throws Exception {
+        User user = data.user();
+        Skill skill = data.skill(SkillTaskCode.EE1);
+        List<SkillPrompt> prompts = new ArrayList<>();
+        for (int rang = 1; rang <= 15; rang++) {
+            prompts.add(data.skillPrompt(skill));
+        }
+        // Les 4 premiers sujets de l'etape sont traites, le 5e ne l'est pas.
+        for (int index = 0; index < 4; index++) {
+            data.userSkillAttempt(user, prompts.get(index));
+        }
+        observation(user, skill);
+        completedSession(user);
+
+        mvc.perform(get("/api/me/plan")
+                        .header(HttpHeaders.AUTHORIZATION, auth.bearer(user)))
+                .andExpect(status().isOk())
+                // Compteurs de COMPETENCE : la semantique de SkillDto, intacte.
+                .andExpect(jsonPath("$.currentPriority.promptCount").value(15))
+                .andExpect(jsonPath("$.currentPriority.attemptedCount").value(4))
+                // Compteurs d'ETAPE : les 5 premiers sujets, et eux seuls.
+                .andExpect(jsonPath("$.currentPriority.stepPromptCount").value(5))
+                .andExpect(jsonPath("$.currentPriority.stepAttemptedCount").value(4))
+                .andExpect(jsonPath("$.currentPriority.stepValidatedCount").value(0))
+                .andExpect(jsonPath("$.currentPriority.stepCompleted").value(false))
+                // Le rang 5, jamais traite — jamais le rang 6, hors etape.
+                .andExpect(jsonPath("$.currentPriority.recommendedExercise.skillPromptId")
+                        .value(prompts.get(4).getId().toString()))
+                // La carte « competence observee » n'est pas une etape : elle
+                // garde les compteurs des 15 sujets.
+                .andExpect(jsonPath("$.observedSkills[0].promptCount").value(15))
+                .andExpect(jsonPath("$.observedSkills[0].attemptedCount").value(4));
+    }
+
+    /**
+     * Une etape terminee <b>reste dans le Plan</b> : les priorites ne bougent
+     * qu'a l'arrivee d'une nouvelle observation. Et l'exercice recommande reste
+     * DANS l'etape — jamais le rang 6, pourtant jamais tente.
+     */
+    @Test
+    void uneEtapeTermineeResteAffichEeEtSonExerciceResteDansLEtape() throws Exception {
+        User user = data.user();
+        data.userSubscription(user, data.plan());
+        Skill skill = data.skill(SkillTaskCode.EO1);
+        List<SkillPrompt> prompts = new ArrayList<>();
+        for (int rang = 1; rang <= 7; rang++) {
+            prompts.add(data.skillPrompt(skill));
+        }
+        for (int index = 0; index < 5; index++) {
+            UserSkillAttempt attempt = data.userSkillAttempt(user, prompts.get(index));
+            if (index == 0) analysed(attempt, SkillCriterionStatus.VALIDATED);
+            if (index == 2) analysed(attempt, SkillCriterionStatus.NOT_VALIDATED);
+        }
+        observation(user, skill);
+        completedSession(user);
+
+        mvc.perform(get("/api/me/plan")
+                        .header(HttpHeaders.AUTHORIZATION, auth.bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentPriority.skillCode").value(skill.getCode()))
+                .andExpect(jsonPath("$.currentPriority.stepPromptCount").value(5))
+                .andExpect(jsonPath("$.currentPriority.stepAttemptedCount").value(5))
+                // Terminee n'est pas « tout valide ».
+                .andExpect(jsonPath("$.currentPriority.stepValidatedCount").value(1))
+                .andExpect(jsonPath("$.currentPriority.stepCompleted").value(true))
+                .andExpect(jsonPath("$.currentPriority.promptCount").value(7))
+                .andExpect(jsonPath("$.currentPriority.recommendedExercise.skillPromptId")
+                        .value(prompts.get(2).getId().toString()));
     }
 
     /**
@@ -140,17 +224,22 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
      * Au-dela des 2 sujets offerts, l'exercice recommande reste DESIGNE et
      * visible : on pose le cadenas, on ne detourne pas le Plan vers un sujet
      * ouvert qui ne serait plus la priorite mesuree.
+     *
+     * <p>Et il fixe la consequence assumee du freemium : un compte gratuit
+     * plafonne a <b>2 sur 5</b> — aucune etape n'est finissable sans
+     * abonnement, alors que le Plan reste entierement visible.
      */
     @Test
     void auDelaDesDeuxSujetsOffertsLExerciceRecommandeEstDesigneMaisVerrouille()
             throws Exception {
         User user = data.user();
         Skill skill = data.skill(SkillTaskCode.EE2);
-        SkillPrompt premier = data.skillPrompt(skill);
-        SkillPrompt second = data.skillPrompt(skill);
-        SkillPrompt troisieme = data.skillPrompt(skill);
-        data.userSkillAttempt(user, premier);
-        data.userSkillAttempt(user, second);
+        List<SkillPrompt> prompts = new ArrayList<>();
+        for (int rang = 1; rang <= 5; rang++) {
+            prompts.add(data.skillPrompt(skill));
+        }
+        data.userSkillAttempt(user, prompts.get(0));
+        data.userSkillAttempt(user, prompts.get(1));
         observation(user, skill);
         completedSession(user);
 
@@ -158,8 +247,11 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, auth.bearer(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.currentPriority.locked").value(false))
+                .andExpect(jsonPath("$.currentPriority.stepPromptCount").value(5))
+                .andExpect(jsonPath("$.currentPriority.stepAttemptedCount").value(2))
+                .andExpect(jsonPath("$.currentPriority.stepCompleted").value(false))
                 .andExpect(jsonPath("$.currentPriority.recommendedExercise.skillPromptId")
-                        .value(troisieme.getId().toString()))
+                        .value(prompts.get(2).getId().toString()))
                 .andExpect(jsonPath("$.currentPriority.recommendedExercise.locked").value(true));
     }
 

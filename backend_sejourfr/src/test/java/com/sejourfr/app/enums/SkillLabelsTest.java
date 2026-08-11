@@ -59,6 +59,23 @@ class SkillLabelsTest {
                         Map.entry("DIFFICILE", "J'ai eu du mal"));
     }
 
+    /**
+     * Ces trois phrases s'affichent SOUS le niveau, sur la carte de resultat. Ce
+     * sont elles qui repondent a « ou j'en suis » — la question qui a fait rendre
+     * le niveau CECRL sur cette voie. Aucune ne nomme un manque : le depot a
+     * retire le vocabulaire de deficit des cartes de resultat, on ne le
+     * reintroduit pas ici.
+     */
+    @Test
+    @DisplayName("Situation par rapport au niveau vise : les trois libelles sont geles")
+    void situationParRapportAuNiveauVise() {
+        assertThat(labels(SituationNiveauVise.class, SituationNiveauVise::getLabel))
+                .containsExactly(
+                        Map.entry("OBJECTIF_ATTEINT", "Tu as atteint ton objectif"),
+                        Map.entry("PROCHE", "Tu es proche du niveau visé"),
+                        Map.entry("EN_CHEMIN", "Encore du chemin vers ton objectif"));
+    }
+
     @Test
     @DisplayName("Difficulte : « Accessible » decrit le sujet, il ne juge pas le candidat")
     void difficulte() {
@@ -120,6 +137,9 @@ class SkillLabelsTest {
                 .doesNotHaveDuplicates()
                 .allSatisfy(l -> assertThat(l).isNotBlank());
         assertThat(labels(SkillReferenceLevel.class, SkillReferenceLevel::getLabel).values())
+                .doesNotHaveDuplicates()
+                .allSatisfy(l -> assertThat(l).isNotBlank());
+        assertThat(labels(SituationNiveauVise.class, SituationNiveauVise::getLabel).values())
                 .doesNotHaveDuplicates()
                 .allSatisfy(l -> assertThat(l).isNotBlank());
     }

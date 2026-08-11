@@ -2,6 +2,7 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.entity.UserSkillAttempt;
+import com.sejourfr.app.enums.SkillPromptStatus;
 import com.sejourfr.app.manager.SkillPromptManager;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
 import lombok.RequiredArgsConstructor;
@@ -9,21 +10,31 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * Progression d'un candidat sur les sujets de competences quelconques.
  *
- * <p>Meme semantique que les compteurs de {@code SkillDto} — sujets ACTIFS
- * d'une competence ACTIVE au denominateur, statut derive par
- * {@link SkillStatusResolver}, addition par {@link SkillProgressTally}. C'est
- * volontairement le meme calcul : le Plan et le catalogue de competences
- * decrivent la meme progression, vue depuis deux ecrans.
+ * <p>Deux compteurs par competence, <b>cote a cote et jamais confondus</b> :
+ * <ul>
+ *   <li>la <b>competence</b> ({@link SkillProgress}) — tous ses sujets actifs,
+ *       exactement la semantique de {@code SkillDto} du module Competences ;</li>
+ *   <li>l'<b>etape du Plan</b> ({@link LearningPlanStep.Progress}) — ses
+ *       {@value LearningPlanStep#PROMPTS_PAR_ETAPE} premiers sujets seulement.</li>
+ * </ul>
+ * Les deux sortent du meme parcours et de la meme addition
+ * ({@link SkillProgressTally}, statut derive par {@link SkillStatusResolver}) :
+ * il n'existe pas deux definitions de « tente » ou « valide ».
  *
  * <p><b>Deux requetes, quel que soit le nombre de competences</b> : le Plan en
  * demande jusqu'a onze d'un coup (1 priorite + 2 suivantes + 8 observees), une
- * requete par competence y serait un N+1.
+ * requete par competence y serait un N+1. Les sujets sont charges en liste
+ * plutot que comptes en SQL — c'est ce qui permet de servir les deux perimetres
+ * sans une requete de plus, la liste etant deja triee par rang d'affichage.
  */
 @Component
 @RequiredArgsConstructor
@@ -45,38 +56,52 @@ public class SkillProgressCounter {
         }
         if (skillIds.isEmpty()) return out;
 
-        Map<UUID, Long> promptCounts = promptManager.countActiveBySkillIds(skillIds);
+        // Un sujet retire du catalogue sort du denominateur ET du numerateur :
+        // findActiveBySkillIds ne rend que les sujets actifs de competences
+        // actives, donc parcourir SES lignes suffit a garantir « jamais 6 sur 5 ».
+        Map<UUID, List<SkillPrompt>> promptsBySkill = promptManager.findActiveBySkillIds(skillIds);
         Map<UUID, UserSkillAttempt> latestByPrompt =
                 attemptManager.findLatestPerPromptBySkillIds(userId, skillIds);
 
-        Map<UUID, SkillProgressTally> tallies = new HashMap<>();
-        for (UserSkillAttempt attempt : latestByPrompt.values()) {
-            SkillPrompt prompt = attempt.getSkillPrompt();
-            // Un sujet retire du catalogue sort du denominateur : il doit aussi
-            // sortir du numerateur, sinon « 6 sur 5 ».
-            if (!prompt.isActive() || !prompt.getSkill().isActive()) continue;
-            tallies.computeIfAbsent(prompt.getSkill().getId(), k -> new SkillProgressTally())
-                    .add(statusResolver.resolve(attempt));
-        }
-
         for (UUID skillId : skillIds) {
-            SkillProgressTally tally = tallies.getOrDefault(skillId, new SkillProgressTally());
+            List<SkillPrompt> prompts = promptsBySkill.getOrDefault(skillId, List.of());
+            List<SkillPrompt> stepPrompts = LearningPlanStep.scope(prompts);
+            Set<UUID> stepPromptIds = new HashSet<>(stepPrompts.size());
+            stepPrompts.forEach(prompt -> stepPromptIds.add(prompt.getId()));
+
+            SkillProgressTally skillTally = new SkillProgressTally();
+            SkillProgressTally stepTally = new SkillProgressTally();
+            for (SkillPrompt prompt : prompts) {
+                UserSkillAttempt latest = latestByPrompt.get(prompt.getId());
+                if (latest == null) continue;
+                SkillPromptStatus status = statusResolver.resolve(latest);
+                skillTally.add(status);
+                if (stepPromptIds.contains(prompt.getId())) stepTally.add(status);
+            }
+
             out.put(skillId, new SkillProgress(
-                    promptCounts.getOrDefault(skillId, 0L).intValue(),
-                    tally.attempted(),
-                    tally.validated(),
-                    tally.toReinforce()));
+                    prompts.size(),
+                    skillTally.attempted(),
+                    skillTally.validated(),
+                    skillTally.toReinforce(),
+                    new LearningPlanStep.Progress(
+                            stepPrompts.size(), stepTally.attempted(), stepTally.validated())));
         }
         return out;
     }
 
-    /** Progression d'une competence : sujets actifs, tentes, valides, a renforcer. */
+    /**
+     * Progression d'une competence : sujets actifs, tentes, valides, a renforcer
+     * — et, a cote, la progression sur les seuls sujets de l'etape du Plan.
+     */
     public record SkillProgress(
             int promptCount,
             int attemptedCount,
             int validatedCount,
-            int toReinforceCount) {
+            int toReinforceCount,
+            LearningPlanStep.Progress step) {
 
-        public static final SkillProgress EMPTY = new SkillProgress(0, 0, 0, 0);
+        public static final SkillProgress EMPTY =
+                new SkillProgress(0, 0, 0, 0, LearningPlanStep.Progress.EMPTY);
     }
 }

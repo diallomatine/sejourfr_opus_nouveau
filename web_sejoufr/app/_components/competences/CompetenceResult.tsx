@@ -1,14 +1,25 @@
 "use client";
 
 import {useParams, useRouter} from "next/navigation";
-import {useCallback, useEffect, useState} from "react";
-import {ArrowRight, Check, Clock, RefreshCw, Sparkles, Target, TrendingUp} from "lucide-react";
+import {useCallback, useEffect, useId, useState} from "react";
+import {
+  ArrowRight,
+  Check,
+  ChevronDown,
+  Clock,
+  RefreshCw,
+  Sparkles,
+  Target,
+  TrendingUp,
+} from "lucide-react";
 import {ApiException, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
   referencesOpenByDefault,
+  skillNiveauViseMayStillArrive,
   skillResultAnalysisView,
   skillResultBannerAction,
+  SKILL_NIVEAU_VISE_GRACE_MS,
   type SkillResultAnalysisView,
 } from "@/lib/skill-result-view";
 import {
@@ -26,7 +37,15 @@ import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {type ProductionConfig} from "@/app/_components/production/config";
+import {CompetenceLevelCard} from "./CompetenceLevelCard";
 import {CompetenceReferences} from "./CompetenceReferences";
+import {
+  ACTION_PLAN_EXEMPLE_TITLE,
+  ActionPlanExemple,
+  ActionPlanLeviers,
+  ActionPlanMemoCard,
+  pourViserTitle,
+} from "@/app/_components/skill-ui/ActionPlan";
 import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
 
@@ -64,22 +83,24 @@ const VERDICT_TONE: Record<SkillCriterionStatus, {card: string; status: string}>
 /**
  * Retour après une tentative sur un petit sujet.
  *
- * L'ordre est imposé (spec §13.4) : accusé de traitement, la production, puis
- * le retour de l'IA, puis **seulement ensuite** les références comparatives.
- * Voir les modèles avant son propre retour pousse à se comparer au lieu de se
- * relire.
+ * L'écran doit se comprendre en trois secondes : **où j'en suis** (la carte de
+ * niveau et sa jauge), **ce qu'il me manque** (les leviers), **à quoi ça
+ * ressemble quand c'est bien fait** (l'exemple annoté). Tout le texte affiché
+ * est plafonné en mots côté serveur : aucune phrase d'accompagnement n'est
+ * ajoutée ici.
  *
- * **Ce qui est déplié a été inversé** (décision client) : l'analyse IA est
- * visible d'emblée — c'est le retour que le candidat vient de mériter, il n'a
- * pas à le déverrouiller — et ce sont les trois références qui se replient
- * derrière une action explicite. Le bandeau « Analyse IA du critère » ne
- * subsiste donc que lorsqu'il n'y a rien à déplier : quota épuisé, production
- * enregistrée sans analyse, analyse en échec. Les règles vivent dans
- * `lib/skill-result-view.ts` (pures, testées).
+ * L'ordre est imposé et commun au mobile : bandeau de confirmation, verdict du
+ * critère, niveau, leviers, exemple, mémo, **puis** la production — repliée,
+ * jamais supprimée : à l'oral, se réécouter en lisant le retour est la moitié
+ * de la valeur de l'exercice —, puis les références, puis les actions.
  *
- * Il n'y a ici **ni note /20 ni niveau CECRL** (spec §9) : un exercice de
- * quinze mots ne situe personne sur l'échelle du TCF. Le seul verdict porte sur
- * le critère unique du sujet.
+ * **Deux générations d'analyses cohabitent sans migration.** Une analyse sans
+ * `levelProgress` vient des contrats v1/v2 : elle retombe intégralement sur
+ * l'affichage historique (point réussi / priorité / proposition améliorée). On
+ * ne régresse jamais sur ce qui est déjà en base.
+ *
+ * Il n'y a ici **ni note /20 ni niveau d'épreuve** : le niveau rendu est celui
+ * que **cette** micro-production démontre, dérivé serveur.
  */
 export function CompetenceResult({config}: {config: ProductionConfig}) {
   const params = useParams<{
@@ -105,20 +126,45 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
   const [retrying, setRetrying] = useState(false);
   const [pollKey, setPollKey] = useState(0);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [prodOpen, setProdOpen] = useState(false);
+  const prodPanelId = useId();
 
   // Poll tant que l'analyse est en vol (EO passe par TRANSCRIBING). Une
   // tentative RECORDED est finale : aucun appel inutile n'est déclenché.
+  //
+  // **Sursis après `EVALUATED`** : le bloc « pour viser X » vient d'un SECOND
+  // appel, lancé une fois l'évaluation persistée. S'arrêter net sur
+  // `EVALUATED` afficherait un écran sans leviers alors qu'ils arrivent une
+  // seconde plus tard. La règle (dix secondes, même cadence, jamais d'erreur)
+  // vit dans `lib/skill-result-view.ts`, partagée mot pour mot avec le mobile ;
+  // le budget global reste la borne dure.
   useEffect(() => {
     if (status !== "authenticated" || !attemptId) return;
     let cancelled = false;
     let polls = 0;
+    let graceStartedAt: number | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
     async function tick() {
       try {
         const a = await skillApi.getAttempt(attemptId);
         if (cancelled) return;
         setAttempt(a);
-        if (isSkillAttemptPending(a) && polls < MAX_POLLS) {
+
+        let again = isSkillAttemptPending(a);
+        if (!again) {
+          const waiting = skillNiveauViseMayStillArrive({
+            evaluated: a.statut === "EVALUATED",
+            hasLevelProgress: a.analysis?.levelProgress != null,
+            objectifAtteint: a.analysis?.levelProgress?.situation === "OBJECTIF_ATTEINT",
+            hasNiveauVise: a.analysis?.niveauVise != null,
+          });
+          if (waiting) {
+            graceStartedAt ??= Date.now();
+            again = Date.now() - graceStartedAt < SKILL_NIVEAU_VISE_GRACE_MS;
+          }
+        }
+
+        if (again && polls < MAX_POLLS) {
           polls += 1;
           timer = setTimeout(tick, POLL_MS);
         }
@@ -205,60 +251,28 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
           </div>
         ) : (
           <section className={`${s.card} ${s.panel} ${s.result}`}>
-            {/* Accusé de traitement : le sujet compte, la progression a bougé. */}
+            {/* Bandeau de confirmation : ce qui vient de se passer, puis la
+                conséquence sur la progression.
+
+                « Production analysée » n'est **pas** servi à une tentative sans
+                analyse (`RECORDED`, quota épuisé, analyse en échec) : elle n'a
+                pas été analysée, et l'annoncer serait faux. Ces états gardent
+                l'accusé historique. Condition et libellés identiques au mobile
+                (`_TreatedHeader`). */}
             <div className={s.resultTitle}>
               <span className={s.check} aria-hidden>
                 <Check size={20} strokeWidth={3} />
               </span>
               <div>
-                <h1 className={s.resultHeading}>Sujet marqué comme traité</h1>
+                <h1 className={s.resultHeading}>
+                  {analysis ? "Production analysée" : "Sujet marqué comme traité"}
+                </h1>
                 <p className={s.resultSub}>
-                  La progression de la compétence a été mise à jour.
+                  {analysis
+                    ? "Progression mise à jour"
+                    : "La progression de la compétence a été mise à jour."}
                 </p>
               </div>
-            </div>
-
-            <div className={s.answerBox}>
-              <span className={s.answerLabel}>Ta production</span>
-              {/* L'oral conserve son audio : se réécouter en lisant le retour
-                  est la moitié de la valeur de l'exercice. Même lecteur que
-                  l'enregistreur (`EoRecordingForm`) — l'URL R2 est présignée
-                  15 min, `preload="metadata"` évite de la consommer pour rien. */}
-              {attempt.audioUrl && (
-                <div className={s.player}>
-                  <audio src={attempt.audioUrl} controls preload="metadata" />
-                </div>
-              )}
-              {attempt.writtenProduction && (
-                <p className={s.prodText}>{attempt.writtenProduction}</p>
-              )}
-              {attempt.transcript && (
-                <>
-                  <span className={s.transcriptLabel}>Transcription</span>
-                  <p className={s.prodText}>{attempt.transcript}</p>
-                </>
-              )}
-              {!attempt.writtenProduction && !attempt.audioUrl && (
-                <p className={s.prodText}>Production indisponible.</p>
-              )}
-              {/* L'auto-évaluation a été retirée de l'écran de saisie (parité
-                  mobile) : plus aucune tentative ne portera de ressenti, on
-                  n'en affiche donc plus. */}
-              {(attempt.audioDurationSec != null || attempt.wordsCount != null) && (
-                <div className={s.chips}>
-                  {attempt.audioDurationSec != null && (
-                    <span className={s.chip}>
-                      <Clock size={11} strokeWidth={2.4} aria-hidden />
-                      {formatDurationSec(attempt.audioDurationSec)}
-                    </span>
-                  )}
-                  {attempt.audioDurationSec == null && attempt.wordsCount != null && (
-                    <span className={s.chip}>
-                      {attempt.wordsCount} mot{attempt.wordsCount > 1 ? "s" : ""}
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
 
             {view === "PENDING" ? (
@@ -283,6 +297,72 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
               />
             )}
 
+            {/* La production passe **après** le retour et s'ouvre repliée : elle
+                n'est plus ce qu'on vient lire, mais elle reste à un clic — à
+                l'oral pour se réécouter, à l'écrit pour se relire. */}
+            <section className={s.refSection}>
+              <button
+                type="button"
+                className={s.refToggle}
+                aria-expanded={prodOpen}
+                aria-controls={prodPanelId}
+                onClick={() => setProdOpen((o) => !o)}
+              >
+                <span className={s.refToggleBody}>
+                  <span className={s.refToggleTitle}>Ta production</span>
+                </span>
+                <span className={s.refToggleAction}>
+                  {prodOpen ? "Masquer" : "Afficher"}
+                  <ChevronDown
+                    size={15}
+                    strokeWidth={2.4}
+                    aria-hidden
+                    className={`${s.refChevron} ${prodOpen ? s.refChevronOpen : ""}`}
+                  />
+                </span>
+              </button>
+
+              {prodOpen && (
+                <div id={prodPanelId} className={s.answerBox}>
+                  {/* Même lecteur que l'enregistreur (`EoRecordingForm`) — l'URL
+                      R2 est présignée 15 min, `preload="metadata"` évite de la
+                      consommer pour rien. */}
+                  {attempt.audioUrl && (
+                    <div className={s.player}>
+                      <audio src={attempt.audioUrl} controls preload="metadata" />
+                    </div>
+                  )}
+                  {attempt.writtenProduction && (
+                    <p className={s.prodText}>{attempt.writtenProduction}</p>
+                  )}
+                  {attempt.transcript && (
+                    <>
+                      <span className={s.transcriptLabel}>Transcription</span>
+                      <p className={s.prodText}>{attempt.transcript}</p>
+                    </>
+                  )}
+                  {!attempt.writtenProduction && !attempt.audioUrl && (
+                    <p className={s.prodText}>Production indisponible.</p>
+                  )}
+                  {(attempt.audioDurationSec != null || attempt.wordsCount != null) && (
+                    <div className={s.chips}>
+                      {attempt.audioDurationSec != null && (
+                        <span className={s.chip}>
+                          <Clock size={11} strokeWidth={2.4} aria-hidden />
+                          {formatDurationSec(attempt.audioDurationSec)}
+                        </span>
+                      )}
+                      {attempt.audioDurationSec == null && attempt.wordsCount != null && (
+                        <span className={s.chip}>
+                          {attempt.wordsCount} mot{attempt.wordsCount > 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+
             <CompetenceReferences
               references={references}
               defaultOpen={referencesOpenByDefault(view)}
@@ -291,28 +371,21 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
             <div className={s.actions}>
               <button
                 type="button"
-                className="btn btn-ghost"
-                onClick={() => router.push(`${base}/${skillId}`)}
-              >
-                Retour aux petits sujets
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => router.push(`${base}/${skillId}/${promptId}`)}
-              >
-                <RefreshCw size={15} strokeWidth={2.2} aria-hidden />
-                Refaire ce sujet
-              </button>
-              <button
-                type="button"
-                className={`btn ${s.actionWide}`}
+                className={`btn btn-ghost ${s.actionWide}`}
                 disabled={!nextId}
                 title={nextId ? undefined : "Tous les sujets de cette compétence ont été traités."}
                 onClick={() => nextId && router.push(`${base}/${skillId}/${nextId}`)}
               >
-                Sujet suivant à travailler
+                Sujet suivant
                 <ArrowRight size={16} strokeWidth={2.2} aria-hidden />
+              </button>
+              <button
+                type="button"
+                className={`btn ${s.actionWide}`}
+                onClick={() => router.push(`${base}/${skillId}/${promptId}`)}
+              >
+                <RefreshCw size={15} strokeWidth={2.2} aria-hidden />
+                S&apos;entraîner sur ce point
               </button>
             </div>
           </section>
@@ -335,62 +408,140 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
  *
  * C'est ce que le candidat vient chercher : le lui faire déverrouiller d'un
  * clic ajoutait une étape à un contenu déjà acquis (et déjà décompté de ses
- * analyses offertes). L'intertitre suffit à situer le bloc dans l'ordre imposé
- * de l'écran — accusé de traitement → ta production → **analyse** →
- * références → actions.
+ * analyses offertes).
+ *
+ * Deux générations de contrat, aucune migration : `levelProgress` présent ⇒
+ * restitution v3 (verdict du critère + niveau, leviers, exemple, mémo) ; absent
+ * ⇒ l'affichage historique, conservé tel quel pour les analyses déjà en base.
+ * Le verdict n'a plus de section propre en v3 : `status` et `verdict` sont
+ * rendus en compact dans `CompetenceLevelCard` (pastille + ligne de texte).
  */
 function AnalysisView({analysis}: {analysis: SkillAnalysisDto}) {
-  const tone = VERDICT_TONE[analysis.status];
+  const progress = analysis.levelProgress ?? null;
+  const cible = analysis.niveauVise ?? null;
+
+  // Analyse d'avant le contrat v3 : pas de carte de niveau, et on retombe
+  // intégralement sur l'affichage historique.
+  if (!progress) {
+    return (
+      <section className={s.aiPanel}>
+        <h2 className={s.resultSectionTitle}>Analyse IA du critère</h2>
+        <VerdictCard analysis={analysis} />
+        <LegacyAnalysis analysis={analysis} />
+      </section>
+    );
+  }
 
   return (
     <section className={s.aiPanel}>
-      <h2 className={s.resultSectionTitle}>Analyse IA du critère</h2>
-
-      <div className={`${s.verdict} ${tone.card}`}>
-        <div className={s.verdictTop}>
-          <span className={s.verdictLabel}>Critère unique</span>
-          <span className={`${s.status} ${tone.status}`}>
-            {analysis.status === "VALIDATED" ? (
-              <Check size={12} strokeWidth={2.8} aria-hidden />
-            ) : (
-              <Target size={11} strokeWidth={2.4} aria-hidden />
-            )}
-            {SKILL_CRITERION_STATUS_LABEL[analysis.status]}
-          </span>
-        </div>
-        <p className={s.verdictText}>{analysis.verdict}</p>
-      </div>
-
-      <div className={s.feedbackGrid}>
-        <div className={s.feedbackItem}>
-          <span className={`${s.feedbackIcon} ${s.feedbackIconGood}`} aria-hidden>
-            <Check size={16} strokeWidth={2.8} />
-          </span>
-          <div>
-            <strong className={s.feedbackTitle}>Ce qui est réussi</strong>
-            <p className={s.feedbackText}>{analysis.successPoint}</p>
-          </div>
-        </div>
-        <div className={s.feedbackItem}>
-          <span className={`${s.feedbackIcon} ${s.feedbackIconFocus}`} aria-hidden>
-            <TrendingUp size={16} strokeWidth={2.4} />
-          </span>
-          <div>
-            <strong className={s.feedbackTitle}>À travailler en priorité</strong>
-            <p className={s.feedbackText}>{analysis.improvementPriority}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className={s.rewrite}>
-        <strong className={s.rewriteLabel}>Proposition améliorée</strong>
-        <p className={s.rewriteText}>{analysis.improvedVersion}</p>
-        <small className={s.rewriteNote}>
-          Exemple de reformulation : ce n&apos;est pas la seule bonne réponse, et ton idée
-          doit être conservée.
-        </small>
-      </div>
+      <CompetenceLevelCard
+        progress={progress}
+        strengthTag={analysis.strengthTag ?? null}
+        focusTag={analysis.focusTag ?? null}
+        criterionStatus={analysis.status}
+        verdict={analysis.verdict}
+      />
+      {/* `niveauVise` absent est un cas NORMAL — objectif déjà atteint, ou
+          second appel best-effort resté muet. Ni message d'échec, ni spinner,
+          ni encart d'excuse : la carte de niveau se suffit. Le palier des
+          intertitres vient du bloc qui les porte, jamais d'un niveau déduit. */}
+      {cible && (
+        <>
+          {cible.leviers && cible.leviers.length > 0 && (
+            <section className={s.block}>
+              <h3 className={s.resultSectionTitle}>{pourViserTitle(cible.niveauVise)}</h3>
+              <ActionPlanLeviers leviers={cible.leviers} />
+            </section>
+          )}
+          {cible.exempleCible && (
+            <section className={s.block}>
+              <h3 className={s.resultSectionTitle}>{ACTION_PLAN_EXEMPLE_TITLE}</h3>
+              <ActionPlanExemple exemple={cible.exempleCible} />
+            </section>
+          )}
+          {cible.aRetenir && <ActionPlanMemoCard memo={cible.aRetenir} />}
+        </>
+      )}
     </section>
+  );
+}
+
+/** Verdict sur le critère unique — **restitution v1/v2 seulement**.
+ *
+ *  Sous le contrat v3, le niveau démontré et son écart à l'objectif ouvrent
+ *  l'écran : deux verdicts empilés au même endroit se disputeraient la première
+ *  lecture. Parité stricte avec le mobile (`_VerdictCard`, branche héritée). */
+function VerdictCard({analysis}: {analysis: SkillAnalysisDto}) {
+  const tone = VERDICT_TONE[analysis.status];
+
+  return (
+    <div className={`${s.verdict} ${tone.card}`}>
+      <div className={s.verdictTop}>
+        <span className={s.verdictLabel}>Critère unique</span>
+        <span className={`${s.status} ${tone.status}`}>
+          {analysis.status === "VALIDATED" ? (
+            <Check size={12} strokeWidth={2.8} aria-hidden />
+          ) : (
+            <Target size={11} strokeWidth={2.4} aria-hidden />
+          )}
+          {SKILL_CRITERION_STATUS_LABEL[analysis.status]}
+        </span>
+      </div>
+      <p className={s.verdictText}>{analysis.verdict}</p>
+    </div>
+  );
+}
+
+/**
+ * Restitution des contrats **v1/v2**, conservée telle quelle.
+ *
+ * Ces analyses sont déjà en base et n'ont pas été migrées : elles ne portent ni
+ * niveau, ni leviers, ni exemple. Chaque bloc est rendu **seulement s'il a du
+ * texte** — un champ vide affiché produirait une carte creuse.
+ */
+function LegacyAnalysis({analysis}: {analysis: SkillAnalysisDto}) {
+  const {successPoint, improvementPriority, improvedVersion} = analysis;
+
+  return (
+    <>
+      {(successPoint || improvementPriority) && (
+        <div className={s.feedbackGrid}>
+          {successPoint && (
+            <div className={s.feedbackItem}>
+              <span className={`${s.feedbackIcon} ${s.feedbackIconGood}`} aria-hidden>
+                <Check size={16} strokeWidth={2.8} />
+              </span>
+              <div>
+                <strong className={s.feedbackTitle}>Ce qui est réussi</strong>
+                <p className={s.feedbackText}>{successPoint}</p>
+              </div>
+            </div>
+          )}
+          {improvementPriority && (
+            <div className={s.feedbackItem}>
+              <span className={`${s.feedbackIcon} ${s.feedbackIconFocus}`} aria-hidden>
+                <TrendingUp size={16} strokeWidth={2.4} />
+              </span>
+              <div>
+                <strong className={s.feedbackTitle}>À travailler en priorité</strong>
+                <p className={s.feedbackText}>{improvementPriority}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {improvedVersion && (
+        <div className={s.rewrite}>
+          <strong className={s.rewriteLabel}>Proposition améliorée</strong>
+          <p className={s.rewriteText}>{improvedVersion}</p>
+          <small className={s.rewriteNote}>
+            Exemple de reformulation : ce n&apos;est pas la seule bonne réponse, et ton idée
+            doit être conservée.
+          </small>
+        </div>
+      )}
+    </>
   );
 }
 

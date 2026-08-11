@@ -23,10 +23,15 @@ public interface VersionCibleeLlmClient {
      * Appelle le LLM en forçant une réponse structurée (tool_use / function
      * calling) conforme au tool-schema configuré.
      *
+     * @param variante décide du contrat de sortie envoyé : à l'écrit le candidat
+     *                 reçoit sa réponse RÉÉCRITE, à l'oral seulement des passages
+     *                 REFORMULÉS. Deux sorties différentes, donc deux schémas —
+     *                 les fondre en un seul aurait supposé des champs
+     *                 facultatifs.
      * @throws com.sejourfr.app.exception.AiEvaluationException sur toute erreur
      *         — le service appelant l'avale, l'évaluation reste valide.
      */
-    Outcome produire(String systemPrompt, String userPrompt);
+    Outcome produire(String systemPrompt, String userPrompt, VersionCibleeVariante variante);
 
     /** Modèle effectivement utilisé (logs et suivi de coût). */
     String getModelName();

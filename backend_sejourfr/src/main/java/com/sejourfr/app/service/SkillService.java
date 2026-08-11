@@ -195,7 +195,7 @@ public class SkillService {
         Map<UUID, UserSkillAttempt> latestByPrompt =
                 attemptManager.findLatestPerPromptBySkill(userId, skillId);
         Map<UUID, Long> attemptCounts = attemptManager.countPerPromptBySkill(userId, skillId);
-        // Une seule resolution pour la competence ET ses 5 sujets : le cadenas
+        // Une seule resolution pour la competence ET ses 15 sujets : le cadenas
         // doit se voir sur la liste, pas seulement a l'ouverture d'un sujet.
         SkillAccessService.SkillAccess access = accessService.resolve(userId);
 
@@ -232,7 +232,7 @@ public class SkillService {
         long attemptCount = attemptManager.countByUserAndPrompt(userId, promptId);
 
         // Les sujets freres servent DEUX fois : leur nombre est le denominateur
-        // du fil d'Ariane « Sujet i/5 », et leur parcours donne le sujet suivant.
+        // du fil d'Ariane « Sujet i/N », et leur parcours donne le sujet suivant.
         // Les charger une fois evite a l'ecran de production un second appel a
         // GET /api/skills/{skillId} pour ces seules informations.
         List<SkillPrompt> siblings = promptManager.findActiveBySkillId(skill.getId());

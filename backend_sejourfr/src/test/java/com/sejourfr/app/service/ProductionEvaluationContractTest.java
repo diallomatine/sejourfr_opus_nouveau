@@ -679,6 +679,275 @@ class ProductionEvaluationContractTest {
     /** Sa mention dans la liste des champs soumis a la regle d'accentuation. */
     private static final String VERSION_AMELIOREE_ACCENTUATION = "`version_amelioree`, ";
 
+
+    /**
+     * v15 = v14 AU BIT PRES pour TOUT ce qui note. Elle ne fait que RETIRER ce
+     * qui decrivait {@code exemples_corriges} et {@code suggestions} — les deux
+     * champs que le bloc replie « Voir l'analyse complete » de l'ecran de
+     * resultat etait seul a afficher, et qui disparait. Ce test est le verrou de
+     * cette promesse, et il compte double : la bascule est livree SANS campagne
+     * de banc, donc la seule chose qui garantisse qu'elle ne deplace pas une
+     * note, c'est qu'aucune regle de notation n'a bouge d'un caractere.
+     *
+     * <p>Meme technique que {@link #v14NeRetireQueCeQuiDecritLaVersionAmelioree()}
+     * : on reconstruit v15 a partir de v14 en lui appliquant la liste ENUMEREE
+     * des retraits, et on exige l'egalite. Un seul caractere modifie ailleurs
+     * casse le test.
+     */
+    @Test
+    void v15NeRetireQueCeQuiDecritLesExemplesCorrigesEtLesSuggestions() throws Exception {
+        Map<String, Object> v14 = resource("prompts/production-rubrics-v14.json");
+        Map<String, Object> v15 = resource("prompts/production-rubrics-v15.json");
+
+        assertThat(v15)
+            .containsEntry("rubrics-version", "v15")
+            .containsEntry("profile", "TCF_IRN")
+            .containsEntry("tool_schema_version", "v9")
+            .containsEntry("niveau_max", "B2");
+        assertThat(resourceText("prompts/production-rubrics-v15.json"))
+            .doesNotContain("\"C1\"", "\"C2\"");
+
+        // (1) TOUT ce qui note : identique au bit pres.
+        Map<String, Object> communV14 = map(v14.get("commun"));
+        Map<String, Object> communV15 = map(v15.get("commun"));
+        for (String bloc : List.of("niveau", "couplage", "plafonds", "bandes_criteres", "few_shot")) {
+            assertThat(communV15.get(bloc))
+                .as("v15 ne touche pas a commun." + bloc + " : la notation est celle de v14")
+                .isEqualTo(communV14.get(bloc));
+        }
+
+        // (2) Les six rubriques de tache : seules les consignes changent, et
+        //     seulement sur les trois fragments enumeres.
+        Map<String, Object> rubricsV14 = map(v14.get("rubrics"));
+        Map<String, Object> rubricsV15 = map(v15.get("rubrics"));
+        assertThat(rubricsV15.keySet()).isEqualTo(rubricsV14.keySet());
+        for (String tache : rubricsV14.keySet()) {
+            Map<String, Object> blocV14 = new java.util.LinkedHashMap<>(map(rubricsV14.get(tache)));
+            Map<String, Object> blocV15 = new java.util.LinkedHashMap<>(map(rubricsV15.get(tache)));
+
+            String consignesV14 = String.valueOf(blocV14.remove("consignes_correcteur"));
+            String consignesV15 = String.valueOf(blocV15.remove("consignes_correcteur"));
+            for (Edit edit : EDITS_CONSIGNES) {
+                assertThat(consignesV14)
+                    .as(tache + " : v14 portait bien le fragment retire " + apercu(edit))
+                    .contains(edit.avant());
+            }
+            assertThat(consignesV15)
+                .as(tache + " : v15 est v14 privee des trois fragments enumeres, rien d'autre")
+                .isEqualTo(appliquer(consignesV14, EDITS_CONSIGNES));
+
+            assertThat(blocV15)
+                .as(tache + " : intitule, criteres, bareme et descripteurs sont ceux de v14")
+                .isEqualTo(blocV14);
+        }
+
+        // (3) Les sections : aucune retiree, aucune renommee — les deux champs
+        //     n'avaient pas de bloc dedie, ils etaient dissemines.
+        List<?> sectionsV14 = list(communV14.get("sections"));
+        List<?> sectionsV15 = list(communV15.get("sections"));
+        assertThat(sectionsV15.stream().map(s -> map(s).get("titre").toString()).toList())
+            .as("aucune section n'est ni ajoutee, ni retiree, ni renommee")
+            .containsExactlyElementsOf(
+                sectionsV14.stream().map(s -> map(s).get("titre").toString()).toList());
+
+        for (Edit edit : EDITS_SECTIONS) {
+            assertThat(sectionsV14.stream()
+                    .filter(s -> map(s).get("contenu").toString().contains(edit.avant()))
+                    .count())
+                .as("v14 portait bien, une seule fois, le fragment : " + apercu(edit))
+                .isEqualTo(1);
+        }
+        List<?> attendu = sectionsV14.stream()
+            .map(s -> {
+                Map<String, Object> copie = new java.util.LinkedHashMap<>(map(s));
+                copie.put("contenu", appliquer(String.valueOf(copie.get("contenu")), EDITS_SECTIONS));
+                return copie;
+            })
+            .toList();
+        assertThat(sectionsV15)
+            .as("hors les fragments enumeres, chaque section est celle de v14")
+            .isEqualTo(attendu);
+
+        // (4) Plus aucune consigne ne parle des champs retires.
+        String texteV15 = sectionsV15.stream()
+            .map(s -> map(s).get("contenu").toString())
+            .reduce("", (a, b) -> a + "\n" + b)
+            + rubricsV15.values().stream()
+                .map(r -> map(r).get("consignes_correcteur").toString())
+                .reduce("", (a, b) -> a + "\n" + b);
+        assertThat(texteV15)
+            .as("le correcteur n'entend plus parler ni des exemples corriges ni des suggestions")
+            .doesNotContain("exemples_corriges", "suggestion", "exemple corrige", "EXEMPLES CORRIGES");
+    }
+
+    /**
+     * Le contrat de sortie v9 : celui de v8, PRIVE de {@code exemples_corriges}
+     * et de {@code suggestions}. Le verrou est une egalite STRICTE de tout ce
+     * qui reste — meme esprit que le retrait de {@code version_amelioree} en v8 :
+     * aucune reformulation ne peut se glisser dans une passe de suppression.
+     */
+    @Test
+    void v9NeRetireQueLesExemplesCorrigesEtLesSuggestionsDeV8() throws Exception {
+        Map<String, Object> v8 = resource("prompts/production-evaluation-tool-schema-v8.json");
+        Map<String, Object> v9 = resource("prompts/production-evaluation-tool-schema-v9.json");
+
+        Map<String, Object> propsV8 = new java.util.LinkedHashMap<>(map(v8.get("properties")));
+        for (String champ : CHAMPS_RETIRES_V9) {
+            assertThat(propsV8.remove(champ)).as("v8 portait bien " + champ).isNotNull();
+        }
+        assertThat(map(v9.get("properties")))
+            .as("v9 = v8 sans ces deux champs, et STRICTEMENT rien d'autre")
+            .isEqualTo(propsV8);
+
+        assertThat(strings(v9.get("required")))
+            .as("les deux entrees obligatoires disparaissent, l'ordre du reste ne bouge pas")
+            .containsExactlyElementsOf(strings(v8.get("required")).stream()
+                .filter(c -> !CHAMPS_RETIRES_V9.contains(c))
+                .toList());
+        assertThat(strings(v8.get("required")))
+            .as("v8 les exigeait bien")
+            .containsAll(CHAMPS_RETIRES_V9);
+        assertThat(v9.get("additionalProperties")).isEqualTo(false);
+        assertAllObjectsClosed(v9, "root");
+
+        // Tout le reste du fichier, cle par cle : identique, sauf le numero de
+        // contrat et la description, qui ne peut que S'ETOFFER.
+        for (String cle : map(v8).keySet()) {
+            if (List.of("properties", "required", "title", "description").contains(cle)) continue;
+            assertThat(v9.get(cle)).as(cle).isEqualTo(v8.get(cle));
+        }
+        assertThat(v9.keySet()).isEqualTo(v8.keySet());
+        assertThat(String.valueOf(v9.get("title")))
+            .isEqualTo(String.valueOf(v8.get("title")).replace("v8", "v9"));
+        assertThat(String.valueOf(v9.get("description")))
+            .as("on ajoute, on ne reecrit pas")
+            .startsWith(String.valueOf(v8.get("description")))
+            .contains("RETIRE deux champs");
+    }
+
+    /** Les deux proprietes que le contrat v9 retire du contrat v8. */
+    private static final List<String> CHAMPS_RETIRES_V9 =
+        List.of("exemples_corriges", "suggestions");
+
+    /**
+     * Un retrait ENUMERE : le fragment de v14 et ce qui le remplace en v15
+     * (vide dans la plupart des cas, une reformulation minimale quand la phrase
+     * comptait ses elements — « deux interdits » n'en garde plus qu'un).
+     */
+    private record Edit(String avant, String apres) {
+    }
+
+    private static String appliquer(String texte, List<Edit> edits) {
+        String out = texte;
+        for (Edit edit : edits) out = out.replace(edit.avant(), edit.apres());
+        return out;
+    }
+
+    private static String apercu(Edit edit) {
+        String a = edit.avant().replace("\n", " ").strip();
+        return a.length() <= 60 ? a : a.substring(0, 60) + "…";
+    }
+
+    private static final List<Edit> EDITS_SECTIONS = List.of(
+        new Edit(
+            "dans une priorite, une suggestion ou un commentaire de critere",
+            "dans une priorite ou un commentaire de critere"),
+        new Edit(
+            "exemple avant/apres, exemples_corriges)",
+            "exemple avant/apres)"),
+        new Edit(
+            "\nEXEMPLES CORRIGES : exemples_corriges sert a montrer ce qui ferait G"
+                + "AGNER UN NIVEAU, pas a corriger des details. N'y mets JAMAIS une virgu"
+                + "le ajoutee, un accent, une majuscule ou une faute de frappe : ces micr"
+                + "o-corrections ne font progresser personne et donnent l'impression que "
+                + "tout le reste va bien. Mets-y des REFORMULATIONS DE PHRASE qui demontr"
+                + "ent le palier au-dessus : une juxtaposition transformee en subordonnee"
+                + ", deux phrases fusionnees par un connecteur logique, un mot passe-part"
+                + "out remplace par un terme precis, une affirmation transformee en argum"
+                + "ent justifie, une concession transformee en objection traitee. Chaque "
+                + "entree porte un champ 'gain' qui dit en une phrase ce que la version c"
+                + "orrigee DEMONTRE de plus ('cette version emploie une subordonnee relat"
+                + "ive, marqueur attendu au B1'). Vise une a trois entrees, TROIS AU MAXI"
+                + "MUM. Si la production est deja au niveau maximal observable, renvoie u"
+                + "ne liste vide plutot que des corrections cosmetiques.\nLe reste (detai"
+                + "ls secondaires, revisions conseillees) va dans suggestions, formule co"
+                + "mme un conseil d'entrainement et non comme un reproche.",
+            ""),
+        new Edit(
+            "\n- exemples_corriges : DEMONTRE le palier au-dessus, sur des phrases "
+                + "DIFFERENTES de celles deja utilisees dans les priorites. Si la seule p"
+                + "hrase interessante a deja servi dans une priorite, renvoie une liste v"
+                + "ide plutot que de la repeter.\n- suggestions : uniquement ce qui n'a e"
+                + "te traite NULLE PART ailleurs. Ne reprends jamais en suggestion un poi"
+                + "nt deja traite dans une priorite, dans un commentaire de critere ou da"
+                + "ns un exemple corrige.",
+            ""),
+        new Edit(
+            "Deux interdits precis — ce sont les deux repetitions les plus frequent"
+                + "es :",
+            "Un interdit precis — c'est la repetition la plus frequente :"),
+        new Edit(
+            " ;\n- n'utilise PAS la meme phrase du candidat dans une priorite (exem"
+                + "ple.avant) ET dans un exemple corrige (original).",
+            "."),
+        new Edit(
+            "points_forts, points_a_ameliorer, suggestions et les commentaires des "
+                + "criteres",
+            "points_forts, points_a_ameliorer et les commentaires des criteres"),
+        new Edit(
+            "ni dans une suggestion, ni dans un exemple corrige, ni dans une preuve",
+            "ni dans une preuve"),
+        new Edit(
+            "ORAL - exemples_corriges = CLARTE UNIQUEMENT : a l'oral, n'y mets QUE "
+                + "des reformulations de PHRASE qui ameliorent la clarte, l'enchainement "
+                + "ou la grammaire PERCEPTIBLE (un passage peu clair -> une version plus "
+                + "claire -> pourquoi). N'y mets JAMAIS : une correction d'orthographe, d"
+                + "'accent, de ponctuation, de majuscule, ni la correction d'un MOT isole"
+                + ". Reformulations toujours au niveau de la PHRASE, jamais du MOT. Si au"
+                + "cune phrase ne gagne vraiment en clarte a etre reformulee, renvoie exe"
+                + "mples_corriges: []. De meme, ne mentionne JAMAIS l'orthographe ni un m"
+                + "ot 'mal ecrit' dans points_a_ameliorer, suggestions ou les commentaire"
+                + "s de criteres",
+            "ORAL - ORTHOGRAPHE : ne mentionne JAMAIS l'orthographe ni un mot 'mal "
+                + "ecrit' dans points_a_ameliorer ou les commentaires de criteres"),
+        new Edit(
+            "Dans exemples_corriges, points_forts, points_a_ameliorer et les preuve"
+                + "s",
+            "Dans points_forts, points_a_ameliorer et les preuves"),
+        new Edit(
+            " Le reste va dans suggestions.\n11. Remplis exemples_corriges avec des"
+                + " reformulations qui font gagner un niveau, chacune avec son 'gain'. Ja"
+                + "mais de correction de ponctuation, d'accent ou de majuscule.",
+            ""),
+        new Edit(
+            ", au plus 3 exemples corriges",
+            ""),
+        new Edit(
+            "`suggestions`, `exemples_corriges` (`corrige`, `explication`, `gain`),"
+                + " ",
+            ""),
+        new Edit(
+            "Les champs qui reprennent les mots du candidat — `points_a_ameliorer.e"
+                + "xemple.avant` et `exemples_corriges.original` — sont des CITATIONS. Tu"
+                + " les recopies caractère",
+            "Le champ qui reprend les mots du candidat — `points_a_ameliorer.exempl"
+                + "e.avant` — est une CITATION. Tu le recopies caractère")
+    );
+
+    private static final List<Edit> EDITS_CONSIGNES = List.of(
+        new Edit(
+            " exemples_corriges ne contient que des reformulations qui font GAGNER "
+                + "UN NIVEAU, jamais une virgule ou un accent.",
+            ""),
+        new Edit(
+            ", exemple corrige = demontre sur une AUTRE phrase, suggestion = ce qui"
+                + " n'a ete dit nulle part",
+            ""),
+        new Edit(
+            ", 3 exemples corriges",
+            "")
+    );
+
     /**
      * Le contrat de sortie v7 : celui de v6, ses descriptions ACCENTUEES. Le
      * verrou est une egalite apres repli des accents — ainsi, aucune
@@ -950,7 +1219,8 @@ class ProductionEvaluationContractTest {
         "v11, v5",
         "v12, v6",
         "v13, v7",
-        "v14, v8"
+        "v14, v8",
+        "v15, v9"
     })
     void chaqueVersionDeRubriquesAccepteUniquementSonToolSchema(
             String rubricsVersion, String toolSchemaVersion) {
@@ -977,7 +1247,8 @@ class ProductionEvaluationContractTest {
         "v11, v4, v5",
         "v12, v5, v6",
         "v13, v6, v7",
-        "v14, v7, v8"
+        "v14, v7, v8",
+        "v15, v8, v9"
     })
     void unePaireRubriquesToolSchemaIncompatibleEchoueAuChargement(
             String rubricsVersion, String activeSchema, String expectedSchema) {

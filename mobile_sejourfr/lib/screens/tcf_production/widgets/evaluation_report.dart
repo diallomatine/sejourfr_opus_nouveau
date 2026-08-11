@@ -1,20 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/enums.dart';
 import '../../../core/models/production_models.dart';
-import '../../../core/theme/app_theme.dart';
-import 'accomplishment_card.dart';
-import 'avertissements_card.dart';
-import 'correction_example.dart';
 import 'criteria_overview.dart';
-import 'feedback_block.dart';
+import 'evaluation_notice.dart';
+import 'production_action_plan.dart';
 import 'production_text_card.dart';
 import 'results_hero.dart';
 import 'results_summary_tiles.dart';
 import 'results_section_head.dart';
 import 'target_level_reached_card.dart';
-import 'target_level_version_card.dart';
 
 /// Limite de l'evaluation orale, mot pour mot (cf. `docs/notation-ia-eo-ee.md`
 /// §9). Le correcteur la renvoie normalement dans ses `avertissements` ; ce
@@ -42,18 +37,31 @@ const String kOralEvaluationLimitNotice =
 ///    Pas de note : sur une tache isolee, le /20 n'existe pas au TCF (cf. le
 ///    widget) ;
 /// 2. **ce qui marche / a corriger en priorite** ([ResultsSummaryTiles]) : deux
-///    bandeaux pleine largeur, replies, qui ouvrent leur detail en dessous — les
-///    points traites et les points forts d'un cote, la priorite complete (avec
-///    sa technique et sa reecriture) de l'autre ;
+///    bandeaux pleine largeur, replies, qui ouvrent leur detail en dessous — la
+///    check-list de la consigne (points traites puis oublies) et les points
+///    forts d'un cote, la priorite complete (avec sa technique et sa
+///    reecriture) de l'autre ;
 /// 3. **le profil par critere** ([CriteriaOverview]), une carte par critere,
 ///    depliable — il vivait dans le repli, donc personne ne le voyait ;
 /// 4. **la production** ([ProductionTextCard]), puis **le seul texte modele de
-///    l'ecran** ([TargetLevelVersionCard]) — ou, quand le palier vise est deja
-///    tenu, [TargetLevelReachedCard] qui l'annonce a sa place.
+///    l'ecran** ([ProductionActionPlan] : les leviers, une version plus aboutie
+///    — ou, a l'oral, des passages redits — et la tournure a retenir) ; ou,
+///    quand le palier vise est deja tenu, [TargetLevelReachedCard] qui
+///    l'annonce a sa place.
 ///
-/// Le reste — avertissements, check-list de la consigne, exemples corriges,
-/// suggestions — vit dans « Voir l'analyse complète », **replie par defaut**.
-/// Rien n'est perdu : c'est range.
+/// ⚠️ **« Voir l'analyse complète » n'existe plus (contrat v15/v9)** : le
+/// correcteur ne produit plus `exemples_corriges` ni `suggestions`, et ce repli
+/// ne restait ouvert par personne. Les deux champs restent **decodes** dans
+/// `production_models.dart` (une centaine d'evaluations en base les portent),
+/// aucun ecran candidat ne les lit. Ce qui vivait avec eux dans le repli :
+/// - **les avertissements**, ecrits par le SERVEUR (limite de l'oral, purges
+///   automatiques) : remontes en note discrete sous le hero
+///   ([EvaluationNotice]) — ils ne dependent d'aucun champ du LLM ;
+/// - **le detail de l'accomplissement** : le bandeau « Ce qui marche » de
+///   [ResultsSummaryTiles] montrait deja les points **traites** ; il montre
+///   desormais aussi les points **oublies**, faute de quoi le candidat lisait
+///   « 2/3 points traités » sans jamais savoir lequel manquait. Les pistes non
+///   abordees, qui ne coutent aucun point, ne sont plus rendues.
 ///
 /// ⚠️ **`version_amelioree` n'est plus affichee nulle part (2026-08-08)** :
 /// elle reecrivait la production au niveau **deja constate**, en bascule juste
@@ -77,9 +85,8 @@ class EvaluationReport extends StatelessWidget {
 
   final EvaluationResult evaluation;
 
-  /// Tache orale : la limite de l'evaluation orale s'applique, les exemples
-  /// sont des reformulations et non des corrections d'ecriture, et aucun texte
-  /// modele n'est attendu.
+  /// Tache orale : la limite de l'evaluation orale s'applique (cf.
+  /// [kOralEvaluationLimitNotice]) et aucun texte modele n'est attendu.
   final bool isOral;
 
   /// Situe la correction en tete du hero (« Expression écrite · Tâche 1 »).
@@ -94,9 +101,6 @@ class EvaluationReport extends StatelessWidget {
   /// `null` = inconnu → aucun rappel n'est affiche.
   final TargetLevel? targetLevel;
 
-  String get _correctionsTitle =>
-      isOral ? 'Reformulations pour plus de clarté' : 'Corrections';
-
   /// Une tache orale porte toujours la limite de l'oral, meme si le correcteur
   /// a rendu une liste vide.
   List<String> get _avertissements {
@@ -110,35 +114,17 @@ class EvaluationReport extends StatelessWidget {
     final feedback = evaluation.feedback;
     final priorites = feedback.pointsAAmeliorer;
     final accomplissement = feedback.accomplissement;
-    final avertissements = _avertissements;
-
-    final analyse = <Widget>[
-      if (avertissements.isNotEmpty)
-        AvertissementsCard(avertissements: avertissements),
-      if (accomplissement != null && !accomplissement.isEmpty)
-        AccomplishmentCard(accomplissement: accomplissement),
-      if (feedback.exemplesCorriges.isNotEmpty)
-        _CorrectionsCard(
-          examples: feedback.exemplesCorriges,
-          title: _correctionsTitle,
-        ),
-      if (feedback.suggestions.isNotEmpty)
-        FeedbackBlock(
-          kind: FeedbackKind.suggest,
-          title: 'Suggestions',
-          items: feedback.suggestions,
-        ),
-    ];
 
     final production = productionText;
-    // Le backend ne produit `version_ciblee` qu'en EE ; on le redit ici : a
-    // l'oral, un dialogue modele n'a pas de sens, et une evaluation historique
-    // ne doit pas en faire apparaitre un.
-    final versionCiblee = isOral ? null : feedback.versionCiblee;
+    // Le plan d'action est servi a l'ecrit COMME a l'oral depuis le contrat
+    // v2 : ce qui change, c'est sa forme (version plus aboutie vs
+    // reformulations), et c'est le bloc lui-meme qui la porte — pas un `isOral`
+    // recopie ici.
+    final versionCiblee = feedback.versionCiblee;
     // Exclusif du precedent, et servi par le SERVEUR : un front ne saurait pas
     // distinguer « objectif atteint » d'un second appel LLM en echec.
     final niveauViseAtteint =
-        isOral || versionCiblee != null ? null : feedback.niveauViseAtteint;
+        versionCiblee != null ? null : feedback.niveauViseAtteint;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -148,6 +134,9 @@ class EvaluationReport extends StatelessWidget {
           eyebrow: eyebrow,
           targetLevel: targetLevel,
         ),
+        // Ecrit par le SERVEUR, pas par le correcteur : la limite de l'oral et
+        // les purges automatiques se lisent juste sous le verdict, en note.
+        EvaluationNotice(avertissements: _avertissements),
         ResultsSummaryTiles(
           accomplissement: accomplissement,
           priorites: priorites,
@@ -163,125 +152,17 @@ class EvaluationReport extends StatelessWidget {
             highlight: priorites.isEmpty ? null : priorites.first.exemple?.avant,
           ),
         ],
-        // Le SEUL texte modele du rapport, juste sous la redaction : l'ordre de
-        // lecture est « ce que j'ai ecrit » → « le texte du palier que je vise ».
-        // Absent (EO, eval anterieure, second appel en echec) ⇒ rien n'est
-        // rendu, et le rapport se termine sur le profil par critere puis
-        // l'analyse complete : ni section vide, ni titre orphelin.
-        TargetLevelVersionCard(version: versionCiblee),
+        // Le plan d'action, juste sous la redaction : l'ordre de lecture est
+        // « ce que j'ai produit » → « ce qu'il faut viser, et a quoi ca
+        // ressemble ». Absent (eval anterieure, second appel en echec, oral
+        // degrade) ⇒ rien n'est rendu, et le rapport se termine sur la
+        // production : ni section vide, ni titre orphelin.
+        ProductionActionPlan(version: versionCiblee),
         // Meme emplacement, cas exclusif : le palier vise est DEJA tenu. On
         // l'annonce au lieu de laisser un trou — le candidat qui reussit avait
         // un rapport plus vide que celui qui echoue.
         TargetLevelReachedCard(atteint: niveauViseAtteint),
-        if (analyse.isNotEmpty) _FullAnalysis(children: analyse),
       ],
-    );
-  }
-}
-
-/// Le detail exhaustif, **replie par defaut** : un rapport de correction n'est
-/// pas une expertise a lire d'un bout a l'autre. Ce qui est deplie sur demande
-/// n'est pas perdu, il est range.
-class _FullAnalysis extends StatefulWidget {
-  const _FullAnalysis({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  State<_FullAnalysis> createState() => _FullAnalysisState();
-}
-
-class _FullAnalysisState extends State<_FullAnalysis> {
-  bool _open = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Material(
-          color: AppColors.surface2,
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () => setState(() => _open = !_open),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  const Icon(
-                    LucideIcons.listChecks,
-                    size: 18,
-                    color: AppColors.blue,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      "Voir l'analyse complète",
-                      style: AppFonts.ui(
-                        size: 14,
-                        weight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    _open ? LucideIcons.chevronUp : LucideIcons.chevronDown,
-                    size: 18,
-                    color: AppColors.muted,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        if (_open) ...[
-          const SizedBox(height: 14),
-          ...widget.children,
-        ],
-      ],
-    );
-  }
-}
-
-class _CorrectionsCard extends StatelessWidget {
-  const _CorrectionsCard({required this.examples, required this.title});
-
-  final List<CorrectionExample> examples;
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(LucideIcons.lightbulb, size: 18, color: AppColors.amber),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: AppFonts.ui(
-                  size: 15,
-                  weight: FontWeight.w700,
-                  color: AppColors.ink,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...examples.map((e) => CorrectionExampleCard(example: e)),
-        ],
-      ),
     );
   }
 }

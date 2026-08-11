@@ -10,8 +10,9 @@ import '../../../core/theme/app_theme.dart';
 /// c'etait le texte le plus visible et le plus copiable du rapport, et il ne
 /// fait pas monter d'un palier. Un candidat l'a recopie tel quel, l'a resoumis,
 /// et a obtenu **exactement la meme note et le meme niveau**. Le seul texte
-/// modele de l'ecran est desormais [TargetLevelVersionCard] (`version_ciblee`),
-/// qui montre la marche au-dessus et nomme son niveau.
+/// modele de l'ecran est desormais celui du plan d'action
+/// (`ProductionActionPlan`, `version_ciblee`), sous l'intertitre « Une version
+/// plus aboutie ».
 ///
 /// Le champ reste servi par l'API et decode dans `production_models.dart`
 /// (aucun widget ne le lit) : le retirer du contrat imposerait une nouvelle

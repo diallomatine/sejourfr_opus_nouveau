@@ -79,7 +79,7 @@ import java.util.regex.Pattern;
  * {@code morphosyntaxe} et les priorites qui le relisent. Il ne touche
  * <b>jamais</b> {@code lexique} : la meme mesure y produit deux faux positifs
  * reels ({@code chronoposte}, {@code ESN}), dont l'un cite en POINT FORT. Sa
- * regle est {@link #MOTS_PORTEURS_STRUCTURE_MIN} ; son extension aux
+ * regle est {@link EvaluationOralForme} ; son extension aux
  * transcriptions abimees vient de {@link TranscriptionQualityAudit}.
  *
  * <h2>Volet LANGUE ETRANGERE (2026-08-07)</h2>
@@ -240,35 +240,6 @@ final class EvaluationOralArtifactFilter {
      * sont identiques sur les six taches depuis les rubriques v5.
      */
     private static final String CODE_MORPHOSYNTAXE = "morphosyntaxe";
-
-    /**
-     * VOLET FORME — nombre de mots PORTEURS DE SENS en dessous duquel un passage
-     * cite dans un reproche de morphosyntaxe ne decrit plus une STRUCTURE.
-     *
-     * <p><b>La regle.</b> A l'oral, une faute de grammaire se voit sur un
-     * enchainement : accord sujet-verbe a distance, temps mal choisi,
-     * construction verbale, subordination. Elle a donc deux formes citables, et
-     * deux seulement :
-     * <ul>
-     *   <li>un passage d'au moins <b>trois</b> mots porteurs
-     *       (« je suis des nationalites gueneennes », « je les aime bien sortir ») ;</li>
-     *   <li>un passage fait <b>uniquement</b> de mots-outils — donc zero mot
-     *       porteur : c'est une structure pure (« pour ne pas que »,
-     *       « est-ce que »), et elle est <b>conservee</b>.</li>
-     * </ul>
-     * Entre les deux — un ou deux mots pleins — le reproche ne decrit pas une
-     * structure : il nomme une FORME (« abit a Lille », « zerer », « emplo ye »).
-     * Or une forme isolee est exactement ce que la reconnaissance vocale
-     * fabrique, et une faute de forme courte est de surcroit <b>inaudible</b> a
-     * l'oral : c'est de l'orthographe, que la grille interdit deja de reprocher.
-     * Ce seuil ne fait donc pas qu'attraper des artefacts, il renforce un acquis.
-     *
-     * <p><b>Cas reels attrapes</b> : « abit a Lille » (le candidat avait dit
-     * « j'habite a Lille », le « j'h » a ete mange) le 2026-08-08, et
-     * « Habite a Lille » sans sujet le 2026-08-07 — le meme artefact, deux jours
-     * de suite.
-     */
-    private static final int MOTS_PORTEURS_STRUCTURE_MIN = 3;
 
     /**
      * VOLET FORME — marqueurs qui rattachent une priorite
@@ -608,11 +579,18 @@ final class EvaluationOralArtifactFilter {
      *   <li>elle cite au moins un passage REEL de la transcription, retrouve dans
      *       un tour {@code Candidat :} ;</li>
      *   <li>au moins un des passages cites nomme <b>une ou deux</b> formes
-     *       pleines — donc ne decrit pas une structure
-     *       (cf. {@link #MOTS_PORTEURS_STRUCTURE_MIN}). Sur une transcription
-     *       DEGRADEE, la troisieme condition tombe : le texte lu n'est pas celui
-     *       qui a ete dit, aucun reproche de grammaire ancre n'y est opposable.</li>
+     *       pleines — donc ne decrit pas une structure. La regle et son seuil
+     *       vivent dans {@link EvaluationOralForme}, partages avec le second
+     *       appel « version au niveau visee ». Sur une transcription DEGRADEE,
+     *       cette troisieme condition tombe : le texte lu n'est pas celui qui a
+     *       ete dit, aucun reproche de grammaire ancre n'y est opposable.</li>
      * </ol>
+     *
+     * <p><b>Cas reels attrapes</b> : « abit a Lille » (le candidat avait dit
+     * « j'habite a Lille », le « j'h » a ete mange) le 2026-08-08, et
+     * « Habite a Lille » sans sujet le 2026-08-07 — le meme artefact, deux jours
+     * de suite. A l'inverse, un passage fait UNIQUEMENT de mots-outils (« pour ne
+     * pas que ») est une structure pure, et il est conserve.
      *
      * <p><b>Le sens de l'erreur, et son cout, sont assumes.</b> La phrase entiere
      * part, pas la seule citation fautive : retirer une citation au milieu d'une
@@ -637,11 +615,11 @@ final class EvaluationOralArtifactFilter {
                 continue; // pas un passage de la transcription : on n'y touche pas
             }
             ancree = true;
-            int porteurs = EvaluationProofMatcher.significantTokenCount(citation);
-            // porteurs == 0 : citation faite de mots-outils seuls (« pour ne pas
-            // que », « est-ce que »). C'est une STRUCTURE pure, donc exactement
-            // ce que ce volet doit conserver.
-            if (porteurs >= 1 && porteurs < MOTS_PORTEURS_STRUCTURE_MIN) formeIsolee = true;
+            // Zero mot porteur : citation faite de mots-outils seuls (« pour ne
+            // pas que », « est-ce que »). C'est une STRUCTURE pure, donc
+            // exactement ce que ce volet doit conserver — cf.
+            // EvaluationOralForme, qui porte la regle pour les deux surfaces.
+            if (EvaluationOralForme.nommeUneFormeIsolee(citation)) formeIsolee = true;
         }
         return ancree && (degradee || formeIsolee);
     }

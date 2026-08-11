@@ -519,6 +519,10 @@ class LearningPlanPriority {
     this.promptCount = 0,
     this.attemptedCount = 0,
     this.validatedCount = 0,
+    this.stepPromptCount = 0,
+    this.stepAttemptedCount = 0,
+    this.stepValidatedCount = 0,
+    this.stepCompleted = false,
     this.locked = false,
   });
 
@@ -539,6 +543,19 @@ class LearningPlanPriority {
   final int promptCount;
   final int attemptedCount;
   final int validatedCount;
+
+  /// Compteurs de l'**étape** : les 5 premiers sujets actifs de la compétence,
+  /// et rien d'autre. ⚠️ C'est ce couple que l'anneau d'une étape affiche
+  /// (« 2/5 »), jamais les compteurs de la compétence entière ci-dessus, qui
+  /// restent ceux des cartes « compétences observées ». Dérivés serveur.
+  final int stepPromptCount;
+  final int stepAttemptedCount;
+  final int stepValidatedCount;
+
+  /// `true` quand les sujets de l'étape ont **tous** été traités. Terminée ≠
+  /// tout validé, d'où [stepValidatedCount] à côté. Une étape terminée **reste
+  /// affichée** : les priorités ne changent qu'à la prochaine production.
+  final bool stepCompleted;
 
   /// Verrou freemium servi par le serveur. L'étape reste **entièrement
   /// lisible** — masquer une priorité priverait le candidat du résultat de sa
@@ -569,6 +586,10 @@ class LearningPlanPriority {
         promptCount: (json['promptCount'] as num? ?? 0).toInt(),
         attemptedCount: (json['attemptedCount'] as num? ?? 0).toInt(),
         validatedCount: (json['validatedCount'] as num? ?? 0).toInt(),
+        stepPromptCount: (json['stepPromptCount'] as num? ?? 0).toInt(),
+        stepAttemptedCount: (json['stepAttemptedCount'] as num? ?? 0).toInt(),
+        stepValidatedCount: (json['stepValidatedCount'] as num? ?? 0).toInt(),
+        stepCompleted: json['stepCompleted'] as bool? ?? false,
         locked: json['locked'] as bool? ?? false,
       );
 }

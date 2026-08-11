@@ -41,8 +41,13 @@ public class VersionCibleeRubricsProvider {
     private static final Logger log = LoggerFactory.getLogger(VersionCibleeRubricsProvider.class);
     private static final String PATH_FORMAT = "prompts/production-version-ciblee-rubrics-%s.json";
 
-    /** Paires consignes -> tool-schema supportées. On versionne, on ne réécrit jamais. */
-    private static final Map<String, String> TOOL_SCHEMA_BY_RUBRICS_VERSION = Map.of("v1", "v1");
+    /**
+     * Paires consignes -> tool-schema supportées. On versionne, on ne réécrit
+     * jamais : v1 reste chargeable, donc le retour arrière reste une paire de
+     * variables d'environnement.
+     */
+    private static final Map<String, String> TOOL_SCHEMA_BY_RUBRICS_VERSION =
+        Map.of("v1", "v1", "v2", "v2");
 
     /** Ce module ne sert que le TCF IRN : aucune autre grille n'est acceptée. */
     private static final String PROFILE_ATTENDU = "TCF_IRN";
@@ -122,6 +127,10 @@ public class VersionCibleeRubricsProvider {
             throw new IllegalStateException("contrat consignes/tool-schema incompatible : consignes "
                 + configuredVersion + " -> " + expectedSchema + ", config -> " + configuredSchema);
         }
+        // ECHEC BRUYANT AU BOOT si le registre ignore ce contrat : c'est ce qui
+        // empeche une version d'entrer en service sans que le code sache
+        // l'appliquer (defaut vecu cote correction avec le tool-schema v7).
+        VersionCibleeContrat.of(expectedSchema);
     }
 
     /** Bloc {@code commun} complet (sections, plafonds, ancres). */
@@ -132,6 +141,15 @@ public class VersionCibleeRubricsProvider {
     /** Version des consignes actives. */
     public String getVersion() {
         return props.getVersionCiblee().getRubricsVersion();
+    }
+
+    /**
+     * CONTRAT actif, résolu depuis le registre. C'est lui qui décide de la forme
+     * de la sortie et de l'existence même du second appel à l'oral — jamais une
+     * comparaison de chaînes éparpillée dans un service.
+     */
+    public VersionCibleeContrat contrat() {
+        return VersionCibleeContrat.of(props.getVersionCiblee().getToolSchemaVersion());
     }
 
     /**

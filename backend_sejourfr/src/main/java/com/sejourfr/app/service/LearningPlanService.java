@@ -35,7 +35,16 @@ import java.util.UUID;
  * accès TCF : aucune priorité, aucune compétence observée et aucun compteur
  * n'est masqué. Seul un {@code locked} est posé, décidé par
  * {@link SkillAccessService} — masquer l'information priverait le candidat du
- * résultat de sa propre production.
+ * résultat de sa propre production. En revanche l'étape n'est pas
+ * <b>finissable</b> sans abonnement : un compte gratuit joue 2 des
+ * {@value LearningPlanStep#PROMPTS_PAR_ETAPE} sujets de l'étape.
+ *
+ * <p><b>Une priorité est une étape</b>, et une étape ce sont les
+ * {@value LearningPlanStep#PROMPTS_PAR_ETAPE} premiers sujets actifs de sa
+ * compétence (cf. {@link LearningPlanStep}) — pas ses 15 sujets. Les compteurs
+ * d'étape voyagent <b>à côté</b> de ceux de la compétence, qui gardent la
+ * sémantique de {@code SkillDto} et servent les cartes « compétences
+ * observées » ({@code LearningPlanSkillDto}), lesquelles ne sont pas des étapes.
  */
 @Service
 @RequiredArgsConstructor
@@ -127,12 +136,15 @@ public class LearningPlanService {
             PlanRecommendedExerciseDto exercise,
             SkillProgressCounter.SkillProgress counts,
             boolean locked) {
+        LearningPlanStep.Progress step = counts.step();
         return new LearningPlanPriorityDto(
                 observation.getSkill().getId(), observation.getSkill().getCode(),
                 observation.getSkill().getTitle(), observation.getSkill().getSection(),
                 observation.getStatus(), observation.getExplanation(), observation.getEvidence(),
                 observation.getConfidence(), observation.getObservedAt(), exercise,
-                counts.promptCount(), counts.attemptedCount(), counts.validatedCount(), locked);
+                counts.promptCount(), counts.attemptedCount(), counts.validatedCount(),
+                step.promptCount(), step.attemptedCount(), step.validatedCount(),
+                step.completed(), locked);
     }
 
     private static SkillProgressCounter.SkillProgress progress(

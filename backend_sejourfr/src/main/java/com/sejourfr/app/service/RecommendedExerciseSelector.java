@@ -29,6 +29,14 @@ import java.util.UUID;
  * candidat aurait vu deux « exercice recommande » differents pour une seule et
  * meme priorite.
  *
+ * <p><b>Le perimetre est celui de l'ETAPE</b>, pas celui de la competence : le
+ * choix se fait parmi les {@value LearningPlanStep#PROMPTS_PAR_ETAPE} premiers
+ * sujets actifs ({@link LearningPlanStep#scope}). Sans cette borne, « Continuer
+ * cette etape » enverrait vers un sujet hors etape, dont l'anneau « x/5 » ne
+ * bougerait pas. La borne vaut pour les DEUX appelants : l'ecran de resultat du
+ * diagnostic designe la competence de la priorite n&deg;1, il doit pointer dans
+ * les memes cinq sujets que le Plan.
+ *
  * <p><b>La regle : ca doit avancer.</b> Prendre systematiquement le premier
  * sujet de la competence — ce que faisait le code d'origine — renvoyait
  * indefiniment le sujet de rang 1 a un candidat qui l'avait deja traite dix
@@ -123,8 +131,12 @@ public class RecommendedExerciseSelector {
 
         for (Map.Entry<UUID, Skill> entry : bySkillId.entrySet()) {
             Skill skill = entry.getValue();
+            // Borne d'etape : les quatre regles de preference sont intactes,
+            // c'est l'ensemble sur lequel elles s'appliquent qui est reduit.
             SkillPrompt chosen = choose(
-                    promptsBySkill.getOrDefault(entry.getKey(), List.of()), latestByPrompt);
+                    LearningPlanStep.scope(
+                            promptsBySkill.getOrDefault(entry.getKey(), List.of())),
+                    latestByPrompt);
             if (chosen == null) continue;
             out.put(entry.getKey(), new PlanRecommendedExerciseDto(
                     chosen.getId(), skill.getId(), skill.getCode(), chosen.getTitle(),
@@ -165,8 +177,9 @@ public class RecommendedExerciseSelector {
 
     /**
      * Applique les quatre regles de preference documentees sur la classe. Les
-     * sujets arrivent tries par rang d'affichage croissant ; les comparaisons de
-     * date sont strictes, donc le premier de ce parcours gagne toute egalite.
+     * sujets arrivent <b>deja bornes a l'etape</b> et tries par rang d'affichage
+     * croissant ; les comparaisons de date sont strictes, donc le premier de ce
+     * parcours gagne toute egalite.
      */
     private SkillPrompt choose(
             List<SkillPrompt> prompts, Map<UUID, UserSkillAttempt> latestByPrompt) {

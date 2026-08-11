@@ -21,7 +21,7 @@ public record SkillDto(
         String description,
         /**
          * Le critere GENERAL travaille par la competence — encart « Critere
-         * travaille », distinct de {@link #description}. Il couvre les 5 sujets ;
+         * travaille », distinct de {@link #description}. Il couvre les 15 sujets ;
          * {@code SkillPromptDto.uniqueCriterion} n'en couvre qu'un.
          */
         String generalCriterion,

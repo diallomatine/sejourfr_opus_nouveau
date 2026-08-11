@@ -77,7 +77,15 @@ public class ProductionRubricsProvider {
         // n'affiche plus. Le contrat de sortie v8 est v7 sans cette propriete :
         // aucun champ ajoute, aucune autre regle changee. v13/v7 reste
         // chargeable et activable : c'est le retour arriere, sans migration.
-        Map.entry("v14", "v8")
+        Map.entry("v14", "v8"),
+        // v15 = v14 au bit pres pour tout ce qui note ; elle RETIRE les seules
+        // consignes qui decrivaient `exemples_corriges` et `suggestions`, les
+        // deux champs qu'affichait le bloc replie « Voir l'analyse complete »
+        // de l'ecran de resultat. Le contrat de sortie v9 est v8 sans ces deux
+        // proprietes : aucun champ ajoute, aucune autre regle changee. v14/v8
+        // reste chargeable et activable : c'est le retour arriere, sans
+        // migration.
+        Map.entry("v15", "v9")
     );
 
     private final ProductionEvaluationProperties props;
@@ -158,7 +166,7 @@ public class ProductionRubricsProvider {
      * Verifie la paire rubriques/tool-schema avant la premiere evaluation.
      * Les fichiers historiques ne declaraient pas ce lien, donc la matrice
      * reste explicite ici : v3-v4.2 -> v2, v5-v6 -> v3, v7 -> v4,
-     * v8/v9/v10/v11 -> v5, v12 -> v6, v13 -> v7, v14 -> v8.
+     * v8/v9/v10/v11 -> v5, v12 -> v6, v13 -> v7, v14 -> v8, v15 -> v9.
      *
      * <p>La matrice seule ne suffisait pas : elle prouvait que la paire etait
      * COHERENTE, jamais que le contrat de sortie etait APPLIQUE. Le tool-schema

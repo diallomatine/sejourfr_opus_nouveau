@@ -46,7 +46,7 @@ import java.util.UUID;
  * {@code ProductionAccessService}.
  *
  * <p><b>Cout constant, quel que soit l'ecran.</b> Un ecran de catalogue affiche
- * 24 competences x 5 sujets ; resoudre le verrou ligne par ligne serait un N+1
+ * 24 competences x 15 sujets ; resoudre le verrou ligne par ligne serait un N+1
  * pur. {@link #resolve} coute donc <b>4 requetes au maximum</b> — abonnement,
  * premiere competence de chaque tache (6 lignes), priorite du Plan, sujets
  * actifs des 7 competences ouvertes au plus — et <b>une seule</b> pour un
@@ -56,7 +56,17 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class SkillAccessService {
 
-    /** Sujets ouverts au debut de chaque competence ouverte, pour un compte gratuit. */
+    /**
+     * Sujets ouverts au debut de chaque competence ouverte, pour un compte
+     * gratuit.
+     *
+     * <p><b>Ne pas l'aligner sur</b> {@link LearningPlanStep#PROMPTS_PAR_ETAPE}
+     * (5), qui dit tout autre chose : combien de sujets composent une etape du
+     * Plan. Consequence assumee et voulue — un compte gratuit plafonne a 2/5 sur
+     * son etape n&deg;1, et <b>aucune etape n'est finissable sans abonnement</b>.
+     * Le Plan reste integralement <b>visible</b> et sa priorite n&deg;1 reste
+     * <b>ouverte</b> ; c'est l'achevement, pas la lecture, qui est premium.
+     */
     public static final int FREE_PROMPTS_PER_SKILL = 2;
 
     /**
@@ -67,7 +77,7 @@ public class SkillAccessService {
             "Ce sujet fait partie du contenu réservé. Votre accès gratuit ouvre la première "
                     + "compétence de chaque tâche (ses 2 premiers sujets) et la compétence de la "
                     + "priorité n°1 de votre Plan. L'accès TCF ouvre les 48 compétences et leurs "
-                    + "240 sujets.";
+                    + "720 sujets.";
 
     private final SubscriptionService subscriptionService;
     private final SkillManager skillManager;

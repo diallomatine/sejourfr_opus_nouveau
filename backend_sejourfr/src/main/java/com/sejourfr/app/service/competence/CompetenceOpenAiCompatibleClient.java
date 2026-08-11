@@ -52,10 +52,18 @@ public class CompetenceOpenAiCompatibleClient implements CompetenceAnalysisLlmCl
     private static final Logger log = LoggerFactory.getLogger(CompetenceOpenAiCompatibleClient.class);
     static final String TOOL_NAME = "submit_competence_analysis";
     static final String TOOL_SCHEMA_PATH_FORMAT = "prompts/competence-analysis-tool-schema-%s.json";
+    /**
+     * Description generique, volontairement : le CONTRAT exact (quels champs,
+     * quelles bornes) vit dans le tool-schema versionne, pas ici. Quatre
+     * versions du contrat se branchent sur ce meme client, et une description en
+     * dur qui enumere les champs de l'une devient un mensonge des la suivante —
+     * c'est exactement ce qui est arrive quand v3 a introduit le niveau CECRL
+     * sous une description qui affirmait « aucun niveau CECRL ».
+     */
     static final String TOOL_DESCRIPTION =
-        "Soumet l'analyse ciblee d'une production de competence TCF IRN : verdict sur le critere "
-        + "unique, point reussi, priorite d'amelioration unique et reformulation. Aucune note, "
-        + "aucun niveau CECRL. Utilise systematiquement cette fonction, jamais de texte libre.";
+        "Soumet l'analyse ciblee d'une production de competence TCF IRN, dans le format exact "
+        + "decrit par le schema de cette fonction. Aucune note chiffree, sous aucune forme. "
+        + "Utilise systematiquement cette fonction, jamais de texte libre.";
 
     private final ChatCompletionSettings connection;
     private final CompetenceProperties.Analysis analysis;

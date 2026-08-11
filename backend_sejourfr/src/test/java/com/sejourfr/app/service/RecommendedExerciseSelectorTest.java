@@ -100,6 +100,56 @@ class RecommendedExerciseSelectorTest {
         assertThat(selector.select(userId, skill)).isEmpty();
     }
 
+    /**
+     * Le perimetre est celui de l'ETAPE : sur une competence de 15 sujets, les
+     * 5 premiers etant tous traites, on rejoue dans l'etape plutot que de partir
+     * sur le rang 6 — sinon « Continuer cette etape » enverrait hors etape et
+     * l'anneau « x/5 » ne bougerait jamais.
+     */
+    @Test
+    void leChoixNeSortJamaisDesCinqSujetsDeLEtape() {
+        Skill skill = skill(SkillSection.EE);
+        List<SkillPrompt> quinze = new java.util.ArrayList<>();
+        Map<UUID, UserSkillAttempt> latest = new LinkedHashMap<>();
+        for (int order = 1; order <= 15; order++) {
+            SkillPrompt prompt = prompt(skill, (short) order);
+            quinze.add(prompt);
+            // Seuls les 5 premiers sont traites : le rang 6 est « jamais tente ».
+            if (order <= 5) {
+                latest.put(prompt.getId(), attempt(prompt, SkillCriterionStatus.VALIDATED,
+                        minutesAgo(100 - order * 10)));
+            }
+        }
+        stub(skill, quinze, latest);
+
+        // Regle 1 (jamais tente) ne peut pas designer le rang 6 : hors etape.
+        // Regle 3 s'applique DANS l'etape : le rang 1, tente le plus anciennement.
+        assertThat(selector.select(userId, skill))
+                .get().extracting(PlanRecommendedExerciseDto::skillPromptId)
+                .isEqualTo(quinze.get(0).getId());
+    }
+
+    /** Les 4 regles restent intactes dans l'etape : un rang 4 jamais tente gagne. */
+    @Test
+    void dansLEtapeLePremierSujetJamaisTenteGagneToujours() {
+        Skill skill = skill(SkillSection.EE);
+        List<SkillPrompt> quinze = new java.util.ArrayList<>();
+        Map<UUID, UserSkillAttempt> latest = new LinkedHashMap<>();
+        for (int order = 1; order <= 15; order++) {
+            SkillPrompt prompt = prompt(skill, (short) order);
+            quinze.add(prompt);
+            if (order <= 3) {
+                latest.put(prompt.getId(),
+                        attempt(prompt, SkillCriterionStatus.NOT_VALIDATED, minutesAgo(order * 5)));
+            }
+        }
+        stub(skill, quinze, latest);
+
+        assertThat(selector.select(userId, skill))
+                .get().extracting(PlanRecommendedExerciseDto::skillPromptId)
+                .isEqualTo(quinze.get(3).getId());
+    }
+
     @Test
     void laDureeOraleSuitLeTempsDeParoleConseilleEtSonRepli() {
         Skill skill = skill(SkillSection.EO);

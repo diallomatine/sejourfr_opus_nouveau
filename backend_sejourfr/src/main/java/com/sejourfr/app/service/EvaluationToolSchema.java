@@ -27,12 +27,14 @@ import java.util.Optional;
  * <p><b>Les capacites sont DERIVEES DU RANG</b>, jamais d'une liste a
  * rallonger : chaque contrat se lit par rapport a celui qui le precede. Elles
  * sont presque toujours cumulatives — une version ajoute — mais rien n'y
- * oblige : {@link #versionAmelioree()} s'ouvre en v5 et se REFERME en v8, et
+ * oblige : {@link #versionAmelioree()} s'ouvre en v5 et se REFERME en v8,
+ * {@link #exemplesEtSuggestions()} vaut depuis toujours et se referme en v9, et
  * cela reste une comparaison de rangs. C'est ce qui fait qu'ajouter une version
  * ne demande que d'ajouter sa constante, pas de retoucher trois ensembles
  * ailleurs. Les marqueurs observables dans les fichiers de schema le confirment
  * un a un ({@code additionalProperties:false} des v4, {@code version_amelioree}
- * des v5 — retire en v8 —, {@code preuve_segment} des v6) ; c'est ce que
+ * des v5 — retire en v8 —, {@code preuve_segment} des v6,
+ * {@code exemples_corriges}/{@code suggestions} jusqu'a v8) ; c'est ce que
  * verrouille {@code EvaluationToolSchemaContractTest}.
  *
  * <p>REVERSIBILITE : toutes les versions encore chargeables sont ici, y compris
@@ -54,7 +56,9 @@ enum EvaluationToolSchema {
     /** Rubriques v13 : memes regles que v6, descriptions reaccentuees. */
     V7("v7"),
     /** Rubriques v14 : v7 sans {@code version_amelioree}. */
-    V8("v8");
+    V8("v8"),
+    /** Rubriques v15 : v8 sans {@code exemples_corriges} ni {@code suggestions}. */
+    V9("v9");
 
     private static final Map<String, EvaluationToolSchema> PAR_CODE = indexer();
 
@@ -119,6 +123,29 @@ enum EvaluationToolSchema {
      */
     boolean versionAmelioree() {
         return restitution() && !estAuMoins(V8);
+    }
+
+    /**
+     * {@code exemples_corriges} et {@code suggestions} FONT PARTIE DU CONTRAT
+     * (jusqu'a v8 inclus) : les deux champs existent dans le schema, le serveur
+     * les exige a la racine d'une sortie stricte et leur applique ses controles
+     * (plafond de trois exemples, listes de chaines).
+     *
+     * <p>DEUXIEME capacite qu'un rang POSTERIEUR retire, apres
+     * {@link #versionAmelioree()} : elle se referme en v9. Motif : ces deux
+     * champs n'etaient affiches que dans le bloc replie « Voir l'analyse
+     * complete » de l'ecran de resultat, qui disparait. On cesse donc de payer
+     * des tokens de sortie pour des paves que personne ne lit, et la place
+     * gagnee finance un second appel plus utile.
+     *
+     * <p>Sous v9 ils ne sont plus dans le schema, donc un correcteur qui
+     * respecte {@code additionalProperties:false} ne peut plus les produire ; le
+     * serveur les retire quand meme. Leur presence n'est jamais une violation :
+     * perdre une soumission entiere pour deux champs ignores couterait plus cher
+     * que de les ignorer — meme arbitrage que {@link #versionAmelioree()}.
+     */
+    boolean exemplesEtSuggestions() {
+        return !estAuMoins(V9);
     }
 
     /**

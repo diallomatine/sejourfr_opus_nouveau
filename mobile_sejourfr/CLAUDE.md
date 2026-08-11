@@ -151,7 +151,7 @@ lib/
     │                                    tcf_note_scale, results_quick_row,
     │                                    criteria_overview, priority_card,
     │                                    production_text_card, results_section_head,
-    │                                    accomplishment_card, etc.
+    │                                    evaluation_notice, etc.
     ├── review/                    Favoris + erreurs récentes (tabs)
     └── profile/                   Compte + paramètres + logout + suppression de compte
 ```
@@ -544,12 +544,24 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   étapes suivantes = `nextPriorities` marquées À VENIR, étape finale = la réévaluation). Le
   niveau estimé du héros vient **exclusivement** de `dashboardProvider`
   (`estimatedTcfLevel`) et dégrade sur le seul objectif quand il manque — jamais de recalcul.
-- **Compteurs de sujets sur les DTO du Plan** : `LearningPlanPriority` et `LearningPlanSkill`
-  portent `promptCount` / `attemptedCount` / `validatedCount`, mêmes champs que `SkillDto`.
-  Ils alimentent les anneaux du parcours et les cartes « Mes compétences observées », qui
-  reprennent l'anatomie de `CompetenceCard` (Réviser → Compétences) et le **libellé partagé**
+- **Compteurs de sujets sur les DTO du Plan — DEUX jeux, à ne jamais confondre.**
+  `promptCount` / `attemptedCount` / `validatedCount` (sur `LearningPlanPriority` **et**
+  `LearningPlanSkill`, mêmes champs que `SkillDto`) décrivent la **compétence entière**
+  (15 sujets) : ils alimentent les cartes « Mes compétences observées », qui reprennent
+  l'anatomie de `CompetenceCard` (Réviser → Compétences) et le **libellé partagé**
   `skillProgressLabel` (`core/utils/skill_progress.dart`, dont `competenceProgressLabel`
-  n'est plus qu'une application au `SkillDto`).
+  n'est plus qu'une application au `SkillDto`). `stepPromptCount` /
+  `stepAttemptedCount` / `stepValidatedCount` / `stepCompleted` (priorités seulement)
+  décrivent l'**étape** — les **5 premiers** sujets de la compétence : c'est ce couple que
+  l'anneau d'une étape du parcours affiche (« 2/5 », jamais « 2/15 »). Tout est dérivé
+  serveur, y compris `stepCompleted` : l'écran ne compare plus rien lui-même.
+- **Une étape peut être TERMINÉE, et elle reste affichée** : badge `EN COURS` →
+  `TERMINÉE`, plus la ligne « Réévaluée à ta prochaine production. » sous le titre
+  (`_StepDoneLines`, miroir mot pour mot de `LearningPlanView` côté web). Les priorités ne
+  changent qu'à l'arrivée d'une nouvelle observation — sans cette phrase, un candidat qui a
+  fini son étape et la voit toujours là croit à un bug. Quand elle est terminée sans être
+  toute validée, une seconde ligne discrète dit « N validés sur M » : terminer n'est pas
+  tout réussir. Rien de tout ça quand l'étape n'est pas terminée.
 - **Le Plan reste visible en entier même verrouillé** (freemium Compétences, cf. § dédié) :
   `locked` sur `LearningPlanPriority` / `LearningPlanSkill` / `PlanRecommendedExercise`
   n'ôte **aucune** information — ni une priorité, ni une compétence observée, ni un
@@ -1131,7 +1143,8 @@ Structure de référence : maquette « Résultats TCF — Rapport express », **
    côtés ; repli sur le compte de points forts sans check-list) et **« À corriger en
    priorité »** (**rouge** — `N priorité(s)`). Chacun tient sur **une ligne** : titre, chiffre,
    chevron. Appuyer ouvre le détail **dans le même encart, juste en dessous** — points traités
-   puis points forts d'un côté (séparés par un filet, deux natures différentes), la ou les
+   puis points **oubliés** (intertitre rouge, depuis v15/v9) puis points forts d'un côté
+   (ces derniers séparés par un filet, deux natures différentes), la ou les
    priorités **complètes** de l'autre (`PriorityCard(embedded: true)` : ni carte ambre ni
    étiquette, le bandeau les porte déjà). Un bandeau sans contenu ne s'affiche pas.
    ⚠️ **La priorité vit désormais à UN SEUL endroit.** Elle était résumée en tête puis répétée
@@ -1149,13 +1162,38 @@ Structure de référence : maquette « Résultats TCF — Rapport express », **
    dédiée plus bas), et `improved_version_card.dart` est **supprimé**. La phrase visée par la
    priorité n° 1 y est **surlignée** (`highlight`, première occurrence **exacte** ; aucune
    correspondance ⇒ aucun repère, jamais un repère faux), avec pour seule action « Masquer
-   les repères » (douce). Puis, juste en dessous, le **seul texte modèle** de l'écran :
-   `TargetLevelVersionCard`.
+   les repères » (douce). Puis, juste en dessous, le **plan d'action** :
+   `production_action_plan.dart`.
+5. **Le plan d'action** (`ProductionActionPlan`, `version_ciblee`) — les mêmes blocs que le
+   retour d'un micro-exercice de compétence, via les widgets **partagés**
+   `widgets/action_plan.dart` : « Pour viser {niveau} » (leviers action / exemple), puis
+   « Une version plus aboutie » à l'écrit (texte réécrit, extraits surlignés, puce par
+   segment) ou « Des versions plus abouties » à l'oral (une ligne par reformulation :
+   `original` atténué, `reformule` en accent, pastille `apport`), puis « À retenir ».
+   ⚠️ **Le titre n'étiquette plus un texte d'un palier** : l'ancien bloc « La marche
+   au-dessus » / « Au niveau B2, votre réponse pourrait ressembler à ceci » est
+   **supprimé** (`target_level_version_card.dart` avec lui), parce que rien ne vérifie
+   qu'un texte atteint le palier annoncé — un candidat a recopié un exemple étiqueté B2 et
+   l'analyse l'a noté B1. Seul l'**objectif** est nommé. Chaque section se masque
+   indépendamment ; bloc absent ⇒ rien du tout.
 
-Puis **« Voir l'analyse complète »**, toujours **repliée par défaut** : avertissements →
-accomplissement détaillé → exemples corrigés → suggestions (le détail par critère l'a quittée
-pour la section 3, les points forts pour le bandeau vert). La transcription EO reste dans sa
-feuille (dialogue en bulles).
+⚠️ **« Voir l'analyse complète » n'existe plus (contrat v15 / tool-schema v9, 2026-08-11).**
+Le correcteur ne produit plus `exemples_corriges` ni `suggestions`, et ce repli — que
+personne n'ouvrait — part avec eux : `_FullAnalysis`, `_CorrectionsCard`,
+`accomplishment_card.dart` et `avertissements_card.dart` sont **supprimés**. Les deux champs
+restent **décodés** dans `production_models.dart` (une centaine d'évaluations en base les
+portent) et **aucun écran candidat ne les lit**. Ce qui vivait dans le repli sans venir du LLM
+a été **remonté**, pas perdu :
+- **« À savoir sur cette évaluation »** (`avertissements`, écrit par le **serveur** : limite
+  de l'oral, purges automatiques) devient une **note discrète sous le hero**
+  (`widgets/evaluation_notice.dart`) — ni accordéon, ni carte pleine, et rien du tout quand
+  la liste est vide ;
+- **la check-list de la consigne** vit désormais dans le dépliant du bandeau **« Ce qui
+  marche »**, qui montrait déjà les points **traités** et montre aussi les points
+  **oubliés** (intertitre rouge « Points oubliés ») : sans eux, le candidat lisait « 2/3
+  points traités » sans jamais savoir lequel manquait. Les **pistes non abordées**, qui ne
+  coûtent aucun point, ne sont plus rendues.
+La transcription EO reste dans sa feuille (dialogue en bulles).
 
 **Trois arbitrages de la passe, à ne pas défaire sans raison :**
 - **Les points forts ne sont plus en clair.** Deux phrases entières = cinq lignes de prose
@@ -1173,9 +1211,11 @@ feuille (dialogue en bulles).
 Le fond des deux écrans de résultats passe de `white` à **`AppColors.bg`** : les cartes
 blanches du rapport ne se détachaient pas sur du blanc pur.
 
-`BeforeAfterLines.compact` rend l'avant/après **sans étiquettes** : l'ancienne phrase barrée
-en rouge, la nouvelle en vert. Deux lignes au lieu de quatre — la rature dit « avant » mieux
-que le mot « avant ». La forme étiquetée reste utilisée par les exemples corrigés du repli.
+`BeforeAfterLines` (`widgets/before_after_lines.dart`, promu depuis
+`correction_example.dart` **supprimé**) rend l'avant/après **sans étiquettes** : l'ancienne
+phrase barrée en rouge, la nouvelle en vert. Deux lignes au lieu de quatre — la rature dit
+« avant » mieux que le mot « avant ». La forme étiquetée est partie avec les exemples
+corrigés (v15/v9), son seul appelant.
 
 Les intertitres sortent des cartes (`results_section_head.dart`) : chaque bloc portait son
 titre dans un encadré coloré, ce qui faisait lire le rapport comme une suite d'alertes.
@@ -1247,8 +1287,8 @@ s'affichait « 3,5/20 », qu'un francophone lit comme une catastrophe scolaire. 
   ⚠ **Les deux formes coexistent en base** : les évaluations antérieures portent de simples
   **chaînes** — `PointAAmeliorer.fromJsonNullable` les accepte et les rend comme un `constat`
   seul (aucun encadré vide, aucun bouton mort). Ne jamais retirer cette tolérance.
-- `exemples_corriges[].gain` (facultatif) = ce que la reformulation démontre de plus, rendu en
-  ligne verte sous l'explication.
+- `exemplesCorriges` et `suggestions` restent **décodés** (rétrocompatibilité) mais ne sont
+  **plus affichés nulle part** : le contrat v15 / tool-schema v9 ne les produit plus.
 - **Par critère on affiche la bande, pas la note** : `CriterionScore.bande` (`BandeCritere`,
   calculée côté serveur) → **« Niveau B2 / Niveau B1 / Niveau A2 / Niveau A1 / Non
   évaluable »**, plus la `preuve` (citation littérale) sous le commentaire — **dépliés à la
@@ -1454,16 +1494,27 @@ Deux champs backend nouveaux, câblés dans la même passe (miroirs :
   (donc rien sans confiance), rien quand le backend n'envoie pas de cran (évals
   antérieures, `A1_NON_ATTEINT`, C1/C2). Libellés gelés par test des deux côtés
   (`situationLibelle` / `situationQualificatif`).
-- **`feedback.version_ciblee`** (`VersionCiblee {niveauVise, niveauConstate?,
-  texte, ceQuiManque}`, **EE uniquement**) → `TargetLevelVersionCard`, rendue
-  **juste sous** `ProductionTextCard` : c'est le **seul texte modèle** de
-  l'écran (bleu, section titrée à part, titre qui nomme le niveau visé,
-  sous-titre qui dit explicitement que ce texte n'est pas celui du candidat).
-  L'ordre de `ceQuiManque` vient du backend (du plus rentable au moins
-  rentable) : **ne jamais le retrier**. Bloc absent ⇒ **rien n'est rendu** (EO,
-  éval antérieure, second appel en échec, niveau visé déjà atteint) — pas de
-  squelette, pas de « non disponible » : le rapport se termine alors sur le
-  profil par critère puis l'analyse complète.
+- **`feedback.version_ciblee`** (`VersionCiblee`) → `ProductionActionPlan`,
+  rendu **juste sous** `ProductionTextCard`. **EE ET EO** depuis le contrat v2
+  (le `isOral` qui l'annulait a été retiré). **Trois formes, une seule clé**,
+  distinguées à la présence de `exempleCible` ou de `reformulations` :
+  - **v2, écrit** : `leviers[2..3]{action, exemple}` + `exempleCible{texte,
+    segments[2..3]{extrait, apport}}` + `aRetenir{formule, explication}` ;
+  - **v2, oral** : idem, mais `reformulations[2..3]{original, reformule,
+    apport}` **à la place de** `exempleCible`. **Aucun texte modèle complet à
+    l'oral** — la production n'est jamais réécrite en entier ;
+  - **v1** (une centaine d'évaluations en base) : `texte` + `ceQuiManque`, écrit
+    seulement. Rendu comme avant, **sans l'étiquette de palier** sur le texte.
+  Ces formes vivent dans `core/models/action_plan.dart` (`ActionPlanLevier`,
+  `ActionPlanSegment`, `ActionPlanExempleCible`, `ActionPlanReformulation`,
+  `ActionPlanMemo`) — **partagées avec `SkillNiveauViseDto`**, qui portait des
+  jumelles `SkillNiveauVise*` : elles sont supprimées, pas dupliquées. Chaque
+  `extrait` est **garanti sous-chaîne exacte** du texte : on surligne par
+  recherche de chaîne, un extrait introuvable ⇒ texte brut. L'ordre des leviers
+  vient du backend (du plus rentable au moins rentable) : **ne jamais le
+  retrier**. Bloc absent ⇒ **rien n'est rendu** (éval antérieure, second appel en
+  échec, oral dégradé, niveau visé déjà atteint) — pas de squelette, pas de
+  « non disponible ». Chaque sous-bloc se masque **indépendamment**.
 - ⚠️ **`versionAmelioree` N'EST PLUS AFFICHÉE NULLE PART (2026-08-08).** Elle
   réécrit la production au niveau **déjà constaté** et vivait en bascule sous la
   rédaction, sans mention de niveau : c'était le texte le plus visible et le
@@ -1675,10 +1726,50 @@ Points de comportement à ne pas défaire :
   qu'une analyse est affichée (intertitre tappable, « Comparer » ⇄ « Masquer »),
   et **ouvertes** quand il n'y a pas d'analyse — elles sont alors le seul retour
   de l'écran. Replier ne coupe aucun appel : la liste est chargée de toute
-  façon, c'est elle qui décide si la section existe. L'ordre du contrat ne
-  bouge pas : accusé → production → analyse → références → actions.
+  façon, c'est elle qui décide si la section existe.
   Verrouillé par `test/competence_result_screen_test.dart` et
   `test/competence_prompt_analysis_test.dart`.
+- **Ordre de l'écran de résultat (contrat v3, commun au web)** : bandeau
+  « Production analysée / Progression mise à jour » → verdict du critère →
+  **carte NIVEAU** → « Pour viser X » → « Une version plus aboutie » → « À retenir »
+  → **`Ta production`, repliée** → références → deux actions (« Sujet suivant »
+  puis « S'entraîner sur ce point », qui refait le sujet courant ; le retour en
+  arrière reste la flèche d'en-tête). La production quitte la vue principale
+  mais **reste à un tap** : à l'oral, se réécouter en lisant le retour fait la
+  moitié de la valeur de l'exercice.
+  - **Les trois blocs du plan d'action sont PARTAGÉS** avec le rapport de
+    correction EE/EO : ils vivent dans `tcf_production/widgets/action_plan.dart`
+    (`ActionPlanLeviers`, `ActionPlanExempleCard`,
+    `ActionPlanReformulationsList`, `ActionPlanMemoCard` + les libellés gelés
+    `pourViserTitle` / `kActionPlanExempleTitle` /
+    `kActionPlanReformulationsTitle`), promus depuis `competences/widgets/` à
+    leur deuxième consommateur. Ils rendent le **corps seul** — chaque écran pose
+    son propre intertitre (`SectionTitle` ici, `ResultsSectionHead` dans le
+    rapport). Ne pas les recopier.
+  - **Tout est dérivé serveur** : `SkillLevelProgressDto` porte le niveau
+    démontré, le palier visé, la situation, **son libellé prêt à afficher**,
+    les 3 crans de la jauge et l'index du curseur. `SkillLevelCard` /
+    `_LevelGauge` (`competences/widgets/skill_level_card.dart`) ne recalculent
+    aucune position, ne réordonnent rien et ne recomposent jamais
+    `situationLabel` — seul un **garde-fou de rendu** borne l'index.
+  - **`analysis.niveauVise == null` est un cas NORMAL**, jamais une erreur : le
+    bloc vient d'un **second appel LLM best-effort**, absent quand l'objectif
+    est atteint. Ni message d'échec, ni spinner, ni encart d'excuse — les trois
+    sections disparaissent, la carte de niveau se suffit.
+  - **Course de l'appel 2** : quand la tentative passe `EVALUATED` avec un
+    niveau, un objectif non atteint et pas de `niveauVise`, le polling continue
+    **10 s de plus au maximum** (`_niveauViseGrace`, valeur partagée avec le
+    web) — sinon l'écran s'arrête une seconde avant l'arrivée des leviers. Le
+    budget global de 120 s reste la borne dure.
+  - **Deux générations d'analyses cohabitent sans migration** : `levelProgress`
+    absent ⇒ contrat v1/v2 ⇒ on retombe **intégralement** sur l'affichage
+    historique (point réussi / priorité / proposition améliorée), chaque bloc
+    rendu seulement s'il porte du texte. Aucune régression sur ce qui est déjà
+    en base.
+  - **Surlignage de l'exemple** : le serveur garantit chaque `extrait`
+    sous-chaîne exacte du texte, on découpe donc par recherche de chaîne. Un
+    extrait introuvable est **ignoré** (texte brut) — on n'invente jamais un
+    surlignage et on ne plante jamais.
 - **La barre « Progression · X/N »** de l'écran d'un petit sujet est **calculée
   côté client** depuis `skillDetailProvider` (déjà en cache : l'écran est poussé
   depuis le détail). Aucun endpoint n'a été inventé ; en deep link direct la

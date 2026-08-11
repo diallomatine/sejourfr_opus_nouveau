@@ -3,12 +3,12 @@
 import {situationView} from "@/lib/production-feedback";
 import {parseEeFeedback, type EvaluationResultDto, type TargetLevel} from "@/lib/types";
 import {CriteriaOverview} from "./CriteriaOverview";
-import {ProductionFullAnalysis} from "./ProductionFullAnalysis";
+import {EvaluationNotice} from "./EvaluationNotice";
+import {ProductionActionPlan} from "./ProductionActionPlan";
 import {ProductionResultsHero} from "./ProductionResultsHero";
 import {ProductionTextCard} from "./ProductionTextCard";
 import {ResultsSummaryTiles} from "./ResultsSummaryTiles";
 import {TargetLevelReachedCard} from "./TargetLevelReachedCard";
-import {TargetLevelVersionCard} from "./TargetLevelVersionCard";
 import styles from "./production.module.css";
 
 const TRANSCRIPTION_LIMIT =
@@ -36,15 +36,28 @@ const TRANSCRIPTION_LIMIT =
  *    /20 n'existe pas au TCF (cf. le composant) ;
  * 2. **ce qui marche / à corriger en priorité** ({@link ResultsSummaryTiles}) :
  *    deux bandeaux d'une ligne, repliés, qui ouvrent leur détail en dessous —
- *    points traités et points forts d'un côté, la priorité **complète** de
- *    l'autre ;
+ *    la check-list de la consigne (points traités puis oubliés) et les points
+ *    forts d'un côté, la priorité **complète** de l'autre ;
  * 3. **le profil par critère** ({@link CriteriaOverview}), une carte par
  *    critère, dépliable — il vivait dans le repli, donc personne ne le voyait ;
  * 4. **la production** ({@link ProductionTextCard}), puis **le seul texte modèle
- *    de la page** ({@link TargetLevelVersionCard}).
+ *    de la page** ({@link ProductionActionPlan} : les leviers, une version plus
+ *    aboutie — ou, à l'oral, des passages redits — et la tournure à retenir).
  *
- * Puis « Voir l'analyse complète », repliée : avertissements, check-list de la
- * consigne, corrections, suggestions.
+ * ⚠️ **« Voir l'analyse complète » n'existe plus (contrat v15/v9)** : le
+ * correcteur ne produit plus `exemples_corriges` ni `suggestions`, et ce repli
+ * — que personne n'ouvrait — disparaît avec eux. Les deux champs restent
+ * **typés et parsés** dans `lib/types.ts` (une centaine d'évaluations en base
+ * les portent), aucun écran candidat ne les lit. Ce qui vivait avec eux dans le
+ * repli sans venir du LLM n'a PAS disparu :
+ * - **les avertissements**, écrits par le SERVEUR (limite de l'oral, purges
+ *   automatiques) : remontés en note discrète sous le hero
+ *   ({@link EvaluationNotice}) ;
+ * - **le détail de l'accomplissement** : le bandeau « Ce qui marche » montrait
+ *   déjà les points **traités** ; il montre désormais aussi les points
+ *   **oubliés**, faute de quoi le candidat lisait « 2/3 points traités » sans
+ *   jamais savoir lequel manquait. Les pistes non abordées, qui ne coûtent
+ *   aucun point, ne sont plus rendues.
  *
  * ⚠️ **`version_amelioree` n'est plus affichée nulle part (2026-08-08)** : elle
  * réécrivait la production au niveau **déjà constaté**, en bascule juste sous la
@@ -86,13 +99,13 @@ export function ProductionFeedbackView({
   // transcription : on garde le rappel écrit côté front pour ne pas le perdre.
   const avertissements =
     fb.avertissements.length > 0 ? fb.avertissements : isOral ? [TRANSCRIPTION_LIMIT] : [];
-  // Le backend ne produit `version_ciblee` qu'en EE ; on le redit ici : à
-  // l'oral, un dialogue modèle n'a pas de sens, et une évaluation historique ne
-  // doit pas en faire apparaître un.
-  const versionCiblee = isOral ? null : fb.versionCiblee;
+  // Le plan d'action est servi à l'écrit COMME à l'oral depuis le contrat v2 :
+  // ce qui change, c'est sa forme (version plus aboutie vs reformulations), et
+  // c'est le bloc lui-même qui la porte — pas un `isOral` recopié ici.
+  const versionCiblee = fb.versionCiblee;
   // Exclusif du précédent, et servi par le SERVEUR : un front ne saurait pas
   // distinguer « objectif atteint » d'un second appel LLM en échec.
-  const niveauViseAtteint = isOral || versionCiblee ? null : fb.niveauViseAtteint;
+  const niveauViseAtteint = versionCiblee ? null : fb.niveauViseAtteint;
   const highlight = fb.pointsAAmeliorer[0]?.exemple?.avant ?? null;
 
   return (
@@ -108,6 +121,10 @@ export function ProductionFeedbackView({
         situation={situationView(evaluation)}
         targetLevel={targetLevel}
       />
+
+      {/* Écrit par le SERVEUR, pas par le correcteur : la limite de l'oral et
+          les purges automatiques se lisent juste sous le verdict, en note. */}
+      <EvaluationNotice avertissements={avertissements} />
 
       <ResultsSummaryTiles
         accomplissement={fb.accomplissement}
@@ -125,25 +142,17 @@ export function ProductionFeedbackView({
         />
       )}
 
-      {/* Le SEUL texte modèle du rapport, juste sous la rédaction : l'ordre de
-          lecture est « ce que j'ai écrit » → « le texte du palier que je vise ».
-          Absent (EO, éval antérieure, second appel en échec) ⇒ rien n'est rendu,
-          et le rapport se termine sur le profil par critère puis l'analyse
-          complète : ni section vide, ni titre orphelin. */}
-      <TargetLevelVersionCard version={versionCiblee} />
+      {/* Le plan d'action, juste sous la rédaction : l'ordre de lecture est
+          « ce que j'ai produit » → « ce qu'il faut viser, et à quoi ça
+          ressemble ». Absent (éval antérieure, second appel en échec, oral
+          dégradé) ⇒ rien n'est rendu, et le rapport se termine sur la
+          production : ni section vide, ni titre orphelin. */}
+      <ProductionActionPlan version={versionCiblee} />
 
       {/* Même emplacement, cas exclusif : le palier visé est DÉJÀ tenu. On
           l'annonce au lieu de laisser un trou — le candidat qui réussit avait un
           rapport plus vide que celui qui échoue. */}
       <TargetLevelReachedCard atteint={niveauViseAtteint} />
-
-      <ProductionFullAnalysis
-        avertissements={avertissements}
-        accomplissement={fb.accomplissement}
-        exemplesCorriges={fb.exemplesCorriges}
-        suggestions={fb.suggestions}
-        isOral={isOral}
-      />
     </div>
   );
 }

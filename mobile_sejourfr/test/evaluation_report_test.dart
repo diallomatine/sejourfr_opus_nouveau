@@ -7,6 +7,7 @@ import 'package:sejourfr_mobile/core/models/production_models.dart';
 import 'package:sejourfr_mobile/core/theme/app_theme.dart';
 import 'package:sejourfr_mobile/core/widgets/app_tag.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/production_result_labels.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/widgets/action_plan.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/criterion_row.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/evaluation_report.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/results_hero.dart';
@@ -35,15 +36,6 @@ Widget _host(
 
 EvaluationResult _eval(Map<String, dynamic> json) =>
     EvaluationResult.fromJson(json);
-
-/// Deplie « Voir l'analyse complete » : le detail exhaustif y vit, replie par
-/// defaut.
-Future<void> _openFullAnalysis(WidgetTester tester) async {
-  final header = find.text("Voir l'analyse complète");
-  await tester.ensureVisible(header);
-  await tester.tap(header);
-  await tester.pumpAndSettle();
-}
 
 /// Ouvre la regle de lecture du niveau : elle vit derriere un geste, pas a
 /// plat entre le verdict et le premier conseil.
@@ -659,7 +651,13 @@ void main() {
     });
   });
 
-  group('analyse complète', () {
+  // ⚠️ Groupe RETOURNE (contrat v15/v9) : le correcteur ne produit plus
+  // `exemples_corriges` ni `suggestions`, et « Voir l'analyse complète » —
+  // que personne n'ouvrait — disparait avec eux. Ce qui vivait dans ce repli
+  // sans venir du LLM n'a PAS disparu pour autant : les avertissements
+  // remontent en note sous le hero, la check-list de la consigne vit dans
+  // « Ce qui marche ».
+  group("plus d'analyse complète", () {
     final json = <String, dynamic>{
       'noteSurVingt': 12.5,
       'feedback': <String, dynamic>{
@@ -684,6 +682,8 @@ void main() {
             'preuve': 'un petit appartement',
           },
         ],
+        // Encore portes par une centaine d'evaluations en base : ils se
+        // decodent toujours, aucun ecran candidat ne les affiche.
         'exemples_corriges': [
           {
             'original': 'Il fait beau. Je sors.',
@@ -696,90 +696,87 @@ void main() {
       },
     };
 
-    testWidgets('repliée par défaut', (tester) async {
+    testWidgets('ni repli, ni corrections, ni suggestions — même sur une '
+        'évaluation qui les porte encore', (tester) async {
       await tester.pumpWidget(_host(_eval(json)));
 
-      expect(find.text("Voir l'analyse complète"), findsOneWidget);
-      expect(find.text('Ce que demandait la consigne'), findsNothing);
-      expect(find.text('Production plus courte que demandé.'), findsNothing);
+      expect(find.text("Voir l'analyse complète"), findsNothing);
+      expect(find.text('Corrections'), findsNothing);
       expect(find.text('Suggestions'), findsNothing);
+      expect(find.textContaining('Comme il fait beau'), findsNothing);
+      expect(find.text('Relisez-vous à voix haute.'), findsNothing);
     });
 
-    testWidgets('dépliée : rien n\'est perdu, dans l\'ordre du web',
-        (tester) async {
+    testWidgets('à l\'oral non plus : pas de reformulations', (tester) async {
+      await tester.pumpWidget(_host(_eval(json), isOral: true));
+
+      expect(find.text('Reformulations pour plus de clarté'), findsNothing);
+      expect(find.text("Voir l'analyse complète"), findsNothing);
+      expect(find.textContaining('Comme il fait beau'), findsNothing);
+    });
+
+    testWidgets('les avertissements du SERVEUR restent, en note sous le '
+        'bandeau de résultat', (tester) async {
       await tester.pumpWidget(_host(_eval(json)));
-      await _openFullAnalysis(tester);
 
-      final avertissementY = tester
-          .getTopLeft(find.text('Production plus courte que demandé.'))
-          .dy;
-      final accomplissementY =
-          tester.getTopLeft(find.text('Ce que demandait la consigne')).dy;
-      final exemplesY = tester.getTopLeft(find.text('Corrections')).dy;
-      final suggestionsY = tester.getTopLeft(find.text('Suggestions')).dy;
+      expect(find.text('À savoir sur cette évaluation'), findsOneWidget);
+      expect(find.text('Production plus courte que demandé.'), findsOneWidget);
 
-      expect(avertissementY, lessThan(accomplissementY));
-      expect(accomplissementY, lessThan(exemplesY));
-      expect(exemplesY, lessThan(suggestionsY));
-
-      // Les trois groupes de l'accomplissement restent distincts.
-      expect(find.text('Invitation absente'), findsOneWidget);
-      expect(find.text('Loyer non mentionné'), findsOneWidget);
-      expect(find.textContaining("n'enlève aucun point"), findsOneWidget);
+      // Sous le hero, au-dessus des deux bandeaux de synthese : la note se lit
+      // au passage, elle ne dispute pas la premiere lecture au verdict.
+      final heroBas = tester.getBottomLeft(find.byType(ProductionResultsHero)).dy;
+      final noteY =
+          tester.getTopLeft(find.text('À savoir sur cette évaluation')).dy;
+      final bandeauY = tester.getTopLeft(find.text('Ce qui marche')).dy;
+      expect(noteY, greaterThanOrEqualTo(heroBas));
+      expect(noteY, lessThan(bandeauY));
     });
 
-    testWidgets('le détail par critère a quitté le repli pour le profil',
-        (tester) async {
+    testWidgets('aucun avertissement à l\'écrit : aucune note, aucun titre '
+        'orphelin', (tester) async {
+      await tester.pumpWidget(_host(_eval(<String, dynamic>{
+        'noteSurVingt': 12,
+        'feedback': <String, dynamic>{},
+      })));
+
+      expect(find.text('À savoir sur cette évaluation'), findsNothing);
+    });
+
+    testWidgets('la check-list de la consigne vit dans « Ce qui marche » : '
+        'les points traités PUIS les oubliés', (tester) async {
+      await tester.pumpWidget(_host(_eval(json)));
+
+      // Repliee par defaut, comme le reste du bandeau.
+      expect(find.text('Nouvelle annoncée'), findsNothing);
+      expect(find.text('1/2 points traités'), findsOneWidget);
+
+      await _openTile(tester, 'Ce qui marche');
+
+      final traiteY = tester.getTopLeft(find.text('Nouvelle annoncée')).dy;
+      final oubliesY = tester.getTopLeft(find.text('Points oubliés')).dy;
+      final manqueY = tester.getTopLeft(find.text('Invitation absente')).dy;
+
+      // Sans ce second groupe, le candidat lisait « 1/2 » sans jamais savoir
+      // lequel manquait — or c'est celui-la qui lui coute des points.
+      expect(traiteY, lessThan(oubliesY));
+      expect(oubliesY, lessThan(manqueY));
+
+      // Une piste ne coute rien : elle ne compte pas au denominateur, et elle
+      // n'est plus rendue du tout.
+      expect(find.text('Loyer non mentionné'), findsNothing);
+      expect(find.textContaining("n'enlève aucun point"), findsNothing);
+      // L'ancienne carte detaillee et ses intertitres ont disparu avec elle.
+      expect(find.text('Ce que demandait la consigne'), findsNothing);
+      expect(find.text('Manques obligatoires'), findsNothing);
+      expect(find.text('Points traités'), findsNothing);
+    });
+
+    testWidgets('le détail par critère reste dans le profil, déplié à la '
+        'demande', (tester) async {
       await tester.pumpWidget(_host(_eval(json)));
 
       expect(find.text('Votre profil en un coup d\'œil'), findsOneWidget);
-      await _openFullAnalysis(tester);
       expect(find.text('Détail par critère'), findsNothing);
-    });
-
-    testWidgets('la consigne est rendue en TROIS groupes titrés et comptés',
-        (tester) async {
-      await tester.pumpWidget(_host(_eval(json)));
-      await _openFullAnalysis(tester);
-
-      final traitesY = tester.getTopLeft(find.text('Points traités')).dy;
-      final manquesY = tester.getTopLeft(find.text('Manques obligatoires')).dy;
-      final pistesY = tester.getTopLeft(find.text('Pistes non abordées')).dy;
-
-      // L'ordre porte le sens : ce qui est fait, ce qui coûte des points, ce
-      // qui n'en coûte aucun.
-      expect(traitesY, lessThan(manquesY));
-      expect(manquesY, lessThan(pistesY));
-
-      // Chaque groupe annonce son compteur avant qu'on lise le détail.
-      expect(find.text('1'), findsNWidgets(3)); // les 3 compteurs de groupe
-
-      // Un manque reste au-dessus de sa piste : le regroupement n'a pas
-      // melange les deux.
-      expect(
-        tester.getTopLeft(find.text('Invitation absente')).dy,
-        lessThan(tester.getTopLeft(find.text('Loyer non mentionné')).dy),
-      );
-
-      // Le tag dit d'où vient le point, dans les mots du web.
-      expect(find.text('demandé par la consigne'), findsNWidgets(2));
-      expect(find.text('piste'), findsOneWidget);
-      expect(find.text('piste abordée'), findsNothing);
-      expect(find.text('demandé'), findsNothing);
-
-      // Le pied vit sous les pistes, et nulle part ailleurs.
-      final footY =
-          tester.getTopLeft(find.textContaining("n'enlève aucun point")).dy;
-      expect(footY, greaterThan(pistesY));
-    });
-
-    testWidgets('à l\'oral, les exemples sont des reformulations',
-        (tester) async {
-      await tester.pumpWidget(_host(_eval(json), isOral: true));
-      await _openFullAnalysis(tester);
-
-      expect(find.text('Reformulations pour plus de clarté'), findsOneWidget);
-      expect(find.text('Corrections'), findsNothing);
     });
 
     testWidgets('les points forts vivent dans « Ce qui marche », pas en prose',
@@ -795,27 +792,15 @@ void main() {
       // information que le bandeau donne en un chiffre.
       expect(find.text('2 points forts'), findsOneWidget);
       expect(find.text('Temps du passé maîtrisés'), findsNothing);
-      // Et surtout : plus de doublon dans « Voir l'analyse complète ».
-      expect(find.text("Voir l'analyse complète"), findsNothing);
 
       await _openTile(tester, 'Ce qui marche');
       expect(find.text('Message clair'), findsOneWidget);
       expect(find.text('Temps du passé maîtrisés'), findsOneWidget);
     });
-
-    testWidgets('aucun détail à montrer : pas de section vide à déplier',
-        (tester) async {
-      await tester.pumpWidget(_host(_eval(<String, dynamic>{
-        'noteSurVingt': 12,
-        'feedback': <String, dynamic>{},
-      })));
-
-      expect(find.text("Voir l'analyse complète"), findsNothing);
-    });
   });
 
   group('limite de l\'évaluation orale', () {
-    testWidgets('affichée en repli quand le correcteur n\'a rien averti',
+    testWidgets('affichée en note quand le correcteur n\'a rien averti',
         (tester) async {
       await tester.pumpWidget(_host(
         _eval(<String, dynamic>{
@@ -824,7 +809,6 @@ void main() {
         }),
         isOral: true,
       ));
-      await _openFullAnalysis(tester);
 
       expect(find.text(kOralEvaluationLimitNotice), findsOneWidget);
     });
@@ -840,7 +824,6 @@ void main() {
         }),
         isOral: true,
       ));
-      await _openFullAnalysis(tester);
 
       expect(find.text('Plafond A2 appliqué.'), findsOneWidget);
       expect(find.text(kOralEvaluationLimitNotice), findsNothing);
@@ -854,10 +837,9 @@ void main() {
           'suggestions': ['Relisez-vous.'],
         },
       })));
-      await _openFullAnalysis(tester);
 
       expect(find.text(kOralEvaluationLimitNotice), findsNothing);
-      expect(find.text('À noter'), findsNothing);
+      expect(find.text('À savoir sur cette évaluation'), findsNothing);
     });
   });
 
@@ -1436,7 +1418,8 @@ void main() {
     });
   });
 
-  group('version au niveau visé — la marche au-dessus', () {
+  group('plan d\'action — « pour viser X », version plus aboutie, à retenir',
+      () {
     Map<String, dynamic> json(Map<String, dynamic>? bloc) => <String, dynamic>{
           'noteSurVingt': 7,
           'niveauObserve': 'B1',
@@ -1446,7 +1429,8 @@ void main() {
           },
         };
 
-    final complet = <String, dynamic>{
+    // Contrat v1 : une centaine d'evaluations en base le portent encore.
+    final legacy = <String, dynamic>{
       'niveau_vise': 'B2',
       'niveau_constate': 'B1',
       'texte': 'Madame, Monsieur, je me permets de vous écrire…',
@@ -1457,31 +1441,34 @@ void main() {
       ],
     };
 
-    test('dit dès le titre que c\'est un modèle, pas la production', () {
-      expect(versionCibleeTitle(TargetLevel.b2),
-          'Au niveau B2, votre réponse pourrait ressembler à ceci');
-      expect(kVersionCibleeEyebrow, 'La marche au-dessus');
-      expect(kVersionCibleeLeviersTitle, 'Ce qui vous en sépare');
-      expect(versionCibleeIntro(TargetLevel.b2),
-          startsWith("Ce texte n'est pas le vôtre"));
-    });
+    // Contrat v2, ORAL : aucune reecriture complete de la production.
+    final oral = <String, dynamic>{
+      'niveau_vise': 'B2',
+      'niveau_constate': 'B1',
+      'leviers': [
+        {'action': 'Nuance ta position', 'exemple': 'à condition que'},
+        {'action': 'Annonce ton objection', 'exemple': 'on pourrait objecter'},
+      ],
+      'reformulations': [
+        {
+          'original': 'moi je pense que c\'est bien',
+          'reformule': 'Je considère que cette mesure est bénéfique',
+          'apport': 'plus nuancé',
+        },
+        {
+          'original': 'et après on fait ça',
+          'reformule': 'Ensuite, il conviendrait de procéder ainsi',
+          'apport': 'lien logique',
+        },
+      ],
+      'a_retenir': {
+        'formule': 'On objectera que…, mais…',
+        'explication': 'Pour traiter une objection avant de conclure.',
+      },
+    };
 
-    test('relie chaque palier à SA démarche, sans recopier le rappel d\'enjeu',
-        () {
-      expect(versionCibleeIntro(TargetLevel.a2),
-          contains('la carte de séjour pluriannuelle'));
-      expect(versionCibleeIntro(TargetLevel.b1), contains('la carte de résident'));
-      expect(versionCibleeIntro(TargetLevel.b2), contains('la naturalisation'));
-      // Le hero ecrit « Le niveau B2 est celui demande pour… » : la section ne
-      // doit pas repeter la meme phrase deux ecrans plus bas.
-      for (final cible in TargetLevel.values) {
-        expect(versionCibleeIntro(cible).contains('est celui demandé pour'),
-            isFalse);
-      }
-    });
-
-    test('lit le bloc et PRÉSERVE l\'ordre des leviers', () {
-      final v = _eval(json(complet)).feedback.versionCiblee!;
+    test('lit le bloc v1 et PRÉSERVE l\'ordre des leviers', () {
+      final v = _eval(json(legacy)).feedback.versionCiblee!;
       expect(v.niveauVise, TargetLevel.b2);
       expect(v.niveauConstate, NiveauCecrl.b1);
       expect(v.texte, startsWith('Madame, Monsieur'));
@@ -1492,9 +1479,19 @@ void main() {
       ]);
     });
 
+    test('lit le bloc v2 oral : des reformulations, jamais un texte modèle', () {
+      final v = _eval(json(oral)).feedback.versionCiblee!;
+      expect(v.texte, isNull);
+      expect(v.exempleCible, isNull);
+      expect(v.leviers.map((l) => l.action),
+          ['Nuance ta position', 'Annonce ton objection']);
+      expect(v.reformulations.first.original, 'moi je pense que c\'est bien');
+      expect(v.aRetenir?.formule, 'On objectera que…, mais…');
+    });
+
     test('reste null quand le bloc est absent ou inexploitable', () {
-      // Sans palier vise, on ne saurait pas au nom de quoi ce texte est
-      // montre ; sans texte, il n'y a rien a montrer.
+      // Sans palier vise, on ne saurait pas au nom de quoi ce plan est
+      // montre ; sans la moindre section, il n'y a rien a montrer.
       expect(_eval(json(null)).feedback.versionCiblee, isNull);
       for (final bloc in <Map<String, dynamic>>[
         {'texte': 'Un modèle.'},
@@ -1507,26 +1504,32 @@ void main() {
       }
     });
 
-    testWidgets('la section se rend en EE, avec ses leviers numérotés',
+    testWidgets('v1 : l\'objectif est nommé, le texte ne l\'est plus',
         (tester) async {
-      await tester.pumpWidget(_host(_eval(json(complet))));
+      await tester.pumpWidget(_host(_eval(json(legacy))));
       await tester.pumpAndSettle();
 
-      expect(find.text('Au niveau B2, votre réponse pourrait ressembler à ceci'),
-          findsOneWidget);
-      expect(find.text(kVersionCibleeLeviersTitle), findsOneWidget);
+      expect(find.text('Pour viser B2'), findsOneWidget);
+      expect(find.text(kActionPlanExempleTitle), findsOneWidget);
       expect(find.text('Articuler deux arguments'), findsOneWidget);
       expect(find.text('1'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
+      // Plus aucune etiquette de palier sur le texte lui-meme.
+      expect(find.textContaining('pourrait ressembler'), findsNothing);
+      expect(find.textContaining("Ce texte n'est pas le vôtre"), findsNothing);
     });
 
-    testWidgets('rien du tout à l\'oral, ni cadre ni « non disponible »',
+    testWidgets('l\'oral reçoit le plan, au pluriel et sans texte complet',
         (tester) async {
-      await tester.pumpWidget(_host(_eval(json(complet)), isOral: true));
+      await tester.pumpWidget(_host(_eval(json(oral)), isOral: true));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Au niveau B2'), findsNothing);
-      expect(find.text(kVersionCibleeLeviersTitle), findsNothing);
+      expect(find.text('Pour viser B2'), findsOneWidget);
+      expect(find.text(kActionPlanReformulationsTitle), findsOneWidget);
+      expect(find.text(kActionPlanExempleTitle), findsNothing);
+      expect(find.text('Je considère que cette mesure est bénéfique'),
+          findsOneWidget);
+      expect(find.text('À retenir'), findsOneWidget);
     });
 
     testWidgets('rien du tout quand le bloc est absent (toutes les évals '
@@ -1534,15 +1537,16 @@ void main() {
       await tester.pumpWidget(_host(_eval(json(null))));
       await tester.pumpAndSettle();
 
-      expect(find.text(kVersionCibleeEyebrow.toUpperCase()), findsNothing);
-      expect(find.text(kVersionCibleeLeviersTitle), findsNothing);
+      expect(find.text('Pour viser B2'), findsNothing);
+      expect(find.text(kActionPlanExempleTitle), findsNothing);
+      expect(find.text(kActionPlanReformulationsTitle), findsNothing);
     });
 
     // Le cas le plus frequent depuis le retrait de `version_amelioree` : une
     // eval EE anterieure, ou dont le second appel a echoue. L'ecran n'a alors
-    // AUCUN texte modele — il doit rester equilibre, sans section vide ni
-    // titre orphelin, et sans « non disponible ».
-    testWidgets('aucun texte modèle : le rapport reste entier, sans trou',
+    // AUCUN plan — il doit rester equilibre, sans section vide ni titre
+    // orphelin, et sans « non disponible ».
+    testWidgets('aucun plan : le rapport reste entier, sans trou',
         (tester) async {
       await tester.pumpWidget(_host(
         _eval(<String, dynamic>{
@@ -1571,9 +1575,8 @@ void main() {
 
       // Et pas un seul modele, ni cadre, ni titre, ni excuse.
       expect(find.textContaining('je viens de trouver'), findsNothing);
-      expect(find.text(kVersionCibleeEyebrow.toUpperCase()), findsNothing);
-      expect(find.text(kVersionCibleeLeviersTitle), findsNothing);
-      expect(find.textContaining('Au niveau'), findsNothing);
+      expect(find.text(kActionPlanExempleTitle), findsNothing);
+      expect(find.textContaining('Pour viser'), findsNothing);
       expect(find.textContaining('non disponible'), findsNothing);
     });
   });
@@ -1595,8 +1598,10 @@ void main() {
       'niveau_constate': 'B2',
     };
 
-    test('annonce l\'objectif atteint, palier nommé', () {
-      expect(kNiveauViseAtteintEyebrow, 'Objectif atteint');
+    test(
+        'annonce le palier visé, distinct du bandeau « Objectif atteint » de la consigne',
+        () {
+      expect(kNiveauViseAtteintEyebrow, 'Palier visé');
       expect(niveauViseAtteintTitle(TargetLevel.b2), 'Objectif B2 : vous y êtes');
       expect(niveauViseAtteintTitle(TargetLevel.a2), 'Objectif A2 : vous y êtes');
     });
@@ -1649,12 +1654,14 @@ void main() {
       expect(find.text(kNiveauViseAtteintIntro), findsOneWidget);
     });
 
-    testWidgets('rien du tout à l\'oral', (tester) async {
+    // Le signal est servi a l'oral aussi depuis le contrat v2 : une reussite
+    // orale se dit exactement comme une reussite ecrite.
+    testWidgets('se rend aussi à l\'oral', (tester) async {
       await tester.pumpWidget(_host(_eval(json(atteint)), isOral: true));
       await tester.pumpAndSettle();
 
-      expect(find.text(kNiveauViseAtteintEyebrow.toUpperCase()), findsNothing);
-      expect(find.textContaining('Objectif B2'), findsNothing);
+      expect(find.text(kNiveauViseAtteintEyebrow.toUpperCase()), findsOneWidget);
+      expect(find.text('Objectif B2 : vous y êtes'), findsOneWidget);
     });
 
     testWidgets('rien du tout sur une évaluation qui ne porte pas le bloc',

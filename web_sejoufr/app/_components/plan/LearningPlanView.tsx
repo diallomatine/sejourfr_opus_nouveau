@@ -486,7 +486,11 @@ function PathStep({
   current: boolean;
 }) {
   const exercise = priority.recommendedExercise;
-  const done = priority.promptCount > 0 && priority.attemptedCount >= priority.promptCount;
+  // Une étape, ce sont les 5 premiers sujets de la compétence — jamais ses 15.
+  // L'état « terminée » est **servi** (`stepCompleted`), plus déduit d'une
+  // comparaison locale : c'est le serveur qui sait ce qui compose une étape.
+  const done = priority.stepCompleted;
+  const partiallyValidated = done && priority.stepValidatedCount < priority.stepPromptCount;
   // Le verrou est **lu**, jamais déduit du rang de l'étape : si le serveur
   // change sa règle d'ouverture, cet écran suit sans une ligne à retoucher.
   const locked = priority.locked || exercise?.locked === true;
@@ -497,8 +501,11 @@ function PathStep({
       </span>
       <div className={`${styles.stepCard} ${current ? styles.stepCardCurrent : ""}`}>
         <div className={styles.stepHead}>
-          <span className={styles.stepState} data-state={current ? "current" : "next"}>
-            {current ? "En cours" : "À venir"}
+          <span
+            className={styles.stepState}
+            data-state={current ? (done ? "done" : "current") : "next"}
+          >
+            {current ? (done ? "Terminée" : "En cours") : "À venir"}
           </span>
           {locked && <SkillLockBadge />}
           <span className={styles.stepMeta}>
@@ -508,12 +515,23 @@ function PathStep({
 
         <div className={styles.stepBody}>
           <SkillRing
-            attempted={priority.attemptedCount}
-            total={priority.promptCount}
+            attempted={priority.stepAttemptedCount}
+            total={priority.stepPromptCount}
             done={done}
           />
           <div className={styles.stepBodyText}>
             <h3 className={styles.stepTitle}>{priority.title}</h3>
+            {/* Une étape terminée RESTE affichée : les priorités ne bougent
+                qu'à la prochaine production. Sans cette phrase, un candidat qui
+                a fini son étape et la voit toujours là croit à un bug. */}
+            {done && <p className={styles.stepDone}>Réévaluée à ta prochaine production.</p>}
+            {/* Terminer n'est pas tout réussir — la distinction se voit ici, et
+                seulement quand elle apprend quelque chose. */}
+            {partiallyValidated && (
+              <p className={styles.stepValidated}>
+                {priority.stepValidatedCount} validés sur {priority.stepPromptCount}
+              </p>
+            )}
           </div>
         </div>
 
