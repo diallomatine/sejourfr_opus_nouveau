@@ -57,6 +57,15 @@ export interface GeminiLiveCallbacks {
     /** L'examinateur parle / s'arrête (pour un indicateur visuel). */
     onSpeakingChange?: (speaking: boolean) => void;
     onStateChange?: (state: GeminiLiveState) => void;
+    /** Dernier `sessionResumptionUpdate.newHandle` reçu du fournisseur. Cette
+     *  session ne le stocke PAS : l'état de reprise a un seul propriétaire, le
+     *  runner, qui le relaie au serveur et le renvoie à la reprise. */
+    onResumptionHandle?: (handle: string) => void;
+    /** Le WebSocket est tombé alors que l'entretien avait commencé. Le client ne
+     *  décide rien : c'est le runner qui arbitre reprise ou repli. */
+    onConnectionLost?: () => void;
+    /** Erreur FATALE, non rattrapable par une reprise (micro refusé, connexion
+     *  jamais établie). */
     onError?: (message: string) => void;
 }
 
@@ -153,7 +162,10 @@ registerProcessor('pcm-capture', PcmCaptureProcessor);
 `;
 
 export class GeminiLiveSession {
-    private readonly descriptor: RealtimeSessionDescriptor;
+    /** Paramètres de la connexion COURANTE. Non `readonly` : une reprise
+     *  (`reconnect`) remplace endpoint/token/modèle par ceux du descripteur émis
+     *  par `POST /sessions/{id}/resume`. Les réglages audio ne changent pas. */
+    private descriptor: RealtimeSessionDescriptor;
     private readonly cb: GeminiLiveCallbacks;
     private readonly inputRate: number;
     private readonly outputRate: number;
@@ -195,6 +207,14 @@ export class GeminiLiveSession {
     // garde-fou si rien n'arrive.
     private awaitingFirstExaminer = true;
     private welcomeTimer: ReturnType<typeof setTimeout> | null = null;
+    // La session a-t-elle été établie au moins une fois (`setupComplete`) ? Ce
+    // qui tombe AVANT n'est pas une coupure rattrapable mais un échec de
+    // connexion : reprendre une conversation qui n'a jamais commencé n'a aucun
+    // sens.
+    private everConnected = false;
+    // Une chute de socket ne se signale qu'UNE fois : `onerror` et `onclose` du
+    // même socket tirent coup sur coup.
+    private socketDownNotified = false;
     // Transcription : on accumule les fragments Gemini VERBATIM (ils portent leur
     // propre espacement) et on n'émet une ligne qu'à la fin du tour (turnComplete
     // / interrupted). Ajouter un espace entre fragments coupait les mots.
@@ -267,8 +287,8 @@ export class GeminiLiveSession {
         ws.onerror = () => {
             // Session déjà fermée (cleanup StrictMode/Fast Refresh) : ne pas
             // remonter une fausse erreur qui tuerait le vrai flux.
-            if (this.closed) return;
-            this.fail("La connexion à l'examinateur a échoué.");
+            if (this.closed || ws !== this.ws) return;
+            this.handleSocketDown("erreur WS");
         };
         ws.onclose = (ev) => {
             // Code/raison utiles au diagnostic (1007 = setup invalide, 1008 = auth,
@@ -276,11 +296,62 @@ export class GeminiLiveSession {
             if (ev.code !== 1000 && ev.code !== 1005) {
                 console.warn(`[realtime] WS fermé code=${ev.code} raison=${ev.reason || "—"}`);
             }
-            if (!this.closed) {
-                this.closed = true;
-                this.cb.onStateChange?.("closed");
-            }
+            // Socket remplacé par une reprise : sa fermeture ne concerne plus
+            // personne.
+            if (this.closed || ws !== this.ws) return;
+            this.handleSocketDown(`fermeture code=${ev.code}`);
         };
+    }
+
+    /**
+     * Rouvre le WebSocket avec le descripteur d'une REPRISE
+     * (`POST /sessions/{id}/resume`) : nouveau token, même conversation. La
+     * chaîne audio (micro, contexte de lecture) reste EN PLACE — on ne
+     * redemande pas la permission, on ne recrée pas de contexte : seul le
+     * transport change.
+     *
+     * ⚠️ Le handle de reprise est verrouillé dans le setup du token côté serveur
+     * (endpoint contraint) : on ne peut ni le poser ici, ni réutiliser l'ancien
+     * token, d'où le passage obligé par le serveur.
+     */
+    reconnect(next: RealtimeSessionDescriptor): void {
+        if (this.closed) return;
+        this.descriptor = next;
+        const old = this.ws;
+        this.ws = null;
+        if (old) {
+            old.onopen = null;
+            old.onmessage = null;
+            old.onerror = null;
+            old.onclose = null;
+            try {
+                old.close();
+            } catch {
+                // déjà fermé
+            }
+        }
+        // Le tour de l'examinateur est mort avec le socket : on jette ce qui
+        // restait planifié (sinon un bout de phrase se rejouerait) et on rend la
+        // parole au candidat.
+        this.flushPlayback();
+        this.socketDownNotified = false;
+        this.openSocket();
+    }
+
+    /** Chute du transport. Avant `setupComplete` c'est un échec de connexion
+     *  (fatal) ; après, c'est une coupure que le runner peut reprendre. */
+    private handleSocketDown(reason: string): void {
+        if (this.closed || this.socketDownNotified) return;
+        this.socketDownNotified = true;
+        console.warn(`[realtime] transport tombé (${reason})`);
+        if (!this.everConnected) {
+            this.fail("La connexion à l'examinateur a échoué.");
+            return;
+        }
+        // Ce qui restait à jouer est perdu avec le socket : on rend le micro au
+        // candidat au lieu de le laisser verrouillé en half-duplex.
+        this.flushPlayback();
+        this.cb.onConnectionLost?.();
     }
 
     private async onMessage(ev: MessageEvent): Promise<void> {
@@ -303,15 +374,28 @@ export class GeminiLiveSession {
             return;
         }
         if (msg.setupComplete) {
-            // Phase d'accueil : micro coupé, on attend la 1re phrase de l'examinateur.
-            this.cb.onStateChange?.("welcoming");
-            // Gemini ne parle pas spontanément : on déclenche l'accueil par un
-            // premier tour utilisateur « Bonjour. » — l'examinateur enchaîne
-            // aussitôt (fin de l'attente « il met du temps à arriver »).
-            this.sendOpeningTrigger();
-            // Garde-fou : si rien sous ~8 s, on libère le micro et on passe en
-            // conversation (un greeting audio manquant ne doit pas bloquer le candidat).
-            this.welcomeTimer = setTimeout(() => this.beginConversation(), 8000);
+            this.everConnected = true;
+            // Après une REPRISE, l'entretien a déjà commencé : le contexte est
+            // restauré côté fournisseur et renvoyer « Bonjour. » ferait rejouer
+            // un accueil. On ne réamorce que si l'examinateur n'a jamais parlé.
+            if (this.awaitingFirstExaminer) {
+                // Phase d'accueil : micro coupé, on attend sa 1re phrase.
+                this.cb.onStateChange?.("welcoming");
+                // Gemini ne parle pas spontanément : on déclenche l'accueil par un
+                // premier tour utilisateur « Bonjour. » — l'examinateur enchaîne
+                // aussitôt (fin de l'attente « il met du temps à arriver »).
+                this.sendOpeningTrigger();
+                // Garde-fou : si rien sous ~8 s, on libère le micro et on passe en
+                // conversation (un greeting audio manquant ne doit pas bloquer le candidat).
+                this.welcomeTimer = setTimeout(() => this.beginConversation(), 8000);
+            }
+            return;
+        }
+        // Handle de reprise : remonté tel quel, jamais stocké ici (le runner est
+        // le seul propriétaire de l'état de reprise).
+        const newHandle = msg.sessionResumptionUpdate?.newHandle;
+        if (newHandle) {
+            this.cb.onResumptionHandle?.(newHandle);
             return;
         }
         const sc = msg.serverContent;
@@ -680,4 +764,7 @@ interface GeminiServerContent {
 interface GeminiServerMessage {
     setupComplete?: unknown;
     serverContent?: GeminiServerContent;
+    /** Émis quand le serveur a armé `sessionResumption` dans le setup du token :
+     *  `newHandle` rouvre la MÊME conversation après une coupure. */
+    sessionResumptionUpdate?: {newHandle?: string; resumable?: boolean};
 }

@@ -173,9 +173,10 @@ void main() {
 
     test('un fragment perdu rend la transmission partielle DÉTECTABLE',
         () async {
-      // 3 segments (candidat / examinateur / candidat) : le 3ᵉ envoi échoue.
-      // La session est bien notée, mais sur un échange amputé — et ça se dit.
-      final repo = _FakeRealtimeRepository(appendFailAt: 3);
+      // 3 segments (candidat / examinateur / candidat) : le 3ᵉ (turnIndex 2)
+      // échoue à TOUS ses essais. La session est bien notée, mais sur un
+      // échange amputé — et ça se dit.
+      final repo = _FakeRealtimeRepository(failTurnIndex: 2);
       final c = build(repo);
       c.debugEnqueueTurn(RealtimeSpeaker.candidate, 'Premier tour.');
       c.debugEnqueueTurn(RealtimeSpeaker.examiner, 'Et ensuite ?');
@@ -225,15 +226,16 @@ class _FakeRealtimeRepository implements RealtimeRepository {
   _FakeRealtimeRepository({
     this.finishThrows = false,
     this.appendThrows = false,
-    this.appendFailAt = -1,
+    this.failTurnIndex = -1,
     this.evaluated = true,
   });
 
   bool finishThrows;
   bool appendThrows;
 
-  /// Index (1-based) de l'envoi de transcript qui échoue. -1 = aucun.
-  final int appendFailAt;
+  /// Numéro de tour dont TOUS les essais échouent (le relais réessaie à
+  /// `turnIndex` constant). -1 = aucun.
+  final int failTurnIndex;
   bool evaluated;
   int finishCalls = 0;
   int appendCalls = 0;
@@ -243,12 +245,21 @@ class _FakeRealtimeRepository implements RealtimeRepository {
     required String sessionId,
     required RealtimeSpeaker speaker,
     required String text,
+    int? turnIndex,
+    String? resumptionHandle,
   }) async {
     appendCalls++;
-    if (appendThrows || appendCalls == appendFailAt) {
+    if (appendThrows || turnIndex == failTurnIndex) {
       throw Exception('relais indisponible');
     }
   }
+
+  @override
+  Future<RealtimeSessionDescriptor> resumeSession(
+    String sessionId, {
+    String? resumptionHandle,
+  }) async =>
+      throw UnimplementedError();
 
   @override
   Future<RealtimeSessionStateResponse> finishSession(String sessionId) async {

@@ -1182,15 +1182,49 @@ export const realtimeApi = {
         );
     },
 
-    /** Relaie un fragment de transcript (candidat ou examinateur). 204. */
+    /** Reprend une session dont le WebSocket est tombé : NOUVEAU token, MÊME
+     *  conversation, MÊME transcript, et surtout AUCUN slot de simulation
+     *  re-débité. Ne JAMAIS rappeler `startSession` après une coupure : cela
+     *  créerait une seconde session et débiterait un second slot au candidat.
+     *  Peut répondre `ASYNC_FALLBACK` ; 422 si la session est terminée, si le
+     *  plafond de reprises est atteint ou si la reprise est désactivée. */
+    resumeSession(
+        sessionId: string,
+        resumptionHandle: string | null,
+    ): Promise<import("./types").RealtimeSessionDescriptor> {
+        return apiFetch<import("./types").RealtimeSessionDescriptor>(
+            `/api/realtime/eo/sessions/${sessionId}/resume`,
+            {method: "POST", json: {resumptionHandle}, auth: true},
+        );
+    },
+
+    /** Relaie un fragment de transcript (candidat ou examinateur). 204.
+     *
+     *  `turnIndex` rend l'appel IDEMPOTENT : le serveur ignore un index déjà
+     *  appliqué, donc un réessai après coupure réseau ne duplique plus un tour.
+     *  Il doit être strictement croissant sur la session et CONSERVÉ d'un essai
+     *  à l'autre. `resumptionHandle` voyage ici plutôt que dans un appel dédié :
+     *  le client POSTe déjà toutes les 1,2 s, le serveur reste à jour sans un
+     *  aller-retour de plus. */
     appendTranscript(
         sessionId: string,
         speaker: import("./types").RealtimeSpeaker,
         text: string,
+        turnIndex?: number,
+        resumptionHandle?: string | null,
     ): Promise<void> {
         return apiFetch<void>(
             `/api/realtime/eo/sessions/${sessionId}/transcript`,
-            {method: "POST", json: {speaker, text}, auth: true},
+            {
+                method: "POST",
+                json: {
+                    speaker,
+                    text,
+                    ...(turnIndex === undefined ? {} : {turnIndex}),
+                    ...(resumptionHandle ? {resumptionHandle} : {}),
+                },
+                auth: true,
+            },
         );
     },
 

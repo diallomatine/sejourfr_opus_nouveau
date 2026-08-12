@@ -1390,6 +1390,22 @@ export interface RealtimeSessionDescriptor {
     tacheNumero: number;
     targetDurationSec?: number | null;
     sessionsRemaining: number;
+    /** La reprise après coupure est armée côté serveur : le client DOIT
+     *  mémoriser le dernier handle reçu du fournisseur et le renvoyer (avec ses
+     *  fragments de transcript, puis à la reprise) pour rouvrir la MÊME
+     *  conversation. Toujours `false` en `ASYNC_FALLBACK`. */
+    resumable: boolean;
+    /** Reprises encore accordées (`0` = plus de reprise possible). ⚠️ ABSENT du
+     *  JSON quand nul (`@JsonInclude(NON_NULL)` côté backend), donc optionnel. */
+    resumptionsRemaining?: number | null;
+    /** Secondes pendant lesquelles ce token peut encore ouvrir une connexion ;
+     *  au-delà, il faut redemander une reprise. ⚠️ Absent du JSON quand nul. */
+    connectWindowSec?: number | null;
+}
+
+/** Body de POST /api/realtime/eo/sessions/{id}/resume (corps entier facultatif). */
+export interface ResumeRealtimeSessionRequest {
+    resumptionHandle?: string | null;
 }
 
 /** Réponse de GET /api/realtime/eo/quota. */

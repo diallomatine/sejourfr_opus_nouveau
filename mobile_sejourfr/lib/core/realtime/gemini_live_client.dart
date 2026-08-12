@@ -80,11 +80,15 @@ class GeminiLiveClient {
     this.onExaminerTranscript,
     this.onSpeakingChange,
     this.onListeningStart,
+    this.onResumptionHandle,
     this.onError,
-    this.onClosed,
+    this.onConnectionLost,
   });
 
-  final RealtimeSessionDescriptor descriptor;
+  /// Paramètres de la connexion courante. **Non final** : une reprise
+  /// ([reconnect]) remplace endpoint/token/modèle par ceux du descripteur émis
+  /// par `POST /sessions/{id}/resume`. Les réglages audio, eux, ne changent pas.
+  RealtimeSessionDescriptor descriptor;
 
   /// Texte transcrit du candidat (entrée micro).
   final void Function(String text)? onCandidateTranscript;
@@ -99,8 +103,18 @@ class GeminiLiveClient {
   /// garde-fou a expiré → le micro du candidat s'ouvre.
   final void Function()? onListeningStart;
 
+  /// Dernier `sessionResumptionUpdate.newHandle` reçu du fournisseur. Le client
+  /// WS ne le stocke PAS : l'état de reprise a un seul propriétaire, le
+  /// contrôleur, qui le relaie au serveur et le renvoie à la reprise.
+  final void Function(String handle)? onResumptionHandle;
+
+  /// Erreur FATALE, non rattrapable par une reprise (permission micro refusée,
+  /// capture impossible, connexion jamais établie).
   final void Function(String message)? onError;
-  final void Function()? onClosed;
+
+  /// Le WebSocket est tombé alors que l'entretien avait commencé. Le client ne
+  /// décide rien : c'est le contrôleur qui arbitre reprise ou repli.
+  final void Function()? onConnectionLost;
 
   // Transcription : on accumule les fragments Gemini VERBATIM (ils portent leur
   // propre espacement) et on n'émet une ligne qu'à la fin du tour (turnComplete /
@@ -165,6 +179,13 @@ class GeminiLiveClient {
   // du candidat. Libéré au 1er audio examinateur, ou par garde-fou ~8 s.
   bool _awaitingFirstExaminer = true;
   Timer? _welcomeTimer;
+  // La session a-t-elle été établie au moins une fois (`setupComplete`) ? Ce qui
+  // tombe AVANT n'est pas une coupure rattrapable mais un échec de connexion :
+  // reprendre une conversation qui n'a jamais commencé n'a aucun sens.
+  bool _everConnected = false;
+  // Une chute de socket ne se signale qu'UNE fois : `onError` et `onDone` du
+  // même flux peuvent tirer coup sur coup.
+  bool _socketDownNotified = false;
 
   int get _outRate => descriptor.outputSampleRate ?? 24000;
   String get _inMime => descriptor.inputAudioMimeType ?? 'audio/pcm;rate=16000';
@@ -223,27 +244,81 @@ class GeminiLiveClient {
     // l'accueil par le modèle (le plus long) se déroulent ensuite ; le micro
     // n'émet rien avant la 1re phrase de l'examinateur (half-duplex), donc
     // ouvrir le WS après le micro ne coûte pas de parole candidat.
+    _openSocket(endpoint, token);
+    // Le garde-fou d'accueil est armé à `setupComplete`, pas ici : cf.
+    // `_welcomeTimeout`.
+  }
+
+  /// Rouvre le WebSocket avec le descripteur d'une REPRISE
+  /// (`POST /sessions/{id}/resume`) : nouveau token, même conversation. La
+  /// chaîne audio (micro, moteur de lecture, session iOS) reste EN PLACE — on
+  /// ne redemande pas la permission, on ne recrée pas le moteur : seul le
+  /// transport change.
+  ///
+  /// ⚠️ Le handle de reprise est verrouillé dans le setup du token côté serveur
+  /// (endpoint contraint) : on ne peut ni le poser ici, ni réutiliser l'ancien
+  /// token, d'où le passage obligé par le serveur.
+  Future<void> reconnect(RealtimeSessionDescriptor next) async {
+    if (_closed) return;
+    final endpoint = next.wsEndpoint;
+    final token = next.ephemeralToken;
+    if (endpoint == null || token == null) {
+      throw StateError('Descripteur de reprise incomplet (endpoint/token).');
+    }
+    descriptor = next;
+    await _wsSub?.cancel();
+    _wsSub = null;
+    try {
+      await _channel?.sink.close(ws_status.normalClosure);
+    } catch (_) {/* no-op */}
+    _channel = null;
+    // Le tour de l'examinateur est mort avec le socket : on jette ce qui
+    // restait en file (sinon un bout de phrase se rejouerait à la reprise) et
+    // on rend la parole au candidat.
+    _clearPcmQueue();
+    _setSpeaking(false);
+    _socketDownNotified = false;
+    _openSocket(endpoint, token);
+  }
+
+  void _openSocket(String endpoint, String token) {
     final uri = Uri.parse('$endpoint?access_token=$token');
     final channel = WebSocketChannel.connect(uri);
     _channel = channel;
     _wsSub = channel.stream.listen(
       _onWsMessage,
-      onError: (Object e) => _fail('Connexion examinateur interrompue : $e'),
+      onError: (Object e) => _handleSocketDown('erreur WS : $e'),
       onDone: _onWsDone,
       cancelOnError: true,
     );
 
     // Endpoint "...Constrained" : TOUT le setup (modèle, persona, transcription
-    // in/out, VAD, generationConfig) est verrouillé dans le token éphémère côté
-    // serveur. Le client n'envoie qu'un setup MINIMAL (juste le modèle) —
-    // réenvoyer les champs verrouillés fait rejeter la connexion.
+    // in/out, VAD, generationConfig, reprise de session) est verrouillé dans le
+    // token éphémère côté serveur. Le client n'envoie qu'un setup MINIMAL
+    // (juste le modèle) — réenvoyer les champs verrouillés fait rejeter la
+    // connexion.
     _send({
       'setup': {
         if (descriptor.model != null) 'model': descriptor.model,
       }
     });
-    // Le garde-fou d'accueil est armé à `setupComplete`, pas ici : cf.
-    // `_welcomeTimeout`.
+  }
+
+  /// Chute du transport. Avant `setupComplete` c'est un échec de connexion
+  /// (fatal) ; après, c'est une coupure que le contrôleur peut reprendre.
+  void _handleSocketDown(String reason) {
+    if (_closed || _socketDownNotified) return;
+    _socketDownNotified = true;
+    dev.log('WS tombé ($reason)', name: 'GeminiLiveClient');
+    if (!_everConnected) {
+      _fail('Connexion à l\'examinateur impossible.');
+      return;
+    }
+    // Ce qui restait à jouer est perdu avec le socket : on rend le micro au
+    // candidat au lieu de le laisser verrouillé en half-duplex.
+    _clearPcmQueue();
+    _setSpeaking(false);
+    onConnectionLost?.call();
   }
 
   /// Fin de la phase d'accueil : ouvre le micro et notifie le contrôleur.
@@ -606,12 +681,29 @@ class GeminiLiveClient {
     // par un premier tour utilisateur « Bonjour. » → l'examinateur enchaîne tout
     // de suite (fin de l'attente « il met du temps à arriver »).
     if (msg['setupComplete'] != null) {
-      _sendOpeningTrigger();
-      // Garde-fou d'accueil armé ICI, à l'instant où la session est réellement
-      // établie (aligné sur le web) : un greeting audio manquant ne doit pas
-      // bloquer le candidat, mais le handshake ne doit pas consommer le délai.
-      _welcomeTimer?.cancel();
-      _welcomeTimer = Timer(_welcomeTimeout, _beginConversation);
+      _everConnected = true;
+      // Après une REPRISE, l'entretien a déjà commencé : le contexte est
+      // restauré côté fournisseur et renvoyer « Bonjour. » ferait rejouer un
+      // accueil. On ne réamorce que si l'examinateur n'a jamais parlé.
+      if (_awaitingFirstExaminer) {
+        _sendOpeningTrigger();
+        // Garde-fou d'accueil armé ICI, à l'instant où la session est réellement
+        // établie (aligné sur le web) : un greeting audio manquant ne doit pas
+        // bloquer le candidat, mais le handshake ne doit pas consommer le délai.
+        _welcomeTimer?.cancel();
+        _welcomeTimer = Timer(_welcomeTimeout, _beginConversation);
+      }
+      return;
+    }
+
+    // Handle de reprise : on le remonte tel quel, sans le stocker (le
+    // contrôleur est le seul propriétaire de l'état de reprise).
+    final resumption = msg['sessionResumptionUpdate'];
+    if (resumption is Map<String, dynamic>) {
+      final handle = resumption['newHandle'] as String?;
+      if (handle != null && handle.isNotEmpty) {
+        onResumptionHandle?.call(handle);
+      }
       return;
     }
 
@@ -709,11 +801,8 @@ class GeminiLiveClient {
     if (_closed) return;
     // Code/raison utiles au diagnostic (1007 = setup invalide, 1008 = auth…).
     final code = _channel?.closeCode;
-    if (code != null && code != ws_status.normalClosure && code != 1005) {
-      dev.log('WS fermé code=$code raison=${_channel?.closeReason ?? "—"}',
-          name: 'GeminiLiveClient');
-    }
-    onClosed?.call();
+    _handleSocketDown(
+        'fermeture code=$code raison=${_channel?.closeReason ?? "—"}');
   }
 
   // ---------------------------------------------------------------------------
@@ -747,7 +836,9 @@ class GeminiLiveClient {
     try {
       channel.sink.add(jsonEncode(payload));
     } catch (e) {
-      _fail('Envoi WS impossible : $e');
+      // Un envoi qui échoue, c'est le transport qui est tombé : même chemin que
+      // la fermeture du socket, donc reprise possible plutôt qu'échec sec.
+      _handleSocketDown('envoi impossible : $e');
     }
   }
 

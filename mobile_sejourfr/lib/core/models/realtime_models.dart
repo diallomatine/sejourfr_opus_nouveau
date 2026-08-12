@@ -37,6 +37,9 @@ class RealtimeSessionDescriptor {
     this.outputSampleRate,
     this.voice,
     this.targetDurationSec,
+    this.resumable = false,
+    this.resumptionsRemaining,
+    this.connectWindowSec,
   });
 
   final RealtimeMode mode;
@@ -52,6 +55,22 @@ class RealtimeSessionDescriptor {
   final int? outputSampleRate;
   final String? voice;
   final int? targetDurationSec;
+
+  /// La reprise après coupure est armée côté serveur : le client DOIT mémoriser
+  /// le dernier handle reçu du fournisseur et le renvoyer (avec ses fragments de
+  /// transcript, puis à la reprise) pour rouvrir la MÊME conversation. Toujours
+  /// faux en [RealtimeMode.asyncFallback].
+  final bool resumable;
+
+  /// Reprises encore accordées à cette session (`0` = plus de reprise possible,
+  /// `null` = information absente, cas du repli asynchrone). ⚠️ Absent du JSON
+  /// quand nul (`@JsonInclude(NON_NULL)` côté backend).
+  final int? resumptionsRemaining;
+
+  /// Durée (s) pendant laquelle ce token peut encore ouvrir une connexion. Passé
+  /// ce délai il faut redemander une reprise au serveur. ⚠️ Absent du JSON quand
+  /// nul.
+  final int? connectWindowSec;
 
   bool get isRealtime => mode == RealtimeMode.realtime && sessionId != null;
 
@@ -70,6 +89,9 @@ class RealtimeSessionDescriptor {
       outputSampleRate: (json['outputSampleRate'] as num?)?.toInt(),
       voice: json['voice'] as String?,
       targetDurationSec: (json['targetDurationSec'] as num?)?.toInt(),
+      resumable: json['resumable'] as bool? ?? false,
+      resumptionsRemaining: (json['resumptionsRemaining'] as num?)?.toInt(),
+      connectWindowSec: (json['connectWindowSec'] as num?)?.toInt(),
     );
   }
 }
