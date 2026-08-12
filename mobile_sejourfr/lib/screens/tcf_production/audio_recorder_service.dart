@@ -8,6 +8,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
+import '../../core/utils/screen_wake_lock.dart';
+
 /// Etat haut-niveau de la phase d'enregistrement EO.
 enum RecordingPhase {
   idle,
@@ -298,15 +300,38 @@ final audioRecorderServiceProvider = Provider<AudioRecorderService>((ref) {
 });
 
 class RecordingController extends StateNotifier<RecordingState> {
-  RecordingController(this._svc)
+  RecordingController(this._svc, this._wakeLock)
       : super(const RecordingState(phase: RecordingPhase.idle)) {
     _sub = _svc.stateStream.listen((s) {
+      _syncWakeLock(s.phase);
       if (mounted) state = s;
     });
   }
 
+  /// Un seul detenteur pour les 3 modules qui enregistrent (production EO,
+  /// competences EO, diagnostic EO) : le service est un singleton applicatif,
+  /// il n'y a jamais deux captures en vol.
+  static const String _wakeLockReason = 'eo-recording';
+
   final AudioRecorderService _svc;
+  final ScreenWakeLock _wakeLock;
   StreamSubscription<RecordingState>? _sub;
+  bool _wakeLockHeld = false;
+
+  /// Le maintien de l'ecran suit la **phase reelle du service**, pas les appels
+  /// de ce controller. C'est le seul point de cablage qui couvre tous les
+  /// chemins de sortie : `stop()`, `cancel()`, l'auto-stop a `maxDuration`
+  /// (declenche par le ticker **interne** au service, qui ne repasse pas par
+  /// `RecordingController.stop`) et un `start()` qui echoue (aucun etat
+  /// `recording` n'est alors emis, donc rien n'est acquis).
+  void _syncWakeLock(RecordingPhase phase) {
+    final shouldHold = phase == RecordingPhase.recording;
+    if (shouldHold == _wakeLockHeld) return;
+    _wakeLockHeld = shouldHold;
+    unawaited(shouldHold
+        ? _wakeLock.acquire(_wakeLockReason)
+        : _wakeLock.release(_wakeLockReason));
+  }
 
   /// Mute le state seulement si le notifier est encore mounted (sinon no-op).
   /// Sert de garde apres chaque await -- evite les crashes "_debugIsMounted".
@@ -357,6 +382,9 @@ class RecordingController extends StateNotifier<RecordingState> {
   @override
   void dispose() {
     _sub?.cancel();
+    // Filet de securite : si le controller meurt pendant une capture, le
+    // wakelock ne doit pas survivre au dernier detenteur.
+    _syncWakeLock(RecordingPhase.idle);
     super.dispose();
   }
 }
@@ -364,5 +392,5 @@ class RecordingController extends StateNotifier<RecordingState> {
 final recordingControllerProvider =
     StateNotifierProvider<RecordingController, RecordingState>((ref) {
   final svc = ref.watch(audioRecorderServiceProvider);
-  return RecordingController(svc);
+  return RecordingController(svc, ref.watch(screenWakeLockProvider));
 });

@@ -3,6 +3,7 @@
 import {useEffect, useRef, useState, type ReactNode} from "react";
 import {Clock, Lightbulb, Mic, RotateCcw, Square, Target} from "lucide-react";
 import {formatDurationSec, type ProductionTaskDto} from "@/lib/types";
+import {useScreenWakeLock} from "@/lib/use-screen-wake-lock";
 import {SkillAccent} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
 import {type ProductionVoice} from "./config";
@@ -235,6 +236,10 @@ export function EoRecordingForm({
   const [elapsed, setElapsed] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [permError, setPermError] = useState<string | null>(null);
+  // Réécoute en cours dans le lecteur inline : l'écran doit rester allumé le
+  // temps de l'écoute, pas pendant toute la phase « enregistré » (le candidat
+  // peut y rester longtemps avant d'envoyer).
+  const [replaying, setReplaying] = useState(false);
   // État du droit micro, déterminé au montage (avant tout clic) pour guider
   // l'utilisateur : "ready" = on peut demander/enregistrer, sinon cas bloquant.
   const [micState, setMicState] = useState<
@@ -256,6 +261,12 @@ export function EoRecordingForm({
   const lastTimeoutSignalRef = useRef(0);
 
   const copy = COPY[voice];
+
+  // Une prise de parole de 2-3 min sans toucher l'écran, c'est exactement le
+  // scénario où le téléphone se verrouille — et sur mobile un écran verrouillé
+  // coupe la capture `MediaRecorder`. Dégradation silencieuse si l'API manque.
+  useScreenWakeLock(phase === "recording" || replaying);
+
   // Plafond dur de capture : hors examen seulement (en examen, c'est
   // `task.dureeMaxSec` qui borne déjà la prise et déclenche la soumission).
   const hardCapSec = !examMode && maxDurationSec != null && maxDurationSec > 0 ? maxDurationSec : null;
@@ -388,6 +399,9 @@ export function EoRecordingForm({
       recorderRef.current = rec;
       rec.start();
       setElapsed(0);
+      // Le lecteur de réécoute est démonté par le passage en « recording » :
+      // son `onPause` ne partira pas, on remet le drapeau à plat nous-mêmes.
+      setReplaying(false);
       setPhase("recording");
       timerRef.current = setInterval(
         () =>
@@ -452,6 +466,7 @@ export function EoRecordingForm({
     });
     blobRef.current = null;
     setElapsed(0);
+    setReplaying(false);
     setPhase("idle");
   }
 
@@ -543,7 +558,14 @@ export function EoRecordingForm({
 
       {!examMode && phase === "recorded" && audioUrl && (
         <div className={styles.player}>
-          <audio src={audioUrl} controls preload="metadata" />
+          <audio
+            src={audioUrl}
+            controls
+            preload="metadata"
+            onPlay={() => setReplaying(true)}
+            onPause={() => setReplaying(false)}
+            onEnded={() => setReplaying(false)}
+          />
         </div>
       )}
     </div>
