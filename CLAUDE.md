@@ -1245,6 +1245,71 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   « Sujet N » + consigne, déclaré une seule fois par front
   (`productionSubjectTitle`, `lib/types.ts` ⇄ `widgets/production_common.dart`,
   libellé gelé par test des deux côtés). Aucun écran ne suppose le titre présent.
+- **Fluidité de la session vocale temps réel** (chantier du 2026-08-12, les 3
+  surfaces). Le ressenti « l'examinateur met trop longtemps à répondre » avait une
+  cause unique et symétrique : **le gate qui coupe le micro pendant que
+  l'examinateur parle se levait sur une estimation arithmétique** (durée théorique
+  de l'audio reçu + 900 ms), aveugle au retard réel de la file. Trop tôt, le micro
+  rouvrait pendant la parole et l'écho repartait à Gemini en **faux tour
+  candidat** ; trop tard, les **premiers mots du candidat étaient jetés** et tout
+  le tour glissait. Le gate suit désormais la **position de lecture réelle** —
+  `playHead` côté web, `remainingFrames` du moteur natif + file côté mobile, sur
+  **horloge monotone** (`Stopwatch`, jamais `DateTime.now()`). Marge 900 → 100 ms,
+  tenue micro 300 → 120 ms : ces deux valeurs ne compensaient que l'imprécision
+  supprimée. **Ne pas les regonfler** sans remettre une estimation à la place.
+  - **Le micro reste coupé pendant que l'examinateur parle** (half-duplex,
+    anti-écho) — arbitrage du propriétaire, 2026-08-12. L'AEC mobile n'a pas le
+    signal joué par `flutter_pcm_sound` comme référence, donc un full-duplex
+    ferait s'auto-interrompre l'examinateur. Le code de flush `interrupted` reste
+    en place, **inatteignable mais intact** : ne pas le supprimer.
+  - **Chunk micro 20–40 ms des deux côtés** (recommandation Google). Le worklet
+    web postait un render quantum brut = **un message WS toutes les 8 ms**
+    (~125/s, 256 o utiles pour ~344 car. de base64) ; il accumule maintenant
+    40 ms. Mobile : `streamBufferSize` explicite — ⚠️ **l'unité diffère**,
+    Android compte des **octets**, iOS/macOS des **frames**.
+  - **Pré-roll de lecture** (120 ms web / 150 ms mobile) : sans lui, un hoquet
+    réseau donne un trou puis un clic. Amorçage forcé en fin de tour pour ne pas
+    coincer une réponse courte.
+  - **VAD de fin de tour** : `end-sensitivity` `LOW` → **`MEDIUM`**. `HIGH` est
+    écarté — le public apprend le français et cherche ses mots.
+    `silence-duration-ms` reste à **500** (plancher Google, en dessous les pauses
+    naturelles fragmentent l'énoncé) et `prefix-padding-ms` à **300** (sinon la
+    première syllabe est rognée). Les 5 valeurs sont surchargeables par env.
+  - **Reprise de session** (`sessionResumption` + `contextWindowCompression`,
+    V032 additive, `POST /api/realtime/eo/sessions/{id}/resume`). Le token vise
+    l'endpoint **contraint** : le client ne peut poser **aucun** champ de setup,
+    donc il **relaie son handle au serveur**, qui le verrouille dans le setup d'un
+    nouveau token. Seul montage possible — ne pas tenter de reconnecter en
+    réutilisant l'ancien token. `uses` 1 → 3 et `newSessionExpireTime` 120 → 600 s
+    (120 s ne couvrent pas un tunnel de métro : le token mourait avant le retour
+    du réseau, la reprise aurait été illusoire). ⚠️ **Non vérifié contre l'API
+    réelle** que Gemini accepte `sessionResumption` dans un setup verrouillé —
+    repli `REALTIME_SESSION_RESUMPTION_ENABLED=false`.
+  - **Quota jamais débité deux fois** : `appendTranscript` lisait la session
+    **sans verrou**, deux transactions concurrentes pouvaient toutes deux voir
+    `PENDING` et décrémenter (`decrementRealtimeSessions` est atomique mais
+    conditionné à `> 0` : il ne protège pas contre deux débits **légitimes**).
+    Verrou pessimiste de ligne, `finish` restant volontairement non transactionnel.
+    `turnIndex` rend `appendTranscript` **idempotent** : un réessai doit repartir
+    avec le **même** index, attribué à la construction du lot et non à l'envoi.
+    C'est l'invariant qui protège le quota — **aucun front ne rappelle
+    `POST /sessions` après une coupure**, ce serait un second slot.
+- **Écran allumé — primitives partagées, un seul point de câblage par front.**
+  Mobile `core/utils/screen_wake_lock.dart` (`ScreenWakeLock`, **refcount par
+  raison**, exceptions plateforme avalées, ré-application au retour au premier
+  plan car Android relâche en arrière-plan) + widget déclaratif
+  `core/widgets/keep_screen_awake.dart` ; web `lib/use-screen-wake-lock.ts`
+  (`useScreenWakeLock(active)`, détection de capacité — absente sur Safari iOS
+  < 16.4 et Firefox — et **ré-acquisition sur `visibilitychange`**, le navigateur
+  relâchant le verrou dès que l'onglet passe en arrière-plan). Câblé dans
+  `RecordingController` (mobile) et `EoRecordingForm` (web), qui servent **à eux
+  seuls** production EO + compétences EO + diagnostic ; plus `SejourAudioPlayer`
+  pour la réécoute et l'écran temps réel. ⚠️ Le câblage mobile passe par le **flux
+  d'état** du service, pas par `start()/stop()` : l'auto-stop de `maxDuration`
+  appelle `stop()` sur le **service**, pas sur le controller — un acquire posé
+  dans `start()` fuirait à chaque enregistrement arrivé au bout. **Aucune
+  permission `WAKE_LOCK`** : `wakelock_plus` pose `FLAG_KEEP_SCREEN_ON` sur la
+  fenêtre, qui n'en exige pas ; la déclarer ne ferait que salir la fiche Play Store.
 - **Recollage des tours EO temps réel** (`util/TranscriptTurnStitcher`, drapeau
   `sejourfr.production-evaluation.recollage-tours.enabled`, livré **ACTIF** —
   c'est une correction, pas une expérimentation). La transcription temps réel
