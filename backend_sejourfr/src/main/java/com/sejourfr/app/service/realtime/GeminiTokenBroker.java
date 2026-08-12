@@ -56,10 +56,15 @@ public class GeminiTokenBroker implements RealtimeTokenBroker {
     }
 
     @Override
-    public MintedSession mint(String systemInstruction) {
+    public boolean supportsResumption() {
+        return props.getGemini().getSessionResumption().isEnabled();
+    }
+
+    @Override
+    public MintedSession mint(String systemInstruction, String resumptionHandle) {
         RealtimeProperties.Gemini g = props.getGemini();
         Instant now = Instant.now();
-        Map<String, Object> body = buildRequestBody(g, systemInstruction, now);
+        Map<String, Object> body = buildRequestBody(g, systemInstruction, resumptionHandle, now);
         try {
             String json = restClient.post()
                     .uri(g.getAuthTokensUrl())
@@ -87,8 +92,15 @@ public class GeminiTokenBroker implements RealtimeTokenBroker {
     /**
      * Construit le corps de la requete {@code auth_tokens} : la config verrouillee
      * dans le token. Package-private pour etre testable sans reseau.
+     *
+     * @param resumptionHandle handle d'une session a REPRENDRE, ou {@code null}
+     *                         pour une session neuve. Il est verrouille ici cote
+     *                         serveur : l'endpoint contraint interdit au client de
+     *                         poser le moindre champ de setup, donc c'est le seul
+     *                         endroit ou un handle peut entrer.
      */
-    Map<String, Object> buildRequestBody(RealtimeProperties.Gemini g, String systemInstruction, Instant now) {
+    Map<String, Object> buildRequestBody(RealtimeProperties.Gemini g, String systemInstruction,
+                                         String resumptionHandle, Instant now) {
         // Sous-message generationConfig : modalite de sortie + voix + temperature.
         Map<String, Object> generationConfig = new LinkedHashMap<>();
         generationConfig.put("responseModalities", List.of("AUDIO"));
@@ -110,6 +122,27 @@ public class GeminiTokenBroker implements RealtimeTokenBroker {
         setup.put("inputAudioTranscription", Map.of());
         setup.put("outputAudioTranscription", Map.of());
         setup.put("realtimeInputConfig", buildRealtimeInputConfig(g.getVad()));
+        // Reprise de session : le handle (quand il y en a un) est VERROUILLE ici,
+        // pas envoye par le client — l'endpoint contraint le lui interdit.
+        if (g.getSessionResumption().isEnabled()) {
+            Map<String, Object> resumption = new LinkedHashMap<>();
+            if (resumptionHandle != null && !resumptionHandle.isBlank()) {
+                resumption.put("handle", resumptionHandle);
+            }
+            setup.put("sessionResumption", resumption);
+        }
+        // Fenetre glissante : borne le contexte d'une session longue ou reprise.
+        RealtimeProperties.ContextWindowCompression cwc = g.getContextWindowCompression();
+        if (cwc.isEnabled()) {
+            Map<String, Object> compression = new LinkedHashMap<>();
+            if (cwc.getTriggerTokens() > 0) {
+                compression.put("triggerTokens", cwc.getTriggerTokens());
+            }
+            compression.put("slidingWindow", cwc.getTargetTokens() > 0
+                    ? Map.of("targetTokens", cwc.getTargetTokens())
+                    : Map.of());
+            setup.put("contextWindowCompression", compression);
+        }
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("uses", g.getTokenUses());
@@ -120,11 +153,10 @@ public class GeminiTokenBroker implements RealtimeTokenBroker {
     }
 
     /**
-     * VAD verrouillee dans le token : examinateur PATIENT (fin de parole peu
-     * sensible, fenetre de silence confortable, la meme pour tous les niveaux)
-     * mais reactif au DEBUT de parole. Corrige le tour clos trop tot sur une pause
-     * de reflexion (l'examinateur relancait/coupait alors que le candidat
-     * reprenait).
+     * VAD verrouillee dans le token : reactif au DEBUT de parole, et sur la FIN
+     * de parole un compromis ({@code END_SENSITIVITY_MEDIUM}) entre couper un
+     * apprenant qui hesite et le faire attendre apres qu'il a fini. Les valeurs
+     * viennent toutes de la configuration — rien en dur ici.
      */
     private static Map<String, Object> buildRealtimeInputConfig(RealtimeProperties.Vad vad) {
         Map<String, Object> aad = new LinkedHashMap<>();

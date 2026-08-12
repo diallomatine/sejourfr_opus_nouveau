@@ -180,6 +180,32 @@ sourcées ; une ligne `NOT_OBSERVED` reste historisée mais n'efface jamais une
 preuve antérieure. Le Plan reste séparé de l'historique et des statistiques de
 progression.
 
+## Expression orale en temps réel (examinateur vocal, EO T1/T2)
+
+Schéma de connexion **(A)** : le backend émet un **token éphémère** dont le setup
+(modèle, persona, transcription, VAD, reprise) est **verrouillé côté serveur** ;
+le client ouvre lui-même le WebSocket du fournisseur sur l'endpoint **contraint**
+— il ne peut donc poser **aucun** champ de setup. Tous ces endpoints sont
+**authentifiés**.
+
+- `GET /api/realtime/eo/quota` → `{remaining, cap}`.
+- `POST /api/realtime/eo/sessions` → `RealtimeSessionDescriptor`. `mode=REALTIME`
+  (token + endpoint WS) ou `ASYNC_FALLBACK` (quota épuisé, pass non éligible,
+  temps réel non configuré, mint en échec) — le candidat n'est jamais bloqué.
+  Le descripteur porte `resumable`, `resumptionsRemaining` et `connectWindowSec`.
+- `POST /api/realtime/eo/sessions/{id}/resume` → **reprise après coupure réseau**.
+  Corps facultatif `{resumptionHandle}` (repli sur le dernier handle connu du
+  serveur). Renvoie un **nouveau** `RealtimeSessionDescriptor` sur la **même**
+  session : même transcript, **aucun slot re-débité**. 422 si la session est
+  terminée, si la reprise est désactivée ou si le plafond de reprises est atteint.
+- `POST /api/realtime/eo/sessions/{id}/transcript` → fragment de dialogue.
+  `{speaker, text, turnIndex?, resumptionHandle?}`. `turnIndex` (strictement
+  croissant, attribué par le client) rend l'appel **idempotent** : un tour déjà
+  appliqué est ignoré, donc un réessai après timeout ne duplique rien. Absent =
+  comportement historique. C'est **ici** que le slot est débité, à la transition
+  `PENDING -> ACTIVE`, sous verrou de ligne : **une seule fois par session**.
+- `POST /api/realtime/eo/sessions/{id}/finish` → clôture + déclenche la notation.
+
 ## Compétences TCF (micro-entraînement EE/EO)
 
 Voie **parallèle** aux productions complètes : un « petit sujet » travaille **une seule

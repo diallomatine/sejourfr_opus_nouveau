@@ -3,6 +3,7 @@ package com.sejourfr.app.controller;
 import com.sejourfr.app.dto.AppendTranscriptRequest;
 import com.sejourfr.app.dto.RealtimeSessionDescriptor;
 import com.sejourfr.app.dto.RealtimeSessionStateResponse;
+import com.sejourfr.app.dto.ResumeRealtimeSessionRequest;
 import com.sejourfr.app.dto.StartRealtimeSessionRequest;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.realtime.RealtimeQuotaService;
@@ -51,6 +52,16 @@ public class RealtimeEoController {
     @PostMapping("/sessions")
     public RealtimeSessionDescriptor start(@Valid @RequestBody StartRealtimeSessionRequest req) {
         return sessionService.start(currentUser.get(), req);
+    }
+
+    /**
+     * Reprend une session dont le WebSocket est tombe : nouveau token, MEME
+     * conversation, MEME transcript, et surtout AUCUN nouveau slot debite.
+     */
+    @PostMapping("/sessions/{id}/resume")
+    public RealtimeSessionDescriptor resume(@PathVariable("id") UUID id,
+                                            @RequestBody(required = false) ResumeRealtimeSessionRequest req) {
+        return sessionService.resume(currentUser.get(), id, req);
     }
 
     /** Fragment de transcript relaye par le client (debite le quota au 1er recu). */

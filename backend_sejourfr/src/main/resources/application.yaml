@@ -859,23 +859,60 @@ sejourfr:
       voice: ${REALTIME_GEMINI_VOICE:Aoede}
       temperature: 0.7
       # VAD verrouillée dans le token (realtimeInputConfig.automaticActivityDetection).
-      # Arbitrage patience ↔ réactivité : end-sensitivity LOW garde l'examinateur
-      # tolérant aux pauses de réflexion (il ne coupe pas l'apprenant), tandis que
-      # silence-duration-ms=500 (bas de la fourchette Google recommandée 500-800,
-      # défaut serveur ~800) réduit ~de moitié l'attente contrôlable avant qu'il
-      # réponde. start-sensitivity HIGH = détection rapide du début de parole. Ne
-      # pas descendre silence-duration-ms sous ~500 (fragmenterait la parole).
-      # Tunable sans redeploy via env (REALTIME_GEMINI_VAD_* si surchargé).
+      # Arbitrage patience ↔ réactivité :
+      #   * end-sensitivity MEDIUM (2026-08-12, remplace LOW) — LOW demande la
+      #     confirmation la plus prudente avant de déclarer la fin de parole,
+      #     c'est le réglage le plus LENT : en usage réel, « je finis mes propos
+      #     et l'examinateur met trop de temps à répondre ». HIGH couperait un
+      #     apprenant A2 en pleine hésitation. MEDIUM est le compromis.
+      #   * silence-duration-ms 500 = PLANCHER recommandé par Google (500-800) :
+      #     en dessous, un énoncé se fragmente sur ses pauses naturelles. Ne pas
+      #     descendre.
+      #   * prefix-padding-ms 300 : plus bas, la première syllabe est coupée.
+      #   * start-sensitivity HIGH = détection rapide du DÉBUT de parole.
+      # Les cinq valeurs sont surchargeables par env : essayer HIGH ne demande
+      # aucune recompilation.
       vad:
-        disabled: false
-        start-sensitivity: START_SENSITIVITY_HIGH
-        end-sensitivity: END_SENSITIVITY_LOW
-        prefix-padding-ms: 300
-        silence-duration-ms: 500
-      token-uses: 1
-      new-session-expire-seconds: 120
-      session-expire-seconds: 1800
-      timeout-sec: 15
+        disabled: ${REALTIME_GEMINI_VAD_DISABLED:false}
+        start-sensitivity: ${REALTIME_GEMINI_VAD_START_SENSITIVITY:START_SENSITIVITY_HIGH}
+        end-sensitivity: ${REALTIME_GEMINI_VAD_END_SENSITIVITY:END_SENSITIVITY_MEDIUM}
+        prefix-padding-ms: ${REALTIME_GEMINI_VAD_PREFIX_PADDING_MS:300}
+        silence-duration-ms: ${REALTIME_GEMINI_VAD_SILENCE_DURATION_MS:500}
+      # REPRISE DE SESSION après coupure réseau (sessionResumption du setup
+      # verrouillé). Sans elle, un WebSocket qui tombe (métro, ascenseur, appli
+      # en arrière-plan) détruisait la session ET le slot déjà débité : le
+      # candidat payait une simulation qu'il n'a pas pu terminer.
+      # Le handle ne peut PAS venir du client (token contraint = aucun champ de
+      # setup côté client) : il est relayé au serveur, qui le verrouille dans le
+      # setup d'un nouveau token via POST /api/realtime/eo/sessions/{id}/resume.
+      # Retour arrière : REALTIME_SESSION_RESUMPTION_ENABLED=false.
+      session-resumption:
+        enabled: ${REALTIME_SESSION_RESUMPTION_ENABLED:true}
+        max-resumptions: ${REALTIME_SESSION_MAX_RESUMPTIONS:3}
+      # Fenêtre glissante de contexte. L'audio consomme ~25 tokens/s et une
+      # session audio est plafonnée à 15 min SANS compression ; nos sessions
+      # visent ~200 s, donc ce n'est pas encore bloquant — c'est ce qui permet à
+      # une session REPRISE de ne pas heurter ce plafond. 0 sur un seuil = champ
+      # non envoyé, défaut du fournisseur appliqué.
+      # Retour arrière : REALTIME_CONTEXT_COMPRESSION_ENABLED=false.
+      context-window-compression:
+        enabled: ${REALTIME_CONTEXT_COMPRESSION_ENABLED:true}
+        trigger-tokens: ${REALTIME_CONTEXT_COMPRESSION_TRIGGER_TOKENS:25600}
+        target-tokens: ${REALTIME_CONTEXT_COMPRESSION_TARGET_TOKENS:12800}
+      # Ouvertures de WebSocket admises pour UN token. 1 (l'ancien défaut) = le
+      # token meurt à la première connexion, donc toute coupure était fatale.
+      # 3 = ouverture + 2 reprises. Contrepartie assumée : un token volé est
+      # rejouable pendant sa fenêtre de validité — mais son setup est verrouillé
+      # (il ne peut parler qu'à NOTRE persona) et le quota se débite côté
+      # serveur, pas par connexion. Ne pas monter sans raison.
+      token-uses: ${REALTIME_GEMINI_TOKEN_USES:3}
+      # Délai pour ouvrir (ou ROUVRIR) une connexion avec le token. 120 s ne
+      # couvrait pas une coupure réelle : un tunnel de métro suffisait à tuer le
+      # token avant le retour du réseau. 600 s couvre les coupures courantes tout
+      # en restant très en deçà de session-expire-seconds (1800).
+      new-session-expire-seconds: ${REALTIME_GEMINI_NEW_SESSION_EXPIRE_SECONDS:600}
+      session-expire-seconds: ${REALTIME_GEMINI_SESSION_EXPIRE_SECONDS:1800}
+      timeout-sec: ${REALTIME_GEMINI_TIMEOUT_SEC:15}
     # Formats audio Gemini Live : entrée PCM 16 bits 16 kHz mono, sortie 24 kHz.
     audio:
       input-sample-rate: 16000

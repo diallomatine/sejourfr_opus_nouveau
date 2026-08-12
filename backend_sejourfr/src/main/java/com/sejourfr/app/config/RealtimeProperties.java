@@ -64,10 +64,21 @@ public class RealtimeProperties {
         private String voice = "Aoede";
         private double temperature = 0.7;
         private Vad vad = new Vad();
-        /** Le token ne sert qu'a ouvrir UNE session. */
-        private int tokenUses = 1;
-        /** Delai pour DEMARRER la session avec le token (newSessionExpireTime). */
-        private int newSessionExpireSeconds = 120;
+        private SessionResumption sessionResumption = new SessionResumption();
+        private ContextWindowCompression contextWindowCompression = new ContextWindowCompression();
+        /**
+         * Nombre d'ouvertures de WebSocket admises pour UN token. 1 = le token
+         * meurt a la premiere connexion, donc une coupure reseau detruit la
+         * session. 3 = ouverture + 2 reprises sans repasser par le serveur.
+         */
+        private int tokenUses = 3;
+        /**
+         * Delai pour DEMARRER (ou REPRENDRE) la session avec le token
+         * (newSessionExpireTime). Doit couvrir une coupure reseau realiste
+         * (tunnel, ascenseur, bascule wifi/4G), sans quoi le token est mort
+         * avant que le candidat soit revenu.
+         */
+        private int newSessionExpireSeconds = 600;
         /** Duree pendant laquelle on peut echanger sur la session (expireTime). */
         private int sessionExpireSeconds = 1800;
         private int timeoutSec = 15;
@@ -97,6 +108,12 @@ public class RealtimeProperties {
         public Vad getVad() { return vad; }
         public void setVad(Vad vad) { this.vad = vad; }
 
+        public SessionResumption getSessionResumption() { return sessionResumption; }
+        public void setSessionResumption(SessionResumption v) { this.sessionResumption = v; }
+
+        public ContextWindowCompression getContextWindowCompression() { return contextWindowCompression; }
+        public void setContextWindowCompression(ContextWindowCompression v) { this.contextWindowCompression = v; }
+
         public int getTokenUses() { return tokenUses; }
         public void setTokenUses(int tokenUses) { this.tokenUses = tokenUses; }
 
@@ -116,19 +133,24 @@ public class RealtimeProperties {
      * Specifique au fournisseur (les valeurs de sensibilite sont des enums
      * Gemini).
      *
-     * <p>Arbitrage patience ↔ reactivite. {@code endSensitivity=LOW} garde
-     * l'examinateur tolerant aux pauses de reflexion d'un apprenant (il ne coupe
-     * pas / n'enchaine pas par-dessus des la 1re pause), tandis que
-     * {@code silenceDurationMs=500} (bas de la fourchette Google recommandee
-     * 500-800, defaut serveur ~800) reduit ~de moitie l'attente controlable avant
-     * qu'il reponde. {@code startSensitivity=HIGH} detecte vite le debut de parole.
-     * Une SEULE fenetre de silence pour tous les niveaux ({@code silenceDurationMs})
-     * — ne pas descendre sous ~500 ms sous peine de fragmenter la parole.
+     * <p>Arbitrage patience ↔ reactivite. {@code endSensitivity=MEDIUM} est le
+     * compromis retenu : {@code LOW} (l'ancien defaut) demande la confirmation la
+     * plus prudente avant de declarer la fin de parole, ce qui se paie par une
+     * attente ressentie « l'examinateur met trop de temps a repondre » une fois
+     * que le candidat a fini ; {@code HIGH} couperait un apprenant A2 en pleine
+     * hesitation. {@code startSensitivity=HIGH} detecte vite le DEBUT de parole.
+     * Une SEULE fenetre de silence pour tous les niveaux ({@code silenceDurationMs}),
+     * a 500 ms = plancher recommande par Google (500-800) — ne pas descendre sous
+     * 500 sous peine de fragmenter un enonce sur ses pauses naturelles.
+     *
+     * <p>Les cinq valeurs sont surchargeables par variable d'environnement
+     * ({@code REALTIME_GEMINI_VAD_*}) : essayer un autre reglage ne demande pas
+     * de recompilation.
      */
     public static class Vad {
         private boolean disabled = false;
         private String startSensitivity = "START_SENSITIVITY_HIGH";
-        private String endSensitivity = "END_SENSITIVITY_LOW";
+        private String endSensitivity = "END_SENSITIVITY_MEDIUM";
         private int prefixPaddingMs = 300;
         /**
          * Fenetre de silence (ms) avant de considerer le tour du candidat fini.
@@ -152,6 +174,61 @@ public class RealtimeProperties {
 
         public int getSilenceDurationMs() { return silenceDurationMs; }
         public void setSilenceDurationMs(int v) { this.silenceDurationMs = v; }
+    }
+
+    /**
+     * REPRISE DE SESSION ({@code sessionResumption} du setup verrouille). Sans
+     * elle, une coupure du WebSocket (metro, wifi qui saute, appli en arriere-plan)
+     * detruit definitivement la session ET le slot deja debite au candidat : il
+     * paie une simulation qu'il n'a pas pu terminer.
+     *
+     * <p>Activee, le fournisseur emet periodiquement un {@code sessionResumptionUpdate}
+     * porteur d'un {@code newHandle}. Le client garde le dernier reçu et le
+     * renvoie a la reprise ; le handle reste valide 2 h apres la fin de la session.
+     *
+     * <p>⚠️ Le token est CONTRAINT ({@code BidiGenerateContentConstrained}) : le
+     * client ne peut poser aucun champ de setup, donc il ne peut pas glisser
+     * lui-meme le handle. C'est le serveur qui le verrouille dans le setup d'un
+     * NOUVEAU token, emis par {@code POST /sessions/{id}/resume} — d'ou
+     * {@code maxResumptions}, qui borne le nombre de tokens qu'une session peut
+     * faire emettre.
+     */
+    public static class SessionResumption {
+        private boolean enabled = true;
+        /** Reprises admises pour une meme session (bornage anti-abus). */
+        private int maxResumptions = 3;
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+        public int getMaxResumptions() { return maxResumptions; }
+        public void setMaxResumptions(int v) { this.maxResumptions = v; }
+    }
+
+    /**
+     * COMPRESSION DE LA FENETRE DE CONTEXTE (fenetre glissante). L'audio consomme
+     * ~25 tokens/s et une session audio est plafonnee a 15 min SANS compression.
+     * Nos sessions EO visent ~200 s, donc ce n'est pas encore bloquant — mais
+     * c'est ce qui permet a une session REPRISE (dont le contexte repart de son
+     * handle) de ne pas heurter ce plafond.
+     *
+     * <p>{@code triggerTokens} = seuil de declenchement ; {@code targetTokens} =
+     * taille visee apres compression. A 0, le champ n'est pas envoye et le
+     * fournisseur applique son propre defaut.
+     */
+    public static class ContextWindowCompression {
+        private boolean enabled = true;
+        private long triggerTokens = 25600;
+        private long targetTokens = 12800;
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+        public long getTriggerTokens() { return triggerTokens; }
+        public void setTriggerTokens(long v) { this.triggerTokens = v; }
+
+        public long getTargetTokens() { return targetTokens; }
+        public void setTargetTokens(long v) { this.targetTokens = v; }
     }
 
     /**

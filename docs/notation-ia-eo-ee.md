@@ -2661,7 +2661,7 @@ Quatre précisions qui comptent :
   connexion et d'accueil n'est **pas** décompté du temps de parole du candidat.
 - **L'examinateur est patient mais réactif.** Il laisse le candidat finir ses phrases (il ne le
   coupe pas sur une pause de réflexion), tout en répondant assez vite pour que l'échange reste
-  fluide.
+  fluide. Le détail de ce réglage — et pourquoi il vient d'être modifié — est juste en dessous.
 - **Quand le temps est écoulé, l'examinateur termine sa phrase de conclusion.** Il n'est pas
   coupé au milieu d'un mot, et il n'y a pas non plus de silence inutile avant la suite.
 - **Il parle un français normal**, clair et accessible, sans s'adapter artificiellement au
@@ -2679,6 +2679,78 @@ Quatre précisions qui comptent :
   simulation orale obéit exactement aux mêmes règles que l'enregistrement classique — elle ne
   permet pas de rendre une tâche que l'autre voie aurait refusée, et on ne peut plus consommer
   une simulation pour s'entendre dire à la fin qu'il n'y avait rien à noter.
+
+### Quand l'examinateur décide que vous avez fini de parler
+
+Pendant un oral, personne ne dit « à toi » : c'est la machine qui doit deviner, à partir du
+silence, que le candidat a terminé sa phrase. Ce réglage a **deux façons de mal tourner**, et
+elles sont opposées :
+
+- trop **impatient**, il coupe un apprenant au milieu d'une hésitation — celui qui cherche son
+  mot est puni d'avoir cherché ;
+- trop **prudent**, il attend longuement après le dernier mot, et l'échange devient poussif :
+  « je finis ma phrase et l'examinateur met une éternité à répondre ».
+
+Jusqu'ici, le réglage était volontairement au maximum de la prudence — le plus lent des trois
+disponibles. En usage réel, c'était trop : le propriétaire de la plateforme a constaté lui-même
+l'attente. Le réglage est passé au **cran intermédiaire** (2026-08-12). Le cran le plus rapide
+n'a **pas** été retenu : sur un public d'apprenants A2, il aurait coupé la parole.
+
+Deux garde-fous n'ont pas bougé et ne doivent pas bouger :
+
+- **la durée de silence attendue reste à une demi-seconde**, qui est le plancher recommandé par
+  le fournisseur. En dessous, un même énoncé se retrouve découpé en deux à chaque respiration ;
+- **le petit délai gardé avant le début de parole reste identique** : c'est lui qui évite de
+  perdre la première syllabe.
+
+Enfin, **rien de tout cela ne touche la note**. Ce réglage décide du rythme de la conversation,
+pas du jugement : la correction se fait après coup, sur le texte de l'échange, par une autre IA
+qui ne sait rien de ces paramètres. Les cinq valeurs sont modifiables sans reconstruire
+l'application, pour pouvoir en essayer d'autres.
+
+### Si le réseau coupe, l'entretien n'est plus perdu (nouveau)
+
+Le candidat parle **directement** au service vocal depuis son téléphone ou son navigateur ; le
+serveur, lui, ne fait que délivrer l'autorisation et recueillir le texte de l'échange. Cette
+liaison directe est ce qui rend la conversation fluide — mais elle est fragile : un tunnel de
+métro, un ascenseur, une bascule wifi → 4G, l'application passée en arrière-plan quelques
+secondes, et elle tombe.
+
+**Ce qui se passait avant.** L'autorisation délivrée au démarrage ne valait **qu'une seule
+connexion** et **deux minutes** pour l'ouvrir. Une coupure était donc définitive : l'entretien
+s'arrêtait là, sans reprise possible. Et comme la simulation était **déjà décomptée** du forfait
+dès les premiers mots prononcés, le candidat perdait à la fois son entretien **et** sa
+simulation. Il payait pour quelque chose qu'il n'avait pas pu terminer.
+
+**Ce qui se passe maintenant.** L'entretien peut **reprendre là où il s'est arrêté**. Le service
+vocal remet régulièrement une sorte de « marque-page » de la conversation ; l'application la
+conserve, et le serveur en garde aussi une copie — ce qui permet de reprendre même si
+l'application a été fermée entre-temps. À la reconnexion, le serveur délivre une nouvelle
+autorisation qui rouvre **le même entretien**, avec **le même historique**.
+
+Quatre points qui comptent pour le candidat :
+
+- **La simulation n'est jamais décomptée deux fois.** C'est la garantie centrale de ce
+  changement : le forfait se débite au premier mot de l'entretien, une fois pour toutes.
+  Reprendre après une coupure ne coûte rien de plus, et deux connexions qui se chevaucheraient
+  ne peuvent pas non plus provoquer un double décompte.
+- **Le texte de l'échange continue, il ne repart pas de zéro** et il ne se duplique pas. Avant,
+  quand l'envoi d'un morceau de texte échouait, l'application préférait l'abandonner plutôt que
+  de risquer de l'écrire en double ; désormais elle peut le renvoyer sans risque, parce que le
+  serveur reconnaît un morceau déjà reçu. Concrètement : moins de phrases perdues dans le texte
+  qui sera corrigé.
+- **La reprise est bornée** : quelques reprises par entretien, et une fenêtre de reconnexion de
+  dix minutes (contre deux avant). Au-delà, il faut recommencer — mais dix minutes couvrent très
+  largement les coupures ordinaires.
+- **Rien de ceci ne change la correction.** La note, le niveau, les critères et les contrôles
+  automatiques sont exactement les mêmes. Un entretien repris est corrigé comme un entretien
+  qui n'aurait jamais été interrompu.
+
+En complément, l'échange est désormais protégé contre une limite technique du service vocal :
+une conversation audio trop longue finit par saturer sa mémoire. Une « fenêtre glissante » fait
+que seule la partie récente de l'échange y reste chargée. Nos entretiens durent deux à trois
+minutes, donc la limite n'était pas atteinte de toute façon — mais un entretien **repris**
+repart avec un historique déjà constitué, et c'est là que ce filet sert.
 
 ---
 
@@ -3894,7 +3966,8 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 | **Les bornes de longueur d'une production écrite** (celles qui refusent votre copie **et** celles que doit respecter la version modèle du §5.9) | `backend_sejourfr/src/main/java/com/sejourfr/app/util/ProductionTextBounds.java`, alimenté par les colonnes `mots_min` / `mots_max` du sujet en base. **Un seul endroit décide**, ce qui garantit qu'un texte modèle est toujours une copie recevable |
 | **Ce que les filets de rapport retirent** (compteurs par famille) | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationPurgeMetrics.java`. Distinct du compteur des **refus** (§12.3 bis) : un refus peut coûter la correction, un retrait n'enlève qu'une phrase |
 | **Le compteur de français désaccentué** (§10 bis — il MESURE, il ne refuse jamais) | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationAccentAudit.java`. La liste fermée des formes détectées y est écrite, avec la règle qui l'a construite : en cas de doute, on ne signale rien. Aucun effet sur la note, le niveau, ni le texte rendu |
-| **La patience / réactivité de l'examinateur vocal** (détection de fin de parole) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.realtime.gemini.vad` |
+| **La patience / réactivité de l'examinateur vocal** (détection de fin de parole, §10) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.realtime.gemini.vad`. Les cinq valeurs sont modifiables **sans reconstruire l'application** (variables d'environnement `REALTIME_GEMINI_VAD_*`). Aucune n'a d'effet sur la note |
+| **La reprise d'un entretien après une coupure réseau** (§10) | `backend_sejourfr/src/main/resources/application.yaml`, sections `sejourfr.realtime.gemini.session-resumption` et `.context-window-compression`, plus la durée de validité de l'autorisation (`token-uses`, `new-session-expire-seconds`). Le décompte du forfait, lui, ne dépend d'aucun de ces réglages : il vit dans `RealtimeSessionService` et n'a lieu qu'**une fois par entretien**, sous verrou |
 | **La longueur maximale d'une réponse du correcteur** (§12.3 bis — au-delà, la réponse est coupée et la correction est perdue) | `backend_sejourfr/src/main/resources/application.yaml`, `max-tokens` des trois correcteurs de `sejourfr.production-evaluation` : **la même valeur pour les trois**, verrouillée par un test |
 | **Les consignes des micro-exercices par compétence** (§11 bis — ce que l'IA regarde, les trois verdicts, l'interdiction d'une note, la façon dont le niveau doit se montrer dans la copie, les limites de l'oral) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-rubrics-v4.json` (version active — **v3 mot pour mot pour tout ce qui juge, plus l'obligation de montrer un B1 ou un B2 dans un passage réel** ; v1, v2 et v3 restent chargeables). Fichier **séparé** de celui des tâches complètes : les deux voies n'ont ni les mêmes règles ni le même but, et on ne veut pas qu'une modification de l'une déborde sur l'autre |
 | **Le format de réponse des micro-exercices** (les quatre éléments rendus, les trois verdicts, les longueurs maximales) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-tool-schema-v2.json` (consignes réaccentuées, contrat inchangé) — **aucun champ n'y existe pour une note ou un niveau**, c'est ce qui rend leur apparition impossible plutôt que simplement interdite |
