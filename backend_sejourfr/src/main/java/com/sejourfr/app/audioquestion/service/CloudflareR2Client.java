@@ -14,6 +14,7 @@ import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
@@ -49,7 +50,7 @@ public class CloudflareR2Client {
                 "R2 non configure (account-id, access-key-id, secret-access-key, public-url-base requis)"
             );
         }
-        String objectKey = "audio/" + mediaId + ".mp3";
+        String objectKey = audioObjectKey(mediaId);
         PutObjectRequest request = PutObjectRequest.builder()
             .bucket(props.getBucketName())
             .key(objectKey)
@@ -151,6 +152,41 @@ public class CloudflareR2Client {
         } catch (Exception e) {
             log.warn("R2 delete echoue pour {} : {}", objectKey, e.getMessage());
         }
+    }
+
+    /** Vérification explicite d'un audio versionné, utilisée avant toute régénération admin. */
+    public boolean audioExists(UUID mediaId) {
+        if (!props.isConfigured()) {
+            throw new AudioServicesUnavailableException(
+                    "R2 non configure (account-id, access-key-id, secret-access-key, public-url-base requis)");
+        }
+        String objectKey = audioObjectKey(mediaId);
+        try {
+            s3Client.headObject(HeadObjectRequest.builder()
+                    .bucket(props.getBucketName())
+                    .key(objectKey)
+                    .build());
+            return true;
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) return false;
+            throw new R2UploadException(
+                    "R2 verification " + e.statusCode() + " : "
+                            + e.awsErrorDetails().errorMessage(), e);
+        } catch (SdkException e) {
+            throw new R2UploadException("R2 verification erreur reseau : " + e.getMessage(), e);
+        }
+    }
+
+    public String audioObjectKey(UUID mediaId) {
+        return "audio/" + mediaId + ".mp3";
+    }
+
+    public String audioPublicUrl(UUID mediaId) {
+        if (!props.isConfigured()) {
+            throw new AudioServicesUnavailableException(
+                    "R2 non configure (public-url-base requis)");
+        }
+        return props.getPublicUrlBase().replaceAll("/+$", "") + "/" + audioObjectKey(mediaId);
     }
 
     public record R2UploadResult(String objectKey, String publicUrl) {}

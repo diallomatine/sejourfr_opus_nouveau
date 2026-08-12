@@ -49,6 +49,25 @@ class SkillLabelsTest {
                         Map.entry("TO_REINFORCE", "À renforcer"));
     }
 
+    /**
+     * Etat de maitrise d'une COMPETENCE, a ne pas confondre avec le statut d'un
+     * SUJET ci-dessus : « À renforcer » se dit des deux, « En consolidation »
+     * n'existe que pour une competence. Ces quatre chaines vont etre recopiees a
+     * la main dans les cartes web et mobile, comme toutes les autres de ce
+     * fichier — un libelle qui bouge, ce sont les trois copies a changer dans la
+     * meme passe.
+     */
+    @Test
+    @DisplayName("Etat de maitrise d'une competence : les quatre libelles sont geles")
+    void etatsDeMaitrise() {
+        assertThat(labels(SkillMasteryState.class, SkillMasteryState::getLabel))
+                .containsExactly(
+                        Map.entry("PRIORITY", "Priorité"),
+                        Map.entry("TO_REINFORCE", "À renforcer"),
+                        Map.entry("CONSOLIDATING", "En consolidation"),
+                        Map.entry("SOLID", "Solide"));
+    }
+
     @Test
     @DisplayName("Auto-evaluation : les trois libelles sont geles, a la premiere personne")
     void autoEvaluation() {
@@ -57,6 +76,23 @@ class SkillLabelsTest {
                         Map.entry("REUSSI", "Je pense avoir réussi"),
                         Map.entry("INCERTAIN", "Je ne suis pas sûr"),
                         Map.entry("DIFFICILE", "J'ai eu du mal"));
+    }
+
+    /**
+     * Ces trois phrases s'affichent SOUS le niveau, sur la carte de resultat. Ce
+     * sont elles qui repondent a « ou j'en suis » — la question qui a fait rendre
+     * le niveau CECRL sur cette voie. Aucune ne nomme un manque : le depot a
+     * retire le vocabulaire de deficit des cartes de resultat, on ne le
+     * reintroduit pas ici.
+     */
+    @Test
+    @DisplayName("Situation par rapport au niveau vise : les trois libelles sont geles")
+    void situationParRapportAuNiveauVise() {
+        assertThat(labels(SituationNiveauVise.class, SituationNiveauVise::getLabel))
+                .containsExactly(
+                        Map.entry("OBJECTIF_ATTEINT", "Tu as atteint ton objectif"),
+                        Map.entry("PROCHE", "Tu es proche du niveau visé"),
+                        Map.entry("EN_CHEMIN", "Encore du chemin vers ton objectif"));
     }
 
     @Test
@@ -113,6 +149,9 @@ class SkillLabelsTest {
         assertThat(labels(SkillPromptStatus.class, SkillPromptStatus::getLabel).values())
                 .doesNotHaveDuplicates()
                 .allSatisfy(l -> assertThat(l).isNotBlank());
+        assertThat(labels(SkillMasteryState.class, SkillMasteryState::getLabel).values())
+                .doesNotHaveDuplicates()
+                .allSatisfy(l -> assertThat(l).isNotBlank());
         assertThat(labels(SkillSelfEvaluation.class, SkillSelfEvaluation::getLabel).values())
                 .doesNotHaveDuplicates()
                 .allSatisfy(l -> assertThat(l).isNotBlank());
@@ -120,6 +159,9 @@ class SkillLabelsTest {
                 .doesNotHaveDuplicates()
                 .allSatisfy(l -> assertThat(l).isNotBlank());
         assertThat(labels(SkillReferenceLevel.class, SkillReferenceLevel::getLabel).values())
+                .doesNotHaveDuplicates()
+                .allSatisfy(l -> assertThat(l).isNotBlank());
+        assertThat(labels(SituationNiveauVise.class, SituationNiveauVise::getLabel).values())
                 .doesNotHaveDuplicates()
                 .allSatisfy(l -> assertThat(l).isNotBlank());
     }

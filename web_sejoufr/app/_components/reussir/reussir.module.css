@@ -603,6 +603,105 @@
   font-weight: 600;
 }
 
+/* Le hero montre désormais la valeur immédiate du diagnostic. La simulation
+   orale reste intacte dans la section IA suivante. */
+.diagnosticPreview {
+  display: grid;
+  gap: 18px;
+}
+.diagnosticPreview .sessHead {
+  margin-bottom: 0;
+}
+.diagnosticPreview .live {
+  color: var(--blue-on-ink);
+}
+.diagnosticLevels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.diagnosticLevels > span {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 14px 10px;
+  border: 1px solid var(--ink-line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-blue) 13%, transparent);
+  text-align: center;
+}
+.diagnosticLevels small {
+  overflow: hidden;
+  color: var(--on-ink-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+}
+.diagnosticLevels b {
+  color: var(--on-ink);
+  font-size: 25px;
+}
+.diagnosticPriorities {
+  padding: 16px;
+  border: 1px solid var(--ink-line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-ink) 75%, transparent);
+}
+.diagnosticPriorities ol {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.diagnosticPriorities li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--on-ink);
+  font-size: 14px;
+}
+.diagnosticPriorities li i {
+  display: inline-flex;
+  width: 25px;
+  height: 25px;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 50%;
+  color: var(--blue-on-ink);
+  background: color-mix(in srgb, var(--color-blue) 22%, transparent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+}
+.diagnosticPlan {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ink-line);
+  color: var(--on-ink-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+@media (max-width: 420px) {
+  .diagnosticLevels {
+    grid-template-columns: 1fr;
+  }
+  .diagnosticLevels > span {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+  }
+}
+
 /* ---------- ② IA ---------- */
 
 .aiGrid {

@@ -1,11 +1,13 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,7 +15,9 @@ import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -34,6 +38,7 @@ class ProductionAccessServiceTest {
     private SubscriptionService subscriptionService;
     private AttemptManager attemptManager;
     private ProductionSubmissionManager submissionManager;
+    private DiagnosticSessionManager diagnosticSessionManager;
     private ProductionAccessService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -44,7 +49,10 @@ class ProductionAccessServiceTest {
         subscriptionService = mock(SubscriptionService.class);
         attemptManager = mock(AttemptManager.class);
         submissionManager = mock(ProductionSubmissionManager.class);
-        service = new ProductionAccessService(subscriptionService, attemptManager, submissionManager);
+        diagnosticSessionManager = mock(DiagnosticSessionManager.class);
+        service = new ProductionAccessService(
+                subscriptionService, attemptManager, submissionManager,
+                diagnosticSessionManager);
     }
 
     private User user(UUID id) {
@@ -214,5 +222,125 @@ class ProductionAccessServiceTest {
 
         assertThatThrownBy(() -> service.enforceQuota(userId, EpreuveType.TCF_EO, attemptId))
                 .isInstanceOf(AccessDeniedException.class);
+    }
+
+    // ------------------------------------------------------------------------
+    // Diagnostic : bypass quota uniquement pour la paire task/attempt/session.
+    // ------------------------------------------------------------------------
+
+    @Test
+    void diagnosticCorrectementAppariePasseSansConsommerLeQuotaEntrainement() {
+        Attempt written = attempt(EpreuveType.TCF_EE);
+        Attempt oral = attempt(EpreuveType.TCF_EO);
+        oral.setId(UUID.randomUUID());
+        ProductionTask writtenTask = task(EpreuveType.TCF_EE, (short) 3);
+        writtenTask.setDiagnosticCode("INITIAL_TCF");
+        writtenTask.setDiagnosticVersion(1);
+        ProductionTask oralTask = task(EpreuveType.TCF_EO, (short) 3);
+        oralTask.setDiagnosticCode("INITIAL_TCF");
+        oralTask.setDiagnosticVersion(1);
+        DiagnosticSession session = diagnosticSession(written, oral, writtenTask, oralTask);
+        when(diagnosticSessionManager.findByAttemptIdWithContent(written.getId()))
+                .thenReturn(Optional.of(session));
+        when(attemptManager.findById(written.getId())).thenReturn(Optional.of(written));
+
+        assertThatCode(() -> service.assertCanSubmit(userId, written, writtenTask))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> service.enforceQuota(userId, writtenTask, written.getId()))
+                .doesNotThrowAnyException();
+
+        verify(subscriptionService, never()).hasTcf(any());
+        verify(submissionManager, never()).countTrainingByUserAndEpreuve(any(), any());
+    }
+
+    @Test
+    void uneTacheDiagnosticSeuleNeSuffitJamaisAContournerLeQuota() {
+        Attempt written = attempt(EpreuveType.TCF_EE);
+        ProductionTask diagnostic = task(EpreuveType.TCF_EE, (short) 3);
+        diagnostic.setDiagnosticCode("INITIAL_TCF");
+        diagnostic.setDiagnosticVersion(1);
+        when(diagnosticSessionManager.findByAttemptIdWithContent(written.getId()))
+                .thenReturn(Optional.empty());
+        when(attemptManager.findById(written.getId())).thenReturn(Optional.of(written));
+
+        assertThatThrownBy(() -> service.enforceQuota(userId, diagnostic, written.getId()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("hors de votre session");
+    }
+
+    @Test
+    void uneTacheStandardEstRefuseeDansUnAttemptDiagnostic() {
+        Attempt written = attempt(EpreuveType.TCF_EE);
+        Attempt oral = attempt(EpreuveType.TCF_EO);
+        ProductionTask diagnosticWritten = task(EpreuveType.TCF_EE, (short) 3);
+        diagnosticWritten.setDiagnosticCode("INITIAL_TCF");
+        diagnosticWritten.setDiagnosticVersion(1);
+        ProductionTask diagnosticOral = task(EpreuveType.TCF_EO, (short) 3);
+        diagnosticOral.setDiagnosticCode("INITIAL_TCF");
+        diagnosticOral.setDiagnosticVersion(1);
+        DiagnosticSession session = diagnosticSession(
+                written, oral, diagnosticWritten, diagnosticOral);
+        when(diagnosticSessionManager.findByAttemptIdWithContent(written.getId()))
+                .thenReturn(Optional.of(session));
+
+        assertThatThrownBy(() -> service.assertCanSubmit(
+                userId, written, task(EpreuveType.TCF_EE, (short) 1)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("réservé au diagnostic");
+    }
+
+    // ------------------------------------------------------------------------
+    // Le MEME budget, lu sans rien consommer (cadenas du Plan)
+    // ------------------------------------------------------------------------
+
+    @Test
+    void unAbonneTcfNaJamaisDeCadenasSurUneVerification() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(true);
+
+        assertThat(service.isTrainingLocked(userId, EpreuveType.TCF_EE)).isFalse();
+        assertThat(service.isTrainingLocked(userId, EpreuveType.TCF_EO)).isFalse();
+    }
+
+    @Test
+    void tantQueLessaiGratuitResteLaVerificationEstOuverte() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(attemptManager.countProductionExamSessions(userId)).thenReturn(0L);
+        when(submissionManager.countTrainingByUserAndEpreuve(userId, EpreuveType.TCF_EE))
+                .thenReturn(0L);
+
+        assertThat(service.isTrainingLocked(userId, EpreuveType.TCF_EE)).isFalse();
+    }
+
+    /** La lecture dit exactement ce que l'ecriture refuserait : une seule regle. */
+    @Test
+    void lessaiGratuitConsommeVerrouilleLaVerification() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(attemptManager.countProductionExamSessions(userId)).thenReturn(0L);
+        when(submissionManager.countTrainingByUserAndEpreuve(userId, EpreuveType.TCF_EE))
+                .thenReturn(1L);
+
+        assertThat(service.isTrainingLocked(userId, EpreuveType.TCF_EE)).isTrue();
+        assertThatThrownBy(() -> service.enforceQuota(userId, EpreuveType.TCF_EE, null))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void deuxSessionsDexamenConsommentAussiLaVerification() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(attemptManager.countProductionExamSessions(userId)).thenReturn(2L);
+
+        assertThat(service.isTrainingLocked(userId, EpreuveType.TCF_EO)).isTrue();
+    }
+
+    private DiagnosticSession diagnosticSession(
+            Attempt written, Attempt oral, ProductionTask writtenTask, ProductionTask oralTask) {
+        DiagnosticSession session = new DiagnosticSession();
+        session.setId(UUID.randomUUID());
+        session.setUser(user(userId));
+        session.setWrittenAttempt(written);
+        session.setOralAttempt(oral);
+        session.setWrittenTask(writtenTask);
+        session.setOralTask(oralTask);
+        return session;
     }
 }

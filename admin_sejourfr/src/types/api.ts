@@ -782,6 +782,36 @@ export interface PointAmeliorerExemple {
   apres: string;
 }
 
+export interface VersionCibleeLevier {
+  action: string;
+  exemple: string;
+}
+
+export interface VersionCibleeSegment {
+  extrait: string;
+  apport: string;
+}
+
+/** v2, ÉCRIT. Sans `texte` il n'y a rien à montrer ; `segments` n'est qu'un
+ *  surlignage, sa présence n'est jamais garantie. */
+export interface VersionCibleeExempleCible {
+  texte: string;
+  segments?: VersionCibleeSegment[];
+}
+
+/** v2, ORAL. `original` est posé par le serveur (numéro de segment déjà résolu
+ *  en texte) : jamais un entier ici. */
+export interface VersionCibleeReformulation {
+  original: string;
+  reformule: string;
+  apport: string;
+}
+
+export interface VersionCibleeARetenir {
+  formule: string;
+  explication?: string;
+}
+
 /**
  * Un point à améliorer (v5). Les évaluations déjà en base (~97, grilles
  * antérieures) portent une simple `string` — l'écran l'affiche alors comme un
@@ -810,7 +840,10 @@ export interface EvaluationFeedback {
   points_forts?: string[];
   /** `string` = format antérieur à v5, encore présent sur les évaluations en base. */
   points_a_ameliorer?: (string | PointAmeliorer)[];
+  /** Retiré du contrat de sortie en **v15 / tool-schema v9** : absent des
+   *  évaluations récentes, encore présent sur celles déjà en base. */
   suggestions?: string[];
+  /** Même sort que `suggestions` : retiré en **v15 / tool-schema v9**. */
   exemples_corriges?: ExempleCorrige[];
   avertissements?: string[];
   /**
@@ -819,17 +852,37 @@ export interface EvaluationFeedback {
    */
   version_amelioree?: string | null;
   /**
-   * Bloc « version au niveau visé » (second appel LLM, EE uniquement) : la même
+   * Bloc « version au niveau visé » (second appel LLM, EE et EO) : la même
    * réponse rédigée au palier que le candidat vise, plus 2 à 3 leviers. Absent
-   * de toutes les évaluations antérieures, en EO, et quand le niveau visé est
-   * déjà atteint.
+   * de toutes les évaluations antérieures, et quand le niveau visé est déjà
+   * atteint.
+   *
+   * Trois formes, une seule clé, distinguées à la présence de `exemple_cible`
+   * (v2, ÉCRIT) ou de `reformulations` (v2, ORAL) :
+   * - v2, écrit : `leviers` + `exemple_cible` + `a_retenir` ;
+   * - v2, oral : `leviers` + `reformulations` + `a_retenir` — pas de texte
+   *   modèle complet, la production orale n'est jamais réécrite en entier ;
+   * - v1 (legacy, encore en base) : `texte` + `ce_qui_manque`, écrit seulement.
+   *
+   * Depuis la correction du 2026-08-11, le bloc peut être PARTIEL : seuls
+   * `niveau_vise` (v1 et v2) sont structurants, `leviers` / `exemple_cible` /
+   * `reformulations` / `a_retenir` tombent chacun indépendamment.
    */
   version_ciblee?: {
     niveau_vise: string;
     niveau_constate?: string | null;
-    texte: string;
-    /** 2 à 3 items, triés du plus rentable au moins rentable. */
-    ce_qui_manque: string[];
+    /** v2 : 2 à 3 leviers, du plus rentable au moins rentable. */
+    leviers?: VersionCibleeLevier[];
+    /** v2, ÉCRIT : la réponse réécrite au niveau visé, segments surlignables. */
+    exemple_cible?: VersionCibleeExempleCible;
+    /** v2, ORAL : 2 à 3 passages redits au niveau visé. Exclusif du précédent. */
+    reformulations?: VersionCibleeReformulation[];
+    /** v2 : la tournure à emporter ailleurs. */
+    a_retenir?: VersionCibleeARetenir;
+    /** v1 (legacy) : le modèle rédigé au niveau visé. Absent sous le contrat v2. */
+    texte?: string;
+    /** v1 (legacy) : les leviers en texte libre, ordre du backend préservé. */
+    ce_qui_manque?: string[];
   } | null;
 }
 
@@ -931,6 +984,28 @@ export interface ProductionSubmissionDto {
   submittedAt: string;
   evaluation: EvaluationResultDto | null;
   transcription: string | null;
+  /**
+   * Ce que cette production a changé dans le Plan personnalisé du candidat.
+   * **Nullable, et son absence est normale** (rien n'a bougé, ou les
+   * observations — écrites après la correction — ne sont pas encore là). La
+   * console ne l'affiche pas : le miroir existe pour que le DTO reste fidèle
+   * au serveur.
+   */
+  planChange: PlanChangeDto | null;
+}
+
+/** De quoi nommer une compétence du Plan et y renvoyer. */
+export interface PlanSkillRefDto {
+  skillId: string;
+  skillCode: string;
+  title: string;
+  section: SkillSection;
+}
+
+/** Les deux moitiés sont indépendamment nullables. */
+export interface PlanChangeDto {
+  confirmedSkill: PlanSkillRefDto | null;
+  newPriority: PlanSkillRefDto | null;
 }
 
 // ============ CALIBRATION DE LA NOTATION IA ============
@@ -1005,6 +1080,21 @@ export interface PageViewDailyStat {
   ctaClicks: number;
 }
 
+/** Allowlist du compteur agrégé backend ; valeurs absentes = zéro occurrence. */
+export type PageViewEvent =
+  | "VIEW"
+  | "CTA"
+  | "DIAGNOSTIC_VIEWED"
+  | "DIAGNOSTIC_STARTED"
+  | "DIAGNOSTIC_WRITTEN_COMPLETED"
+  | "DIAGNOSTIC_ORAL_COMPLETED"
+  | "DIAGNOSTIC_COMPLETED"
+  | "DIAGNOSTIC_RESULT_VIEWED"
+  | "PLAN_OPENED"
+  | "PLAN_RECOMMENDED_EXERCISE_STARTED"
+  | "SOCIAL_LANDING_DIAGNOSTIC_CLICKED"
+  | "DIAGNOSTIC_TO_PREMIUM_CLICKED";
+
 /**
  * Audience agrégée d'une landing. Compte des VUES, pas des visiteurs uniques :
  * aucun identifiant de terminal n'est posé côté navigateur (cf. migration V020).
@@ -1016,6 +1106,8 @@ export interface PageViewStatsResponse {
   ctaClicks: number;
   sources: PageViewSourceStat[];
   daily: PageViewDailyStat[];
+  /** Compteurs bruts du funnel, toujours agrégés et anonymes. */
+  events: Partial<Record<PageViewEvent, number>>;
 }
 
 // ============ COMPÉTENCES TCF (EE/EO) — surface admin ============
@@ -1096,7 +1188,7 @@ export interface AdminSkillDto {
   /** Courte explication adressée au candidat : ce qu'il travaille et pourquoi ça compte au TCF. */
   description: string;
   /**
-   * Critère général observé dans les 5 petits sujets de la compétence.
+   * Critère général observé dans les 15 petits sujets de la compétence.
    * Colonne `skills.general_criterion`, NOT NULL. À ne pas confondre avec
    * `AdminSkillPromptDto.uniqueCriterion`, propre à un seul sujet.
    */

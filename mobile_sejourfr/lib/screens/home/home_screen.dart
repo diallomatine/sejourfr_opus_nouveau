@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/api/api_client.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/dashboard_models.dart';
+import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/providers/dashboard_provider.dart';
 import '../../core/router/app_router.dart';
@@ -18,6 +19,8 @@ import '../../core/widgets/progress_ring.dart';
 import '../../core/widgets/screen_header.dart';
 import '../../core/widgets/stat_value_card.dart';
 import '../examens/examens_screen.dart';
+import '../diagnostic/diagnostic_controller.dart';
+import '../plan/learning_plan_provider.dart';
 import '../reviser/reviser_screen.dart';
 
 /// Accueil de la refonte 2026 (cf. `MHome` maquette) : salutation + avatar,
@@ -59,7 +62,12 @@ class HomeScreen extends ConsumerWidget {
                 color: AppColors.blue,
                 onRefresh: () async {
                   ref.invalidate(dashboardProvider);
-                  await ref.read(dashboardProvider.future);
+                  await Future.wait<void>([
+                    ref.read(dashboardProvider.future).then((_) {}),
+                    ref
+                        .read(diagnosticControllerProvider.notifier)
+                        .loadCurrent(),
+                  ]);
                 },
                 child: dashboard.when(
                   loading: () => ListView(
@@ -193,15 +201,50 @@ class _HomeBody extends ConsumerWidget {
     final priority = _priority(civiqueOnly: civiqueOnly);
     final global = summary.globalSuccessPercent ?? 0;
     final level = summary.estimatedTcfLevel;
+    final diagnosticState = ref.watch(diagnosticControllerProvider);
+    final diagnostic = diagnosticState.journey;
+    final diagnosticDismissKey = user?.id ?? 'anonymous';
+    final diagnosticDismissed = ref.watch(
+      diagnosticHomeDismissedProvider(diagnosticDismissKey),
+    );
+    final diagnosticCompleted =
+        diagnostic?.status == DiagnosticJourneyStatus.completed;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
       children: [
-        _PriorityCard(
-          stat: priority,
-          onTap: () => context.push(dashboardCategoryRoute(priority)),
-        ),
-        const SizedBox(height: 16),
+        if (diagnostic?.status == DiagnosticJourneyStatus.notStarted &&
+            !diagnosticDismissed)
+          _DiagnosticInvitationCard(
+            onStart: () => context.push(AppRoutes.diagnostic),
+            onLater: () => ref
+                .read(
+                  diagnosticHomeDismissedProvider(diagnosticDismissKey)
+                      .notifier,
+                )
+                .state = true,
+          )
+        else if (diagnosticCompleted)
+          PlanPriorityHomeCard(
+            journey: diagnostic!,
+            onOpenPlan: () => context.go(AppRoutes.plan),
+          )
+        else if (diagnostic != null &&
+            diagnostic.status != DiagnosticJourneyStatus.notStarted)
+          _DiagnosticResumeCard(
+            journey: diagnostic,
+            onResume: () => context.push(AppRoutes.diagnostic),
+          ),
+        if (diagnostic != null &&
+            (diagnostic.status != DiagnosticJourneyStatus.notStarted ||
+                !diagnosticDismissed))
+          const SizedBox(height: 16),
+        if (!diagnosticCompleted)
+          _PriorityCard(
+            stat: priority,
+            onTap: () => context.push(dashboardCategoryRoute(priority)),
+          ),
+        if (!diagnosticCompleted) const SizedBox(height: 16),
         IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -209,49 +252,49 @@ class _HomeBody extends ConsumerWidget {
               Expanded(
                 child: AppCard(
                   padding: const EdgeInsets.all(14),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ProgressRing(
-                      value: global.toDouble(),
-                      size: 54,
-                      stroke: 6,
-                      color: global < 50 ? AppColors.red : AppColors.blue,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Maîtrise',
-                      style: AppFonts.ui(
-                        size: 12,
-                        weight: FontWeight.w600,
-                        color: AppColors.inkFaint,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ProgressRing(
+                        value: global.toDouble(),
+                        size: 54,
+                        stroke: 6,
+                        color: global < 50 ? AppColors.red : AppColors.blue,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      Text(
+                        'Maîtrise',
+                        style: AppFonts.ui(
+                          size: 12,
+                          weight: FontWeight.w600,
+                          color: AppColors.inkFaint,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: StatValueCard(
-                value: '${summary.currentStreakDays} j',
-                label: 'Série en cours',
-                color: AppColors.red,
+              const SizedBox(width: 12),
+              Expanded(
+                child: StatValueCard(
+                  value: '${summary.currentStreakDays} j',
+                  label: 'Série en cours',
+                  color: AppColors.red,
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: StatValueCard(
-                value: level?.shortName ?? '—',
-                label: 'Niveau TCF estimé',
-                color: AppColors.blue,
-                // Un niveau qui ne porte pas sur les 4 épreuves le dit ici :
-                // sans ça, une seule épreuve passée s'affichait comme un
-                // niveau TCF tout court.
-                hint: estimatedTcfLevelScopeLabel(summary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: StatValueCard(
+                  value: level?.shortName ?? '—',
+                  label: 'Niveau TCF estimé',
+                  color: AppColors.blue,
+                  // Un niveau qui ne porte pas sur les 4 épreuves le dit ici :
+                  // sans ça, une seule épreuve passée s'affichait comme un
+                  // niveau TCF tout court.
+                  hint: estimatedTcfLevelScopeLabel(summary),
+                ),
               ),
-            ),
-          ],
+            ],
           ),
         ),
         const SizedBox(height: 20),
@@ -316,8 +359,7 @@ class _HomeBody extends ConsumerWidget {
                     ),
                     Text(
                       '20 épreuves par parcours, conditions réelles',
-                      style:
-                          AppFonts.ui(size: 12.5, color: AppColors.inkFaint),
+                      style: AppFonts.ui(size: 12.5, color: AppColors.inkFaint),
                     ),
                   ],
                 ),
@@ -380,6 +422,249 @@ class _IndependenceNote extends StatelessWidget {
   }
 }
 
+class _DiagnosticInvitationCard extends StatelessWidget {
+  const _DiagnosticInvitationCard({
+    required this.onStart,
+    required this.onLater,
+  });
+
+  final VoidCallback onStart;
+  final VoidCallback onLater;
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+        color: AppColors.blueSoft,
+        border: Border.all(color: AppColors.blue.withValues(alpha: 0.16)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: const BoxDecoration(
+                    color: AppColors.blueLight,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    LucideIcons.sparkles,
+                    size: 21,
+                    color: AppColors.blue,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Découvrez vos priorités',
+                        style: AppFonts.display(size: 18),
+                      ),
+                      Text(
+                        'Diagnostic TCF · 8 à 10 min',
+                        style: AppFonts.ui(
+                          size: 12,
+                          color: AppColors.inkFaint,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Un exercice écrit et un exercice oral pour construire votre plan personnalisé.',
+              style: AppFonts.ui(
+                size: 13,
+                color: AppColors.inkSoft,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 14),
+            AppButton(
+              label: 'Commencer le diagnostic',
+              height: 46,
+              iconRight: LucideIcons.arrowRight,
+              onPressed: onStart,
+            ),
+            Align(
+              alignment: Alignment.center,
+              child: TextButton(
+                onPressed: onLater,
+                child: Text(
+                  'Plus tard',
+                  style: AppFonts.ui(
+                    size: 13,
+                    weight: FontWeight.w700,
+                    color: AppColors.inkSoft,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _DiagnosticResumeCard extends StatelessWidget {
+  const _DiagnosticResumeCard({
+    required this.journey,
+    required this.onResume,
+  });
+
+  final DiagnosticJourney journey;
+  final VoidCallback onResume;
+
+  @override
+  Widget build(BuildContext context) {
+    final completed = journey.completedExerciseCount;
+    final analysis = journey.nextStep == DiagnosticStep.analysis;
+    final failed = journey.status == DiagnosticJourneyStatus.failed;
+    return AppCard(
+      border: Border.all(color: AppColors.blue.withValues(alpha: 0.16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                LucideIcons.clipboardPen,
+                size: 21,
+                color: AppColors.blue,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  failed
+                      ? 'Diagnostic à relancer'
+                      : analysis
+                          ? 'Analyse en cours'
+                          : 'Diagnostic en cours',
+                  style: AppFonts.display(size: 18),
+                ),
+              ),
+              Text(
+                '$completed/2',
+                style: AppFonts.ui(
+                  size: 13,
+                  color: AppColors.blue,
+                  weight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 11),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadii.pill),
+            child: LinearProgressIndicator(
+              value: completed / 2,
+              minHeight: 7,
+              backgroundColor: AppColors.surface3,
+              valueColor: const AlwaysStoppedAnimation(AppColors.blue),
+            ),
+          ),
+          const SizedBox(height: 12),
+          AppButton(
+            label: failed
+                ? 'Voir le diagnostic'
+                : analysis
+                    ? 'Voir l’analyse'
+                    : 'Reprendre',
+            height: 44,
+            variant: AppButtonVariant.soft,
+            iconRight: LucideIcons.arrowRight,
+            onPressed: onResume,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PlanPriorityHomeCard extends ConsumerWidget {
+  const PlanPriorityHomeCard({
+    super.key,
+    required this.journey,
+    required this.onOpenPlan,
+  });
+
+  final DiagnosticJourney journey;
+  final VoidCallback onOpenPlan;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final livePriority =
+        ref.watch(learningPlanProvider).valueOrNull?.currentPriority;
+    final priorities = journey.result?.priorities ?? const [];
+    final diagnosticPriority = priorities.isEmpty ? null : priorities.first;
+    final title = livePriority?.title ?? diagnosticPriority?.skillTitle;
+    return AppCard(
+      color: AppColors.blueSoft,
+      border: Border.all(color: AppColors.blue.withValues(alpha: 0.16)),
+      onTap: onOpenPlan,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: AppColors.blueLight,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              LucideIcons.zap,
+              size: 22,
+              color: AppColors.blue,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Votre priorité du jour',
+                  style: AppFonts.ui(
+                    size: 11.5,
+                    weight: FontWeight.w800,
+                    color: AppColors.blue,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  title ?? 'Continuer votre plan personnalisé',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppFonts.display(size: 17),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'Ouvrir mon plan',
+                  style: AppFonts.ui(
+                    size: 12.5,
+                    weight: FontWeight.w700,
+                    color: AppColors.blue,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            LucideIcons.chevronRight,
+            size: 19,
+            color: AppColors.blue,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Carte bleue « À travailler en priorité » (cf. maquette) : catégorie la
 /// plus faible, barre blanche + %, pied « Continuer ».
 class _PriorityCard extends StatelessWidget {
@@ -424,8 +709,7 @@ class _PriorityCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     stat.label,
-                    style:
-                        AppFonts.display(size: 20, color: AppColors.white),
+                    style: AppFonts.display(size: 20, color: AppColors.white),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -436,8 +720,7 @@ class _PriorityCard extends StatelessWidget {
                           clipBehavior: Clip.antiAlias,
                           decoration: BoxDecoration(
                             color: AppColors.white.withValues(alpha: 0.25),
-                            borderRadius:
-                                BorderRadius.circular(AppRadii.pill),
+                            borderRadius: BorderRadius.circular(AppRadii.pill),
                           ),
                           alignment: Alignment.centerLeft,
                           child: FractionallySizedBox(
@@ -468,8 +751,7 @@ class _PriorityCard extends StatelessWidget {
               ),
             ),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -536,8 +818,7 @@ class _ParcoursCard extends StatelessWidget {
                 Text(label,
                     style: AppFonts.ui(size: 16, weight: FontWeight.w700)),
                 Text(sub,
-                    style:
-                        AppFonts.ui(size: 12.5, color: AppColors.inkFaint)),
+                    style: AppFonts.ui(size: 12.5, color: AppColors.inkFaint)),
               ],
             ),
           ),
@@ -564,8 +845,7 @@ class _AiCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,

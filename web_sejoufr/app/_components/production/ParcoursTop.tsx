@@ -154,13 +154,19 @@ function averageExamNote(drafts: readonly {avgNote: number | null; fullyEvaluate
 }
 
 /**
- * La prochaine compétence à travailler : la première dont tous les petits
- * sujets n'ont pas été traités, dans l'ordre du référentiel (la liste arrive
- * déjà triée `taskCode` puis `displayOrder`). Tout terminé — ou rien de
- * chargé — ⇒ **aucune carte**, jamais une invitation vide.
+ * La prochaine compétence à travailler : la première **ouverte** dont tous les
+ * petits sujets n'ont pas été traités, dans l'ordre du référentiel (la liste
+ * arrive déjà triée `taskCode` puis `displayOrder`). Tout terminé, tout
+ * verrouillé — ou rien de chargé — ⇒ **aucune carte**, jamais une invitation
+ * vide.
+ *
+ * `locked` est **lu**, jamais déduit : c'est le serveur qui décide de ce qui est
+ * ouvert. On l'écarte ici pour une seule raison — cette carte est une invitation
+ * à produire, et envoyer le candidat sur une porte fermée n'en est pas une. Le
+ * verrou lui-même s'affiche, avec son cadenas, dans la liste des compétences.
  */
 function nextSkill(skills: readonly SkillDto[] | undefined): SkillDto | null {
-  return skills?.find((k) => k.attemptedCount < k.promptCount) ?? null;
+  return skills?.find((k) => !k.locked && k.attemptedCount < k.promptCount) ?? null;
 }
 
 /** Numéro de tâche d'un `taskCode` (`EE2` → 2). */

@@ -14,11 +14,85 @@
 > **dans la même passe**. Il doit toujours pouvoir être lu et compris par une personne non
 > technique. Pas de jargon non expliqué, pas de raccourci.
 
-**État actuel** : rubriques de notation **v13** (profil **TCF IRN**, plafonné à B2 — **la
-notation y est celle de la v9, au caractère près**), format de réponse strict **v7**,
-examinateur vocal **v2**. Ce que ces numéros veulent dire, et où ils se
+**État actuel** : rubriques de notation **v15** (profil **TCF IRN**, plafonné à B2 — **la
+notation y est celle de la v9, au caractère près**), format de réponse strict **v9**,
+examinateur vocal **v3**. Ce que ces numéros veulent dire, et où ils se
 changent, est expliqué en §15. Pour la **seconde voie d'évaluation** — les micro-exercices par
-compétence, sans note ni niveau — les versions sont **v2 / v2** et tout est décrit au §11 bis.
+compétence, **sans note sur 20 mais désormais avec un niveau** — les versions sont **v3 / v3**,
+plus un **second appel séparé** en **v1 / v1** ; tout est décrit au §11 bis.
+Le diagnostic initial et l'observateur du Plan utilisent une **troisième voie**, elle aussi
+sans note sur 20, avec leurs propres consignes et format **v1 / v1** décrits juste dessous.
+
+> 🆕 **11 août 2026 — le rapport maigrit : plus de « suggestions » ni d'« exemples corrigés ».**
+> Explication complète au **§5.7 bis**.
+>
+> **Ce qui change à l'écran.** Le bloc replié **« Voir l'analyse complète »** disparaît du
+> résultat d'une production écrite ou orale. C'était le seul endroit où s'affichaient les
+> **exemples corrigés** et les **suggestions** : ces deux blocs disparaissent avec lui.
+>
+> **Ce qui change côté correcteur.** L'IA ne les écrit même plus : les consignes **v15** ne les
+> demandent plus, et le format de réponse **v9** ne prévoit plus de case pour les loger. Deux
+> raisons, qui vont dans le même sens : un pavé qu'il faut déplier n'est pas lu, et tout ce que
+> l'IA écrit se paie — ce budget finance désormais la **version au niveau que vous visez**
+> (§5.9), qui, elle, est en évidence.
+>
+> **Ce qui ne change pas.** Rien de ce qui note. La v15 est la v14 **au caractère près** pour
+> l'échelle, les quatre critères, les seuils, le couplage, les plafonds, les bandes, les tests
+> décisifs et les 16 exemples de calibration — un test le vérifie et casse la construction
+> sinon. Restent aussi produits l'**accomplissement** (verdict, résumé, points traités et
+> oubliés), qui alimente le haut de l'écran et un contrôle serveur, et les **avertissements**,
+> que le serveur écrit lui-même. ⚠️ **Aucune campagne de mesure n'a été lancée**, et c'est
+> assumé : aucune règle de notation ne bouge, et le prompt **perd** du texte au lieu d'en
+> gagner. Retour en arrière : `EVAL_RUBRICS_VERSION=v14` + `EVAL_PROMPT_VERSION=v8`.
+>
+> **Les corrections déjà rendues gardent leurs deux blocs**, intacts et lisibles : on versionne,
+> on ne réécrit jamais un résultat déjà rendu.
+
+> 🆕 **9 août 2026 — un diagnostic court initialise un Plan de travail, sans se faire passer
+> pour un examen TCF.** Le candidat réalise deux exercices hybrides fixes et versionnés : un
+> écrit de **100 à 130 mots**, puis un oral enregistré de **2 à 3 minutes** précédé d'une
+> consigne audio fixe. Ce ne sont ni les tâches officielles 1, 2 ou 3, ni un `TCF_COMPLET`.
+> Le diagnostic est offert une fois par version à chaque compte et ne consomme aucun quota
+> d'entraînement EE/EO.
+>
+> **Ce que l'IA fait, dans cet ordre.** Elle vérifie l'accomplissement de l'exercice, puis si
+> la communication fonctionne, observe uniquement les compétences autorisées pour ce sujet,
+> et enfin propose une estimation prudente entre « A1 non atteint » et B2. Elle ne produit
+> **aucune note sur 20** et cette estimation n'est jamais présentée comme un résultat officiel
+> du TCF. Une compétence absente est dite « non observée » : elle n'est pas inventée ni
+> transformée en faiblesse. Chaque constat observé désigne un morceau réel de la production ;
+> le serveur remplace ce numéro par le texte exact avant de l'enregistrer et de l'afficher.
+>
+> **À l'oral, l'IA ne reçoit que la transcription.** Elle peut donc parler du contenu, du
+> lexique, de la grammaire et de la cohérence. Elle ne peut rien conclure sur la prononciation,
+> l'accent, l'intonation, le débit, la qualité acoustique ou une véritable interaction avec un
+> examinateur. La consigne audio est créée explicitement par un administrateur, stockée et
+> vérifiée dans R2 ; elle n'est jamais régénérée au démarrage d'une session.
+>
+> **Le résultat commun est assemblé par le serveur, sans troisième appel.** Chaque production
+> déclenche un appel d'analyse et, seulement si le format reçu est invalide, une unique demande
+> de réparation. Les deux réponses structurées sont ensuite réunies de façon déterministe :
+> au plus deux priorités peuvent venir d'une production et au plus trois figurent dans le Plan.
+> Le contrat exige exactement l'allowlist du sujet, des codes sans doublon, une preuve réelle,
+> un niveau de confiance et des textes courts. Une réponse vide, illisible ou sans appel de
+> l'outil est considérée comme transitoire et peut être relancée dans la limite prévue.
+>
+> **Le Plan reste distinct des statistiques.** Il conserve des observations sourcées
+> (`diagnostic écrit`, `diagnostic oral`, `production complète écrite/orale` ou
+> `micro-exercice`), leur date, leur preuve, leur confiance et le fait qu'elles appartiennent
+> ou non au diagnostic de référence. Les productions complètes futures gardent leur correction
+> v15/v9 habituelle ; une observation structurée séparée actualise ensuite le Plan, et son
+> échec ne peut jamais faire échouer la correction déjà obtenue. Un micro-exercice ciblé peut
+> confirmer qu'un point reste prioritaire, mais **une seule réussite ne suffit jamais à déclarer
+> une compétence solide**.
+>
+> **Séparation technique volontaire.** Les consignes
+> `diagnostic-analysis-rubrics-v1.json` et le format
+> `diagnostic-analysis-tool-schema-v1.json` ne passent jamais par la notation v15/v9, la table
+> des évaluations notées, la version au niveau visé ou la calibration. Comme pour tout contrat
+> livré, on créera une nouvelle version au lieu de réécrire v1. Les invariants et formats ont
+> été testés sans appeler de fournisseur payant ; aucune campagne de mesure comparative du
+> jugement pédagogique n'a donc été menée pour cette première version.
 
 > 🆕 **8 août 2026 — sur une tâche isolée, plus de note sur 20 : votre niveau, et où vous en
 > êtes DANS ce niveau.** Explication complète aux **§6.2 bis** et **§6.3 bis**.
@@ -211,7 +285,9 @@ compétence, sans note ni niveau — les versions sont **v2 / v2** et tout est d
 >    la réserve porte sur la forme, jamais sur la présence (§5.4).
 > 5. **Un verdict clair en tête d'écran** : « Objectif de la tâche : atteint / partiellement
 >    atteint / non atteint », avec une phrase qui dit ce que le candidat a fait (§5.4).
-> 6. **Au plus deux points forts** et **au plus trois exemples corrigés** (§5.5).
+> 6. **Au plus deux points forts** et **au plus deux priorités** (§5.5). ⚠️ Les **exemples
+>    corrigés** et les **suggestions** ne sont plus produits du tout depuis les consignes
+>    **v15** : le bloc replié qui les affichait a disparu de l'écran (§5.7 bis).
 > 7. **À l'écrit, un texte modèle de la copie entière**, avec les seules idées du candidat.
 >    ⚠️ Le seul qui existe est la **version au niveau VISÉ** (§5.9), qui nomme son palier ; la
 >    « version améliorée » du palier juste au-dessus (§5.8) a été retirée de l'écran, puis
@@ -250,9 +326,9 @@ EE T1, EE T2, EE T3, EO T1, EO T2, EO T3.
 > **Deux façons d'être corrigé, à ne pas confondre.** Ce document décrit d'abord la correction
 > d'une **tâche complète** : une production entière, une note sur 20, un niveau. C'est la voie
 > principale, et c'est elle qui est mesurée (§12). Il existe aussi des **micro-exercices par
-> compétence**, où le candidat travaille **une seule capacité à la fois** et où l'IA ne rend
-> qu'un verdict sur cette capacité — **sans aucune note ni niveau**. Cette seconde voie est
-> décrite au **§11 bis**, et n'a **pas** de banc de mesure : c'est dit là-bas sans détour.
+> compétence**, où le candidat travaille **une seule capacité à la fois** : l'IA y rend un
+> verdict sur cette capacité **et un niveau**, mais **jamais de note sur 20**. Cette seconde voie
+> est décrite au **§11 bis**, et n'a **pas** de banc de mesure : c'est dit là-bas sans détour.
 
 ---
 
@@ -795,11 +871,12 @@ qui explique pourquoi le passage au numéro était nécessaire.
   de la correction : **on aide le correcteur à respecter la vérification, on n'abaisse pas la
   vérification.**
 - **Deux points à améliorer, au maximum.** Les deux plus utiles, le plus important d'abord.
-  Une liste de dix reproches décourage et n'apprend rien. Le reste part dans les
-  « suggestions », formulées comme des conseils d'entraînement. Ce n'est pas qu'une
+  Une liste de dix reproches décourage et n'apprend rien. Ce n'est pas qu'une
   consigne donnée à l'IA : **le serveur tronque la liste à deux** avant de vous
   l'afficher, en gardant les deux premières (les plus importantes). L'IA ne peut donc
-  pas déborder, même si elle essaie.
+  pas déborder, même si elle essaie. 🛑 **Le reste partait autrefois dans des
+  « suggestions »** ; ce bloc n'existe plus depuis les consignes **v15** (§5.7 bis) — ce
+  qui n'est pas une des deux priorités n'est plus écrit du tout.
 - **Chaque priorité doit ENSEIGNER, pas constater** (version 5). Un vrai rapport observé
   disait : *« Améliorer la ponctuation pour plus de clarté »*, *« Pratiquer l'utilisation de
   connecteurs pour mieux organiser les idées »* — et la seule correction proposée était
@@ -815,7 +892,10 @@ qui explique pourquoi le passage au numéro était nécessaire.
   Exemple réellement produit sur une copie A2 : *« Reliez vos idées avec un connecteur. Par
   exemple, remplacez le point entre "Il est petit mais joli" et "Il y a une chambre" par
   "et" : "Il est petit mais joli, et il y a une chambre et une cuisine." »*
-- **Les exemples corrigés doivent faire gagner un niveau**, pas corriger des virgules. Une
+- 🛑 **Les exemples corrigés n'existent plus** depuis les consignes **v15** (§5.7 bis). Ce
+  qui suit décrit ce qu'ils étaient, parce que les corrections faites avant cette bascule les
+  contiennent encore et restent lisibles telles quelles. **Les exemples corrigés devaient faire
+  gagner un niveau**, pas corriger des virgules. Une
   virgule ajoutée, un accent, une majuscule : interdits. Ce qu'on attend, ce sont des
   **reformulations** — une juxtaposition transformée en subordonnée, deux phrases fusionnées
   par un connecteur logique, un mot passe-partout remplacé par un terme précis, une
@@ -943,13 +1023,14 @@ en avait un. Désormais chaque zone du rapport a **un rôle, et un seul** :
 |---|---|
 | **Commentaire d'un critère** | **Caractérise** ce critère et cite sa preuve. Il décrit ; il ne fait pas la leçon, n'explique pas comment corriger. |
 | **Points à améliorer** | **Enseigne.** C'est le **seul** endroit où l'on explique comment corriger. |
-| **Exemples corrigés** | **Démontrent** le palier au-dessus, sur des phrases **différentes** de celles déjà utilisées dans les priorités. |
-| **Suggestions** | Uniquement ce qui n'a été traité **nulle part** ailleurs. |
+| ~~**Exemples corrigés**~~ | Supprimés par les consignes v15 (§5.7 bis). Ils démontraient le palier au-dessus sur des phrases **différentes** de celles des priorités. |
+| ~~**Suggestions**~~ | Supprimées par les consignes v15 (§5.7 bis). Elles ne portaient que ce qui n'avait été traité **nulle part** ailleurs. |
 | ~~**Version améliorée** (écrit)~~ | Supprimée par les consignes v14 (§5.8) : le texte modèle de l'écrit est la **version au niveau visé** (§5.9). |
 
-Deux interdits précis, ce sont les répétitions les plus fréquentes : réexpliquer dans le
-« comment » ce qui est déjà dit dans le « constat », et réutiliser la même phrase du candidat
-dans une priorité **et** dans un exemple corrigé.
+L'interdit qui reste — c'était la répétition la plus fréquente — est de réexpliquer dans le
+« comment » ce qui est déjà dit dans le « constat ». (Le second, « ne pas réutiliser la même
+phrase dans une priorité **et** dans un exemple corrigé », est devenu sans objet : les exemples
+corrigés n'existent plus, §5.7 bis.)
 
 **« On ne reproche pas ce qu'on n'a pas demandé. »** Un rapport disait *« aucun second temps
 maîtrisé »* ou *« rien ne sort du répertoire A2 »* — un langage d'expert, adressé à un
@@ -968,6 +1049,73 @@ d'autre. Le raisonnement de notation est **inchangé** : c'est toujours la produ
 justificatif interne du niveau — que le candidat ne voit pas — continue de dire les choses
 sans détour. On dit la même chose au candidat, autrement. Et un point **obligatoire** de la
 consigne réellement non traité, lui, reste un vrai manque : on le dit, simplement.
+
+### 5.7 bis Le bloc replié « Voir l'analyse complète » a disparu — et avec lui deux blocs du rapport (v15)
+
+> 🛑 **Deux blocs n'existent plus** : les **exemples corrigés** et les **suggestions**. Depuis
+> les consignes **v15** et le format de réponse **v9**, l'IA ne les écrit même plus : le format
+> ne prévoit plus de case pour les loger. Les corrections faites avant cette bascule les
+> contiennent encore, et **restent lisibles telles quelles** — rien n'a été effacé ni recalculé.
+
+#### Ce qui a été décidé
+
+Sur l'écran de résultat d'une production écrite ou orale, tout ce qui n'était pas essentiel
+était rangé dans un bloc replié intitulé **« Voir l'analyse complète »**. C'était le seul
+endroit où s'affichaient les **exemples corrigés** et les **suggestions**. Ce bloc est
+supprimé. Le résultat tient désormais dans ce qui se lit sans déplier quoi que ce soit : le
+verdict de la tâche, ce que vous avez traité et oublié, votre niveau et votre situation dans ce
+palier, les points forts, les deux priorités, les commentaires par critère et — à l'écrit — la
+version au niveau que vous visez.
+
+#### Pourquoi
+
+Pour deux raisons, qui vont dans le même sens.
+
+**On ne lisait pas ces blocs.** Un pavé qu'il faut déplier pour voir n'est pas lu ; deux blocs
+de plus dans un rapport déjà long diluent les deux priorités, qui sont ce qui fait réellement
+progresser. C'est exactement le raisonnement qui a déjà conduit à plafonner les points forts à
+deux et les priorités à deux (§5.5) : mieux vaut peu et lu que beaucoup et survolé.
+
+**Tout ce que l'IA écrit se paie.** Chaque mot produit par le correcteur coûte, à chaque
+correction. Cesser de demander deux blocs entiers **libère du budget** — et ce budget finance
+quelque chose de plus utile : le **second appel** qui rend, à l'écrit, votre réponse rédigée au
+niveau que vous visez (§5.9). On ne supprime pas pour supprimer : on déplace la dépense là où
+elle sert.
+
+#### Ce qui reste, et pourquoi ça reste
+
+Rien de ce qui porte la note, le niveau ou un contrôle automatique n'est touché :
+
+| Bloc | Pourquoi il reste |
+|---|---|
+| **Accomplissement** (verdict, phrase de résumé, points traités / oubliés) | Il alimente le bandeau du haut de l'écran, le compteur « ce qui marche », et un **contrôle serveur** qui abaisse un verdict contradictoire (§5.4). Le retirer casserait à la fois la note et le haut de l'écran. |
+| **Avertissements** | Ils ne viennent pas de l'IA : c'est le **serveur** qui les écrit (limite assumée de l'oral, plafond appliqué, phrase retirée par un filet). Ils n'ont jamais fait partie du format de réponse, et ils continuent d'être produits exactement comme avant. |
+| **Points forts, priorités, commentaires par critère, preuve, confiance, justification du niveau** | Chacun est lu par un calcul, par un contrôle, ou par un bloc affiché **hors** du repli. |
+
+#### Ce que cette bascule ne change pas, et comment nous le savons
+
+La **v15 est la v14 au caractère près** pour tout ce qui note : l'échelle, les quatre critères,
+les seuils, le garde-fou de couplage, les plafonds, les bandes affichées, les tests décisifs
+A1/A2 et B1/B2, les descripteurs et le barème des six tâches, et les 16 exemples de
+calibration. Ce n'est pas une promesse : un test reconstruit la v15 à partir de la v14 en lui
+appliquant la **liste énumérée** des retraits, puis exige l'égalité — un seul caractère modifié
+ailleurs **casse la construction**. Le format de réponse **v9** est le **v8 privé de ces deux
+cases**, et rien d'autre : là aussi, un test exige l'égalité stricte de tout le reste.
+
+⚠️ **Aucune campagne de mesure n'a été lancée**, et c'est défendable pour la même raison que
+pour les v12, v13 et v14 : **aucune règle de notation ne bouge**, et le peu qui change dans les
+consignes **enlève** du texte au lieu d'en ajouter. (Les seules versions qui ont dégradé les
+résultats, v10 et v11, en **ajoutaient**, §8 quater.) Retour en arrière si besoin : une paire de
+variables (`EVAL_RUBRICS_VERSION=v14` + `EVAL_PROMPT_VERSION=v8`), sans rien migrer — les deux
+blocs sont alors de nouveau demandés et affichés.
+
+#### Si l'IA les écrit quand même
+
+Le format fermé le lui interdit, mais on ne fait pas dépendre une correction d'une interdiction.
+Si une réponse portait malgré tout l'un de ces deux blocs, elle **n'est pas refusée** : le
+serveur les retire, et la correction est rendue. Une correction perdue coûte bien plus cher au
+candidat qu'un champ ignoré — c'est exactement l'arbitrage retenu lors du retrait de la version
+améliorée (§5.8).
 
 ### 5.8 La version améliorée de votre texte — **supprimée** (écrit, v8 → v14)
 
@@ -1041,11 +1189,15 @@ La version du §5.9, elle, **nomme son niveau** (« Votre réponse au niveau B2 
 palier de la démarche du candidat, pas le palier suivant. C'est ce qui la rend affichable en
 tête d'écran.
 
-### 5.9 La version au niveau que **vous** visez (écrit uniquement, nouveau)
+### 5.9 La version au niveau que **vous** visez (écrit **et oral**)
 
 > 📌 **C'est LE seul texte modèle de votre résultat écrit.** La version améliorée du §5.8 a été
 > retirée de l'écran puis supprimée de la correction ; celle-ci a pris sa place, en évidence,
 > avec ses leviers juste en dessous sous le titre « Ce qui vous en sépare ».
+>
+> 📌 **Depuis la version v2 de cet encart, l'oral y a droit aussi** — mais sous une forme
+> différente, et c'est délibéré : à l'oral, votre production **n'est jamais réécrite**. Voir
+> « À l'oral… » plus bas.
 
 La version améliorée du §5.8 montrait **le palier juste au-dessus**. C'est utile, mais ce n'est
 pas toujours ce dont vous avez besoin : quelqu'un qui prépare une **naturalisation** doit
@@ -1083,28 +1235,69 @@ Si vous n'avez pas encore choisi de démarche, c'est le niveau visé par la tâc
 repère ; et si rien n'est connu, l'encart n'est simplement pas affiché — nous ne devinons pas
 un projet à votre place.
 
-Exemple, pour quelqu'un qui vise le B2 et dont la production a été jugée A2 :
+Exemple, à l'**écrit**, pour quelqu'un qui vise le B2 et dont la production a été jugée A2 :
 
+> **Ce qui vous en sépare**
+> 1. **Annonce l'objection avant d'y répondre** — « On objectera que »
+> 2. **Conditionne ton accord** — « à condition que »
+> 3. **Choisis un terme précis** — « la qualité de l'air »
+>
 > **Votre réponse au niveau B2**
 > « Je suis favorable à cette interdiction, même si elle mérite d'être nuancée. Interdire les
-> voitures au centre améliorerait nettement la qualité de l'air… On objectera que les salariés
-> qui viennent de loin seraient pénalisés ; c'est vrai, mais l'argument tombe si la mairie
-> renforce en parallèle les transports en commun. »
+> voitures au centre **améliorerait nettement la qualité de l'air** et réduirait le bruit…
+> **On objectera que les salariés venus de loin seraient pénalisés** ; l'argument est réel, mais
+> il tombe **à condition que la mairie renforce** les transports en commun. »
+> *(les passages en gras sont surlignés à l'écran, avec leur étiquette : « objection traitée »,
+> « position nuancée », « lexique précis »)*
 >
-> **Pour y arriver**
-> 1. Annoncer l'objection avant d'y répondre : « On objectera que… ; c'est vrai, mais… ».
-> 2. Remplacer « c'est bien pour l'air » par une conséquence précise.
-> 3. Conditionner votre accord : « à condition que la mairie renforce les transports ».
+> **À retenir**
+> « On objectera que…, mais… » — pour montrer qu'on a prévu le contre-argument avant qu'on vous
+> l'oppose.
 
-Les règles sont les mêmes qu'au §5.8, avec deux ajouts :
+**Un plan d'action court, pas un pavé.** Chaque morceau de cet encart a une longueur **plafonnée
+en nombre de mots**, et ce plafond est tenu par le contrat de sortie **et** par un contrôle du
+serveur — jamais par une simple consigne, qui dans ce projet n'est qu'un vœu :
 
-- **c'est toujours votre réponse** : même situation, mêmes faits, mêmes prénoms, mêmes
-  chiffres, même position. Si vous êtes contre une idée, la version l'est aussi — on ne change
-  pas votre avis, on vous donne les moyens de le défendre ;
-- **deux ou trois leviers, jamais un inventaire**, chacun tenant en une phrase de 25 mots
-  maximum, commençant par un verbe d'action et nommant un moyen précis (« Relier les idées avec
-  *puisque* »), jamais une qualité vague du type « enrichir le vocabulaire ». Ces plafonds sont
-  tenus par le contrat de sortie **et** par un contrôle du serveur, pas par une simple consigne.
+| Ce que vous lisez | Longueur maximale |
+|---|---|
+| l'**action** d'un levier (« Annonce l'objection avant d'y répondre ») | **6 mots**, à l'impératif |
+| l'**exemple** de langue d'un levier (« On objectera que ») | **5 mots**, recopiable tel quel |
+| l'**étiquette** d'un passage surligné (« objection traitée ») | **3 mots** |
+| la **formule** à retenir | **8 mots** |
+| son **explication** | **14 mots** |
+
+Deux ou trois leviers, jamais un inventaire ; jusqu'à trois passages surlignés, jamais tout le
+texte ; **une seule** chose à retenir.
+
+Ces plafonds sont des consignes de forme, pas des règles de calcul : le serveur **tolère
+toujours au moins un mot de plus** avant de refuser (et 20 % au-delà sur les plafonds élevés).
+Il faut le dire, parce que ça n'a pas toujours été vrai : la marge de 20 % appliquée seule ne
+donnait **aucun mot de tolérance** sur les étiquettes de trois mots, si bien qu'une étiquette de
+quatre mots — « plus poli et net » — faisait disparaître tout un encart déjà payé. Corrigé le
+11 août 2026, sur cet encart comme sur celui du module Compétences.
+
+Les autres règles sont celles du §5.8, avec un ajout : **c'est toujours votre réponse** — même
+situation, mêmes faits, mêmes prénoms, mêmes chiffres, même position. Si vous êtes contre une
+idée, la version l'est aussi : on ne change pas votre avis, on vous donne les moyens de le
+défendre.
+
+> **Les passages surlignés sont vérifiés, pas crus sur parole — mais ils ne coûtent qu'eux-mêmes.**
+> L'IA désigne deux ou trois extraits de son propre texte modèle ; le serveur **les y
+> recherche**, et n'affiche que ceux qu'il retrouve réellement : un surlignage approximatif
+> présenterait comme « extrait du modèle » une phrase que le modèle n'a jamais écrite.
+> **Un passage qu'il ne retrouve pas est simplement retiré, et le texte modèle reste affiché** —
+> sans son surlignage. C'est la règle depuis le 11 août 2026, et elle remplace la précédente
+> (« un extrait introuvable et toute la version modèle disparaît ») : **le texte réécrit est ce
+> que vous venez chercher, un texte sans surlignage vaut mieux qu'un écran vide.** Vos leviers
+> et votre « à retenir » restent eux aussi, comme avant : ils ne reposent sur aucune citation
+> (voir « ce qui tombe, et ce qui reste » plus bas).
+>
+> **La recherche ignore la typographie, et rien d'autre.** Apostrophe droite ou courbe, espace
+> insécable, tiret long ou court, retour à la ligne : ces différences-là ne comptent pas, parce
+> qu'elles viennent du clavier et non du sens — c'est même la cause la plus fréquente d'un
+> passage juste déclaré introuvable. En revanche les mots, les accents et les majuscules doivent
+> correspondre, et le passage finalement surligné est **celui de votre texte, tel qu'il
+> s'affiche**, jamais une version retouchée.
 
 #### Cette version respecte la longueur de l'exercice — c'est vérifié, pas demandé
 
@@ -1126,15 +1319,95 @@ Ce qui se passe maintenant :
 - si la version est hors bornes, **une seule** tentative de correction est demandée, en disant
   précisément ce qui ne va pas : « ton texte fait 63 mots, l'exercice en attend 30 à 60, retire
   au moins 3 mots, sans couper une phrase en cours » ;
-- si elle est encore hors bornes, **l'encart n'est pas affiché** — et c'est volontaire : nous
-  ne coupons **jamais** un texte modèle au mot près, parce qu'un texte tronqué au milieu d'une
-  phrase enseigne une faute. Mieux vaut pas d'exemple qu'un mauvais exemple ;
+- si elle est encore hors bornes, **la version modèle n'est pas affichée** — et c'est
+  volontaire : nous ne coupons **jamais** un texte modèle au mot près, parce qu'un texte tronqué
+  au milieu d'une phrase enseigne une faute. Mieux vaut pas d'exemple qu'un mauvais exemple. Là
+  encore, les leviers et la tournure à retenir restent affichés ;
 - **trop court compte autant que trop long** : une version de 12 mots sur un sujet qui en
   demande 30 est refusée de la même façon.
 
 Votre correction, votre note et votre niveau ne changent jamais à cause de cela.
 
-**Rien de tout cela n'est produit** à l'**oral**, pour la même raison qu'au §5.8.
+#### À l'**oral**, on ne réécrit **jamais** votre production — on reformule deux ou trois passages
+
+Pendant longtemps, cet encart n'existait pas du tout à l'oral. La raison n'a pas changé : **ce
+que nous lisons de votre oral n'est pas un texte que vous avez écrit**, c'est une transcription
+automatique. Elle est littérale, elle porte vos hésitations et vos reprises, et il lui arrive de
+mal entendre un mot. Vous rendre un « beau texte » à la place de ce que vous avez dit vous
+laisserait croire que vous avez produit autre chose — et ce serait faux.
+
+Ce que vous recevez désormais à l'oral, c'est donc :
+
+- les **mêmes leviers** qu'à l'écrit (action de 6 mots, exemple de langue de 5 mots) ;
+- **deux ou trois de vos passages, redits au niveau que vous visez** — et rien d'autre. Vous
+  voyez votre phrase telle que vous l'avez dite, et à côté la même phrase au niveau visé, avec
+  une étiquette de trois mots qui dit ce qu'elle apporte ;
+- la **même chose à retenir**.
+
+Exemple, pour quelqu'un qui vise le B1 :
+
+> **Ce que vous avez dit** — « Oui bonjour, je viens d'arriver dans l'immeuble et je veux mettre
+> mon vélo en bas. »
+> **Au niveau B1** — « Bonjour, puisque je viens d'emménager dans l'immeuble, serait-il possible
+> de ranger mon vélo au sous-sol ? » *(demande plus polie)*
+
+**Comment le passage est désigné, et pourquoi ça compte.** Votre transcription part à l'IA
+**découpée et numérotée** : chaque chose que vous avez dite d'un seul trait porte un numéro.
+L'IA ne recopie donc rien — elle **désigne un numéro**, et le serveur remet ensuite votre texte
+exact à sa place. C'est la technique qui, côté correction, a fait disparaître la première cause
+de correction perdue à l'oral (§8 ter). Conséquence directe : **les tours de l'examinateur, eux,
+n'ont aucun numéro** — reformuler l'examinateur devient impossible, pas « interdit ».
+
+##### Trois garde-fous, pour ne jamais vous reprocher ce que la machine a mal entendu
+
+1. **Si la transcription est abîmée, il n'y a pas d'encart du tout.** Nous mesurons la qualité de
+   chaque transcription (§8 septies) ; quand elle est déclarée dégradée, **aucune demande n'est
+   envoyée à l'IA**. Reformuler un texte que la machine a cassé reviendrait à vous corriger pour
+   nos propres erreurs — et à le faire payer. Mieux vaut rien.
+2. **Une reformulation qui ne change que la forme d'un mot est retirée.** C'est exactement la
+   règle du §8 sexies : à l'oral, ce qui compte est la **construction** de la phrase, jamais
+   l'orthographe d'un mot. Si votre phrase est simplement recopiée avec « habite » à la place de
+   « abit », ce n'est pas un conseil — c'est la correction de notre transcription, déguisée en
+   correction de votre français. Elle disparaît. Une reformulation qui **subordonne**, qui
+   **réordonne**, qui **construit une question** ou qui **annonce une objection**, elle, est
+   conservée : les mots y bougent, c'est le signe qu'on parle de structure.
+3. **Rien n'est jamais dit de votre prononciation, de votre accent, de votre intonation, de
+   votre débit, de vos hésitations ou de votre ponctuation** — et la **durée** de votre
+   enregistrement n'est pas davantage communiquée à ce second correcteur qu'au premier (§7).
+
+Et comme partout ici : s'il reste **moins de deux** reformulations après ces retraits, **une
+seule** nouvelle demande est faite, en disant précisément ce qui a été refusé et pourquoi ; si
+elle échoue, **les reformulations ne sont pas affichées**. Jamais de demi-conseil. Votre note,
+votre niveau et votre correction ne bougent jamais à cause de tout cela.
+
+##### Ce qui tombe, et ce qui reste
+
+Un encart abîmé ne disparaît pas en bloc. **Chaque partie est jugée séparément**, parce
+qu'elles ne dépendent pas les unes des autres :
+
+| Partie | Si elle est inexploitable après l'unique correction demandée |
+|---|---|
+| **Les leviers** | Rien n'est affiché du tout : un plan d'action sans levier n'apprend rien. |
+| **La version modèle** (écrit) / **les reformulations** (oral) | **Elle seule** disparaît. Vos leviers et votre « à retenir » restent. |
+| **Un passage surligné dans la version modèle** (écrit) | **Lui seul** disparaît : le texte reste affiché, simplement sans ce surlignage. |
+| **La tournure à retenir** | **Elle seule** disparaît. |
+
+Cette dernière ligne est récente (11 août 2026) et elle **remplace** une règle plus dure : un
+seul passage introuvable emportait auparavant toute la version modèle. La raison du changement
+tient en une phrase : **le texte réécrit est ce que vous venez chercher, le surlignage n'est
+qu'une aide à la lecture** — et depuis que la « version améliorée » du §5.8 n'existe plus, ce
+texte est le seul modèle de tout votre rapport.
+
+> **Pourquoi cette règle a été écrite.** Sur une tâche d'oral en temps réel, la transcription
+> était hachée — mots coupés, répétitions, un tour réduit à un bruit. Les reformulations ont
+> donc été retirées, et c'était **le bon comportement** : elles n'auraient corrigé que ce que
+> notre machine avait mal entendu. Mais le candidat perdait **aussi** ses leviers et sa tournure
+> à retenir, qui ne citaient rien du tout. Une autre tâche du même candidat, mieux transcrite,
+> avait reçu tout son encart. Autrement dit : la fragilité des citations à l'oral punissait des
+> conseils qui n'en dépendaient pas. Ce n'est plus le cas.
+>
+> Et cela ne coûte **rien de plus** : la correction supplémentaire demandée à l'IA reste
+> **unique**, quel que soit le nombre de parties en défaut.
 
 #### Et si vous êtes **déjà au niveau que vous visez** ? On vous le dit.
 
@@ -1177,8 +1450,14 @@ promettait donc le B1 avec deux mots que le candidat emploie déjà.
 
 Ici, la vérification est **plus sûre** qu'au §8 quinquies, et pour une raison simple : le
 niveau visé n'a pas à être deviné dans la phrase, il est **écrit** dans l'encart. Le serveur
-retire donc **le levier entier** (pas une moitié de phrase : un demi-conseil ne s'applique pas)
-dès qu'il désigne un de ces petits mots alors que vous visez **plus haut que le A2**.
+retire donc **le levier entier** — action **et** exemple de langue, jamais une moitié : un
+demi-conseil ne s'applique pas — dès qu'il désigne un de ces petits mots alors que vous visez
+**plus haut que le A2**.
+
+> Depuis que le levier est un couple *action + exemple de langue*, le cas fautif type est encore
+> plus net : l'exemple étant un bout de langue à recopier, un petit mot A2 s'y retrouve **nu**
+> (« Relie tes deux idées » — « parce que »). La vérification y lit les deux moitiés, et le
+> couple entier tombe.
 
 Ce qui **passe** sans être touché :
 
@@ -1773,8 +2052,8 @@ plausible : il choisit simplement un autre passage.
 
 Une consigne dans un prompt n'est jamais tenue à 100 %. Le serveur retire donc lui-même, après
 coup, **toute remarque qui ne tient que par un mot isolé cité de la transcription** — dans les
-commentaires de critère, les priorités et les suggestions, comme il le faisait déjà pour les
-exemples corrigés. Trois conditions doivent être réunies : la phrase **reproche** quelque
+commentaires de critère et les priorités (et, tant qu'ils existaient, dans les suggestions et
+les exemples corrigés, §5.7 bis). Trois conditions doivent être réunies : la phrase **reproche** quelque
 chose, elle **cite** un passage qu'on retrouve réellement dans les paroles du candidat, et ce
 passage ne nomme **qu'un seul mot**. Un conseil qui cite un mot (« relie tes idées avec
 “parce que” ») n'est jamais touché.
@@ -2043,10 +2322,12 @@ contrôle automatique, on ne se contente pas de le déconseiller.
 
 ### Ce que fait le contrôle
 
-Après la correction, le serveur relit **trois endroits du rapport** — les suggestions, les
-priorités d'amélioration, et la phrase « ce que cette reformulation démontre » des exemples
-corrigés — et **retire la phrase** qui présente un moyen de niveau A2 comme la clé d'un palier
-**supérieur**. Le candidat est prévenu par une phrase claire : une remarque a été retirée, parce
+Après la correction, le serveur relit les endroits du rapport où un conseil peut se glisser —
+aujourd'hui les **priorités d'amélioration** — et **retire la phrase** qui présente un moyen de
+niveau A2 comme la clé d'un palier **supérieur**. (Il relisait aussi les **suggestions** et la
+phrase « ce que cette reformulation démontre » des **exemples corrigés** ; ces deux blocs
+n'existent plus depuis la v15, §5.7 bis, et le contrôle les couvre toujours pour le cas d'un
+retour en arrière.) Le candidat est prévenu par une phrase claire : une remarque a été retirée, parce
 qu'elle promettait un palier qu'elle ne pouvait pas donner.
 
 Ce contrôle **ne touche ni votre note, ni votre niveau, ni un seuil, ni un barème**. Il n'agit
@@ -2272,9 +2553,11 @@ est simplement **supprimée**, et le reste de la correction est rendu au candida
 
 La frontière est explicite, et elle n'a bougé nulle part ailleurs. Restent **fatals**, parce
 qu'ils portent le jugement lui-même : la justification du niveau, les commentaires de chaque
-critère, les points forts, les priorités, les suggestions et le bloc d'accomplissement. Sont
-**purgés** : les exemples corrigés. Aucune tolérance n'a été ajoutée sur les notions
-interdites : ce sont exactement les mêmes.
+critère, les points forts, les priorités et le bloc d'accomplissement. Étaient **purgés** : les
+exemples corrigés. Aucune tolérance n'a été ajoutée sur les notions interdites : ce sont
+exactement les mêmes. ⚠️ Depuis la **v15**, les exemples corrigés et les suggestions ne sont
+plus produits (§5.7 bis) : cette frontière ne décrit donc plus qu'un cas de retour en arrière —
+mais elle reste en place, et le contrôle qui l'applique aussi.
 
 **Pourquoi on ne corrige pas ça tout de suite.** Deux obstacles sérieux :
 
@@ -2514,18 +2797,19 @@ Dans cet ordre :
 5. **1 à 2 points à améliorer** — les priorités, pas une liste décourageante. Chacune avec
    son **constat**, son **« comment »** (la technique à appliquer) et un **exemple avant /
    après** pris dans sa propre production (§5.5).
-6. **Suggestions** — conseils pédagogiques (règles à revoir, exercices), et uniquement ce qui
-   n'a été dit nulle part ailleurs (§5.7).
-7. **Jusqu'à 3 exemples corrigés** — des phrases exactes du candidat, réécrites au **palier
-   au-dessus**, avec l'explication et le **gain** obtenu. Jamais une correction de
-   ponctuation. (À l'oral, uniquement des reformulations qui améliorent vraiment la clarté.)
+6-7. 🛑 **Les « suggestions » et les « exemples corrigés » n'existent plus** (§5.7 bis). Ils
+   n'étaient affichés que dans le bloc replié « Voir l'analyse complète », qui a disparu de
+   l'écran ; depuis les consignes **v15**, l'IA ne les écrit même plus. Les corrections faites
+   avant les conservent, et restent lisibles.
 8. **Une appréciation par critère** (bande + commentaire + citation), avec le libellé propre à
    la tâche.
-9. **À l'écrit : la même réponse au niveau qu'il VISE** (§5.9), avec deux ou trois leviers pour
-   l'atteindre sous « Ce qui vous en sépare » — produite par un **second appel séparé**,
-   remplacée par un encart « Objectif atteint » quand le niveau visé est déjà tenu, et absente
-   sans conséquence si ce second appel échoue.
-   Rien de tel à l'oral.
+9. **Un plan d'action vers le niveau qu'il VISE** (§5.9), produit par un **second appel
+   séparé** : deux ou trois leviers sous « Ce qui vous en sépare », puis — **à l'écrit** — sa
+   réponse réécrite à ce niveau avec les passages qui font la différence surlignés, ou — **à
+   l'oral** — deux ou trois de ses passages redits à ce niveau, sa production n'étant jamais
+   réécrite en entier ; enfin une tournure « à retenir ». Remplacé par un encart « Objectif
+   atteint » quand le niveau visé est déjà tenu, et absent sans conséquence si ce second appel
+   échoue — ou, à l'oral, si la transcription est abîmée.
 9 bis. La **version améliorée** du palier juste au-dessus (§5.8) n'existe plus : retirée de
    l'écran, puis **supprimée de la correction** par les consignes v14 — elle était au même
    niveau que la copie, et la recopier ne changeait pas la note. Les corrections faites avant
@@ -2535,8 +2819,10 @@ Dans cet ordre :
 
 Les évaluations rendues **avant la v8** (une centaine, déjà en base) ne portent ni verdict ni
 version améliorée : rien n'a été recalculé ni réécrit rétroactivement, ces deux blocs ne
-s'affichent simplement pas. On versionne, on ne réécrit pas — y compris les résultats déjà
-rendus.
+s'affichent simplement pas. Symétriquement, celles rendues **avant la v15** portent encore leurs
+suggestions et leurs exemples corrigés : ils restent en base, intacts et consultables (la
+console de calibration les affiche toujours). On versionne, on ne réécrit pas — y compris les
+résultats déjà rendus.
 
 ---
 
@@ -2573,40 +2859,124 @@ décourageant. Écrire, s'auto-évaluer et lire les exemples de référence est 
 limite** sur tous les sujets ; c'est **l'analyse par l'IA** qui est réservée aux abonnés, avec
 **trois analyses offertes** pour essayer.
 
-### Pourquoi il n'y a ni note sur 20 ni niveau ici
+### Pas de note sur 20 — mais un niveau, désormais
 
-**C'est délibéré, et c'est la règle la plus importante de cette voie.**
+**La règle a changé le 11 août 2026, et seulement à moitié.** Jusque-là, cette voie ne rendait
+ni note ni niveau. Aujourd'hui elle rend un **niveau** (A1 non atteint, A1, A2, B1 ou B2), et
+continue de ne rendre **aucune note sur 20**. Les deux moitiés méritent chacune leur
+explication, parce qu'elles ne reposent pas sur le même raisonnement.
 
-Une note sur 20 et un niveau CECRL portent, au TCF, sur une **production entière** — et notre
-propre note porte au minimum sur une tâche complète (§6.6). Mettre « 8/20 » ou « niveau A2 » sur
-deux phrases écrites pour travailler *une seule* capacité serait faux de deux façons :
+**Pourquoi la note reste exclue.** Une note sur 20 porte, au TCF, sur une **épreuve entière** —
+et notre propre note porte au minimum sur une tâche complète (§6.6). Mettre « 8/20 » sur deux
+phrases écrites pour travailler *une seule* capacité serait un **chiffre sans support** : il
+aurait l'air sérieux sans rien mesurer de solide. Le format de réponse imposé à l'IA **ne
+contient donc aucune case** où loger une note. Ce n'est pas une consigne qu'elle pourrait
+oublier : il n'y a matériellement pas de champ pour ça.
 
-- **ce serait un chiffre sans support.** On ne peut pas déduire le niveau de français d'une
-  personne de trois lignes rédigées pour exercer un point précis. Le chiffre aurait l'air
-  sérieux sans rien mesurer de solide ;
-- **ce serait décourageant sans raison.** Un candidat qui réussit exactement ce qu'on lui
-  demandait — situer le moment et le lieu, par exemple — n'a aucune raison de recevoir « A1 »
-  parce que sa phrase est courte. Elle est courte parce que l'exercice est court.
+**Pourquoi le niveau, lui, est rendu.** Parce que c'est la question que le candidat pose. Il
+s'entraîne pour une démarche administrative qui exige un palier précis — A2 pour une carte de
+séjour, B1 pour une carte de résident, B2 pour la naturalisation — et l'écran de résultat ne lui
+disait pas où il en était. Lui répondre « votre critère est validé » sans jamais lui dire à quel
+niveau, c'est le laisser sans repère sur la seule chose qui l'intéresse.
 
-Le format de réponse imposé à l'IA **ne contient donc aucun champ** où loger une note ou un
-niveau. Ce n'est pas seulement une consigne qu'on lui donne et qu'elle pourrait oublier : il n'y
-a matériellement pas de case pour ça. Et les consignes lui interdisent explicitement d'en
-glisser un dans une phrase.
+Le niveau rendu ici décrit **la langue employée dans cette production-là** : le vocabulaire, la
+construction des phrases, les temps, les liens entre les idées. Deux garde-fous encadrent cette
+lecture, et ils sont écrits dans les consignes de l'IA :
 
-Le progrès se lit autrement : par le **statut de chaque sujet** (« À faire », « Fait »,
-« Validé », « À renforcer ») et par le compte de sujets réussis dans une compétence. C'est une
-carte de ce qu'on maîtrise, pas une note.
+- **la brièveté ne fait jamais baisser le niveau.** L'exercice est court par construction ; une
+  réponse courte, juste et bien tournée démontre ce qu'elle démontre. Il est explicitement
+  interdit de réclamer « plus de texte » pour accorder un niveau supérieur. Ce qui borne
+  réellement le jugement, c'est la matière disponible : une seule phrase simple ne peut pas
+  démontrer un B2 — non parce qu'elle est courte, mais parce que rien n'y montre le B2 ;
+- **le niveau est indépendant du verdict.** Un critère peut être **validé en A2**, et c'est même
+  le cas le plus fréquent : le candidat a fait exactement ce qu'on lui demandait, avec les moyens
+  qu'il a. À l'inverse, un candidat qui écrit bien mais répond à côté aura un critère **non
+  atteint** avec un niveau B1.
 
-### Ce que l'IA renvoie : un verdict et trois phrases
+⚠️ **Ce niveau ne remplace pas un résultat d'examen.** Il est établi sur quelques phrases écrites
+pour exercer un point précis. Un candidat qui veut savoir où il en est pour de vrai doit passer
+une **tâche complète** — c'est elle qui est mesurée (§12), pas celle-ci.
 
-Le retour est volontairement **court**. Il tient en quatre éléments, et seulement quatre :
+Le progrès continue de se lire aussi autrement : par le **statut de chaque sujet** (« À faire »,
+« Fait », « Validé », « À renforcer ») et par le compte de sujets réussis dans une compétence.
+
+### Un niveau annoncé doit se montrer dans la copie
+
+**Changement du 11 août 2026.** Pendant ses premiers jours, ce niveau était simplement
+**annoncé** : l'IA lisait la production, lisait cinq lignes de descripteurs, et écrivait « B1 ».
+Personne, ensuite, ne vérifiait quoi que ce soit. Sur la voie principale, à l'inverse, le niveau
+n'est jamais annoncé à main levée : il **découle** d'une note, elle-même bridée par plusieurs
+garde-fous appliqués par notre serveur (§6, §7). Deux nombres portaient donc le nom de la même
+échelle sans reposer sur la même exigence.
+
+Depuis, la règle est simple : **si l'IA annonce B1 ou B2, elle doit montrer où.**
+
+Concrètement, la production du candidat ne part plus à l'IA d'un seul bloc : elle lui est servie
+**découpée en morceaux numérotés** — une phrase par numéro à l'écrit, une prise de parole par
+numéro à l'oral. Quand l'IA annonce B1 ou B2, elle ne recopie rien : elle **donne un numéro**,
+celui du passage qui le démontre. Le serveur retrouve ensuite ce passage tout seul.
+
+Ce détail — un numéro plutôt qu'une citation recopiée — n'est pas anodin. Nous avons longtemps
+demandé à l'IA de **recopier** le passage qui justifiait son jugement, et de loin le premier
+motif de correction perdue était là : une recopie imparfaite (un mot dédoublé, un accent ajouté)
+et tout le travail du candidat partait à la poubelle. Sur les productions orales, cela touchait
+**plus de quatre corrections sur dix**. Avec un numéro, il n'y a plus rien à recopier, donc plus
+rien à rater : inventer un passage devient **matériellement impossible**, et non plus
+« interdit ».
+
+**Et si l'IA ne montre rien ?** Le serveur le lui redemande **une fois**, en lui disant
+précisément ce qui n'allait pas — quel numéro elle avait donné, quels numéros existent vraiment
+dans cette production, et ce qu'il faut chercher pour chaque palier. Si elle ne montre toujours
+rien, le serveur **descend le niveau d'un cran** : un B2 non montré devient un B1, un B1 non
+montré devient un A2.
+
+Trois choses, ici, comptent autant que la règle elle-même :
+
+- **ce garde-fou ne peut que descendre, jamais monter.** Il n'a qu'un sens, comme tous les
+  autres garde-fous du même genre (§7) : au pire, il rend le résultat **prudent**. Il ne peut
+  pas fabriquer un niveau que le candidat n'a pas démontré ;
+- **il descend d'un cran, une seule fois.** Ce n'est pas une punition : c'est le retrait de ce
+  qui n'a pas été montré ;
+- **il ne fait jamais perdre l'analyse.** Le candidat garde son verdict, ses deux étiquettes et
+  son niveau — simplement un niveau prudent plutôt qu'optimiste. Perdre l'analyse lui coûterait
+  sa production et l'un de ses essais ; un cran de niveau ne lui coûte qu'un affichage. Ce choix
+  est le même partout dans ce document : mieux vaut un résultat prudent qu'un résultat perdu.
+
+**En dessous du B1, rien n'est exigé.** A2, A1 et « A1 non atteint » ne se lisent pas sur un
+passage isolé mais sur l'ensemble de la production. Demander une preuve pour un A2 pousserait
+l'IA à désigner un passage au hasard — l'inverse de ce qu'on cherche.
+
+**La brièveté, elle, n'est toujours pas un plafond.** On ne descend pas un niveau parce que la
+réponse est courte : on le descend faute de **démonstration**. Une seule phrase qui subordonne,
+enchaîne et emploie un mot précis démontre un B1 — un seul passage suffit.
+
+⚠️ **Ce point n'a fait l'objet d'aucune campagne de mesure, et c'est dit sans détour.** Le jeu de
+copies qui sert à mesurer la qualité de nos corrections (§12) a été écrit pour les **tâches
+complètes** ; il n'existe aucun équivalent pour les micro-exercices. Ce qui tient cette règle,
+ce n'est donc pas une mesure : c'est le fait que le format de réponse n'accepte **qu'un entier**
+et que le serveur **vérifie ce numéro lui-même**.
+
+### Ce que l'IA renvoie : un niveau, un verdict, deux étiquettes
+
+Le retour est volontairement **très court** — l'écran doit se comprendre en trois secondes. Il
+tient en quatre éléments, et seulement quatre :
 
 | Élément | Ce que c'est |
 |---|---|
+| **Le niveau** | Le palier que cette production démontre, de « A1 non atteint » à B2. |
 | **Le verdict** | Une phrase qui dit si le critère annoncé est atteint. |
-| **Ce qui est réussi** | **Un seul** point réussi, concret, pris dans la production du candidat — pas un compliment de politesse. |
-| **À travailler en priorité** | **Une seule** amélioration, celle qui compte le plus, formulée de façon réalisable. |
-| **Une proposition améliorée** | Une reformulation courte qui **garde l'idée du candidat**. On améliore sa phrase, on ne la remplace pas par la nôtre. |
+| **Ce qui est réussi** | **Trois mots**, pas une phrase : « Ton adapté », « Idée claire », « Adresse complète ». |
+| **L'axe de progrès** | **Trois mots** également : « Plus de précision », « Relier les idées ». |
+
+Les deux étiquettes remplacent les trois pavés de texte que cette voie rendait auparavant (un
+point réussi, une priorité d'amélioration, une reformulation). Le motif est simple : sur un
+exercice de trois lignes, trois paragraphes de retour, c'est plus long à lire que l'exercice
+lui-même. Ce qui manque en explication est repris par le bloc « pour viser », décrit juste
+dessous, qui lui donne des exemples concrets.
+
+Leur brièveté n'est pas une consigne mais une **contrainte** : le format de réponse plafonne ces
+champs en nombre de caractères, et le serveur recompte les mots derrière. Une « étiquette » de
+huit mots est refusée.
 
 Le verdict prend l'une de **trois valeurs**, et rien d'autre :
 
@@ -2625,8 +2995,8 @@ le résultat d'**une** tentative.
 Quatre règles encadrent ce retour, et elles vont toutes dans le même sens — **ne pas noyer le
 candidat** :
 
-- **une seule priorité, jamais une liste.** C'est le point le plus important de cette voie. Dix
-  remarques sur un exercice de trois lignes, c'est décourageant et ça n'apprend rien ;
+- **un seul axe de progrès, jamais une liste.** C'est le point le plus important de cette voie.
+  Dix remarques sur un exercice de trois lignes, c'est décourageant et ça n'apprend rien ;
 - **on n'évalue que le critère annoncé.** Si le critère est « situer le moment et le lieu »,
   l'IA n'a pas à commenter les accords, les accents, le vocabulaire ou la conclusion. Les fautes
   sans rapport avec le critère ne sont pas sanctionnées ;
@@ -2641,6 +3011,100 @@ candidat** :
 
 Les mots interdits sont les mêmes qu'ailleurs dans ce document : pas de « très mauvais », pas de
 « niveau faible », pas de « vous ne savez pas écrire ».
+
+### « Pour viser le B2 » : une seconde IA, appelée séparément
+
+Une fois le niveau établi, l'écran répond à la question suivante : **que faut-il pour atteindre
+le niveau que je vise ?** Cette partie-là est produite par un **deuxième appel à l'IA,
+totalement séparé du premier**.
+
+**Pourquoi deux appels au lieu d'un.** C'est le point le plus important de ce montage, et il
+repose sur une mesure. Sur la voie principale, on a essayé d'indiquer au correcteur le niveau
+visé par le candidat : sa justesse est **tombée de 81,8 % à 75,6 %** de jugements exacts
+(§12.4). Un correcteur qui connaît l'objectif aligne son jugement dessus — il devient plus
+indulgent avec celui qui vise haut, plus sévère avec celui qui vise bas. La seule façon de
+donner un plan d'action **sans abîmer le jugement**, c'est de poser les deux questions à deux
+moments différents :
+
+1. **le premier appel juge**, et ne sait rien de l'objectif du candidat. On ne le lui dit pas, et
+   ses consignes le lui disent explicitement : « tu ne sais pas quel niveau ce candidat vise, et
+   tu n'as pas à le deviner » ;
+2. **le second appel conseille**, et reçoit les deux niveaux : celui qui vient d'être constaté et
+   celui que la démarche du candidat exige.
+
+C'est exactement le montage déjà en place sur les productions écrites complètes (§5.9), pour la
+même raison.
+
+**Quel est le niveau visé.** Il est déduit de la **démarche administrative** choisie par le
+candidat, jamais d'un réglage isolé : carte de séjour → A2, carte de résident → B1,
+naturalisation → B2. Et **la démarche fait plancher** : quelqu'un qui vise la naturalisation tout
+en ayant coché « B1 » quelque part se voit proposer le **B2**, parce que c'est ce dont sa
+démarche a besoin. Le féliciter d'avoir atteint son objectif à B1 reviendrait à ne jamais le
+tirer vers le niveau qui compte pour lui.
+
+**Ce que ce second appel rend**, en trois blocs et rien d'autre :
+
+| Bloc | Ce que c'est |
+|---|---|
+| **Deux ou trois leviers** | Chacun est un couple : une **action** en six mots à l'impératif (« Formule ta demande plus poliment ») et un **exemple de langue** en cinq mots, recopiable tel quel (« Serait-il possible de… »). |
+| **L'exemple cible** | **Sa** réponse, réécrite au niveau visé — même situation, mêmes faits, mêmes prénoms, longueur proche de la sienne. Deux ou trois passages y sont **surlignés**, chacun avec ce qu'il apporte en trois mots (« plus poli », « plus nuancé »). |
+| **À retenir** | Une tournure réutilisable ailleurs (« Serait-il possible de + infinitif ») et, en une phrase courte, quand elle sert. |
+
+**Trois contrôles automatiques, avant que le candidat voie quoi que ce soit :**
+
+- **les passages surlignés sont réellement dans le texte — mais ils ne coûtent qu'eux-mêmes.**
+  Le serveur cherche chaque extrait dans l'exemple cible — en ignorant la seule typographie
+  (apostrophe droite ou courbe, espace insécable, tiret long), et en affichant ensuite le
+  passage **tel qu'il est dans le texte**. S'il ne l'y trouve pas — passage reformulé,
+  raccourci, recomposé — **ce passage-là est simplement retiré, et l'exemple cible reste
+  affiché**, sans son surlignage. On ne surligne jamais une phrase que l'IA n'a pas écrite, et
+  on ne fait plus payer un texte entier pour une aide à la lecture. Seul un **texte** absent ou
+  vide fait tomber cette partie. *(Règle du 12 août 2026 : elle **remplace** la précédente — un
+  seul extrait introuvable déclenchait une reprise payante puis emportait tout le bloc, leviers
+  et tournure à retenir compris, qui ne reposent pourtant sur aucune citation. C'est exactement
+  la règle des productions complètes, §5.9 : les deux surfaces, qui portent le même encart,
+  partagent désormais le même contrôle.)* ;
+- **un levier ne vend jamais un moyen déjà acquis.** « et », « mais », « alors », « après »,
+  « aussi », « parce que » sont des moyens du niveau A2 : proposés comme la clé du B1 ou du B2,
+  ils sont **retirés**. C'est le même contrôle qu'aux §8 quinquies et §5.9, pour le même défaut
+  mesuré : un candidat avait suivi un conseil de ce genre, réécrit sa réponse, et obtenu
+  exactement la même évaluation. S'il ne reste plus assez de leviers, une réparation est tentée,
+  puis le bloc est abandonné ;
+- **une seule réparation, jamais deux.** Ce bloc est un confort : payer deux appels
+  supplémentaires pour reconstruire une sortie cassée n'en vaut pas le prix.
+
+**Ce bloc peut être absent, et c'est normal.** Trois cas :
+
+- **l'objectif est déjà atteint** — le niveau constaté vaut ou dépasse le niveau visé. Aucun
+  appel n'est même émis : montrer une « version B1 » à quelqu'un qui écrit déjà du B2 serait un
+  contresens. L'écran affiche alors « Tu as atteint ton objectif » ;
+- **on ne sait pas quel niveau il vise** — pas de démarche choisie, pas de palier déclaré ;
+- **l'IA n'a pas répondu, ou sa réponse a été refusée** par l'un des contrôles ci-dessus.
+
+Dans les trois cas, **l'analyse reste entière** : le niveau, le verdict et les deux étiquettes
+sont là. Le bloc « pour viser » ne peut jamais faire échouer une analyse déjà obtenue.
+
+### Où j'en suis : la petite jauge à trois crans
+
+Sous le niveau, l'écran affiche une phrase et une barre. Les deux sont calculées **par le
+serveur**, jamais par le site ou l'application — c'est ce qui garantit qu'un candidat lit la même
+chose sur son téléphone et sur son ordinateur.
+
+La phrase prend l'une de **trois formes**, et rien d'autre :
+
+| Situation | Ce qui s'affiche |
+|---|---|
+| Le niveau atteint vaut ou dépasse l'objectif | **Tu as atteint ton objectif** |
+| Il manque exactement un palier | **Tu es proche du niveau visé** |
+| Il manque deux paliers ou plus | **Encore du chemin vers ton objectif** |
+
+Aucune de ces phrases ne nomme un manque, et c'est délibéré : on a retiré le vocabulaire de
+déficit des cartes de résultat (§6.2 bis), on ne le réintroduit pas ici.
+
+La barre compte **trois crans** qui se terminent sur l'objectif : viser le B2 donne « A2 · B1 ·
+B2 », viser le B1 donne « A1 · A2 · B1 ». Un niveau situé sous le premier cran place simplement
+le curseur au début — la phrase au-dessus dit déjà qu'il reste du chemin, la barre n'a pas
+besoin de l'enfoncer.
 
 ### Les trois productions de référence, et pourquoi elles arrivent après
 
@@ -2710,11 +3174,19 @@ Concrètement, cela veut dire que :
   (§12.1).
 
 Ce qui **est** garanti, en revanche, relève de la forme et non de la justesse : le format de
-réponse est strictement contrôlé (les quatre éléments, les trois verdicts, aucun champ
-imprévu, aucune longueur excessive), une réponse mal formée est renvoyée à l'IA **une seule
-fois** pour réparation puis abandonnée plutôt que rendue à moitié, et il est structurellement
-impossible qu'une note ou un niveau apparaisse. Autrement dit : **on sait que le retour aura la
-bonne forme ; on n'a pas encore mesuré qu'il dit juste.**
+réponse est strictement contrôlé (les cinq champs, les trois verdicts, les cinq niveaux, aucun
+champ imprévu, aucune longueur excessive), une réponse mal formée est renvoyée à l'IA **une
+seule fois** pour réparation puis abandonnée plutôt que rendue à moitié, et il est
+structurellement impossible qu'une **note** apparaisse. Autrement dit : **on sait que le retour
+aura la bonne forme ; on n'a pas encore mesuré qu'il dit juste.**
+
+⚠️ **Cela vaut aussi, et surtout, pour le niveau désormais affiché.** Il est produit par la même
+IA, sur le même corpus inexistant : personne n'a vérifié qu'un « A2 » rendu ici correspond à ce
+qu'un correcteur humain aurait dit. La bascule qui l'a introduit **n'a été mesurée par aucune
+campagne** — le banc du §12 ne note que des tâches complètes, et il n'existe pas de corpus de
+micro-productions avec un niveau attendu écrit à l'avance. C'est la raison pour laquelle ce
+niveau est présenté au candidat comme un repère d'entraînement, et pourquoi la phrase « passe une
+tâche complète pour savoir où tu en es » reste valable.
 
 La suite logique est la même que pour l'autre voie, et elle passe par les mêmes outils : faire
 annoter de vraies productions de candidats par des enseignants, puis en tirer un corpus de
@@ -3406,8 +3878,8 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 
 | Ce qu'on veut changer | Fichier |
 |-----------------------|---------|
-| **Toutes les consignes de notation** (nos 4 critères et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et tout ce qui se lit sur une note** : seuils note → niveau, écart du garde-fou, seuils des plafonds, bornes des bandes affichées) **et toutes les consignes de restitution** (confiance, anti-répétition, levier de progression, verdict, plafonds d'affichage) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v14.json` (version **active**, profil `TCF_IRN`, maximum B2 — **c'est la v13 au caractère près pour tout ce qui note ; elle ne fait que retirer les consignes décrivant la « version améliorée », supprimée du rapport**, §5.8). `v13` (accentuation, §10 bis), `v12`, `v9`, `v8`, `v7` et les versions antérieures restent en place et chargeables. ⚠️ **`v10` et `v11` existent aussi, et sont écartées** : elles ajoutaient une consigne sur la langue étrangère à l'oral et ont été **mesurées moins bonnes que v9** (§8 quater) — les activer ferait revenir ces chiffres. Un rollback change la **paire compatible** `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION` (v14/v8 → v13/v7 → v12/v6 → v9/v5 → v8/v5 → v7/v4), jamais un seul côté du contrat. ⚠️ **v12, v13 et v14 sont les seules versions dont la notation n'a pas été mesurée au banc** — parce qu'elle ne la change pas : elle est la v9 au caractère près pour tout ce qui note (verrouillé par un test qui compare les deux fichiers), et ne modifie que **deux choses de forme** : la façon dont l'IA désigne sa preuve (§5.5), et le fait qu'elle ne **recopie plus** les bornes de mots des tâches EE — elle renvoie à celles qui lui sont injectées depuis la base (§2). Retour à la recopie littérale : `EVAL_RUBRICS_VERSION=v9` + `EVAL_PROMPT_VERSION=v5`, sans migration — ⚠️ **ce retour arrière réintroduit la contradiction sur les bornes de mots** (grille à 60-90, base à 40-90, §2). |
-| **Le format de réponse de l'IA** (note, confiance, accomplissement **et son verdict**, preuves, exemples corrigés…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v8.json` (version active — **v7 privée de la seule case `version_amelioree` ; un test exige l'égalité stricte de tout le reste**, §5.8 ; `v7` = v6 réaccentuée, §10 bis) ; structure figée depuis v6 : structure complète, quatre critères exacts, niveaux limités à B2, aucun champ imprévu, au plus 2 points forts / 2 priorités / 3 exemples corrigés). **La seule différence avec la v5** : la preuve d'un critère y est un **numéro de morceau** (un entier), plus une citation recopiée — c'est ce qui rend une preuve inventée impossible plutôt que simplement interdite (§5.5). La v5 reste en place et chargeable. |
+| **Toutes les consignes de notation** (nos 4 critères et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et tout ce qui se lit sur une note** : seuils note → niveau, écart du garde-fou, seuils des plafonds, bornes des bandes affichées) **et toutes les consignes de restitution** (confiance, anti-répétition, levier de progression, verdict, plafonds d'affichage) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v15.json` (version **active**, profil `TCF_IRN`, maximum B2 — **c'est la v14 au caractère près pour tout ce qui note ; elle ne fait que retirer les consignes décrivant les « exemples corrigés » et les « suggestions », supprimés du rapport**, §5.7 bis). `v14` (retrait de la version améliorée, §5.8), `v13` (accentuation, §10 bis), `v12`, `v9`, `v8`, `v7` et les versions antérieures restent en place et chargeables. ⚠️ **`v10` et `v11` existent aussi, et sont écartées** : elles ajoutaient une consigne sur la langue étrangère à l'oral et ont été **mesurées moins bonnes que v9** (§8 quater) — les activer ferait revenir ces chiffres. Un rollback change la **paire compatible** `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION` (v15/v9 → v14/v8 → v13/v7 → v12/v6 → v9/v5 → v8/v5 → v7/v4), jamais un seul côté du contrat. ⚠️ **v12, v13, v14 et v15 sont les seules versions dont la notation n'a pas été mesurée au banc** — parce qu'elle ne la change pas : elle est la v9 au caractère près pour tout ce qui note (verrouillé par un test qui compare les deux fichiers), et ne modifie que **deux choses de forme** : la façon dont l'IA désigne sa preuve (§5.5), et le fait qu'elle ne **recopie plus** les bornes de mots des tâches EE — elle renvoie à celles qui lui sont injectées depuis la base (§2). Retour à la recopie littérale : `EVAL_RUBRICS_VERSION=v9` + `EVAL_PROMPT_VERSION=v5`, sans migration — ⚠️ **ce retour arrière réintroduit la contradiction sur les bornes de mots** (grille à 60-90, base à 40-90, §2). |
+| **Le format de réponse de l'IA** (note, confiance, accomplissement **et son verdict**, preuves, points forts, priorités…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v9.json` (version active — **v8 privée des deux cases `exemples_corriges` et `suggestions` ; un test exige l'égalité stricte de tout le reste**, §5.7 bis ; `v8` = v7 privée de `version_amelioree`, §5.8 ; `v7` = v6 réaccentuée, §10 bis) ; structure figée depuis v6 : structure complète, quatre critères exacts, niveaux limités à B2, aucun champ imprévu, au plus 2 points forts et 2 priorités). **La seule différence avec la v5** : la preuve d'un critère y est un **numéro de morceau** (un entier), plus une citation recopiée — c'est ce qui rend une preuve inventée impossible plutôt que simplement interdite (§5.5). La v5 reste en place et chargeable. |
 | **Le découpage de la production en morceaux numérotés** (une prise de parole du candidat à l'oral, une phrase à l'écrit) et sa **résolution en texte** avant affichage | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationProductionSegments.java`. Le découpage est **le même** pour ce qui est envoyé à l'IA, pour la vérification du numéro et pour le texte affiché — un seul point de vérité, comme pour le recollage des phrases coupées (§3.1) |
 | **Le correcteur utilisé partout** (async, fin de session temps réel, réparation, seconde passe, calibration) | Le **fichier d'environnement** (`.env`), pas le code : `EVAL_LLM_PROVIDER` et `EVAL_<FOURNISSEUR>_MODEL`. `application.yaml` ne porte que les **défauts** — aujourd'hui **DeepSeek / `deepseek-v4-flash`**, et **pas** son homonyme « pro », plus cher sans mieux noter. ⚠️ **Ce choix est en cours de réexamen** (§12.6). Les blocs OpenAI (`gpt-5.4`) et Anthropic restent complets et testés : basculer, c'est décommenter un bloc de trois lignes. Gemini reste l'examinateur vocal/transcripteur, jamais le correcteur. |
 | **La façon dont on parle à un fournisseur** (nom du réglage de longueur maximale, envoi ou non d'une température) | Personne ne l'écrit : elle est **négociée avec le fournisseur** au premier appel, à partir de ses messages d'erreur, puis retenue jusqu'au redémarrage (`backend_sejourfr/src/main/java/com/sejourfr/app/util/ChatCompletionDialectNegotiator.java`). Deux clés d'environnement par fournisseur permettent de reprendre la main sans code si besoin : `EVAL_<FOURNISSEUR>_MAX_TOKENS_PARAM` et `EVAL_<FOURNISSEUR>_SEND_TEMPERATURE` |
@@ -3424,11 +3896,14 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 | **Le compteur de français désaccentué** (§10 bis — il MESURE, il ne refuse jamais) | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationAccentAudit.java`. La liste fermée des formes détectées y est écrite, avec la règle qui l'a construite : en cas de doute, on ne signale rien. Aucun effet sur la note, le niveau, ni le texte rendu |
 | **La patience / réactivité de l'examinateur vocal** (détection de fin de parole) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.realtime.gemini.vad` |
 | **La longueur maximale d'une réponse du correcteur** (§12.3 bis — au-delà, la réponse est coupée et la correction est perdue) | `backend_sejourfr/src/main/resources/application.yaml`, `max-tokens` des trois correcteurs de `sejourfr.production-evaluation` : **la même valeur pour les trois**, verrouillée par un test |
-| **Les consignes des micro-exercices par compétence** (§11 bis — ce que l'IA regarde, les trois verdicts, l'interdiction d'une note ou d'un niveau, la règle « une seule priorité », les limites de l'oral) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-rubrics-v2.json` (version active — **v1 plus la règle d'accentuation**, §10 bis ; v1 reste chargeable). Fichier **séparé** de celui des tâches complètes : les deux voies n'ont ni les mêmes règles ni le même but, et on ne veut pas qu'une modification de l'une déborde sur l'autre |
+| **Les consignes des micro-exercices par compétence** (§11 bis — ce que l'IA regarde, les trois verdicts, l'interdiction d'une note, la façon dont le niveau doit se montrer dans la copie, les limites de l'oral) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-rubrics-v4.json` (version active — **v3 mot pour mot pour tout ce qui juge, plus l'obligation de montrer un B1 ou un B2 dans un passage réel** ; v1, v2 et v3 restent chargeables). Fichier **séparé** de celui des tâches complètes : les deux voies n'ont ni les mêmes règles ni le même but, et on ne veut pas qu'une modification de l'une déborde sur l'autre |
 | **Le format de réponse des micro-exercices** (les quatre éléments rendus, les trois verdicts, les longueurs maximales) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-tool-schema-v2.json` (consignes réaccentuées, contrat inchangé) — **aucun champ n'y existe pour une note ou un niveau**, c'est ce qui rend leur apparition impossible plutôt que simplement interdite |
 | **Les réglages des micro-exercices** (longueur maximale acceptée, durée maximale d'un enregistrement, nombre d'analyses offertes) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.competences.analysis`. Le **correcteur**, lui, n'a pas de réglage propre : cette voie utilise le même que tout le reste (`sejourfr.production-evaluation.provider`) |
 | **Le contenu des micro-exercices** (les compétences, les petits sujets, les trois réponses de référence et leurs notes pédagogiques) | migrations `db/migration/300_tcf/competences/` — fichiers **générés**, à ne pas modifier à la main ; le volume publié est figé par un test automatique |
-| **La version au niveau que le candidat vise** (§5.9 — ce que la réécriture conserve de lui, la forme des leviers, la règle d'accentuation) | `backend_sejourfr/src/main/resources/prompts/production-version-ciblee-rubrics-v1.json` et son contrat de sortie `production-version-ciblee-tool-schema-v1.json`. Fichiers **séparés de la grille de notation**, exactement comme pour les micro-exercices : c'est un **second correcteur**, qui ne note rien et à qui l'on ne montre pas la grille. Aucun champ n'y existe pour une note ou un niveau |
+| **Les consignes du diagnostic initial et de l'observateur du Plan** (accomplissement avant langue, limites de l'oral transcrit, allowlist de compétences, aucune note officielle) | `backend_sejourfr/src/main/resources/prompts/diagnostic-analysis-rubrics-v1.json`, fichier **séparé** de la notation et des micro-exercices. Le même contrat sert à la baseline et aux observations de productions complètes, avec un `analysis_type` explicite ; une nouvelle règle durable crée une nouvelle version au lieu de réécrire v1 |
+| **Le format structuré du diagnostic/Plan** (niveau prudent ≤ B2, accomplissement, communication, preuves segmentées, confiance et priorités) | `backend_sejourfr/src/main/resources/prompts/diagnostic-analysis-tool-schema-v1.json`, renforcé par `DiagnosticAnalysisValidator` : clés exactes, allowlist exhaustive sans doublon, numéros de segment entiers et existants, cohérence observation/statut/preuve/priorité et maximum deux priorités par production. Aucun champ de note `/20` n'existe |
+| **Les réglages du diagnostic** (versions, plafond de sortie, température et relances de session) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.diagnostic.analysis`. Le fournisseur/modèle reste celui de `sejourfr.production-evaluation`, mais la persistance et le pipeline sont séparés de `ai_evaluations` et de la calibration |
+| **La version au niveau que le candidat vise** (§5.9 — ce que la réécriture conserve de lui, la forme des leviers, ce qu'une reformulation orale ne corrige jamais, la règle d'accentuation) | `backend_sejourfr/src/main/resources/prompts/production-version-ciblee-rubrics-v2.json` et ses **deux** contrats de sortie : `production-version-ciblee-tool-schema-v2.json` (écrit) et `production-version-ciblee-tool-schema-oral-v2.json` (oral, qui ne prévoit aucun texte réécrit). La version v1 reste chargeable — retour arrière par configuration, sans migration. Fichiers **séparés de la grille de notation**, exactement comme pour les micro-exercices : c'est un **second correcteur**, qui ne note rien et à qui l'on ne montre pas la grille. Aucun champ n'y existe pour une note ou un niveau |
 | **Le coupe-circuit de cette version au niveau visé** | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.version-ciblee` — livré **actif**. `EVAL_VERSION_CIBLEE_ENABLED=false` supprime le second appel et l'encart, sans rien changer d'autre. Le **fournisseur** reste celui de tout le reste (`production-evaluation.provider`) |
 | **La situation dans le palier** (§6.3 bis — « A2 solide ») et **ses libellés** | `backend_sejourfr/src/main/java/com/sejourfr/app/enums/SituationDansNiveau.java`. Les bornes viennent de la **grille active**, pas de ce fichier ; les trois libellés y sont figés par un test, avec la règle qui les gouverne : aucun ne nomme un manque |
 | **Le corpus de référence du banc de mesure** | `backend_sejourfr/src/test/resources/calibration/golden-set-v1.json` |
@@ -3465,11 +3940,13 @@ L'IA joue un correcteur d'examen **juste, pas complaisant**. Pour chaque tâche,
 ce qui a été oublié**, appuie chaque appréciation sur un **passage précis** de la production — qu'elle **désigne par son
 numéro** au lieu de le recopier, ce qui rend une preuve inventée impossible —, donne
 **au plus deux points forts et deux priorités, chacune avec un « comment » concret et un
-exemple avant / après pris dans la copie**, rend à l'écrit **la copie entière réécrite au
-palier au-dessus**, et déclare **à quel point elle est sûre d'elle** — une certitude de
+exemple avant / après pris dans la copie**, et déclare **à quel point elle est sûre d'elle** — une certitude de
 correcteur, jamais un jugement déguisé sur le candidat. Un même fait de langue n'est traité
 **qu'à un seul endroit** du rapport, et ce que la consigne n'exigeait pas est présenté comme un
-**levier de progression**, jamais comme un manque. Le serveur, lui, calcule la note (la moyenne
+**levier de progression**, jamais comme un manque. Le rapport a d'ailleurs **maigri** : le bloc
+replié « Voir l'analyse complète » a disparu de l'écran, et avec lui les **exemples corrigés**
+et les **suggestions**, que l'IA ne produit plus du tout (§5.7 bis) — ce qui n'était pas lu
+coûtait des mots à chaque correction, et ce budget finance désormais la version au niveau visé. Le serveur, lui, calcule la note (la moyenne
 des quatre),
 **en déduit le niveau directement — la note et le niveau racontent la même histoire**,
 applique le garde-fou de couplage et deux plafonds ciblés, tronque les listes trop longues,

@@ -51,7 +51,27 @@ Cf. `exams-tcf.md`.
   ce sont les 30 erreurs les plus récentes *correspondant à la demande*. Un
   filtre `CO` inclut `CO_IMAGE` (règle transverse du projet).
 - `GET /api/me/stats?module=...` — toute la réponse est scopée au module,
-  `attemptsTotal` compris.
+  `attemptsTotal` compris. Les deux attempts techniques du diagnostic initial
+  sont exclus de ce compteur et de l'historique `/api/me/attempts`.
+- `GET /api/me/plan` → `LearningPlanDto`. `state` vaut `NEEDS_DIAGNOSTIC`,
+  `DIAGNOSTIC_IN_PROGRESS` ou `ACTIVE`; une fois actif, le serveur fournit
+  `currentPriority`, au plus deux `nextPriorities`, les compétences observées
+  et l'exercice recommandé. Les clients ne trient ni ne recalculent ces priorités.
+  `LearningPlanPriorityDto` **et** `LearningPlanSkillDto` portent
+  `promptCount` / `attemptedCount` / `validatedCount` (int) — même sémantique et
+  même calcul serveur que les compteurs de `SkillDto` (module Compétences) :
+  sujets **actifs** de la compétence, sujets déjà tentés par ce candidat, sujets
+  validés. Aucun front ne les recalcule. `recommendedExercise.estimatedMinutes`
+  est **dérivé du sujet** (durée de parole conseillée en EO, fourchette de mots
+  en EE), plus une constante par épreuve.
+  **Le Plan reste intégralement visible sans abonnement** : rien n'est masqué,
+  seul `locked: boolean` est posé sur `LearningPlanPriorityDto`,
+  `LearningPlanSkillDto` et `PlanRecommendedExerciseDto` (même sémantique que
+  dans le module Compétences : `true` ⇒ ce candidat ne peut pas produire
+  dessus). La compétence de `currentPriority` est **toujours ouverte** à un
+  compte gratuit — sinon l'étape 1 du Plan serait inatteignable. L'exercice
+  recommandé, lui, peut sortir `locked: true` : il reste désigné, avec un
+  cadenas.
 - `GET /api/me/dashboard` — agrégat unique du tableau de bord + hubs web :
   streak de jours d'activité (courant + record, fuseau Europe/Paris), nb
   d'examens blancs finis (global + `civiqueMockExams`/`tcfMockExams` par
@@ -94,6 +114,71 @@ Cf. `exams-tcf.md`.
   `finishedAt` ; les soumissions suivantes sont refusées).
 
 Cf. `pipeline-evaluation-eo-ee.md`.
+
+## Diagnostic initial TCF et Plan
+
+Parcours offert une fois par version et distinct d'un examen blanc : une EE
+hybride de 100–130 mots puis une EO enregistrée de 2–3 minutes. Il ne consomme
+pas les quotas d'entraînement, n'écrit aucune évaluation notée `/20` et ne crée
+pas de `TCF_COMPLET`.
+
+**Les deux productions se font sans compte, l'analyse exige un compte.** Le
+visiteur lit les sujets sur une route publique, rédige et s'enregistre côté
+client, puis crée son compte au moment d'« Analyser mes réponses ». Rien n'est
+persisté avant : ni session diagnostique anonyme, ni attempt, ni audio invité
+sur R2 (`diagnostic_sessions.user_id` reste `NOT NULL`).
+
+- `GET /api/public/diagnostics/current` → `PublicDiagnosticResponse`,
+  **public**, sans authentification, rate-limité par IP (120 requêtes / 10 min,
+  `sejourfr.rate-limit.public-diagnostic` — lecture de contenu seedé, la borne
+  ne sert qu'à couper une boucle automatisée). Champs : `diagnosticCode`,
+  `diagnosticVersion`, `written` et `oral`, chacun un
+  `PublicDiagnosticExerciseDto` (`productionTaskId`, `epreuve`, `title`,
+  `instruction`, `helperText`, `wordsMin`, `wordsMax`, `durationMinSeconds`,
+  `durationMaxSeconds`, `instructionAudioUrl`). **Pas** de `attemptId`,
+  `submissionId` ni `submissionStatus` : ils n'existent qu'une fois la session
+  créée, donc après l'inscription. La version servie est la même que celle que
+  `POST /api/diagnostics` utilisera (résolution partagée,
+  `DiagnosticContentResolver`).
+- Après l'inscription, les fronts enchaînent `POST /api/diagnostics` puis les
+  deux `POST /api/production-submissions` **coup sur coup** : cette séquence est
+  acceptée telle quelle (verrouillée par `DiagnosticPostSignupSequenceIT`).
+  ⚠️ Un compte qui avait **déjà terminé** ce diagnostic reçoit sa session
+  existante en `status=COMPLETED`, `nextStep=RESULT` avec son `result` — jamais
+  d'erreur, jamais de seconde session ; les deux soumissions qui suivraient sont
+  alors refusées en **422** (« Ce diagnostic n'accepte plus de nouvelle
+  production. »). C'est au front de lire `status` et de proposer le résultat
+  existant plutôt que d'envoyer les productions.
+- `GET /api/diagnostics/current` → `DiagnosticResponse` de la version active.
+  Renvoie `status=NOT_STARTED` sans créer de données si le candidat ne l'a pas
+  commencé ; sinon permet la reprise sur un autre appareil.
+- `POST /api/diagnostics` → crée ou reprend idempotemment la session active,
+  avec ses deux attempts et ses deux exercices. Deux appels concurrents
+  aboutissent à la même session.
+- `GET /api/diagnostics/{sessionId}` → même DTO agrégé. Une session d'un autre
+  utilisateur répond **404**, pour ne pas révéler son existence.
+- `POST /api/diagnostics/{sessionId}/retry-analysis` → relance seulement une
+  session `FAILED`, avec rate-limit et plafond `max-session-retries`; si les
+  deux analyses sont déjà présentes, la synthèse déterministe est simplement
+  rejouée sans appel IA.
+
+`DiagnosticResponse` contient `sessionId`, le code/version, `status`,
+`nextStep` (`PRESENTATION|WRITTEN|ORAL|ANALYSIS|RESULT`), les deux
+`DiagnosticExerciseDto`, puis `result` quand il est prêt. Les rendus réutilisent
+`POST /api/production-submissions` avec les `productionTaskId` et `attemptId`
+fournis. Le bypass du quota n'est accordé que pour la paire exacte de cette
+session ; les contrôles d'appartenance, type EE/EO, taille/durée, rate-limit,
+R2 et Whisper restent actifs. Une seule submission est admise par attempt.
+
+Le résultat distingue accomplissement, communication, niveau estimé prudent
+(maximum B2, non officiel), compétences observées, preuve exacte, confiance et
+priorités. Au plus trois priorités globales sont renvoyées. `result.nextAction`
+est toujours un micro-exercice actif du catalogue, y compris lorsqu'aucune
+priorité n'est assez fiable (repli sur une compétence observée puis sur
+l'allowlist). Le Plan est dérivé et ordonné côté serveur depuis des observations
+sourcées ; une ligne `NOT_OBSERVED` reste historisée mais n'efface jamais une
+preuve antérieure. Le Plan reste séparé de l'historique et des statistiques de
+progression.
 
 ## Compétences TCF (micro-entraînement EE/EO)
 
@@ -142,10 +227,24 @@ de niveau CECRL**. Tous ces endpoints sont **authentifiés** ; aucun n'est publi
   le quota (l'échec n'est pas du fait du candidat), ce qui **impose** le plafond de 3 essais
   (`retry_count`, appliqué en service *et* en base).
 
-**Freemium** : produire, s'auto-évaluer et lire les 3 références est **gratuit et illimité**
-pour tout compte inscrit — **aucun sujet n'est verrouillé**. Seule l'**analyse IA** est premium
-(module TCF, `hasTcf`), avec **3 analyses offertes à vie**, consommées **à l'acceptation** (au
-moment où `analysis_requested` est persisté) et non au succès.
+**Freemium (règle du 2026-08-10 — révoque « aucun sujet n'est verrouillé »)** : pour un compte
+**sans accès TCF**, seules sont ouvertes **la première compétence de chaque tâche** (6 au
+total) **plus la compétence de la priorité n°1 de son Plan**, et dans chacune **les 2 premiers
+sujets actifs**. Sur un sujet ouvert, produire, s'auto-évaluer et lire les 3 références restent
+gratuits et illimités. Un abonné TCF n'a aucun verrou.
+- **`locked: boolean`** est porté par `SkillDto`, `SkillPromptDto`, `SkillPromptSummaryDto`,
+  `LearningPlanPriorityDto`, `LearningPlanSkillDto` et `PlanRecommendedExerciseDto`. Sémantique
+  unique : `true` ⇒ **ce candidat ne peut pas produire** sur cette compétence / ce sujet → les
+  fronts affichent un cadenas et renvoient vers le paiement. Toujours `false` pour un abonné
+  TCF. **Décidé par `SkillAccessService`, jamais recalculé par un front.**
+- **Le verrou est opposable** : `POST /api/skill-attempts` (JSON et multipart),
+  `POST /api/skill-attempts/{id}/analyse` et `.../retry` répondent **403** sur un sujet
+  verrouillé, avant tout traitement — aucune ligne créée, aucun audio uploadé.
+- **L'analyse IA reste un verrou distinct et cumulé** : **3 analyses offertes à vie**,
+  consommées **à l'acceptation** (au moment où `analysis_requested` est persisté) et non au
+  succès. Inchangé.
+- La garde des **références** (« au moins une tentative sur ce sujet ») est **inchangée** et
+  indépendante de `locked`.
 
 **Oral** : l'audio est conservé dans tous les cas ; la transcription Whisper n'est déclenchée
 **que si une analyse est demandée**. Cf. `notation-ia-eo-ee.md` §11 bis.
@@ -153,13 +252,20 @@ moment où `analysis_requested` est persisté) et non au succès.
 ## Audience des landings
 
 - `POST /api/public/page-views` — public, sans authentification. Corps
-  `{path, source, event}` avec `event = VIEW | CTA`. Répond **204** (émis en
-  `sendBeacon`, la réponse n'est jamais lue). Le backend n'accepte qu'un `path`
-  de la liste blanche `PageViewService.TRACKED_PATHS` et normalise `source`
+  `{path, source, event}`. Répond **204** (émis en `sendBeacon`, la réponse
+  n'est jamais lue). Le backend vérifie la paire dans
+  `PageViewService.EVENTS_BY_PATH` et normalise `source`
   (`tiktok|instagram|whatsapp|facebook|youtube|direct`, tout le reste →
   `autre`) : c'est ce qui borne la table face à un endpoint ouvert.
-- `GET /api/admin/page-views?path=/reussir&days=30` — agrégat par source et par
-  jour (`PageViewStatsResponse`).
+- Chemins/événements : `/reussir` accepte `VIEW`, `CTA` et
+  `SOCIAL_LANDING_DIAGNOSTIC_CLICKED`; `/diagnostic` accepte les six étapes
+  `DIAGNOSTIC_*` du parcours, `DIAGNOSTIC_ACCOUNT_REQUIRED` (le visiteur a
+  produit ses deux réponses sans compte et atteint l'écran qui en demande un —
+  la mesure de conversion du parcours invité) et
+  `DIAGNOSTIC_TO_PREMIUM_CLICKED`; `/plan`
+  accepte `PLAN_OPENED`, `PLAN_RECOMMENDED_EXERCISE_STARTED` et le clic Premium.
+- `GET /api/admin/page-views?path=/reussir&days=30` — agrégat par source, par
+  jour et compte brut par événement (`PageViewStatsResponse.events`).
 - `GET /api/admin/page-views/paths` — pages mesurées, pour le sélecteur admin.
 
 **Aucune donnée personnelle** : ni IP, ni user-agent, ni identifiant de
@@ -168,7 +274,7 @@ visiteurs uniques. Cf. migration V020.
 
 ## Admin
 
-- `/api/admin/{dashboard,questions,themes,conversations,media,passages,audio-questions,calibration/{submissions,stats},page-views}`
+- `/api/admin/{dashboard,questions,themes,conversations,media,passages,audio-questions,calibration/{submissions,stats},page-views,diagnostics}`
 - `GET /api/admin/questions?module=&themeId=&difficulty=&type=&active=&media=&search=&page=&size=`
   — `media` vaut `AUDIO | IMAGE | VIDEO | NONE` (`NONE` = questions sans média
   principal ; le filtre porte sur `question.media`, pas sur l'audio secondaire
@@ -228,6 +334,21 @@ Console de contenu du module Compétences (cf. la section utilisateur plus haut)
   et les fronts réaffichent alors « Sujet N ». C'est la seule surface d'écriture du catalogue
   de sujets : consigne, bornes, activation et fiche de scénario T2 restent pilotées par les
   migrations de contenu.
+
+### Audio fixe du diagnostic
+
+- `GET /api/admin/diagnostics/{code}/versions/{version}/instruction-audio` →
+  `DiagnosticInstructionAudioDto`, avec la tâche EO, la clé R2 stable, l'URL,
+  l'état de configuration Azure/R2 et le résultat d'un HEAD sur l'objet.
+- `POST /api/admin/diagnostics/{code}/versions/{version}/instruction-audio` →
+  vérifie d'abord la clé déterministe de l'UUID de tâche ; si l'objet existe,
+  répare seulement son URL (même sans Azure), sinon génère explicitement la
+  consigne avec Azure Speech, l'envoie dans R2 et persiste l'URL.
+
+Il n'existe volontairement aucun CRUD admin des sujets diagnostiques : contenu,
+bornes, version, URL fixe et allowlists restent **seed-only**. La migration ne
+fait aucun appel externe : V755 référence l'objet préalablement généré et vérifié.
+L'audio n'est jamais généré au boot ou au démarrage candidat.
 
 **Pagination** : `?size=` est plafonné à **100** sur toutes les listes paginées
 (`spring.data.web.pageable.max-page-size`), défaut 20.

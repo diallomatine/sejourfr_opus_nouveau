@@ -17,7 +17,7 @@ import 'results_section_head.dart';
 ///
 /// Le front ne **deduit** rien : il ne saurait pas distinguer « objectif
 /// atteint » d'un second appel LLM en echec. C'est le serveur qui pose
-/// `niveau_vise_atteint` (exclusif de [TargetLevelVersionCard]).
+/// `niveau_vise_atteint` (exclusif de `ProductionActionPlan`).
 ///
 /// Teinte verte, pas bleue : le vert dit « palier tenu » dans toute l'app
 /// (`CecrlColor`), et il n'y a ici aucune marche a monter. Miroir web :

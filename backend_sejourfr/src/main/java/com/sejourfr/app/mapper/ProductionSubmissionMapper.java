@@ -73,7 +73,11 @@ public class ProductionSubmissionMapper {
             s.getErreurMessage(),
             s.getSubmittedAt(),
             eval,
-            transcription
+            transcription,
+            // Le changement de Plan est resolu par le service, a la lecture d'un
+            // detail : un mapper ne le calcule pas, et une liste d'historique
+            // n'a aucune raison de le payer.
+            null
         );
     }
 
@@ -89,7 +93,7 @@ public class ProductionSubmissionMapper {
             base.motsCount(), base.mediaDurationSec(),
             base.retryCount(), base.erreurMessage(),
             base.submittedAt(), base.evaluation(),
-            base.transcription()
+            base.transcription(), base.planChange()
         );
     }
 

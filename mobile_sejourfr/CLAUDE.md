@@ -34,6 +34,9 @@ lib/
 │   │   ├── api_client.dart        Client Dio (intercepteurs JWT, refresh auto)
 │   │   ├── api_config.dart        Base URL via .env (Env.read)
 │   │   ├── api_exception.dart     ApiException typée
+│   │   ├── diagnostic_repository.dart  Reprise/démarrage/polling du diagnostic TCF
+│   │   ├── learning_plan_repository.dart  Plan adaptatif de l'utilisateur
+│   │   ├── audience_repository.dart  Événements agrégés publics (sans donnée perso)
 │   │   ├── auth_repository.dart
 │   │   ├── themes_repository.dart
 │   │   ├── attempts_repository.dart
@@ -48,6 +51,7 @@ lib/
 │   │   ├── enums.dart             AppModule, Difficulty, QuestionType, MediaType, UserRole
 │   │   ├── auth_models.dart
 │   │   ├── question_models.dart
+│   │   ├── diagnostic_models.dart Diagnostic, observations et plan (miroirs serveur)
 │   │   └── attempt_models.dart
 │   ├── router/
 │   │   └── app_router.dart        Routes + redirects auth
@@ -69,7 +73,14 @@ lib/
     ├── home/
     │   └── widgets/               module_switch.dart
     ├── shell/
-    │   └── main_shell.dart        Bottom nav 5 onglets : Accueil · Civique · TCF · Progression · Profil
+    │   └── main_shell.dart        Bottom nav 5 onglets : Accueil · Réviser · Examens · Plan · Profil
+    ├── diagnostic/               Parcours initial EE + EO, reprise serveur et résultat léger
+    │   ├── diagnostic_controller.dart  StateNotifier + soumissions standard + polling
+    │   ├── diagnostic_screen.dart
+    │   └── widgets/              Présentation, écrit, oral, analyse, résultat
+    ├── plan/                     Priorité immédiate + séance recommandée + observations
+    │   ├── learning_plan_provider.dart
+    │   └── plan_screen.dart
     ├── hub/
     │   └── widgets/hub_home_widgets.dart  Widgets partagés des 2 home hubs
     │                                     (HubHomeHeader, ExamBlancHero, EpreuveCard, SectionLabel/Counter/Link)
@@ -140,7 +151,7 @@ lib/
     │                                    tcf_note_scale, results_quick_row,
     │                                    criteria_overview, priority_card,
     │                                    production_text_card, results_section_head,
-    │                                    accomplishment_card, etc.
+    │                                    evaluation_notice, etc.
     ├── review/                    Favoris + erreurs récentes (tabs)
     └── profile/                   Compte + paramètres + logout + suppression de compte
 ```
@@ -192,7 +203,12 @@ Migration globale faite — ne plus introduire de `Icons.*` Material (seule exce
 `ListGroup`/`ListRow`/`SectionTitle` (listes encartées), `SegmentedTabs` + `parcoursSegments()`
 (toggle TCF rouge / Civique bleu), `ProgressRing`, `ProgressTrack`, `StatValueCard`,
 `showAppSheet` (bottom sheet à poignée), `AppButton` (pill — variants primary/accent/soft/
-outline/ghost/danger), `AppCard` (r=18), `AppTag` (badge pill, tones).
+outline/ghost/danger), `AppCard` (r=18), `AppTag` (badge pill, tones),
+`PressableCard` + `CardChevron` (`pressable_card.dart` — carte cliquable à retour au toucher,
+promue de `tcf_production/widgets/production_blocks.dart` quand le Plan a repris l'anatomie de
+la carte de compétence ; `ProductionChevron` s'appelle désormais `CardChevron`),
+`GradientHero` (`gradient_hero.dart` — bloc dégradé + anneau décoratif des maquettes
+Diagnostic / Plan).
 
 **Le logo** reste le lockup `core/widgets/sejourfr_logo.dart` (Cocarde + Wordmark + Tagline).
 
@@ -436,7 +452,7 @@ activé (pas de clé à fournir).
 ## Bottom nav et hubs Civique / TCF
 
 **Refonte 2026 — nouvelle nav** : la bottom nav a 5 onglets **Accueil · Réviser · Examens ·
-Progrès · Profil** (cf. maquette) :
+Plan · Profil** (cf. maquette) :
 
 - **Accueil** (`screens/home/`) : carte « À travailler en priorité » (catégorie la plus faible),
   3 stat cards (maîtrise/streak/niveau TCF), « Mes parcours », bloc IA EE/EO, raccourci examens.
@@ -446,8 +462,10 @@ Progrès · Profil** (cf. maquette) :
 - **Examens** (`screens/examens/`) : examens blancs complets des 2 parcours derrière un toggle
   (`examensParcoursProvider`). Embarque `TcfFullExamsView` et `CiviqueFullExamsView` (corps
   extraits des écrans pleine page, qui restent pour les push profonds).
-- **Progrès** (`screens/progres/`) : 3 anneaux de synthèse + listes encartées par parcours +
-  `RecoScreen` (route `/progress/recommandations`). L'ancien `screens/stats/` est **supprimé**.
+- **Plan** (`screens/plan/`, route `/plan`) : priorité serveur immédiate, exercice de compétence
+  recommandé, deux priorités suivantes au maximum et huit compétences observées au maximum.
+  L'écran **Progrès** (`screens/progres/`, route `/progress`) reste fonctionnel mais secondaire,
+  via « Voir ma progression » ; `RecoScreen` reste sur `/progress/recommandations`.
 - **Profil** (`screens/profile/`) : carte identité, 3 stats, carte « Mon pass » →
   `ManageSubscriptionScreen` (carte gradient maquette + détails + inclusions, paywall pour
   prolonger), objectif, groupes compte/aide, déconnexion + suppression via `showAppSheet`.
@@ -477,6 +495,138 @@ chaîne** — « D'après 1 épreuve sur 4 » — rendue dans le nouveau `hint` 
 Profil, gelée en miroir du web par `test/estimated_tcf_level_test.dart`. Elle
 **constate un périmètre**, elle ne reproche pas un inachèvement, et ne porte aucun
 chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc rien non plus.
+
+## Diagnostic TCF initial et Plan personnalisé
+
+- `/diagnostic` est hors shell **et publique** (allowlist `isOnPublicPage` du redirect global,
+  à côté de `/about` ; elle échappe aussi à l'onboarding pour qu'un lien profond n'atterrisse
+  pas sur `/login`). `/plan` reste authentifié.
+- **Le visiteur produit AVANT d'avoir un compte.** `DiagnosticController` a deux régimes,
+  choisis par `authControllerProvider.select((s) => s is AuthAuthenticated)` :
+  - **invité** : sujets lus sur `GET /api/public/diagnostics/current` (`PublicDiagnostic` /
+    `PublicDiagnosticExercise`, **sans `attemptId` ni `submissionId`** — ils n'existent
+    qu'après la session), étape courante déduite de la production locale
+    (`DiagnosticGuestStep`), puis écran de demande de compte ;
+  - **connecté** : parcours serveur **inchangé** (`GET /api/diagnostics/current`,
+    `POST /api/diagnostics`, `GET /api/diagnostics/{sessionId}`, `…/retry-analysis`).
+- **La production n'est jamais gardée seulement en mémoire** — `diagnosticControllerProvider`
+  est `autoDispose` et l'arbre est reconstruit au moment précis de l'inscription.
+  `DiagnosticDraftStore` (`screens/diagnostic/diagnostic_draft_service.dart`, patron
+  d'`EeDraftService`) écrit le texte dans `SharedPreferences` (autosave 2 s + à la validation)
+  et **recopie l'audio dans le dossier de l'application** — on persiste le **nom** du fichier,
+  jamais son chemin absolu (le conteneur iOS change d'identifiant). Survit au kill de l'app, au
+  détour par Google/Apple sign-in et à la bascule d'`AuthState`. À la relecture, un audio
+  disparu n'est pas annoncé.
+- **Ordre d'envoi post-inscription, à ne pas relâcher** : `POST /api/diagnostics` → écrit →
+  attente de l'accusé de réception → oral → attente du sien → **et seulement là**
+  `DiagnosticDraftStore.clear()`. Un envoi partiel ou en échec **garde tout** et propose de
+  réessayer (`canRetrySync`). Un compte qui a **déjà** un diagnostic est détecté avant toute
+  soumission (statut non `IN_PROGRESS`, ou deux `submissionId` déjà posés) : on le dit
+  (`noticeMessage`, `DiagnosticAlreadyDoneView`) au lieu de boucler sur une erreur, et la copie
+  locale n'est effacée que sur confirmation explicite.
+- L'écran de demande de compte (`DiagnosticAccountGate`) **n'affiche aucun résultat réel** —
+  l'analyse coûte deux appels LLM. Il montre un **exemple** étiqueté comme tel (badge
+  « EXEMPLE » + phrase « ce ne sont pas vos réponses ») et ouvre l'inscription **ou** la
+  connexion avec `redirect=/diagnostic`.
+- Les réponses utilisent le pipeline de production existant : EE en JSON et EO en multipart via
+  `ProductionRepository`. La zone écrite réutilise `WritingZone` avec les bornes du DTO ; l'oral
+  réutilise `AudioRecorderService`, `RecordingWaveform` et `SejourAudioPlayer`. Les permissions
+  micro restent centralisées dans le service existant.
+- `GET /api/me/plan` est la seule source de hiérarchie du Plan. L'app ne déduit ni statut, ni
+  priorité, ni faux score vers l'objectif. Après une production EE/EO, un micro-exercice ou une
+  mutation du diagnostic, `learningPlanRevisionProvider` est incrémenté : un Plan ou un Accueil
+  qui l'observe est rechargé, sans provoquer de requête réseau si aucun écran ne l'observe. Le
+  retour d'un entraînement poussé au-dessus de Plan force aussi une relecture
+  (`RouteAware.didPopNext`).
+- **Le Plan se lit comme un chemin**, pas comme une pile de cartes : héros (« niveau estimé →
+  objectif » + 3 compteurs réels), « À faire maintenant », puis **« Votre parcours » — des
+  étapes numérotées, verticales et reliées** (étape 1 = `currentPriority` marquée EN COURS,
+  étapes suivantes = `nextPriorities` marquées À VENIR, étape finale = la réévaluation). Le
+  niveau estimé du héros vient **exclusivement** de `dashboardProvider`
+  (`estimatedTcfLevel`) et dégrade sur le seul objectif quand il manque — jamais de recalcul.
+- **Compteurs de sujets sur les DTO du Plan — DEUX jeux, à ne jamais confondre.**
+  `promptCount` / `attemptedCount` / `validatedCount` (sur `LearningPlanPriority` **et**
+  `LearningPlanSkill`, mêmes champs que `SkillDto`) décrivent la **compétence entière**
+  (15 sujets) : ils alimentent les cartes « Mes compétences observées », qui reprennent
+  l'anatomie de `CompetenceCard` (Réviser → Compétences) et le **libellé partagé**
+  `skillProgressLabel` (`core/utils/skill_progress.dart`, dont `competenceProgressLabel`
+  n'est plus qu'une application au `SkillDto`). `stepPromptCount` /
+  `stepAttemptedCount` / `stepValidatedCount` / `stepCompleted` (priorités seulement)
+  décrivent l'**étape** — les **5 premiers** sujets de la compétence : c'est ce couple que
+  l'anneau d'une étape du parcours affiche (« 2/5 », jamais « 2/15 »). Tout est dérivé
+  serveur, y compris `stepCompleted` : l'écran ne compare plus rien lui-même.
+- **Une étape peut être TERMINÉE, et elle reste affichée** : badge `EN COURS` →
+  `TERMINÉE`, plus la ligne « Réévaluée à ta prochaine production. » sous le titre
+  (`_StepDoneLines`, miroir mot pour mot de `LearningPlanView` côté web). Les priorités ne
+  changent qu'à l'arrivée d'une nouvelle observation — sans cette phrase, un candidat qui a
+  fini son étape et la voit toujours là croit à un bug. Quand elle est terminée sans être
+  toute validée, une seconde ligne discrète dit « N validés sur M » : terminer n'est pas
+  tout réussir. Rien de tout ça quand l'étape n'est pas terminée.
+- **L'état de maîtrise remplace le compteur sur une carte de compétence**
+  (décision propriétaire) : `SkillDto.masteryState` (« Priorité » / « À renforcer » /
+  « En consolidation » / « Solide », libellés **gelés**, miroir de
+  `SKILL_MASTERY_STATE_LABEL` côté web) prend la place de `competenceProgressLabel`
+  dans `CompetenceCard`, et celle de `status.label` sur les cartes « Mes compétences
+  observées » du Plan. **`null` (aucune observation) est le seul cas où le compteur
+  reste.** Teinte et pilule vivent à **un seul endroit** :
+  `core/widgets/skill_mastery_tag.dart` (`SkillMasteryTag` + extension
+  `SkillMasteryStateStyle`), qui reprend les teintes de `LearningPlanSkillStatus.color`
+  — jamais une couleur nouvelle. L'anneau garde ses compteurs.
+- **La trajectoire d'une compétence vit dans SA fiche** (`CompetenceDetailScreen`),
+  pas dans le Plan ni dans un écran de plus : `SkillDetail.trajectory` →
+  `SkillTrajectorySection` (`competences/widgets/skill_trajectory.dart`), frise du
+  **plus ancien au plus récent** (ordre serveur), une ligne = source
+  (`LearningPlanSourceType.label`, gelé) + verdict + date, explication en second plan.
+  **Vide ⇒ `SizedBox.shrink`**, pas d'encart d'excuse. `confidence` n'est **jamais**
+  montrée au candidat.
+- **Une étape du Plan peut devenir une VÉRIFICATION** —
+  `recommendedExercise.kind == PlanExerciseKind.reassessment` : **même carte, même
+  emplacement**, badge `VÉRIFICATION` (là où s'affiche `EN COURS`), bouton
+  « Vérifier ma progression » sur `_NowCard` comme sur `_CurrentStepCard`. Jamais une
+  seconde carte. **Le routage vit à un seul endroit**,
+  `tcf_production/recommended_exercise_launcher.dart` (partagé avec le résultat du
+  diagnostic) : micro-sujet → `competencePromptPath` ; vérification → on charge le
+  sujet (`getTask`), on démarre la session (`startSingle`) puis on ouvre
+  `productionSessionPath` (`…/t/0`) — exactement le chemin du mode « Sujets », **le
+  `productionTaskId` ne voyage jamais dans l'URL**. `locked` ⇒ paywall, l'exercice
+  reste désigné.
+- **« Ce que ça change dans le Plan » sur le rapport d'une tâche** :
+  `ProductionSubmissionDto.planChange` → `PlanChangeLine`
+  (`tcf_production/widgets/`), **une ligne** en fin de `EvaluationReport`
+  (« X confirmée » / « Nouvelle priorité : Y. » + « Voir » vers `/plan`), les deux
+  moitiés indépendamment nullables. **`null` est un cas NORMAL** : rien ne s'affiche,
+  aucun indicateur. Les observations arrivant **après** le plan d'action,
+  `ProductionResultPollGuard` prolonge la **même** boucle dans le **même** sursis
+  (`kActionPlanGrace`, même échéance) — pas de seconde boucle, et `awaitsActionPlan`
+  reste réservé au plan d'action.
+- **Le Plan reste visible en entier même verrouillé** (freemium Compétences, cf. § dédié) :
+  `locked` sur `LearningPlanPriority` / `LearningPlanSkill` / `PlanRecommendedExercise`
+  n'ôte **aucune** information — ni une priorité, ni une compétence observée, ni un
+  compteur, ni l'anneau. Il ajoute la pilule « Premium » et remplace le CTA (« Commencer » /
+  « Continuer cette étape ») par « Débloquer cet exercice » / « Débloquer cette étape », qui
+  ouvre `showTcfLockPaywall`. `_ExerciseRow` annonce l'exercice recommandé **à l'identique**,
+  verrouillé ou non. **Ne pas coder « l'étape 1 est toujours ouverte »** : le serveur
+  déverrouille la priorité n°1, l'app lit `locked`, toujours.
+- **Libellés de `LearningPlanSkillStatus` gelés** sur ceux du web (« Non observée /
+  Prioritaire / À renforcer / Solide », `web_sejoufr/lib/diagnostic.ts`), verrouillés par
+  `test/diagnostic_models_test.dart`. Leur **teinte** vit à un seul endroit :
+  `LearningPlanSkillStatus.color` (`core/theme/app_theme.dart`), partagée Plan ⇄ Diagnostic.
+- **Le résultat du diagnostic affiche enfin `summary`, `taskCompletion`, `communicationStatus`
+  et `weaknesses`** (deux cartes « Vos productions »), en plus des compétences observées et de
+  la priorité n°1. **Aucun pourcentage de progression vers un palier**, ni sur le Plan ni sur
+  le diagnostic : le brief l'interdit et le serveur n'en publie aucun.
+- L'Accueil suit trois états serveur : invitation dismissible avant diagnostic, reprise de la
+  session interrompue, puis priorité du jour après résultat. Il ne réaffiche jamais l'invitation
+  générique une fois le diagnostic terminé.
+- Les liens profonds protégés conservent leur destination dans `redirect` jusqu'à la connexion,
+  y compris lors d'un démarrage à froid tant que `AuthLoading` n'a pas encore résolu le token ;
+  `safePostLoginDestination` refuse tout schéma/hôte externe et toute boucle vers l'auth.
+- L'audience agrégée utilise uniquement `POST /api/public/page-views` avec `{path, source:
+  "direct", event}` : `direct` est la seule source backend compatible avec une ouverture native.
+  Aucun identifiant ni contenu de production n'est envoyé et un échec analytics ne bloque jamais
+  le parcours. La route étant publique (`skipAuth`), **le funnel reste mesurable en invité** ;
+  `DIAGNOSTIC_ACCOUNT_REQUIRED` (émis une fois, à l'affichage de l'écran de demande de compte)
+  est la mesure de conversion du parcours.
 
 **Les anciens hubs sont supprimés** : `screens/tcf/`, `screens/hub/`, `civique_screen.dart`
 et leurs widgets n'existent plus. `/civique` et `/tcf` sont des **redirects** vers `/reviser`
@@ -1030,7 +1180,8 @@ Structure de référence : maquette « Résultats TCF — Rapport express », **
    côtés ; repli sur le compte de points forts sans check-list) et **« À corriger en
    priorité »** (**rouge** — `N priorité(s)`). Chacun tient sur **une ligne** : titre, chiffre,
    chevron. Appuyer ouvre le détail **dans le même encart, juste en dessous** — points traités
-   puis points forts d'un côté (séparés par un filet, deux natures différentes), la ou les
+   puis points **oubliés** (intertitre rouge, depuis v15/v9) puis points forts d'un côté
+   (ces derniers séparés par un filet, deux natures différentes), la ou les
    priorités **complètes** de l'autre (`PriorityCard(embedded: true)` : ni carte ambre ni
    étiquette, le bandeau les porte déjà). Un bandeau sans contenu ne s'affiche pas.
    ⚠️ **La priorité vit désormais à UN SEUL endroit.** Elle était résumée en tête puis répétée
@@ -1048,13 +1199,72 @@ Structure de référence : maquette « Résultats TCF — Rapport express », **
    dédiée plus bas), et `improved_version_card.dart` est **supprimé**. La phrase visée par la
    priorité n° 1 y est **surlignée** (`highlight`, première occurrence **exacte** ; aucune
    correspondance ⇒ aucun repère, jamais un repère faux), avec pour seule action « Masquer
-   les repères » (douce). Puis, juste en dessous, le **seul texte modèle** de l'écran :
-   `TargetLevelVersionCard`.
+   les repères » (douce). Puis, juste en dessous, le **plan d'action** :
+   `production_action_plan.dart`.
+5. **Le plan d'action** (`ProductionActionPlan`, `version_ciblee`) — les mêmes blocs que le
+   retour d'un micro-exercice de compétence, via les widgets **partagés**
+   `widgets/action_plan.dart` : « Pour viser {niveau} » (leviers action / exemple), puis
+   « Une version plus aboutie » à l'écrit (texte réécrit, extraits surlignés, puce par
+   segment) ou « Des versions plus abouties » à l'oral (une ligne par reformulation :
+   `original` atténué, `reformule` en accent, pastille `apport`), puis « À retenir ».
+   ⚠️ **Le titre n'étiquette plus un texte d'un palier** : l'ancien bloc « La marche
+   au-dessus » / « Au niveau B2, votre réponse pourrait ressembler à ceci » est
+   **supprimé** (`target_level_version_card.dart` avec lui), parce que rien ne vérifie
+   qu'un texte atteint le palier annoncé — un candidat a recopié un exemple étiqueté B2 et
+   l'analyse l'a noté B1. Seul l'**objectif** est nommé. Chaque section se masque
+   indépendamment ; bloc absent ⇒ rien du tout.
 
-Puis **« Voir l'analyse complète »**, toujours **repliée par défaut** : avertissements →
-accomplissement détaillé → exemples corrigés → suggestions (le détail par critère l'a quittée
-pour la section 3, les points forts pour le bandeau vert). La transcription EO reste dans sa
-feuille (dialogue en bulles).
+### Le sursis du plan d'action (2026-08-11)
+
+Le plan d'action vient d'un **second appel LLM**, lancé côté serveur **après**
+que la correction est persistée et la soumission passée à `EVALUATED` — hors
+transaction, pour qu'il ne puisse jamais retarder ni faire échouer la
+correction. **Ce comportement serveur est volontaire et ne change pas** : le
+correctif est entièrement côté app. L'écran s'affichait sans plan alors qu'il
+arrivait dix à quinze secondes plus tard, et le candidat devait sortir puis
+revenir pour le voir.
+
+- **Le polling existant est prolongé**, pas doublé. Les deux écrans de résultat
+  (`ee_results_screen` / `eo_results_screen`) recopiaient la même boucle : elle
+  est désormais arbitrée par **`ProductionResultPollGuard`**
+  (`production_result_polling.dart`, avec `kProductionPollInterval` 3 s et
+  `kProductionPollMaxDuration` 90 s = borne dure). Après `EVALUATED`, il
+  prolonge **15 s au maximum** tant que le feedback ne porte ni `versionCiblee`
+  ni `niveauViseAtteint`.
+- **Durée, libellé et indicateur vivent à un seul endroit**, dans
+  `widgets/action_plan.dart` — déjà partagé avec le résultat d'un
+  micro-exercice, qui attend exactement le même bloc : `kActionPlanGrace`
+  (**15 s**, miroir de `ACTION_PLAN_GRACE_MS` côté web ; l'ancien
+  `_niveauViseGrace` à 10 s des Compétences est **supprimé**),
+  `kActionPlanPendingLabel` (**« On prépare tes conseils… »**, contrat gelé) et
+  le widget `ActionPlanPending` (le petit `CircularProgressIndicator` déjà
+  employé par `EvaluationLoadingView`, pas un composant de plus).
+- **Ce que voit le candidat** : un petit spinner et une ligne, à l'emplacement
+  du bloc. **Non bloquant** (le rapport reste entièrement lisible et
+  défilable), et il **disparaît en silence** à la fin du sursis — pas de message
+  d'échec, pas de « indisponible » : un plan absent est un cas normal.
+- ⚠️ **Jamais sur un rapport rouvert plus tard.** Le garde et
+  `_awaitsNiveauVise` (Compétences) exigent tous deux d'avoir **vu la correction
+  en vol** depuis l'ouverture de l'écran. Une correction de trois jours ne poll
+  donc pas et n'annonce aucun conseil. Ne pas relâcher cette condition.
+
+⚠️ **« Voir l'analyse complète » n'existe plus (contrat v15 / tool-schema v9, 2026-08-11).**
+Le correcteur ne produit plus `exemples_corriges` ni `suggestions`, et ce repli — que
+personne n'ouvrait — part avec eux : `_FullAnalysis`, `_CorrectionsCard`,
+`accomplishment_card.dart` et `avertissements_card.dart` sont **supprimés**. Les deux champs
+restent **décodés** dans `production_models.dart` (une centaine d'évaluations en base les
+portent) et **aucun écran candidat ne les lit**. Ce qui vivait dans le repli sans venir du LLM
+a été **remonté**, pas perdu :
+- **« À savoir sur cette évaluation »** (`avertissements`, écrit par le **serveur** : limite
+  de l'oral, purges automatiques) devient une **note discrète sous le hero**
+  (`widgets/evaluation_notice.dart`) — ni accordéon, ni carte pleine, et rien du tout quand
+  la liste est vide ;
+- **la check-list de la consigne** vit désormais dans le dépliant du bandeau **« Ce qui
+  marche »**, qui montrait déjà les points **traités** et montre aussi les points
+  **oubliés** (intertitre rouge « Points oubliés ») : sans eux, le candidat lisait « 2/3
+  points traités » sans jamais savoir lequel manquait. Les **pistes non abordées**, qui ne
+  coûtent aucun point, ne sont plus rendues.
+La transcription EO reste dans sa feuille (dialogue en bulles).
 
 **Trois arbitrages de la passe, à ne pas défaire sans raison :**
 - **Les points forts ne sont plus en clair.** Deux phrases entières = cinq lignes de prose
@@ -1072,9 +1282,11 @@ feuille (dialogue en bulles).
 Le fond des deux écrans de résultats passe de `white` à **`AppColors.bg`** : les cartes
 blanches du rapport ne se détachaient pas sur du blanc pur.
 
-`BeforeAfterLines.compact` rend l'avant/après **sans étiquettes** : l'ancienne phrase barrée
-en rouge, la nouvelle en vert. Deux lignes au lieu de quatre — la rature dit « avant » mieux
-que le mot « avant ». La forme étiquetée reste utilisée par les exemples corrigés du repli.
+`BeforeAfterLines` (`widgets/before_after_lines.dart`, promu depuis
+`correction_example.dart` **supprimé**) rend l'avant/après **sans étiquettes** : l'ancienne
+phrase barrée en rouge, la nouvelle en vert. Deux lignes au lieu de quatre — la rature dit
+« avant » mieux que le mot « avant ». La forme étiquetée est partie avec les exemples
+corrigés (v15/v9), son seul appelant.
 
 Les intertitres sortent des cartes (`results_section_head.dart`) : chaque bloc portait son
 titre dans un encadré coloré, ce qui faisait lire le rapport comme une suite d'alertes.
@@ -1146,8 +1358,8 @@ s'affichait « 3,5/20 », qu'un francophone lit comme une catastrophe scolaire. 
   ⚠ **Les deux formes coexistent en base** : les évaluations antérieures portent de simples
   **chaînes** — `PointAAmeliorer.fromJsonNullable` les accepte et les rend comme un `constat`
   seul (aucun encadré vide, aucun bouton mort). Ne jamais retirer cette tolérance.
-- `exemples_corriges[].gain` (facultatif) = ce que la reformulation démontre de plus, rendu en
-  ligne verte sous l'explication.
+- `exemplesCorriges` et `suggestions` restent **décodés** (rétrocompatibilité) mais ne sont
+  **plus affichés nulle part** : le contrat v15 / tool-schema v9 ne les produit plus.
 - **Par critère on affiche la bande, pas la note** : `CriterionScore.bande` (`BandeCritere`,
   calculée côté serveur) → **« Niveau B2 / Niveau B1 / Niveau A2 / Niveau A1 / Non
   évaluable »**, plus la `preuve` (citation littérale) sous le commentaire — **dépliés à la
@@ -1353,16 +1565,27 @@ Deux champs backend nouveaux, câblés dans la même passe (miroirs :
   (donc rien sans confiance), rien quand le backend n'envoie pas de cran (évals
   antérieures, `A1_NON_ATTEINT`, C1/C2). Libellés gelés par test des deux côtés
   (`situationLibelle` / `situationQualificatif`).
-- **`feedback.version_ciblee`** (`VersionCiblee {niveauVise, niveauConstate?,
-  texte, ceQuiManque}`, **EE uniquement**) → `TargetLevelVersionCard`, rendue
-  **juste sous** `ProductionTextCard` : c'est le **seul texte modèle** de
-  l'écran (bleu, section titrée à part, titre qui nomme le niveau visé,
-  sous-titre qui dit explicitement que ce texte n'est pas celui du candidat).
-  L'ordre de `ceQuiManque` vient du backend (du plus rentable au moins
-  rentable) : **ne jamais le retrier**. Bloc absent ⇒ **rien n'est rendu** (EO,
-  éval antérieure, second appel en échec, niveau visé déjà atteint) — pas de
-  squelette, pas de « non disponible » : le rapport se termine alors sur le
-  profil par critère puis l'analyse complète.
+- **`feedback.version_ciblee`** (`VersionCiblee`) → `ProductionActionPlan`,
+  rendu **juste sous** `ProductionTextCard`. **EE ET EO** depuis le contrat v2
+  (le `isOral` qui l'annulait a été retiré). **Trois formes, une seule clé**,
+  distinguées à la présence de `exempleCible` ou de `reformulations` :
+  - **v2, écrit** : `leviers[2..3]{action, exemple}` + `exempleCible{texte,
+    segments[2..3]{extrait, apport}}` + `aRetenir{formule, explication}` ;
+  - **v2, oral** : idem, mais `reformulations[2..3]{original, reformule,
+    apport}` **à la place de** `exempleCible`. **Aucun texte modèle complet à
+    l'oral** — la production n'est jamais réécrite en entier ;
+  - **v1** (une centaine d'évaluations en base) : `texte` + `ceQuiManque`, écrit
+    seulement. Rendu comme avant, **sans l'étiquette de palier** sur le texte.
+  Ces formes vivent dans `core/models/action_plan.dart` (`ActionPlanLevier`,
+  `ActionPlanSegment`, `ActionPlanExempleCible`, `ActionPlanReformulation`,
+  `ActionPlanMemo`) — **partagées avec `SkillNiveauViseDto`**, qui portait des
+  jumelles `SkillNiveauVise*` : elles sont supprimées, pas dupliquées. Chaque
+  `extrait` est **garanti sous-chaîne exacte** du texte : on surligne par
+  recherche de chaîne, un extrait introuvable ⇒ texte brut. L'ordre des leviers
+  vient du backend (du plus rentable au moins rentable) : **ne jamais le
+  retrier**. Bloc absent ⇒ **rien n'est rendu** (éval antérieure, second appel en
+  échec, oral dégradé, niveau visé déjà atteint) — pas de squelette, pas de
+  « non disponible ». Chaque sous-bloc se masque **indépendamment**.
 - ⚠️ **`versionAmelioree` N'EST PLUS AFFICHÉE NULLE PART (2026-08-08).** Elle
   réécrit la production au niveau **déjà constaté** et vivait en bascule sous la
   rédaction, sans mention de niveau : c'était le texte le plus visible et le
@@ -1406,7 +1629,7 @@ Deux champs backend nouveaux, câblés dans la même passe (miroirs :
 
 Espace **voisin** des sujets TCF complets, jamais un remplacement : on y travaille **un
 critère à la fois** sur de petits sujets de production ouverte. 6 tâches × 8 compétences ×
-5 petits sujets, chacun avec 3 références comparatives écrites en base.
+15 petits sujets, chacun avec 3 références comparatives écrites en base.
 
 **Les 5 niveaux** : épreuve → tâche → *deux espaces* (Sujets | **Compétences** | Exemples)
 → une compétence → un petit sujet → son résultat.
@@ -1574,10 +1797,52 @@ Points de comportement à ne pas défaire :
   qu'une analyse est affichée (intertitre tappable, « Comparer » ⇄ « Masquer »),
   et **ouvertes** quand il n'y a pas d'analyse — elles sont alors le seul retour
   de l'écran. Replier ne coupe aucun appel : la liste est chargée de toute
-  façon, c'est elle qui décide si la section existe. L'ordre du contrat ne
-  bouge pas : accusé → production → analyse → références → actions.
+  façon, c'est elle qui décide si la section existe.
   Verrouillé par `test/competence_result_screen_test.dart` et
   `test/competence_prompt_analysis_test.dart`.
+- **Ordre de l'écran de résultat (contrat v3, commun au web)** : bandeau
+  « Production analysée / Progression mise à jour » → verdict du critère →
+  **carte NIVEAU** → « Pour viser X » → « Une version plus aboutie » → « À retenir »
+  → **`Ta production`, repliée** → références → deux actions (« Sujet suivant »
+  puis « S'entraîner sur ce point », qui refait le sujet courant ; le retour en
+  arrière reste la flèche d'en-tête). La production quitte la vue principale
+  mais **reste à un tap** : à l'oral, se réécouter en lisant le retour fait la
+  moitié de la valeur de l'exercice.
+  - **Les trois blocs du plan d'action sont PARTAGÉS** avec le rapport de
+    correction EE/EO : ils vivent dans `tcf_production/widgets/action_plan.dart`
+    (`ActionPlanLeviers`, `ActionPlanExempleCard`,
+    `ActionPlanReformulationsList`, `ActionPlanMemoCard` + les libellés gelés
+    `pourViserTitle` / `kActionPlanExempleTitle` /
+    `kActionPlanReformulationsTitle`), promus depuis `competences/widgets/` à
+    leur deuxième consommateur. Ils rendent le **corps seul** — chaque écran pose
+    son propre intertitre (`SectionTitle` ici, `ResultsSectionHead` dans le
+    rapport). Ne pas les recopier.
+  - **Tout est dérivé serveur** : `SkillLevelProgressDto` porte le niveau
+    démontré, le palier visé, la situation, **son libellé prêt à afficher**,
+    les 3 crans de la jauge et l'index du curseur. `SkillLevelCard` /
+    `_LevelGauge` (`competences/widgets/skill_level_card.dart`) ne recalculent
+    aucune position, ne réordonnent rien et ne recomposent jamais
+    `situationLabel` — seul un **garde-fou de rendu** borne l'index.
+  - **`analysis.niveauVise == null` est un cas NORMAL**, jamais une erreur : le
+    bloc vient d'un **second appel LLM best-effort**, absent quand l'objectif
+    est atteint. Ni message d'échec, ni spinner, ni encart d'excuse — les trois
+    sections disparaissent, la carte de niveau se suffit.
+  - **Course de l'appel 2** : quand la tentative passe `EVALUATED` avec un
+    niveau, un objectif non atteint, pas de `niveauVise` **et que l'analyse a
+    été vue en vol**, le polling continue **15 s de plus au maximum**
+    (`kActionPlanGrace`, `widgets/action_plan.dart` — cf. « Le sursis du plan
+    d'action » plus bas) — sinon l'écran s'arrête une seconde avant l'arrivée
+    des leviers. Le budget global de 120 s reste la borne dure, et pendant le
+    sursis la place du bloc porte `ActionPlanPending`.
+  - **Deux générations d'analyses cohabitent sans migration** : `levelProgress`
+    absent ⇒ contrat v1/v2 ⇒ on retombe **intégralement** sur l'affichage
+    historique (point réussi / priorité / proposition améliorée), chaque bloc
+    rendu seulement s'il porte du texte. Aucune régression sur ce qui est déjà
+    en base.
+  - **Surlignage de l'exemple** : le serveur garantit chaque `extrait`
+    sous-chaîne exacte du texte, on découpe donc par recherche de chaîne. Un
+    extrait introuvable est **ignoré** (texte brut) — on n'invente jamais un
+    surlignage et on ne plante jamais.
 - **La barre « Progression · X/N »** de l'écran d'un petit sujet est **calculée
   côté client** depuis `skillDetailProvider` (déjà en cache : l'écran est poussé
   depuis le détail). Aucun endpoint n'a été inventé ; en deep link direct la
@@ -1680,9 +1945,44 @@ spec) : l'analyse rend 4 champs courts — verdict, point réussi, priorité, re
 plus un verdict de critère `VALIDATED | PARTIAL | NOT_VALIDATED`. C'est une voie
 **parallèle** à la notation des productions complètes (rubriques v8), pas une réutilisation.
 
-**Freemium** : **aucun sujet n'est verrouillé**. Produire et lire les 3 références sont
-gratuits partout. Seule l'**analyse IA** est premium, avec des analyses offertes à vie aux
-comptes gratuits (`GET /api/skills/analysis-quota`). L'écran de sujet ne demande plus rien :
+**Freemium (refonte 2026-08-10) — le module n'est plus gratuit et illimité.** Sans
+abonnement TCF, le serveur n'ouvre qu'**une compétence par tâche** (plus celle de la
+priorité n°1 du Plan) et, dans une compétence ouverte, **ses 2 premiers sujets**. Un abonné
+TCF n'a aucun verrou. ⚠ **Ces règles ne sont écrites nulle part dans l'app** : le serveur
+les calcule et publie un booléen **`locked`** sur `SkillDto`, `SkillPromptSummary`,
+`SkillPromptDto` et, côté Plan, `LearningPlanPriority` / `LearningPlanSkill` /
+`PlanRecommendedExercise` (défaut `false` si le champ manque). L'app **reflète** ce
+booléen — jamais un « si l'index dépasse N alors cadenas », et le 403 serveur reste
+l'arbitre final.
+- **Rien n'est masqué, tout est annoncé** : une compétence, un sujet, une étape du Plan ou
+  une compétence observée verrouillés restent **affichés et lisibles** (titre, état,
+  compteurs). Masquer priverait le candidat du résultat de sa propre production. Ce qui
+  change : le cadenas (`PremiumLockTile`) prend la place de l'anneau de progression ou du
+  numéro de sujet — un anneau à zéro n'a rien à raconter —, la pilule `PremiumLockTag`
+  s'ajoute au statut, et le tap ouvre `showTcfLockPaywall` (le paywall existant, pré-réglé
+  sur Intégral, **jamais un second parcours d'achat**). Le chevron, lui, reste.
+- **Un seul jeu de libellés**, dans `core/widgets/premium_lock.dart`, **miroir mot pour mot
+  du web** (`app/_components/skill-ui/SkillLayout.tsx`) : `kPremiumLockTagLabel`
+  « **Premium** » et `kPremiumLockCta` « **Voir l'abonnement Intégral** » (wording neutre,
+  guidelines Apple 3.1.1). Côté Plan, les deux CTA sont ceux de `LearningPlanView` :
+  « **Débloquer cet exercice** » (À faire maintenant) et « **Débloquer cette étape** »
+  (étape 1), plus la note « Cet exercice fait partie de l'abonnement Intégral. Votre plan,
+  lui, reste entier. »
+- **Les compteurs ne mentent pas** (`CompetenceDetailScreen`) : un sujet verrouillé sort du
+  filtre « À faire » (il n'est pas à faire, il n'est pas ouvert), reste dans « Tous » et
+  dans « Traités » s'il a déjà été produit — un abonnement échu ne réécrit pas l'historique.
+  Un **4ᵉ filtre « Verrouillés · N »** apparaît quand il y en a, et c'est lui qui rend la
+  somme juste (`Tous = À faire + Traités + Verrouillés`) ; il disparaît avec le dernier
+  sujet verrouillé et l'écran retombe alors sur « Tous ». L'action de la `FixedActionBar`
+  vise toujours un sujet **ouvert**, et devient « Voir l'abonnement Intégral » quand il n'en
+  reste aucun.
+- **Lien profond sur un sujet verrouillé** : `CompetencePromptScreen` rend
+  `_LockedPromptView` — on garde le repère « Sujet i/N » + palier et **rien d'autre** : ni
+  consigne, ni situation, ni zone de production, ni barre de validation. Le contenu du sujet
+  fait partie de ce qui s'achète, et laisser produire ferait perdre la réponse sur le 403.
+
+Les **3 analyses IA offertes à vie** ne changent pas (`GET /api/skills/analysis-quota`) :
+elles restent la seule chose que le quota décompte. L'écran de sujet ne demande plus rien :
 il demande l'analyse quand `canAnalyse`, s'en passe sinon (aucun 403 provoqué), et se
 contente d'annoncer le reste du quota. `remaining == -1` signifie **illimité** et ne doit
 jamais s'afficher tel quel. Un 403 à la soumission passe quand même par
@@ -1955,9 +2255,13 @@ Backend : anonymisation (cf. CLAUDE.md racine + `docs/api-endpoints.md`).
 - ~~**In-app purchase** (Premium)~~ ✅ fait au lot 4d (cf. section dédiée plus bas).
 - **Mode sombre** : la palette est prête (l'identité visuelle marche en dark), mais `buildAppTheme()` ne fait
   que le clair pour l'instant.
-- **Tests** : aucun pour l'instant. Quand on en ajoutera, Vitest n'existe pas en Flutter — c'est
-  `flutter_test` + `mockito` ou `mocktail` pour les mocks. Tester d'abord les controllers Riverpod, c'est là
-  que la logique vit.
+- 🛑 **Tests : on n'en écrit PLUS sur ce sous-projet** (règle posée le 2026-08-09, cf. § Tests du
+  `CLAUDE.md` racine). Aucun nouveau `*_test.dart` — ni test de widget, ni test de modèle, ni gel de
+  libellé, ni test de layout. La vérification d'un changement mobile, c'est `flutter analyze` (zéro
+  warning nouveau), et le propriétaire teste lui-même à l'écran. Les tests déjà présents dans `test/`
+  restent en place et doivent rester verts : un test qui devient rouge à cause d'un changement voulu
+  se **met à jour ou se supprime**, il ne bloque jamais le changement. Toute la couverture de règles
+  métier vit côté backend.
 - **Accessibilité** : les tailles de police suivent le `MediaQuery.textScaling` (clampé entre 0.9 et 1.2 dans
   `app.dart` pour éviter les layouts cassés). Les Semantics pourraient être ajoutés sur les boutons et tags.
 - **Animations** : transitions de routes par défaut. Le runner pourrait bénéficier d'un fade ou slide entre

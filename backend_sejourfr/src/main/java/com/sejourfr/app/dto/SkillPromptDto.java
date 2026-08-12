@@ -20,7 +20,7 @@ import java.util.UUID;
  * <p>En revanche il porte {@link #skillPromptCount}, {@link #skillDescription}
  * et {@link #skillGeneralCriterion} : sans eux, l'ecran de production devait
  * appeler {@code GET /api/skills/{skillId}} EN PLUS, uniquement pour afficher le
- * fil d'Ariane « Sujet i/5 » et l'encart « Pourquoi cet exercice ? » — un
+ * fil d'Ariane « Sujet i/N » et l'encart « Pourquoi cet exercice ? » — un
  * aller-retour reseau pour deux chaines de caracteres.
  */
 public record SkillPromptDto(
@@ -30,7 +30,7 @@ public record SkillPromptDto(
         String skillTitle,
         /**
          * Nombre de sujets ACTIFS de la competence : le denominateur du fil
-         * d'Ariane « Sujet i/5 » (le numerateur est {@link #displayOrder}).
+         * d'Ariane « Sujet i/N » (le numerateur est {@link #displayOrder}).
          */
         int skillPromptCount,
         /** {@code Skill.description} — encart « Pourquoi cet exercice ? ». */
@@ -90,6 +90,14 @@ public record SkillPromptDto(
          * suivant a travailler » se desactive alors, sans jamais bloquer la
          * navigation.
          */
-        UUID nextPromptId
+        UUID nextPromptId,
+        /**
+         * {@code true} quand ce candidat <b>ne peut pas produire</b> sur ce
+         * sujet : les fronts affichent un cadenas et renvoient vers le
+         * paiement. Toujours {@code false} pour un abonné TCF. Décidé par
+         * {@code SkillAccessService} — le serveur refuse aussi la soumission
+         * (403), l'affichage n'est pas la garde.
+         */
+        boolean locked
 ) {
 }

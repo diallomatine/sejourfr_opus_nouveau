@@ -17,6 +17,14 @@ String productionCompetencesPath(TcfProductionModule module, int tache) =>
 String productionExamplesPath(TcfProductionModule module, int tache) =>
     '/tcf/${module.routeKey}/tache/$tache/exemples';
 
+/// Écran de production de la tâche **déjà chargée en session** (`t/0`).
+///
+/// ⚠️ Le sujet ne voyage **jamais** dans l'URL : l'écran lit la session Riverpod
+/// (`startSingle` / `startExam`), qui doit donc avoir été démarrée avant le
+/// push. C'est ce qui distingue cette adresse d'un lien profond.
+String productionSessionPath(TcfProductionModule module) =>
+    '/tcf/${module.isEo ? 'expression-orale' : 'expression-ecrite'}/t/0';
+
 /// « Retour » depuis l'un des **trois modes** du parcours (Compétences, Sujets,
 /// Examens).
 ///

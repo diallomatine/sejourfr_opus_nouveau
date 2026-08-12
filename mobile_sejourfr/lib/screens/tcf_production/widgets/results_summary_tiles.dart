@@ -17,6 +17,13 @@ import 'priority_card.dart';
 /// C'est aussi ce qui supprime la dernière redite du rapport : la priorité
 /// n'était résumée en haut que pour être répétée en entier plus bas. Elle vit
 /// désormais **à un seul endroit**, ici.
+///
+/// ⚠️ **La check-list de la consigne vit ici, et nulle part ailleurs** (depuis
+/// le retrait de « Voir l'analyse complète », contrat v15/v9) : le dépliant
+/// montre les points **traités** puis les points **oubliés**. Sans ces
+/// derniers, le candidat lisait « 2/3 points traités » sans jamais savoir
+/// lequel manquait — or c'est exactement ce qui lui coûte des points. Les
+/// pistes non abordées, elles, ne coûtent rien et ne sont plus rendues.
 class ResultsSummaryTiles extends StatelessWidget {
   const ResultsSummaryTiles({
     super.key,
@@ -32,16 +39,19 @@ class ResultsSummaryTiles extends StatelessWidget {
   /// Points **obligatoires** traités / demandés. Les pistes sont exclues des
   /// deux côtés : ne pas traiter une piste n'enlève aucun point, l'inclure au
   /// dénominateur ferait lire « 3/5 » à une consigne entièrement remplie.
-  ({int done, int total, List<String> libelles})? get _points {
+  ({int done, int total, List<String> libelles, List<String> oublies})?
+      get _points {
     final data = accomplissement;
     if (data == null) return null;
     final traites = data.pointsTraites.where((p) => p.obligatoire).toList();
-    final total = traites.length + data.manques.length;
+    final manques = data.manques;
+    final total = traites.length + manques.length;
     if (total == 0) return null;
     return (
       done: traites.length,
       total: total,
       libelles: traites.map((p) => p.libelle).toList(),
+      oublies: manques.map((p) => p.libelle).toList(),
     );
   }
 
@@ -67,11 +77,27 @@ class ResultsSummaryTiles extends StatelessWidget {
             detail: [
               if (points != null && points.libelles.isNotEmpty)
                 _Bullets(items: points.libelles, tone: AppColors.green),
+              // Le compteur dit « 2/3 » : sans cette liste, le candidat ne
+              // saurait jamais QUEL point manque. Un titre est ici necessaire —
+              // sans lui, un manque se lirait comme une reussite de plus.
+              if (points != null && points.oublies.isNotEmpty) ...[
+                if (points.libelles.isNotEmpty) const SizedBox(height: 12),
+                Text(
+                  'Points oubliés',
+                  style: AppFonts.ui(
+                    size: 12,
+                    weight: FontWeight.w800,
+                    color: AppColors.red,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                _Bullets(items: points.oublies, tone: AppColors.red),
+              ],
               // Un filet, pas un titre : ce qui a ete demande d'un cote, ce que
               // la langue reussit de l'autre — deux natures, une seule liste
               // les melangeait.
               if (points != null &&
-                  points.libelles.isNotEmpty &&
+                  (points.libelles.isNotEmpty || points.oublies.isNotEmpty) &&
                   pointsForts.isNotEmpty) ...[
                 const SizedBox(height: 11),
                 Divider(

@@ -15,6 +15,7 @@ import '../../../core/utils/start_failure.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_tag.dart';
 import '../../../core/widgets/fixed_action_bar.dart';
+import '../../../core/widgets/premium_lock.dart';
 import '../../../core/widgets/progress_track.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../audio_recorder_service.dart';
@@ -107,13 +108,129 @@ class CompetencePromptScreen extends ConsumerWidget {
               ),
             ],
           ),
-          data: (prompt) => _PromptView(
-            module: module,
-            skillId: skillId,
-            prompt: prompt,
-            onBack: () => _back(context),
+          // Verrou freemium servi par le serveur : on n'ouvre même pas la vue
+          // de production (contrôleur de texte, enregistreur) pour un sujet
+          // dont la soumission serait refusée en 403.
+          data: (prompt) => prompt.locked
+              ? _LockedPromptView(
+                  prompt: prompt,
+                  onBack: () => _back(context),
+                )
+              : _PromptView(
+                  module: module,
+                  skillId: skillId,
+                  prompt: prompt,
+                  onBack: () => _back(context),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Sujet verrouillé atteint par son chemin (lien profond du Plan, historique,
+/// retour arrière). On garde le repère « où suis-je » — `Sujet i/N` et le
+/// palier — et **rien d'autre** : ni consigne, ni situation, ni zone de
+/// production. Le contenu du sujet fait partie de ce qui s'achète, et laisser
+/// produire ferait perdre la réponse sur le 403 serveur. Miroir du web.
+class _LockedPromptView extends StatelessWidget {
+  const _LockedPromptView({required this.prompt, required this.onBack});
+
+  final SkillPromptDto prompt;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ScreenHeader(
+          title: prompt.title,
+          sub: prompt.taskTitle,
+          onBack: onBack,
+        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            children: [
+              _PromptMetaRow(prompt: prompt),
+              const SizedBox(height: 14),
+              _LockedAnswerCard(
+                onSubscribe: () => unawaited(showTcfLockPaywall(context)),
+              ),
+            ],
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// Ce qui prend la place de la carte « Ta réponse » quand le sujet est fermé.
+class _LockedAnswerCard extends StatelessWidget {
+  const _LockedAnswerCard({required this.onSubscribe});
+
+  final VoidCallback onSubscribe;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(23),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: AppColors.surface2,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  LucideIcons.lock,
+                  size: 18,
+                  color: AppColors.inkFaint,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Ce sujet demande l\'abonnement Intégral',
+                  style: AppFonts.ui(
+                    size: 14.5,
+                    weight: FontWeight.w800,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 11),
+          Text(
+            'L\'abonnement ouvre tous les petits sujets de chaque compétence et '
+            'l\'analyse IA sans limite. Ton plan personnalisé et tes résultats '
+            'déjà obtenus, eux, restent visibles.',
+            style: AppFonts.ui(
+              size: 12.5,
+              height: 1.45,
+              color: AppColors.inkSoft,
+            ),
+          ),
+          const SizedBox(height: 15),
+          AppButton(
+            label: kPremiumLockCta,
+            icon: LucideIcons.lock,
+            variant: AppButtonVariant.soft,
+            onPressed: onSubscribe,
+          ),
+        ],
       ),
     );
   }

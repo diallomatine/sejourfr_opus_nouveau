@@ -2,6 +2,7 @@ package com.sejourfr.app.mapper;
 
 import com.sejourfr.app.dto.SkillDto;
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.enums.SkillMasteryState;
 import org.springframework.stereotype.Component;
 
 /**
@@ -13,11 +14,20 @@ import org.springframework.stereotype.Component;
 @Component
 public class SkillMapper {
 
+    /**
+     * {@code locked} et {@code masteryState} sont passes, pas devines : la regle
+     * d'acces appartient a {@code SkillAccessService}, l'etat de maitrise a
+     * {@code SkillMasteryEngine}, et tous deux se resolvent une fois pour toute
+     * une liste. Un mapper qui irait les chercher lui-meme rendrait une requete
+     * par competence.
+     */
     public SkillDto toDto(Skill skill,
                           int promptCount,
                           int attemptedCount,
                           int validatedCount,
-                          int toReinforceCount) {
+                          int toReinforceCount,
+                          SkillMasteryState masteryState,
+                          boolean locked) {
         return new SkillDto(
                 skill.getId(),
                 skill.getSection(),
@@ -31,6 +41,8 @@ public class SkillMapper {
                 promptCount,
                 attemptedCount,
                 validatedCount,
-                toReinforceCount);
+                toReinforceCount,
+                masteryState,
+                locked);
     }
 }

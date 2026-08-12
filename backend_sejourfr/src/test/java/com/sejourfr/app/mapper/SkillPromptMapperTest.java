@@ -36,7 +36,7 @@ class SkillPromptMapperTest {
         Instant lastAttemptAt = Instant.parse("2026-08-01T10:15:30Z");
 
         SkillPromptSummaryDto dto = promptMapper.toSummaryDto(
-                prompt, SkillPromptStatus.TO_REINFORCE, 3, lastAttemptAt);
+                prompt, SkillPromptStatus.TO_REINFORCE, 3, lastAttemptAt, false);
 
         assertThat(dto.uniqueCriterion()).isEqualTo("Adapter le ton au destinataire.");
         assertThat(dto.difficultyLevel()).isEqualTo(SkillDifficulty.MEDIUM);
@@ -54,7 +54,7 @@ class SkillPromptMapperTest {
         UUID lastAttemptId = UUID.randomUUID();
 
         SkillPromptDto dto = promptMapper.toDto(prompt, prompt.getSkill(), 5,
-                SkillPromptStatus.TREATED, 1, Instant.EPOCH, lastAttemptId, nextPromptId);
+                SkillPromptStatus.TREATED, 1, Instant.EPOCH, lastAttemptId, nextPromptId, false);
 
         // Le libelle de tache vient du referentiel officiel (enum), pas de la base.
         assertThat(dto.taskTitle()).isEqualTo("Écrire un message court");
@@ -75,7 +75,7 @@ class SkillPromptMapperTest {
         SkillPrompt prompt = writtenPrompt();
 
         SkillPromptDto dto = promptMapper.toDto(prompt, prompt.getSkill(), 5,
-                SkillPromptStatus.TODO, 0, null, null, null);
+                SkillPromptStatus.TODO, 0, null, null, null, false);
 
         assertThat(dto.skillPromptCount()).isEqualTo(5);
         assertThat(dto.skillTargetLevel()).isEqualTo("A2");
@@ -103,7 +103,7 @@ class SkillPromptMapperTest {
         prompt.setTip("commencez par bonjour, puis présentez-vous");
 
         SkillPromptDto dto = promptMapper.toDto(prompt, prompt.getSkill(), 5,
-                SkillPromptStatus.TODO, 0, null, null, null);
+                SkillPromptStatus.TODO, 0, null, null, null, false);
 
         assertThat(dto.checklist())
                 .containsExactly("Saluez votre voisine", "Dites qui vous êtes", "Écrivez deux phrases");
@@ -130,9 +130,9 @@ class SkillPromptMapperTest {
         SkillPrompt prompt = writtenPrompt();
 
         SkillPromptDto dto = promptMapper.toDto(prompt, prompt.getSkill(), 5,
-                SkillPromptStatus.TODO, 0, null, null, null);
+                SkillPromptStatus.TODO, 0, null, null, null, false);
         SkillPromptSummaryDto summary = promptMapper.toSummaryDto(
-                prompt, SkillPromptStatus.TODO, 0, null);
+                prompt, SkillPromptStatus.TODO, 0, null, false);
 
         assertThat(dto.checklist()).isNull();
         assertThat(dto.constraintTags()).isNull();
@@ -152,7 +152,7 @@ class SkillPromptMapperTest {
         prompt.setRecommendedDurationSeconds(45);
 
         SkillPromptSummaryDto dto = promptMapper.toSummaryDto(
-                prompt, SkillPromptStatus.TODO, 0, null);
+                prompt, SkillPromptStatus.TODO, 0, null, false);
 
         assertThat(dto.recommendedDurationSeconds()).isEqualTo(45);
         assertThat(dto.recommendedMinWords()).isNull();
@@ -162,7 +162,7 @@ class SkillPromptMapperTest {
 
     @Test
     void skillCountersArePassedThroughUntouched() {
-        SkillDto dto = skillMapper.toDto(skill(), 5, 3, 2, 1);
+        SkillDto dto = skillMapper.toDto(skill(), 5, 3, 2, 1, null, false);
 
         assertThat(dto.promptCount()).isEqualTo(5);
         assertThat(dto.attemptedCount()).isEqualTo(3);

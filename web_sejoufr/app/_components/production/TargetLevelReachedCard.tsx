@@ -21,8 +21,7 @@ import styles from "./production.module.css";
  *
  * Le front ne **déduit** rien : il ne saurait pas distinguer « objectif
  * atteint » d'un second appel LLM en échec. C'est le serveur qui pose
- * `niveau_vise_atteint` (miroir de {@link TargetLevelVersionCard}, dont ce bloc
- * est l'exclusif).
+ * `niveau_vise_atteint` (exclusif de {@link ProductionActionPlan}).
  *
  * Miroir mobile : `target_level_reached_card.dart`.
  */

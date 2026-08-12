@@ -16,6 +16,7 @@ import com.sejourfr.app.entity.EmailChangeToken;
 import com.sejourfr.app.entity.ExamTemplate;
 import com.sejourfr.app.entity.ExamTemplateRule;
 import com.sejourfr.app.entity.HumanCalibrationNote;
+import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.entity.Media;
 import com.sejourfr.app.entity.Message;
 import com.sejourfr.app.entity.Passage;
@@ -46,11 +47,14 @@ import com.sejourfr.app.enums.AuthProvider;
 import com.sejourfr.app.enums.BillingCycle;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.LearningPlanSkillStatus;
+import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.MediaType;
 import com.sejourfr.app.enums.MessageSender;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.PassageType;
 import com.sejourfr.app.enums.PlanPurchaseType;
 import com.sejourfr.app.enums.ProductionSubmissionSource;
@@ -74,6 +78,7 @@ import com.sejourfr.app.manager.ConversationManager;
 import com.sejourfr.app.manager.EmailChangeTokenManager;
 import com.sejourfr.app.manager.ExamTemplateManager;
 import com.sejourfr.app.manager.HumanCalibrationNoteManager;
+import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.MediaManager;
 import com.sejourfr.app.manager.MessageManager;
 import com.sejourfr.app.manager.PassageManager;
@@ -155,6 +160,7 @@ public class TestData {
     private final TranscriptionManager transcriptionManager;
     private final HumanCalibrationNoteManager humanCalibrationNoteManager;
     private final RealtimeSessionManager realtimeSessionManager;
+    private final LearningPlanObservationManager learningPlanObservationManager;
     private final SkillManager skillManager;
     private final SkillRepository skillRepository;
     private final SkillPromptManager skillPromptManager;
@@ -811,6 +817,42 @@ public class TestData {
 
     public UserSkillAttempt userSkillAttempt() {
         return userSkillAttempt(user(), skillPrompt());
+    }
+
+    // ------------------------------------------------------------------------
+    // Observations du Plan
+    // ------------------------------------------------------------------------
+
+    /**
+     * Un signal source du Plan. La contrainte
+     * {@code chk_learning_plan_observation_coherence} lie {@code observed},
+     * {@code status} et {@code evidence} : la fabrique les pose ensemble pour
+     * qu'un test ne puisse pas produire une ligne que la base refuserait.
+     *
+     * @param subjectId sujet travaille ({@code skill_prompts.id} ou
+     *                  {@code production_tasks.id}) ; {@code null} accepte,
+     *                  c'est le cas des lignes anterieures au suivi.
+     */
+    public LearningPlanObservation learningPlanObservation(
+            User user, Skill skill, LearningPlanSourceType source,
+            LearningPlanSkillStatus status, ObservationConfidence confidence,
+            UUID subjectId, Instant observedAt) {
+        LearningPlanObservation o = new LearningPlanObservation();
+        o.setUser(user);
+        o.setSkill(skill);
+        o.setSourceType(source);
+        o.setSourceId(UUID.randomUUID());
+        o.setSubjectId(subjectId);
+        boolean observed = status != LearningPlanSkillStatus.NOT_OBSERVED;
+        o.setObserved(observed);
+        o.setStatus(status);
+        o.setEvidence(observed ? "Passage cite de la production " + next() : null);
+        o.setExplanation("Ce que le correcteur a constate.");
+        o.setConfidence(confidence);
+        o.setBaseline(source == LearningPlanSourceType.DIAGNOSTIC_EE
+                || source == LearningPlanSourceType.DIAGNOSTIC_EO);
+        o.setObservedAt(observedAt);
+        return learningPlanObservationManager.save(o);
     }
 
     // ------------------------------------------------------------------------

@@ -120,6 +120,31 @@
   margin: 0;
 }
 
+.events {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 18px;
+}
+
+.events li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule-2);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.events strong {
+  color: var(--ink);
+  font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
 .sources {
   list-style: none;
   margin: 14px 0 0;

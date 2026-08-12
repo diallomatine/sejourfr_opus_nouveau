@@ -34,6 +34,91 @@ class EvaluationOutputValidatorTest {
             .isEmpty();
     }
 
+    // ------- contrat v9 : plus d'exemples corriges ni de suggestions
+
+    /**
+     * SOUS v9 LES DEUX CHAMPS N'EXISTENT PLUS. Une sortie qui ne les porte pas
+     * est COMPLETE — c'est tout l'objet de la bascule : le bloc replie « Voir
+     * l'analyse complete » qui les affichait disparait, on ne paie donc plus de
+     * tokens de sortie pour eux.
+     *
+     * <p>C'est aussi le test qui protege du piege : les champs obligatoires
+     * etaient redeclares EN DUR en Java, en doublon du `required` du JSON.
+     * Retirer les deux champs du seul fichier de schema aurait fait rejeter
+     * 100 % des evaluations.
+     */
+    @Test
+    void v9_n_exige_plus_les_exemples_corriges_ni_les_suggestions() {
+        Map<String, Object> feedback = feedbackParNumero(1, 2, 3, 4);
+        feedback.remove("version_amelioree");
+        feedback.remove("exemples_corriges");
+        feedback.remove("suggestions");
+
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubricsV12(), "v9", TEXTE_EE)).isEmpty();
+    }
+
+    /**
+     * Un correcteur qui les produirait quand meme ne fait pas echouer la
+     * soumission : le serveur les retire. Une evaluation perdue coute plus cher
+     * que deux champs ignores — meme arbitrage que pour version_amelioree.
+     */
+    @Test
+    void v9_tolere_leur_presence_sans_jamais_les_exiger() {
+        Map<String, Object> feedback = feedbackParNumero(1, 2, 3, 4);
+        feedback.put("suggestions", List.of("Entraînez-vous à relier deux idées."));
+        feedback.put("exemples_corriges", List.of(exemple(), exemple(), exemple(), exemple()));
+
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubricsV12(), "v9", TEXTE_EE)).isEmpty();
+    }
+
+    /**
+     * REVERSIBILITE : le retour arriere v15/v9 -> v14/v8 se fait par deux
+     * variables d'environnement, et il doit revoir la regle s'appliquer.
+     */
+    @Test
+    void v8_continue_d_exiger_les_exemples_corriges_et_les_suggestions() {
+        Map<String, Object> feedback = feedbackParNumero(1, 2, 3, 4);
+        feedback.remove("exemples_corriges");
+        feedback.remove("suggestions");
+
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubricsV12(), "v8", TEXTE_EE))
+            .contains("champ obligatoire absent : suggestions")
+            .contains("champ obligatoire absent : exemples_corriges");
+    }
+
+    /** Tout le reste du contrat v8 continue de s'appliquer sous v9. */
+    @Test
+    void v9_conserve_la_preuve_par_numero_et_le_plafond_de_points_forts() {
+        assertThat(EvaluationOutputValidator.violations(
+            feedbackParNumero(1, 2, 3, 99), task(EpreuveType.TCF_EE), rubricsV12(), "v9", TEXTE_EE))
+            .containsExactly(
+                "preuve_segment[morphosyntaxe] doit designer un segment numerote de la production");
+
+        Map<String, Object> feedback = feedbackParNumero(1, 2, 3, 4);
+        feedback.put("points_forts", List.of("un", "deux", "trois"));
+        assertThat(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EE), rubricsV12(), "v9", TEXTE_EE))
+            .anyMatch(v -> v.contains("points_forts contient plus de 2 entrees"));
+    }
+
+    /**
+     * Le garde-fou ORAL reste entier sous v9 sur les champs qui SUBSISTENT : la
+     * bascule retire deux champs de restitution, elle ne relache aucun controle.
+     */
+    @Test
+    void v9_conserve_le_garde_fou_oral_sur_les_champs_restants() {
+        Map<String, Object> feedback = feedbackParNumero(1, 2, 3, 4);
+        feedback.remove("exemples_corriges");
+        feedback.remove("suggestions");
+        feedback.put("points_forts", List.of("La prononciation reste difficile à suivre."));
+
+        assertThat(EvaluationOutputValidator.oralViolations(EvaluationOutputValidator.violations(
+            feedback, task(EpreuveType.TCF_EO), rubricsV12(), "v9", TEXTE_EE))).hasSize(1);
+    }
+
     // ------------------------------------------- contrat v6 : preuve par numero
 
     /**

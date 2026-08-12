@@ -38,9 +38,16 @@ import java.util.Map;
  * chacun {@code {libelle, obligatoire}}), {@code scores_criteres[]}
  * ({@code code}, {@code label}, {@code note_sur_20}, {@code bande},
  * {@code commentaire}, {@code preuve}), {@code points_forts[]},
- * {@code points_a_ameliorer[]} (2 max), {@code suggestions[]},
- * {@code exemples_corriges[]}, {@code avertissements[]}. Tous ces champs sont
- * facultatifs cote front : une evaluation v3 en base n'en porte qu'une partie.
+ * {@code points_a_ameliorer[]} (2 max), {@code avertissements[]}. Tous ces champs
+ * sont facultatifs cote front : une evaluation v3 en base n'en porte qu'une partie.
+ *
+ * <p><b>Champs RETIRES par le contrat v9</b> (rubriques v15) : {@code suggestions[]}
+ * et {@code exemples_corriges[]}. Ils n'etaient affiches que dans le bloc replie
+ * « Voir l'analyse complete », supprime de l'ecran de resultat. Le correcteur ne
+ * les produit plus et le serveur les retire d'une sortie qui les porterait quand
+ * meme. <b>Les evaluations anterieures les conservent</b> : rien n'est migre, la
+ * console de calibration les affiche encore, et un front doit continuer de les
+ * lire sans supposer leur presence.
  *
  * <p><b>Ajouts du schema v5</b> (rubriques v8), tout aussi facultatifs — les
  * evaluations anterieures ne les portent pas et rien n'a ete migre :
@@ -55,14 +62,35 @@ import java.util.Map;
  *       production reecrite au palier au-dessus. Presente sur les taches
  *       ECRITES uniquement, absente en EO (retiree cote serveur).</li>
  * </ul>
- * {@code points_forts[]} est plafonne a 2 et {@code exemples_corriges[]} a 3.
+ * {@code points_forts[]} est plafonne a 2 (et {@code exemples_corriges[]} l'etait
+ * a 3, tant que le contrat le portait).
  *
- * <p><b>Bloc {@code version_ciblee}</b> (facultatif, EE uniquement, produit par
- * un SECOND appel LLM totalement separe de la correction) :
- * {@code {niveau_vise, niveau_constate, texte, ce_qui_manque[]}} — la meme
- * reponse redigee au niveau que le candidat VISE, et 2 a 3 choses concretes qui
- * l'en separent. Absent quand le second appel a echoue, ou sur toute evaluation
- * anterieure a cette fonctionnalite.
+ * <p><b>Bloc {@code version_ciblee}</b> (facultatif, EE <b>et</b> EO, produit par
+ * un SECOND appel LLM totalement separe de la correction) : le PLAN D'ACTION du
+ * candidat vers le niveau qu'il VISE. Absent quand le second appel a echoue, sur
+ * toute evaluation anterieure a cette fonctionnalite, et — a l'oral — quand la
+ * transcription est trop abimee pour qu'on puisse reformuler quoi que ce soit.
+ *
+ * <p>Trois formes, une seule cle. Un front distingue l'ecrit de l'oral a la
+ * presence de {@code exemple_cible} ou de {@code reformulations} :
+ * <ul>
+ *   <li><b>contrat v2, ECRIT</b> : {@code {niveau_vise, niveau_constate,
+ *       leviers[2..3] {action, exemple}, exemple_cible {texte, segments[2..3]
+ *       {extrait, apport}}, a_retenir {formule, explication}}}. Chaque
+ *       {@code extrait} est garanti <b>sous-chaine exacte</b> de
+ *       {@code exemple_cible.texte} : le front peut le surligner sans le
+ *       chercher approximativement ;</li>
+ *   <li><b>contrat v2, ORAL</b> : idem, mais {@code exemple_cible} est remplace
+ *       par {@code reformulations[2..3] {original, reformule, apport}}. La
+ *       production orale <b>n'est jamais reecrite en entier</b> — ce que lit le
+ *       modele est une transcription automatique. {@code original} est le texte
+ *       EXACT du passage du candidat, resolu par le serveur depuis un numero de
+ *       segment : aucun entier ne traverse ce contrat ;</li>
+ *   <li><b>contrat v1</b> (retour arriere) : {@code {niveau_vise,
+ *       niveau_constate, texte, ce_qui_manque[]}}, EE uniquement.</li>
+ * </ul>
+ * Les evaluations deja persistees gardent la forme qu'elles avaient : un front
+ * doit traiter les trois, et l'absence du bloc.
  *
  * <p>Le niveau vise est {@code max(palier exige par la demarche, TargetLevel
  * declare)} — cf. {@link com.sejourfr.app.enums.TargetProcedure#niveauVise}. La
@@ -74,7 +102,8 @@ import java.util.Map;
  * production atteint deja le palier vise. Il n'y a alors pas de marche au-dessus
  * a montrer, et les fronts l'ANNONCENT (victoire) au lieu de laisser la section
  * disparaitre en silence — un front ne saurait pas distinguer cet etat d'un
- * second appel LLM en echec. Absent en EO et sur les evaluations anterieures.
+ * second appel LLM en echec. Absent sur les evaluations anterieures ; present a
+ * l'oral aussi depuis le contrat v2.
  *
  * <p><b>La note /20 n'est plus affichee sur une tache isolee</b> — decision
  * produit : au TCF, un correcteur attribue un NIVEAU par tache, la note ne porte

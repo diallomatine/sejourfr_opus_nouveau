@@ -1257,10 +1257,18 @@ public class ProductionEvaluationProperties {
          * {@code version_ciblee} : le comportement d'avant, à l'identique.
          */
         private boolean enabled = true;
-        /** Consignes : {@code prompts/production-version-ciblee-rubrics-<v>.json}. */
-        private String rubricsVersion = "v1";
-        /** Contrat de sortie : {@code prompts/production-version-ciblee-tool-schema-<v>.json}. */
-        private String toolSchemaVersion = "v1";
+        /**
+         * Consignes : {@code prompts/production-version-ciblee-rubrics-<v>.json}.
+         * Retour arrière v1 (plus de plan d'action structuré, plus d'oral) :
+         * {@code EVAL_VERSION_CIBLEE_RUBRICS_VERSION=v1} + le tool-schema v1.
+         */
+        private String rubricsVersion = "v2";
+        /**
+         * Contrat de sortie :
+         * {@code prompts/production-version-ciblee-tool-schema-<v>.json}, plus sa
+         * variante {@code -oral-<v>} dès que le contrat ouvre l'oral.
+         */
+        private String toolSchemaVersion = "v2";
         /**
          * Plafond de tokens de SORTIE, PROPRE à cet appel (pas les 4000 d'une
          * correction complète) : la sortie tient en un texte court plus deux ou
@@ -1268,7 +1276,7 @@ public class ProductionEvaluationProperties {
          * relever ouvrirait la porte à des versions bavardes que le contrat
          * n'attend pas.
          */
-        private int maxTokens = 1200;
+        private int maxTokens = 1600;
         /** Zéro : deux lectures du même texte doivent donner la même version. */
         private double temperature = 0;
         /** Plafond serveur du nombre de leviers rendus (le schéma en demande 2 à 3). */

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
-import 'correction_example.dart';
+import 'before_after_lines.dart';
 
 /// Une priorite de travail, rendue comme la carte « focus » de la maquette :
 /// **un constat, une reecriture**, et la technique en repli.
@@ -193,7 +193,7 @@ class _RewriteBox extends StatelessWidget {
             style: AppFonts.label(size: 9.5, color: AppColors.muted),
           ),
           const SizedBox(height: 8),
-          BeforeAfterLines.compact(
+          BeforeAfterLines(
             avant: exemple.avant,
             apres: exemple.apres,
           ),

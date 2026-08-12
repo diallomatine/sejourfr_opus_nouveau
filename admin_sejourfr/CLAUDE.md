@@ -36,9 +36,10 @@ src/
 │   ├── layout/AppLayout.*   Sidebar + main outlet (visible quand connecté)
 │   └── ui/                  Primitives réutilisables (Button, Modal, Tag, etc.)
 ├── features/                Une feature = un dossier (entité + UI + helpers)
-│   ├── audience/            Audience des landings (/reussir) : vues, clics CTA,
-│   │                        taux de clic par réseau, série journalière. Lecture
-│   │                        seule, compteur agrégé sans traceur (cf. racine)
+│   ├── audience/            Audience des landings (/reussir, /diagnostic, /plan) :
+│   │                        vues, clics CTA, funnel diagnostic typé, taux par
+│   │                        réseau, série journalière. Lecture seule, compteur
+│   │                        agrégé sans traceur (cf. racine)
 │   ├── dashboard/
 │   ├── questions/           Le plus complexe : liste + filtres + modal CRUD
 │   ├── themes/
@@ -87,7 +88,10 @@ Endpoints utilisés actuellement :
 - `POST|GET|PATCH|DELETE /api/admin/audio-questions[/{id}[/preview|validate]]` + `GET /api/admin/audio-questions/generation-logs`
 - `POST /api/admin/production/examples/audio/batch-generate?size=10`, `GET …/pending/count`, `GET …/to-review`, `POST …/{id}/publish`, `POST …/{id}/regenerate` (audios exemples EO — feature `exampleAudio/`)
 - `GET /api/admin/page-views?path=…&days=…` + `GET /api/admin/page-views/paths`
-  — audience des landings (feature `audience/`)
+  — audience des landings et compte brut `events` du funnel (feature `audience/`)
+- `GET|POST /api/admin/diagnostics/{code}/versions/{version}/instruction-audio`
+  — inspection/génération explicite de la consigne EO fixe (seed-only ; pas de
+  CRUD des sujets diagnostiques)
 - `GET /api/admin/plans`, `PATCH /api/admin/plans/{id}` (commerce — lot 4c)
 - `GET /api/admin/subscriptions?source=…&status=…&moduleAccess=…&search=…&page=…&size=…` (lot 4c)
 - `POST /api/admin/subscriptions/{id}/cancel` — annulation manuelle (support).
@@ -115,7 +119,7 @@ Endpoints utilisés actuellement :
 
 ### Compétences TCF EE/EO (`features/skills/`)
 
-Console d'édition du **contenu** du module Compétences (48 compétences × 5 petits
+Console d'édition du **contenu** du module Compétences (48 compétences × 15 petits
 sujets × 3 références). Ce contenu est éditorial et vit en base : sans cet écran,
 corriger une faute de frappe dans un sujet imposerait une migration Flyway.
 
@@ -126,7 +130,7 @@ corriger une faute de frappe dans un sujet imposerait une migration Flyway.
 - **Deux textes distincts sur une compétence**, tous deux obligatoires et
   `NOT NULL` en base : `description` (courte explication adressée au candidat —
   ce qu'il travaille et pourquoi ça compte au TCF) et `generalCriterion` (le
-  critère général, ce qui sera observé dans les 5 petits sujets). Ne pas
+  critère général, ce qui sera observé dans les 15 petits sujets). Ne pas
   confondre ce dernier avec `AdminSkillPromptDto.uniqueCriterion`, qui ne vaut
   que pour **un** sujet. Le `POST` échoue en 400 sans `generalCriterion` ; le
   `PATCH` tolère l'absence (« ne touche pas »), mais le front envoie toujours
@@ -338,4 +342,4 @@ Pas encore d'API côté backend, donc pas implémenté ici :
 - Quand l'écran **clients** sera ajouté, créer `features/users/` sur le même modèle (`features/subscriptions/` existe depuis le lot 4c).
 - Pour l'upload de médias dans le formulaire question : ajouter un composant `MediaPicker` qui appelle `POST /api/admin/media/upload` (multipart) ou `POST /api/admin/media/from-url`, puis remplit `mediaId` dans le `QuestionWriteRequest`.
 - Si la pagination des questions devient lourde, envisager un `useInfiniteQuery` plutôt que des boutons précédent/suivant.
-- Tests : aucun pour l'instant. Quand on en ajoutera, partir sur Vitest + React Testing Library.
+- 🛑 **Tests : on n'en écrit PAS sur ce sous-projet** (règle posée le 2026-08-09, cf. § Tests du `CLAUDE.md` racine). Ni Vitest, ni React Testing Library, ni test de libellé. La vérification d'un changement admin, c'est `npx tsc --noEmit` + le build. Toute la couverture de règles métier vit côté backend, d'où elle protège les trois fronts d'un seul endroit.

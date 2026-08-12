@@ -2,6 +2,7 @@
 
 import {useParams, useRouter} from "next/navigation";
 import {useCallback, useState} from "react";
+import {Lock} from "lucide-react";
 import {skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {loadSectionSkills, skillsOfTask, skillsSectionKey} from "@/lib/skill-catalog";
@@ -17,9 +18,12 @@ import {
   TCF_HUB_LABEL,
 } from "@/app/_components/production/config";
 import {ParcoursTop, useParcoursLevel} from "@/app/_components/production/ParcoursTop";
+import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {
   RowChevron,
   SectionHead,
+  SkillLockBadge,
+  SkillMasteryPill,
   SkillNotice,
   SkillRing,
   SkillShell,
@@ -70,6 +74,7 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
 
   const level = useParcoursLevel();
   const ready = status === "authenticated" && valid;
+  const [paywallOpen, setPaywallOpen] = useState(false);
 
   // Un seul appel pour toute l'épreuve, mémorisé pour la session : revenir sur
   // cet écran depuis « Sujets » ou « Examens » ne redemande rien.
@@ -127,7 +132,11 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
               <SkillCard
                 key={skill.id}
                 skill={skill}
-                onOpen={() => router.push(`${base}/${skill.id}`)}
+                onOpen={
+                  skill.locked
+                    ? () => setPaywallOpen(true)
+                    : () => router.push(`${base}/${skill.id}`)
+                }
               />
             ))}
           </div>
@@ -138,6 +147,14 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
           un seul critère attendu au TCF, et les références n&apos;apparaissent qu&apos;après
           ta réponse.
         </SkillNotice>
+
+        <PaywallSheet
+          open={paywallOpen}
+          onClose={() => setPaywallOpen(false)}
+          module="INTEGRAL"
+          title="Toutes les compétences"
+          message="Cette compétence est réservée à l'abonnement Intégral. Il ouvre les 8 compétences de chaque tâche, tous leurs petits sujets et l'analyse IA sans limite. Ton plan personnalisé, lui, reste entier."
+        />
       </SkillShell>
     </DualChromeShell>
   );
@@ -145,27 +162,58 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
 
 /**
  * Ligne d'une compétence, structure de la maquette client : **anneau de
- * progression** (« 2/5 »), titre, état en clair, chevron.
+ * progression** (« 2/5 »), titre, état, chevron.
+ *
+ * ⚠️ **L'état de maîtrise remplace le compteur de sujets traités** (décision
+ * propriétaire) : un compte de sujets dit ce que le candidat a *fait*,
+ * `masteryState` dit ce qu'il *maîtrise* — c'est la question qu'il se pose.
+ * `masteryState` nul (aucune observation) est le seul cas où le compteur reste
+ * pertinent : le serveur n'a encore rien vu, il n'y a pas d'état à annoncer.
  *
  * Le titre et l'état, rien d'autre : la description vit derrière la pastille
  * d'information de l'écran de détail (parité mobile). Six lignes de texte par
  * carte repoussaient la 8ᵉ compétence hors de vue.
+ *
+ * Verrouillée (`locked`, **décidé par le serveur**), la carte reste entièrement
+ * lisible : seuls l'anneau — qui n'aurait rien à raconter — et la destination
+ * changent. Masquer la compétence reviendrait à cacher au candidat ce qu'il y a
+ * à travailler ; c'est l'inverse de ce qu'on lui vend.
  */
 function SkillCard({skill, onOpen}: {skill: SkillDto; onOpen: () => void}) {
   const done = skill.promptCount > 0 && skill.attemptedCount >= skill.promptCount;
+  const locked = skill.locked;
 
   return (
     <button
       type="button"
-      className={`${s.card} ${s.rowCard} ${s.ringRow}`}
+      className={`${s.card} ${s.rowCard} ${locked ? "" : s.ringRow}`}
       onClick={onOpen}
     >
-      <SkillRing attempted={skill.attemptedCount} total={skill.promptCount} done={done} />
+      {locked ? (
+        <span className={`${s.tile} ${s.tileLocked}`} aria-hidden>
+          <Lock size={20} />
+        </span>
+      ) : (
+        <SkillRing attempted={skill.attemptedCount} total={skill.promptCount} done={done} />
+      )}
       <span className={s.rowBody}>
         <span className={s.rowTitle}>{skill.title}</span>
-        <span className={s.rowState}>{competenceProgressLabel(skill)}</span>
+        {skill.masteryState ? (
+          <span className={s.rowMeta}>
+            <SkillMasteryPill state={skill.masteryState} />
+          </span>
+        ) : (
+          <span className={s.rowState}>{competenceProgressLabel(skill)}</span>
+        )}
       </span>
-      <RowChevron />
+      {locked ? (
+        <span className={s.rowAside}>
+          <SkillLockBadge />
+          <RowChevron />
+        </span>
+      ) : (
+        <RowChevron />
+      )}
     </button>
   );
 }

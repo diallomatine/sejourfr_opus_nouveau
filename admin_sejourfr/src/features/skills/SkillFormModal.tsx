@@ -272,7 +272,7 @@ export function SkillFormModal({
             })}
           />
           <p className={styles.help}>
-            Ce qui sera <strong>observé</strong> dans les 5 petits sujets de cette
+            Ce qui sera <strong>observé</strong> dans les 15 petits sujets de cette
             compétence, en une à deux phrases. À distinguer de la description
             ci-dessus, qui explique l&apos;intérêt de l&apos;exercice, et du critère
             unique de chaque sujet, qui ne vaut que pour lui.

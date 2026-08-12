@@ -582,6 +582,28 @@ export interface ProductionSubmissionDto {
     /** Null tant que statut != EVALUATED. */
     evaluation: EvaluationResultDto | null;
     transcription: string | null; // EO
+    /**
+     * Ce que cette production a changé dans le Plan — **une ligne, pas un
+     * rapport**. `null` est un cas NORMAL : rien n'a bougé, ou les observations
+     * (écrites après la correction) ne sont pas encore là. Servi seulement sur
+     * le détail d'une soumission, jamais sur une liste d'historique.
+     */
+    planChange: PlanChangeDto | null;
+}
+
+/** De quoi nommer une compétence et y renvoyer, sans embarquer tout son état. */
+export interface PlanSkillRefDto {
+    skillId: string;
+    skillCode: string;
+    title: string;
+    section: SkillSection;
+}
+
+/** Les deux moitiés sont **indépendamment nullables** : on n'affiche que celle
+ *  qui existe, et rien du tout quand le bloc entier est `null`. */
+export interface PlanChangeDto {
+    confirmedSkill: PlanSkillRefDto | null;
+    newPriority: PlanSkillRefDto | null;
 }
 
 /** Body JSON de POST /api/production-submissions (EE). */
@@ -589,6 +611,254 @@ export interface SubmitProductionTextRequest {
     productionTaskId: string;
     attemptId: string;
     texte: string;
+}
+
+// ============================================================================
+// DIAGNOSTIC TCF + PLAN PERSONNALISÉ
+// Miroirs stricts des records Diagnostic* / LearningPlan* côté Java. Le front
+// affiche les décisions du serveur : il ne recalcule ni niveau ni priorité.
+// ============================================================================
+
+export type DiagnosticJourneyStatus =
+    | "NOT_STARTED"
+    | "IN_PROGRESS"
+    | "ANALYZING"
+    | "COMPLETED"
+    | "FAILED";
+
+export type DiagnosticStep = "PRESENTATION" | "WRITTEN" | "ORAL" | "ANALYSIS" | "RESULT";
+
+export type DiagnosticTaskCompletion = "COMPLETED" | "PARTIAL" | "NOT_COMPLETED";
+export type DiagnosticCommunicationStatus = "EFFECTIVE" | "PARTIAL" | "INEFFECTIVE";
+export type LearningPlanState = "NEEDS_DIAGNOSTIC" | "DIAGNOSTIC_IN_PROGRESS" | "ACTIVE";
+export type LearningPlanSkillStatus = "NOT_OBSERVED" | "PRIORITY" | "TO_REINFORCE" | "SOLID";
+
+/**
+ * D'où vient une observation du Plan. `TCF_CO` / `TCF_CE` sont **réservés** :
+ * le serveur ne les sert pas encore, on les prévoit pour ne pas remodeler
+ * l'historique le jour où la compréhension entrera dans le Plan.
+ */
+export type LearningPlanSourceType =
+    | "DIAGNOSTIC_EE"
+    | "DIAGNOSTIC_EO"
+    | "PRODUCTION_EE"
+    | "PRODUCTION_EO"
+    | "MOCK_EXAM_EE"
+    | "MOCK_EXAM_EO"
+    | "SKILL_TRAINING"
+    | "TCF_CO"
+    | "TCF_CE";
+export type ObservationConfidence = "LOW" | "MEDIUM" | "HIGH";
+
+export interface DiagnosticExerciseDto {
+    productionTaskId: string;
+    attemptId: string;
+    epreuve: Extract<EpreuveType, "TCF_EE" | "TCF_EO">;
+    title: string;
+    instruction: string;
+    helperText: string | null;
+    wordsMin: number | null;
+    wordsMax: number | null;
+    durationMinSeconds: number | null;
+    durationMaxSeconds: number | null;
+    instructionAudioUrl: string | null;
+    submissionId: string | null;
+    submissionStatus: SubmissionStatut | null;
+}
+
+/**
+ * Sujets du diagnostic servis **sans authentification**
+ * (`GET /api/public/diagnostics/current`) : de quoi produire son écrit et son
+ * oral avant même d'avoir un compte.
+ *
+ * Ni `attemptId` ni `submissionId` : ils n'existent qu'une fois la session
+ * créée côté serveur, donc **après** l'inscription. Le visiteur produit
+ * d'abord, le serveur enregistre ensuite.
+ */
+export interface PublicDiagnosticExerciseDto {
+    productionTaskId: string;
+    epreuve: Extract<EpreuveType, "TCF_EE" | "TCF_EO">;
+    title: string;
+    instruction: string;
+    helperText: string | null;
+    wordsMin: number | null;
+    wordsMax: number | null;
+    durationMinSeconds: number | null;
+    durationMaxSeconds: number | null;
+    instructionAudioUrl: string | null;
+}
+
+export interface PublicDiagnosticResponse {
+    diagnosticCode: string;
+    diagnosticVersion: number;
+    written: PublicDiagnosticExerciseDto;
+    oral: PublicDiagnosticExerciseDto;
+}
+
+/**
+ * Verrou freemium d'une brique de production, **posé et imposé par le serveur**.
+ *
+ * `true` ⇒ ce candidat ne peut pas produire dessus : le web n'affiche qu'un
+ * cadenas et renvoie vers `/paiement`. Aucun front ne recalcule la règle (quelle
+ * compétence est ouverte, combien de sujets par compétence) — elle vit dans le
+ * backend, qui répond 403 de toute façon. Un serveur qui ne servirait pas encore
+ * le champ laisse donc tout **ouvert**, jamais tout fermé.
+ */
+interface SkillLockable {
+    locked: boolean;
+}
+
+/**
+ * Nature de l'action proposée par une étape du Plan — **même carte, même
+ * emplacement, action différente**. Les deux ne mènent pas au même écran : le
+ * front lit `kind`, il ne le devine jamais d'un `null`.
+ */
+export type PlanExerciseKind = "MICRO_TRAINING" | "REASSESSMENT";
+
+export interface PlanRecommendedExerciseDto extends SkillLockable {
+    kind: PlanExerciseKind;
+    /** Micro-exercice uniquement ; `null` sur une vérification. */
+    skillPromptId: string | null;
+    /** Vérification uniquement ; `null` sur un micro-exercice. */
+    productionTaskId: string | null;
+    skillId: string;
+    skillCode: string;
+    title: string;
+    section: SkillSection;
+    /** Numéro de tâche (1, 2 ou 3) du sujet de production — vérification
+     *  uniquement, `null` sur un micro-exercice. */
+    tacheNumero: number | null;
+    estimatedMinutes: number;
+}
+
+export interface DiagnosticSkillObservationDto {
+    skillId: string;
+    skillCode: string;
+    skillTitle: string;
+    section: SkillSection;
+    observed: boolean;
+    status: LearningPlanSkillStatus;
+    evidence: string | null;
+    explanation: string | null;
+    confidence: ObservationConfidence;
+    priority: boolean;
+}
+
+export interface DiagnosticProductionResultDto {
+    levelEstimate: NiveauCecrl | null;
+    taskCompletion: DiagnosticTaskCompletion;
+    communicationStatus: DiagnosticCommunicationStatus;
+    summary: string | null;
+    strengths: string[];
+    weaknesses: string[];
+    skills: DiagnosticSkillObservationDto[];
+}
+
+export interface DiagnosticResultDto {
+    written: DiagnosticProductionResultDto | null;
+    oral: DiagnosticProductionResultDto | null;
+    strengths: string[];
+    priorities: DiagnosticSkillObservationDto[];
+    mainPriorityExplanation: string | null;
+    nextAction: PlanRecommendedExerciseDto | null;
+}
+
+export interface DiagnosticResponse {
+    sessionId: string | null;
+    diagnosticCode: string | null;
+    diagnosticVersion: number | null;
+    status: DiagnosticJourneyStatus;
+    nextStep: DiagnosticStep;
+    written: DiagnosticExerciseDto | null;
+    oral: DiagnosticExerciseDto | null;
+    result: DiagnosticResultDto | null;
+    startedAt: string | null;
+    completedAt: string | null;
+    errorMessage: string | null;
+    canRetry: boolean;
+}
+
+/**
+ * Compteurs de sujets d'une compétence, servis par le Plan **exactement** comme
+ * `GET /api/skills` les sert au module Compétences — mêmes trois champs, mêmes
+ * bornes. C'est ce qui permet au Plan de réutiliser `SkillRing` et
+ * `competenceProgressLabel` sans recalculer quoi que ce soit : les deux écrans
+ * parlent des mêmes compétences, ils doivent en dire la même chose.
+ */
+interface LearningPlanSkillCounters {
+    /** Nombre de petits sujets publiés pour la compétence. */
+    promptCount: number;
+    /** Sujets déjà tentés par ce candidat. */
+    attemptedCount: number;
+    /** Sujets dont le critère a été validé. */
+    validatedCount: number;
+}
+
+/**
+ * Une priorité du Plan, c'est-à-dire une **étape**.
+ *
+ * ⚠️ **Deux jeux de compteurs, à ne jamais confondre.** Ceux de
+ * `LearningPlanSkillCounters` (`promptCount` / `attemptedCount` /
+ * `validatedCount`) décrivent la **compétence entière** (15 sujets) et servent
+ * aux cartes « compétences observées ». Les `step*` ci-dessous décrivent
+ * l'**étape** : les 5 premiers sujets actifs de la compétence, et rien d'autre
+ * — **c'est ce couple que l'anneau d'une étape affiche** (« 2/5 », pas
+ * « 2/15 »). Les deux sont dérivés serveur, jamais recalculés ici.
+ */
+export interface LearningPlanPriorityDto extends LearningPlanSkillCounters, SkillLockable {
+    skillId: string;
+    skillCode: string;
+    title: string;
+    section: SkillSection;
+    status: LearningPlanSkillStatus;
+    explanation: string | null;
+    evidence: string | null;
+    confidence: ObservationConfidence;
+    observedAt: string;
+    recommendedExercise: PlanRecommendedExerciseDto | null;
+    /** Sujets de l'étape : au plus les 5 premiers actifs, moins si la compétence en publie moins. */
+    stepPromptCount: number;
+    /** Sujets de l'étape déjà traités (tout sauf « À faire »). */
+    stepAttemptedCount: number;
+    /** Sujets de l'étape dont le critère a été validé. Toujours ≤ `stepAttemptedCount`. */
+    stepValidatedCount: number;
+    /**
+     * `true` quand les sujets de l'étape ont **tous** été traités. Terminée ≠
+     * tout validé, d'où `stepValidatedCount` à côté. Une étape terminée **reste
+     * affichée** : les priorités ne changent qu'à la prochaine production.
+     */
+    stepCompleted: boolean;
+    /** État agrégé de la compétence, identique à `SkillDto.masteryState` — à ne
+     *  pas confondre avec `status`, verdict de la **dernière** production. */
+    masteryState: SkillMasteryState | null;
+    /** `true` quand la compétence a assez été travaillée en exercices ciblés
+     *  sans preuve de transfert récente : l'étape devient une **vérification**
+     *  (`recommendedExercise.kind === "REASSESSMENT"`). */
+    readyForReassessment: boolean;
+}
+
+export interface LearningPlanSkillDto extends LearningPlanSkillCounters, SkillLockable {
+    skillId: string;
+    skillCode: string;
+    title: string;
+    section: SkillSection;
+    status: LearningPlanSkillStatus;
+    lastObservedAt: string;
+    /** Même état agrégé que `SkillDto.masteryState`, issu du même moteur : un
+     *  candidat ne doit pas lire deux états différents pour une compétence. */
+    masteryState: SkillMasteryState | null;
+}
+
+export interface LearningPlanDto {
+    state: LearningPlanState;
+    diagnosticSessionId: string | null;
+    diagnosticCompletedAt: string | null;
+    currentPriority: LearningPlanPriorityDto | null;
+    nextPriorities: LearningPlanPriorityDto[];
+    observedSkills: LearningPlanSkillDto[];
+    observedSkillCount: number;
+    activitiesThisWeek: number;
+    progressionAvailable: boolean;
 }
 
 // ============================================================================
@@ -670,6 +940,25 @@ export const SKILL_PROMPT_STATUS_LABEL: Record<SkillPromptStatus, string> = {
     TO_REINFORCE: "À renforcer",
 };
 
+/**
+ * Où en est le candidat sur UNE compétence, tout son historique confondu.
+ *
+ * À ne pas confondre avec `LearningPlanSkillStatus`, qui est le verdict d'**une
+ * production**. Celui-ci est l'état **agrégé**, dérivé serveur à la lecture et
+ * jamais recalculé ici. `null` quand aucune observation n'existe : on n'invente
+ * pas un état pour une compétence que le serveur n'a jamais vue.
+ */
+export type SkillMasteryState = "PRIORITY" | "TO_REINFORCE" | "CONSOLIDATING" | "SOLID";
+
+/** Libellés FR de l'état de maîtrise (contrat gelé — à ne pas reformuler, et à
+ *  recopier au caractère près côté mobile). */
+export const SKILL_MASTERY_STATE_LABEL: Record<SkillMasteryState, string> = {
+    PRIORITY: "Priorité",
+    TO_REINFORCE: "À renforcer",
+    CONSOLIDATING: "En consolidation",
+    SOLID: "Solide",
+};
+
 /** Libellés FR de l'auto-évaluation (contrat gelé — à ne pas reformuler). */
 export const SKILL_SELF_EVALUATION_LABEL: Record<SkillSelfEvaluation, string> = {
     REUSSI: "Je pense avoir réussi",
@@ -690,6 +979,27 @@ export const SKILL_REFERENCE_LEVEL_LABEL: Record<SkillReferenceLevel, string> = 
     EXCELLENT: "Très réussi",
 };
 
+/** Où en est le candidat **par rapport au palier qu'il vise**, après une
+ *  micro-production. Dérivé serveur (`SkillLevelProgressResolver`) : aucun front
+ *  ne déduit la situation d'un niveau et d'un objectif — cette table de
+ *  correspondance a déjà existé en six copies divergentes dans le dépôt.
+ *
+ *  À ne pas confondre avec `SituationDansNiveau`, qui situe une production
+ *  **à l'intérieur** de son propre palier (« A2 solide »). */
+export type SituationNiveauVise = "OBJECTIF_ATTEINT" | "PROCHE" | "EN_CHEMIN";
+
+/** Libellés FR de la situation (contrat gelé — à ne pas reformuler). Le serveur
+ *  envoie déjà `situationLabel` **prêt à afficher** : c'est lui qu'on rend, et
+ *  cette table ne sert qu'à garder la copie web alignée sur `SkillLabelsTest`.
+ *
+ *  Aucun ne nomme un manque : « Encore du chemin » décrit une distance, pas un
+ *  échec — le dépôt a retiré le vocabulaire de déficit des cartes de résultat. */
+export const SKILL_SITUATION_NIVEAU_VISE_LABEL: Record<SituationNiveauVise, string> = {
+    OBJECTIF_ATTEINT: "Tu as atteint ton objectif",
+    PROCHE: "Tu es proche du niveau visé",
+    EN_CHEMIN: "Encore du chemin vers ton objectif",
+};
+
 /** GET /api/skills/progress?section= — une entrée par tâche (EE1→EE3). */
 export interface SkillTaskProgressDto {
     taskCode: SkillTaskCode;
@@ -705,7 +1015,7 @@ export interface SkillTaskProgressDto {
 }
 
 /** Une compétence (8 par tâche) + la progression du user courant. */
-export interface SkillDto {
+export interface SkillDto extends SkillLockable {
     id: string;
     section: SkillSection;
     taskCode: string;
@@ -723,10 +1033,16 @@ export interface SkillDto {
     attemptedCount: number;
     validatedCount: number;
     toReinforceCount: number;
+    /** Ce que la carte de compétence affiche **à la place** du compteur de
+     *  sujets traités : un nombre dit ce qui a été fait, cet état dit ce qui est
+     *  maîtrisé. `null` (aucune observation) ⇒ le compteur reprend sa place. */
+    masteryState: SkillMasteryState | null;
 }
 
-/** Un petit sujet dans la liste d'une compétence. */
-export interface SkillPromptSummaryDto {
+/** Un petit sujet dans la liste d'une compétence. Porte le même `locked` que
+ *  `SkillPromptDto` : c'est cette forme-là que sert `GET /api/skills/{id}`,
+ *  donc c'est elle qui décide du cadenas dans la liste des 15 sujets. */
+export interface SkillPromptSummaryDto extends SkillLockable {
     id: string;
     code: string; // "EE1-C1-S1"
     title: string;
@@ -772,11 +1088,33 @@ export interface SkillConstraintTagDto {
 export interface SkillDetailDto {
     skill: SkillDto;
     prompts: SkillPromptSummaryDto[];
+    /** Les observations probantes de la compétence, **de la plus ancienne à la
+     *  plus récente** — le sens dans lequel une frise se lit. Jamais `null`,
+     *  souvent vide : la section n'est alors pas affichée du tout. */
+    trajectory: SkillObservationPointDto[];
+}
+
+/**
+ * Un point de la frise d'une compétence : ce qui a été constaté, quand, et dans
+ * quoi. `status` est le verdict de **cette production-là**, à ne pas confondre
+ * avec `SkillDto.masteryState`, qui agrège tout l'historique.
+ *
+ * `confidence` n'est **pas** affichée au candidat : c'est la certitude du
+ * correcteur, pas une information sur son niveau.
+ */
+export interface SkillObservationPointDto {
+    observedAt: string;
+    source: LearningPlanSourceType;
+    status: LearningPlanSkillStatus;
+    explanation: string | null;
+    confidence: ObservationConfidence;
+    /** `true` pour les deux productions du diagnostic initial : le point de départ. */
+    baseline: boolean;
 }
 
 /** GET /api/skill-prompts/{promptId} — écran de production. Ne porte JAMAIS
  *  les références : elles n'apparaissent qu'après une tentative (§13.2). */
-export interface SkillPromptDto {
+export interface SkillPromptDto extends SkillLockable {
     id: string;
     skillId: string;
     skillCode: string;
@@ -839,13 +1177,125 @@ export interface SkillReferenceDto {
     pedagogicalNote: string;
 }
 
-/** Sortie IA d'un micro-exercice : 5 champs courts, et rien d'autre. */
+/** Où en est cette production par rapport à l'objectif du candidat.
+ *
+ *  **Tout est dérivé serveur** : la situation, son libellé, l'échelle de la
+ *  jauge et la position du curseur. Un front n'a rien à calculer et surtout rien
+ *  à supposer — ni l'ordre des paliers, ni la règle « la démarche fait
+ *  plancher ». `scale` porte toujours **3** crans, le dernier étant
+ *  `targetLevel` ; `cursorIndex` est toujours dans `0..2`. */
+export interface SkillLevelProgressDto {
+    /** Niveau démontré par CETTE production. Jamais C1/C2 (profil TCF IRN). */
+    levelReached: NiveauCecrl;
+    targetLevel: TargetLevel;
+    situation: SituationNiveauVise;
+    /** Libellé FR prêt à afficher, gelé côté serveur. **À rendre tel quel** :
+     *  ne jamais le recomposer depuis `situation`. */
+    situationLabel: string;
+    scale: NiveauCecrl[];
+    cursorIndex: number;
+}
+
+/* ---------------------------------------------------------------------------
+ * Plan d'action « pour viser X » — briques PARTAGÉES
+ *
+ * Exactement les mêmes formes des deux côtés : le micro-exercice de compétence
+ * ({@link SkillNiveauViseDto}) et la production complète ({@link EeVersionCiblee})
+ * sortent du même second appel LLM et rendent le même plan. Deux jeux de types
+ * jumeaux auraient divergé au premier champ ajouté — et les composants qui les
+ * affichent sont eux aussi partagés (`skill-ui/ActionPlan.tsx`).
+ * ------------------------------------------------------------------------- */
+
+/** Un levier : ce qu'on fait, et avec quels mots. */
+export interface ActionPlanLevier {
+    /** 6 mots maximum, à l'impératif. */
+    action: string;
+    /** 5 mots maximum, un bout de langue recopiable tel quel. */
+    exemple: string;
+}
+
+/** Un passage à mettre en évidence dans `ActionPlanExempleCible.texte`.
+ *
+ *  `extrait` est **garanti sous-chaîne exacte** du texte par le serveur (qui
+ *  refuse le bloc entier sinon) : un front peut donc surligner par simple
+ *  recherche de chaîne, sans normalisation ni approximation. Introuvable malgré
+ *  tout ⇒ on rend le texte brut, jamais d'erreur. */
+export interface ActionPlanSegment {
+    extrait: string;
+    /** Ce qu'il apporte, 3 mots maximum. */
+    apport: string;
+}
+
+/** La réponse réécrite au niveau visé, et les endroits où se joue la
+ *  différence (2 à 3 segments). **Production ÉCRITE seulement.** */
+export interface ActionPlanExempleCible {
+    texte: string;
+    segments: ActionPlanSegment[];
+}
+
+/**
+ * Un passage de la production **orale**, redit au niveau visé.
+ *
+ * L'oral n'a **jamais** de texte modèle complet : ce que lit le correcteur est
+ * une transcription automatique, en refaire un beau texte tromperait le candidat
+ * sur ce qu'il a réellement dit. `original` est le passage exact du candidat,
+ * résolu serveur depuis un numéro de segment — aucun entier ne traverse ce
+ * contrat.
+ */
+export interface ActionPlanReformulation {
+    original: string;
+    reformule: string;
+    /** Ce que la reformulation apporte, 3 mots maximum. */
+    apport: string;
+}
+
+/** La tournure à emporter ailleurs. */
+export interface ActionPlanMemo {
+    /** 8 mots maximum, écrite comme un patron. */
+    formule: string;
+    /** 14 mots maximum, quand et pourquoi elle sert. */
+    explication: string | null;
+}
+
+/** Le plan d'action « pour viser X », produit par un **second appel LLM**
+ *  séparé de l'analyse.
+ *
+ *  Son absence est un **cas NORMAL, jamais une erreur** : objectif déjà atteint,
+ *  palier visé inconnu, fournisseur muet, sortie refusée. Aucun front n'affiche
+ *  de message d'échec, de spinner ni d'encart d'excuse quand il manque. */
+export interface SkillNiveauViseDto {
+    niveauVise: TargetLevel;
+    niveauConstate: NiveauCecrl | null;
+    /** 2 à 3 leviers, du plus rentable au moins rentable. */
+    leviers: ActionPlanLevier[] | null;
+    exempleCible: ActionPlanExempleCible | null;
+    aRetenir: ActionPlanMemo | null;
+}
+
+/**
+ * Sortie IA d'un micro-exercice. **Aucune note /20**, ici comme avant.
+ *
+ * **Deux générations de champs, aucune migration** : les analyses persistées
+ * sous les contrats v1/v2 portent `successPoint` / `improvementPriority` /
+ * `improvedVersion` ; celles produites sous v3 portent `strengthTag` /
+ * `focusTag` / `levelProgress` / `niveauVise`. Les deux jeux cohabitent, **tous
+ * nullables** : afficher ce qu'on trouve, ne jamais supposer qu'un champ est là.
+ */
 export interface SkillAnalysisDto {
     status: SkillCriterionStatus;
     verdict: string;
-    successPoint: string;
-    improvementPriority: string;
-    improvedVersion: string;
+    /** v3 : ce qui est réussi, en 3 mots. Une étiquette, pas une phrase. */
+    strengthTag?: string | null;
+    /** v3 : l'axe de progrès, en 3 mots. */
+    focusTag?: string | null;
+    levelProgress?: SkillLevelProgressDto | null;
+    niveauVise?: SkillNiveauViseDto | null;
+    /** legacy v1/v2 — null sur une analyse v3. */
+    successPoint?: string | null;
+    /** legacy v1/v2 — null sur une analyse v3. */
+    improvementPriority?: string | null;
+    /** legacy v1/v2 — null sur une analyse v3. */
+    improvedVersion?: string | null;
 }
 
 export interface SkillAttemptDto {
@@ -1241,14 +1691,22 @@ export interface EePriority {
 }
 
 /**
- * La réponse du candidat **réécrite au palier qu'il vise**, plus ce qui l'en
- * sépare. Produite par un SECOND appel LLM, totalement séparé de la correction
- * (le correcteur n'apprend jamais quel niveau vise le candidat — sinon il
- * alignerait sa note dessus).
+ * Le **plan d'action** du candidat vers le palier qu'il vise. Produit par un
+ * SECOND appel LLM, totalement séparé de la correction (le correcteur n'apprend
+ * jamais quel niveau vise le candidat — sinon il alignerait sa note dessus).
  *
- * **EE uniquement**, et absente dans tous ces cas parfaitement normaux : à
- * l'oral, sur les évaluations antérieures, et quand le second appel a échoué.
- * Rien ne s'affiche alors — ni squelette, ni « non disponible ».
+ * **EE et EO.** Absent dans tous ces cas parfaitement normaux : évaluations
+ * antérieures, second appel en échec, et — à l'oral — transcription trop abîmée
+ * pour reformuler quoi que ce soit. Rien ne s'affiche alors : ni squelette, ni
+ * « non disponible ».
+ *
+ * **Trois formes, une seule clé** — on distingue l'écrit de l'oral à la présence
+ * de `exempleCible` ou de `reformulations` :
+ * - **v2, écrit** : `leviers` + `exempleCible` + `aRetenir` ;
+ * - **v2, oral** : `leviers` + `reformulations` + `aRetenir`. **Aucun texte
+ *   modèle complet** — la production orale n'est jamais réécrite en entier ;
+ * - **v1** (une centaine d'évaluations déjà en base) : `texte` +
+ *   `ceQuiManque`, écrit seulement.
  *
  * Quand le palier visé est **déjà atteint**, ce n'est pas ce bloc qui manque :
  * c'est {@link EeNiveauViseAtteint} qui prend sa place. Les deux sont exclusifs.
@@ -1259,10 +1717,19 @@ export interface EeVersionCiblee {
     niveauVise: TargetLevel;
     /** Palier réellement observé sur cette tâche. Absent si inconnu. */
     niveauConstate: NiveauCecrl | null;
-    /** Le modèle rédigé au niveau visé. **Jamais la production du candidat.** */
-    texte: string;
-    /** 2 à 3 leviers, **dans l'ordre du backend** (du plus rentable au moins
-     *  rentable) : ne jamais retrier côté front. */
+    /** v2 : 2 à 3 leviers, **dans l'ordre du backend** (du plus rentable au
+     *  moins rentable) : ne jamais retrier côté front. */
+    leviers: ActionPlanLevier[];
+    /** v2, ÉCRIT : la réponse réécrite au niveau visé, segments surlignables. */
+    exempleCible: ActionPlanExempleCible | null;
+    /** v2, ORAL : 2 à 3 passages redits au niveau visé. Exclusif du précédent. */
+    reformulations: ActionPlanReformulation[];
+    /** v2 : la tournure à emporter ailleurs. */
+    aRetenir: ActionPlanMemo | null;
+    /** v1 (legacy) : le modèle rédigé au niveau visé. **Jamais la production du
+     *  candidat.** Null sous le contrat v2. */
+    texte: string | null;
+    /** v1 (legacy) : les leviers en texte libre, ordre du backend préservé. */
     ceQuiManque: string[];
 }
 
@@ -1382,23 +1849,100 @@ function asNiveauCecrl(v: unknown): NiveauCecrl | null {
     return s && NIVEAUX_CECRL.includes(s) ? (s as NiveauCecrl) : null;
 }
 
+/** Un levier v2 : les deux champs sont exigés, un demi-levier ne s'applique pas. */
+function asActionLeviers(v: unknown): ActionPlanLevier[] {
+    if (!Array.isArray(v)) return [];
+    return v.flatMap((item) => {
+        const r = asRecord(item);
+        const action = asString(r?.action);
+        const exemple = asString(r?.exemple);
+        return action && exemple ? [{action, exemple}] : [];
+    });
+}
+
+function asActionSegments(v: unknown): ActionPlanSegment[] {
+    if (!Array.isArray(v)) return [];
+    return v.flatMap((item) => {
+        const r = asRecord(item);
+        const extrait = asString(r?.extrait);
+        const apport = asString(r?.apport);
+        return extrait && apport ? [{extrait, apport}] : [];
+    });
+}
+
+/** Bloc `exemple_cible` (contrat v2, ÉCRIT). Sans texte, il n'y a rien à
+ *  montrer ; les segments, eux, ne sont qu'un surlignage — leur absence dégrade
+ *  sans rien casser. */
+function asActionExempleCible(v: unknown): ActionPlanExempleCible | null {
+    const r = asRecord(v);
+    const texte = asString(r?.texte);
+    if (!texte) return null;
+    return {texte, segments: asActionSegments(r?.segments)};
+}
+
+/** Bloc `reformulations` (contrat v2, ORAL). `original` est posé par le SERVEUR
+ *  (numéro de segment déjà résolu en texte) : aucun entier n'arrive ici. */
+function asActionReformulations(v: unknown): ActionPlanReformulation[] {
+    if (!Array.isArray(v)) return [];
+    return v.flatMap((item) => {
+        const r = asRecord(item);
+        const original = asString(r?.original);
+        const reformule = asString(r?.reformule);
+        const apport = asString(r?.apport);
+        return original && reformule && apport ? [{original, reformule, apport}] : [];
+    });
+}
+
+/** Bloc `a_retenir` (contrat v2). La formule seule suffit : l'explication est
+ *  un complément, elle ne conditionne pas l'affichage. */
+function asActionMemo(v: unknown): ActionPlanMemo | null {
+    const r = asRecord(v);
+    const formule = asString(r?.formule);
+    if (!formule) return null;
+    return {formule, explication: asString(r?.explication)};
+}
+
 /**
  * Bloc `version_ciblee`, ou `null` dès qu'il manque de quoi l'afficher
- * honnêtement : sans palier visé on ne saurait pas au nom de quoi ce texte est
- * montré, et sans texte il n'y a rien à montrer. L'ordre de `ce_qui_manque` est
- * **préservé** — le backend le trie du plus rentable au moins rentable.
+ * honnêtement : sans palier visé on ne saurait pas au nom de quoi ce plan est
+ * montré, et sans la moindre section il n'y a rien à montrer.
+ *
+ * Les trois formes du contrat sont lues ici (v2 écrit, v2 oral, v1) : les
+ * évaluations déjà en base gardent la forme qu'elles avaient, rien n'est migré.
+ * L'ordre des leviers est **préservé** — le backend les trie du plus rentable au
+ * moins rentable.
  */
 function asVersionCiblee(v: unknown): EeVersionCiblee | null {
     const r = asRecord(v);
     if (!r) return null;
     const niveauVise = asTargetLevel(r.niveau_vise);
+    if (!niveauVise) return null;
+
+    const leviers = asActionLeviers(r.leviers);
+    const exempleCible = asActionExempleCible(r.exemple_cible);
+    const reformulations = asActionReformulations(r.reformulations);
+    const aRetenir = asActionMemo(r.a_retenir);
     const texte = asString(r.texte);
-    if (!niveauVise || !texte) return null;
+    const ceQuiManque = asStringList(r.ce_qui_manque);
+
+    const vide =
+        leviers.length === 0 &&
+        !exempleCible &&
+        reformulations.length === 0 &&
+        !aRetenir &&
+        !texte &&
+        ceQuiManque.length === 0;
+    if (vide) return null;
+
     return {
         niveauVise,
         niveauConstate: asNiveauCecrl(r.niveau_constate),
+        leviers,
+        exempleCible,
+        reformulations,
+        aRetenir,
         texte,
-        ceQuiManque: asStringList(r.ce_qui_manque),
+        ceQuiManque,
     };
 }
 

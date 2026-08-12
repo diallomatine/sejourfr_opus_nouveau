@@ -1,6 +1,8 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.CorrespondanceTcfDto;
+import com.sejourfr.app.dto.PlanChangeDto;
+import com.sejourfr.app.dto.PlanSkillRefDto;
 import com.sejourfr.app.dto.ProductionBilanResponse;
 import com.sejourfr.app.dto.ProductionSubmissionDto;
 import com.sejourfr.app.dto.SubmitProductionTextRequest;
@@ -11,6 +13,8 @@ import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.SkillSection;
+import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
@@ -59,6 +63,7 @@ class ProductionSubmissionServiceTest {
     private ProductionBilanService bilanService;
     private ProductionExamCompositionService compositionService;
     private RateLimitGuard rateLimitGuard;
+    private LearningPlanService learningPlanService;
     private ProductionSubmissionService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -81,11 +86,14 @@ class ProductionSubmissionServiceTest {
         // Quota freemium : collaborateur REEL (la regle a ete factorisee dans
         // ProductionAccessService pour que la voie temps reel l'applique aussi).
         ProductionAccessService accessService = new ProductionAccessService(
-                subscriptionService, attemptManager, submissionManager);
+                subscriptionService, attemptManager, submissionManager,
+                mock(com.sejourfr.app.manager.DiagnosticSessionManager.class));
+        learningPlanService = mock(LearningPlanService.class);
+        when(learningPlanService.changeAfterProduction(any(), any())).thenReturn(Optional.empty());
         service = new ProductionSubmissionService(
                 evaluationService, submissionManager, attemptManager, taskManager,
                 mapper, taskMapper, currentUser, bilanService,
-                compositionService, accessService, rateLimitGuard);
+                compositionService, accessService, rateLimitGuard, learningPlanService);
 
         when(currentUser.getId()).thenReturn(userId);
     }
@@ -120,7 +128,7 @@ class ProductionSubmissionServiceTest {
 
     @Test
     void submitText_tache_introuvable_renvoie_404() {
-        when(taskManager.findActiveById(taskId)).thenReturn(Optional.empty());
+        when(taskManager.findById(taskId)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.submitText(req())).isInstanceOf(NotFoundException.class);
     }
 
@@ -128,13 +136,13 @@ class ProductionSubmissionServiceTest {
     void submitText_tache_oral_refuse_sur_la_route_ecrite() {
         ProductionTask oral = eeTask();
         oral.setEpreuve(EpreuveType.TCF_EO);
-        when(taskManager.findActiveById(taskId)).thenReturn(Optional.of(oral));
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(oral));
         assertThatThrownBy(() -> service.submitText(req())).isInstanceOf(BusinessException.class);
     }
 
     @Test
     void submitText_premium_passe_sans_verifier_le_quota() {
-        when(taskManager.findActiveById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
         when(subscriptionService.hasTcf(userId)).thenReturn(true);
         stubEvaluatedSubmission();
 
@@ -148,7 +156,7 @@ class ProductionSubmissionServiceTest {
 
     @Test
     void submitText_gratuit_premier_essai_entrainement_autorise() {
-        when(taskManager.findActiveById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
         when(attemptManager.findById(attemptId)).thenReturn(Optional.of(attempt()));
         when(attemptManager.countProductionExamSessions(userId)).thenReturn(0L);
@@ -162,7 +170,7 @@ class ProductionSubmissionServiceTest {
 
     @Test
     void submitText_gratuit_quota_entrainement_epuise_refuse() {
-        when(taskManager.findActiveById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
         when(attemptManager.findById(attemptId)).thenReturn(Optional.of(attempt()));
         when(attemptManager.countProductionExamSessions(userId)).thenReturn(0L);
@@ -176,7 +184,7 @@ class ProductionSubmissionServiceTest {
     void submitText_gratuit_session_examen_slotNumber_bypass_le_quota() {
         Attempt examSlot = attempt();
         examSlot.setSlotNumber(1);
-        when(taskManager.findActiveById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
         when(attemptManager.findById(attemptId)).thenReturn(Optional.of(examSlot));
         stubEvaluatedSubmission();
@@ -192,7 +200,7 @@ class ProductionSubmissionServiceTest {
     void submitText_gratuit_epreuve_terminee_refuse() {
         Attempt finished = attempt();
         finished.setFinishedAt(Instant.now());
-        when(taskManager.findActiveById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
         when(attemptManager.findById(attemptId)).thenReturn(Optional.of(finished));
 
@@ -201,7 +209,7 @@ class ProductionSubmissionServiceTest {
 
     @Test
     void submitText_gratuit_deux_sessions_examen_consomment_les_essais() {
-        when(taskManager.findActiveById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
         when(attemptManager.findById(attemptId)).thenReturn(Optional.of(attempt()));
         when(attemptManager.countProductionExamSessions(userId)).thenReturn(2L);
@@ -230,6 +238,80 @@ class ProductionSubmissionServiceTest {
         when(submissionManager.findById(subId)).thenReturn(Optional.of(other));
 
         assertThatThrownBy(() -> service.getOwnDetail(subId)).isInstanceOf(NotFoundException.class);
+    }
+
+    // ------------------------------------------------------------------------
+    // « Le Plan a change » : resolu a la lecture, absent sans faute
+    // ------------------------------------------------------------------------
+
+    @Test
+    void getOwnDetail_porte_le_changement_de_plan_quand_il_y_en_a_un() {
+        UUID subId = UUID.randomUUID();
+        stubOwnEvaluatedSubmission(subId);
+        PlanChangeDto change = new PlanChangeDto(
+                new PlanSkillRefDto(UUID.randomUUID(), "EE3-C2", "Argumenter", SkillSection.EE),
+                null);
+        when(learningPlanService.changeAfterProduction(userId, subId))
+                .thenReturn(Optional.of(change));
+
+        assertThat(service.getOwnDetail(subId).planChange()).isEqualTo(change);
+    }
+
+    @Test
+    void getOwnDetail_sans_observation_encore_ecrite_ne_porte_rien_et_ne_leve_pas() {
+        UUID subId = UUID.randomUUID();
+        stubOwnEvaluatedSubmission(subId);
+        when(learningPlanService.changeAfterProduction(userId, subId)).thenReturn(Optional.empty());
+
+        assertThat(service.getOwnDetail(subId).planChange()).isNull();
+    }
+
+    @Test
+    void getOwnDetail_avant_evaluation_ne_consulte_meme_pas_le_plan() {
+        UUID subId = UUID.randomUUID();
+        ProductionSubmission sub = ownSubmission(subId, SubmissionStatut.EVALUATING);
+        when(submissionManager.findById(subId)).thenReturn(Optional.of(sub));
+        when(mapper.toDto(sub)).thenReturn(dto(subId, SubmissionStatut.EVALUATING));
+
+        assertThat(service.getOwnDetail(subId).planChange()).isNull();
+        verify(learningPlanService, never()).changeAfterProduction(any(), any());
+    }
+
+    /** Le diagnostic a son propre ecran de resultat agrege : pas de bloc ici. */
+    @Test
+    void getOwnDetail_dun_sujet_de_diagnostic_ne_consulte_pas_le_plan() {
+        UUID subId = UUID.randomUUID();
+        ProductionSubmission sub = ownSubmission(subId, SubmissionStatut.EVALUATED);
+        sub.getProductionTask().setDiagnosticCode("INITIAL_TCF");
+        sub.getProductionTask().setDiagnosticVersion(1);
+        when(submissionManager.findById(subId)).thenReturn(Optional.of(sub));
+        when(mapper.toDto(sub)).thenReturn(dto(subId, SubmissionStatut.EVALUATED));
+
+        assertThat(service.getOwnDetail(subId).planChange()).isNull();
+        verify(learningPlanService, never()).changeAfterProduction(any(), any());
+    }
+
+    private void stubOwnEvaluatedSubmission(UUID subId) {
+        ProductionSubmission sub = ownSubmission(subId, SubmissionStatut.EVALUATED);
+        when(submissionManager.findById(subId)).thenReturn(Optional.of(sub));
+        when(mapper.toDto(sub)).thenReturn(dto(subId, SubmissionStatut.EVALUATED));
+    }
+
+    private ProductionSubmission ownSubmission(UUID subId, SubmissionStatut statut) {
+        ProductionSubmission sub = new ProductionSubmission();
+        sub.setId(subId);
+        User owner = new User();
+        owner.setId(userId);
+        sub.setUser(owner);
+        sub.setStatut(statut);
+        sub.setProductionTask(eeTask());
+        return sub;
+    }
+
+    private ProductionSubmissionDto dto(UUID subId, SubmissionStatut statut) {
+        return new ProductionSubmissionDto(
+                subId, null, taskId, (short) 1, statut, null, "Texte", 60, null,
+                (short) 0, null, Instant.now(), null, null, null);
     }
 
     @Test

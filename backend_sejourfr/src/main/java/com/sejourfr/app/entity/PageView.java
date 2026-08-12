@@ -52,7 +52,7 @@ public class PageView {
     private String source;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "event", nullable = false, length = 20)
+    @Column(name = "event", nullable = false, length = 64)
     private PageViewEvent event;
 
     @Column(name = "day", nullable = false)

@@ -23,6 +23,12 @@ class EvaluationRepairPromptTest {
     private static final String VIOLATION_MORPHO =
         "preuve[morphosyntaxe] doit citer un passage reel de la production";
 
+    /** Contrat de sortie ou {@code exemples_corriges} existe encore (jusqu'a v8). */
+    private static final EvaluationToolSchema CONTRAT_V8 = EvaluationToolSchema.V8;
+
+    /** Contrat de sortie ou les deux champs de restitution longue ont disparu. */
+    private static final EvaluationToolSchema CONTRAT_V9 = EvaluationToolSchema.V9;
+
     @SafeVarargs
     private static Map<String, Object> feedback(Map<String, Object>... scores) {
         return Map.of("scores_criteres", List.of(scores));
@@ -40,7 +46,7 @@ class EvaluationRepairPromptTest {
             feedback(score("lexique", "je travaille beaucoup ici"),
                 score("morphosyntaxe", "j'ai travaille... depuis longtemps"),
                 score("communiquer", "Je travaille ici")),
-            EpreuveType.TCF_EE);
+            EpreuveType.TCF_EE, CONTRAT_V8);
 
         assertThat(prompt)
             .contains("critere lexique : tu as cite « je travaille beaucoup ici »")
@@ -53,7 +59,7 @@ class EvaluationRepairPromptTest {
     void enonce_la_regle_de_la_preuve_et_conseille_de_re_citer_plus_court() {
         String prompt = EvaluationRepairPrompt.build(
             USER_PROMPT, List.of(VIOLATION_LEXIQUE),
-            feedback(score("lexique", "un passage invente")), EpreuveType.TCF_EE);
+            feedback(score("lexique", "un passage invente")), EpreuveType.TCF_EE, CONTRAT_V8);
 
         assertThat(prompt)
             .contains("CONTIGU")
@@ -68,11 +74,11 @@ class EvaluationRepairPromptTest {
         Map<String, Object> feedback = feedback(score("lexique", "un passage invente"));
 
         assertThat(EvaluationRepairPrompt.build(
-            USER_PROMPT, List.of(VIOLATION_LEXIQUE), feedback, EpreuveType.TCF_EO))
+            USER_PROMPT, List.of(VIOLATION_LEXIQUE), feedback, EpreuveType.TCF_EO, CONTRAT_V8))
             .contains("UN SEUL tour")
             .contains("Candidat :");
         assertThat(EvaluationRepairPrompt.build(
-            USER_PROMPT, List.of(VIOLATION_LEXIQUE), feedback, EpreuveType.TCF_EE))
+            USER_PROMPT, List.of(VIOLATION_LEXIQUE), feedback, EpreuveType.TCF_EE, CONTRAT_V8))
             .doesNotContain("UN SEUL tour");
     }
 
@@ -80,7 +86,7 @@ class EvaluationRepairPromptTest {
     void conserve_le_prompt_initial_et_la_liste_des_violations() {
         String prompt = EvaluationRepairPrompt.build(
             USER_PROMPT, List.of(VIOLATION_LEXIQUE, "confiance invalide"),
-            feedback(score("lexique", "un passage invente")), EpreuveType.TCF_EE);
+            feedback(score("lexique", "un passage invente")), EpreuveType.TCF_EE, CONTRAT_V8);
 
         assertThat(prompt)
             .startsWith(USER_PROMPT)
@@ -92,7 +98,7 @@ class EvaluationRepairPromptTest {
     @Test
     void sans_rejet_de_preuve_le_message_reste_la_liste_des_violations() {
         String prompt = EvaluationRepairPrompt.build(
-            USER_PROMPT, List.of("confiance invalide"), Map.of(), EpreuveType.TCF_EE);
+            USER_PROMPT, List.of("confiance invalide"), Map.of(), EpreuveType.TCF_EE, CONTRAT_V8);
 
         assertThat(prompt)
             .contains("- confiance invalide")
@@ -115,7 +121,7 @@ class EvaluationRepairPromptTest {
             + "les répétitions du début. »";
 
         String prompt = EvaluationRepairPrompt.build(
-            USER_PROMPT, List.of(violation), Map.of(), EpreuveType.TCF_EO);
+            USER_PROMPT, List.of(violation), Map.of(), EpreuveType.TCF_EO, CONTRAT_V8);
 
         assertThat(prompt)
             .contains("ELEMENTS NON EVALUABLES A L'ORAL")
@@ -128,6 +134,30 @@ class EvaluationRepairPromptTest {
             .doesNotContain("CITATIONS REFUSEES");
     }
 
+    /**
+     * SOUS LE CONTRAT v9, {@code exemples_corriges} n'existe plus : lui rappeler
+     * qu'il peut le vider serait le meilleur moyen de le lui faire produire —
+     * donc de faire echouer le reessai qu'on essaie de reparer. Tout le reste du
+     * garde-fou oral, lui, est INCHANGE : aucun controle n'est relache.
+     */
+    @Test
+    void ne_nomme_plus_les_exemples_corriges_sous_le_contrat_qui_les_a_retires() {
+        String violation = "points_forts"
+            + EvaluationOutputValidator.ORAL_VIOLATION_MARKER
+            + " — notion interdite « fluidite », dans : « Bonne fluidité. »";
+
+        String prompt = EvaluationRepairPrompt.build(
+            USER_PROMPT, List.of(violation), Map.of(), EpreuveType.TCF_EO, CONTRAT_V9);
+
+        assertThat(prompt)
+            .doesNotContain("exemples_corriges")
+            .contains("ELEMENTS NON EVALUABLES A L'ORAL")
+            .contains(violation)
+            .contains("TRANSCRIPTION AUTOMATIQUE")
+            .contains("c'est la NOTION qui est interdite, pas le mot")
+            .contains("confiance_raisons");
+    }
+
     @Test
     void cumule_le_garde_fou_oral_et_les_citations_refusees() {
         String prompt = EvaluationRepairPrompt.build(
@@ -136,7 +166,7 @@ class EvaluationRepairPromptTest {
                 "points_forts" + EvaluationOutputValidator.ORAL_VIOLATION_MARKER
                     + " — notion interdite « fluidite », dans : « Bonne fluidité. »"),
             feedback(score("lexique", "un passage invente")),
-            EpreuveType.TCF_EO);
+            EpreuveType.TCF_EO, CONTRAT_V8);
 
         assertThat(prompt)
             .contains("ELEMENTS NON EVALUABLES A L'ORAL")
@@ -149,7 +179,7 @@ class EvaluationRepairPromptTest {
         String prompt = EvaluationRepairPrompt.build(
             USER_PROMPT, List.of(VIOLATION_LEXIQUE),
             Map.of("scores_criteres", List.of(Map.of("code", "lexique", "note_sur_20", 8))),
-            EpreuveType.TCF_EE);
+            EpreuveType.TCF_EE, CONTRAT_V8);
 
         assertThat(prompt).contains("critere lexique : une preuve absente ou vide.");
     }
@@ -168,7 +198,7 @@ class EvaluationRepairPromptTest {
             List.of("preuve_segment[lexique] doit designer un segment numerote de la production"),
             Map.of("scores_criteres", List.of(Map.of(
                 "code", "lexique", "note_sur_20", 8, "preuve_segment", 99))),
-            EpreuveType.TCF_EO);
+            EpreuveType.TCF_EO, CONTRAT_V8);
 
         assertThat(prompt)
             .contains("NUMERO DE SEGMENT INVALIDE")
@@ -187,7 +217,7 @@ class EvaluationRepairPromptTest {
                 "points_forts" + EvaluationOutputValidator.ORAL_VIOLATION_MARKER
                     + " — notion interdite « fluidite », dans : « Bonne fluidité. »"),
             Map.of("scores_criteres", List.of(Map.of("code", "lexique", "note_sur_20", 8))),
-            EpreuveType.TCF_EO);
+            EpreuveType.TCF_EO, CONTRAT_V8);
 
         assertThat(prompt)
             .contains("ELEMENTS NON EVALUABLES A L'ORAL")

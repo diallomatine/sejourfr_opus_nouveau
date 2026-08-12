@@ -15,6 +15,7 @@ import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_sheet.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'widgets/transcript_dialogue.dart';
+import 'production_result_polling.dart';
 import 'eo_session_controller.dart';
 import 'widgets/evaluation_loading_view.dart';
 import 'widgets/evaluation_report.dart';
@@ -66,25 +67,31 @@ class EoResultsScreen extends ConsumerStatefulWidget {
 
 class _EoResultsScreenState extends ConsumerState<EoResultsScreen> {
   Timer? _poll;
-  static const Duration _pollMaxDuration = Duration(seconds: 90);
-  late final DateTime _pollStartedAt;
+
+  /// Arrêt du polling : statut final, budget épuisé, ou fin du sursis accordé
+  /// au plan d'action. Une seule boucle, une seule règle — cf.
+  /// [ProductionResultPollGuard].
+  final ProductionResultPollGuard _guard = ProductionResultPollGuard();
+
+  /// Le second appel peut encore aboutir : la place du plan d'action porte son
+  /// indicateur, qui s'efface en silence à la fin du sursis.
+  bool _actionPlanPending = false;
 
   @override
   void initState() {
     super.initState();
-    _pollStartedAt = DateTime.now();
-    _poll = Timer.periodic(const Duration(seconds: 3), (timer) {
+    _poll = Timer.periodic(kProductionPollInterval, (timer) {
       if (!mounted) {
         timer.cancel();
         return;
       }
       final value =
           ref.read(_eoSubmissionFetcher(widget.submissionId)).valueOrNull;
-      if (value != null && value.statut.isFinal) {
-        timer.cancel();
-        return;
+      final again = _guard.shouldPoll(value);
+      if (_actionPlanPending != _guard.awaitsActionPlan) {
+        setState(() => _actionPlanPending = _guard.awaitsActionPlan);
       }
-      if (DateTime.now().difference(_pollStartedAt) > _pollMaxDuration) {
+      if (!again) {
         timer.cancel();
         return;
       }
@@ -139,6 +146,7 @@ class _EoResultsScreenState extends ConsumerState<EoResultsScreen> {
             isHistory: widget.isHistory,
             fullExamId: fullExamId,
             queryParameters: qp,
+            actionPlanPending: _actionPlanPending,
           );
         },
       ),
@@ -176,6 +184,7 @@ class _Body extends ConsumerWidget {
     required this.isHistory,
     required this.fullExamId,
     required this.queryParameters,
+    required this.actionPlanPending,
   });
 
   final ProductionSubmissionDto submission;
@@ -186,6 +195,10 @@ class _Body extends ConsumerWidget {
   /// Reçu du screen parent (qui a accès garanti à GoRouterState).
   final String? fullExamId;
   final Map<String, String> queryParameters;
+
+  /// Le sursis accordé au second appel court encore : le rapport rend son
+  /// indicateur à la place du plan d'action.
+  final bool actionPlanPending;
 
   /// Mode entrainement libre (single-task depuis le hub, ou session realtime
   /// arrivee ici avec `single=1`). Le bilan de session n'a pas de sens : on
@@ -232,6 +245,8 @@ class _Body extends ConsumerWidget {
                 isOral: true,
                 eyebrow: 'Expression orale · Tâche ${taskIndex + 1}',
                 targetLevel: ref.watch(userTargetLevelProvider),
+                planChange: submission.planChange,
+                actionPlanPending: actionPlanPending,
               ),
               if (submission.transcription != null &&
                   submission.transcription!.isNotEmpty) ...[

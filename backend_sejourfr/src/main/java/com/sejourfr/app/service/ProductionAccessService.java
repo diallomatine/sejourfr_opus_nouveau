@@ -5,10 +5,12 @@ import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -42,6 +44,7 @@ public class ProductionAccessService {
     private final SubscriptionService subscriptionService;
     private final AttemptManager attemptManager;
     private final ProductionSubmissionManager submissionManager;
+    private final DiagnosticSessionManager diagnosticSessionManager;
 
     /**
      * Toutes les gardes de session à passer avant de créer une soumission EE/EO,
@@ -53,6 +56,7 @@ public class ProductionAccessService {
      */
     public void assertCanSubmit(UUID userId, Attempt attempt, ProductionTask task) {
         assertOwnership(userId, attempt);
+        assertPurposeAndDiagnosticPair(userId, attempt, task);
         assertNotFinished(attempt);
         assertWithinTimeLimit(attempt);
         assertEpreuveMatches(attempt, task);
@@ -120,6 +124,12 @@ public class ProductionAccessService {
      * L'entraînement libre n'est pas concerné (il a son propre quota freemium).
      */
     private void assertTacheNotAlreadySubmitted(Attempt attempt, ProductionTask task) {
+        if (task.isDiagnostic()) {
+            if (submissionManager.countByAttempt(attempt.getId()) > 0) {
+                throw new BusinessException("Cette étape du diagnostic a déjà été rendue.");
+            }
+            return;
+        }
         if (!isExamSession(attempt)) return;
         Short tache = task.getTacheNumero();
         if (tache == null) return;
@@ -163,18 +173,89 @@ public class ProductionAccessService {
         }
 
         // Refaire l'examen blanc (2e session) consomme les essais restants.
-        if (attemptManager.countProductionExamSessions(userId) >= 2) {
+        if (examSessionsConsumedTraining(userId)) {
             throw new AccessDeniedException(
                     "Vos essais gratuits EE/EO ont ete utilises en refaisant l'examen blanc. "
                             + "Passez Premium pour continuer.");
         }
 
-        long used = submissionManager.countTrainingByUserAndEpreuve(userId, epreuve);
-        if (used >= FREE_TRAINING_PER_EPREUVE) {
+        if (trainingQuotaExhausted(userId, epreuve)) {
             throw new AccessDeniedException(
                     "Quota gratuit atteint pour " + epreuve.getLabel() + " (" + FREE_TRAINING_PER_EPREUVE
                             + " essai a vie). Passez Premium pour continuer."
             );
+        }
+    }
+
+    /**
+     * Le meme budget freemium, <b>en lecture</b> : « ce candidat peut-il encore
+     * produire librement sur cette epreuve ? ».
+     *
+     * <p>Sert a poser le cadenas sur la verification en situation du Plan
+     * ({@code ReassessmentExerciseSelector}) sans rien tenter ni rien consommer.
+     * Il partage ses deux conditions avec {@link #enforceQuota} — deux copies
+     * auraient fini par afficher un sujet ouvert que le serveur refuse, ou
+     * l'inverse. Le sujet reste <b>designe</b> meme verrouille : savoir quoi
+     * travailler est ce que le Plan apporte.
+     */
+    @Transactional(readOnly = true)
+    public boolean isTrainingLocked(UUID userId, EpreuveType epreuve) {
+        if (subscriptionService.hasTcf(userId)) return false;
+        return examSessionsConsumedTraining(userId) || trainingQuotaExhausted(userId, epreuve);
+    }
+
+    private boolean examSessionsConsumedTraining(UUID userId) {
+        return attemptManager.countProductionExamSessions(userId) >= 2;
+    }
+
+    private boolean trainingQuotaExhausted(UUID userId, EpreuveType epreuve) {
+        return submissionManager.countTrainingByUserAndEpreuve(userId, epreuve)
+                >= FREE_TRAINING_PER_EPREUVE;
+    }
+
+    /**
+     * Bypass gratuit strictement borné au triplet task + attempt + session du
+     * même utilisateur. Une task diagnostic seule ne suffit jamais.
+     */
+    public void enforceQuota(UUID userId, ProductionTask task, UUID attemptId) {
+        if (task.isDiagnostic()) {
+            Attempt attempt = attemptManager.findById(attemptId)
+                    .orElseThrow(() -> new BusinessException("Session de production introuvable."));
+            assertOwnership(userId, attempt);
+            assertPurposeAndDiagnosticPair(userId, attempt, task);
+            return;
+        }
+        if (attemptId != null && diagnosticSessionManager.existsByAttemptId(attemptId)) {
+            throw new BusinessException("Cet attempt est réservé au diagnostic.");
+        }
+        enforceQuota(userId, task.getEpreuve(), attemptId);
+    }
+
+    private void assertPurposeAndDiagnosticPair(
+            UUID userId, Attempt attempt, ProductionTask task) {
+        var session = diagnosticSessionManager.findByAttemptIdWithContent(attempt.getId()).orElse(null);
+        if (!task.isDiagnostic()) {
+            if (session != null) {
+                throw new BusinessException("Cet attempt est réservé au diagnostic.");
+            }
+            return;
+        }
+        if (session == null || session.getUser() == null
+                || !userId.equals(session.getUser().getId())) {
+            throw new BusinessException("Sujet diagnostic hors de votre session active.");
+        }
+        boolean written = attempt.getId().equals(session.getWrittenAttempt().getId())
+                && task.getId().equals(session.getWrittenTask().getId())
+                && attempt.getEpreuve() == EpreuveType.TCF_EE;
+        boolean oral = attempt.getId().equals(session.getOralAttempt().getId())
+                && task.getId().equals(session.getOralTask().getId())
+                && attempt.getEpreuve() == EpreuveType.TCF_EO;
+        if (!written && !oral) {
+            throw new BusinessException("Le sujet ne correspond pas à cette étape du diagnostic.");
+        }
+        if (session.getStatus() == com.sejourfr.app.enums.DiagnosticSessionStatus.COMPLETED
+                || session.getStatus() == com.sejourfr.app.enums.DiagnosticSessionStatus.ANALYZING) {
+            throw new BusinessException("Ce diagnostic n'accepte plus de nouvelle production.");
         }
     }
 }

@@ -240,6 +240,479 @@
               "pedagogicalNote": "L'objectif professionnel explique la demande et oriente vers la bonne formule."
             }
           ]
+        },
+        {
+          "code": "EO2-C1-S6",
+          "title": "Au club de foot du quartier",
+          "context": "Votre fils de neuf ans veut jouer au football. Vous vous rendez au club sportif du quartier un samedi matin ; un entraîneur range le matériel et vient vers vous.",
+          "instruction": "Saluez-le, dites en une phrase pourquoi vous venez et annoncez ce que vous cherchez pour votre fils.",
+          "uniqueCriterion": "La prise de parole salue l'entraîneur et annonce le besoin d'inscrire l'enfant au club.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 6,
+          "checklist": [
+            "Saluez l'entraîneur",
+            "Dites pourquoi vous venez",
+            "Nommez ce que vous cherchez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Besoin annoncé",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, mon fils voudrait jouer…",
+          "tip": "Dites l'âge de votre fils : l'entraîneur trouvera tout de suite l'équipe.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour monsieur. C'est pour le football, s'il vous plaît.",
+              "pedagogicalNote": "La salutation est là, mais l'entraîneur ignore qui veut jouer et ce que vous demandez."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour monsieur. Mon fils a neuf ans et il voudrait jouer au football : je viens voir comment l'inscrire au club.",
+              "pedagogicalNote": "Salutation, situation et besoin sont réunis : l'entraîneur peut vous répondre tout de suite."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour monsieur. Je m'appelle Elena Petrova, nous habitons juste derrière le stade. Mon fils Nikolaï a neuf ans, il n'a jamais joué en club, et je voudrais l'inscrire pour la saison.",
+              "pedagogicalNote": "L'âge, le niveau et la période sont annoncés : l'entraîneur sait déjà quelle équipe proposer."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C1-S7",
+          "title": "À l'école de musique municipale",
+          "context": "Vous poussez la porte de l'école de musique de votre commune. Une secrétaire lève les yeux de son bureau et vous salue.",
+          "instruction": "Saluez-la, expliquez en une phrase votre situation et annoncez le cours que vous cherchez.",
+          "uniqueCriterion": "La prise de parole salue la secrétaire et annonce le cours de musique recherché.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 7,
+          "checklist": [
+            "Saluez la secrétaire",
+            "Expliquez pourquoi vous venez",
+            "Nommez le cours cherché"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Cours nommé",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Bonjour madame, ma fille souhaiterait apprendre…",
+          "tip": "Nommez l'instrument : la secrétaire vous dirigera vers le bon professeur.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Je voudrais des cours ici, s'il vous plaît.",
+              "pedagogicalNote": "Le mot « cours » ne dit ni pour qui ni quel instrument : le besoin reste caché."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Ma fille a sept ans et elle voudrait apprendre le piano : je cherche un cours pour débutants.",
+              "pedagogicalNote": "La situation et le cours cherché sont dits : la secrétaire peut vous orienter."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. Ma fille Leïla a sept ans et elle n'a jamais fait de musique. Je cherche un cours de piano pour débutants, si possible le mercredi après-midi.",
+              "pedagogicalNote": "Le niveau et le créneau souhaité complètent l'annonce du besoin sans l'alourdir."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C1-S8",
+          "title": "Au guichet du théâtre municipal",
+          "context": "Vous vous présentez au guichet du théâtre municipal. Un employé termine un appel et se tourne vers vous.",
+          "instruction": "Saluez-le, dites pourquoi vous venez et annoncez précisément ce que vous souhaitez obtenir.",
+          "uniqueCriterion": "La prise de parole salue l'employé et annonce le spectacle et les places recherchés.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 8,
+          "checklist": [
+            "Saluez l'employé",
+            "Dites pourquoi vous venez",
+            "Annoncez les places voulues"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Demande précise",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, je voudrais des places…",
+          "tip": "Dites le spectacle et le nombre de places dès la première phrase.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour monsieur. Je viens pour le spectacle.",
+              "pedagogicalNote": "L'employé ne sait ni quel spectacle ni combien de places vous voulez."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour monsieur. Je voudrais deux places pour la pièce de samedi soir.",
+              "pedagogicalNote": "La demande est annoncée en entier : l'employé peut ouvrir le plan de salle."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour monsieur. J'ai vu votre affiche dans le quartier : je voudrais deux places pour la pièce de samedi soir, plutôt au premier balcon si c'est possible.",
+              "pedagogicalNote": "Le placement souhaité s'ajoute au besoin annoncé : la réponse sera immédiatement utile."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C1-S9",
+          "title": "Une visite guidée au musée",
+          "context": "Vous êtes à l'accueil d'un musée de votre ville, où une exposition temporaire vient d'ouvrir. Une hôtesse vous accueille.",
+          "instruction": "Saluez-la, présentez votre situation en une phrase et annoncez ce que vous cherchez pour votre visite.",
+          "uniqueCriterion": "La prise de parole salue l'hôtesse, situe votre situation et annonce le type de visite recherché.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 9,
+          "checklist": [
+            "Saluez l'hôtesse",
+            "Résumez votre situation",
+            "Annoncez la visite souhaitée"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Situation résumée",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour madame, je viens avec un groupe…",
+          "tip": "Précisez qui vous accompagne : la visite proposée sera adaptée.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Nous voulons visiter l'exposition, s'il vous plaît.",
+              "pedagogicalNote": "Rien n'est dit sur votre groupe ni sur le type de visite que vous cherchez."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Je viens avec quatre amis qui parlent encore peu le français, et nous cherchons une visite guidée de l'exposition.",
+              "pedagogicalNote": "La situation du groupe et la visite souhaitée sont annoncées ensemble."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. Je m'appelle Diego Morales, je viens avec quatre amis arrivés en France cet été. Nous aimerions suivre une visite guidée de l'exposition, avec un guide qui parle lentement.",
+              "pedagogicalNote": "Le besoin est précisé jusqu'au rythme du guide : l'hôtesse peut proposer le bon créneau."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C1-S10",
+          "title": "Un festival avec les enfants",
+          "context": "Un festival de musique s'installe dans votre ville ce week-end. Vous téléphonez à l'organisation et une bénévole décroche.",
+          "instruction": "Ouvrez la conversation : saluez, présentez votre situation en une phrase et annoncez ce que vous cherchez pour venir en famille.",
+          "uniqueCriterion": "La prise de parole salue, situe votre venue en famille et annonce ce que vous recherchez.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 10,
+          "checklist": [
+            "Saluez la bénévole",
+            "Dites qui vous accompagne",
+            "Annoncez ce que vous cherchez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Besoin annoncé",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour madame, je voudrais venir avec…",
+          "tip": "Dites l'âge des enfants : la réponse portera sur votre cas.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Je vous appelle pour le festival de ce week-end.",
+              "pedagogicalNote": "L'appel est ouvert poliment, mais la bénévole ignore encore ce que vous cherchez."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Je voudrais venir au festival samedi avec mes deux enfants, et je cherche des billets en famille.",
+              "pedagogicalNote": "La venue en famille et le besoin de billets sont annoncés d'emblée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. Je m'appelle Fatou Sow. Je voudrais venir samedi après-midi avec mes deux enfants de six et dix ans : je cherche un tarif famille et des concerts adaptés à leur âge.",
+              "pedagogicalNote": "L'âge des enfants et le moment de la venue rendent la demande directement traitable."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C1-S11",
+          "title": "Réserver une table pour un anniversaire",
+          "context": "Vous voulez fêter l'anniversaire de votre femme au restaurant. Vous téléphonez à un restaurant du centre-ville et le gérant répond.",
+          "instruction": "Saluez-le, présentez l'occasion en une phrase et annoncez précisément la réservation que vous souhaitez.",
+          "uniqueCriterion": "La prise de parole salue, présente l'occasion et annonce la réservation recherchée.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 11,
+          "checklist": [
+            "Saluez le gérant",
+            "Présentez l'occasion",
+            "Annoncez la réservation voulue"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Occasion précisée",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, je voudrais réserver une table…",
+          "tip": "Annoncez le jour et le nombre de personnes avec votre demande.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour monsieur. Est-ce que vous avez de la place ce week-end ?",
+              "pedagogicalNote": "Ni l'occasion ni la réservation souhaitée ne sont annoncées : le gérant devra tout demander."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour monsieur. C'est l'anniversaire de ma femme samedi et je voudrais réserver une table pour six personnes.",
+              "pedagogicalNote": "L'occasion et la réservation sont dites ensemble : le gérant peut consulter son cahier."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour monsieur. Je fête l'anniversaire de ma femme samedi soir. Je voudrais réserver une table pour six personnes vers vingt heures, dans un coin un peu tranquille si vous en avez un.",
+              "pedagogicalNote": "L'heure et le placement souhaité complètent une demande déjà claire dès la première phrase."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C1-S12",
+          "title": "Afficher une annonce au café",
+          "context": "Vous cherchez des élèves pour des cours particuliers et le café de votre rue affiche des petites annonces sur sa vitrine. Vous vous adressez à la patronne, derrière le comptoir.",
+          "instruction": "Saluez-la, expliquez votre situation en une phrase et annoncez ce que vous venez lui demander.",
+          "uniqueCriterion": "La prise de parole salue la patronne, expose votre situation et annonce la demande d'affichage.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 12,
+          "checklist": [
+            "Saluez la patronne",
+            "Expliquez votre situation",
+            "Annoncez votre demande"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Demande explicite",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour madame, j'habite dans la rue et…",
+          "tip": "Terminez par votre demande : afficher l'annonce, et non simplement la montrer.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. J'ai vu vos annonces sur la vitre, c'est bien pratique.",
+              "pedagogicalNote": "La remarque est aimable, mais la patronne ne sait pas ce que vous venez demander."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Je donne des cours de mathématiques et je voudrais afficher une petite annonce sur votre vitrine.",
+              "pedagogicalNote": "Votre activité et votre demande sont annoncées en une seule phrase claire."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. J'habite au-dessus de la boulangerie et je donne des cours de mathématiques aux collégiens. Je voudrais laisser une petite annonce sur votre panneau, comme les autres, si vous l'acceptez.",
+              "pedagogicalNote": "Le voisinage et le public visé situent la demande, qui reste énoncée sans détour."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C1-S13",
+          "title": "Commander un buffet chez un traiteur",
+          "context": "Vous organisez une fête pour les cinquante ans de votre mère et vous poussez la porte d'un traiteur. La responsable vous invite à vous asseoir.",
+          "instruction": "Ouvrez l'échange : saluez, présentez l'occasion et le nombre d'invités, puis annoncez précisément ce que vous cherchez.",
+          "uniqueCriterion": "La prise de parole salue, présente l'occasion et le nombre d'invités, et annonce la commande recherchée.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 13,
+          "checklist": [
+            "Saluez la responsable",
+            "Présentez l'occasion",
+            "Donnez le nombre d'invités",
+            "Annoncez la commande voulue"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Nombre d'invités",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Commande annoncée",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour madame, j'organise une fête pour…",
+          "tip": "Le nombre d'invités et la date orientent toute la proposition du traiteur.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Je voudrais commander à manger pour une fête, s'il vous plaît.",
+              "pedagogicalNote": "Ni l'occasion, ni le nombre d'invités, ni le type de commande ne sont annoncés."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Ma mère fête ses cinquante ans le 12 avril et nous serons une trentaine : je cherche un buffet froid.",
+              "pedagogicalNote": "Occasion, date, nombre d'invités et commande tiennent dans une ouverture courte."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. J'organise les cinquante ans de ma mère le samedi 12 avril, chez moi, pour une trentaine d'invités. Je voudrais commander un buffet froid, avec quelques plats sans porc pour une partie de la famille.",
+              "pedagogicalNote": "Le lieu et la contrainte alimentaire complètent un besoin déjà entièrement annoncé."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C1-S14",
+          "title": "Réserver deux chambres d'hôtel",
+          "context": "Votre sœur et son mari viennent vous rendre visite avec leur bébé. Vous téléphonez à un hôtel proche de chez vous et le réceptionniste décroche.",
+          "instruction": "Saluez-le, présentez la situation en une phrase et annoncez précisément les chambres et les dates que vous cherchez.",
+          "uniqueCriterion": "La prise de parole salue, présente la situation et annonce les chambres et les dates recherchées.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 14,
+          "checklist": [
+            "Saluez le réceptionniste",
+            "Présentez la situation",
+            "Annoncez chambres et dates"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Dates précisées",
+              "icon": "TIME"
+            },
+            {
+              "label": "Besoin annoncé",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, ma sœur vient me rendre visite…",
+          "tip": "Donnez les dates et le nombre de personnes dans la même phrase.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour monsieur. Je voudrais réserver chez vous au mois de mai.",
+              "pedagogicalNote": "Le mois seul ne suffit pas : ni les dates ni les chambres ne sont annoncées."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour monsieur. Ma sœur vient me rendre visite avec sa famille : je voudrais réserver deux chambres du 8 au 11 mai.",
+              "pedagogicalNote": "La situation, les chambres et les dates sont dites dès l'ouverture de l'appel."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour monsieur. Ma sœur, son mari et leur bébé d'un an viennent me rendre visite. Je voudrais réserver deux chambres du vendredi 8 au dimanche 11 mai, dont une avec un lit pour l'enfant.",
+              "pedagogicalNote": "Le détail du bébé transforme une réservation générale en demande vraiment exploitable."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C1-S15",
+          "title": "Un gîte pour un long week-end",
+          "context": "Vous voulez emmener votre famille à la campagne pour un long week-end. Vous téléphonez à un gîte trouvé sur internet ; la propriétaire décroche.",
+          "instruction": "Ouvrez la conversation : saluez, présentez votre projet et annoncez précisément le séjour que vous recherchez.",
+          "uniqueCriterion": "La prise de parole salue, présente le projet de séjour et annonce le logement et les dates recherchés.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 15,
+          "checklist": [
+            "Saluez la propriétaire",
+            "Présentez votre projet",
+            "Annoncez logement et dates"
+          ],
+          "constraintTags": [
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Séjour annoncé",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Dates précisées",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour madame, nous cherchons un gîte pour…",
+          "tip": "Dites combien vous êtes et quand : la propriétaire vérifiera aussitôt.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. J'ai vu votre gîte sur internet, il est très joli.",
+              "pedagogicalNote": "Le compliment n'annonce ni le séjour cherché ni les dates : rien à vérifier pour elle."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Nous cherchons un gîte pour quatre personnes du 1er au 4 mai, pendant le long week-end.",
+              "pedagogicalNote": "Le nombre de personnes et les dates sont annoncés dès la première phrase."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. Je m'appelle Ahmed Belkacem. Nous sommes quatre, deux adultes et deux enfants, et nous cherchons un gîte du jeudi 1er au dimanche 4 mai. J'aimerais savoir s'il vous reste quelque chose à ces dates.",
+              "pedagogicalNote": "La composition de la famille et les jours exacts ferment la porte aux réponses approximatives."
+            }
+          ]
         }
       ],
       "generalCriterion": "Saluer, présenter rapidement la situation et annoncer ce que l'on recherche."
@@ -476,6 +949,461 @@
               "level": "EXCELLENT",
               "text": "Bonjour madame. Mon titre de séjour expire en octobre et je prépare mon renouvellement. Est-ce que le dépôt du dossier se fait uniquement sur rendez-vous, ou puis-je me présenter directement au guichet ?",
               "pedagogicalNote": "Les deux possibilités sont nommées : la réponse ne pourra pas rester ambiguë."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C2-S6",
+          "title": "Le marché du dimanche",
+          "context": "Vous venez d'arriver dans une petite ville et vous entrez à l'office de tourisme. Une hôtesse vous demande ce qu'elle peut faire pour vous.",
+          "instruction": "Posez-lui une question claire pour savoir à quel endroit se tient le marché du dimanche.",
+          "uniqueCriterion": "La question est construite en entier et porte exactement sur le lieu du marché du dimanche.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 20,
+          "difficultyLevel": "EASY",
+          "displayOrder": 6,
+          "checklist": [
+            "Saluez l'hôtesse",
+            "Demandez où se tient le marché"
+          ],
+          "constraintTags": [
+            {
+              "label": "Question entière",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Lieu précis",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Bonjour madame, pourriez-vous me dire où…",
+          "tip": "Nommez le jour dans votre question : le marché du dimanche.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Le marché, s'il vous plaît ?",
+              "pedagogicalNote": "Trois mots ne forment pas une question : ni le jour ni ce que vous demandez n'apparaissent."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Est-ce que vous pouvez me dire où se tient le marché du dimanche ?",
+              "pedagogicalNote": "La question est complète et polie : l'hôtesse peut répondre par un lieu."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. Je viens d'emménager dans la ville. Pourriez-vous m'indiquer à quel endroit se tient le marché du dimanche matin ?",
+              "pedagogicalNote": "La question désigne le jour et le moment : la réponse ne pourra pas porter sur un autre marché."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C2-S7",
+          "title": "Le bagage est-il compris ?",
+          "context": "Dans une agence de voyage, une conseillère vous propose un billet d'avion à 320 euros pour rendre visite à votre famille. Elle vous laisse un instant pour réfléchir.",
+          "instruction": "Posez-lui une question claire pour savoir si un bagage en soute est compris dans ce prix.",
+          "uniqueCriterion": "La question est formulée en entier et porte exactement sur l'inclusion du bagage en soute dans le prix.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 7,
+          "checklist": [
+            "Formulez une question entière",
+            "Demandez le bagage en soute"
+          ],
+          "constraintTags": [
+            {
+              "label": "Question entière",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Prix annoncé",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Excusez-moi, est-ce que le prix comprend…",
+          "tip": "Une question entière évite la réponse vague « ça dépend ».",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Et la valise, c'est inclus ou pas ?",
+              "pedagogicalNote": "La question est jetée en quelques mots et « la valise » peut désigner le bagage à main."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Excusez-moi, est-ce que le prix comprend un bagage en soute, ou faut-il le payer en plus ?",
+              "pedagogicalNote": "La question est construite et nomme le bagage en soute : la réponse sera nette."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Excusez-moi, avant de décider : est-ce que ce prix de 320 euros comprend un bagage en soute de vingt-trois kilos, ou est-ce une option payante ?",
+              "pedagogicalNote": "Le montant et le poids rendent la question impossible à contourner par une réponse générale."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C2-S8",
+          "title": "Les horaires du poste",
+          "context": "Vous passez un entretien pour un poste d'agent d'entretien. À la fin, la recruteuse vous demande si vous avez une question.",
+          "instruction": "Posez-lui une question claire pour connaître les horaires de travail de ce poste.",
+          "uniqueCriterion": "La question est construite en entier et porte exactement sur les horaires de travail du poste.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 8,
+          "checklist": [
+            "Remerciez la recruteuse",
+            "Demandez les horaires du poste"
+          ],
+          "constraintTags": [
+            {
+              "label": "Question entière",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Horaires visés",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Merci madame, j'aimerais savoir quels horaires…",
+          "tip": "Demandez les horaires réels : le matin, le soir ou le week-end.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Oui. Les horaires ?",
+              "pedagogicalNote": "Deux mots ne forment pas une question : la recruteuse doit la reconstruire à votre place."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, merci madame. J'aimerais savoir quels sont les horaires de travail pour ce poste.",
+              "pedagogicalNote": "La demande est formulée en entier et porte précisément sur les horaires."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, merci madame. J'aimerais savoir quels sont les horaires du poste : est-ce qu'on travaille tôt le matin, en soirée, ou aussi le week-end ?",
+              "pedagogicalNote": "Les cas possibles sont nommés : la réponse ne pourra pas rester approximative."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C2-S9",
+          "title": "À qui remettre ses papiers",
+          "context": "C'est votre premier jour dans un magasin. Le responsable vous fait visiter les réserves, puis s'apprête à repartir dans son bureau.",
+          "instruction": "Posez-lui une question claire pour savoir à qui vous devez remettre vos documents d'embauche.",
+          "uniqueCriterion": "La question est complète et désigne précisément la personne à qui remettre vos documents d'embauche.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 9,
+          "checklist": [
+            "Interpellez poliment le responsable",
+            "Demandez à qui remettre vos documents"
+          ],
+          "constraintTags": [
+            {
+              "label": "Question entière",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Personne visée",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Excusez-moi monsieur, à qui dois-je remettre…",
+          "tip": "Nommez les documents concernés : la réponse sera immédiate.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Monsieur, pour les papiers ?",
+              "pedagogicalNote": "La question n'est pas formée : le responsable ne sait pas ce que vous lui demandez."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Excusez-moi monsieur, à qui dois-je remettre mes documents d'embauche, mon contrat signé et ma carte de séjour ?",
+              "pedagogicalNote": "La question est entière et demande clairement une personne : la réponse sera un nom."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Excusez-moi monsieur, avant que vous repartiez : à qui dois-je remettre mon contrat signé et mes justificatifs, et faut-il les déposer dès aujourd'hui ?",
+              "pedagogicalNote": "La question saisit le bon moment et reste centrée sur la personne à qui s'adresser."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C2-S10",
+          "title": "Poser une semaine en juillet",
+          "context": "Vous voulez prendre une semaine de congé en juillet pour le mariage de votre sœur. Vous frappez à la porte de votre responsable.",
+          "instruction": "Posez-lui une question claire pour savoir si vous pouvez poser cette semaine de congé.",
+          "uniqueCriterion": "La question est construite en entier et porte exactement sur la possibilité de poser cette semaine de congé.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 10,
+          "checklist": [
+            "Saluez votre responsable",
+            "Nommez la semaine voulue",
+            "Demandez si c'est possible"
+          ],
+          "constraintTags": [
+            {
+              "label": "Question entière",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Semaine visée",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour madame, est-ce que je pourrais poser…",
+          "tip": "Donnez les dates exactes : votre responsable peut répondre tout de suite.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Je voudrais des vacances en juillet.",
+              "pedagogicalNote": "C'est une intention, pas une question : rien n'appelle vraiment une réponse."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Est-ce que je pourrais poser une semaine de congé du 7 au 11 juillet ?",
+              "pedagogicalNote": "La question est entière et datée : votre responsable peut dire oui ou non."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. Ma sœur se marie cet été. Est-ce que je pourrais poser une semaine de congé du 7 au 11 juillet, ou faut-il déposer la demande plus tôt ?",
+              "pedagogicalNote": "La raison précède la question, qui reste construite et centrée sur ces dates précises."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C2-S11",
+          "title": "Comment marche l'imprimante",
+          "context": "Vous travaillez depuis quelques jours dans un bureau et l'imprimante ne sort aucun de vos documents. Une collègue passe près de votre poste.",
+          "instruction": "Posez-lui une question claire pour savoir comment imprimer depuis votre ordinateur.",
+          "uniqueCriterion": "La question est complète et porte exactement sur la manière d'imprimer depuis votre poste.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 11,
+          "checklist": [
+            "Interpellez poliment la collègue",
+            "Expliquez ce qui ne marche pas",
+            "Demandez comment faire"
+          ],
+          "constraintTags": [
+            {
+              "label": "Question entière",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Registre poli",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Excusez-moi, pourriez-vous me montrer comment…",
+          "tip": "Dites ce que vous avez déjà essayé avant de poser la question.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "L'imprimante, elle marche pas.",
+              "pedagogicalNote": "C'est un constat : votre collègue ne sait pas ce que vous attendez d'elle."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Excusez-moi, est-ce que vous pourriez me montrer comment imprimer un document depuis mon ordinateur ?",
+              "pedagogicalNote": "La question est construite et dit exactement ce que vous voulez apprendre."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Excusez-moi de vous déranger. J'ai lancé l'impression deux fois et rien ne sort. Pourriez-vous me montrer comment envoyer un document à cette imprimante depuis mon poste ?",
+              "pedagogicalNote": "Le contexte est bref et la question reste entière : votre collègue sait quoi vous montrer."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C2-S12",
+          "title": "Les chaussures de sécurité",
+          "context": "Vous commencez sur un chantier de rénovation. Le chef d'équipe distribue le matériel avant de donner ses consignes de la journée.",
+          "instruction": "Posez-lui une question claire pour savoir si l'entreprise fournit les chaussures de sécurité.",
+          "uniqueCriterion": "La question est construite en entier et porte exactement sur la fourniture des chaussures de sécurité.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 12,
+          "checklist": [
+            "Interpellez le chef d'équipe",
+            "Demandez qui fournit les chaussures"
+          ],
+          "constraintTags": [
+            {
+              "label": "Question entière",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Équipement visé",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Excusez-moi, est-ce que l'entreprise fournit…",
+          "tip": "Une question directe évite d'acheter un équipement pour rien.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Et les chaussures ?",
+              "pedagogicalNote": "Le chef ne sait pas si vous en réclamez, si vous en manquez ou si vous signalez un souci."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Excusez-moi, est-ce que l'entreprise fournit les chaussures de sécurité, ou est-ce que je dois les acheter moi-même ?",
+              "pedagogicalNote": "La question est entière et propose les deux cas : la réponse sera claire."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Excusez-moi, avant que vous commenciez les consignes : est-ce que l'entreprise fournit les chaussures de sécurité, ou dois-je venir avec les miennes dès demain matin ?",
+              "pedagogicalNote": "La question est posée au bon moment et reste précisément ciblée sur l'équipement."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C2-S13",
+          "title": "Un plat sans arachide",
+          "context": "Vous êtes serveur dans un restaurant. Une cliente de la table 4 vous prévient qu'elle est allergique à l'arachide et vous passez en cuisine voir le chef.",
+          "instruction": "Posez au chef une question claire pour savoir quels plats de la carte contiennent de l'arachide.",
+          "uniqueCriterion": "La question est complète et permet au chef d'identifier précisément les plats concernés par l'allergie.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "HARD",
+          "displayOrder": 13,
+          "checklist": [
+            "Interpellez le chef",
+            "Expliquez la demande de la cliente",
+            "Demandez les plats concernés"
+          ],
+          "constraintTags": [
+            {
+              "label": "Question entière",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Allergie nommée",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Chef, une cliente est allergique à…",
+          "tip": "Nommez l'allergie et la carte : la réponse doit être sûre.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Chef, il y a une allergie en salle.",
+              "pedagogicalNote": "Aucune question n'est posée : le chef ignore à quoi et pour quels plats."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Chef, une cliente de la table 4 est allergique à l'arachide. Quels plats de la carte en contiennent ?",
+              "pedagogicalNote": "La question est entière et nomme l'allergie : le chef peut répondre plat par plat."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Chef, la cliente de la table 4 est allergique à l'arachide. Est-ce que le poulet au curry et la salade thaïe en contiennent, et y a-t-il un risque avec les huiles que vous utilisez ?",
+              "pedagogicalNote": "La question cite les plats visés et va jusqu'aux huiles : aucune zone d'ombre ne subsiste."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C2-S14",
+          "title": "Une palette abîmée à la réception",
+          "context": "Vous travaillez à la réception des marchandises d'un entrepôt. Une palette arrive avec plusieurs cartons écrasés et le chef de quai passe près de vous.",
+          "instruction": "Posez-lui une question claire pour savoir quelle conduite tenir avec cette palette abîmée.",
+          "uniqueCriterion": "La question est construite en entier et porte exactement sur la conduite à tenir face à la palette abîmée.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "HARD",
+          "displayOrder": 14,
+          "checklist": [
+            "Interpellez le chef de quai",
+            "Décrivez ce que vous avez reçu",
+            "Demandez la procédure à suivre"
+          ],
+          "constraintTags": [
+            {
+              "label": "Question entière",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Situation décrite",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Excusez-moi, une palette est arrivée abîmée…",
+          "tip": "Décrivez d'abord, demandez ensuite : la question doit rester audible.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Chef, les cartons sont écrasés.",
+              "pedagogicalNote": "Le problème est signalé, mais aucune question ne demande ce qu'il faut faire."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Excusez-moi, une palette est arrivée avec six cartons écrasés. Qu'est-ce que je dois faire : la refuser, ou la mettre en zone de litige ?",
+              "pedagogicalNote": "La question est entière et propose deux conduites : le chef tranche en un mot."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Excusez-moi, la palette du fournisseur Delmas est arrivée avec six cartons écrasés. Est-ce que je dois la refuser au chauffeur, ou l'accepter en notant la réserve sur le bon de livraison ?",
+              "pedagogicalNote": "Le fournisseur et le document sont nommés : la question ne peut recevoir qu'une réponse précise."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C2-S15",
+          "title": "Le stage en entreprise",
+          "context": "Vous suivez depuis un mois une formation d'agent de sécurité. Pendant la pause, vous vous approchez de la formatrice.",
+          "instruction": "Posez-lui une question claire pour savoir si un stage en entreprise est prévu et à quel moment.",
+          "uniqueCriterion": "La question est complète et porte précisément sur l'existence et la période du stage en entreprise.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 15,
+          "checklist": [
+            "Saluez la formatrice",
+            "Demandez si un stage est prévu",
+            "Demandez à quelle période"
+          ],
+          "constraintTags": [
+            {
+              "label": "Question entière",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Période visée",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Excusez-moi madame, est-ce qu'un stage est…",
+          "tip": "Posez la question en une fois : existence du stage et période.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Madame, et le stage ?",
+              "pedagogicalNote": "La question n'est pas construite : la formatrice devra vous demander ce que vous voulez savoir."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Excusez-moi madame. Est-ce qu'un stage en entreprise est prévu dans la formation, et à quel moment a-t-il lieu ?",
+              "pedagogicalNote": "La question est entière et couvre les deux points annoncés : existence et période."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Excusez-moi madame. Je voudrais m'organiser avec ma famille : est-ce qu'un stage en entreprise est prévu à la fin de la formation, combien de semaines dure-t-il, et est-ce vous qui trouvez l'entreprise ?",
+              "pedagogicalNote": "Chaque partie de la question est formulée en entier, sans jamais devenir confuse."
             }
           ]
         }
@@ -721,6 +1649,473 @@
               "pedagogicalNote": "Le repas et l'heure du soir sont précisés : plus rien ne restera à rappeler."
             }
           ]
+        },
+        {
+          "code": "EO2-C3-S6",
+          "title": "Premier contact avec son tuteur",
+          "context": "Vous commencez un stage dans un magasin de bricolage. Votre tuteur vous accueille et vous montre votre poste de travail.",
+          "instruction": "Demandez-lui deux informations pratiques : vos horaires de travail et vos jours de présence.",
+          "uniqueCriterion": "Les deux informations, les horaires et les jours de présence, sont demandées explicitement.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 6,
+          "checklist": [
+            "Saluez votre tuteur",
+            "Demandez vos horaires",
+            "Demandez vos jours de présence"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux questions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Horaires demandés",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, avant de commencer, pourriez-vous…",
+          "tip": "Deux informations à obtenir : les heures et les jours.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour monsieur. Je commence à quelle heure demain matin ?",
+              "pedagogicalNote": "Une seule information est demandée : vous ignorez encore quels jours vous êtes attendu."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour monsieur. Avant de commencer : à quelle heure est-ce que j'arrive le matin, et quels jours de la semaine dois-je être présent ?",
+              "pedagogicalNote": "Les deux informations pratiques sont réclamées dans une seule prise de parole."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour monsieur. Pour m'organiser : à quelle heure dois-je arriver le matin et jusqu'à quelle heure je reste, et quels jours de la semaine suis-je attendu pendant les deux mois de stage ?",
+              "pedagogicalNote": "Les heures de début et de fin, puis les jours : rien ne restera à demander demain."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C3-S7",
+          "title": "Deux jours à la maison",
+          "context": "Votre entreprise autorise désormais le télétravail. Vous croisez la responsable des ressources humaines dans le couloir et elle s'arrête un instant.",
+          "instruction": "Demandez-lui deux informations pratiques : le nombre de jours autorisés par semaine et la date à partir de laquelle c'est possible.",
+          "uniqueCriterion": "Les deux informations, le nombre de jours et la date de début, sont demandées explicitement.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 7,
+          "checklist": [
+            "Saluez la responsable",
+            "Demandez le nombre de jours",
+            "Demandez à partir de quand"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux questions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Date de début",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour madame, j'aimerais savoir combien de jours…",
+          "tip": "Le nombre de jours seul ne suffit pas : demandez aussi la date.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Est-ce que le télétravail est possible chez nous maintenant ?",
+              "pedagogicalNote": "La réponse sera « oui » : ni le nombre de jours ni la date ne sont réclamés."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Combien de jours par semaine peut-on télétravailler, et à partir de quelle date est-ce possible ?",
+              "pedagogicalNote": "Les deux informations pratiques sont demandées et appellent chacune une réponse chiffrée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. Je voudrais organiser la garde de ma fille : combien de jours par semaine puis-je télétravailler, et à partir de quelle date la nouvelle règle s'applique-t-elle ?",
+              "pedagogicalNote": "La raison éclaire la demande sans rien retirer aux deux informations réclamées."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C3-S8",
+          "title": "L'heure et la salle de la réunion",
+          "context": "Votre chef annonce à l'équipe une réunion pour mardi prochain, puis passe déjà à un autre sujet.",
+          "instruction": "Demandez-lui deux informations pratiques : l'heure de la réunion et la salle où elle se tiendra.",
+          "uniqueCriterion": "Les deux informations, l'heure et le lieu de la réunion, sont demandées explicitement.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 8,
+          "checklist": [
+            "Interpellez poliment le chef",
+            "Demandez l'heure",
+            "Demandez la salle"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux questions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Lieu précis",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Excusez-moi, à quelle heure aura lieu…",
+          "tip": "La salle s'oublie souvent : posez les deux questions ensemble.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Excusez-moi, la réunion, c'est bien mardi ?",
+              "pedagogicalNote": "Vous confirmez le jour, mais l'heure et la salle restent inconnues."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Excusez-moi, à quelle heure commence la réunion de mardi, et dans quelle salle a-t-elle lieu ?",
+              "pedagogicalNote": "Les deux informations sont réclamées clairement, l'une après l'autre."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Excusez-moi, pour que je m'organise : à quelle heure commence la réunion de mardi, combien de temps dure-t-elle, et dans quelle salle est-ce que nous nous retrouvons ?",
+              "pedagogicalNote": "Une troisième information, la durée, s'ajoute sans faire perdre les deux demandées."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C3-S9",
+          "title": "La fin de l'engagement internet",
+          "context": "Vous payez le même abonnement internet depuis deux ans et vous envisagez de changer d'offre. Vous appelez le service client ; une conseillère vous répond.",
+          "instruction": "Demandez-lui trois informations pratiques : la date de fin de votre engagement, le montant que vous payez chaque mois et le délai à respecter pour résilier.",
+          "uniqueCriterion": "Les trois informations, date de fin, montant mensuel et délai de résiliation, sont demandées chacune explicitement.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 9,
+          "checklist": [
+            "Saluez la conseillère",
+            "Demandez la date de fin",
+            "Demandez le montant mensuel",
+            "Demandez le délai de résiliation"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois questions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Date de fin",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour madame, je voudrais faire le point…",
+          "tip": "Comptez vos questions : date, montant, délai, sans en laisser tomber une.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Je voudrais résilier mon abonnement internet, est-ce que c'est possible ?",
+              "pedagogicalNote": "Aucune des trois informations n'est réclamée : ni date, ni montant, ni délai."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Quand se termine mon engagement, combien est-ce que je paie chaque mois aujourd'hui, et quel délai faut-il respecter pour résilier ?",
+              "pedagogicalNote": "Les trois informations sont demandées à la suite, dans un ordre facile à suivre."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. Je fais le point sur mon abonnement : à quelle date exacte se termine mon engagement, quel montant est prélevé chaque mois depuis la fin de la promotion, et combien de semaines à l'avance dois-je envoyer ma résiliation ?",
+              "pedagogicalNote": "Chaque question est resserrée : la conseillère ne peut répondre que par des données précises."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C3-S10",
+          "title": "Ouvrir le compteur d'électricité",
+          "context": "Vous emménagez dans un nouvel appartement le mois prochain. Vous appelez un fournisseur d'électricité et un conseiller vous répond.",
+          "instruction": "Demandez-lui trois informations pratiques : le délai pour ouvrir le compteur, le prix de l'abonnement mensuel et la date de la première facture.",
+          "uniqueCriterion": "Les trois informations, délai d'ouverture, prix de l'abonnement et date de facture, sont demandées chacune explicitement.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 10,
+          "checklist": [
+            "Saluez le conseiller",
+            "Demandez le délai d'ouverture",
+            "Demandez le prix mensuel",
+            "Demandez la date de facture"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois questions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Délai demandé",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, j'emménage le mois prochain et…",
+          "tip": "Un délai, un prix, une date : trois réponses à rapporter.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour monsieur. Je voudrais l'électricité dans mon nouvel appartement, s'il vous plaît.",
+              "pedagogicalNote": "La demande est posée, mais aucune des trois informations pratiques n'est réclamée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour monsieur. Combien de jours faut-il pour ouvrir le compteur, quel est le prix de l'abonnement par mois, et quand est-ce que je recevrai la première facture ?",
+              "pedagogicalNote": "Les trois informations sont demandées nettement, chacune appelant une réponse concrète."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour monsieur. J'emménage le 3 mars : en combien de jours pouvez-vous mettre le compteur en service, quel est le montant de l'abonnement mensuel pour un deux-pièces, et à quelle date tombera ma première facture ?",
+              "pedagogicalNote": "La date d'emménagement et la taille du logement rendent les trois réponses directement utilisables."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C3-S11",
+          "title": "Une facture d'eau qui a triplé",
+          "context": "Votre facture d'eau est trois fois plus élevée que d'habitude. Vous téléphonez au service des eaux de votre commune ; une agente vous répond.",
+          "instruction": "Demandez-lui trois informations pratiques : la date du dernier relevé, le délai pour faire vérifier votre compteur et le prix de cette vérification.",
+          "uniqueCriterion": "Les trois informations, date du relevé, délai de vérification et prix, sont demandées chacune explicitement.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 11,
+          "checklist": [
+            "Saluez l'agente",
+            "Demandez la date du relevé",
+            "Demandez le délai de vérification",
+            "Demandez le prix"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois questions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Date du relevé",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour madame, ma facture d'eau a triplé…",
+          "tip": "Après le problème, réclamez vos trois informations : date, délai, prix.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Ma facture d'eau est beaucoup trop élevée ce trimestre, je ne comprends pas.",
+              "pedagogicalNote": "Le problème est exposé, mais aucune information pratique n'est demandée à l'agente."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. À quelle date remonte le dernier relevé de mon compteur, en combien de temps pouvez-vous venir le vérifier, et est-ce que cette visite est payante ?",
+              "pedagogicalNote": "Les trois informations sont réclamées à la suite, malgré l'agacement de la situation."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. Ma facture a triplé ce trimestre. Quelle est la date du dernier relevé réel de mon compteur, sous quel délai un technicien peut-il passer le vérifier, et combien coûte ce déplacement s'il n'y a aucune fuite ?",
+              "pedagogicalNote": "Le cas « sans fuite » est anticipé : le prix annoncé sera celui que vous paierez vraiment."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C3-S12",
+          "title": "Se débarrasser d'un vieux canapé",
+          "context": "Vous devez jeter un vieux canapé et un matelas. Vous téléphonez à la déchetterie de votre agglomération ; un agent décroche.",
+          "instruction": "Demandez-lui trois informations pratiques : les jours d'ouverture, l'adresse exacte et si le dépôt est gratuit.",
+          "uniqueCriterion": "Les trois informations, jours d'ouverture, adresse et gratuité du dépôt, sont demandées chacune explicitement.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 12,
+          "checklist": [
+            "Saluez l'agent",
+            "Demandez les jours d'ouverture",
+            "Demandez l'adresse exacte",
+            "Demandez si c'est gratuit"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois questions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Adresse demandée",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, je dois jeter un vieux…",
+          "tip": "L'adresse s'oublie souvent : gardez-la dans votre série de questions.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour monsieur. Est-ce que je peux venir déposer un canapé chez vous ?",
+              "pedagogicalNote": "La réponse sera « oui », sans jour d'ouverture, sans adresse et sans tarif."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour monsieur. Quels jours êtes-vous ouverts, à quelle adresse se trouve la déchetterie, et est-ce que le dépôt est gratuit ?",
+              "pedagogicalNote": "Les trois informations sont réclamées et suffisent pour organiser le déplacement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour monsieur. Je dois déposer un canapé et un matelas. Quels jours et à quelles heures êtes-vous ouverts, à quelle adresse dois-je me présenter, et le dépôt est-il gratuit pour les habitants de la commune ?",
+              "pedagogicalNote": "La gratuité est demandée pour votre cas précis : la réponse ne sera pas une généralité."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C3-S13",
+          "title": "Une parcelle au jardin partagé",
+          "context": "Un jardin partagé ouvre près de chez vous et vous aimeriez y cultiver quelques légumes. Vous rencontrez le responsable de l'association un samedi matin.",
+          "instruction": "Demandez-lui quatre informations pratiques : le prix de la cotisation, la taille d'une parcelle, les horaires d'accès et la date d'attribution des places.",
+          "uniqueCriterion": "Les quatre informations demandées sont réclamées chacune de façon explicite.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 13,
+          "checklist": [
+            "Saluez le responsable",
+            "Demandez le prix et la taille",
+            "Demandez les horaires d'accès",
+            "Demandez la date d'attribution"
+          ],
+          "constraintTags": [
+            {
+              "label": "Quatre questions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Date demandée",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, j'aimerais cultiver une parcelle…",
+          "tip": "Quatre réponses à ramener : prix, taille, horaires, date.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour monsieur. Comment fait-on pour avoir un jardin ici, et ça coûte combien ?",
+              "pedagogicalNote": "Le prix est demandé, mais la taille, les horaires et la date d'attribution manquent."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour monsieur. Combien coûte la cotisation, quelle est la taille d'une parcelle, à quelles heures peut-on venir jardiner, et quand les parcelles sont-elles attribuées ?",
+              "pedagogicalNote": "Les quatre informations sont demandées sans que la prise de parole devienne confuse."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour monsieur. J'habite l'immeuble d'en face et j'aimerais cultiver quelques légumes. Quel est le montant de la cotisation annuelle, combien de mètres carrés fait une parcelle, à quelles heures le jardin est-il ouvert en semaine, et à quelle date la commission attribue-t-elle les places ?",
+              "pedagogicalNote": "Chaque question porte une unité claire : euros, mètres carrés, heures, date."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C3-S14",
+          "title": "Un médicament à commander",
+          "context": "Le médicament prescrit à votre mère n'est pas en stock. La pharmacienne vous propose de le commander.",
+          "instruction": "Demandez-lui quatre informations pratiques : le jour d'arrivée du médicament, l'heure limite pour venir le chercher, la somme qui restera à votre charge et la disponibilité d'un équivalent aujourd'hui.",
+          "uniqueCriterion": "Les quatre informations, jour, heure, prix et disponibilité d'un équivalent, sont réclamées chacune explicitement.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 14,
+          "checklist": [
+            "Saluez la pharmacienne",
+            "Demandez le jour d'arrivée",
+            "Demandez l'heure limite et le prix",
+            "Demandez s'il existe un équivalent"
+          ],
+          "constraintTags": [
+            {
+              "label": "Quatre questions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Disponibilité demandée",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour madame, si vous le commandez, quand…",
+          "tip": "Une commande engage : jour, heure, prix et solution immédiate.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. D'accord, commandez-le, je repasserai dans la semaine.",
+              "pedagogicalNote": "Aucune des quatre informations n'est demandée : ni jour, ni heure, ni prix, ni solution immédiate."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Quel jour arrivera le médicament, jusqu'à quelle heure puis-je venir le chercher, combien restera-t-il à ma charge, et avez-vous un équivalent disponible aujourd'hui ?",
+              "pedagogicalNote": "Les quatre informations sont demandées à la suite, dans un ordre logique."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. C'est pour ma mère, qui n'a plus de traitement depuis hier. Quel jour la commande arrive-t-elle, jusqu'à quelle heure êtes-vous ouverts ce jour-là, quelle somme restera à ma charge après le remboursement, et existe-t-il un équivalent que je pourrais prendre tout de suite ?",
+              "pedagogicalNote": "L'urgence explique la quatrième question, et aucune des trois autres n'est sacrifiée."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C3-S15",
+          "title": "Un premier rendez-vous chez le dermatologue",
+          "context": "Votre fils a une allergie sur la peau depuis une semaine et vous devez consulter un dermatologue. Vous appelez le cabinet ; une secrétaire vous répond.",
+          "instruction": "Demandez-lui quatre informations pratiques : le premier rendez-vous disponible, la durée de la consultation, son tarif et l'adresse exacte du cabinet.",
+          "uniqueCriterion": "Les quatre informations, disponibilité, durée, tarif et adresse, sont réclamées chacune explicitement.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 15,
+          "checklist": [
+            "Saluez la secrétaire",
+            "Demandez le premier rendez-vous disponible",
+            "Demandez la durée et le tarif",
+            "Demandez l'adresse exacte"
+          ],
+          "constraintTags": [
+            {
+              "label": "Quatre questions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Adresse exacte",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Bonjour madame, mon fils doit voir un…",
+          "tip": "Terminez par l'adresse : c'est l'information qu'on oublie au téléphone.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Je voudrais un rendez-vous pour mon fils avec le dermatologue, s'il vous plaît.",
+              "pedagogicalNote": "La demande est claire, mais aucune des quatre informations pratiques n'est réclamée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Quel est le premier rendez-vous disponible, combien de temps dure la consultation, quel est son tarif, et à quelle adresse se trouve le cabinet ?",
+              "pedagogicalNote": "Les quatre informations sont demandées et suffisent pour préparer entièrement la visite."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. Mon fils a une allergie sur la peau depuis une semaine. Quelle est la première date disponible avec le dermatologue, combien de temps dure la consultation, quel est le tarif avec un éventuel dépassement, et à quelle adresse et à quel étage dois-je me présenter ?",
+              "pedagogicalNote": "Le dépassement d'honoraires et l'étage sont anticipés : rien ne restera à découvrir sur place."
+            }
+          ]
         }
       ],
       "generalCriterion": "Obtenir un prix, un horaire, une date, une adresse, une durée ou une disponibilité."
@@ -958,6 +2353,476 @@
               "level": "EXCELLENT",
               "text": "Bonjour madame. La formation de magasinier m'intéresse. Faut-il un niveau ou une expérience particulière pour y accéder ? Est-elle entièrement financée, ou une part reste-t-elle à ma charge ? Et dois-je être présent tous les jours pour conserver mon allocation ?",
               "pedagogicalNote": "Le lien entre présence et allocation montre une vraie lecture de la situation."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C4-S6",
+          "title": "À l'accueil des urgences",
+          "context": "Vous accompagnez un ami qui s'est blessé au poignet. À l'accueil des urgences, une infirmière enregistre les arrivées.",
+          "instruction": "Demandez-lui quels documents il faut présenter et comment se passe l'enregistrement.",
+          "uniqueCriterion": "La demande porte explicitement sur les documents à présenter pour être enregistré aux urgences.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 6,
+          "checklist": [
+            "Saluez l'infirmière",
+            "Expliquez pourquoi vous venez",
+            "Demandez les documents à présenter"
+          ],
+          "constraintTags": [
+            {
+              "label": "Documents exigés",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Bonjour madame, mon ami s'est blessé et…",
+          "tip": "Demandez la carte Vitale et la pièce d'identité dès l'accueil.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Mon ami s'est fait mal au poignet, il a très mal.",
+              "pedagogicalNote": "La situation est décrite, mais rien n'est demandé sur les documents ni sur l'enregistrement."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Mon ami s'est blessé au poignet. Quels documents devons-nous vous donner pour l'enregistrer ?",
+              "pedagogicalNote": "La question porte bien sur les pièces à présenter : l'attente ne sera pas perdue."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. Mon ami s'est blessé au poignet. Quels documents faut-il présenter : la carte Vitale, une pièce d'identité, l'attestation de mutuelle ? Et devons-nous remplir un papier avant de nous asseoir ?",
+              "pedagogicalNote": "Les pièces sont nommées une à une et la marche à suivre est demandée avec elles."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C4-S7",
+          "title": "Avant une prise de sang",
+          "context": "Votre médecin vous a prescrit une prise de sang. Vous entrez dans un laboratoire d'analyses et une secrétaire vous reçoit.",
+          "instruction": "Demandez-lui les conditions à respecter avant l'examen et ce qu'il faut apporter le jour même.",
+          "uniqueCriterion": "La demande porte explicitement sur les conditions à respecter et sur les pièces à apporter.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 7,
+          "checklist": [
+            "Saluez la secrétaire",
+            "Demandez les conditions à respecter",
+            "Demandez ce qu'il faut apporter"
+          ],
+          "constraintTags": [
+            {
+              "label": "Conditions exigées",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Documents à apporter",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Bonjour madame, j'ai une ordonnance pour une…",
+          "tip": "Les règles avant l'examen comptent autant que les papiers : demandez les deux.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Je viens pour une prise de sang, voici mon ordonnance.",
+              "pedagogicalNote": "Rien n'est demandé sur les règles à suivre ni sur ce qu'il faudra apporter."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. J'ai une ordonnance pour une prise de sang. Faut-il être à jeun, et que dois-je apporter le jour du rendez-vous ?",
+              "pedagogicalNote": "Les conditions de l'examen et les pièces à fournir sont demandées ensemble."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. J'ai une ordonnance pour une prise de sang. Faut-il venir à jeun et arrêter certains médicaments la veille ? Et dois-je apporter la carte Vitale, la mutuelle et l'ordonnance originale ?",
+              "pedagogicalNote": "Les médicaments de la veille sont anticipés : l'examen ne risque pas d'être refait."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C4-S8",
+          "title": "Le devis du dentiste",
+          "context": "Le dentiste vous annonce qu'il faut poser une couronne. À l'accueil, son assistante prépare votre dossier.",
+          "instruction": "Demandez-lui comment se passe le paiement et ce que la mutuelle prend en charge.",
+          "uniqueCriterion": "La demande porte explicitement sur les modalités de paiement et sur la prise en charge par la mutuelle.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 8,
+          "checklist": [
+            "Demandez comment payer",
+            "Demandez la part de la mutuelle"
+          ],
+          "constraintTags": [
+            {
+              "label": "Paiement",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Prise en charge",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Excusez-moi, comment se passe le paiement…",
+          "tip": "Un devis se demande avant les soins, jamais après.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Excusez-moi, est-ce que ça va coûter cher ?",
+              "pedagogicalNote": "La question porte sur le montant, pas sur les modalités de paiement ni sur la mutuelle."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Excusez-moi, comment se passe le paiement pour la couronne, et est-ce que ma mutuelle en prend une partie en charge ?",
+              "pedagogicalNote": "Paiement et prise en charge sont demandés ensemble, avant que les soins commencent."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Excusez-moi, avant de commencer les soins : pouvez-vous me faire un devis à envoyer à ma mutuelle ? Et le paiement se fait-il en une seule fois, ou puis-je régler en plusieurs mensualités ?",
+              "pedagogicalNote": "Le devis et le paiement échelonné sont exactement les modalités à connaître avant d'accepter."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C4-S9",
+          "title": "Une halte-garderie quelques heures",
+          "context": "Vous suivez une formation deux matinées par semaine et vous cherchez à faire garder votre fils de deux ans. Vous vous rendez à la halte-garderie du quartier, où la responsable vous reçoit.",
+          "instruction": "Demandez-lui les conditions d'un accueil occasionnel et la façon dont ces heures se paient.",
+          "uniqueCriterion": "La demande porte sur les conditions d'un accueil occasionnel et sur les modalités de paiement.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 9,
+          "checklist": [
+            "Saluez la responsable",
+            "Expliquez votre besoin",
+            "Demandez conditions et paiement"
+          ],
+          "constraintTags": [
+            {
+              "label": "Conditions d'accueil",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Paiement",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Bonjour madame, je suis en formation deux…",
+          "tip": "Dites que l'accueil est occasionnel : les règles ne sont pas les mêmes.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Est-ce que vous pouvez garder mon fils le mardi matin ?",
+              "pedagogicalNote": "La disponibilité est demandée ; les conditions et le paiement restent entièrement inconnus."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Je suis en formation deux matinées par semaine. Quelles sont les conditions pour un accueil occasionnel, et comment se fait le paiement ?",
+              "pedagogicalNote": "Conditions et paiement sont demandés tous les deux, pour le type d'accueil qui vous concerne."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. Mon fils a deux ans et je suis en formation le mardi et le jeudi matin. Faut-il un dossier et des vaccins à jour pour un accueil occasionnel, et le paiement se fait-il à l'heure ou par forfait mensuel ?",
+              "pedagogicalNote": "Le dossier, les vaccins et les deux façons de payer sont nommés : rien ne bloquera l'inscription."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C4-S10",
+          "title": "Changer d'école en cours d'année",
+          "context": "Vous déménagez dans une autre commune au mois de janvier et votre fille est en CE2. Vous rencontrez la directrice de la nouvelle école primaire.",
+          "instruction": "Demandez-lui les conditions d'une inscription en cours d'année et les documents qu'elle attend de vous.",
+          "uniqueCriterion": "La demande porte sur les conditions d'une inscription en cours d'année et sur les documents exigés.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 10,
+          "checklist": [
+            "Saluez la directrice",
+            "Expliquez le déménagement",
+            "Demandez conditions et documents"
+          ],
+          "constraintTags": [
+            {
+              "label": "Conditions exigées",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Documents exigés",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Bonjour madame, nous déménageons en janvier et…",
+          "tip": "Le certificat de radiation de l'ancienne école est souvent exigé.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Nous déménageons en janvier, ma fille viendra donc dans votre école.",
+              "pedagogicalNote": "L'information est donnée, mais aucune condition ni aucun document n'est demandé."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Nous déménageons en janvier. Est-ce qu'une inscription en cours d'année est possible, et quels documents devez-vous recevoir ?",
+              "pedagogicalNote": "Les conditions d'une inscription en janvier et les pièces exigées sont toutes deux demandées."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. Nous emménageons dans la commune début janvier et ma fille est en CE2. Faut-il d'abord passer par la mairie, quels documents dois-je vous apporter, et le certificat de radiation de son ancienne école est-il obligatoire ?",
+              "pedagogicalNote": "L'ordre des démarches et la pièce la plus souvent oubliée sont demandés en même temps."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C4-S11",
+          "title": "Aider son fils au collège",
+          "context": "À la réunion parents-professeurs, le professeur principal vous dit que votre fils a des difficultés en français et vous propose d'en parler un instant.",
+          "instruction": "Demandez-lui quelles aides existent au collège et comment inscrire votre fils à ce soutien.",
+          "uniqueCriterion": "La demande porte sur les dispositifs d'aide existants et sur les modalités d'inscription à ce soutien.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 11,
+          "checklist": [
+            "Remerciez le professeur",
+            "Demandez quelles aides existent",
+            "Demandez comment inscrire votre fils"
+          ],
+          "constraintTags": [
+            {
+              "label": "Modalités demandées",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Merci monsieur, quelles aides existent au collège…",
+          "tip": "Après le constat, demandez la marche à suivre pour l'inscription.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Merci monsieur. Je vais lui dire de travailler davantage à la maison.",
+              "pedagogicalNote": "Aucune aide n'est demandée, ni la façon d'y inscrire votre fils."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Merci monsieur. Est-ce qu'il existe des heures de soutien en français au collège, et comment est-ce que je peux y inscrire mon fils ?",
+              "pedagogicalNote": "Le dispositif et la démarche d'inscription sont demandés tous les deux."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Merci monsieur de me le dire. Quelles aides existent au collège pour le français : des heures de soutien, un accompagnement après les cours ? Faut-il remplir un dossier, et est-ce que cela a un coût pour la famille ?",
+              "pedagogicalNote": "Les dispositifs, le dossier et le coût sont demandés : la démarche pourra être engagée."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C4-S12",
+          "title": "Un repas adapté à la cantine",
+          "context": "Votre fille est allergique aux fruits à coque et mange à la cantine tous les midis. Vous rencontrez la responsable de la restauration dans l'école.",
+          "instruction": "Demandez-lui quelles règles s'appliquent en cas d'allergie et comment prévenir quand un repas doit être annulé.",
+          "uniqueCriterion": "La demande porte sur les règles prévues en cas d'allergie et sur la façon d'annuler un repas.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 12,
+          "checklist": [
+            "Saluez la responsable",
+            "Signalez l'allergie de votre fille",
+            "Demandez les règles et l'annulation"
+          ],
+          "constraintTags": [
+            {
+              "label": "Règles demandées",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Cas particulier",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Bonjour madame, ma fille est allergique aux…",
+          "tip": "Une allergie demande un document officiel : demandez-en le nom.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Ma fille est allergique aux fruits à coque, faites bien attention.",
+              "pedagogicalNote": "L'allergie est signalée, mais aucune règle ni aucune modalité n'est demandée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Ma fille est allergique aux fruits à coque. Quelles règles prévoyez-vous dans ce cas, et comment dois-je vous prévenir quand elle ne mange pas à la cantine ?",
+              "pedagogicalNote": "Les règles de la cantine et la procédure d'annulation sont demandées toutes les deux."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. Ma fille est allergique aux fruits à coque. Faut-il un projet d'accueil signé par le médecin, qui vérifie les plats le jour même, et jusqu'à quelle heure puis-je annuler un repas sans qu'il soit facturé ?",
+              "pedagogicalNote": "Le document exigé, la personne responsable et la limite d'annulation sont tous réclamés."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C4-S13",
+          "title": "Inscrire son fils le mercredi",
+          "context": "Vous travaillez tous les mercredis et vous voulez inscrire votre fils de six ans au centre de loisirs pour l'année. Une animatrice vous reçoit au bureau des inscriptions.",
+          "instruction": "Demandez-lui les conditions de l'inscription annuelle, les documents à fournir et la façon dont le tarif est calculé.",
+          "uniqueCriterion": "La demande couvre les conditions d'inscription, les documents exigés et le mode de calcul du tarif.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 13,
+          "checklist": [
+            "Saluez l'animatrice",
+            "Demandez les conditions d'inscription",
+            "Demandez les documents à fournir",
+            "Demandez le calcul du tarif"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois volets",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Documents exigés",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Bonjour madame, je travaille le mercredi et…",
+          "tip": "Le tarif dépend souvent des revenus : demandez comment il est calculé.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Je voudrais inscrire mon fils le mercredi, il a six ans.",
+              "pedagogicalNote": "L'inscription est annoncée, mais ni conditions, ni documents, ni tarif ne sont demandés."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Je travaille le mercredi et je voudrais inscrire mon fils à l'année. Quelles sont les conditions, quels documents dois-je apporter, et comment le tarif est-il calculé ?",
+              "pedagogicalNote": "Les trois volets sont demandés : conditions, pièces du dossier et calcul du prix."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. Mon fils a six ans et je travaille tous les mercredis. Faut-il habiter la commune pour être prioritaire, quels documents devez-vous recevoir, et le tarif dépend-il du quotient familial ? Puis-je régler au trimestre ?",
+              "pedagogicalNote": "La priorité, le quotient familial et l'échelonnement sont les vraies conditions de cette inscription."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C4-S14",
+          "title": "Préparer un dossier de mariage",
+          "context": "Vous allez vous marier à la mairie de votre commune en septembre. Un agent de l'état civil vous reçoit pour préparer le dossier.",
+          "instruction": "Demandez-lui les conditions du mariage civil, les documents que chacun doit fournir et les délais à respecter.",
+          "uniqueCriterion": "La demande couvre les conditions du mariage, les documents exigés de chaque futur époux et les délais de dépôt.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 14,
+          "checklist": [
+            "Saluez l'agent",
+            "Demandez les conditions du mariage",
+            "Demandez les documents de chacun",
+            "Demandez les délais"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois volets",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Documents exigés",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Bonjour monsieur, nous souhaitons nous marier à…",
+          "tip": "Les documents diffèrent selon la nationalité : posez la question maintenant.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour monsieur. Nous voulons nous marier en septembre, est-ce que c'est possible ?",
+              "pedagogicalNote": "La date est évoquée ; ni conditions, ni documents, ni délais ne sont demandés."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour monsieur. Nous souhaitons nous marier ici en septembre. Quelles sont les conditions, quels documents devons-nous fournir chacun, et combien de temps à l'avance faut-il déposer le dossier ?",
+              "pedagogicalNote": "Les trois volets de la démarche sont demandés en une seule prise de parole."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour monsieur. Nous souhaitons nous marier à la mairie en septembre. Ma compagne est française et je suis algérien : quels documents chacun doit-il fournir, faut-il faire traduire mon acte de naissance par un traducteur agréé, et combien de semaines avant la cérémonie le dossier doit-il être complet ?",
+              "pedagogicalNote": "La traduction agréée est la condition qui bloque le plus souvent : elle est demandée d'emblée."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C4-S15",
+          "title": "Passer à la carte pluriannuelle",
+          "context": "Votre carte de séjour d'un an se termine en mai et vous voulez demander une carte pluriannuelle. Un agent de la préfecture vous reçoit au guichet.",
+          "instruction": "Demandez-lui les conditions à remplir, les pièces à fournir et la façon de payer la taxe.",
+          "uniqueCriterion": "La demande couvre les conditions exigées, les pièces du dossier et les modalités de paiement de la taxe.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 15,
+          "checklist": [
+            "Saluez l'agent",
+            "Demandez les conditions à remplir",
+            "Demandez les pièces du dossier",
+            "Demandez comment payer la taxe"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois volets",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Paiement",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Vouvoiement",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Bonjour madame, ma carte arrive à échéance…",
+          "tip": "Le timbre fiscal se paie souvent en ligne : vérifiez-le maintenant.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour madame. Ma carte se termine en mai et je voudrais celle de plusieurs années.",
+              "pedagogicalNote": "La demande est annoncée sans interroger les conditions, les pièces ni la taxe."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour madame. Ma carte d'un an se termine en mai. Quelles conditions faut-il remplir pour une carte pluriannuelle, quelles pièces dois-je fournir, et comment se paie la taxe ?",
+              "pedagogicalNote": "Conditions, pièces et paiement sont demandés ensemble : le dossier pourra être préparé en une fois."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour madame. Ma carte d'un an se termine en mai et je travaille en contrat à durée indéterminée depuis deux ans. Quelles conditions faut-il remplir pour obtenir une carte pluriannuelle, quelles pièces devez-vous recevoir en plus du dossier habituel, et le timbre fiscal se paie-t-il en ligne ou au guichet ?",
+              "pedagogicalNote": "La situation professionnelle éclaire les conditions, et les trois volets restent tous demandés."
             }
           ]
         }
@@ -1198,6 +3063,463 @@
               "pedagogicalNote": "Le treizième mois et la location de la box : les deux pièges sont couverts."
             }
           ]
+        },
+        {
+          "code": "EO2-C5-S6",
+          "title": "Trois semaines d'attente à la CAF",
+          "context": "Vous vous renseignez à la CAF sur votre dossier d'allocations. L'agente consulte son écran et vous dit : « Votre dossier est en cours d'examen, la réponse arrive sous trois semaines. »",
+          "instruction": "Rebondissez sur cette réponse : posez une question de suivi à partir du délai qu'elle vient d'annoncer.",
+          "uniqueCriterion": "La question s'appuie sur le délai annoncé et demande une information supplémentaire sur le dossier.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 6,
+          "checklist": [
+            "Reprenez les trois semaines annoncées",
+            "Demandez comment vous serez prévenu"
+          ],
+          "constraintTags": [
+            {
+              "label": "Délai repris",
+              "icon": "TIME"
+            },
+            {
+              "label": "Question de suivi",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Trois semaines, d'accord, et est-ce…",
+          "tip": "Partez du délai annoncé pour savoir comment la réponse vous parviendra.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Trois semaines, d'accord madame. Je vais attendre le courrier alors, merci beaucoup.",
+              "pedagogicalNote": "Le délai est accepté tel quel : aucune information nouvelle n'est obtenue."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Trois semaines, d'accord. Est-ce que je recevrai la réponse par courrier ou sur mon espace en ligne ?",
+              "pedagogicalNote": "La question part du délai annoncé et prépare concrètement la suite du dossier."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Trois semaines, très bien. Est-ce que la réponse arrive sur mon espace personnel, et est-ce que je peux suivre l'avancement du dossier en attendant ?",
+              "pedagogicalNote": "Le délai est repris et les deux questions prolongent vraiment l'information reçue."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C5-S7",
+          "title": "L'actualisation chaque mois",
+          "context": "Vous êtes inscrit à France Travail pour votre recherche d'emploi. Votre conseiller vous rappelle : « Vous devez actualiser votre situation chaque mois, entre le 28 et le 15 du mois suivant. »",
+          "instruction": "Rebondissez sur cette réponse : posez une question de suivi sur la manière de faire cette actualisation.",
+          "uniqueCriterion": "La question part de l'obligation d'actualisation annoncée et porte sur la façon concrète de la faire.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 7,
+          "checklist": [
+            "Reprenez la période annoncée",
+            "Demandez comment actualiser votre situation"
+          ],
+          "constraintTags": [
+            {
+              "label": "Période reprise",
+              "icon": "TIME"
+            },
+            {
+              "label": "Suivi logique",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Entre le 28 et le 15…",
+          "tip": "Restez sur l'actualisation : demandez comment la faire, pas autre chose.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Entre le 28 et le 15, j'ai bien noté. Merci beaucoup monsieur.",
+              "pedagogicalNote": "L'information est répétée mais rien de plus n'est demandé : l'échange s'arrête."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Entre le 28 et le 15, d'accord. Est-ce que je peux le faire depuis mon téléphone ?",
+              "pedagogicalNote": "La question prolonge l'obligation annoncée et vous est directement utile."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Entre le 28 et le 15, c'est noté. Est-ce que je passe par l'application ou par le site ? Et que se passe-t-il si j'oublie un mois ?",
+              "pedagogicalNote": "Les deux questions découlent de la règle annoncée, dont le risque d'oubli."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C5-S8",
+          "title": "La carte Vitale par courrier",
+          "context": "Au guichet de la CPAM, l'agent vérifie votre dossier et vous annonce : « Votre nouvelle carte Vitale sera envoyée à votre domicile d'ici dix jours. »",
+          "instruction": "Rebondissez sur cette annonce : posez une question de suivi utile à partir de cet envoi.",
+          "uniqueCriterion": "La question s'appuie sur l'envoi annoncé et demande une information supplémentaire liée à cette carte.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 8,
+          "checklist": [
+            "Reprenez les dix jours",
+            "Demandez comment faire en attendant"
+          ],
+          "constraintTags": [
+            {
+              "label": "Envoi repris",
+              "icon": "TIME"
+            },
+            {
+              "label": "Question liée",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Dix jours, d'accord, et en attendant…",
+          "tip": "En attendant la carte, demandez comment vous faire rembourser vos soins.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Dix jours, parfait. J'attendrai le facteur alors. Merci monsieur, bonne journée.",
+              "pedagogicalNote": "L'annonce est acceptée sans exploitation : la période d'attente reste sans solution."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Dix jours, d'accord. Et en attendant, comment je fais pour être remboursé si je vais chez le médecin ?",
+              "pedagogicalNote": "La question naît directement de l'envoi annoncé et couvre l'attente."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Dix jours, très bien. En attendant, est-ce qu'une feuille de soins papier suffit ? Et faut-il vous prévenir si la carte n'arrive pas ?",
+              "pedagogicalNote": "L'attente et le retard possible sont deux suites logiques de l'envoi."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C5-S9",
+          "title": "Un solde à régler aux impôts",
+          "context": "Au centre des finances publiques, l'agente examine votre situation et vous annonce : « Il vous reste 340 euros à régler avant le 15 septembre. »",
+          "instruction": "Rebondissez sur cette réponse : montrez que vous avez compris, puis posez une question de suivi sur ce paiement.",
+          "uniqueCriterion": "La réponse reprend le montant ou la date annoncés et demande une information supplémentaire sur le paiement.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 9,
+          "checklist": [
+            "Reprenez le montant annoncé",
+            "Montrez que vous avez compris",
+            "Posez une question sur le paiement"
+          ],
+          "constraintTags": [
+            {
+              "label": "Montant repris",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Suite logique",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Trois cent quarante euros avant septembre…",
+          "tip": "Un paiement appelle toujours une suite : délai, moyen de paiement, échelonnement.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Trois cent quarante euros avant le 15 septembre, j'ai compris madame. Je verrai ce que je peux faire.",
+              "pedagogicalNote": "Le montant est répété, mais aucune question ne fait avancer la situation."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Trois cent quarante euros avant le 15 septembre, d'accord. Est-ce que je peux payer en plusieurs fois ?",
+              "pedagogicalNote": "La question part du montant annoncé et ouvre une solution concrète."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Trois cent quarante euros avant le 15 septembre, c'est noté. Est-ce qu'un paiement en trois fois est possible, et où dois-je faire cette demande ?",
+              "pedagogicalNote": "La solution demandée est prolongée par la démarche à suivre : très efficace."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C5-S10",
+          "title": "Un envoi en recommandé",
+          "context": "Vous voulez envoyer un dossier important depuis un bureau de poste. L'employée vous répond : « En recommandé avec accusé de réception, c'est 6,50 euros, et la lettre arrive en deux jours. »",
+          "instruction": "Rebondissez sur cette réponse : posez une ou deux questions de suivi sur cet envoi.",
+          "uniqueCriterion": "Les questions s'appuient sur le tarif ou le délai annoncés et portent sur cet envoi recommandé.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 10,
+          "checklist": [
+            "Reprenez le tarif ou le délai",
+            "Demandez ce que prouve l'accusé",
+            "Restez sur cet envoi"
+          ],
+          "constraintTags": [
+            {
+              "label": "Tarif repris",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Même envoi",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Six euros cinquante en recommandé, d'accord…",
+          "tip": "La preuve de réception et le suivi prolongent naturellement le tarif annoncé.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Six euros cinquante, d'accord madame. Je vais l'envoyer comme ça, merci beaucoup.",
+              "pedagogicalNote": "Le tarif est accepté sans question : vous ignorez ce que l'envoi vous garantit."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Six euros cinquante en recommandé, d'accord. Est-ce que je reçois une preuve quand la personne reçoit la lettre ?",
+              "pedagogicalNote": "La question porte sur l'envoi annoncé et sur ce qu'il vous apporte réellement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Six euros cinquante pour deux jours, très bien. L'accusé de réception me revient par courrier ou par courriel ? Et est-ce que je peux suivre la lettre avec un numéro ?",
+              "pedagogicalNote": "Preuve et suivi : deux suites directes du service qui vient d'être décrit."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C5-S11",
+          "title": "Les bulletins demandés par la banque",
+          "context": "Vous téléphonez à votre banque au sujet d'un projet de prêt. Le conseiller vous répond : « Je peux étudier votre demande, mais il me faut d'abord vos trois derniers bulletins de salaire. »",
+          "instruction": "Rebondissez sur cette réponse : posez deux questions de suivi sur ce que vous devez faire maintenant.",
+          "uniqueCriterion": "Les questions partent des documents demandés et portent sur leur transmission ou sur la suite du dossier.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 11,
+          "checklist": [
+            "Reprenez les bulletins demandés",
+            "Demandez comment les transmettre",
+            "Demandez la suite du dossier"
+          ],
+          "constraintTags": [
+            {
+              "label": "Documents repris",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Deux questions",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Mes trois derniers bulletins, d'accord, et…",
+          "tip": "Demandez comment envoyer les pièces et combien de temps dure l'étude.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Mes trois derniers bulletins de salaire, d'accord. Je vous les apporterai. Merci monsieur, au revoir.",
+              "pedagogicalNote": "La demande est acceptée, mais rien n'est demandé sur la suite ni sur l'envoi."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Mes trois derniers bulletins, d'accord. Est-ce que je peux vous les envoyer par courriel ? Et combien de temps prend l'étude du dossier ?",
+              "pedagogicalNote": "Les deux questions naissent des documents demandés : l'échange avance vraiment."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Mes trois derniers bulletins, très bien. Je peux les déposer sur l'espace en ligne, ou faut-il les apporter en agence ? Et une fois que vous les avez, sous quel délai aurai-je une réponse ?",
+              "pedagogicalNote": "Transmission puis délai de réponse : la suite complète du dossier est couverte."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C5-S12",
+          "title": "Un expert après la fuite",
+          "context": "Vous déclarez une fuite d'eau à votre assurance habitation. La conseillère vous répond : « Un expert passera chez vous dans les quinze jours. »",
+          "instruction": "Rebondissez sur cette réponse : posez une ou deux questions de suivi sur la venue de cet expert.",
+          "uniqueCriterion": "Les questions s'appuient sur la venue annoncée de l'expert et portent sur la suite concrète du dossier.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 12,
+          "checklist": [
+            "Reprenez les quinze jours",
+            "Demandez ce qu'il faut préparer",
+            "Restez sur ce dossier"
+          ],
+          "constraintTags": [
+            {
+              "label": "Visite reprise",
+              "icon": "TIME"
+            },
+            {
+              "label": "Suite du dossier",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Un expert sous quinze jours, d'accord…",
+          "tip": "Demandez ce qu'il faut garder comme preuves avant le passage de l'expert.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Quinze jours, d'accord madame. J'attends sa visite alors. Merci beaucoup, au revoir.",
+              "pedagogicalNote": "La visite est acceptée sans question : vous ne savez pas quoi faire d'ici là."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Un expert dans les quinze jours, d'accord. Est-ce que je dois laisser les dégâts en l'état jusqu'à sa visite ?",
+              "pedagogicalNote": "La question découle de la venue annoncée et évite une erreur coûteuse."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Un expert sous quinze jours, très bien. Faut-il que je garde les meubles abîmés et que je prenne des photos ? Et si l'eau coule encore, est-ce que je peux faire réparer tout de suite ?",
+              "pedagogicalNote": "Preuves à conserver et urgence : deux suites réelles de la visite annoncée."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C5-S13",
+          "title": "Le remboursement de la couronne",
+          "context": "Vous appelez votre mutuelle santé avant des soins dentaires. La conseillère vous annonce : « Votre contrat rembourse la couronne à hauteur de 200 pour cent du tarif de la Sécurité sociale. »",
+          "instruction": "Rebondissez : posez deux questions de suivi pour savoir ce qui restera réellement à votre charge.",
+          "uniqueCriterion": "Deux questions de suivi s'appuient sur le taux annoncé et portent sur le reste à charge réel.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 13,
+          "checklist": [
+            "Reprenez le taux annoncé",
+            "Demandez le montant remboursé",
+            "Demandez ce qui reste à payer"
+          ],
+          "constraintTags": [
+            {
+              "label": "Taux repris",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Reste à charge",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Deux cents pour cent, d'accord, mais…",
+          "tip": "Un pourcentage ne dit rien tant qu'on ignore le montant en euros.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Deux cents pour cent, d'accord, c'est bien remboursé alors. Merci pour l'information, madame.",
+              "pedagogicalNote": "Le taux est accepté sans être traduit : le coût réel reste totalement inconnu."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Deux cents pour cent, d'accord. Cela fait combien en euros pour une couronne, et qu'est-ce qui restera à ma charge ?",
+              "pedagogicalNote": "Les deux questions partent du taux annoncé et visent le montant réel."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Deux cents pour cent du tarif de la Sécurité sociale, d'accord. Sur un devis de six cents euros, vous remboursez combien exactement ? Et est-ce que je peux connaître mon reste à charge avant d'accepter les soins ?",
+              "pedagogicalNote": "L'exemple chiffré et la demande d'estimation rendent la réponse impossible à esquiver."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C5-S14",
+          "title": "La quote-part du ravalement",
+          "context": "Vous appelez le syndic de votre immeuble. Le gestionnaire vous répond : « Des travaux de ravalement sont prévus au printemps, votre quote-part est de 1 800 euros. »",
+          "instruction": "Rebondissez : posez deux questions de suivi à partir de ce montant et de ces travaux.",
+          "uniqueCriterion": "Deux questions de suivi partent du montant et des travaux annoncés et portent sur leur paiement ou leur organisation.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 14,
+          "checklist": [
+            "Reprenez la somme annoncée",
+            "Demandez comment elle se paie",
+            "Interrogez la durée des travaux"
+          ],
+          "constraintTags": [
+            {
+              "label": "Quote-part reprise",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Deux questions",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Mille huit cents euros, d'accord, et…",
+          "tip": "Sur une grosse somme, demandez toujours le calendrier et les modalités de paiement.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Mille huit cents euros, c'est beaucoup quand même. Bon, je note, merci monsieur.",
+              "pedagogicalNote": "Le montant provoque une réaction mais aucune question : rien n'est éclairci."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Mille huit cents euros, d'accord. Est-ce que cette somme se paie en une fois, et à quel moment ?",
+              "pedagogicalNote": "La question part de la quote-part annoncée et porte sur son paiement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Mille huit cents euros pour le ravalement, d'accord. Est-ce que ma quote-part est appelée en plusieurs fois avec les charges, et combien de temps le chantier durera-t-il ?",
+              "pedagogicalNote": "Paiement échelonné et durée du chantier : deux suites logiques de l'annonce."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C5-S15",
+          "title": "Le loyer révisé en juillet",
+          "context": "Votre propriétaire vous appelle au sujet de votre logement : « Le loyer sera révisé au 1er juillet, il passera de 540 à 562 euros par mois. »",
+          "instruction": "Rebondissez : posez deux questions de suivi pour comprendre cette augmentation et ce qu'elle change pour vous.",
+          "uniqueCriterion": "Deux questions de suivi partent de l'augmentation annoncée et portent sur sa justification ou ses conséquences pratiques.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 55,
+          "difficultyLevel": "HARD",
+          "displayOrder": 15,
+          "checklist": [
+            "Reprenez la nouvelle somme",
+            "Demandez sur quoi repose l'augmentation",
+            "Demandez ce qui change concrètement"
+          ],
+          "constraintTags": [
+            {
+              "label": "Nouveau loyer",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Suivi argumenté",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "De 540 à 562 euros, d'accord…",
+          "tip": "Demandez sur quel indice repose la hausse et quand elle s'applique.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Cinq cent soixante-deux euros à partir de juillet, bon, d'accord. Je note le changement, monsieur.",
+              "pedagogicalNote": "L'augmentation est enregistrée sans être questionnée : elle n'est ni comprise ni vérifiée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "De cinq cent quarante à cinq cent soixante-deux euros, d'accord. Sur quoi repose cette augmentation, et à partir de quel mois je paie le nouveau montant ?",
+              "pedagogicalNote": "Les deux questions partent du nouveau loyer et en cherchent la raison précise."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Vingt-deux euros de plus par mois à partir de juillet, d'accord. Est-ce que la révision suit bien l'indice prévu dans mon bail ? Et pouvez-vous m'envoyer un courrier avec le calcul, pour que je change mon virement ?",
+              "pedagogicalNote": "L'écart est calculé et les questions portent sur la justification et la démarche."
+            }
+          ]
         }
       ],
       "generalCriterion": "Utiliser la réponse de l'interlocuteur pour demander une information supplémentaire pertinente."
@@ -1433,6 +3755,470 @@
               "level": "EXCELLENT",
               "text": "Je vous répète pour être sûr : s'il y a une fuite chez moi, je paie les cent cinquante premiers euros et l'assurance prend en charge la suite, quel que soit le montant des dégâts. Est-ce que c'est exact ?",
               "pedagogicalNote": "L'exemple concret et la limite testée montrent une compréhension vraiment vérifiée."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C6-S6",
+          "title": "Une visite en début d'après-midi",
+          "context": "Vous cherchez un logement. Une conseillère de l'agence vous propose une visite : « Nous pouvons vous faire visiter l'appartement mercredi, en début d'après-midi. »",
+          "instruction": "Faites remarquer poliment que cette indication reste trop vague et demandez-lui l'heure exacte.",
+          "uniqueCriterion": "La demande relève le caractère vague de l'indication et réclame une heure précise.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 6,
+          "checklist": [
+            "Répétez l'indication imprécise",
+            "Demandez l'heure exacte"
+          ],
+          "constraintTags": [
+            {
+              "label": "Heure exacte",
+              "icon": "TIME"
+            },
+            {
+              "label": "Ton poli",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "En début d'après-midi, c'est-à-dire à quelle…",
+          "tip": "Une visite se note dans un agenda : il vous faut une heure.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "En début d'après-midi, très bien, je serai là. Merci madame, à mercredi.",
+              "pedagogicalNote": "L'indication vague est acceptée : vous risquez d'arriver une heure trop tôt."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "En début d'après-midi, c'est-à-dire à quelle heure exactement, s'il vous plaît ?",
+              "pedagogicalNote": "L'imprécision est relevée et la question porte directement sur l'heure."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "En début d'après-midi, d'accord. Est-ce plutôt treize heures ou quinze heures ? Je dois poser une heure de congé pour venir, alors j'aimerais être précis.",
+              "pedagogicalNote": "Deux heures sont proposées et la raison donnée oblige à une réponse exacte."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C6-S7",
+          "title": "Un mot du devis de déménagement",
+          "context": "Vous préparez votre déménagement. Au téléphone, l'employé vous annonce : « Le devis comprend le portage, mais pas l'emballage de vos affaires. »",
+          "instruction": "Dites-lui que vous ne comprenez pas ce mot et demandez-lui de vous expliquer ce qu'il recouvre.",
+          "uniqueCriterion": "La demande signale le mot non compris et réclame son explication.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 7,
+          "checklist": [
+            "Nommez le mot incompris",
+            "Demandez une explication simple"
+          ],
+          "constraintTags": [
+            {
+              "label": "Mot repris",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Ton poli",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Excusez-moi, le portage, qu'est-ce que c'est…",
+          "tip": "Demander le sens d'un mot est normal, même après plusieurs années ici.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "D'accord, le portage est compris mais pas l'emballage. Je vais réfléchir, merci monsieur.",
+              "pedagogicalNote": "Le mot inconnu est répété comme s'il était compris : le devis reste obscur."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Excusez-moi, je ne connais pas ce mot. Qu'est-ce que le portage, exactement ?",
+              "pedagogicalNote": "L'incompréhension est dite simplement et l'explication demandée sans détour."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Excusez-moi, le mot « portage » ne me dit rien. Est-ce que cela veut dire que vos employés descendent les cartons de l'appartement, ou seulement qu'ils les chargent dans le camion ?",
+              "pedagogicalNote": "Le mot est cité et deux sens possibles sont proposés : la réponse sera claire."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C6-S8",
+          "title": "Une coupure d'eau annoncée",
+          "context": "Devant les boîtes aux lettres, votre voisin de palier vous prévient : « L'eau sera coupée demain, dans la matinée je crois. »",
+          "instruction": "Demandez-lui de préciser ce qu'il sait exactement au sujet de cette coupure.",
+          "uniqueCriterion": "La demande relève l'imprécision de l'information et réclame une précision sur l'horaire ou sur sa source.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 8,
+          "checklist": [
+            "Reprenez la coupure annoncée",
+            "Demandez l'horaire précis",
+            "Demandez d'où vient l'information"
+          ],
+          "constraintTags": [
+            {
+              "label": "Horaire précis",
+              "icon": "TIME"
+            },
+            {
+              "label": "Ton amical",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Ah bon, l'eau coupée demain matin…",
+          "tip": "Quand votre voisin hésite, demandez-lui qui a annoncé la coupure.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Ah bon ? D'accord, merci de m'avoir prévenu, je ferai attention.",
+              "pedagogicalNote": "L'hésitation du voisin n'est pas relevée : l'horaire reste totalement flou."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "L'eau coupée demain, d'accord. Vous savez à partir de quelle heure, et jusqu'à quand ?",
+              "pedagogicalNote": "L'imprécision est relevée et la question porte sur le début et la fin."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "L'eau coupée demain matin, vous dites « je crois » : est-ce que c'est affiché dans l'entrée ? J'aimerais connaître l'heure exacte, parce que je travaille de nuit et je dors le matin.",
+              "pedagogicalNote": "Le doute exprimé par le voisin est repris et la source de l'information vérifiée."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C6-S9",
+          "title": "Les encombrants et le bon jour",
+          "context": "Vous croisez le gardien de votre immeuble dans le hall. Il vous dit : « Pour les encombrants, il faut les sortir le bon jour, sinon la mairie ne les prend pas. »",
+          "instruction": "Demandez-lui deux précisions pour savoir exactement ce que vous devez faire.",
+          "uniqueCriterion": "La demande porte sur les deux points laissés flous : le jour concerné et l'endroit où déposer les objets.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 9,
+          "checklist": [
+            "Reprenez ce qu'il a dit",
+            "Demandez quel jour exactement",
+            "Demandez où les déposer"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux précisions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Jour et lieu",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Le bon jour, c'est-à-dire lequel exactement…",
+          "tip": "Posez une question par point flou plutôt qu'une seule très longue.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "D'accord, je les sortirai le bon jour alors. Merci pour l'information, monsieur.",
+              "pedagogicalNote": "Le mot flou est répété tel quel : ni le jour ni le lieu ne sont connus."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le bon jour, c'est-à-dire lequel ? Et je les dépose devant l'immeuble ou dans la cour ?",
+              "pedagogicalNote": "Les deux points obscurs sont relevés, chacun par une question distincte."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Vous dites « le bon jour » : est-ce que c'est le premier mercredi du mois, ou un autre jour ? Et faut-il les laisser sur le trottoir ou dans le local, pour que la mairie les prenne vraiment ?",
+              "pedagogicalNote": "L'expression floue est citée et une hypothèse précise oblige à confirmer ou corriger."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C6-S10",
+          "title": "L'accès au local à vélos",
+          "context": "Vous discutez avec la présidente du conseil syndical dans les parties communes. Elle vous dit : « Vous pouvez utiliser le local à vélos, il suffit de demander l'accès. »",
+          "instruction": "Reformulez ce que vous avez compris, puis demandez-lui de préciser la démarche à suivre.",
+          "uniqueCriterion": "La production reformule l'information reçue et demande une précision sur la démarche à suivre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 10,
+          "checklist": [
+            "Reformulez ce que vous avez compris",
+            "Demandez à qui s'adresser",
+            "Demandez comment obtenir l'accès"
+          ],
+          "constraintTags": [
+            {
+              "label": "Reformulation",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Démarche précise",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Donc le local est accessible, mais…",
+          "tip": "Reformulez d'abord, puis demandez la démarche exacte à suivre.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "D'accord, très bien, j'utiliserai le local à vélos alors. Merci beaucoup madame.",
+              "pedagogicalNote": "Rien n'est reformulé ni précisé : vous ne savez toujours pas comment entrer."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Donc le local est ouvert aux habitants, mais il faut d'abord demander l'accès. À qui dois-je m'adresser exactement ?",
+              "pedagogicalNote": "L'information est redite avec vos mots et la démarche est réclamée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Si j'ai bien saisi, je peux garer mon vélo dans le local une fois l'accès obtenu. Est-ce que la demande se fait auprès du gardien ou du syndic ? Et faut-il verser une caution pour le badge ?",
+              "pedagogicalNote": "La reformulation est fidèle et les deux questions ferment les zones d'ombre."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C6-S11",
+          "title": "Les étapes à la laverie",
+          "context": "Dans une laverie automatique, une employée vous explique très vite : « Vous mettez le jeton, vous choisissez le programme, et le séchage est à part. »",
+          "instruction": "Reformulez les étapes que vous avez comprises, puis demandez la précision qui vous manque.",
+          "uniqueCriterion": "La production reformule les étapes comprises et demande une précision sur le point resté flou.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 11,
+          "checklist": [
+            "Répétez les étapes comprises",
+            "Demandez ce qui reste flou",
+            "Demandez confirmation"
+          ],
+          "constraintTags": [
+            {
+              "label": "Étapes répétées",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Prix du séchage",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Donc je mets le jeton, puis…",
+          "tip": "Redire les étapes dans l'ordre montre tout de suite ce qui manque.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "D'accord, merci madame, je vais essayer. Je pense que j'ai compris.",
+              "pedagogicalNote": "« Je pense » suffit rarement : rien n'est redit, donc rien n'est vérifié."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Donc je mets le jeton, je choisis le programme, et je paie le séchage à part. C'est bien cela ? Le séchage coûte combien ?",
+              "pedagogicalNote": "Les étapes sont redites dans l'ordre et le point manquant est demandé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je répète dans l'ordre, pour être sûr : un jeton pour la machine, je choisis le programme, puis un autre jeton pour le sèche-linge. Est-ce que les jetons s'achètent au même endroit, et combien de temps dure un cycle ?",
+              "pedagogicalNote": "La reformulation détaillée fait apparaître les deux informations qui manquaient."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C6-S12",
+          "title": "Une promotion avec la carte",
+          "context": "À la caisse du supermarché, la caissière vous dit en scannant vos articles : « Celui-ci est en promotion, mais l'offre ne s'applique qu'avec la carte. »",
+          "instruction": "Demandez-lui de préciser ce qu'elle veut dire, puis vérifiez ce que vous devez faire maintenant.",
+          "uniqueCriterion": "La demande porte sur le point ambigu de l'offre et vérifie la démarche à suivre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 12,
+          "checklist": [
+            "Reprenez l'offre annoncée",
+            "Demandez quelle carte est demandée",
+            "Vérifiez ce que vous devez faire"
+          ],
+          "constraintTags": [
+            {
+              "label": "Offre reprise",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Ton poli",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Avec la carte, c'est-à-dire quelle carte…",
+          "tip": "Une promotion mal comprise se perd, alors vérifiez avant de payer.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Ah bon, tant pis. Je le prends quand même au prix normal, madame.",
+              "pedagogicalNote": "L'ambiguïté n'est pas levée : la réduction est abandonnée sans avoir compris pourquoi."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Avec la carte, d'accord. De quelle carte parlez-vous, et est-ce que je peux la faire tout de suite ?",
+              "pedagogicalNote": "Le mot ambigu est repris et la démarche à suivre est vérifiée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Excusez-moi, je veux être sûr de comprendre : la promotion s'applique seulement avec la carte de fidélité du magasin ? Si je la crée maintenant à l'accueil, est-ce que la réduction fonctionne sur cet achat ?",
+              "pedagogicalNote": "La précision demandée est suivie d'une vérification qui sauve la réduction."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C6-S13",
+          "title": "Les prix du marchand de fruits",
+          "context": "Sur le marché de votre quartier, le marchand de fruits vous lance : « C'est trois euros la barquette, ou deux barquettes pour cinq euros, et je vous fais un prix sur le cageot. »",
+          "instruction": "Reformulez l'offre pour vérifier que vous avez bien compris, puis demandez la précision qui manque.",
+          "uniqueCriterion": "La production reformule les tarifs entendus et réclame la précision manquante sur le prix du cageot.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 13,
+          "checklist": [
+            "Répétez les prix entendus",
+            "Demandez le prix du cageot",
+            "Demandez confirmation au marchand"
+          ],
+          "constraintTags": [
+            {
+              "label": "Prix repris",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Vérification demandée",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Donc trois euros l'une, cinq euros…",
+          "tip": "Quand un prix reste flou, redites l'offre et faites-la confirmer.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "D'accord, alors je vais prendre deux barquettes, s'il vous plaît. Merci monsieur.",
+              "pedagogicalNote": "L'offre n'est ni redite ni vérifiée, et le prix du cageot reste inconnu."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Donc trois euros la barquette, ou cinq euros les deux. C'est bien cela ? Et le cageot, il coûte combien exactement ?",
+              "pedagogicalNote": "Les tarifs sont redits, confirmés, et le point flou est nommé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je répète pour être sûr : une barquette à trois euros, deux barquettes à cinq euros. Vous parlez d'« un prix » sur le cageot, mais combien coûte-t-il, et il contient combien de barquettes ? Comme cela je peux comparer.",
+              "pedagogicalNote": "La formule vague est citée et la question rend la comparaison enfin possible."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C6-S14",
+          "title": "Un gâteau pour douze personnes",
+          "context": "À la boulangerie du coin, vous voulez commander un gâteau. La vendeuse vous dit : « Pour douze personnes, comptez une trentaine d'euros, et il faut commander à l'avance. »",
+          "instruction": "Relevez les deux indications imprécises, demandez qu'on vous les précise et faites confirmer le total.",
+          "uniqueCriterion": "La demande porte sur les deux points imprécis, le prix approximatif et le délai de commande, et fait confirmer le total.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 14,
+          "checklist": [
+            "Reprenez les deux points flous",
+            "Demandez le prix exact",
+            "Demandez le délai de commande",
+            "Faites confirmer le total"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux imprécisions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Délai de commande",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Une trentaine d'euros, c'est-à-dire combien exactement…",
+          "tip": "Deux mots flous, donc deux chiffres à obtenir avant de commander.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Une trentaine d'euros, d'accord. Je repasserai la semaine prochaine pour commander, merci madame.",
+              "pedagogicalNote": "Ni le prix ni le délai ne sont précisés : la commande reste impossible à préparer."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Une trentaine d'euros, c'est-à-dire trente ou trente-cinq ? Et « à l'avance », cela veut dire combien de jours avant ? Je voudrais être sûr du total.",
+              "pedagogicalNote": "Les deux formules approximatives sont reprises et chiffrées, puis le total est vérifié."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Deux choses ne sont pas claires pour moi. « Une trentaine d'euros », est-ce le prix exact pour douze personnes, ou cela peut-il monter plus haut selon le parfum ? Et faut-il commander deux jours avant, ou une semaine ? J'aimerais que vous me confirmiez le prix final.",
+              "pedagogicalNote": "Les deux imprécisions sont citées, illustrées, et la confirmation du total est demandée."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C6-S15",
+          "title": "Une commande chez le boucher",
+          "context": "Chez le boucher, vous commandez de la viande pour une fête. Il vous répond : « Je vous prépare de quoi nourrir vingt personnes, ça fera dans les cent euros, et vous passerez le récupérer samedi. »",
+          "instruction": "Reformulez toute la commande avec vos mots, demandez les précisions qui manquent, puis faites-la confirmer.",
+          "uniqueCriterion": "La production reformule la commande entendue, réclame les précisions manquantes et demande une confirmation explicite.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 55,
+          "difficultyLevel": "HARD",
+          "displayOrder": 15,
+          "checklist": [
+            "Reformulez la commande entendue",
+            "Demandez la quantité précise",
+            "Demandez le prix et l'heure",
+            "Faites confirmer la commande"
+          ],
+          "constraintTags": [
+            {
+              "label": "Reformulation complète",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Quantité et prix",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Ton poli",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Je répète pour être sûr, vous…",
+          "tip": "Une commande orale se sécurise en la redisant et en la faisant confirmer.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Très bien, alors je viendrai samedi. Merci beaucoup monsieur, à samedi.",
+              "pedagogicalNote": "Rien n'est redit : la quantité, le prix et l'heure restent tous approximatifs."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je répète : de la viande pour vingt personnes, environ cent euros, à récupérer samedi. Cela fait combien de kilos, et à quelle heure samedi ? C'est bien cela ?",
+              "pedagogicalNote": "La commande est reformulée, deux précisions sont demandées et la confirmation aussi."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je redis la commande pour être sûr : de quoi servir vingt personnes, autour de cent euros, à prendre samedi. Trois points restent flous pour moi : quelle quantité en kilos, quel prix maximum, et à partir de quelle heure c'est prêt ? Est-ce que vous pouvez me le confirmer avant que je parte ?",
+              "pedagogicalNote": "La reformulation couvre toute la commande et chaque zone d'ombre est nommée puis confirmée."
             }
           ]
         }
@@ -1677,6 +4463,475 @@
               "pedagogicalNote": "Le calcul annuel et la situation personnelle rendent le choix vraiment démontré."
             }
           ]
+        },
+        {
+          "code": "EO2-C7-S6",
+          "title": "Standard ou express pour le canapé",
+          "context": "Vous achetez un canapé et le vendeur vous propose deux livraisons à domicile : « La livraison standard est gratuite en quinze jours, la livraison express coûte 39 euros en quarante-huit heures. »",
+          "instruction": "Interrogez-le sur ce qui distingue ces deux livraisons, puis dites laquelle vous choisissez et pourquoi.",
+          "uniqueCriterion": "La production compare les deux livraisons et annonce un choix accompagné d'une raison.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "EASY",
+          "displayOrder": 6,
+          "checklist": [
+            "Posez une question sur la différence",
+            "Comparez le délai et le prix",
+            "Dites votre choix et pourquoi"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux livraisons",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Choix expliqué",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Entre les deux livraisons, est-ce que…",
+          "tip": "Comparez le délai et le prix avant de trancher.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je vais prendre la livraison express, s'il vous plaît.",
+              "pedagogicalNote": "Le choix tombe sans que les deux livraisons aient été mises en regard."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "La livraison standard est gratuite mais longue, l'express est rapide mais coûte trente-neuf euros. Je choisis la standard, parce que je ne suis pas pressé et que je préfère économiser cette somme.",
+              "pedagogicalNote": "Les deux livraisons sont comparées et le choix repose sur une raison claire."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Est-ce que les deux livraisons montent le canapé jusqu'à l'appartement, ou seulement l'express ? Si les deux le font, je prends la standard : quinze jours ne me gênent pas, et je préfère garder ces trente-neuf euros pour acheter une table.",
+              "pedagogicalNote": "La question conditionne le choix, ensuite comparé et justifié très concrètement."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C7-S7",
+          "title": "Remboursement ou nouvel article",
+          "context": "Vous avez commandé une lampe sur internet et elle est arrivée cassée. Le service client vous propose : « Soit nous vous remboursons sous huit jours, soit nous vous renvoyons le même article la semaine prochaine. »",
+          "instruction": "Posez une question sur la différence entre ces deux solutions, puis annoncez votre choix en l'expliquant.",
+          "uniqueCriterion": "La production met les deux solutions en regard et justifie celle qui est retenue.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "EASY",
+          "displayOrder": 7,
+          "checklist": [
+            "Posez une question sur les solutions",
+            "Comparez remboursement et échange",
+            "Justifiez votre préférence"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux solutions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Raison claire",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Entre le remboursement et l'échange, est-ce…",
+          "tip": "Demandez-vous si vous avez encore besoin de l'objet avant de choisir.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bon, alors remboursez-moi, ce sera plus simple pour tout le monde.",
+              "pedagogicalNote": "Une solution est prise d'emblée, sans comparaison ni raison exprimée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le remboursement arrive plus vite, mais l'échange me redonne la lampe. Comme j'ai vraiment besoin de cette lampe pour travailler le soir, je préfère l'échange.",
+              "pedagogicalNote": "Les deux solutions sont comparées et le besoin réel explique la décision."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Si vous renvoyez le même article, dois-je attendre d'avoir retourné la lampe cassée pour recevoir la nouvelle ? Le remboursement est plus rapide, mais je devrais tout recommencer ailleurs. Si l'échange part cette semaine, je choisis l'échange.",
+              "pedagogicalNote": "La question éclaire la comparaison et le choix devient conditionnel, donc solide."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C7-S8",
+          "title": "Le four à l'atelier ou à domicile",
+          "context": "Votre four ne chauffe plus. Le service après-vente vous propose : « Soit un technicien vient chez vous pour 70 euros, soit vous apportez l'appareil à l'atelier et le déplacement n'est pas facturé. »",
+          "instruction": "Interrogez le conseiller sur ce qui distingue ces deux solutions, puis choisissez en donnant votre raison.",
+          "uniqueCriterion": "La production compare les deux solutions de réparation et explique la raison du choix retenu.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 8,
+          "checklist": [
+            "Comparez les deux solutions",
+            "Demandez le délai de chacune",
+            "Choisissez en donnant une raison"
+          ],
+          "constraintTags": [
+            {
+              "label": "Atelier ou domicile",
+              "icon": "PLACE"
+            },
+            {
+              "label": "Choix motivé",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "À domicile ou à l'atelier, quelle…",
+          "tip": "Un four est lourd à transporter : pensez-y en comparant les prix.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "D'accord, faites venir le technicien à la maison, s'il vous plaît.",
+              "pedagogicalNote": "La solution est choisie sans que l'autre ait été examinée ni comparée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le technicien coûte soixante-dix euros mais il vient chez moi, l'atelier est gratuit mais je dois transporter le four. Je n'ai pas de voiture, donc je préfère la visite à domicile.",
+              "pedagogicalNote": "Prix et contrainte pratique sont comparés, et la situation personnelle tranche."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Quel est le délai de réparation dans chaque cas ? Le four est lourd et je n'ai pas de voiture : même à soixante-dix euros, la visite me revient moins cher qu'une location de camionnette. Je prends donc le technicien, cette semaine si possible.",
+              "pedagogicalNote": "La comparaison intègre le coût caché du transport : le choix est vraiment démontré."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C7-S9",
+          "title": "Deux écrans pour le téléphone",
+          "context": "Chez un réparateur de téléphones, on vous propose deux écrans : « L'écran d'origine coûte 180 euros avec un an de garantie, l'écran compatible coûte 90 euros avec trois mois de garantie. »",
+          "instruction": "Posez des questions sur ces deux écrans, comparez-les, puis dites lequel vous prenez et pourquoi.",
+          "uniqueCriterion": "Les deux écrans sont comparés sur des points concrets et le choix est justifié par votre situation.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 9,
+          "checklist": [
+            "Interrogez les deux écrans",
+            "Comparez prix et garantie",
+            "Dites lequel vous prenez",
+            "Donnez votre raison"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux écrans",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Prix et garantie",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Avant de choisir, est-ce que l'écran…",
+          "tip": "La garantie compte autant que le prix quand un écran casse souvent.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je prends l'écran compatible, il est deux fois moins cher.",
+              "pedagogicalNote": "Seul le prix est retenu ; la garantie, pourtant très différente, est ignorée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "L'écran d'origine coûte quatre-vingt-dix euros de plus, mais il est garanti un an au lieu de trois mois. Est-ce que l'image est de la même qualité ? Comme je garde mes téléphones longtemps, je préfère l'écran d'origine.",
+              "pedagogicalNote": "Prix et garantie sont mis en regard, et l'usage personnel motive le choix."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Est-ce que la garantie couvre une nouvelle casse, ou seulement une panne de l'écran ? Quatre-vingt-dix euros d'écart, c'est beaucoup pour moi, mais si l'écran compatible tient un an de moins, je paierai deux fois. Je choisis l'écran d'origine.",
+              "pedagogicalNote": "La question sur la garantie transforme la comparaison en calcul sur la durée."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C7-S10",
+          "title": "Deux jeux de pneus",
+          "context": "Au garage, le mécanicien vous propose deux jeux de pneus : « Les premiers prix coûtent 220 euros les quatre, les pneus de marque 380 euros, avec une meilleure tenue sous la pluie. »",
+          "instruction": "Interrogez-le sur ce qui distingue ces deux jeux de pneus, comparez-les, puis annoncez votre choix.",
+          "uniqueCriterion": "La production compare les deux jeux de pneus sur au moins deux aspects et justifie le choix annoncé.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 10,
+          "checklist": [
+            "Interrogez la différence entre les pneus",
+            "Comparez prix et durée de vie",
+            "Annoncez votre choix justifié"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux jeux",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Deux aspects",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Entre les deux jeux de pneus…",
+          "tip": "Demandez combien de kilomètres tient chaque modèle avant de comparer les prix.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Les moins chers me suffiront, mettez-moi ceux à deux cent vingt euros.",
+              "pedagogicalNote": "Le prix décide seul : la tenue sous la pluie n'est même pas discutée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Les premiers prix coûtent cent soixante euros de moins, mais les pneus de marque tiennent mieux sous la pluie. Est-ce qu'ils durent aussi plus longtemps ? Je fais beaucoup d'autoroute, donc je préfère la marque.",
+              "pedagogicalNote": "Deux aspects sont comparés et l'usage réel de la voiture justifie le choix."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Combien de kilomètres tient chaque modèle ? Si les pneus de marque font soixante mille kilomètres contre trente mille, l'écart de cent soixante euros disparaît sur la durée. Je roule tous les jours, souvent sous la pluie : je prends la marque.",
+              "pedagogicalNote": "Le calcul au kilomètre change complètement la comparaison et rend le choix imparable."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C7-S11",
+          "title": "Boîte manuelle ou automatique",
+          "context": "Dans une auto-école, on vous présente deux façons de préparer le permis : « En boîte manuelle, comptez environ trente heures de conduite ; en boîte automatique, treize heures de moins, mais vous ne pourrez conduire que des voitures automatiques. »",
+          "instruction": "Posez des questions sur ces deux formules, comparez-les, puis dites laquelle vous convient et pourquoi.",
+          "uniqueCriterion": "Les deux formules de permis sont comparées sur des points concrets et le choix est expliqué par votre besoin.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 11,
+          "checklist": [
+            "Interrogez les deux formules",
+            "Comparez heures et limites",
+            "Choisissez selon votre besoin",
+            "Justifiez votre décision"
+          ],
+          "constraintTags": [
+            {
+              "label": "Manuelle ou automatique",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Votre besoin",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Avant de m'inscrire, j'aimerais savoir si…",
+          "tip": "Pensez à la voiture que vous conduirez vraiment après le permis.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je vais prendre la boîte automatique, ce sera plus facile pour moi.",
+              "pedagogicalNote": "La limite de ce permis n'est ni questionnée ni comparée à l'autre formule."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "La boîte automatique demande treize heures de moins, donc elle coûte moins cher, mais je ne pourrai conduire que des voitures automatiques. La voiture de mon frère est manuelle, alors je choisis la boîte manuelle.",
+              "pedagogicalNote": "Heures et limite sont comparées, et une contrainte réelle justifie la décision."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Est-ce que je peux passer de l'automatique à la manuelle plus tard sans repasser tout l'examen ? Treize heures de moins, cela représente une belle économie, mais je conduirai la camionnette manuelle de mon travail. Je prends donc la boîte manuelle.",
+              "pedagogicalNote": "La question anticipe l'avenir et le besoin professionnel emporte la décision."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C7-S12",
+          "title": "Deux billets pour le même train",
+          "context": "Au guichet de la gare, l'agent vous propose deux billets pour le même trajet : « Celui à 45 euros n'est ni échangeable ni remboursable, celui à 68 euros est échangeable jusqu'au départ. »",
+          "instruction": "Interrogez l'agent sur ce qui distingue ces deux billets, comparez-les, puis choisissez en expliquant votre décision.",
+          "uniqueCriterion": "Les deux billets sont comparés sur des points concrets et le choix est justifié par votre situation.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 12,
+          "checklist": [
+            "Interrogez la différence entre les billets",
+            "Comparez prix et souplesse",
+            "Choisissez et expliquez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux billets",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Souplesse comparée",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Entre ces deux billets, est-ce que…",
+          "tip": "Vingt-trois euros de plus achètent surtout la liberté de changer d'horaire.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je prends le billet à quarante-cinq euros, c'est moins cher.",
+              "pedagogicalNote": "Le prix décide seul, alors que la souplesse est la vraie différence."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le premier billet coûte vingt-trois euros de moins, mais je ne peux ni l'échanger ni me le faire rembourser. Comme mon rendez-vous n'est pas encore confirmé, je prends le billet échangeable.",
+              "pedagogicalNote": "Prix et souplesse sont comparés, et l'incertitude du rendez-vous justifie le choix."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Si je change d'horaire le jour même avec le billet à soixante-huit euros, est-ce que je paie la différence de prix ? Mon train dépend d'une réunion qui finit tard. Vingt-trois euros pour pouvoir partir plus tard, cela vaut le coup : je prends l'échangeable.",
+              "pedagogicalNote": "La question précise la valeur réelle de la souplesse avant de trancher."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C7-S13",
+          "title": "Carnet de tickets ou abonnement",
+          "context": "À l'agence du réseau de bus de votre ville, l'employée vous présente deux titres : « Le carnet de dix tickets coûte 15 euros et se garde un an, l'abonnement mensuel coûte 42 euros et donne des trajets illimités. »",
+          "instruction": "Posez des questions pour bien saisir ce qui distingue ces deux titres, comparez-les, puis annoncez votre choix en l'expliquant.",
+          "uniqueCriterion": "La production interroge et compare les deux titres sur plusieurs points, puis justifie le choix retenu.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 55,
+          "difficultyLevel": "HARD",
+          "displayOrder": 13,
+          "checklist": [
+            "Interrogez les deux titres",
+            "Comparez le coût par trajet",
+            "Annoncez votre choix",
+            "Expliquez votre usage réel"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux titres",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Calcul demandé",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Votre usage",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Entre le carnet et l'abonnement, est-ce…",
+          "tip": "Comptez vos trajets par semaine, c'est ce chiffre qui décide.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je vais prendre le carnet de dix tickets, s'il vous plaît.",
+              "pedagogicalNote": "Aucun des deux titres n'est interrogé ni rapporté au nombre de trajets."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le carnet revient à un euro cinquante le trajet, et l'abonnement devient intéressant à partir de vingt-huit trajets. Est-ce que l'abonnement fonctionne aussi le week-end ? Je prends le bus quatre fois par jour, donc je choisis l'abonnement.",
+              "pedagogicalNote": "Le coût par trajet est calculé, une question complète l'analyse et l'usage tranche."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je fais deux allers-retours par jour, cinq jours par semaine, soit environ quarante trajets par mois. Avec le carnet, cela ferait soixante euros, contre quarante-deux pour l'abonnement. Est-ce qu'il donne aussi accès au tramway, et peut-on l'arrêter en cas de déménagement ? Si oui, je prends l'abonnement mensuel.",
+              "pedagogicalNote": "Le calcul mensuel et les deux questions rendent la comparaison complète et le choix évident."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C7-S14",
+          "title": "Quel abonnement de tramway",
+          "context": "Au guichet du tramway, la conseillère vous présente les abonnements : « L'abonnement annuel revient à 28 euros par mois, l'abonnement jeune à 20 euros mais il s'arrête à vingt-six ans, et il existe un tarif réduit selon vos revenus. »",
+          "instruction": "Interrogez la conseillère sur ces abonnements, comparez-les, puis annoncez et justifiez votre choix.",
+          "uniqueCriterion": "La production compare les abonnements sur plusieurs points, pose au moins une question et justifie le choix retenu.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 55,
+          "difficultyLevel": "HARD",
+          "displayOrder": 14,
+          "checklist": [
+            "Posez vos questions à la conseillère",
+            "Comparez prix et conditions",
+            "Annoncez le titre retenu",
+            "Justifiez avec votre situation"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois possibilités",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Votre situation",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Avant de m'engager, j'aimerais comparer ces…",
+          "tip": "Vérifiez d'abord si vous avez droit au tarif réduit, cela change tout.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "L'abonnement jeune est le moins cher, je vais prendre celui-là.",
+              "pedagogicalNote": "La condition d'âge n'est ni vérifiée ni comparée aux autres possibilités."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "L'abonnement annuel coûte huit euros de plus par mois que l'abonnement jeune, mais je n'ai plus l'âge du tarif jeune. Est-ce que le tarif selon les revenus peut s'appliquer à moi ? Si oui, je le demande ; sinon je prends l'annuel.",
+              "pedagogicalNote": "Les possibilités sont comparées et le choix est posé sous condition, ce qui est juste."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "J'ai trente-deux ans, donc l'abonnement jeune ne me concerne pas. Sur l'année, l'annuel représente trois cent trente-six euros. Comment le tarif selon les revenus est-il calculé, et quels justificatifs faut-il apporter ? Si j'y ai droit, je choisis cette formule ; sinon je prends l'annuel, que j'amortis dès douze trajets par mois.",
+              "pedagogicalNote": "Chaque possibilité est écartée ou retenue avec un chiffre : la décision est démontrée."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C7-S15",
+          "title": "Valise trop lourde à l'aéroport",
+          "context": "Au comptoir d'enregistrement de l'aéroport, votre valise dépasse le poids autorisé. L'agent vous propose : « Vous payez 60 euros de supplément, ou vous l'envoyez en colis postal pour 35 euros, mais elle arrivera trois jours plus tard. »",
+          "instruction": "Posez des questions sur ces deux solutions, comparez-les, puis annoncez votre choix en l'expliquant.",
+          "uniqueCriterion": "La production interroge et compare les deux solutions sur plusieurs points, puis justifie le choix retenu.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 60,
+          "difficultyLevel": "HARD",
+          "displayOrder": 15,
+          "checklist": [
+            "Interrogez les deux possibilités",
+            "Comparez le prix et le délai",
+            "Annoncez votre décision",
+            "Expliquez ce qui la motive"
+          ],
+          "constraintTags": [
+            {
+              "label": "Supplément ou colis",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Prix et délai",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Entre le supplément et le colis…",
+          "tip": "Pensez à ce dont vous aurez besoin dès votre arrivée.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bon, je paie les soixante euros, je n'ai pas le choix.",
+              "pedagogicalNote": "La seconde solution est écartée sans être examinée : il n'y a aucune comparaison."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le colis coûte vingt-cinq euros de moins, mais j'attendrais trois jours. Est-ce qu'il est assuré s'il se perd ? Mes vêtements de travail sont dedans et je commence lundi, donc je paie plutôt le supplément.",
+              "pedagogicalNote": "Prix et délai sont comparés, une question sécurise l'option la moins chère, puis le besoin tranche."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Deux questions avant de décider : le colis est-il suivi et assuré, et à quelle adresse est-il livré ? Vingt-cinq euros d'écart, c'est peu si j'ai besoin de mes affaires tout de suite. Comme je reprends le travail demain matin, je préfère payer le supplément et garder ma valise avec moi.",
+              "pedagogicalNote": "Les questions portent sur le vrai risque du colis, et la contrainte de travail décide."
+            }
+          ]
         }
       ],
       "generalCriterion": "Questionner sur plusieurs options, leurs différences et celle qui correspond au besoin."
@@ -1918,6 +5173,477 @@
               "level": "EXCELLENT",
               "text": "Je récapitule pour être sûr : atelier informatique le jeudi, de dix-huit à vingt heures, salle 3, à partir du 15 septembre ; vingt euros d'adhésion et une photo d'identité à fournir. Un point n'est pas clair pour moi : dois-je payer et apporter la photo dès la première séance, ou avant ? Merci beaucoup pour votre aide, à jeudi 15 septembre.",
               "pedagogicalNote": "Le récapitulatif est complet et la dernière question porte sur ce qui manquait vraiment."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C8-S6",
+          "title": "Confirmer un covoiturage",
+          "context": "Vous avez réservé un covoiturage pour le week-end. Le conducteur vous confirme au téléphone : « Départ dimanche à sept heures devant la gare routière, ce sera 18 euros. »",
+          "instruction": "Récapitulez ces informations pour vérifier qu'elles sont exactes, puis prenez congé.",
+          "uniqueCriterion": "La production reprend l'heure, le lieu et le prix annoncés et se termine par une formule de congé.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 6,
+          "checklist": [
+            "Répétez l'heure et le lieu",
+            "Répétez le prix",
+            "Terminez par une salutation"
+          ],
+          "constraintTags": [
+            {
+              "label": "Heure et lieu",
+              "icon": "PLACE"
+            },
+            {
+              "label": "Prix repris",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Donc dimanche sept heures à la…",
+          "tip": "Répéter le lieu de départ évite de se manquer le jour même.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Parfait, à dimanche alors. Merci beaucoup et bonne soirée.",
+              "pedagogicalNote": "La politesse est présente, mais aucune information n'est confirmée avant de raccrocher."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Donc dimanche à sept heures, devant la gare routière, pour dix-huit euros. C'est noté. Merci beaucoup, à dimanche.",
+              "pedagogicalNote": "Heure, lieu et prix sont repris, et l'échange se termine simplement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je récapitule : dimanche, sept heures, devant la gare routière, dix-huit euros que je vous donne au départ. Je serai là dix minutes avant. Merci beaucoup, bonne route et à dimanche.",
+              "pedagogicalNote": "Tous les éléments sont confirmés et le congé est naturel et chaleureux."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C8-S7",
+          "title": "Le taxi pour l'aéroport",
+          "context": "Vous commandez un taxi par téléphone. L'opératrice conclut : « Une voiture sera devant chez vous dans vingt minutes, et la course jusqu'à l'aéroport coûte environ 45 euros. »",
+          "instruction": "Reprenez ces informations pour les confirmer, puis terminez poliment la conversation.",
+          "uniqueCriterion": "La production répète le délai et le tarif annoncés et se clôt par une formule de congé.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 7,
+          "checklist": [
+            "Répétez le délai annoncé",
+            "Répétez le tarif",
+            "Terminez poliment"
+          ],
+          "constraintTags": [
+            {
+              "label": "Délai et tarif",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Congé poli",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Donc une voiture dans vingt minutes…",
+          "tip": "Confirmez aussi le tarif, il se discute plus facilement avant la course.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "D'accord, très bien, j'attends la voiture. Merci madame, au revoir.",
+              "pedagogicalNote": "Ni le délai ni le prix ne sont repris : une erreur passerait inaperçue."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Donc une voiture dans vingt minutes, et environ quarante-cinq euros jusqu'à l'aéroport. C'est parfait. Merci madame, au revoir.",
+              "pedagogicalNote": "Les deux informations sont confirmées et la conversation se clôt poliment."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je répète : la voiture arrive dans vingt minutes devant chez moi, et la course coûte environ quarante-cinq euros. Je descends avec mes valises pour ne pas la faire attendre. Merci beaucoup madame, bonne journée.",
+              "pedagogicalNote": "Le récapitulatif est complet et le congé referme l'échange avec naturel."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C8-S8",
+          "title": "La carte de vélos activée",
+          "context": "À la borne d'accueil du service de vélos en libre-service, l'agent conclut : « Votre carte est activée, la première demi-heure est gratuite, ensuite c'est un euro par heure. »",
+          "instruction": "Récapitulez ce que vous avez retenu de ces conditions, puis prenez congé.",
+          "uniqueCriterion": "La production reprend les conditions d'utilisation annoncées et se termine par une formule de congé.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 8,
+          "checklist": [
+            "Répétez la gratuité annoncée",
+            "Répétez le tarif horaire",
+            "Prenez congé simplement"
+          ],
+          "constraintTags": [
+            {
+              "label": "Conditions reprises",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Tarif repris",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Donc la première demi-heure est gratuite…",
+          "tip": "Redire le tarif évite une mauvaise surprise dès le premier trajet.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Super, merci monsieur. Je vais essayer tout de suite, au revoir.",
+              "pedagogicalNote": "Les conditions ne sont pas reprises : la gratuité et le tarif restent à deviner."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Donc la première demi-heure est gratuite, puis c'est un euro par heure. J'ai bien noté. Merci monsieur, bonne journée.",
+              "pedagogicalNote": "Les deux conditions sont confirmées et l'échange se termine proprement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je récapitule : ma carte est activée, trente minutes gratuites à chaque trajet, puis un euro par heure. Je penserai à reposer le vélo avant la demi-heure. Merci pour vos explications, au revoir.",
+              "pedagogicalNote": "Le récapitulatif reprend tout et montre que la règle a été comprise."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C8-S9",
+          "title": "Inscription à la bibliothèque",
+          "context": "À la bibliothèque municipale, la bibliothécaire conclut votre inscription : « Vous pouvez emprunter six livres pour trois semaines, et l'inscription est gratuite pour les habitants de la commune. »",
+          "instruction": "Récapitulez ces informations, vérifiez un point qui reste à confirmer, puis prenez congé.",
+          "uniqueCriterion": "La production reprend les informations reçues, ajoute une question de vérification et se termine par un congé.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 9,
+          "checklist": [
+            "Répétez le nombre et la durée",
+            "Rappelez la gratuité",
+            "Posez une dernière vérification",
+            "Prenez congé"
+          ],
+          "constraintTags": [
+            {
+              "label": "Nombre et durée",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Congé naturel",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Donc six livres pendant trois semaines…",
+          "tip": "Une dernière question sur les retards vous évitera une pénalité.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Six livres, trois semaines, et c'est gratuit. Merci beaucoup madame, au revoir.",
+              "pedagogicalNote": "Le récapitulatif est exact, mais aucune vérification n'est faite avant de partir."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Donc six livres pour trois semaines, et l'inscription est gratuite puisque j'habite la commune. Est-ce que je peux prolonger si je n'ai pas fini un livre ? Merci beaucoup, bonne journée.",
+              "pedagogicalNote": "Récapitulatif, vérification et congé sont bien présents, dans le bon ordre."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je récapitule : six livres à la fois, trois semaines de prêt, inscription gratuite pour les habitants. Une dernière chose : que se passe-t-il si je rends un livre en retard, est-ce que le prêt est bloqué ? Merci pour votre accueil, bonne journée madame.",
+              "pedagogicalNote": "La vérification porte sur le vrai risque du lecteur, et le congé est chaleureux."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C8-S10",
+          "title": "Atelier tablette à la médiathèque",
+          "context": "La médiathèque conclut votre inscription à un atelier numérique : « L'atelier tablette a lieu le samedi 4 octobre à dix heures, en salle multimédia, et le matériel est prêté sur place. »",
+          "instruction": "Reprenez l'essentiel pour le confirmer, posez une dernière question utile, puis terminez l'échange.",
+          "uniqueCriterion": "La production confirme la date, le lieu et le prêt du matériel, ajoute une dernière question et clôt l'échange.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 10,
+          "checklist": [
+            "Répétez la date et la salle",
+            "Rappelez le prêt du matériel",
+            "Posez une dernière question",
+            "Terminez l'échange"
+          ],
+          "constraintTags": [
+            {
+              "label": "Date et salle",
+              "icon": "PLACE"
+            },
+            {
+              "label": "Dernière question",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Donc samedi 4 octobre à dix…",
+          "tip": "Vérifiez s'il faut arriver en avance ou apporter quelque chose.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "C'est noté pour l'atelier, je viendrai. Merci madame, au revoir.",
+              "pedagogicalNote": "Rien n'est confirmé : ni la date, ni la salle, ni la question qui manquait."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Donc l'atelier tablette a lieu le samedi 4 octobre à dix heures, en salle multimédia, et vous prêtez le matériel. Est-ce que l'atelier dure toute la matinée ? Merci beaucoup, à samedi.",
+              "pedagogicalNote": "L'essentiel est confirmé, une question utile est posée et l'échange se ferme bien."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je récapitule : samedi 4 octobre, dix heures, salle multimédia, tablette prêtée sur place. Dernière question : est-ce que je peux venir avec ma propre tablette, pour apprendre sur celle que j'utilise à la maison ? Merci pour votre aide, à samedi.",
+              "pedagogicalNote": "Le récapitulatif est complet et la question rendra l'atelier vraiment utile."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C8-S11",
+          "title": "Le groupe de cours du mardi",
+          "context": "Dans une association qui donne des cours de français, la bénévole conclut votre entretien : « Vous êtes dans le groupe du mardi et du jeudi, de dix-huit à vingt heures, et les cours reprennent le 6 janvier. »",
+          "instruction": "Récapitulez ces informations pour les confirmer, vérifiez un point, puis prenez congé.",
+          "uniqueCriterion": "La production reprend les jours, l'horaire et la date de reprise, vérifie un point et se termine par un congé.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 11,
+          "checklist": [
+            "Répétez les jours et l'horaire",
+            "Rappelez la date de reprise",
+            "Vérifiez un point",
+            "Prenez congé"
+          ],
+          "constraintTags": [
+            {
+              "label": "Jours et horaire",
+              "icon": "TIME"
+            },
+            {
+              "label": "Vérification finale",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Donc mardi et jeudi, de dix-huit…",
+          "tip": "Demandez ce qu'il faut apporter au premier cours avant de partir.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Très bien, merci beaucoup madame. Je viendrai le 6 janvier, au revoir.",
+              "pedagogicalNote": "Seule la date est retenue : les jours et l'horaire ne sont pas confirmés."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Donc le groupe du mardi et du jeudi, de dix-huit à vingt heures, et la reprise le 6 janvier. Est-ce qu'il faut acheter un livre ? Merci madame, bonne journée.",
+              "pedagogicalNote": "Les trois informations sont reprises, un point est vérifié et le congé est clair."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je récapitule : cours le mardi et le jeudi, de dix-huit à vingt heures, à partir du 6 janvier. Une question avant de partir : si je manque un cours à cause du travail, est-ce que je peux le rattraper avec un autre groupe ? Merci beaucoup pour votre accueil, à janvier.",
+              "pedagogicalNote": "Le récapitulatif est complet et la vérification anticipe une vraie difficulté."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C8-S12",
+          "title": "L'écrivain public du centre social",
+          "context": "Au centre social de votre quartier, l'agente d'accueil conclut : « L'écrivain public reçoit le lundi et le mercredi matin, sans rendez-vous, et il faut venir avec tous vos courriers. »",
+          "instruction": "Reprenez l'essentiel de ces informations, posez une dernière question utile, puis terminez l'échange.",
+          "uniqueCriterion": "La production reprend les jours, les conditions d'accueil et ce qu'il faut apporter, ajoute une question et clôt l'échange.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 12,
+          "checklist": [
+            "Répétez les jours d'ouverture",
+            "Rappelez l'accueil sans rendez-vous",
+            "Posez une dernière question",
+            "Prenez congé"
+          ],
+          "constraintTags": [
+            {
+              "label": "Jours repris",
+              "icon": "TIME"
+            },
+            {
+              "label": "Documents à apporter",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Donc lundi et mercredi matin, sans…",
+          "tip": "Demandez l'heure d'arrivée conseillée quand l'accueil se fait sans rendez-vous.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "D'accord, je passerai un matin avec mes papiers. Merci madame, au revoir.",
+              "pedagogicalNote": "« Un matin » ne reprend rien : les jours exacts ne sont pas confirmés."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Donc l'écrivain public reçoit le lundi et le mercredi matin, sans rendez-vous, et j'apporte tous mes courriers. Est-ce qu'il y a beaucoup d'attente ? Merci madame, bonne journée.",
+              "pedagogicalNote": "L'essentiel est repris, une question utile est posée et le congé est naturel."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je récapitule : lundi et mercredi matin, sans rendez-vous, avec tous mes courriers. Dernière question : à quelle heure vaut-il mieux arriver pour être sûr d'être reçu, et faut-il apporter aussi les réponses que j'ai déjà envoyées ? Merci beaucoup pour votre aide, bonne journée.",
+              "pedagogicalNote": "Le récapitulatif est complet et la question évite une matinée d'attente inutile."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C8-S13",
+          "title": "S'engager comme bénévole",
+          "context": "La responsable d'une association de quartier conclut votre entretien de bénévolat : « Vous viendriez le mercredi de quatorze à seize heures pour l'aide aux devoirs, à partir de la rentrée ; il faut signer la charte du bénévole et fournir une attestation d'assurance. »",
+          "instruction": "Récapitulez l'essentiel de ces informations, vérifiez le point qui vous semble le moins clair, puis prenez congé.",
+          "uniqueCriterion": "La production reprend l'essentiel des informations, vérifie un point précis et se termine par un congé.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 55,
+          "difficultyLevel": "HARD",
+          "displayOrder": 13,
+          "checklist": [
+            "Répétez le jour et l'horaire",
+            "Rappelez la charte et l'attestation",
+            "Vérifiez le point le moins clair",
+            "Prenez congé"
+          ],
+          "constraintTags": [
+            {
+              "label": "Engagement repris",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Documents demandés",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Donc le mercredi de quatorze à…",
+          "tip": "Reprenez l'engagement pris avant de le confirmer, c'est plus sûr.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "C'est d'accord pour le mercredi, je commencerai à la rentrée. Merci beaucoup madame, au revoir.",
+              "pedagogicalNote": "L'horaire et les deux documents demandés ne sont pas repris ni vérifiés."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Donc je viens le mercredi de quatorze à seize heures pour l'aide aux devoirs, à partir de la rentrée, et j'apporte la charte signée et une attestation d'assurance. Est-ce que celle de mon assurance habitation convient ? Merci madame, à la rentrée.",
+              "pedagogicalNote": "L'essentiel est confirmé et la vérification porte sur le document incertain."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je récapitule : aide aux devoirs le mercredi, de quatorze à seize heures, à partir de la rentrée, avec la charte du bénévole signée et une attestation d'assurance. Un point n'est pas clair pour moi : est-ce que mon assurance habitation suffit, ou faut-il une assurance particulière pour le bénévolat ? Merci pour votre confiance, à la rentrée.",
+              "pedagogicalNote": "Le récapitulatif couvre l'engagement entier et la question lève le seul vrai doute."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C8-S14",
+          "title": "Carte d'entrées à la piscine",
+          "context": "À la piscine municipale, l'agent conclut : « Votre carte de dix entrées coûte 32 euros et reste valable un an ; les cours de natation de votre fille ont lieu le samedi à onze heures, et le bonnet est obligatoire. »",
+          "instruction": "Récapitulez l'essentiel de ces informations, vérifiez le point qui reste flou, puis prenez congé.",
+          "uniqueCriterion": "La production reprend l'essentiel des informations, vérifie un point précis et se termine par un congé.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 55,
+          "difficultyLevel": "HARD",
+          "displayOrder": 14,
+          "checklist": [
+            "Répétez le prix et la validité",
+            "Rappelez l'horaire du cours",
+            "Vérifiez ce qui reste flou",
+            "Terminez par un congé"
+          ],
+          "constraintTags": [
+            {
+              "label": "Prix et validité",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Horaire du cours",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Donc trente-deux euros pour dix entrées…",
+          "tip": "Ne récapitulez que l'essentiel, puis posez la question qui reste.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Trente-deux euros la carte, très bien. Merci monsieur, on se voit samedi.",
+              "pedagogicalNote": "Seul le prix est repris : la validité, le cours et le bonnet sont oubliés."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Donc trente-deux euros les dix entrées, valables un an, et le cours de ma fille le samedi à onze heures avec un bonnet obligatoire. Est-ce que ma carte sert aussi pour elle ? Merci beaucoup, bonne journée.",
+              "pedagogicalNote": "L'essentiel est repris et la question porte sur le point réellement flou."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je récapitule : carte de dix entrées à trente-deux euros, valable un an ; cours de natation le samedi à onze heures, bonnet obligatoire. Un point reste flou pour moi : les entrées de ma carte sont-elles utilisées pour les cours de ma fille, ou les cours se paient-ils à part ? Merci pour vos explications, à samedi.",
+              "pedagogicalNote": "Le récapitulatif est complet et la vérification évite une mauvaise surprise au tarif."
+            }
+          ]
+        },
+        {
+          "code": "EO2-C8-S15",
+          "title": "Le badge et les prélèvements",
+          "context": "À la salle de sport, la conseillère conclut votre abonnement : « Il commence lundi, 29 euros seront prélevés le 5 de chaque mois pendant douze mois ; la salle ouvre de six à vingt-deux heures et votre badge sera prêt jeudi. »",
+          "instruction": "Récapitulez l'essentiel de ces informations, vérifiez le point le moins clair, puis prenez congé.",
+          "uniqueCriterion": "La production reprend l'essentiel des informations, vérifie un point précis et se termine par un congé.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 60,
+          "difficultyLevel": "HARD",
+          "displayOrder": 15,
+          "checklist": [
+            "Répétez la date de début",
+            "Rappelez le montant prélevé",
+            "Vérifiez le point le moins clair",
+            "Prenez congé"
+          ],
+          "constraintTags": [
+            {
+              "label": "Montant et date",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Badge et horaires",
+              "icon": "TIME"
+            },
+            {
+              "label": "Congé naturel",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Je récapitule, mon abonnement commence lundi…",
+          "tip": "Sur un engagement de douze mois, vérifiez toujours les conditions d'arrêt.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Parfait, je passerai chercher le badge jeudi. Merci beaucoup, bonne journée.",
+              "pedagogicalNote": "Le montant, la durée et le début de l'abonnement ne sont pas confirmés."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Donc mon abonnement commence lundi, vingt-neuf euros prélevés le 5 de chaque mois pendant douze mois, la salle ouvre de six à vingt-deux heures et le badge est prêt jeudi. Est-ce que je peux venir avant de l'avoir ? Merci, bonne journée.",
+              "pedagogicalNote": "L'essentiel est confirmé, une question utile est posée et l'échange se ferme bien."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je récapitule : début lundi, vingt-neuf euros prélevés le 5 pendant douze mois, ouverture de six heures à vingt-deux heures, badge disponible jeudi. Un point n'est pas clair pour moi : si je déménage avant la fin des douze mois, est-ce que je peux arrêter les prélèvements, et avec quel justificatif ? Merci beaucoup pour votre accueil, à lundi.",
+              "pedagogicalNote": "Le récapitulatif est complet et la vérification porte sur le risque d'un engagement long."
             }
           ]
         }

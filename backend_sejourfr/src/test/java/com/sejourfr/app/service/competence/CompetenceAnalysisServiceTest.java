@@ -3,11 +3,14 @@ package com.sejourfr.app.service.competence;
 import com.sejourfr.app.config.CompetenceProperties;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.SkillPrompt;
+import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserSkillAttempt;
 import com.sejourfr.app.enums.SkillAttemptStatut;
 import com.sejourfr.app.enums.SkillCriterionStatus;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
+import com.sejourfr.app.enums.TargetLevel;
+import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.exception.AiEvaluationException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
@@ -40,24 +43,39 @@ class CompetenceAnalysisServiceTest {
 
     private UserSkillAttemptManager attemptManager;
     private CompetenceAnalysisLlmClient client;
+    private CompetenceLevelDowngradeMetrics downgradeMetrics;
     private CompetenceAnalysisServiceImpl service;
 
     @BeforeEach
     void setUp() {
+        service = service(new CompetenceProperties());
+    }
+
+    /** Instancie le service sur un contrat donne, pour tester le retour arriere. */
+    private CompetenceAnalysisServiceImpl service(CompetenceProperties props) {
         attemptManager = mock(UserSkillAttemptManager.class);
         client = mock(CompetenceAnalysisLlmClient.class);
         when(client.getModelName()).thenReturn("deepseek-v4-flash");
-        when(client.getToolSchemaVersion()).thenReturn("v2");
+        when(client.getToolSchemaVersion()).thenReturn(props.getAnalysis().getToolSchemaVersion());
 
         CompetenceRubricsProvider rubrics =
-            new CompetenceRubricsProvider(new CompetenceProperties(), new ObjectMapper());
+            new CompetenceRubricsProvider(props, new ObjectMapper());
         rubrics.load();
         CompetenceAnalysisPromptBuilder promptBuilder =
             new CompetenceAnalysisPromptBuilder(new ObjectMapper(), rubrics);
         CompetenceAnalysisValidator validator = new CompetenceAnalysisValidator(rubrics);
+        downgradeMetrics = new CompetenceLevelDowngradeMetrics();
 
-        service = new CompetenceAnalysisServiceImpl(
-            attemptManager, promptBuilder, client, validator, rubrics);
+        return new CompetenceAnalysisServiceImpl(
+            attemptManager, promptBuilder, client, validator, rubrics,
+            new CompetenceLevelEvidenceGuard(downgradeMetrics));
+    }
+
+    private static CompetenceProperties proprietes(String rubriques, String schema) {
+        CompetenceProperties props = new CompetenceProperties();
+        props.getAnalysis().setRubricsVersion(rubriques);
+        props.getAnalysis().setToolSchemaVersion(schema);
+        return props;
     }
 
     // --- fabriques ---------------------------------------------------------
@@ -96,7 +114,10 @@ class CompetenceAnalysisServiceTest {
             attempt.setTranscript("J'aime le sport.");
             attempt.setAudioDurationSec(DUREE_ORALE_SEC);
         } else {
-            attempt.setWrittenProduction("La semaine derniere, je suis alle au restaurant.");
+            // DEUX phrases, donc DEUX segments citables : sans quoi tout numero
+            // valide vaudrait 1 et les tests de preuve ne prouveraient rien.
+            attempt.setWrittenProduction("La semaine derniere, je suis alle au restaurant. "
+                + "Comme le service etait lent, nous sommes partis avant le dessert.");
         }
         return attempt;
     }
@@ -104,20 +125,25 @@ class CompetenceAnalysisServiceTest {
     private static Map<String, Object> sortieValide() {
         Map<String, Object> sortie = new LinkedHashMap<>();
         sortie.put(CompetenceAnalysisFields.STATUS, "PARTIAL");
+        sortie.put(CompetenceAnalysisFields.LEVEL_REACHED, "A2");
         sortie.put(CompetenceAnalysisFields.VERDICT,
             "  L'activite est donnee, mais la reponse manque encore de precision.  ");
-        sortie.put(CompetenceAnalysisFields.SUCCESS_POINT,
-            "Vous repondez directement en parlant d'une activite que vous aimez.");
-        sortie.put(CompetenceAnalysisFields.IMPROVEMENT_PRIORITY,
-            "Ajoutez quand, ou ou avec qui vous pratiquez cette activite.");
-        sortie.put(CompetenceAnalysisFields.IMPROVED_VERSION,
-            "J'aime le sport. Le samedi matin, je joue au football avec mes amis.");
+        sortie.put(CompetenceAnalysisFields.STRENGTH_TAG, "Reponse directe");
+        sortie.put(CompetenceAnalysisFields.FOCUS_TAG, "Ajouter une precision");
         return sortie;
     }
 
     private static Map<String, Object> sortieInvalide() {
         Map<String, Object> sortie = sortieValide();
         sortie.put(CompetenceAnalysisFields.STATUS, "PRESQUE");
+        return sortie;
+    }
+
+    /** Sortie annoncant un palier a demontrer, avec la preuve donnee ou non. */
+    private static Map<String, Object> sortieNiveau(String niveau, Object preuve) {
+        Map<String, Object> sortie = sortieValide();
+        sortie.put(CompetenceAnalysisFields.LEVEL_REACHED, niveau);
+        if (preuve != null) sortie.put(CompetenceAnalysisFields.LEVEL_EVIDENCE, preuve);
         return sortie;
     }
 
@@ -140,8 +166,8 @@ class CompetenceAnalysisServiceTest {
         assertThat(attempt.getStatut()).isEqualTo(SkillAttemptStatut.EVALUATED);
         assertThat(attempt.getCriterionStatus()).isEqualTo(SkillCriterionStatus.PARTIAL);
         assertThat(attempt.getAiModel()).isEqualTo("deepseek-v4-flash");
-        assertThat(attempt.getPromptVersion()).isEqualTo("v2");
-        assertThat(attempt.getRubricsVersion()).isEqualTo("v2");
+        assertThat(attempt.getPromptVersion()).isEqualTo("v4");
+        assertThat(attempt.getRubricsVersion()).isEqualTo("v4");
         assertThat(attempt.getTokensInput()).isEqualTo(1200);
         assertThat(attempt.getTokensOutput()).isEqualTo(180);
         assertThat(attempt.getCoutEstimeCentimes()).isEqualTo(3);
@@ -149,8 +175,13 @@ class CompetenceAnalysisServiceTest {
         verify(attemptManager).save(attempt);
     }
 
+    /**
+     * Sur un A2, {@code level_evidence} est legitimement absent : rien n'est a
+     * demontrer en dessous du B1. La cle ne doit alors pas etre persistee du
+     * tout — un « trou nomme » en base ferait croire a une preuve perdue.
+     */
     @Test
-    void nePersisteQueLesCinqClesDuContratEtLesTrime() {
+    void nePersisteQueLesClesRenseigneesDuContratEtLesTrime() {
         UserSkillAttempt attempt = attempt(SkillSection.EE);
         when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
         when(client.analyse(anyString(), anyString()))
@@ -160,10 +191,10 @@ class CompetenceAnalysisServiceTest {
 
         assertThat(attempt.getAnalysisJson()).containsOnlyKeys(
             CompetenceAnalysisFields.STATUS,
+            CompetenceAnalysisFields.LEVEL_REACHED,
             CompetenceAnalysisFields.VERDICT,
-            CompetenceAnalysisFields.SUCCESS_POINT,
-            CompetenceAnalysisFields.IMPROVEMENT_PRIORITY,
-            CompetenceAnalysisFields.IMPROVED_VERSION);
+            CompetenceAnalysisFields.STRENGTH_TAG,
+            CompetenceAnalysisFields.FOCUS_TAG);
         assertThat(attempt.getAnalysisJson().get(CompetenceAnalysisFields.VERDICT))
             .isEqualTo("L'activite est donnee, mais la reponse manque encore de precision.");
     }
@@ -293,7 +324,7 @@ class CompetenceAnalysisServiceTest {
     }
 
     @Test
-    void aucuneNoteNiNiveauNEstDemandeAuCorrecteur() {
+    void aucuneNoteNEstDemandeeMaisLeNiveauLEst() {
         UserSkillAttempt attempt = attempt(SkillSection.EE);
         when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
         when(client.analyse(anyString(), anyString()))
@@ -304,11 +335,224 @@ class CompetenceAnalysisServiceTest {
         ArgumentCaptor<String> system = ArgumentCaptor.forClass(String.class);
         verify(client).analyse(system.capture(), anyString());
         String consignes = system.getValue().toLowerCase(Locale.ROOT);
-        assertThat(consignes).contains("cecrl", "note");
         assertThat(consignes)
-            .as("les consignes doivent INTERDIRE la note et le niveau, pas les demander")
-            .contains("tu n'attribues jamais de niveau cecrl")
+            .as("la note reste interdite, dans toutes ses formes")
             .contains("tu n'attribues jamais de note");
+        assertThat(consignes)
+            .as("le niveau, lui, est desormais DEMANDE — dans son propre champ")
+            .contains("level_reached")
+            .contains("a1_non_atteint");
+    }
+
+    /**
+     * L'INVARIANT DU MONTAGE A DEUX APPELS. Ce service ne doit jamais apprendre
+     * quel palier la demarche du candidat exige : le depot a mesure, sur les
+     * productions completes, qu'un correcteur qui connait l'objectif aligne son
+     * jugement dessus (v10/v11 : accord exact 81,8 % → 75,6 %).
+     *
+     * <p>Le candidat de ce test vise la NATURALISATION (B2 exige) tout en portant
+     * un {@code targetLevel} herite a B1 — exactement le couple qui a produit le
+     * defaut d'origine ailleurs. Aucun des deux ne doit apparaitre.
+     */
+    @Test
+    void leCorrecteurNApprendJamaisLePalierViseParLeCandidat() {
+        UserSkillAttempt attempt = attempt(SkillSection.EE);
+        User candidat = new User();
+        candidat.setId(UUID.randomUUID());
+        candidat.setTargetProcedure(TargetProcedure.NAT);
+        candidat.setTargetLevel(TargetLevel.B1);
+        attempt.setUser(candidat);
+        when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
+        when(client.analyse(anyString(), anyString()))
+            .thenReturn(outcome(sortieValide(), 10, 10, 1));
+
+        service.analyse(ATTEMPT_ID);
+
+        ArgumentCaptor<String> system = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> user = ArgumentCaptor.forClass(String.class);
+        verify(client).analyse(system.capture(), user.capture());
+
+        assertThat(user.getValue())
+            .doesNotContain("niveau_vise")
+            .doesNotContain("NAT")
+            .doesNotContain("naturalisation");
+        assertThat(system.getValue()).doesNotContain("niveau_vise");
+        // Le targetLevel present est celui de la COMPETENCE (donnee editoriale du
+        // sujet), pas celui de la personne : le skill de ce test est en A2.
+        assertThat(user.getValue()).contains("\"targetLevel\":\"A2\"");
+    }
+
+    // ============================ preuve du niveau (contrat v4) ============
+
+    /**
+     * Un numero VALIDE est resolu en TEXTE avant persistance, comme
+     * {@code resolvePreuveSegments} cote productions completes : aucune ligne de
+     * base, donc aucun miroir DTO, ne transporte l'entier.
+     */
+    @Test
+    void unNumeroValideEstResoluEnTexteEtLeNiveauEstConserve() {
+        UserSkillAttempt attempt = attempt(SkillSection.EE);
+        when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
+        when(client.analyse(anyString(), anyString()))
+            .thenReturn(outcome(sortieNiveau("B1", 2), 10, 10, 1));
+
+        service.analyse(ATTEMPT_ID);
+
+        verify(client, times(1)).analyse(anyString(), anyString());
+        assertThat(attempt.getAnalysisJson())
+            .containsEntry(CompetenceAnalysisFields.LEVEL_REACHED, "B1")
+            .containsEntry(CompetenceAnalysisFields.LEVEL_EVIDENCE,
+                "Comme le service etait lent, nous sommes partis avant le dessert.");
+        assertThat(downgradeMetrics.compteurs()).isEmpty();
+    }
+
+    /** La production part au correcteur DECOUPEE et NUMEROTEE, pas en bloc. */
+    @Test
+    void laProductionEstServieDecoupeeEnSegmentsNumerotes() {
+        UserSkillAttempt attempt = attempt(SkillSection.EE);
+        when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
+        when(client.analyse(anyString(), anyString()))
+            .thenReturn(outcome(sortieValide(), 10, 10, 1));
+
+        service.analyse(ATTEMPT_ID);
+
+        ArgumentCaptor<String> user = ArgumentCaptor.forClass(String.class);
+        verify(client).analyse(anyString(), user.capture());
+        assertThat(user.getValue())
+            .contains("[1] La semaine derniere")
+            .contains("[2] Comme le service etait lent")
+            .contains("de [1] a [2]");
+    }
+
+    /**
+     * Preuve ABSENTE sur un B2 : une seule reparation, puis abaissement d'un
+     * palier. L'analyse n'est jamais perdue — elle coute au candidat sa
+     * production et son quota, un niveau prudent ne lui coute qu'un affichage.
+     */
+    @Test
+    void preuveAbsenteSurUnB2EstRepareeUneFoisPuisLeNiveauEstAbaisse() {
+        UserSkillAttempt attempt = attempt(SkillSection.EE);
+        when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
+        when(client.analyse(anyString(), anyString()))
+            .thenReturn(outcome(sortieNiveau("B2", null), 10, 10, 1));
+
+        service.analyse(ATTEMPT_ID);
+
+        verify(client, times(2)).analyse(anyString(), anyString());
+        assertThat(attempt.getStatut()).isEqualTo(SkillAttemptStatut.EVALUATED);
+        assertThat(attempt.getAnalysisJson())
+            .as("un palier, jamais deux, et le garde-fou ne releve jamais")
+            .containsEntry(CompetenceAnalysisFields.LEVEL_REACHED, "B1")
+            .doesNotContainKey(CompetenceAnalysisFields.LEVEL_EVIDENCE);
+        assertThat(downgradeMetrics.compteurs())
+            .containsEntry("PREUVE_ABSENTE", 1L)
+            .containsEntry("PREUVE_ABSENTE/B2->B1", 1L);
+    }
+
+    /** Numero HORS BORNES : meme traitement, et le motif reste distinguable. */
+    @Test
+    void numeroHorsBornesEstRepareUneFoisPuisLeNiveauEstAbaisse() {
+        UserSkillAttempt attempt = attempt(SkillSection.EE);
+        when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
+        when(client.analyse(anyString(), anyString()))
+            .thenReturn(outcome(sortieNiveau("B1", 7), 10, 10, 1));
+
+        service.analyse(ATTEMPT_ID);
+
+        verify(client, times(2)).analyse(anyString(), anyString());
+        assertThat(attempt.getAnalysisJson())
+            .containsEntry(CompetenceAnalysisFields.LEVEL_REACHED, "A2")
+            .doesNotContainKey(CompetenceAnalysisFields.LEVEL_EVIDENCE);
+        assertThat(downgradeMetrics.compteurs()).containsEntry("PREUVE_HORS_BORNES/B1->A2", 1L);
+    }
+
+    /**
+     * Le message de reparation doit etre ACTIONNABLE. Le depot a mesure que le
+     * seul libelle brut d'une violation ne repare rien : 0 preuve reparee sur 8.
+     */
+    @Test
+    void leMessageDeReparationNommeLeNumeroRefuseEtLesBornesReelles() {
+        UserSkillAttempt attempt = attempt(SkillSection.EE);
+        when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
+        when(client.analyse(anyString(), anyString()))
+            .thenReturn(outcome(sortieNiveau("B2", 9), 10, 10, 1))
+            .thenReturn(outcome(sortieNiveau("B2", 1), 10, 10, 1));
+
+        service.analyse(ATTEMPT_ID);
+
+        ArgumentCaptor<String> prompts = ArgumentCaptor.forClass(String.class);
+        verify(client, times(2)).analyse(anyString(), prompts.capture());
+        assertThat(prompts.getAllValues().get(1))
+            .contains("level_evidence vaut 9")
+            .contains("les numeros vont de 1 a 2")
+            .contains("annonce le palier INFERIEUR");
+        // Reparee : le niveau annonce est conserve, rien n'est abaisse.
+        assertThat(attempt.getAnalysisJson())
+            .containsEntry(CompetenceAnalysisFields.LEVEL_REACHED, "B2");
+        assertThat(downgradeMetrics.compteurs()).isEmpty();
+    }
+
+    /** A2 et en dessous n'ont rien a demontrer : aucune reparation, aucun abaissement. */
+    @Test
+    void unA2SansPreuveEstAccepteSansReparationNiAbaissement() {
+        UserSkillAttempt attempt = attempt(SkillSection.EE);
+        when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
+        when(client.analyse(anyString(), anyString()))
+            .thenReturn(outcome(sortieNiveau("A2", null), 10, 10, 1));
+
+        service.analyse(ATTEMPT_ID);
+
+        verify(client, times(1)).analyse(anyString(), anyString());
+        assertThat(attempt.getAnalysisJson())
+            .containsEntry(CompetenceAnalysisFields.LEVEL_REACHED, "A2");
+        assertThat(downgradeMetrics.compteurs()).isEmpty();
+    }
+
+    /**
+     * UNE preuve manquante ne fait JAMAIS echouer l'analyse, meme quand le
+     * correcteur ne repare pas. C'est la doctrine du depot : une analyse perdue
+     * coute plus cher au candidat qu'un niveau prudent.
+     */
+    @Test
+    void unePreuveManquanteNeFaitJamaisEchouerLAnalyse() {
+        UserSkillAttempt attempt = attempt(SkillSection.EE);
+        when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
+        when(client.analyse(anyString(), anyString()))
+            .thenReturn(outcome(sortieNiveau("B2", "le deuxieme"), 10, 10, 1));
+
+        service.analyse(ATTEMPT_ID);
+
+        assertThat(attempt.getStatut()).isEqualTo(SkillAttemptStatut.EVALUATED);
+        assertThat(attempt.getErrorMessage()).isNull();
+        verify(attemptManager).save(attempt);
+        assertThat(downgradeMetrics.compteurs()).containsEntry("PREUVE_NON_ENTIERE/B2->B1", 1L);
+    }
+
+    /**
+     * RETOUR ARRIERE. Sous v3, {@code level_evidence} n'est ni exige, ni attendu,
+     * ni meme evoque : la production repart en bloc, non numerotee.
+     */
+    @Test
+    void sousLeContratV3LaPreuveDuNiveauNEstNiExigeeNiAttendue() {
+        service = service(proprietes("v3", "v3"));
+        UserSkillAttempt attempt = attempt(SkillSection.EE);
+        when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
+        when(client.analyse(anyString(), anyString()))
+            .thenReturn(outcome(sortieNiveau("B2", null), 10, 10, 1));
+
+        service.analyse(ATTEMPT_ID);
+
+        verify(client, times(1)).analyse(anyString(), anyString());
+        assertThat(attempt.getAnalysisJson())
+            .containsEntry(CompetenceAnalysisFields.LEVEL_REACHED, "B2")
+            .doesNotContainKey(CompetenceAnalysisFields.LEVEL_EVIDENCE);
+        assertThat(downgradeMetrics.compteurs()).isEmpty();
+
+        ArgumentCaptor<String> user = ArgumentCaptor.forClass(String.class);
+        verify(client).analyse(anyString(), user.capture());
+        assertThat(user.getValue())
+            .doesNotContain("[1] La semaine derniere")
+            .doesNotContain("level_evidence");
     }
 
     @Test

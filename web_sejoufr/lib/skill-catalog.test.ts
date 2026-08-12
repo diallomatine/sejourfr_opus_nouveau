@@ -33,6 +33,8 @@ function skill(taskCode: SkillTaskCode, order: number): SkillDto {
     attemptedCount: 0,
     validatedCount: 0,
     toReinforceCount: 0,
+    masteryState: null,
+    locked: false,
   };
 }
 

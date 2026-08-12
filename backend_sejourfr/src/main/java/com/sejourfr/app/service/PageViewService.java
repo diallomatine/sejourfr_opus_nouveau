@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -22,12 +23,12 @@ import java.util.TreeMap;
 /**
  * Mesure d'audience des landings de campagne.
  *
- * <p><strong>Deux listes blanches, et c'est tout ce qui protège la table.</strong>
+ * <p><strong>Deux allowlists, et c'est tout ce qui protège la table.</strong>
  * L'endpoint d'écriture est public : sans contrainte sur les valeurs acceptées,
  * n'importe qui pourrait créer autant de dimensions qu'il veut et faire enfler
- * {@code page_views}. On n'accepte donc qu'un chemin connu ({@link #TRACKED_PATHS})
- * et une source connue ({@link #KNOWN_SOURCES}, tout le reste retombant sur
- * « autre »). La cardinalité maximale de la table est ainsi fixée à
+ * {@code page_views}. On n'accepte donc qu'une paire chemin/événement connue
+ * ({@link #EVENTS_BY_PATH}) et une source connue ({@link #KNOWN_SOURCES}, tout
+ * le reste retombant sur « autre »). La cardinalité maximale de la table est ainsi fixée à
  * pages × sources × événements × jours.
  *
  * <p>Ce qui reste possible : gonfler un compteur en martelant l'endpoint. C'est
@@ -44,8 +45,31 @@ import java.util.TreeMap;
 @RequiredArgsConstructor
 public class PageViewService {
 
-    /** Landings mesurées. Ajouter une page de campagne = l'ajouter ici. */
-    public static final Set<String> TRACKED_PATHS = Set.of("/reussir");
+    /** Événements autorisés par écran : borne la cardinalité et les incohérences. */
+    public static final Map<String, Set<PageViewEvent>> EVENTS_BY_PATH = Map.of(
+            "/reussir", EnumSet.of(
+                    PageViewEvent.VIEW,
+                    PageViewEvent.CTA,
+                    PageViewEvent.SOCIAL_LANDING_DIAGNOSTIC_CLICKED),
+            "/diagnostic", EnumSet.of(
+                    PageViewEvent.DIAGNOSTIC_VIEWED,
+                    PageViewEvent.DIAGNOSTIC_STARTED,
+                    PageViewEvent.DIAGNOSTIC_WRITTEN_COMPLETED,
+                    PageViewEvent.DIAGNOSTIC_ORAL_COMPLETED,
+                    PageViewEvent.DIAGNOSTIC_COMPLETED,
+                    PageViewEvent.DIAGNOSTIC_RESULT_VIEWED,
+                    // Parcours invité : les deux productions sont faites, le
+                    // compte est demandé. Compté à part des vues et des clics
+                    // CTA — c'est une étape de funnel, lue dans `events`.
+                    PageViewEvent.DIAGNOSTIC_ACCOUNT_REQUIRED,
+                    PageViewEvent.DIAGNOSTIC_TO_PREMIUM_CLICKED),
+            "/plan", EnumSet.of(
+                    PageViewEvent.PLAN_OPENED,
+                    PageViewEvent.PLAN_RECOMMENDED_EXERCISE_STARTED,
+                    PageViewEvent.DIAGNOSTIC_TO_PREMIUM_CLICKED));
+
+    /** Pages exposées à la console admin, conservé pour compatibilité. */
+    public static final Set<String> TRACKED_PATHS = EVENTS_BY_PATH.keySet();
 
     /** Provenances normalisées. Une valeur inconnue est rangée dans « autre ». */
     public static final Set<String> KNOWN_SOURCES =
@@ -63,6 +87,10 @@ public class PageViewService {
         if (!TRACKED_PATHS.contains(path)) {
             throw new BusinessException("Page non suivie : " + path);
         }
+        if (!EVENTS_BY_PATH.get(path).contains(request.event())) {
+            throw new BusinessException(
+                    "Événement " + request.event() + " non autorisé sur " + path);
+        }
         manager.increment(path, normalizeSource(request.source()), request.event(),
                 LocalDate.now(PARIS));
     }
@@ -78,9 +106,11 @@ public class PageViewService {
 
         Map<String, long[]> bySource = new TreeMap<>();
         Map<LocalDate, long[]> byDay = new TreeMap<>();
+        Map<String, Long> events = new TreeMap<>();
         for (PageView row : rows) {
             accumulate(bySource.computeIfAbsent(row.getSource(), k -> new long[2]), row);
             accumulate(byDay.computeIfAbsent(row.getDay(), k -> new long[2]), row);
+            events.merge(row.getEvent().name(), row.getHits(), Long::sum);
         }
 
         List<PageViewStatsResponse.SourceStat> sources = bySource.entrySet().stream()
@@ -97,13 +127,19 @@ public class PageViewService {
 
         long views = sources.stream().mapToLong(PageViewStatsResponse.SourceStat::views).sum();
         long cta = sources.stream().mapToLong(PageViewStatsResponse.SourceStat::ctaClicks).sum();
-        return new PageViewStatsResponse(path, window, views, cta, sources, daily);
+        return new PageViewStatsResponse(path, window, views, cta, sources, daily, events);
     }
 
     private static void accumulate(long[] bucket, PageView row) {
-        if (row.getEvent() == PageViewEvent.VIEW) {
+        if (row.getEvent() == PageViewEvent.VIEW
+                || row.getEvent() == PageViewEvent.DIAGNOSTIC_VIEWED
+                || row.getEvent() == PageViewEvent.PLAN_OPENED) {
             bucket[0] += row.getHits();
-        } else {
+        } else if (row.getEvent() == PageViewEvent.CTA
+                || row.getEvent() == PageViewEvent.DIAGNOSTIC_STARTED
+                || row.getEvent() == PageViewEvent.PLAN_RECOMMENDED_EXERCISE_STARTED
+                || row.getEvent() == PageViewEvent.SOCIAL_LANDING_DIAGNOSTIC_CLICKED
+                || row.getEvent() == PageViewEvent.DIAGNOSTIC_TO_PREMIUM_CLICKED) {
             bucket[1] += row.getHits();
         }
     }

@@ -9,7 +9,9 @@ const COOKIE_NAME = "sejourfr.accessToken";
 // formé. Côté front, ce middleware sert juste à éviter un flash de la page
 // protégée avant que le client ne redirige.
 // /entrainement, /examens-blancs et /sessions sont publics (mode démo guest).
-const PROTECTED_PREFIXES = ["/dashboard", "/paiement"];
+// /diagnostic aussi : le visiteur fait ses deux productions AVANT qu'on lui
+// demande un compte (le Plan, lui, reste derrière le login).
+const PROTECTED_PREFIXES = ["/dashboard", "/paiement", "/plan"];
 
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;

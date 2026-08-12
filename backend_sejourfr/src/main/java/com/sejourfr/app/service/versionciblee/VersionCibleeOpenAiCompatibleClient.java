@@ -52,15 +52,15 @@ public class VersionCibleeOpenAiCompatibleClient implements VersionCibleeLlmClie
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
     private final ChatCompletionDialectNegotiator dialecte;
-    private final Map<String, Object> toolSchema;
+    private final VersionCibleeTools tools;
 
     public VersionCibleeOpenAiCompatibleClient(ChatCompletionSettings connection,
                                                VersionCiblee reglages,
-                                               Map<String, Object> toolSchema,
+                                               VersionCibleeTools tools,
                                                String label, ObjectMapper objectMapper) {
         this.connection = connection;
         this.reglages = reglages;
-        this.toolSchema = toolSchema;
+        this.tools = tools;
         this.label = label;
         this.objectMapper = objectMapper;
         this.dialecte = new ChatCompletionDialectNegotiator(
@@ -83,7 +83,8 @@ public class VersionCibleeOpenAiCompatibleClient implements VersionCibleeLlmClie
     }
 
     @Override
-    public Outcome produire(String systemPrompt, String userPrompt) {
+    public Outcome produire(String systemPrompt, String userPrompt,
+                            VersionCibleeVariante variante) {
         if (!connection.isConfigured()) {
             throw new AiEvaluationException(
                 label + " : cle API non configuree — version ciblee ignoree.");
@@ -95,7 +96,7 @@ public class VersionCibleeOpenAiCompatibleClient implements VersionCibleeLlmClie
         // où le fournisseur nomme le champ qu'il refuse.
         for (int tentative = 0; response == null; tentative++) {
             ChatCompletionDialect forme = dialecte.forme();
-            Map<String, Object> body = buildRequestBody(systemPrompt, userPrompt, forme);
+            Map<String, Object> body = buildRequestBody(systemPrompt, userPrompt, forme, variante);
             try {
                 response = restClient.post()
                     .contentType(MediaType.APPLICATION_JSON)
@@ -128,11 +129,12 @@ public class VersionCibleeOpenAiCompatibleClient implements VersionCibleeLlmClie
     }
 
     Map<String, Object> buildRequestBody(String systemPrompt, String userPrompt,
-                                         ChatCompletionDialect forme) {
+                                         ChatCompletionDialect forme,
+                                         VersionCibleeVariante variante) {
         Map<String, Object> function = new LinkedHashMap<>();
         function.put("name", VersionCibleeFields.TOOL_NAME);
-        function.put("description", VersionCibleeFields.TOOL_DESCRIPTION);
-        function.put("parameters", toolSchema);
+        function.put("description", tools.description(variante));
+        function.put("parameters", tools.schema(variante));
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", connection.getModel());

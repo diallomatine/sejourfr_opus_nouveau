@@ -10,6 +10,7 @@ import com.sejourfr.app.manager.ConversationManager;
 import com.sejourfr.app.manager.EmailChangeTokenManager;
 import com.sejourfr.app.manager.ExamTemplateManager;
 import com.sejourfr.app.manager.HumanCalibrationNoteManager;
+import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.MediaManager;
 import com.sejourfr.app.manager.MessageManager;
 import com.sejourfr.app.manager.PassageManager;
@@ -71,6 +72,7 @@ public class TestSupportConfig {
                              TranscriptionManager transcriptionManager,
                              HumanCalibrationNoteManager humanCalibrationNoteManager,
                              RealtimeSessionManager realtimeSessionManager,
+                             LearningPlanObservationManager learningPlanObservationManager,
                              SkillManager skillManager,
                              SkillRepository skillRepository,
                              SkillPromptManager skillPromptManager,
@@ -86,6 +88,7 @@ public class TestSupportConfig {
                 emailChangeTokenManager, processedExternalEventRepository,
                 userQuestionStatusManager, aiEvaluationManager, transcriptionManager,
                 humanCalibrationNoteManager, realtimeSessionManager,
+                learningPlanObservationManager,
                 skillManager, skillRepository, skillPromptManager, userSkillAttemptManager,
                 audioQuestionDraftRepository, audioQuestionGenerationLogRepository);
     }

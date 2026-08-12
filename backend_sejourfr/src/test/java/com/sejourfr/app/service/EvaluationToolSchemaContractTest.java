@@ -60,6 +60,7 @@ class EvaluationToolSchemaContractTest {
         v12, v6
         v13, v7
         v14, v8
+        v15, v9
         """;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -145,6 +146,20 @@ class EvaluationToolSchemaContractTest {
     }
 
     /**
+     * {@code exemples_corriges} et {@code suggestions} sont la DEUXIEME capacite
+     * qu'une version POSTERIEURE retire, apres {@code version_amelioree}. Elles
+     * valent depuis le premier contrat et se referment en v9 — le retrait
+     * serveur des deux champs suit exactement ce drapeau.
+     */
+    @Test
+    void lesExemplesCorrigesEtLesSuggestionsValentJusquAV8() {
+        for (String version : List.of("v2", "v3", "v4", "v5", "v6", "v7", "v8")) {
+            assertThat(AiEvaluationService.exemplesEtSuggestions(version)).as(version).isTrue();
+        }
+        assertThat(AiEvaluationService.exemplesEtSuggestions("v9")).isFalse();
+    }
+
+    /**
      * ECHEC BRUYANT, jamais de mode degrade muet : ni au boot, ni a l'usage.
      * C'est la contrainte dure qui remplace la consigne « pense a mettre a jour
      * les trois ensembles ».
@@ -200,6 +215,18 @@ class EvaluationToolSchemaContractTest {
         assertThat(schema.versionAmelioree())
             .as(schemaVersion + " : version_amelioree exigee <-> version_amelioree au contrat")
             .isEqualTo(proprietes.containsKey("version_amelioree"));
+        for (String champ : List.of("exemples_corriges", "suggestions")) {
+            assertThat(schema.exemplesEtSuggestions())
+                .as(schemaVersion + " : " + champ + " exige <-> " + champ + " au contrat")
+                .isEqualTo(proprietes.containsKey(champ));
+            // `required` ne fait foi que sur un contrat STRICT : les schemas
+            // v2/v3 n'y listaient pas tous leurs champs.
+            if (schema.strict()) {
+                assertThat(schema.exemplesEtSuggestions())
+                    .as(schemaVersion + " : " + champ + " exige <-> " + champ + " dans required")
+                    .isEqualTo(strings(fichier.get("required")).contains(champ));
+            }
+        }
         assertThat(schema.restitution())
             .as(schemaVersion + " : restitution <-> accomplissement.objectif au contrat")
             .isEqualTo(map(map(proprietes.get("accomplissement")).get("properties"))

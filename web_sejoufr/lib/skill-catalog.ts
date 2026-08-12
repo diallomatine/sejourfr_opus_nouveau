@@ -36,7 +36,7 @@ export function skillsProgressKey(section: SkillSection): string {
   return `skills:progress:${section}`;
 }
 
-/** Clé du détail d'une compétence (sa fiche + ses 5 petits sujets). */
+/** Clé du détail d'une compétence (sa fiche + ses 15 petits sujets). */
 export function skillDetailKey(skillId: string): string {
   return `skills:detail:${skillId}`;
 }

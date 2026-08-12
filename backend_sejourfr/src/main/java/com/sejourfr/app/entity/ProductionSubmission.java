@@ -78,6 +78,10 @@ public class ProductionSubmission {
     @Column(nullable = false, length = 16)
     private ProductionSubmissionSource source = ProductionSubmissionSource.ASYNC;
 
+    /** Purpose persistant : le runner ne déduit jamais sa branche d'un état front. */
+    @Column(name = "is_diagnostic", nullable = false)
+    private boolean diagnostic;
+
     /** Nombre de relances manuelles via /retry. Plafonne a 3 (anti-abus). */
     @Column(name = "retry_count", nullable = false)
     private short retryCount = 0;
@@ -136,6 +140,9 @@ public class ProductionSubmission {
 
     public ProductionSubmissionSource getSource() { return source; }
     public void setSource(ProductionSubmissionSource source) { this.source = source; }
+
+    public boolean isDiagnostic() { return diagnostic; }
+    public void setDiagnostic(boolean diagnostic) { this.diagnostic = diagnostic; }
 
     public short getRetryCount() { return retryCount; }
     public void setRetryCount(short retryCount) { this.retryCount = retryCount; }

@@ -75,13 +75,20 @@ mobile. Web : 1 examen blanc + 10 QCM d'entraînement par module pour convertir.
     au correcteur et sans effet sur le verdict.
   - **SkillCriterionStatus** : `VALIDATED` / `PARTIAL` / `NOT_VALIDATED` (« Critère validé » /
     « Critère partiellement atteint » / « **Critère non atteint** ») — le verdict IA sur le
-    **critère unique** du sujet. C'est tout ce que rend cette voie : **ni note /20, ni niveau
-    CECRL**. `NOT_VALIDATED` ne se dit **pas** « à retravailler » : cette formulation était
-    quasi synonyme du statut de sujet `TO_REINFORCE` et confondait le verdict d'**une
-    tentative** avec l'état d'**un sujet**.
+    **critère unique** du sujet. **Ni note /20 — jamais —, mais le niveau CECRL est rendu
+    depuis le contrat v3** (cf. la section dédiée). `NOT_VALIDATED` ne se dit **pas** « à
+    retravailler » : cette formulation était quasi synonyme du statut de sujet `TO_REINFORCE`
+    et confondait le verdict d'**une tentative** avec l'état d'**un sujet**.
   - **SkillPromptStatus** : `TODO` / `TREATED` / `VALIDATED` / `TO_REINFORCE` (« À faire » /
     « Fait » / « Validé » / « À renforcer »). **Dérivé serveur** (`SkillStatusResolver`),
     jamais persisté, jamais recalculé par un front.
+  - **SituationNiveauVise** : `OBJECTIF_ATTEINT` / `PROCHE` / `EN_CHEMIN` (« Tu as atteint ton
+    objectif » / « Tu es proche du niveau visé » / « Encore du chemin vers ton objectif »).
+    Compare le `level_reached` d'une micro-production au palier qu'exige la démarche.
+    **Dérivé serveur** (`SkillLevelProgressResolver`), jamais persisté, jamais recalculé par un
+    front. À ne pas confondre avec `SituationDansNiveau`, qui situe une production **dans son
+    propre palier** (« A2 solide ») : celui-ci la situe **par rapport à l'objectif**. Aucun des
+    3 libellés ne nomme un manque.
   - **SkillAttemptStatut** : `RECORDED` (rendu sans analyse — état **final**) · `SUBMITTED` →
     `TRANSCRIBING` (EO) → `EVALUATING` → `EVALUATED` | `FAILED`.
 - **Role** : `USER` / `ADMIN`
@@ -133,6 +140,26 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
   freeSlots=1`, mobile briefing + pages examens). Le `slotNumber` est validé
   **1..20** (`AttemptService.MOCK_EXAM_SLOTS`, aligné sur les grilles des
   fronts) et ne pilote pas la composition (questions tirées du même pool).
+- **Compte gratuit, module Compétences TCF** (micro-entraînement EE/EO) : **une
+  seule compétence ouverte par tâche** (la première de sa `SkillTaskCode`, soit
+  6 pour les 6 tâches) **+ la compétence de la priorité n°1 du Plan**, et **2
+  sujets** par compétence ouverte. Le reste est verrouillé — cadenas côté
+  fronts, **403 côté serveur** (`SkillAccessService.assertCanProduce`). Les **3
+  analyses IA offertes à vie** sont un verrou distinct, inchangé, qui se cumule.
+  Règle posée le **2026-08-10**, elle **révoque** l'ancienne (« aucun sujet n'est
+  verrouillé ») ; détail et motif dans la section *Module « Compétences TCF »*.
+- **Compte gratuit, Plan personnalisé** : le Plan est **entièrement visible**,
+  diagnostic compris. Aucune priorité, aucune compétence observée, aucun
+  compteur n'est masqué — seul un `locked` est posé. La compétence de sa
+  priorité n°1 reste **ouverte** (cf. ci-dessus), donc l'étape n°1 se
+  **commence** sans payer. ⚠️ **Elle ne se termine pas** : une étape vaut 5
+  sujets, `FREE_PROMPTS_PER_SKILL` en ouvre 2, donc un compte gratuit plafonne à
+  **2/5** et **aucune étape n'est finissable sans abonnement** (arbitré le
+  2026-08-11). Cela **révoque** la formulation précédente (« sa priorité n°1 est
+  jouable, c'est ce qui garde le Plan utilisable sans abonnement ») : ce qui
+  reste gratuit, c'est **lire** son Plan et **commencer** son étape, pas la
+  finir. Ne pas « corriger » `FREE_PROMPTS_PER_SKILL` à 5 pour rétablir
+  l'ancienne phrase.
 - **Compte gratuit, examen blanc TCF complet** (`/api/full-tcf-exams`,
   orchestré CO→CE→EE→EO) : **examen 1 offert** (slot 1, même grille que les
   abonnés) avec **EE + EO évaluées une seule fois à vie**. Au-delà, l'examen 1
@@ -232,19 +259,310 @@ cliquent son CTA, découpé par réseau de provenance.
   **Ne pas ajouter de déduplication persistante sans repasser sur la page
   légale.** Conséquence assumée : on compte des **vues**, pas des visiteurs
   uniques.
-- **Deux listes blanches** dans `PageViewService` (`TRACKED_PATHS`,
-  `KNOWN_SOURCES`) : l'endpoint d'écriture étant public, elles sont la seule
-  chose qui empêche un tiers de créer des dimensions à volonté. Ajouter une
-  landing mesurée = l'ajouter à `TRACKED_PATHS`.
-- **Web** : `lib/audience.ts` (`detectTrafficSource`, `trackPageView`,
-  `trackCtaClick`) — même détection de provenance que le badge du hero, un seul
-  endroit qui décide « ce visiteur vient de TikTok ».
-- **Admin** : `features/audience/` — vues, clics, taux de clic par réseau et
-  série journalière, sur 7 / 30 / 90 jours.
+- **Deux allowlists** dans `PageViewService` : `EVENTS_BY_PATH` borne à la fois
+  les chemins et les événements admis sur chaque écran, `KNOWN_SOURCES` borne
+  les provenances (tout le reste devient `autre`). L'endpoint d'écriture étant
+  public, elles empêchent un tiers de créer des dimensions à volonté. Les pages
+  suivies sont `/reussir`, `/diagnostic` et `/plan`.
+- **Web** : `lib/audience.ts` garde la détection de provenance ;
+  `lib/audience-events.ts` envoie les événements typés. Le funnel diagnostic
+  ajoute dix événements : vue/démarrage, fin EE, fin EO, fin d'analyse, vue du
+  résultat, ouverture du Plan, lancement de l'exercice recommandé, clic landing
+  sociale vers le diagnostic et clic diagnostic/Plan vers Premium.
+- **Admin** : `features/audience/` — vues, clics, taux de clic par réseau,
+  série journalière et compte brut de chaque événement du funnel, sur 7 / 30 /
+  90 jours. `PageViewStatsResponse.events` est un `Map<String, Long>` ; ne pas
+  reconstruire le funnel depuis les deux anciens totaux `views`/`ctaClicks`.
 - Reste à faire avant l'ouverture publique : un **rate-limit par IP** sur
   `POST /api/public/page-views`, même chantier que la démo invitée. Sans lui, un
   bot peut gonfler un compteur — donnée fausse, mais ni fuite ni inflation de
   stockage.
+
+## Diagnostic initial TCF et Plan personnalisé
+
+Le diagnostic est un **parcours distinct** des examens blancs et de la notation
+standard. Il comporte exactement deux exercices hybrides fixes par
+version : une EE de 100–130 mots, puis une EO enregistrée de 2–3 minutes. Ils
+vivent dans `production_tasks` pour réutiliser la soumission, R2 et Whisper,
+mais portent `diagnostic_code` + `diagnostic_version` ; tous les catalogues,
+tirages, historiques, statistiques, quotas, outils admin standard, validateurs
+de rubriques et files de calibration doivent garder le filtre
+`diagnostic_code IS NULL`. Ce n'est jamais un `TCF_COMPLET`.
+
+- **Parcours : productions en invité → compte → analyse.** Un visiteur fait ses
+  **deux productions AVANT** qu'on lui demande un compte, le crée au moment
+  d'« Analyser mes réponses », et l'analyse IA ne tourne qu'ensuite. **Les
+  productions restent CÔTÉ CLIENT tant qu'il n'y a pas de compte** : aucune
+  session diagnostique anonyme, aucune ligne en base, aucun audio d'invité sur
+  R2 — `diagnostic_sessions.user_id` reste `NOT NULL`, ne rien rendre nullable.
+  Le seul besoin serveur est donc **servir les deux sujets** :
+  `GET /api/public/diagnostics/current` (public, rate-limité par IP à 120 / 10
+  min, `PublicDiagnosticResponse` **sans** `attemptId`/`submissionId`/
+  `submissionStatus`). La **version active et ses deux sujets se résolvent en un
+  seul endroit** (`DiagnosticContentResolver`, partagé par la lecture publique,
+  la création de session et la restitution) : deux résolutions séparées feraient
+  soumettre une production pour un sujet que le candidat n'a jamais lu. Funnel :
+  `DIAGNOSTIC_ACCOUNT_REQUIRED` sur `/diagnostic` est LA mesure de conversion —
+  tout ce qui précède se joue hors base. Après inscription, l'enchaînement
+  `POST /api/diagnostics` → écrit → oral **coup sur coup** est accepté sans
+  assouplir aucune garde (`DiagnosticPostSignupSequenceIT`) ; un compte au
+  diagnostic **déjà terminé** récupère sa session `COMPLETED` (200, avec son
+  `result`, jamais de seconde session) et toute nouvelle production est refusée
+  en **422** — c'est au front d'afficher le message.
+- **Agrégat** : `diagnostic_sessions` enveloppe les deux attempts EE/EO, avec
+  unicité `(user, code, version)` **et** unicité séparée de chaque attempt. Les
+  états persistés sont `IN_PROGRESS`, `ANALYZING`, `COMPLETED`, `FAILED` ; le DTO
+  ajoute `NOT_STARTED` quand aucune session n'existe. `POST /api/diagnostics`
+  est idempotent et sûr en concurrence ; `GET /api/diagnostics/current` permet
+  la reprise cross-device, `GET /api/diagnostics/{id}` protège l'IDOR par 404,
+  et `POST .../{id}/retry-analysis` est borné/configuré et rate-limité.
+- **Soumission stricte** : les routes de production existantes sont réutilisées,
+  mais le bypass de quota n'est accordé que si la tâche, l'attempt, l'utilisateur,
+  la session courante et l'étape concordent. Une tâche diagnostique seule ne
+  suffit jamais. Une seule submission diagnostique est admise par attempt ; la
+  route générique `/production-submissions/{id}/retry` la refuse au profit du
+  retry agrégé. Audio, taille, durée, rate-limit et Whisper restent appliqués.
+- **Contrat IA séparé** : `diagnostic-analysis-rubrics-v1.json` et
+  `diagnostic-analysis-tool-schema-v1.json`, configurés sous
+  `sejourfr.diagnostic.analysis`, ne produisent **aucune note /20**. Le schéma
+  impose l'allowlist exacte des compétences de la tâche, codes uniques, preuve
+  par segment réel, confiance et cohérence statut/observation/priorité, avec au
+  plus deux priorités par production. Une réponse vide/illisible est transitoire
+  et une seule réparation de format est tentée. **On versionne ces deux fichiers,
+  on ne réécrit jamais une version livrée.**
+- **Bifurcation persistée** : `production_submissions.is_diagnostic` décide du
+  pipeline async. Une submission diagnostique réutilise Whisper si nécessaire,
+  puis `DiagnosticProductionAnalysisService` ; elle ne passe jamais dans
+  `AiEvaluationService`, `ai_evaluations`, la version ciblée, le profil TCF ni la
+  calibration. L'assemblage des deux analyses est déterministe, sans troisième
+  appel LLM, limite les priorités globales à trois et renvoie toujours un
+  `nextAction` réellement disponible, même si aucune priorité n'est assez
+  fiable. La relance agrégée réserve `FAILED → ANALYZING` sous verrou pessimiste
+  puis déclenche l'async après commit ; une session `COMPLETED` n'est jamais
+  rétrogradée par un recorder tardif.
+- **Départage des priorités : allowlist puis alternance, jamais l'alphabet**
+  (`DiagnosticSessionCoordinator`). À confiance égale (`HIGH>MEDIUM>LOW`), c'est
+  le rang de la compétence dans l'allowlist de son sujet
+  (`diagnostic_task_skills.display_order`, l'ordre éditorial d'importance) qui
+  tranche ; à égalité résiduelle, écrit et oral **alternent** au lieu d'être
+  groupés (la première égalité parfaite revient à l'écrit, produit en premier).
+  L'ancien départage se faisait sur l'ordre **alphabétique du code**, ce qui
+  faisait mécaniquement passer toutes les priorités `EE…` devant les `EO…` et les
+  compétences C1/C2 devant les autres. Déterministe, aucun appel LLM.
+- **Une étape du Plan = les 5 premiers sujets actifs de sa compétence**, par
+  `display_order` croissant (`LearningPlanStep.PROMPTS_PAR_ETAPE`, arbitré le
+  2026-08-11). **Dérivé, jamais persisté** : aucune table, aucune migration, le
+  périmètre se relit du rang d'affichage — mêmes 5 sujets pour tout le monde,
+  ils ne bougent jamais. Avant, une étape exigeait les **15** sujets (« 2/15 »),
+  que personne n'allait finir. Une compétence publiant moins de 5 sujets a une
+  étape plus courte : le périmètre vaut ce qui existe, **aucun dénominateur
+  n'est inventé**. « Tous distincts » est **acquis par construction**
+  (`latestObservedBySkill` ne garde qu'une observation par compétence) : **ne
+  jamais construire de mécanisme d'unicité inter-étapes**, il serait mort-né.
+- **Compteurs d'étape À CÔTÉ des compteurs de compétence, jamais à leur place.**
+  `LearningPlanPriorityDto` porte les deux : `promptCount`/`attemptedCount`/
+  `validatedCount` = la **compétence** (15 sujets, sémantique de `SkillDto`,
+  inchangée) ; `stepPromptCount`/`stepAttemptedCount`/`stepValidatedCount`/
+  `stepCompleted` = l'**étape** (5 sujets). C'est le second jeu que les fronts
+  affichent sur l'anneau d'une étape. Détourner le premier à 5 ferait dire
+  « /5 » au Plan et « /15 » à la fiche de compétence pour une même compétence.
+  `LearningPlanSkillDto` (compétences observées) **n'est pas une étape** et ne
+  porte que les compteurs de compétence. Un seul calcul dans
+  `SkillProgressCounter` (+ `SkillProgressTally`, `SkillStatusResolver`), **2
+  requêtes** quel que soit le nombre de compétences.
+- **Achèvement d'une étape, dérivé serveur** (`LearningPlanStep.Progress
+  .completed()`, jamais persisté, jamais recalculé par un front — philosophie
+  `SkillStatusResolver` / `SituationDansNiveau`) : terminée quand ses 5 sujets
+  ont été **traités** (`status.isAttempted()`, tout sauf `TODO`). **Terminée ≠
+  tout validé** — `stepValidatedCount` reste l'information distincte. Une étape
+  sans sujet actif n'est jamais terminée. ⚠️ **Une étape terminée ne disparaît
+  pas du Plan** : les priorités ne changent qu'à l'arrivée d'une nouvelle
+  observation (`LearningPlanObservationService`), donc à la prochaine
+  production. C'est le comportement correct — aux fronts de le dire clairement.
+- **L'exercice recommandé doit faire avancer** — règle unique partagée par le
+  Plan et l'écran de résultat du diagnostic (`RecommendedExerciseSelector`, seul
+  endroit) : (1) premier sujet **jamais tenté** par `display_order` croissant,
+  (2) sinon le sujet `TO_REINFORCE` dont la dernière tentative est la plus
+  ancienne, (3) sinon le sujet tenté le plus anciennement, (4) sinon rien. Statut
+  dérivé par `SkillStatusResolver`, chargement en lot (2 requêtes quel que soit
+  le nombre de compétences). Avant, les deux appelants prenaient le sujet de rang
+  1 et le resservaient indéfiniment. **Le périmètre est celui de l'ÉTAPE** : le
+  choix se fait parmi les 5 premiers sujets actifs (`LearningPlanStep.scope`),
+  jamais sur les 15 — sinon « Continuer cette étape » enverrait hors étape et
+  l'anneau « x/5 » ne bougerait pas. Les **4 branches sont intactes**, seul
+  l'ensemble sur lequel elles s'appliquent est réduit, et la borne vaut pour les
+  **deux** appelants : le diagnostic désigne la compétence de la priorité n°1,
+  il doit pointer dans les mêmes 5. `estimatedMinutes` est **dérivé du sujet**
+  (EO : temps de parole conseillé × 3 pour lecture/préparation ; EE : milieu de
+  la fourchette de mots à 12 mots/minute ; repli 5/4 min si la donnée manque).
+- **Plan source de vérité serveur** : `GET /api/me/plan` renvoie les états
+  `NEEDS_DIAGNOSTIC`, `DIAGNOSTIC_IN_PROGRESS` ou `ACTIVE`, les priorités déjà
+  ordonnées, l'exercice recommandé et, sur chaque priorité comme sur chaque
+  compétence observée, `promptCount`/`attemptedCount`/`validatedCount` — mêmes
+  compteurs, même calcul (`SkillProgressCounter` + `SkillProgressTally`) que
+  `SkillDto` du module Compétences, jamais un second calcul parallèle (les
+  compteurs d'**étape** s'ajoutent à côté, cf. ci-dessus). `learning_plan_observations` conserve
+  `skill_id`, source typée + `source_id`, preuve, explication, confiance, date et
+  indicateur de baseline. Les fronts affichent cet ordre sans le recalculer ;
+  `NOT_OBSERVED` est conservé dans l'historique mais n'annule jamais la dernière
+  observation probante d'une compétence ;
+  l'écran historique/Progression reste secondaire et séparé.
+  **L'ordre des priorités vit dans `LearningPlanPriorityResolver`**, extrait de
+  `LearningPlanService` le 2026-08-10 parce qu'un second lecteur en dépend :
+  `SkillAccessService` ouvre la compétence de la priorité n°1 à un compte
+  gratuit. Deux copies auraient fini par désigner deux « étapes n°1 »
+  différentes.
+- **Le Plan reste intégralement visible sans abonnement** : aucune priorité,
+  aucune compétence observée, aucun compteur, aucun exercice recommandé n'est
+  masqué à un compte gratuit — masquer priverait le candidat du résultat de sa
+  propre production. Seuls les **accès** sont verrouillés, signalés par
+  `locked` sur `LearningPlanPriorityDto`, `LearningPlanSkillDto` et
+  `PlanRecommendedExerciseDto`. L'exercice recommandé reste **désigné** même
+  verrouillé : savoir quoi travailler est ce que le Plan apporte, on ne le
+  détourne pas vers un sujet ouvert qui ne serait plus la priorité mesurée.
+  **Visible ≠ finissable** : les compteurs d'étape sont servis en entier, mais
+  un compte gratuit plafonne à 2/5 (cf. § Freemium).
+- **Boucle de réévaluation — l'étape CHANGE DE NATURE, elle ne se dédouble pas.**
+  Quand la maîtrise pose `readyForReassessment` (moteur inchangé), la carte « À
+  faire maintenant » cesse de proposer un micro-sujet et propose une
+  **vérification en situation** : même carte, même emplacement, action
+  différente. Le sujet est une **tâche de production déjà publiée** de la
+  `SkillTaskCode` de la compétence (jamais de génération, jamais de nouvelle
+  banque, jamais d'appel LLM) ; le **diagnostic initial n'est jamais rejoué**
+  (filtre `diagnostic_code IS NULL` des deux côtés — mémorisation, biais,
+  lassitude). Autorité unique : **`ReassessmentExerciseSelector`**, jumelle de
+  `RecommendedExerciseSelector`. Règle : (1) premier sujet **jamais rendu**, (2)
+  tous rendus ⇒ le premier du même ordre en écartant la copie la plus récente,
+  (3) aucun sujet publié ⇒ rien, et l'étape retombe sur son micro-exercice —
+  cas **normal**, jamais une erreur. L'ordre est une **permutation semée** par
+  (candidat, compétence, sujet) via splitmix64 : reproductible d'un appel, d'un
+  process et d'un serveur à l'autre — jamais `Random` non semé, jamais
+  `hashCode` d'objet. Elle porte sur le pool **entier**, donc jouer un autre
+  sujet de la même tâche ne redistribue rien. Le DTO dit **quoi et où** :
+  `PlanRecommendedExerciseDto.kind` (`MICRO_TRAINING|REASSESSMENT`),
+  `skillPromptId` **xor** `productionTaskId` + `tacheNumero`, construits par
+  `microTraining(...)` / `reassessment(...)`. `estimatedMinutes` reste **dérivé
+  du sujet** (`util/ExerciseDuration`, formule partagée par les deux
+  sélecteurs). **Le verrou freemium continue de s'appliquer et ne détourne
+  rien** : un sujet verrouillé est **désigné quand même** avec son `locked`, lu
+  par `ProductionAccessService.isTrainingLocked` — même règle que
+  `enforceQuota`, en lecture (une copie aurait fini par ouvrir ce que le serveur
+  refuse). Une réévaluation est une **production standard** : elle produit ses
+  observations `PRODUCTION_EE/EO` par le pipeline existant, aucun type de source
+  dédié.
+- **« Le Plan a changé » après une production** : `ProductionSubmissionDto
+  .planChange` (`PlanChangeDto` = `confirmedSkill` + `newPriority`, deux
+  `PlanSkillRefDto` **indépendamment nullables**, bloc entier `null` si rien n'a
+  bougé). Une **ligne**, jamais la liste des compétences observées. « Confirmée »
+  = observation `SOLID` **contextuelle** issue de cette soumission (le diagnostic
+  est la baseline, il ne confirme jamais) ; « nouvelle priorité » = la priorité
+  n°1 courante **si c'est cette production qui l'a désignée**. Calculé
+  **serveur, à la lecture** (`LearningPlanService.changeAfterProduction`,
+  branché sur `getOwnDetail` seulement — ni liste d'historique, ni sujet de
+  diagnostic, ni avant `EVALUATED`). ⚠️ **Course assumée** : les observations
+  s'écrivent **après** la correction, best-effort et hors transaction
+  (`ProductionPipelineAsyncRunner`) — rien n'est figé à l'écriture, donc
+  l'absence du bloc est un **état normal** et la lecture suivante le rend, sans
+  erreur ni rejeu (même sursis côté fronts que le plan d'action).
+  **Aucun libellé serveur** : le bloc expose des faits, la phrase appartient aux
+  fronts — et un transfert manqué ne se dit **jamais** « vous avez perdu votre
+  progression », mais « réussi en exercice ciblé, pas encore automatique en
+  production complète ».
+- **Plan vivant** : après une correction v14/v8 réussie d'une future production
+  complète standard, une observation structurée séparée utilise les skill IDs de
+  sa tâche ; son échec best-effort ne dégrade jamais la correction. Les
+  micro-exercices alimentent aussi le Plan une fois évalués, mais une réussite
+  isolée devient au mieux `TO_REINFORCE`, jamais `SOLID`. **Les productions
+  d'examen blanc EE/EO alimentent le même moteur** (V031) : elles passaient déjà
+  par le même pipeline mais étaient enregistrées comme de l'entraînement, donc
+  sous-pondérées. Une session d'examen productive porte un `slotNumber`, une
+  épreuve d'examen **complet** est un sous-attempt d'un parent `TCF_COMPLET` —
+  les deux sont sur la ligne `attempts` déjà chargée, aucune requête de plus
+  (`LearningPlanObservationService.isMockExam`, sources `MOCK_EXAM_EE/EO`).
+- **Aucun diagnostic n'est exigé pour OBSERVER** (2026-08-12). `hasActivePlan` a
+  été **supprimé** des deux producteurs (`recordSkillAttempt`,
+  `observeStandardProduction`) : un candidat qui travaillait sans passer le
+  diagnostic n'accumulait rien, et tout son travail était perdu le jour où il le
+  passait. C'est le **Plan** qui continue de réclamer un diagnostic `COMPLETED`
+  pour passer `ACTIVE` — `NEEDS_DIAGNOSTIC` / `DIAGNOSTIC_IN_PROGRESS` sont
+  inchangés. ⚠️ Conséquence de coût assumée : la voie d'observation d'une
+  production standard **appelle le LLM**, elle tourne désormais pour tout le
+  monde, plus seulement pour les comptes diagnostiqués.
+- **Moteur de maîtrise — `SkillMasteryEngine` + `SkillMasteryResolver`**, dérivé
+  à la lecture et **jamais persisté** (même philosophie que `SkillStatusResolver`
+  et `SituationDansNiveau`) : recalibrer une pondération relit tout l'historique
+  au prochain appel, sans migration ni job.
+  - **4 états agrégés, enum `SkillMasteryState`** : `PRIORITY` / `TO_REINFORCE` /
+    `CONSOLIDATING` / `SOLID` (« Priorité » / « À renforcer » / « En
+    consolidation » / « Solide », gelés par `SkillLabelsTest`, à mirrorer sur les
+    3 fronts). ⚠️ **Distinct de `LearningPlanSkillStatus`**, qui est le verdict
+    d'**une production** et reste persisté sur chaque observation : la contrainte
+    `chk_learning_plan_observation_status` n'admet toujours que
+    `NOT_OBSERVED|PRIORITY|TO_REINFORCE|SOLID`. `null` quand rien n'a été observé
+    — on n'invente pas un état. `CONSOLIDATING` existe parce que « réussi en
+    exercice ciblé » n'est ni « à renforcer » ni « maîtrisé » : c'est lui qui rend
+    la vérification en situation compréhensible.
+  - **Score interne** `poidsSource × confiance × récence`, moyenne pondérée dans
+    `[0,1]` sur une fenêtre glissante et un nombre plafonné d'observations. Il
+    **n'est exposé à aucun front** : pas de « 73 % maîtrisé ». `NOT_OBSERVED`
+    ignoré (« je n'ai pas pu observer » ≠ « le candidat est mauvais »).
+  - **L'état ne se déduit jamais du seul score.** `SOLID` exige **cinq**
+    conditions : score ≥ seuil, ≥ 2 observations positives, **≥ 1 venue d'une
+    production contextualisée** (production complète ou examen blanc — jamais un
+    micro-entraînement, ni le diagnostic qui est la baseline), sujets
+    **différents** (`learning_plan_observations.subject_id`, V031 — le sujet, pas
+    la tentative), et pas de série de fragilités récentes.
+  - **Stabilité** : une seule production moins bonne ne casse pas une compétence
+    solide — le moteur rejoue le calcul sans les fragilités récentes tant que
+    celles issues d'une production contextualisée restent sous
+    `fragility-tolerance` (2). Une fragilité en micro-exercice ne révoque jamais
+    un transfert déjà prouvé.
+  - **`readyForReassessment`** : signal **interne** (exposé sur
+    `LearningPlanPriorityDto` pour la suite du chantier) — assez de réussites
+    ciblées, sur des **sujets différents**, performance **ciblée** suffisante, et
+    pas de preuve de transfert récente. ⚠️ Le seuil porte sur la performance
+    **des seuls micro-entraînements**, pas sur le score global : la baseline du
+    diagnostic est une fragilité et un micro-exercice réussi ne vaut qu'une
+    demi-preuve, donc un seuil global serait mécaniquement hors d'atteinte et le
+    Plan proposerait des micro-exercices à l'infini.
+  - **Tous les nombres vivent dans `application.yaml`** sous
+    `sejourfr.learning-plan.mastery`, POJO `LearningPlanProperties` **aux mêmes
+    valeurs par défaut** : sources `0.45 / 0.80 / 1.00 / 1.20`
+    (micro-entraînement / diagnostic / production / examen blanc), confiances
+    `1.00 / 0.80 / 0.55`, récence `1.00` (≤ 14 j) / `0.85` (≤ 30 j) / `0.70`,
+    fenêtre 180 j, 12 observations max, seuils `0.75 / 0.50 / 0.30`. Aucune
+    constante de pondération dans le Java.
+  - **Chargement en lot obligatoire** : `SkillMasteryResolver.bySkillIds` fait
+    **une** requête pour 24 compétences (index `idx_learning_plan_user_skill_recent`,
+    posé en V029 et jusqu'ici jamais emprunté, verrouillé par
+    `SkillMasteryResolverIT` qui compte les statements) ; le Plan, lui, se branche
+    sur l'historique **déjà chargé** par `LearningPlanPriorityResolver`
+    (`fromObservations`, zéro requête de plus).
+  - **Exposition** : `masteryState` sur `SkillDto` (**c'est ce que la carte de
+    compétence affiche à la place de « 2/15 traités »** — les compteurs restent,
+    ils servent l'anneau d'étape), `LearningPlanSkillDto` et
+    `LearningPlanPriorityDto` ; `trajectory` (liste `SkillObservationPointDto`,
+    de la plus ancienne à la plus récente, `NOT_OBSERVED` exclus) sur
+    `SkillDetailDto` — l'endpoint de détail existant, pas une route de plus.
+  - **`LearningPlanPriorityResolver` reste l'unique autorité sur l'ordre des
+    priorités** : le moteur ne le réordonne pas, `SkillAccessService` continue
+    d'en dépendre pour ouvrir la compétence de la priorité n°1.
+  - **Aucun rattrapage** : le suivi démarre à la mise en service, le diagnostic
+    reste la baseline. V031 ne renseigne `subject_id` que par jointure SQL
+    déterministe sur des lignes existantes — aucun rejeu, aucun appel LLM.
+- **Contenu et audio seed-only** : V755 crée la version `INITIAL_TCF/1`, ses deux
+  sujets et leurs allowlists de huit compétences. La console de sujets standard
+  refuse de les modifier. V755 ne génère aucun média : elle référence l'objet R2
+  fixe, produit une fois explicitement et vérifié en HTTP 200. `GET
+  /api/admin/diagnostics/{code}/versions/{version}/instruction-audio` inspecte
+  son état ; `POST` le génère ou répare idempotemment son URL sous la clé stable
+  dérivée de l'UUID de tâche. Rien n'est généré au boot ni au démarrage candidat.
+
+Les migrations structurantes sont V029 (agrégats/observations et séparation des
+tâches), V030 (événements du funnel), V031 (sources d'examen blanc +
+`subject_id`, additive) et V755 (contenu initial). La suppression de
+compte purge observations et sessions **avant** les attempts. Le détail grand
+public du jugement et de ses limites est dans `docs/notation-ia-eo-ee.md`.
 
 ## Notation IA des productions EE/EO — repères
 
@@ -252,14 +570,56 @@ Le « quoi » et le « pourquoi » vivent dans `docs/notation-ia-eo-ee.md` (réf
 grand public, **à tenir exhaustive et à jour dans la même passe** — cf. la règle
 dédiée plus bas). Ici, uniquement de quoi se repérer.
 
-- **Versions actives** : rubriques `production-rubrics-v14.json`, tool-schema de
-  sortie `production-evaluation-tool-schema-v8.json`, persona vocale
-  `realtime-personas-v3.json`. **v13/v7, v12/v6, v9/v5, v8/v5, v7/v4, v6/v3, v5/v3,
+- **Versions actives** : rubriques `production-rubrics-v15.json`, tool-schema de
+  sortie `production-evaluation-tool-schema-v9.json`, persona vocale
+  `realtime-personas-v3.json`. **v14/v8, v13/v7, v12/v6, v9/v5, v8/v5, v7/v4, v6/v3, v5/v3,
   v4.2/v2, v4.1/v2, v4/v2 et v3/v2 restent chargeables et validées** : un retour arrière
   change la paire `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION`, aucune migration.
   **On versionne, on ne réécrit jamais** une rubrique livrée. **v10 et v11 sont
   chargeables mais MESURÉES MOINS BONNES que v9 — ne pas les réactiver** (détail
   dans le filet de langue étrangère, plus bas).
+- **v15 / v9 = `exemples_corriges` ET `suggestions` NE SONT PLUS PRODUITS.** v15 est **v14
+  au bit près pour tout ce qui note** (échelle, 4 critères, seuils `commun.niveau`,
+  `couplage`, `plafonds`, `bandes_criteres`, tests décisifs A1/A2 et B1/B2, les 16 ancres,
+  descripteurs et barème des 6 tâches, et **les 23 sections restent 23** — aucune n'est
+  ajoutée, retirée ni renommée) ; elle **retire uniquement les fragments qui décrivaient les
+  deux champs** : le bloc EXEMPLES CORRIGES et le renvoi vers `suggestions` de la section
+  « preuves et priorités », leurs deux lignes de « une erreur, un seul endroit », le
+  paragraphe oral qui bornait les exemples à la clarté, les étapes 10-11 de la méthode, le
+  plafond « 3 exemples corrigés », leurs mentions dans la règle d'accentuation et dans les 6
+  consignes de tâche. Verrou : `ProductionEvaluationContractTest` **reconstruit v15 depuis
+  v14** en appliquant la liste **énumérée** des retraits et exige l'égalité. Le tool-schema v9
+  est **v8 sans ces deux propriétés ni leurs entrées `required`**, verrou : **égalité stricte**
+  de tout le reste (`additionalProperties:false` récursif, titres, descriptions ; seule la
+  `description` racine s'étoffe et doit commencer par celle de v8).
+  Motif : le bloc replié **« Voir l'analyse complète »** de l'écran de résultat EE/EO — le seul
+  endroit où ces deux champs étaient affichés — disparaît. On cesse de payer des tokens de
+  sortie pour des pavés que personne ne lit, et la place gagnée finance un second appel plus
+  utile (`version_ciblee`).
+  ⚠️ **Ce qui NE sort PAS, et pourquoi** : `accomplissement` reste au contrat (son `objectif`
+  et son `objectif_resume` alimentent le bandeau du haut, `points_traites` le compteur « Ce qui
+  marche », et `points_oublies[].obligatoire` pilote `applyObjectifCoherence`) ;
+  `avertissements` n'a **jamais** été dans le tool-schema — c'est le serveur qui l'écrit
+  (`buildAvertissements`/`addAvertissement`), il est produit tel quel.
+  Répercussions serveur : `EvaluationToolSchema.exemplesEtSuggestions()` (**deuxième capacité
+  qu'un rang POSTÉRIEUR retire**, après `versionAmelioree()` — vaut depuis toujours, se referme
+  en v9) ; **`EvaluationOutputValidator.CHAMPS_V4` devient dépendante du rang** — c'était une
+  redéclaration EN DUR des champs obligatoires, en doublon du `required` du JSON : la laisser
+  telle quelle aurait fait **rejeter 100 % des évaluations**. Elle est scindée en
+  `CHAMPS_STRICTS_SOCLE` + `CHAMPS_RESTITUTION_LONGUE`, la seconde n'étant exigée que si
+  `schema.exemplesEtSuggestions()`. Les deux champs restent **tolérés** à la racine sous v9
+  puis retirés par `AiEvaluationService` (même arbitrage que `version_amelioree` : une
+  évaluation perdue coûte plus cher qu'un champ ignoré) ; `persistProductionInvalide` ne les
+  pose plus ; `EvaluationRepairPrompt` reçoit le contrat et cesse de nommer
+  `exemples_corriges` (nommer un champ absent du schéma, c'est le faire produire). Les filtres
+  (`EvaluationOralArtifactFilter`, `EvaluationPalierMarqueurFilter`, `capListe`,
+  `stripOrthographicCorrections`) sont déjà no-op sur un champ absent — **inchangés**, ils
+  restent exercés en retour arrière. **Legacy intact** : les 100+ `feedback_json` déjà
+  persistés gardent les deux champs, rien ne les migre, la console de calibration admin les
+  affiche toujours.
+  ⚠️ **Bascule NON mesurée au banc** (aucune règle de notation ne bouge, et le prompt **perd**
+  du texte au lieu d'en gagner — même raisonnement que v12/v13/v14, à l'inverse de v10/v11).
+  Retour arrière : `EVAL_RUBRICS_VERSION=v14` + `EVAL_PROMPT_VERSION=v8`.
 - **v14 / v8 = `version_amelioree` N'EST PLUS PRODUITE.** v14 est **v13 au bit près
   pour tout ce qui note** (échelle, 4 critères, seuils `commun.niveau`, `couplage`,
   `plafonds`, `bandes_criteres`, tests décisifs A1/A2 et B1/B2, les 16 ancres,
@@ -352,10 +712,68 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   `null` si pas de note, `A1_NON_ATTEINT` (bande d'un seul point) ou C1/C2. Note hors bande
   (niveau **plafonné**) → ramenée dans la bande affichée. Libellés figés par
   `SituationDansNiveauTest` ; **à mirrorer sur les 3 fronts**.
-- **VERSION AU NIVEAU VISÉ — SECOND APPEL LLM SÉPARÉ, EE seulement** (`service/versionciblee/`,
-  livré **ACTIF**). Rend au candidat sa réponse **réécrite au palier qu'il VISE**
-  (`User.targetLevel`, repli `production_tasks.niveau_cible`) + **2 à 3 leviers** concrets.
-  Distinct de `version_amelioree`, qui visait le palier **juste au-dessus**.
+- **VERSION AU NIVEAU VISÉ — SECOND APPEL LLM SÉPARÉ, EE *et* EO** (`service/versionciblee/`,
+  livré **ACTIF**). Rend au candidat un **plan d'action** vers le palier qu'il VISE
+  (`User.targetLevel` avec plancher `TargetProcedure.niveauVise`, repli
+  `production_tasks.niveau_cible`). Distinct de `version_amelioree`, qui visait le palier
+  **juste au-dessus**.
+  **Contrat v2 (`VersionCibleeContrat`, registre par rang comme `EvaluationToolSchema` —
+  une version inconnue échoue au BOOT, jamais de repli muet)** :
+  - **commun** : `leviers[2..3]` = objets `{action ≤ 6 mots impératif, exemple ≤ 5 mots}`
+    (fini la chaîne libre de 25 mots) + `a_retenir {formule ≤ 8 mots, explication ≤ 14 mots}` ;
+  - **EE** : `exemple_cible {texte, segments[0..3] {extrait, apport ≤ 3 mots}}` — `texte` garde
+    les bornes `production_tasks.mots_min/max` (recomptées serveur). ⚠️ **Les segments sont
+    FACULTATIFS** (règle du 2026-08-11, elle **révoque** « 2 segments minimum, sinon ce n'est
+    pas un chemin », qui ne vaut que pour les `reformulations` orales) : un extrait
+    introuvable, un apport trop long ou un objet mal formé fait retirer **ce segment**
+    (`VersionCibleeSegmentFilter`), l'`exemple_cible` survit dès que son `texte` est valide, et
+    la section ne tombe que si le **texte** est fautif. Motif : le texte réécrit est ce que le
+    candidat vient chercher — **afficher le texte sans surlignage vaut mieux que ne rien
+    afficher**. Un extrait introuvable ne vaut **plus de réparation payée** (il ne coûte qu'un
+    surlignage). Les 3 fronts étaient **déjà** prêts (web `asActionExempleCible` n'exige que
+    `texte`, mobile idem) ;
+  - **la comparaison extrait ⇄ texte neutralise la TYPOGRAPHIE** (`util/TexteNormalise`, NFKC,
+    apostrophes courbes/droites, espaces insécables, tirets longs, ligatures, suites de blancs)
+    **et rien d'autre** — ni casse, ni accents, ni appariement flou ; puis l'extrait servi est
+    **remplacé par la sous-chaîne ORIGINALE exacte**, comme `resolvePreuveSegments`, pour que le
+    front surligne par simple recherche de chaîne. Motif : nos textes portent des apostrophes
+    courbes, le modèle rend des droites (ou l'inverse), et un extrait **juste** était déclaré
+    introuvable. `EvaluationProofMatcher.normalizeToken` a été **déplacé** dans ce même fichier
+    (`TexteNormalise.mot`, au bit près) : une seule normalisation, deux couches ;
+  - **EO** : ⚠️ **la production orale n'est JAMAIS réécrite** (rendre un beau texte à la place
+    d'une transcription est trompeur). `exemple_cible` est remplacé par
+    `reformulations[2..3] {segment_numero, reformule, apport}` — **désignation par NUMÉRO**
+    (technique v12 qui a fait tomber `PREUVE_NON_RATTACHEE`, 42,9 % des appels oraux), via
+    `EvaluationProductionSegments` (**appelée, jamais recopiée**) ; tours `Examinateur :`
+    montrés **sans numéro** ⇒ non désignables par construction. Le serveur **résout le numéro
+    en texte** (`original`) avant persistance, comme `resolvePreuveSegments` : **aucun miroir
+    DTO ne transporte d'entier** ;
+  - **deux tool-schemas** (`…-tool-schema-v2.json` / `…-tool-schema-oral-v2.json`), chargés au
+    boot par variante (`VersionCibleeTools`) ; les fondre en un seul aurait supposé des champs
+    facultatifs, c'est-à-dire plus de contrat.
+  **Trois garde-fous oraux, exigence du propriétaire** (« c'est la formulation des phrases
+  qu'on reformule, pas les erreurs de transcription ») : (1) `TranscriptionQualityAudit
+  .degradee` ⇒ **aucun appel émis**, gratuit et honnête ; (2) `VersionCibleeReformulationFilter`
+  retire toute reformulation dont l'apport tient à **1 ou 2 mots pleins REMPLACÉS SUR PLACE** —
+  règle du volet FORME extraite dans **`EvaluationOralForme`** (2ᵉ occurrence ⇒ extraction,
+  partagée avec `EvaluationOralArtifactFilter`) ; l'alignement **positionnel** est le cœur :
+  subordonner/réordonner déplace les mots, donc n'est jamais purgé ; (3) durée **jamais
+  envoyée**, ni prononciation/accent/débit/fluidité/hésitations/orthographe. Moins de 2
+  reformulations restantes ⇒ **1** réparation nommée puis abandon de la **section
+  `reformulations` seule**. Purges comptées
+  `EvaluationPurgeMetrics.REFORMULATION_ORALE_FORME` (à part de `ARTEFACT_ORAL_FORME`).
+  ⚠️ **UNE SECTION QUI TOMBE N'EMPORTE PAS LE BLOC** (règle posée le 2026-08-11, elle
+  **révoque** l'ancienne « moins de 2 ⇒ le bloc entier est abandonné »). `exemple_cible` /
+  `reformulations` et `a_retenir` sont **facultatives** : inexploitables après l'unique
+  réparation, elles tombent **seules** et le reste est servi. Seuls les **leviers** portent le
+  bloc — purgés sous leur minimum et non réparés, tout est abandonné (comportement conservé).
+  Motif, mesuré sur une tâche 1 d'EO en temps réel : sur une transcription hachée les
+  reformulations sont **légitimement** purgées (elles ne corrigeraient qu'un artefact de notre
+  machine) et le candidat perdait **aussi** ses leviers et son « à retenir », qui ne dépendent
+  d'aucune citation — la fragilité des citations à l'oral ne doit pas emporter des contenus qui
+  n'en dépendent pas. Le validateur range donc ses violations **par section**
+  (`VersionCibleeValidator.Section`), et les trois fronts conditionnent déjà chaque section
+  indépendamment.
   ⚠️ **C'est LE seul texte modèle d'un résultat EE** : les fronts ont retiré
   `version_amelioree` de l'écran, puis **v14/v8 l'a retirée du contrat de sortie** —
   elle n'est plus ni demandée ni produite (legacy persisté intact). Motif mesuré en base : elle était **au même niveau que la copie**,
@@ -366,21 +784,48 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   il aligne sa note dessus (v10/v11 ont mesuré qu'un simple bloc ajouté à la grille fait tomber
   l'accord exact de 81,8 % à 75,6 %). **Ne pas fusionner les deux appels.** Verrou :
   `VersionCibleeContractTest`.
-  Prompts versionnés `production-version-ciblee-{rubrics,tool-schema}-v1.json`, paire validée au
-  boot ; **aucune consigne en dur dans le Java** ; français **accentué** (leçon v13/v7).
-  Sortie stricte à 2 champs (`texte`, `ce_qui_manque[2..3]`), `additionalProperties:false`,
-  `maxLength` + budget en mots déclaré par la grille (25) + plafond serveur — **aucun champ où
-  loger une note ou un niveau**. Le serveur ajoute `niveau_vise` / `niveau_constate`.
+  Prompts versionnés `production-version-ciblee-{rubrics,tool-schema[-oral]}-v2.json`, paire
+  validée au boot ; **aucune consigne en dur dans le Java** ; français **accentué** (leçon
+  v13/v7). `additionalProperties:false`, chaque plafond **déclaré en mots par la grille** ET
+  doublé d'un `maxLength` + plafond serveur (tolérance ×1,2 sur les plafonds pédagogiques, **pas**
+  sur les bornes du texte modèle) — **aucun champ où loger une note ou un niveau**. Le serveur
+  ajoute `niveau_vise` / `niveau_constate` (⚠️ données de logique : ne pas en faire une étiquette
+  de palier sur l'exemple, autre chantier).
+  **UNE seule réparation par bloc, tous motifs confondus** (`VersionCibleeRepairPrompt`) — pas
+  une par section — et seulement sur du **mécanique nommable** : longueur du texte, numéro hors
+  bornes, leviers purgés, reformulations purgées. Sortie structurellement fausse ⇒ **zéro**
+  second appel payé, et **leviers** structurellement faux ⇒ aucune réparation non plus (le bloc
+  est condamné, payer ne rachèterait rien).
+  **Tolérance des plafonds pédagogiques : `PlafondMots.tolere` = `max(plafond+1,
+  floor(plafond×1,2))`** (2026-08-11). L'ancienne formule seule était **fictive sur les petits
+  plafonds** : sur `apport` (3 mots) elle tolérait 3, soit **zéro marge**, exactement là où la
+  tolérance avait été écrite pour servir. Effet mesuré, plafond par plafond : `apport` 3→**4**
+  (avant : 3) ; `exemple` 6, `action` 7, `formule` 9, `explication` 16, `reformule` 72,
+  `ce_qui_manque` 30 — **inchangés**. Même correction, même passe, sur le module Compétences
+  (`CompetenceAnalysisValidator` : `strength_tag`/`focus_tag` 3→**4** ;
+  `CompetenceNiveauViseValidator` : `apport` 3→**4**). Ne s'applique **pas** aux bornes du
+  texte modèle (`ProductionTextBounds`), qui restent au mot près.
+  **Compteurs `VersionCibleeMetrics`** (troisième famille, à ne pas mélanger avec
+  `EvaluationRefusalMetrics` « un refus coûte la tâche » ni `EvaluationPurgeMetrics` « une purge
+  retire une phrase ») : **section abandonnée** par section × motif, **réparation payée** par
+  motif, **segment retiré** par motif. Sans eux, la disparition intermittente de la section
+  n'avait que deux `log.info` pour l'expliquer et aucune de ces décisions n'était jugeable sur
+  des chiffres.
   **Best-effort, jamais bloquant** : lancé par `ProductionPipelineAsyncRunner` **après** que
   l'éval est persistée et `EVALUATED`, **hors transaction** (invariant du runner), le service
   avale toute exception, **aucun rejeu** (c'est un confort, pas une correction). Rien n'est
-  produit si le niveau visé est **≤** au niveau constaté, à l'oral, ou drapeau éteint.
-  Persistance dans `feedback_json.version_ciblee` — **aucune migration**. Tokens/coût du 2ᵉ
+  produit si le niveau visé est **≤** au niveau constaté (bloc `niveau_vise_atteint` à la place)
+  ou si le drapeau est éteint.
+  Persistance dans `feedback_json.version_ciblee` — **aucune migration**. Un front distingue
+  l'écrit de l'oral à la présence de `exemple_cible` ou de `reformulations`. Tokens/coût du 2ᵉ
   appel **additionnés** à ceux de l'éval. Provider = `production-evaluation.provider` (règle
   « un seul correcteur configurable »), réglages propres sous
-  `production-evaluation.version-ciblee` (`enabled`, `max-tokens: 1200`, `max-leviers: 3`).
-  Retour arrière : `EVAL_VERSION_CIBLEE_ENABLED=false`. **Aucune campagne requise** : rien de ce
-  qui note ne bouge, par construction. Le banc (`CalibrationRunner`) n'emprunte pas ce chemin.
+  `production-evaluation.version-ciblee` (`enabled`, `max-tokens: 1600`, `max-leviers: 3`).
+  Retour arrière : `EVAL_VERSION_CIBLEE_ENABLED=false`, ou **v1** par
+  `EVAL_VERSION_CIBLEE_RUBRICS_VERSION=v1` + `EVAL_VERSION_CIBLEE_TOOL_SCHEMA_VERSION=v1`
+  (sortie `texte` + `ce_qui_manque[string]`, oral muet) — **aucune migration**, on versionne, on
+  ne réécrit jamais. **Aucune campagne requise** : rien de ce qui note ne bouge, par
+  construction. Le banc (`CalibrationRunner`) n'emprunte pas ce chemin.
 - **v4** = critères propres à chaque tâche (5 par tâche, fini les 4 universels),
   obligatoires vs pistes, bloc accomplissement, confiance, preuve littérale,
   2 priorités max. **v4.1** = correction de l'indulgence du **bas** d'échelle
@@ -1043,13 +1488,23 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
 
 Voie **parallèle** aux productions complètes, pas une réutilisation : le candidat
 travaille **une micro-compétence à la fois** sur un « petit sujet » de quelques
-phrases, et l'IA ne rend qu'un **verdict sur le critère unique du sujet** —
-**aucune note /20, aucun niveau CECRL** (le tool-schema ne prévoit aucun champ
-pour les loger). Schéma en `V025`, contenu seedé en `V300..V305`.
+phrases. Schéma en `V025`, contenu seedé en `V300..V305` (lot 1) puis
+`V312..V317` (lot 2).
+
+⚠️ **RÈGLE RÉVOQUÉE À MOITIÉ le 2026-08-11 : niveau OUI, note /20 NON.**
+L'ancienne formule « cette voie ne rend ni note /20 ni niveau CECRL » **ne vaut
+plus pour le niveau**. Elle laissait le candidat sans réponse à « où j'en suis »,
+alors que c'est exactement ce qu'il vient chercher : sa démarche exige un palier
+(CSP→A2, CR→B1, NAT→B2) et l'écran ne le situait nulle part. Depuis le contrat
+**v3**, le correcteur attribue un `level_reached` (`A1_NON_ATTEINT|A1|A2|B1|B2`,
+profil TCF IRN, **jamais C1/C2**). **La note /20 reste interdite et le restera** :
+aucun champ du tool-schema ne peut la loger, et c'est le schéma qui tient la
+règle, pas une consigne. Ne pas réintroduire l'ancienne formule au motif qu'elle
+est encore écrite quelque part — ce qui suit fait foi.
 
 **Où ça vit** — tables `skills`, `skill_prompts`, `skill_references`,
 `user_skill_attempts` (DDL `00_schema/V025__schema_competences_tcf.sql`, seed
-`300_tcf/competences/V300..V305`). Backend : `service/competence/` (analyse IA) +
+`300_tcf/competences/V300..V317`). Backend : `service/competence/` (analyse IA) +
 `SkillService` / `SkillAttemptService` / `SkillStatusResolver` /
 `SkillAnalysisAccessService` / `AdminSkillService`. **12 endpoints utilisateur**
 (`/api/skills*`, `/api/skill-attempts*`, `/api/skill-prompts*`) et **11 endpoints
@@ -1060,32 +1515,178 @@ admin** (`/api/admin/skills*`, `/api/admin/skill-prompts*`) — détail dans
 point d'entrée = 3ᵉ onglet « Compétences » à côté de « Sujets » et « Exemples »,
 qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
 
-- **Contrat de l'analyse IA** : rubriques
-  `prompts/competence-analysis-rubrics-v2.json` + tool-schema
-  `prompts/competence-analysis-tool-schema-v2.json` (**v2/v2 = v1/v1 plus la règle
-  d'accentuation, même technique et mêmes verrous que v13/v7 côté productions** ;
-  v1/v1 reste chargeable via `COMPETENCE_RUBRICS_VERSION=v1` +
-  `COMPETENCE_TOOL_SCHEMA_VERSION=v1`) (`profile: TCF_IRN`, paire
-  `rubrics-version` ⇄ `tool_schema_version` validée au boot, même convention que
-  les productions complètes — **aucune consigne de notation en dur dans le Java**).
-  Sortie stricte à **5 champs**, `additionalProperties: false` : `status`
-  (`VALIDATED|PARTIAL|NOT_VALIDATED`), `verdict`, `success_point`,
-  `improvement_priority`, `improved_version`. **Une seule** priorité
-  d'amélioration, jamais une liste. Contraintes de longueur **en mots** déclarées
-  par la grille (20 / 30 / 35), doublées de `maxLength` en caractères dans le
-  schéma ; le validateur tolère ×1,2 avant de rejeter. Sortie invalide → **un seul
-  rejeu** avec les violations, puis **échec net** (`FAILED`) — jamais d'analyse
-  partielle.
+- **DEUX APPELS LLM SÉPARÉS, invariant à ne pas casser.** L'**appel 1** juge et
+  **ne connaît jamais le palier visé par le candidat** ; l'**appel 2** (« pour
+  viser X ») reçoit niveau constaté + niveau visé et produit le plan d'action.
+  Motif **mesuré** côté productions : donner l'objectif au correcteur fait tomber
+  l'accord exact de **81,8 % à 75,6 %** (campagnes v10/v11). Montage calqué sur
+  `service/versionciblee/`. **Ne pas fusionner.** Le `targetLevel` présent dans le
+  prompt de l'appel 1 est celui de la **compétence** (donnée éditoriale du sujet,
+  comme `production_tasks.niveau_cible`), jamais celui de la personne — verrou :
+  `CompetenceAnalysisServiceTest`, `CompetenceAnalysisContractTest`.
+- **Contrat de l'analyse (appel 1)** : rubriques
+  `prompts/competence-analysis-rubrics-v4.json` + tool-schema
+  `prompts/competence-analysis-tool-schema-v4.json` (`profile: TCF_IRN`, paire
+  `rubrics-version` ⇄ `tool_schema_version` validée au boot — **aucune consigne de
+  notation en dur dans le Java**). **v3 = v2 au bit près pour tout ce qui JUGE**
+  (rôle et périmètre, les 3 verdicts et leur règle de décision, la brièveté qui
+  n'est pas un défaut, le garde-fou oral, `commun.statuts`) — verrouillé par
+  `CompetenceAnalysisContractTest`, qui compare les blocs et **reconstruit** la
+  section d'accentuation de v2 depuis celle de v3 (2 éditions inversées, technique
+  de `ProductionEvaluationContractTest`). Sortie stricte à **5 champs** (6 sous
+  v4), `additionalProperties: false` : `status` (`VALIDATED|PARTIAL|NOT_VALIDATED`),
+  **`level_reached`** (`A1_NON_ATTEINT|A1|A2|B1|B2`), `verdict` (20 mots),
+  **`strength_tag`** et **`focus_tag`** (**3 mots** chacun — des étiquettes, pas
+  des phrases). **Retirés du contrat** : `success_point`,
+  `improvement_priority`, `improved_version` — même mouvement que v14/v8 côté
+  productions (retirer un champ du schéma est la façon la plus fiable de le faire
+  disparaître) ; les leviers de l'appel 2 les remplacent.
+  ⚠️ **Legacy non migré** : les `analysis_json` déjà persistés portent les 5
+  anciennes clés. `SkillAnalysisDto` les expose encore, **tous nullables**, et le
+  jeu de clés attendu d'une NOUVELLE sortie suit la version du contrat
+  (`CompetenceAnalysisFields.cles(toolSchemaVersion)`) — c'est ce qui garde
+  `COMPETENCE_RUBRICS_VERSION=v2` + `COMPETENCE_TOOL_SCHEMA_VERSION=v2` (ou v1)
+  réellement jouable. `LearningPlanObservationService` replie
+  `improvement_priority` → `focus_tag` → `verdict`.
+  Contraintes de longueur **en mots** déclarées par la grille (20 / 3 / 3),
+  doublées de `maxLength` en caractères dans le schéma ; le validateur tolère
+  ×1,2 avant de rejeter. Sortie invalide → **un seul rejeu** avec les violations,
+  puis **échec net** (`FAILED`) — jamais d'analyse partielle.
+- **v4 = LE NIVEAU DEVIENT OPPOSABLE, il ne se nomme plus à vue** (2026-08-11).
+  Sous v3 le correcteur écrivait `level_reached` d'après cinq lignes de
+  descripteurs, **sans note, sans seuil, sans ancre chiffrée et sans aucun
+  contrôle serveur en aval**, alors qu'une production complète **dérive** le sien
+  d'une note contrainte par `applyCouplage`/`applyPlafonds` : deux grandeurs
+  portaient le nom de la même échelle CECRL sans être commensurables. v4 est
+  **v3 au bit près pour tout ce qui juge** (`commun.statuts`, `commun.niveaux`,
+  `commun.contraintes_longueur`, et toutes les sections sauf deux) — verrou
+  `CompetenceAnalysisContractTest`, qui **reconstruit v3 depuis v4** en inversant
+  les 2 seules éditions (« Les cinq champs à produire » → « six » + un paragraphe
+  ajouté **en fin** de section ; « des cinq prévus » → « des six prévus » dans les
+  interdictions) et vérifie que les 6 ancres de v3 sont reprises **au numéro de
+  preuve près**.
+  - **Preuve par NUMÉRO, jamais par citation** — même technique que le contrat
+    **v12** des productions, pour la même raison mesurée (`PREUVE_NON_RATTACHEE`
+    = 42,9 % des appels sur les productions orales). La production part au
+    correcteur **découpée en segments numérotés** par
+    **`EvaluationProductionSegments`** — la classe des productions complètes,
+    **appelée, jamais recopiée** (EE = une phrase, EO = un tour `Candidat :`, les
+    tours examinateur montrés **sans numéro**). Nouveau champ **`level_evidence`**
+    = **entier ≥ 1**, **optionnel dans le schéma** : seuls B1 et B2 se démontrent,
+    et l'exiger partout pousserait à désigner un segment « par défaut ».
+  - **`CompetenceLevelEvidenceGuard` est la seule autorité.** Numéro absent sur un
+    B1/B2, hors bornes, ou non entier ⇒ **une** réparation actionnable
+    (`CompetenceEvidenceRepairPrompt` : nomme le numéro refusé, rappelle les
+    bornes **réelles**, redonne les deux sorties sûres — technique
+    `EvaluationRepairPrompt`, motif mesuré : un libellé brut répare **0 preuve
+    sur 8**). Cette réparation est **partagée** avec celle du validateur : une
+    sortie malformée et une preuve manquante partent dans le **même** message, on
+    ne double pas les appels. Après elle, le serveur **abaisse d'un palier, une
+    seule fois, et ne relève JAMAIS** (philosophie `applyCouplage` /
+    `applyPlafonds` / `applyConfiance`).
+  - 🛑 **Une preuve manquante ne fait JAMAIS échouer l'analyse** — c'est pourquoi
+    `level_evidence` est **volontairement hors du `CompetenceAnalysisValidator`**,
+    qui a le pouvoir de rendre `FAILED`. Une analyse perdue coûte au candidat sa
+    production et son quota ; un niveau prudent ne lui coûte qu'un affichage.
+  - **Le numéro est résolu en TEXTE avant persistance** (comme
+    `resolvePreuveSegments`) : `analysis_json.level_evidence` porte le passage,
+    jamais l'entier, donc **aucun miroir DTO à propager sur les 3 fronts**. Le
+    passage **n'est exposé à aucun front** (rien ne l'affiche — pas d'API morte),
+    mais il est **persisté** : c'est ce qui permettra de répondre en une requête
+    SQL à « sur quoi ce B2 était-il fondé ? ».
+  - Abaissements comptés par **`CompetenceLevelDowngradeMetrics`** (motif +
+    `avant->après`), **distinct** de `EvaluationRefusalMetrics` (un refus coûte la
+    tâche) et de `EvaluationPurgeMetrics` (une purge retire une phrase) : les
+    mélanger rendrait la mesure illisible.
+  - ⚠️ **AUCUNE campagne ne l'appuie, et il faut le dire** : le corpus de
+    calibration (48 cas) est celui des **productions complètes**, il n'existe
+    **aucun corpus pour la voie Compétences**. Ce qui tient la règle, c'est la
+    contrainte dure (schéma `integer`/`minimum:1` + contrôle serveur), pas une
+    mesure a posteriori.
+  - Retour arrière : `COMPETENCE_RUBRICS_VERSION=v3` +
+    `COMPETENCE_TOOL_SCHEMA_VERSION=v3` — sous v3 le découpage n'est même pas
+    calculé et le prompt repart **inchangé d'un octet**
+    (`CompetenceAnalysisFields.porteLaPreuveDuNiveau`).
+- **Contrat du plan d'action (appel 2)** : `service/competence/niveauvise/` +
+  `prompts/competence-niveau-vise-{rubrics,tool-schema}-v1.json`. Sortie stricte à
+  **3 champs**, `additionalProperties: false` : `leviers[2..3]`
+  `{action ≤6 mots impératif, exemple ≤5 mots}`, `exemple_cible`
+  `{texte, segments[2..3] {extrait, apport ≤3 mots}}`, `a_retenir`
+  `{formule ≤8 mots, explication ≤14 mots}`. **Aucun champ de note, de verdict ni
+  de niveau** : le serveur pose lui-même `niveau_vise` / `niveau_constate`.
+  Persisté dans `user_skill_attempts.analysis_json.pour_viser` — **aucune
+  migration**.
+  - **Best-effort, jamais bloquant** : lancé par `SkillAnalysisAsyncRunner`
+    **après** que l'analyse est persistée et `EVALUATED`, **hors transaction**
+    (même invariant que `ProductionPipelineAsyncRunner`), toute exception avalée,
+    **aucun rejeu**. Si le bloc manque, l'écran reste utile. ⚠️ Conséquence
+    assumée : la tentative passe `EVALUATED` **avant** l'arrivée du bloc — les
+    fronts doivent traiter `niveauVise == null` comme un cas NORMAL, pas une
+    erreur (même course que `version_ciblee` côté productions).
+  - **Aucun appel émis** si le visé n'est pas **strictement au-dessus** du
+    constaté, si l'analyse ne porte aucun niveau (contrat v1/v2), si le palier
+    visé est introuvable, ou si `niveau-vise.enabled=false`. Économie réelle, pas
+    seulement un bloc absent.
+  - **Deux contrôles serveur.** (1) **les `segments` sont un confort de lecture,
+    le texte est la pièce centrale** (aligné sur `version_ciblee` le
+    **2026-08-12**) : un segment introuvable dans `exemple_cible.texte`, mal
+    formé ou au-delà du 3ᵉ est **retiré**, `exemple_cible` survit dès que son
+    `texte` est valide (présent, non vide), et la section ne tombe que si le
+    **texte** est fautif. Un extrait introuvable **n'ouvre plus droit à
+    réparation payée** — il ne coûte que son surlignage. La comparaison neutralise
+    la **typographie** (`util/TexteNormalise`) et l'extrait servi est la
+    **sous-chaîne originale exacte** du texte, le front surlignant par simple
+    recherche de chaîne : rien d'inventé n'est jamais affiché. **Mécanique
+    partagée** avec les productions — `util/SegmentsSurlignage`, câblé sur les
+    noms de champs de chaque contrat — précisément parce que deux copies avaient
+    divergé (l'ancienne règle « un extrait introuvable emporte tout le bloc »
+    était restée dure ici après avoir été assouplie là-bas). Le tool-schema v1
+    continue d'exiger 2 à 3 segments : **aucune version de contrat n'a bougé**,
+    seul le serveur a cessé de punir.
+    (2) filet marqueurs A2 sur les leviers, **3ᵉ occurrence** du même défaut :
+    `EvaluationMarqueursA2.designe` est réutilisé tel quel (le levier est inspecté
+    comme `action + « exemple »`, ce qu'il est sémantiquement), et
+    `EvaluationMarqueursA2.sousLeNiveauVise` a été **extrait** à cette occasion,
+    `VersionCibleeLevierFilter` l'utilisant désormais aussi. Reste < 2 leviers ⇒
+    une réparation, puis abandon. **Une seule réparation par bloc, tous motifs
+    confondus** — et c'est désormais le **seul** motif qui en vaut une. Compté
+    `EvaluationPurgeMetrics.MARQUEUR_PALIER_LEVIER_COMPETENCE`.
+  - **Compteurs `CompetenceNiveauViseMetrics`** (bloc abandonné par motif,
+    réparation payée, segment retiré) : famille **distincte** de
+    `VersionCibleeMetrics` (même mesure, mais sur l'écran des productions), de
+    `EvaluationRefusalMetrics` (un refus coûte la tâche) et de
+    `EvaluationPurgeMetrics` (une purge retire une phrase). Pas de compteur « par
+    section » ici : les 3 champs du contrat sont requis ensemble, le bloc tombe
+    d'un bloc — seul un **segment** peut disparaître seul.
+  - **Niveau visé = `TargetProcedure.niveauVise(procedure, targetLevel)`**, la
+    démarche fait **plancher** ; repli sur `skills.target_level`. Ne jamais
+    réécrire cette table.
+- **Dérivé serveur `SkillLevelProgressResolver`** (jamais un front, jamais le
+  LLM) : compare `level_reached` au palier visé et rend `SituationNiveauVise` +
+  son libellé, l'**échelle de 3 crans** se terminant sur l'objectif (B2 →
+  A2·B1·B2) et l'**index du curseur** (ramené dans l'échelle s'il est en dessous
+  du premier cran). Exposé par `SkillLevelProgressDto`. Le palier visé est
+  **recalculé à la lecture**, jamais figé dans l'analyse : un candidat qui passe
+  de CR à NAT vise soudain le B2, et ses tentatives passées doivent l'afficher.
+  Libellés gelés par `SkillLabelsTest`, **à mirrorer sur web et mobile**.
 - **Config** : `sejourfr.competences.analysis` (`max-tokens: 600`,
   `temperature: 0`, `free-analyses: 3`, `max-text-words: 400`,
-  `max-audio-duration-seconds: 180`), POJO `CompetenceProperties` **aux mêmes
-  valeurs par défaut que le YAML**. Le **fournisseur LLM n'a pas de réglage
-  propre** : `CompetenceLlmConfig` lit
+  `max-audio-duration-seconds: 180`) et `sejourfr.competences.niveau-vise`
+  (`enabled: true`, `max-tokens: 900`, `temperature: 0`, `max-leviers: 3`), POJO
+  `CompetenceProperties` **aux mêmes valeurs par défaut que le YAML**. Le
+  **fournisseur LLM n'a de réglage propre ni pour l'un ni pour l'autre** :
+  `CompetenceLlmConfig` et `CompetenceNiveauViseLlmConfig` lisent
   `sejourfr.production-evaluation.provider`, comme tout le reste (règle « un seul
-  correcteur configurable »). Ne pas lui en donner un second.
-- **Volume figé** : 6 tâches (`EE1..EE3`, `EO1..EO3`) × **8 compétences** × **5
-  sujets** × **3 références** (`INSUFFICIENT`/`EXPECTED`/`EXCELLENT`) = 48 / 240 /
-  720. Les 6 tâches sont un référentiel officiel (**enum `SkillTaskCode`, pas de
+  correcteur configurable »). Ne pas leur en donner un second.
+  Retours arrière, sans migration : `COMPETENCE_RUBRICS_VERSION=v2` +
+  `COMPETENCE_TOOL_SCHEMA_VERSION=v2` pour l'analyse,
+  `COMPETENCE_NIVEAU_VISE_ENABLED=false` pour le plan d'action.
+  ⚠️ **Bascule v3 NON mesurée au banc** : il n'existe aucun corpus de
+  micro-productions avec un niveau attendu (cf. `docs/notation-ia-eo-ee.md`
+  §11 bis, qui le dit franchement au lecteur).
+- **Volume figé** : 6 tâches (`EE1..EE3`, `EO1..EO3`) × **8 compétences** × **15
+  sujets** × **3 références** (`INSUFFICIENT`/`EXPECTED`/`EXCELLENT`) = 48 / 720 /
+  2160. Les 6 tâches sont un référentiel officiel (**enum `SkillTaskCode`, pas de
   table**). Ce compte est verrouillé par **`SkillSeedIT`**, pas par le DDL : la
   contrainte `display_order BETWEEN 1 AND 8` gelait le catalogue (les 8 rangs
   légaux étant tous seedés, l'admin ne pouvait plus rien créer) — elle est passée
@@ -1095,11 +1696,19 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
   `contenu/*.json`, une fiche par tâche) et se rejoue par
   `cd backend_sejourfr && python3 tools/competences/generer_seed.py` (Python 3
   seul, aucune dépendance). **On édite le JSON puis on régénère, jamais le SQL** :
-  modifier un `V300..V305` à la main désynchronise les deux et la régénération
-  suivante écrase le correctif. Le script valide le contenu (8×5×3, cohérence
-  EE mots / EO durée, unicité des codes) et **refuse de générer** sur du contenu
-  non conforme ; les UUID sont déterministes (uuid5 sur le code métier), donc
-  stables d'un environnement à l'autre.
+  modifier un `V300..V317` à la main désynchronise les deux et la régénération
+  suivante écrase le correctif. Le script valide le contenu (8×15×3, cohérence
+  EE mots / EO durée, unicité des codes **et unicité éditoriale** — pas deux fois
+  le même titre ni la même situation dans une tâche, quasi-doublons de contexte
+  détectés par trigrammes) et **refuse de générer** sur du contenu non conforme ;
+  les UUID sont déterministes (uuid5 sur le code métier), donc stables d'un
+  environnement à l'autre.
+  - **Deux lots, parce que le lot 1 est déjà appliqué.** Les sujets de
+    `display_order` 1-5 sortent en `V300..V305` (+ guidage `V306..V311`), ceux de
+    6-15 en `V312..V317`. Régénérer doit rendre `V300..V311` **au bit près** —
+    toute autre sortie invaliderait leur somme de contrôle Flyway sur les bases
+    qui les ont jouées. Un nouveau lot de contenu = de nouvelles migrations,
+    jamais une réécriture des précédentes.
   - Il ne sert qu'à **republier depuis une base propre**. Une fois les migrations
     appliquées, le **contenu vivant s'édite depuis la console d'administration**
     (`admin/features/skills/`) — c'est la base qui fait foi, pas le JSON.
@@ -1111,11 +1720,46 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
   exercice ? »), `skills.general_criterion` = le critère général travaillé (encart
   « Critère travaillé »). Et **ni l'un ni l'autre** n'est
   `skill_prompts.unique_criterion`, qui est le critère précis d'**un** sujet.
-- **Freemium** : produire, s'auto-évaluer et lire les 3 références est **gratuit
-  et illimité** pour tout compte inscrit — **aucun sujet n'est verrouillé**. Seule
-  l'**analyse IA** est premium (`hasTcf`), avec **3 analyses offertes à vie**. Le
-  quota se consomme à l'**acceptation** (`analysis_requested = true`), pas au
-  succès : sinon un retry après échec fournisseur en offrirait davantage.
+- **Freemium — règle en vigueur depuis le 2026-08-10.** ⚠️ **L'ancienne règle
+  (« aucun sujet n'est verrouillé, seule l'analyse IA est premium ») est
+  RÉVOQUÉE** : elle ouvrait les 720 sujets à un compte gratuit, si bien que le
+  module entier — le cœur de l'entraînement quotidien — ne donnait aucune raison
+  de payer, et les 3 analyses offertes étaient la seule friction. Ne pas la
+  réintroduire au motif qu'elle est encore écrite quelque part : ce qui suit
+  fait foi. Pour un compte **sans accès TCF** (`hasTcf == false`) :
+  - **une seule compétence ouverte par tâche**, celle de `display_order` le plus
+    bas encore actif (= rang 1 sur le contenu publié) → **6 compétences** pour
+    les 6 tâches ;
+  - **plus la compétence de la priorité n°1 de son Plan**, si elle n'y est pas
+    déjà. Sans cette exception, un diagnostic désignant une compétence de rang 5
+    cadenasserait l'**étape 1** du Plan et rendrait le Plan entier inutilisable —
+    or c'est la colonne vertébrale du produit ;
+  - dans une compétence ouverte, **les 2 premiers sujets actifs** seulement
+    (`SkillAccessService.FREE_PROMPTS_PER_SKILL`). ⚠️ **Ne pas l'aligner sur les
+    5 sujets d'une étape du Plan** (`LearningPlanStep.PROMPTS_PAR_ETAPE`) : les
+    deux constantes disent des choses différentes, et le plafond à **2/5** sur
+    l'étape n°1 est la conséquence voulue — aucune étape n'est finissable sans
+    abonnement (arbitré le 2026-08-11) ;
+  - **les 3 analyses IA offertes à vie ne bougent pas** : un sujet ouvert reste
+    analysable dans la limite du quota existant (`free-analyses`, décompte
+    inchangé). Sur un sujet ouvert, produire, s'auto-évaluer, se relire et lire
+    les 3 références restent gratuits et illimités ; la garde des références
+    (« au moins une tentative ») est inchangée.
+  - Un **abonné TCF** n'a aucun verrou.
+  **Une seule autorité : `SkillAccessService`** (`SkillAccess.isSkillLocked` /
+  `isPromptLocked`), qui s'appuie sur `LearningPlanPriorityResolver` — extrait
+  exprès pour que l'ordre des priorités du Plan et le verrou ne puissent pas
+  diverger. Aucun mapper, aucun controller, aucun front ne réimplémente la
+  règle : les DTO portent un `locked` (`SkillDto`, `SkillPromptDto`,
+  `SkillPromptSummaryDto`, `LearningPlanPriorityDto`, `LearningPlanSkillDto`,
+  `PlanRecommendedExerciseDto`), et le verrou est **opposable serveur** —
+  `SkillAccessService.assertCanProduce` rend **403** à la création d'une
+  tentative comme sur `analyse` et `retry`, même philosophie que
+  `AttemptService.enforceMockExamSlotAccess`. Résolution **groupée** (4 requêtes
+  au plus, 1 seule pour un abonné) : un écran, c'est 24 compétences × 5 sujets.
+  Le quota d'analyses, lui, se consomme toujours à l'**acceptation**
+  (`analysis_requested = true`), pas au succès : sinon un retry après échec
+  fournisseur en offrirait davantage.
 - **Statut d'un sujet dérivé serveur**, jamais recalculé par un front
   (`SkillStatusResolver`) : `TODO` / **`TREATED`** / `VALIDATED` / `TO_REINFORCE`.
   `TREATED` (« Fait ») est le 4ᵉ statut qu'impose le freemium — une production
@@ -1125,10 +1769,16 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
   par le réseau : le backend, le web, le mobile et l'admin en tiennent chacun une
   copie écrite à la main, donc rien n'empêche une couche de dériver — et c'est
   arrivé (`NOT_VALIDATED` affiché en trois formulations différentes). Elles sont
-  désormais figées par un test **par couche**, sur exactement les mêmes chaînes :
+  figées par un test **par couche**, sur exactement les mêmes chaînes :
   `SkillLabelsTest` (backend), `lib/skill-labels.test.ts` (web),
   `test/skill_models_test.dart` (mobile). Un libellé qui bouge, ce sont **quatre**
-  fichiers à changer dans la même passe. Côté fronts, on lit toujours la constante
+  fichiers à changer dans la même passe.
+  ⚠️ **Les tests front cités ici sont un héritage** : depuis le 2026-08-09 on
+  n'écrit plus de test sur les fronts (cf. § Tests). Le gel de libellé n'y est donc
+  plus reproduit pour un nouveau contrat — seul `SkillLabelsTest` continue de
+  l'assurer côté backend, et la concordance des copies front se vérifie **à la
+  lecture**. Ne pas créer de nouveau `*.test.ts` / `*_test.dart` pour ça.
+  Côté fronts, on lit toujours la constante
   partagée (`SKILL_*_LABEL` en TS, le `label` de l'enum en Dart) — jamais une
   chaîne recopiée dans un composant, qui est exactement la façon dont le web avait
   décroché.
@@ -1317,9 +1967,10 @@ les demandes de clarification, les **arbitrages et décisions** (on ne délègue
 produit), la synthèse des retours d'agents, et la mise à jour de ce fichier.
 
 **Ce qui ne change pas** : un agent hérite de **toutes** les règles de ce CLAUDE.md et du
-CLAUDE.md local de son sous-projet — parité web ⇄ mobile ⇄ admin, tests dans la même passe,
-hygiène d'architecture, pas de `.md` non demandé. C'est à Claude principal de le rappeler
-dans le prompt de l'agent et de **vérifier à la restitution** que ça a été respecté.
+CLAUDE.md local de son sous-projet — parité web ⇄ mobile ⇄ admin, **tests backend dans la
+même passe et aucun test front** (cf. § Tests), hygiène d'architecture, pas de `.md` non
+demandé. C'est à Claude principal de le rappeler dans le prompt de l'agent et de **vérifier
+à la restitution** que ça a été respecté — y compris qu'aucun agent front n'a créé de test.
 
 ### Hygiène d'architecture (non négociable)
 
@@ -1360,13 +2011,41 @@ lisible — pas de patch rapide qui s'accumule.
   web l'autorisait déjà (rejouable à volonté) — le fix a aligné mobile + backend sur le
   comportement web, pas l'inverse.
 
-### Tests (non négociable)
+### Tests — BACKEND UNIQUEMENT (règle posée le 2026-08-09)
 
-**Tout code ajouté ou modifié doit être couvert par des tests, dans la même passe.**
-Une feature, un bugfix, une règle métier, un endpoint, une migration à impact logique ne
-se ferment pas sans test(s) qui verrouillent le comportement. Avant un refactor d'un bloc
-existant non couvert : écrire d'abord le filet de tests, puis refactorer. Pas d'exception
-« je testerai plus tard ».
+🛑 **On n'écrit plus AUCUN test sur les fronts.** Ni `web_sejoufr`, ni `admin_sejourfr`, ni
+`mobile_sejourfr` : pas de `*.test.ts`, pas de `flutter_test`, pas de test de widget, pas de
+test de libellé gelé, pas de test de layout. **Les seuls tests du dépôt sont ceux du
+backend**, unitaires (`*Test`) et d'intégration (`*IT`). Cette règle **prime** sur toute
+consigne de test écrite ailleurs dans ce fichier ou dans un `CLAUDE.md` local, et sur
+l'habitude « tests dans la même passe » — qui ne vaut désormais **que** pour le backend.
+
+Ce que ça implique concrètement :
+
+- Un changement purement front (écran, style, libellé, composant, provider, routing) se
+  ferme **sans test**. On vérifie par `npx tsc --noEmit` / `npm run build` côté web et admin,
+  `flutter analyze` côté mobile — la compilation et l'analyse statique, rien de plus.
+- **Ne pas créer** de nouveau fichier de test front, même « juste pour geler un libellé ».
+  Les libellés miroirs (`SKILL_*_LABEL`, statuts du plan, verdicts de production…) restent à
+  tenir à la main dans la même passe, mais leur **respect ne se vérifie plus par un test** :
+  c'est une relecture, pas une assertion.
+- **Les tests front existants ne sont pas supprimés d'office** (ils tournent, ils sont verts,
+  les jeter est une passe à part). En revanche on ne les étend plus, et un test front qui
+  devient rouge à cause d'un changement voulu se **met à jour ou se supprime** — il ne
+  justifie jamais de renoncer au changement.
+- La parité web ⇄ mobile ⇄ admin reste **non négociable** : elle se vérifie désormais par
+  lecture croisée des deux implémentations, pas par un test de chaque côté.
+
+**Le backend, lui, ne bouge pas d'un pouce** : tout code ajouté ou modifié y est couvert par
+des tests **dans la même passe**. Une feature, un bugfix, une règle métier, un endpoint, une
+migration à impact logique ne se ferment pas sans test(s) qui verrouillent le comportement.
+Avant un refactor d'un bloc existant non couvert : écrire d'abord le filet de tests, puis
+refactorer. Pas d'exception « je testerai plus tard ».
+
+C'est là que le raisonnement tient : le backend est la **source de vérité** des DTO, des
+règles métier et du freemium ; un test qui y fige une règle protège les trois fronts d'un
+seul endroit, alors qu'un test front ne protège qu'une surface d'affichage — la moins
+coûteuse à corriger, et celle que le propriétaire vérifie lui-même à l'écran.
 
 Bonnes pratiques pour ce projet (cf. `docs/plan-tests-backend.md`, infra déjà en place) :
 

@@ -43,7 +43,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       eyebrow: '§ 02 — Adapté à votre objectif',
       title: 'CSP, carte de résident,',
       titleEmphasis: 'naturalisation',
-      description: 'Trois niveaux de difficulté pour le civique, trois pour le TCF. Choisissez le vôtre.',
+      description:
+          'Trois niveaux de difficulté pour le civique, trois pour le TCF. Choisissez le vôtre.',
       icon: LucideIcons.flag,
       accent: AppColors.red,
     ),
@@ -62,7 +63,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final prefs = ref.read(sharedPrefsProvider);
     await prefs.setBool(_kOnboardingSeenKey, true);
     ref.read(onboardingSeenProvider.notifier).state = true;
-    if (mounted) context.go(AppRoutes.login);
+    if (mounted) {
+      context.go(
+        authFlowLocation(
+          AppRoutes.login,
+          GoRouterState.of(context).uri.queryParameters['redirect'],
+        ),
+      );
+    }
   }
 
   void _next() {

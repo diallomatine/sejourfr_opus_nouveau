@@ -22,11 +22,16 @@ import java.util.UUID;
 @Component
 public class SkillPromptMapper {
 
-    /** Carte de sujet dans la liste d'une competence. */
+    /**
+     * Carte de sujet dans la liste d'une competence. {@code locked} est
+     * <b>passe</b>, resolu une seule fois pour les sujets de l'ecran : la
+     * regle d'acces appartient a {@code SkillAccessService}.
+     */
     public SkillPromptSummaryDto toSummaryDto(SkillPrompt prompt,
                                               SkillPromptStatus status,
                                               int attemptCount,
-                                              Instant lastAttemptAt) {
+                                              Instant lastAttemptAt,
+                                              boolean locked) {
         return new SkillPromptSummaryDto(
                 prompt.getId(),
                 prompt.getCode(),
@@ -39,7 +44,8 @@ public class SkillPromptMapper {
                 prompt.getRecommendedDurationSeconds(),
                 status,
                 attemptCount,
-                lastAttemptAt);
+                lastAttemptAt,
+                locked);
     }
 
     /**
@@ -55,7 +61,8 @@ public class SkillPromptMapper {
                                 int attemptCount,
                                 Instant lastAttemptAt,
                                 UUID lastAttemptId,
-                                UUID nextPromptId) {
+                                UUID nextPromptId,
+                                boolean locked) {
         return new SkillPromptDto(
                 prompt.getId(),
                 skill.getId(),
@@ -86,6 +93,7 @@ public class SkillPromptMapper {
                 attemptCount,
                 lastAttemptAt,
                 lastAttemptId,
-                nextPromptId);
+                nextPromptId,
+                locked);
     }
 }

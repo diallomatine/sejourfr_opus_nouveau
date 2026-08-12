@@ -72,7 +72,7 @@ import java.util.Set;
  * </ul>
  * <b>La note, le niveau et les seuils ne bougent jamais.</b>
  */
-final class TranscriptionQualityAudit {
+public final class TranscriptionQualityAudit {
 
     /**
      * Seuil de degradation sur la part de formes suspectes.
@@ -157,6 +157,22 @@ final class TranscriptionQualityAudit {
     }
 
     private TranscriptionQualityAudit() {
+    }
+
+    /**
+     * TRANSCRIPTION ABIMEE : le texte lu n'est pas celui qui a ete dit.
+     *
+     * <p>Seule porte de sortie PUBLIQUE de cette mesure. Elle sert au second
+     * appel « version au niveau visee », qui vit dans un sous-package : sur une
+     * transcription degradee il n'emet <b>aucun</b> appel oral — reformuler un
+     * texte que la machine a casse reviendrait a corriger le candidat pour nos
+     * propres erreurs, et ce serait paye.
+     *
+     * <p>Une production non mesurable (trop courte, vide) n'est <b>jamais</b>
+     * declaree degradee : on ne conclut pas sur trop peu de mots.
+     */
+    public static boolean degradee(String production) {
+        return mesurer(production).degradee();
     }
 
     /**

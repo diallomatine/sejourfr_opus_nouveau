@@ -13,8 +13,8 @@ import styles from "./production.module.css";
  * le texte le plus visible et le plus copiable du rapport, et il ne fait pas
  * monter d'un palier. Un candidat l'a recopié tel quel, l'a resoumis, et a
  * obtenu **exactement la même note et le même niveau**. Le seul texte modèle de
- * la page est désormais {@link TargetLevelVersionCard} (`version_ciblee`), qui
- * montre la marche au-dessus et nomme son niveau.
+ * la page est désormais celui du plan d'action ({@link ProductionActionPlan},
+ * `version_ciblee`), sous l'intertitre « Une version plus aboutie ».
  *
  * Le champ reste servi par l'API et typé dans `lib/types.ts` (aucun composant ne
  * le lit) : le retirer du contrat imposerait une nouvelle version de tool-schema

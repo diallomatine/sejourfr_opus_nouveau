@@ -20,6 +20,13 @@ import styles from "./production.module.css";
  * n'était résumée en haut que pour être répétée en entier plus bas. Elle vit
  * désormais **à un seul endroit**, ici.
  *
+ * ⚠️ **La check-list de la consigne vit ici, et nulle part ailleurs** (depuis le
+ * retrait de « Voir l'analyse complète », contrat v15/v9) : le dépliant montre
+ * les points **traités** puis les points **oubliés**. Sans ces derniers, le
+ * candidat lisait « 2/3 points traités » sans jamais savoir lequel manquait —
+ * or c'est exactement celui-là qui lui coûte des points. Les pistes non
+ * abordées, elles, ne coûtent rien et ne sont plus rendues.
+ *
  * `<details>` natif : aucune JS d'ouverture, aucun état à synchroniser, et le
  * clavier fonctionne sans un attribut de plus.
  */
@@ -58,11 +65,23 @@ export function ResultsSummaryTiles({
               ))}
             </ul>
           )}
+          {/* Le compteur dit « 2/3 » : sans cette liste, le candidat ne saurait
+              jamais QUEL point manque. */}
+          {points && points.oublies.length > 0 && (
+            <>
+              <p className={styles.tileMissedTitle}>Points oubliés</p>
+              <ul className={styles.tileBullets} data-tone="missed">
+                {points.oublies.map((l, i) => (
+                  <li key={i}>{l}</li>
+                ))}
+              </ul>
+            </>
+          )}
           {/* Un filet, pas un titre : ce que la consigne demandait d'un côté, ce
               que la langue réussit de l'autre — une seule liste les mélangeait. */}
-          {points && points.libelles.length > 0 && pointsForts.length > 0 && (
-            <span className={styles.tileSplit} aria-hidden />
-          )}
+          {points &&
+            (points.libelles.length > 0 || points.oublies.length > 0) &&
+            pointsForts.length > 0 && <span className={styles.tileSplit} aria-hidden />}
           {pointsForts.length > 0 && (
             <ul className={styles.tileBullets}>
               {pointsForts.map((p, i) => (

@@ -11,6 +11,7 @@ import '../../screens/auth/forgot_password_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
 import '../../screens/civique/civique_full_exams_screen.dart';
+import '../../screens/diagnostic/diagnostic_screen.dart';
 import '../../screens/examens/examens_screen.dart';
 import '../../screens/reviser/reviser_screen.dart';
 import '../../screens/home/home_screen.dart';
@@ -38,6 +39,7 @@ import '../../screens/profile/mes_historiques_screen.dart';
 import '../../screens/profile/mon_entrainement_screen.dart';
 import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
+import '../../screens/plan/plan_screen.dart';
 import '../../screens/question_runner/runner_screen.dart';
 import '../../screens/review/review_screen.dart';
 import '../../screens/shell/main_shell.dart';
@@ -114,8 +116,7 @@ class AppRoutes {
   // Modèles corrigés d'une tâche. Ils ne sont plus un onglet de l'écran
   // d'entraînement : ils ont leur écran, atteint par le bouton posé au-dessus
   // de la liste des sujets.
-  static const tcfTaskExamples =
-      '/tcf/:moduleKey/tache/:tacheNumero/exemples';
+  static const tcfTaskExamples = '/tcf/:moduleKey/tache/:tacheNumero/exemples';
 
   // Compétences TCF : entraînement d'un critère à la fois sur de petits
   // sujets, à côté (et jamais à la place) des sujets TCF complets.
@@ -149,6 +150,8 @@ class AppRoutes {
   // moduleKey + level en query pour reconstruire le retour.
   static const tcfLotResult = '/tcf/lot-result/:attemptId';
   static const runner = '/runner/:attemptId';
+  static const diagnostic = '/diagnostic';
+  static const plan = '/plan';
   static const progress = '/progress';
 
   // Plan de révision personnalisé (catégories les plus faibles d'abord),
@@ -161,6 +164,7 @@ class AppRoutes {
   static const onboarding = '/onboarding';
   static const targetPath = '/target-path';
   static const examResult = '/exam-result/:attemptId';
+
   /// Historique des examens blancs **civique complets** (40 Q tous thèmes,
   /// pas les examens thématiques ni les lots — ceux-là vivent dans l'onglet
   /// Examens du détail thème). Surchargée dans `HistoryScreen`.
@@ -200,6 +204,70 @@ class AppRoutes {
   static const tcfExpressionEcrite = '/tcf/expression-ecrite';
 }
 
+/// Destination interne autorisée après une authentification. Le contrôle est
+/// volontairement strict : aucun schéma, hôte ni chemin d'authentification ne
+/// peut être injecté depuis le paramètre `redirect` d'un lien profond.
+String? safePostLoginDestination(String? raw) {
+  if (raw == null || raw.isEmpty) return null;
+  final uri = Uri.tryParse(raw);
+  if (uri == null ||
+      uri.hasScheme ||
+      uri.hasAuthority ||
+      !uri.path.startsWith('/') ||
+      uri.path.startsWith('//')) {
+    return null;
+  }
+  if (uri.path == AppRoutes.login ||
+      uri.path == AppRoutes.register ||
+      uri.path == AppRoutes.forgotPassword ||
+      uri.path == AppRoutes.splash ||
+      uri.path == AppRoutes.onboarding ||
+      uri.path == AppRoutes.targetPath) {
+    return null;
+  }
+  return uri.toString();
+}
+
+String authFlowLocation(String path, String? destination) {
+  final safeDestination = safePostLoginDestination(destination);
+  return Uri(
+    path: path,
+    queryParameters:
+        safeDestination == null ? null : {'redirect': safeDestination},
+  ).toString();
+}
+
+String loginLocationFor(String destination) =>
+    authFlowLocation(AppRoutes.login, destination);
+
+String targetPathLocation(String? destination) {
+  final safeDestination = safePostLoginDestination(destination);
+  return Uri(
+    path: AppRoutes.targetPath,
+    queryParameters: safeDestination == null ? null : {'from': safeDestination},
+  ).toString();
+}
+
+/// Mémoire éphémère du lien profond reçu pendant la restauration du token.
+/// Une valeur n'est rendue qu'une fois et passe toujours par l'allowlist des
+/// destinations internes ci-dessus.
+class PendingAuthDestination {
+  String? _value;
+
+  String? get value => _value;
+
+  void remember(String? raw) {
+    final safe = safePostLoginDestination(raw);
+    if (safe != null) _value = safe;
+  }
+
+  String? take() {
+    final result = _value;
+    _value = null;
+    return result;
+  }
+}
+
 /// `moduleKey` des routes `/tcf/:moduleKey/…` → module productif. Tout ce qui
 /// n'est pas `eo` retombe sur l'EE (deep link malformé), jamais une exception.
 TcfProductionModule _productionModuleFromKey(String? key) =>
@@ -209,7 +277,14 @@ TcfProductionModule _productionModuleFromKey(String? key) =>
 
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = _AuthRouterNotifier(ref);
+  final pendingDestination = PendingAuthDestination();
   late final GoRouter router;
+
+  String? consumeDestination(String? raw) {
+    final direct = safePostLoginDestination(raw);
+    final pending = pendingDestination.take();
+    return direct ?? pending;
+  }
 
   // Force la navigation vers /login dès qu'un 401 fait passer l'auth en
   // Unauthenticated (forceLogout) ou qu'un logout explicite est déclenché.
@@ -233,20 +308,30 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Pendant le boot, on reste sur le splash le temps d'avoir un verdict.
       if (auth is AuthLoading) {
+        pendingDestination.remember(
+          state.uri.queryParameters['redirect'] ??
+              state.uri.queryParameters['from'],
+        );
+        pendingDestination.remember(state.uri.toString());
         return loc == AppRoutes.splash ? null : AppRoutes.splash;
       }
 
       final isAuth = auth is AuthAuthenticated;
-      final isOnAuthFlow =
-          loc == AppRoutes.login || loc == AppRoutes.register || loc == AppRoutes.forgotPassword;
+      final isOnAuthFlow = loc == AppRoutes.login ||
+          loc == AppRoutes.register ||
+          loc == AppRoutes.forgotPassword;
       final isOnOnboarding = loc == AppRoutes.onboarding;
       final isOnTargetPath = loc == AppRoutes.targetPath;
       final isOnSplash = loc == AppRoutes.splash;
       // Pages publiques : la WebView légale (CGU / confidentialité) est
-      // ouverte depuis login & inscription, et la page « À propos »
-      // (disclaimer non-affiliation) doit rester consultable sans compte.
-      final isOnPublicPage =
-          loc == AppRoutes.helpWebview || loc == AppRoutes.about;
+      // ouverte depuis login & inscription, la page « À propos » (disclaimer
+      // non-affiliation) doit rester consultable sans compte, et le
+      // **diagnostic** se fait entièrement avant l'inscription — le compte
+      // n'est demandé qu'au moment d'envoyer les deux productions à l'analyse.
+      // Le Plan (`/plan`), lui, reste authentifié : il n'existe qu'après.
+      final isOnPublicPage = loc == AppRoutes.helpWebview ||
+          loc == AppRoutes.about ||
+          loc == AppRoutes.diagnostic;
 
       // Si user connecté : pas d'auth flow, pas d'onboarding, pas de splash.
       if (isAuth) {
@@ -254,11 +339,17 @@ final routerProvider = Provider<GoRouter>((ref) {
 
         // Onboarding parcours obligatoire (sauf pour les comptes ADMIN).
         if (!user.hasCompletedOnboarding && !isOnTargetPath) {
-          return AppRoutes.targetPath;
+          return targetPathLocation(
+            consumeDestination(state.uri.queryParameters['redirect']),
+          );
         }
 
         if (isOnAuthFlow || isOnOnboarding || isOnSplash) {
-          return AppRoutes.home;
+          return consumeDestination(
+                state.uri.queryParameters['redirect'] ??
+                    state.uri.queryParameters['from'],
+              ) ??
+              AppRoutes.home;
         }
         return null;
       }
@@ -268,12 +359,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       // (main.dart) donc disponible dès le premier frame.
       final onboardingSeen = ref.read(onboardingSeenProvider);
 
-      if (!onboardingSeen && !isOnOnboarding) {
-        return AppRoutes.onboarding;
+      // Une page publique reste atteignable même sur une installation neuve :
+      // un lien profond vers le diagnostic ne doit pas se perdre dans
+      // l'onboarding puis l'écran de connexion.
+      if (!onboardingSeen && !isOnOnboarding && !isOnPublicPage) {
+        return authFlowLocation(
+          AppRoutes.onboarding,
+          consumeDestination(state.uri.toString()),
+        );
       }
 
-      if (onboardingSeen && !isOnAuthFlow && !isOnOnboarding && !isOnPublicPage) {
-        return AppRoutes.login;
+      if (onboardingSeen &&
+          !isOnAuthFlow &&
+          !isOnOnboarding &&
+          !isOnPublicPage) {
+        return authFlowLocation(
+          AppRoutes.login,
+          consumeDestination(state.uri.toString()),
+        );
       }
 
       return null;
@@ -368,6 +471,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const ManageSubscriptionScreen(),
       ),
       GoRoute(
+        path: AppRoutes.diagnostic,
+        builder: (_, __) => const DiagnosticScreen(),
+      ),
+      GoRoute(
         path: AppRoutes.examReport,
         builder: (_, state) {
           final attemptId = state.pathParameters['attemptId']!;
@@ -404,14 +511,20 @@ final routerProvider = Provider<GoRouter>((ref) {
                 state.uri.path == AppRoutes.tcf ? AppRoutes.reviser : null,
           ),
           GoRoute(
-            path: AppRoutes.progress,
-            builder: (_, __) => const ProgresScreen(),
+            path: AppRoutes.plan,
+            builder: (_, __) => const PlanScreen(),
           ),
           GoRoute(
             path: AppRoutes.profile,
             builder: (_, __) => const ProfileScreen(),
           ),
         ],
+      ),
+
+      // Progression historique conservée comme écran secondaire depuis Plan.
+      GoRoute(
+        path: AppRoutes.progress,
+        builder: (_, __) => const ProgresScreen(),
       ),
 
       // Recommandations (pushé depuis Progrès, hors shell).
@@ -460,7 +573,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: 'examens',
-            builder: (_, __) => const TcfQcmExamsScreen(module: TcfQcmModule.co),
+            builder: (_, __) =>
+                const TcfQcmExamsScreen(module: TcfQcmModule.co),
           ),
         ],
       ),
@@ -471,7 +585,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: 'examens',
-            builder: (_, __) => const TcfQcmExamsScreen(module: TcfQcmModule.ce),
+            builder: (_, __) =>
+                const TcfQcmExamsScreen(module: TcfQcmModule.ce),
           ),
         ],
       ),
@@ -479,11 +594,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       // le TCF IRN officiel — bannière `_ModuleNoticeBanner` rendue par le hub.
       GoRoute(
         path: AppRoutes.tcfStructureDetail,
-        builder: (_, __) => const TcfQcmDetailScreen(module: TcfQcmModule.structure),
+        builder: (_, __) =>
+            const TcfQcmDetailScreen(module: TcfQcmModule.structure),
         routes: [
           GoRoute(
             path: 'examens',
-            builder: (_, __) => const TcfQcmExamsScreen(module: TcfQcmModule.structure),
+            builder: (_, __) =>
+                const TcfQcmExamsScreen(module: TcfQcmModule.structure),
           ),
         ],
       ),
@@ -515,7 +632,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => ProductionParcoursScreen(
           module: TcfProductionModule.eo,
           tab: ProductionModuleTab.sujets,
-          tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1).clamp(1, 3),
+          tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1)
+              .clamp(1, 3),
         ),
       ),
       GoRoute(
@@ -523,7 +641,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => ProductionParcoursScreen(
           module: TcfProductionModule.ee,
           tab: ProductionModuleTab.sujets,
-          tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1).clamp(1, 3),
+          tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1)
+              .clamp(1, 3),
         ),
       ),
       // Modèles corrigés d'une tâche (`moduleKey` ∈ {ee, eo}).
@@ -533,7 +652,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           module: state.pathParameters['moduleKey'] == 'eo'
               ? TcfProductionModule.eo
               : TcfProductionModule.ee,
-          tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1).clamp(1, 3),
+          tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1)
+              .clamp(1, 3),
         ),
       ),
       // Compétences TCF — les 4 écrans du parcours (cf. AppRoutes). L'ordre
@@ -650,7 +770,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         // navigue en fait vers `/tcf/expression-orale/t/0` ou similaire. On
         // teste donc `state.uri.path` (URL réelle de destination) pour ne
         // rediriger QUE quand l'utilisateur cible l'ancien path racine du hub.
-        redirect: (_, state) => state.uri.path == AppRoutes.tcfExpressionOrale ? AppRoutes.tcfEoDetail : null,
+        redirect: (_, state) => state.uri.path == AppRoutes.tcfExpressionOrale
+            ? AppRoutes.tcfEoDetail
+            : null,
         routes: [
           GoRoute(
             path: 'examens',
@@ -660,13 +782,15 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, state) => ProductionParcoursScreen(
               module: TcfProductionModule.eo,
               tab: ProductionModuleTab.examens,
-              tache: (int.tryParse(state.uri.queryParameters['tache'] ?? '1') ?? 1)
-                  .clamp(1, 3),
+              tache:
+                  (int.tryParse(state.uri.queryParameters['tache'] ?? '1') ?? 1)
+                      .clamp(1, 3),
             ),
           ),
           GoRoute(
             path: 'historique',
-            builder: (_, __) => const ProductionHistoryScreen(epreuve: EpreuveType.tcfEo),
+            builder: (_, __) =>
+                const ProductionHistoryScreen(epreuve: EpreuveType.tcfEo),
           ),
           GoRoute(
             path: 'sessions/:attemptId',
@@ -685,14 +809,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 't/:taskIndex',
             builder: (_, state) {
-              final idx = int.tryParse(state.pathParameters['taskIndex'] ?? '0') ?? 0;
+              final idx =
+                  int.tryParse(state.pathParameters['taskIndex'] ?? '0') ?? 0;
               return EoBriefingScreen(taskIndex: idx);
             },
             routes: [
               GoRoute(
                 path: 'termine',
                 builder: (_, state) {
-                  final idx = int.tryParse(state.pathParameters['taskIndex'] ?? '0') ?? 0;
+                  final idx =
+                      int.tryParse(state.pathParameters['taskIndex'] ?? '0') ??
+                          0;
                   return EoFinishedScreen(taskIndex: idx);
                 },
               ),
@@ -702,7 +829,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'resultats/:submissionId',
             builder: (_, state) {
               final id = state.pathParameters['submissionId']!;
-              final idx = int.tryParse(state.uri.queryParameters['taskIndex'] ?? '0') ?? 0;
+              final idx =
+                  int.tryParse(state.uri.queryParameters['taskIndex'] ?? '0') ??
+                      0;
               final history = state.uri.queryParameters['history'] == '1';
               return EoResultsScreen(
                 submissionId: id,
@@ -722,8 +851,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         // Cf. note sur l'analogue EO juste au-dessus : on filtre via
         // `state.uri.path` pour ne pas intercepter les navigations vers
         // les sous-routes (`/historique`, `/sessions/:id`, `/t/:idx`, ...).
-        redirect: (_, state) =>
-            state.uri.path == AppRoutes.tcfExpressionEcrite ? AppRoutes.tcfEeDetail : null,
+        redirect: (_, state) => state.uri.path == AppRoutes.tcfExpressionEcrite
+            ? AppRoutes.tcfEeDetail
+            : null,
         routes: [
           GoRoute(
             path: 'examens',
@@ -733,13 +863,15 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, state) => ProductionParcoursScreen(
               module: TcfProductionModule.ee,
               tab: ProductionModuleTab.examens,
-              tache: (int.tryParse(state.uri.queryParameters['tache'] ?? '1') ?? 1)
-                  .clamp(1, 3),
+              tache:
+                  (int.tryParse(state.uri.queryParameters['tache'] ?? '1') ?? 1)
+                      .clamp(1, 3),
             ),
           ),
           GoRoute(
             path: 'historique',
-            builder: (_, __) => const ProductionHistoryScreen(epreuve: EpreuveType.tcfEe),
+            builder: (_, __) =>
+                const ProductionHistoryScreen(epreuve: EpreuveType.tcfEe),
           ),
           GoRoute(
             path: 'sessions/:attemptId',
@@ -751,7 +883,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 't/:taskIndex',
             builder: (_, state) {
-              final idx = int.tryParse(state.pathParameters['taskIndex'] ?? '0') ?? 0;
+              final idx =
+                  int.tryParse(state.pathParameters['taskIndex'] ?? '0') ?? 0;
               return EeBriefingWritingScreen(taskIndex: idx);
             },
           ),
@@ -759,7 +892,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'resultats/:submissionId',
             builder: (_, state) {
               final id = state.pathParameters['submissionId']!;
-              final idx = int.tryParse(state.uri.queryParameters['taskIndex'] ?? '0') ?? 0;
+              final idx =
+                  int.tryParse(state.uri.queryParameters['taskIndex'] ?? '0') ??
+                      0;
               final history = state.uri.queryParameters['history'] == '1';
               return EeResultsScreen(
                 submissionId: id,

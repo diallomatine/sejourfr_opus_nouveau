@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/models/skill_models.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/format_date.dart';
+import '../../../../core/widgets/premium_lock.dart';
+import '../../../../core/widgets/pressable_card.dart';
 import '../../widgets/production_blocks.dart';
 import 'skill_status_badge.dart';
 
@@ -13,6 +15,10 @@ import 'skill_status_badge.dart';
 /// retrait haut et bas (17 px) et arrondi côté intérieur — c'est le repère qui
 /// distingue les statuts au premier coup d'œil (§13.8). Un sujet « à faire »
 /// n'en porte **aucun** : sinon le repère ne repère plus rien.
+///
+/// Un sujet **verrouillé** (`prompt.locked`, calculé serveur) reste affiché et
+/// lisible : un cadenas prend la place du numéro et la pilule « Premium »
+/// s'ajoute à son statut. C'est l'appelant qui décide où mène le tap.
 class SkillPromptCard extends StatelessWidget {
   const SkillPromptCard({
     super.key,
@@ -42,14 +48,19 @@ class SkillPromptCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                ProductionIndexChip(
-                  order: prompt.displayOrder,
-                  done: treated,
-                  foreground: treated ? statusColor : accent,
-                  background: treated
-                      ? statusColor.withValues(alpha: 0.12)
-                      : AppColors.surface2,
-                ),
+                // Verrouillé, le sujet montre un cadenas là où vivent le numéro
+                // et la coche — même pastille, même taille (miroir du web).
+                if (prompt.locked)
+                  const PremiumLockTile()
+                else
+                  ProductionIndexChip(
+                    order: prompt.displayOrder,
+                    done: treated,
+                    foreground: treated ? statusColor : accent,
+                    background: treated
+                        ? statusColor.withValues(alpha: 0.12)
+                        : AppColors.surface2,
+                  ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -69,7 +80,7 @@ class SkillPromptCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                const ProductionChevron(),
+                const CardChevron(),
               ],
             ),
           ),
@@ -116,6 +127,7 @@ class SkillStatusBadgeRow extends StatelessWidget {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         SkillStatusBadge(status: prompt.status),
+        if (prompt.locked) const PremiumLockTag(),
         if (meta.isNotEmpty)
           Text(
             meta,

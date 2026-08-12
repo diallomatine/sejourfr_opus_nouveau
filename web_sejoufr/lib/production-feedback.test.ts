@@ -18,15 +18,12 @@ import {
     TACHE_TRAITEE_LABEL,
     BILAN_PROCHAINES_ETAPES_TITLE,
     TCF_NOTE_BANDS,
-    VERSION_CIBLEE_EYEBROW,
-    VERSION_CIBLEE_LEVIERS_TITLE,
     bilanNiveauPendingLabel,
     bilanProchainesEtapesMessage,
     canShowNiveau,
     critereBandeFromNote,
     demarcheRappel,
     groupAccomplishment,
-    hasAccomplishmentDetail,
     niveauAtteintLabel,
     niveauViseAtteintTitle,
     objectifPresentation,
@@ -40,8 +37,6 @@ import {
     tcfNiveauTone,
     tcfPalierIndex,
     treatedPointsSummary,
-    versionCibleeIntro,
-    versionCibleeTitle,
 } from "./production-feedback.ts";
 import {
     bandeCritereLabel,
@@ -327,39 +322,18 @@ describe("libellés gelés — sujet rendu sans niveau (miroir mobile)", () => {
 
 // ---------------------------------------------------------------------------
 
-describe("version au niveau visé — la marche au-dessus", () => {
-    it("dit dès le titre que c'est un modèle, pas la production du candidat", () => {
-        assert.equal(
-            versionCibleeTitle("B2"),
-            "Au niveau B2, votre réponse pourrait ressembler à ceci",
-        );
-        assert.equal(VERSION_CIBLEE_EYEBROW, "La marche au-dessus");
-        assert.equal(VERSION_CIBLEE_LEVIERS_TITLE, "Ce qui vous en sépare");
-    });
-
-    it("désamorce explicitement la confusion « c'est mon texte »", () => {
-        assert.ok(versionCibleeIntro("B2").startsWith("Ce texte n'est pas le vôtre"));
-    });
-
-    it("relie chaque palier à SA démarche, sans recopier le rappel d'enjeu", () => {
-        assert.ok(versionCibleeIntro("A2").includes("la carte de séjour pluriannuelle"));
-        assert.ok(versionCibleeIntro("B1").includes("la carte de résident"));
-        assert.ok(versionCibleeIntro("B2").includes("la naturalisation"));
-        // Le hero écrit « Le niveau B2 est celui demandé pour… » : la section ne
-        // doit pas répéter la même phrase deux écrans plus bas.
-        const rappel = demarcheRappel("B2", "B1")!.text;
-        for (const cible of ["A2", "B1", "B2"] as const) {
-            assert.notEqual(versionCibleeIntro(cible), rappel);
-            assert.equal(versionCibleeIntro(cible).includes("est celui demandé pour"), false);
-        }
-    });
-});
+// Les libellés du plan d'action ne vivent plus ici : ils sont PARTAGÉS avec le
+// module Compétences (`skill-ui/ActionPlan.tsx`, non importable par le runner de
+// Node — c'est du JSX). Sont supprimés avec l'ancien bloc « la marche
+// au-dessus » : son sur-titre, son titre (« Au niveau B2, votre réponse pourrait
+// ressembler à ceci ») et son introduction. Rien ne vérifiait qu'un texte
+// atteignait le palier dont on l'étiquetait.
 
 // ---------------------------------------------------------------------------
 
 describe("niveau visé déjà atteint — la victoire, dite", () => {
-    it("annonce l'objectif atteint, palier nommé", () => {
-        assert.equal(NIVEAU_VISE_ATTEINT_EYEBROW, "Objectif atteint");
+    it("annonce le palier visé, distinct du bandeau « Objectif atteint » de la consigne", () => {
+        assert.equal(NIVEAU_VISE_ATTEINT_EYEBROW, "Palier visé");
         assert.equal(niveauViseAtteintTitle("B2"), "Objectif B2 : vous y êtes");
         assert.equal(niveauViseAtteintTitle("A2"), "Objectif A2 : vous y êtes");
     });
@@ -745,13 +719,11 @@ describe("check-list de la consigne", () => {
             g.pistesNonAbordees.map((p) => p.libelle),
             ["Évoquer le prix"],
         );
-        assert.equal(hasAccomplishmentDetail(g), true);
     });
 
     it("ne casse pas sans accomplissement", () => {
         const g = groupAccomplishment(null);
         assert.deepEqual(g, {traites: [], manquesObligatoires: [], pistesNonAbordees: []});
-        assert.equal(hasAccomplishmentDetail(g), false);
     });
 });
 
@@ -868,6 +840,9 @@ describe("treatedPointsSummary — le chiffre du bandeau « Ce qui marche »", (
             done: 2,
             total: 3,
             libelles: ["Excuse", "Raison"],
+            // Le manque exigé part avec la fraction (il en est le
+            // dénominateur) ; la piste ignorée, elle, ne coûte rien.
+            oublies: ["Nouvelle séance"],
         });
     });
 
@@ -921,7 +896,7 @@ describe("aucun composant ne rend `version_amelioree` (retrait 2026-08-08)", () 
     it("lit bien tout le dossier des composants de production", () => {
         assert.ok(fichiers.includes("ProductionFeedbackView.tsx"));
         assert.ok(fichiers.includes("ProductionTextCard.tsx"));
-        assert.ok(fichiers.includes("TargetLevelVersionCard.tsx"));
+        assert.ok(fichiers.includes("ProductionActionPlan.tsx"));
     });
 
     for (const fichier of fichiers) {

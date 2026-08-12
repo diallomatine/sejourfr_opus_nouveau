@@ -57,6 +57,7 @@ class SkillAttemptServiceTest {
     @Mock private SkillPromptManager promptManager;
     @Mock private UserSkillAttemptManager attemptManager;
     @Mock private UserManager userManager;
+    @Mock private SkillAccessService accessService;
     @Mock private SkillAnalysisAccessService analysisAccessService;
     @Mock private SkillAnalysisAsyncRunner analysisRunner;
     @Mock private ProductionAudioStorageService audioStorage;
@@ -75,7 +76,7 @@ class SkillAttemptServiceTest {
     @BeforeEach
     void setUp() {
         service = new SkillAttemptService(promptManager, attemptManager, userManager,
-                analysisAccessService, analysisRunner, audioStorage, mapper,
+                accessService, analysisAccessService, analysisRunner, audioStorage, mapper,
                 rateLimitGuard, currentUser, props, productionProps);
         user.setId(userId);
         when(currentUser.getId()).thenReturn(userId);
@@ -187,6 +188,87 @@ class SkillAttemptServiceTest {
         assertThatThrownBy(() -> service.submitAudio(prompt.getId(), null, 30, null, false))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Aucun enregistrement");
+    }
+
+    // ------------------------------------------------------------------------
+    // Verrou d'acces (freemium du 2026-08-10) — le client ne decide jamais
+    // ------------------------------------------------------------------------
+
+    @Test
+    void produireSurUnSujetVerrouilleEstRefuseAvantToutTraitement() {
+        SkillPrompt prompt = prompt(SkillSection.EE);
+        when(promptManager.findActiveByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
+        doThrow(new AccessDeniedException(SkillAccessService.LOCKED_MESSAGE))
+                .when(accessService).assertCanProduce(userId, prompt);
+
+        assertThatThrownBy(() -> service.submitText(new SubmitSkillTextRequest(
+                prompt.getId(), "Bonjour Madame, je vous écris…", null, false)))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage(SkillAccessService.LOCKED_MESSAGE);
+        // Rien n'est persiste, rien n'est envoye au correcteur.
+        verify(attemptManager, never()).save(any());
+        verify(analysisRunner, never()).runAsync(any(), anyBoolean());
+    }
+
+    @Test
+    void produireSurUnSujetOuvertResteAccepte() {
+        SkillPrompt prompt = prompt(SkillSection.EE);
+        when(promptManager.findActiveByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
+
+        service.submitText(new SubmitSkillTextRequest(
+                prompt.getId(), "Bonjour Madame, je vous écris…", null, false));
+
+        verify(accessService).assertCanProduce(userId, prompt);
+        assertThat(captureSaved().getStatut()).isEqualTo(SkillAttemptStatut.RECORDED);
+    }
+
+    @Test
+    void unEnregistrementOralSurUnSujetVerrouilleNEstMemePasUploade() {
+        SkillPrompt prompt = prompt(SkillSection.EO);
+        when(promptManager.findActiveByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
+        doThrow(new AccessDeniedException(SkillAccessService.LOCKED_MESSAGE))
+                .when(accessService).assertCanProduce(userId, prompt);
+
+        assertThatThrownBy(() -> service.submitAudio(prompt.getId(), audioFile(), 30, null, false))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(audioStorage, never()).upload(any(), any(), any(), any());
+    }
+
+    @Test
+    void demanderLAnalyseDUneProductionDevenueVerrouilleeEstRefuse() {
+        SkillPrompt prompt = prompt(SkillSection.EE);
+        UserSkillAttempt attempt = new UserSkillAttempt();
+        attempt.setId(UUID.randomUUID());
+        attempt.setUser(user);
+        attempt.setSkillPrompt(prompt);
+        attempt.setStatut(SkillAttemptStatut.RECORDED);
+        when(attemptManager.findByIdWithPrompt(attempt.getId())).thenReturn(Optional.of(attempt));
+        doThrow(new AccessDeniedException(SkillAccessService.LOCKED_MESSAGE))
+                .when(accessService).assertCanProduce(userId, prompt);
+
+        assertThatThrownBy(() -> service.analyse(attempt.getId()))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(analysisAccessService, never()).assertCanAnalyse(any());
+        verify(analysisRunner, never()).runAsync(any(), anyBoolean());
+    }
+
+    @Test
+    void relancerUneAnalyseSurUnSujetVerrouilleEstRefuse() {
+        SkillPrompt prompt = prompt(SkillSection.EE);
+        UserSkillAttempt attempt = new UserSkillAttempt();
+        attempt.setId(UUID.randomUUID());
+        attempt.setUser(user);
+        attempt.setSkillPrompt(prompt);
+        attempt.setStatut(SkillAttemptStatut.FAILED);
+        attempt.setAnalysisRequested(true);
+        when(attemptManager.findByIdWithPrompt(attempt.getId())).thenReturn(Optional.of(attempt));
+        doThrow(new AccessDeniedException(SkillAccessService.LOCKED_MESSAGE))
+                .when(accessService).assertCanProduce(userId, prompt);
+
+        assertThatThrownBy(() -> service.retry(attempt.getId()))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThat(attempt.getRetryCount()).isZero();
+        verify(analysisRunner, never()).runAsync(any(), anyBoolean());
     }
 
     // ------------------------------------------------------------------------

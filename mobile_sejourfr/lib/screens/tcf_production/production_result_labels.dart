@@ -113,31 +113,16 @@ SituationView? situationView(EvaluationResult? evaluation) {
   );
 }
 
-/// Sur-titre de la section « version au niveau visé ». Elle ne montre **pas**
-/// la production du candidat : elle montre la marche au-dessus. Le dire dès le
-/// sur-titre est la seule protection contre la lecture « voilà ce que j'ai
-/// écrit ».
-const String kVersionCibleeEyebrow = 'La marche au-dessus';
-
-/// Titre de la section : il nomme le niveau visé et emploie le conditionnel —
-/// c'est un modèle possible, pas la seule bonne réponse.
-String versionCibleeTitle(TargetLevel niveauVise) =>
-    'Au niveau ${niveauVise.wire}, votre réponse pourrait ressembler à ceci';
-
-/// Sous-titre : il **désamorce la confusion** (« ce n'est pas votre texte ») et
-/// relie le niveau visé à la démarche du candidat.
-///
-/// Volontairement pas la phrase du rappel d'enjeu du hero ([demarcheRappel]) :
-/// les deux blocs parlent de la même démarche, les répéter mot pour mot ferait
-/// lire deux fois la même chose. Ici on nomme l'objectif, là-bas on dit où en
-/// est la production.
-String versionCibleeIntro(TargetLevel niveauVise) =>
-    "Ce texte n'est pas le vôtre : c'est un modèle rédigé au niveau "
-    '${niveauVise.wire}, celui qui ouvre ${niveauVise.demarcheLabel}.';
-
-/// Intertitre des leviers. « Ce qui vous en sépare » et non « ce qui vous
-/// manque » : on décrit une distance à parcourir, pas un déficit.
-const String kVersionCibleeLeviersTitle = 'Ce qui vous en sépare';
+// Les libellés du plan d'action ne vivent plus ici : ils sont **partagés avec
+// le module Compétences**, qui rend exactement le même plan après un
+// micro-exercice (`widgets/action_plan.dart` : `pourViserTitle`,
+// `kActionPlanExempleTitle`, `kActionPlanReformulationsTitle`).
+//
+// Sont **supprimés** avec l'ancien bloc « la marche au-dessus » : son sur-titre,
+// son titre (« Au niveau B2, votre réponse pourrait ressembler à ceci ») et son
+// introduction (« Ce texte n'est pas le vôtre… »). Rien ne vérifie qu'un texte
+// atteint le palier dont on l'étiquette, et un candidat qui a recopié un exemple
+// annoncé B2 l'a vu noter B1. On garde l'objectif, qui lui est exact.
 
 /// Sur-titre de la section qui **remplace** la version au niveau visé quand le
 /// palier est déjà tenu.
@@ -148,9 +133,17 @@ const String kVersionCibleeLeviersTitle = 'Ce qui vous en sépare';
 /// avait exactement la même tête qu'une panne. Le serveur dit désormais
 /// laquelle des deux c'est (`niveau_vise_atteint`), et on l'annonce.
 ///
+/// ⚠️ « Objectif atteint » désignait ici le PALIER, et le même libellé sert de
+/// titre au bandeau de tête de rapport ([ProductionResultsHero.objectifTitle])
+/// pour dire que la CONSIGNE a été accomplie — deux sens différents sous les
+/// mêmes mots. Vu en vrai : un candidat noté B1 qui vise B2 lisait « Objectif
+/// atteint » en gros dans le bandeau, exact au sens de la consigne, trompeur
+/// au sens du niveau. Le bandeau garde son texte (il est suivi du résumé de
+/// consigne, le contexte lève l'ambiguïté) ; ce sur-titre-ci, lui, change.
+///
 /// ⚠️ Contrat gelé, miroir mot pour mot de `NIVEAU_VISE_ATTEINT_EYEBROW`
 /// côté web.
-const String kNiveauViseAtteintEyebrow = 'Objectif atteint';
+const String kNiveauViseAtteintEyebrow = 'Palier visé';
 
 /// Titre : la victoire, nommée par le palier. Volontairement **pas** la phrase
 /// du hero ([niveauAtteintLabel] dit « Votre production est au niveau B2 ») —

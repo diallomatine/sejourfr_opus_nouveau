@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/pressable_card.dart';
 import '../tcf_production_module.dart';
 import 'production_blocks.dart';
 import 'production_common.dart';
@@ -322,7 +323,7 @@ class _LockedExampleBar extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const ProductionChevron(),
+            const CardChevron(),
           ],
         ),
       ),
@@ -378,7 +379,7 @@ class StrategyCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            const ProductionChevron(),
+            const CardChevron(),
           ],
         ),
       ),

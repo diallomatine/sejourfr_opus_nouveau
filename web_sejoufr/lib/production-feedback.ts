@@ -357,8 +357,7 @@ export const NIVEAU_PORTEE_TACHE =
  * recopier dans un écran, c'est garantir qu'une des copies ne bougera pas le
  * jour où les seuils bougeront. Miroir de `TargetLevel.demarcheLabel` côté
  * mobile. Tout texte qui nomme une démarche passe par elle
- * ({@link demarcheRappel}, {@link versionCibleeIntro},
- * {@link bilanProchainesEtapesMessage}).
+ * ({@link demarcheRappel}, {@link bilanProchainesEtapesMessage}).
  */
 const DEMARCHE_PAR_NIVEAU: Record<TargetLevel, string> = {
     A2: "la carte de séjour pluriannuelle",
@@ -401,41 +400,59 @@ export function demarcheRappel(
 }
 
 // ---------------------------------------------------------------------------
-// Version au niveau visé
+// Plan d'action vers le niveau visé
+//
+// ⚠️ Les libellés de ce bloc ne vivent plus ici : ils sont **partagés avec le
+// module Compétences**, qui rend exactement le même plan après un
+// micro-exercice (`skill-ui/ActionPlan` : `pourViserTitle`,
+// `ACTION_PLAN_EXEMPLE_TITLE`, `ACTION_PLAN_REFORMULATIONS_TITLE`).
+//
+// Sont **supprimés** avec l'ancien bloc « la marche au-dessus » : son sur-titre,
+// son titre (« Au niveau B2, votre réponse pourrait ressembler à ceci ») et son
+// introduction (« Ce texte n'est pas le vôtre : c'est un modèle rédigé au niveau
+// B2… »). Rien ne vérifie qu'un texte atteint le palier dont on l'étiquette, et
+// un candidat qui a recopié un exemple annoncé B2 l'a vu noter B1. On garde
+// l'objectif — « Pour viser B2 » —, qui lui est exact.
 // ---------------------------------------------------------------------------
 
 /**
- * Sur-titre de la section. Elle ne montre **pas** la production du candidat :
- * elle montre la marche au-dessus. Le dire dès le sur-titre est la seule
- * protection contre la lecture « voilà ce que j'ai écrit ».
- */
-export const VERSION_CIBLEE_EYEBROW = "La marche au-dessus";
-
-/** Titre de la section : il nomme le niveau visé et emploie le conditionnel —
- *  c'est un modèle possible, pas la seule bonne réponse. */
-export function versionCibleeTitle(niveauVise: TargetLevel): string {
-    return `Au niveau ${niveauVise}, votre réponse pourrait ressembler à ceci`;
-}
-
-/**
- * Sous-titre : il **désamorce la confusion** (« ce n'est pas votre texte ») et
- * relie le niveau visé à la démarche du candidat.
+ * `true` quand le plan d'action peut encore arriver, donc quand il faut
+ * continuer de poller et l'annoncer au candidat.
  *
- * Volontairement pas la phrase du rappel d'enjeu du hero (`demarcheRappel`) :
- * les deux blocs parlent de la même démarche, les répéter mot pour mot ferait
- * lire deux fois la même chose. Ici on nomme l'objectif, là-bas on dit où en
- * est la production.
+ * Le plan (`version_ciblee`) et son cas exclusif (`niveau_vise_atteint`)
+ * viennent d'un **second appel LLM**, lancé par le serveur *après* que la
+ * correction est persistée et la soumission passée à `EVALUATED` — hors
+ * transaction, pour qu'il ne puisse jamais retarder ni faire échouer la
+ * correction. Un écran qui s'arrête net sur `EVALUATED` s'affiche donc sans
+ * plan alors qu'il arrive dix à quinze secondes plus tard : le candidat devait
+ * sortir puis revenir. Durée du sursis : `ACTION_PLAN_GRACE_MS`
+ * (`app/_components/skill-ui/ActionPlan`), commune avec le résultat d'un
+ * micro-exercice, qui attend exactement le même bloc.
+ *
+ * ⚠️ `observedInFlight` — l'écran a vu la correction dans un statut non final
+ * depuis son ouverture — est ce qui interdit d'attendre sur un rapport **rouvert
+ * plus tard** : là, plus rien ne tourne côté serveur, le plan est déjà persisté
+ * ou définitivement absent. Sans cette condition, une correction de trois jours
+ * afficherait « on prépare tes conseils » pendant quinze secondes pour rien.
+ *
+ * L'absence de plan reste un cas **normal** (objectif déjà atteint sans que le
+ * serveur l'ait dit, oral dégradé, second appel muet ou refusé) : à la fin du
+ * sursis on rend l'écran tel quel, sans message, sans erreur.
  */
-export function versionCibleeIntro(niveauVise: TargetLevel): string {
+export function productionActionPlanMayStillArrive(input: {
+    evaluated: boolean;
+    /** La correction s'est terminée sous les yeux du candidat. */
+    observedInFlight: boolean;
+    hasVersionCiblee: boolean;
+    hasNiveauViseAtteint: boolean;
+}): boolean {
     return (
-        `Ce texte n'est pas le vôtre : c'est un modèle rédigé au niveau ${niveauVise}, ` +
-        `celui qui ouvre ${DEMARCHE_PAR_NIVEAU[niveauVise]}.`
+        input.evaluated &&
+        input.observedInFlight &&
+        !input.hasVersionCiblee &&
+        !input.hasNiveauViseAtteint
     );
 }
-
-/** Intertitre des leviers. « Ce qui vous en sépare » et non « ce qui vous
- *  manque » : on décrit une distance à parcourir, pas un déficit. */
-export const VERSION_CIBLEE_LEVIERS_TITLE = "Ce qui vous en sépare";
 
 // ---------------------------------------------------------------------------
 // Niveau visé déjà atteint
@@ -451,9 +468,18 @@ export const VERSION_CIBLEE_LEVIERS_TITLE = "Ce qui vous en sépare";
  * la même tête qu'une panne. Le serveur dit désormais laquelle des deux c'est
  * (`niveau_vise_atteint`), et on l'annonce.
  *
+ * ⚠️ « Objectif atteint » désignait ici le PALIER, et le même libellé sert de
+ * titre au bandeau de tête de rapport (`ProductionResultsHero.objectifTitle`
+ * côté mobile, `objectifTitle` du hero côté web) pour dire que la CONSIGNE a
+ * été accomplie — deux sens différents sous les mêmes mots. Vu en vrai : un
+ * candidat noté B1 qui vise B2 lisait « Objectif atteint » en gros dans le
+ * bandeau, exact au sens de la consigne, trompeur au sens du niveau. Le
+ * bandeau garde son texte (il est suivi du résumé de consigne, le contexte
+ * lève l'ambiguïté) ; ce sur-titre-ci, lui, change.
+ *
  * ⚠️ Contrat gelé, miroir mot pour mot de `kNiveauViseAtteintEyebrow` côté mobile.
  */
-export const NIVEAU_VISE_ATTEINT_EYEBROW = "Objectif atteint";
+export const NIVEAU_VISE_ATTEINT_EYEBROW = "Palier visé";
 
 /**
  * Titre : la victoire, nommée par le palier. Volontairement **pas** la phrase du
@@ -519,6 +545,11 @@ export interface AccomplishmentGroups {
     pistesNonAbordees: EeAccomplishmentPoint[];
 }
 
+/** Ne sert plus qu'à {@link treatedPointsSummary} depuis le retrait de « Voir
+ *  l'analyse complète » : `pistesNonAbordees` n'est plus rendu nulle part (une
+ *  piste n'enlève aucun point), mais reste séparé ici — c'est exactement ce qui
+ *  garantit qu'aucune piste ne se glisse dans la fraction ni dans la liste des
+ *  points oubliés. */
 export function groupAccomplishment(
     acc: EeAccomplishment | null | undefined,
 ): AccomplishmentGroups {
@@ -536,6 +567,11 @@ export interface TreatedPointsSummary {
     done: number;
     total: number;
     libelles: string[];
+    /** Les points **exigés** non traités. Ils vivent dans le même dépliant que
+     *  `libelles` depuis le retrait de « Voir l'analyse complète » (contrat
+     *  v15/v9) : sans eux, le candidat lit « 2/3 points traités » sans jamais
+     *  savoir lequel manque — or c'est celui-là qui lui coûte des points. */
+    oublies: string[];
 }
 
 /**
@@ -555,7 +591,12 @@ export function treatedPointsSummary(
     const traites = groups.traites.filter((p) => p.obligatoire);
     const total = traites.length + groups.manquesObligatoires.length;
     if (total === 0) return null;
-    return {done: traites.length, total, libelles: traites.map((p) => p.libelle)};
+    return {
+        done: traites.length,
+        total,
+        libelles: traites.map((p) => p.libelle),
+        oublies: groups.manquesObligatoires.map((p) => p.libelle),
+    };
 }
 
 /** Découpage d'un texte autour du passage à surligner. */
@@ -585,15 +626,6 @@ export function splitHighlight(
         match: texte.slice(start, start + needle.length),
         after: texte.slice(start + needle.length),
     };
-}
-
-export function hasAccomplishmentDetail(groups: AccomplishmentGroups): boolean {
-    return (
-        groups.traites.length +
-            groups.manquesObligatoires.length +
-            groups.pistesNonAbordees.length >
-        0
-    );
 }
 
 // ---------------------------------------------------------------------------

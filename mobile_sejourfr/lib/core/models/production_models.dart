@@ -1,4 +1,6 @@
+import 'action_plan.dart';
 import 'enums.dart';
+import 'skill_models.dart';
 
 /// Miroir mobile des DTOs backend du pipeline EO/EE (cf. PRODUCTION_TASKS_SPEC_V2.md
 /// section 8 + ProductionTaskDto.java / ProductionSubmissionDto.java).
@@ -122,6 +124,7 @@ class ProductionSubmissionDto {
     this.erreurMessage,
     this.evaluation,
     this.transcription,
+    this.planChange,
   });
 
   final String id;
@@ -153,6 +156,12 @@ class ProductionSubmissionDto {
   /// transcription n'a pas tourne.
   final String? transcription;
 
+  /// Ce que cette production a change dans le Plan — **une ligne, pas un
+  /// rapport**. `null` est un cas NORMAL : rien n'a bouge, ou les observations
+  /// (ecrites APRES la correction) ne sont pas encore la. Servi seulement sur
+  /// le detail d'une soumission.
+  final PlanChange? planChange;
+
   bool get isAudio => mediaUrl != null;
 
   bool get isText => texteSoumis != null;
@@ -176,6 +185,57 @@ class ProductionSubmissionDto {
             : EvaluationResult.fromJson(
                 json['evaluation'] as Map<String, dynamic>),
         transcription: json['transcription'] as String?,
+        planChange: json['planChange'] == null
+            ? null
+            : PlanChange.fromJson(json['planChange'] as Map<String, dynamic>),
+      );
+}
+
+/// De quoi nommer une competence du Plan et y renvoyer, sans embarquer tout son
+/// etat.
+class PlanSkillRef {
+  const PlanSkillRef({
+    required this.skillId,
+    required this.skillCode,
+    required this.title,
+    required this.section,
+  });
+
+  final String skillId;
+  final String skillCode;
+  final String title;
+  final SkillSection section;
+
+  factory PlanSkillRef.fromJson(Map<String, dynamic> json) => PlanSkillRef(
+        skillId: json['skillId'] as String,
+        skillCode: json['skillCode'] as String? ?? '',
+        title: json['title'] as String? ?? '',
+        section: SkillSection.fromWire(json['section'] as String),
+      );
+}
+
+/// Ce qu'une production a change dans le Plan. Les deux champs sont
+/// **independamment nullables** : on n'affiche que celui qui existe.
+class PlanChange {
+  const PlanChange({this.confirmedSkill, this.newPriority});
+
+  /// Competence que cette production vient de confirmer en situation.
+  final PlanSkillRef? confirmedSkill;
+
+  /// Nouvelle priorite n°1 issue de cette meme production.
+  final PlanSkillRef? newPriority;
+
+  bool get isEmpty => confirmedSkill == null && newPriority == null;
+
+  factory PlanChange.fromJson(Map<String, dynamic> json) => PlanChange(
+        confirmedSkill: json['confirmedSkill'] == null
+            ? null
+            : PlanSkillRef.fromJson(
+                json['confirmedSkill'] as Map<String, dynamic>),
+        newPriority: json['newPriority'] == null
+            ? null
+            : PlanSkillRef.fromJson(
+                json['newPriority'] as Map<String, dynamic>),
       );
 }
 
@@ -342,23 +402,35 @@ class EvaluationFeedback {
   }
 }
 
-/// La reponse du candidat **reecrite au palier qu'il vise**, plus ce qui l'en
-/// separe. Produite par un SECOND appel LLM, totalement separe de la
-/// correction : le correcteur n'apprend jamais quel niveau vise le candidat,
-/// sinon il alignerait sa note dessus.
+/// Le **plan d'action** du candidat vers le palier qu'il vise. Produit par un
+/// SECOND appel LLM, totalement separe de la correction : le correcteur
+/// n'apprend jamais quel niveau vise le candidat, sinon il alignerait sa note
+/// dessus.
 ///
-/// **EE uniquement.** Le bloc est absent dans tous ces cas parfaitement
-/// normaux : a l'oral, sur les evaluations anterieures, et quand le second
-/// appel a echoue. Rien ne s'affiche alors — ni squelette, ni « non
-/// disponible ».
+/// **EE et EO.** Le bloc est absent dans tous ces cas parfaitement normaux :
+/// evaluations anterieures, second appel en echec, et — a l'oral —
+/// transcription trop abimee pour reformuler quoi que ce soit. Rien ne
+/// s'affiche alors : ni squelette, ni « non disponible ».
+///
+/// **Trois formes, une seule cle** — on distingue l'ecrit de l'oral a la
+/// presence de [exempleCible] ou de [reformulations] :
+/// - **v2, ecrit** : [leviers] + [exempleCible] + [aRetenir] ;
+/// - **v2, oral** : [leviers] + [reformulations] + [aRetenir]. **Aucun texte
+///   modele complet** — la production orale n'est jamais reecrite en entier ;
+/// - **v1** (une centaine d'evaluations deja en base) : [texte] +
+///   [ceQuiManque], ecrit seulement.
 ///
 /// Quand le palier vise est **deja atteint**, ce n'est pas ce bloc qui manque :
 /// c'est [NiveauViseAtteint] qui prend sa place. Les deux sont exclusifs.
 class VersionCiblee {
   const VersionCiblee({
     required this.niveauVise,
-    required this.texte,
     this.niveauConstate,
+    this.leviers = const [],
+    this.exempleCible,
+    this.reformulations = const [],
+    this.aRetenir,
+    this.texte,
     this.ceQuiManque = const [],
   });
 
@@ -369,29 +441,63 @@ class VersionCiblee {
   /// Palier reellement observe sur cette tache. Absent si inconnu.
   final NiveauCecrl? niveauConstate;
 
-  /// Le modele redige au niveau vise. **Jamais la production du candidat.**
-  final String texte;
+  /// v2 : 2 a 3 leviers, **dans l'ordre du backend** (du plus rentable au moins
+  /// rentable) — ne jamais retrier cote front.
+  final List<ActionPlanLevier> leviers;
 
-  /// 2 a 3 leviers, **dans l'ordre du backend** (du plus rentable au moins
-  /// rentable) : ne jamais retrier cote front.
+  /// v2, ECRIT : la reponse reecrite au niveau vise, segments surlignables.
+  final ActionPlanExempleCible? exempleCible;
+
+  /// v2, ORAL : 2 a 3 passages redits au niveau vise. Exclusif du precedent.
+  final List<ActionPlanReformulation> reformulations;
+
+  /// v2 : la tournure a emporter ailleurs.
+  final ActionPlanMemo? aRetenir;
+
+  /// v1 (legacy) : le modele redige au niveau vise. **Jamais la production du
+  /// candidat.** Null sous le contrat v2.
+  final String? texte;
+
+  /// v1 (legacy) : les leviers en texte libre, ordre du backend preserve.
   final List<String> ceQuiManque;
 
   /// Null des qu'il manque de quoi l'afficher honnetement : sans palier vise on
-  /// ne saurait pas au nom de quoi ce texte est montre, et sans texte il n'y a
-  /// rien a montrer.
+  /// ne saurait pas au nom de quoi ce plan est montre, et sans la moindre
+  /// section il n'y a rien a montrer.
   static VersionCiblee? fromJsonNullable(Object? raw) {
     if (raw is! Map<String, dynamic>) return null;
     final vise = _targetLevelOrNull(_trimmedOrNull(raw['niveau_vise']));
+    if (vise == null) return null;
+
+    final leviers = ActionPlanLevier.listFrom(raw['leviers']);
+    final exempleCible =
+        ActionPlanExempleCible.fromJsonNullable(raw['exemple_cible']);
+    final reformulations =
+        ActionPlanReformulation.listFrom(raw['reformulations']);
+    final aRetenir = ActionPlanMemo.fromJsonNullable(raw['a_retenir']);
     final texte = _trimmedOrNull(raw['texte']);
-    if (vise == null || texte == null) return null;
+    final ceQuiManque = ((raw['ce_qui_manque'] as List?) ?? const [])
+        .map((e) => e.toString().trim())
+        .where((e) => e.isNotEmpty)
+        .toList(growable: false);
+
+    final vide = leviers.isEmpty &&
+        exempleCible == null &&
+        reformulations.isEmpty &&
+        aRetenir == null &&
+        texte == null &&
+        ceQuiManque.isEmpty;
+    if (vide) return null;
+
     return VersionCiblee(
       niveauVise: vise,
       niveauConstate: _niveauCecrlOrNull(_trimmedOrNull(raw['niveau_constate'])),
+      leviers: leviers,
+      exempleCible: exempleCible,
+      reformulations: reformulations,
+      aRetenir: aRetenir,
       texte: texte,
-      ceQuiManque: ((raw['ce_qui_manque'] as List?) ?? const [])
-          .map((e) => e.toString().trim())
-          .where((e) => e.isNotEmpty)
-          .toList(growable: false),
+      ceQuiManque: ceQuiManque,
     );
   }
 }
@@ -571,7 +677,10 @@ class AccomplissementPoint {
   factory AccomplissementPoint.fromJson(Map<String, dynamic> json) =>
       AccomplissementPoint(
         libelle: (json['libelle'] as String? ?? '').trim(),
-        obligatoire: json['obligatoire'] as bool? ?? false,
+        // Absent/non booleen => obligatoire : on ne minimise jamais un manque.
+        // Miroir web (`r.obligatoire !== false`) ; inatteignable si le champ
+        // `required` du tool-schema v9 est respecte.
+        obligatoire: json['obligatoire'] != false,
       );
 }
 

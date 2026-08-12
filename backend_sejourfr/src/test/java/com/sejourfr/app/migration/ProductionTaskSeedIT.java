@@ -49,7 +49,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ProductionTaskSeedIT extends AbstractIntegrationTest {
 
     /** Lignes fabriquees par {@code TestData} : hors perimetre du contenu publie. */
-    private static final String NOT_A_FIXTURE = " AND consigne NOT LIKE 'Consigne %'";
+    private static final String NOT_A_FIXTURE =
+            " AND consigne NOT LIKE 'Consigne %' AND diagnostic_code IS NULL";
 
     /**
      * Marqueurs d'une EXIGENCE ARGUMENTATIVE (accents deja retires). Au moins un
@@ -88,6 +89,7 @@ class ProductionTaskSeedIT extends AbstractIntegrationTest {
         List<Map<String, Object>> sujets = jdbc.queryForList("""
                 SELECT id, niveau_cible, consigne FROM production_tasks
                 WHERE epreuve = 'TCF_EO' AND tache_numero = 3 AND is_active
+                  AND diagnostic_code IS NULL
                   AND consigne NOT LIKE 'Consigne %'
                 """);
 
@@ -140,7 +142,8 @@ class ProductionTaskSeedIT extends AbstractIntegrationTest {
         List<Map<String, Object>> pools = jdbc.queryForList("""
                 SELECT epreuve, tache_numero, niveau_cible, count(*) AS n
                 FROM production_tasks
-                WHERE is_active AND consigne NOT LIKE 'Consigne %'
+                WHERE is_active AND diagnostic_code IS NULL
+                  AND consigne NOT LIKE 'Consigne %'
                 GROUP BY epreuve, tache_numero, niveau_cible
                 """);
 
@@ -178,6 +181,7 @@ class ProductionTaskSeedIT extends AbstractIntegrationTest {
             List<Map<String, Object>> sujets = jdbc.queryForList("""
                     SELECT id::text AS id, mots_min, mots_max FROM production_tasks
                     WHERE epreuve = 'TCF_EE' AND tache_numero = ? AND is_active
+                      AND diagnostic_code IS NULL
                       AND consigne NOT LIKE 'Consigne %'
                     """, tache);
 
@@ -234,7 +238,7 @@ class ProductionTaskSeedIT extends AbstractIntegrationTest {
         List<Map<String, Object>> sujets = jdbc.queryForList("""
                 SELECT id::text AS id, epreuve, tache_numero, titre
                 FROM production_tasks
-                WHERE consigne NOT LIKE 'Consigne %'
+                WHERE diagnostic_code IS NULL AND consigne NOT LIKE 'Consigne %'
                 """);
 
         assertThat(sujets).hasSize(103);

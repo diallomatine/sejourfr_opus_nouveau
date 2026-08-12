@@ -88,6 +88,22 @@ public class ProductionTask {
     @Column(name = "is_active", nullable = false)
     private boolean active = false;
 
+    /**
+     * Identite stable d'un sujet de diagnostic SejourFR. NULL pour tout le
+     * catalogue TCF classique. La paire code/version permet de conserver un
+     * diagnostic initial commun tout en publiant plus tard une nouvelle
+     * version sans remplacer silencieusement les sujets deja passes.
+     */
+    @Column(name = "diagnostic_code", length = 64)
+    private String diagnosticCode;
+
+    @Column(name = "diagnostic_version")
+    private Integer diagnosticVersion;
+
+    /** URL publique R2 de la consigne audio fixe (diagnostic EO uniquement). */
+    @Column(name = "instruction_audio_url", length = 500)
+    private String instructionAudioUrl;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -134,6 +150,17 @@ public class ProductionTask {
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+
+    public String getDiagnosticCode() { return diagnosticCode; }
+    public void setDiagnosticCode(String diagnosticCode) { this.diagnosticCode = diagnosticCode; }
+
+    public Integer getDiagnosticVersion() { return diagnosticVersion; }
+    public void setDiagnosticVersion(Integer diagnosticVersion) { this.diagnosticVersion = diagnosticVersion; }
+
+    public String getInstructionAudioUrl() { return instructionAudioUrl; }
+    public void setInstructionAudioUrl(String instructionAudioUrl) { this.instructionAudioUrl = instructionAudioUrl; }
+
+    public boolean isDiagnostic() { return diagnosticCode != null && !diagnosticCode.isBlank(); }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

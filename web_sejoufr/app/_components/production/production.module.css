@@ -89,201 +89,37 @@
   color: var(--color-muted);
 }
 
-/* ---------- « À savoir » (limites de l'évaluation) ----------
-   Volontairement neutre : ce sont des informations de transparence, pas des
-   alertes — d'où le fond papier plutôt qu'un bandeau d'erreur. */
-.limitsBox {
-  background: var(--color-paper);
-  border: 1px solid var(--color-line);
-  border-left: 3px solid var(--color-blue);
+/* ---------- « À savoir sur cette évaluation » ----------
+   Une NOTE, pas une carte : posée sous le bandeau de résultat, elle se lit au
+   passage sans disputer la première lecture au verdict. Le texte vient du
+   serveur (limite de l'oral, purges automatiques), jamais du correcteur — c'est
+   pour ça qu'il survit au retrait de « Voir l'analyse complète » (v15/v9). */
+.evalNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px 11px;
   border-radius: 12px;
-  padding: 14px 16px;
+  background: color-mix(in srgb, var(--color-amber) 8%, transparent);
 }
-.limitsTitle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 8px;
-  font-weight: 700;
-  font-size: 13.5px;
-  color: var(--color-ink);
-}
-.limitsList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--color-ink-2);
-}
-
-/* ---------- Check-list de la consigne (dans l'analyse complète) ----------
-   Trois groupes (parité mobile) : traités / manques obligatoires / pistes non
-   abordées. Mélanger les deux derniers ferait paniquer pour des points qui
-   n'enlèvent rien. */
-.accGroups { display: flex; flex-direction: column; gap: 16px; }
-.accGroupTitle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 10px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  font-weight: 700;
-  color: var(--color-muted);
-}
-.accGroupTitle[data-state="done"] { color: var(--color-green); }
-.accGroupTitle[data-state="missing"] { color: var(--color-red); }
-.accGroupCount {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: var(--color-line-2);
-  color: var(--color-muted);
-  font-size: 10px;
-  letter-spacing: 0;
-}
-.accList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.accItem {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
-}
-.accIcon {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
+.evalNoticeIcon {
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  background: var(--color-green);
+  margin-top: 2px;
+  color: var(--color-amber-dark);
 }
-.accIcon[data-state="missing"] {
-  background: transparent;
-  border: 2px solid var(--color-red);
-}
-.accIcon[data-state="skipped"] {
-  background: transparent;
-  border: 2px solid var(--color-muted-2);
-}
-.accLabel {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-ink);
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.accTag {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-green) 12%, transparent);
-  color: var(--color-green);
-}
-.accTag[data-state="missing"] {
-  background: color-mix(in srgb, var(--color-red) 10%, transparent);
-  color: var(--color-red);
-}
-.accTag[data-state="skipped"] {
-  background: var(--color-line-2);
-  color: var(--color-muted);
-}
-.accFoot {
-  margin: 14px 0 0;
-  padding-top: 12px;
-  border-top: 1px solid var(--color-line-2);
+.evalNoticeBody { min-width: 0; }
+.evalNoticeTitle {
+  margin: 0;
   font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--color-muted);
-}
-
-/* ---------- Analyse complète (repliée par défaut) ----------
-   Rien de ce que l'évaluation contient n'est perdu : ce qui n'aide pas
-   immédiatement est rangé ici, au lieu d'écraser les cinq blocs du haut. */
-.details {
-  background: white;
-  border: 1px solid var(--color-line);
-  border-radius: 16px;
-}
-.detailsSummary {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  cursor: pointer;
-  list-style: none;
-  border-radius: 16px;
-}
-.detailsSummary::-webkit-details-marker { display: none; }
-.detailsSummary:hover { background: var(--color-paper); }
-.detailsSummaryText {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.detailsSummaryTitle { font-weight: 700; font-size: 14px; color: var(--color-ink); }
-.detailsSummaryHint { font-size: 12.5px; line-height: 1.45; color: var(--color-muted); }
-.detailsChevron {
-  flex-shrink: 0;
-  color: var(--color-muted);
-  transition: transform 0.18s ease;
-}
-.details[open] .detailsChevron { transform: rotate(180deg); }
-.detailsBody {
-  padding: 4px 20px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-@media (max-width: 760px) {
-  .detailsSummary { padding: 14px 16px; }
-  .detailsBody { padding: 4px 16px 18px; }
-}
-.subBlock {
-  border-top: 1px solid var(--color-line-2);
-  padding-top: 18px;
-}
-/* Le premier bloc n'a pas de séparateur — sauf s'il est précédé du bandeau
-   « à savoir », qui n'est pas un .subBlock et garde son propre padding. */
-.subBlock:first-child {
-  border-top: none;
-  padding-top: 0;
-}
-.subTitle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 10px;
-  font-weight: 700;
-  font-size: 14px;
+  font-weight: 800;
   color: var(--color-ink);
 }
-
+.evalNoticeText {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
 
 /* ---------- Critères notés (feedback) ---------- */
 .critRow {
@@ -358,37 +194,8 @@
 .critProof svg { flex-shrink: 0; margin-top: 3px; color: var(--color-muted-2); }
 .critProof span { min-width: 0; overflow-wrap: anywhere; }
 
-/* ---------- Blocs feedback (listes) ---------- */
-.fbTitle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  font-size: 14px;
-  color: var(--color-ink);
-  margin: 0 0 10px;
-}
-.fbList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.fbItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  font-size: 13.5px;
-  color: var(--color-ink-2);
-  line-height: 1.5;
-}
-.fbBullet { margin-top: 7px; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.fbInfo { background: var(--color-blue); }
 .prioHowTag,
-.prioExampleTag,
-.corrGainTag {
+.prioExampleTag {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -400,33 +207,6 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-/* corrections */
-.correction {
-  background: var(--color-paper);
-  border: 1px solid var(--color-line);
-  border-radius: 12px;
-  padding: 12px 14px;
-}
-.correction + .correction { margin-top: 8px; }
-.corrLine { font-size: 13.5px; line-height: 1.5; }
-.corrOrig { color: var(--color-red); text-decoration: line-through; }
-.corrFix { color: var(--color-green); font-weight: 600; }
-.corrExpl { font-size: 12.5px; color: var(--color-muted); font-style: italic; margin: 6px 0 0; }
-.corrGain {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px;
-  margin: 8px 0 0;
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--color-ink-2);
-}
-.corrGainTag {
-  background: color-mix(in srgb, var(--color-green) 14%, transparent);
-  color: var(--color-green);
 }
 
 /* Tonalités par tâche (alignées sur les cards : T1 bleu, T2 ambre, T3 rouge). */
@@ -1007,6 +787,17 @@
   background: currentColor;
   color: var(--color-green);
 }
+/* Les points EXIGÉS non traités, dans le même dépliant que la fraction : sans
+   eux, « 2/3 points traités » ne dit jamais lequel manque. Un titre est ici
+   nécessaire — sans lui, un manque se lirait comme une réussite de plus. */
+.tileMissedTitle {
+  margin: 12px 0 7px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--color-red);
+}
+.tileBullets[data-tone="missed"] li::before { color: var(--color-red); }
+
 /* Un filet, pas un titre : la consigne d'un côté, la langue de l'autre. */
 .tileSplit {
   display: block;
@@ -1220,33 +1011,19 @@
   color: var(--color-blue);
 }
 
-/* ---------- La marche au-dessus : la réponse au niveau VISÉ ----------
-   LE texte modèle du rapport, et le seul : il montre le palier suivant, nomme
-   son niveau, et son cadre dit qu'il n'est pas du candidat. */
+/* ---------- Le plan d'action : leviers, version plus aboutie, à retenir ----------
+   Mêmes blocs que le retour d'un micro-exercice de compétence
+   (`skill-ui/ActionPlan`) : seuls les intertitres sont rendus ici, avec le
+   gabarit de titre du rapport. `.targetCard` ne sert plus qu'aux évaluations du
+   contrat v1, qui portent un texte modèle et des leviers en texte libre.
+   ⚠️ Plus aucun titre ni sous-titre n'étiquette un texte d'un palier : rien ne
+   vérifie qu'il l'atteint. Seul l'objectif du candidat est nommé. */
 .targetSection { display: block; }
 .targetCard {
   background: color-mix(in srgb, var(--color-blue) 5%, white);
   border: 1px solid color-mix(in srgb, var(--color-blue) 22%, transparent);
   border-radius: 20px;
   padding: 15px;
-}
-.targetEyebrow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  font-weight: 700;
-  color: var(--color-blue);
-}
-.targetIntro {
-  margin: 8px 0 0;
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--color-muted);
 }
 .targetText {
   margin: 11px 0 0;
@@ -1260,12 +1037,12 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.targetGapTitle {
-  margin: 14px 0 0;
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--color-ink);
-}
+/* Premier enfant de la carte depuis que le titre est sorti du cadre. */
+.targetCard > .targetText:first-child,
+.targetCard > .targetGapList:first-child { margin-top: 0; }
+/* La carte « À retenir » porte sa marge d'entrée pour le flux des compétences ;
+   ici la colonne a déjà son `gap`. */
+.planMemo { margin-top: 0; }
 .targetGapList {
   margin: 8px 0 0;
   padding: 0;

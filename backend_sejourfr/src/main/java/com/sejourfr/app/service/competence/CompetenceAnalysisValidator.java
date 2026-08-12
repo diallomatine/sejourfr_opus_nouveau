@@ -1,6 +1,8 @@
 package com.sejourfr.app.service.competence;
 
+import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.SkillCriterionStatus;
+import com.sejourfr.app.util.PlafondMots;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -19,12 +21,22 @@ import java.util.Set;
  * champ blanc, ou un {@code criterion_status} nul qui ferait basculer le sujet
  * en « Fait » alors qu'une analyse a bien ete payee.
  *
- * <p><b>Ce que ce validateur ne fait PAS</b> : chercher une note sur 20 ou un
- * niveau CECRL dans les champs texte. Le contrat de sortie ne prevoit aucun
- * champ pour ca, et une detection par mots-cles produirait trop de faux positifs
- * (« B1 » apparait legitimement dans un sujet, « 20 » dans une heure de
- * rendez-vous). L'interdiction est portee par les consignes, pas par une
- * expression reguliere.
+ * <p><b>Ce que ce validateur ne fait PAS</b> : chercher une note sur 20 cachee
+ * dans les champs texte. Le contrat de sortie ne prevoit aucun champ pour ca, et
+ * une detection par mots-cles produirait trop de faux positifs (« 20 » apparait
+ * legitimement dans une heure de rendez-vous). L'interdiction de la note est
+ * portee par le schema et par les consignes, pas par une expression reguliere.
+ *
+ * <p>Le <b>niveau CECRL</b>, lui, est desormais un champ du contrat
+ * ({@code level_reached}, depuis v3) et il est verifie comme un enum : borne aux
+ * cinq valeurs du profil TCF IRN, jamais C1 ni C2.
+ *
+ * <p><b>La PREUVE du niveau ({@code level_evidence}, depuis v4) n'est pas
+ * verifiee ici</b>, et c'est un choix. Ce validateur a le pouvoir de faire
+ * echouer l'analyse (deuxieme sortie encore invalide → {@code FAILED}) ; une
+ * preuve manquante, elle, ne doit jamais couter au candidat sa production et son
+ * quota. Elle est donc traitee par {@link CompetenceLevelEvidenceGuard}, qui
+ * abaisse le niveau d'un palier au lieu de rejeter.
  *
  * <p>Toutes les violations sont collectees, jamais la premiere seulement : le
  * message de reessai doit etre complet, sinon on paie un appel par violation.
@@ -32,22 +44,24 @@ import java.util.Set;
 @Component
 public class CompetenceAnalysisValidator {
 
-    /** Les cinq cles attendues, et aucune autre. */
-    static final List<String> CLES = List.of(
-        CompetenceAnalysisFields.STATUS,
-        CompetenceAnalysisFields.VERDICT,
-        CompetenceAnalysisFields.SUCCESS_POINT,
-        CompetenceAnalysisFields.IMPROVEMENT_PRIORITY,
-        CompetenceAnalysisFields.IMPROVED_VERSION);
-
     /**
-     * Tolerance appliquee aux plafonds de longueur avant rejet. Les plafonds
-     * sont une consigne pedagogique (« une phrase courte »), pas un contrat
-     * machine : perdre une analyse deja payee parce qu'un verdict fait 21 mots
-     * au lieu de 20 serait absurde. Au-dela de cette marge, en revanche, le
-     * correcteur ne respecte plus la forme demandee et on le lui redemande.
+     * Tolerance appliquee aux plafonds de longueur avant rejet, resolue par
+     * {@link PlafondMots#tolere(int)}. Les plafonds sont une consigne pedagogique
+     * (« une phrase courte »), pas un contrat machine : perdre une analyse deja
+     * payee parce qu'un verdict fait 21 mots au lieu de 20 serait absurde.
+     *
+     * <p>⚠️ L'ancienne formule {@code floor(plafond * 1,2)} n'accordait AUCUNE
+     * marge sur les petits plafonds : {@code strength_tag} et {@code focus_tag}
+     * valent <b>3 mots</b> sous le contrat actif, et 3 x 1,2 arrondi vers le bas
+     * fait 3. La tolerance n'existait donc pas la ou elle etait le plus
+     * necessaire.
      */
-    static final double TOLERANCE_LONGUEUR = 1.2;
+    static final double TOLERANCE_LONGUEUR = PlafondMots.TOLERANCE;
+
+    /** Les seuls niveaux du profil TCF IRN : C1 et C2 n'existent pas ici. */
+    static final List<NiveauCecrl> NIVEAUX_TCF_IRN = List.of(
+        NiveauCecrl.A1_NON_ATTEINT, NiveauCecrl.A1, NiveauCecrl.A2,
+        NiveauCecrl.B1, NiveauCecrl.B2);
 
     private final CompetenceRubricsProvider rubrics;
 
@@ -63,9 +77,18 @@ public class CompetenceAnalysisValidator {
             return violations;
         }
 
+        String contrat = rubrics.getToolSchemaVersion();
         Set<String> vues = new LinkedHashSet<>(sortie.keySet());
-        for (String cle : CLES) {
+        for (String cle : cles()) {
             vues.remove(cle);
+            // LA PREUVE DU NIVEAU N'EST PAS VALIDEE ICI, VOLONTAIREMENT. Ce
+            // validateur fait echouer l'analyse quand sa deuxieme sortie est
+            // encore mauvaise ; or une preuve manquante ne doit JAMAIS couter
+            // son analyse au candidat — elle abaisse le niveau d'un palier
+            // (cf. CompetenceLevelEvidenceGuard). Le champ est seulement
+            // reconnu comme etant DANS le contrat, pour ne pas etre compte
+            // « cle hors contrat ».
+            if (CompetenceAnalysisFields.estOptionnelle(contrat, cle)) continue;
             if (!sortie.containsKey(cle)) {
                 violations.add(cle + " est absent");
                 continue;
@@ -81,6 +104,8 @@ public class CompetenceAnalysisValidator {
             }
             if (CompetenceAnalysisFields.STATUS.equals(cle)) {
                 validerStatus(texte, violations);
+            } else if (CompetenceAnalysisFields.LEVEL_REACHED.equals(cle)) {
+                validerNiveau(texte, violations);
             } else {
                 validerLongueur(cle, texte, violations);
             }
@@ -90,6 +115,15 @@ public class CompetenceAnalysisValidator {
             violations.add("cle hors contrat : " + enTrop);
         }
         return violations;
+    }
+
+    /**
+     * Cles attendues pour le CONTRAT DE SORTIE actif. Lues a chaque appel et non
+     * figees a la construction : c'est ce qui rend le retour arriere reel, un
+     * {@code COMPETENCE_TOOL_SCHEMA_VERSION=v2} devant reclamer les champs de v2.
+     */
+    private List<String> cles() {
+        return CompetenceAnalysisFields.cles(rubrics.getToolSchemaVersion());
     }
 
     private void validerStatus(String texte, List<String> violations) {
@@ -104,10 +138,27 @@ public class CompetenceAnalysisValidator {
         }
     }
 
+    /**
+     * NIVEAU CECRL, borne au profil TCF IRN. C1 et C2 existent dans
+     * {@link NiveauCecrl} (les productions completes en ont besoin) mais n'ont
+     * aucun sens ici : le TCF IRN plafonne au B2, et un micro-exercice n'est de
+     * toute façon pas le lieu pour les distinguer. Le tool-schema les exclut
+     * deja par son {@code enum} ; ce controle est le deuxieme etage, celui qui
+     * ne depend d'aucune cooperation du fournisseur.
+     */
+    private void validerNiveau(String texte, List<String> violations) {
+        String brut = texte.trim();
+        for (NiveauCecrl niveau : NIVEAUX_TCF_IRN) {
+            if (niveau.name().equals(brut)) return;
+        }
+        violations.add(CompetenceAnalysisFields.LEVEL_REACHED + " doit valoir exactement "
+            + "A1_NON_ATTEINT, A1, A2, B1 ou B2 (recu : " + brut + ")");
+    }
+
     private void validerLongueur(String cle, String texte, List<String> violations) {
         Integer max = rubrics.contraintesLongueur().get(cle);
         if (max == null) return; // Pas de plafond declare pour ce champ (improved_version).
-        int plafond = (int) Math.floor(max * TOLERANCE_LONGUEUR);
+        int plafond = PlafondMots.tolere(max);
         int mots = compterMots(texte);
         if (mots > plafond) {
             violations.add(cle + " fait " + mots + " mots, le maximum est " + max
@@ -116,8 +167,6 @@ public class CompetenceAnalysisValidator {
     }
 
     static int compterMots(String texte) {
-        String normalise = texte.trim();
-        if (normalise.isEmpty()) return 0;
-        return normalise.split("\\s+").length;
+        return PlafondMots.compter(texte);
     }
 }

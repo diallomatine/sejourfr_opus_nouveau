@@ -2,6 +2,7 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.SkillDetailDto;
 import com.sejourfr.app.dto.SkillDto;
+import com.sejourfr.app.dto.SkillObservationPointDto;
 import com.sejourfr.app.dto.SkillPromptDto;
 import com.sejourfr.app.dto.SkillPromptSummaryDto;
 import com.sejourfr.app.dto.SkillReferenceDto;
@@ -9,6 +10,7 @@ import com.sejourfr.app.dto.SkillTaskProgressDto;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.entity.UserSkillAttempt;
+import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillPromptStatus;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
@@ -46,6 +48,9 @@ import java.util.UUID;
  *       competence, puis croises en memoire.</li>
  *   <li><b>Les references ne sortent qu'apres la production</b> — la garde est
  *       ici, pas seulement dans l'interface.</li>
+ *   <li><b>Ce qui est ouvert vient de {@link SkillAccessService}</b>, resolu
+ *       UNE fois par ecran : ce service ne fait que reporter {@code locked}
+ *       dans les DTO, il ne redecide rien.</li>
  * </ul>
  *
  * <p>Le denominateur des compteurs (« X sujets sur Y ») ne retient que les
@@ -60,6 +65,8 @@ public class SkillService {
     private final SkillPromptManager promptManager;
     private final UserSkillAttemptManager attemptManager;
     private final SkillStatusResolver statusResolver;
+    private final SkillAccessService accessService;
+    private final SkillMasteryResolver masteryResolver;
     private final SkillMapper skillMapper;
     private final SkillPromptMapper promptMapper;
     private final SkillReferenceMapper referenceMapper;
@@ -90,9 +97,9 @@ public class SkillService {
             promptCountByTask.merge(skill.getTaskCode(), (int) prompts, Integer::sum);
         }
 
-        Map<SkillTaskCode, Tally> tallies = new EnumMap<>(SkillTaskCode.class);
+        Map<SkillTaskCode, SkillProgressTally> tallies = new EnumMap<>(SkillTaskCode.class);
         for (SkillTaskCode code : taskCodes) {
-            tallies.put(code, new Tally());
+            tallies.put(code, new SkillProgressTally());
         }
         for (UserSkillAttempt attempt : latestByPrompt.values()) {
             SkillPrompt prompt = attempt.getSkillPrompt();
@@ -102,7 +109,7 @@ public class SkillService {
 
         List<SkillTaskProgressDto> out = new ArrayList<>(taskCodes.size());
         for (SkillTaskCode code : taskCodes) {
-            Tally tally = tallies.get(code);
+            SkillProgressTally tally = tallies.get(code);
             out.add(new SkillTaskProgressDto(
                     code,
                     section,
@@ -110,9 +117,9 @@ public class SkillService {
                     code.getTargetLevel(),
                     skillCounts.getOrDefault(code, 0L).intValue(),
                     promptCountByTask.getOrDefault(code, 0),
-                    tally.attempted,
-                    tally.validated,
-                    tally.toReinforce));
+                    tally.attempted(),
+                    tally.validated(),
+                    tally.toReinforce()));
         }
         return out;
     }
@@ -155,23 +162,32 @@ public class SkillService {
         Map<UUID, UserSkillAttempt> latestByPrompt =
                 attemptManager.findLatestPerPromptByTaskCodes(userId, scope);
 
-        Map<UUID, Tally> tallyBySkill = new HashMap<>();
+        Map<UUID, SkillProgressTally> tallyBySkill = new HashMap<>();
         for (UserSkillAttempt attempt : latestByPrompt.values()) {
             SkillPrompt prompt = attempt.getSkillPrompt();
             if (!isVisible(prompt)) continue;
-            tallyBySkill.computeIfAbsent(prompt.getSkill().getId(), k -> new Tally())
+            tallyBySkill.computeIfAbsent(prompt.getSkill().getId(), k -> new SkillProgressTally())
                     .add(statusResolver.resolve(attempt));
         }
 
+        // Une seule resolution du verrou pour les 24 competences de l'ecran, et
+        // UNE seule requete d'historique pour leurs 24 etats de maitrise.
+        SkillAccessService.SkillAccess access = accessService.resolve(userId);
+        Map<UUID, SkillMasteryEngine.SkillMastery> mastery =
+                masteryResolver.bySkillIds(userId, skills.stream().map(Skill::getId).toList());
+
         List<SkillDto> out = new ArrayList<>(skills.size());
         for (Skill skill : skills) {
-            Tally tally = tallyBySkill.getOrDefault(skill.getId(), new Tally());
+            SkillProgressTally tally = tallyBySkill.getOrDefault(
+                    skill.getId(), new SkillProgressTally());
             out.add(skillMapper.toDto(
                     skill,
                     promptCountBySkill.getOrDefault(skill.getId(), 0L).intValue(),
-                    tally.attempted,
-                    tally.validated,
-                    tally.toReinforce));
+                    tally.attempted(),
+                    tally.validated(),
+                    tally.toReinforce(),
+                    masteryState(mastery, skill.getId()),
+                    access.isSkillLocked(skill.getId())));
         }
         return out;
     }
@@ -186,8 +202,11 @@ public class SkillService {
         Map<UUID, UserSkillAttempt> latestByPrompt =
                 attemptManager.findLatestPerPromptBySkill(userId, skillId);
         Map<UUID, Long> attemptCounts = attemptManager.countPerPromptBySkill(userId, skillId);
+        // Une seule resolution pour la competence ET ses 15 sujets : le cadenas
+        // doit se voir sur la liste, pas seulement a l'ouverture d'un sujet.
+        SkillAccessService.SkillAccess access = accessService.resolve(userId);
 
-        Tally tally = new Tally();
+        SkillProgressTally tally = new SkillProgressTally();
         List<SkillPromptSummaryDto> summaries = new ArrayList<>(prompts.size());
         for (SkillPrompt prompt : prompts) {
             UserSkillAttempt latest = latestByPrompt.get(prompt.getId());
@@ -197,12 +216,27 @@ public class SkillService {
                     prompt,
                     status,
                     attemptCounts.getOrDefault(prompt.getId(), 0L).intValue(),
-                    latest == null ? null : latest.getCreatedAt()));
+                    latest == null ? null : latest.getCreatedAt(),
+                    access.isPromptLocked(prompt.getId())));
         }
 
         SkillDto dto = skillMapper.toDto(
-                skill, prompts.size(), tally.attempted, tally.validated, tally.toReinforce);
-        return new SkillDetailDto(dto, summaries);
+                skill, prompts.size(), tally.attempted(), tally.validated(), tally.toReinforce(),
+                masteryState(masteryResolver.bySkillIds(userId, List.of(skillId)), skillId),
+                access.isSkillLocked(skill.getId()));
+        // La frise part avec la fiche : l'ecran affiche les deux ensemble, un
+        // second aller-retour n'aurait apporte que de la latence.
+        List<SkillObservationPointDto> trajectory =
+                masteryResolver.trajectory(userId, skillId).stream()
+                        .map(observation -> new SkillObservationPointDto(
+                                observation.getObservedAt(),
+                                observation.getSourceType(),
+                                observation.getStatus(),
+                                observation.getExplanation(),
+                                observation.getConfidence(),
+                                observation.isBaseline()))
+                        .toList();
+        return new SkillDetailDto(dto, summaries, trajectory);
     }
 
     /** Le sujet complet pour l'ecran de production. Ne contient jamais les references. */
@@ -218,7 +252,7 @@ public class SkillService {
         long attemptCount = attemptManager.countByUserAndPrompt(userId, promptId);
 
         // Les sujets freres servent DEUX fois : leur nombre est le denominateur
-        // du fil d'Ariane « Sujet i/5 », et leur parcours donne le sujet suivant.
+        // du fil d'Ariane « Sujet i/N », et leur parcours donne le sujet suivant.
         // Les charger une fois evite a l'ecran de production un second appel a
         // GET /api/skills/{skillId} pour ces seules informations.
         List<SkillPrompt> siblings = promptManager.findActiveBySkillId(skill.getId());
@@ -231,7 +265,8 @@ public class SkillService {
                 (int) attemptCount,
                 latest == null ? null : latest.getCreatedAt(),
                 latest == null ? null : latest.getId(),
-                nextTodoPromptId(siblings, promptId, latestByPrompt));
+                nextTodoPromptId(siblings, promptId, latestByPrompt),
+                accessService.resolve(userId).isPromptLocked(promptId));
     }
 
     /**
@@ -304,6 +339,12 @@ public class SkillService {
         return null;
     }
 
+    /** {@code null} quand le moteur n'a rien vu : aucune carte n'invente un etat. */
+    private static SkillMasteryState masteryState(
+            Map<UUID, SkillMasteryEngine.SkillMastery> mastery, UUID skillId) {
+        return mastery.getOrDefault(skillId, SkillMasteryEngine.SkillMastery.NONE).state();
+    }
+
     private Skill loadActiveSkill(UUID skillId) {
         return skillManager.findActiveById(skillId)
                 .orElseThrow(() -> new NotFoundException("Compétence introuvable : " + skillId));
@@ -317,19 +358,5 @@ public class SkillService {
     /** Un sujet ne compte dans la progression que s'il est encore affichable. */
     private static boolean isVisible(SkillPrompt prompt) {
         return prompt.isActive() && prompt.getSkill().isActive();
-    }
-
-    /** Compteurs de progression accumules sur un ensemble de sujets. */
-    private static final class Tally {
-        private int attempted;
-        private int validated;
-        private int toReinforce;
-
-        void add(SkillPromptStatus status) {
-            if (!status.isAttempted()) return;
-            attempted++;
-            if (status == SkillPromptStatus.VALIDATED) validated++;
-            if (status == SkillPromptStatus.TO_REINFORCE) toReinforce++;
-        }
     }
 }

@@ -438,6 +438,13 @@
   color: var(--color-amber-dark);
 }
 
+/* Cran au-dessus de `.badgeReinforce`, réservé au Plan : une compétence
+   prioritaire. Rouge de marque, jamais une teinte nouvelle. */
+.badgePriority {
+  background: color-mix(in srgb, var(--color-red) 10%, transparent);
+  color: var(--color-red-dark);
+}
+
 /* Pilule de palier : ambre, et le MÊME libellé partout (« A2 », jamais
    « Niveau A2 » d'un écran à l'autre). */
 .levelPill {
@@ -450,6 +457,141 @@
   font-size: 10px;
   font-weight: 700;
   color: var(--color-muted-2);
+}
+
+/* --------------------------- ce que la production a changé dans le Plan */
+
+/* Une ligne discrète en fin de rapport, jamais une carte de plus : le rapport
+   dit la correction, le Plan dit la suite. */
+.planChange {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 15px;
+  padding: 13px 15px;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: white;
+}
+
+.planChangeBody {
+  display: grid;
+  gap: 3px;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.planChangeDone {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--color-green);
+  overflow-wrap: anywhere;
+}
+
+.planChangeNext {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.planChangeLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 13px;
+  border-radius: 999px;
+  background: var(--skill-accent-light);
+  color: var(--skill-accent);
+  font-size: 12.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* ------------------------------------ frise d'une compétence (trajectoire) */
+
+/* Une frise, pas un tableau : le filet vertical relie les points et fait lire
+   une progression. Il descend du premier au dernier repère et s'arrête au
+   dernier — d'où le `::before` sur la ligne plutôt qu'un fond sur la liste. */
+.traj {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trajRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: start;
+  padding-bottom: 14px;
+}
+
+.trajRow:last-child {
+  padding-bottom: 0;
+}
+
+.trajRow:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 16px;
+  bottom: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--color-line);
+}
+
+.trajMark {
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--skill-accent);
+}
+
+.trajBody {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.trajHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.trajSource {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.trajDate {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-muted-2);
+}
+
+/* Le constat du correcteur, en second plan : la ligne se lit d'abord par sa
+   source et son verdict. */
+.trajWhy {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
 }
 
 /* -------------------------------------------------- encart d'information */
@@ -1710,6 +1852,29 @@
   color: var(--color-muted);
 }
 
+/* Attente du plan d'action (second appel LLM) : une ligne discrète à
+   l'emplacement du bloc, jamais un écran de chargement — le rapport reste
+   entièrement lisible pendant le sursis. Cf. `ActionPlanPending`. */
+.planPending {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 14px 2px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.planPendingSpinner {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--color-line);
+  border-top-color: var(--skill-accent);
+  animation: skillSpin 0.9s linear infinite;
+}
+
 .error {
   padding: 12px 14px;
   margin-bottom: 14px;
@@ -2561,6 +2726,67 @@
   grid-template-columns: 46px minmax(0, 1fr) auto;
 }
 
+/* ------------------------------------------------------- verrou freemium */
+
+/* Le cadenas ne cache RIEN : la carte reste lisible, elle change seulement de
+   destination (le paiement au lieu de la production). D'où une pastille
+   éteinte plutôt qu'une carte grisée — grisée, elle serait lue « indisponible »
+   alors qu'elle est « disponible en Intégral ». Le verrou vient du serveur ;
+   aucune règle n'est décidée ici. */
+.tileLocked {
+  background: color-mix(in srgb, var(--color-muted-2) 14%, transparent);
+  color: var(--color-muted);
+}
+
+/* Invitation pleine largeur, à la place de la zone de saisie d'un sujet
+   verrouillé atteint par son URL. */
+.lockCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+  padding: clamp(20px, 5vw, 30px) clamp(16px, 4vw, 26px);
+  text-align: center;
+}
+
+.lockCardIcon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: var(--skill-accent-light);
+  color: var(--skill-accent);
+}
+
+.lockCardTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(19px, 3.4vw, 23px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.22;
+  color: var(--color-ink);
+}
+
+.lockCardText {
+  max-width: 46ch;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.lockCardCta {
+  margin-top: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 320px;
+}
+
 /* ----------------------------------------------- accessibilité clavier */
 
 /* Exigence, pas finition : tout élément actionnable du module montre son
@@ -2596,6 +2822,483 @@
 .secondary:active:not(:disabled),
 .packBtn:active:not(:disabled) {
   transform: scale(0.96);
+}
+
+/* ============================================================================
+   Résultat d'un petit sujet — contrat d'analyse v3.
+
+   Trois questions, trois blocs : *où j'en suis* (carte de niveau + jauge),
+   *ce qu'il me manque* (leviers), *à quoi ça ressemble* (exemple annoté), plus
+   le mémo à emporter. Tout le texte rendu ici est déjà plafonné en mots côté
+   serveur — la mise en page n'a pas à le tronquer, seulement à le laisser
+   respirer et passer à la ligne.
+   ============================================================================ */
+
+/* Conteneur neutre d'une section du retour v3 : il n'existe que pour couper la
+   propagation de largeur (`min-width: 0`) dans la colonne flex. */
+.block {
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------- carte de niveau */
+
+.levelCard {
+  margin-top: 13px;
+  padding: 15px;
+  border-radius: 21px;
+  background: var(--skill-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--skill-accent) 20%, transparent);
+  min-width: 0;
+}
+
+.levelEyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--skill-accent);
+}
+
+.levelTop {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 4px;
+}
+
+/* Le niveau démontré, en très grand : c'est la première chose que le candidat
+   doit lire. `clamp` plutôt qu'une taille fixe — à 360 px la colonne ne fait
+   que 328 px de contenu. */
+.levelBig {
+  font-family: var(--font-display);
+  font-size: clamp(38px, 13vw, 52px);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-ink);
+}
+
+.levelGoal {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: white;
+  border: 1px solid color-mix(in srgb, var(--skill-accent) 24%, transparent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--skill-accent);
+  white-space: nowrap;
+}
+
+.levelSituation {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 9px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--color-ink-2);
+  overflow-wrap: anywhere;
+}
+
+.levelSituationIcon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--skill-accent) 12%, transparent);
+  color: var(--skill-accent);
+}
+
+.levelSituationDone .levelSituationIcon {
+  background: color-mix(in srgb, var(--color-green) 14%, transparent);
+  color: var(--color-green);
+}
+
+/* ------------------------------------------------------------------ jauge */
+
+/* Trois crans étiquetés. Positions et index viennent du serveur : la feuille de
+   style ne fait que les dessiner. Le rail garde ses points visibles aux deux
+   extrémités (`overflow: visible`), d'où la réserve horizontale du conteneur. */
+.gauge {
+  margin-top: 14px;
+  padding: 0 7px;
+}
+
+.gaugeRail {
+  position: relative;
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-ink) 9%, transparent);
+  overflow: visible;
+}
+
+.gaugeFill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--skill-accent);
+}
+
+.gaugeDot {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border: 2px solid color-mix(in srgb, var(--color-ink) 14%, transparent);
+}
+
+.gaugeDotOn {
+  border-color: var(--skill-accent);
+}
+
+/* Le cran courant est le seul plein, et le seul avec un halo : « je suis ici ». */
+.gaugeDotNow {
+  width: 15px;
+  height: 15px;
+  background: var(--skill-accent);
+  border-color: white;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--skill-accent) 22%, transparent);
+}
+
+.gaugeLabels {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.gaugeLabel {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-muted-2);
+}
+
+.gaugeLabelOn {
+  color: var(--skill-accent);
+}
+
+/* --------------------------------------------------------- puces d'étiquette */
+
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: white;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.tag svg {
+  flex: none;
+}
+
+.tagGood {
+  border: 1px solid color-mix(in srgb, var(--color-green) 26%, transparent);
+  color: var(--color-green);
+}
+
+.tagFocus {
+  border: 1px solid color-mix(in srgb, var(--color-amber) 34%, transparent);
+  color: var(--color-amber-dark);
+}
+
+/* Verdict du critère unique, en une ligne de texte sous les puces — pas de
+   carte, pas de fond, pas d'intertitre : le verdict complète la jauge, il ne
+   rejoue pas une section à part. */
+.criterionVerdict {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.48;
+  color: var(--color-ink-2);
+  overflow-wrap: anywhere;
+}
+
+/* ----------------------------------------------------------------- leviers */
+
+.levierList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 19px;
+  background: white;
+  overflow: hidden;
+}
+
+/* Action à gauche, bout de langue à droite : les deux passent à la ligne au
+   lieu de déborder — à 360 px « Ajoute une justification » et son exemple ne
+   tiennent pas côte à côte. */
+.levierRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--color-line-2);
+}
+
+.levierRow:last-child {
+  border-bottom: 0;
+}
+
+.levierDot {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 9px;
+}
+
+.levierDotA {
+  background: color-mix(in srgb, var(--skill-accent) 12%, transparent);
+  color: var(--skill-accent);
+}
+
+.levierDotB {
+  background: color-mix(in srgb, var(--color-green) 12%, transparent);
+  color: var(--color-green);
+}
+
+.levierDotC {
+  background: color-mix(in srgb, var(--color-amber) 16%, transparent);
+  color: var(--color-amber-dark);
+}
+
+.levierAction {
+  flex: 1 1 140px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.levierExample {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--skill-accent);
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------- exemple au niveau */
+
+.exempleCard {
+  position: relative;
+  padding: 14px;
+  border-radius: 19px;
+  background: var(--skill-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--skill-accent) 20%, transparent);
+  min-width: 0;
+}
+
+.exempleIcon {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  border-radius: 9px;
+  background: white;
+  color: var(--skill-accent);
+}
+
+.exempleText {
+  margin: 9px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Le surlignage n'ajoute rien au texte : il désigne. D'où un fond tenu et une
+   couleur d'encre inchangée — `mark` par défaut repeint en jaune système. */
+.exempleMark {
+  background: color-mix(in srgb, var(--skill-accent) 17%, transparent);
+  color: var(--color-ink);
+  border-radius: 5px;
+  padding: 1px 2px;
+  font-weight: 700;
+}
+
+.segList {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.segChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: white;
+  border: 1px solid color-mix(in srgb, var(--skill-accent) 18%, transparent);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.segChip svg {
+  flex: none;
+  color: var(--color-muted-2);
+}
+
+.segExtrait {
+  min-width: 0;
+  font-weight: 800;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.segApport {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--skill-accent);
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------- reformulations (production orale)
+
+   L'oral n'a pas de texte modèle complet : deux ou trois passages seulement,
+   chacun dans sa carte — le passage du candidat, puis le même mieux dit. */
+
+.reformList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.reformCard {
+  padding: 13px 14px;
+  border-radius: 19px;
+  background: var(--skill-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--skill-accent) 20%, transparent);
+  min-width: 0;
+}
+
+/* Ce que le candidat a dit : présent, mais en retrait — ce n'est pas le modèle. */
+.reformOriginal {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.reformNew {
+  margin: 7px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
+  color: var(--skill-accent);
+  overflow-wrap: anywhere;
+}
+
+.reformChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin-top: 9px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: white;
+  border: 1px solid color-mix(in srgb, var(--skill-accent) 18%, transparent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--skill-accent);
+  overflow-wrap: anywhere;
+}
+
+.reformChip svg {
+  flex: none;
+  color: var(--color-muted-2);
+}
+
+/* --------------------------------------------------------------- à retenir */
+
+/* Carte chaude : c'est la seule du retour, et elle ferme l'écran sur ce qu'il
+   faut emporter. */
+.memo {
+  margin-top: 17px;
+  padding: 14px;
+  border-radius: 19px;
+  background: color-mix(in srgb, var(--color-amber) 10%, white);
+  border: 1px solid color-mix(in srgb, var(--color-amber) 30%, transparent);
+  min-width: 0;
+}
+
+.memoEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-amber-dark);
+}
+
+.memoFormule {
+  display: block;
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.4;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.memoText {
+  margin: 5px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+  overflow-wrap: anywhere;
 }
 
 @media (prefers-reduced-motion: reduce) {

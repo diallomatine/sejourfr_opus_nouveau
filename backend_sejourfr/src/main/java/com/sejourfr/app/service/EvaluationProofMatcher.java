@@ -1,12 +1,11 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.util.TexteNormalise;
 
-import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -344,13 +343,14 @@ final class EvaluationProofMatcher {
         return List.copyOf(out);
     }
 
+    /**
+     * Forme comparee d'un token. La regle vit desormais dans
+     * {@link TexteNormalise#mot(String)} — elle y a ete DEPLACEE, pas reecrite —
+     * pour que le rapprochement de preuve et la recherche d'un extrait a surligner
+     * ne puissent pas normaliser differemment.
+     */
     private static String normalizeToken(String raw) {
-        String compatible = Normalizer.normalize(raw, Normalizer.Form.NFKC)
-            .toLowerCase(Locale.FRENCH)
-            .replace("œ", "oe")
-            .replace("æ", "ae");
-        return Normalizer.normalize(compatible, Normalizer.Form.NFD)
-            .replaceAll("\\p{M}+", "");
+        return TexteNormalise.mot(raw);
     }
 
     private static void collectExact(String production, List<Token> source, List<Token> needle,
@@ -603,12 +603,25 @@ final class EvaluationProofMatcher {
      * doivent lire un passage de la meme facon.
      */
     static int significantTokenCount(String text) {
-        if (text == null || text.isBlank()) return 0;
-        int count = 0;
+        return significantTokens(text).size();
+    }
+
+    /**
+     * Tokens PORTEURS DE SENS d'un texte, NORMALISES, dans l'ordre.
+     *
+     * <p>Meme lecture que {@link #significantTokenCount(String)}, dont elle est
+     * l'implementation : ce sont deux vues d'un seul decoupage, pas deux
+     * decoupages. Elle sert a {@link EvaluationOralForme} pour comparer deux
+     * formulations d'un meme enonce — savoir COMBIEN de mots pleins les separent
+     * demande la liste, pas seulement un total.
+     */
+    static List<String> significantTokens(String text) {
+        if (text == null || text.isBlank()) return List.of();
+        List<String> out = new ArrayList<>();
         for (Token token : tokens(text, 0)) {
-            if (isSignificant(token.normalized())) count++;
+            if (isSignificant(token.normalized())) out.add(token.normalized());
         }
-        return count;
+        return out;
     }
 
     private static List<String> specialTokens(List<Token> tokens) {

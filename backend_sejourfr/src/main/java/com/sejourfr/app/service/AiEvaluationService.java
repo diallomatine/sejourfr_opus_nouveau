@@ -335,7 +335,8 @@ public class AiEvaluationService {
         // EvaluationRepairPrompt). Aucun controle n'est relache pour autant.
         String repairPrompt = EvaluationRepairPrompt.build(
                 userPrompt, violations, first.feedback(),
-                task == null ? null : task.getEpreuve());
+                task == null ? null : task.getEpreuve(),
+                EvaluationToolSchema.of(client.getPromptVersion()));
         EvaluationLlmClient.Outcome repaired = client.evaluate(systemPrompt, repairPrompt);
         List<String> remaining = EvaluationOutputValidator.violations(
                 repaired.feedback(), task, rubrics, client.getPromptVersion(), production);
@@ -498,6 +499,18 @@ public class AiEvaluationService {
         //     ce filet garantit qu'une sortie recalcitrante n'en persiste pas.
         if (task.getEpreuve() == EpreuveType.TCF_EO || !versionAmelioree(toolSchemaVersion)) {
             feedback.remove(CHAMP_VERSION_AMELIOREE);
+        }
+        // `exemples_corriges` et `suggestions` (contrats <= v8). Sous v9 ils ont
+        // quitte le schema : le bloc replie « Voir l'analyse complete » qui les
+        // affichait a disparu de l'ecran de resultat, et on ne paie plus des
+        // tokens de sortie pour des paves que personne ne lit. Le schema ferme
+        // suffit en theorie ; ce filet garantit qu'une sortie recalcitrante n'en
+        // persiste pas — exactement comme pour `version_amelioree`. Retire ICI,
+        // donc avant les filtres et les plafonds : tout ce qui suit et qui les
+        // lit devient un no-op, sans qu'aucun de ces traitements ait a connaitre
+        // la version du contrat.
+        if (!exemplesEtSuggestions(toolSchemaVersion)) {
+            CHAMPS_RESTITUTION_LONGUE.forEach(feedback::remove);
         }
         // PREUVE. Deux chemins, un seul resultat pour les fronts : le champ
         // `preuve` du feedback porte TOUJOURS un extrait litteral de la
@@ -708,8 +721,14 @@ public class AiEvaluationService {
         feedback.put("points_forts", List.of());
         feedback.put("points_a_ameliorer", normalizePointsAAmeliorer(
                 raisons.stream().limit(MAX_POINTS_A_AMELIORER).toList()));
-        feedback.put("suggestions", List.of());
-        feedback.put("exemples_corriges", List.of());
+        // Ces deux champs ne sont poses que si le contrat ACTIF les porte encore
+        // (<= v8). Sous v9 ils n'existent plus : les ecrire ici fabriquerait,
+        // sur le seul chemin qui n'appelle aucun LLM, deux cles que le reste du
+        // pipeline retire — et que plus aucun ecran ne lit.
+        if (exemplesEtSuggestions(llmClient.getPromptVersion())) {
+            feedback.put("suggestions", List.of());
+            feedback.put("exemples_corriges", List.of());
+        }
 
         List<String> avertissements = buildAvertissements(sub, task);
         avertissements.addAll(raisons);
@@ -914,6 +933,16 @@ public class AiEvaluationService {
     }
 
     /**
+     * Contrat de sortie qui porte encore {@code exemples_corriges} et
+     * {@code suggestions} (jusqu'a v8). Meme registre, meme raison que
+     * {@link #preuveParNumero(String)} : la question se pose au CONTRAT, jamais
+     * a une egalite litterale.
+     */
+    static boolean exemplesEtSuggestions(String toolSchemaVersion) {
+        return EvaluationToolSchema.of(toolSchemaVersion).exemplesEtSuggestions();
+    }
+
+    /**
      * CONTRAT v6 : remplace le {@code preuve_segment} rendu par le correcteur par
      * le TEXTE ORIGINAL EXACT du segment designe, sous la cle {@code preuve}.
      *
@@ -985,6 +1014,14 @@ public class AiEvaluationService {
 
     /** Cle du champ v5 « ta production reecrite au palier au-dessus » (EE seulement). */
     static final String CHAMP_VERSION_AMELIOREE = "version_amelioree";
+
+    /**
+     * Les deux champs de RESTITUTION LONGUE, au contrat jusqu'a v8 et retires en
+     * v9. Ils n'etaient affiches que dans le bloc replie « Voir l'analyse
+     * complete » de l'ecran de resultat, qui disparait.
+     */
+    static final List<String> CHAMPS_RESTITUTION_LONGUE =
+        List.of("exemples_corriges", "suggestions");
 
     /**
      * Tronque une liste de restitution a {@code max} entrees, dans l'ordre rendu

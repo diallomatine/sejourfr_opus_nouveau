@@ -13,6 +13,8 @@ import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import jakarta.persistence.EntityManager;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -38,6 +40,10 @@ class AccountDeletionServiceIT extends AbstractIntegrationTest {
     private AttemptManager attemptManager;
     @Autowired
     private UserSubscriptionManager userSubscriptionManager;
+    @Autowired
+    private JdbcTemplate jdbc;
+    @Autowired
+    private EntityManager entityManager;
 
     @Test
     void deleteAccount_anonymizesUser_andPurgesPractice() {
@@ -82,6 +88,44 @@ class AccountDeletionServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void deleteAccount_purgeSessionsAttemptsEtObservationsDiagnosticAvantAnonymisation() {
+        User user = data.user();
+        UUID id = user.getId();
+        var writtenAttempt = data.attempt(user);
+        var oralAttempt = data.attempt(user);
+        entityManager.flush();
+        jdbc.update("""
+                INSERT INTO diagnostic_sessions
+                    (id, user_id, diagnostic_code, diagnostic_version,
+                     written_task_id, oral_task_id, written_attempt_id, oral_attempt_id,
+                     status, retry_count, started_at, updated_at)
+                VALUES (?, ?, 'INITIAL_TCF', 1, ?, ?, ?, ?, 'IN_PROGRESS', 0, now(), now())
+                """, UUID.randomUUID(), id,
+                UUID.fromString("d1a60000-0000-5000-8000-000000000001"),
+                UUID.fromString("d1a60000-0000-5000-8000-000000000002"),
+                writtenAttempt.getId(), oralAttempt.getId());
+        jdbc.update("""
+                INSERT INTO learning_plan_observations
+                    (id, user_id, skill_id, source_type, source_id, observed, status,
+                     evidence, explanation, confidence, baseline, observed_at, created_at)
+                SELECT ?, ?, s.id, 'DIAGNOSTIC_EE', ?, true, 'PRIORITY',
+                       'preuve', 'explication', 'HIGH', true, now(), now()
+                FROM skills s WHERE s.code = 'EE1-C1'
+                """, UUID.randomUUID(), id, UUID.randomUUID());
+
+        assertThat(count("diagnostic_sessions", id)).isEqualTo(1);
+        assertThat(count("attempts", id)).isEqualTo(2);
+        assertThat(count("learning_plan_observations", id)).isEqualTo(1);
+
+        service.deleteAccount(id);
+
+        assertThat(count("diagnostic_sessions", id)).isZero();
+        assertThat(count("attempts", id)).isZero();
+        assertThat(count("learning_plan_observations", id)).isZero();
+        assertThat(userManager.findById(id).orElseThrow().getDeletedAt()).isNotNull();
+    }
+
+    @Test
     void deleteAccount_appleSubscription_returnsManualMessage_andAnonymizes() {
         User user = data.user();
         UUID id = user.getId();
@@ -106,5 +150,11 @@ class AccountDeletionServiceIT extends AbstractIntegrationTest {
         assertThat(resp.subscriptionProvider()).isEqualTo("APPLE");
         assertThat(resp.manualActionMessage()).contains("App Store");
         assertThat(userManager.findById(id).orElseThrow().getDeletedAt()).isNotNull();
+    }
+
+    private int count(String table, UUID userId) {
+        Integer value = jdbc.queryForObject(
+                "SELECT count(*) FROM " + table + " WHERE user_id = ?", Integer.class, userId);
+        return value == null ? 0 : value;
     }
 }

@@ -1,0 +1,98 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "leviers",
+    "reformulations",
+    "a_retenir"
+  ],
+  "properties": {
+    "leviers": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "description": "DEUX ou TROIS leviers, ordonnés du plus rentable au moins rentable, qui séparent la production actuelle du niveau visé. Jamais un inventaire, jamais deux fois la même idée sous deux formulations.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "action",
+          "exemple"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 70,
+            "description": "Ce qu'il faut faire, en SIX MOTS MAXIMUM, à l'impératif deuxième personne : « Annonce ton objection avant d'y répondre », « Nuance ta position ». Un verbe d'action en tête, pas de jugement, pas de « vous n'avez pas »."
+          },
+          "exemple": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "Un bout de langue RÉUTILISABLE tel quel, CINQ MOTS MAXIMUM : « Serait-il possible de… », « à condition que ». Jamais une explication, jamais une phrase entière : le candidat doit pouvoir le redire dans sa prochaine production."
+          }
+        }
+      }
+    },
+    "reformulations": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "description": "DEUX ou TROIS passages de la production orale, redits au niveau visé. Tu ne réécris JAMAIS toute la production : à l'oral, ce que tu lis est une transcription automatique, et en refaire un beau texte tromperait le candidat sur ce qu'il a réellement dit. Tu désignes chaque passage par son NUMÉRO, tu ne le recopies pas.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "segment_numero",
+          "reformule",
+          "apport"
+        ],
+        "properties": {
+          "segment_numero": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Le NUMÉRO, entre crochets, du passage que tu reformules — tel qu'il apparaît dans la production numérotée qu'on te donne. Seuls les passages du candidat portent un numéro ; les tours de l'examinateur n'en ont aucun et ne peuvent donc pas être reformulés. Un numéro qui n'existe pas fait refuser le bloc."
+          },
+          "reformule": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 400,
+            "description": "Ce même passage, redit au niveau visé : même intention, mêmes faits, longueur du même ordre. Ce qui change, c'est la CONSTRUCTION de la phrase et le choix des mots. Ne corrige jamais la forme d'un mot isolé, ni une hésitation, ni une répétition, ni une ponctuation : elles viennent de notre transcription automatique, pas du candidat. Français entièrement accentué."
+          },
+          "apport": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "description": "Ce que cette reformulation apporte, en TROIS MOTS MAXIMUM : « plus nuancé », « objection traitée », « lien logique ». Une étiquette, jamais une phrase."
+          }
+        }
+      }
+    },
+    "a_retenir": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formule",
+        "explication"
+      ],
+      "description": "LA chose à emporter de cette production : une tournure réutilisable et la situation où elle sert.",
+      "properties": {
+        "formule": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 90,
+          "description": "Une tournure réutilisable, HUIT MOTS MAXIMUM, écrite comme un patron : « On objectera que…, mais… », « à condition que + subjonctif »."
+        },
+        "explication": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 150,
+          "description": "Quand et pourquoi cette tournure sert, QUATORZE MOTS MAXIMUM. Une phrase concrète, pas une définition de grammaire."
+        }
+      }
+    }
+  },
+  "title": "Version au niveau visé — expression ORALE, TCF IRN v2",
+  "description": "Contrat strict de sortie du SECOND appel sur une production ORALE, totalement séparé de la correction : deux ou trois leviers, deux ou trois passages du candidat redits au niveau qu'il vise, et une tournure à retenir. La production orale n'est JAMAIS réécrite en entier — on ne rend pas à un candidat un beau texte à la place de ce qu'il a dit. Aucune note, aucun verdict, aucun champ de niveau — le serveur pose lui-même `niveau_vise` et `niveau_constate`, ils ne sont jamais laissés au modèle. Tout le français produit ici est lu par une personne qui APPREND le français : il est orthographié et ACCENTUÉ correctement (é, è, ê, à, ù, û, î, ô, ë, ï, ç). « déjà », jamais « deja » ; « très », jamais « tres »."
+}

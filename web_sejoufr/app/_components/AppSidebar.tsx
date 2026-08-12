@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
-  BarChart3,
   Flame,
   Home,
   LayoutGrid,
   Lightbulb,
+  ListChecks,
   Sparkles,
   Target,
   Trophy,
@@ -21,7 +21,8 @@ import type { TargetProcedure } from "@/lib/types";
 /**
  * Sidebar de l'espace personnel (refonte web_refonte). Trois blocs de nav :
  * Tableau de bord seul, puis PARCOURS (TCF IRN / Examen civique) et SUIVI
- * (Progression / Résultats / Recommandations). En pied : badge streak
+ * (Plan / Résultats / Recommandations). L'ancienne Progression reste
+ * accessible comme vue secondaire depuis Plan. En pied : badge streak
  * (jours de suite, via GET /api/me/dashboard mémoïsé) + carte utilisateur
  * cliquable vers /profil (le logout vit sur la page profil).
  */
@@ -68,6 +69,13 @@ function AppSidebarInner() {
     pathname?.startsWith("/recommandations/") ||
     pathname === "/revision" ||
     pathname?.startsWith("/revision/");
+  // Progression est désormais une vue secondaire du Plan : garder le parent
+  // visuellement actif quand l'utilisateur consulte /statistiques.
+  const isPlanActive =
+    pathname === "/plan" ||
+    pathname?.startsWith("/plan/") ||
+    pathname === "/statistiques" ||
+    pathname?.startsWith("/statistiques/");
 
   const [streak, setStreak] = useState<number | null>(null);
 
@@ -134,8 +142,13 @@ function AppSidebarInner() {
         </SideLink>
 
         <span className="app-nav-section">Suivi</span>
-        <SideLink href="/statistiques" pathname={pathname} icon={<BarChart3 size={18} />}>
-          Progression
+        <SideLink
+          href="/plan"
+          pathname={pathname}
+          icon={<ListChecks size={18} />}
+          activeWhen={() => Boolean(isPlanActive)}
+        >
+          Plan
         </SideLink>
         <SideLink href="/historique" pathname={pathname} icon={<Trophy size={18} />}>
           Résultats

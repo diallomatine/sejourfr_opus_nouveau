@@ -107,3 +107,45 @@ export const REFERENCES_OPEN_BY_DEFAULT = false;
 export function referencesOpenByDefault(view: SkillResultAnalysisView): boolean {
     return view === "ANALYSIS" ? REFERENCES_OPEN_BY_DEFAULT : true;
 }
+
+/**
+ * `true` quand le bloc « pour viser X » peut encore arriver et mérite qu'on
+ * continue de poller — et qu'on l'annonce au candidat.
+ *
+ * Ce bloc est produit **après** que la tentative est passée `EVALUATED` : il est
+ * best-effort, hors transaction. Un polling qui s'arrête net sur `EVALUATED`
+ * affiche donc un écran sans leviers alors qu'ils arrivent une seconde plus
+ * tard. La durée du sursis est commune aux deux écrans qui rendent ce plan :
+ * `ACTION_PLAN_GRACE_MS` (`app/_components/skill-ui/ActionPlan`).
+ *
+ * Cinq conditions, toutes nécessaires : l'analyse est terminée, elle porte bien
+ * la progression de niveau (donc c'est un contrat v3, pas une analyse ancienne),
+ * l'objectif n'est **pas** atteint (auquel cas le second appel n'est jamais
+ * lancé), le bloc n'est pas déjà là — et **l'écran a vu l'analyse en vol**.
+ *
+ * ⚠️ Cette dernière condition est ce qui interdit d'attendre (et d'afficher un
+ * indicateur) sur un résultat **rouvert plus tard** : là, plus rien ne tourne
+ * côté serveur, le bloc est déjà persisté ou définitivement absent. Un écran
+ * consulté trois jours après ne doit ni poller, ni annoncer des conseils qui ne
+ * viendront pas.
+ *
+ * Le budget de polling global reste la borne dure : ce sursis s'y ajoute, il ne
+ * le remplace pas.
+ */
+export function skillNiveauViseMayStillArrive(input: {
+    evaluated: boolean;
+    /** L'écran a observé la tentative dans un statut non final depuis son
+     *  ouverture : l'analyse s'est terminée sous les yeux du candidat. */
+    observedInFlight: boolean;
+    hasLevelProgress: boolean;
+    objectifAtteint: boolean;
+    hasNiveauVise: boolean;
+}): boolean {
+    return (
+        input.evaluated &&
+        input.observedInFlight &&
+        input.hasLevelProgress &&
+        !input.objectifAtteint &&
+        !input.hasNiveauVise
+    );
+}

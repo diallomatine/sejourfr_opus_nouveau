@@ -9,7 +9,14 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
 /// Etat haut-niveau de la phase d'enregistrement EO.
-enum RecordingPhase { idle, requestingPermission, recording, paused, finished, failed }
+enum RecordingPhase {
+  idle,
+  requestingPermission,
+  recording,
+  paused,
+  finished,
+  failed
+}
 
 class RecordingState {
   const RecordingState({
@@ -39,7 +46,8 @@ class RecordingState {
 
   bool get isRecording => phase == RecordingPhase.recording;
   bool get isFinished => phase == RecordingPhase.finished && filePath != null;
-  bool get canStop => phase == RecordingPhase.recording || phase == RecordingPhase.paused;
+  bool get canStop =>
+      phase == RecordingPhase.recording || phase == RecordingPhase.paused;
 
   RecordingState copyWith({
     RecordingPhase? phase,
@@ -80,7 +88,8 @@ class AudioRecorderService {
   Stream<RecordingState>? _stateStream;
   final _stateController = StreamController<RecordingState>.broadcast();
 
-  Stream<RecordingState> get stateStream => _stateStream ??= _stateController.stream;
+  Stream<RecordingState> get stateStream =>
+      _stateStream ??= _stateController.stream;
 
   /// Demande la permission micro. On utilise en priorite `_recorder.hasPermission()`
   /// du package `record` qui declenche l'auth native (AVAudioSession sur iOS,
@@ -163,7 +172,7 @@ class AudioRecorderService {
       elapsed: Duration.zero,
       maxDuration: maxDuration,
       filePath: path,
-      fileMime: 'audio/mp4',
+      fileMime: _currentMime,
     ));
     _startTicker(maxDuration);
     _startAmplitudeStream();
@@ -289,7 +298,8 @@ final audioRecorderServiceProvider = Provider<AudioRecorderService>((ref) {
 });
 
 class RecordingController extends StateNotifier<RecordingState> {
-  RecordingController(this._svc) : super(const RecordingState(phase: RecordingPhase.idle)) {
+  RecordingController(this._svc)
+      : super(const RecordingState(phase: RecordingPhase.idle)) {
     _sub = _svc.stateStream.listen((s) {
       if (mounted) state = s;
     });

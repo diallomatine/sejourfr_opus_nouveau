@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/models/skill_models.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/skill_progress.dart';
+import '../../../../core/widgets/premium_lock.dart';
+import '../../../../core/widgets/pressable_card.dart';
 import '../../../../core/widgets/progress_ring.dart';
-import '../../widgets/production_blocks.dart';
+import '../../../../core/widgets/skill_mastery_tag.dart';
 
 /// Ligne d'une compétence, structure de la maquette client : **anneau de
 /// progression** (« 2/5 »), titre, état en clair, chevron.
@@ -13,8 +16,19 @@ import '../../widgets/production_blocks.dart';
 /// suis sur cette compétence » est exactement ce qu'il vient chercher.
 ///
 /// La progression se lit en **sujets traités** (et non validés — §12 de la
-/// spec) : c'est ce que dit l'anneau. Les sujets réussis, eux, sont nommés
-/// dans le libellé.
+/// spec) : c'est ce que dit l'anneau.
+///
+/// ⚠️ **L'état de maîtrise remplace le compteur de sujets traités** sous le
+/// titre (décision propriétaire) : un compte de sujets dit ce que le candidat a
+/// *fait*, `masteryState` dit ce qu'il *maîtrise* — c'est la question qu'il se
+/// pose. Sans observation (`masteryState == null`), et seulement là, le libellé
+/// de progression reprend sa place : le serveur n'a rien vu, il n'y a pas
+/// d'état à annoncer.
+///
+/// Une compétence **verrouillée** (`skill.locked`, calculé serveur) reste
+/// entièrement lisible : titre et état ne bougent pas, l'anneau cède la place
+/// au cadenas et la pilule « Premium » dit ce qui l'ouvrirait. Où mène le tap,
+/// c'est l'appelant qui en décide — cette carte ne fait qu'annoncer le verrou.
 class CompetenceCard extends StatelessWidget {
   const CompetenceCard({
     super.key,
@@ -38,16 +52,22 @@ class CompetenceCard extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            ProgressRing(
-              value: skill.progress * 100,
-              size: 46,
-              stroke: 5,
-              color: tone,
-              label: '${skill.attemptedCount}',
-              sub: '/${skill.promptCount}',
-              textColor: tone,
-              subColor: AppColors.inkFaint,
-            ),
+            // Verrouillée, la compétence n'a pas d'anneau : il n'aurait rien à
+            // raconter. Le cadenas prend sa place, à la même taille (miroir du
+            // web) — le reste de la carte ne bouge pas d'un pixel.
+            if (skill.locked)
+              const PremiumLockTile(size: 46)
+            else
+              ProgressRing(
+                value: skill.progress * 100,
+                size: 46,
+                stroke: 5,
+                color: tone,
+                label: '${skill.attemptedCount}',
+                sub: '/${skill.promptCount}',
+                textColor: tone,
+                subColor: AppColors.inkFaint,
+              ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -62,19 +82,33 @@ class CompetenceCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    competenceProgressLabel(skill),
-                    style: AppFonts.ui(
-                      size: 11.5,
-                      weight: FontWeight.w600,
-                      color: AppColors.inkSoft,
-                    ),
+                  // L'état **reste** sur une compétence verrouillée : un
+                  // candidat qui y a déjà produit garde ce qu'il a appris de
+                  // ses propres productions, le cadenas ne l'efface pas.
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 5,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (skill.locked) const PremiumLockTag(),
+                      if (skill.masteryState != null)
+                        SkillMasteryTag(state: skill.masteryState!)
+                      else
+                        Text(
+                          competenceProgressLabel(skill),
+                          style: AppFonts.ui(
+                            size: 11.5,
+                            weight: FontWeight.w600,
+                            color: AppColors.inkSoft,
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 10),
-            const ProductionChevron(),
+            const CardChevron(),
           ],
         ),
       ),
@@ -85,23 +119,11 @@ class CompetenceCard extends StatelessWidget {
 /// État d'une compétence en une phrase, depuis les **compteurs servis par
 /// `GET /api/skills`** — aucun agrégat inventé.
 ///
-/// ⚠️ **Libellé gelé**, miroir mot pour mot du web
-/// (`competenceProgressLabel`, `lib/skill-progress.ts`). Les deux fronts en
-/// tiennent chacun une copie écrite à la main : un libellé qui bouge, ce sont
-/// deux fichiers à changer dans la même passe, et deux tests.
-String competenceProgressLabel(SkillDto skill) {
-  final total = skill.promptCount;
-  if (total == 0) return 'Bientôt disponible';
-
-  final attempted = skill.attemptedCount.clamp(0, total);
-  if (attempted == 0) return '$total à découvrir';
-
-  final validated = skill.validatedCount.clamp(0, attempted);
-  final head = validated > 0
-      ? '$validated réussi${validated > 1 ? 's' : ''}'
-      : '$attempted commencé${attempted > 1 ? 's' : ''}';
-
-  final remaining = total - attempted;
-  if (remaining == 0) return head;
-  return '$head · $remaining restant${remaining > 1 ? 's' : ''}';
-}
+/// La règle vit dans `core/utils/skill_progress.dart` depuis que le Plan la
+/// lit aussi, sur les compteurs de `GET /api/me/plan` : ici on ne fait que
+/// l'appliquer à un [SkillDto].
+String competenceProgressLabel(SkillDto skill) => skillProgressLabel(
+      promptCount: skill.promptCount,
+      attemptedCount: skill.attemptedCount,
+      validatedCount: skill.validatedCount,
+    );

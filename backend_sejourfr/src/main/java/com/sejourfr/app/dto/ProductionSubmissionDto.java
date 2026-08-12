@@ -31,6 +31,22 @@ public record ProductionSubmissionDto(
          * que Whisper n'a pas tourne. Exposee pour afficher dans l'ecran detail
          * de l'evaluation cote mobile.
          */
-        String transcription
+        String transcription,
+        /**
+         * Ce que cette production a change dans le Plan — une ligne, pas la liste
+         * des competences observees. <b>Nullable, et son absence est normale</b>
+         * (rien n'a bouge, ou les observations ne sont pas encore ecrites : cf.
+         * {@link PlanChangeDto}). Rempli sur le detail d'une soumission evaluee,
+         * jamais sur une liste d'historique ni sur une soumission de diagnostic.
+         */
+        PlanChangeDto planChange
 ) {
+
+    /** Meme soumission, avec le changement de Plan resolu a la lecture. */
+    public ProductionSubmissionDto withPlanChange(PlanChangeDto planChange) {
+        return new ProductionSubmissionDto(
+                id, attemptId, productionTaskId, tacheNumero, statut, mediaUrl, texteSoumis,
+                motsCount, mediaDurationSec, retryCount, erreurMessage, submittedAt,
+                evaluation, transcription, planChange);
+    }
 }

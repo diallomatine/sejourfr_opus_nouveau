@@ -51,7 +51,24 @@ public class EvaluationPurgeMetrics {
          * l'appel LLM sont differents : les melanger empecherait de dire laquelle
          * des deux surfaces derive.
          */
-        MARQUEUR_PALIER_LEVIER
+        MARQUEUR_PALIER_LEVIER,
+        /**
+         * Meme defaut, TROISIEME surface : un levier {@code pour_viser.leviers} du
+         * module Competences qui designe un moyen A2 comme la marche vers le
+         * palier VISE. Compte a part de {@link #MARQUEUR_PALIER_LEVIER} parce que
+         * le contrat, le service et l'appel LLM sont differents : les melanger
+         * empecherait de dire laquelle des surfaces derive.
+         */
+        MARQUEUR_PALIER_LEVIER_COMPETENCE,
+        /**
+         * Reformulation ORALE de {@code version_ciblee} dont tout l'apport tenait
+         * a la forme d'un ou deux mots. Meme regle que
+         * {@link #ARTEFACT_ORAL_FORME} ({@code EvaluationOralForme}), autre
+         * surface : la premiere purge un reproche du correcteur, celle-ci retire
+         * un conseil d'un second appel. Les melanger empecherait de dire laquelle
+         * des deux derive.
+         */
+        REFORMULATION_ORALE_FORME
     }
 
     private final Map<String, LongAdder> compteurs = new ConcurrentHashMap<>();

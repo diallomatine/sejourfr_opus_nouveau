@@ -6,6 +6,7 @@ import '../../../core/api/api_exception.dart';
 import '../../../core/api/repositories.dart';
 import '../../../core/api/skill_repository.dart';
 import '../../../core/models/skill_models.dart';
+import '../../plan/learning_plan_provider.dart';
 
 /// Clé value-object du provider de liste : une tâche = (épreuve, numéro).
 /// `==`/`hashCode` manuels, comme partout dans le repo — sinon chaque rebuild
@@ -39,9 +40,8 @@ class SkillsKey {
 ///
 /// L'échec n'est **pas** mis en cache (`link.close()`) : un « Réessayer » doit
 /// pouvoir repartir sur un appel neuf.
-final skillsSectionProvider =
-    FutureProvider.autoDispose.family<List<SkillDto>, SkillSection>(
-        (ref, section) async {
+final skillsSectionProvider = FutureProvider.autoDispose
+    .family<List<SkillDto>, SkillSection>((ref, section) async {
   final link = ref.keepAlive();
   try {
     return await _loadSection(ref.watch(skillRepositoryProvider), section);
@@ -77,9 +77,8 @@ Future<List<SkillDto>> _loadSection(
 /// chargée, aucun réseau. Provider synchrone (et non `FutureProvider`) pour
 /// qu'une bascule de pastille rende les données au premier frame, sans passer
 /// par un état de chargement.
-final skillsListProvider =
-    Provider.autoDispose.family<AsyncValue<List<SkillDto>>, SkillsKey>(
-        (ref, key) {
+final skillsListProvider = Provider.autoDispose
+    .family<AsyncValue<List<SkillDto>>, SkillsKey>((ref, key) {
   return ref.watch(skillsSectionProvider(key.section)).whenData((all) {
     final list = all.where((s) => s.taskCode == key.taskCode).toList()
       ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
@@ -93,7 +92,7 @@ final skillsListProvider =
 void invalidateSkillsSection(WidgetRef ref, SkillSection section) =>
     ref.invalidate(skillsSectionProvider(section));
 
-/// Une compétence + ses 5 petits sujets avec statut.
+/// Une compétence + ses 15 petits sujets avec statut.
 final skillDetailProvider =
     FutureProvider.autoDispose.family<SkillDetail, String>(
   (ref, skillId) => ref.watch(skillRepositoryProvider).getSkillDetail(skillId),
@@ -139,11 +138,16 @@ class SkillSubmissionState {
 /// message d'erreur, et navigue vers le résultat sur la tentative renvoyée.
 class SkillSubmissionController
     extends StateNotifier<AsyncValue<SkillSubmissionState>> {
-  SkillSubmissionController(this._repo, this._promptId)
-      : super(const AsyncValue.data(SkillSubmissionState()));
+  SkillSubmissionController(
+    this._repo,
+    this._promptId, {
+    void Function()? onPlanChanged,
+  })  : _onPlanChanged = onPlanChanged ?? _noop,
+        super(const AsyncValue.data(SkillSubmissionState()));
 
   final SkillRepository _repo;
   final String _promptId;
+  final void Function() _onPlanChanged;
 
   Future<SkillAttemptDto?> submitText({
     required String texte,
@@ -177,6 +181,7 @@ class SkillSubmissionController
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final attempt = await call();
+      _onPlanChanged();
       return SkillSubmissionState(attempt: attempt);
     });
     return state.valueOrNull?.attempt;
@@ -185,6 +190,12 @@ class SkillSubmissionController
 
 final skillSubmissionProvider = StateNotifierProvider.autoDispose.family<
     SkillSubmissionController, AsyncValue<SkillSubmissionState>, String>(
-  (ref, promptId) =>
-      SkillSubmissionController(ref.watch(skillRepositoryProvider), promptId),
+  (ref, promptId) => SkillSubmissionController(
+    ref.watch(skillRepositoryProvider),
+    promptId,
+    onPlanChanged: () =>
+        ref.read(learningPlanRevisionProvider.notifier).state++,
+  ),
 );
+
+void _noop() {}

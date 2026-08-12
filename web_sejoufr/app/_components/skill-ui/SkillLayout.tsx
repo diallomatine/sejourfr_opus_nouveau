@@ -3,16 +3,24 @@
 import Link from "next/link";
 import {
   ArrowLeft,
+  ArrowRight,
   ChevronRight,
   ClipboardCheck,
   Clock,
   FileText,
   Info,
+  Lock,
   Mic,
   PenLine,
 } from "lucide-react";
 import type {ReactNode} from "react";
 import {type ProductionConfig} from "@/app/_components/production/config";
+import {LEARNING_PLAN_SKILL_STATUS_LABEL} from "@/lib/diagnostic";
+import {
+  type LearningPlanSkillStatus,
+  SKILL_MASTERY_STATE_LABEL,
+  type SkillMasteryState,
+} from "@/lib/types";
 import s from "./skill.module.css";
 
 /**
@@ -441,15 +449,18 @@ export function SectionHead({
   title,
   text,
   action,
+  titleId,
 }: {
   title: string;
   text?: string;
   action?: ReactNode;
+  /** Pour qu'une `<section>` puisse se nommer par son intertitre. */
+  titleId?: string;
 }) {
   return (
     <div className={s.sectionHead}>
       <div>
-        <h2 className={s.sectionHeadTitle}>{title}</h2>
+        <h2 className={s.sectionHeadTitle} id={titleId}>{title}</h2>
         {text && <p className={s.sectionHeadText}>{text}</p>}
       </div>
       {action}
@@ -557,15 +568,71 @@ export function RowChevron() {
 
 /* -------------------------------------------------------------- badges */
 
-export type SkillBadgeTone = "todo" | "treated" | "validated" | "reinforce" | "level";
+/** `priority` est la seule teinte **rouge** du module : elle sert au Plan, qui
+ *  réutilise ces cartes pour les mêmes compétences et a besoin d'un cran plus
+ *  fort que `reinforce`. Ajout additif — aucune autre teinte ne change. */
+export type SkillBadgeTone =
+  | "todo"
+  | "treated"
+  | "validated"
+  | "reinforce"
+  | "priority"
+  | "level";
 
 const BADGE_CLASS: Record<SkillBadgeTone, string> = {
   todo: s.badgeTodo,
   treated: s.badgeTreated,
   validated: s.badgeValidated,
   reinforce: s.badgeReinforce,
+  priority: s.badgePriority,
   level: s.levelPill,
 };
+
+/** Teinte d'un verdict de production. Même échelle que les états de maîtrise
+ *  ci-dessous : les deux se lisent sur les mêmes écrans. */
+const PLAN_STATUS_TONE: Record<LearningPlanSkillStatus, SkillBadgeTone> = {
+  NOT_OBSERVED: "todo",
+  PRIORITY: "priority",
+  TO_REINFORCE: "reinforce",
+  SOLID: "validated",
+};
+
+/** Le verdict d'**une** production sur une compétence (frise de la fiche, cartes
+ *  du Plan). À ne pas confondre avec `SkillMasteryPill`, qui agrège l'historique. */
+export function LearningPlanStatusPill({status}: {status: LearningPlanSkillStatus}) {
+  return (
+    <SkillBadge tone={PLAN_STATUS_TONE[status]}>
+      {LEARNING_PLAN_SKILL_STATUS_LABEL[status]}
+    </SkillBadge>
+  );
+}
+
+/**
+ * Teinte d'un état de maîtrise. **Aucune teinte nouvelle** : on réemploie
+ * exactement celles des statuts de compétence, pour qu'un candidat lise le même
+ * code couleur dans le module Compétences et dans son Plan.
+ */
+const MASTERY_TONE: Record<SkillMasteryState, SkillBadgeTone> = {
+  PRIORITY: "priority",
+  TO_REINFORCE: "reinforce",
+  CONSOLIDATING: "treated",
+  SOLID: "validated",
+};
+
+/**
+ * Où en est le candidat sur une compétence, tout son historique confondu —
+ * **ce que la carte affiche à la place du compteur de sujets traités**.
+ *
+ * `null` (aucune observation) ⇒ rien : on n'invente pas un état pour une
+ * compétence que le serveur n'a jamais vue, et l'appelant reprend son compteur.
+ * Brique partagée par la liste des compétences et par le Plan.
+ */
+export function SkillMasteryPill({state}: {state: SkillMasteryState | null | undefined}) {
+  if (!state) return null;
+  return (
+    <SkillBadge tone={MASTERY_TONE[state]}>{SKILL_MASTERY_STATE_LABEL[state]}</SkillBadge>
+  );
+}
 
 /** Pastille d'état d'une carte. Une seule forme dans tout le parcours. */
 export function SkillBadge({
@@ -660,6 +727,58 @@ export function SkillRowCard({
     >
       {inner}
     </button>
+  );
+}
+
+/* -------------------------------------------------------- verrou freemium */
+
+/**
+ * Unique chemin d'abonnement du parcours TCF. Le module Compétences est ouvert
+ * par le pass **Intégral** : on pré-sélectionne donc le module, comme
+ * `PaywallSheet` le fait déjà, et on ne fabrique surtout pas un second parcours
+ * de paiement.
+ */
+export const SKILL_PREMIUM_HREF = "/paiement?module=INTEGRAL";
+
+/** Pastille « Premium » d'une carte verrouillée — une seule formulation dans
+ *  tout le module, cadenas compris. */
+export function SkillLockBadge() {
+  return (
+    <SkillBadge tone="todo" icon={<Lock size={10} aria-hidden />}>
+      Premium
+    </SkillBadge>
+  );
+}
+
+/**
+ * Invitation à s'abonner, affichée **à la place** d'une zone de production
+ * verrouillée (accès direct par URL à un sujet fermé).
+ *
+ * Le verrou est celui du serveur (`locked`), qui refuserait la soumission en
+ * 403 : laisser le candidat écrire puis perdre sa production serait le pire des
+ * deux mondes. On ne masque donc que la saisie, jamais l'endroit où il se
+ * trouve.
+ */
+export function SkillLockedCard({
+  title,
+  text,
+  ctaLabel = "Voir l'abonnement Intégral",
+}: {
+  title: string;
+  text: string;
+  ctaLabel?: string;
+}) {
+  return (
+    <section className={`${s.card} ${s.lockCard}`}>
+      <span className={s.lockCardIcon} aria-hidden>
+        <Lock size={24} strokeWidth={2.2} />
+      </span>
+      <h2 className={s.lockCardTitle}>{title}</h2>
+      <p className={s.lockCardText}>{text}</p>
+      <Link href={SKILL_PREMIUM_HREF} className={`${s.primary} ${s.lockCardCta}`}>
+        {ctaLabel} <ArrowRight size={16} aria-hidden />
+      </Link>
+    </section>
   );
 }
 

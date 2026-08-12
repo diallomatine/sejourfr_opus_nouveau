@@ -6,6 +6,8 @@ import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ConversationManager;
+import com.sejourfr.app.manager.DiagnosticSessionManager;
+import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.RefreshTokenManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserQuestionStatusManager;
@@ -46,6 +48,8 @@ public class AccountDeletionService {
     private final UserSubscriptionManager userSubscriptionManager;
     private final StripeSubscriptionService stripeSubscriptionService;
     private final AttemptManager attemptManager;
+    private final DiagnosticSessionManager diagnosticSessionManager;
+    private final LearningPlanObservationManager learningPlanObservationManager;
     private final UserQuestionStatusManager userQuestionStatusManager;
     private final ConversationManager conversationManager;
     private final RefreshTokenManager refreshTokenManager;
@@ -78,6 +82,11 @@ public class AccountDeletionService {
         }
 
         // 2. Purge des données de pratique (cascade base sur les enfants).
+        // Les sessions référencent deux attempts en RESTRICT : elles partent
+        // avant les attempts. Les observations du Plan sont elles aussi des
+        // données de pratique et ne doivent pas survivre à l'anonymisation.
+        learningPlanObservationManager.deleteByUserId(userId);
+        diagnosticSessionManager.deleteByUserId(userId);
         attemptManager.deleteByUserId(userId);
         userQuestionStatusManager.deleteByUserId(userId);
         conversationManager.deleteByUserId(userId);

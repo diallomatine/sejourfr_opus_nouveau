@@ -43,6 +43,32 @@ IconData skillCriterionIcon(SkillCriterionStatus status) => switch (status) {
       SkillCriterionStatus.notValidated => LucideIcons.circleAlert,
     };
 
+/// Ton de pastille d'un statut de critère. `partial` prend `TagTone.amber`
+/// (fg `amberDark`) pour rester la même teinte que [skillCriterionColor] —
+/// `tagToneForAccent` ne reconnaît que `AppColors.amber`, pas `amberDark`.
+TagTone skillCriterionTagTone(SkillCriterionStatus status) => switch (status) {
+      SkillCriterionStatus.validated => TagTone.success,
+      SkillCriterionStatus.partial => TagTone.amber,
+      SkillCriterionStatus.notValidated => TagTone.red,
+    };
+
+/// Pastille compacte du verdict IA sur le critère unique du sujet, destinée à
+/// la rangée du haut de [SkillLevelCard] — à ne pas confondre avec
+/// [SkillStatusBadge], qui porte le statut du **sujet** (`SkillPromptStatus`).
+class SkillCriterionBadge extends StatelessWidget {
+  const SkillCriterionBadge({super.key, required this.status});
+
+  final SkillCriterionStatus status;
+
+  @override
+  Widget build(BuildContext context) => AppTag(
+        label: status.label,
+        tone: skillCriterionTagTone(status),
+        icon: skillCriterionIcon(status),
+        compact: true,
+      );
+}
+
 /// Badge pill du statut d'un petit sujet (« À faire » / « Fait » / « Validé »
 /// / « À renforcer »), libellés du contrat.
 class SkillStatusBadge extends StatelessWidget {

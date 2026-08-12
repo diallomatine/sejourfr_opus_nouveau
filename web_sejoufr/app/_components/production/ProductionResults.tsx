@@ -5,15 +5,19 @@ import {useParams, useSearchParams} from "next/navigation";
 import {useEffect, useState} from "react";
 import {ApiException, productionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
+import {productionActionPlanMayStillArrive} from "@/lib/production-feedback";
+import {ACTION_PLAN_GRACE_MS} from "@/app/_components/skill-ui/ActionPlan";
 import {
   isSubmissionPending,
   niveauViseTcf,
+  parseEeFeedback,
   type ProductionSubmissionDto,
 } from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
 import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
+import {PlanChangeLine} from "./PlanChangeLine";
 import {ProductionFeedbackView} from "./ProductionFeedbackView";
 import {TranscriptDialogue} from "./TranscriptDialogue";
 import {type ProductionConfig, TCF_HUB_HREF, TCF_HUB_LABEL} from "./config";
@@ -51,18 +55,74 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
   const [error, setError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [pollKey, setPollKey] = useState(0);
+  const [actionPlanPending, setActionPlanPending] = useState(false);
 
+  // **Une seule boucle**, celle qui existait déjà : le sursis accordé au plan
+  // d'action ne fait que la prolonger, il n'ouvre pas un second polling.
+  //
+  // Le plan (`version_ciblee` / `niveau_vise_atteint`) vient d'un SECOND appel
+  // LLM, lancé côté serveur une fois la correction persistée et la soumission
+  // passée à `EVALUATED`. S'arrêter net sur `EVALUATED` affichait donc un
+  // rapport sans plan alors qu'il arrivait dix à quinze secondes plus tard.
+  // Règle et durée partagées avec le résultat d'un micro-exercice
+  // (`productionActionPlanMayStillArrive`, `ACTION_PLAN_GRACE_MS`) ; le budget
+  // global (`MAX_POLLS`) reste la borne dure, et rien n'est jamais affiché en
+  // erreur si le plan ne vient pas.
   useEffect(() => {
     if (status !== "authenticated" || !id) return;
     let cancelled = false;
     let polls = 0;
+    let observedInFlight = false;
+    let graceStartedAt: number | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
     async function tick() {
       try {
         const sub = await productionApi.getSubmission(id);
         if (cancelled) return;
         setSubmission(sub);
-        if (isSubmissionPending(sub) && polls < MAX_POLLS) {
+
+        let again = isSubmissionPending(sub);
+        // Vu en vol : la correction se termine sous les yeux du candidat, donc
+        // le second appel, lui, tourne encore. Un rapport rouvert plus tard
+        // n'entre jamais dans cette branche — un seul appel, aucun polling,
+        // aucun indicateur d'attente.
+        if (again) observedInFlight = true;
+
+        let waiting = false;
+        if (!again) {
+          const fb = sub.evaluation ? parseEeFeedback(sub.evaluation) : null;
+          const mayArrive = productionActionPlanMayStillArrive({
+            evaluated: sub.statut === "EVALUATED" && fb != null,
+            observedInFlight,
+            hasVersionCiblee: fb?.versionCiblee != null,
+            hasNiveauViseAtteint: fb?.niveauViseAtteint != null,
+          });
+          // Ce que la production change dans le Plan vient d'un appel encore
+          // PLUS TARDIF (les observations sont écrites après le plan d'action).
+          // On le laisse arriver **dans le sursis déjà accordé** — même
+          // `graceStartedAt`, donc pas une seconde de polling de plus qu'avant,
+          // et **aucun indicateur d'attente** : un Plan inchangé est un cas
+          // normal, il n'y a rien à annoncer.
+          const planChangeMayArrive =
+            sub.statut === "EVALUATED" && observedInFlight && sub.planChange == null;
+          if (mayArrive || planChangeMayArrive) {
+            graceStartedAt ??= Date.now();
+            const withinGrace = Date.now() - graceStartedAt < ACTION_PLAN_GRACE_MS;
+            again = withinGrace;
+            waiting = mayArrive && withinGrace;
+          }
+        }
+
+        const continues = again && polls < MAX_POLLS;
+        // Fin du sursis sans rien : l'indicateur s'efface en silence. Il
+        // s'efface AUSSI quand c'est le budget global qui coupe la boucle —
+        // sans ce `continues`, plus aucun tirage ne viendrait le retirer et le
+        // spinner resterait à l'écran indéfiniment (miroir de
+        // `ProductionResultPollGuard`, qui remet `awaitsActionPlan` à faux dès
+        // que le budget est épuisé).
+        setActionPlanPending(waiting && continues);
+
+        if (continues) {
           polls += 1;
           timer = setTimeout(tick, POLL_MS);
         }
@@ -157,6 +217,10 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
               // repli « B1 » de `resolveTcfLevel` : un objectif deviné n'a rien
               // à faire dans une phrase qui dit au candidat ce qu'il joue.
               targetLevel={niveauViseTcf(user)}
+              // Le plan d'action arrive après la correction : tant que le
+              // sursis court, sa place porte un indicateur discret plutôt
+              // qu'un trou (cf. `ActionPlanPending`).
+              actionPlanPending={actionPlanPending}
             />
 
             {/* À l'oral, l'écho de la production est la transcription. */}
@@ -168,6 +232,10 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
                 </div>
               </details>
             )}
+
+            {/* Ce que cette production a changé dans le Plan : une ligne, et
+                seulement s'il y a quelque chose à dire. */}
+            <PlanChangeLine change={submission.planChange} />
 
             <div className={s.actions}>
               <Link href={backHref} className={`${s.primary} ${s.actionWide}`}>

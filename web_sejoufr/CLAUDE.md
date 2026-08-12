@@ -39,6 +39,12 @@ Backend Spring Boot Java 21 séparé, qui tourne sur `http://localhost:8080`.
 | POST    | `/api/attempts/{id}/answers`           | soumettre une réponse                           | oui  |
 | POST    | `/api/attempts/{id}/finish`            | finaliser                                       | oui  |
 | GET     | `/api/me/dashboard`                    | agrégat dashboard (streak, stats, catégories)   | oui  |
+| GET     | `/api/public/diagnostics/current`      | sujets EE/EO du diagnostic pour un visiteur     | non  |
+| GET     | `/api/diagnostics/current`             | état/reprise du diagnostic TCF initial          | oui  |
+| POST    | `/api/diagnostics`                     | démarrer ou reprendre (idempotent)               | oui  |
+| GET     | `/api/diagnostics/{sessionId}`         | polling et résultat d'un diagnostic              | oui  |
+| POST    | `/api/diagnostics/{id}/retry-analysis` | relancer une analyse échouée sans ressaisie      | oui  |
+| GET     | `/api/me/plan`                         | priorité courante et Plan personnalisé           | oui  |
 | GET     | `/api/billing/plans`                   | liste plans actifs (publique, ISR 30min)        | non  |
 | GET     | `/api/billing/payment-link?planCode=…` | Checkout Session Stripe (mode subscription)     | oui  |
 | GET     | `/api/billing/subscription-status`     | statut Premium agrégé (Stripe + Apple + Google) | oui  |
@@ -88,6 +94,8 @@ app/
 │   │                              #   examens blancs, streak, niveau TCF estimé), 2 cards
 │   │                              #   catégories TCF/Civique, "À renforcer en priorité" (top 3),
 │   │                              #   bandeaux reprendre/onboarding
+│   ├── plan/page.tsx             # ★ action prioritaire, suivantes, compétences observées,
+│   │                              #   accès secondaire à l'ancienne Progression
 │   ├── recommandations/page.tsx  # ★ liste complète des catégories triées faibles d'abord
 │   │                              #   (tag module, CTA Réviser) + raccourcis erreurs/favoris
 │   │                              #   vers /revision (qui n'a plus d'entrée sidebar)
@@ -116,6 +124,9 @@ app/
 │   │                              #   timer si MOCK_EXAM via QuestionRunner)
 │   ├── paiement/page.tsx, succes/page.tsx        # Stripe Payment Link
 │
+├── diagnostic/page.tsx           # ★ route DUALE (guest + connecté) : présentation → EE → EO
+│                                 #   enregistré → (invité : écran de compte) → analyse
+│                                 #   asynchrone → résultat. Cf. section dédiée.
 ├── inscription/, connexion/, mot-de-passe-oublie/, reinitialiser-mot-de-passe/
 ├── a-propos/page.tsx             # disclaimer non-affiliation + sources officielles (conformité
 │                                 #   stores ; LegalPageLayout, miroir de l'écran /about mobile ;
@@ -126,8 +137,11 @@ app/
 lib/
 ├── api.ts                        # authApi, themeApi, attemptApi, examApi, billingApi,
 │                                 #   userContentApi (favoris/wrong/reviewQuestion/targetPath),
-│                                 #   statsApi, dashboardApi (summary + summaryCached mémo 30s,
-│                                 #   partagé sidebar/dashboard), tokenStorage, ApiException
+│                                 #   statsApi, dashboardApi, diagnosticApi, learningPlanApi,
+│                                 #   caches/invalidation, tokenStorage, ApiException
+├── diagnostic.ts                 # helpers purs : état dashboard, adaptation exercice,
+│                                 #   route exacte du micro-exercice recommandé
+├── audience-events.ts            # allowlist fermée path × événement, miroir backend
 ├── chrome-routes.ts              # APP_GROUP_PREFIXES + DUAL_CHROME_PREFIXES +
 │                                 #   shouldHideGlobalChrome (connecté sur route app → pas de
 │                                 #   header/footer/bandeau marketing, la sidebar porte tout)
@@ -241,6 +255,13 @@ standard 36px, variante `.cocarde.lg` à 56px.
 
 ## Conventions de code
 
+- 🛑 **Tests : on n'en écrit PLUS sur ce sous-projet** (règle posée le 2026-08-09, cf. § Tests du
+  `CLAUDE.md` racine). Aucun nouveau `*.test.ts` — ni test de helper, ni gel de libellé, ni test de
+  composant. La vérification d'un changement web, c'est `npx tsc --noEmit` + `npm run build`, et le
+  propriétaire teste lui-même à l'écran. Les tests déjà présents (`npm test`, runner natif de Node)
+  restent en place et doivent rester verts : un test qui devient rouge à cause d'un changement voulu
+  se **met à jour ou se supprime**, il ne bloque jamais le changement. Toute la couverture de règles
+  métier vit côté backend, d'où elle protège les trois fronts d'un seul endroit.
 - **🏆 RÈGLE D'OR — TOUT est responsive.** Chaque page et chaque composant doit fonctionner
   parfaitement du **mobile (~360 px)** au **desktop (1280+)**. Aucune page n'est « finie » tant
   qu'elle n'a pas été pensée mobile-first et vérifiée mentalement à **360 / 768 / 1280**. Concrètement :
@@ -417,11 +438,17 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   pas de capture à re-shooter à chaque refonte de l'app, rien à charger. Les
   badges stores viennent de `STORE_LINKS` (`lib/site.ts`), partagés avec le
   bloc final.
-- **Mesure d'audience** : `lib/audience.ts` envoie une vue au montage et un
-  clic à chaque CTA de démo, en `sendBeacon` (survit à la navigation).
-  Les trois CTA passent par le composant `DemoCta` — un bouton ajouté sans
-  lui serait un trou silencieux dans le taux de conversion. Aucun cookie ni
-  stockage navigateur (cf. CLAUDE.md racine).
+- **Acquisition = diagnostic** (2026-08-09) : le hero promet 1 écrit + 1 oral
+  enregistré en ≈ 8 à 10 min, sans carte bancaire. Son visuel est un **exemple
+  de résultat diagnostic** ; la simulation orale temps réel reste dans la
+  section IA suivante comme bénéfice avancé. Les trois CTA passent par
+  `DiagnosticCta` : compte connecté → `/diagnostic`, visiteur →
+  `/inscription?next=%2Fdiagnostic`, diagnostic déjà terminé → `/plan`.
+- **Mesure d'audience** : `lib/audience.ts` utilise `sendBeacon` (survit à la
+  navigation), sans cookie ni stockage navigateur. `lib/audience-events.ts`
+  borne strictement les couples chemin/événement autorisés par le backend.
+  `/reussir` envoie `VIEW` et `SOCIAL_LANDING_DIAGNOSTIC_CLICKED` ; les étapes
+  diagnostic et Plan ont leurs événements dédiés, sans réponse ni identifiant.
 - Liens sociaux dans `lib/site.ts` (`SOCIAL_ACCOUNTS`) : une entrée à
   `url: null` **n'est pas rendue** — on ne publie jamais un lien vers un compte
   qui n'existe pas encore.
@@ -430,12 +457,166 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
 
 - **`/inscription?next=<chemin interne>`** (miroir de `/connexion`) : passé par
   `safeInternalPath` (anti open-redirect), utilisé après `register`, après le
-  sign-in Google, et propagé au lien « Se connecter ». Sans le paramètre, le
+  sign-in Google, et propagé au lien « Se connecter ». `/connexion` le propage
+  réciproquement au lien « Créer un compte gratuit » : un visiteur venu de
+  `/reussir` retombe donc toujours sur `/diagnostic`. Sans le paramètre, le
   comportement historique (`/dashboard`) est inchangé.
 - **`/paiement?plan=<code>`** : met en évidence le pass ciblé (`.otp-pass.is-targeted`)
   et scrolle dessus au montage. Le gate non-connecté de `/paiement` conserve
   désormais l'URL complète (module + plan) dans son `?next=`, et propose
   inscription **et** connexion.
+
+## Diagnostic TCF initial + Plan (2026-08-09)
+
+- **Le backend décide du parcours** : `DiagnosticResponse.status` et
+  `nextStep` font foi. `/diagnostic` ne déduit pas l'étape depuis le navigateur
+  et ne demande jamais de refaire une production dont `submissionId` existe.
+  États : `NOT_STARTED`, `IN_PROGRESS`, `ANALYZING`, `COMPLETED`, `FAILED` ;
+  reprise : `PRESENTATION`, `WRITTEN`, `ORAL`, `ANALYSIS`, `RESULT`.
+- **Deux exercices SejourFR, pas un examen officiel** : EE réutilise
+  `EeWritingForm`, EO réutilise `EoRecordingForm` sans `onModeChoice` (donc
+  aucun temps réel). Les cartes de consigne sont propres au diagnostic afin de
+  ne montrer ni numéro de tâche officielle ni niveau factice. L'audio EO fixe
+  vient de `DiagnosticExerciseDto.instructionAudioUrl`.
+- **Soumissions existantes** : EE → JSON et EO → multipart sur
+  `POST /api/production-submissions`, avec les `productionTaskId` / `attemptId`
+  fournis par le diagnostic. Ensuite seul `GET /api/diagnostics/{id}` est pollé
+  jusqu'à la décision serveur. `retry-analysis` conserve les deux productions.
+- **Restitution prudente** : aucun `/20`, maximum 3 points solides et 3
+  priorités, seulement les compétences `observed`, mention « estimation
+  d'entraînement, non officielle ». Le détail est replié ; le CTA principal
+  ouvre `/plan`.
+- **Plan ≠ Progression** : `/plan` rend les trois états
+  `NEEDS_DIAGNOSTIC`, `DIAGNOSTIC_IN_PROGRESS`, `ACTIVE`. En actif, il affiche
+  une seule priorité immédiate et au maximum 2 suivantes (3 priorités au total),
+  les compétences observées,
+  la réévaluation et le micro-exercice fourni par `recommendedExercise`.
+  `/statistiques` reste l'historique chiffré et est accessible par « Voir ma
+  progression », mais n'a plus d'entrée principale dans `AppSidebar`.
+- **Une ÉTAPE, ce sont les 5 premiers sujets de la compétence, pas ses 15.**
+  `LearningPlanPriorityDto` porte **deux** jeux de compteurs :
+  `promptCount`/`attemptedCount`/`validatedCount` = la **compétence entière**
+  (ce que lisent les cartes « compétences observées », inchangées), et
+  `stepPromptCount`/`stepAttemptedCount`/`stepValidatedCount`/`stepCompleted` =
+  l'**étape**. L'anneau d'une étape (`PathStep` → `SkillRing`) lit le second
+  couple — « 2/5 », jamais « 2/15 ». Ne pas les mélanger : c'est le seul piège
+  de cet écran. `stepCompleted` est **servi**, plus déduit d'un
+  `attemptedCount >= promptCount` local.
+- **Une étape peut être TERMINÉE, et elle reste affichée** : le badge passe de
+  « En cours » à « Terminée » (état `done`, vert), et une ligne apparaît sous le
+  titre — « Réévaluée à ta prochaine production. ». Les priorités ne changent
+  qu'à l'arrivée d'une nouvelle observation, donc à la prochaine production :
+  sans cette phrase, un candidat qui a fini son étape et la voit toujours là
+  croit à un bug. Terminée **sans** être toute validée ⇒ une seconde ligne
+  discrète « N validés sur M » (rien quand tout est validé). Libellés gelés,
+  miroir mot pour mot de `_StepDoneLines` côté mobile. Un compte gratuit plafonne
+  à 2/5 (2 sujets ouverts par compétence) : `stepCompleted` reste faux et le CTA
+  reste « Débloquer cette étape » — rien ne laisse croire l'étape finissable.
+- **L'état de maîtrise remplace le compteur sur une carte de compétence**
+  (décision propriétaire) : `SkillDto.masteryState` (« Priorité » / « À
+  renforcer » / « En consolidation » / « Solide », `SKILL_MASTERY_STATE_LABEL`,
+  libellés gelés) s'affiche à la place de `competenceProgressLabel` dans
+  `CompetencesList`, et à la place du badge de statut sur les cartes
+  « compétences observées » du Plan. **`null` (aucune observation) est le seul
+  cas où le compteur reste** — le serveur n'a rien vu, il n'y a pas d'état à
+  annoncer. Une seule brique, `SkillMasteryPill` (`skill-ui/SkillLayout`), qui
+  réemploie les tons de `SkillBadge` : jamais une teinte nouvelle. Les
+  compteurs restent sur les DTO, ils alimentent toujours l'anneau.
+- **La trajectoire d'une compétence vit dans SA fiche**, pas dans le Plan ni
+  dans un écran de plus : `SkillDetailDto.trajectory` → `SkillTrajectory`
+  (`competences/`), une frise du **plus ancien au plus récent** (l'ordre vient
+  du serveur), une ligne par observation = source
+  (`LEARNING_PLAN_SOURCE_LABEL`, libellés gelés) + verdict + date, l'explication
+  en second plan. **Vide ⇒ aucune section**, pas d'encart d'excuse.
+  `confidence` n'est **jamais** montrée au candidat : c'est la certitude du
+  correcteur, pas son niveau.
+- **Une étape du Plan peut devenir une VÉRIFICATION** —
+  `recommendedExercise.kind === "REASSESSMENT"` : **même carte, même
+  emplacement**, badge « VÉRIFICATION » (là où s'affiche « EN COURS »), CTA
+  « Vérifier ma progression » sur `TodayCard` comme sur `PathStep`. Jamais une
+  seconde carte concurrente. Le routage vit **en un seul endroit**,
+  `recommendedExerciseHref` : micro-sujet → l'écran de petit sujet ;
+  vérification → l'écran de production du sujet
+  (`/entrainement/tcf/{ee|eo}/{redaction|enregistrement}/{productionTaskId}`,
+  segment déclaré une seule fois dans `lib/production-catalog.ts` et lu par
+  `ProductionConfig.inputSegment`). `locked` : cadenas + paywall, l'exercice
+  reste **désigné**.
+- **« Ce que ça change dans le Plan » sur le rapport d'une tâche** :
+  `ProductionSubmissionDto.planChange` → `PlanChangeLine`, **une ligne** en fin
+  de rapport (« X confirmée » / « Nouvelle priorité : Y. » + « Voir » vers
+  `/plan`), les deux moitiés indépendamment nullables. **`planChange === null`
+  est un cas NORMAL** (rien n'a bougé, ou observations pas encore écrites) :
+  rien ne s'affiche, aucun spinner. Les observations arrivant **après** le plan
+  d'action, `ProductionResults` étend la **même** boucle de polling dans le
+  **même** sursis (`ACTION_PLAN_GRACE_MS`, même `graceStartedAt`) — pas de
+  seconde boucle, pas une seconde de plus, et **aucun indicateur d'attente**.
+- **`priority.explanation` n'est affiché sur AUCUNE carte d'action** — ni
+  « À faire maintenant » (`TodayCard`), ni les étapes du parcours, ni la carte
+  « Votre priorité du jour » du tableau de bord. C'est le constat d'une
+  production **déjà faite** : il raconte le passé sur une carte qui annonce
+  l'action à mener. Le champ reste sur le DTO et vit dans le diagnostic ; le
+  mobile ne l'a jamais affiché sur ces cartes — ne pas le rebrancher.
+- **Cache** : dashboard mutualise les requêtes en vol de
+  `diagnosticApi.currentCached()` sans conserver le snapshot résolu (le pipeline
+  peut le faire évoluer sans écriture du navigateur), et conserve
+  `learningPlanApi.getCached()`. Toute production complète ou tentative de
+  compétence terminale purge les préfixes concernés dans `lib/api.ts`; les
+  écrans `/diagnostic` et `/plan` lisent directement le serveur pour ne pas
+  figer une analyse asynchrone.
+- **Accueil** : carte non bloquante en trois états — invitation (+ « Plus
+  tard » local), reprise avec `N / 2`, puis priorité du jour et accès au Plan.
+- **Routes** : `middleware.ts` ne protège plus que `/plan` (et `/dashboard`,
+  `/paiement`) ; `/diagnostic` est une route **duale**
+  (`DUAL_CHROME_PREFIXES`), sous `app/diagnostic/`, hors du groupe `(app)` :
+  `DiagnosticView` porte lui-même le `DualChromeShell` (sidebar pour un compte,
+  fond applicatif nu + header/footer publics pour un visiteur).
+
+### Diagnostic en INVITÉ — produire d'abord, créer le compte ensuite (2026-08-10)
+
+Le mur d'inscription est passé **après** les deux productions : un visiteur
+ouvre `/diagnostic`, rédige, s'enregistre, puis on lui demande un compte pour
+lancer l'analyse. `/reussir` pointe donc directement sur `/diagnostic`, sans
+détour par `/inscription`.
+
+- **Deux régimes, deux composants** dans `DiagnosticView.tsx` :
+  `GuestDiagnostic` (sujets via `diagnosticApi.publicCurrent()`, productions
+  gardées localement) et `ConnectedDiagnostic` (**le parcours serveur
+  historique, inchangé** : session, polling, reprise cross-device, retry). Un
+  visiteur déjà connecté ne voit aucune différence avec avant.
+- **`GET /api/public/diagnostics/current`** ne sert que les **sujets**
+  (`PublicDiagnosticResponse` / `PublicDiagnosticExerciseDto` dans
+  `lib/types.ts`) : ni `attemptId`, ni `submissionId` — ils n'existent qu'une
+  fois la session créée, donc après le compte.
+- 🛑 **On ne perd JAMAIS une production.** `lib/diagnostic-local-store.ts`
+  écrit le texte EE **et le Blob audio EO** dans **IndexedDB** (clé
+  `code/vN`) — `localStorage` ne stocke pas de binaire ; l'audio est persisté en
+  `ArrayBuffer` + type MIME et rebâti en `Blob` à la lecture. Ça survit à un
+  rafraîchissement, à une fermeture d'onglet et à un sign-in social qui quitte
+  la page. Écriture impossible (navigation privée, quota) ⇒ la production reste
+  en mémoire dans l'onglet **et on le dit** au candidat.
+- **Ordre des opérations après authentification** (`runHandoff`) : `POST
+  /api/diagnostics` → soumission de l'écrit → attente de son enregistrement
+  (`refreshAfterSubmission`) → soumission de l'oral → attente → **et seulement
+  là** `clearLocalDiagnostic`. Toute sortie anticipée (erreur réseau, session
+  déjà terminée, sujets d'une autre version) **laisse le travail intact** et
+  propose de réessayer. Le démarrage est verrouillé par un `ref` : `user`
+  change d'identité à chaque `refreshUser()`, rejouer la reprise renverrait les
+  mêmes productions deux fois.
+- **Compte qui a déjà un diagnostic** : `POST /api/diagnostics` est idempotent
+  et peut renvoyer une session `COMPLETED` — une tâche n'accepte qu'une
+  soumission. On n'envoie alors rien, on affiche le résultat existant avec un
+  bandeau honnête (`HandoffNotice`) et un bouton explicite pour supprimer les
+  réponses gardées sur l'appareil. Jamais de suppression silencieuse.
+- **Écran de demande de compte** (`DiagnosticAccountGate.tsx`) : inscription
+  **et** connexion (+ Google), en modale de page — pas de navigation vers
+  `/inscription`, qui ferait perdre le contexte. Il montre un **exemple**
+  illustratif du bilan, badgé « Exemple — pas votre résultat » et légendé
+  « valeurs fictives » : aucun résultat réel n'est calculé avant le compte
+  (l'analyse coûte deux appels LLM payés).
+- **Audience** : le funnel reste mesurable en invité (`/api/public/page-views`
+  est public). Nouvel événement **`DIAGNOSTIC_ACCOUNT_REQUIRED`** (allowlist
+  `lib/audience-events.ts`, miroir backend) émis à l'affichage de l'écran de
+  compte — c'est LA mesure de conversion du parcours.
 
 ## Stratégie produit — parité fonctionnelle avec le mobile
 
@@ -958,7 +1139,7 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
   - **Composants partagés** `app/_components/production/` : `ProductionFeedbackView`
     (orchestre les 6 blocs de l'écran de résultat, cf. section dédiée) avec
     `ProductionObjectiveBanner`, `ProductionScoreHero` (note + échelle TCF),
-    `ProductionFullAnalysis` (le repli) et `FeedbackList` ;
+    `EvaluationNotice` (la note « à savoir ») ;
     `ProductionCriteriaCard` (les 4 critères annoncés avant de produire),
     `SubmissionRow`, `EeWritingForm`, `EoRecordingForm` + `production.module.css`.
   - **Gating** (source backend) : entraînement par tâche = **2 essais gratuits à
@@ -1196,7 +1377,7 @@ disparu, cf. « rapport express »), `ProductionExams` (hero, 3 indicateurs, pac
 Troisième espace d'une tâche productive, **à côté** des sujets TCF complets et
 des exemples (spec `docs/skills/SEJOURFR_SPEC_COMPETENCES_EE_EO.md`, contrat
 gelé partagé backend/mobile/admin). Un petit sujet entraîne **un seul critère**,
-pas une copie entière : 6 tâches × 8 compétences × 5 sujets, chacun livré avec
+pas une copie entière : 6 tâches × 8 compétences × 15 sujets, chacun livré avec
 3 productions de référence.
 
 **Ce n'est pas la voie de notation des productions.** Un micro-exercice n'a
@@ -1210,12 +1391,14 @@ sujet. Ne jamais réintroduire `ProductionScoreHero`/`formatNoteSur20` ici.
   `…/tache/[n]/competences`, ce n'est pas un état d'onglet local.
 - **Routes** (wrappers minces injectant `EE_CONFIG`/`EO_CONFIG`, comme toutes
   les pages production), sous `/entrainement/tcf/{ee,eo}/tache/[n]/competences` :
-  `/` (les 8 compétences) · `/[skillId]` (5 sujets + filtres) ·
+  `/` (les 8 compétences) · `/[skillId]` (15 sujets + filtres) ·
   `/[skillId]/[promptId]` (production) ·
   `/[skillId]/[promptId]/resultat/[attemptId]` (retour + références).
 - **Composants** `app/_components/competences/` : `CompetencesList`,
   `CompetenceDetail`, `CompetencePrompt`, `CompetenceResult`,
-  `CompetenceReferences`, `CompetenceStatusBadge`. (`SelfEvaluationPicker` a été
+  `CompetenceReferences`, `CompetenceStatusBadge`, plus les 4 blocs du retour v3
+  (`CompetenceLevelCard`, plus les blocs **partagés** du plan d'action —
+  `skill-ui/ActionPlan.tsx`). (`SelfEvaluationPicker` a été
   **supprimé** — cf. « Allègements », plus bas.)
   Les briques de mise en page et leur feuille de style ont été **promues en
   partagé** dans `app/_components/skill-ui/` (`SkillLayout.tsx` +
@@ -1258,10 +1441,18 @@ sujet. Ne jamais réintroduire `ProductionScoreHero`/`formatNoteSur20` ici.
   pourcentages pour la même tâche.
 - **Types** `lib/types.ts` (section COMPÉTENCES) : `SkillDto`, `SkillDetailDto`,
   `SkillPromptDto`, `SkillPromptSummaryDto`, `SkillReferenceDto`,
-  `SkillAttemptDto`, `SkillAnalysisDto`, `SkillAnalysisQuotaDto` + les enums et
+  `SkillAttemptDto`, `SkillAnalysisDto` (+ `SkillLevelProgressDto`,
+  `SkillNiveauViseDto`, `SkillLevierDto`, `SkillExempleCibleDto`,
+  `SkillSegmentDto`, `SkillARetenirDto`, `SituationNiveauVise`),
+  `SkillAnalysisQuotaDto` + les enums et
   les tables de libellés FR (`SKILL_PROMPT_STATUS_LABEL`,
-  `SKILL_SELF_EVALUATION_LABEL`, `SKILL_REFERENCE_LEVEL_LABEL`) — **libellés
-  gelés par le contrat, à ne pas reformuler**. ⚠️ `SkillDifficulty`
+  `SKILL_SELF_EVALUATION_LABEL`, `SKILL_REFERENCE_LEVEL_LABEL`,
+  `SKILL_SITUATION_NIVEAU_VISE_LABEL`) — **libellés
+  gelés par le contrat, à ne pas reformuler**. ⚠️ `SkillAnalysisDto` porte
+  **deux générations de champs** (v1/v2 `successPoint`/`improvementPriority`/
+  `improvedVersion`, v3 `strengthTag`/`focusTag`/`levelProgress`/`niveauVise`),
+  **toutes nullables et sans migration** : afficher ce qu'on trouve, ne jamais
+  supposer un champ présent. ⚠️ `SkillDifficulty`
   (`EASY|MEDIUM|HARD`) est le **vrai** `enums.Difficulty` Java ; le `Difficulty`
   historique de ce fichier encode un niveau de cible (CSP/CR/NAT/A2/B1/B2) et
   n'a rien à voir. Client : namespace `skillApi` dans `lib/api.ts`.
@@ -1492,14 +1683,54 @@ retraits**, la parité web ⇄ mobile n'étant pas négociable. À ne pas rétab
     l'analyse d'une tentative déjà `RECORDED` — le cas « produire d'abord,
     s'abonner ensuite ». Le client existe, **l'UI reste à brancher** (le bandeau
     de résultat renvoie aujourd'hui vers « refaire le sujet »).
-- **Ordre imposé de l'écran de résultat** (§13.4) : **accusé de traitement**
-  (« Sujet marqué comme traité » — la progression a bougé, c'est ce que le
-  candidat vient chercher) → `Ta production` → verdict →
-  `Ce qui est réussi` / `À travailler en priorité` → `Proposition améliorée` →
-  **puis seulement** le dépliant de références (replié ; ouvert, ses onglets
-  `Insuffisant | Attendu | Très réussi`) → les 3 actions
-  (`Retour aux petits sujets`, `Refaire ce sujet`,
-  `Sujet suivant à travailler` via `nextPromptId`, désactivé si null). Les
+- **Ordre imposé de l'écran de résultat — contrat d'analyse v3** : bandeau de
+  confirmation (`Production analysée` / `Progression mise à jour` ; une
+  tentative **sans** analyse garde l'accusé historique « Sujet marqué comme
+  traité », l'annoncer analysée serait faux) → **carte `TON NIVEAU`** (niveau
+  démontré en très grand, puce `Objectif {targetLevel}`, `situationLabel` rendu
+  **tel quel**, jauge à 3 crans, puces `strengthTag` / `focusTag`) →
+  `Pour viser {niveau}` (leviers) → `Une version plus aboutie` (texte réécrit,
+  extraits surlignés, puce par segment) → `À retenir` → `Ta production`
+  **repliée** → dépliant de références (replié) → 2 actions (`Sujet suivant` via
+  `nextPromptId`, désactivé si null ; `S'entraîner sur ce point`, primaire
+  pleine largeur, qui **refait le sujet courant**). Le retour en arrière reste la
+  flèche de l'en-tête. Blocs : `CompetenceLevelCard`, puis le **plan d'action
+  partagé** `skill-ui/ActionPlan.tsx` (`ActionPlanLeviers`,
+  `ActionPlanExemple`, `ActionPlanReformulations`, `ActionPlanMemoCard` +
+  les libellés gelés `pourViserTitle` / `ACTION_PLAN_EXEMPLE_TITLE` /
+  `ACTION_PLAN_REFORMULATIONS_TITLE`). ⚠️ **Ces blocs sont partagés avec le
+  rapport de correction EE/EO** (`production/ProductionActionPlan.tsx`) depuis
+  qu'il rend le même plan : ils ne se recopient pas. Ils rendent le **corps
+  seul** — chaque écran pose son propre intertitre.
+  - **Rien n'est calculé côté front** : `levelReached`, `targetLevel`,
+    `situation`, `situationLabel`, `scale` (toujours 3 crans) et `cursorIndex`
+    sont dérivés serveur (`SkillLevelProgressResolver`). Ne jamais recomposer la
+    phrase de situation ni recalculer une position de curseur.
+  - **`extrait` est garanti sous-chaîne exacte** de `exempleCible.texte` : on
+    surligne par recherche de chaîne, en nœuds React (`<mark>`), **jamais** de
+    `dangerouslySetInnerHTML`. Introuvable ⇒ texte brut, aucun surlignage
+    inventé, aucun rendu cassé.
+  - **`niveauVise == null` est un cas NORMAL** (second appel best-effort,
+    objectif déjà atteint, sortie refusée) : les sections leviers / exemple /
+    mémo disparaissent, sans message d'échec, sans spinner, sans encart
+    d'excuse.
+  - **Repli legacy v1/v2** : `levelProgress == null` ⇒ pas de carte de niveau, on
+    retombe **intégralement** sur l'affichage historique (intertitre
+    « Analyse IA du critère », verdict du critère, `Ce qui est réussi` /
+    `À travailler en priorité`, `Proposition améliorée`). Ces analyses sont déjà
+    en base et n'ont pas été migrées : aucune régression admise. Sous v3, le
+    verdict du critère n'est **pas** réaffiché — la carte de niveau ouvre
+    l'écran, deux verdicts empilés se disputeraient la première lecture
+    (parité stricte avec `_VerdictCard` côté mobile).
+  - **Course du second appel** : quand la tentative devient `EVALUATED` avec
+    `levelProgress`, une situation ≠ `OBJECTIF_ATTEINT` et `niveauVise` encore
+    absent, on poursuit le polling **15 s au maximum**
+    (`skillNiveauViseMayStillArrive`, `lib/skill-result-view.ts`, + la durée
+    `ACTION_PLAN_GRACE_MS` — cf. « Le sursis du plan d'action » plus bas), le
+    budget global restant la borne dure. Sans ce sursis, un écran s'affichait
+    sans leviers alors qu'ils arrivaient une seconde plus tard ; pendant qu'il
+    court, la place du bloc porte `<ActionPlanPending />`.
+  Les
   références ne sont **jamais** visibles avant d'avoir produit (§13.2, doublé
   d'un 403 serveur). **Polling 3 s, plafond 120 s — valeur de parité, partagée
   mot pour mot avec le mobile** et déclarée en **durée** (`POLL_BUDGET_MS`), pas
@@ -1576,8 +1807,9 @@ par écran.
    le compte de points forts sans check-list) et **« À corriger en priorité »**
    (**rouge** — `N priorité(s)`). Chacun tient sur **une ligne** : titre,
    chiffre, chevron. Appuyer ouvre le détail **dans le même encart, juste en
-   dessous** — points traités puis points forts d'un côté (séparés par un filet,
-   deux natures différentes), la ou les priorités **complètes** de l'autre
+   dessous** — points traités puis points **oubliés** (intertitre rouge, depuis
+   v15/v9) puis points forts d'un côté (ces derniers séparés par un filet, deux
+   natures différentes), la ou les priorités **complètes** de l'autre
    (`PriorityBody` : ni carte propre ni étiquette, le bandeau les porte déjà).
    ⚠️ **La priorité vit désormais à UN SEUL endroit.** Elle était résumée en tête
    puis répétée en entier plus bas : c'était la dernière redite du rapport. Le
@@ -1595,14 +1827,74 @@ par écran.
    priorité n° 1 y est **surlignée** (`splitHighlight`, première occurrence
    **exacte** ; aucune correspondance ⇒ aucun repère, jamais un repère faux),
    avec pour seule action « Masquer les repères » (douce). Puis, juste en
-   dessous, le **seul texte modèle** de la page : `TargetLevelVersionCard`.
+   dessous, le **plan d'action** : `ProductionActionPlan`.
 
-Puis **« Voir l'analyse complète »** (`ProductionFullAnalysis`), toujours
-**repliée par défaut** : avertissements → accomplissement détaillé → exemples
-corrigés → suggestions. Le **détail par critère** l'a quittée pour la section 3,
-les **points forts** pour le bandeau vert. La transcription EO reste dans son
-`<details>` séparé de `ProductionResults` (`ProductionSubmissionDto` ne porte pas
-d'URL audio — pas de lecteur inventé).
+5. **Le plan d'action** (`ProductionActionPlan`, `version_ciblee`) — les mêmes
+   blocs que le retour d'un micro-exercice de compétence, via les composants
+   **partagés** `skill-ui/ActionPlan.tsx` : « Pour viser {niveau} » (leviers
+   action / exemple), puis « Une version plus aboutie » à l'écrit (texte réécrit,
+   extraits surlignés, puce par segment) ou « Des versions plus abouties » à
+   l'oral (une ligne par reformulation : `original` atténué, `reformule` en
+   accent, puce `apport`), puis « À retenir ». ⚠️ **Le titre n'étiquette plus un
+   texte d'un palier** : l'ancien bloc « LA MARCHE AU-DESSUS » / « Au niveau B2,
+   votre réponse pourrait ressembler à ceci » est **supprimé**, parce que rien ne
+   vérifie qu'un texte atteint le palier annoncé — un candidat a recopié un
+   exemple étiqueté B2 et l'analyse l'a noté B1. Seul l'**objectif** est nommé.
+   Chaque section se masque indépendamment ; bloc absent ⇒ rien du tout.
+
+### Le sursis du plan d'action (2026-08-11)
+
+Le plan d'action vient d'un **second appel LLM**, lancé côté serveur **après**
+que la correction est persistée et la soumission passée à `EVALUATED` — hors
+transaction, pour qu'il ne puisse jamais retarder ni faire échouer la
+correction. **Ce comportement serveur est volontaire et ne change pas** : le
+correctif est entièrement côté front. L'écran s'affichait sans plan alors qu'il
+arrivait dix à quinze secondes plus tard, et le candidat devait sortir puis
+revenir pour le voir.
+
+- **Le polling existant est prolongé**, pas doublé : `ProductionResults` garde sa
+  boucle unique (3 s, `MAX_POLLS` = borne dure) et continue **15 s au maximum**
+  après `EVALUATED` tant que le feedback ne porte ni `version_ciblee` ni
+  `niveau_vise_atteint` (`productionActionPlanMayStillArrive`,
+  `lib/production-feedback.ts`).
+- **Durée, libellé et indicateur vivent à un seul endroit par front**, dans
+  `app/_components/skill-ui/ActionPlan.tsx` — partagé avec le résultat d'un
+  micro-exercice, qui attend exactement le même bloc :
+  `ACTION_PLAN_GRACE_MS` (**15 s**, miroir de `kActionPlanGrace` côté mobile ;
+  l'ancien `SKILL_NIVEAU_VISE_GRACE_MS` à 10 s est **supprimé**, deux durées pour
+  la même attente n'avaient aucune justification), `ACTION_PLAN_PENDING_LABEL`
+  (**« On prépare tes conseils… »**, contrat gelé) et `<ActionPlanPending />`.
+- **Ce que voit le candidat** : un petit spinner et une ligne, à l'emplacement
+  du bloc. **Non bloquant** (le rapport reste entièrement lisible), et il
+  **disparaît en silence** à la fin du sursis — pas de message d'échec, pas de
+  « indisponible » : un plan absent est un cas normal.
+- ⚠️ **Jamais sur un rapport rouvert plus tard.** Les deux règles exigent
+  `observedInFlight` — l'écran a vu la correction dans un statut non final depuis
+  son ouverture. Une correction de trois jours ne poste donc **qu'un seul appel**,
+  ne poll pas et n'annonce aucun conseil. Ne pas relâcher cette condition.
+
+⚠️ **« Voir l'analyse complète » n'existe plus (contrat v15 / tool-schema v9,
+2026-08-11).** Le correcteur ne produit plus `exemples_corriges` ni
+`suggestions`, et ce repli — que personne n'ouvrait — part avec eux :
+`ProductionFullAnalysis.tsx` et `FeedbackList.tsx` sont **supprimés**, ainsi que
+les classes CSS `.details*`, `.limits*`, `.acc*`, `.subBlock/.subTitle`, `.fb*`
+et `.corr*`. Les deux champs restent **typés et parsés** dans `lib/types.ts`
+(une centaine d'évaluations en base les portent) et **aucun écran candidat ne
+les lit**. Ce qui vivait dans le repli sans venir du LLM a été **remonté**, pas
+perdu :
+- **« À savoir sur cette évaluation »** (`avertissements`, écrit par le
+  **serveur** : limite de l'oral, purges automatiques) devient une **note
+  discrète sous le hero** (`EvaluationNotice.tsx`) — ni `<details>`, ni carte
+  pleine, et rien du tout quand la liste est vide ;
+- **la check-list de la consigne** vit désormais dans le dépliant du bandeau
+  **« Ce qui marche »** : `treatedPointsSummary` rend aussi `oublies`, affichés
+  sous un intertitre rouge « Points oubliés ». Sans eux, le candidat lisait
+  « 2/3 points traités » sans jamais savoir lequel manquait. Les **pistes non
+  abordées**, qui ne coûtent aucun point, ne sont plus rendues — d'où le retrait
+  de `hasAccomplishmentDetail`, devenu orphelin (`groupAccomplishment` reste,
+  c'est lui qui garantit qu'aucune piste ne se glisse dans la fraction).
+La transcription EO reste dans son `<details>` séparé de `ProductionResults`
+(`ProductionSubmissionDto` ne porte pas d'URL audio — pas de lecteur inventé).
 
 **Trois arbitrages de la passe, à ne pas défaire :**
 - **Les points forts ne sont plus en clair.** Deux phrases entières = cinq lignes
@@ -1709,10 +2001,11 @@ Règles à ne pas défaire :
   cas normal, l'écrire n'apprend rien et fait douter d'un résultat qui ne le
   mérite pas. Elle n'apparaît, avec ses `confiance_raisons`, que lorsqu'elle
   nuance vraiment — dans le panneau de niveau du hero.
-- **L'accomplissement se rend en TROIS groupes** (parité mobile) : points
-  traités / manques obligatoires / pistes non abordées. Mélanger les deux
-  derniers fait paniquer pour des points qui n'enlèvent rien
-  (`obligatoire: false` = simple piste suggérée par le sujet).
+- **Une piste n'est pas un manque** (`obligatoire: false` = simple idée
+  suggérée par le sujet, qui n'enlève aucun point) : elle ne compte ni au
+  numérateur ni au dénominateur de « N/M points traités », et depuis v15/v9 elle
+  n'est plus affichée du tout. Seuls les points **exigés** non traités le sont,
+  dans le dépliant de « Ce qui marche ».
 - **Un critère s'affiche en bande, pas en note** (`scores_criteres[].bande`,
   calculée serveur) : une IA ne distingue pas honnêtement un 13 d'un 14 — et
   depuis le 2026-08-08 le rapport d'une tâche ne porte plus **aucun** chiffre.
@@ -1734,10 +2027,11 @@ Règles à ne pas défaire :
   évaluations déjà en base portent de simples chaînes, rendues en `constat` seul.
   Ne pas présumer que le serveur normalise à la lecture d'un ancien
   enregistrement.
-- `exemples_corriges[].gain` (ce que la reformulation démontre de plus) s'affiche
-  sous l'explication quand il est là, absent sur les anciennes évaluations.
-- **Plafonds backend** : `points_forts` ≤ 2, `points_a_ameliorer` ≤ 2,
-  `exemples_corriges` ≤ 3. Ne pas rajouter de « voir plus ».
+- `exemplesCorriges` et `suggestions` restent **parsés** (rétrocompatibilité)
+  mais ne sont **plus affichés nulle part** : le contrat v15 / tool-schema v9 ne
+  les produit plus.
+- **Plafonds backend** : `points_forts` ≤ 2, `points_a_ameliorer` ≤ 2. Ne pas
+  rajouter de « voir plus ».
 - **La note /20 suit l'échelle du profil TCF IRN** : 0 = A1 non atteint, 1 = A1,
   2-5 = A2, 6-9 = B1, 10-20 = B2 ; la notation active v7/v4 est plafonnée à B2
   et ne renvoie jamais C1/C2. On n'affiche **aucune** correspondance TCF sur une tâche — une tâche
@@ -1757,9 +2051,10 @@ Règles à ne pas défaire :
   modif de cet écran.
 - L'avertissement « évaluation fondée sur la transcription, la voix n'est pas
   analysée » vient désormais du backend en tête de `feedback.avertissements`
-  (EO), et se lit dans le bloc 6. `EoTranscriptNotice` ne sert plus qu'**avant**
-  l'enregistrement (`EoRecordingForm`) ; le résultat garde un repli statique du
-  même message si l'évaluation ne porte aucun avertissement (éval v3).
+  (EO). `EoTranscriptNotice` ne sert plus qu'**avant**
+  l'enregistrement (`EoRecordingForm`) ; le résultat le rend dans
+  `EvaluationNotice`, sous le hero, avec un repli statique du même message si
+  l'évaluation ne porte aucun avertissement (éval v3).
 
 
 ### Situation dans le palier + version au niveau visé (2026-08-08, 3ᵉ lot)
@@ -1779,16 +2074,27 @@ Deux champs backend nouveaux, câblés dans la même passe (miroirs :
   (donc rien sans confiance), rien quand le backend n'envoie pas de cran (évals
   antérieures, `A1_NON_ATTEINT`, C1/C2). Libellés gelés par test des deux côtés
   (`SITUATION_LIBELLES` / `SITUATION_QUALIFICATIFS`).
-- **`feedback.version_ciblee`** (`{niveau_vise, niveau_constate?, texte,
-  ce_qui_manque[]}`, **EE uniquement**) → `EeFeedback.versionCiblee` +
-  `TargetLevelVersionCard`, rendue **juste sous** la carte de rédaction : c'est
-  le **seul texte modèle** de la page (teinte bleue, section titrée à part,
-  titre qui nomme le niveau visé, sous-titre qui dit explicitement que ce texte
-  n'est pas celui du candidat). L'ordre de `ce_qui_manque` vient du backend (du
-  plus rentable au moins rentable) : **ne jamais le retrier**. Bloc absent ⇒
-  **rien n'est rendu** (EO, éval antérieure, second appel en échec, niveau visé
-  déjà atteint) — pas de squelette, pas de « non disponible » : le rapport se
-  termine alors sur le profil par critère puis l'analyse complète.
+- **`feedback.version_ciblee`** → `EeFeedback.versionCiblee` +
+  `ProductionActionPlan`, rendu **juste sous** la carte de rédaction. **EE ET
+  EO** depuis le contrat v2 (le `isOral` qui l'annulait a été retiré). **Trois
+  formes, une seule clé**, distinguées à la présence de `exemple_cible` ou de
+  `reformulations` — cf. `EeVersionCiblee` dans `lib/types.ts` :
+  - **v2, écrit** : `leviers[2..3]{action, exemple}` + `exemple_cible{texte,
+    segments[2..3]{extrait, apport}}` + `a_retenir{formule, explication}` ;
+  - **v2, oral** : idem, mais `reformulations[2..3]{original, reformule,
+    apport}` **à la place de** `exemple_cible`. **Aucun texte modèle complet à
+    l'oral** — la production n'est jamais réécrite en entier ;
+  - **v1** (une centaine d'évaluations en base) : `texte` + `ce_qui_manque[]`,
+    écrit seulement. Rendu comme avant, **sans l'étiquette de palier** sur le
+    texte.
+  Chaque `segments[].extrait` est **garanti sous-chaîne exacte** de
+  `exemple_cible.texte` : on surligne par recherche de chaîne, en nœuds React,
+  **jamais** de `dangerouslySetInnerHTML` ; un extrait introuvable ⇒ texte brut.
+  L'ordre des leviers vient du backend (du plus rentable au moins rentable) :
+  **ne jamais le retrier**. Bloc absent ⇒ **rien n'est rendu** (éval antérieure,
+  second appel en échec, oral dégradé, niveau visé déjà atteint) — pas de
+  squelette, pas de « non disponible ». Chaque sous-bloc se masque
+  **indépendamment**.
 - ⚠️ **`version_amelioree` N'EST PLUS AFFICHÉE NULLE PART (2026-08-08).** Elle
   réécrit la production au niveau **déjà constaté** et vivait en bascule sous la
   rédaction, sans mention de niveau : c'était le texte le plus visible et le
@@ -1853,9 +2159,10 @@ redirect `/`. Type miroir `AccountDeletionResponse` dans `lib/types.ts`.
 1. **Refresh token automatique** — intercepteur dans `apiFetch` qui rejoue la
    requête après un 401 si un refresh token est disponible. Le mobile le fait
    via Dio interceptor.
-2. **Middleware Next** pour protéger les routes auth — lecture du cookie
-   `sejourfr.accessToken` et redirect vers `/connexion` si absent. Aujourd'hui
-   géré côté client par `useAuth` mais flash possible au SSR.
+2. **Étendre le Middleware Next si une nouvelle route privée apparaît** — il
+   lit déjà le cookie `sejourfr.accessToken` et protège `/dashboard`,
+   `/paiement`, `/diagnostic` et `/plan`, avec retour `?next=`. Les autres
+   écrans historiques restent encore gardés côté client par `useAuth`.
 3. **Mode sombre** — non prévu pour l'instant, mais le design system est
    compatible (variables CSS centralisées).
 

@@ -8,7 +8,7 @@ import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 
 /// Shell de la refonte 2026 : bottom nav 5 onglets
-/// Accueil · Réviser · Examens · Progrès · Profil (cf. `MTabBar` maquette).
+/// Accueil · Réviser · Examens · Plan · Profil (cf. `MTabBar` maquette).
 class MainShell extends StatelessWidget {
   const MainShell({super.key, required this.child});
 
@@ -22,7 +22,7 @@ class MainShell extends StatelessWidget {
       AppRoutes.home => 0,
       AppRoutes.reviser => 1,
       AppRoutes.examens => 2,
-      AppRoutes.progress => 3,
+      AppRoutes.plan => 3,
       AppRoutes.profile => 4,
       _ => -1,
     };
@@ -39,18 +39,6 @@ class _BottomNav extends StatelessWidget {
 
   final int currentIndex;
 
-  static const _items = [
-    (icon: LucideIcons.house, label: 'Accueil', route: AppRoutes.home),
-    (icon: LucideIcons.layoutGrid, label: 'Réviser', route: AppRoutes.reviser),
-    (icon: LucideIcons.target, label: 'Examens', route: AppRoutes.examens),
-    (icon: LucideIcons.chartColumn, label: 'Progrès', route: AppRoutes.progress),
-    (
-      icon: LucideIcons.graduationCap,
-      label: 'Profil',
-      route: AppRoutes.profile
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
     return ClipRect(
@@ -66,11 +54,10 @@ class _BottomNav extends StatelessWidget {
             child: SizedBox(
               height: 60,
               child: Row(
-                children: List.generate(_items.length, (i) {
-                  final item = _items[i];
+                children: List.generate(mainShellDestinations.length, (i) {
+                  final item = mainShellDestinations[i];
                   final selected = i == currentIndex;
-                  final color =
-                      selected ? AppColors.blue : AppColors.inkFaint;
+                  final color = selected ? AppColors.blue : AppColors.inkFaint;
                   return Expanded(
                     child: InkWell(
                       onTap: () => context.go(item.route),
@@ -84,9 +71,8 @@ class _BottomNav extends StatelessWidget {
                             style: AppFonts.ui(
                               size: 10.5,
                               color: color,
-                              weight: selected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
+                              weight:
+                                  selected ? FontWeight.w700 : FontWeight.w500,
                             ),
                           ),
                         ],
@@ -102,3 +88,23 @@ class _BottomNav extends StatelessWidget {
     );
   }
 }
+
+typedef MainShellDestination = ({
+  IconData icon,
+  String label,
+  String route,
+});
+
+/// Exposé pour garantir par test que l'ancien écran Progrès reste secondaire
+/// et que le quatrième onglet ouvre bien le plan serveur.
+const mainShellDestinations = <MainShellDestination>[
+  (icon: LucideIcons.house, label: 'Accueil', route: AppRoutes.home),
+  (icon: LucideIcons.layoutGrid, label: 'Réviser', route: AppRoutes.reviser),
+  (icon: LucideIcons.target, label: 'Examens', route: AppRoutes.examens),
+  (icon: LucideIcons.map, label: 'Plan', route: AppRoutes.plan),
+  (
+    icon: LucideIcons.graduationCap,
+    label: 'Profil',
+    route: AppRoutes.profile,
+  ),
+];

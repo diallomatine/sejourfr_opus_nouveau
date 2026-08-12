@@ -36,17 +36,17 @@ public class VersionCibleeAnthropicClient implements VersionCibleeLlmClient {
 
     private final ProductionEvaluationProperties.Anthropic connection;
     private final VersionCiblee reglages;
-    private final Map<String, Object> toolSchema;
+    private final VersionCibleeTools tools;
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
 
     public VersionCibleeAnthropicClient(ProductionEvaluationProperties.Anthropic connection,
                                         VersionCiblee reglages,
-                                        Map<String, Object> toolSchema,
+                                        VersionCibleeTools tools,
                                         ObjectMapper objectMapper) {
         this.connection = connection;
         this.reglages = reglages;
-        this.toolSchema = toolSchema;
+        this.tools = tools;
         this.objectMapper = objectMapper;
         this.restClient = RestClient.builder()
             .baseUrl(connection.getApiUrl())
@@ -65,7 +65,8 @@ public class VersionCibleeAnthropicClient implements VersionCibleeLlmClient {
     }
 
     @Override
-    public Outcome produire(String systemPrompt, String userPrompt) {
+    public Outcome produire(String systemPrompt, String userPrompt,
+                            VersionCibleeVariante variante) {
         if (!connection.isConfigured()) {
             throw new AiEvaluationException(
                 "Anthropic : cle API non configuree — version ciblee ignoree.");
@@ -78,7 +79,7 @@ public class VersionCibleeAnthropicClient implements VersionCibleeLlmClient {
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("x-api-key", connection.getApiKey())
                 .header("anthropic-version", connection.getAnthropicVersion())
-                .body(buildRequestBody(systemPrompt, userPrompt))
+                .body(buildRequestBody(systemPrompt, userPrompt, variante))
                 .retrieve()
                 .body(JsonNode.class);
         } catch (RuntimeException e) {
@@ -95,11 +96,12 @@ public class VersionCibleeAnthropicClient implements VersionCibleeLlmClient {
         return outcome;
     }
 
-    Map<String, Object> buildRequestBody(String systemPrompt, String userPrompt) {
+    Map<String, Object> buildRequestBody(String systemPrompt, String userPrompt,
+                                         VersionCibleeVariante variante) {
         Map<String, Object> tool = new LinkedHashMap<>();
         tool.put("name", VersionCibleeFields.TOOL_NAME);
-        tool.put("description", VersionCibleeFields.TOOL_DESCRIPTION);
-        tool.put("input_schema", toolSchema);
+        tool.put("description", tools.description(variante));
+        tool.put("input_schema", tools.schema(variante));
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", connection.getModel());

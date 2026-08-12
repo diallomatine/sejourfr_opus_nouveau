@@ -1,0 +1,58 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "level_reached",
+    "verdict",
+    "strength_tag",
+    "focus_tag"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "VALIDATED",
+        "PARTIAL",
+        "NOT_VALIDATED"
+      ],
+      "description": "Verdict sur le CRITÈRE UNIQUE du sujet, et sur lui seul. VALIDATED : le critère est visible et compréhensible, même avec des erreurs de langue qui ne bloquent pas la communication. PARTIAL : le candidat tente le critère mais il manque une information, une précision, un développement ou un lien. NOT_VALIDATED : le critère est absent, la consigne n'est pas traitée, ou la production est trop difficile à comprendre pour l'identifier."
+    },
+    "level_reached": {
+      "type": "string",
+      "enum": [
+        "A1_NON_ATTEINT",
+        "A1",
+        "A2",
+        "B1",
+        "B2"
+      ],
+      "description": "Le niveau de langue que CETTE production démontre, profil TCF IRN — jamais C1, jamais C2, ces valeurs n'existent pas ici. Il décrit la langue employée (lexique, syntaxe, temps, liens entre les idées), pas la réussite du critère : les deux champs répondent à deux questions différentes, et un critère peut très bien être VALIDATED en A2. La brièveté de l'exercice ne rabaisse jamais le niveau : ce qui le borne, c'est la matière réellement démontrée, pas le nombre de mots."
+    },
+    "level_evidence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Le NUMÉRO du segment de la production qui démontre `level_reached` — un entier, jamais du texte, jamais une citation. La production t'est servie découpée en segments numérotés entre crochets : tu ne recopies rien, tu désignes, et il devient impossible d'inventer une preuve. OBLIGATOIRE dès que `level_reached` vaut B1 ou B2 ; à OMETTRE pour A2, A1 et A1_NON_ATTEINT, qui n'ont rien à démontrer. Choisis le segment qui porte le marqueur du palier annoncé : pour le B2 une idée développée ou une objection traitée, pour le B1 une subordination et un enchaînement. Si aucun segment ne le porte, annonce le palier inférieur au lieu de désigner un segment par défaut. À l'oral, seuls les tours « Candidat : » portent un numéro."
+    },
+    "verdict": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "UNE phrase courte (20 mots maximum) qui dit si le critère est atteint. Pas de note, pas de nom de niveau (il a déjà son champ), pas de liste."
+    },
+    "strength_tag": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "description": "Ce qui est réussi, en TROIS MOTS MAXIMUM. Une étiquette affichée telle quelle à côté d'une puce, jamais une phrase : « Ton adapté », « Idée claire », « Lieu précisé ». Pas de verbe conjugué, pas de « vous », pas de point final. Toujours renseigné, même sur une production faible."
+    },
+    "focus_tag": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "description": "L'axe de progrès, en TROIS MOTS MAXIMUM, même forme d'étiquette : « Plus de précision », « Relier les idées », « Registre plus formel ». UN SEUL axe, lié au critère unique. Si le critère est déjà validé, nomme l'axe qui consolide, n'invente pas un défaut secondaire."
+    }
+  },
+  "title": "Analyse de compétence TCF IRN v4",
+  "description": "Contrat strict de sortie de l'analyse ciblée d'une micro-compétence : cinq champs, et AUCUN champ où loger une note — ni sur 20, ni sur une autre échelle, ni en pourcentage. Le niveau CECRL, lui, a désormais son champ dédié `level_reached`, borné aux cinq valeurs du profil TCF IRN : il décrit la langue démontrée par cette production, indépendamment du verdict sur le critère. Ce contrat ignore totalement le niveau que le candidat VISE — cette question est traitée par un second appel, séparé, pour que le jugement ne s'aligne pas sur un objectif. Tout le français produit ici est lu par une personne qui apprend le français : il est orthographié et ACCENTUÉ correctement (é, è, ê, à, ù, û, î, ô, ë, ï, ç). « déjà », jamais « deja » ; « très », jamais « tres » ; « réussi », jamais « reussi ». Seule exception : les mots du candidat que tu reprends entre guillemets se recopient tels quels, accents manquants compris. Le niveau annoncé n'est plus une affirmation : dès qu'il vaut B1 ou B2, il se DÉSIGNE par `level_evidence`, le numéro d'un segment réel de la production. Faute de désignation exploitable, le serveur abaisse le niveau d'un palier — il ne le relève jamais, et il ne perd jamais l'analyse pour autant."
+}

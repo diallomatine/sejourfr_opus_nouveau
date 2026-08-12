@@ -41,10 +41,40 @@ final class EvaluationOutputValidator {
     private static final String UNKNOWN_SEGMENT_SUFFIX =
         "] doit designer un segment numerote de la production";
 
-    private static final List<String> CHAMPS_V4 = List.of(
+    /**
+     * SOCLE des champs exiges a la racine par TOUT contrat strict (v4 et
+     * au-dela). Il ne bouge jamais : chacun est lu par un calcul de note ou de
+     * niveau, par un controle serveur, ou par un bloc affiche au candidat.
+     */
+    private static final List<String> CHAMPS_STRICTS_SOCLE = List.of(
         "note_globale", "niveau_cecrl", "justification_niveau", "scores_criteres",
-        "points_forts", "points_a_ameliorer", "suggestions", "exemples_corriges",
+        "points_forts", "points_a_ameliorer",
         "confiance", "confiance_raisons", "accomplissement");
+
+    /**
+     * Les deux champs de la RESTITUTION LONGUE, exiges jusqu'au contrat v8 et
+     * RETIRES en v9 (cf. {@link EvaluationToolSchema#exemplesEtSuggestions()}).
+     *
+     * <p>Cette liste ne peut pas etre fondue dans {@link #CHAMPS_STRICTS_SOCLE}
+     * : la redeclarer en dur, toutes versions confondues, ferait rejeter
+     * <b>100 %</b> des sorties des l'instant ou le tool-schema cesse de les
+     * demander. Les champs obligatoires se derivent donc du RANG du contrat,
+     * exactement comme {@link #CHAMP_VERSION_AMELIOREE}.
+     *
+     * <p>Ils restent TOLERES a la racine sous v9 : un correcteur qui les
+     * produirait quand meme ne fait pas echouer la soumission, le serveur les
+     * retire. Une evaluation perdue coute plus cher qu'un champ ignore.
+     */
+    private static final List<String> CHAMPS_RESTITUTION_LONGUE =
+        List.of("suggestions", "exemples_corriges");
+
+    /** Champs EXIGES a la racine sous ce contrat, dans l'ordre du schema. */
+    private static List<String> champsObligatoires(EvaluationToolSchema schema) {
+        if (!schema.exemplesEtSuggestions()) return CHAMPS_STRICTS_SOCLE;
+        List<String> out = new ArrayList<>(CHAMPS_STRICTS_SOCLE);
+        out.addAll(CHAMPS_RESTITUTION_LONGUE);
+        return out;
+    }
 
     /**
      * Champ v5 a v7 : la production ECRITE reecrite en entier au palier
@@ -339,26 +369,29 @@ final class EvaluationOutputValidator {
      * ce que v4 ne connait pas : le verdict {@code accomplissement.objectif} et
      * son resume, {@code version_amelioree} sur les taches ECRITES, et les
      * plafonds de restitution (2 points forts, 3 exemples corriges). {@code v8}
-     * retire la seule {@code version_amelioree}, sans toucher au reste. Un
+     * retire la seule {@code version_amelioree} ; {@code v9} retire
+     * {@code exemples_corriges} et {@code suggestions}, sans toucher au reste. Un
      * rollback vers v4 ne doit voir aucune de ces regles s'appliquer, et un
-     * rollback vers v7 doit les revoir toutes : d'ou une lecture du CONTRAT
+     * rollback vers v7 ou v8 doit les revoir : d'ou une lecture du CONTRAT
      * plutot qu'une validation aveugle.
      */
     private static void validateStructure(Map<String, Object> feedback, EvaluationToolSchema schema,
                                           ProductionTask task, List<String> errors) {
         boolean restitution = schema.restitution();
-        Set<String> autorises = new LinkedHashSet<>(CHAMPS_V4);
-        // TOLERE sous tous les contrats de restitution, y compris v8 ou il n'est
-        // plus demande : le serveur le retire, il ne detruit pas le rapport.
+        List<String> obligatoires = champsObligatoires(schema);
+        Set<String> autorises = new LinkedHashSet<>(CHAMPS_STRICTS_SOCLE);
+        // TOLERES sous tous les contrats stricts, y compris v9 ou ils ne sont
+        // plus demandes : le serveur les retire, il ne detruit pas le rapport.
+        autorises.addAll(CHAMPS_RESTITUTION_LONGUE);
+        // Meme tolerance pour version_amelioree, retiree du contrat en v8.
         if (restitution) autorises.add(CHAMP_VERSION_AMELIOREE);
         validateKeys(feedback, autorises, "racine", errors);
-        for (String field : CHAMPS_V4) {
+        for (String field : obligatoires) {
             if (!feedback.containsKey(field) || feedback.get(field) == null) {
                 errors.add("champ obligatoire absent : " + field);
             }
         }
         validateStringList(feedback.get("points_forts"), "points_forts", errors);
-        validateStringList(feedback.get("suggestions"), "suggestions", errors);
         validateStringList(feedback.get("confiance_raisons"), "confiance_raisons", errors);
 
         Object confiance = feedback.get("confiance");
@@ -367,7 +400,13 @@ final class EvaluationOutputValidator {
         }
         validateAccomplissement(feedback.get("accomplissement"), restitution, errors);
         validatePointsAAmeliorer(feedback.get("points_a_ameliorer"), errors);
-        validateExemples(feedback.get("exemples_corriges"), restitution, errors);
+        // Les deux champs de restitution longue ne sont controles QUE lorsque le
+        // contrat les demande : sous v9 ils sont toleres puis retires, donc les
+        // valider reviendrait a refuser une sortie pour un champ qu'on jette.
+        if (schema.exemplesEtSuggestions()) {
+            validateStringList(feedback.get("suggestions"), "suggestions", errors);
+            validateExemples(feedback.get("exemples_corriges"), restitution, errors);
+        }
         if (restitution) {
             validatePointsForts(feedback.get("points_forts"), errors);
         }

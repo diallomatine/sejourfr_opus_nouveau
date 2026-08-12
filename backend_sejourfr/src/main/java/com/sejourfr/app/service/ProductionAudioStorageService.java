@@ -13,6 +13,7 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
@@ -121,6 +122,20 @@ public class ProductionAudioStorageService {
             .build();
         PresignedGetObjectRequest presigned = s3Presigner.presignGetObject(presignReq);
         return presigned.url().toString();
+    }
+
+    /** Nettoyage best-effort d'un upload devenu orphelin (course de double soumission). */
+    public void delete(String objectKey) {
+        if (objectKey == null || objectKey.isBlank() || !r2Props.isConfigured()) return;
+        try {
+            s3Client.deleteObject(DeleteObjectRequest.builder()
+                    .bucket(r2Props.getBucketName())
+                    .key(objectKey)
+                    .build());
+            log.info("R2 submission delete OK key={}", objectKey);
+        } catch (Exception e) {
+            log.warn("R2 submission delete echoue pour {} : {}", objectKey, e.getMessage());
+        }
     }
 
     private void ensureConfigured() {

@@ -28,6 +28,15 @@ public record SkillPromptSummaryDto(
         /** Derive serveur de la derniere tentative — aucun front ne le recalcule. */
         SkillPromptStatus status,
         int attemptCount,
-        Instant lastAttemptAt
+        Instant lastAttemptAt,
+        /**
+         * {@code true} quand ce candidat <b>ne peut pas produire</b> sur ce
+         * sujet. C'est ici que se voit la règle « seuls les 2 premiers sujets
+         * d'une compétence ouverte le sont » : sans ce champ, le candidat ne
+         * découvrirait le verrou qu'en ouvrant le sujet. Toujours {@code false}
+         * pour un abonné TCF ; décidé par {@code SkillAccessService}, jamais
+         * recalculé par un front.
+         */
+        boolean locked
 ) {
 }

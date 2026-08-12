@@ -68,7 +68,9 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
   @override
   Widget build(BuildContext context) {
     // Capture une seule fois la route d'origine passée par le call-site.
-    _fromRoute ??= GoRouterState.of(context).uri.queryParameters['from'];
+    _fromRoute ??= safePostLoginDestination(
+      GoRouterState.of(context).uri.queryParameters['from'],
+    );
     final canPop = _fromRoute != null;
 
     return Scaffold(

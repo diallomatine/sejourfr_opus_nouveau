@@ -25,9 +25,26 @@ import java.util.UUID;
 @Repository
 public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
 
-    long countByUserId(UUID userId);
+    @Query("""
+            SELECT COUNT(a) FROM Attempt a
+            WHERE a.user.id = :userId
+              AND NOT EXISTS (
+                  SELECT 1 FROM DiagnosticSession d
+                  WHERE d.writtenAttempt = a OR d.oralAttempt = a
+              )
+            """)
+    long countStandardByUserId(@Param("userId") UUID userId);
 
-    long countByUserIdAndModule(UUID userId, Module module);
+    @Query("""
+            SELECT COUNT(a) FROM Attempt a
+            WHERE a.user.id = :userId AND a.module = :module
+              AND NOT EXISTS (
+                  SELECT 1 FROM DiagnosticSession d
+                  WHERE d.writtenAttempt = a OR d.oralAttempt = a
+              )
+            """)
+    long countStandardByUserIdAndModule(
+            @Param("userId") UUID userId, @Param("module") Module module);
 
     long countByExamTemplateId(UUID examTemplateId);
 
@@ -51,6 +68,10 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
               AND (:module IS NULL OR a.module = :module)
               AND (:moduleExamQuestionType IS NULL OR a.moduleExamQuestionType = :moduleExamQuestionType)
               AND (:themeId IS NULL OR a.lotThemeId = :themeId)
+              AND NOT EXISTS (
+                  SELECT 1 FROM DiagnosticSession d
+                  WHERE d.writtenAttempt = a OR d.oralAttempt = a
+              )
             ORDER BY a.startedAt DESC
             """)
     List<Attempt> findByUserFiltered(

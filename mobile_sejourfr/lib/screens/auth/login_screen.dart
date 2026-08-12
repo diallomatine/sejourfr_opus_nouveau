@@ -149,9 +149,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       suffixIcon: IconButton(
                         onPressed: () => setState(() => _obscure = !_obscure),
                         icon: Icon(
-                          _obscure
-                              ? LucideIcons.eye
-                              : LucideIcons.eyeOff,
+                          _obscure ? LucideIcons.eye : LucideIcons.eyeOff,
                           color: AppColors.muted,
                         ),
                       ),
@@ -170,7 +168,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () => context.push(AppRoutes.forgotPassword),
+                        onPressed: () => context.push(
+                          authFlowLocation(
+                            AppRoutes.forgotPassword,
+                            GoRouterState.of(context)
+                                .uri
+                                .queryParameters['redirect'],
+                          ),
+                        ),
                         child: Text(
                           'Mot de passe oublié ?',
                           style: AppFonts.ui(
@@ -206,7 +211,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: () => context.push(AppRoutes.register),
+                          onTap: () => context.push(
+                            authFlowLocation(
+                              AppRoutes.register,
+                              GoRouterState.of(context)
+                                  .uri
+                                  .queryParameters['redirect'],
+                            ),
+                          ),
                           child: Text(
                             'Créer un compte',
                             style: AppFonts.ui(
@@ -217,6 +229,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 6),
+                    // Le diagnostic se fait entièrement sans compte : on ne
+                    // demande l'inscription qu'au moment d'envoyer les deux
+                    // productions à l'analyse.
+                    Center(
+                      child: TextButton(
+                        onPressed: () => context.push(AppRoutes.diagnostic),
+                        child: Text(
+                          'Tester mon niveau sans compte',
+                          style: AppFonts.ui(
+                            size: 13.5,
+                            color: AppColors.muted,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),

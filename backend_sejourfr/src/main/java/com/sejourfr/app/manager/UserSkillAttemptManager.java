@@ -85,6 +85,18 @@ public class UserSkillAttemptManager {
         return index(repository.findLatestPerPromptBySkill(userId, skillId));
     }
 
+    /**
+     * Derniere tentative par sujet sur un ensemble de competences, indexee par
+     * sujet. Une seule requete quel que soit le nombre de competences : c'est
+     * ce qui evite un N+1 aux ecrans qui melangent des competences sans rapport
+     * de tache (le Plan).
+     */
+    public Map<UUID, UserSkillAttempt> findLatestPerPromptBySkillIds(
+            UUID userId, Collection<UUID> skillIds) {
+        if (skillIds.isEmpty()) return Map.of();
+        return index(repository.findLatestPerPromptBySkillIds(userId, skillIds));
+    }
+
     /** Nombre de tentatives par sujet sur les taches demandees. */
     public Map<UUID, Long> countPerPromptByTaskCodes(UUID userId, Collection<SkillTaskCode> taskCodes) {
         if (taskCodes.isEmpty()) return Map.of();

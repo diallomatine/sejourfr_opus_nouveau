@@ -1,5 +1,8 @@
 package com.sejourfr.app.service.competence;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * Cles du JSON d'analyse ciblee, telles qu'elles sont demandees au correcteur
  * et telles qu'elles sont persistees dans
@@ -16,9 +19,26 @@ package com.sejourfr.app.service.competence;
  * vers le {@code camelCase} du DTO est faite par
  * {@code SkillAttemptMapper}.
  *
- * <p><b>Cinq cles, et aucune autre.</b> Il n'existe volontairement aucune cle
- * de note ni de niveau CECRL : un micro-exercice de quelques phrases ne permet
- * ni l'un ni l'autre.
+ * <h2>Trois jeux de cles, parce qu'on versionne sans jamais migrer</h2>
+ * Le contrat <b>v4</b> rend ceux de v3 plus {@link #LEVEL_EVIDENCE}. Le contrat
+ * <b>v3</b> rend {@code status}, {@code level_reached},
+ * {@code verdict}, {@code strength_tag} et {@code focus_tag}. Le contrat
+ * <b>v1/v2</b> rendait {@code status}, {@code verdict}, {@code success_point},
+ * {@code improvement_priority} et {@code improved_version}. Les analyses deja
+ * persistees sous v1/v2 <b>ne sont pas migrees</b> : le mapper expose les deux
+ * jeux, en nullable, et rien ne doit planter sur une ligne ancienne.
+ *
+ * <p>Le jeu ATTENDU d'une nouvelle sortie depend donc de la version du contrat
+ * configuree ({@link #cles(String)}) : sans ca, un retour arriere
+ * {@code COMPETENCE_TOOL_SCHEMA_VERSION=v2} produirait des sorties valides pour
+ * le fournisseur et systematiquement refusees par notre validateur.
+ *
+ * <h2>Ce qu'il n'y a toujours pas, et n'y aura pas</h2>
+ * <b>Aucune cle de note</b> — ni sur 20, ni sur une autre echelle, ni en
+ * pourcentage : une micro-production de quelques phrases n'en porte pas, et le
+ * tool-schema ne prevoit aucun champ ou la loger. Le <b>niveau CECRL</b>, lui,
+ * existe depuis v3 ({@link #LEVEL_REACHED}) : c'est ce que le candidat vient
+ * chercher, et le refuser le laissait sans reponse a « ou j'en suis ».
  */
 public final class CompetenceAnalysisFields {
 
@@ -27,6 +47,44 @@ public final class CompetenceAnalysisFields {
 
     /** Une phrase qui dit ce que la production accomplit ou manque. */
     public static final String VERDICT = "verdict";
+
+    // --- contrat v3 ---------------------------------------------------------
+
+    /**
+     * Niveau CECRL demontre par CETTE production, borne au profil TCF IRN
+     * ({@code A1_NON_ATTEINT|A1|A2|B1|B2}). Independant du verdict : un critere
+     * peut etre valide en A2.
+     */
+    public static final String LEVEL_REACHED = "level_reached";
+
+    // --- contrat v4 ---------------------------------------------------------
+
+    /**
+     * PREUVE DU NIVEAU. Le correcteur y met le <b>NUMERO</b> (entier &ge; 1) du
+     * segment de la production qui demontre {@code level_reached}. Le serveur le
+     * <b>resout en texte avant persistance</b> : sur une ligne de base, cette
+     * cle porte donc le passage lui-meme, jamais l'entier — exactement comme
+     * {@code preuve_segment} devient {@code preuve} cote productions completes.
+     *
+     * <p><b>Cle OPTIONNELLE</b> : seuls B1 et B2 ont quelque chose a demontrer.
+     * En dessous, elle est absente, et c'est un cas nominal.
+     */
+    public static final String LEVEL_EVIDENCE = "level_evidence";
+
+    /** Ce qui est reussi, en 3 mots — une etiquette affichee telle quelle. */
+    public static final String STRENGTH_TAG = "strength_tag";
+
+    /** L'axe de progres, en 3 mots — meme forme d'etiquette. */
+    public static final String FOCUS_TAG = "focus_tag";
+
+    /**
+     * Bloc du SECOND appel (« pour viser X »), pose a la racine de
+     * {@code analysis_json} apres coup. Absent tant que le second appel n'a pas
+     * abouti — il est best-effort, jamais bloquant.
+     */
+    public static final String BLOC_POUR_VISER = "pour_viser";
+
+    // --- contrat v1/v2 (legacy, encore lu) ----------------------------------
 
     /** Ce qui est reussi — toujours renseigne, meme sur une production faible. */
     public static final String SUCCESS_POINT = "success_point";
@@ -37,6 +95,69 @@ public final class CompetenceAnalysisFields {
     /** Reformulation qui conserve l'idee DU CANDIDAT, pas un modele de substitution. */
     public static final String IMPROVED_VERSION = "improved_version";
 
+    /** Contrat v4 : celles de v3, plus la preuve du niveau, dans l'ordre du tool-schema. */
+    static final List<String> CLES_V4 =
+        List.of(STATUS, LEVEL_REACHED, LEVEL_EVIDENCE, VERDICT, STRENGTH_TAG, FOCUS_TAG);
+
+    /** Contrat v3 : cinq cles, dans l'ordre du tool-schema. */
+    static final List<String> CLES_V3 =
+        List.of(STATUS, LEVEL_REACHED, VERDICT, STRENGTH_TAG, FOCUS_TAG);
+
+    /** Contrat v1/v2 : cinq cles, dans l'ordre du tool-schema d'origine. */
+    static final List<String> CLES_LEGACY =
+        List.of(STATUS, VERDICT, SUCCESS_POINT, IMPROVEMENT_PRIORITY, IMPROVED_VERSION);
+
     private CompetenceAnalysisFields() {
+    }
+
+    /**
+     * Cles attendues d'une sortie, pour la version de contrat donnee. C'est ce
+     * qui garde le retour arriere reel : {@code v1}/{@code v2} restent
+     * chargeables, et le validateur leur demande alors leurs propres champs.
+     */
+    public static List<String> cles(String toolSchemaVersion) {
+        if ("v4".equals(toolSchemaVersion)) return CLES_V4;
+        return "v3".equals(toolSchemaVersion) ? CLES_V3 : CLES_LEGACY;
+    }
+
+    /**
+     * Le contrat donne exige-t-il que le niveau annonce soit <b>demontre</b> par
+     * un numero de segment ? Vrai a partir de v4 seulement : sous v1..v3 le
+     * champ n'existe pas, et tout ce qui l'entoure (decoupage numerote du prompt,
+     * reparation dediee, abaissement d'un palier) doit rester <b>inerte</b> —
+     * c'est ce qui garde le retour arriere reel.
+     */
+    public static boolean porteLaPreuveDuNiveau(String toolSchemaVersion) {
+        return "v4".equals(toolSchemaVersion);
+    }
+
+    /**
+     * Cles que le correcteur peut legitimement omettre. Seule
+     * {@link #LEVEL_EVIDENCE} l'est : A2 et en dessous n'ont rien a demontrer,
+     * et exiger le champ partout obligerait le correcteur a designer un segment
+     * « par defaut » — exactement ce que la grille lui interdit.
+     */
+    public static boolean estOptionnelle(String toolSchemaVersion, String cle) {
+        return porteLaPreuveDuNiveau(toolSchemaVersion) && LEVEL_EVIDENCE.equals(cle);
+    }
+
+    /**
+     * Ce qu'on ecrit dans l'explication d'une observation du Plan, quelle que
+     * soit la version qui a produit l'analyse : la priorite d'amelioration
+     * (v1/v2), a defaut l'axe de progres (v3), a defaut le verdict.
+     *
+     * <p>Sans ce repli, la bascule v3 aurait vide en silence l'explication de
+     * toutes les observations issues des micro-exercices — la colonne serait
+     * restee nulle sans qu'aucun test fonctionnel ne bronche.
+     */
+    public static String explication(Map<String, Object> analyse) {
+        if (analyse == null) return null;
+        for (String cle : List.of(IMPROVEMENT_PRIORITY, FOCUS_TAG, VERDICT)) {
+            Object valeur = analyse.get(cle);
+            if (valeur == null) continue;
+            String texte = valeur.toString().trim();
+            if (!texte.isEmpty()) return texte;
+        }
+        return null;
     }
 }

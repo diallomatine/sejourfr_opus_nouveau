@@ -1,5 +1,8 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.TargetLevel;
+
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -90,6 +93,25 @@ public final class EvaluationMarqueursA2 {
             + "|proscri", Pattern.CASE_INSENSITIVE);
 
     private EvaluationMarqueursA2() {
+    }
+
+    /**
+     * Vrai quand les marqueurs de {@link #MARQUEURS_A2} sont classes <b>au niveau
+     * vise ou en dessous</b> — c'est-a-dire des que le candidat vise plus haut que
+     * A2. Les designer comme la marche suivante n'a alors aucun sens : il les
+     * emploie deja.
+     *
+     * <p>Extrait ici a la DEUXIEME occurrence, comme le veut le depot : le filet
+     * des leviers « version au niveau vise » (productions completes) et celui des
+     * leviers « pour viser X » (module Competences) posent exactement la meme
+     * condition. Deux copies auraient fini par purger a deux seuils differents.
+     *
+     * <p>Null ou A2 : on ne purge rien — « parce que » est alors exactement le
+     * moyen a conseiller, et c'est meme ce qu'ordonne une ancre de la grille.
+     */
+    public static boolean sousLeNiveauVise(TargetLevel vise) {
+        return vise != null
+            && NiveauCecrl.valueOf(vise.name()).ordinal() > NiveauCecrl.A2.ordinal();
     }
 
     /**

@@ -35,6 +35,9 @@ public interface SkillRepository extends JpaRepository<Skill, UUID>,
     /** Le code editorial est unique et immuable : c'est l'ancre des seeds et de l'admin. */
     Optional<Skill> findByCode(String code);
 
+    /** Resolution en lot des codes editoriaux : une requete, pas une par code. */
+    List<Skill> findByCodeIn(Collection<String> codes);
+
     /**
      * Nombre de competences actives par tache. Renvoie {@code [taskCode, count]} :
      * les taches sans aucune competence active sont ABSENTES du resultat — au
@@ -48,6 +51,30 @@ public interface SkillRepository extends JpaRepository<Skill, UUID>,
             GROUP BY s.taskCode
             """)
     List<Object[]> countActiveByTaskCodes(@Param("taskCodes") Collection<SkillTaskCode> taskCodes);
+
+    /**
+     * La PREMIERE competence active de chaque tache, {@code [taskCode, id]}.
+     *
+     * <p>C'est le lot ouvert aux comptes sans acces TCF (cf.
+     * {@code SkillAccessService}) : une requete de 6 lignes, jamais 48 — le
+     * verrou est evalue a chaque ecran du module, il ne doit pas couter le
+     * catalogue entier.
+     *
+     * <p>« Premiere » = <b>rang le plus bas encore ACTIF</b>, et non
+     * litteralement {@code display_order = 1} : desactiver le rang 1 depuis la
+     * console fermerait sinon la tache entiere aux comptes gratuits. Sur le
+     * contenu publie les deux definitions coincident, et
+     * {@code uq_skills_task_order} garantit qu'il n'y a jamais d'ex aequo.
+     */
+    @Query("""
+            SELECT s.taskCode, s.id
+            FROM Skill s
+            WHERE s.active = true
+              AND s.displayOrder = (
+                  SELECT MIN(s2.displayOrder) FROM Skill s2
+                  WHERE s2.taskCode = s.taskCode AND s2.active = true)
+            """)
+    List<Object[]> findFirstActiveIdPerTaskCode();
 
     /**
      * Le code editorial est unique en base : ce test permet a l'admin de

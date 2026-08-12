@@ -49,7 +49,7 @@ public class AdminProductionTaskService {
     public List<AdminProductionTaskDto> list(EpreuveType epreuve, Short tacheNumero) {
         validateEpreuve(epreuve);
         validateTacheNumero(tacheNumero);
-        return taskManager.findAllByEpreuve(epreuve).stream()
+        return taskManager.findAllStandardByEpreuve(epreuve).stream()
                 .filter(t -> tacheNumero == null || tacheNumero.equals(t.getTacheNumero()))
                 .sorted(Comparator
                         .comparing(ProductionTask::getTacheNumero,
@@ -69,6 +69,9 @@ public class AdminProductionTaskService {
     public AdminProductionTaskDto updateTitre(UUID id, String titre) {
         ProductionTask task = taskManager.findById(id)
                 .orElseThrow(() -> new NotFoundException("Sujet de production introuvable : " + id));
+        if (task.isDiagnostic()) {
+            throw new NotFoundException("Sujet de production introuvable : " + id);
+        }
 
         String normalise = normalizeTitre(titre);
         if (normalise != null && normalise.length() > TITRE_MAX) {

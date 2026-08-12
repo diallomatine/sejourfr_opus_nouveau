@@ -13,6 +13,7 @@ import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
+import 'production_result_polling.dart';
 import 'ee_session_controller.dart';
 import 'widgets/evaluation_loading_view.dart';
 import 'widgets/evaluation_report.dart';
@@ -49,27 +50,30 @@ class EeResultsScreen extends ConsumerStatefulWidget {
 class _EeResultsScreenState extends ConsumerState<EeResultsScreen> {
   Timer? _poll;
 
-  /// Stop polling après cette durée — protège contre une éval IA bloquée.
-  static const Duration _pollMaxDuration = Duration(seconds: 90);
-  late final DateTime _pollStartedAt;
+  /// Arrêt du polling : statut final, budget épuisé, ou fin du sursis accordé
+  /// au plan d'action. Une seule boucle, une seule règle — cf.
+  /// [ProductionResultPollGuard].
+  final ProductionResultPollGuard _guard = ProductionResultPollGuard();
+
+  /// Le second appel peut encore aboutir : la place du plan d'action porte son
+  /// indicateur, qui s'efface en silence à la fin du sursis.
+  bool _actionPlanPending = false;
 
   @override
   void initState() {
     super.initState();
-    _pollStartedAt = DateTime.now();
-    _poll = Timer.periodic(const Duration(seconds: 3), (timer) {
+    _poll = Timer.periodic(kProductionPollInterval, (timer) {
       if (!mounted) {
         timer.cancel();
         return;
       }
-      // Stop si statut final atteint ou timeout.
       final value =
           ref.read(_submissionFetcher(widget.submissionId)).valueOrNull;
-      if (value != null && value.statut.isFinal) {
-        timer.cancel();
-        return;
+      final again = _guard.shouldPoll(value);
+      if (_actionPlanPending != _guard.awaitsActionPlan) {
+        setState(() => _actionPlanPending = _guard.awaitsActionPlan);
       }
-      if (DateTime.now().difference(_pollStartedAt) > _pollMaxDuration) {
+      if (!again) {
         timer.cancel();
         return;
       }
@@ -124,6 +128,7 @@ class _EeResultsScreenState extends ConsumerState<EeResultsScreen> {
             isHistory: widget.isHistory,
             fullExamId: fullExamId,
             queryParameters: qp,
+            actionPlanPending: _actionPlanPending,
           );
         },
       ),
@@ -161,6 +166,7 @@ class _ResultsBody extends ConsumerWidget {
     required this.isHistory,
     required this.fullExamId,
     required this.queryParameters,
+    required this.actionPlanPending,
   });
 
   final bool isHistory;
@@ -176,6 +182,10 @@ class _ResultsBody extends ConsumerWidget {
   /// Snapshot des query params de la route au moment du build du parent.
   /// Utilisé pour propager fullExamId / subAttemptId aux tâches suivantes.
   final Map<String, String> queryParameters;
+
+  /// Le sursis accordé au second appel court encore : le rapport rend son
+  /// indicateur à la place du plan d'action.
+  final bool actionPlanPending;
 
   /// Mode entrainement libre (single-task depuis le hub). Voir EoResultsScreen.
   bool get _isSingleTask =>
@@ -218,6 +228,8 @@ class _ResultsBody extends ConsumerWidget {
                 eyebrow: 'Expression écrite · Tâche ${taskIndex + 1}',
                 productionText: submission.texteSoumis,
                 targetLevel: ref.watch(userTargetLevelProvider),
+                planChange: submission.planChange,
+                actionPlanPending: actionPlanPending,
               ),
             ],
           ),

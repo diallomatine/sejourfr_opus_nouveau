@@ -241,6 +241,469 @@
               "pedagogicalNote": "Chaque information porte une précision utile et l'objectif est clair."
             }
           ]
+        },
+        {
+          "code": "EO1-C1-S6",
+          "title": "Au guichet du réseau de bus",
+          "context": "Vous entrez à l'agence du réseau de bus de votre ville pour demander une carte de transport. L'agent au guichet vous demande de vous présenter avant de remplir le dossier.",
+          "instruction": "Répondez à la question : « Vous pouvez vous présenter, s'il vous plaît ? » Donnez votre prénom, votre situation actuelle et le quartier où vous habitez.",
+          "uniqueCriterion": "Donner son prénom, sa situation actuelle et son quartier.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 6,
+          "checklist": [
+            "Dites votre prénom",
+            "Dites votre situation actuelle",
+            "Nommez votre quartier"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Quartier nommé",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Bonjour, je m'appelle Ravi, je travaille…",
+          "tip": "l'agent remplit un dossier : votre situation lui est vraiment utile.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, je m'appelle Ravi. Je voudrais une carte de bus.",
+              "pedagogicalNote": "Le prénom est donné, mais la situation et le quartier manquent."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je m'appelle Ravi. Je travaille dans un garage et j'habite dans le quartier de la gare.",
+              "pedagogicalNote": "Les trois informations demandées sont présentes et claires."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, je m'appelle Ravi. Je suis mécanicien dans un garage depuis deux ans et j'habite dans le quartier de la gare, juste à côté de l'arrêt du bus douze.",
+              "pedagogicalNote": "Chaque information est précisée : le métier exact et le quartier bien situé."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C1-S7",
+          "title": "Créer un abonnement de tramway",
+          "context": "Vous appelez le service des abonnements du tramway pour ouvrir un abonnement mensuel. La conseillère vous demande de vous présenter avant d'ouvrir votre fiche.",
+          "instruction": "Répondez à la question : « Vous pouvez me dire qui vous êtes ? » Donnez votre prénom, votre nom de famille et votre statut.",
+          "uniqueCriterion": "Donner son prénom, son nom de famille et son statut.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 7,
+          "checklist": [
+            "Dites votre prénom",
+            "Dites votre nom de famille",
+            "Précisez votre statut"
+          ],
+          "constraintTags": [
+            {
+              "label": "Nom complet",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Bonjour, je m'appelle Marta Kowalska…",
+          "tip": "au téléphone, dites votre nom lentement : la conseillère l'écrit.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, c'est pour un abonnement de tramway, s'il vous plaît.",
+              "pedagogicalNote": "Le motif de l'appel est clair, mais le candidat ne se présente pas."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je m'appelle Marta Kowalska. Je suis étudiante à l'université.",
+              "pedagogicalNote": "Prénom, nom de famille et statut sont bien donnés."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, je m'appelle Marta Kowalska, Kowalska avec un K. Je suis étudiante en droit, en deuxième année.",
+              "pedagogicalNote": "Le nom est rendu facile à écrire et le statut est précisé."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C1-S8",
+          "title": "Un bagage perdu à l'aéroport",
+          "context": "Votre valise n'est pas arrivée avec vous. Au comptoir des bagages de l'aéroport, l'agent ouvre un dossier et vous demande de vous présenter.",
+          "instruction": "Répondez à la question : « Présentez-vous, s'il vous plaît. » Donnez votre nom, la ville d'où vous arrivez et l'adresse où vous logez.",
+          "uniqueCriterion": "Donner son nom, sa ville de départ et son adresse d'arrivée.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 8,
+          "checklist": [
+            "Dites votre nom",
+            "Nommez votre ville de départ",
+            "Donnez votre adresse"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Lieux nommés",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Bonjour, je m'appelle Ahmed Baldé, j'arrive…",
+          "tip": "l'adresse où vous dormez est essentielle : c'est là qu'on livrera.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, ma valise n'est pas arrivée. Je m'appelle Ahmed.",
+              "pedagogicalNote": "Le nom est donné, mais ni la ville de départ ni l'adresse."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je m'appelle Ahmed Baldé. J'arrive de Dakar et je loge chez ma sœur, à Toulouse.",
+              "pedagogicalNote": "Les trois informations demandées sont bien là."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, je m'appelle Ahmed Baldé. J'arrive de Dakar avec le vol de ce matin et je loge chez ma sœur, au quatorze rue des Lilas, à Toulouse.",
+              "pedagogicalNote": "L'adresse complète et le vol rendent le dossier utilisable tout de suite."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C1-S9",
+          "title": "Se présenter au conducteur du covoiturage",
+          "context": "Vous avez réservé une place en covoiturage pour un long trajet. Le conducteur vous accueille devant sa voiture et vous demande de vous présenter avant de partir.",
+          "instruction": "Répondez à la question : « Bonjour, vous pouvez vous présenter rapidement ? » Donnez votre prénom, ce que vous faites et l'endroit où vous descendez.",
+          "uniqueCriterion": "Donner son prénom, son occupation et le lieu où l'on descend.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 9,
+          "checklist": [
+            "Dites votre prénom",
+            "Dites votre occupation",
+            "Précisez où vous descendez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Ton simple",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Bonjour, moi c'est Yuki, je suis…",
+          "tip": "un covoiturage est court : présentez-vous simplement, sans raconter toute votre vie.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, moi c'est Yuki. Merci beaucoup de m'emmener.",
+              "pedagogicalNote": "Seul le prénom est donné : l'occupation et l'arrêt manquent."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, moi c'est Yuki. Je suis infirmière et je descends à Orléans.",
+              "pedagogicalNote": "Les trois informations attendues sont données simplement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, moi c'est Yuki. Je suis infirmière dans une clinique et je descends à Orléans, devant la gare, parce que je prends un train juste après.",
+              "pedagogicalNote": "L'occupation et l'arrêt sont précisés, ce qui aide vraiment le conducteur."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C1-S10",
+          "title": "Ouvrir un compte chez un taxi",
+          "context": "Vous téléphonez à une compagnie de taxis pour ouvrir un compte et réserver des trajets réguliers. La standardiste vous demande de vous présenter.",
+          "instruction": "Répondez à la question : « Qui êtes-vous, et pour quels trajets ? » Donnez votre prénom, votre profession et votre adresse de départ habituelle.",
+          "uniqueCriterion": "Donner son prénom, sa profession et son adresse de départ habituelle.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 10,
+          "checklist": [
+            "Dites votre prénom",
+            "Nommez votre profession",
+            "Donnez votre adresse de départ"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Adresse précise",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Bonjour, je m'appelle Farid, je suis…",
+          "tip": "donnez le numéro et le nom de la rue, pas seulement le quartier.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, je m'appelle Farid et je voudrais un taxi tous les matins.",
+              "pedagogicalNote": "Le prénom est là, mais la profession et l'adresse manquent."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je m'appelle Farid. Je suis agent de sécurité et je pars du quinze rue Pasteur.",
+              "pedagogicalNote": "Prénom, profession et adresse de départ sont bien donnés."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, je m'appelle Farid. Je suis agent de sécurité dans un centre commercial et je pars toujours du quinze rue Pasteur, vers cinq heures du matin.",
+              "pedagogicalNote": "La profession et l'adresse sont précisées, avec l'horaire habituel en plus."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C1-S11",
+          "title": "Abonnement aux vélos en libre-service",
+          "context": "Vous vous arrêtez au stand du service de vélos en libre-service, installé sur la place du marché. L'agent vous propose un abonnement et vous demande de vous présenter.",
+          "instruction": "Répondez à la question : « Vous vous présentez, et vous me dites à quoi le vélo va vous servir ? » Donnez votre prénom, votre situation et l'usage que vous prévoyez.",
+          "uniqueCriterion": "Donner son prénom, sa situation et l'usage prévu du vélo.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 11,
+          "checklist": [
+            "Dites votre prénom",
+            "Dites votre situation",
+            "Expliquez l'usage prévu"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Usage prévu",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Bonjour, je m'appelle Léa, je travaille…",
+          "tip": "terminez par l'usage : c'est la partie que l'agent attend vraiment.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, je m'appelle Léa et je voudrais des informations sur les vélos.",
+              "pedagogicalNote": "La situation et l'usage prévu ne sont pas donnés."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je m'appelle Léa. Je travaille à l'hôpital et je voudrais le vélo pour aller au travail.",
+              "pedagogicalNote": "Prénom, situation et usage sont clairement donnés."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, je m'appelle Léa, je suis aide-soignante à l'hôpital Nord. Je voudrais un vélo pour les jours où je finis tard, parce que le bus ne passe plus après vingt heures.",
+              "pedagogicalNote": "L'usage est expliqué par une contrainte réelle, ce qui le rend très concret."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C1-S12",
+          "title": "S'inscrire à la bibliothèque",
+          "context": "Vous voulez emprunter des livres à la bibliothèque municipale. La bibliothécaire prépare votre carte et vous demande de vous présenter.",
+          "instruction": "Répondez à la question : « Vous pouvez vous présenter et me dire ce que vous venez chercher ? » Donnez votre prénom, votre occupation et ce que vous cherchez ici.",
+          "uniqueCriterion": "Donner son prénom, son occupation et ce que l'on vient chercher.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 12,
+          "checklist": [
+            "Dites votre prénom",
+            "Dites votre occupation",
+            "Dites ce que vous cherchez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "But annoncé",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour, je m'appelle Chen, je prépare…",
+          "tip": "dire ce que vous cherchez aide la bibliothécaire à vous orienter.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, je voudrais une carte pour emprunter des livres, s'il vous plaît.",
+              "pedagogicalNote": "La demande est claire, mais le candidat ne se présente pas."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je m'appelle Chen. Je prépare un examen de français et je cherche des livres faciles à lire.",
+              "pedagogicalNote": "Prénom, occupation et besoin sont bien présents."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, je m'appelle Chen. Je prépare l'examen de français pour ma demande de titre de séjour, et je cherche des livres simples et des journaux pour m'entraîner à lire.",
+              "pedagogicalNote": "Le besoin est précis, donc la présentation est vraiment adaptée à la question."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C1-S13",
+          "title": "Entretien avant un atelier numérique",
+          "context": "La médiathèque organise des ateliers pour apprendre à utiliser un ordinateur. L'animateur vous reçoit quelques minutes avant de vous inscrire dans un groupe.",
+          "instruction": "Répondez à la question : « Présentez-vous, et dites-moi où vous en êtes avec l'informatique. » Donnez votre prénom, votre situation, votre niveau actuel et votre objectif.",
+          "uniqueCriterion": "Donner quatre informations : prénom, situation, niveau actuel et objectif.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 13,
+          "checklist": [
+            "Dites votre prénom",
+            "Dites votre situation",
+            "Décrivez votre niveau actuel",
+            "Annoncez votre objectif"
+          ],
+          "constraintTags": [
+            {
+              "label": "Quatre informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Objectif clair",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour, je m'appelle Olena, je suis…",
+          "tip": "annoncez votre objectif à la fin : l'animateur choisira le bon groupe.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, je m'appelle Olena. Je ne suis pas très forte avec les ordinateurs.",
+              "pedagogicalNote": "Le niveau est évoqué, mais la situation et l'objectif manquent."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je m'appelle Olena. Je suis assistante maternelle. Je sais envoyer des messages, mais je ne sais pas remplir un dossier en ligne. Je voudrais apprendre.",
+              "pedagogicalNote": "Les quatre informations demandées sont données."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, je m'appelle Olena, je suis assistante maternelle depuis trois ans. Sur l'ordinateur, je sais écrire un message et chercher une adresse, mais je bloque quand il faut envoyer un document. Mon objectif, c'est de faire mes démarches en ligne toute seule.",
+              "pedagogicalNote": "Le niveau est décrit par des exemples et l'objectif est parfaitement net."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C1-S14",
+          "title": "Test de niveau en français",
+          "context": "Une association du quartier propose des cours de français gratuits. La formatrice vous reçoit pour un entretien avant de vous placer dans un groupe.",
+          "instruction": "Répondez à la question : « Racontez-moi qui vous êtes et comment vous avez appris le français. » Donnez votre prénom, votre pays, depuis quand vous êtes en France et ce que vous voulez travailler.",
+          "uniqueCriterion": "Donner quatre informations : prénom, pays, durée en France et besoin.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 14,
+          "checklist": [
+            "Dites votre prénom",
+            "Nommez votre pays",
+            "Dites depuis quand",
+            "Précisez ce que vous voulez travailler"
+          ],
+          "constraintTags": [
+            {
+              "label": "Quatre informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Durée précise",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Bonjour, je m'appelle Ibrahim, je viens…",
+          "tip": "dites clairement ce que vous voulez travailler : parler, écrire ou comprendre.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, je m'appelle Ibrahim. Je parle un peu français, mais pas très bien.",
+              "pedagogicalNote": "Ni le pays, ni la durée en France, ni le besoin ne sont donnés."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je m'appelle Ibrahim. Je viens du Soudan et je suis en France depuis deux ans. Je comprends bien, mais je voudrais travailler l'écriture.",
+              "pedagogicalNote": "Les quatre informations attendues sont présentes."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, je m'appelle Ibrahim, je viens du Soudan. Je suis en France depuis deux ans et j'ai appris le français au travail, avec mes collègues. Je comprends presque tout, mais je voudrais surtout travailler l'écrit, parce que je dois remplir des papiers pour la préfecture.",
+              "pedagogicalNote": "Chaque information porte un détail utile et le besoin est bien justifié."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C1-S15",
+          "title": "Rendez-vous au centre social",
+          "context": "Vous avez pris rendez-vous au centre social de votre quartier pour être aidé dans vos démarches. La référente vous reçoit dans son bureau et vous demande de vous présenter.",
+          "instruction": "Répondez à la question : « Présentez-vous, et dites-moi ce qui vous amène. » Donnez votre prénom, votre situation familiale, votre situation professionnelle et votre demande.",
+          "uniqueCriterion": "Donner quatre informations : prénom, situation familiale, situation professionnelle et demande.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 15,
+          "checklist": [
+            "Dites votre prénom",
+            "Décrivez votre situation familiale",
+            "Dites votre situation professionnelle",
+            "Formulez votre demande"
+          ],
+          "constraintTags": [
+            {
+              "label": "Quatre informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Demande formulée",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Bonjour, je m'appelle Amara, je vis…",
+          "tip": "gardez votre demande pour la fin : elle reste mieux en mémoire.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Bonjour, je m'appelle Amara. J'ai besoin d'aide pour des papiers.",
+              "pedagogicalNote": "La demande reste vague et les deux situations ne sont pas données."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Bonjour, je m'appelle Amara. Je vis avec mon mari et mes deux enfants. Je travaille à mi-temps dans une cantine et je viens pour une demande de logement.",
+              "pedagogicalNote": "Les quatre informations demandées sont bien présentes."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Bonjour, je m'appelle Amara. Je vis avec mon mari et nos deux enfants, dans un appartement d'une pièce. Je travaille à mi-temps dans une cantine scolaire depuis un an. Je viens parce que je voudrais de l'aide pour déposer une demande de logement social.",
+              "pedagogicalNote": "Chaque information éclaire la demande, qui est formulée très précisément."
+            }
+          ]
         }
       ],
       "generalCriterion": "Donner une présentation personnelle courte, claire et adaptée à la question."
@@ -474,6 +937,458 @@
               "level": "EXCELLENT",
               "text": "Oui, globalement mon travail me plaît. J'aime bien l'équipe et les horaires sont réguliers, donc je vois mes enfants le soir. Le seul problème, c'est que je porte des choses lourdes.",
               "pedagogicalNote": "L'avis est net, expliqué, et une limite est reconnue simplement."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C2-S6",
+          "title": "Donner un coup de main",
+          "context": "Vous discutez avec une bénévole de l'association de votre quartier, qui prépare la fête des voisins. Elle se tourne vers vous.",
+          "instruction": "Répondez à la question : « Est-ce que vous voudriez nous aider un peu ? » Répondez clairement, puis dites ce que vous pourriez faire.",
+          "uniqueCriterion": "Répondre clairement à la proposition et dire ce que l'on pourrait faire.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 6,
+          "checklist": [
+            "Répondez clairement",
+            "Dites ce que vous pourriez faire"
+          ],
+          "constraintTags": [
+            {
+              "label": "Réponse claire",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Une proposition",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Oui, avec plaisir, je peux…",
+          "tip": "un simple oui laisse la bénévole sans aucune réponse utile.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Oui, peut-être.",
+              "pedagogicalNote": "La réponse reste vague et n'annonce rien de concret."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, avec plaisir. Je peux aider à préparer les tables.",
+              "pedagogicalNote": "La réponse est claire et une proposition concrète suit."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, avec plaisir. Je peux venir samedi matin pour installer les tables, et je peux aussi préparer un gâteau de mon pays.",
+              "pedagogicalNote": "La réponse est nette et deux aides précises sont proposées."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C2-S7",
+          "title": "À la piscine municipale",
+          "context": "Vous vous inscrivez à la piscine municipale. La maître-nageuse vous pose une question avant de vous indiquer le bassin.",
+          "instruction": "Répondez à la question : « Est-ce que vous savez nager ? » Répondez directement et précisez votre niveau.",
+          "uniqueCriterion": "Répondre directement à la question et préciser son niveau.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 7,
+          "checklist": [
+            "Répondez par oui ou non",
+            "Précisez votre niveau"
+          ],
+          "constraintTags": [
+            {
+              "label": "Réponse directe",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Une précision",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Oui, je sais nager, mais…",
+          "tip": "dire son vrai niveau évite les mauvaises surprises dans le grand bain.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "La piscine, c'est très bien pour la santé, surtout pour le dos.",
+              "pedagogicalNote": "L'idée est juste, mais la question personnelle reste sans réponse."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, je sais nager. Mais je ne suis pas très rapide.",
+              "pedagogicalNote": "La réponse est directe et le niveau est indiqué."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, je sais nager, mais seulement dans le petit bassin. Je nage la brasse et je n'aime pas mettre la tête sous l'eau.",
+              "pedagogicalNote": "Le niveau est décrit précisément, sans détour."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C2-S8",
+          "title": "Le matin ou le soir",
+          "context": "Vous prenez un abonnement dans une salle de sport. Le conseiller veut vous proposer la formule la plus adaptée.",
+          "instruction": "Répondez à la question : « Vous viendrez plutôt le matin ou le soir ? » Annoncez votre choix et expliquez-le.",
+          "uniqueCriterion": "Choisir un des deux moments proposés et expliquer ce choix.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 8,
+          "checklist": [
+            "Annoncez votre choix",
+            "Expliquez ce choix"
+          ],
+          "constraintTags": [
+            {
+              "label": "Choix annoncé",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Une explication",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Je viendrai plutôt le soir, parce que…",
+          "tip": "hésiter entre les deux ne répond pas : choisissez un moment.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Ça dépend, le matin ou le soir, les deux me vont.",
+              "pedagogicalNote": "Aucun des deux moments n'est choisi : le conseiller ne peut rien proposer."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je viendrai plutôt le soir, parce que je travaille toute la journée.",
+              "pedagogicalNote": "Le choix est net et une raison le soutient."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je viendrai plutôt le soir, vers dix-neuf heures. Je travaille jusqu'à dix-sept heures, donc le matin, c'est vraiment impossible pour moi.",
+              "pedagogicalNote": "Le choix est annoncé, situé dans le temps et clairement justifié."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C2-S9",
+          "title": "Accompagner l'équipe samedi",
+          "context": "Votre fils joue dans le club de football du quartier. L'entraîneur cherche des parents pour accompagner l'équipe au match de samedi.",
+          "instruction": "Répondez à la question : « Est-ce que vous pourriez venir avec nous samedi ? » Répondez directement et dites ce qui est possible pour vous.",
+          "uniqueCriterion": "Répondre directement à la demande et dire ce qui est possible.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 9,
+          "checklist": [
+            "Répondez directement",
+            "Dites ce qui est possible"
+          ],
+          "constraintTags": [
+            {
+              "label": "Réponse directe",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Précision utile",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Oui, je peux venir samedi, mais…",
+          "tip": "même si vous refusez, dites-le clairement et proposez une autre date.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le samedi, c'est toujours compliqué avec les enfants et la maison.",
+              "pedagogicalNote": "On comprend la difficulté, mais la demande reste sans réponse."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, je peux venir samedi. Mais je dois partir avant seize heures.",
+              "pedagogicalNote": "La réponse est directe et la limite est annoncée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, je peux venir samedi matin, et je peux aussi emmener deux enfants dans ma voiture. Par contre, je dois repartir vers seize heures pour le travail.",
+              "pedagogicalNote": "La réponse est nette, complétée par une aide concrète et une limite."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C2-S10",
+          "title": "Déjà joué d'un instrument",
+          "context": "Vous vous renseignez sur les cours de musique de l'école du quartier. Le professeur veut savoir d'où vous partez.",
+          "instruction": "Répondez à la question : « Est-ce que vous avez déjà joué d'un instrument ? » Répondez directement et dites lequel, ou dites que vous n'avez jamais joué.",
+          "uniqueCriterion": "Répondre directement à la question et nommer l'instrument concerné.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 10,
+          "checklist": [
+            "Répondez par oui ou non",
+            "Nommez l'instrument"
+          ],
+          "constraintTags": [
+            {
+              "label": "Réponse personnelle",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Instrument nommé",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Oui, j'ai joué de la guitare…",
+          "tip": "parlez de votre expérience à vous, pas de la musique en général.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'aime beaucoup la musique, surtout la guitare et le piano.",
+              "pedagogicalNote": "Les goûts sont donnés, mais la question sur l'expérience reste sans réponse."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, j'ai joué de la guitare quand j'étais adolescent.",
+              "pedagogicalNote": "La réponse est directe et l'instrument est nommé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, j'ai joué de la guitare pendant trois ans, au lycée. Après, j'ai arrêté et maintenant je voudrais recommencer tranquillement.",
+              "pedagogicalNote": "L'expérience est nommée, située, et la situation actuelle est claire."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C2-S11",
+          "title": "En sortant du cinéma",
+          "context": "Vous sortez d'une séance de cinéma. La personne assise à côté de vous engage la conversation dans le hall.",
+          "instruction": "Répondez à la question : « Alors, vous avez aimé le film ? » Donnez votre avis personnel et expliquez-le.",
+          "uniqueCriterion": "Donner son avis sur le film au lieu de raconter l'histoire.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 11,
+          "checklist": [
+            "Donnez votre avis",
+            "Expliquez votre avis"
+          ],
+          "constraintTags": [
+            {
+              "label": "Avis personnel",
+              "icon": "PERSON"
+            },
+            {
+              "label": "Une explication",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Oui, j'ai bien aimé, surtout…",
+          "tip": "résumer l'histoire n'est pas donner un avis sur le film.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "C'est l'histoire d'un homme qui part vivre à la campagne avec sa fille.",
+              "pedagogicalNote": "L'histoire est racontée, mais l'avis demandé n'apparaît jamais."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, j'ai bien aimé. Les acteurs étaient très bons.",
+              "pedagogicalNote": "L'avis est donné directement et une raison le soutient."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, j'ai bien aimé, surtout la fin. Les acteurs étaient très bons et je n'ai pas vu le temps passer. Par contre, c'était un peu long au début.",
+              "pedagogicalNote": "L'avis est net, expliqué, et une réserve est ajoutée simplement."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C2-S12",
+          "title": "Enquête à la sortie du musée",
+          "context": "À la sortie d'une exposition, une médiatrice du musée fait une petite enquête auprès des visiteurs.",
+          "instruction": "Répondez à la question : « Est-ce que vous venez souvent au musée ? » Répondez directement et ajoutez une information sur vos visites.",
+          "uniqueCriterion": "Répondre à la question de fréquence et ajouter une information.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 12,
+          "checklist": [
+            "Répondez sur la fréquence",
+            "Ajoutez une information"
+          ],
+          "constraintTags": [
+            {
+              "label": "Réponse directe",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Fréquence donnée",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Non, je viens rarement, environ…",
+          "tip": "souvent reste flou : donnez plutôt un nombre de fois par an.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Les musées de cette ville sont vraiment très intéressants.",
+              "pedagogicalNote": "On parle des musées en général : la question personnelle n'est pas traitée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Non, je viens rarement. Peut-être deux fois par an.",
+              "pedagogicalNote": "La réponse est directe et la fréquence est donnée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Non, je viens rarement, deux ou trois fois par an. Aujourd'hui, je suis venue avec mon fils parce que c'était gratuit le premier dimanche.",
+              "pedagogicalNote": "La fréquence est chiffrée et la visite du jour est expliquée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C2-S13",
+          "title": "Revenir au festival l'an prochain",
+          "context": "Un bénévole du festival de musique de votre ville interroge les spectateurs à la fin de la soirée.",
+          "instruction": "Répondez à la question : « Est-ce que vous reviendriez l'année prochaine ? » Prenez position clairement et soutenez votre réponse avec deux éléments.",
+          "uniqueCriterion": "Prendre position clairement et soutenir sa réponse par deux éléments.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "HARD",
+          "displayOrder": 13,
+          "checklist": [
+            "Prenez position clairement",
+            "Donnez un premier élément",
+            "Ajoutez un deuxième élément"
+          ],
+          "constraintTags": [
+            {
+              "label": "Position claire",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Deux éléments",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Oui, je reviendrais sûrement, parce que…",
+          "tip": "annoncez votre position en premier, les deux raisons viennent après.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "C'était bien organisé, il y avait beaucoup de monde et de la bonne musique.",
+              "pedagogicalNote": "La soirée est décrite, mais la question du retour reste sans réponse."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, je reviendrais l'année prochaine. La musique était très bonne et le prix n'est pas cher.",
+              "pedagogicalNote": "La position est nette et deux éléments la soutiennent."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, je reviendrais sûrement. D'abord, j'ai découvert deux groupes que je ne connaissais pas du tout. Et puis le festival est à côté de chez moi, donc je rentre à pied après.",
+              "pedagogicalNote": "La position est claire et les deux éléments sont concrets et personnels."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C2-S14",
+          "title": "Le serveur demande votre avis",
+          "context": "Vous finissez de dîner dans un petit restaurant du centre. Le serveur débarrasse votre table et s'arrête un instant.",
+          "instruction": "Répondez à la question : « Est-ce que tout s'est bien passé pour vous ? » Répondez vraiment, avec deux éléments précis.",
+          "uniqueCriterion": "Répondre à la question avec deux éléments précis, sans se limiter à oui.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "HARD",
+          "displayOrder": 14,
+          "checklist": [
+            "Répondez à la question",
+            "Donnez deux éléments précis"
+          ],
+          "constraintTags": [
+            {
+              "label": "Réponse développée",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Deux éléments",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Oui, très bien, surtout le…",
+          "tip": "oui, merci ferme la conversation : nommez un plat et un détail.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Oui, merci.",
+              "pedagogicalNote": "La réponse est polie mais ne dit rien : aucun élément n'est donné."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, très bien, merci. Le poisson était excellent et le service était rapide.",
+              "pedagogicalNote": "La réponse est développée avec deux éléments précis."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, très bien, merci. Le poisson était excellent, vraiment. Le service était rapide aussi. Juste une chose : il faisait un peu froid près de la porte.",
+              "pedagogicalNote": "Deux éléments précis sont donnés et une remarque utile est ajoutée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C2-S15",
+          "title": "Deux questions au comptoir",
+          "context": "Vous prenez un café dans le bar au coin de votre rue. Le patron, curieux et sympathique, vous pose deux questions à la suite.",
+          "instruction": "Répondez à la question : « Vous êtes du quartier ? Et qu'est-ce que vous faites dans la vie ? » Répondez aux deux questions, sans en oublier une.",
+          "uniqueCriterion": "Répondre aux deux questions posées, sans en oublier une.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 15,
+          "checklist": [
+            "Répondez à la première question",
+            "Répondez à la deuxième",
+            "Développez chaque réponse"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux réponses",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Ton amical",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Oui, j'habite juste à côté…",
+          "tip": "quand on vous pose deux questions, répondez aux deux, dans l'ordre.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Oui, j'habite juste à côté, dans l'immeuble bleu.",
+              "pedagogicalNote": "La première question reçoit une réponse, la deuxième est oubliée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, j'habite juste à côté. Et je travaille dans une boulangerie, en centre-ville.",
+              "pedagogicalNote": "Les deux questions reçoivent chacune une réponse claire."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, j'habite juste à côté, au-dessus de la pharmacie, depuis six mois. Et je travaille dans une boulangerie en centre-ville. Je commence très tôt, donc je passe souvent prendre un café ici avant.",
+              "pedagogicalNote": "Les deux réponses sont données et chacune porte un détail concret."
             }
           ]
         }
@@ -710,6 +1625,465 @@
               "level": "EXCELLENT",
               "text": "Oui, j'apprends le français. Je suis des cours depuis six mois dans une association du quartier, deux soirs par semaine, et je révise avec une application le matin dans le bus.",
               "pedagogicalNote": "Durée, lieu, rythme et méthode : la réponse est riche et simple."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C3-S6",
+          "title": "Commander chez le traiteur",
+          "context": "Vous préparez une fête de famille et vous passez chez un traiteur du quartier. La vendeuse prend note de votre commande.",
+          "instruction": "Répondez à la question : « Qu'est-ce que vous voulez commander ? » Nommez ce que vous voulez et ajoutez au moins une précision : pour quand, pour combien de personnes ou pourquoi.",
+          "uniqueCriterion": "Nommer ce que l'on commande et ajouter au moins une précision.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 6,
+          "checklist": [
+            "Nommez votre commande",
+            "Ajoutez une précision utile"
+          ],
+          "constraintTags": [
+            {
+              "label": "Une précision",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Pour quand",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Je voudrais commander un plat pour…",
+          "tip": "une commande sans date ni nombre oblige la vendeuse à tout redemander.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je voudrais commander un plat, s'il vous plaît.",
+              "pedagogicalNote": "La commande est annoncée, mais aucune précision ne l'accompagne."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je voudrais commander un couscous pour samedi soir.",
+              "pedagogicalNote": "Le plat est nommé et le moment est précisé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je voudrais commander un couscous pour samedi soir, pour douze personnes. C'est l'anniversaire de ma mère, donc je passerai le chercher vers dix-huit heures.",
+              "pedagogicalNote": "Le moment, le nombre et la raison rendent la commande très claire."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C3-S7",
+          "title": "Réserver une chambre d'hôtel",
+          "context": "Vous téléphonez à un petit hôtel pour réserver une chambre. La réceptionniste vous demande vos dates.",
+          "instruction": "Répondez à la question : « Vous souhaitez venir quand ? » Donnez la date et ajoutez au moins une précision : le nombre de nuits, l'heure d'arrivée ou le nombre de personnes.",
+          "uniqueCriterion": "Donner la date et ajouter au moins une précision sur le séjour.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 7,
+          "checklist": [
+            "Donnez la date",
+            "Ajoutez une précision"
+          ],
+          "constraintTags": [
+            {
+              "label": "Date donnée",
+              "icon": "TIME"
+            },
+            {
+              "label": "Une précision",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Je voudrais venir le quinze mars…",
+          "tip": "une date seule ne suffit pas : dites combien de nuits vous restez.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je voudrais venir au mois de mars.",
+              "pedagogicalNote": "La date reste vague et aucune précision ne vient la compléter."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je voudrais venir le quinze mars, pour deux nuits.",
+              "pedagogicalNote": "La date exacte et la durée du séjour sont données."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je voudrais venir le quinze mars, pour deux nuits, avec ma femme. On arrivera assez tard, vers vingt-deux heures, parce qu'on prend le train du soir.",
+              "pedagogicalNote": "La date, la durée, les personnes et l'heure d'arrivée sont toutes précisées."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C3-S8",
+          "title": "À l'accueil du camping",
+          "context": "Vous arrivez dans un camping au bord d'un lac. L'agent d'accueil prépare votre fiche de séjour.",
+          "instruction": "Répondez à la question : « Vous restez combien de temps ? » Donnez la durée et ajoutez au moins une précision : avec qui, quel emplacement ou pourquoi.",
+          "uniqueCriterion": "Donner la durée du séjour et ajouter au moins une précision.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 8,
+          "checklist": [
+            "Dites combien de nuits",
+            "Précisez avec qui"
+          ],
+          "constraintTags": [
+            {
+              "label": "Durée précise",
+              "icon": "TIME"
+            },
+            {
+              "label": "Une précision",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "On reste une semaine, avec…",
+          "tip": "dites avec qui vous venez : l'agent choisira le bon emplacement.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "On reste quelques jours, je pense.",
+              "pedagogicalNote": "La durée reste imprécise et rien ne vient l'éclairer."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "On reste une semaine, avec ma femme et nos deux enfants.",
+              "pedagogicalNote": "La durée est claire et les personnes sont précisées."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "On reste une semaine, du samedi au samedi, avec ma femme et nos deux enfants. On voudrait un emplacement à l'ombre, si c'est possible, parce qu'il fait très chaud.",
+              "pedagogicalNote": "Durée, dates, personnes et besoin : chaque précision est vraiment utile."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C3-S9",
+          "title": "Conseils à l'office de tourisme",
+          "context": "Vous passez à l'office de tourisme d'une ville que vous ne connaissez pas. L'hôtesse veut vous conseiller une visite.",
+          "instruction": "Répondez à la question : « Qu'est-ce que vous aimeriez visiter ? » Dites ce que vous cherchez et ajoutez deux précisions : quand, avec qui ou combien de temps vous restez.",
+          "uniqueCriterion": "Dire ce que l'on veut visiter et ajouter deux précisions.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 9,
+          "checklist": [
+            "Dites ce que vous cherchez",
+            "Donnez une première précision",
+            "Ajoutez-en une deuxième"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux précisions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Moment et personnes",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "On voudrait visiter le vieux centre…",
+          "tip": "dites avec qui vous visitez : les conseils ne sont pas les mêmes.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "On voudrait visiter la ville.",
+              "pedagogicalNote": "Le souhait est là, mais aucune précision ne permet de conseiller."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "On voudrait visiter le vieux centre demain, avec nos deux enfants.",
+              "pedagogicalNote": "Deux précisions accompagnent la demande : le moment et les personnes."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "On voudrait visiter le vieux centre demain matin, avec nos deux enfants. On reste seulement deux jours, donc on cherche quelque chose de court et pas trop cher.",
+              "pedagogicalNote": "Le moment, les personnes et la durée du séjour guident vraiment le conseil."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C3-S10",
+          "title": "À l'agence de voyage",
+          "context": "Vous entrez dans une agence de voyage pour préparer un départ. Le conseiller cherche à comprendre votre projet.",
+          "instruction": "Répondez à la question : « Quel voyage cherchez-vous ? » Dites où vous voulez aller et précisez la période et la durée.",
+          "uniqueCriterion": "Nommer la destination et préciser la période et la durée.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 10,
+          "checklist": [
+            "Nommez la destination",
+            "Précisez la période",
+            "Dites la durée"
+          ],
+          "constraintTags": [
+            {
+              "label": "Période et durée",
+              "icon": "TIME"
+            },
+            {
+              "label": "Deux précisions",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Je voudrais partir au Portugal, en…",
+          "tip": "une destination sans dates ne permet aucun prix précis.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je voudrais partir au Portugal.",
+              "pedagogicalNote": "La destination est nommée, mais la période et la durée manquent."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je voudrais partir au Portugal, en juillet, pour une semaine.",
+              "pedagogicalNote": "La destination, la période et la durée sont bien données."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je voudrais partir au Portugal, à Porto, la deuxième semaine de juillet, pour huit jours. On part à deux et on préfère un vol le matin.",
+              "pedagogicalNote": "Chaque précision est chiffrée, donc le conseiller peut chercher tout de suite."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C3-S11",
+          "title": "Une expérience utile pour le poste",
+          "context": "Vous passez un entretien pour un poste dans une entreprise de nettoyage. La recruteuse veut comprendre votre parcours.",
+          "instruction": "Répondez à la question : « Parlez-moi d'une expérience utile pour ce poste. » Nommez l'expérience et précisez où vous l'avez faite et combien de temps.",
+          "uniqueCriterion": "Nommer une expérience et préciser le lieu et la durée.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 11,
+          "checklist": [
+            "Nommez une expérience",
+            "Précisez le lieu",
+            "Donnez la durée"
+          ],
+          "constraintTags": [
+            {
+              "label": "Lieu et durée",
+              "icon": "TIME"
+            },
+            {
+              "label": "Deux précisions",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "J'ai travaillé dans un hôtel, pendant…",
+          "tip": "un lieu et une durée valent mieux que beaucoup d'expérience.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'ai déjà fait ce travail, j'ai beaucoup d'expérience.",
+              "pedagogicalNote": "L'expérience est annoncée, mais elle n'est ni située ni mesurée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "J'ai travaillé dans un hôtel pendant deux ans. Je m'occupais des chambres.",
+              "pedagogicalNote": "Le lieu et la durée précisent bien l'expérience."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "J'ai travaillé deux ans dans un hôtel de soixante chambres, à Lille. Je nettoyais quinze chambres par jour et je m'occupais aussi du linge.",
+              "pedagogicalNote": "Le lieu, la durée et le volume de travail rendent l'expérience vérifiable."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C3-S12",
+          "title": "Ce que vous savez déjà faire",
+          "context": "C'est votre premier jour dans une entreprise de livraison. La responsable d'équipe veut savoir ce que vous maîtrisez déjà.",
+          "instruction": "Répondez à la question : « Qu'est-ce que vous savez déjà faire ? » Nommez une chose que vous savez faire et dites où et depuis quand vous l'avez apprise.",
+          "uniqueCriterion": "Nommer ce que l'on sait faire et dire où on l'a appris.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 12,
+          "checklist": [
+            "Nommez une compétence",
+            "Dites où vous l'avez apprise",
+            "Précisez depuis quand"
+          ],
+          "constraintTags": [
+            {
+              "label": "Lieu d'apprentissage",
+              "icon": "PLACE"
+            },
+            {
+              "label": "Deux précisions",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Je sais conduire un camion, j'ai…",
+          "tip": "dire où vous avez appris rend votre réponse crédible tout de suite.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je sais faire beaucoup de choses, ne vous inquiétez pas.",
+              "pedagogicalNote": "Aucune compétence n'est nommée, ni située dans le temps ou l'espace."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je sais conduire un camion. J'ai passé le permis il y a trois ans, dans mon pays.",
+              "pedagogicalNote": "La compétence est nommée, avec le lieu et le moment de l'apprentissage."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je sais conduire un camion de vingt mètres cubes. J'ai passé le permis il y a trois ans en Roumanie, et j'ai livré des meubles pendant deux ans là-bas.",
+              "pedagogicalNote": "La compétence est précisée, située et appuyée par une expérience réelle."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C3-S13",
+          "title": "Demander des jours de congé",
+          "context": "Vous voulez poser des congés cet été. Vous frappez à la porte du bureau de votre responsable, qui vous écoute.",
+          "instruction": "Répondez à la question : « Vous voulez poser des congés quand, et pourquoi ? » Donnez les dates, la raison et une précision sur l'organisation du travail.",
+          "uniqueCriterion": "Donner les dates, la raison et une précision sur l'organisation.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 13,
+          "checklist": [
+            "Donnez les dates",
+            "Expliquez la raison",
+            "Précisez l'organisation du travail"
+          ],
+          "constraintTags": [
+            {
+              "label": "Dates précises",
+              "icon": "TIME"
+            },
+            {
+              "label": "Trois précisions",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Je voudrais poser des congés du…",
+          "tip": "dire qui vous remplace montre que vous avez pensé à l'équipe.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je voudrais poser des congés bientôt, si c'est possible.",
+              "pedagogicalNote": "Ni les dates, ni la raison, ni l'organisation ne sont données."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je voudrais poser des congés du dix au vingt août, pour aller voir ma famille. Karim peut me remplacer.",
+              "pedagogicalNote": "Les dates, la raison et le remplacement sont bien donnés."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je voudrais poser des congés du dix au vingt août, pour aller voir ma famille au Maroc. J'ai déjà vu avec Karim : il peut me remplacer le matin, et je finirai le dossier des livraisons avant de partir.",
+              "pedagogicalNote": "Chaque précision est concrète et l'organisation du travail est prévue."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C3-S14",
+          "title": "Comment vous avez trouvé votre logement",
+          "context": "Pendant la pause, un collègue de bureau discute avec vous. Il cherche lui aussi un appartement dans la ville.",
+          "instruction": "Répondez à la question : « Comment vous avez trouvé votre logement ? » Racontez votre recherche en donnant au moins trois précisions : quand, comment et où.",
+          "uniqueCriterion": "Raconter sa recherche avec au moins trois précisions.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 14,
+          "checklist": [
+            "Dites quand",
+            "Expliquez comment",
+            "Précisez où",
+            "Ajoutez un détail utile"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois précisions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Quand et où",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Je l'ai trouvé l'année dernière, par…",
+          "tip": "un détail précis aide votre collègue : le site, le quartier, le prix.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'ai cherché longtemps et finalement j'ai eu de la chance.",
+              "pedagogicalNote": "Le récit reste vague : ni moment, ni méthode, ni lieu."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je l'ai trouvé l'année dernière, par une annonce sur internet. C'est un deux-pièces dans le quartier de la gare.",
+              "pedagogicalNote": "Le moment, la méthode et le lieu sont donnés."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je l'ai trouvé en septembre dernier, par une annonce sur internet, mais surtout parce qu'une collègue m'avait prévenu avant. C'est un deux-pièces près de la gare, à six cents euros. J'ai visité le jour même, sinon il partait.",
+              "pedagogicalNote": "Quatre précisions concrètes rendent le récit vraiment utile au collègue."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C3-S15",
+          "title": "Le point du matin sur le chantier",
+          "context": "Vous travaillez sur un chantier de rénovation. Le chef d'équipe fait le point le matin et vous demande ce que vous avez fait la veille.",
+          "instruction": "Répondez à la question : « Qu'est-ce que vous avez fait hier ? » Dites ce que vous avez fait en précisant le moment, l'endroit et les personnes.",
+          "uniqueCriterion": "Dire ce que l'on a fait en précisant le moment, l'endroit et les personnes.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 15,
+          "checklist": [
+            "Dites ce que vous avez fait",
+            "Précisez le moment",
+            "Nommez l'endroit",
+            "Dites avec qui"
+          ],
+          "constraintTags": [
+            {
+              "label": "Moment et endroit",
+              "icon": "TIME"
+            },
+            {
+              "label": "Trois précisions",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Hier matin, j'ai travaillé au deuxième…",
+          "tip": "le chef doit pouvoir vérifier : nommez l'étage, l'heure et le collègue.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Hier, j'ai travaillé toute la journée, comme d'habitude.",
+              "pedagogicalNote": "L'activité n'est ni située ni précisée : rien n'est vérifiable."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Hier matin, j'ai posé les plaques au deuxième étage, avec Mehdi. L'après-midi, j'ai nettoyé le local.",
+              "pedagogicalNote": "Le moment, l'endroit et la personne sont précisés."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Hier matin, de huit heures à midi, j'ai posé les plaques au deuxième étage, avec Mehdi. Après la pause, on a monté le matériel au troisième et j'ai nettoyé le local avant de partir, vers seize heures.",
+              "pedagogicalNote": "Horaires, étages et personnes : le chef peut suivre exactement le travail."
             }
           ]
         }
@@ -953,6 +2327,467 @@
               "pedagogicalNote": "L'ordre est explicite et une stratégie d'organisation apparaît."
             }
           ]
+        },
+        {
+          "code": "EO1-C4-S6",
+          "title": "Expliquer un service en salle",
+          "context": "Vous travaillez en salle dans un restaurant. Une nouvelle collègue commence ce soir et vous demande comment se passe un service.",
+          "instruction": "Répondez à la question : « Comment se passe un service, chez vous ? » Racontez au moins trois moments du service dans l'ordre.",
+          "uniqueCriterion": "Enchaîner au moins trois moments du service dans l'ordre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "EASY",
+          "displayOrder": 6,
+          "checklist": [
+            "Commencez par l'ouverture",
+            "Enchaînez trois moments",
+            "Terminez par la fermeture"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois moments",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Ordre du service",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "On commence vers onze heures, d'abord…",
+          "tip": "suivez l'ordre du service : avant les clients, pendant, puis après.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "C'est un service normal, il y a beaucoup de clients et ça va très vite.",
+              "pedagogicalNote": "Aucun moment du service n'est distingué : on ne suit aucun déroulement."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "On commence vers onze heures. D'abord on met les tables, ensuite les clients arrivent à midi, et après on nettoie la salle.",
+              "pedagogicalNote": "Trois moments du service se suivent dans un ordre clair."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "On commence vers onze heures. D'abord on met les tables et on prépare le pain, ensuite le service commence à midi et c'est très rapide jusqu'à quatorze heures. Après, on nettoie la salle et on prépare déjà le soir.",
+              "pedagogicalNote": "Chaque moment est situé dans le temps et porte une action précise."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C4-S7",
+          "title": "Le début de journée à l'entrepôt",
+          "context": "Vous travaillez dans un entrepôt de préparation de commandes. Un nouvel employé vous suit ce matin et veut comprendre comment commence la journée.",
+          "instruction": "Répondez à la question : « Comment commence la journée ici ? » Racontez dans l'ordre ce que vous faites entre votre arrivée et la pause.",
+          "uniqueCriterion": "Décrire dans l'ordre les étapes entre l'arrivée et la pause.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "EASY",
+          "displayOrder": 7,
+          "checklist": [
+            "Dites l'heure d'arrivée",
+            "Enchaînez les étapes",
+            "Terminez à la pause"
+          ],
+          "constraintTags": [
+            {
+              "label": "Heure d'arrivée",
+              "icon": "TIME"
+            },
+            {
+              "label": "Étapes ordonnées",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "J'arrive à six heures, d'abord…",
+          "tip": "les étapes se suivent : arrivée, badge, matériel, premières commandes.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "On arrive tôt et on travaille beaucoup jusqu'à la pause.",
+              "pedagogicalNote": "Les étapes ne sont pas racontées, seulement l'ambiance générale."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "J'arrive à six heures. D'abord je badge, ensuite je prends mon chariot, et après je prépare les premières commandes.",
+              "pedagogicalNote": "Les étapes se suivent clairement jusqu'à la pause."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "J'arrive à six heures et je badge à l'entrée. D'abord je mets mes chaussures de sécurité, ensuite je prends mon chariot et la liste des commandes. Après, je prépare les palettes jusqu'à la pause de neuf heures.",
+              "pedagogicalNote": "L'ordre est explicite et chaque étape est située dans le temps."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C4-S8",
+          "title": "Une journée de formation",
+          "context": "Vous suivez une formation professionnelle depuis un mois. Un ami voudrait s'inscrire et vous demande comment se passe une journée.",
+          "instruction": "Répondez à la question : « Une journée de formation, ça se passe comment ? » Donnez les horaires et dites ce qui se passe entre le début et la fin.",
+          "uniqueCriterion": "Donner les horaires de la journée et les placer dans l'ordre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "EASY",
+          "displayOrder": 8,
+          "checklist": [
+            "Donnez l'heure de début",
+            "Dites ce qui suit",
+            "Donnez l'heure de fin"
+          ],
+          "constraintTags": [
+            {
+              "label": "Horaires donnés",
+              "icon": "TIME"
+            },
+            {
+              "label": "Début et fin",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Les cours commencent à neuf heures…",
+          "tip": "des heures précises rendent la journée facile à imaginer.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "C'est une formation intéressante, les formateurs sont gentils et on apprend bien.",
+              "pedagogicalNote": "La journée n'est pas décrite : ni horaires, ni déroulement."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Les cours commencent à neuf heures. On travaille en salle le matin, on mange à midi, et l'après-midi on fait de la pratique jusqu'à seize heures trente.",
+              "pedagogicalNote": "Les horaires encadrent une journée présentée dans l'ordre."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Les cours commencent à neuf heures. Le matin, on est en salle avec le formateur, avec une pause à dix heures et demie. À midi, on a une heure pour manger. L'après-midi, c'est de la pratique en atelier, et on finit à seize heures trente.",
+              "pedagogicalNote": "Chaque horaire est donné et le déroulement se suit sans effort."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C4-S9",
+          "title": "Alterner le stage et les cours",
+          "context": "Vous êtes en stage dans une entreprise deux jours par semaine. Votre tuteur veut comprendre comment vous organisez vos semaines.",
+          "instruction": "Répondez à la question : « Comment se passent vos semaines entre le stage et les cours ? » Expliquez dans l'ordre quels jours vous êtes ici et quels jours vous êtes en cours.",
+          "uniqueCriterion": "Expliquer dans l'ordre l'alternance entre les jours de stage et de cours.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 9,
+          "checklist": [
+            "Nommez vos jours de stage",
+            "Nommez vos jours de cours",
+            "Suivez l'ordre de la semaine"
+          ],
+          "constraintTags": [
+            {
+              "label": "Jours nommés",
+              "icon": "TIME"
+            },
+            {
+              "label": "Semaine ordonnée",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Je suis ici le lundi et…",
+          "tip": "avancez du lundi au vendredi : votre tuteur suivra sans effort.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je viens deux jours par semaine et le reste du temps, je suis à l'école.",
+              "pedagogicalNote": "Les jours ne sont pas nommés : on ne peut pas suivre la semaine."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je suis ici le lundi et le mardi. Le mercredi, le jeudi et le vendredi, je suis en cours au centre de formation.",
+              "pedagogicalNote": "Les jours sont nommés et la semaine se suit facilement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je suis ici le lundi et le mardi, de huit heures à seize heures. Ensuite, du mercredi au vendredi, je suis en cours au centre de formation. Le vendredi soir, je prépare mon carnet de stage pour la semaine suivante.",
+              "pedagogicalNote": "L'alternance est claire, avec les horaires et la préparation du retour."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C4-S10",
+          "title": "Une journée en télétravail",
+          "context": "Vous travaillez chez vous deux jours par semaine. Votre responsable vous demande comment se déroule une de ces journées.",
+          "instruction": "Répondez à la question : « Comment se déroule une journée de télétravail pour vous ? » Racontez votre journée dans l'ordre, avec vos horaires.",
+          "uniqueCriterion": "Décrire une journée de télétravail dans l'ordre, avec ses horaires.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 10,
+          "checklist": [
+            "Dites quand vous commencez",
+            "Enchaînez vos activités",
+            "Dites quand vous finissez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Horaires donnés",
+              "icon": "TIME"
+            },
+            {
+              "label": "Journée ordonnée",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Je commence vers huit heures et…",
+          "tip": "dites aussi votre pause : elle montre que la journée est organisée.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "À la maison, je travaille bien, il n'y a pas de bruit.",
+              "pedagogicalNote": "La journée n'est pas racontée : aucun horaire, aucune étape."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je commence vers huit heures. Le matin, je réponds aux messages, ensuite je fais mes dossiers. Je m'arrête à midi et je finis à dix-sept heures.",
+              "pedagogicalNote": "La journée se suit dans l'ordre, avec des horaires clairs."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je commence vers huit heures, un peu plus tôt qu'au bureau. D'abord je réponds aux messages, ensuite j'ai une réunion en ligne à dix heures. Je m'arrête à midi pour manger, et l'après-midi je travaille sur mes dossiers jusqu'à dix-sept heures.",
+              "pedagogicalNote": "Les horaires et les étapes s'enchaînent sans que l'auditeur se perde."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C4-S11",
+          "title": "Vos disponibilités pour le planning",
+          "context": "En réunion d'équipe, votre responsable prépare le planning de la semaine. Il fait le tour des collègues pour connaître leurs disponibilités.",
+          "instruction": "Répondez à la question : « À quels moments êtes-vous disponible ? » Situez vos disponibilités jour par jour, dans l'ordre de la semaine.",
+          "uniqueCriterion": "Situer ses disponibilités dans un ordre clair, jour par jour.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 11,
+          "checklist": [
+            "Commencez par le lundi",
+            "Donnez vos horaires disponibles",
+            "Signalez vos empêchements"
+          ],
+          "constraintTags": [
+            {
+              "label": "Jour par jour",
+              "icon": "TIME"
+            },
+            {
+              "label": "Ordre clair",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Le lundi et le mardi, je…",
+          "tip": "annoncez d'abord vos jours libres, ensuite vos horaires impossibles.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Moi, je suis assez souple, sauf les jours où j'ai les enfants.",
+              "pedagogicalNote": "Aucun jour ni horaire n'est situé : le planning reste impossible à faire."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le lundi et le mardi, je suis libre toute la journée. Le mercredi, je pars à quinze heures. Le jeudi et le vendredi, je suis disponible le matin seulement.",
+              "pedagogicalNote": "Les disponibilités se suivent jour par jour, dans l'ordre de la semaine."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le lundi et le mardi, je suis là de huit heures à dix-sept heures. Le mercredi, je dois partir à quinze heures pour les enfants. Le jeudi, je suis libre toute la journée, et le vendredi seulement le matin, parce que j'ai mon cours de français l'après-midi.",
+              "pedagogicalNote": "Chaque jour porte ses horaires et ses raisons, dans un ordre facile à suivre."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C4-S12",
+          "title": "Choisir une offre internet",
+          "context": "Vous êtes dans la boutique de votre opérateur téléphonique. La conseillère veut vous proposer l'offre la plus adaptée à votre usage.",
+          "instruction": "Répondez à la question : « Comment utilisez-vous internet dans une journée ? » Décrivez vos usages aux différents moments de la journée, dans l'ordre.",
+          "uniqueCriterion": "Décrire ses usages d'internet aux différents moments de la journée, dans l'ordre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 12,
+          "checklist": [
+            "Commencez par le matin",
+            "Continuez avec la journée",
+            "Terminez par le soir"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois moments",
+              "icon": "TIME"
+            },
+            {
+              "label": "Usages ordonnés",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Le matin, j'écoute la radio sur…",
+          "tip": "le soir compte beaucoup : c'est là qu'on consomme le plus.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'utilise internet tous les jours, comme tout le monde.",
+              "pedagogicalNote": "Aucun moment de la journée n'est distingué."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le matin, je regarde mes messages dans le bus. La journée, j'utilise peu internet parce que je travaille. Le soir, je regarde des vidéos avec mes enfants.",
+              "pedagogicalNote": "Les trois moments de la journée sont distingués dans l'ordre."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le matin, dans le bus, j'écoute la radio et je regarde mes messages. La journée, j'utilise très peu internet, seulement à la pause. Le soir, entre vingt et vingt-deux heures, on regarde des films et ma fille fait ses devoirs en ligne.",
+              "pedagogicalNote": "Chaque moment est situé et l'usage est précis, du matin jusqu'au soir."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C4-S13",
+          "title": "Estimer sa consommation d'électricité",
+          "context": "Vous changez de fournisseur d'électricité. Le conseiller veut estimer votre consommation et vous interroge sur vos habitudes.",
+          "instruction": "Répondez à la question : « À quels moments utilisez-vous le plus d'électricité chez vous ? » Décrivez votre journée dans l'ordre en indiquant les appareils et les horaires.",
+          "uniqueCriterion": "Situer dans l'ordre les moments de forte consommation, avec les horaires.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 13,
+          "checklist": [
+            "Commencez par le matin",
+            "Nommez les appareils",
+            "Donnez les horaires",
+            "Terminez par la soirée"
+          ],
+          "constraintTags": [
+            {
+              "label": "Horaires précis",
+              "icon": "TIME"
+            },
+            {
+              "label": "Journée ordonnée",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Le matin, entre six et sept…",
+          "tip": "nommez les appareils et l'heure : le conseiller calcule avec ça.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "On consomme beaucoup, surtout en hiver, l'électricité coûte très cher.",
+              "pedagogicalNote": "Aucun moment de la journée n'est situé : rien n'est calculable."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le matin, entre six et sept heures, on utilise le chauffe-eau et la cafetière. La journée, il n'y a personne. Le soir, on allume le four et la machine à laver.",
+              "pedagogicalNote": "Les moments de consommation se suivent dans l'ordre, avec les appareils."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le matin, entre six et sept heures, tout le monde prend sa douche, donc le chauffe-eau tourne beaucoup. Ensuite, la journée, il n'y a personne à la maison. Le soir, à partir de dix-neuf heures, on utilise le four, et je lance la machine à laver vers vingt et une heures.",
+              "pedagogicalNote": "Les horaires, les appareils et l'ordre de la journée sont tous donnés."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C4-S14",
+          "title": "Enquête sur l'usage de l'eau",
+          "context": "Le service des eaux de la ville mène une enquête auprès des habitants. Un agent passe chez vous avec un questionnaire.",
+          "instruction": "Répondez à la question : « Comment utilisez-vous l'eau dans une semaine ? » Répartissez vos usages sur la semaine dans un ordre clair.",
+          "uniqueCriterion": "Répartir ses usages de l'eau sur la semaine dans un ordre clair.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 14,
+          "checklist": [
+            "Commencez par les jours ordinaires",
+            "Continuez avec le week-end",
+            "Citez les usages principaux"
+          ],
+          "constraintTags": [
+            {
+              "label": "Semaine ordonnée",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Usages datés",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "En semaine, on prend surtout des…",
+          "tip": "séparez les jours de travail et le week-end : les usages changent.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "On fait attention à l'eau, on n'en gaspille pas beaucoup.",
+              "pedagogicalNote": "Aucun usage n'est situé dans la semaine : rien ne se suit."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "En semaine, on prend des douches le matin et on fait la vaisselle le soir. Le samedi, je fais deux machines de linge et je lave la voiture.",
+              "pedagogicalNote": "Les usages sont répartis entre la semaine et le week-end."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "En semaine, tout le monde prend une douche entre six et sept heures, et on fait la vaisselle après le dîner. Le mercredi, je lance une machine de linge. Le samedi matin, j'en fais deux autres et je nettoie la terrasse. Le dimanche, on arrose les plantes.",
+              "pedagogicalNote": "Chaque usage est placé sur un jour précis, du lundi jusqu'au dimanche."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C4-S15",
+          "title": "Comment vous triez chez vous",
+          "context": "Un agent de la déchetterie explique le tri aux nouveaux habitants du quartier. Il vous demande comment vous faites déjà chez vous.",
+          "instruction": "Répondez à la question : « Comment est-ce que vous organisez le tri chez vous ? » Expliquez dans l'ordre ce que vous faites chaque jour, chaque semaine, puis quand vous venez à la déchetterie.",
+          "uniqueCriterion": "Expliquer son organisation du tri dans l'ordre, du quotidien à la déchetterie.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 55,
+          "difficultyLevel": "HARD",
+          "displayOrder": 15,
+          "checklist": [
+            "Commencez par le quotidien",
+            "Continuez avec la semaine",
+            "Terminez par la déchetterie"
+          ],
+          "constraintTags": [
+            {
+              "label": "Ordre respecté",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Jour et semaine",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Chez nous, chaque jour, on sépare…",
+          "tip": "allez du plus fréquent au plus rare : chaque jour, puis chaque mois.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "On trie un peu, surtout le plastique, mais ce n'est pas toujours facile.",
+              "pedagogicalNote": "L'organisation n'est pas décrite : ni rythme, ni étapes qui se suivent."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Chez nous, chaque jour, on sépare le papier et le plastique dans deux sacs. Le mardi soir, je descends les poubelles. Et je vais à la déchetterie une fois par mois.",
+              "pedagogicalNote": "Les trois niveaux d'organisation se suivent dans l'ordre."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Chez nous, chaque jour, on sépare le papier, le plastique et les restes de cuisine dans trois bacs, sous l'évier. Le mardi soir, je descends le bac jaune et le vendredi les ordures. Une fois par mois, en général le samedi matin, je vais à la déchetterie avec les cartons et les vieilles piles.",
+              "pedagogicalNote": "Le quotidien, la semaine et le mois s'enchaînent sans que l'auditeur se perde."
+            }
+          ]
         }
       ],
       "generalCriterion": "Décrire ses habitudes, ses horaires ou une journée habituelle dans un ordre compréhensible."
@@ -1188,6 +3023,463 @@
               "level": "EXCELLENT",
               "text": "Ma ville n'est pas très grande, on traverse le centre à pied en vingt minutes. Il y a une rivière avec un chemin pour marcher, un vieux centre avec des cafés, et un marché le samedi matin. Je l'emmènerais d'abord au marché, parce que c'est là qu'on voit vraiment la ville.",
               "pedagogicalNote": "Les détails sont situés et la proposition est justifiée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C5-S6",
+          "title": "Le jardin partagé du quartier",
+          "context": "L'examinateur a appris qu'il y a un jardin partagé dans votre quartier et vous demande de le décrire.",
+          "instruction": "Répondez à la question : « Comment est ce jardin partagé ? » Donnez au moins deux informations concrètes : l'endroit, ce qu'on y cultive, les personnes qui y viennent.",
+          "uniqueCriterion": "Donner au moins deux informations concrètes sur le jardin partagé.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 6,
+          "checklist": [
+            "Dites où se trouve le jardin",
+            "Ajoutez une deuxième information concrète"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Lieu précis",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Le jardin partagé se trouve derrière…",
+          "tip": "joli ne dit rien : nommez un légume, une personne, un horaire.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Il y a un jardin partagé dans mon quartier, c'est très joli.",
+              "pedagogicalNote": "Le jardin est mentionné, mais aucune information concrète ne le décrit."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le jardin partagé est derrière l'école. Il y a une dizaine de petites parcelles et on y cultive surtout des tomates et des salades.",
+              "pedagogicalNote": "Deux informations concrètes situent et décrivent vraiment le jardin."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le jardin partagé est derrière l'école, entre deux immeubles. Il y a une dizaine de parcelles, on y cultive des tomates et des salades, et le samedi matin des voisins viennent arroser ensemble.",
+              "pedagogicalNote": "Lieu, culture et vie du jardin : la description est complète."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C5-S7",
+          "title": "La pharmacie où vous allez",
+          "context": "L'examinateur vous demande de parler des commerces que vous utilisez, en commençant par la pharmacie de votre quartier.",
+          "instruction": "Répondez à la question : « Comment est la pharmacie où vous allez ? » Donnez au moins deux informations concrètes : l'endroit, la taille, les horaires, les personnes qui y travaillent.",
+          "uniqueCriterion": "Donner au moins deux informations concrètes sur cette pharmacie.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 7,
+          "checklist": [
+            "Dites où elle se trouve",
+            "Ajoutez une information précise"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Faits observables",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Ma pharmacie est au coin de…",
+          "tip": "pratique ne suffit pas : rue, horaires, nombre de personnes au comptoir.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Il y a une pharmacie près de chez moi, elle est très pratique.",
+              "pedagogicalNote": "On sait qu'elle existe, mais rien ne la décrit."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Ma pharmacie est au coin de ma rue, en face de l'arrêt de bus. Elle est petite et elle ouvre aussi le dimanche matin.",
+              "pedagogicalNote": "Deux informations concrètes : le lieu et un horaire utile."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ma pharmacie est au coin de ma rue, en face de l'arrêt de bus. Elle est petite, il y a deux pharmaciennes, et elle ouvre aussi le dimanche matin. C'est pour ça que j'y vais toujours.",
+              "pedagogicalNote": "Lieu, taille, équipe et horaire dessinent un commerce précis."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C5-S8",
+          "title": "Le cabinet de votre médecin",
+          "context": "L'examinateur s'intéresse à la façon dont vous vous soignez et vous demande de décrire le cabinet de votre médecin.",
+          "instruction": "Répondez à la question : « Comment est le cabinet de votre médecin ? » Donnez au moins deux informations concrètes : l'endroit, la salle d'attente, la façon de prendre rendez-vous.",
+          "uniqueCriterion": "Donner au moins deux informations concrètes sur le cabinet médical.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 8,
+          "checklist": [
+            "Dites où est le cabinet",
+            "Donnez une deuxième information"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Endroit situé",
+              "icon": "PLACE"
+            }
+          ],
+          "answerStarter": "Le cabinet est dans une petite…",
+          "tip": "dites comment vous prenez rendez-vous : en ligne, par téléphone, sur place.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Mon médecin est très bien, je vais toujours chez lui quand je suis malade.",
+              "pedagogicalNote": "C'est un avis sur le médecin, pas une description du cabinet."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le cabinet est dans une petite rue près de la mairie. Il y a trois médecins et on prend rendez-vous sur internet.",
+              "pedagogicalNote": "Deux informations concrètes décrivent l'endroit et son fonctionnement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le cabinet est dans une petite rue près de la mairie, au rez-de-chaussée. Il y a trois médecins et une salle d'attente avec des jouets pour les enfants. On prend rendez-vous sur internet, mais on peut aussi appeler le matin.",
+              "pedagogicalNote": "Chaque détail rend le lieu facile à imaginer."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C5-S9",
+          "title": "Les urgences près de chez vous",
+          "context": "L'examinateur vous demande où vous iriez en cas de problème de santé grave et vous invite à décrire les urgences les plus proches.",
+          "instruction": "Répondez à la question : « Comment sont les urgences les plus proches de chez vous ? » Donnez au moins trois informations concrètes : l'endroit, le trajet, l'attente, l'organisation.",
+          "uniqueCriterion": "Donner au moins trois informations concrètes sur ces urgences.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 9,
+          "checklist": [
+            "Dites où elles se trouvent",
+            "Dites comment on y va",
+            "Ajoutez une troisième information"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Trajet et durée",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Les urgences les plus proches sont…",
+          "tip": "un temps de trajet ou une attente chiffrée vaut mieux que loin.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Les urgences ne sont pas très loin, mais on attend toujours longtemps.",
+              "pedagogicalNote": "Deux impressions générales : rien n'est situé ni chiffré."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Les urgences les plus proches sont à l'hôpital Sud, à vingt minutes en bus. C'est un grand service ouvert la nuit, et la dernière fois j'ai attendu deux heures.",
+              "pedagogicalNote": "Lieu, trajet et attente : trois informations concrètes."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Les urgences les plus proches sont à l'hôpital Sud, à vingt minutes en bus ou dix minutes en voiture. On passe d'abord à l'accueil, une infirmière pose des questions, puis on attend son tour. La dernière fois, j'ai attendu deux heures, un samedi soir.",
+              "pedagogicalNote": "Le lieu, le trajet et l'organisation interne sont détaillés."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C5-S10",
+          "title": "Le laboratoire d'analyses",
+          "context": "L'examinateur vous demande de décrire le laboratoire où vous faites vos prises de sang.",
+          "instruction": "Répondez à la question : « Comment est le laboratoire où vous faites vos analyses ? » Donnez au moins trois informations concrètes : l'endroit, les horaires, l'organisation, le personnel.",
+          "uniqueCriterion": "Donner au moins trois informations concrètes sur ce laboratoire.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 10,
+          "checklist": [
+            "Situez le laboratoire",
+            "Donnez trois informations concrètes",
+            "Parlez des horaires ou du personnel"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Horaires précis",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Le laboratoire est juste à côté…",
+          "tip": "sans rendez-vous, de sept à onze heures : ce sont des faits utiles.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le laboratoire est bien, il n'y a jamais de problème quand j'y vais.",
+              "pedagogicalNote": "Le jugement est positif, mais on ne sait rien du lieu."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le laboratoire est juste à côté de la pharmacie, au premier étage. Il ouvre à sept heures et on peut venir sans rendez-vous.",
+              "pedagogicalNote": "Lieu, étage et horaire : trois informations vérifiables."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le laboratoire est juste à côté de la pharmacie, au premier étage, avec un ascenseur. Il ouvre à sept heures du matin et on vient sans rendez-vous. Il y a deux infirmières, et les résultats arrivent par internet le lendemain.",
+              "pedagogicalNote": "L'organisation du lieu est expliquée, pas seulement nommée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C5-S11",
+          "title": "Chez votre dentiste",
+          "context": "L'examinateur vous demande de décrire le cabinet dentaire où vous allez avec votre famille.",
+          "instruction": "Répondez à la question : « Comment est le cabinet dentaire où vous allez ? » Donnez au moins trois informations concrètes : l'endroit, les personnes, les horaires, la salle d'attente.",
+          "uniqueCriterion": "Donner au moins trois informations concrètes sur ce cabinet dentaire.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 11,
+          "checklist": [
+            "Dites où il se trouve",
+            "Parlez des personnes ou des horaires",
+            "Ajoutez une troisième information"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Personnes du lieu",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Mon dentiste travaille dans un cabinet…",
+          "tip": "décrivez ce que vous voyez en entrant : accueil, salle, affiches, personnel.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Mon dentiste est gentil et il ne fait pas mal, je suis contente.",
+              "pedagogicalNote": "On parle de la personne en général, pas du cabinet."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Mon dentiste travaille dans un cabinet au-dessus de la boulangerie. Ils sont deux dentistes avec une assistante, et le cabinet ouvre aussi le samedi matin.",
+              "pedagogicalNote": "Lieu, équipe et horaire décrivent réellement le cabinet."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Mon dentiste travaille dans un cabinet au-dessus de la boulangerie, au deuxième étage. Ils sont deux dentistes avec une assistante qui prend les rendez-vous. La salle d'attente est petite, avec des revues pour les enfants, et le cabinet ouvre aussi le samedi matin.",
+              "pedagogicalNote": "Chaque information est précisée : le lieu devient concret."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C5-S12",
+          "title": "La crèche du quartier",
+          "context": "L'examinateur vous demande de décrire la crèche ou la halte-garderie que vous connaissez dans votre quartier.",
+          "instruction": "Répondez à la question : « Comment est la crèche de votre quartier ? » Donnez au moins trois informations concrètes : le bâtiment, les horaires, le personnel, les enfants accueillis.",
+          "uniqueCriterion": "Donner au moins trois informations concrètes sur cette crèche.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 12,
+          "checklist": [
+            "Situez la crèche",
+            "Parlez des horaires",
+            "Parlez du personnel ou des enfants"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Lieu et horaires",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "La crèche se trouve dans une…",
+          "tip": "un chiffre aide beaucoup : places, enfants par groupe, heure d'ouverture.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Il y a une crèche dans mon quartier, les gens en disent du bien.",
+              "pedagogicalNote": "Une opinion rapportée ne remplace pas une description."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "La crèche se trouve dans une maison basse près du parc. Elle accueille une trentaine d'enfants et elle ouvre de sept heures trente à dix-huit heures.",
+              "pedagogicalNote": "Bâtiment, nombre d'enfants et horaires : c'est concret."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "La crèche se trouve dans une maison basse près du parc, avec un petit jardin derrière. Elle accueille une trentaine d'enfants, répartis en trois groupes selon l'âge. Elle ouvre de sept heures trente à dix-huit heures, et les parents entrent par le côté.",
+              "pedagogicalNote": "L'organisation et les détails du lieu sont expliqués."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C5-S13",
+          "title": "L'école primaire de vos enfants",
+          "context": "L'examinateur vous demande de décrire l'école primaire de vos enfants, ou celle qui se trouve près de chez vous.",
+          "instruction": "Répondez à la question : « Comment est cette école ? » Donnez au moins trois informations concrètes et dites ce qui vous paraît le plus important pour un parent.",
+          "uniqueCriterion": "Donner au moins trois informations concrètes sur l'école et désigner celle qui compte le plus pour un parent.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 13,
+          "checklist": [
+            "Situez l'école",
+            "Donnez trois informations concrètes",
+            "Dites ce qui compte le plus"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Un point important",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "L'école de mes enfants est à…",
+          "tip": "terminez par le point qui compte le plus, et dites pourquoi.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "L'école est bien, les maîtresses sont sérieuses et mes enfants sont contents.",
+              "pedagogicalNote": "Trois appréciations, mais aucune information concrète ni point mis en avant."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "L'école de mes enfants est à cinq minutes à pied. Il y a huit classes et une cantine. Pour moi, le plus important, c'est la distance : ils y vont seuls le matin.",
+              "pedagogicalNote": "Trois informations concrètes et un point clairement désigné."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "L'école de mes enfants est à cinq minutes à pied, derrière le stade. Il y a huit classes, une cantine et une garderie jusqu'à dix-huit heures. Pour moi, le plus important, c'est la garderie, parce que je finis mon travail à dix-sept heures trente et je ne peux pas arriver plus tôt.",
+              "pedagogicalNote": "Les informations sont situées et le point important est justifié."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C5-S14",
+          "title": "La réunion au collège",
+          "context": "L'examinateur vous demande de décrire les réunions parents-professeurs au collège de votre enfant.",
+          "instruction": "Répondez à la question : « Comment sont ces réunions et qui y participe ? » Donnez au moins trois informations concrètes sur la salle et sur les personnes présentes.",
+          "uniqueCriterion": "Donner au moins trois informations concrètes sur le lieu de la réunion et sur les personnes présentes.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 14,
+          "checklist": [
+            "Décrivez la salle",
+            "Dites qui est présent",
+            "Ajoutez une troisième information"
+          ],
+          "constraintTags": [
+            {
+              "label": "Lieu et personnes",
+              "icon": "PLACE"
+            },
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Les réunions ont lieu dans la…",
+          "tip": "nommez les personnes présentes : professeur principal, parents, conseillère d'orientation.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Ces réunions sont utiles, on parle des résultats et ça se passe bien.",
+              "pedagogicalNote": "Le contenu est résumé, mais ni le lieu ni les personnes ne sont décrits."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Les réunions ont lieu dans la salle de classe, le soir vers dix-huit heures. Le professeur principal est là avec deux ou trois autres professeurs, et une dizaine de parents viennent.",
+              "pedagogicalNote": "Lieu, moment et personnes présentes : trois informations claires."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Les réunions ont lieu dans la salle de classe de ma fille, le soir vers dix-huit heures. Le professeur principal s'installe devant, avec deux ou trois autres professeurs, et une dizaine de parents s'assoient aux tables des élèves. À la fin, on peut voir chaque professeur cinq minutes, dans le couloir.",
+              "pedagogicalNote": "Le lieu, les personnes et leur place dans la salle sont bien décrits."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C5-S15",
+          "title": "La cantine de l'école",
+          "context": "L'examinateur vous demande de décrire la cantine où mange votre enfant, ou celle de l'école de votre quartier.",
+          "instruction": "Répondez à la question : « Comment est cette cantine ? » Donnez au moins trois informations concrètes et expliquez pourquoi elle convient ou non à votre famille.",
+          "uniqueCriterion": "Donner au moins trois informations concrètes sur la cantine et expliquer si elle convient à votre famille.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 55,
+          "difficultyLevel": "HARD",
+          "displayOrder": 15,
+          "checklist": [
+            "Décrivez la salle et les repas",
+            "Donnez trois informations concrètes",
+            "Dites si cela vous convient"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois informations",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Un avis expliqué",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "À la cantine, mon fils mange…",
+          "tip": "l'avis vient après les faits, jamais à la place des faits.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "La cantine, c'est pratique pour nous, et je crois que c'est correct.",
+              "pedagogicalNote": "L'avis arrive sans le moindre fait sur la cantine."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "À la cantine, mon fils mange à onze heures et demie, avec sa classe. Il y a une entrée, un plat et un dessert, et le repas coûte trois euros. Ça nous convient, parce que je travaille jusqu'à dix-huit heures.",
+              "pedagogicalNote": "Trois informations concrètes, puis un avis appuyé sur elles."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "À la cantine, mon fils mange à onze heures et demie, dans une grande salle avec sa classe. Il y a une entrée, un plat et un dessert, et le repas coûte trois euros. Une fois par semaine, c'est un menu sans viande, ce qui nous arrange. Ça nous convient bien, parce que je travaille jusqu'à dix-huit heures et je ne peux pas rentrer le midi.",
+              "pedagogicalNote": "Les faits sont détaillés et l'avis final s'appuie vraiment sur eux."
             }
           ]
         }
@@ -1434,6 +3726,478 @@
               "pedagogicalNote": "Récit détaillé, avec un incident, une aide et un ressenti final."
             }
           ]
+        },
+        {
+          "code": "EO1-C6-S6",
+          "title": "Le mercredi au centre de loisirs",
+          "context": "Votre réponse précédente était très courte. Pour vous relancer, l'examinateur choisit un souvenir facile : le dernier mercredi où vous avez accompagné un enfant au centre de loisirs.",
+          "instruction": "Répondez à la question : « Racontez-moi ce mercredi-là, du matin au soir. » Donnez la date, puis racontez au moins deux actions, l'une après l'autre.",
+          "uniqueCriterion": "Situer le moment et raconter au moins deux actions dans l'ordre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 6,
+          "checklist": [
+            "Dites quand c'était",
+            "Racontez deux actions",
+            "Gardez l'ordre des faits"
+          ],
+          "constraintTags": [
+            {
+              "label": "Passé composé",
+              "icon": "TENSE"
+            },
+            {
+              "label": "Moment situé",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Mercredi dernier, j'ai emmené mon fils…",
+          "tip": "commencez par mercredi dernier, puis dites ce que vous avez fait ensuite.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'emmène souvent mon fils au centre de loisirs, il aime bien y aller.",
+              "pedagogicalNote": "C'est une habitude, pas un événement situé et raconté."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Mercredi dernier, j'ai emmené mon fils au centre de loisirs à neuf heures. Ensuite, je suis allée travailler et je suis revenue le chercher à dix-sept heures.",
+              "pedagogicalNote": "Le moment est donné et deux actions se suivent."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Mercredi dernier, j'ai emmené mon fils au centre de loisirs à neuf heures. L'animatrice m'a expliqué le programme : piscine le matin, dessin l'après-midi. Après, je suis allée travailler, et je suis revenue le chercher à dix-sept heures. Il était très content.",
+              "pedagogicalNote": "Le récit se déroule du matin au soir, avec des détails simples."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C6-S7",
+          "title": "Un passage à l'état civil",
+          "context": "Sur votre fiche, l'examinateur a lu que vous aviez dû réunir des papiers officiels. Il choisit d'en parler à partir du jour où vous êtes allé chercher un acte au service de l'état civil.",
+          "instruction": "Répondez à la question : « Comment avez-vous obtenu ce document ? » Dites quel jour vous y êtes allé, puis racontez au moins deux actions dans l'ordre.",
+          "uniqueCriterion": "Situer le moment de la démarche et raconter au moins deux actions dans l'ordre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "EASY",
+          "displayOrder": 7,
+          "checklist": [
+            "Dites quand vous y êtes allé",
+            "Racontez deux actions"
+          ],
+          "constraintTags": [
+            {
+              "label": "Passé composé",
+              "icon": "TENSE"
+            },
+            {
+              "label": "Deux actions",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Le mois dernier, je suis allée…",
+          "tip": "une démarche a un début et une fin : dites les deux.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je suis allée à la mairie pour un papier, c'était vite fait.",
+              "pedagogicalNote": "Le moment manque et la démarche n'est pas racontée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Le mois dernier, je suis allée à la mairie pour demander un acte de naissance. J'ai pris un ticket, puis une dame m'a donné le document tout de suite.",
+              "pedagogicalNote": "Le moment est situé et deux actions s'enchaînent."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Le mois dernier, je suis allée à la mairie pour demander un acte de naissance. J'ai pris un ticket et j'ai attendu vingt minutes. Ensuite, une dame m'a demandé ma pièce d'identité, et elle m'a donné le document tout de suite. C'était plus rapide que je pensais.",
+              "pedagogicalNote": "Le récit suit l'ordre réel et se termine sur une remarque."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C6-S8",
+          "title": "Le jour du rendez-vous en préfecture",
+          "context": "« Beaucoup de candidats connaissent bien les guichets », remarque l'examinateur. Il vous propose de revenir sur le matin de votre convocation pour le titre de séjour.",
+          "instruction": "Répondez à la question : « Comment ce rendez-vous s'est-il déroulé ? » Placez d'abord le moment, et racontez ensuite deux actions au minimum, sans en inverser l'ordre.",
+          "uniqueCriterion": "Situer le moment du rendez-vous et raconter au moins deux actions dans l'ordre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "EASY",
+          "displayOrder": 8,
+          "checklist": [
+            "Dites quand c'était",
+            "Racontez deux actions",
+            "Respectez l'ordre"
+          ],
+          "constraintTags": [
+            {
+              "label": "Moment situé",
+              "icon": "TIME"
+            },
+            {
+              "label": "Passé composé",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "En février, j'avais un rendez-vous à…",
+          "tip": "l'heure d'arrivée ouvre bien un récit : j'y étais à huit heures.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je suis allé à la préfecture pour mon titre de séjour, il y avait du monde.",
+              "pedagogicalNote": "La scène est posée, mais rien n'est situé ni raconté dans l'ordre."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "En février, j'avais un rendez-vous à la préfecture à huit heures. J'ai montré mes documents au guichet, puis on a pris mes empreintes.",
+              "pedagogicalNote": "Le moment est clair et deux actions se suivent."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "En février, j'avais un rendez-vous à la préfecture à huit heures du matin. Je suis arrivé en avance et j'ai attendu dehors avec d'autres personnes. Ensuite, j'ai montré mes documents au guichet, on a pris mes empreintes, et on m'a dit de revenir dans deux mois.",
+              "pedagogicalNote": "Le récit va de l'arrivée jusqu'à la réponse finale."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C6-S9",
+          "title": "Votre dossier à la CAF",
+          "context": "Vous venez d'expliquer que les sites administratifs ne sont pas toujours simples. L'examinateur rebondit aussitôt sur le dossier d'allocations que vous avez monté à la CAF.",
+          "instruction": "Répondez à la question : « Reprenez ce dossier depuis le début. » Dites quand vous avez commencé et racontez au moins trois étapes, dans l'ordre.",
+          "uniqueCriterion": "Situer le moment et raconter au moins trois étapes du dossier dans l'ordre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 9,
+          "checklist": [
+            "Dites quand vous avez commencé",
+            "Racontez trois étapes",
+            "Suivez l'ordre des démarches"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois étapes",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Passé composé",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "L'an dernier, j'ai créé mon compte…",
+          "tip": "d'abord, ensuite, enfin : trois mots qui mettent le récit en ordre.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'ai fait un dossier à la CAF et après j'ai reçu une réponse.",
+              "pedagogicalNote": "Deux actions très générales, sans moment ni déroulement."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "L'an dernier, j'ai créé mon compte sur le site de la CAF. J'ai rempli le formulaire, puis j'ai envoyé mes documents. Trois semaines après, j'ai reçu la réponse.",
+              "pedagogicalNote": "Le moment est donné et trois étapes se suivent clairement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "L'an dernier, en octobre, j'ai créé mon compte sur le site de la CAF. D'abord, j'ai rempli le formulaire avec mes revenus. Ensuite, j'ai photographié mon bail et ma pièce d'identité pour les envoyer. Il manquait une attestation, donc je suis allée à l'accueil la semaine suivante. Enfin, j'ai reçu la réponse trois semaines après.",
+              "pedagogicalNote": "Le récit détaille chaque étape, y compris une difficulté."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C6-S10",
+          "title": "Le point avec France Travail",
+          "context": "Un mot de votre réponse a retenu l'attention de l'examinateur : accompagnement. Il en profite pour vous emmener sur votre dernier point de suivi à France Travail.",
+          "instruction": "Répondez à la question : « Ce rendez-vous, il s'est passé comment ? » Situez-le dans le temps et racontez-en au moins trois étapes successives.",
+          "uniqueCriterion": "Situer le moment et raconter au moins trois étapes du rendez-vous dans l'ordre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 10,
+          "checklist": [
+            "Dites quand c'était",
+            "Racontez trois étapes",
+            "Gardez l'ordre du rendez-vous"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois étapes",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Moment situé",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Il y a trois semaines, j'ai…",
+          "tip": "avant, pendant, après le rendez-vous : le récit tient déjà debout.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'ai vu mon conseiller et on a parlé de mon travail.",
+              "pedagogicalNote": "Ni moment ni déroulement : on ne peut pas suivre le récit."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Il y a trois semaines, j'ai eu un rendez-vous avec ma conseillère. J'ai apporté mon CV, elle m'a posé des questions sur mes recherches, et elle m'a proposé une formation.",
+              "pedagogicalNote": "Le moment est situé et trois étapes s'enchaînent."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Il y a trois semaines, j'ai eu un rendez-vous avec ma conseillère, à neuf heures. D'abord, j'ai apporté mon CV et la liste de mes candidatures. Ensuite, elle m'a posé des questions sur les métiers qui m'intéressent. Enfin, elle m'a proposé une formation de trois mois, et j'ai dit oui tout de suite.",
+              "pedagogicalNote": "Chaque étape est située et le récit se termine par une décision."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C6-S11",
+          "title": "Obtenir votre carte Vitale",
+          "context": "La conversation porte sur vos premiers mois en France, quand tout restait à faire. Pour rendre cela concret, l'examinateur retient un exemple : votre carte Vitale.",
+          "instruction": "Répondez à la question : « Comment l'avez-vous obtenue ? » Partez du début de la démarche et racontez au moins trois étapes, l'une après l'autre.",
+          "uniqueCriterion": "Situer le moment et raconter au moins trois étapes de la démarche dans l'ordre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 11,
+          "checklist": [
+            "Dites quand vous avez commencé",
+            "Racontez trois étapes",
+            "Suivez l'ordre réel"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois étapes",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Passé composé",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "Quand je suis arrivée en France…",
+          "tip": "un délai raconte beaucoup : deux semaines après, un mois plus tard.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'ai demandé la carte Vitale et je l'ai reçue chez moi.",
+              "pedagogicalNote": "Le moment manque et la démarche est réduite à deux mots."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Quand je suis arrivée en France, en 2023, j'ai rempli un dossier à la CPAM. J'ai envoyé mon contrat de travail et mon acte de naissance, puis j'ai reçu la carte deux mois après.",
+              "pedagogicalNote": "Le moment est donné et trois étapes se suivent."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Quand je suis arrivée en France, en 2023, je suis allée à l'accueil de la CPAM pour prendre le formulaire. D'abord, je l'ai rempli avec l'aide d'une amie. Ensuite, j'ai envoyé mon contrat de travail et mon acte de naissance traduit. Un mois après, j'ai reçu un numéro provisoire, et la carte est arrivée deux mois plus tard.",
+              "pedagogicalNote": "Les étapes sont datées et le récit avance sans trou."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C6-S12",
+          "title": "Le courrier des impôts",
+          "context": "Cette fois, l'examinateur part d'un imprévu : une lettre du centre des finances publiques arrivée dans votre boîte. Il veut savoir ce que vous en avez fait.",
+          "instruction": "Répondez à la question : « Qu'avez-vous fait après ce courrier ? » Situez le moment et racontez au moins trois étapes, en gardant leur ordre.",
+          "uniqueCriterion": "Situer le moment et raconter au moins trois étapes de cette démarche dans l'ordre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 12,
+          "checklist": [
+            "Dites quand c'était",
+            "Racontez trois étapes",
+            "Respectez l'ordre des faits"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois étapes",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Moment situé",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Au printemps, j'ai reçu un courrier…",
+          "tip": "commencez par ce qui a déclenché la démarche : un courrier, une date.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'ai eu un problème avec les impôts, mais maintenant c'est réglé.",
+              "pedagogicalNote": "Le problème est annoncé, mais rien n'est situé ni raconté."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Au printemps, j'ai reçu un courrier des impôts. Je n'ai pas compris, donc je suis allé au centre des finances publiques. Une dame m'a expliqué, et j'ai corrigé ma déclaration sur internet.",
+              "pedagogicalNote": "Trois étapes claires, dans l'ordre, à partir d'un moment situé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Au printemps, j'ai reçu un courrier des impôts qui demandait un document. D'abord, j'ai appelé le numéro, mais la ligne était toujours occupée. Alors je suis allé au centre des finances publiques un mardi matin. Une dame m'a expliqué quel papier envoyer, et le soir même j'ai corrigé ma déclaration sur internet.",
+              "pedagogicalNote": "Le récit garde l'ordre, y compris une tentative qui a échoué."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C6-S13",
+          "title": "Un colis qui n'arrivait pas",
+          "context": "Vous avez glissé qu'un envoi s'était mal passé, puis vous êtes passé à autre chose. L'examinateur, lui, vous laisse tout le temps de raconter cette histoire de colis.",
+          "instruction": "Répondez à la question : « Reprenez cette histoire du début à la fin. » Dites quand c'était, racontez le déroulement et dites comment cela s'est terminé.",
+          "uniqueCriterion": "Situer le moment, raconter au moins trois étapes dans l'ordre et dire comment la situation s'est terminée.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 55,
+          "difficultyLevel": "HARD",
+          "displayOrder": 13,
+          "checklist": [
+            "Dites quand c'était",
+            "Racontez trois étapes",
+            "Dites comment cela s'est terminé"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois étapes",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Une fin nette",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Passé composé",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "En décembre, j'attendais un colis important…",
+          "tip": "n'oubliez pas la fin : reçu, remboursé, retrouvé, ou toujours perdu.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Une fois, mon colis n'est jamais arrivé, c'était vraiment énervant.",
+              "pedagogicalNote": "Ni moment, ni étapes, ni conclusion : le récit n'existe pas."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "En décembre, j'attendais un colis important. Le facteur est passé quand je n'étais pas là, donc je suis allé au bureau de poste avec l'avis. Ils me l'ont donné le lendemain.",
+              "pedagogicalNote": "Le moment, le déroulement et la fin sont tous présents."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "En décembre, j'attendais un colis important pour l'anniversaire de ma fille. Le facteur est passé un matin où je travaillais, et il a laissé un avis. Le samedi, je suis allé au bureau de poste, mais le colis n'était pas encore arrivé. J'ai suivi l'envoi sur internet et j'y suis retourné le mardi. Finalement, je l'ai récupéré à temps.",
+              "pedagogicalNote": "Le récit progresse par étapes datées et se termine nettement."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C6-S14",
+          "title": "Un rendez-vous à la banque",
+          "context": "Après les questions sur votre travail, l'examinateur aborde l'argent. Il aimerait un rendez-vous en banque dont vous vous souvenez bien, et surtout ce que vous avez ressenti ce jour-là.",
+          "instruction": "Répondez à la question : « Racontez-moi ce rendez-vous. » Situez le moment, racontez au moins trois étapes et terminez par ce que vous avez ressenti.",
+          "uniqueCriterion": "Situer le moment, raconter au moins trois étapes dans l'ordre et exprimer un ressenti.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 55,
+          "difficultyLevel": "HARD",
+          "displayOrder": 14,
+          "checklist": [
+            "Dites quand c'était",
+            "Racontez trois étapes",
+            "Terminez par votre ressenti"
+          ],
+          "constraintTags": [
+            {
+              "label": "Trois étapes",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Un ressenti",
+              "icon": "TONE"
+            },
+            {
+              "label": "Passé composé",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "Au mois de mai, j'ai rencontré…",
+          "tip": "rassuré, inquiet, soulagé : un mot de ressenti termine bien le récit.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je suis allé voir mon conseiller pour un crédit, j'étais un peu stressé.",
+              "pedagogicalNote": "Le ressenti apparaît, mais le rendez-vous n'est ni situé ni raconté."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Au mois de mai, j'ai rencontré mon conseiller pour ouvrir un compte pour mon fils. J'ai apporté nos papiers, il m'a expliqué les frais, et j'ai signé les documents. Je suis sorti rassuré.",
+              "pedagogicalNote": "Moment, trois étapes et ressenti final : tout est là."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Au mois de mai, j'ai rencontré mon conseiller pour ouvrir un compte pour mon fils. D'abord, j'ai apporté nos pièces d'identité et un justificatif de domicile. Ensuite, il m'a expliqué les frais et j'ai posé des questions sur la carte. À la fin, j'ai signé les documents et il m'a donné un rendez-vous en septembre. Je suis sorti rassuré, parce que j'avais peur de ne pas tout comprendre.",
+              "pedagogicalNote": "Le récit est complet et le ressenti final est expliqué."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C6-S15",
+          "title": "Un dégât dans l'appartement",
+          "context": "Une fuite, une vitre cassée, un vol : l'examinateur énumère quelques ennuis possibles dans un logement, puis vous invite à choisir celui que vous avez vécu et à raconter la suite avec votre assurance.",
+          "instruction": "Répondez à la question : « Que s'est-il passé, et ensuite ? » Dites quand c'était, racontez les démarches dans l'ordre et dites quelle solution a été trouvée.",
+          "uniqueCriterion": "Situer le moment, raconter les démarches dans l'ordre et dire quelle solution a été trouvée.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 55,
+          "difficultyLevel": "HARD",
+          "displayOrder": 15,
+          "checklist": [
+            "Dites quand c'était",
+            "Racontez le problème",
+            "Racontez les démarches",
+            "Dites la solution trouvée"
+          ],
+          "constraintTags": [
+            {
+              "label": "Ordre des faits",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Une solution",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Passé composé",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "L'hiver dernier, une fuite a abîmé…",
+          "tip": "dites qui a fait quoi : vous, l'assurance, le voisin, l'artisan.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'ai eu un dégât des eaux et l'assurance s'est occupée de tout.",
+              "pedagogicalNote": "Le problème est nommé, mais aucune démarche ni solution n'est racontée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "L'hiver dernier, une fuite a abîmé le mur de ma cuisine. J'ai appelé mon assurance le jour même et j'ai envoyé des photos. Un expert est venu, et l'assurance a payé les réparations.",
+              "pedagogicalNote": "Le moment, les démarches et la solution sont bien enchaînés."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "L'hiver dernier, une fuite du voisin du dessus a abîmé le mur de ma cuisine. Le jour même, j'ai appelé mon assurance et une conseillère m'a demandé des photos. Ensuite, j'ai rempli un papier avec mon voisin. Un expert est passé deux semaines plus tard, il a tout regardé, et l'assurance a payé les réparations en mars.",
+              "pedagogicalNote": "Chaque démarche est datée et la solution finale est claire."
+            }
+          ]
         }
       ],
       "generalCriterion": "Répondre à une question personnelle en racontant un événement court et compréhensible."
@@ -1670,6 +4434,471 @@
               "level": "EXCELLENT",
               "text": "Dans deux ans, je voudrais travailler comme aide-soignante dans un hôpital. D'abord, je dois améliorer mon français, donc je suis des cours le samedi. Ensuite, je vais passer le concours d'entrée au printemps prochain. Et pendant la formation, je continuerai à travailler à mi-temps.",
               "pedagogicalNote": "Chaque étape est datée ou expliquée : le plan est solide."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C7-S6",
+          "title": "Choisir une mutuelle",
+          "context": "L'examinateur vous demande si vous comptez prendre ou changer de mutuelle santé cette année.",
+          "instruction": "Répondez à la question : « Est-ce que vous allez prendre ou changer de mutuelle ? » Donnez votre projet et au moins une précision : quand, laquelle ou pourquoi.",
+          "uniqueCriterion": "Exprimer un projet clair au sujet de la mutuelle et donner au moins une précision.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 6,
+          "checklist": [
+            "Dites ce que vous allez faire",
+            "Ajoutez une précision"
+          ],
+          "constraintTags": [
+            {
+              "label": "Futur proche",
+              "icon": "TENSE"
+            },
+            {
+              "label": "Une précision",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Oui, je vais prendre une mutuelle…",
+          "tip": "on verra n'est pas un projet : donnez un moment ou une raison.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je ne sais pas encore, la mutuelle c'est compliqué et c'est cher.",
+              "pedagogicalNote": "Aucune intention n'est exprimée, donc aucun projet à évaluer."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, je vais prendre une mutuelle en janvier, parce que les lunettes de mes enfants coûtent cher.",
+              "pedagogicalNote": "Le projet est nommé et la raison le rend concret."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, je vais prendre une mutuelle en janvier. Mon entreprise en propose une, et je vais la comparer avec celle de ma banque. Je choisirai surtout pour les lunettes, parce que mes deux enfants en portent.",
+              "pedagogicalNote": "Le projet est daté, comparé et justifié par un besoin réel."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C7-S7",
+          "title": "La réunion du syndic",
+          "context": "L'examinateur vous demande si vous comptez participer à la prochaine réunion organisée par le syndic de votre immeuble.",
+          "instruction": "Répondez à la question : « Allez-vous participer à la prochaine réunion du syndic ? » Donnez votre intention et au moins une précision : quand, pourquoi ou avec qui.",
+          "uniqueCriterion": "Exprimer une intention claire sur cette réunion et donner au moins une précision.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 7,
+          "checklist": [
+            "Dites si vous irez",
+            "Ajoutez une précision"
+          ],
+          "constraintTags": [
+            {
+              "label": "Intention claire",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Une précision",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Oui, je vais y aller, surtout…",
+          "tip": "décidez d'abord oui ou non, puis dites quand ou pourquoi.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je ne sais pas, ces réunions durent longtemps et ça ne change rien.",
+              "pedagogicalNote": "Un avis est donné, mais aucune intention n'est exprimée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Oui, je vais y aller, surtout pour parler du chauffage. La réunion est prévue en novembre.",
+              "pedagogicalNote": "L'intention est claire et une précision la rend concrète."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Oui, je vais y aller, surtout pour parler du chauffage qui s'arrête souvent. La réunion est prévue en novembre, un jeudi soir. Je vais demander à ma voisine de venir avec moi, parce qu'elle a le même problème.",
+              "pedagogicalNote": "L'intention est datée, motivée et organisée avec une autre personne."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C7-S8",
+          "title": "Une demande à votre propriétaire",
+          "context": "L'examinateur vous demande si vous avez quelque chose à demander au propriétaire de votre logement.",
+          "instruction": "Répondez à la question : « Qu'allez-vous demander à votre propriétaire ? » Nommez votre demande et donnez au moins une précision : quand ou comment.",
+          "uniqueCriterion": "Nommer une demande précise et dire quand ou comment vous allez la faire.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "EASY",
+          "displayOrder": 8,
+          "checklist": [
+            "Nommez votre demande",
+            "Dites quand ou comment"
+          ],
+          "constraintTags": [
+            {
+              "label": "Demande nommée",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Futur proche",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "Je vais lui demander de changer…",
+          "tip": "des travaux reste vague : nommez la pièce et l'objet concerné.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je vais lui demander de faire des travaux dans l'appartement.",
+              "pedagogicalNote": "La demande reste générale : on ne sait pas ce qui est demandé."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je vais lui demander de changer la fenêtre de la chambre. Je vais lui écrire un courrier la semaine prochaine.",
+              "pedagogicalNote": "La demande est précise et le moyen est indiqué."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je vais lui demander de changer la fenêtre de la chambre, parce qu'elle ferme mal et l'hiver on a froid. Je vais lui écrire un courrier la semaine prochaine, avec deux photos, et je garderai une copie.",
+              "pedagogicalNote": "La demande est justifiée et la démarche est bien préparée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C7-S9",
+          "title": "Une visite d'appartement prévue",
+          "context": "L'examinateur vous demande de parler d'une visite d'appartement que vous avez prévue avec une agence.",
+          "instruction": "Répondez à la question : « Qu'allez-vous faire pendant cette visite ? » Dites ce que vous allez faire et donnez au moins deux précisions : quand, où, ce que vous allez vérifier.",
+          "uniqueCriterion": "Exprimer un projet de visite et donner au moins deux précisions.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 9,
+          "checklist": [
+            "Dites quand est la visite",
+            "Dites ce que vous allez vérifier",
+            "Ajoutez une deuxième précision"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux précisions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Futur proche",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "Samedi prochain, je vais visiter un…",
+          "tip": "dites ce que vous regarderez : la lumière, le bruit, les charges.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je vais visiter un appartement bientôt, j'espère qu'il sera bien.",
+              "pedagogicalNote": "Le projet est annoncé, mais aucune précision ne l'accompagne."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Samedi prochain, je vais visiter un appartement de trois pièces avec l'agence, près de l'école. Je vais surtout regarder la taille des chambres et demander le montant des charges.",
+              "pedagogicalNote": "Deux précisions concrètes rendent la visite réelle."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Samedi prochain à onze heures, je vais visiter un appartement de trois pièces avec l'agence, près de l'école de ma fille. Je vais mesurer les chambres, ouvrir les fenêtres pour écouter le bruit de la rue, et demander le montant exact des charges. Ensuite, je donnerai ma réponse lundi.",
+              "pedagogicalNote": "Le projet est daté, détaillé, et la suite est prévue."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C7-S10",
+          "title": "Organiser votre déménagement",
+          "context": "L'examinateur sait que vous allez déménager bientôt et vous demande comment vous allez vous organiser.",
+          "instruction": "Répondez à la question : « Comment allez-vous organiser votre déménagement ? » Dites ce que vous allez faire et donnez au moins deux précisions : la date, l'aide, le transport.",
+          "uniqueCriterion": "Exprimer un projet d'organisation et donner au moins deux précisions pratiques.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 10,
+          "checklist": [
+            "Dites quand vous déménagez",
+            "Dites qui vous aidera",
+            "Ajoutez une précision pratique"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux précisions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Date et aide",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Je déménage à la fin du…",
+          "tip": "camion, cartons, amis, jour de congé : ce sont des précisions utiles.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je vais déménager bientôt, on va s'organiser avec la famille.",
+              "pedagogicalNote": "L'intention existe, mais rien n'est précisé pour l'organiser."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je déménage à la fin du mois. Je vais louer un camion le samedi, et deux amis vont m'aider à porter les meubles.",
+              "pedagogicalNote": "La date et l'aide prévue rendent le projet concret."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je déménage à la fin du mois, le samedi 28. Je vais louer un petit camion pour la journée, et deux amis vont m'aider à porter les meubles. J'ai déjà commencé les cartons, une pièce par semaine, et je poserai un jour de congé le vendredi.",
+              "pedagogicalNote": "Date, moyens et préparation : le projet est déjà en marche."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C7-S11",
+          "title": "Un service à demander au voisin",
+          "context": "L'examinateur vous demande si vous comptez demander un service à votre voisin de palier.",
+          "instruction": "Répondez à la question : « Qu'allez-vous demander à votre voisin ? » Nommez votre projet et donnez au moins deux précisions : quand, pourquoi, comment.",
+          "uniqueCriterion": "Nommer un projet précis avec le voisin et donner au moins deux précisions.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 11,
+          "checklist": [
+            "Nommez ce que vous demanderez",
+            "Dites quand",
+            "Dites pourquoi"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux précisions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Personne concernée",
+              "icon": "PERSON"
+            }
+          ],
+          "answerStarter": "Je vais demander à mon voisin…",
+          "tip": "un service se demande pour une date : dites laquelle et pourquoi.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je vais parler à mon voisin, on s'entend bien tous les deux.",
+              "pedagogicalNote": "Aucune demande n'est nommée : il n'y a pas de projet."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je vais demander à mon voisin de garder mes clés pendant les vacances. Je pars en août, et comme ça il pourra arroser mes plantes.",
+              "pedagogicalNote": "Le projet est nommé, daté et expliqué."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je vais demander à mon voisin de garder mes clés pendant les vacances. Je pars la première semaine d'août, donc je passerai le voir ce week-end pour lui expliquer. Il pourra arroser mes plantes, et l'année prochaine je ferai la même chose pour lui.",
+              "pedagogicalNote": "Le projet est daté, organisé et pensé sur la durée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C7-S12",
+          "title": "Signaler un problème au gardien",
+          "context": "L'examinateur vous demande ce que vous comptez signaler au gardien de votre immeuble.",
+          "instruction": "Répondez à la question : « Qu'allez-vous signaler au gardien ? » Nommez le problème et donnez au moins deux précisions : quand, où, ce que vous attendez.",
+          "uniqueCriterion": "Nommer un problème à signaler et donner au moins deux précisions sur la démarche.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 40,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 12,
+          "checklist": [
+            "Nommez le problème",
+            "Dites quand vous le verrez",
+            "Dites ce que vous attendez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux précisions",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Futur proche",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "Je vais lui signaler que la…",
+          "tip": "dites où exactement : troisième étage, entrée B, couloir du fond.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je vais lui dire qu'il y a des problèmes dans l'immeuble.",
+              "pedagogicalNote": "Le problème n'est pas nommé et aucune précision n'est donnée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je vais lui signaler que la lumière du troisième étage ne marche plus. Je le verrai demain matin, et je lui demanderai de changer l'ampoule cette semaine.",
+              "pedagogicalNote": "Le problème est nommé et deux précisions accompagnent la démarche."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je vais lui signaler que la lumière du couloir du troisième étage ne marche plus depuis samedi. Je le verrai demain matin, quand il sort les poubelles, et je lui demanderai de la réparer avant le week-end, parce que le soir on ne voit plus les marches.",
+              "pedagogicalNote": "Le problème est situé, daté, et l'attente est clairement exprimée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C7-S13",
+          "title": "Un local à vélos dans la cour",
+          "context": "L'examinateur vous demande de parler d'un projet que vous voudriez proposer pour les parties communes de votre immeuble.",
+          "instruction": "Répondez à la question : « Quel projet voudriez-vous proposer pour votre immeuble ? » Exprimez votre objectif et nommez au moins deux étapes pour y arriver.",
+          "uniqueCriterion": "Exprimer un objectif pour les parties communes et nommer au moins deux étapes pour l'atteindre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 13,
+          "checklist": [
+            "Annoncez votre objectif",
+            "Nommez la première étape",
+            "Nommez la deuxième étape"
+          ],
+          "constraintTags": [
+            {
+              "label": "Objectif nommé",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Deux étapes",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Je voudrais qu'on installe un local…",
+          "tip": "un projet collectif avance par étapes : qui parle, qui décide, quand.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je voudrais que l'immeuble soit mieux organisé pour tout le monde.",
+              "pedagogicalNote": "L'objectif reste vague et aucune étape n'est proposée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je voudrais qu'on installe un local à vélos dans la cour. D'abord, je vais en parler aux voisins du bâtiment. Ensuite, j'écrirai au syndic pour demander un devis.",
+              "pedagogicalNote": "L'objectif est clair et deux étapes concrètes sont annoncées."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je voudrais qu'on installe un local à vélos dans la cour, parce que trois familles laissent leur vélo dans le couloir. D'abord, je vais en parler aux voisins pour savoir combien de personnes sont intéressées. Ensuite, je préparerai une petite lettre avec leurs noms et je l'enverrai au syndic avant novembre.",
+              "pedagogicalNote": "L'objectif est justifié et chaque étape est expliquée et datée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C7-S14",
+          "title": "Acheter une machine à laver",
+          "context": "Vous allez à la laverie automatique chaque semaine. L'examinateur vous demande si vous comptez garder cette habitude.",
+          "instruction": "Répondez à la question : « Comptez-vous continuer à aller à la laverie ? » Exprimez votre objectif et nommez au moins deux étapes pour y arriver.",
+          "uniqueCriterion": "Exprimer un objectif clair au sujet de la laverie et nommer au moins deux étapes pour l'atteindre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 14,
+          "checklist": [
+            "Dites ce que vous voulez",
+            "Nommez deux étapes",
+            "Gardez l'ordre des étapes"
+          ],
+          "constraintTags": [
+            {
+              "label": "Objectif nommé",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Deux étapes",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Futur",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "Non, je voudrais acheter ma propre…",
+          "tip": "une somme ou une date rend l'étape crédible : en mars, cent euros.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "La laverie coûte cher, un jour j'achèterai une machine à laver.",
+              "pedagogicalNote": "L'objectif est lointain et aucune étape n'est prévue."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Non, je voudrais acheter ma propre machine à laver. D'abord, je mets vingt euros de côté chaque mois. Ensuite, je l'achèterai en solde au mois de juillet.",
+              "pedagogicalNote": "L'objectif est net et deux étapes le préparent."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Non, je voudrais acheter ma propre machine à laver, parce que la laverie me coûte quinze euros par semaine. D'abord, je mets vingt euros de côté chaque mois depuis septembre. Ensuite, je vais demander au propriétaire s'il accepte l'installation dans la salle de bains, et j'achèterai la machine en solde en juillet.",
+              "pedagogicalNote": "L'objectif est chiffré et chaque étape est datée ou vérifiée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C7-S15",
+          "title": "Postuler au supermarché",
+          "context": "L'examinateur vous demande de parler d'un projet de travail dans le supermarché de votre quartier.",
+          "instruction": "Répondez à la question : « Comment allez-vous vous y prendre pour obtenir ce poste ? » Exprimez votre objectif et nommez au moins deux étapes pour y arriver.",
+          "uniqueCriterion": "Exprimer un objectif d'emploi précis et nommer au moins deux étapes pour l'atteindre.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 15,
+          "checklist": [
+            "Dites quel poste vous visez",
+            "Nommez la première étape",
+            "Nommez la deuxième étape"
+          ],
+          "constraintTags": [
+            {
+              "label": "Objectif nommé",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Deux étapes",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Un moment",
+              "icon": "TIME"
+            }
+          ],
+          "answerStarter": "Je voudrais travailler en caisse, et…",
+          "tip": "nommez le poste exact : caisse, mise en rayon, drive, livraison.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je voudrais travailler au supermarché, je vais essayer de trouver quelque chose.",
+              "pedagogicalNote": "Le poste n'est pas nommé et aucune étape n'est prévue."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je voudrais travailler en caisse dans le supermarché à côté de chez moi. D'abord, je vais déposer mon CV à l'accueil. Ensuite, je demanderai un rendez-vous au responsable.",
+              "pedagogicalNote": "L'objectif est précis et deux étapes sont annoncées."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je voudrais travailler en caisse dans le supermarché à côté de chez moi, parce que je peux y aller à pied. D'abord, je vais déposer mon CV à l'accueil lundi matin, quand le responsable est là. Ensuite, je le rappellerai dix jours après. Et si la caisse est complète, je demanderai la mise en rayon le matin.",
+              "pedagogicalNote": "Les étapes sont datées et une solution de repli est prévue."
             }
           ]
         }
@@ -1911,6 +5140,471 @@
               "level": "EXCELLENT",
               "text": "Oui, je le conseillerais, surtout aux personnes qui travaillent assis toute la journée, comme moi avant. Ça fait bouger et on rencontre du monde facilement. Par contre, il faut venir régulièrement, sinon on perd vite l'habitude.",
               "pedagogicalNote": "Le conseil est ciblé, justifié, et une réserve utile est ajoutée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C8-S6",
+          "title": "Ce que vous achetez au marché",
+          "context": "Vous venez de dire : « Je fais mes courses au marché le samedi. » L'examinateur veut en savoir plus.",
+          "instruction": "L'examinateur vous relance : « Qu'est-ce que vous y achetez ? » Répondez en apportant une information nouvelle, sans répéter votre phrase précédente.",
+          "uniqueCriterion": "Répondre à la relance en nommant ce que vous achetez, sans répéter la phrase précédente.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 6,
+          "checklist": [
+            "Nommez ce que vous achetez",
+            "Ajoutez une information nouvelle"
+          ],
+          "constraintTags": [
+            {
+              "label": "Information nouvelle",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Réponse directe",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "J'achète surtout des légumes et…",
+          "tip": "des produits ne dit rien : nommez deux ou trois choses précises.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "J'y vais le samedi matin, c'est mon habitude depuis longtemps.",
+              "pedagogicalNote": "La relance portait sur les achats : la réponse répète l'habitude."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "J'achète surtout des légumes et du poisson. C'est moins cher qu'au supermarché.",
+              "pedagogicalNote": "La question est traitée et une information s'ajoute."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "J'achète surtout des légumes et du poisson, chez le même marchand depuis deux ans. C'est moins cher qu'au supermarché, et je prends aussi des herbes fraîches pour la cuisine de mon pays.",
+              "pedagogicalNote": "Les achats sont nommés et enrichis d'un détail personnel."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C8-S7",
+          "title": "À quelle heure à la boulangerie",
+          "context": "Vous venez de dire : « Je passe à la boulangerie tous les matins. » L'examinateur veut une précision.",
+          "instruction": "L'examinateur vous relance : « À quelle heure ? » Répondez à la relance et ajoutez une information nouvelle.",
+          "uniqueCriterion": "Donner l'heure demandée et ajouter une information nouvelle.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 7,
+          "checklist": [
+            "Donnez une heure précise",
+            "Ajoutez une information nouvelle"
+          ],
+          "constraintTags": [
+            {
+              "label": "Heure précise",
+              "icon": "TIME"
+            },
+            {
+              "label": "Information nouvelle",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Vers sept heures, avant de partir…",
+          "tip": "tôt le matin reste flou : donnez une heure, puis un détail.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le matin, oui, j'y vais vraiment tous les jours.",
+              "pedagogicalNote": "L'heure demandée n'est pas donnée et rien de nouveau n'apparaît."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Vers sept heures, avant de partir au travail. Je prends une baguette et parfois un croissant.",
+              "pedagogicalNote": "L'heure est nette et une information s'ajoute."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Vers sept heures, avant de partir au travail. La boulangère me connaît, elle prépare déjà ma baguette quand elle me voit arriver. Le samedi, j'y vais plus tard, avec mes enfants.",
+              "pedagogicalNote": "L'heure est donnée, puis complétée par deux informations nouvelles."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C8-S8",
+          "title": "Ce que change le petit commerce",
+          "context": "Vous venez de dire : « Je préfère les petits commerces aux grandes surfaces. » L'examinateur veut en savoir plus.",
+          "instruction": "L'examinateur vous relance : « Qu'est-ce que ça change pour vous ? » Répondez en apportant une information nouvelle et concrète.",
+          "uniqueCriterion": "Répondre à la relance en apportant au moins une information nouvelle et concrète.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 25,
+          "difficultyLevel": "EASY",
+          "displayOrder": 8,
+          "checklist": [
+            "Répondez à la question posée",
+            "Donnez une information nouvelle"
+          ],
+          "constraintTags": [
+            {
+              "label": "Information nouvelle",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Réponse directe",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Ça change surtout la qualité de…",
+          "tip": "ne redites pas je préfère : dites ce qui est différent, concrètement.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Ça change parce que je préfère vraiment les petits commerces.",
+              "pedagogicalNote": "La phrase reprend la préférence sans apporter d'élément nouveau."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Ça change surtout la qualité de la viande. Le boucher me dit d'où elle vient et il me conseille pour la cuisson.",
+              "pedagogicalNote": "La réponse apporte deux éléments nouveaux et concrets."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ça change surtout la qualité de la viande. Le boucher me dit d'où elle vient et il me conseille pour la cuisson. Et comme il me connaît, il me garde parfois un morceau le vendredi, quand je travaille tard.",
+              "pedagogicalNote": "Chaque élément nouveau illustre vraiment la différence."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C8-S9",
+          "title": "Comment se passe la livraison",
+          "context": "Vous venez de dire : « Je me fais livrer mes courses à la maison. » L'examinateur demande une précision.",
+          "instruction": "L'examinateur vous relance : « Et comment ça se passe ? » Répondez clairement et apportez au moins deux éléments nouveaux.",
+          "uniqueCriterion": "Répondre à la relance et apporter au moins deux éléments nouveaux.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 30,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 9,
+          "checklist": [
+            "Répondez à la relance",
+            "Donnez deux éléments nouveaux"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux éléments",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Réponse directe",
+              "icon": "STRUCTURE"
+            }
+          ],
+          "answerStarter": "Ça se passe bien, je commande…",
+          "tip": "dites qui, quand, combien : trois façons d'apporter du nouveau.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Oui, je me fais livrer, c'est plus simple pour moi.",
+              "pedagogicalNote": "La relance n'est pas traitée : rien n'est dit sur le déroulement."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Ça se passe bien. Je commande le jeudi soir sur internet, et le livreur arrive le vendredi entre dix-huit et vingt heures.",
+              "pedagogicalNote": "Deux éléments nouveaux expliquent réellement le fonctionnement."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Ça se passe bien. Je commande le jeudi soir sur internet, et le livreur arrive le vendredi entre dix-huit et vingt heures. Il monte les sacs jusqu'à la porte, et s'il manque un produit on me rembourse tout de suite.",
+              "pedagogicalNote": "Le déroulement est précis, du choix jusqu'au problème possible."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C8-S10",
+          "title": "Le colis arrivé abîmé",
+          "context": "Vous venez de dire : « J'ai reçu un colis abîmé le mois dernier. » L'examinateur veut en savoir plus.",
+          "instruction": "L'examinateur vous relance : « Et qu'est-ce que vous avez fait ? » Répondez clairement et apportez au moins deux éléments nouveaux.",
+          "uniqueCriterion": "Répondre à la relance et apporter au moins deux éléments nouveaux sur ce que vous avez fait.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 10,
+          "checklist": [
+            "Dites ce que vous avez fait",
+            "Ajoutez un deuxième élément"
+          ],
+          "constraintTags": [
+            {
+              "label": "Deux éléments",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Information nouvelle",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "J'ai tout de suite envoyé des…",
+          "tip": "la relance demande vos actions, pas la description du colis.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Le carton était vraiment abîmé et l'assiette à l'intérieur était cassée.",
+              "pedagogicalNote": "La réponse décrit le colis alors que la relance portait sur vos actions."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "J'ai tout de suite envoyé des photos au vendeur par le site. Il m'a répondu en deux jours et il m'a remboursée.",
+              "pedagogicalNote": "Deux actions nouvelles répondent exactement à la relance."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "J'ai tout de suite envoyé des photos au vendeur par le site, avant même d'ouvrir complètement le carton. Il m'a répondu en deux jours et il m'a remboursée. Depuis, je prends toujours une photo du colis quand le livreur me le donne.",
+              "pedagogicalNote": "Les actions sont détaillées et une habitude nouvelle est ajoutée."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C8-S11",
+          "title": "Le service après-vente",
+          "context": "Vous venez de dire : « Mon réfrigérateur est tombé en panne pendant la garantie. » L'examinateur demande une précision.",
+          "instruction": "L'examinateur vous relance : « Et le service après-vente a été rapide ? » Répondez clairement et expliquez avec au moins deux éléments nouveaux.",
+          "uniqueCriterion": "Répondre clairement à la relance et apporter au moins deux éléments nouveaux.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 11,
+          "checklist": [
+            "Répondez oui ou non",
+            "Donnez deux éléments nouveaux"
+          ],
+          "constraintTags": [
+            {
+              "label": "Réponse directe",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Deux éléments",
+              "icon": "NUMBER"
+            }
+          ],
+          "answerStarter": "Non, ça a été assez long…",
+          "tip": "un délai chiffré vaut mieux que long : trois jours, deux semaines.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Non, ce n'était pas rapide du tout, franchement.",
+              "pedagogicalNote": "La position est claire, mais aucun élément nouveau ne l'explique."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Non, ça a été assez long. J'ai appelé un lundi et le technicien est venu quinze jours après. En attendant, j'ai mis mes courses chez ma voisine.",
+              "pedagogicalNote": "Deux éléments nouveaux donnent la mesure de l'attente."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Non, ça a été assez long. J'ai appelé un lundi, on m'a demandé la facture par mail, et le technicien est venu quinze jours après. En attendant, j'ai mis mes courses chez ma voisine. Au final, la réparation était gratuite, mais j'ai perdu beaucoup de temps.",
+              "pedagogicalNote": "L'attente est détaillée et la réponse se termine par un bilan."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C8-S12",
+          "title": "Le prix de la réparation",
+          "context": "Vous venez de dire : « J'ai fait réparer l'écran de mon téléphone. » L'examinateur veut une précision.",
+          "instruction": "L'examinateur vous relance : « Et ça vous a coûté combien ? » Répondez à la relance et ajoutez au moins deux éléments nouveaux.",
+          "uniqueCriterion": "Donner le prix demandé et ajouter au moins deux éléments nouveaux.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 35,
+          "difficultyLevel": "MEDIUM",
+          "displayOrder": 12,
+          "checklist": [
+            "Donnez le prix",
+            "Ajoutez deux éléments nouveaux"
+          ],
+          "constraintTags": [
+            {
+              "label": "Prix précis",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Information nouvelle",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Quatre-vingts euros, et il l'a réparé…",
+          "tip": "un chiffre d'abord, puis ce que ce prix comprenait.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "C'était cher, mais je n'avais pas vraiment le choix.",
+              "pedagogicalNote": "Le prix n'est pas donné : la relance reste sans réponse."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Quatre-vingts euros. Il l'a réparé en une heure dans sa boutique, et il m'a donné trois mois de garantie.",
+              "pedagogicalNote": "Le prix est net et deux informations nouvelles suivent."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Quatre-vingts euros, pièce et main-d'œuvre comprises. Il l'a réparé en une heure dans sa boutique, pendant que j'attendais, et il m'a donné trois mois de garantie sur l'écran. C'était moins cher que dans la grande boutique du centre.",
+              "pedagogicalNote": "Le prix est détaillé et comparé, avec de vraies informations nouvelles."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C8-S13",
+          "title": "La voiture fait encore du bruit",
+          "context": "Vous venez de dire : « Le garage m'a rendu ma voiture, mais elle fait toujours le même bruit. » L'examinateur veut connaître la suite.",
+          "instruction": "L'examinateur vous relance : « Et qu'allez-vous faire maintenant ? » Prenez position clairement, justifiez et dites ce que vous attendez du garage.",
+          "uniqueCriterion": "Prendre position sur la suite, la justifier et dire ce que vous attendez du garage.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 13,
+          "checklist": [
+            "Dites ce que vous allez faire",
+            "Justifiez votre décision",
+            "Dites ce que vous attendez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Position claire",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Une justification",
+              "icon": "EXAMPLE"
+            },
+            {
+              "label": "Attente exprimée",
+              "icon": "TONE"
+            }
+          ],
+          "answerStarter": "Je vais y retourner samedi matin…",
+          "tip": "dites clairement ce que vous demandez : refaire, rembourser, expliquer.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Je ne sais pas trop, on verra bien la semaine prochaine.",
+              "pedagogicalNote": "Aucune position, donc ni justification ni attente exprimée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je vais y retourner samedi matin avec la facture, parce que la réparation est garantie. Je vais leur demander de regarder à nouveau, sans payer une deuxième fois.",
+              "pedagogicalNote": "La décision, sa raison et l'attente sont toutes exprimées."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je vais y retourner samedi matin avec la facture, parce que la réparation est garantie trois mois. Je vais demander au chef d'atelier de faire un essai sur la route avec moi, pour qu'il entende le bruit lui-même. Et s'ils ne trouvent rien, je demanderai un devis dans un autre garage.",
+              "pedagogicalNote": "La position est justifiée, l'attente est précise et une suite est prévue."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C8-S14",
+          "title": "Le permis avance lentement",
+          "context": "Vous venez de dire : « Je suis inscrit à l'auto-école depuis un an. » L'examinateur veut savoir où vous en êtes.",
+          "instruction": "L'examinateur vous relance : « Et ça avance comme vous vouliez ? » Répondez clairement, justifiez avec deux éléments nouveaux et dites ce que vous allez changer.",
+          "uniqueCriterion": "Répondre clairement à la relance, la justifier par deux éléments nouveaux et annoncer un changement.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 45,
+          "difficultyLevel": "HARD",
+          "displayOrder": 14,
+          "checklist": [
+            "Répondez clairement",
+            "Donnez deux éléments nouveaux",
+            "Dites ce que vous changerez"
+          ],
+          "constraintTags": [
+            {
+              "label": "Réponse directe",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Deux éléments",
+              "icon": "NUMBER"
+            },
+            {
+              "label": "Un changement",
+              "icon": "TENSE"
+            }
+          ],
+          "answerStarter": "Pas vraiment, j'ai eu le code…",
+          "tip": "terminez par ce que vous allez changer : c'est souvent oublié.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Non, pas vraiment, c'est plus long que je pensais au début.",
+              "pedagogicalNote": "La réponse est claire, mais rien ne l'explique et rien n'est décidé."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Pas vraiment. J'ai eu le code en trois mois, mais je n'ai fait que quinze heures de conduite, parce que les places sont rares. Je vais demander des cours le samedi.",
+              "pedagogicalNote": "Deux éléments nouveaux justifient, et un changement est annoncé."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Pas vraiment. J'ai eu le code en trois mois, mais je n'ai fait que quinze heures de conduite, parce que le moniteur a peu de places le soir. En plus, j'ai changé deux fois de moniteur, donc on recommence toujours les mêmes exercices. Je vais demander des cours le samedi matin, et toujours avec la même personne.",
+              "pedagogicalNote": "La réponse est expliquée en détail et le changement visé est précis."
+            }
+          ]
+        },
+        {
+          "code": "EO1-C8-S15",
+          "title": "Et si le train était supprimé",
+          "context": "Vous venez de dire : « Je prends le train à la gare tous les lundis pour aller travailler. » L'examinateur pousse l'échange plus loin.",
+          "instruction": "L'examinateur vous relance : « Et si votre train était supprimé, comment feriez-vous ? » Prenez position, expliquez votre solution et dites ce qui serait difficile.",
+          "uniqueCriterion": "Prendre position sur la relance, expliquer une solution concrète et nommer une difficulté.",
+          "recommendedMinWords": null,
+          "recommendedMaxWords": null,
+          "recommendedDurationSeconds": 50,
+          "difficultyLevel": "HARD",
+          "displayOrder": 15,
+          "checklist": [
+            "Annoncez votre solution",
+            "Expliquez comment cela marcherait",
+            "Nommez une difficulté"
+          ],
+          "constraintTags": [
+            {
+              "label": "Solution nommée",
+              "icon": "STRUCTURE"
+            },
+            {
+              "label": "Une difficulté",
+              "icon": "TONE"
+            },
+            {
+              "label": "Information nouvelle",
+              "icon": "EXAMPLE"
+            }
+          ],
+          "answerStarter": "Je prendrais le car de six…",
+          "tip": "une vraie réponse dit aussi ce qui coincerait : horaire, prix, fatigue.",
+          "references": [
+            {
+              "level": "INSUFFICIENT",
+              "text": "Ce serait vraiment un problème, je ne sais pas comment je ferais.",
+              "pedagogicalNote": "La difficulté est ressentie, mais aucune solution n'est proposée."
+            },
+            {
+              "level": "EXPECTED",
+              "text": "Je prendrais le car de six heures et demie. Il met une heure de plus, mais il s'arrête près de mon bureau. Le plus difficile, ce serait de me lever plus tôt.",
+              "pedagogicalNote": "Une solution concrète est expliquée et une difficulté est nommée."
+            },
+            {
+              "level": "EXCELLENT",
+              "text": "Je prendrais le car de six heures et demie, qui part de la même gare routière. Il met une heure de plus, mais il s'arrête à cinq minutes de mon bureau, donc je n'aurais pas de correspondance. Le plus difficile, ce serait de me lever à cinq heures, surtout l'hiver, et de faire garder ma fille le matin.",
+              "pedagogicalNote": "La solution est détaillée et deux difficultés réelles sont assumées."
             }
           ]
         }

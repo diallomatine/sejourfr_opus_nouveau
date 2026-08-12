@@ -57,7 +57,14 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/me/stats"),
                 Arguments.of(HttpMethod.GET, "/api/me/attempts"),
                 Arguments.of(HttpMethod.GET, "/api/me/progression"),
+                Arguments.of(HttpMethod.GET, "/api/me/plan"),
                 Arguments.of(HttpMethod.GET, "/api/me/questions/favorites"),
+                // Diagnostic initial : agrégat nominatif et reprenable.
+                Arguments.of(HttpMethod.GET, "/api/diagnostics/current"),
+                Arguments.of(HttpMethod.POST, "/api/diagnostics"),
+                Arguments.of(HttpMethod.GET, "/api/diagnostics/" + RANDOM_ID),
+                Arguments.of(HttpMethod.POST,
+                        "/api/diagnostics/" + RANDOM_ID + "/retry-analysis"),
                 // AttemptController
                 Arguments.of(HttpMethod.GET, "/api/attempts/" + RANDOM_ID),
                 Arguments.of(HttpMethod.POST, "/api/attempts"),

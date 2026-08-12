@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +12,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/fixed_action_bar.dart';
+import '../../../core/widgets/premium_lock.dart';
 import '../../../core/widgets/progress_track.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../widgets/exam_filter_chips.dart';
@@ -19,6 +22,7 @@ import 'competences_providers.dart';
 import '../widgets/production_blocks.dart';
 import '../widgets/production_state_views.dart';
 import 'widgets/skill_prompt_card.dart';
+import 'widgets/skill_trajectory.dart';
 
 /// Détail d'une compétence : carte de résumé, progression en sujets traités,
 /// filtres, puis la liste des petits sujets avec leur statut.
@@ -74,7 +78,13 @@ class _CompetenceDetailScreenState
     context.go('/tcf/${widget.module.routeKey}');
   }
 
+  /// Verrou freemium servi par le serveur : un sujet fermé ouvre l'offre, pas
+  /// un écran de production que le serveur refuserait (403).
   void _openPrompt(SkillPromptSummary prompt) {
+    if (prompt.locked) {
+      unawaited(showTcfLockPaywall(context));
+      return;
+    }
     context.push(
       competencePromptPath(widget.module, widget.skillId, prompt.id),
     );
@@ -119,12 +129,26 @@ class _CompetenceDetailScreenState
     );
   }
 
+  /// L'action principale vise toujours un sujet **ouvert** : proposer
+  /// « Commencer » sur un sujet verrouillé mènerait droit au paywall alors que
+  /// d'autres sujets sont disponibles. Quand plus rien n'est ouvert, le bouton
+  /// dit la seule chose vraie qui reste.
   Widget _primaryAction(SkillDetail detail) {
-    final todo = detail.firstTodo;
-    final target = todo ?? detail.prompts.first;
+    final open = detail.prompts.where((p) => !p.locked);
+    if (open.isEmpty) {
+      return AppButton(
+        label: kPremiumLockCta,
+        icon: LucideIcons.lock,
+        variant: AppButtonVariant.soft,
+        onPressed: () => unawaited(showTcfLockPaywall(context)),
+      );
+    }
+    final todo = open.where((p) => !p.status.isTreated);
+    final target = todo.isNotEmpty ? todo.first : open.first;
+    final isTodo = todo.isNotEmpty;
     return AppButton(
-      label: todo != null ? 'Commencer le premier sujet' : 'Refaire un sujet',
-      icon: todo != null ? LucideIcons.play : LucideIcons.refreshCw,
+      label: isTodo ? 'Commencer le premier sujet' : 'Refaire un sujet',
+      icon: isTodo ? LucideIcons.play : LucideIcons.refreshCw,
       variant: widget.module.isEo
           ? AppButtonVariant.accent
           : AppButtonVariant.primary,
@@ -140,11 +164,25 @@ class _CompetenceDetailScreenState
       );
     }
 
+    // Les compteurs ne doivent pas mentir. Un sujet verrouillé n'est pas « à
+    // faire » : il n'est pas ouvert. Il reste compté dans « Tous » (il est bien
+    // affiché) et dans « Traités » s'il a déjà été produit — un abonnement échu
+    // ne réécrit pas l'historique du candidat. Le 4ᵉ filet « Verrouillés »
+    // n'apparaît que s'il y en a, et c'est lui qui rend la somme juste :
+    // `Tous = À faire + Traités + Verrouillés` (miroir du web).
     final treated = prompts.where((p) => p.status.isTreated).length;
-    final todo = prompts.length - treated;
+    final todo =
+        prompts.where((p) => !p.status.isTreated && !p.locked).length;
+    final lockedTodo =
+        prompts.where((p) => !p.status.isTreated && p.locked).length;
+    // Le 4ᵉ filtre disparaît avec le dernier sujet verrouillé (abonnement pris
+    // pendant la session) : on retombe sur « Tous » plutôt que de laisser un
+    // filtre actif qui ne correspond plus à aucune pastille.
+    final filter = _filter == 3 && lockedTodo == 0 ? 0 : _filter;
     final visible = prompts.where((p) {
-      if (_filter == 1) return !p.status.isTreated;
-      if (_filter == 2) return p.status.isTreated;
+      if (filter == 1) return !p.status.isTreated && !p.locked;
+      if (filter == 2) return p.status.isTreated;
+      if (filter == 3) return !p.status.isTreated && p.locked;
       return true;
     }).toList();
 
@@ -171,12 +209,13 @@ class _CompetenceDetailScreenState
           ),
           const SizedBox(height: 11),
           ExamFilterChips(
-            active: _filter,
+            active: filter,
             accent: _accent,
             labels: [
               'Tous · ${prompts.length}',
               'À faire · $todo',
               'Traités · $treated',
+              if (lockedTodo > 0) 'Verrouillés · $lockedTodo',
             ],
             onChanged: (i) => setState(() => _filter = i),
           ),
@@ -185,9 +224,7 @@ class _CompetenceDetailScreenState
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 28),
               child: Text(
-                _filter == 1
-                    ? 'Tous les sujets de cette compétence ont été traités.'
-                    : 'Aucun sujet traité pour le moment.',
+                _emptyMessage(filter: filter, lockedTodo: lockedTodo),
                 textAlign: TextAlign.center,
                 style: AppFonts.ui(size: 13.5, color: AppColors.inkSoft),
               ),
@@ -201,9 +238,27 @@ class _CompetenceDetailScreenState
               ),
               const SizedBox(height: 11),
             ],
+          // La frise arrive APRÈS les sujets : elle raconte le chemin déjà
+          // parcouru, l'écran sert d'abord à en produire un de plus. Vide,
+          // elle ne prend pas un pixel.
+          if (detail.trajectory.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            SkillTrajectorySection(points: detail.trajectory),
+          ],
         ],
       ),
     );
+  }
+
+  /// « Plus rien à faire » n'a pas le même sens selon qu'il ne reste rien ou
+  /// qu'il ne reste que du verrouillé.
+  String _emptyMessage({required int filter, required int lockedTodo}) {
+    if (filter == 2) return 'Aucun sujet traité pour le moment.';
+    if (filter == 3) return 'Aucun sujet verrouillé sur cette compétence.';
+    if (filter == 1 && lockedTodo > 0) {
+      return 'Les sujets restants sont réservés à l\'abonnement Intégral.';
+    }
+    return 'Tous les sujets de cette compétence ont été traités.';
   }
 }
 

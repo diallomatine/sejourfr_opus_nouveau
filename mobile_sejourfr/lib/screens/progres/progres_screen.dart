@@ -32,7 +32,17 @@ class ProgresScreen extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            const ScreenHeader(title: 'Ma progression', large: true),
+            ScreenHeader(
+              title: 'Ma progression',
+              large: true,
+              // L'écran a quitté la barre du bas (remplacée par « Plan ») : il
+              // ne s'atteint plus que poussé depuis le Profil, donc il lui faut
+              // sa propre sortie. On dépile si on peut, sinon on retombe sur le
+              // Profil — un lien profond arrive avec une pile vide.
+              onBack: () => context.canPop()
+                  ? context.pop()
+                  : context.go(AppRoutes.profile),
+            ),
             Expanded(
               child: RefreshIndicator(
                 color: AppColors.blue,

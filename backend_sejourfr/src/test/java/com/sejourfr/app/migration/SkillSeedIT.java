@@ -14,7 +14,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Fige le CONTENU publie du module « Competences TCF » : 6 taches x 8
- * competences x 5 petits sujets x 3 references.
+ * competences x 15 petits sujets x 3 references.
+ *
+ * <p>Les sujets sont publies en DEUX lots : les rangs 1 a 5 par V300-V311, les
+ * rangs 6 a 15 par V312-V317. Les premieres migrations etaient deja appliquees
+ * quand le catalogue est passe de 5 a 15 sujets — on complete par ajout, jamais
+ * en reecrivant une migration dont la somme de controle Flyway est figee.
  *
  * <p><b>Pourquoi un test et non une contrainte.</b> La regle « exactement 8
  * competences actives par tache » vivait dans le DDL
@@ -32,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SkillSeedIT extends AbstractIntegrationTest {
 
     private static final int SKILLS_PER_TASK = 8;
-    private static final int PROMPTS_PER_SKILL = 5;
+    private static final int PROMPTS_PER_SKILL = 15;
     private static final int REFERENCES_PER_PROMPT = 3;
 
     private static final int EXPECTED_SKILLS = SkillTaskCode.values().length * SKILLS_PER_TASK;
@@ -65,10 +70,11 @@ class SkillSeedIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void everySkillPublishesFiveActivePrompts() {
+    void everySkillPublishesFifteenActivePrompts() {
         assertThat(count("skill_prompts", "is_active" + NOT_A_FIXTURE)).isEqualTo(EXPECTED_PROMPTS);
 
-        // Aucune competence hors du compte : ni 4, ni 6.
+        // Aucune competence hors du compte : ni 14, ni 16. Un sujet oublie par le
+        // lot 2 se verrait ici, pas au deploiement.
         assertThat(jdbc.queryForList("""
                 SELECT s.code, count(p.id) AS n
                 FROM skills s LEFT JOIN skill_prompts p ON p.skill_id = s.id AND p.is_active
@@ -169,7 +175,7 @@ class SkillSeedIT extends AbstractIntegrationTest {
 
     /**
      * <b>C'est ce test qui garantit la completude du guidage</b>, puisque V026 a
-     * ajoute les quatre colonnes NULLABLES : la table portait deja 240 lignes,
+     * ajoute les quatre colonnes NULLABLES : la table portait deja ses lignes,
      * un {@code NOT NULL} sans defaut aurait echoue a l'ajout, et un sujet cree
      * depuis la console reste legalement sans guidage. La regle « tout sujet
      * PUBLIE en a un » n'est donc pas exprimable en DDL — elle vit ici.

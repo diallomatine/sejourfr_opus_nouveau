@@ -20,6 +20,7 @@ import com.sejourfr.app.util.ProductionPayloadSupport;
 import com.sejourfr.app.util.ProductionTextBounds;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -92,6 +93,7 @@ public class ProductionEvaluationService {
         submission.setAttempt(attempt);
         submission.setProductionTask(task);
         submission.setStatut(SubmissionStatut.SUBMITTED);
+        submission.setDiagnostic(task.isDiagnostic());
 
         if (estOral) {
             byte[] bytes = ProductionPayloadSupport.readBytes(audio);
@@ -108,14 +110,31 @@ public class ProductionEvaluationService {
             );
             submission.setMediaUrl(stored.objectKey());
             submission.setMediaDurationSec(null); // sera mis a jour apres Whisper
-            submission = submissionManager.save(submission);
+            try {
+                submission = submissionManager.save(submission);
+            } catch (DataIntegrityViolationException duplicateDiagnostic) {
+                // L'index partiel uq_prod_submission_diagnostic_attempt rend le double-clic
+                // atomique. Nettoyage best-effort de l'objet uploadé par le perdant.
+                if (task.isDiagnostic()) {
+                    audioStorage.delete(stored.objectKey());
+                    throw new BusinessException("Cette étape du diagnostic a déjà été rendue.");
+                }
+                throw duplicateDiagnostic;
+            }
         } else {
             String clean = ProductionPayloadSupport.sanitizeText(texte);
             int mots = ProductionPayloadSupport.countWords(clean);
             validateTextWordCount(mots, task);
             submission.setTexteSoumis(clean);
             submission.setMotsCount(mots);
-            submission = submissionManager.save(submission);
+            try {
+                submission = submissionManager.save(submission);
+            } catch (DataIntegrityViolationException duplicateDiagnostic) {
+                if (task.isDiagnostic()) {
+                    throw new BusinessException("Cette étape du diagnostic a déjà été rendue.");
+                }
+                throw duplicateDiagnostic;
+            }
         }
 
         // Sous-attempt EE/EO d'un examen blanc complet TCF : dès que les 3
@@ -164,6 +183,9 @@ public class ProductionEvaluationService {
 
         if (task.getEpreuve() != EpreuveType.TCF_EO) {
             throw new BusinessException("La notation temps réel ne concerne que l'expression orale (TCF_EO).");
+        }
+        if (task.isDiagnostic()) {
+            throw new BusinessException("Le diagnostic oral utilise un enregistrement, pas le temps réel.");
         }
         // MÊMES gardes que la voie asynchrone : la notation temps réel crée une
         // submission et déclenche le même pipeline payant, elle ne peut pas être
@@ -234,10 +256,13 @@ public class ProductionEvaluationService {
      * l'appartenance utilisateur et le plafond de retries.
      */
     public ProductionSubmission retry(UUID submissionId, UUID userId) {
-        ProductionSubmission sub = submissionManager.findByIdWithTask(submissionId)
+        ProductionSubmission sub = submissionManager.findByIdWithTaskAndUser(submissionId)
             .orElseThrow(() -> new NotFoundException("Submission introuvable : " + submissionId));
         if (sub.getUser() == null || !sub.getUser().getId().equals(userId)) {
             throw new BusinessException("Cette submission ne vous appartient pas.");
+        }
+        if (sub.isDiagnostic() || sub.getProductionTask().isDiagnostic()) {
+            throw new BusinessException("Utilisez la relance du diagnostic pour cette production.");
         }
         if (sub.getStatut() != SubmissionStatut.FAILED) {
             throw new BusinessException(
@@ -258,6 +283,29 @@ public class ProductionEvaluationService {
         // Pipeline en arrière-plan, idem submitAndEvaluate — le mobile reçoit
         // immédiatement la submission en SUBMITTED et poll pour l'état EVALUATED.
         pipelineRunner.runPipelineAsync(sub.getId(), estOral);
+        return sub;
+    }
+
+    /** Relance réservée au DiagnosticService ; ne peut jamais bifurquer vers la note /20. */
+    public ProductionSubmission retryDiagnostic(UUID submissionId, UUID userId, int maxRetries) {
+        ProductionSubmission sub = submissionManager.findByIdWithTaskAndUser(submissionId)
+                .orElseThrow(() -> new NotFoundException("Submission introuvable : " + submissionId));
+        if (sub.getUser() == null || !sub.getUser().getId().equals(userId)
+                || !sub.isDiagnostic() || !sub.getProductionTask().isDiagnostic()) {
+            throw new BusinessException("Submission diagnostic introuvable.");
+        }
+        if (sub.getStatut() != SubmissionStatut.FAILED) {
+            throw new BusinessException("Seule une étape diagnostic en échec peut être relancée.");
+        }
+        if (sub.getRetryCount() >= maxRetries) {
+            throw new BusinessException("Plafond de " + maxRetries + " relances atteint.");
+        }
+        sub.setRetryCount((short) (sub.getRetryCount() + 1));
+        sub.setErreurMessage(null);
+        sub.setStatut(SubmissionStatut.SUBMITTED);
+        submissionManager.save(sub);
+        pipelineRunner.runPipelineAsync(
+                sub.getId(), sub.getProductionTask().getEpreuve() == EpreuveType.TCF_EO);
         return sub;
     }
 

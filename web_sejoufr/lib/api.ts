@@ -10,6 +10,7 @@ import type {
   AuthenticatedUser,
   DashboardSummaryResponse,
   Difficulty,
+  DiagnosticResponse,
   EpreuveType,
   ExamTemplateSummary,
   FullTcfExamResponse,
@@ -17,6 +18,7 @@ import type {
   GoogleSignInRequest,
   LoginRequest,
   LotDto,
+  LearningPlanDto,
   Module as ModuleEnum,
   PlanPublicResponse,
   ProductionAttemptStartRequest,
@@ -24,6 +26,7 @@ import type {
   ProductionExampleDto,
   ProductionSubmissionDto,
   ProductionTaskDto,
+  PublicDiagnosticResponse,
   QuestionReviewResponse,
   QuestionType,
   RegisterRequest,
@@ -45,7 +48,8 @@ import type {
   TokenResponse,
   UserStatsResponse,
 } from "./types";
-import {clearDataCache, invalidateCache} from "./data-cache";
+import {cached, clearDataCache, invalidateCache} from "./data-cache";
+import {requiresDiagnosticRevalidation} from "./diagnostic";
 import {PRODUCTION_PROGRESS_PREFIXES} from "./production-catalog";
 import {SKILLS_CACHE_PREFIX} from "./skill-catalog";
 
@@ -66,6 +70,16 @@ function invalidateProductionProgress(): void {
     for (const prefix of PRODUCTION_PROGRESS_PREFIXES) invalidateCache(prefix);
 }
 
+export const DIAGNOSTIC_CACHE_PREFIX = "diagnostic:";
+export const LEARNING_PLAN_CACHE_PREFIX = "learning-plan:";
+
+/** Diagnostic et Plan sont deux vues d'une même trajectoire. Toute production
+ *  pertinente peut faire avancer l'une et réordonner l'autre. */
+function invalidateDiagnosticAndPlan(): void {
+    invalidateCache(DIAGNOSTIC_CACHE_PREFIX);
+    invalidateCache(LEARNING_PLAN_CACHE_PREFIX);
+}
+
 /** Une production de compétence (ou son analyse) change les compteurs de
  *  l'épreuve entière : compétences, agrégat par tâche, détail d'une compétence. */
 function invalidateSkillProgress(): void {
@@ -75,6 +89,7 @@ function invalidateSkillProgress(): void {
 /** Après une écriture de production : l'historique et les bilans sont périmés. */
 function afterProductionWrite(sub: ProductionSubmissionDto): ProductionSubmissionDto {
     invalidateProductionProgress();
+    invalidateDiagnosticAndPlan();
     return sub;
 }
 
@@ -85,7 +100,10 @@ function afterProductionWrite(sub: ProductionSubmissionDto): ProductionSubmissio
  * sur une production pourtant évaluée depuis longtemps.
  */
 function afterProductionRead(sub: ProductionSubmissionDto): ProductionSubmissionDto {
-    if (sub.statut === "EVALUATED" || sub.statut === "FAILED") invalidateProductionProgress();
+    if (sub.statut === "EVALUATED" || sub.statut === "FAILED") {
+        invalidateProductionProgress();
+        invalidateDiagnosticAndPlan();
+    }
     return sub;
 }
 
@@ -94,6 +112,7 @@ function afterProductionRead(sub: ProductionSubmissionDto): ProductionSubmission
 function afterSkillAttempt(attempt: SkillAttemptDto): SkillAttemptDto {
     if (attempt.statut === "EVALUATED" || attempt.statut === "FAILED" || attempt.statut === "RECORDED") {
         invalidateSkillProgress();
+        invalidateCache(LEARNING_PLAN_CACHE_PREFIX);
     }
     return attempt;
 }
@@ -737,6 +756,85 @@ export const dashboardApi = {
 };
 
 // ============================================================================
+// Diagnostic TCF rapide + Plan personnalisé
+// ============================================================================
+
+function afterDiagnosticRead(response: DiagnosticResponse): DiagnosticResponse {
+    // Le pipeline peut faire évoluer le diagnostic sans écriture de cet onglet.
+    // Invalider l'entrée pendant que son loader est encore en vol détache le
+    // snapshot du cache sans rejeter la promesse : les appels simultanés restent
+    // mutualisés, mais le prochain lecteur relit toujours l'état serveur.
+    if (requiresDiagnosticRevalidation(response)) {
+        invalidateCache(DIAGNOSTIC_CACHE_PREFIX);
+    }
+    // À la fin de l'analyse, le Plan vient d'être construit côté serveur.
+    if (response.status === "COMPLETED" || response.status === "FAILED") {
+        invalidateCache(LEARNING_PLAN_CACHE_PREFIX);
+    }
+    return response;
+}
+
+function fetchCurrentDiagnostic(): Promise<DiagnosticResponse> {
+    return apiFetch<DiagnosticResponse>("/api/diagnostics/current", {auth: true}).then(
+        afterDiagnosticRead,
+    );
+}
+
+function fetchLearningPlan(): Promise<LearningPlanDto> {
+    return apiFetch<LearningPlanDto>("/api/me/plan", {auth: true});
+}
+
+export const diagnosticApi = {
+    current: fetchCurrentDiagnostic,
+
+    /**
+     * Sujets du diagnostic pour un **visiteur non connecté**. Aucune session
+     * n'est créée : le serveur n'a rien à rattacher tant qu'il n'y a pas de
+     * compte. Les deux sujets suffisent pour produire ; l'écrit et l'oral sont
+     * gardés sur l'appareil jusqu'à l'inscription.
+     */
+    publicCurrent(): Promise<PublicDiagnosticResponse> {
+        return apiFetch<PublicDiagnosticResponse>("/api/public/diagnostics/current", {
+            auth: false,
+        });
+    },
+
+    currentCached(): Promise<DiagnosticResponse> {
+        return cached(`${DIAGNOSTIC_CACHE_PREFIX}current`, fetchCurrentDiagnostic);
+    },
+
+    start(): Promise<DiagnosticResponse> {
+        invalidateDiagnosticAndPlan();
+        return apiFetch<DiagnosticResponse>("/api/diagnostics", {
+            method: "POST",
+            auth: true,
+        }).then(afterDiagnosticRead);
+    },
+
+    get(sessionId: string): Promise<DiagnosticResponse> {
+        return apiFetch<DiagnosticResponse>(`/api/diagnostics/${sessionId}`, {
+            auth: true,
+        }).then(afterDiagnosticRead);
+    },
+
+    retryAnalysis(sessionId: string): Promise<DiagnosticResponse> {
+        invalidateDiagnosticAndPlan();
+        return apiFetch<DiagnosticResponse>(
+            `/api/diagnostics/${sessionId}/retry-analysis`,
+            {method: "POST", auth: true},
+        ).then(afterDiagnosticRead);
+    },
+};
+
+export const learningPlanApi = {
+    get: fetchLearningPlan,
+
+    getCached(): Promise<LearningPlanDto> {
+        return cached(`${LEARNING_PLAN_CACHE_PREFIX}current`, fetchLearningPlan);
+    },
+};
+
+// ============================================================================
 // Endpoints Attempts
 // ============================================================================
 
@@ -963,7 +1061,7 @@ export const skillApi = {
         return apiFetch<SkillDto[]>(`/api/skills?section=${section}`, {auth: true});
     },
 
-    /** Compétence + ses 5 petits sujets avec leur statut. */
+    /** Compétence + ses 15 petits sujets avec leur statut. */
     getSkill(skillId: string): Promise<SkillDetailDto> {
         return apiFetch<SkillDetailDto>(`/api/skills/${skillId}`, {auth: true});
     },
