@@ -14,6 +14,7 @@ import {
     type RealtimeFinishResult,
 } from "@/lib/realtime-finish";
 import type {ProductionTaskDto, RealtimeSessionDescriptor, RealtimeSpeaker} from "@/lib/types";
+import {useScreenWakeLock} from "@/lib/use-screen-wake-lock";
 import {TranscriptDialogue} from "./TranscriptDialogue";
 
 /**
@@ -25,6 +26,23 @@ import {TranscriptDialogue} from "./TranscriptDialogue";
  */
 const CLOSE_SETTLE_MS = 1200;
 const CLOSE_CAP_SEC = 12;
+
+/**
+ * Période de relais du transcript vers le backend. Valeur commune web ⇄ mobile
+ * (le mobile relayait toutes les 1500 ms, deux cadences pour un même artefact
+ * de notation).
+ */
+const TRANSCRIPT_RELAY_MS = 1200;
+
+/**
+ * Repli de DERNIER RECOURS quand le backend n'envoie pas `targetDurationSec`.
+ * La valeur canonique est `production_tasks.duree_max_sec`, servie sur le
+ * descripteur — elle vaut 180 s (EO tâche 1) et 210 s (EO tâche 2), les deux
+ * seules tâches ouvertes au temps réel. On prend la plus COURTE : un repli ne
+ * doit jamais accorder plus de temps que la tâche réelle. Valeur commune
+ * web ⇄ mobile (le mobile repliait sur 200 s, le web sur 210 s).
+ */
+const DEFAULT_TARGET_SEC = 180;
 
 function fmt(sec: number): string {
     const m = Math.floor(sec / 60);
@@ -62,7 +80,7 @@ export function RealtimeEoRunner({
     onFatalError: (message: string) => void;
 }) {
     const sessionId = descriptor.sessionId ?? "";
-    const target = descriptor.targetDurationSec ?? 210;
+    const target = descriptor.targetDurationSec ?? DEFAULT_TARGET_SEC;
 
     const [state, setState] = useState<GeminiLiveState>("connecting");
     const [elapsed, setElapsed] = useState(0);
@@ -103,6 +121,13 @@ export function RealtimeEoRunner({
     const spokenRef = useRef(0);
     const relayedRef = useRef(0);
     const droppedRef = useRef(0);
+
+    // Écran allumé tant que l'échange est en cours : le candidat parle sans
+    // toucher l'écran pendant plusieurs minutes, et une mise en veille couperait
+    // le micro et la voix de l'examinateur au milieu de sa production. Relâché
+    // dès que la session est close, en erreur, ou qu'un panneau d'issue attend
+    // une décision (plus rien de temps réel à ce moment-là).
+    useScreenWakeLock(state !== "closed" && state !== "error" && notice === null);
 
     // Relais batché du transcript (~1,2 s) : capture serveur fiable du dialogue
     // (artefact de notation). On NE l'affiche PAS — on l'envoie seulement. Les
@@ -230,7 +255,7 @@ export function RealtimeEoRunner({
         });
         liveRef.current = live;
         live.start();
-        const relay = setInterval(flush, 1200);
+        const relay = setInterval(flush, TRANSCRIPT_RELAY_MS);
         return () => {
             clearInterval(relay);
             if (settleTimerRef.current) clearTimeout(settleTimerRef.current);

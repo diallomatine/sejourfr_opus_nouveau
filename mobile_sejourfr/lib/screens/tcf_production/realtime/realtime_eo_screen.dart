@@ -10,6 +10,7 @@ import '../../../core/models/realtime_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_sheet.dart';
+import '../../../core/widgets/keep_screen_awake.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../widgets/transcript_dialogue.dart';
 import 'realtime_eo_controller.dart';
@@ -289,43 +290,55 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     }
     if (_noSpeech) return _buildNoSpeech(context, task);
 
-    return PopScope(
-      canPop: state.phase == RealtimePhase.done ||
-          state.phase == RealtimePhase.failed,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _confirmLeave();
-      },
-      child: Scaffold(
-        backgroundColor: AppColors.bg,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              ScreenHeader(
-                title: 'Oral avec un examinateur',
-                sub: task.displayTitle,
-                onBack: _confirmLeave,
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: _LiveStrip(state: state),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: _SubjectPanel(
-                  task: task,
-                  expanded: _showSubject,
-                  onToggle: () => setState(() => _showSubject = !_showSubject),
+    // Écran allumé tant que l'échange est en cours : le candidat parle plusieurs
+    // minutes sans toucher l'écran, et une mise en veille couperait le micro et
+    // la voix de l'examinateur au milieu de sa production. Raison DISTINCTE de
+    // celle de l'enregistreur solo ('eo-recording') : le compteur de références
+    // additionne les détenteurs, deux surfaces ne doivent pas se relâcher l'une
+    // l'autre.
+    return KeepScreenAwake(
+      reason: 'eo-realtime',
+      enabled: state.phase != RealtimePhase.done &&
+          state.phase != RealtimePhase.failed,
+      child: PopScope(
+        canPop: state.phase == RealtimePhase.done ||
+            state.phase == RealtimePhase.failed,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _confirmLeave();
+        },
+        child: Scaffold(
+          backgroundColor: AppColors.bg,
+          body: SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                ScreenHeader(
+                  title: 'Oral avec un examinateur',
+                  sub: task.displayTitle,
+                  onBack: _confirmLeave,
                 ),
-              ),
-              Expanded(child: _MicStage(pulse: _pulse, state: state)),
-              _BottomBar(
-                state: state,
-                onFinish: _confirmLeave,
-                onExit: _exitFailed,
-                onShowTranscript: _openTranscript,
-              ),
-            ],
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: _LiveStrip(state: state),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: _SubjectPanel(
+                    task: task,
+                    expanded: _showSubject,
+                    onToggle: () =>
+                        setState(() => _showSubject = !_showSubject),
+                  ),
+                ),
+                Expanded(child: _MicStage(pulse: _pulse, state: state)),
+                _BottomBar(
+                  state: state,
+                  onFinish: _confirmLeave,
+                  onExit: _exitFailed,
+                  onShowTranscript: _openTranscript,
+                ),
+              ],
+            ),
           ),
         ),
       ),

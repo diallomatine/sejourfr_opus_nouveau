@@ -115,7 +115,7 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
   RealtimeEoController(this._repo, this._args)
       : super(RealtimeEoState(
           phase: RealtimePhase.connecting,
-          targetSec: _args.descriptor.targetDurationSec ?? 200,
+          targetSec: _args.descriptor.targetDurationSec ?? _defaultTargetSec,
         ));
 
   final RealtimeRepository _repo;
@@ -138,6 +138,20 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
   /// Plafond de sécurité après 0:00 : borne le cas où l'examinateur ne conclut
   /// jamais ou divague.
   static const _capSeconds = 12;
+
+  /// Repli de DERNIER RECOURS quand le backend n'envoie pas
+  /// `targetDurationSec`. La valeur canonique est
+  /// `production_tasks.duree_max_sec`, servie sur le descripteur — elle vaut
+  /// 180 s (EO tâche 1) et 210 s (EO tâche 2), les deux seules tâches ouvertes
+  /// au temps réel. On prend la plus COURTE : un repli ne doit jamais accorder
+  /// plus de temps que la tâche réelle. Valeur commune web ⇄ mobile (le web
+  /// repliait sur 210 s, le mobile sur 200 s).
+  static const _defaultTargetSec = 180;
+
+  /// Période de relais du transcript vers le backend. Valeur commune
+  /// web ⇄ mobile (le mobile relayait toutes les 1500 ms, deux cadences pour un
+  /// même artefact de notation).
+  static const _transcriptRelayMs = 1200;
 
   final List<({RealtimeSpeaker speaker, String text})> _pending = [];
 
@@ -207,8 +221,8 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
       // onListeningStart — pas ici. Le relais du transcript, lui, tourne dès la
       // connexion.
       state = state.copyWith(phase: RealtimePhase.welcoming);
-      _flushTimer =
-          Timer.periodic(const Duration(milliseconds: 1500), (_) => _flush());
+      _flushTimer = Timer.periodic(
+          const Duration(milliseconds: _transcriptRelayMs), (_) => _flush());
     } catch (e) {
       _fail(e.toString());
     }
