@@ -2,6 +2,7 @@ package com.sejourfr.app.dto;
 
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.ObservationConfidence;
+import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
 
 import java.time.Instant;
@@ -58,6 +59,26 @@ public record LearningPlanPriorityDto(
          * production. Aux fronts de le dire, pas de la faire disparaître.
          */
         boolean stepCompleted,
+        /**
+         * Etat de maitrise agrege de la competence, issu du meme moteur que
+         * {@code SkillDto.masteryState}. Derive serveur, jamais persiste,
+         * {@code null} sans observation. A ne pas confondre avec
+         * {@link #status()}, verdict de la <b>derniere production</b>.
+         */
+        SkillMasteryState masteryState,
+        /**
+         * {@code true} quand le candidat a assez travaille cette competence en
+         * exercices cibles, sur des sujets differents, <b>sans preuve de
+         * transfert recente</b> : le Plan doit alors cesser d'empiler les
+         * micro-sujets et proposer une verification en situation.
+         *
+         * <p>Signal interne exposé aux fronts pour qu'ils changent le libelle de
+         * l'etape (« Verifions maintenant… » plutot que « encore 3 exercices ») ;
+         * ce n'est pas un etat de maitrise et il ne s'affiche jamais comme tel.
+         * L'exercice recommande, lui, ne change pas encore — c'est la suite du
+         * chantier.
+         */
+        boolean readyForReassessment,
         /**
          * {@code true} quand ce candidat ne peut pas produire sur la compétence
          * de cette priorité. Le Plan reste <b>intégralement visible</b> : on

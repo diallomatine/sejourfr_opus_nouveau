@@ -459,6 +459,141 @@
   color: var(--color-muted-2);
 }
 
+/* --------------------------- ce que la production a changé dans le Plan */
+
+/* Une ligne discrète en fin de rapport, jamais une carte de plus : le rapport
+   dit la correction, le Plan dit la suite. */
+.planChange {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 15px;
+  padding: 13px 15px;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: white;
+}
+
+.planChangeBody {
+  display: grid;
+  gap: 3px;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.planChangeDone {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--color-green);
+  overflow-wrap: anywhere;
+}
+
+.planChangeNext {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.planChangeLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 13px;
+  border-radius: 999px;
+  background: var(--skill-accent-light);
+  color: var(--skill-accent);
+  font-size: 12.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* ------------------------------------ frise d'une compétence (trajectoire) */
+
+/* Une frise, pas un tableau : le filet vertical relie les points et fait lire
+   une progression. Il descend du premier au dernier repère et s'arrête au
+   dernier — d'où le `::before` sur la ligne plutôt qu'un fond sur la liste. */
+.traj {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trajRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: start;
+  padding-bottom: 14px;
+}
+
+.trajRow:last-child {
+  padding-bottom: 0;
+}
+
+.trajRow:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 16px;
+  bottom: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--color-line);
+}
+
+.trajMark {
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--skill-accent);
+}
+
+.trajBody {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.trajHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.trajSource {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.trajDate {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-muted-2);
+}
+
+/* Le constat du correcteur, en second plan : la ligne se lit d'abord par sa
+   source et son verdict. */
+.trajWhy {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
 /* -------------------------------------------------- encart d'information */
 
 .notice {

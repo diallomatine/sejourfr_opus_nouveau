@@ -92,7 +92,7 @@ class DiagnosticServiceTest {
     }
 
     private static PlanRecommendedExerciseDto exercise(Skill skill) {
-        return new PlanRecommendedExerciseDto(
+        return PlanRecommendedExerciseDto.microTraining(
                 UUID.randomUUID(), skill.getId(), skill.getCode(), "Écrire à un proche",
                 skill.getSection(), 4, false);
     }

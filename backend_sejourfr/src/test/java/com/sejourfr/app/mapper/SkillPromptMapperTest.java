@@ -162,7 +162,7 @@ class SkillPromptMapperTest {
 
     @Test
     void skillCountersArePassedThroughUntouched() {
-        SkillDto dto = skillMapper.toDto(skill(), 5, 3, 2, 1, false);
+        SkillDto dto = skillMapper.toDto(skill(), 5, 3, 2, 1, null, false);
 
         assertThat(dto.promptCount()).isEqualTo(5);
         assertThat(dto.attemptedCount()).isEqualTo(3);

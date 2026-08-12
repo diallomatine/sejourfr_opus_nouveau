@@ -1,5 +1,6 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.dto.PlanChangeDto;
 import com.sejourfr.app.dto.ProductionBilanResponse;
 import com.sejourfr.app.dto.ProductionSubmissionDto;
 import com.sejourfr.app.dto.ProductionTaskDto;
@@ -62,6 +63,7 @@ public class ProductionSubmissionService {
     private final ProductionExamCompositionService compositionService;
     private final ProductionAccessService accessService;
     private final RateLimitGuard rateLimitGuard;
+    private final LearningPlanService learningPlanService;
 
     public ProductionSubmissionDto submitAudio(UUID productionTaskId, UUID attemptId, MultipartFile audio) {
         UUID userId = currentUser.getId();
@@ -107,7 +109,23 @@ public class ProductionSubmissionService {
             // 404 plutot que 403 : ne pas reveler l'existence des submissions d'autrui.
             throw new NotFoundException("Submission introuvable : " + submissionId);
         }
-        return mapWithSignedAudioIfPresent(sub);
+        return mapWithSignedAudioIfPresent(sub).withPlanChange(planChange(userId, sub));
+    }
+
+    /**
+     * Ce que cette production a change dans le Plan, resolu <b>a la lecture</b>.
+     *
+     * <p>Rien avant l'evaluation (il n'y a alors aucune observation), rien sur un
+     * sujet de diagnostic (qui a son propre ecran de resultat agrege). Un bloc
+     * absent reste un cas <b>normal</b> : les observations sont ecrites apres la
+     * correction, en best-effort — le front qui poll ce detail le recevra des
+     * qu'elles seront la, sans erreur ni rejeu entre-temps.
+     */
+    private PlanChangeDto planChange(UUID userId, ProductionSubmission sub) {
+        if (sub.getStatut() != SubmissionStatut.EVALUATED) return null;
+        ProductionTask task = sub.getProductionTask();
+        if (task == null || task.isDiagnostic()) return null;
+        return learningPlanService.changeAfterProduction(userId, sub.getId()).orElse(null);
     }
 
     @Transactional(readOnly = true)

@@ -582,6 +582,28 @@ export interface ProductionSubmissionDto {
     /** Null tant que statut != EVALUATED. */
     evaluation: EvaluationResultDto | null;
     transcription: string | null; // EO
+    /**
+     * Ce que cette production a changé dans le Plan — **une ligne, pas un
+     * rapport**. `null` est un cas NORMAL : rien n'a bougé, ou les observations
+     * (écrites après la correction) ne sont pas encore là. Servi seulement sur
+     * le détail d'une soumission, jamais sur une liste d'historique.
+     */
+    planChange: PlanChangeDto | null;
+}
+
+/** De quoi nommer une compétence et y renvoyer, sans embarquer tout son état. */
+export interface PlanSkillRefDto {
+    skillId: string;
+    skillCode: string;
+    title: string;
+    section: SkillSection;
+}
+
+/** Les deux moitiés sont **indépendamment nullables** : on n'affiche que celle
+ *  qui existe, et rien du tout quand le bloc entier est `null`. */
+export interface PlanChangeDto {
+    confirmedSkill: PlanSkillRefDto | null;
+    newPriority: PlanSkillRefDto | null;
 }
 
 /** Body JSON de POST /api/production-submissions (EE). */
@@ -610,6 +632,22 @@ export type DiagnosticTaskCompletion = "COMPLETED" | "PARTIAL" | "NOT_COMPLETED"
 export type DiagnosticCommunicationStatus = "EFFECTIVE" | "PARTIAL" | "INEFFECTIVE";
 export type LearningPlanState = "NEEDS_DIAGNOSTIC" | "DIAGNOSTIC_IN_PROGRESS" | "ACTIVE";
 export type LearningPlanSkillStatus = "NOT_OBSERVED" | "PRIORITY" | "TO_REINFORCE" | "SOLID";
+
+/**
+ * D'où vient une observation du Plan. `TCF_CO` / `TCF_CE` sont **réservés** :
+ * le serveur ne les sert pas encore, on les prévoit pour ne pas remodeler
+ * l'historique le jour où la compréhension entrera dans le Plan.
+ */
+export type LearningPlanSourceType =
+    | "DIAGNOSTIC_EE"
+    | "DIAGNOSTIC_EO"
+    | "PRODUCTION_EE"
+    | "PRODUCTION_EO"
+    | "MOCK_EXAM_EE"
+    | "MOCK_EXAM_EO"
+    | "SKILL_TRAINING"
+    | "TCF_CO"
+    | "TCF_CE";
 export type ObservationConfidence = "LOW" | "MEDIUM" | "HIGH";
 
 export interface DiagnosticExerciseDto {
@@ -670,12 +708,26 @@ interface SkillLockable {
     locked: boolean;
 }
 
+/**
+ * Nature de l'action proposée par une étape du Plan — **même carte, même
+ * emplacement, action différente**. Les deux ne mènent pas au même écran : le
+ * front lit `kind`, il ne le devine jamais d'un `null`.
+ */
+export type PlanExerciseKind = "MICRO_TRAINING" | "REASSESSMENT";
+
 export interface PlanRecommendedExerciseDto extends SkillLockable {
-    skillPromptId: string;
+    kind: PlanExerciseKind;
+    /** Micro-exercice uniquement ; `null` sur une vérification. */
+    skillPromptId: string | null;
+    /** Vérification uniquement ; `null` sur un micro-exercice. */
+    productionTaskId: string | null;
     skillId: string;
     skillCode: string;
     title: string;
     section: SkillSection;
+    /** Numéro de tâche (1, 2 ou 3) du sujet de production — vérification
+     *  uniquement, `null` sur un micro-exercice. */
+    tacheNumero: number | null;
     estimatedMinutes: number;
 }
 
@@ -776,6 +828,13 @@ export interface LearningPlanPriorityDto extends LearningPlanSkillCounters, Skil
      * affichée** : les priorités ne changent qu'à la prochaine production.
      */
     stepCompleted: boolean;
+    /** État agrégé de la compétence, identique à `SkillDto.masteryState` — à ne
+     *  pas confondre avec `status`, verdict de la **dernière** production. */
+    masteryState: SkillMasteryState | null;
+    /** `true` quand la compétence a assez été travaillée en exercices ciblés
+     *  sans preuve de transfert récente : l'étape devient une **vérification**
+     *  (`recommendedExercise.kind === "REASSESSMENT"`). */
+    readyForReassessment: boolean;
 }
 
 export interface LearningPlanSkillDto extends LearningPlanSkillCounters, SkillLockable {
@@ -785,6 +844,9 @@ export interface LearningPlanSkillDto extends LearningPlanSkillCounters, SkillLo
     section: SkillSection;
     status: LearningPlanSkillStatus;
     lastObservedAt: string;
+    /** Même état agrégé que `SkillDto.masteryState`, issu du même moteur : un
+     *  candidat ne doit pas lire deux états différents pour une compétence. */
+    masteryState: SkillMasteryState | null;
 }
 
 export interface LearningPlanDto {
@@ -878,6 +940,25 @@ export const SKILL_PROMPT_STATUS_LABEL: Record<SkillPromptStatus, string> = {
     TO_REINFORCE: "À renforcer",
 };
 
+/**
+ * Où en est le candidat sur UNE compétence, tout son historique confondu.
+ *
+ * À ne pas confondre avec `LearningPlanSkillStatus`, qui est le verdict d'**une
+ * production**. Celui-ci est l'état **agrégé**, dérivé serveur à la lecture et
+ * jamais recalculé ici. `null` quand aucune observation n'existe : on n'invente
+ * pas un état pour une compétence que le serveur n'a jamais vue.
+ */
+export type SkillMasteryState = "PRIORITY" | "TO_REINFORCE" | "CONSOLIDATING" | "SOLID";
+
+/** Libellés FR de l'état de maîtrise (contrat gelé — à ne pas reformuler, et à
+ *  recopier au caractère près côté mobile). */
+export const SKILL_MASTERY_STATE_LABEL: Record<SkillMasteryState, string> = {
+    PRIORITY: "Priorité",
+    TO_REINFORCE: "À renforcer",
+    CONSOLIDATING: "En consolidation",
+    SOLID: "Solide",
+};
+
 /** Libellés FR de l'auto-évaluation (contrat gelé — à ne pas reformuler). */
 export const SKILL_SELF_EVALUATION_LABEL: Record<SkillSelfEvaluation, string> = {
     REUSSI: "Je pense avoir réussi",
@@ -952,6 +1033,10 @@ export interface SkillDto extends SkillLockable {
     attemptedCount: number;
     validatedCount: number;
     toReinforceCount: number;
+    /** Ce que la carte de compétence affiche **à la place** du compteur de
+     *  sujets traités : un nombre dit ce qui a été fait, cet état dit ce qui est
+     *  maîtrisé. `null` (aucune observation) ⇒ le compteur reprend sa place. */
+    masteryState: SkillMasteryState | null;
 }
 
 /** Un petit sujet dans la liste d'une compétence. Porte le même `locked` que
@@ -1003,6 +1088,28 @@ export interface SkillConstraintTagDto {
 export interface SkillDetailDto {
     skill: SkillDto;
     prompts: SkillPromptSummaryDto[];
+    /** Les observations probantes de la compétence, **de la plus ancienne à la
+     *  plus récente** — le sens dans lequel une frise se lit. Jamais `null`,
+     *  souvent vide : la section n'est alors pas affichée du tout. */
+    trajectory: SkillObservationPointDto[];
+}
+
+/**
+ * Un point de la frise d'une compétence : ce qui a été constaté, quand, et dans
+ * quoi. `status` est le verdict de **cette production-là**, à ne pas confondre
+ * avec `SkillDto.masteryState`, qui agrège tout l'historique.
+ *
+ * `confidence` n'est **pas** affichée au candidat : c'est la certitude du
+ * correcteur, pas une information sur son niveau.
+ */
+export interface SkillObservationPointDto {
+    observedAt: string;
+    source: LearningPlanSourceType;
+    status: LearningPlanSkillStatus;
+    explanation: string | null;
+    confidence: ObservationConfidence;
+    /** `true` pour les deux productions du diagnostic initial : le point de départ. */
+    baseline: boolean;
 }
 
 /** GET /api/skill-prompts/{promptId} — écran de production. Ne porte JAMAIS

@@ -1,9 +1,11 @@
+import {productionTaskHref} from "./production-catalog.ts";
 import type {
   DiagnosticCommunicationStatus,
   DiagnosticExerciseDto,
   DiagnosticResponse,
   DiagnosticTaskCompletion,
   LearningPlanSkillStatus,
+  LearningPlanSourceType,
   NiveauCecrl,
   PlanRecommendedExerciseDto,
   ProductionTaskDto,
@@ -85,14 +87,28 @@ export function skillTaskNumber(skillCode: string): number | null {
   return task ? Number(task) : null;
 }
 
-/** Les URLs Compétences portent le numéro de tâche. Le contrat Plan fournit le
- *  code canonique (EE1-C1, EO2-C3...) : on n'en déduit ici que le segment de
- *  route, jamais une décision pédagogique. */
+/**
+ * Où mène l'exercice recommandé par le Plan. **Deux natures, deux écrans** : un
+ * micro-sujet du module Compétences, ou une **vérification en situation** sur
+ * une vraie tâche TCF. On lit `kind`, on ne le devine jamais d'un identifiant
+ * nul — et une vérification sans `productionTaskId` retombe sur la liste des
+ * sujets de sa tâche plutôt que sur une adresse fabriquée.
+ *
+ * Les URLs Compétences portent le numéro de tâche : le contrat Plan fournit le
+ * code canonique (EE1-C1, EO2-C3...), on n'en déduit ici que le segment de
+ * route, jamais une décision pédagogique.
+ */
 export function recommendedExerciseHref(
   exercise: PlanRecommendedExerciseDto | null | undefined,
 ): string {
   if (!exercise) return "/entrainement?module=TCF";
   const base = `/entrainement/tcf/${exercise.section.toLowerCase()}`;
+  if (exercise.kind === "REASSESSMENT") {
+    if (exercise.productionTaskId) {
+      return productionTaskHref(exercise.section, exercise.productionTaskId);
+    }
+    return `${base}/tache/${exercise.tacheNumero ?? 1}`;
+  }
   const task = skillTaskNumber(exercise.skillCode);
   if (!task) return `${base}/tache/1/competences`;
   return `${base}/tache/${task}/competences/${exercise.skillId}/${exercise.skillPromptId}`;
@@ -136,6 +152,28 @@ export const LEARNING_PLAN_SKILL_STATUS_LABEL: Record<LearningPlanSkillStatus, s
   PRIORITY: "Prioritaire",
   TO_REINFORCE: "À renforcer",
   SOLID: "Solide",
+};
+
+/**
+ * D'où vient une observation, dit au candidat.
+ *
+ * ⚠️ **Contrat gelé**, recopié au caractère près côté mobile. Écrit et oral
+ * partagent volontairement le même mot : sur la frise d'une compétence, la
+ * section est déjà celle de la compétence — répéter « écrit » à chaque ligne
+ * n'apprendrait rien. `TCF_CO` / `TCF_CE` sont **réservés** : le serveur ne les
+ * sert pas encore, ils sont prévus pour ne pas laisser un libellé vide le jour
+ * où la compréhension entrera dans le Plan.
+ */
+export const LEARNING_PLAN_SOURCE_LABEL: Record<LearningPlanSourceType, string> = {
+  DIAGNOSTIC_EE: "Diagnostic",
+  DIAGNOSTIC_EO: "Diagnostic",
+  PRODUCTION_EE: "Production complète",
+  PRODUCTION_EO: "Production complète",
+  MOCK_EXAM_EE: "Examen blanc",
+  MOCK_EXAM_EO: "Examen blanc",
+  SKILL_TRAINING: "Entraînement ciblé",
+  TCF_CO: "Compréhension",
+  TCF_CE: "Compréhension",
 };
 
 /**

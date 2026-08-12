@@ -23,8 +23,10 @@ import '../../core/widgets/gradient_hero.dart';
 import '../../core/widgets/premium_lock.dart';
 import '../../core/widgets/pressable_card.dart';
 import '../../core/widgets/progress_ring.dart';
+import '../../core/widgets/skill_mastery_tag.dart';
 import '../../core/widgets/screen_header.dart';
 import '../tcf_production/competences/competences_nav.dart';
+import '../tcf_production/recommended_exercise_launcher.dart';
 import '../tcf_production/tcf_production_module.dart';
 import 'learning_plan_provider.dart';
 
@@ -93,21 +95,14 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
   }
 
   void _openRecommended(PlanRecommendedExercise exercise) {
-    // Garde de dernier recours : un exercice verrouillé n'est jamais « démarré »
-    // (l'événement d'audience mentirait) et n'ouvre pas un écran qui refuserait
-    // la soumission. Les cartes ouvrent déjà le paywall d'elles-mêmes.
-    if (exercise.locked) {
-      unawaited(showTcfLockPaywall(context));
-      return;
+    // Un exercice verrouillé n'est jamais « démarré » (l'événement d'audience
+    // mentirait) : c'est le lanceur partagé qui tranche, ici comme sur le
+    // résultat du diagnostic, et qui sait où mènent ses deux natures
+    // (micro-sujet ou vérification en situation).
+    if (!exercise.locked) {
+      unawaited(_track(AudienceEvent.planRecommendedExerciseStarted));
     }
-    unawaited(_track(AudienceEvent.planRecommendedExerciseStarted));
-    context.push(
-      competencePromptPath(
-        _moduleOf(exercise.section),
-        exercise.skillId,
-        exercise.skillPromptId,
-      ),
-    );
+    unawaited(openRecommendedExercise(context, ref, exercise));
   }
 
   void _openSkill(String skillId, SkillSection section) {
@@ -499,6 +494,10 @@ class _NowCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final exercise = priority.recommendedExercise;
     final locked = _isLocked(priority, exercise);
+    // Assez travaillée en ciblé, pas encore prouvée en situation : la même
+    // carte, au même endroit, cesse de proposer un micro-sujet et propose une
+    // vérification sur une vraie tâche TCF. Jamais une seconde carte à côté.
+    final check = exercise?.kind == PlanExerciseKind.reassessment;
     return AppCard(
       border: Border.all(color: AppColors.blue.withValues(alpha: 0.22)),
       child: Column(
@@ -549,10 +548,12 @@ class _NowCard extends StatelessWidget {
               ),
             ] else
               Semantics(
-                label: 'Commencer l’exercice recommandé ${exercise.title}',
+                label: check
+                    ? 'Vérifier ma progression sur ${exercise.title}'
+                    : 'Commencer l’exercice recommandé ${exercise.title}',
                 button: true,
                 child: AppButton(
-                  label: 'Commencer',
+                  label: check ? 'Vérifier ma progression' : 'Commencer',
                   iconRight: LucideIcons.arrowRight,
                   onPressed: () => onOpenRecommended(exercise),
                 ),
@@ -765,6 +766,12 @@ class _CurrentStepCard extends StatelessWidget {
     // Une étape, ce sont les 5 premiers sujets de la compétence — jamais ses 15.
     // L'état « terminée » est **servi**, jamais déduit d'une comparaison locale.
     final done = priority.stepCompleted;
+    // L'étape change de NATURE quand le serveur juge la compétence assez
+    // travaillée en ciblé sans preuve de transfert : même carte, même place,
+    // mais on ne propose plus un micro-sujet — on va vérifier en situation.
+    // La teinte est celle de la réévaluation qui clôt déjà le parcours : le
+    // même mot ne doit pas porter deux couleurs sur le même écran.
+    final check = exercise?.kind == PlanExerciseKind.reassessment;
     return AppCard(
       border: Border.all(color: AppColors.blue.withValues(alpha: 0.22)),
       child: Column(
@@ -773,8 +780,12 @@ class _CurrentStepCard extends StatelessWidget {
           Row(
             children: [
               AppTag(
-                label: done ? 'TERMINÉE' : 'EN COURS',
-                tone: done ? TagTone.success : TagTone.blue,
+                label: check
+                    ? 'VÉRIFICATION'
+                    : done
+                        ? 'TERMINÉE'
+                        : 'EN COURS',
+                tone: check || done ? TagTone.success : TagTone.blue,
                 compact: true,
               ),
               if (locked) ...[
@@ -835,7 +846,8 @@ class _CurrentStepCard extends StatelessWidget {
               )
             else
               AppButton(
-                label: 'Continuer cette étape',
+                label:
+                    check ? 'Vérifier ma progression' : 'Continuer cette étape',
                 variant: AppButtonVariant.soft,
                 iconRight: LucideIcons.arrowRight,
                 height: 46,
@@ -1119,7 +1131,12 @@ class _ObservedSkillCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = skill.status.color;
+    // L'état de maîtrise (tout l'historique) dès que le serveur en a un ;
+    // sinon le verdict de la dernière production. **Jamais les deux** :
+    // « Priorité » et « Prioritaire » côte à côte se liraient comme deux
+    // informations, alors que c'est la même.
+    final mastery = skill.masteryState;
+    final tone = mastery == null ? skill.status.color : mastery.color;
     return PressableCard(
       onTap: onTap,
       radius: AppRadii.lg,
@@ -1162,7 +1179,7 @@ class _ObservedSkillCard extends StatelessWidget {
                     TextSpan(
                       children: [
                         TextSpan(
-                          text: skill.status.label,
+                          text: mastery?.label ?? skill.status.label,
                           style: AppFonts.ui(
                             size: 11.5,
                             weight: FontWeight.w800,

@@ -59,15 +59,30 @@ class ProductionResultPollGuard {
       _awaitsActionPlan = false;
       return true;
     }
-    if (!_planMayStillArrive(submission)) {
+    final planMayArrive = _planMayStillArrive(submission);
+    final changeMayArrive = _planChangeMayStillArrive(submission);
+    if (!planMayArrive && !changeMayArrive) {
       _awaitsActionPlan = false;
       return false;
     }
     final deadline =
         _actionPlanDeadline ??= DateTime.now().add(kActionPlanGrace);
-    _awaitsActionPlan = DateTime.now().isBefore(deadline);
-    return _awaitsActionPlan;
+    final withinGrace = DateTime.now().isBefore(deadline);
+    // L'indicateur d'attente ne concerne QUE le plan d'action : un Plan
+    // inchange est un cas normal, il n'y a rien a annoncer au candidat.
+    _awaitsActionPlan = planMayArrive && withinGrace;
+    return withinGrace;
   }
+
+  /// Ce que la production change dans le Plan vient d'un appel encore PLUS
+  /// TARDIF que le plan d'action (les observations sont ecrites apres lui). On
+  /// le laisse arriver **dans le sursis deja accorde** — meme echeance, donc
+  /// pas une seconde de polling de plus qu'avant — et **sans indicateur
+  /// d'attente** : un Plan inchange ne se signale pas.
+  bool _planChangeMayStillArrive(ProductionSubmissionDto submission) =>
+      _observedInFlight &&
+      submission.statut == SubmissionStatut.evaluated &&
+      submission.planChange == null;
 
   /// La correction s'est achevee sous les yeux du candidat et ni le plan ni son
   /// cas exclusif ne sont arrives : le second appel peut encore aboutir.

@@ -1,3 +1,4 @@
+import {PRODUCTION_INPUT_SEGMENT} from "@/lib/production-catalog";
 import type {EpreuveType} from "@/lib/types";
 
 /** Écran parent des deux épreuves productives : le hub TCF. C'est là que
@@ -75,7 +76,9 @@ export interface ProductionConfig {
    *  et la durée, c'est ce qui distingue l'écrit de l'oral depuis que les deux
    *  épreuves sont bleues. */
   actionVerb: string;
-  /** Segment de la route de saisie : "redaction" (EE) / "enregistrement" (EO). */
+  /** Segment de la route de saisie : "redaction" (EE) / "enregistrement" (EO).
+   *  Déclaré dans `lib/production-catalog.ts` — le Plan y route sa vérification
+   *  en situation, les deux doivent viser la même adresse. */
   inputSegment: string;
   /** Chrono de l'épreuve en examen blanc, tel qu'appliqué par le backend
    *  (`AttemptService.PRODUCTION_E{E,O}_EXAM_SECONDS`). */
@@ -92,7 +95,7 @@ export const EE_CONFIG: ProductionConfig = {
   mode: "text",
   epreuveMeta: "TCF IRN · 3 tâches · 30 min",
   actionVerb: "Rédiger",
-  inputSegment: "redaction",
+  inputSegment: PRODUCTION_INPUT_SEGMENT.EE,
   examMinutes: "30 min",
   examIntro:
     "Vous rédigez les 3 productions écrites (message, récit, point de vue argumenté). À la fin, l'IA évalue chaque tâche et vous attribue un niveau CECRL global (le plancher des 3 tâches).",
@@ -106,7 +109,7 @@ export const EO_CONFIG: ProductionConfig = {
   mode: "audio",
   epreuveMeta: "TCF IRN · 3 tâches · 15 min",
   actionVerb: "Enregistrer",
-  inputSegment: "enregistrement",
+  inputSegment: PRODUCTION_INPUT_SEGMENT.EO,
   examMinutes: "15 min",
   examIntro:
     "Vous enregistrez les 3 tâches orales (entretien dirigé, point de vue, jeu de rôle). À la fin, l'IA transcrit puis évalue chaque tâche et vous attribue un niveau CECRL global (le plancher des 3 tâches).",

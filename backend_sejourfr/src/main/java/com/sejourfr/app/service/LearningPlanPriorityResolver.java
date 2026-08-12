@@ -45,8 +45,21 @@ public class LearningPlanPriorityResolver {
      */
     @Transactional(readOnly = true)
     public Map<UUID, LearningPlanObservation> latestObservedBySkill(UUID userId) {
+        return latestObservedBySkill(observationManager.findAllByUserWithSkill(userId));
+    }
+
+    /**
+     * Meme regle, sur un historique <b>deja charge</b>. Le Plan a besoin de la
+     * liste complete pour alimenter le moteur de maitrise : sans cette surcharge
+     * il aurait relu deux fois les memes lignes.
+     *
+     * @param observations toutes les observations du candidat, <b>de la plus
+     *                     recente a la plus ancienne</b>.
+     */
+    public Map<UUID, LearningPlanObservation> latestObservedBySkill(
+            List<LearningPlanObservation> observations) {
         Map<UUID, LearningPlanObservation> latest = new LinkedHashMap<>();
-        for (LearningPlanObservation observation : observationManager.findAllByUserWithSkill(userId)) {
+        for (LearningPlanObservation observation : observations) {
             if (!observation.isObserved()) continue;
             latest.putIfAbsent(observation.getSkill().getId(), observation);
         }

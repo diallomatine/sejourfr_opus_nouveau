@@ -422,11 +422,134 @@ de rubriques et files de calibration doivent garder le filtre
   détourne pas vers un sujet ouvert qui ne serait plus la priorité mesurée.
   **Visible ≠ finissable** : les compteurs d'étape sont servis en entier, mais
   un compte gratuit plafonne à 2/5 (cf. § Freemium).
+- **Boucle de réévaluation — l'étape CHANGE DE NATURE, elle ne se dédouble pas.**
+  Quand la maîtrise pose `readyForReassessment` (moteur inchangé), la carte « À
+  faire maintenant » cesse de proposer un micro-sujet et propose une
+  **vérification en situation** : même carte, même emplacement, action
+  différente. Le sujet est une **tâche de production déjà publiée** de la
+  `SkillTaskCode` de la compétence (jamais de génération, jamais de nouvelle
+  banque, jamais d'appel LLM) ; le **diagnostic initial n'est jamais rejoué**
+  (filtre `diagnostic_code IS NULL` des deux côtés — mémorisation, biais,
+  lassitude). Autorité unique : **`ReassessmentExerciseSelector`**, jumelle de
+  `RecommendedExerciseSelector`. Règle : (1) premier sujet **jamais rendu**, (2)
+  tous rendus ⇒ le premier du même ordre en écartant la copie la plus récente,
+  (3) aucun sujet publié ⇒ rien, et l'étape retombe sur son micro-exercice —
+  cas **normal**, jamais une erreur. L'ordre est une **permutation semée** par
+  (candidat, compétence, sujet) via splitmix64 : reproductible d'un appel, d'un
+  process et d'un serveur à l'autre — jamais `Random` non semé, jamais
+  `hashCode` d'objet. Elle porte sur le pool **entier**, donc jouer un autre
+  sujet de la même tâche ne redistribue rien. Le DTO dit **quoi et où** :
+  `PlanRecommendedExerciseDto.kind` (`MICRO_TRAINING|REASSESSMENT`),
+  `skillPromptId` **xor** `productionTaskId` + `tacheNumero`, construits par
+  `microTraining(...)` / `reassessment(...)`. `estimatedMinutes` reste **dérivé
+  du sujet** (`util/ExerciseDuration`, formule partagée par les deux
+  sélecteurs). **Le verrou freemium continue de s'appliquer et ne détourne
+  rien** : un sujet verrouillé est **désigné quand même** avec son `locked`, lu
+  par `ProductionAccessService.isTrainingLocked` — même règle que
+  `enforceQuota`, en lecture (une copie aurait fini par ouvrir ce que le serveur
+  refuse). Une réévaluation est une **production standard** : elle produit ses
+  observations `PRODUCTION_EE/EO` par le pipeline existant, aucun type de source
+  dédié.
+- **« Le Plan a changé » après une production** : `ProductionSubmissionDto
+  .planChange` (`PlanChangeDto` = `confirmedSkill` + `newPriority`, deux
+  `PlanSkillRefDto` **indépendamment nullables**, bloc entier `null` si rien n'a
+  bougé). Une **ligne**, jamais la liste des compétences observées. « Confirmée »
+  = observation `SOLID` **contextuelle** issue de cette soumission (le diagnostic
+  est la baseline, il ne confirme jamais) ; « nouvelle priorité » = la priorité
+  n°1 courante **si c'est cette production qui l'a désignée**. Calculé
+  **serveur, à la lecture** (`LearningPlanService.changeAfterProduction`,
+  branché sur `getOwnDetail` seulement — ni liste d'historique, ni sujet de
+  diagnostic, ni avant `EVALUATED`). ⚠️ **Course assumée** : les observations
+  s'écrivent **après** la correction, best-effort et hors transaction
+  (`ProductionPipelineAsyncRunner`) — rien n'est figé à l'écriture, donc
+  l'absence du bloc est un **état normal** et la lecture suivante le rend, sans
+  erreur ni rejeu (même sursis côté fronts que le plan d'action).
+  **Aucun libellé serveur** : le bloc expose des faits, la phrase appartient aux
+  fronts — et un transfert manqué ne se dit **jamais** « vous avez perdu votre
+  progression », mais « réussi en exercice ciblé, pas encore automatique en
+  production complète ».
 - **Plan vivant** : après une correction v14/v8 réussie d'une future production
   complète standard, une observation structurée séparée utilise les skill IDs de
   sa tâche ; son échec best-effort ne dégrade jamais la correction. Les
   micro-exercices alimentent aussi le Plan une fois évalués, mais une réussite
-  isolée devient au mieux `TO_REINFORCE`, jamais `SOLID`.
+  isolée devient au mieux `TO_REINFORCE`, jamais `SOLID`. **Les productions
+  d'examen blanc EE/EO alimentent le même moteur** (V031) : elles passaient déjà
+  par le même pipeline mais étaient enregistrées comme de l'entraînement, donc
+  sous-pondérées. Une session d'examen productive porte un `slotNumber`, une
+  épreuve d'examen **complet** est un sous-attempt d'un parent `TCF_COMPLET` —
+  les deux sont sur la ligne `attempts` déjà chargée, aucune requête de plus
+  (`LearningPlanObservationService.isMockExam`, sources `MOCK_EXAM_EE/EO`).
+- **Aucun diagnostic n'est exigé pour OBSERVER** (2026-08-12). `hasActivePlan` a
+  été **supprimé** des deux producteurs (`recordSkillAttempt`,
+  `observeStandardProduction`) : un candidat qui travaillait sans passer le
+  diagnostic n'accumulait rien, et tout son travail était perdu le jour où il le
+  passait. C'est le **Plan** qui continue de réclamer un diagnostic `COMPLETED`
+  pour passer `ACTIVE` — `NEEDS_DIAGNOSTIC` / `DIAGNOSTIC_IN_PROGRESS` sont
+  inchangés. ⚠️ Conséquence de coût assumée : la voie d'observation d'une
+  production standard **appelle le LLM**, elle tourne désormais pour tout le
+  monde, plus seulement pour les comptes diagnostiqués.
+- **Moteur de maîtrise — `SkillMasteryEngine` + `SkillMasteryResolver`**, dérivé
+  à la lecture et **jamais persisté** (même philosophie que `SkillStatusResolver`
+  et `SituationDansNiveau`) : recalibrer une pondération relit tout l'historique
+  au prochain appel, sans migration ni job.
+  - **4 états agrégés, enum `SkillMasteryState`** : `PRIORITY` / `TO_REINFORCE` /
+    `CONSOLIDATING` / `SOLID` (« Priorité » / « À renforcer » / « En
+    consolidation » / « Solide », gelés par `SkillLabelsTest`, à mirrorer sur les
+    3 fronts). ⚠️ **Distinct de `LearningPlanSkillStatus`**, qui est le verdict
+    d'**une production** et reste persisté sur chaque observation : la contrainte
+    `chk_learning_plan_observation_status` n'admet toujours que
+    `NOT_OBSERVED|PRIORITY|TO_REINFORCE|SOLID`. `null` quand rien n'a été observé
+    — on n'invente pas un état. `CONSOLIDATING` existe parce que « réussi en
+    exercice ciblé » n'est ni « à renforcer » ni « maîtrisé » : c'est lui qui rend
+    la vérification en situation compréhensible.
+  - **Score interne** `poidsSource × confiance × récence`, moyenne pondérée dans
+    `[0,1]` sur une fenêtre glissante et un nombre plafonné d'observations. Il
+    **n'est exposé à aucun front** : pas de « 73 % maîtrisé ». `NOT_OBSERVED`
+    ignoré (« je n'ai pas pu observer » ≠ « le candidat est mauvais »).
+  - **L'état ne se déduit jamais du seul score.** `SOLID` exige **cinq**
+    conditions : score ≥ seuil, ≥ 2 observations positives, **≥ 1 venue d'une
+    production contextualisée** (production complète ou examen blanc — jamais un
+    micro-entraînement, ni le diagnostic qui est la baseline), sujets
+    **différents** (`learning_plan_observations.subject_id`, V031 — le sujet, pas
+    la tentative), et pas de série de fragilités récentes.
+  - **Stabilité** : une seule production moins bonne ne casse pas une compétence
+    solide — le moteur rejoue le calcul sans les fragilités récentes tant que
+    celles issues d'une production contextualisée restent sous
+    `fragility-tolerance` (2). Une fragilité en micro-exercice ne révoque jamais
+    un transfert déjà prouvé.
+  - **`readyForReassessment`** : signal **interne** (exposé sur
+    `LearningPlanPriorityDto` pour la suite du chantier) — assez de réussites
+    ciblées, sur des **sujets différents**, performance **ciblée** suffisante, et
+    pas de preuve de transfert récente. ⚠️ Le seuil porte sur la performance
+    **des seuls micro-entraînements**, pas sur le score global : la baseline du
+    diagnostic est une fragilité et un micro-exercice réussi ne vaut qu'une
+    demi-preuve, donc un seuil global serait mécaniquement hors d'atteinte et le
+    Plan proposerait des micro-exercices à l'infini.
+  - **Tous les nombres vivent dans `application.yaml`** sous
+    `sejourfr.learning-plan.mastery`, POJO `LearningPlanProperties` **aux mêmes
+    valeurs par défaut** : sources `0.45 / 0.80 / 1.00 / 1.20`
+    (micro-entraînement / diagnostic / production / examen blanc), confiances
+    `1.00 / 0.80 / 0.55`, récence `1.00` (≤ 14 j) / `0.85` (≤ 30 j) / `0.70`,
+    fenêtre 180 j, 12 observations max, seuils `0.75 / 0.50 / 0.30`. Aucune
+    constante de pondération dans le Java.
+  - **Chargement en lot obligatoire** : `SkillMasteryResolver.bySkillIds` fait
+    **une** requête pour 24 compétences (index `idx_learning_plan_user_skill_recent`,
+    posé en V029 et jusqu'ici jamais emprunté, verrouillé par
+    `SkillMasteryResolverIT` qui compte les statements) ; le Plan, lui, se branche
+    sur l'historique **déjà chargé** par `LearningPlanPriorityResolver`
+    (`fromObservations`, zéro requête de plus).
+  - **Exposition** : `masteryState` sur `SkillDto` (**c'est ce que la carte de
+    compétence affiche à la place de « 2/15 traités »** — les compteurs restent,
+    ils servent l'anneau d'étape), `LearningPlanSkillDto` et
+    `LearningPlanPriorityDto` ; `trajectory` (liste `SkillObservationPointDto`,
+    de la plus ancienne à la plus récente, `NOT_OBSERVED` exclus) sur
+    `SkillDetailDto` — l'endpoint de détail existant, pas une route de plus.
+  - **`LearningPlanPriorityResolver` reste l'unique autorité sur l'ordre des
+    priorités** : le moteur ne le réordonne pas, `SkillAccessService` continue
+    d'en dépendre pour ouvrir la compétence de la priorité n°1.
+  - **Aucun rattrapage** : le suivi démarre à la mise en service, le diagnostic
+    reste la baseline. V031 ne renseigne `subject_id` que par jointure SQL
+    déterministe sur des lignes existantes — aucun rejeu, aucun appel LLM.
 - **Contenu et audio seed-only** : V755 crée la version `INITIAL_TCF/1`, ses deux
   sujets et leurs allowlists de huit compétences. La console de sujets standard
   refuse de les modifier. V755 ne génère aucun média : elle référence l'objet R2
@@ -436,7 +559,8 @@ de rubriques et files de calibration doivent garder le filtre
   dérivée de l'UUID de tâche. Rien n'est généré au boot ni au démarrage candidat.
 
 Les migrations structurantes sont V029 (agrégats/observations et séparation des
-tâches), V030 (événements du funnel) et V755 (contenu initial). La suppression de
+tâches), V030 (événements du funnel), V031 (sources d'examen blanc +
+`subject_id`, additive) et V755 (contenu initial). La suppression de
 compte purge observations et sessions **avant** les attempts. Le détail grand
 public du jugement et de ses limites est dans `docs/notation-ia-eo-ee.md`.
 

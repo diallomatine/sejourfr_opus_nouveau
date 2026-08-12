@@ -23,6 +23,7 @@ import {
   RowChevron,
   SectionHead,
   SkillLockBadge,
+  SkillMasteryPill,
   SkillNotice,
   SkillRing,
   SkillShell,
@@ -161,7 +162,13 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
 
 /**
  * Ligne d'une compétence, structure de la maquette client : **anneau de
- * progression** (« 2/5 »), titre, état en clair, chevron.
+ * progression** (« 2/5 »), titre, état, chevron.
+ *
+ * ⚠️ **L'état de maîtrise remplace le compteur de sujets traités** (décision
+ * propriétaire) : un compte de sujets dit ce que le candidat a *fait*,
+ * `masteryState` dit ce qu'il *maîtrise* — c'est la question qu'il se pose.
+ * `masteryState` nul (aucune observation) est le seul cas où le compteur reste
+ * pertinent : le serveur n'a encore rien vu, il n'y a pas d'état à annoncer.
  *
  * Le titre et l'état, rien d'autre : la description vit derrière la pastille
  * d'information de l'écran de détail (parité mobile). Six lignes de texte par
@@ -191,7 +198,13 @@ function SkillCard({skill, onOpen}: {skill: SkillDto; onOpen: () => void}) {
       )}
       <span className={s.rowBody}>
         <span className={s.rowTitle}>{skill.title}</span>
-        <span className={s.rowState}>{competenceProgressLabel(skill)}</span>
+        {skill.masteryState ? (
+          <span className={s.rowMeta}>
+            <SkillMasteryPill state={skill.masteryState} />
+          </span>
+        ) : (
+          <span className={s.rowState}>{competenceProgressLabel(skill)}</span>
+        )}
       </span>
       {locked ? (
         <span className={s.rowAside}>

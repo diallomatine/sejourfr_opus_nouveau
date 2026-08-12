@@ -109,6 +109,26 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
     long countByAttemptId(UUID attemptId);
 
     /**
+     * Pour chaque sujet de production deja rendu par ce candidat, la date de sa
+     * <b>derniere</b> soumission. Sert a la verification en situation du Plan
+     * ({@code ReassessmentExerciseSelector}) : elle cherche un sujet
+     * <b>jamais joue</b>, et a defaut evite de resservir celui qui vient de
+     * l'etre.
+     *
+     * <p>Une seule requete quel que soit le nombre de competences a resoudre —
+     * l'historique d'un candidat se compte en dizaines de lignes, pas en
+     * milliers. Les sujets de diagnostic sont exclus : ils ne sont jamais
+     * rejoues, donc jamais proposes.
+     */
+    @Query("""
+            SELECT s.productionTask.id, MAX(s.submittedAt) FROM ProductionSubmission s
+            WHERE s.user.id = :userId
+              AND s.productionTask.diagnosticCode IS NULL
+            GROUP BY s.productionTask.id
+            """)
+    List<Object[]> findLastSubmittedAtByTask(@Param("userId") UUID userId);
+
+    /**
      * Nombre de TÂCHES DISTINCTES soumises dans un attempt, restreint à
      * l'épreuve de cet attempt. Sert à l'auto-finalisation d'une sous-épreuve
      * d'examen complet : compter les lignes brutes finalisait la mauvaise

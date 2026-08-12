@@ -230,6 +230,7 @@ final _activePlan = LearningPlan(
     stepAttemptedCount: 2,
     evidence: 'Parce que c’est utile.',
     exercise: const PlanRecommendedExercise(
+      kind: PlanExerciseKind.microTraining,
       skillPromptId: 'prompt-1',
       skillId: 'skill-1',
       skillCode: 'EE1-C1',

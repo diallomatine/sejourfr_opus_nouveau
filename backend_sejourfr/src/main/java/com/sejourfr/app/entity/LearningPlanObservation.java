@@ -47,6 +47,19 @@ public class LearningPlanObservation {
     @Column(name = "source_id", nullable = false, columnDefinition = "uuid")
     private UUID sourceId;
 
+    /**
+     * Le <b>sujet</b> travaille : petit sujet de competence pour un
+     * micro-entrainement, {@code production_tasks.id} pour une production.
+     * Distinct de {@link #sourceId}, qui identifie la <b>tentative</b>.
+     *
+     * <p>C'est lui qui permet au moteur de maitrise de refuser de conclure quand
+     * toutes les reussites viennent du meme exercice repete apres correction.
+     * <b>Nullable</b> : les lignes anterieures dont la source a disparu restent
+     * lisibles, et le moteur les regroupe alors prudemment sous un sujet unique.
+     */
+    @Column(name = "subject_id", columnDefinition = "uuid")
+    private UUID subjectId;
+
     @Column(nullable = false)
     private boolean observed;
 
@@ -90,6 +103,8 @@ public class LearningPlanObservation {
     public void setSourceType(LearningPlanSourceType sourceType) { this.sourceType = sourceType; }
     public UUID getSourceId() { return sourceId; }
     public void setSourceId(UUID sourceId) { this.sourceId = sourceId; }
+    public UUID getSubjectId() { return subjectId; }
+    public void setSubjectId(UUID subjectId) { this.subjectId = subjectId; }
     public boolean isObserved() { return observed; }
     public void setObserved(boolean observed) { this.observed = observed; }
     public LearningPlanSkillStatus getStatus() { return status; }

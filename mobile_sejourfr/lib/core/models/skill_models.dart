@@ -11,6 +11,7 @@
 library;
 
 import 'action_plan.dart';
+import 'diagnostic_models.dart';
 import 'enums.dart';
 
 /// Épreuve productive d'une compétence. Miroir de `SkillSection` (backend).
@@ -122,6 +123,37 @@ enum SkillPromptStatus {
 
   /// Un sujet « traité » au sens de la progression : tout sauf `TODO`.
   bool get isTreated => this != SkillPromptStatus.todo;
+}
+
+/// Où en est le candidat sur UNE compétence, tout son historique confondu.
+///
+/// À ne pas confondre avec `LearningPlanSkillStatus`, verdict d'**une**
+/// production : celui-ci est l'état **agrégé**, dérivé serveur à la lecture et
+/// jamais recalculé ici. `null` quand aucune observation n'existe — on
+/// n'invente pas un état pour une compétence que le serveur n'a jamais vue.
+///
+/// Libellés **gelés**, miroir mot pour mot de `SKILL_MASTERY_STATE_LABEL`
+/// (`web_sejoufr/lib/types.ts`).
+enum SkillMasteryState {
+  priority('PRIORITY', 'Priorité'),
+  toReinforce('TO_REINFORCE', 'À renforcer'),
+  consolidating('CONSOLIDATING', 'En consolidation'),
+  solid('SOLID', 'Solide');
+
+  const SkillMasteryState(this.wire, this.label);
+
+  final String wire;
+  final String label;
+
+  /// Valeur inconnue ⇒ `null` : mieux vaut retomber sur le compteur de sujets
+  /// que d'afficher un état qu'on n'a pas compris.
+  static SkillMasteryState? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final state in SkillMasteryState.values) {
+      if (state.wire == value) return state;
+    }
+    return null;
+  }
 }
 
 /// Cycle de vie d'une tentative. `RECORDED` = production enregistrée sans
@@ -263,6 +295,7 @@ class SkillDto {
     required this.attemptedCount,
     required this.validatedCount,
     required this.toReinforceCount,
+    this.masteryState,
     this.locked = false,
   });
 
@@ -286,6 +319,12 @@ class SkillDto {
   final int attemptedCount;
   final int validatedCount;
   final int toReinforceCount;
+
+  /// Ce que la carte de compétence affiche **à la place** du compteur de sujets
+  /// traités : un nombre dit ce que le candidat a fait, cet état dit ce qu'il
+  /// maîtrise. Dérivé serveur, jamais persisté. `null` sans observation — le
+  /// compteur reprend alors sa place.
+  final SkillMasteryState? masteryState;
 
   /// Verrou freemium **calculé par le serveur** : ce candidat ne peut pas
   /// produire sur cette compétence. Aucun front ne recalcule la règle (quelle
@@ -314,6 +353,8 @@ class SkillDto {
         attemptedCount: (json['attemptedCount'] as num?)?.toInt() ?? 0,
         validatedCount: (json['validatedCount'] as num?)?.toInt() ?? 0,
         toReinforceCount: (json['toReinforceCount'] as num?)?.toInt() ?? 0,
+        masteryState:
+            SkillMasteryState.fromWireNullable(json['masteryState'] as String?),
         locked: json['locked'] as bool? ?? false,
       );
 }
@@ -375,12 +416,67 @@ class SkillPromptSummary {
       );
 }
 
-/// Détail d'une compétence : la compétence + ses 15 petits sujets.
+/// Un point de la **frise** d'une compétence : ce qui a été constaté, quand, et
+/// dans quoi.
+///
+/// [status] est le verdict de **cette production-là**, à ne pas confondre avec
+/// l'état agrégé de la compétence ([SkillDto.masteryState]). [confidence] est la
+/// certitude du correcteur : elle n'est **jamais** montrée au candidat, elle ne
+/// dit rien de son niveau.
+class SkillObservationPoint {
+  const SkillObservationPoint({
+    required this.observedAt,
+    required this.source,
+    required this.status,
+    required this.confidence,
+    required this.baseline,
+    this.explanation,
+  });
+
+  final DateTime observedAt;
+  final LearningPlanSourceType source;
+  final LearningPlanSkillStatus status;
+
+  /// L'explication courte du correcteur, telle qu'enregistrée.
+  final String? explanation;
+  final ObservationConfidence confidence;
+
+  /// `true` pour les deux productions du diagnostic initial : le point de départ.
+  final bool baseline;
+
+  factory SkillObservationPoint.fromJson(Map<String, dynamic> json) =>
+      SkillObservationPoint(
+        observedAt:
+            DateTime.tryParse(json['observedAt'] as String? ?? '')?.toLocal() ??
+                DateTime.now(),
+        source: LearningPlanSourceType.fromWire(json['source'] as String?),
+        status: LearningPlanSkillStatus.fromWire(
+          json['status'] as String? ?? 'NOT_OBSERVED',
+        ),
+        explanation: json['explanation'] as String?,
+        confidence: ObservationConfidence.fromWire(
+          json['confidence'] as String? ?? 'LOW',
+        ),
+        baseline: json['baseline'] as bool? ?? false,
+      );
+}
+
+/// Détail d'une compétence : la compétence, ses 15 petits sujets et sa
+/// **trajectoire**.
 class SkillDetail {
-  const SkillDetail({required this.skill, required this.prompts});
+  const SkillDetail({
+    required this.skill,
+    required this.prompts,
+    this.trajectory = const [],
+  });
 
   final SkillDto skill;
   final List<SkillPromptSummary> prompts;
+
+  /// Les observations probantes de la compétence, **de la plus ancienne à la
+  /// plus récente** — le sens dans lequel une frise se lit. Jamais nulle,
+  /// souvent vide : l'écran n'affiche alors aucune section.
+  final List<SkillObservationPoint> trajectory;
 
   /// Premier sujet jamais traité, sinon `null` (tout a été vu au moins une fois).
   SkillPromptSummary? get firstTodo {
@@ -394,6 +490,10 @@ class SkillDetail {
         skill: SkillDto.fromJson(json['skill'] as Map<String, dynamic>),
         prompts: ((json['prompts'] as List<dynamic>?) ?? const [])
             .map((e) => SkillPromptSummary.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        trajectory: ((json['trajectory'] as List<dynamic>?) ?? const [])
+            .map((e) =>
+                SkillObservationPoint.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
 }

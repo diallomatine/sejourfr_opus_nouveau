@@ -62,11 +62,14 @@ test("aucun snapshot diagnostic mutable ne reste servi après sa résolution", (
 
 test("la recommandation ouvre le micro-exercice exact à partir du code canonique", () => {
   const exercise: PlanRecommendedExerciseDto = {
+    kind: "MICRO_TRAINING",
     skillPromptId: "prompt-7",
+    productionTaskId: null,
     skillId: "skill-3",
     skillCode: "EO2-C3",
     title: "Structurer une réponse",
     section: "EO",
+    tacheNumero: null,
     estimatedMinutes: 6,
     locked: false,
   };
@@ -75,6 +78,28 @@ test("la recommandation ouvre le micro-exercice exact à partir du code canoniqu
     "/entrainement/tcf/eo/tache/2/competences/skill-3/prompt-7",
   );
   assert.equal(recommendedExerciseHref(null), "/entrainement?module=TCF");
+});
+
+test("une vérification en situation ouvre l'écran de production du sujet", () => {
+  const exercise: PlanRecommendedExerciseDto = {
+    kind: "REASSESSMENT",
+    skillPromptId: null,
+    productionTaskId: "task-9",
+    skillId: "skill-3",
+    skillCode: "EE2-C3",
+    title: "Raconter un événement",
+    section: "EE",
+    tacheNumero: 2,
+    estimatedMinutes: 12,
+    locked: false,
+  };
+  assert.equal(recommendedExerciseHref(exercise), "/entrainement/tcf/ee/redaction/task-9");
+  // Sujet manquant : la liste des sujets de la tâche, jamais une adresse
+  // fabriquée avec un identifiant nul.
+  assert.equal(
+    recommendedExerciseHref({...exercise, productionTaskId: null, section: "EO"}),
+    "/entrainement/tcf/eo/tache/2",
+  );
 });
 
 test("le Plan et « Réviser → Compétences » ouvrent la même fiche de compétence", () => {

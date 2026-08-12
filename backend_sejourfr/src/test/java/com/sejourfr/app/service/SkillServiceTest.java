@@ -59,6 +59,7 @@ class SkillServiceTest {
     @Mock private UserSkillAttemptManager attemptManager;
     @Mock private CurrentUser currentUser;
     @Mock private SkillAccessService accessService;
+    @Mock private SkillMasteryResolver masteryResolver;
 
     private SkillService service;
 
@@ -67,7 +68,7 @@ class SkillServiceTest {
     @BeforeEach
     void setUp() {
         service = new SkillService(skillManager, promptManager, attemptManager,
-                new SkillStatusResolver(), accessService, new SkillMapper(),
+                new SkillStatusResolver(), accessService, masteryResolver, new SkillMapper(),
                 new SkillPromptMapper(), new SkillReferenceMapper(), currentUser);
         when(currentUser.getId()).thenReturn(userId);
         // Par defaut, aucun verrou : ce fichier teste la lecture du catalogue.

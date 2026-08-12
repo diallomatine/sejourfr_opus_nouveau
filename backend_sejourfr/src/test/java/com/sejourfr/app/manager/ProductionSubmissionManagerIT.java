@@ -265,6 +265,48 @@ class ProductionSubmissionManagerIT extends AbstractIntegrationTest {
                 .containsExactly(tache1Latest.getId(), tache2Only.getId());
     }
 
+    /**
+     * Ce que lit la verification en situation du Plan : les sujets deja rendus
+     * par CE candidat, avec la date de leur derniere soumission.
+     */
+    @Test
+    void findLastSubmittedAtByTask_rend_la_derniere_date_par_sujet_et_ignore_les_autres_candidats() {
+        User user = testData.user();
+        User autre = testData.user();
+        Attempt attempt = testData.attempt(user);
+        ProductionTask joue = task(EpreuveType.TCF_EE, (short) 1);
+        ProductionTask jamaisJoue = task(EpreuveType.TCF_EE, (short) 2);
+        ProductionTask joueParUnAutre = task(EpreuveType.TCF_EE, (short) 3);
+        Instant base = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+        submission(attempt, joue, user, base.minus(60, ChronoUnit.SECONDS), SubmissionStatut.EVALUATED);
+        submission(attempt, joue, user, base.minus(10, ChronoUnit.SECONDS), SubmissionStatut.EVALUATED);
+        submission(testData.attempt(autre), joueParUnAutre, autre, base, SubmissionStatut.EVALUATED);
+
+        var byTask = manager.findLastSubmittedAtByTask(user.getId());
+
+        assertThat(byTask).containsOnlyKeys(joue.getId());
+        assertThat(byTask.get(joue.getId())).isEqualTo(base.minus(10, ChronoUnit.SECONDS));
+        assertThat(byTask).doesNotContainKeys(jamaisJoue.getId(), joueParUnAutre.getId());
+    }
+
+    /** Le diagnostic n'est jamais rejoue : ses sujets ne remontent pas ici. */
+    @Test
+    void findLastSubmittedAtByTask_exclut_les_sujets_de_diagnostic() {
+        User user = testData.user();
+        Attempt attempt = testData.attempt(user);
+        ProductionTask diagnostic = task(EpreuveType.TCF_EE, (short) 1);
+        diagnostic.setDiagnosticCode("IT_DIAG_" + UUID.randomUUID());
+        diagnostic.setDiagnosticVersion(1);
+        // Bornes propres au diagnostic (contrainte chk_prod_task_tcf_irn_ee_word_bounds, V755).
+        diagnostic.setMotsMin(100);
+        diagnostic.setMotsMax(130);
+        taskRepository.saveAndFlush(diagnostic);
+        submission(attempt, diagnostic, user, Instant.now().truncatedTo(ChronoUnit.SECONDS),
+                SubmissionStatut.EVALUATED);
+
+        assertThat(manager.findLastSubmittedAtByTask(user.getId())).isEmpty();
+    }
+
     @Test
     void findByStatutOrderedBySubmittedAt() {
         User user = testData.user();

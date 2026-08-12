@@ -512,6 +512,44 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   miroir mot pour mot de `_StepDoneLines` côté mobile. Un compte gratuit plafonne
   à 2/5 (2 sujets ouverts par compétence) : `stepCompleted` reste faux et le CTA
   reste « Débloquer cette étape » — rien ne laisse croire l'étape finissable.
+- **L'état de maîtrise remplace le compteur sur une carte de compétence**
+  (décision propriétaire) : `SkillDto.masteryState` (« Priorité » / « À
+  renforcer » / « En consolidation » / « Solide », `SKILL_MASTERY_STATE_LABEL`,
+  libellés gelés) s'affiche à la place de `competenceProgressLabel` dans
+  `CompetencesList`, et à la place du badge de statut sur les cartes
+  « compétences observées » du Plan. **`null` (aucune observation) est le seul
+  cas où le compteur reste** — le serveur n'a rien vu, il n'y a pas d'état à
+  annoncer. Une seule brique, `SkillMasteryPill` (`skill-ui/SkillLayout`), qui
+  réemploie les tons de `SkillBadge` : jamais une teinte nouvelle. Les
+  compteurs restent sur les DTO, ils alimentent toujours l'anneau.
+- **La trajectoire d'une compétence vit dans SA fiche**, pas dans le Plan ni
+  dans un écran de plus : `SkillDetailDto.trajectory` → `SkillTrajectory`
+  (`competences/`), une frise du **plus ancien au plus récent** (l'ordre vient
+  du serveur), une ligne par observation = source
+  (`LEARNING_PLAN_SOURCE_LABEL`, libellés gelés) + verdict + date, l'explication
+  en second plan. **Vide ⇒ aucune section**, pas d'encart d'excuse.
+  `confidence` n'est **jamais** montrée au candidat : c'est la certitude du
+  correcteur, pas son niveau.
+- **Une étape du Plan peut devenir une VÉRIFICATION** —
+  `recommendedExercise.kind === "REASSESSMENT"` : **même carte, même
+  emplacement**, badge « VÉRIFICATION » (là où s'affiche « EN COURS »), CTA
+  « Vérifier ma progression » sur `TodayCard` comme sur `PathStep`. Jamais une
+  seconde carte concurrente. Le routage vit **en un seul endroit**,
+  `recommendedExerciseHref` : micro-sujet → l'écran de petit sujet ;
+  vérification → l'écran de production du sujet
+  (`/entrainement/tcf/{ee|eo}/{redaction|enregistrement}/{productionTaskId}`,
+  segment déclaré une seule fois dans `lib/production-catalog.ts` et lu par
+  `ProductionConfig.inputSegment`). `locked` : cadenas + paywall, l'exercice
+  reste **désigné**.
+- **« Ce que ça change dans le Plan » sur le rapport d'une tâche** :
+  `ProductionSubmissionDto.planChange` → `PlanChangeLine`, **une ligne** en fin
+  de rapport (« X confirmée » / « Nouvelle priorité : Y. » + « Voir » vers
+  `/plan`), les deux moitiés indépendamment nullables. **`planChange === null`
+  est un cas NORMAL** (rien n'a bougé, ou observations pas encore écrites) :
+  rien ne s'affiche, aucun spinner. Les observations arrivant **après** le plan
+  d'action, `ProductionResults` étend la **même** boucle de polling dans le
+  **même** sursis (`ACTION_PLAN_GRACE_MS`, même `graceStartedAt`) — pas de
+  seconde boucle, pas une seconde de plus, et **aucun indicateur d'attente**.
 - **`priority.explanation` n'est affiché sur AUCUNE carte d'action** — ni
   « À faire maintenant » (`TodayCard`), ni les étapes du parcours, ni la carte
   « Votre priorité du jour » du tableau de bord. C'est le constat d'une

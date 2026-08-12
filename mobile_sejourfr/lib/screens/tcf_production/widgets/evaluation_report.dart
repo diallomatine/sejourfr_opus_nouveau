@@ -5,6 +5,7 @@ import '../../../core/models/production_models.dart';
 import 'action_plan.dart';
 import 'criteria_overview.dart';
 import 'evaluation_notice.dart';
+import 'plan_change_line.dart';
 import 'production_action_plan.dart';
 import 'production_text_card.dart';
 import 'results_hero.dart';
@@ -82,6 +83,7 @@ class EvaluationReport extends StatelessWidget {
     this.eyebrow,
     this.productionText,
     this.targetLevel,
+    this.planChange,
     this.actionPlanPending = false,
   });
 
@@ -108,6 +110,10 @@ class EvaluationReport extends StatelessWidget {
   /// savoir si quelque chose tourne encore (cf. [ProductionResultPollGuard]) ;
   /// un rapport rouvert plus tard vaut toujours `false`.
   final bool actionPlanPending;
+
+  /// Ce que cette production a change dans le Plan. `null` (rien n'a bouge, ou
+  /// observations pas encore ecrites) ⇒ **aucune ligne**, aucun message.
+  final PlanChange? planChange;
 
   /// Une tache orale porte toujours la limite de l'oral, meme si le correcteur
   /// a rendu une liste vide.
@@ -177,6 +183,9 @@ class EvaluationReport extends StatelessWidget {
             versionCiblee == null &&
             niveauViseAtteint == null)
           const ActionPlanPending(),
+        // Tout a la fin : ce que cette production a change dans le Plan. Une
+        // ligne, et seulement s'il y a quelque chose a dire.
+        PlanChangeLine(change: planChange),
       ],
     );
   }

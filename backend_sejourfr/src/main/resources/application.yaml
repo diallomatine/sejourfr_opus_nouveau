@@ -957,6 +957,77 @@ sejourfr:
       # Plafond SERVEUR du nombre de leviers (le tool-schema en demande 2 a 3).
       max-leviers: 3
 
+  # Moteur de maitrise des micro-competences (Plan personnalise).
+  #
+  # TOUS les nombres qui decident d'un etat de maitrise sont ici, et nulle part
+  # ailleurs. Rien n'est persiste : changer une valeur relit tout l'historique au
+  # prochain appel, sans migration ni job de rattrapage. Ce sont des parametres
+  # produit, a recalibrer quand il y aura des donnees — pas des verites.
+  # /!\ Les valeurs par defaut de LearningPlanProperties doivent rester
+  # identiques a celles-ci.
+  learning-plan:
+    mastery:
+      # Fenetre glissante : au-dela, une observation ne compte plus du tout. Une
+      # moyenne depuis la creation du compte penaliserait eternellement une
+      # erreur ancienne et ferait remonter trop lentement une competence
+      # nouvellement acquise.
+      window-days: 180
+      # Plafond d'observations retenues par competence, les plus recentes
+      # d'abord : sans lui, trente micro-exercices enchaines dans la journee
+      # ecraseraient deux vraies taches ratees.
+      max-observations: 12
+      # Poids par source. Une reussite tres ciblee ne doit jamais peser autant
+      # qu'une reussite obtenue dans une production complete, ou le candidat
+      # gere en meme temps la consigne, la longueur, le lexique et le temps.
+      # L'examen blanc est la preuve la moins assistee : c'est le poids le plus
+      # fort. Le diagnostic est une vraie production, mais c'est la BASELINE.
+      weight-skill-training: 0.45
+      weight-diagnostic: 0.80
+      weight-production: 1.00
+      weight-mock-exam: 1.20
+      # Reserve : rien n'ecrit encore d'observation CO/CE deterministe, la cle
+      # existe pour que l'extension future ne touche pas au moteur.
+      weight-comprehension: 1.00
+      # Confiance DU CORRECTEUR sur son observation (jamais la qualite du
+      # candidat) : une observation incertaine pese moins sans disparaitre.
+      confidence-high: 1.00
+      confidence-medium: 0.80
+      confidence-low: 0.55
+      # Recence par paliers : decroissance douce, plancher a 0.70. Un candidat
+      # ne doit pas voir son etat basculer parce qu'une nuit est passee.
+      recency-recent-days: 14
+      recency-recent-factor: 1.00
+      recency-medium-days: 30
+      recency-medium-factor: 0.85
+      recency-old-factor: 0.70
+      # Seuils du score pondere, dans [0,1]. Le score reste INTERNE : aucun DTO
+      # candidat ne l'expose, on n'affiche pas un « 73 % maitrise » qui ferait
+      # croire a une precision qui n'existe pas.
+      solid-score: 0.75
+      consolidating-score: 0.50
+      reinforce-score: 0.30
+      # SOLID ne se deduit jamais du seul score : il faut plusieurs reussites,
+      # sur des sujets differents, dont au moins une CONTEXTUALISEE (production
+      # complete ou examen blanc — jamais un micro-entrainement seul).
+      min-positive-observations: 2
+      min-distinct-subjects: 2
+      # Stabilite : il faut DEUX fragilites contextualisees recentes pour faire
+      # redescendre une competence solide. Une seule production moins bonne est
+      # toleree — la progression doit sembler stable, pas aleatoire.
+      fragility-tolerance: 2
+      fragility-window-days: 60
+      # « Pret a etre verifie en situation » : signal INTERNE qui fait passer le
+      # Plan de APPRENDRE a VERIFIER, au lieu d'empiler un 4e micro-exercice.
+      # Le seuil porte sur la performance CIBLEE, pas sur le score global : la
+      # baseline du diagnostic est une fragilite et un micro-exercice reussi ne
+      # vaut qu'une demi-preuve, donc un seuil global serait mecaniquement hors
+      # d'atteinte et le Plan proposerait des micro-exercices a l'infini.
+      readiness-targeted-score: 0.30
+      readiness-targeted-subjects: 2
+      # Duree de validite d'une preuve de transfert : tant qu'elle tient, on ne
+      # redemande pas de verification.
+      transfer-proof-days: 60
+
   # Diagnostic initial : même fournisseur/modèle que production-evaluation,
   # mais contrat et consignes séparés (aucune note /20, aucune tâche officielle).
   diagnostic:

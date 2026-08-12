@@ -73,6 +73,7 @@ function submission(
         ? null
         : ({noteSurVingt: note} as unknown as ProductionSubmissionDto["evaluation"]),
     transcription: null,
+    planChange: null,
   };
 }
 

@@ -6,6 +6,7 @@ import '../../../../core/utils/skill_progress.dart';
 import '../../../../core/widgets/premium_lock.dart';
 import '../../../../core/widgets/pressable_card.dart';
 import '../../../../core/widgets/progress_ring.dart';
+import '../../../../core/widgets/skill_mastery_tag.dart';
 
 /// Ligne d'une compétence, structure de la maquette client : **anneau de
 /// progression** (« 2/5 »), titre, état en clair, chevron.
@@ -15,8 +16,14 @@ import '../../../../core/widgets/progress_ring.dart';
 /// suis sur cette compétence » est exactement ce qu'il vient chercher.
 ///
 /// La progression se lit en **sujets traités** (et non validés — §12 de la
-/// spec) : c'est ce que dit l'anneau. Les sujets réussis, eux, sont nommés
-/// dans le libellé.
+/// spec) : c'est ce que dit l'anneau.
+///
+/// ⚠️ **L'état de maîtrise remplace le compteur de sujets traités** sous le
+/// titre (décision propriétaire) : un compte de sujets dit ce que le candidat a
+/// *fait*, `masteryState` dit ce qu'il *maîtrise* — c'est la question qu'il se
+/// pose. Sans observation (`masteryState == null`), et seulement là, le libellé
+/// de progression reprend sa place : le serveur n'a rien vu, il n'y a pas
+/// d'état à annoncer.
 ///
 /// Une compétence **verrouillée** (`skill.locked`, calculé serveur) reste
 /// entièrement lisible : titre et état ne bougent pas, l'anneau cède la place
@@ -75,23 +82,26 @@ class CompetenceCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  // Le libellé de progression **reste** sur une compétence
-                  // verrouillée : un candidat qui y a déjà produit garde le
-                  // compte de ses sujets traités, le cadenas ne l'efface pas.
+                  // L'état **reste** sur une compétence verrouillée : un
+                  // candidat qui y a déjà produit garde ce qu'il a appris de
+                  // ses propres productions, le cadenas ne l'efface pas.
                   Wrap(
                     spacing: 6,
                     runSpacing: 5,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       if (skill.locked) const PremiumLockTag(),
-                      Text(
-                        competenceProgressLabel(skill),
-                        style: AppFonts.ui(
-                          size: 11.5,
-                          weight: FontWeight.w600,
-                          color: AppColors.inkSoft,
+                      if (skill.masteryState != null)
+                        SkillMasteryTag(state: skill.masteryState!)
+                      else
+                        Text(
+                          competenceProgressLabel(skill),
+                          style: AppFonts.ui(
+                            size: 11.5,
+                            weight: FontWeight.w600,
+                            color: AppColors.inkSoft,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ],

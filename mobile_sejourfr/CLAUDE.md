@@ -562,6 +562,43 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   fini son étape et la voit toujours là croit à un bug. Quand elle est terminée sans être
   toute validée, une seconde ligne discrète dit « N validés sur M » : terminer n'est pas
   tout réussir. Rien de tout ça quand l'étape n'est pas terminée.
+- **L'état de maîtrise remplace le compteur sur une carte de compétence**
+  (décision propriétaire) : `SkillDto.masteryState` (« Priorité » / « À renforcer » /
+  « En consolidation » / « Solide », libellés **gelés**, miroir de
+  `SKILL_MASTERY_STATE_LABEL` côté web) prend la place de `competenceProgressLabel`
+  dans `CompetenceCard`, et celle de `status.label` sur les cartes « Mes compétences
+  observées » du Plan. **`null` (aucune observation) est le seul cas où le compteur
+  reste.** Teinte et pilule vivent à **un seul endroit** :
+  `core/widgets/skill_mastery_tag.dart` (`SkillMasteryTag` + extension
+  `SkillMasteryStateStyle`), qui reprend les teintes de `LearningPlanSkillStatus.color`
+  — jamais une couleur nouvelle. L'anneau garde ses compteurs.
+- **La trajectoire d'une compétence vit dans SA fiche** (`CompetenceDetailScreen`),
+  pas dans le Plan ni dans un écran de plus : `SkillDetail.trajectory` →
+  `SkillTrajectorySection` (`competences/widgets/skill_trajectory.dart`), frise du
+  **plus ancien au plus récent** (ordre serveur), une ligne = source
+  (`LearningPlanSourceType.label`, gelé) + verdict + date, explication en second plan.
+  **Vide ⇒ `SizedBox.shrink`**, pas d'encart d'excuse. `confidence` n'est **jamais**
+  montrée au candidat.
+- **Une étape du Plan peut devenir une VÉRIFICATION** —
+  `recommendedExercise.kind == PlanExerciseKind.reassessment` : **même carte, même
+  emplacement**, badge `VÉRIFICATION` (là où s'affiche `EN COURS`), bouton
+  « Vérifier ma progression » sur `_NowCard` comme sur `_CurrentStepCard`. Jamais une
+  seconde carte. **Le routage vit à un seul endroit**,
+  `tcf_production/recommended_exercise_launcher.dart` (partagé avec le résultat du
+  diagnostic) : micro-sujet → `competencePromptPath` ; vérification → on charge le
+  sujet (`getTask`), on démarre la session (`startSingle`) puis on ouvre
+  `productionSessionPath` (`…/t/0`) — exactement le chemin du mode « Sujets », **le
+  `productionTaskId` ne voyage jamais dans l'URL**. `locked` ⇒ paywall, l'exercice
+  reste désigné.
+- **« Ce que ça change dans le Plan » sur le rapport d'une tâche** :
+  `ProductionSubmissionDto.planChange` → `PlanChangeLine`
+  (`tcf_production/widgets/`), **une ligne** en fin de `EvaluationReport`
+  (« X confirmée » / « Nouvelle priorité : Y. » + « Voir » vers `/plan`), les deux
+  moitiés indépendamment nullables. **`null` est un cas NORMAL** : rien ne s'affiche,
+  aucun indicateur. Les observations arrivant **après** le plan d'action,
+  `ProductionResultPollGuard` prolonge la **même** boucle dans le **même** sursis
+  (`kActionPlanGrace`, même échéance) — pas de seconde boucle, et `awaitsActionPlan`
+  reste réservé au plan d'action.
 - **Le Plan reste visible en entier même verrouillé** (freemium Compétences, cf. § dédié) :
   `locked` sur `LearningPlanPriority` / `LearningPlanSkill` / `PlanRecommendedExercise`
   n'ôte **aucune** information — ni une priorité, ni une compétence observée, ni un

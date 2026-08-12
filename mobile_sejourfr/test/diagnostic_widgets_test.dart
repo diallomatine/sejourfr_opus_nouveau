@@ -205,6 +205,7 @@ DiagnosticProductionResult _production(
     );
 
 const _recommendedExercise = PlanRecommendedExercise(
+  kind: PlanExerciseKind.microTraining,
   skillPromptId: 'prompt-1',
   skillId: 'skill-1',
   skillCode: 'EE_ARG',

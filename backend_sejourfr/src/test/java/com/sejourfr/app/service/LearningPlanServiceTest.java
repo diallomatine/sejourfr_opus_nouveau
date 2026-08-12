@@ -1,13 +1,17 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.config.DiagnosticProperties;
+import com.sejourfr.app.config.LearningPlanProperties;
 import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
+import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.LearningPlanState;
 import com.sejourfr.app.enums.ObservationConfidence;
+import com.sejourfr.app.enums.PlanExerciseKind;
+import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
@@ -29,6 +33,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class LearningPlanServiceTest {
@@ -37,6 +43,7 @@ class LearningPlanServiceTest {
     private DiagnosticSessionManager sessionManager;
     private LearningPlanObservationManager observationManager;
     private RecommendedExerciseSelector exerciseSelector;
+    private ReassessmentExerciseSelector reassessmentSelector;
     private SkillProgressCounter progressCounter;
     private SkillAccessService accessService;
     private LearningPlanService service;
@@ -54,10 +61,20 @@ class LearningPlanServiceTest {
         // ordre que consomme SkillAccessService, on ne le double pas.
         when(accessService.resolve(userId))
                 .thenReturn(SkillAccessService.SkillAccess.UNLIMITED);
+        // Le moteur de maitrise tourne POUR DE VRAI, sur les memes observations
+        // que le resolveur de priorites : c'est ce qui garantit qu'un candidat
+        // ne lit pas « À renforcer » dans son Plan et « En consolidation » dans
+        // le module Competences.
+        LearningPlanProperties planProperties = new LearningPlanProperties();
+        reassessmentSelector = mock(ReassessmentExerciseSelector.class);
+        when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of());
         service = new LearningPlanService(new DiagnosticProperties(), taskManager,
                 sessionManager, observationManager,
                 new LearningPlanPriorityResolver(observationManager),
-                exerciseSelector, progressCounter, accessService);
+                exerciseSelector, reassessmentSelector, progressCounter,
+                new SkillMasteryResolver(observationManager,
+                        new SkillMasteryEngine(planProperties), planProperties),
+                accessService);
     }
 
     @Test
@@ -320,6 +337,247 @@ class LearningPlanServiceTest {
                 .satisfies(skill -> assertThat(skill.locked()).isFalse());
     }
 
+    /**
+     * L'etat de maitrise voyage avec la priorite, et il vient du MEME historique
+     * que l'ordre des priorites. Les deux compteurs de sujets restent la : ils
+     * servent l'anneau de progression, pas le verdict.
+     */
+    @Test
+    void lePlanPorteLetatDeMaitriseEtLeSignalDeVerification() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Skill skill = skill("EE3-C2");
+        Instant now = Instant.now();
+        // Deux micro-exercices reussis sur des sujets differents : le candidat a
+        // compris le moyen, il n'a pas encore prouve qu'il le transfere.
+        LearningPlanObservation dernier = observation(skill, LearningPlanSkillStatus.TO_REINFORCE,
+                now.minusSeconds(3600), LearningPlanSourceType.SKILL_TRAINING, UUID.randomUUID());
+        LearningPlanObservation precedent = observation(skill, LearningPlanSkillStatus.TO_REINFORCE,
+                now.minusSeconds(7200), LearningPlanSourceType.SKILL_TRAINING, UUID.randomUUID());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId))
+                .thenReturn(List.of(dernier, precedent));
+        when(observationManager.countSince(any(), any())).thenReturn(2L);
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        assertThat(result.currentPriority().masteryState())
+                .isEqualTo(SkillMasteryState.CONSOLIDATING);
+        assertThat(result.currentPriority().readyForReassessment()).isTrue();
+        assertThat(result.observedSkills()).singleElement()
+                .satisfies(item -> assertThat(item.masteryState())
+                        .isEqualTo(SkillMasteryState.CONSOLIDATING));
+    }
+
+    @Test
+    void sansObservationExploitableAucunEtatDeMaitriseNestInvente() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Skill skill = skill("EE1-C4");
+        // Une observation trop ancienne pour la fenetre du moteur, mais qui
+        // reste la derniere preuve connue : la priorite s'affiche, l'etat non.
+        LearningPlanObservation ancienne = observation(skill, LearningPlanSkillStatus.PRIORITY,
+                Instant.now().minus(java.time.Duration.ofDays(400)),
+                LearningPlanSourceType.DIAGNOSTIC_EE, UUID.randomUUID());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(ancienne));
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        assertThat(result.currentPriority()).isNotNull();
+        assertThat(result.currentPriority().masteryState()).isNull();
+        assertThat(result.currentPriority().readyForReassessment()).isFalse();
+    }
+
+    // ------------------------------------------------------------------------
+    // L'etape change de NATURE, elle ne se dedouble pas
+    // ------------------------------------------------------------------------
+
+    @Test
+    void quandLaCompetenceEstPreteLetapeProposeUneVerificationEnSituation() {
+        Skill skill = skill("EE3-C2");
+        stubPlanPretAVerifier(skill);
+        UUID sujetDeProduction = UUID.randomUUID();
+        when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of(
+                skill.getId(), PlanRecommendedExerciseDto.reassessment(
+                        sujetDeProduction, skill.getId(), skill.getCode(), "Donner son opinion",
+                        skill.getSection(), (short) 3, 7, false)));
+
+        var priority = service.get(userId).currentPriority();
+
+        assertThat(priority.readyForReassessment()).isTrue();
+        assertThat(priority.recommendedExercise().kind())
+                .isEqualTo(PlanExerciseKind.REASSESSMENT);
+        assertThat(priority.recommendedExercise().productionTaskId()).isEqualTo(sujetDeProduction);
+        assertThat(priority.recommendedExercise().skillPromptId()).isNull();
+        assertThat(priority.recommendedExercise().estimatedMinutes()).isEqualTo(7);
+    }
+
+    /** Le sujet de verification est verrouille : il reste DESIGNE, avec son cadenas. */
+    @Test
+    void unSujetDeVerificationVerrouilleResteDesigne() {
+        Skill skill = skill("EE3-C2");
+        stubPlanPretAVerifier(skill);
+        when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of(
+                skill.getId(), PlanRecommendedExerciseDto.reassessment(
+                        UUID.randomUUID(), skill.getId(), skill.getCode(), "Donner son opinion",
+                        skill.getSection(), (short) 3, 7, true)));
+
+        var exercise = service.get(userId).currentPriority().recommendedExercise();
+
+        assertThat(exercise.kind()).isEqualTo(PlanExerciseKind.REASSESSMENT);
+        assertThat(exercise.locked()).isTrue();
+    }
+
+    @Test
+    void sansSujetPublieLetapeResteUnMicroExercice() {
+        Skill skill = skill("EE3-C2");
+        stubPlanPretAVerifier(skill);
+        when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of());
+
+        var priority = service.get(userId).currentPriority();
+
+        assertThat(priority.readyForReassessment()).isTrue();
+        assertThat(priority.recommendedExercise().kind())
+                .isEqualTo(PlanExerciseKind.MICRO_TRAINING);
+        assertThat(priority.recommendedExercise().skillPromptId()).isNotNull();
+    }
+
+    @Test
+    void sansSignalAucuneVerificationNestMemeCherchee() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Skill skill = skill("EE1-C4");
+        LearningPlanObservation baseline = observation(skill, LearningPlanSkillStatus.PRIORITY,
+                Instant.now().minusSeconds(3600), LearningPlanSourceType.DIAGNOSTIC_EE,
+                UUID.randomUUID());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(baseline));
+        when(observationManager.countSince(any(), any())).thenReturn(1L);
+        stubExercisesForEverySkill();
+
+        var priority = service.get(userId).currentPriority();
+
+        assertThat(priority.readyForReassessment()).isFalse();
+        assertThat(priority.recommendedExercise().kind())
+                .isEqualTo(PlanExerciseKind.MICRO_TRAINING);
+        verify(reassessmentSelector, never()).selectAll(any(), anyCollection());
+    }
+
+    // ------------------------------------------------------------------------
+    // « Le Plan a change » apres une production
+    // ------------------------------------------------------------------------
+
+    @Test
+    void uneProductionQuiConfirmeUneCompetenceLeDit() {
+        UUID submissionId = UUID.randomUUID();
+        Skill confirmee = skill("EE3-C2");
+        LearningPlanObservation observation = observation(confirmee, LearningPlanSkillStatus.SOLID,
+                Instant.now(), LearningPlanSourceType.PRODUCTION_EE, UUID.randomUUID());
+        observation.setSourceId(submissionId);
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(observation));
+
+        var change = service.changeAfterProduction(userId, submissionId);
+
+        assertThat(change).isPresent();
+        assertThat(change.get().confirmedSkill().skillId()).isEqualTo(confirmee.getId());
+        assertThat(change.get().confirmedSkill().title()).isEqualTo(confirmee.getTitle());
+        assertThat(change.get().newPriority()).isNull();
+    }
+
+    @Test
+    void laNouvellePrioriteIssueDeCetteProductionEstAnnoncee() {
+        UUID submissionId = UUID.randomUUID();
+        Skill confirmee = skill("EE3-C2");
+        Skill nouvelle = skill("EE3-C5");
+        LearningPlanObservation solide = observation(confirmee, LearningPlanSkillStatus.SOLID,
+                Instant.now(), LearningPlanSourceType.PRODUCTION_EE, UUID.randomUUID());
+        solide.setSourceId(submissionId);
+        LearningPlanObservation faiblesse = observation(nouvelle, LearningPlanSkillStatus.PRIORITY,
+                Instant.now(), LearningPlanSourceType.PRODUCTION_EE, UUID.randomUUID());
+        faiblesse.setSourceId(submissionId);
+        when(observationManager.findAllByUserWithSkill(userId))
+                .thenReturn(List.of(solide, faiblesse));
+
+        var change = service.changeAfterProduction(userId, submissionId).orElseThrow();
+
+        assertThat(change.confirmedSkill().skillId()).isEqualTo(confirmee.getId());
+        assertThat(change.newPriority().skillId()).isEqualTo(nouvelle.getId());
+    }
+
+    /**
+     * La course avec l'ecriture des observations (best-effort, hors transaction,
+     * apres la correction) : le bloc est simplement <b>absent</b>, jamais une
+     * erreur — la lecture suivante le rendra.
+     */
+    @Test
+    void tantQueLesObservationsNeSontPasEcritesLeBlocEstAbsentSansErreur() {
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of());
+
+        assertThat(service.changeAfterProduction(userId, UUID.randomUUID())).isEmpty();
+        assertThat(service.changeAfterProduction(userId, null)).isEmpty();
+    }
+
+    @Test
+    void uneProductionQuiNeConfirmeRienEtNeChangeRienNaffichePasDeBloc() {
+        UUID submissionId = UUID.randomUUID();
+        Skill deja = skill("EE3-C2");
+        // Cette production confirme le statut existant, mais la priorite n°1
+        // vient d'une AUTRE production : rien de neuf a annoncer ici.
+        LearningPlanObservation autrePriorite = observation(skill("EE1-C1"),
+                LearningPlanSkillStatus.PRIORITY, Instant.now(),
+                LearningPlanSourceType.PRODUCTION_EE, UUID.randomUUID());
+        autrePriorite.setSourceId(UUID.randomUUID());
+        LearningPlanObservation celleCi = observation(deja, LearningPlanSkillStatus.TO_REINFORCE,
+                Instant.now().minusSeconds(10), LearningPlanSourceType.PRODUCTION_EE,
+                UUID.randomUUID());
+        celleCi.setSourceId(submissionId);
+        when(observationManager.findAllByUserWithSkill(userId))
+                .thenReturn(List.of(autrePriorite, celleCi));
+
+        assertThat(service.changeAfterProduction(userId, submissionId)).isEmpty();
+    }
+
+    /** Le diagnostic est la baseline : il ne « confirme » jamais rien. */
+    @Test
+    void uneObservationDeDiagnosticNeConfirmeJamais() {
+        UUID submissionId = UUID.randomUUID();
+        LearningPlanObservation baseline = observation(skill("EE1-C1"),
+                LearningPlanSkillStatus.SOLID, Instant.now(),
+                LearningPlanSourceType.DIAGNOSTIC_EE, UUID.randomUUID());
+        baseline.setSourceId(submissionId);
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(baseline));
+
+        assertThat(service.changeAfterProduction(userId, submissionId)).isEmpty();
+    }
+
+    /**
+     * Historique d'un candidat qui a compris le moyen en cible (deux sujets
+     * differents reussis) sans jamais l'avoir prouve en situation : c'est
+     * exactement ce que le moteur appelle « pret a etre verifie ».
+     */
+    private void stubPlanPretAVerifier(Skill skill) {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Instant now = Instant.now();
+        LearningPlanObservation dernier = observation(skill, LearningPlanSkillStatus.TO_REINFORCE,
+                now.minusSeconds(3600), LearningPlanSourceType.SKILL_TRAINING, UUID.randomUUID());
+        LearningPlanObservation precedent = observation(skill, LearningPlanSkillStatus.TO_REINFORCE,
+                now.minusSeconds(7200), LearningPlanSourceType.SKILL_TRAINING, UUID.randomUUID());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId))
+                .thenReturn(List.of(dernier, precedent));
+        when(observationManager.countSince(any(), any())).thenReturn(2L);
+        stubExercisesForEverySkill();
+    }
+
     private void stubProgress(
             LearningPlanObservation observation, SkillProgressCounter.SkillProgress progress) {
         Map<UUID, SkillProgressCounter.SkillProgress> counts = new LinkedHashMap<>();
@@ -334,7 +592,7 @@ class LearningPlanServiceTest {
             Collection<Skill> skills = invocation.getArgument(1);
             Map<UUID, PlanRecommendedExerciseDto> exercises = new LinkedHashMap<>();
             for (Skill skill : skills) {
-                exercises.put(skill.getId(), new PlanRecommendedExerciseDto(
+                exercises.put(skill.getId(), PlanRecommendedExerciseDto.microTraining(
                         UUID.randomUUID(), skill.getId(), skill.getCode(), "Exercice ciblé",
                         skill.getSection(), 3, false));
             }
@@ -349,11 +607,19 @@ class LearningPlanServiceTest {
 
     private static LearningPlanObservation observation(
             Skill skill, LearningPlanSkillStatus status, Instant at) {
+        return observation(skill, status, at, LearningPlanSourceType.PRODUCTION_EE, null);
+    }
+
+    private static LearningPlanObservation observation(
+            Skill skill, LearningPlanSkillStatus status, Instant at,
+            LearningPlanSourceType source, UUID subjectId) {
         LearningPlanObservation observation = new LearningPlanObservation();
         observation.setId(UUID.randomUUID());
         observation.setSkill(skill);
         observation.setObserved(true);
         observation.setStatus(status);
+        observation.setSourceType(source);
+        observation.setSubjectId(subjectId);
         observation.setExplanation("Explication serveur");
         observation.setEvidence("Preuve exacte");
         observation.setConfidence(ObservationConfidence.HIGH);

@@ -466,6 +466,10 @@
   color: var(--color-blue);
 }
 
+/* Une étape devenue vérification prend la teinte de la vérification déjà
+   présente en fin de parcours (« Réévaluation ») : le même mot ne doit pas
+   porter deux couleurs sur le même écran. */
+.stepState[data-state="check"],
 .stepState[data-state="later"],
 .stepState[data-state="done"] {
   background: color-mix(in srgb, var(--color-green) 12%, transparent);

@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.util.UUID;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -286,6 +287,49 @@ class ProductionAccessServiceTest {
                 userId, written, task(EpreuveType.TCF_EE, (short) 1)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("réservé au diagnostic");
+    }
+
+    // ------------------------------------------------------------------------
+    // Le MEME budget, lu sans rien consommer (cadenas du Plan)
+    // ------------------------------------------------------------------------
+
+    @Test
+    void unAbonneTcfNaJamaisDeCadenasSurUneVerification() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(true);
+
+        assertThat(service.isTrainingLocked(userId, EpreuveType.TCF_EE)).isFalse();
+        assertThat(service.isTrainingLocked(userId, EpreuveType.TCF_EO)).isFalse();
+    }
+
+    @Test
+    void tantQueLessaiGratuitResteLaVerificationEstOuverte() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(attemptManager.countProductionExamSessions(userId)).thenReturn(0L);
+        when(submissionManager.countTrainingByUserAndEpreuve(userId, EpreuveType.TCF_EE))
+                .thenReturn(0L);
+
+        assertThat(service.isTrainingLocked(userId, EpreuveType.TCF_EE)).isFalse();
+    }
+
+    /** La lecture dit exactement ce que l'ecriture refuserait : une seule regle. */
+    @Test
+    void lessaiGratuitConsommeVerrouilleLaVerification() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(attemptManager.countProductionExamSessions(userId)).thenReturn(0L);
+        when(submissionManager.countTrainingByUserAndEpreuve(userId, EpreuveType.TCF_EE))
+                .thenReturn(1L);
+
+        assertThat(service.isTrainingLocked(userId, EpreuveType.TCF_EE)).isTrue();
+        assertThatThrownBy(() -> service.enforceQuota(userId, EpreuveType.TCF_EE, null))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void deuxSessionsDexamenConsommentAussiLaVerification() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(attemptManager.countProductionExamSessions(userId)).thenReturn(2L);
+
+        assertThat(service.isTrainingLocked(userId, EpreuveType.TCF_EO)).isTrue();
     }
 
     private DiagnosticSession diagnosticSession(

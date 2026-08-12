@@ -984,6 +984,28 @@ export interface ProductionSubmissionDto {
   submittedAt: string;
   evaluation: EvaluationResultDto | null;
   transcription: string | null;
+  /**
+   * Ce que cette production a changé dans le Plan personnalisé du candidat.
+   * **Nullable, et son absence est normale** (rien n'a bougé, ou les
+   * observations — écrites après la correction — ne sont pas encore là). La
+   * console ne l'affiche pas : le miroir existe pour que le DTO reste fidèle
+   * au serveur.
+   */
+  planChange: PlanChangeDto | null;
+}
+
+/** De quoi nommer une compétence du Plan et y renvoyer. */
+export interface PlanSkillRefDto {
+  skillId: string;
+  skillCode: string;
+  title: string;
+  section: SkillSection;
+}
+
+/** Les deux moitiés sont indépendamment nullables. */
+export interface PlanChangeDto {
+  confirmedSkill: PlanSkillRefDto | null;
+  newPriority: PlanSkillRefDto | null;
 }
 
 // ============ CALIBRATION DE LA NOTATION IA ============

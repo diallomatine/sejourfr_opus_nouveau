@@ -2,6 +2,7 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.SkillDetailDto;
 import com.sejourfr.app.dto.SkillDto;
+import com.sejourfr.app.dto.SkillObservationPointDto;
 import com.sejourfr.app.dto.SkillPromptDto;
 import com.sejourfr.app.dto.SkillPromptSummaryDto;
 import com.sejourfr.app.dto.SkillReferenceDto;
@@ -9,6 +10,7 @@ import com.sejourfr.app.dto.SkillTaskProgressDto;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.entity.UserSkillAttempt;
+import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillPromptStatus;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
@@ -64,6 +66,7 @@ public class SkillService {
     private final UserSkillAttemptManager attemptManager;
     private final SkillStatusResolver statusResolver;
     private final SkillAccessService accessService;
+    private final SkillMasteryResolver masteryResolver;
     private final SkillMapper skillMapper;
     private final SkillPromptMapper promptMapper;
     private final SkillReferenceMapper referenceMapper;
@@ -167,8 +170,11 @@ public class SkillService {
                     .add(statusResolver.resolve(attempt));
         }
 
-        // Une seule resolution du verrou pour les 24 competences de l'ecran.
+        // Une seule resolution du verrou pour les 24 competences de l'ecran, et
+        // UNE seule requete d'historique pour leurs 24 etats de maitrise.
         SkillAccessService.SkillAccess access = accessService.resolve(userId);
+        Map<UUID, SkillMasteryEngine.SkillMastery> mastery =
+                masteryResolver.bySkillIds(userId, skills.stream().map(Skill::getId).toList());
 
         List<SkillDto> out = new ArrayList<>(skills.size());
         for (Skill skill : skills) {
@@ -180,6 +186,7 @@ public class SkillService {
                     tally.attempted(),
                     tally.validated(),
                     tally.toReinforce(),
+                    masteryState(mastery, skill.getId()),
                     access.isSkillLocked(skill.getId())));
         }
         return out;
@@ -215,8 +222,21 @@ public class SkillService {
 
         SkillDto dto = skillMapper.toDto(
                 skill, prompts.size(), tally.attempted(), tally.validated(), tally.toReinforce(),
+                masteryState(masteryResolver.bySkillIds(userId, List.of(skillId)), skillId),
                 access.isSkillLocked(skill.getId()));
-        return new SkillDetailDto(dto, summaries);
+        // La frise part avec la fiche : l'ecran affiche les deux ensemble, un
+        // second aller-retour n'aurait apporte que de la latence.
+        List<SkillObservationPointDto> trajectory =
+                masteryResolver.trajectory(userId, skillId).stream()
+                        .map(observation -> new SkillObservationPointDto(
+                                observation.getObservedAt(),
+                                observation.getSourceType(),
+                                observation.getStatus(),
+                                observation.getExplanation(),
+                                observation.getConfidence(),
+                                observation.isBaseline()))
+                        .toList();
+        return new SkillDetailDto(dto, summaries, trajectory);
     }
 
     /** Le sujet complet pour l'ecran de production. Ne contient jamais les references. */
@@ -317,6 +337,12 @@ public class SkillService {
             }
         }
         return null;
+    }
+
+    /** {@code null} quand le moteur n'a rien vu : aucune carte n'invente un etat. */
+    private static SkillMasteryState masteryState(
+            Map<UUID, SkillMasteryEngine.SkillMastery> mastery, UUID skillId) {
+        return mastery.getOrDefault(skillId, SkillMasteryEngine.SkillMastery.NONE).state();
     }
 
     private Skill loadActiveSkill(UUID skillId) {

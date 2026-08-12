@@ -22,6 +22,7 @@ import 'competences_providers.dart';
 import '../widgets/production_blocks.dart';
 import '../widgets/production_state_views.dart';
 import 'widgets/skill_prompt_card.dart';
+import 'widgets/skill_trajectory.dart';
 
 /// Détail d'une compétence : carte de résumé, progression en sujets traités,
 /// filtres, puis la liste des petits sujets avec leur statut.
@@ -237,6 +238,13 @@ class _CompetenceDetailScreenState
               ),
               const SizedBox(height: 11),
             ],
+          // La frise arrive APRÈS les sujets : elle raconte le chemin déjà
+          // parcouru, l'écran sert d'abord à en produire un de plus. Vide,
+          // elle ne prend pas un pixel.
+          if (detail.trajectory.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            SkillTrajectorySection(points: detail.trajectory),
+          ],
         ],
       ),
     );

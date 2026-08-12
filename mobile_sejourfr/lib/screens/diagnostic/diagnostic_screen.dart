@@ -9,17 +9,14 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../core/api/audience_repository.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/diagnostic_models.dart';
-import '../../core/models/skill_models.dart';
 import '../../core/providers/target_level_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
-import '../../core/widgets/premium_lock.dart';
 import '../../core/widgets/screen_header.dart';
 import '../tcf_production/audio_recorder_service.dart';
-import '../tcf_production/competences/competences_nav.dart';
-import '../tcf_production/tcf_production_module.dart';
+import '../tcf_production/recommended_exercise_launcher.dart';
 import 'diagnostic_controller.dart';
 import 'widgets/diagnostic_account_gate.dart';
 import 'widgets/diagnostic_analysis.dart';
@@ -259,22 +256,9 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   }
 
   void _openRecommended(PlanRecommendedExercise exercise) {
-    // Même verrou freemium que sur le Plan : le serveur dit si ce micro-exercice
-    // est ouvert, l'app ne le devine pas.
-    if (exercise.locked) {
-      unawaited(showTcfLockPaywall(context));
-      return;
-    }
-    final module = exercise.section == SkillSection.eo
-        ? TcfProductionModule.eo
-        : TcfProductionModule.ee;
-    context.push(
-      competencePromptPath(
-        module,
-        exercise.skillId,
-        exercise.skillPromptId,
-      ),
-    );
+    // Même destination et même verrou freemium que sur le Plan : le lanceur
+    // partagé décide, l'app ne recalcule rien.
+    unawaited(openRecommendedExercise(context, ref, exercise));
   }
 
   @override

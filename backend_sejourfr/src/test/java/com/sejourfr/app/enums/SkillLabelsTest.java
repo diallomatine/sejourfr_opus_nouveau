@@ -49,6 +49,25 @@ class SkillLabelsTest {
                         Map.entry("TO_REINFORCE", "À renforcer"));
     }
 
+    /**
+     * Etat de maitrise d'une COMPETENCE, a ne pas confondre avec le statut d'un
+     * SUJET ci-dessus : « À renforcer » se dit des deux, « En consolidation »
+     * n'existe que pour une competence. Ces quatre chaines vont etre recopiees a
+     * la main dans les cartes web et mobile, comme toutes les autres de ce
+     * fichier — un libelle qui bouge, ce sont les trois copies a changer dans la
+     * meme passe.
+     */
+    @Test
+    @DisplayName("Etat de maitrise d'une competence : les quatre libelles sont geles")
+    void etatsDeMaitrise() {
+        assertThat(labels(SkillMasteryState.class, SkillMasteryState::getLabel))
+                .containsExactly(
+                        Map.entry("PRIORITY", "Priorité"),
+                        Map.entry("TO_REINFORCE", "À renforcer"),
+                        Map.entry("CONSOLIDATING", "En consolidation"),
+                        Map.entry("SOLID", "Solide"));
+    }
+
     @Test
     @DisplayName("Auto-evaluation : les trois libelles sont geles, a la premiere personne")
     void autoEvaluation() {
@@ -128,6 +147,9 @@ class SkillLabelsTest {
                 .doesNotHaveDuplicates()
                 .allSatisfy(l -> assertThat(l).isNotBlank());
         assertThat(labels(SkillPromptStatus.class, SkillPromptStatus::getLabel).values())
+                .doesNotHaveDuplicates()
+                .allSatisfy(l -> assertThat(l).isNotBlank());
+        assertThat(labels(SkillMasteryState.class, SkillMasteryState::getLabel).values())
                 .doesNotHaveDuplicates()
                 .allSatisfy(l -> assertThat(l).isNotBlank());
         assertThat(labels(SkillSelfEvaluation.class, SkillSelfEvaluation::getLabel).values())

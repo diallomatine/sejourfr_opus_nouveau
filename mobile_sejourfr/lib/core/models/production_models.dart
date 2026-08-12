@@ -1,5 +1,6 @@
 import 'action_plan.dart';
 import 'enums.dart';
+import 'skill_models.dart';
 
 /// Miroir mobile des DTOs backend du pipeline EO/EE (cf. PRODUCTION_TASKS_SPEC_V2.md
 /// section 8 + ProductionTaskDto.java / ProductionSubmissionDto.java).
@@ -123,6 +124,7 @@ class ProductionSubmissionDto {
     this.erreurMessage,
     this.evaluation,
     this.transcription,
+    this.planChange,
   });
 
   final String id;
@@ -154,6 +156,12 @@ class ProductionSubmissionDto {
   /// transcription n'a pas tourne.
   final String? transcription;
 
+  /// Ce que cette production a change dans le Plan — **une ligne, pas un
+  /// rapport**. `null` est un cas NORMAL : rien n'a bouge, ou les observations
+  /// (ecrites APRES la correction) ne sont pas encore la. Servi seulement sur
+  /// le detail d'une soumission.
+  final PlanChange? planChange;
+
   bool get isAudio => mediaUrl != null;
 
   bool get isText => texteSoumis != null;
@@ -177,6 +185,57 @@ class ProductionSubmissionDto {
             : EvaluationResult.fromJson(
                 json['evaluation'] as Map<String, dynamic>),
         transcription: json['transcription'] as String?,
+        planChange: json['planChange'] == null
+            ? null
+            : PlanChange.fromJson(json['planChange'] as Map<String, dynamic>),
+      );
+}
+
+/// De quoi nommer une competence du Plan et y renvoyer, sans embarquer tout son
+/// etat.
+class PlanSkillRef {
+  const PlanSkillRef({
+    required this.skillId,
+    required this.skillCode,
+    required this.title,
+    required this.section,
+  });
+
+  final String skillId;
+  final String skillCode;
+  final String title;
+  final SkillSection section;
+
+  factory PlanSkillRef.fromJson(Map<String, dynamic> json) => PlanSkillRef(
+        skillId: json['skillId'] as String,
+        skillCode: json['skillCode'] as String? ?? '',
+        title: json['title'] as String? ?? '',
+        section: SkillSection.fromWire(json['section'] as String),
+      );
+}
+
+/// Ce qu'une production a change dans le Plan. Les deux champs sont
+/// **independamment nullables** : on n'affiche que celui qui existe.
+class PlanChange {
+  const PlanChange({this.confirmedSkill, this.newPriority});
+
+  /// Competence que cette production vient de confirmer en situation.
+  final PlanSkillRef? confirmedSkill;
+
+  /// Nouvelle priorite n°1 issue de cette meme production.
+  final PlanSkillRef? newPriority;
+
+  bool get isEmpty => confirmedSkill == null && newPriority == null;
+
+  factory PlanChange.fromJson(Map<String, dynamic> json) => PlanChange(
+        confirmedSkill: json['confirmedSkill'] == null
+            ? null
+            : PlanSkillRef.fromJson(
+                json['confirmedSkill'] as Map<String, dynamic>),
+        newPriority: json['newPriority'] == null
+            ? null
+            : PlanSkillRef.fromJson(
+                json['newPriority'] as Map<String, dynamic>),
       );
 }
 

@@ -15,6 +15,12 @@ import {
 } from "lucide-react";
 import type {ReactNode} from "react";
 import {type ProductionConfig} from "@/app/_components/production/config";
+import {LEARNING_PLAN_SKILL_STATUS_LABEL} from "@/lib/diagnostic";
+import {
+  type LearningPlanSkillStatus,
+  SKILL_MASTERY_STATE_LABEL,
+  type SkillMasteryState,
+} from "@/lib/types";
 import s from "./skill.module.css";
 
 /**
@@ -443,15 +449,18 @@ export function SectionHead({
   title,
   text,
   action,
+  titleId,
 }: {
   title: string;
   text?: string;
   action?: ReactNode;
+  /** Pour qu'une `<section>` puisse se nommer par son intertitre. */
+  titleId?: string;
 }) {
   return (
     <div className={s.sectionHead}>
       <div>
-        <h2 className={s.sectionHeadTitle}>{title}</h2>
+        <h2 className={s.sectionHeadTitle} id={titleId}>{title}</h2>
         {text && <p className={s.sectionHeadText}>{text}</p>}
       </div>
       {action}
@@ -578,6 +587,52 @@ const BADGE_CLASS: Record<SkillBadgeTone, string> = {
   priority: s.badgePriority,
   level: s.levelPill,
 };
+
+/** Teinte d'un verdict de production. Même échelle que les états de maîtrise
+ *  ci-dessous : les deux se lisent sur les mêmes écrans. */
+const PLAN_STATUS_TONE: Record<LearningPlanSkillStatus, SkillBadgeTone> = {
+  NOT_OBSERVED: "todo",
+  PRIORITY: "priority",
+  TO_REINFORCE: "reinforce",
+  SOLID: "validated",
+};
+
+/** Le verdict d'**une** production sur une compétence (frise de la fiche, cartes
+ *  du Plan). À ne pas confondre avec `SkillMasteryPill`, qui agrège l'historique. */
+export function LearningPlanStatusPill({status}: {status: LearningPlanSkillStatus}) {
+  return (
+    <SkillBadge tone={PLAN_STATUS_TONE[status]}>
+      {LEARNING_PLAN_SKILL_STATUS_LABEL[status]}
+    </SkillBadge>
+  );
+}
+
+/**
+ * Teinte d'un état de maîtrise. **Aucune teinte nouvelle** : on réemploie
+ * exactement celles des statuts de compétence, pour qu'un candidat lise le même
+ * code couleur dans le module Compétences et dans son Plan.
+ */
+const MASTERY_TONE: Record<SkillMasteryState, SkillBadgeTone> = {
+  PRIORITY: "priority",
+  TO_REINFORCE: "reinforce",
+  CONSOLIDATING: "treated",
+  SOLID: "validated",
+};
+
+/**
+ * Où en est le candidat sur une compétence, tout son historique confondu —
+ * **ce que la carte affiche à la place du compteur de sujets traités**.
+ *
+ * `null` (aucune observation) ⇒ rien : on n'invente pas un état pour une
+ * compétence que le serveur n'a jamais vue, et l'appelant reprend son compteur.
+ * Brique partagée par la liste des compétences et par le Plan.
+ */
+export function SkillMasteryPill({state}: {state: SkillMasteryState | null | undefined}) {
+  if (!state) return null;
+  return (
+    <SkillBadge tone={MASTERY_TONE[state]}>{SKILL_MASTERY_STATE_LABEL[state]}</SkillBadge>
+  );
+}
 
 /** Pastille d'état d'une carte. Une seule forme dans tout le parcours. */
 export function SkillBadge({

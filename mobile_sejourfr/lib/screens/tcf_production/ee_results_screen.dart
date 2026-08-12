@@ -228,6 +228,7 @@ class _ResultsBody extends ConsumerWidget {
                 eyebrow: 'Expression écrite · Tâche ${taskIndex + 1}',
                 productionText: submission.texteSoumis,
                 targetLevel: ref.watch(userTargetLevelProvider),
+                planChange: submission.planChange,
                 actionPlanPending: actionPlanPending,
               ),
             ],

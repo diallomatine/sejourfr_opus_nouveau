@@ -84,6 +84,63 @@ enum LearningPlanSkillStatus {
       );
 }
 
+/// D'où vient une observation du Plan.
+///
+/// ⚠️ **Libellés gelés**, miroir mot pour mot de `LEARNING_PLAN_SOURCE_LABEL`
+/// (`web_sejoufr/lib/diagnostic.ts`). Écrit et oral partagent volontairement le
+/// même mot : sur la frise d'une compétence, la section est déjà celle de la
+/// compétence.
+///
+/// [tcfCo] / [tcfCe] sont **réservés** — le serveur ne les sert pas encore ;
+/// ils sont prévus pour qu'aucune ligne n'arrive sans libellé le jour où la
+/// compréhension entrera dans le Plan.
+enum LearningPlanSourceType {
+  diagnosticEe('DIAGNOSTIC_EE', 'Diagnostic'),
+  diagnosticEo('DIAGNOSTIC_EO', 'Diagnostic'),
+  productionEe('PRODUCTION_EE', 'Production complète'),
+  productionEo('PRODUCTION_EO', 'Production complète'),
+  mockExamEe('MOCK_EXAM_EE', 'Examen blanc'),
+  mockExamEo('MOCK_EXAM_EO', 'Examen blanc'),
+  skillTraining('SKILL_TRAINING', 'Entraînement ciblé'),
+  tcfCo('TCF_CO', 'Compréhension'),
+  tcfCe('TCF_CE', 'Compréhension');
+
+  const LearningPlanSourceType(this.wire, this.label);
+
+  final String wire;
+  final String label;
+
+  static LearningPlanSourceType fromWire(String? value) =>
+      LearningPlanSourceType.values.firstWhere(
+        (source) => source.wire == value,
+        orElse: () => LearningPlanSourceType.productionEe,
+      );
+}
+
+/// Nature de l'action proposée par une étape du Plan — **même carte, même
+/// emplacement, action différente**. Les deux ne mènent pas au même écran : on
+/// lit [PlanRecommendedExercise.kind], on ne le devine jamais d'un `null`.
+enum PlanExerciseKind {
+  /// Un petit sujet du module Compétences (`skillPromptId`).
+  microTraining('MICRO_TRAINING'),
+
+  /// Une vraie tâche TCF à produire (`productionTaskId`), pour vérifier que le
+  /// moyen travaillé en ciblé se retrouve **en situation**.
+  reassessment('REASSESSMENT');
+
+  const PlanExerciseKind(this.wire);
+
+  final String wire;
+
+  /// Valeur inconnue ⇒ micro-exercice : c'est le comportement historique, et le
+  /// seul qui ne puisse pas envoyer le candidat sur un écran inexistant.
+  static PlanExerciseKind fromWire(String? value) =>
+      PlanExerciseKind.values.firstWhere(
+        (kind) => kind.wire == value,
+        orElse: () => PlanExerciseKind.microTraining,
+      );
+}
+
 enum ObservationConfidence {
   low('LOW'),
   medium('MEDIUM'),
@@ -358,18 +415,38 @@ class DiagnosticProductionResult {
       );
 }
 
+/// L'exercice réellement disponible que le Plan recommande.
+///
+/// **Deux natures, un seul champ** ([kind]) : un micro-exercice du module
+/// Compétences, ou une **vérification en situation** sur une vraie tâche TCF.
+/// D'où deux identifiants mutuellement exclusifs — [skillPromptId] pour
+/// [PlanExerciseKind.microTraining], [productionTaskId] + [tacheNumero] pour
+/// [PlanExerciseKind.reassessment].
 class PlanRecommendedExercise {
   const PlanRecommendedExercise({
-    required this.skillPromptId,
+    required this.kind,
     required this.skillId,
     required this.skillCode,
     required this.title,
     required this.section,
     required this.estimatedMinutes,
+    this.skillPromptId,
+    this.productionTaskId,
+    this.tacheNumero,
     this.locked = false,
   });
 
-  final String skillPromptId;
+  final PlanExerciseKind kind;
+
+  /// Micro-exercice uniquement ; `null` sur une vérification.
+  final String? skillPromptId;
+
+  /// Vérification uniquement ; `null` sur un micro-exercice.
+  final String? productionTaskId;
+
+  /// Numéro de tâche (1, 2 ou 3) du sujet de production — vérification
+  /// uniquement. Avec [section], c'est ce qui permet d'ouvrir le bon écran.
+  final int? tacheNumero;
   final String skillId;
   final String skillCode;
   final String title;
@@ -384,7 +461,10 @@ class PlanRecommendedExercise {
 
   factory PlanRecommendedExercise.fromJson(Map<String, dynamic> json) =>
       PlanRecommendedExercise(
-        skillPromptId: json['skillPromptId'] as String,
+        kind: PlanExerciseKind.fromWire(json['kind'] as String?),
+        skillPromptId: json['skillPromptId'] as String?,
+        productionTaskId: json['productionTaskId'] as String?,
+        tacheNumero: (json['tacheNumero'] as num?)?.toInt(),
         skillId: json['skillId'] as String,
         skillCode: json['skillCode'] as String? ?? '',
         title: json['title'] as String? ?? '',
@@ -523,6 +603,8 @@ class LearningPlanPriority {
     this.stepAttemptedCount = 0,
     this.stepValidatedCount = 0,
     this.stepCompleted = false,
+    this.masteryState,
+    this.readyForReassessment = false,
     this.locked = false,
   });
 
@@ -557,6 +639,16 @@ class LearningPlanPriority {
   /// affichée** : les priorités ne changent qu'à la prochaine production.
   final bool stepCompleted;
 
+  /// État de maîtrise agrégé de la compétence, identique à
+  /// `SkillDto.masteryState` et issu du même moteur. À ne pas confondre avec
+  /// [status], verdict de la **dernière** production.
+  final SkillMasteryState? masteryState;
+
+  /// `true` quand la compétence a assez été travaillée en exercices ciblés,
+  /// sans preuve de transfert récente : l'étape devient une **vérification**
+  /// (`recommendedExercise.kind == PlanExerciseKind.reassessment`).
+  final bool readyForReassessment;
+
   /// Verrou freemium servi par le serveur. L'étape reste **entièrement
   /// lisible** — masquer une priorité priverait le candidat du résultat de sa
   /// propre production ; seul le passage à l'exercice est verrouillé.
@@ -590,6 +682,9 @@ class LearningPlanPriority {
         stepAttemptedCount: (json['stepAttemptedCount'] as num? ?? 0).toInt(),
         stepValidatedCount: (json['stepValidatedCount'] as num? ?? 0).toInt(),
         stepCompleted: json['stepCompleted'] as bool? ?? false,
+        masteryState:
+            SkillMasteryState.fromWireNullable(json['masteryState'] as String?),
+        readyForReassessment: json['readyForReassessment'] as bool? ?? false,
         locked: json['locked'] as bool? ?? false,
       );
 }
@@ -605,6 +700,7 @@ class LearningPlanSkill {
     this.promptCount = 0,
     this.attemptedCount = 0,
     this.validatedCount = 0,
+    this.masteryState,
     this.locked = false,
   });
 
@@ -614,6 +710,10 @@ class LearningPlanSkill {
   final SkillSection section;
   final LearningPlanSkillStatus status;
   final DateTime lastObservedAt;
+
+  /// Même état agrégé que `SkillDto.masteryState` : un candidat ne doit pas
+  /// lire deux états différents pour une même compétence.
+  final SkillMasteryState? masteryState;
 
   /// Cf. [LearningPlanPriority.promptCount] — mêmes compteurs, même source.
   final int promptCount;
@@ -639,6 +739,8 @@ class LearningPlanSkill {
         promptCount: (json['promptCount'] as num? ?? 0).toInt(),
         attemptedCount: (json['attemptedCount'] as num? ?? 0).toInt(),
         validatedCount: (json['validatedCount'] as num? ?? 0).toInt(),
+        masteryState:
+            SkillMasteryState.fromWireNullable(json['masteryState'] as String?),
         locked: json['locked'] as bool? ?? false,
       );
 }

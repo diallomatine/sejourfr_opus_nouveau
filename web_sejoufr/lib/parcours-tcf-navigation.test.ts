@@ -76,6 +76,7 @@ class BackendSpy {
               attemptedCount: 0,
               validatedCount: 0,
               toReinforceCount: 0,
+              masteryState: null,
               locked: false,
             }),
           ),
@@ -126,6 +127,7 @@ class BackendSpy {
             submittedAt: "2026-08-01T10:00:00Z",
             evaluation: null,
             transcription: null,
+            planChange: null,
           },
           {
             id: "sub-2",
@@ -142,6 +144,7 @@ class BackendSpy {
             submittedAt: "2026-08-01T10:20:00Z",
             evaluation: null,
             transcription: null,
+            planChange: null,
           },
         ],
       ),

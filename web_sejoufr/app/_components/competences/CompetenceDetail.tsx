@@ -21,6 +21,7 @@ import {type ProductionConfig} from "@/app/_components/production/config";
 import {ConfirmSheet} from "@/app/_components/hub/ConfirmSheet";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {CompetenceStatusBadge, promptCardToneClass} from "./CompetenceStatusBadge";
+import {SkillTrajectory} from "./SkillTrajectory";
 import {
   MiniBar,
   RowChevron,
@@ -215,6 +216,10 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                 ))}
               </div>
             )}
+
+            {/* La frise arrive APRÈS les sujets : elle raconte le chemin déjà
+                parcouru, l'écran sert d'abord à en produire un de plus. */}
+            <SkillTrajectory points={data?.trajectory ?? []} />
 
             <Link href={`${config.base}/tache/${n}`} className={s.footLink}>
               ← Revenir aux sujets TCF complets

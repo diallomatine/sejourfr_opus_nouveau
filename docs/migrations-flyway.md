@@ -27,9 +27,12 @@ db/migration/
 │   │                                             correctifs de données (V023, V024)
 │   ├── V025__schema_competences_tcf.sql         skills, skill_prompts, skill_references,
 │   │                                             user_skill_attempts (module Compétences TCF)
-│   └── V026-V028                                guidage des petits sujets (V026), qualité de
+│   └── V026-V031                                guidage des petits sujets (V026), qualité de
 │                                                 transcription (V027), production_tasks.titre
-│                                                 (V028, intitulé éditorial d'un sujet EE/EO)
+│                                                 (V028, intitulé éditorial d'un sujet EE/EO),
+│                                                 diagnostic + Plan (V029), funnel (V030),
+│                                                 moteur de maîtrise (V031 : sources d'examen
+│                                                 blanc + learning_plan_observations.subject_id)
 │
 ├── 100_reference/                   V100-V199   données de référence (fixes, prod + dev)
 │   ├── V100__ref_plans.sql                      catalogue plans (abonnements dormants + passes one-time)
@@ -131,8 +134,8 @@ db/migration-dev/                    V900+       seeds dev uniquement (comptes s
 
 ## Ajouter une migration
 
-- **Évolution de schéma** → `00_schema/`, prochain `V0xx` libre. **Max actuel : `V028`**
-  (`production_tasks.titre`) → le prochain est `V029`.
+- **Évolution de schéma** → `00_schema/`, prochain `V0xx` libre. **Max actuel : `V031`**
+  (moteur de maîtrise) → le prochain est `V032`.
 - **Nouvelle donnée de référence** → `100_reference/`, prochain `V1xx`. Max actuel : `V113`.
 - **Nouveau lot de contenu** → sous-dossier du domaine/niveau concerné, prochain numéro
   libre dans la plage. Vérifier les slots restants de la sous-plage visée avant de choisir.

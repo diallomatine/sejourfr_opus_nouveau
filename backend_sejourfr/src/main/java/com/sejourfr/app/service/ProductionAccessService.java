@@ -10,6 +10,7 @@ import com.sejourfr.app.manager.ProductionSubmissionManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -172,19 +173,44 @@ public class ProductionAccessService {
         }
 
         // Refaire l'examen blanc (2e session) consomme les essais restants.
-        if (attemptManager.countProductionExamSessions(userId) >= 2) {
+        if (examSessionsConsumedTraining(userId)) {
             throw new AccessDeniedException(
                     "Vos essais gratuits EE/EO ont ete utilises en refaisant l'examen blanc. "
                             + "Passez Premium pour continuer.");
         }
 
-        long used = submissionManager.countTrainingByUserAndEpreuve(userId, epreuve);
-        if (used >= FREE_TRAINING_PER_EPREUVE) {
+        if (trainingQuotaExhausted(userId, epreuve)) {
             throw new AccessDeniedException(
                     "Quota gratuit atteint pour " + epreuve.getLabel() + " (" + FREE_TRAINING_PER_EPREUVE
                             + " essai a vie). Passez Premium pour continuer."
             );
         }
+    }
+
+    /**
+     * Le meme budget freemium, <b>en lecture</b> : « ce candidat peut-il encore
+     * produire librement sur cette epreuve ? ».
+     *
+     * <p>Sert a poser le cadenas sur la verification en situation du Plan
+     * ({@code ReassessmentExerciseSelector}) sans rien tenter ni rien consommer.
+     * Il partage ses deux conditions avec {@link #enforceQuota} — deux copies
+     * auraient fini par afficher un sujet ouvert que le serveur refuse, ou
+     * l'inverse. Le sujet reste <b>designe</b> meme verrouille : savoir quoi
+     * travailler est ce que le Plan apporte.
+     */
+    @Transactional(readOnly = true)
+    public boolean isTrainingLocked(UUID userId, EpreuveType epreuve) {
+        if (subscriptionService.hasTcf(userId)) return false;
+        return examSessionsConsumedTraining(userId) || trainingQuotaExhausted(userId, epreuve);
+    }
+
+    private boolean examSessionsConsumedTraining(UUID userId) {
+        return attemptManager.countProductionExamSessions(userId) >= 2;
+    }
+
+    private boolean trainingQuotaExhausted(UUID userId, EpreuveType epreuve) {
+        return submissionManager.countTrainingByUserAndEpreuve(userId, epreuve)
+                >= FREE_TRAINING_PER_EPREUVE;
     }
 
     /**

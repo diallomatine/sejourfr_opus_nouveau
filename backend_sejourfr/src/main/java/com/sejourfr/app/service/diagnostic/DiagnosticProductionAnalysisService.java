@@ -91,11 +91,19 @@ public class DiagnosticProductionAnalysisService {
         submissionManager.save(submission);
     }
 
-    /** Appel best-effort après la correction TCF standard, uniquement si un Plan existe. */
+    /**
+     * Appel best-effort après la correction TCF standard.
+     *
+     * <p><b>Plus aucune condition de diagnostic terminé</b> (levée le
+     * 2026-08-12) : un candidat qui produit sans avoir passé le diagnostic
+     * n'accumulait aucun historique, et tout son travail était perdu le jour où
+     * il le passait. Les productions d'examen blanc passent par ici comme les
+     * autres — c'est {@code LearningPlanObservationService} qui les distingue
+     * ensuite par leur source.
+     */
     public void observeStandardProduction(UUID submissionId) {
         ProductionSubmission submission = load(submissionId);
         if (submission.getProductionTask().isDiagnostic()) return;
-        if (!observationService.hasActivePlan(submission.getUser().getId())) return;
         AnalysisRun run = analyse(submission, false);
         observationService.recordProduction(submission, run.allowedSkills(), run.normalized(), false);
     }

@@ -245,6 +245,7 @@ class _Body extends ConsumerWidget {
                 isOral: true,
                 eyebrow: 'Expression orale · Tâche ${taskIndex + 1}',
                 targetLevel: ref.watch(userTargetLevelProvider),
+                planChange: submission.planChange,
                 actionPlanPending: actionPlanPending,
               ),
               if (submission.transcription != null &&

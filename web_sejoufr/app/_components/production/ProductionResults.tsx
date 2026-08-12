@@ -17,6 +17,7 @@ import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
 import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
+import {PlanChangeLine} from "./PlanChangeLine";
 import {ProductionFeedbackView} from "./ProductionFeedbackView";
 import {TranscriptDialogue} from "./TranscriptDialogue";
 import {type ProductionConfig, TCF_HUB_HREF, TCF_HUB_LABEL} from "./config";
@@ -96,10 +97,19 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
             hasVersionCiblee: fb?.versionCiblee != null,
             hasNiveauViseAtteint: fb?.niveauViseAtteint != null,
           });
-          if (mayArrive) {
+          // Ce que la production change dans le Plan vient d'un appel encore
+          // PLUS TARDIF (les observations sont écrites après le plan d'action).
+          // On le laisse arriver **dans le sursis déjà accordé** — même
+          // `graceStartedAt`, donc pas une seconde de polling de plus qu'avant,
+          // et **aucun indicateur d'attente** : un Plan inchangé est un cas
+          // normal, il n'y a rien à annoncer.
+          const planChangeMayArrive =
+            sub.statut === "EVALUATED" && observedInFlight && sub.planChange == null;
+          if (mayArrive || planChangeMayArrive) {
             graceStartedAt ??= Date.now();
-            again = Date.now() - graceStartedAt < ACTION_PLAN_GRACE_MS;
-            waiting = again;
+            const withinGrace = Date.now() - graceStartedAt < ACTION_PLAN_GRACE_MS;
+            again = withinGrace;
+            waiting = mayArrive && withinGrace;
           }
         }
 
@@ -222,6 +232,10 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
                 </div>
               </details>
             )}
+
+            {/* Ce que cette production a changé dans le Plan : une ligne, et
+                seulement s'il y a quelque chose à dire. */}
+            <PlanChangeLine change={submission.planChange} />
 
             <div className={s.actions}>
               <Link href={backHref} className={`${s.primary} ${s.actionWide}`}>

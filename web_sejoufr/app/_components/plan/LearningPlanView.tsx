@@ -24,7 +24,6 @@ import {
 import {useAuth} from "@/lib/auth-context";
 import {
   competenceHref,
-  LEARNING_PLAN_SKILL_STATUS_LABEL,
   productionSectionLabel,
   recommendedExerciseHref,
 } from "@/lib/diagnostic";
@@ -35,31 +34,20 @@ import {
   type LearningPlanDto,
   type LearningPlanPriorityDto,
   type LearningPlanSkillDto,
-  type LearningPlanSkillStatus,
   niveauCecrlLabel,
 } from "@/lib/types";
 import {useTrafficSource} from "@/lib/use-traffic-source";
 import {
+  LearningPlanStatusPill,
   RowChevron,
   SKILL_PREMIUM_HREF,
   SkillAccent,
-  SkillBadge,
-  type SkillBadgeTone,
   SkillLockBadge,
+  SkillMasteryPill,
   SkillRing,
 } from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
 import styles from "./plan.module.css";
-
-/** Pastille d'état, empruntée telle quelle au module Compétences : le Plan et
- *  « Réviser → Compétences » parlent des mêmes compétences, ils doivent se
- *  ressembler. */
-const SKILL_BADGE_TONE: Record<LearningPlanSkillStatus, SkillBadgeTone> = {
-  NOT_OBSERVED: "todo",
-  PRIORITY: "priority",
-  TO_REINFORCE: "reinforce",
-  SOLID: "validated",
-};
 
 /** Nombre de compétences observées affichées avant le repli — le brief §20
  *  interdit de dérouler les 48 d'un coup. */
@@ -383,6 +371,10 @@ function PlanHero({
 function TodayCard({priority}: {priority: LearningPlanPriorityDto}) {
   const exercise = priority.recommendedExercise;
   const locked = priority.locked || exercise?.locked === true;
+  // Assez travaillée en ciblé, pas encore prouvée en situation : la même carte,
+  // au même endroit, cesse de proposer un micro-sujet et propose une
+  // vérification sur une vraie tâche TCF. Jamais une seconde carte à côté.
+  const check = exercise?.kind === "REASSESSMENT";
   return (
     <section className={styles.today} aria-labelledby="today-title">
       <div className={styles.todayTop}>
@@ -430,7 +422,7 @@ function TodayCard({priority}: {priority: LearningPlanPriorityDto}) {
           href={recommendedExerciseHref(exercise)}
           onClick={() => trackAudienceEvent("/plan", "PLAN_RECOMMENDED_EXERCISE_STARTED")}
         >
-          Commencer <ArrowRight size={17} aria-hidden />
+          {check ? "Vérifier ma progression" : "Commencer"} <ArrowRight size={17} aria-hidden />
         </Link>
       ) : (
         <Link
@@ -502,6 +494,10 @@ function PathStep({
   // Le verrou est **lu**, jamais déduit du rang de l'étape : si le serveur
   // change sa règle d'ouverture, cet écran suit sans une ligne à retoucher.
   const locked = priority.locked || exercise?.locked === true;
+  // L'étape courante change de NATURE quand le serveur juge la compétence assez
+  // travaillée en ciblé sans preuve de transfert : même carte, même place, mais
+  // on ne propose plus un micro-sujet — on va vérifier en situation.
+  const check = current && exercise?.kind === "REASSESSMENT";
   return (
     <li className={`${styles.step} ${current ? styles.stepCurrent : ""}`}>
       <span className={`${styles.stepMark} ${current ? styles.stepMarkCurrent : ""}`} aria-hidden>
@@ -511,9 +507,9 @@ function PathStep({
         <div className={styles.stepHead}>
           <span
             className={styles.stepState}
-            data-state={current ? (done ? "done" : "current") : "next"}
+            data-state={check ? "check" : current ? (done ? "done" : "current") : "next"}
           >
-            {current ? (done ? "Terminée" : "En cours") : "À venir"}
+            {check ? "Vérification" : current ? (done ? "Terminée" : "En cours") : "À venir"}
           </span>
           {locked && <SkillLockBadge />}
           <span className={styles.stepMeta}>
@@ -574,10 +570,15 @@ function PathStep({
               <Link
                 className={styles.stepCtaStrong}
                 href={recommendedExerciseHref(exercise)}
-                aria-label={`Continuer cette étape : ${priority.title}`}
+                aria-label={
+                  check
+                    ? `Vérifier ma progression : ${priority.title}`
+                    : `Continuer cette étape : ${priority.title}`
+                }
                 onClick={() => trackAudienceEvent("/plan", "PLAN_RECOMMENDED_EXERCISE_STARTED")}
               >
-                Continuer cette étape <ArrowRight size={16} aria-hidden />
+                {check ? "Vérifier ma progression" : "Continuer cette étape"}{" "}
+                <ArrowRight size={16} aria-hidden />
               </Link>
             )}
           </>
@@ -625,7 +626,12 @@ function ObservedSkills({skills, total}: {skills: LearningPlanSkillDto[]; total:
 
 /** Verrouillée, la compétence garde son anneau, son état et sa pastille : c'est
  *  le résultat de la propre production du candidat, le masquer serait le lui
- *  reprendre. Seule la destination change. */
+ *  reprendre. Seule la destination change.
+ *
+ *  La pastille dit l'état de maîtrise (tout l'historique) dès que le serveur en
+ *  a un ; sans observation agrégée, elle retombe sur le verdict de la dernière
+ *  production. **Jamais les deux** : « Priorité » et « Prioritaire » côte à côte
+ *  se liraient comme deux informations, alors que c'est la même. */
 function SkillCard({skill}: {skill: LearningPlanSkillDto}) {
   const done = skill.promptCount > 0 && skill.attemptedCount >= skill.promptCount;
   const locked = skill.locked;
@@ -643,9 +649,11 @@ function SkillCard({skill}: {skill: LearningPlanSkillDto}) {
       </span>
       <span className={styles.skillAside}>
         {locked && <SkillLockBadge />}
-        <SkillBadge tone={SKILL_BADGE_TONE[skill.status]}>
-          {LEARNING_PLAN_SKILL_STATUS_LABEL[skill.status]}
-        </SkillBadge>
+        {skill.masteryState ? (
+          <SkillMasteryPill state={skill.masteryState} />
+        ) : (
+          <LearningPlanStatusPill status={skill.status} />
+        )}
         <RowChevron />
       </span>
     </Link>

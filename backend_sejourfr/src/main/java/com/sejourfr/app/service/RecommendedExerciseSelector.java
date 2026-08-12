@@ -8,6 +8,7 @@ import com.sejourfr.app.enums.SkillPromptStatus;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.manager.SkillPromptManager;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
+import com.sejourfr.app.util.ExerciseDuration;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -60,23 +61,6 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 public class RecommendedExerciseSelector {
-
-    /** Repli quand le sujet ne porte aucune donnee de duree (colonnes nullables). */
-    private static final int DEFAULT_MINUTES_ORAL = 5;
-    private static final int DEFAULT_MINUTES_WRITTEN = 4;
-
-    /**
-     * Une part de parole, deux parts pour lire la situation, preparer et
-     * s'enregistrer : le temps de parole conseille (20 a 58 s sur le contenu
-     * publie) ne represente qu'un tiers du temps passe sur l'exercice.
-     */
-    private static final int ORAL_PREPARATION_FACTOR = 3;
-
-    /**
-     * Mots par minute retenus a l'ecrit : rythme d'un candidat A2/B1 qui redige
-     * en langue etrangere, lecture de la consigne et relecture comprises.
-     */
-    private static final int WRITTEN_WORDS_PER_MINUTE = 12;
 
     private final SkillPromptManager promptManager;
     private final UserSkillAttemptManager attemptManager;
@@ -138,7 +122,7 @@ public class RecommendedExerciseSelector {
                             promptsBySkill.getOrDefault(entry.getKey(), List.of())),
                     latestByPrompt);
             if (chosen == null) continue;
-            out.put(entry.getKey(), new PlanRecommendedExerciseDto(
+            out.put(entry.getKey(), PlanRecommendedExerciseDto.microTraining(
                     chosen.getId(), skill.getId(), skill.getCode(), chosen.getTitle(),
                     skill.getSection(), estimatedMinutes(chosen, skill.getSection()),
                     access.isPromptLocked(chosen.getId())));
@@ -148,31 +132,15 @@ public class RecommendedExerciseSelector {
 
     /**
      * Duree estimee d'un micro-exercice, <b>derivee du sujet lui-meme</b> et non
-     * d'une constante par epreuve.
-     *
-     * <p>EO : {@code recommendedDurationSeconds} x {@value #ORAL_PREPARATION_FACTOR},
-     * arrondi a la minute superieure. EE : milieu de la fourchette conseillee
-     * ({@code recommendedMinWords}..{@code recommendedMaxWords}) divise par
-     * {@value #WRITTEN_WORDS_PER_MINUTE} mots par minute, arrondi a la minute
-     * superieure ; une seule borne renseignee sert seule de reference.
-     *
-     * <p>Les trois colonnes sont nullables (un sujet cree en console peut naitre
-     * sans conseil) : sans donnee, on retombe sur les constantes historiques,
-     * {@value #DEFAULT_MINUTES_ORAL} min a l'oral et
-     * {@value #DEFAULT_MINUTES_WRITTEN} min a l'ecrit. Plancher 1 minute : aucun
-     * exercice ne dure zero.
+     * d'une constante par epreuve. La formule vit dans {@link ExerciseDuration},
+     * partagee avec la verification en situation : deux copies auraient fini par
+     * annoncer deux temps differents pour un travail comparable.
      */
     static int estimatedMinutes(SkillPrompt prompt, SkillSection section) {
-        if (section == SkillSection.EO) {
-            Integer seconds = prompt.getRecommendedDurationSeconds();
-            if (seconds == null || seconds <= 0) return DEFAULT_MINUTES_ORAL;
-            return atLeastOne(ceilDiv(seconds * ORAL_PREPARATION_FACTOR, 60));
-        }
-        Integer min = positiveOrNull(prompt.getRecommendedMinWords());
-        Integer max = positiveOrNull(prompt.getRecommendedMaxWords());
-        if (min == null && max == null) return DEFAULT_MINUTES_WRITTEN;
-        int words = min == null ? max : max == null ? min : (min + max) / 2;
-        return atLeastOne(ceilDiv(words, WRITTEN_WORDS_PER_MINUTE));
+        return section == SkillSection.EO
+                ? ExerciseDuration.oral(prompt.getRecommendedDurationSeconds())
+                : ExerciseDuration.written(
+                        prompt.getRecommendedMinWords(), prompt.getRecommendedMaxWords());
     }
 
     /**
@@ -212,15 +180,4 @@ public class RecommendedExerciseSelector {
         return attempt.getCreatedAt() == null ? Instant.EPOCH : attempt.getCreatedAt();
     }
 
-    private static Integer positiveOrNull(Integer value) {
-        return value == null || value <= 0 ? null : value;
-    }
-
-    private static int ceilDiv(int value, int divisor) {
-        return (value + divisor - 1) / divisor;
-    }
-
-    private static int atLeastOne(int minutes) {
-        return Math.max(1, minutes);
-    }
 }

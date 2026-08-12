@@ -27,6 +27,7 @@ import type {
   ProductionExampleDto,
   ProductionSubmissionDto,
   ProductionTaskDto,
+  SkillSection,
 } from "./types.ts";
 
 /** Clé du catalogue de sujets d'une épreuve — les 3 tâches d'un coup. */
@@ -47,6 +48,23 @@ export function productionMineKey(epreuve: EpreuveType): string {
 /** Clé du bilan d'une session d'examen blanc. */
 export function productionBilanKey(attemptId: string): string {
   return `production:bilan:${attemptId}`;
+}
+
+/**
+ * Segment de la route de saisie d'une production, par épreuve. **Déclaré ici et
+ * nulle part ailleurs** : `ProductionConfig.inputSegment` le lit, et le Plan y
+ * route sa vérification en situation. Deux copies auraient fini par envoyer le
+ * candidat sur une adresse qui n'existe pas.
+ */
+export const PRODUCTION_INPUT_SEGMENT: Record<SkillSection, string> = {
+  EE: "redaction",
+  EO: "enregistrement",
+};
+
+/** L'écran où l'on produit un sujet TCF précis — la seule adresse qui porte un
+ *  `productionTaskId`. */
+export function productionTaskHref(section: SkillSection, productionTaskId: string): string {
+  return `/entrainement/tcf/${section.toLowerCase()}/${PRODUCTION_INPUT_SEGMENT[section]}/${productionTaskId}`;
 }
 
 /** Ce que purge une soumission de production (progression + bilans), catalogue

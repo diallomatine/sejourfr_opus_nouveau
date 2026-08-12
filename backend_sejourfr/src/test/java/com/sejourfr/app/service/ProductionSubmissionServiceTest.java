@@ -1,6 +1,8 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.CorrespondanceTcfDto;
+import com.sejourfr.app.dto.PlanChangeDto;
+import com.sejourfr.app.dto.PlanSkillRefDto;
 import com.sejourfr.app.dto.ProductionBilanResponse;
 import com.sejourfr.app.dto.ProductionSubmissionDto;
 import com.sejourfr.app.dto.SubmitProductionTextRequest;
@@ -11,6 +13,8 @@ import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.SkillSection;
+import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
@@ -59,6 +63,7 @@ class ProductionSubmissionServiceTest {
     private ProductionBilanService bilanService;
     private ProductionExamCompositionService compositionService;
     private RateLimitGuard rateLimitGuard;
+    private LearningPlanService learningPlanService;
     private ProductionSubmissionService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -83,10 +88,12 @@ class ProductionSubmissionServiceTest {
         ProductionAccessService accessService = new ProductionAccessService(
                 subscriptionService, attemptManager, submissionManager,
                 mock(com.sejourfr.app.manager.DiagnosticSessionManager.class));
+        learningPlanService = mock(LearningPlanService.class);
+        when(learningPlanService.changeAfterProduction(any(), any())).thenReturn(Optional.empty());
         service = new ProductionSubmissionService(
                 evaluationService, submissionManager, attemptManager, taskManager,
                 mapper, taskMapper, currentUser, bilanService,
-                compositionService, accessService, rateLimitGuard);
+                compositionService, accessService, rateLimitGuard, learningPlanService);
 
         when(currentUser.getId()).thenReturn(userId);
     }
@@ -231,6 +238,80 @@ class ProductionSubmissionServiceTest {
         when(submissionManager.findById(subId)).thenReturn(Optional.of(other));
 
         assertThatThrownBy(() -> service.getOwnDetail(subId)).isInstanceOf(NotFoundException.class);
+    }
+
+    // ------------------------------------------------------------------------
+    // « Le Plan a change » : resolu a la lecture, absent sans faute
+    // ------------------------------------------------------------------------
+
+    @Test
+    void getOwnDetail_porte_le_changement_de_plan_quand_il_y_en_a_un() {
+        UUID subId = UUID.randomUUID();
+        stubOwnEvaluatedSubmission(subId);
+        PlanChangeDto change = new PlanChangeDto(
+                new PlanSkillRefDto(UUID.randomUUID(), "EE3-C2", "Argumenter", SkillSection.EE),
+                null);
+        when(learningPlanService.changeAfterProduction(userId, subId))
+                .thenReturn(Optional.of(change));
+
+        assertThat(service.getOwnDetail(subId).planChange()).isEqualTo(change);
+    }
+
+    @Test
+    void getOwnDetail_sans_observation_encore_ecrite_ne_porte_rien_et_ne_leve_pas() {
+        UUID subId = UUID.randomUUID();
+        stubOwnEvaluatedSubmission(subId);
+        when(learningPlanService.changeAfterProduction(userId, subId)).thenReturn(Optional.empty());
+
+        assertThat(service.getOwnDetail(subId).planChange()).isNull();
+    }
+
+    @Test
+    void getOwnDetail_avant_evaluation_ne_consulte_meme_pas_le_plan() {
+        UUID subId = UUID.randomUUID();
+        ProductionSubmission sub = ownSubmission(subId, SubmissionStatut.EVALUATING);
+        when(submissionManager.findById(subId)).thenReturn(Optional.of(sub));
+        when(mapper.toDto(sub)).thenReturn(dto(subId, SubmissionStatut.EVALUATING));
+
+        assertThat(service.getOwnDetail(subId).planChange()).isNull();
+        verify(learningPlanService, never()).changeAfterProduction(any(), any());
+    }
+
+    /** Le diagnostic a son propre ecran de resultat agrege : pas de bloc ici. */
+    @Test
+    void getOwnDetail_dun_sujet_de_diagnostic_ne_consulte_pas_le_plan() {
+        UUID subId = UUID.randomUUID();
+        ProductionSubmission sub = ownSubmission(subId, SubmissionStatut.EVALUATED);
+        sub.getProductionTask().setDiagnosticCode("INITIAL_TCF");
+        sub.getProductionTask().setDiagnosticVersion(1);
+        when(submissionManager.findById(subId)).thenReturn(Optional.of(sub));
+        when(mapper.toDto(sub)).thenReturn(dto(subId, SubmissionStatut.EVALUATED));
+
+        assertThat(service.getOwnDetail(subId).planChange()).isNull();
+        verify(learningPlanService, never()).changeAfterProduction(any(), any());
+    }
+
+    private void stubOwnEvaluatedSubmission(UUID subId) {
+        ProductionSubmission sub = ownSubmission(subId, SubmissionStatut.EVALUATED);
+        when(submissionManager.findById(subId)).thenReturn(Optional.of(sub));
+        when(mapper.toDto(sub)).thenReturn(dto(subId, SubmissionStatut.EVALUATED));
+    }
+
+    private ProductionSubmission ownSubmission(UUID subId, SubmissionStatut statut) {
+        ProductionSubmission sub = new ProductionSubmission();
+        sub.setId(subId);
+        User owner = new User();
+        owner.setId(userId);
+        sub.setUser(owner);
+        sub.setStatut(statut);
+        sub.setProductionTask(eeTask());
+        return sub;
+    }
+
+    private ProductionSubmissionDto dto(UUID subId, SubmissionStatut statut) {
+        return new ProductionSubmissionDto(
+                subId, null, taskId, (short) 1, statut, null, "Texte", 60, null,
+                (short) 0, null, Instant.now(), null, null, null);
     }
 
     @Test
