@@ -55,8 +55,13 @@ class DiagnosticAnalysisValidatorTest {
                 .anyMatch(message -> message.contains("manquantes"));
     }
 
+    /**
+     * {@code priority} est dérivé par {@link DiagnosticAnalysisReconciler} : ni
+     * la divergence avec {@code status}, ni le dépassement du plafond ne sont
+     * encore des motifs de refus. Le reste des incohérences l'est toujours.
+     */
     @Test
-    void refusePlusDeDeuxPrioritesEtLesIncoherencesNonObservees() {
+    void neRefuseJamaisSurLaPrioriteMaisConserveLesIncoherencesNonObservees() {
         Map<String, Object> output = validOutput(List.of(
                 observed("EE1-C1", "PRIORITY", 1, "HIGH", true),
                 observed("EE1-C8", "PRIORITY", 1, "HIGH", true),
@@ -65,10 +70,20 @@ class DiagnosticAnalysisValidatorTest {
 
         assertThat(validator.violations(
                 output, skills("EE1-C1", "EE1-C8", "EE2-C2", "EE2-C3"), segments))
-                .anyMatch(message -> message.contains("maximum 2 priorités"))
+                .noneMatch(message -> message.contains("priorit"))
                 .anyMatch(message -> message.contains("non observée doit être NOT_OBSERVED"))
                 .anyMatch(message -> message.contains("preuve interdite"))
                 .anyMatch(message -> message.contains("confiance LOW"));
+    }
+
+    @Test
+    void nExigePlusAucuneCoherenceEntrePriorityEtStatus() {
+        Map<String, Object> divergent = validOutput(List.of(
+                observed("EE1-C1", "PRIORITY", 1, "HIGH", false),
+                observed("EE1-C8", "TO_REINFORCE", 2, "MEDIUM", true)));
+
+        assertThat(validator.violations(divergent, skills("EE1-C1", "EE1-C8"), segments))
+                .isEmpty();
     }
 
     @Test

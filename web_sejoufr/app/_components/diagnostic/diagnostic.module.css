@@ -238,6 +238,39 @@
   margin-top: 25px;
 }
 
+/* Sélecteurs qualifiés : `.stateCard > p` reprendrait sinon la main sur la
+   couleur et la marge (même convention que `.waitReassurance` plus bas). */
+
+/* L'échec de la RELANCE qu'on vient de tenter : c'est une action du candidat
+   qui n'est pas partie, donc ça se dit en rouge. */
+.stateCard > p.retryError {
+  max-width: 510px;
+  margin: 14px auto 0;
+  color: var(--color-red-dark);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+/* Explication d'un état (relances épuisées) : ni erreur, ni détail technique. */
+.stateCard > p.stateNote {
+  max-width: 510px;
+  margin: 14px auto 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* Le message brut du serveur : conservé (le support s'en sert), mais en
+   second plan — il n'a pas été écrit pour un candidat. */
+.stateCard > p.stateDetail {
+  max-width: 510px;
+  margin: 20px auto 0;
+  color: var(--color-muted-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
 .loadingBar {
   position: absolute;
   right: 0;
@@ -247,6 +280,122 @@
   background: linear-gradient(90deg, var(--color-blue-light), var(--color-blue), var(--color-blue-light));
   background-size: 200% 100%;
   animation: loading 1.4s linear infinite;
+}
+
+/* ------------------------------------------------ attente de l'analyse IA */
+
+.waitPanel {
+  max-width: 430px;
+  margin: 24px auto 0;
+  padding: 16px 18px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--color-blue-soft);
+  text-align: left;
+}
+
+.waitSteps {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.waitSteps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.waitSteps li > span {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-line-2);
+  color: var(--color-muted);
+}
+
+.waitSteps li[data-state="done"] {
+  color: var(--color-ink);
+}
+
+.waitSteps li[data-state="done"] > span {
+  background: color-mix(in srgb, var(--color-green) 14%, white);
+  color: var(--color-green);
+}
+
+.waitSteps li[data-state="running"] {
+  color: var(--color-blue);
+}
+
+.waitSteps li[data-state="running"] > span {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  animation: breathe 1.8s ease-in-out infinite;
+}
+
+.waitTimer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-line);
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.waitTimer svg {
+  flex: 0 0 auto;
+}
+
+.waitTimer span {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.waitTimer b {
+  margin-left: auto;
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sélecteurs qualifiés : `.stateCard > p` (plus spécifique qu'une classe seule)
+   reprendrait sinon la main sur la marge et la couleur. */
+.stateCard > p.waitReassurance {
+  max-width: 510px;
+  margin: 18px auto 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* Un aléa réseau pendant l'attente n'est pas une panne : il se dit en gris,
+   jamais en rouge, et n'interrompt rien. */
+.waitTransient {
+  max-width: 510px;
+  margin: 12px auto 0;
+  color: var(--color-muted-2);
+  font-size: 13px;
+}
+
+.stateCard > p.waitTransient {
+  margin: 12px auto 0;
+  color: var(--color-muted-2);
 }
 
 .exerciseHeader {

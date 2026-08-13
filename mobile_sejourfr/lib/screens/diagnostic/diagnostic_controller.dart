@@ -32,12 +32,18 @@ typedef SubmitDiagnosticAudio = Future<void> Function({
 /// production locale qui dit où en est le visiteur.
 enum DiagnosticGuestStep { presentation, written, oral, accountRequired }
 
+/// Étape de l'envoi post-inscription. Elle n'existe que pour être **dite** au
+/// candidat : sans elle, le transfert de deux productions (dont un audio) n'est
+/// qu'un rond qui tourne pendant de longues secondes.
+enum DiagnosticSyncStage { session, written, oral, confirming }
+
 class DiagnosticFlowState {
   const DiagnosticFlowState({
     this.journey,
     this.subjects,
     this.draft,
     this.guestStep = DiagnosticGuestStep.presentation,
+    this.syncStage = DiagnosticSyncStage.session,
     this.isGuest = false,
     this.isLoading = false,
     this.isSubmitting = false,
@@ -60,6 +66,10 @@ class DiagnosticFlowState {
   final DiagnosticDraft? draft;
 
   final DiagnosticGuestStep guestStep;
+
+  /// Où en est l'envoi quand [isSyncing] est vrai.
+  final DiagnosticSyncStage syncStage;
+
   final bool isGuest;
   final bool isLoading;
   final bool isSubmitting;
@@ -83,6 +93,7 @@ class DiagnosticFlowState {
     PublicDiagnostic? subjects,
     DiagnosticDraft? draft,
     DiagnosticGuestStep? guestStep,
+    DiagnosticSyncStage? syncStage,
     bool? isGuest,
     bool? isLoading,
     bool? isSubmitting,
@@ -100,6 +111,7 @@ class DiagnosticFlowState {
         subjects: subjects ?? this.subjects,
         draft: clearDraft ? null : (draft ?? this.draft),
         guestStep: guestStep ?? this.guestStep,
+        syncStage: syncStage ?? this.syncStage,
         isGuest: isGuest ?? this.isGuest,
         isLoading: isLoading ?? this.isLoading,
         isSubmitting: isSubmitting ?? this.isSubmitting,
@@ -121,7 +133,10 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
     DiagnosticDraftStore? draftStore,
     bool isAuthenticated = true,
     Duration pollInterval = const Duration(seconds: 3),
-    int maxPolls = 60,
+    // 10 min : l'analyse tient d'ordinaire en moins de deux minutes, mais deux
+    // appels LLM peuvent traîner. À 60 (3 min) on abandonnait une analyse encore
+    // en cours et l'écran se figeait sur un bandeau rouge.
+    int maxPolls = 200,
     Duration submissionRefreshInterval = const Duration(milliseconds: 700),
     int maxSubmissionRefreshes = 6,
     Future<void> Function(Duration) delay = _defaultDiagnosticDelay,
@@ -147,6 +162,18 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
       'et chaque exercice ne s’envoie qu’une fois. Celles que vous venez de '
       'faire n’ont donc pas été envoyées — elles restent sur votre téléphone '
       'tant que vous ne les supprimez pas.';
+
+  /// La route de relance est rate-limitée serveur (`RateLimitGuard
+  /// .checkProductionSubmission`). Son message brut — « Trop de tentatives.
+  /// Reessayez dans 573s. » — est sans accents et compté en secondes : on ne le
+  /// sert pas tel quel à un candidat. Miroir mot pour mot du web.
+  static const retryRateLimitedMessage =
+      'Trop de relances en peu de temps. Patientez quelques minutes, puis '
+      'réessayez : vos deux réponses restent conservées.';
+
+  static const retryFailedMessage =
+      'La relance n’a pas pu être lancée. Vérifiez votre connexion, puis '
+      'réessayez.';
 
   static const _partialSyncWarning =
       'Le serveur n’a pas confirmé la réception de vos deux réponses. Elles '
@@ -369,6 +396,7 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
       isSyncing: true,
       isLoading: false,
       canRetrySync: false,
+      syncStage: DiagnosticSyncStage.session,
       clearError: true,
       clearNotice: true,
     );
@@ -390,6 +418,7 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
 
       final written = journey.written;
       if (written != null && written.submissionId == null) {
+        state = state.copyWith(syncStage: DiagnosticSyncStage.written);
         await _submitText(
           productionTaskId: written.productionTaskId,
           attemptId: written.attemptId,
@@ -406,6 +435,7 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
 
       final oral = journey.oral;
       if (oral != null && oral.submissionId == null) {
+        state = state.copyWith(syncStage: DiagnosticSyncStage.oral);
         final file = await _draftStore.audioFile(draft);
         if (file == null) {
           throw StateError('Enregistrement introuvable sur cet appareil.');
@@ -424,6 +454,7 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
         if (!mounted) return false;
       }
 
+      state = state.copyWith(syncStage: DiagnosticSyncStage.confirming);
       if (!_serverHasBothProductions(journey)) {
         state = state.copyWith(
           journey: journey,
@@ -601,17 +632,40 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
       _pollIfNeeded(journey);
       return true;
     } catch (error) {
-      _operationFailed(error);
+      // La relance n'est jamais partie : on le DIT. Sans ce message, le
+      // candidat cliquait, l'écran ne bougeait pas, et rien ne lui signalait
+      // qu'un 429, un 500 ou une coupure réseau avait avalé son geste.
+      if (!mounted) return false;
+      state = state.copyWith(
+        isSubmitting: false,
+        errorMessage: _retryErrorMessage(error),
+      );
       return false;
     }
   }
 
+  String _retryErrorMessage(Object error) {
+    final api = ApiClient.toApiException(error);
+    if (api.statusCode == 429) return retryRateLimitedMessage;
+    return api.message.trim().isEmpty ? retryFailedMessage : api.message;
+  }
+
+  /// ⚠️ Chaque sortie **résout** `isSubmitting`. Un chargement qui ne se résout
+  /// pas est définitif ici : le bouton tourne sans fin, `PopScope` refuse le
+  /// retour et l'en-tête masque sa flèche — le candidat est enfermé sur l'écran
+  /// sans rien pouvoir faire. Ne jamais ajouter de `return` sans le lever.
   Future<bool> _reloadAfterSubmission(DiagnosticStep submittedStep) async {
     final sessionId = state.journey?.sessionId;
-    if (sessionId == null) return false;
+    if (sessionId == null) {
+      _submissionUnconfirmed();
+      return false;
+    }
     final journey = await _awaitAcknowledgement(sessionId, submittedStep);
     if (!mounted) return false;
-    if (journey == null) return false;
+    if (journey == null) {
+      _submissionUnconfirmed();
+      return false;
+    }
     state = state.copyWith(
       journey: journey,
       isSubmitting: false,
@@ -678,10 +732,20 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
       }
     }
     if (!mounted || generation != _pollGeneration) return;
+    // Aucune erreur : l'analyse n'a pas échoué, c'est notre boucle qui s'arrête.
+    // L'écran d'attente dit déjà qu'elle se poursuit côté serveur et garde son
+    // bouton « Actualiser » ; un bandeau rouge ferait croire à un échec.
+    state = state.copyWith(isPolling: false);
+  }
+
+  /// Le serveur n'a pas confirmé la soumission : on rend la main plutôt que de
+  /// laisser tourner un bouton, et on le dit.
+  void _submissionUnconfirmed() {
+    if (!mounted) return;
     state = state.copyWith(
-      isPolling: false,
-      errorMessage:
-          'L’analyse continue en arrière-plan. Actualisez dans quelques instants.',
+      isSubmitting: false,
+      errorMessage: 'Le serveur n’a pas confirmé la réception de votre '
+          'réponse. Réessayez dans quelques instants.',
     );
   }
 

@@ -4,13 +4,24 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
+import '../diagnostic_controller.dart';
 import 'diagnostic_common.dart';
+import 'diagnostic_wait.dart';
 
-/// Envoi des deux productions faites avant l'inscription. L'écran insiste sur
-/// le fait qu'elles sont toujours là : c'est le seul moment du parcours où le
-/// candidat pourrait croire qu'il perd son travail.
+/// Envoi des deux productions faites avant l'inscription. L'écran nomme
+/// l'étape en cours et compte le temps : c'est le seul moment du parcours où
+/// le candidat pourrait croire qu'il perd son travail.
 class DiagnosticSendingView extends StatelessWidget {
-  const DiagnosticSendingView({super.key});
+  const DiagnosticSendingView({super.key, required this.stage});
+
+  final DiagnosticSyncStage stage;
+
+  static const _labels = [
+    'Ouverture de votre session',
+    'Envoi de votre texte',
+    'Envoi de votre enregistrement',
+    'Confirmation par le serveur',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -41,13 +52,13 @@ class DiagnosticSendingView extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               Text(
-                'Nous envoyons vos réponses',
+                'Nous enregistrons vos deux réponses',
                 textAlign: TextAlign.center,
                 style: AppFonts.display(size: 23),
               ),
               const SizedBox(height: 8),
               Text(
-                'Votre écrit puis votre enregistrement rejoignent votre '
+                'Votre texte puis votre enregistrement rejoignent votre '
                 'compte. Ils restent sur votre téléphone tant que le serveur '
                 'ne les a pas confirmés.',
                 textAlign: TextAlign.center,
@@ -56,6 +67,15 @@ class DiagnosticSendingView extends StatelessWidget {
                   color: AppColors.inkSoft,
                   height: 1.45,
                 ),
+              ),
+              const SizedBox(height: 18),
+              DiagnosticElapsed(
+                builder: (context, elapsed) =>
+                    DiagnosticElapsedPill(elapsed: elapsed),
+              ),
+              const SizedBox(height: 18),
+              DiagnosticWaitSteps(
+                steps: diagnosticWaitStepsFrom(_labels, stage.index),
               ),
             ],
           ),

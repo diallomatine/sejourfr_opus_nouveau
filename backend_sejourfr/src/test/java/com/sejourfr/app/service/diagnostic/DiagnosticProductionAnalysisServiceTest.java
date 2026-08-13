@@ -38,13 +38,14 @@ class DiagnosticProductionAnalysisServiceTest {
         SkillManager skills = mock(SkillManager.class);
         DiagnosticAnalysisPromptBuilder prompts = mock(DiagnosticAnalysisPromptBuilder.class);
         DiagnosticAnalysisLlmClient llm = mock(DiagnosticAnalysisLlmClient.class);
+        DiagnosticAnalysisReconciler reconciler = mock(DiagnosticAnalysisReconciler.class);
         DiagnosticAnalysisValidator validator = mock(DiagnosticAnalysisValidator.class);
         DiagnosticProductionAnalysisManager analyses = mock(DiagnosticProductionAnalysisManager.class);
         DiagnosticRubricsProvider rubrics = mock(DiagnosticRubricsProvider.class);
         LearningPlanObservationService observations = mock(LearningPlanObservationService.class);
         DiagnosticProductionAnalysisService service = new DiagnosticProductionAnalysisService(
                 submissions, transcriptions, taskSkills, skills, prompts, llm,
-                validator, analyses, rubrics, observations);
+                reconciler, validator, analyses, rubrics, observations);
 
         ProductionTask task = new ProductionTask();
         task.setId(UUID.randomUUID());
@@ -84,13 +85,14 @@ class DiagnosticProductionAnalysisServiceTest {
         SkillManager skills = mock(SkillManager.class);
         DiagnosticAnalysisPromptBuilder prompts = mock(DiagnosticAnalysisPromptBuilder.class);
         DiagnosticAnalysisLlmClient llm = mock(DiagnosticAnalysisLlmClient.class);
+        DiagnosticAnalysisReconciler reconciler = mock(DiagnosticAnalysisReconciler.class);
         DiagnosticAnalysisValidator validator = mock(DiagnosticAnalysisValidator.class);
         DiagnosticProductionAnalysisManager analyses = mock(DiagnosticProductionAnalysisManager.class);
         DiagnosticRubricsProvider rubrics = mock(DiagnosticRubricsProvider.class);
         LearningPlanObservationService observations = mock(LearningPlanObservationService.class);
         DiagnosticProductionAnalysisService service = new DiagnosticProductionAnalysisService(
                 submissions, transcriptions, taskSkills, skills, prompts, llm,
-                validator, analyses, rubrics, observations);
+                reconciler, validator, analyses, rubrics, observations);
 
         ProductionTask task = new ProductionTask();
         task.setId(UUID.randomUUID());

@@ -524,6 +524,20 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   soumission (statut non `IN_PROGRESS`, ou deux `submissionId` déjà posés) : on le dit
   (`noticeMessage`, `DiagnosticAlreadyDoneView`) au lieu de boucler sur une erreur, et la copie
   locale n'est effacée que sur confirmation explicite.
+- **Aucune attente n'est un rond gris muet** (`widgets/diagnostic_wait.dart`, partagé transfert
+  ⇄ analyse) : étapes franchies + compteur de temps écoulé (`Stopwatch`, jamais `DateTime.now()`)
+  + réassurance qui bascule sur « c'est plus long que d'habitude » à 2 min **sans annoncer
+  d'échec** (l'échec, c'est `FAILED`, qui a son propre écran). `DiagnosticSyncStage` n'existe que
+  pour nommer l'étape d'envoi en cours. `_content` fait passer `isSyncing`/`canRetrySync`
+  **avant** le loader générique : un transfert ne doit jamais se rendre en spinner anonyme.
+- **Le marqueur « déjà démarré » vit dans l'état du contrôleur, jamais dans un drapeau qui
+  survit au démontage** — c'est ce qui distingue le mobile du bug web de blocage éternel. Le
+  provider est `autoDispose` : tout chemin d'abandon (`if (!mounted) return`) emporte le
+  marqueur, et l'exactement-une-fois du transfert est tenu par le **serveur**
+  (`POST /api/diagnostics` idempotent + gardes `submissionId == null`), pas par un booléen
+  local. Corollaire à ne pas casser : **toute sortie d'une méthode du contrôleur résout son
+  `isLoading`/`isSubmitting`/`isSyncing`** — sinon le bouton tourne sans fin, `PopScope` refuse
+  le retour et `ScreenHeader` masque sa flèche : le candidat est enfermé.
 - L'écran de demande de compte (`DiagnosticAccountGate`) **n'affiche aucun résultat réel** —
   l'analyse coûte deux appels LLM. Il montre un **exemple** étiqueté comme tel (badge
   « EXEMPLE » + phrase « ce ne sont pas vos réponses ») et ouvre l'inscription **ou** la

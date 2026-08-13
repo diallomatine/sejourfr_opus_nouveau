@@ -601,7 +601,31 @@ détour par `/inscription`.
   déjà terminée, sujets d'une autre version) **laisse le travail intact** et
   propose de réessayer. Le démarrage est verrouillé par un `ref` : `user`
   change d'identité à chaque `refreshUser()`, rejouer la reprise renverrait les
-  mêmes productions deux fois.
+  mêmes productions deux fois. 🛑 **Ce corps async n'a PAS de drapeau
+  `cancelled`, et il ne faut pas en remettre** : le nettoyage de l'effet se
+  déclenche à chaque nouvelle identité de `user` (donc juste après
+  l'inscription) et au premier montage en StrictMode. Interrompre le corps
+  sortait sans lancer `runHandoff` ni repasser `loading` à `false`, pendant que
+  le `ref` interdisait toute reprise — écran gris définitif et **plus aucune
+  session de diagnostic créée depuis la refonte invité**. Le « exactement une
+  fois » est tenu par le `ref` posé **avant le premier `await`** ; un `setState`
+  après démontage est un no-op en React 18+.
+- **Un transfert en cours prime sur le squelette.** `loading` reste vrai
+  pendant tout `runHandoff` : les branches `handoff` (`running` / `error` /
+  `version-mismatch`) sont testées **avant** `if (!user || loading)`, sinon la
+  carte « Nous enregistrons vos deux réponses » et surtout celle
+  « Vos réponses n'ont pas été envoyées / Réessayer l'envoi » restent
+  inatteignables. Un `LOADING_WATCHDOG_MS` (20 s) rend la main avec la carte
+  d'erreur si le chargement n'aboutit jamais : un squelette est un état de
+  chargement, pas un état d'échec.
+- **Attente de l'analyse IA** (`AnalysisWaiting`) : pendant `ANALYZING` /
+  `nextStep === "ANALYSIS"`, l'écran nomme l'analyse, liste les étapes
+  franchies (`role="status"`) et fait tourner un compteur mm:ss démarré à
+  l'entrée dans l'écran (`aria-live="off"` sur le chiffre). La réassurance
+  bascule au-delà de 2 min sur « c'est plus long que d'habitude » — on ne
+  promet pas un délai qu'on ne tient pas. Un aléa réseau du polling s'affiche en
+  gris (`waitTransient`), jamais en rouge : seul `status === "FAILED"` est un
+  échec.
 - **Compte qui a déjà un diagnostic** : `POST /api/diagnostics` est idempotent
   et peut renvoyer une session `COMPLETED` — une tâche n'accepte qu'une
   soumission. On n'envoie alors rien, on affiche le résultat existant avec un

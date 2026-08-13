@@ -335,7 +335,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   }) {
     if (state.isGuest) return _guestContent(state: state, recording: recording);
 
-    if (state.isSyncing) return const DiagnosticSendingView();
+    if (state.isSyncing) return DiagnosticSendingView(stage: state.syncStage);
     if (state.canRetrySync) {
       return DiagnosticSyncFailedView(
         isBusy: state.isSyncing,
@@ -368,6 +368,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
         errorMessage: state.errorMessage,
         onRefresh: () => unawaited(_controller.refreshDetail()),
         onRetry: () => unawaited(_controller.retryAnalysis()),
+        onOpenPlan: () => context.go(AppRoutes.plan),
       );
     }
     return switch (journey.nextStep) {

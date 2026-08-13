@@ -65,8 +65,43 @@ import styles from "./diagnostic.module.css";
 
 const POLL_MS = 2_500;
 
+/** Au-delà, on cesse d'afficher un squelette : on rend la main avec une erreur. */
+const LOADING_WATCHDOG_MS = 20_000;
+
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiException ? error.message : fallback;
+}
+
+/**
+ * Textes de l'écran d'échec d'analyse. Miroir mot pour mot du mobile
+ * (`widgets/diagnostic_analysis.dart` + `diagnostic_controller.dart`) : ces
+ * chaînes ne transitent pas par le réseau, chaque front en tient sa copie.
+ */
+const ANALYSIS_FAILED_TITLE = "L'analyse n'a pas pu aboutir";
+const ANALYSIS_FAILED_TEXT =
+  "Vos deux réponses sont conservées. Vous n'avez rien à refaire.";
+const ANALYSIS_RETRY_EXHAUSTED =
+  "Le nombre de relances automatiques est épuisé. Vos deux productions restent enregistrées : vous n'avez rien à refaire. L'analyse a échoué de notre côté, et votre plan reste accessible en attendant.";
+/**
+ * La route de relance est rate-limitée serveur (`RateLimitGuard
+ * .checkProductionSubmission`). Son message brut — « Trop de tentatives.
+ * Reessayez dans 573s. » — est sans accents et compté en secondes : on ne le
+ * sert pas tel quel à un candidat.
+ */
+const ANALYSIS_RETRY_RATE_LIMITED =
+  "Trop de relances en peu de temps. Patientez quelques minutes, puis réessayez : vos deux réponses restent conservées.";
+const ANALYSIS_RETRY_FAILED =
+  "La relance n'a pas pu être lancée. Vérifiez votre connexion, puis réessayez.";
+
+/**
+ * L'échec de la relance qu'on VIENT de tenter — à ne jamais confondre avec
+ * `diagnostic.errorMessage`, qui dit pourquoi l'analyse elle-même a échoué.
+ */
+function retryErrorMessage(cause: unknown): string {
+  if (cause instanceof ApiException && cause.status === 429) {
+    return ANALYSIS_RETRY_RATE_LIMITED;
+  }
+  return errorMessage(cause, ANALYSIS_RETRY_FAILED);
 }
 
 /**
@@ -500,31 +535,54 @@ function ConnectedDiagnostic() {
   useEffect(() => {
     if (!user || bootstrappedRef.current) return;
     bootstrappedRef.current = true;
-    let cancelled = false;
-    (async () => {
+    // 🛑 Ce corps async n'a VOLONTAIREMENT plus de drapeau `cancelled`.
+    //
+    // Le nettoyage de cet effet se déclenche à chaque nouvelle identité de
+    // `user` — donc à chaque `refreshUser()`, donc juste après l'inscription
+    // qui ouvre ce parcours — et systématiquement au premier montage en
+    // StrictMode. Interrompre le corps à ce moment-là sortait **sans** lancer
+    // `runHandoff` et **sans** repasser `loading` à `false`, tandis que le
+    // garde ci-dessus interdisait toute reprise : l'écran restait bloqué sur le
+    // squelette pour toujours et aucune session de diagnostic n'était créée.
+    // En React 18+, un `setState` après démontage est un no-op silencieux :
+    // laisser ce travail aller jusqu'au bout est à la fois plus simple et plus
+    // sûr que de l'annuler. Le « exactement une fois » reste tenu par le `ref`,
+    // qui est posé de façon **synchrone** avant le premier `await`.
+    void (async () => {
       const local = await readLatestLocalDiagnostic().catch(() => null);
-      if (cancelled) return;
       if (isLocalDiagnosticComplete(local)) {
         await runHandoff(local);
         return;
       }
       try {
         const current = await diagnosticApi.current();
-        if (cancelled) return;
         setDiagnostic(current);
         setError(null);
       } catch (cause) {
-        if (!cancelled) {
-          setError(errorMessage(cause, "Impossible de charger votre diagnostic."));
-        }
+        setError(errorMessage(cause, "Impossible de charger votre diagnostic."));
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [user, runHandoff]);
+
+  // Filet de sécurité : un squelette est un état de CHARGEMENT, pas un état
+  // d'échec. Si rien n'a abouti au bout de ce délai — bug imprévu, IndexedDB
+  // qui ne répond jamais, requête suspendue — on rend la main au candidat avec
+  // la carte « Le diagnostic n'a pas pu être chargé » et son bouton
+  // « Réessayer », au lieu de le laisser devant un écran gris indéfiniment. Un
+  // transfert en cours a son propre écran : il n'est jamais interrompu ici.
+  useEffect(() => {
+    if (!loading || handoff.kind === "running") return;
+    const timer = setTimeout(() => {
+      setLoading(false);
+      setError(
+        (previous) =>
+          previous ?? "Le diagnostic met anormalement longtemps à répondre.",
+      );
+    }, LOADING_WATCHDOG_MS);
+    return () => clearTimeout(timer);
+  }, [loading, handoff.kind]);
 
   useEffect(() => {
     if (!user) return;
@@ -651,7 +709,7 @@ function ConnectedDiagnostic() {
     try {
       setDiagnostic(await diagnosticApi.retryAnalysis(diagnostic.sessionId));
     } catch (cause) {
-      setError(errorMessage(cause, "Impossible de relancer l'analyse."));
+      setError(retryErrorMessage(cause));
     } finally {
       setSubmitting(false);
     }
@@ -665,8 +723,11 @@ function ConnectedDiagnostic() {
     setHandoff({kind: "idle"});
   }
 
-  if (!user || loading) return <DiagnosticSkeleton />;
-
+  // ⚠️ L'ordre compte. `loading` reste vrai pendant TOUT le transfert des
+  // productions faites en invité (création de session + deux envois + leurs
+  // relectures) : tester le squelette avant l'état du transfert affichait deux
+  // blocs gris pendant une minute au lieu de dire ce qui se passe. Un transfert
+  // en cours prime donc toujours sur le chargement.
   if (handoff.kind === "running") {
     return (
       <DiagnosticShell>
@@ -724,6 +785,10 @@ function ConnectedDiagnostic() {
     );
   }
 
+  // Chargement initial d'un parcours connecté normal, une fois écartés les
+  // états de transfert ci-dessus.
+  if (!user || loading) return <DiagnosticSkeleton />;
+
   if (!diagnostic) {
     return (
       <DiagnosticShell>
@@ -768,12 +833,42 @@ function ConnectedDiagnostic() {
       <DiagnosticShell>
         <StateCard
           icon={<RotateCcw size={26} />}
-          title="L'analyse n'a pas pu aboutir"
-          text={diagnostic.errorMessage ?? "Vos deux réponses sont conservées. Vous n'avez rien à refaire."}
+          title={ANALYSIS_FAILED_TITLE}
+          // La carte dit d'abord, en langage clair, ce que le candidat doit
+          // savoir. Le message brut du serveur (« Sortie diagnostic invalide
+          // après réparation : EO2-C3 … ») n'est pas écrit pour lui : il passe
+          // en second plan, sans jamais disparaître — le support s'en sert.
+          text={ANALYSIS_FAILED_TEXT}
           role="alert"
+          busy={submitting}
+          extra={
+            <>
+              {/* Échec de la relance qu'on vient de tenter. Distinct du message
+                  d'échec stocké de la session, affiché en bas de carte. */}
+              {error && (
+                <p className={styles.retryError} role="alert">
+                  {error}
+                </p>
+              )}
+              {!diagnostic.canRetry && (
+                <p className={styles.stateNote}>{ANALYSIS_RETRY_EXHAUSTED}</p>
+              )}
+            </>
+          }
+          footnote={
+            diagnostic.errorMessage ? (
+              <p className={styles.stateDetail}>Détail technique : {diagnostic.errorMessage}</p>
+            ) : null
+          }
         >
           {diagnostic.canRetry && (
-            <button className={styles.primaryButton} type="button" disabled={submitting} onClick={() => void retryAnalysis()}>
+            <button
+              className={styles.primaryButton}
+              type="button"
+              disabled={submitting}
+              aria-busy={submitting || undefined}
+              onClick={() => void retryAnalysis()}
+            >
               {submitting ? "Relance…" : "Relancer l'analyse"}
             </button>
           )}
@@ -800,11 +895,21 @@ function ConnectedDiagnostic() {
       : diagnostic.nextStep === "ORAL"
         ? diagnostic.oral
         : null;
-  if (
-    diagnostic.status === "ANALYZING" ||
-    diagnostic.nextStep === "ANALYSIS" ||
-    currentExercise?.submissionId != null
-  ) {
+
+  // L'analyse IA elle-même : c'est le seul moment où le candidat attend un
+  // rapport, et il doit savoir ce qui tourne.
+  if (diagnostic.status === "ANALYZING" || diagnostic.nextStep === "ANALYSIS") {
+    return (
+      <DiagnosticShell>
+        {notice}
+        <AnalysisWaiting diagnostic={diagnostic} transientMessage={error} />
+      </DiagnosticShell>
+    );
+  }
+
+  // Production reçue, mais la session n'a pas encore basculé sur l'étape
+  // suivante : rien n'est analysé à ce stade, on ne le prétend pas.
+  if (currentExercise?.submissionId != null) {
     return (
       <DiagnosticShell>
         {notice}
@@ -813,14 +918,12 @@ function ConnectedDiagnostic() {
           title={
             diagnostic.nextStep === "WRITTEN"
               ? "Votre écrit est bien reçu"
-              : diagnostic.nextStep === "ORAL"
-                ? "Votre oral est bien reçu"
-                : "Nous analysons vos deux réponses"
+              : "Votre oral est bien reçu"
           }
           text="Vos réponses sont conservées. Vous pouvez quitter cet écran et reprendre plus tard, sans rien refaire."
           busy
         >
-          {error && <p className={styles.error} role="status">{error}</p>}
+          {error && <p className={styles.waitTransient} role="status">{error}</p>}
           <Link className={styles.secondaryButton} href="/dashboard">Revenir au tableau de bord</Link>
         </StateCard>
       </DiagnosticShell>
@@ -864,17 +967,13 @@ function ConnectedDiagnostic() {
     );
   }
 
+  // Même écran que ci-dessus, à la même place dans l'arbre : une bascule entre
+  // les deux branches ne remonte pas le composant, donc ne remet pas le
+  // compteur d'attente à zéro.
   return (
     <DiagnosticShell>
-      <StateCard
-        icon={<Sparkles size={26} />}
-        title="Nous analysons vos deux réponses"
-        text="Votre écrit et votre oral sont comparés aux compétences réellement observables. Cela prend généralement moins de deux minutes."
-        busy
-      >
-        {error && <p className={styles.error} role="status">{error}</p>}
-        <Link className={styles.secondaryButton} href="/dashboard">Revenir au tableau de bord</Link>
-      </StateCard>
+      {notice}
+      <AnalysisWaiting diagnostic={diagnostic} transientMessage={error} />
     </DiagnosticShell>
   );
 }
@@ -1034,6 +1133,8 @@ function StateCard({
   icon,
   title,
   text,
+  extra,
+  footnote,
   children,
   busy = false,
   role,
@@ -1041,6 +1142,10 @@ function StateCard({
   icon: ReactNode;
   title: string;
   text: string;
+  /** Rendu entre le texte et les actions (message transitoire, explication). */
+  extra?: ReactNode;
+  /** Rendu sous les actions : information de second plan (détail technique). */
+  footnote?: ReactNode;
   children?: React.ReactNode;
   busy?: boolean;
   role?: "alert";
@@ -1050,8 +1155,114 @@ function StateCard({
       <span className={`${styles.stateIcon} ${busy ? styles.stateIconBusy : ""}`} aria-hidden>{icon}</span>
       <h1>{title}</h1>
       <p>{text}</p>
+      {extra}
       <div className={styles.actions}>{children}</div>
+      {footnote}
       {busy && <span className={styles.loadingBar} aria-hidden />}
+    </section>
+  );
+}
+
+/** Au-delà, on cesse d'annoncer « moins de deux minutes » : ce serait faux. */
+const SLOW_ANALYSIS_MS = 120_000;
+
+function formatElapsed(elapsedMs: number): string {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+/**
+ * Attente de l'analyse IA — le seul écran où le candidat n'a plus rien à faire
+ * et où le rapport n'est pas encore là.
+ *
+ * Il a été muet pendant des mois : une carte discrète, aucune mention de l'IA,
+ * aucun repère de temps. Un candidat venu des réseaux voyait un écran gris et
+ * partait. On nomme donc ce qui tourne, on montre les étapes franchies et on
+ * fait tourner un compteur — une attente chiffrée est une attente supportable.
+ *
+ * Le compteur démarre à l'ENTRÉE dans cet écran, pas au montage de la page :
+ * c'est le composant lui-même qui le porte.
+ */
+function AnalysisWaiting({
+  diagnostic,
+  transientMessage,
+}: {
+  diagnostic: DiagnosticResponse;
+  transientMessage: string | null;
+}) {
+  const [elapsedMs, setElapsedMs] = useState(0);
+
+  useEffect(() => {
+    const startedAt = Date.now();
+    const timer = setInterval(() => setElapsedMs(Date.now() - startedAt), 1_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const writtenReceived = diagnostic.written?.submissionId != null;
+  const oralReceived = diagnostic.oral?.submissionId != null;
+  const slow = elapsedMs >= SLOW_ANALYSIS_MS;
+
+  const steps: Array<{key: string; done: boolean; label: string}> = [
+    {
+      key: "written",
+      done: writtenReceived,
+      label: writtenReceived ? "Réponse écrite reçue" : "Réponse écrite en attente",
+    },
+    {
+      key: "oral",
+      done: oralReceived,
+      label: oralReceived ? "Réponse orale reçue" : "Réponse orale en attente",
+    },
+    {key: "analysis", done: false, label: "Analyse IA en cours"},
+  ];
+
+  return (
+    <section className={styles.stateCard} aria-busy="true">
+      <span className={`${styles.stateIcon} ${styles.stateIconBusy}`} aria-hidden>
+        <Sparkles size={26} />
+      </span>
+      <h1>Analyse IA de vos deux productions en cours</h1>
+      <p>
+        Votre écrit et votre oral sont analysés ensemble pour repérer les compétences
+        réellement observables. Votre rapport s&apos;affichera ici tout seul.
+      </p>
+
+      <div className={styles.waitPanel}>
+        <ol className={styles.waitSteps} role="status">
+          {steps.map((step) => (
+            <li key={step.key} data-state={step.done ? "done" : "running"}>
+              <span aria-hidden>
+                {step.done ? <Check size={13} strokeWidth={3.2} /> : <Sparkles size={13} />}
+              </span>
+              {step.label}
+            </li>
+          ))}
+        </ol>
+        <p className={styles.waitTimer}>
+          <Clock3 size={14} aria-hidden />
+          <span>Temps écoulé</span>
+          {/* Pas de région live sur le chiffre : un lecteur d'écran ne doit pas
+              énoncer une nouvelle valeur chaque seconde. */}
+          <b aria-live="off">{formatElapsed(elapsedMs)}</b>
+        </p>
+      </div>
+
+      <p className={styles.waitReassurance}>
+        {slow
+          ? "C'est plus long que d'habitude. L'analyse continue côté serveur : rien n'est perdu. Vous pouvez fermer cet écran et revenir plus tard, votre rapport vous attendra."
+          : "L'analyse prend généralement moins de deux minutes. Vous pouvez quitter cet écran et revenir plus tard : elle continue côté serveur et rien n'est perdu."}
+      </p>
+
+      {transientMessage && <p className={styles.waitTransient}>{transientMessage}</p>}
+
+      <div className={styles.actions}>
+        <Link className={styles.secondaryButton} href="/dashboard">
+          Revenir au tableau de bord
+        </Link>
+      </div>
+      <span className={styles.loadingBar} aria-hidden />
     </section>
   );
 }

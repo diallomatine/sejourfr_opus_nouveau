@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -181,8 +180,9 @@ public class DiagnosticSessionCoordinator {
     }
 
     /**
-     * Ordonne les priorités d'UNE production : confiance décroissante, puis rang
-     * de la compétence dans l'allowlist du sujet
+     * Ordonne les priorités d'UNE production avec la règle partagée
+     * {@link DiagnosticPriorityRanking} : confiance décroissante, puis rang de
+     * la compétence dans l'allowlist du sujet
      * ({@code diagnostic_task_skills.display_order}).
      *
      * <p>Ce rang n'est pas décoratif : c'est l'ordre éditorial d'importance des
@@ -190,28 +190,14 @@ public class DiagnosticSessionCoordinator {
      * l'allowlist — cas qui ne devrait pas exister, le validateur la refuse —
      * passe en dernier, puis on retombe sur le code pour rester déterministe.
      */
-    private List<RankedPriority> ranked(Map<String, Object> analysis, UUID taskId) {
-        Map<String, Short> order = new LinkedHashMap<>();
+    private List<DiagnosticPriorityRanking.Ranked> ranked(
+            Map<String, Object> analysis, UUID taskId) {
+        Map<String, Integer> order = new LinkedHashMap<>();
         for (DiagnosticTaskSkill allowed : taskSkillManager.findActiveByTaskId(taskId)) {
-            order.put(allowed.getSkill().getCode(), allowed.getDisplayOrder());
+            order.put(allowed.getSkill().getCode(), (int) allowed.getDisplayOrder());
         }
-        List<RankedPriority> priorities = new ArrayList<>();
-        for (Map<String, Object> item : prioritySkills(analysis)) {
-            String code = String.valueOf(item.get("skill_code"));
-            priorities.add(new RankedPriority(
-                    item, code, confidenceRank(item.get("confidence")),
-                    order.getOrDefault(code, Short.MAX_VALUE)));
-        }
-        priorities.sort(Comparator
-                .comparingInt(RankedPriority::confidence).reversed()
-                .thenComparingInt(RankedPriority::order)
-                .thenComparing(RankedPriority::skillCode));
-        return priorities;
+        return DiagnosticPriorityRanking.ranked(prioritySkills(analysis), order);
     }
-
-    /** Une priorité et ses deux clés de tri, résolues une seule fois. */
-    private record RankedPriority(
-            Map<String, Object> item, String skillCode, int confidence, int order) {}
 
     /**
      * Fusionne les priorités des deux productions, au plus trois.
@@ -230,7 +216,8 @@ public class DiagnosticSessionCoordinator {
      * parcours. Entièrement déterministe.
      */
     private static List<Map<String, Object>> mergePriorities(
-            List<RankedPriority> written, List<RankedPriority> oral) {
+            List<DiagnosticPriorityRanking.Ranked> written,
+            List<DiagnosticPriorityRanking.Ranked> oral) {
         List<Map<String, Object>> merged = new ArrayList<>(3);
         int w = 0;
         int o = 0;
@@ -252,7 +239,8 @@ public class DiagnosticSessionCoordinator {
     }
 
     /** Négatif = la priorité écrite passe devant ; zéro = égalité résiduelle. */
-    private static int comparePriority(RankedPriority written, RankedPriority oral) {
+    private static int comparePriority(
+            DiagnosticPriorityRanking.Ranked written, DiagnosticPriorityRanking.Ranked oral) {
         int byConfidence = Integer.compare(oral.confidence(), written.confidence());
         return byConfidence != 0 ? byConfidence : Integer.compare(written.order(), oral.order());
     }
@@ -270,14 +258,6 @@ public class DiagnosticSessionCoordinator {
     private static List<String> strings(Object raw) {
         if (!(raw instanceof List<?> list)) return List.of();
         return list.stream().filter(String.class::isInstance).map(String.class::cast).toList();
-    }
-
-    private static int confidenceRank(Object raw) {
-        return switch (String.valueOf(raw)) {
-            case "HIGH" -> 3;
-            case "MEDIUM" -> 2;
-            default -> 1;
-        };
     }
 
     private void finishAttempt(com.sejourfr.app.entity.Attempt attempt) {

@@ -326,10 +326,20 @@ de rubriques et files de calibration doivent garder le filtre
   `diagnostic-analysis-tool-schema-v1.json`, configurés sous
   `sejourfr.diagnostic.analysis`, ne produisent **aucune note /20**. Le schéma
   impose l'allowlist exacte des compétences de la tâche, codes uniques, preuve
-  par segment réel, confiance et cohérence statut/observation/priorité, avec au
-  plus deux priorités par production. Une réponse vide/illisible est transitoire
-  et une seule réparation de format est tentée. **On versionne ces deux fichiers,
-  on ne réécrit jamais une version livrée.**
+  par segment réel, confiance et cohérence statut/observation. Une réponse
+  vide/illisible est transitoire et une seule réparation de format est tentée.
+  **On versionne ces deux fichiers, on ne réécrit jamais une version livrée.**
+- **`priority` est DÉRIVÉ de `status`, il n'est plus un motif de refus**
+  (`DiagnosticAnalysisReconciler`, qui passe **avant** le validateur) : une
+  divergence est réconciliée puis comptée, et le plafond de **2 priorités par
+  production** est une **troncature déterministe** (les 2 meilleures par
+  confiance puis rang d'allowlist — règle partagée `DiagnosticPriorityRanking`,
+  **jamais l'alphabet** ; le surplus est abaissé d'un cran en `TO_REINFORCE`),
+  jamais un refus. Motif : ce couple d'invariants n'était **écrit nulle part
+  dans le prompt** et portait sur un champ **redondant** (`status` fait foi, il
+  est seul persisté et contraint en base) — il a détruit un diagnostic réel,
+  donc les **deux productions** du candidat. Contrat v1 inchangé ; compteurs
+  `DiagnosticReconciliationMetrics`, famille distincte.
 - **Bifurcation persistée** : `production_submissions.is_diagnostic` décide du
   pipeline async. Une submission diagnostique réutilise Whisper si nécessaire,
   puis `DiagnosticProductionAnalysisService` ; elle ne passe jamais dans

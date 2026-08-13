@@ -45,6 +45,7 @@ public class DiagnosticProductionAnalysisService {
     private final SkillManager skillManager;
     private final DiagnosticAnalysisPromptBuilder promptBuilder;
     private final DiagnosticAnalysisLlmClient client;
+    private final DiagnosticAnalysisReconciler reconciler;
     private final DiagnosticAnalysisValidator validator;
     private final DiagnosticProductionAnalysisManager analysisManager;
     private final DiagnosticRubricsProvider rubrics;
@@ -134,14 +135,19 @@ public class DiagnosticProductionAnalysisService {
                 task, allowed, segments, target, initialDiagnostic);
 
         DiagnosticAnalysisLlmClient.Outcome first = client.analyse(systemPrompt, userPrompt);
-        List<String> violations = validator.violations(first.analysis(), allowed, segments);
+        // Réconciliation AVANT validation : le validateur ne juge jamais que la
+        // sortie déjà dérivée, donc aucune réparation payée ne peut plus être
+        // dépensée pour un champ que le serveur sait recalculer.
+        Map<String, Object> analysis = reconciler.reconcile(first.analysis(), allowed);
+        List<String> violations = validator.violations(analysis, allowed, segments);
         DiagnosticAnalysisLlmClient.Outcome accepted = first;
         if (!violations.isEmpty()) {
             log.warn("Sortie diagnostic invalide submission={} — réparation unique : {}",
                     submission.getId(), violations);
-            String repair = promptBuilder.buildRepairPrompt(userPrompt, violations, first.analysis());
+            String repair = promptBuilder.buildRepairPrompt(userPrompt, violations, analysis);
             DiagnosticAnalysisLlmClient.Outcome second = client.analyse(systemPrompt, repair);
-            List<String> remaining = validator.violations(second.analysis(), allowed, segments);
+            analysis = reconciler.reconcile(second.analysis(), allowed);
+            List<String> remaining = validator.violations(analysis, allowed, segments);
             if (!remaining.isEmpty()) {
                 throw new AiEvaluationException(
                         "Sortie diagnostic invalide après réparation : " + String.join(" ; ", remaining));
@@ -151,7 +157,7 @@ public class DiagnosticProductionAnalysisService {
                     sum(first.outputTokens(), second.outputTokens()),
                     sum(first.costEstimateCents(), second.costEstimateCents()));
         }
-        Map<String, Object> normalized = validator.normalize(accepted.analysis(), segments);
+        Map<String, Object> normalized = validator.normalize(analysis, segments);
         return new AnalysisRun(normalized, allowed, accepted);
     }
 
