@@ -11,7 +11,7 @@ import {
   requiresDiagnosticRevalidation,
   recommendedExerciseHref,
 } from "./diagnostic.ts";
-import type {DiagnosticResponse, PlanRecommendedExerciseDto} from "./types.ts";
+import type {DiagnosticResponse, PlanStepExerciseDto} from "./types.ts";
 
 function response(
   status: DiagnosticResponse["status"],
@@ -61,7 +61,7 @@ test("aucun snapshot diagnostic mutable ne reste servi après sa résolution", (
 });
 
 test("la recommandation ouvre le micro-exercice exact à partir du code canonique", () => {
-  const exercise: PlanRecommendedExerciseDto = {
+  const exercise: PlanStepExerciseDto = {
     kind: "MICRO_TRAINING",
     skillPromptId: "prompt-7",
     productionTaskId: null,
@@ -72,6 +72,8 @@ test("la recommandation ouvre le micro-exercice exact à partir du code canoniqu
     tacheNumero: null,
     estimatedMinutes: 6,
     locked: false,
+    epreuve: null,
+    slotNumber: null,
   };
   assert.equal(
     recommendedExerciseHref(exercise),
@@ -81,7 +83,7 @@ test("la recommandation ouvre le micro-exercice exact à partir du code canoniqu
 });
 
 test("une vérification en situation ouvre l'écran de production du sujet", () => {
-  const exercise: PlanRecommendedExerciseDto = {
+  const exercise: PlanStepExerciseDto = {
     kind: "REASSESSMENT",
     skillPromptId: null,
     productionTaskId: "task-9",
@@ -92,6 +94,8 @@ test("une vérification en situation ouvre l'écran de production du sujet", () 
     tacheNumero: 2,
     estimatedMinutes: 12,
     locked: false,
+    epreuve: null,
+    slotNumber: null,
   };
   assert.equal(recommendedExerciseHref(exercise), "/entrainement/tcf/ee/redaction/task-9");
   // Sujet manquant : la liste des sujets de la tâche, jamais une adresse

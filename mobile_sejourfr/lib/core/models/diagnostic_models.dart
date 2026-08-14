@@ -118,16 +118,34 @@ enum LearningPlanSourceType {
       );
 }
 
-/// Nature de l'action proposée par une étape du Plan — **même carte, même
-/// emplacement, action différente**. Les deux ne mènent pas au même écran : on
-/// lit [PlanRecommendedExercise.kind], on ne le devine jamais d'un `null`.
+/// Nature de l'action proposée par le Plan — **même carte, même emplacement,
+/// action différente**. Les quatre ne mènent pas au même écran : on lit `kind`,
+/// on ne le devine jamais d'un `null`.
+///
+/// Une échelle à trois barreaux, du plus assisté au moins assisté :
+/// [microTraining] → [reassessment] (ce qui fait passer une compétence à
+/// « solide »), puis [epreuveMockExam] (une épreuve entière en conditions
+/// d'examen), puis [fullTcfMockExam] (les deux tenues ensemble).
+///
+/// ⚠️ Les **deux derniers rangs sont des jalons** : ils ne pointent aucun
+/// contenu nouveau, ils désignent une session d'examen blanc **déjà existante**
+/// par son épreuve et son slot de grille — et ils ne voyagent jamais sur un
+/// [PlanRecommendedExercise], qui reste réservé aux étapes. Un jalon est un
+/// [PlanMilestone].
 enum PlanExerciseKind {
   /// Un petit sujet du module Compétences (`skillPromptId`).
   microTraining('MICRO_TRAINING'),
 
   /// Une vraie tâche TCF à produire (`productionTaskId`), pour vérifier que le
   /// moyen travaillé en ciblé se retrouve **en situation**.
-  reassessment('REASSESSMENT');
+  reassessment('REASSESSMENT'),
+
+  /// Jalon : un examen blanc d'**épreuve** — 3 tâches d'expression écrite ou
+  /// orale d'affilée (`epreuve` + `slotNumber`).
+  epreuveMockExam('EPREUVE_MOCK_EXAM'),
+
+  /// Jalon final : l'examen blanc **TCF complet**, les 4 épreuves enchaînées.
+  fullTcfMockExam('FULL_TCF_MOCK_EXAM');
 
   const PlanExerciseKind(this.wire);
 
@@ -140,6 +158,10 @@ enum PlanExerciseKind {
         (kind) => kind.wire == value,
         orElse: () => PlanExerciseKind.microTraining,
       );
+
+  bool get isMilestone =>
+      this == PlanExerciseKind.epreuveMockExam ||
+      this == PlanExerciseKind.fullTcfMockExam;
 }
 
 enum ObservationConfidence {
@@ -416,13 +438,18 @@ class DiagnosticProductionResult {
       );
 }
 
-/// L'exercice réellement disponible que le Plan recommande.
+/// L'exercice d'une **étape** du Plan.
 ///
 /// **Deux natures, un seul champ** ([kind]) : un micro-exercice du module
 /// Compétences, ou une **vérification en situation** sur une vraie tâche TCF.
 /// D'où deux identifiants mutuellement exclusifs — [skillPromptId] pour
 /// [PlanExerciseKind.microTraining], [productionTaskId] + [tacheNumero] pour
 /// [PlanExerciseKind.reassessment].
+///
+/// ⚠️ **Un jalon n'est jamais un [PlanRecommendedExercise]** : il n'a ni titre,
+/// ni compétence, ni section, et le serveur ne le sert que sur
+/// `LearningPlanDto.milestone`. C'est [PlanMilestone], une classe à part, pour
+/// qu'aucun écran ne puisse lire ici un titre qui n'existerait pas.
 class PlanRecommendedExercise {
   const PlanRecommendedExercise({
     required this.kind,
@@ -473,6 +500,63 @@ class PlanRecommendedExercise {
         estimatedMinutes: (json['estimatedMinutes'] as num? ?? 0).toInt(),
         locked: json['locked'] as bool? ?? false,
       );
+}
+
+/// Le **jalon** du Plan : un examen blanc que le serveur juge mérité, un cran
+/// au-dessus des étapes.
+///
+/// Il ne désigne **aucun contenu nouveau** — juste une session d'examen blanc
+/// déjà existante, par son [epreuve] et son [slotNumber]. D'où l'absence
+/// assumée de titre, de compétence et de section : le serveur expose des faits,
+/// la phrase appartient aux fronts (`plan_milestone_labels.dart`), exactement
+/// comme pour `PlanChange`.
+///
+/// Deux natures : un examen blanc d'épreuve ([PlanExerciseKind.epreuveMockExam],
+/// `TCF_EE` ou `TCF_EO`) ou l'examen blanc TCF complet
+/// ([PlanExerciseKind.fullTcfMockExam], `TCF_COMPLET`).
+class PlanMilestone {
+  const PlanMilestone({
+    required this.kind,
+    required this.epreuve,
+    required this.slotNumber,
+    required this.estimatedMinutes,
+    this.locked = false,
+  });
+
+  final PlanExerciseKind kind;
+
+  /// `TCF_EE` / `TCF_EO` / `TCF_COMPLET` — c'est **ce champ** qui dit vers quel
+  /// examen envoyer, jamais une section de compétence.
+  final EpreuveType epreuve;
+
+  /// Slot de la grille d'examens blancs à démarrer. Le serveur désigne le
+  /// premier slot non joué : on le repasse tel quel, on ne le choisit pas.
+  final int slotNumber;
+
+  final int estimatedMinutes;
+
+  /// Verrou freemium **calculé par le serveur**. Le jalon reste **désigné et
+  /// affiché en entier** : seul le bouton devient une invitation à s'abonner.
+  final bool locked;
+
+  bool get isFullExam => kind == PlanExerciseKind.fullTcfMockExam;
+
+  static PlanMilestone? fromJsonOrNull(Object? value) {
+    if (value is! Map<String, dynamic>) return null;
+    final kind = PlanExerciseKind.fromWire(value['kind'] as String?);
+    // Un rang non-jalon ici n'existe pas côté serveur ; s'il arrivait, mieux
+    // vaut ne rien afficher que d'ouvrir un examen qu'on aurait deviné.
+    if (!kind.isMilestone) return null;
+    final epreuve = value['epreuve'] as String?;
+    if (epreuve == null) return null;
+    return PlanMilestone(
+      kind: kind,
+      epreuve: EpreuveType.fromWire(epreuve),
+      slotNumber: (value['slotNumber'] as num? ?? 1).toInt(),
+      estimatedMinutes: (value['estimatedMinutes'] as num? ?? 0).toInt(),
+      locked: value['locked'] as bool? ?? false,
+    );
+  }
 }
 
 /// L'**avant/après** du diagnostic : la phrase que le candidat a réellement
@@ -826,6 +910,7 @@ class LearningPlan {
     this.diagnosticSessionId,
     this.diagnosticCompletedAt,
     this.currentPriority,
+    this.milestone,
   });
 
   final LearningPlanState state;
@@ -837,6 +922,16 @@ class LearningPlan {
   final int observedSkillCount;
   final int activitiesThisWeek;
   final bool progressionAvailable;
+
+  /// Le **jalon** du parcours, un cran au-dessus des étapes : un examen blanc
+  /// d'épreuve puis l'examen blanc TCF complet. Il vit **à côté** des priorités,
+  /// il ne les remplace pas — chaque étape garde son `recommendedExercise`.
+  ///
+  /// **`null` est le cas NORMAL** (comme `PlanChange`) : tant qu'une épreuve n'a
+  /// pas majoritairement transféré il n'y a rien à mesurer, et juste après un
+  /// examen blanc il n'y a rien à re-mesurer. Rien ne s'affiche alors, ni
+  /// indicateur, ni message d'erreur.
+  final PlanMilestone? milestone;
 
   factory LearningPlan.fromJson(Map<String, dynamic> json) => LearningPlan(
         state: LearningPlanState.fromWire(
@@ -858,6 +953,7 @@ class LearningPlan {
         observedSkillCount: (json['observedSkillCount'] as num? ?? 0).toInt(),
         activitiesThisWeek: (json['activitiesThisWeek'] as num? ?? 0).toInt(),
         progressionAvailable: json['progressionAvailable'] as bool? ?? false,
+        milestone: PlanMilestone.fromJsonOrNull(json['milestone']),
       );
 }
 

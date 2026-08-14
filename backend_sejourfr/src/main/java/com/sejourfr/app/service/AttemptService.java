@@ -64,8 +64,12 @@ public class AttemptService {
     private static final int TCF_EXAM_SIZE = 60;
     private static final int TCF_EXAM_TIME = 90 * 60;
 
-    /** Chrono global de l'épreuve EE en examen blanc (30 min, comme le vrai TCF IRN). */
-    private static final int PRODUCTION_EE_EXAM_SECONDS = 30 * 60;
+    /**
+     * Chrono global de l'épreuve EE en examen blanc (30 min, comme le vrai TCF
+     * IRN). Lu aussi par {@link PlanMilestoneSelector}, qui annonce la durée du
+     * jalon d'épreuve — le nombre ne vit qu'ici.
+     */
+    static final int PRODUCTION_EE_EXAM_SECONDS = 30 * 60;
 
     /**
      * Chrono global de l'épreuve EO en examen blanc : 15 min. Les 3 tâches EO
@@ -74,8 +78,10 @@ public class AttemptService {
      * entre tâches et la latence d'upload. Sans ce chrono, une session d'examen
      * EO restait ouverte indéfiniment — un compte gratuit pouvait y accumuler
      * des évaluations IA (Whisper + LLM) jusqu'au plafond du rate-limit.
+     *
+     * <p>Lu aussi par {@link PlanMilestoneSelector} (durée annoncée du jalon).
      */
-    private static final int PRODUCTION_EO_EXAM_SECONDS = 15 * 60;
+    static final int PRODUCTION_EO_EXAM_SECONDS = 15 * 60;
 
     /**
      * Slots de la grille d'examens blancs QCM (cf. V110) : 20 par module,
@@ -106,6 +112,7 @@ public class AttemptService {
     private final LotService lotService;
     private final AttemptCompositionService compositionService;
     private final AttemptInteractionService interactionService;
+    private final ProductionAccessService productionAccessService;
     private final AttemptMapper mapper;
 
     // ------------------------------------------------------------------------
@@ -264,8 +271,8 @@ public class AttemptService {
         Attempt parent = resolveParentAttempt(userId, req.parentAttemptId());
 
         final boolean isExamSession = Boolean.TRUE.equals(req.exam());
-        if (isExamSession && !subscriptionService.hasTcf(userId)) {
-            enforceFreeProductionExamBudget(userId);
+        if (isExamSession) {
+            productionAccessService.assertCanStartProductionExam(userId);
         }
 
         Attempt attempt = new Attempt();
@@ -370,20 +377,6 @@ public class AttemptService {
                     + ProductionExamCompositionService.EXAM_SLOTS_PER_EPREUVE + ".");
         }
         return slot;
-    }
-
-    /**
-     * Budget freemium des examens blancs production (règles validées
-     * 2026-06-06) : 1ʳᵉ session gratuite ; une 2ᵉ session (refaire l'examen 1)
-     * est tolérée mais consomme les essais d'entraînement EE/EO restants
-     * (le front prévient via une modale) ; au-delà → premium.
-     */
-    private void enforceFreeProductionExamBudget(UUID userId) {
-        long sessions = attemptManager.countProductionExamSessions(userId);
-        if (sessions >= 2) {
-            throw new AccessDeniedException(
-                    "Examens blancs production réservés aux abonnés Intégral au-delà des essais gratuits.");
-        }
     }
 
     private Attempt resolveParentAttempt(UUID userId, UUID parentAttemptId) {

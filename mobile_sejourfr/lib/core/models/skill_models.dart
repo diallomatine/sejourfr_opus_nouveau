@@ -30,6 +30,15 @@ enum SkillSection {
 
   /// `EE1`, `EO3`… le code de tâche attendu par `GET /api/skills`.
   String taskCode(int tacheNumero) => '$wire$tacheNumero';
+
+  /// L'épreuve dont vient l'observation, en toutes lettres.
+  ///
+  /// Miroir de `productionSectionLabel` (`web_sejoufr/lib/diagnostic.ts`) :
+  /// « Expression écrite » / « Expression orale ». Extrait ici à la 2ᵉ
+  /// occurrence (Plan, puis résultat du diagnostic) pour que les deux écrans
+  /// ne puissent pas nommer la même épreuve différemment.
+  String get productionLabel =>
+      this == SkillSection.eo ? 'Expression orale' : 'Expression écrite';
 }
 
 /// Palier de difficulté d'un petit sujet (backend `Difficulty`).

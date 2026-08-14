@@ -164,7 +164,12 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
   jouable, c'est ce qui garde le Plan utilisable sans abonnement ») : ce qui
   reste gratuit, c'est **lire** son Plan et **commencer** son étape, pas la
   finir. Ne pas « corriger » `FREE_PROMPTS_PER_SKILL` à 5 pour rétablir
-  l'ancienne phrase.
+  l'ancienne phrase. **Conséquence en cascade, arbitrée le 2026-08-14** : la
+  bascule d'une étape en **vérification de progression** exige l'étape
+  *terminée*, donc un compte gratuit ne la voit **jamais**, aucune de ses
+  compétences n'atteint `SOLID`, et il ne reçoit aucun **jalon** d'examen blanc.
+  La vérification est **premium** — c'est un choix produit, détaillé dans la
+  section Plan.
 - **Compte gratuit, examen blanc TCF complet** (`/api/full-tcf-exams`,
   orchestré CO→CE→EE→EO) : **examen 1 offert** (slot 1, même grille que les
   abonnés) avec **EE + EO évaluées une seule fois à vie**. Au-delà, l'examen 1
@@ -355,6 +360,38 @@ de rubriques et files de calibration doivent garder le filtre
   fiable. La relance agrégée réserve `FAILED → ANALYZING` sous verrou pessimiste
   puis déclenche l'async après commit ; une session `COMPLETED` n'est jamais
   rétrogradée par un recorder tardif.
+- ⚠️ **Corollaire de cette bifurcation : le diagnostic ne traverse AUCUN filet de
+  `AiEvaluationService`.** Il rendait donc des reproches bâtis sur un artefact de
+  transcription — cas réel : `EO2-C3` reprochait « « horreurs » pour « horaires »
+  est une erreur lexicale », alors que le candidat avait dit « horaires ».
+  **`DiagnosticOralArtifactFilter`** (livré **ACTIF** le 2026-08-14, EO **seulement**)
+  applique la règle du volet FORME au diagnostic oral : une remarque qui
+  **reproche**, **cite un passage réel** de la transcription et dont la citation
+  ne nomme **qu'1 ou 2 mots pleins** est purgée ; **0 mot porteur** (structure
+  pure) et **≥ 3** sont conservés ; transcription **dégradée**
+  (`TranscriptionQualityAudit`) ⇒ tout reproche ancré tombe. **Rien n'est extrait
+  du néant** : la règle entière vit dans **`EvaluationOralForme`**
+  (`reprocheAncreSurUneForme`, 3ᵉ occurrence ⇒ les patterns `CITATION`/`REPROCHE`
+  y ont été **déplacés** depuis `EvaluationOralArtifactFilter`, qui délègue
+  désormais), le découpage en phrases dans `EvaluationTexte` (rendue publique).
+  ⚠️ **Le diagnostic n'a PAS d'axe de critères** (ses observations sont des
+  compétences, pas `morphosyntaxe`/`lexique`) : la restriction « jamais `lexique` »
+  des productions **ne s'y transpose pas**, et le propriétaire a arbitré qu'on
+  purge quand même un reproche dit « lexical » — les deux lectures (machine qui a
+  mal entendu / candidat qui a mal prononcé) mènent au même endroit, et la grille
+  interdit déjà de noter la prononciation. **Champs purgés** :
+  `skills[].explanation` (l'observation **survit sans son explication**),
+  `weaknesses[]` (entrée vidée ⇒ retirée), `summary` (remplacé par un texte qui dit
+  pourquoi). **Jamais touchés** : l'ÉCRIT, `strengths`, `evidence`, `status`,
+  `priority`, `confidence`, `level_estimate`, `task_completion`,
+  `communication_status`, l'ordre des priorités. 🛑 **Une purge ne peut pas rendre
+  une session `FAILED`** : le filtre tourne **après** `DiagnosticAnalysisValidator`
+  sur la sortie déjà normalisée (rien ne revalide derrière), et `purge` **avale
+  toute exception**. Compté `EvaluationPurgeMetrics.ARTEFACT_ORAL_FORME_DIAGNOSTIC`
+  — même **nature** (une purge retire une phrase) donc même famille que les 4
+  surfaces `MARQUEUR_PALIER*`, dont une est déjà diagnostique ; constante à part
+  pour distinguer les deux voies. **Contrats IA inchangés** (`diagnostic-analysis-*-v1`) :
+  c'est un contrôle serveur, pas une consigne. Legacy non migré.
 - **Départage des priorités : allowlist puis alternance, jamais l'alphabet**
   (`DiagnosticSessionCoordinator`). À confiance égale (`HIGH>MEDIUM>LOW`), c'est
   le rang de la compétence dans l'allowlist de son sujet
@@ -485,6 +522,80 @@ de rubriques et files de calibration doivent garder le filtre
   refuse). Une réévaluation est une **production standard** : elle produit ses
   observations `PRODUCTION_EE/EO` par le pipeline existant, aucun type de source
   dédié.
+- **La bascule vers la vérification exige DEUX conditions, pas une** (2026-08-14) :
+  le signal du moteur (`SkillMastery.readyForReassessment`) **et**
+  `LearningPlanStep.Progress.completed()` — l'**étape terminée**, ses **5** sujets
+  traités. `LearningPlanService` combine les deux **une seule fois** et sert ce
+  booléen à la fois à `LearningPlanPriorityDto.readyForReassessment` et au choix
+  de l'exercice : le DTO ne peut pas dire « prêt » pendant que la carte propose
+  un micro-sujet. Motif mesuré en base : un candidat ayant validé 2 des 5 sujets
+  se voyait proposer « Vérifier ma progression » sous un anneau à **2/5** — le
+  moteur avait raison sur le fond, l'étape n'était pas finie.
+  🛑 **Le périmètre est l'étape ENTIÈRE, pas ce que l'accès du candidat lui
+  ouvre — c'est un ARBITRAGE PRODUIT du propriétaire, pas une propriété du
+  moteur de maîtrise : la vérification de progression est PREMIUM.** Un compte
+  gratuit plafonne à 2 sujets sur 5 (`FREE_PROMPTS_PER_SKILL`), donc il ne
+  bascule **jamais** ; aucune de ses compétences n'atteint `SOLID` (qui réclame
+  la preuve contextualisée que seule cette vérification apporte) ; et il ne voit
+  donc pas non plus les **jalons** de `PlanMilestoneSelector`, dont le
+  déclencheur d'épreuve exige ≥ 2 compétences `SOLID`. **Ces trois conséquences
+  sont voulues** : ne pas les « réparer » en comptant les sujets ouverts. Une
+  première version (livrée puis révoquée le jour même) le faisait, via un
+  `exhausted()` / `openCount` dérivé de `SkillAccess` — supprimés, ne pas les
+  réintroduire. Le seuil `readiness-targeted-subjects: 2` n'y change rien : il
+  n'a jamais gardé cette porte.
+  ⚠️ **Le seuil `readiness-targeted-score` ne se monte pas.** Une observation
+  ciblée vaut **au mieux 0,5** — `recordSkillAttempt` écrit `TO_REINFORCE` quand
+  le critère est **VALIDATED**, et **jamais `SOLID`**. Donc : `0.30` est le seul
+  réglage qui sépare « un échec ancien puis deux réussites » (0,351, à laisser
+  passer) de « deux réussites noyées dans trois échecs récents » (0,20, à
+  refuser) ; `0.50` interdit d'échouer une première fois ; au-delà le signal
+  s'**éteint** — et avec lui `SOLID`, qui réclame la preuve contextualisée que
+  seule cette vérification apporte. Même piège pour les **réussites ciblées**
+  (`SkillMasteryEngine.estReussiteCiblee`, désormais découplé du `valeur >= 0.5`
+  du score) : **ne pas la restreindre à `SOLID`**, aucune ligne ne le produit.
+  Verrou : `SkillMasteryEngineTest.leSeuilCibleResteAtteignable`.
+- **JALONS — on ESCALADE, on ne reporte pas** (`PlanMilestoneSelector`, 3ᵉ et
+  dernier sélecteur d'exercice, jumeau de `RecommendedExerciseSelector` /
+  `ReassessmentExerciseSelector` — **autorité unique**, deux copies auraient fini
+  par désigner deux jalons). Échelle : étape (5 sujets) → **vérification ciblée**
+  (débloque `SOLID`) → **examen blanc d'épreuve** (EE ou EO, 3 tâches) → **examen
+  blanc TCF complet**. Attendre « les 3 étapes finies » était inatteignable (un
+  gratuit plafonne à 2/5) et aurait figé tout le monde en `CONSOLIDATING`.
+  L'échelle est déjà **tarifée** par les poids du moteur (0,45 / 0,80 / 1,00 /
+  1,20) ; il ne manquait que le déclencheur.
+  - **Déclencheurs, dérivés serveur et jamais persistés** : jalon d'épreuve quand
+    les compétences **observées** de l'épreuve sont majoritairement **`SOLID`**
+    (`epreuve-min-solid-skills: 2` **et** `epreuve-solid-ratio: 0.5`, les deux
+    ensemble) et qu'aucun examen blanc de cette épreuve n'a été observé depuis
+    `proof-days: 45` ; jalon complet quand **les deux** épreuves ont franchi le
+    leur **et l'ont prouvé**, sauf si un `TCF_COMPLET` a démarré dans la fenêtre.
+    `SOLID` et pas le score : c'est le seul état qui exige une preuve **en
+    situation**. Tous les nombres vivent sous
+    `sejourfr.learning-plan.milestone` (+ POJO `LearningPlanProperties.Milestone`
+    aux mêmes défauts). À égalité, l'**écrit** passe devant l'oral.
+  - **Aucun contenu créé, aucune route nouvelle** : un jalon désigne un examen
+    blanc **déjà existant** par `epreuve` + `slotNumber` (le premier slot non
+    joué, plafonné à la grille). `PlanExerciseKind` gagne `EPREUVE_MOCK_EXAM` et
+    `FULL_TCF_MOCK_EXAM` ; `PlanRecommendedExerciseDto` gagne `epreuve` +
+    `slotNumber`, **mutuellement exclusifs** avec `skillPromptId` et avec
+    `productionTaskId`+`tacheNumero`. Un jalon ne porte **ni titre ni
+    compétence** : le serveur expose des faits, la phrase appartient aux fronts.
+    Servi sur `LearningPlanDto.milestone`, **à côté** des priorités (chaque étape
+    garde son propre exercice) ; `null` est le **cas normal**.
+  - **Verrou reporté, jamais appliqué à la désignation** : un jalon verrouillé
+    est **désigné quand même** avec son `locked`, lu chez l'autorité que le
+    serveur oppose au démarrage — `ProductionAccessService.isProductionExamLocked`
+    (jumelle en lecture de `assertCanStartProductionExam`, que
+    `AttemptService.startProductionAttempt` appelle désormais) et
+    `.isFullExamProductionLocked` (jumelle du calcul que `FullTcfExamService
+    .start` faisait en propre). **Jamais une copie de la règle.**
+  - **Coût** : **zéro requête** tant qu'aucun jalon n'est atteint — tout se
+    décide sur l'historique déjà chargé et les états de maîtrise déjà calculés
+    (`fromObservations` porte désormais sur **toutes** les compétences observées,
+    pas seulement celles des cartes : une compétence `SOLID` n'est jamais une
+    priorité). Quand un jalon est atteint : 2 à 3 requêtes bornées, jamais une
+    par compétence.
 - **« Le Plan a changé » après une production** : `ProductionSubmissionDto
   .planChange` (`PlanChangeDto` = `confirmedSkill` + `newPriority`, deux
   `PlanSkillRefDto` **indépendamment nullables**, bloc entier `null` si rien n'a

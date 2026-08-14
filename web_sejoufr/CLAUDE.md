@@ -541,6 +541,31 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   segment déclaré une seule fois dans `lib/production-catalog.ts` et lu par
   `ProductionConfig.inputSegment`). `locked` : cadenas + paywall, l'exercice
   reste **désigné**.
+- **Le Plan porte un JALON, à côté des étapes** — `LearningPlanDto.milestone`
+  (`PlanMilestoneExerciseDto`) → `PlanMilestoneCard`, **sous** les priorités et
+  au-dessus des compétences observées. Un jalon n'est pas une étape : il désigne
+  un **examen blanc déjà existant** par son `epreuve` + `slotNumber`, et
+  `PlanExerciseKind` gagne pour cela `EPREUVE_MOCK_EXAM` / `FULL_TCF_MOCK_EXAM`.
+  **`milestone === null` est le cas NORMAL** (même sursis que `planChange`) :
+  rien ne s'affiche, aucun indicateur, aucun message.
+  ⚠️ **Sur un jalon, `title`, `skillCode`, `skillId` et `section` sont `null`** —
+  d'où l'**union discriminée** `PlanRecommendedExerciseDto =
+  PlanStepExerciseDto | PlanMilestoneExerciseDto` dans `lib/types.ts` : le type
+  interdit de lire un titre qui n'existe pas, plutôt qu'une convention à
+  relire. `recommendedExercise` et `nextAction` restent des **étapes**
+  (`PlanStepExerciseDto`), `recommendedExerciseHref` aussi — un jalon n'a pas
+  d'URL, il se **démarre**.
+  **Le serveur ne fournit AUCUN libellé** (il expose des faits) : les phrases
+  vivent dans `lib/diagnostic.ts` (`PLAN_MILESTONE_*`, `planMilestoneTitle` /
+  `planMilestoneText` / `planMilestoneMeta`), **miroir mot pour mot** de
+  `mobile/lib/screens/plan/plan_milestone_labels.dart`. La durée vient
+  d'`estimatedMinutes`, jamais d'un nombre écrit ici.
+  **Aucune route ni aucun appel n'est créé** : `EPREUVE_MOCK_EXAM` réutilise
+  `productionApi.startAttempt({exam: true, slotNumber})` → `{base}/session/{id}`
+  (le chemin de `ProductionExams`), `FULL_TCF_MOCK_EXAM` réutilise
+  `fullTcfExamApi.start(slotNumber)` → `/examens-blancs/tcf/{id}` (celui de
+  `TcfFullExamBriefingSheet`), 403 → `handleStartFailure` → `PaywallSheet`.
+  `locked` : cadenas + `SKILL_PREMIUM_HREF`, **sans rien masquer**.
 - **« Ce que ça change dans le Plan » sur le rapport d'une tâche** :
   `ProductionSubmissionDto.planChange` → `PlanChangeLine`, **une ligne** en fin
   de rapport (« X confirmée » / « Nouvelle priorité : Y. » + « Voir » vers
@@ -1198,6 +1223,29 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
     `EvaluationNotice` (la note « à savoir ») ;
     `ProductionCriteriaCard` (les 4 critères annoncés avant de produire),
     `SubmissionRow`, `EeWritingForm`, `EoRecordingForm` + `production.module.css`.
+  - **Retour visuel de la capture EO** — `RecordingLevelMeter` (même dossier),
+    monté par `EoRecordingForm` pendant `phase === "recording"`, donc **par les
+    quatre parcours qui passent par ce formulaire** : production EO, examen blanc
+    EO (`examMode`), micro-exercice de compétence, oral du diagnostic. Il rend la
+    pastille « Enregistrement… » à **point pulsant**, une forme d'onde de 33
+    barres et l'aveu « On ne vous entend pas… » (libellé gelé, miroir mot pour mot
+    de `_VoiceHint` côté mobile) après **3 s** sans voix — une pause pour chercher
+    ses mots est normale.
+    ⚠️ **Le mouvement suit la voix, il ne la simule pas** : le niveau vient d'un
+    `AnalyserNode` branché sur le `MediaStream` du `MediaRecorder`
+    (`getByteTimeDomainData` → RMS → dBFS → mêmes `NOISE_FLOOR` / `VOICE_CEILING`
+    / `AUDIBLE_LEVEL` que `recording_waveform.dart`). Une animation décorative à
+    amplitude fixe rendrait un micro muet indiscernable d'un enregistrement qui
+    marche — le vrai symptôme rapporté. Plancher de mouvement conservé : une
+    forme d'onde figée se lit comme une page plantée.
+    Contraintes techniques à ne pas relâcher : horloge **monotone**
+    (`performance.now()`), **aucun `setState` par frame** (écriture directe de
+    `transform: scaleY()` sur des `ref`, `setState` seulement à la bascule du
+    verdict), `AudioContext.resume()` au démarrage (le geste utilisateur est
+    acquis, le contexte peut naître `suspended`), et **fermeture de
+    l'`AudioContext` + `cancelAnimationFrame` au démontage comme à l'arrêt** —
+    `EoRecordingForm` remet `micStream` à `null` dans `onstop`, sinon on fuirait
+    un contexte audio par enregistrement.
   - **Gating** (source backend) : entraînement par tâche = **2 essais gratuits à
     vie** par épreuve pour non-abonnés (403 au-delà → `PaywallSheet` Intégral) ;
     examen blanc 3-tâches = **premium-only**. Premium TCF (Intégral) = illimité.

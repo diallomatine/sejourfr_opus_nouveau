@@ -21,12 +21,71 @@ public class LearningPlanProperties {
 
     private Mastery mastery = new Mastery();
 
+    private Milestone milestone = new Milestone();
+
     public Mastery getMastery() {
         return mastery;
     }
 
     public void setMastery(Mastery mastery) {
         this.mastery = mastery;
+    }
+
+    public Milestone getMilestone() {
+        return milestone;
+    }
+
+    public void setMilestone(Milestone milestone) {
+        this.milestone = milestone;
+    }
+
+    /**
+     * Seuils des <b>jalons</b> du Plan : quand proposer un examen blanc
+     * d'epreuve, puis l'examen blanc TCF complet.
+     *
+     * <p>Meme regle que {@link Mastery} : aucun de ces nombres ne vit dans le
+     * Java, et rien n'est persiste — relever un seuil relit l'historique au
+     * prochain appel, sans migration ni job.
+     */
+    public static class Milestone {
+
+        /**
+         * Competences <b>transferees</b> ({@code SOLID}) qu'il faut avoir dans
+         * une epreuve avant de proposer son examen blanc.
+         *
+         * <p>A {@code 2}, il faut au moins deux competences dont le transfert a
+         * ete prouve en situation. Une seule ne dit rien d'une epreuve entiere :
+         * un examen blanc, ce sont trois taches ou tout compte en meme temps.
+         */
+        private int epreuveMinSolidSkills = 2;
+
+        /**
+         * Part des competences <b>observees</b> de l'epreuve qui doivent etre
+         * transferees. A {@code 0.5}, il en faut une majorite : proposer un
+         * examen blanc a un candidat dont la moitie des competences observees
+         * sont encore des priorites lui ferait mesurer un echec, pas un progres.
+         */
+        private double epreuveSolidRatio = 0.5;
+
+        /**
+         * Duree de validite d'un jalon deja franchi, en jours. Tant qu'un examen
+         * blanc de cette epreuve (ou un TCF complet) est dans la fenetre, on ne
+         * le represente pas — un jalon est une etape, pas une boucle.
+         */
+        private int proofDays = 45;
+
+        public int getEpreuveMinSolidSkills() { return epreuveMinSolidSkills; }
+        public void setEpreuveMinSolidSkills(int epreuveMinSolidSkills) {
+            this.epreuveMinSolidSkills = epreuveMinSolidSkills;
+        }
+
+        public double getEpreuveSolidRatio() { return epreuveSolidRatio; }
+        public void setEpreuveSolidRatio(double epreuveSolidRatio) {
+            this.epreuveSolidRatio = epreuveSolidRatio;
+        }
+
+        public int getProofDays() { return proofDays; }
+        public void setProofDays(int proofDays) { this.proofDays = proofDays; }
     }
 
     /** Ponderations, fenetre et seuils du moteur de maitrise. */
@@ -140,12 +199,45 @@ public class LearningPlanProperties {
          * global : la baseline du diagnostic est une fragilite, et un
          * micro-exercice reussi ne vaut qu'une demi-preuve — un seuil global
          * serait mecaniquement hors d'atteinte et le Plan proposerait des
-         * micro-exercices a l'infini. A {@code 0.30}, il faut une <b>majorite</b>
-         * de reussites recentes en cible.
+         * micro-exercices a l'infini.
+         *
+         * <p><b>🛑 Faire l'arithmetique avant de toucher ce nombre.</b> Un
+         * micro-exercice reussi vaut {@code 0.5} et un rate {@code 0}
+         * ({@code SkillMasteryEngine.valeur}), et la voie ciblee n'ecrit
+         * <b>jamais</b> {@code SOLID}
+         * ({@code LearningPlanObservationService.recordSkillAttempt} : critere
+         * valide &rarr; {@code TO_REINFORCE}) : la performance ciblee est donc
+         * <b>bornee a 0.50</b>. Toute valeur superieure eteint le signal ; a
+         * {@code 0.50} pile, elle exige un sans-faute et interdit d'echouer une
+         * premiere fois.
+         *
+         * <p>Les trois scenarios que ce seuil doit trancher, calcules sur les
+         * poids par defaut :
+         * <ul>
+         *   <li>deux reussites, aucun echec &rarr; {@code 0.50} : oui ;</li>
+         *   <li>un echec ancien puis deux reussites &rarr; {@code 0.351} : oui,
+         *       c'est la trajectoire d'apprentissage normale ;</li>
+         *   <li>deux reussites noyees dans trois echecs recents &rarr;
+         *       {@code 0.20} : non.</li>
+         * </ul>
+         * {@code 0.30} est la seule plage qui les separe correctement. Ce n'est
+         * pas un nombre « trop bas » : il vaut 60 % du plafond reel.
          */
         private double readinessTargetedScore = 0.30;
 
-        /** Sujets cibles differents reussis avant de proposer une verification en situation. */
+        /**
+         * Sujets cibles differents reussis avant de proposer une verification en
+         * situation.
+         *
+         * <p><b>Ce seuil ne decide pas de la bascule</b> : {@code
+         * LearningPlanService} exige en plus une etape <b>terminee</b>
+         * ({@code LearningPlanStep.Progress.completed()}, les 5 sujets). Un
+         * compte gratuit, plafonne a {@code
+         * SkillAccessService.FREE_PROMPTS_PER_SKILL} (2) sujets, ne bascule donc
+         * jamais : la verification de progression est <b>premium par arbitrage
+         * produit</b> (2026-08-14), pas par effet de ce nombre. Le monter ou le
+         * descendre ne changerait rien a ce verrou.
+         */
         private int readinessTargetedSubjects = 2;
 
         /**

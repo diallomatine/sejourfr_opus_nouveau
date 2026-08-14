@@ -9,6 +9,7 @@ import s from "@/app/_components/skill-ui/skill.module.css";
 import {type ProductionVoice} from "./config";
 import {EoTranscriptNotice} from "./EoTranscriptNotice";
 import {ProductionCriteriaCard} from "./ProductionCriteriaCard";
+import {RecordingLevelMeter} from "./RecordingLevelMeter";
 import styles from "./production.module.css";
 
 /**
@@ -236,6 +237,10 @@ export function EoRecordingForm({
   const [elapsed, setElapsed] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [permError, setPermError] = useState<string | null>(null);
+  // Le flux micro en cours, exposé en état (et pas seulement en ref) parce que
+  // c'est lui qui alimente le retour visuel : un `ref` ne déclencherait pas le
+  // montage du compteur de niveau.
+  const [micStream, setMicStream] = useState<MediaStream | null>(null);
   // Réécoute en cours dans le lecteur inline : l'écran doit rester allumé le
   // temps de l'écoute, pas pendant toute la phase « enregistré » (le candidat
   // peut y rester longtemps avant d'envoyer).
@@ -366,6 +371,7 @@ export function EoRecordingForm({
       const stream = await navigator.mediaDevices.getUserMedia({audio: true});
       setMicState("ready");
       streamRef.current = stream;
+      setMicStream(stream);
       const mime = pickMime();
       const rec = mime ? new MediaRecorder(stream, {mimeType: mime}) : new MediaRecorder(stream);
       chunksRef.current = [];
@@ -377,6 +383,9 @@ export function EoRecordingForm({
         blobRef.current = blob;
         streamRef.current?.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
+        // Libère l'`AudioContext` du compteur de niveau : sans ça on en fuirait
+        // un par enregistrement.
+        setMicStream(null);
         if (timeoutOnStopRef.current) {
           timeoutOnStopRef.current = false;
           setPhase("recorded");
@@ -536,6 +545,11 @@ export function EoRecordingForm({
           <Mic size={32} strokeWidth={2} />
         </button>
       )}
+
+      {/* Ce qui prouve que la voix est captée : sans lui, un micro muet est
+          indiscernable d'un enregistrement qui marche, et le candidat ne
+          l'apprend qu'après l'analyse. */}
+      {phase === "recording" && <RecordingLevelMeter stream={micStream} />}
 
       <p className={styles.recordHint}>
         {phase === "recording"

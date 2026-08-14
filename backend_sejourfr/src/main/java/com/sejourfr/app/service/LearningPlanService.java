@@ -26,6 +26,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +66,7 @@ public class LearningPlanService {
     private final LearningPlanPriorityResolver priorityResolver;
     private final RecommendedExerciseSelector exerciseSelector;
     private final ReassessmentExerciseSelector reassessmentSelector;
+    private final PlanMilestoneSelector milestoneSelector;
     private final SkillProgressCounter progressCounter;
     private final SkillMasteryResolver masteryResolver;
     private final SkillAccessService accessService;
@@ -78,7 +80,7 @@ public class LearningPlanService {
                     inProgress == null ? LearningPlanState.NEEDS_DIAGNOSTIC
                             : LearningPlanState.DIAGNOSTIC_IN_PROGRESS,
                     inProgress == null ? null : inProgress.getId(), null,
-                    null, List.of(), List.of(), 0, 0, true);
+                    null, List.of(), List.of(), 0, 0, true, null);
         }
 
         // L'ordre des priorités vit dans LearningPlanPriorityResolver : c'est le
@@ -99,28 +101,52 @@ public class LearningPlanService {
         Set<UUID> skillIds = new LinkedHashSet<>();
         actionable.forEach(item -> skillIds.add(item.getSkill().getId()));
         observedItems.forEach(item -> skillIds.add(item.getSkill().getId()));
+        // Résolu ici et transmis aux sélecteurs : le Plan pose « locked » sur
+        // les priorités, les compétences observées ET l'exercice recommandé.
+        // Ça ne se calcule qu'une fois par appel.
+        SkillAccessService.SkillAccess access = accessService.resolve(userId);
         Map<UUID, SkillProgressCounter.SkillProgress> progress =
                 progressCounter.bySkillIds(userId, skillIds);
         // Le moteur de maitrise se branche sur l'historique DEJA charge par le
         // resolveur de priorites : le Plan lit toutes les observations du
-        // candidat, il n'a aucune raison de les relire.
+        // candidat, il n'a aucune raison de les relire. Le calcul porte sur
+        // TOUTES les competences observees, pas seulement sur celles des cartes :
+        // le jalon d'epreuve compte les competences transferees, et une
+        // competence SOLID n'est jamais une priorite.
         Map<UUID, SkillMasteryEngine.SkillMastery> mastery =
-                masteryResolver.fromObservations(allObservations, skillIds);
-        // Résolu ici et transmis au sélecteur : le Plan pose « locked » sur les
-        // priorités, les compétences observées ET l'exercice recommandé, ça ne
-        // se calcule qu'une fois par appel.
-        SkillAccessService.SkillAccess access = accessService.resolve(userId);
+                masteryResolver.fromObservations(allObservations, latest.keySet());
         Map<UUID, PlanRecommendedExerciseDto> exercises = exerciseSelector.selectAll(
                 userId, actionable.stream().map(LearningPlanObservation::getSkill).toList(),
                 access);
 
         // BASCULE DE L'ETAPE : quand le moteur juge la competence prete a etre
-        // verifiee, la meme carte cesse de proposer un micro-sujet et propose une
-        // vraie tache. L'etape ne se dedouble jamais. Si la tache n'a aucun sujet
-        // publie, la verification est simplement absente et le micro-exercice
-        // reste — rien ne casse.
+        // verifiee ET que l'etape est TERMINEE, la meme carte cesse de proposer
+        // un micro-sujet et propose une vraie tache. L'etape ne se dedouble
+        // jamais. Si la tache n'a aucun sujet publie, la verification est
+        // simplement absente et le micro-exercice reste — rien ne casse.
+        //
+        // La SECONDE condition manquait : le moteur ne voit pas l'etape, et un
+        // candidat ayant valide 2 des 5 sujets se voyait proposer « verifier ma
+        // progression » sous un anneau affichant 2/5.
+        //
+        // Le perimetre de cette condition est l'ETAPE ENTIERE (les 5 sujets
+        // editoriaux), pas ce que l'acces du candidat lui ouvre. C'est un
+        // ARBITRAGE PRODUIT du proprietaire (2026-08-14) : la verification de
+        // progression est PREMIUM. Un compte gratuit plafonne a 2 sujets sur 5
+        // (SkillAccessService.FREE_PROMPTS_PER_SKILL), donc il ne bascule
+        // jamais — et par voie de consequence aucune de ses competences
+        // n'atteint SOLID (qui exige la preuve contextualisee que seule cette
+        // verification apporte), donc il ne voit pas non plus les jalons de
+        // PlanMilestoneSelector, dont le declencheur d'epreuve demande >= 2
+        // competences SOLID. Ces trois consequences sont VOULUES : ce n'est pas
+        // un bug freemium, ne pas retablir un comptage des sujets ouverts pour
+        // les « corriger ».
+        Map<UUID, Boolean> readyToVerify = new LinkedHashMap<>();
+        actionable.forEach(item -> readyToVerify.put(item.getSkill().getId(),
+                mastery(mastery, item).readyForReassessment()
+                        && progress(progress, item).step().completed()));
         List<Skill> toVerify = actionable.stream()
-                .filter(item -> mastery(mastery, item).readyForReassessment())
+                .filter(item -> Boolean.TRUE.equals(readyToVerify.get(item.getSkill().getId())))
                 .map(LearningPlanObservation::getSkill)
                 .toList();
         Map<UUID, PlanRecommendedExerciseDto> verifications =
@@ -128,8 +154,9 @@ public class LearningPlanService {
 
         List<LearningPlanPriorityDto> priorities = actionable.stream()
                 .map(item -> priority(item,
-                        nextExercise(item, mastery(mastery, item), exercises, verifications),
+                        nextExercise(item, readyToVerify, exercises, verifications),
                         progress(progress, item), mastery(mastery, item),
+                        Boolean.TRUE.equals(readyToVerify.get(item.getSkill().getId())),
                         access.isSkillLocked(item.getSkill().getId())))
                 .toList();
 
@@ -147,11 +174,16 @@ public class LearningPlanService {
                 .toList();
         int observedCount = latest.size();
         int activities = Math.toIntExact(observationManager.countSince(userId, startOfWeek()));
+        // Le JALON vit a cote des priorites, il ne les remplace pas : les etapes
+        // continuent de porter leur propre exercice. Absent tant qu'aucune
+        // epreuve n'a majoritairement transfere — cas normal, pas une erreur.
+        PlanRecommendedExerciseDto milestone = milestoneSelector.select(
+                userId, latest.values(), mastery, allObservations, Instant.now()).orElse(null);
         return new LearningPlanDto(
                 LearningPlanState.ACTIVE, completed.getId(), completed.getCompletedAt(),
                 priorities.isEmpty() ? null : priorities.getFirst(),
                 priorities.size() <= 1 ? List.of() : priorities.subList(1, priorities.size()),
-                observed, observedCount, activities, true);
+                observed, observedCount, activities, true, milestone);
     }
 
     /**
@@ -226,11 +258,11 @@ public class LearningPlanService {
      */
     private static PlanRecommendedExerciseDto nextExercise(
             LearningPlanObservation observation,
-            SkillMasteryEngine.SkillMastery mastery,
+            Map<UUID, Boolean> readyToVerify,
             Map<UUID, PlanRecommendedExerciseDto> exercises,
             Map<UUID, PlanRecommendedExerciseDto> verifications) {
         UUID skillId = observation.getSkill().getId();
-        if (mastery.readyForReassessment() && verifications.containsKey(skillId)) {
+        if (Boolean.TRUE.equals(readyToVerify.get(skillId)) && verifications.containsKey(skillId)) {
             return verifications.get(skillId);
         }
         return exercises.get(skillId);
@@ -248,6 +280,7 @@ public class LearningPlanService {
             PlanRecommendedExerciseDto exercise,
             SkillProgressCounter.SkillProgress counts,
             SkillMasteryEngine.SkillMastery mastery,
+            boolean readyForReassessment,
             boolean locked) {
         LearningPlanStep.Progress step = counts.step();
         return new LearningPlanPriorityDto(
@@ -257,7 +290,7 @@ public class LearningPlanService {
                 observation.getConfidence(), observation.getObservedAt(), exercise,
                 counts.promptCount(), counts.attemptedCount(), counts.validatedCount(),
                 step.promptCount(), step.attemptedCount(), step.validatedCount(),
-                step.completed(), mastery.state(), mastery.readyForReassessment(), locked);
+                step.completed(), mastery.state(), readyForReassessment, locked);
     }
 
     private static SkillMasteryEngine.SkillMastery mastery(

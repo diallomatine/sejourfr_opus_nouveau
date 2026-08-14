@@ -50,6 +50,7 @@ public class DiagnosticProductionAnalysisService {
     private final DiagnosticProductionAnalysisManager analysisManager;
     private final DiagnosticRubricsProvider rubrics;
     private final LearningPlanObservationService observationService;
+    private final DiagnosticOralArtifactFilter oralArtifactFilter;
 
     public DiagnosticProductionAnalysis analyseDiagnostic(UUID submissionId) {
         DiagnosticProductionAnalysis existing = analysisManager.findBySubmissionId(submissionId).orElse(null);
@@ -158,6 +159,10 @@ public class DiagnosticProductionAnalysisService {
                     sum(first.costEstimateCents(), second.costEstimateCents()));
         }
         Map<String, Object> normalized = validator.normalize(analysis, segments);
+        // APRÈS le validateur, jamais dedans : une purge retire une phrase du
+        // rapport, elle ne doit pas pouvoir rendre une session FAILED. Le filtre
+        // n'agit qu'à l'ORAL et ne lève jamais (cf. DiagnosticOralArtifactFilter).
+        oralArtifactFilter.purge(normalized, task.getEpreuve(), production);
         return new AnalysisRun(normalized, allowed, accepted);
     }
 

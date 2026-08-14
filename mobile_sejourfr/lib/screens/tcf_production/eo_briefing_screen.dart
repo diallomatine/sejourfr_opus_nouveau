@@ -704,7 +704,10 @@ class _RecordingView extends StatelessWidget {
                   soft: AppColors.blueLight,
                 ),
                 const SizedBox(height: 12),
-                const _RecStatusPill(),
+                const RecordingPill(
+                  color: AppColors.red,
+                  background: AppColors.redLight,
+                ),
                 const SizedBox(height: 20),
                 _TimerBig(
                   elapsed: rec.elapsed,
@@ -865,72 +868,6 @@ class _TimerBig extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _RecStatusPill extends StatefulWidget {
-  const _RecStatusPill();
-
-  @override
-  State<_RecStatusPill> createState() => _RecStatusPillState();
-}
-
-class _RecStatusPillState extends State<_RecStatusPill>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.redLight,
-        borderRadius: BorderRadius.circular(100),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedBuilder(
-            animation: _ctrl,
-            builder: (_, __) {
-              final opacity = 0.4 + (_ctrl.value * 0.6);
-              return Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: AppColors.red.withValues(alpha: opacity),
-                  shape: BoxShape.circle,
-                ),
-              );
-            },
-          ),
-          const SizedBox(width: 6),
-          Text(
-            'Enregistrement…',
-            style: AppFonts.ui(
-              size: 13,
-              weight: FontWeight.w700,
-              color: AppColors.red,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

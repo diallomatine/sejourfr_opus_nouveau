@@ -204,6 +204,55 @@ public class ProductionAccessService {
         return examSessionsConsumedTraining(userId) || trainingQuotaExhausted(userId, epreuve);
     }
 
+    /**
+     * Budget freemium des <b>sessions d'examen blanc production</b> (EE/EO, 3
+     * taches), <b>opposable</b> : 1&#x2071;&#x2ba0; session gratuite, une 2&#x1d49;
+     * toleree qui consomme les essais d'entrainement restants, au-dela premium.
+     *
+     * <p>Appele par {@code AttemptService.startProductionAttempt}. Il partage sa
+     * condition avec {@link #isProductionExamLocked}, sa jumelle en lecture :
+     * deux copies auraient fini par afficher au Plan un jalon ouvert que le
+     * serveur refuse — ou l'inverse.
+     */
+    public void assertCanStartProductionExam(UUID userId) {
+        if (isProductionExamLocked(userId)) {
+            throw new AccessDeniedException(
+                    "Examens blancs production réservés aux abonnés Intégral au-delà des "
+                            + "essais gratuits.");
+        }
+    }
+
+    /**
+     * La meme regle <b>en lecture</b> : « ce candidat peut-il encore demarrer un
+     * examen blanc d'epreuve ? ».
+     *
+     * <p>Sert a poser le cadenas du jalon d'epreuve du Plan
+     * ({@code PlanMilestoneSelector}) sans rien tenter ni rien consommer. Le
+     * jalon reste <b>designe</b> meme verrouille — savoir ou l'on en est fait
+     * partie de ce que le Plan apporte.
+     */
+    @Transactional(readOnly = true)
+    public boolean isProductionExamLocked(UUID userId) {
+        if (subscriptionService.hasTcf(userId)) return false;
+        return examSessionsConsumedTraining(userId);
+    }
+
+    /**
+     * Les epreuves EE/EO d'un <b>examen blanc TCF complet</b> sont-elles
+     * verrouillees pour ce candidat ?
+     *
+     * <p>Jumelle en lecture du calcul de {@code FullTcfExamService.start}, qui
+     * pre-termine les sous-attempts EE/EO d'un compte gratuit ayant deja
+     * consomme son freebie. L'examen complet reste demarrable (CO+CE), mais le
+     * jalon du Plan porte sur le <b>transfert des productions</b> : c'est cette
+     * partie-la qui est fermee, et c'est elle que le cadenas doit annoncer.
+     */
+    @Transactional(readOnly = true)
+    public boolean isFullExamProductionLocked(UUID userId) {
+        if (subscriptionService.hasTcf(userId)) return false;
+        return submissionManager.hasFullExamProductionSubmission(userId);
+    }
+
     private boolean examSessionsConsumedTraining(UUID userId) {
         return attemptManager.countProductionExamSessions(userId) >= 2;
     }

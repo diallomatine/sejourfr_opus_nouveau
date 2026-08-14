@@ -29,6 +29,8 @@ import '../tcf_production/competences/competences_nav.dart';
 import '../tcf_production/recommended_exercise_launcher.dart';
 import '../tcf_production/tcf_production_module.dart';
 import 'learning_plan_provider.dart';
+import 'plan_milestone_card.dart';
+import 'plan_milestone_labels.dart';
 
 /// Plan adaptatif calculé par le serveur à partir du diagnostic et des
 /// activités productives récentes. L'écran ne recalcule ni priorité ni statut.
@@ -272,6 +274,19 @@ class _ActivePlan extends StatelessWidget {
           next: next,
           onOpenRecommended: onOpenRecommended,
         ),
+        // Le jalon vit SOUS les priorités, jamais à leur place : c'est un cran
+        // au-dessus des étapes, pas un remplaçant. `milestone == null` est le
+        // cas NORMAL (rien à mesurer, ou examen blanc tout juste passé) — rien
+        // ne s'affiche, ni indicateur, ni message.
+        if (plan.milestone != null) ...[
+          const SizedBox(height: 24),
+          const _PlanSectionHead(
+            title: kPlanMilestoneSectionTitle,
+            description: kPlanMilestoneSectionText,
+          ),
+          const SizedBox(height: 12),
+          PlanMilestoneCard(milestone: plan.milestone!),
+        ],
         if (observed.isNotEmpty) ...[
           const SizedBox(height: 24),
           _ObservedSkillsSection(
@@ -1344,7 +1359,7 @@ bool _isLocked(
     priority.locked || (exercise?.locked ?? false);
 
 String _skillMeta(String skillCode, SkillSection section) {
-  final label = section == SkillSection.eo ? 'Expression orale' : 'Expression écrite';
+  final label = section.productionLabel;
   return skillCode.isEmpty ? label : '$skillCode · $label';
 }
 

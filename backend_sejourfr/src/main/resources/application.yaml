@@ -1059,11 +1059,40 @@ sejourfr:
       # baseline du diagnostic est une fragilite et un micro-exercice reussi ne
       # vaut qu'une demi-preuve, donc un seuil global serait mecaniquement hors
       # d'atteinte et le Plan proposerait des micro-exercices a l'infini.
+      # ARITHMETIQUE, a refaire avant de toucher ce nombre : un micro-exercice
+      # reussi vaut 0.5, un rate 0, et la voie ciblee n'ecrit JAMAIS SOLID
+      # (critere valide -> TO_REINFORCE) -> la performance ciblee est BORNEE a
+      # 0.50. Au-dela, le signal s'eteint ; a 0.50 pile, il exige un sans-faute.
+      # Ce que 0.30 tranche : 2 reussites sans echec = 0.50 (oui) ; 1 echec
+      # ancien puis 2 reussites = 0.351 (oui, trajectoire normale) ; 2 reussites
+      # noyees dans 3 echecs recents = 0.20 (non). 0.30 vaut 60 % du plafond
+      # reel — ce n'est pas un seuil « trop bas ».
       readiness-targeted-score: 0.30
+      # Ce nombre ne decide PAS de la bascule : LearningPlanService exige en
+      # plus une etape TERMINEE (LearningPlanStep.Progress.completed(), les 5
+      # sujets). La verification de progression est donc premium par arbitrage
+      # produit — inutile de monter ce seuil pour « proteger » d'une bascule
+      # prematuree, il n'en protege rien.
       readiness-targeted-subjects: 2
       # Duree de validite d'une preuve de transfert : tant qu'elle tient, on ne
       # redemande pas de verification.
       transfer-proof-days: 60
+    # JALONS : les deux barreaux au-dessus de l'etape. On ESCALADE, on ne
+    # reporte pas — la verification ciblee est le seul mecanisme qui fait passer
+    # une competence en SOLID, la repousser bloquerait tout le monde en
+    # consolidation. Ces jalons ne creent aucun contenu : ils designent un
+    # examen blanc DEJA existant (epreuve + slot de grille).
+    milestone:
+      # Competences transferees (SOLID) exigees dans une epreuve avant de
+      # proposer son examen blanc : une seule ne dit rien d'une epreuve entiere.
+      epreuve-min-solid-skills: 2
+      # ... et il en faut une majorite parmi les competences OBSERVEES de
+      # l'epreuve : proposer un examen blanc a un candidat dont la moitie des
+      # competences restent des priorites lui ferait mesurer un echec.
+      epreuve-solid-ratio: 0.5
+      # Duree de validite d'un jalon franchi : un jalon est une etape, pas une
+      # boucle — on ne represente pas un examen blanc qu'on vient de passer.
+      proof-days: 45
 
   # Diagnostic initial : même fournisseur/modèle que production-evaluation,
   # mais contrat et consignes séparés (aucune note /20, aucune tâche officielle).

@@ -13,7 +13,6 @@ import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
-import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.UserManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,7 +49,7 @@ import java.util.UUID;
 public class FullTcfExamService {
 
     /** Chrono global affiché côté mobile (parent). */
-    private static final int FULL_EXAM_TOTAL_SECONDS = 90 * 60;
+    static final int FULL_EXAM_TOTAL_SECONDS = 90 * 60;
 
     private static final int HISTORY_LIMIT_MAX = 100;
 
@@ -59,9 +58,8 @@ public class FullTcfExamService {
 
     private final AttemptManager attemptManager;
     private final UserManager userManager;
-    private final ProductionSubmissionManager productionSubmissionManager;
-    private final SubscriptionService subscriptionService;
     private final AttemptService attemptService;
+    private final ProductionAccessService productionAccessService;
     private final FullTcfExamResponseBuilder responseBuilder;
 
     // ------------------------------------------------------------------------
@@ -88,9 +86,11 @@ public class FullTcfExamService {
                 .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
 
         // EE/EO déverrouillées pour les abonnés, et pour un compte gratuit tant
-        // qu'il n'a pas encore soumis de tâche EE/EO en examen complet.
-        boolean productionUnlocked = subscriptionService.hasTcf(userId)
-                || !productionSubmissionManager.hasFullExamProductionSubmission(userId);
+        // qu'il n'a pas encore soumis de tâche EE/EO en examen complet. La règle
+        // vit dans ProductionAccessService, qui la sert AUSSI en lecture au
+        // jalon du Plan : deux copies auraient fini par afficher un cadenas que
+        // le serveur ne pose pas, ou l'inverse.
+        boolean productionUnlocked = !productionAccessService.isFullExamProductionLocked(userId);
 
         Attempt parent = createParent(user, slot, !productionUnlocked);
 

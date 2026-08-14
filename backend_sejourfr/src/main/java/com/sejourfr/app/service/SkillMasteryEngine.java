@@ -142,10 +142,11 @@ public class SkillMasteryEngine {
      *
      * <p>Signal <b>interne</b>, jamais un etat affiche : il dit au Plan de
      * cesser d'empiler les micro-exercices et de proposer une production. Quatre
-     * conditions — assez de reussites ciblees, sur des <b>sujets differents</b>,
-     * une performance <b>ciblee</b> suffisante, et <b>pas encore de preuve de
-     * transfert recente</b>. Une competence deja {@code SOLID} n'a plus rien a
-     * verifier.
+     * conditions — assez de <b>reussites</b> ciblees au sens de
+     * {@link #estReussiteCiblee} (un echec cible n'en est jamais une), sur des
+     * <b>sujets differents</b>, une performance <b>ciblee</b> suffisante, et
+     * <b>pas encore de preuve de transfert recente</b>. Une competence deja
+     * {@code SOLID} n'a plus rien a verifier.
      *
      * <p><b>C'est la performance CIBLEE qui compte ici, pas le score global</b>,
      * et c'est structurel : la baseline du diagnostic est justement une
@@ -153,6 +154,17 @@ public class SkillMasteryEngine {
      * Un seuil pose sur le score global serait mecaniquement hors d'atteinte
      * tant que le diagnostic reste dans la fenetre — le Plan proposerait un
      * quatrieme, puis un dixieme micro-exercice, indefiniment.
+     *
+     * <p>⚠️ <b>Ce signal ne suffit pas a basculer l'etape.</b>
+     * {@code LearningPlanService} lui ajoute une seconde condition, qu'il est le
+     * seul a pouvoir voir : l'etape doit etre <b>terminee</b>
+     * ({@code LearningPlanStep.Progress.completed()}, ses 5 sujets traites).
+     * Sans elle, un candidat validant 2 des 5 sujets de son etape se voyait
+     * proposer « verifier ma progression » avec un anneau a 2/5 — deux messages
+     * contradictoires sur la meme carte. Corollaire <b>voulu</b> : un compte
+     * gratuit, plafonne a 2 sujets, ne bascule jamais (la verification est
+     * premium) et n'atteint donc jamais {@code SOLID}, qui exige la preuve
+     * contextualisee qu'elle seule apporte.
      */
     private static boolean readyForReassessment(
             SkillMasteryState state, Tally tally, LearningPlanProperties.Mastery config) {
@@ -192,23 +204,50 @@ public class SkillMasteryEngine {
             tally.poidsTotal += poids;
             tally.valeurPonderee += valeur * poids;
             tally.distinctSubjects.add(sujet(item));
-            if (item.getSourceType() != null && item.getSourceType().isTargeted()) {
+            LearningPlanSourceType source = item.getSourceType();
+            if (source != null && source.isTargeted()) {
                 tally.targetedPoids += poids;
                 tally.targetedValeurPonderee += valeur * poids;
+                // Filtre PROPRE au signal de reevaluation, volontairement
+                // decouple du « valeur >= 0.5 » ci-dessous : les deux ensembles
+                // ne repondent pas a la meme question, et les faire dependre du
+                // meme nombre magique revenait a recalibrer l'un en touchant
+                // l'autre.
+                if (estReussiteCiblee(item.getStatus())) {
+                    tally.targetedPositiveSubjects.add(sujet(item));
+                }
             }
             if (valeur < 0.5) continue;
 
             tally.positiveCount++;
-            LearningPlanSourceType source = item.getSourceType();
             if (source == null) continue;
             if (source.isContextual()) {
                 tally.contextualPositiveCount++;
                 if (!item.getObservedAt().isBefore(transferStart)) tally.recentContextualProof = true;
-            } else if (source.isTargeted()) {
-                tally.targetedPositiveSubjects.add(sujet(item));
             }
         }
         return tally;
+    }
+
+    /**
+     * Un micro-entrainement <b>reussi</b>, et rien d'autre.
+     *
+     * <p>Ce que le module Competences ecrit reellement
+     * ({@code LearningPlanObservationService.recordSkillAttempt}) : critere
+     * {@code VALIDATED} &rarr; {@code TO_REINFORCE}, critere partiel ou non
+     * atteint &rarr; {@code PRIORITY}. <b>Sur une observation CIBLEE,
+     * {@code TO_REINFORCE} est donc un succes</b>, malgre son libelle « A
+     * renforcer » — il dit « critere valide, mais une fois seulement, et en
+     * situation guidee », pas « rate ». {@code SOLID} est accepte par
+     * completude : cette voie ne l'ecrit jamais, et exiger {@code SOLID} ici
+     * rendrait la verification en situation <b>structurellement inatteignable</b>
+     * — donc {@code SOLID} lui-meme, qui reclame une preuve contextualisee que
+     * seule cette verification apporte a un candidat qui ne fait que des
+     * micro-exercices. Ne pas « corriger » cette methode a {@code SOLID} seul.
+     */
+    private static boolean estReussiteCiblee(LearningPlanSkillStatus status) {
+        return status == LearningPlanSkillStatus.SOLID
+                || status == LearningPlanSkillStatus.TO_REINFORCE;
     }
 
     /**

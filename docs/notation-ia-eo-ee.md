@@ -2555,6 +2555,71 @@ sans cela, on répare un cas et on reste aveugle au suivant.
 
 ---
 
+## 8 octies. Le **diagnostic** oral protégé lui aussi (nouveau, 14 août 2026)
+
+### Ce qui s'est passé
+
+Le **diagnostic initial** — les deux exercices de 5 minutes qu'on passe en arrivant, un écrit
+puis un oral — est corrigé par une machine **distincte** de celle qui corrige les productions
+complètes. Elle a son propre contrat, ses propres garde-fous, et surtout : elle ne traversait
+**aucun** des filets décrits dans les sections précédentes.
+
+Résultat, sur une session réellement jouée. Le candidat a demandé les **horaires** d'une
+activité ; notre transcription a écrit **« horreurs »**. Le rapport lui a alors répondu :
+
+> « Demande les horaires et le tarif, mais « horreurs » pour « horaires » est une erreur
+> lexicale qui peut gêner. »
+
+On lui reprochait un mot qu'il n'avait pas dit — et sur le **tout premier écran** du produit,
+celui qui doit lui donner envie de continuer.
+
+### La correction
+
+La même règle qu'à la section 8 sexies s'applique désormais au **volet oral du diagnostic** :
+
+- une remarque **qui reproche quelque chose**, **qui cite un passage réel** de la
+  transcription, et dont la citation ne nomme **qu'un ou deux mots pleins**, est **retirée** ;
+- une remarque qui cite **trois mots ou plus**, ou **aucun mot plein** (« pour ne pas que »),
+  décrit une **structure de phrase** : elle est **conservée** ;
+- si la transcription a été jugée **abîmée** (section 8 septies), toute remarque appuyée sur
+  une citation tombe, quelle que soit sa longueur.
+
+### La seule différence avec les productions complètes
+
+Sur une production complète, ce nettoyage ne touche que les remarques de **grammaire**, jamais
+celles de **vocabulaire** : on y a mesuré des cas où une vraie remarque de vocabulaire aurait
+été effacée à tort.
+
+Le diagnostic, lui, **n'a pas cette séparation** : ses observations portent sur des
+**compétences** (« poser des questions précises », par exemple), pas sur des critères de
+langue. Il n'y a donc rien sur quoi restreindre le nettoyage.
+
+Le choix retenu est de nettoyer **quand même**, y compris quand la remarque se dit
+« lexicale », parce que les deux explications possibles mènent au même endroit : soit notre
+transcripteur a mal entendu, soit le candidat a mal prononcé — et **nous nous interdisons déjà
+de juger la prononciation** (section 9). Dans les deux cas, la remarque n'a pas à être rendue.
+
+### Ce qui n'est jamais touché
+
+- **L'écrit du diagnostic.** Rien du tout. À l'écrit, le candidat tape chaque mot : aucune
+  machine ne s'interpose. Le déséquilibre vient de notre chaîne technique, pas du niveau exigé.
+- **Le jugement.** Ni le niveau estimé, ni le verdict sur la tâche, ni la priorité, ni la
+  confiance, ni l'ordre des priorités du Plan. On retire une **phrase**, pas un verdict. Le
+  diagnostic ne produit d'ailleurs aucune note sur 20.
+- **Les points forts.** On n'efface pas un compliment.
+- **Le passage cité en preuve.** Il reste affiché : sans lui, le reste devient incompréhensible.
+- **L'observation elle-même.** Si son explication disparaît en entier, l'observation **reste**,
+  simplement sans explication. **Un nettoyage ne fait jamais échouer un diagnostic** — le
+  candidat ne perd jamais ses deux productions pour cette raison.
+
+### Ce qu'on en mesure
+
+Chaque phrase retirée est comptée à part de celles des productions complètes. Sur les
+**8 analyses orales de diagnostic** existantes, **une** portait ce défaut — la même proportion,
+environ une sur huit, que celle mesurée sur les productions complètes.
+
+---
+
 ## 9. L'oral : ce que nous ne savons pas évaluer
 
 **C'est une limite technique, pas un choix pédagogique — et le candidat en est informé.**

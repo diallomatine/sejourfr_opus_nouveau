@@ -322,6 +322,33 @@
   margin-top: 15px;
 }
 
+/* --------------------------------------------------------------- le jalon */
+
+/* Un jalon reprend l'anatomie de « À faire maintenant » — même carte, mêmes
+   marges : c'est la même famille d'action, un cran plus haut. Seule la pastille
+   change de teinte, le rouge restant réservé à la priorité n°1. */
+.milestonePill {
+  background: color-mix(in srgb, var(--color-green) 13%, transparent);
+  color: var(--color-green);
+}
+
+/* Pourquoi ce jalon arrive maintenant. Un examen blanc proposé sans motif se
+   lit comme une sanction ; ici, c'est ce que le candidat vient prouver. */
+.milestoneText {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.milestoneError {
+  margin: 10px 0 0;
+  color: var(--color-red-dark);
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 /* ------------------------------------------------------- verrou freemium */
 
 /* Le cadenas s'ajoute, il ne remplace rien : la pastille « Priorité n°1 » reste
@@ -717,6 +744,13 @@
 
 .primaryButton:hover {
   background: var(--color-blue-dark);
+}
+
+/* Un démarrage d'examen blanc part sur le réseau : le bouton doit cesser de se
+   proposer tant que la session n'est pas créée, sinon deux clics = deux slots. */
+.primaryButton:disabled {
+  cursor: default;
+  opacity: 0.62;
 }
 
 .secondaryButton {

@@ -24,9 +24,12 @@ import {
 import {useAuth} from "@/lib/auth-context";
 import {
   competenceHref,
+  PLAN_MILESTONE_SECTION_TEXT,
+  PLAN_MILESTONE_SECTION_TITLE,
   productionSectionLabel,
   recommendedExerciseHref,
 } from "@/lib/diagnostic";
+import {PlanMilestoneCard} from "./PlanMilestoneCard";
 import {competenceProgressLabel} from "@/lib/skill-progress";
 import {
   type DashboardSummaryResponse,
@@ -261,6 +264,17 @@ function ActivePlan({plan, targetLevel}: {plan: LearningPlanDto; targetLevel: st
             text={`${steps.length} priorité${plural(steps.length)} active${plural(steps.length)}, puis une vérification.`}
           />
           <PlanPath steps={steps} />
+        </>
+      )}
+
+      {/* Le jalon vit SOUS les priorités, jamais à leur place : c'est un cran
+          au-dessus des étapes, pas un remplaçant. `milestone === null` est le
+          cas NORMAL (rien à mesurer, ou examen blanc tout juste passé) — rien
+          ne s'affiche, ni indicateur, ni message. */}
+      {plan.milestone && (
+        <>
+          <BlockHead title={PLAN_MILESTONE_SECTION_TITLE} text={PLAN_MILESTONE_SECTION_TEXT} />
+          <PlanMilestoneCard milestone={plan.milestone} onPremiumClick={trackPremiumClick} />
         </>
       )}
 

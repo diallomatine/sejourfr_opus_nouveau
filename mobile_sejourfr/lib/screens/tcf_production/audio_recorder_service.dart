@@ -87,6 +87,17 @@ class AudioRecorderService {
   String? _currentPath;
   String? _currentMime;
 
+  /// Dernière amplitude lue, **retenue entre deux mesures**.
+  ///
+  /// Deux sources émettent sur le même flux : le micro (toutes les 100 ms, avec
+  /// l'amplitude) et le ticker de durée (toutes les 200 ms, sans). Le ticker
+  /// reconstruisait un `RecordingState` **sans** ce champ, si bien que la forme
+  /// d'onde retombait plusieurs fois par seconde sur sa valeur décorative de
+  /// repli : elle ne pouvait pas refléter la voix, et un micro muet ressemblait
+  /// trait pour trait à un micro qui capte. On conserve donc la dernière mesure
+  /// connue au lieu de la perdre à chaque tic.
+  double? _lastAmplitude;
+
   Stream<RecordingState>? _stateStream;
   final _stateController = StreamController<RecordingState>.broadcast();
 
@@ -160,6 +171,7 @@ class AudioRecorderService {
     // jusqu'a la prochaine version de record_ios.
     _currentMime = 'audio/wav';
     _elapsed = Duration.zero;
+    _lastAmplitude = null;
     _maxDuration = maxDuration;
     await _recorder.start(
       const RecordConfig(
@@ -190,6 +202,7 @@ class AudioRecorderService {
         maxDuration: maxDuration,
         filePath: _currentPath,
         fileMime: _currentMime,
+        lastAmplitude: _lastAmplitude,
       ));
       if (_elapsed >= maxDuration) {
         await stop();
@@ -204,6 +217,7 @@ class AudioRecorderService {
         .listen((amp) {
       // dBFS typique : -60 (silence) a 0 (saturation). On normalise sur 0..1.
       final norm = ((amp.current + 60) / 60).clamp(0.0, 1.0);
+      _lastAmplitude = norm;
       _stateController.add(RecordingState(
         phase: RecordingPhase.recording,
         elapsed: _elapsed,
@@ -276,6 +290,7 @@ class AudioRecorderService {
     _currentPath = null;
     _currentMime = null;
     _elapsed = Duration.zero;
+    _lastAmplitude = null;
     _stateController.add(const RecordingState(phase: RecordingPhase.idle));
   }
 

@@ -42,6 +42,24 @@ public class EvaluationPurgeMetrics {
          * coute trop cher.
          */
         ARTEFACT_ORAL_FORME,
+        /**
+         * Meme defaut, AUTRE VOIE : un reproche du DIAGNOSTIC oral bati sur la
+         * forme d'un ou deux mots de la transcription. Le diagnostic bifurque sur
+         * son propre pipeline ({@code production_submissions.is_diagnostic}) et
+         * ne traverse aucun filet de {@code AiEvaluationService} : il rendait donc
+         * des reproches d'artefact que la voie standard purge depuis 2026-08-09
+         * (verbatim reel : « « horreurs » pour « horaires » est une erreur
+         * lexicale »).
+         *
+         * <p>Compte a part de {@link #ARTEFACT_ORAL_FORME} pour la raison qui
+         * separe deja les quatre surfaces de {@code MARQUEUR_PALIER*} : le
+         * contrat, le service et l'appel LLM sont differents, les melanger
+         * empecherait de dire laquelle des deux voies derive. Et c'est le seul
+         * volet qui purge SANS pouvoir se limiter au critere de grammaire : le
+         * diagnostic n'a pas d'axe de criteres, ses observations sont des
+         * competences — d'ou l'interet de le mesurer separement.
+         */
+        ARTEFACT_ORAL_FORME_DIAGNOSTIC,
         /** Marqueur classe A2 vendu comme le levier d'un palier superieur. */
         MARQUEUR_PALIER,
         /**

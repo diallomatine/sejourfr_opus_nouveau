@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -120,15 +119,6 @@ import java.util.regex.Pattern;
 final class EvaluationOralArtifactFilter {
 
     /**
-     * Guillemets francais et guillemets doubles droits/typographiques. L'apostrophe
-     * simple est volontairement EXCLUE : en francais elle marque l'elision
-     * ({@code l'ile}), la traiter comme un guillemet decouperait n'importe quelle
-     * phrase.
-     */
-    private static final Pattern CITATION = Pattern.compile(
-        "«\\s*([^«»]{1,300}?)\\s*»|\"([^\"]{1,300}?)\"|“([^”]{1,300}?)”");
-
-    /**
      * MARQUEURS DE REPROCHE DE LANGUE ETRANGERE, forme normalisee (minuscules,
      * sans accents). Liste FERMEE, calquee sur les verbatims reellement produits
      * par le correcteur (5 evaluations en base) :
@@ -209,28 +199,6 @@ final class EvaluationOralArtifactFilter {
      * plausible. Les 5 evaluations fautives reelles portent 77 a 255 mots.
      */
     static final int MOTS_MIN_MESURE_LANGUE = 40;
-
-    /**
-     * MARQUEURS DE REPROCHE. Citer un mot de la transcription ne suffit pas a
-     * declencher la purge : encore faut-il que la phrase REPROCHE quelque chose
-     * a ce mot. Sans cette condition, le filet supprimait aussi les CONSEILS qui
-     * citent un mot present dans la production (« relie tes idees avec
-     * "parce que" »), c'est-a-dire exactement ce qu'on veut garder.
-     *
-     * <p>Liste fermee et volontairement etroite : elle ne peut que REDUIRE le
-     * nombre de purges. Une formulation de reproche qui y echappe laisse passer
-     * l'artefact — c'est alors la consigne de la grille (rubriques v9) qui joue,
-     * et elle, se mesure au banc. On prefere ce sens d'erreur a l'inverse, qui
-     * effacerait de vrais conseils.
-     */
-    private static final Pattern REPROCHE = Pattern.compile(
-        "\\b(incorrect|impropre|inappropri|inexact|fautif|fautive|faute|erreur"
-            + "|agrammatical|barbarisme|calque|confusion|confond|remplac|corrig|evit"
-            + "|mal (employ|chois|utilis|form|dit|plac|construit|adapt|orthographi)"
-            + "|n (existe|est|a) pas|ne (se )?dit pas|ne veut rien dire"
-            + "|au lieu de|a la place de"
-            + "|pauvre|approximat|imprecis|passe[- ]partout|vague"
-            + "|manque|absent|oubli|jamais donne|devrait|il faudrait|aurait du)");
 
     /** Au-dela d'un mot porteur de sens, le reproche n'est plus « de niveau mot ». */
     private static final int MAX_MOTS_PORTEURS = 1;
@@ -603,25 +571,10 @@ final class EvaluationOralArtifactFilter {
      * cher que taire une faute reelle.
      */
     private static boolean reprocheDeForme(String phrase, String production, boolean degradee) {
-        if (!REPROCHE.matcher(EvaluationTexte.normaliserPourMarqueur(phrase)).find()) return false;
-        Matcher matcher = CITATION.matcher(phrase);
-        boolean formeIsolee = false;
-        boolean ancree = false;
-        while (matcher.find()) {
-            String citation = premierGroupeNonNul(matcher);
-            if (citation == null || citation.isBlank()) continue;
-            if (EvaluationProofMatcher
-                .canonicalPassage(production, citation, EpreuveType.TCF_EO).isEmpty()) {
-                continue; // pas un passage de la transcription : on n'y touche pas
-            }
-            ancree = true;
-            // Zero mot porteur : citation faite de mots-outils seuls (« pour ne
-            // pas que », « est-ce que »). C'est une STRUCTURE pure, donc
-            // exactement ce que ce volet doit conserver — cf.
-            // EvaluationOralForme, qui porte la regle pour les deux surfaces.
-            if (EvaluationOralForme.nommeUneFormeIsolee(citation)) formeIsolee = true;
-        }
-        return ancree && (degradee || formeIsolee);
+        // La regle entiere — reproche, ancrage, une ou deux formes pleines — vit
+        // dans EvaluationOralForme depuis qu'une TROISIEME surface la relit (le
+        // volet oral du diagnostic). Ici on ne fait que l'appeler.
+        return EvaluationOralForme.reprocheAncreSurUneForme(phrase, production, degradee);
     }
 
     /** Vrai quand la phrase reproche au candidat d'avoir employe une autre langue. */
@@ -678,12 +631,9 @@ final class EvaluationOralArtifactFilter {
      * volet purge strictement moins qu'avant.
      */
     private static boolean reprocheDeNiveauMot(String phrase, String production) {
-        if (!REPROCHE.matcher(EvaluationTexte.normaliserPourMarqueur(phrase)).find()) return false;
-        Matcher matcher = CITATION.matcher(phrase);
+        if (!EvaluationOralForme.estUnReproche(phrase)) return false;
         boolean motIsole = false;
-        while (matcher.find()) {
-            String citation = premierGroupeNonNul(matcher);
-            if (citation == null || citation.isBlank()) continue;
+        for (String citation : EvaluationOralForme.citations(phrase)) {
             if (EvaluationProofMatcher
                 .canonicalPassage(production, citation, EpreuveType.TCF_EO).isEmpty()) {
                 continue; // pas un passage de la transcription : on n'y touche pas
@@ -693,13 +643,6 @@ final class EvaluationOralArtifactFilter {
             if (porteurs >= 1) motIsole = true;
         }
         return motIsole;
-    }
-
-    private static String premierGroupeNonNul(Matcher matcher) {
-        for (int i = 1; i <= matcher.groupCount(); i++) {
-            if (matcher.group(i) != null) return matcher.group(i);
-        }
-        return null;
     }
 
 }

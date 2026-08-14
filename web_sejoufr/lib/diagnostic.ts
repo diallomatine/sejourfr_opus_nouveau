@@ -7,7 +7,8 @@ import type {
   LearningPlanSkillStatus,
   LearningPlanSourceType,
   NiveauCecrl,
-  PlanRecommendedExerciseDto,
+  PlanMilestoneExerciseDto,
+  PlanStepExerciseDto,
   ProductionTaskDto,
   SkillSection,
 } from "./types";
@@ -193,7 +194,7 @@ export function skillTaskNumber(skillCode: string): number | null {
  * route, jamais une décision pédagogique.
  */
 export function recommendedExerciseHref(
-  exercise: PlanRecommendedExerciseDto | null | undefined,
+  exercise: PlanStepExerciseDto | null | undefined,
 ): string {
   if (!exercise) return "/entrainement?module=TCF";
   const base = `/entrainement/tcf/${exercise.section.toLowerCase()}`;
@@ -225,6 +226,54 @@ export function competenceHref(skill: {
  *  diagnostic et pour le Plan. */
 export function productionSectionLabel(section: SkillSection): string {
   return section === "EE" ? "Expression écrite" : "Expression orale";
+}
+
+/* ------------------------------------------------------------------ jalons */
+
+/**
+ * Ce qu'on dit d'un **jalon** du Plan. Le serveur n'en fournit **aucun**
+ * libellé : il expose des faits (quelle épreuve, quel slot, verrouillé ou non),
+ * la phrase appartient aux fronts — même partage que `PlanChangeDto`.
+ *
+ * ⚠️ **Contrat gelé, miroir mot pour mot du mobile**
+ * (`lib/screens/plan/plan_milestone_labels.dart`). Ces chaînes ne transitent pas
+ * par le réseau : chaque front en tient sa copie, un libellé qui bouge, ce sont
+ * **deux** fichiers à changer dans la même passe.
+ *
+ * **Ton** : un jalon est une étape de progression, pas une sanction. Le candidat
+ * vient prouver ce qu'il a acquis, on ne le met pas en garde.
+ */
+export const PLAN_MILESTONE_SECTION_TITLE = "Votre prochain jalon";
+export const PLAN_MILESTONE_SECTION_TEXT =
+  "Un cran au-dessus des étapes : venez prouver ce que vous avez déjà acquis.";
+export const PLAN_MILESTONE_PILL = "Jalon";
+export const PLAN_MILESTONE_CTA = "Passer l'examen blanc";
+export const PLAN_MILESTONE_LOCKED_CTA = "Débloquer cet examen blanc";
+export const PLAN_MILESTONE_LOCK_NOTE =
+  "Cet examen blanc fait partie de l'abonnement Intégral. Votre plan, lui, reste entier.";
+export const PLAN_MILESTONE_FULL_TITLE = "Examen blanc TCF complet";
+export const PLAN_MILESTONE_FULL_TEXT =
+  "L'écrit et l'oral ont chacun franchi leur jalon. Il reste à les tenir ensemble, sur les 4 épreuves du TCF.";
+
+/** Titre d'un jalon : « Examen blanc — Expression écrite / orale », ou l'examen
+ *  complet. C'est `epreuve` qui tranche, jamais `section` (toujours nulle ici). */
+export function planMilestoneTitle(milestone: PlanMilestoneExerciseDto): string {
+  if (milestone.kind === "FULL_TCF_MOCK_EXAM") return PLAN_MILESTONE_FULL_TITLE;
+  const section: SkillSection = milestone.epreuve === "TCF_EO" ? "EO" : "EE";
+  return `Examen blanc — ${productionSectionLabel(section)}`;
+}
+
+/** Pourquoi ce jalon est proposé maintenant — une phrase, pas un avertissement. */
+export function planMilestoneText(milestone: PlanMilestoneExerciseDto): string {
+  if (milestone.kind === "FULL_TCF_MOCK_EXAM") return PLAN_MILESTONE_FULL_TEXT;
+  const section: SkillSection = milestone.epreuve === "TCF_EO" ? "EO" : "EE";
+  return `Vos compétences en ${productionSectionLabel(section).toLowerCase()} tiennent en exercice ciblé. Enchaînez les 3 tâches en conditions d'examen pour le confirmer.`;
+}
+
+/** Le repère factuel sous le titre : quel examen de la grille, quelle durée.
+ *  La durée vient du DTO (`estimatedMinutes`), jamais d'un nombre écrit ici. */
+export function planMilestoneMeta(milestone: PlanMilestoneExerciseDto): string {
+  return `Examen blanc n°${milestone.slotNumber} · ≈ ${milestone.estimatedMinutes} min`;
 }
 
 export function niveauEstimateLabel(level: NiveauCecrl | null | undefined): string {

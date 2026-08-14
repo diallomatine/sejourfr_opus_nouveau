@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/enums.dart';
+import '../../../core/models/skill_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/evidence_excerpt.dart';
 import '../../../core/widgets/app_button.dart';
@@ -234,12 +235,32 @@ class DiagnosticResultView extends StatelessWidget {
 /// [ranked] distingue les **priorités mesurées** par le serveur (numérotées)
 /// des replis : ces derniers ne portent pas de rang, parce qu'ils ne sont pas
 /// un classement.
+///
+/// Elle porte **tout ce que le serveur publie** sur une priorité
+/// (`DiagnosticSkillObservationDto`) et que le candidat a le droit de lire :
+/// `explanation`, `evidence`, `status` et `section`. `confidence` en est
+/// volontairement absente — elle n'est **jamais** montrée au candidat.
 class _FocusItem {
-  const _FocusItem({required this.title, required this.ranked, this.detail});
+  const _FocusItem({
+    required this.title,
+    required this.ranked,
+    this.detail,
+    this.evidence,
+    this.status,
+    this.section,
+  });
 
   final String title;
   final String? detail;
+  final String? evidence;
+  final LearningPlanSkillStatus? status;
+  final SkillSection? section;
   final bool ranked;
+
+  /// Y a-t-il quelque chose à déplier ? Un repli tiré des `weaknesses` n'est
+  /// qu'un titre : sa ligne reste alors **inerte**, sans chevron.
+  bool get hasReport =>
+      detail != null || evidence != null || status != null || section != null;
 }
 
 /// Ce sur quoi le candidat doit travailler, dans l'ordre de repli suivant :
@@ -253,10 +274,18 @@ List<_FocusItem> _focusItems(DiagnosticResult result) {
   if (result.priorities.isNotEmpty) {
     return result.priorities
         .take(3)
+        .indexed
         .map(
-          (priority) => _FocusItem(
-            title: priority.skillTitle,
-            detail: priority.explanation,
+          (entry) => _FocusItem(
+            title: entry.$2.skillTitle,
+            // La priorité n°1 a son explication dédiée
+            // (`mainPriorityExplanation`), plus développée que l'explication de
+            // l'observation. Même repli que le web (`DiagnosticView`).
+            detail: (entry.$1 == 0 ? result.mainPriorityExplanation : null) ??
+                entry.$2.explanation,
+            evidence: entry.$2.evidence,
+            status: entry.$2.status,
+            section: entry.$2.section,
             ranked: true,
           ),
         )
@@ -275,6 +304,9 @@ List<_FocusItem> _focusItems(DiagnosticResult result) {
         _FocusItem(
           title: skill.skillTitle,
           detail: skill.explanation,
+          evidence: skill.evidence,
+          status: skill.status,
+          section: skill.section,
           ranked: false,
         ),
       );
@@ -747,11 +779,29 @@ class _FocusCard extends StatelessWidget {
   }
 }
 
-class _FocusRow extends StatelessWidget {
+/// Une priorité, **repliée par défaut**, qui s'ouvre sur le rapport **entier**
+/// du correcteur — même idiome que [_AcquisRow] (chevron qui pivote,
+/// [AnimatedSize], `Semantics.expanded`), pas une seconde mécanique.
+///
+/// Replié, on lit le rang, la compétence et l'épreuve d'où vient l'observation.
+/// **Aucun texte ellipsé** : l'explication du correcteur arrivait coupée en
+/// plein milieu (« …est une er… »), c'est-à-dire au moment précis où elle
+/// devenait utile. Elle vit maintenant dans le dépliant, en entier.
+///
+/// La flèche ↗ d'avant était purement décorative — elle n'ouvrait rien. Le
+/// chevron la remplace : il annonce ce que le tap fait vraiment.
+class _FocusRow extends StatefulWidget {
   const _FocusRow({required this.item, required this.rank});
 
   final _FocusItem item;
   final int rank;
+
+  @override
+  State<_FocusRow> createState() => _FocusRowState();
+}
+
+class _FocusRowState extends State<_FocusRow> {
+  bool _open = false;
 
   /// L'intensité de l'ambre **décroît du rang 1 au rang 3** : la teinte dit le
   /// rang au lieu de décorer trois pastilles identiques. Dérivée de
@@ -768,16 +818,22 @@ class _FocusRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final item = widget.item;
+    final rank = widget.rank;
     final detail = item.detail;
-    return Container(
+    final evidence = item.evidence;
+    final expandable = item.hasReport;
+
+    // L'épreuve d'où vient l'observation, et le verdict porté sur elle : deux
+    // faits courts, qui remplacent au repos la phrase tronquée d'avant.
+    final meta = <String>[
+      if (item.section != null) item.section!.productionLabel,
+      if (item.status != null) item.status!.label,
+    ].join(' · ');
+
+    final header = Padding(
       padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-        color: AppColors.blueSoft,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.line2),
-      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             width: 27,
@@ -814,12 +870,10 @@ class _FocusRow extends StatelessWidget {
                     height: 1.28,
                   ),
                 ),
-                if (detail != null) ...[
-                  const SizedBox(height: 2),
+                if (meta.isNotEmpty) ...[
+                  const SizedBox(height: 3),
                   Text(
-                    detail,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                    meta,
                     style: AppFonts.ui(
                       size: 11,
                       height: 1.35,
@@ -830,11 +884,82 @@ class _FocusRow extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          const Icon(
-            LucideIcons.arrowUpRight,
-            size: 16,
-            color: AppColors.amberDark,
+          if (expandable) ...[
+            const SizedBox(width: 8),
+            AnimatedRotation(
+              turns: _open ? 0.5 : 0,
+              duration: const Duration(milliseconds: 180),
+              child: const Icon(
+                LucideIcons.chevronDown,
+                size: 17,
+                color: AppColors.amberDark,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: AppColors.line2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (expandable)
+            Semantics(
+              button: true,
+              expanded: _open,
+              label: meta.isEmpty ? item.title : '${item.title} · $meta',
+              child: InkWell(
+                onTap: () => setState(() => _open = !_open),
+                borderRadius: BorderRadius.circular(15),
+                child: header,
+              ),
+            )
+          else
+            header,
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: !_open
+                ? const SizedBox(width: double.infinity)
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(49, 0, 11, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (detail != null)
+                          Text(
+                            detail,
+                            style: AppFonts.ui(
+                              size: 11.5,
+                              height: 1.45,
+                              color: AppColors.inkSoft,
+                            ),
+                          ),
+                        // La citation est la phrase du candidat lui-même, et le
+                        // dépliant est ouvert à sa demande : elle est rendue
+                        // **entière**, sans l'`evidenceExcerpt` qui borne les
+                        // surfaces repliées (carte d'étape du Plan, acquis).
+                        if (evidence != null) ...[
+                          if (detail != null) const SizedBox(height: 7),
+                          Text(
+                            '« ${evidence.trim()} »',
+                            style: AppFonts.ui(
+                              size: 11.5,
+                              height: 1.45,
+                              color: AppColors.inkFaint,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),

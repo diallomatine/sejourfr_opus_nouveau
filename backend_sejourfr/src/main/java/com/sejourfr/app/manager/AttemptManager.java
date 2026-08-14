@@ -153,6 +153,15 @@ public class AttemptManager {
     }
 
     /**
+     * Idem, pour une <b>seule</b> épreuve. Sert au jalon du Plan à désigner le
+     * prochain slot de la grille d'examens blancs de cette épreuve — le budget
+     * freemium, lui, reste global aux deux.
+     */
+    public long countProductionExamSessions(UUID userId, EpreuveType epreuve) {
+        return repository.countProductionExamSessions(userId, List.of(epreuve));
+    }
+
+    /**
      * Épreuves QCM TCF (CO/CE) réellement passées : examen blanc fini portant
      * au moins une réponse. Une épreuve abandonnée sans rien rendre (0 réponse)
      * n'est jamais renvoyée — cf. le javadoc de la requête.

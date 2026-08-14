@@ -61,9 +61,17 @@ class FullTcfExamServiceTest {
 
         FullTcfExamResponseBuilder responseBuilder = new FullTcfExamResponseBuilder(
                 attemptManager, productionSubmissionManager, levelEstimator, productionBilanService);
+        // Le verrou EE/EO d'un examen complet vit desormais dans
+        // ProductionAccessService, qui le sert AUSSI en lecture au jalon du
+        // Plan. On le construit ICI POUR DE VRAI, sur les memes mocks : c'est ce
+        // qui garantit que le cadenas affiche et le verrou applique restent la
+        // meme regle.
+        ProductionAccessService productionAccessService = new ProductionAccessService(
+                subscriptionService, attemptManager, productionSubmissionManager,
+                mock(com.sejourfr.app.manager.DiagnosticSessionManager.class));
         service = new FullTcfExamService(
-                attemptManager, userManager, productionSubmissionManager,
-                subscriptionService, attemptService, responseBuilder);
+                attemptManager, userManager, attemptService, productionAccessService,
+                responseBuilder);
 
         when(attemptManager.save(any(Attempt.class))).thenAnswer(inv -> inv.getArgument(0));
         when(levelEstimator.capB2(any())).thenAnswer(inv -> inv.getArgument(0));

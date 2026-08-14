@@ -604,6 +604,29 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   `productionSessionPath` (`…/t/0`) — exactement le chemin du mode « Sujets », **le
   `productionTaskId` ne voyage jamais dans l'URL**. `locked` ⇒ paywall, l'exercice
   reste désigné.
+- **Le Plan porte un JALON, à côté des étapes** — `LearningPlan.milestone`
+  (`PlanMilestone`) → `PlanMilestoneCard` (`screens/plan/plan_milestone_card.dart`),
+  **sous** « Votre parcours » et au-dessus des compétences observées. Un jalon
+  n'est pas une étape : il désigne un **examen blanc déjà existant** par son
+  `epreuve` + `slotNumber`, et `PlanExerciseKind` gagne pour cela
+  `epreuveMockExam` / `fullTcfMockExam`. **`milestone == null` est le cas
+  NORMAL** (même sursis que `PlanChange`) : rien ne s'affiche, aucun indicateur.
+  ⚠️ **Un jalon n'a ni titre, ni compétence, ni section** — d'où une **classe à
+  part** (`PlanMilestone`), jamais un `PlanRecommendedExercise` aux champs
+  rendus nullables : aucun écran ne peut lire ici un titre qui n'existe pas.
+  `recommendedExercise` reste une **étape**, et
+  `recommended_exercise_launcher.dart` n'a donc rien à connaître des jalons.
+  **Le serveur ne fournit AUCUN libellé** (il expose des faits) : les phrases
+  vivent dans `screens/plan/plan_milestone_labels.dart` (`kPlanMilestone*`,
+  extension `PlanMilestoneLabels`), **miroir mot pour mot** de
+  `web_sejoufr/lib/diagnostic.ts` (section « jalons »). La durée vient
+  d'`estimatedMinutes`, jamais d'un nombre écrit ici.
+  **Aucune route ni aucun appel n'est créé** : `epreuveMockExam` réutilise
+  `Ee/EoSessionNotifier.startExam(slotNumber:)` puis `productionSessionPath`
+  (le chemin de l'onglet « Examens »), `fullTcfMockExam` réutilise
+  `FullTcfExamRepository.start(slotNumber:)` puis `AppRoutes.tcfFullExamProgress`
+  (celui de `TcfFullExamsView`), 403 → `showPaywallOrError`. `locked` :
+  `PremiumLockTag` + `showTcfLockPaywall`, **sans rien masquer**.
 - **« Ce que ça change dans le Plan » sur le rapport d'une tâche** :
   `ProductionSubmissionDto.planChange` → `PlanChangeLine`
   (`tcf_production/widgets/`), **une ligne** en fin de `EvaluationReport`

@@ -709,14 +709,27 @@ interface SkillLockable {
 }
 
 /**
- * Nature de l'action proposée par une étape du Plan — **même carte, même
- * emplacement, action différente**. Les deux ne mènent pas au même écran : le
- * front lit `kind`, il ne le devine jamais d'un `null`.
+ * Nature de l'action proposée par le Plan — **même carte, même emplacement,
+ * action différente**. Les quatre ne mènent pas au même écran : le front lit
+ * `kind`, il ne le devine jamais d'un `null`.
+ *
+ * Les deux derniers rangs sont des **jalons** : ils ne désignent aucun contenu
+ * éditorial mais une session d'examen blanc **déjà existante**, par son épreuve
+ * et son slot de grille.
  */
-export type PlanExerciseKind = "MICRO_TRAINING" | "REASSESSMENT";
+export type PlanExerciseKind =
+    | "MICRO_TRAINING"
+    | "REASSESSMENT"
+    | "EPREUVE_MOCK_EXAM"
+    | "FULL_TCF_MOCK_EXAM";
 
-export interface PlanRecommendedExerciseDto extends SkillLockable {
-    kind: PlanExerciseKind;
+/**
+ * L'exercice d'une **étape** : un micro-sujet du module Compétences, ou une
+ * vérification en situation sur une vraie tâche TCF. Tout le bloc compétence y
+ * est renseigné — c'est ce qui distingue une étape d'un jalon.
+ */
+export interface PlanStepExerciseDto extends SkillLockable {
+    kind: "MICRO_TRAINING" | "REASSESSMENT";
     /** Micro-exercice uniquement ; `null` sur une vérification. */
     skillPromptId: string | null;
     /** Vérification uniquement ; `null` sur un micro-exercice. */
@@ -729,7 +742,50 @@ export interface PlanRecommendedExerciseDto extends SkillLockable {
      *  uniquement, `null` sur un micro-exercice. */
     tacheNumero: number | null;
     estimatedMinutes: number;
+    epreuve: null;
+    slotNumber: null;
 }
+
+/**
+ * Un **jalon** : une session d'examen blanc **déjà existante**, désignée par son
+ * épreuve et son slot de grille. Aucun contenu n'est créé.
+ *
+ * ⚠️ **Tout le bloc compétence y est `null`** — `skillId`, `skillCode`, `title`
+ * et `section` — et c'est voulu : un jalon ne désigne pas un contenu éditorial.
+ * Sa phrase appartient aux fronts (`planMilestoneLabel`), le serveur n'expose
+ * que des faits : quelle épreuve, quel slot, verrouillé ou non.
+ */
+export interface PlanMilestoneExerciseDto extends SkillLockable {
+    kind: "EPREUVE_MOCK_EXAM" | "FULL_TCF_MOCK_EXAM";
+    skillPromptId: null;
+    productionTaskId: null;
+    skillId: null;
+    skillCode: null;
+    title: null;
+    section: null;
+    tacheNumero: null;
+    estimatedMinutes: number;
+    /**
+     * `TCF_EE` / `TCF_EO` pour un examen blanc d'épreuve, `TCF_COMPLET` pour
+     * l'examen blanc complet — c'est **ce champ**, jamais `section`, qui dit
+     * vers quel examen le front doit envoyer.
+     */
+    epreuve: Extract<EpreuveType, "TCF_EE" | "TCF_EO" | "TCF_COMPLET">;
+    /**
+     * Slot de la grille d'examens blancs à démarrer. Le serveur désigne le
+     * premier slot non joué : le front le repasse tel quel au démarrage, il ne
+     * le choisit pas.
+     */
+    slotNumber: number;
+}
+
+/**
+ * L'exercice que le Plan désigne — sur une compétence (une étape) ou, d'un cran
+ * au-dessus, comme **jalon** du parcours. **Union discriminée par `kind`** : les
+ * identifiants sont mutuellement exclusifs par nature, et c'est le type qui
+ * l'impose plutôt qu'une convention à relire.
+ */
+export type PlanRecommendedExerciseDto = PlanStepExerciseDto | PlanMilestoneExerciseDto;
 
 export interface DiagnosticSkillObservationDto {
     skillId: string;
@@ -780,7 +836,9 @@ export interface DiagnosticResultDto {
     strengths: string[];
     priorities: DiagnosticSkillObservationDto[];
     mainPriorityExplanation: string | null;
-    nextAction: PlanRecommendedExerciseDto | null;
+    /** Toujours une étape : le diagnostic désigne la compétence de la priorité
+     *  n°1, jamais un jalon d'examen blanc. */
+    nextAction: PlanStepExerciseDto | null;
     /** Second appel best-effort : `null` (ou absent) est un cas normal. */
     exempleCible: DiagnosticExempleCibleDto | null;
 }
@@ -837,7 +895,7 @@ export interface LearningPlanPriorityDto extends LearningPlanSkillCounters, Skil
     evidence: string | null;
     confidence: ObservationConfidence;
     observedAt: string;
-    recommendedExercise: PlanRecommendedExerciseDto | null;
+    recommendedExercise: PlanStepExerciseDto | null;
     /** Sujets de l'étape : au plus les 5 premiers actifs, moins si la compétence en publie moins. */
     stepPromptCount: number;
     /** Sujets de l'étape déjà traités (tout sauf « À faire »). */
@@ -881,6 +939,18 @@ export interface LearningPlanDto {
     observedSkillCount: number;
     activitiesThisWeek: number;
     progressionAvailable: boolean;
+    /**
+     * Le **jalon** du parcours, un cran au-dessus des étapes : un examen blanc
+     * d'épreuve puis l'examen blanc TCF complet. Il vit **à côté** des
+     * priorités, il ne les remplace pas — chaque étape garde son propre
+     * `recommendedExercise`.
+     *
+     * **`null` est le cas NORMAL** (comme `planChange` ou `versionCiblee`) :
+     * rien ne s'affiche, aucun indicateur, aucun message d'erreur. Verrouillé,
+     * le jalon reste **désigné** avec son `locked` — le Plan reste
+     * intégralement visible, seuls les accès sont fermés.
+     */
+    milestone: PlanMilestoneExerciseDto | null;
 }
 
 // ============================================================================

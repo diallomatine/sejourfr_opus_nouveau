@@ -147,6 +147,37 @@ class SkillMasteryEngineTest {
         assertThat(mastery.readyForReassessment()).isFalse();
     }
 
+    /**
+     * Le filtre des reussites ciblees est <b>propre au signal de reevaluation</b> :
+     * deux echecs sur deux sujets differents n'ouvrent rien, meme si le candidat
+     * a « couvert » les deux sujets.
+     */
+    @Test
+    @DisplayName("Deux echecs cibles sur deux sujets differents n'ouvrent pas la verification")
+    void deuxEchecsCiblesNouvrentPasLaVerification() {
+        SkillMasteryEngine.SkillMastery mastery = engine.evaluate(List.of(
+                observation(LearningPlanSourceType.SKILL_TRAINING, LearningPlanSkillStatus.PRIORITY,
+                        ObservationConfidence.MEDIUM, UUID.randomUUID(), jours(2)),
+                observation(LearningPlanSourceType.SKILL_TRAINING, LearningPlanSkillStatus.PRIORITY,
+                        ObservationConfidence.MEDIUM, UUID.randomUUID(), jours(1))), now);
+
+        assertThat(mastery.readyForReassessment()).isFalse();
+        assertThat(mastery.state()).isEqualTo(SkillMasteryState.PRIORITY);
+    }
+
+    /**
+     * Garde-fou de calibration, pas de comportement : la voie ciblee n'ecrit
+     * jamais {@code SOLID}, donc la performance ciblee ne depasse jamais
+     * {@code 0.5}. Un seuil au-dela eteindrait le signal au lieu de le durcir —
+     * et avec lui {@code SOLID}, qui reclame la preuve contextualisee que seule
+     * la verification apporte a un candidat en micro-entrainement.
+     */
+    @Test
+    @DisplayName("Le seuil de performance ciblee reste sous le plafond reellement atteignable")
+    void leSeuilCibleResteAtteignable() {
+        assertThat(properties.getMastery().getReadinessTargetedScore()).isLessThan(0.5);
+    }
+
     @Test
     @DisplayName("Le meme sujet repete n'ouvre pas la verification : on cherche le transfert")
     void leMemeSujetRepeteNouvrePasLaVerification() {

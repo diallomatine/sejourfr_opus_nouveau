@@ -361,6 +361,72 @@
 }
 .player audio { width: 100%; }
 
+/* ---------- Retour visuel de la capture (RecordingLevelMeter) ---------- */
+/* Rouge assumé : c'est le seul signal d'urgence de l'écran, comme le bouton
+   d'enregistrement — le reste du parcours de production est bleu. */
+.recLive {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.recPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-red) 12%, transparent);
+  color: var(--color-red);
+  font-size: 13px;
+  font-weight: 700;
+}
+.recDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: rec-dot 1.2s ease-in-out infinite alternate;
+}
+@keyframes rec-dot {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
+}
+.wave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  max-width: 340px;
+  height: 70px;
+}
+/* Hauteur fixe + `scaleY` : l'animation reste sur le compositeur, aucune barre
+   ne déclenche de recalcul de mise en page à 60 fps. La valeur doit suivre
+   `BAR_MAX_PX` côté composant. */
+.waveBar {
+  width: 3px;
+  height: 62px;
+  border-radius: 2px;
+  background: var(--color-red);
+  transform: scaleY(0.1);
+  transform-origin: center;
+  will-change: transform;
+}
+.recUnheard {
+  margin: 0;
+  max-width: 320px;
+  text-align: center;
+  color: var(--color-amber-dark);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+@media (prefers-reduced-motion: reduce) {
+  .recDot { animation: none; }
+}
+
 /* ===== Bilan de session EE/EO (hero bleu + détail par tâche), calqué mobile ===== */
 .sessHero {
   background: linear-gradient(135deg, var(--color-blue), var(--color-blue-dark));

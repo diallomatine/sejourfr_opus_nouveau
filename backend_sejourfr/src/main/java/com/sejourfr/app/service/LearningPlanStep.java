@@ -72,6 +72,17 @@ public final class LearningPlanStep {
          *
          * <p>Une etape sans aucun sujet actif n'est jamais terminee : il n'y a
          * rien a faire, le dire « fini » serait un contresens.
+         *
+         * <p><b>C'est aussi la seconde condition de la bascule vers la
+         * verification en situation</b> ({@code LearningPlanService}) : le
+         * signal du moteur de maitrise ne suffit pas, l'etape doit etre finie.
+         * Le perimetre est ici l'<b>editorial</b> — les
+         * {@value #PROMPTS_PAR_ETAPE} sujets, ceux que les fronts affichent —
+         * et non ce que l'acces du candidat lui ouvre. Un compte gratuit,
+         * plafonne a 2 sujets sur 5, ne bascule donc jamais : c'est un
+         * <b>arbitrage produit</b> (la verification est premium), pas une
+         * propriete du moteur. Ne pas le « reparer » en comptant les sujets
+         * ouverts.
          */
         public boolean completed() {
             return promptCount > 0 && attemptedCount >= promptCount;

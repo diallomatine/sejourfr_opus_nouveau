@@ -6,6 +6,7 @@ import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.LearningPlanState;
@@ -31,6 +32,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -44,6 +46,7 @@ class LearningPlanServiceTest {
     private LearningPlanObservationManager observationManager;
     private RecommendedExerciseSelector exerciseSelector;
     private ReassessmentExerciseSelector reassessmentSelector;
+    private PlanMilestoneSelector milestoneSelector;
     private SkillProgressCounter progressCounter;
     private SkillAccessService accessService;
     private LearningPlanService service;
@@ -68,10 +71,13 @@ class LearningPlanServiceTest {
         LearningPlanProperties planProperties = new LearningPlanProperties();
         reassessmentSelector = mock(ReassessmentExerciseSelector.class);
         when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of());
+        milestoneSelector = mock(PlanMilestoneSelector.class);
+        when(milestoneSelector.select(eq(userId), anyCollection(), anyMap(), anyCollection(), any()))
+                .thenReturn(Optional.empty());
         service = new LearningPlanService(new DiagnosticProperties(), taskManager,
                 sessionManager, observationManager,
                 new LearningPlanPriorityResolver(observationManager),
-                exerciseSelector, reassessmentSelector, progressCounter,
+                exerciseSelector, reassessmentSelector, milestoneSelector, progressCounter,
                 new SkillMasteryResolver(observationManager,
                         new SkillMasteryEngine(planProperties), planProperties),
                 accessService);
@@ -399,6 +405,7 @@ class LearningPlanServiceTest {
         when(observationManager.findAllByUserWithSkill(userId))
                 .thenReturn(List.of(dernier, precedent));
         when(observationManager.countSince(any(), any())).thenReturn(2L);
+        stubStep(skill, new LearningPlanStep.Progress(5, 5, 2));
         stubExercisesForEverySkill();
 
         var result = service.get(userId);
@@ -510,6 +517,114 @@ class LearningPlanServiceTest {
         verify(reassessmentSelector, never()).selectAll(any(), anyCollection());
     }
 
+    /**
+     * L'etape entiere traitee (5/5) et le signal du moteur : la carte bascule.
+     * C'est le seul cas ou elle le fait, et il suppose un abonnement — les 5
+     * sujets ne sont jouables qu'avec.
+     */
+    @Test
+    void uneEtapeTermineeAvecLeSignalBasculeEnVerification() {
+        Skill skill = skill("EE3-C2");
+        stubPlanPretAVerifier(skill);
+        stubStep(skill, new LearningPlanStep.Progress(5, 5, 4));
+        UUID sujet = UUID.randomUUID();
+        when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of(
+                skill.getId(), PlanRecommendedExerciseDto.reassessment(
+                        sujet, skill.getId(), skill.getCode(), "Donner son opinion",
+                        skill.getSection(), (short) 3, 7, false)));
+
+        var priority = service.get(userId).currentPriority();
+
+        assertThat(priority.readyForReassessment()).isTrue();
+        assertThat(priority.stepCompleted()).isTrue();
+        assertThat(priority.recommendedExercise().kind())
+                .isEqualTo(PlanExerciseKind.REASSESSMENT);
+        assertThat(priority.recommendedExercise().productionTaskId()).isEqualTo(sujet);
+    }
+
+    /**
+     * Le cas signale en production le 2026-08-14 : le moteur dit « pret », mais
+     * l'etape n'est qu'a 2 sujets sur 5 (compte abonne, qui peut donc les jouer
+     * tous). La carte ne bascule pas — proposer « verifier ma progression » sous
+     * un anneau a 2/5 etait la contradiction a corriger.
+     */
+    @Test
+    void uneEtapeInacheveeNeBasculePasEnVerification() {
+        Skill skill = skill("EE3-C2");
+        stubPlanPretAVerifier(skill);
+        stubStep(skill, new LearningPlanStep.Progress(5, 2, 2));
+        when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of(
+                skill.getId(), PlanRecommendedExerciseDto.reassessment(
+                        UUID.randomUUID(), skill.getId(), skill.getCode(), "Donner son opinion",
+                        skill.getSection(), (short) 3, 7, false)));
+
+        var priority = service.get(userId).currentPriority();
+
+        assertThat(priority.readyForReassessment()).isFalse();
+        assertThat(priority.recommendedExercise().kind())
+                .isEqualTo(PlanExerciseKind.MICRO_TRAINING);
+        verify(reassessmentSelector, never()).selectAll(any(), anyCollection());
+    }
+
+    /**
+     * <b>CHOIX PRODUIT, pas un bug freemium</b> (arbitre le 2026-08-14) : la
+     * verification de progression est PREMIUM. Un compte gratuit plafonne a 2
+     * sujets sur les 5 de l'etape ; il a beau les avoir tous joues et remplir le
+     * signal du moteur, l'etape n'est pas <b>terminee</b>, donc la carte reste un
+     * micro-exercice. Consequences voulues : aucune de ses competences n'atteint
+     * SOLID (la preuve contextualisee vient de cette verification), et il ne voit
+     * donc pas non plus les jalons d'examen blanc. Ne pas « reparer » en comptant
+     * les sujets que son acces lui ouvre.
+     */
+    @Test
+    void unCompteGratuitNeBasculeJamaisEnVerificationCarElleEstPremium() {
+        Skill skill = skill("EE3-C2");
+        stubPlanPretAVerifier(skill);
+        // Les 2 sujets ouverts d'un compte gratuit, tous deux traites et valides.
+        stubStep(skill, new LearningPlanStep.Progress(5, 2, 2));
+        when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of(
+                skill.getId(), PlanRecommendedExerciseDto.reassessment(
+                        UUID.randomUUID(), skill.getId(), skill.getCode(), "Donner son opinion",
+                        skill.getSection(), (short) 3, 7, false)));
+
+        var priority = service.get(userId).currentPriority();
+
+        assertThat(priority.readyForReassessment()).isFalse();
+        assertThat(priority.stepCompleted()).isFalse();
+        assertThat(priority.stepAttemptedCount()).isEqualTo(2);
+        assertThat(priority.stepPromptCount()).isEqualTo(5);
+        assertThat(priority.recommendedExercise().kind())
+                .isEqualTo(PlanExerciseKind.MICRO_TRAINING);
+        verify(reassessmentSelector, never()).selectAll(any(), anyCollection());
+    }
+
+    // ------------------------------------------------------------------------
+    // Le jalon, a cote des etapes
+    // ------------------------------------------------------------------------
+
+    @Test
+    void leJalonEstServiACoteDesPrioritesSansLesRemplacer() {
+        Skill skill = skill("EE3-C2");
+        stubPlanPretAVerifier(skill);
+        PlanRecommendedExerciseDto jalon = PlanRecommendedExerciseDto.epreuveMockExam(
+                EpreuveType.TCF_EE, 1, 30, false);
+        when(milestoneSelector.select(eq(userId), anyCollection(), anyMap(), anyCollection(), any()))
+                .thenReturn(Optional.of(jalon));
+
+        var result = service.get(userId);
+
+        assertThat(result.milestone()).isEqualTo(jalon);
+        assertThat(result.currentPriority()).isNotNull();
+        assertThat(result.currentPriority().recommendedExercise()).isNotNull();
+    }
+
+    @Test
+    void sansJalonMeriteLeChampResteNull() {
+        stubPlanPretAVerifier(skill("EE3-C2"));
+
+        assertThat(service.get(userId).milestone()).isNull();
+    }
+
     // ------------------------------------------------------------------------
     // « Le Plan a change » apres une production
     // ------------------------------------------------------------------------
@@ -615,7 +730,18 @@ class LearningPlanServiceTest {
         when(observationManager.findAllByUserWithSkill(userId))
                 .thenReturn(List.of(dernier, precedent));
         when(observationManager.countSince(any(), any())).thenReturn(2L);
+        // Etape TERMINEE : les 5 sujets traites. C'est la seconde condition de
+        // la bascule, et seul un abonne peut la remplir (cf. le test de choix
+        // produit plus haut).
+        stubStep(skill, new LearningPlanStep.Progress(5, 5, 5));
         stubExercisesForEverySkill();
+    }
+
+    /** Compteurs d'etape d'une competence, sans passer par une observation. */
+    private void stubStep(Skill skill, LearningPlanStep.Progress step) {
+        Map<UUID, SkillProgressCounter.SkillProgress> counts = new LinkedHashMap<>();
+        counts.put(skill.getId(), new SkillProgressCounter.SkillProgress(15, 2, 2, 0, step));
+        when(progressCounter.bySkillIds(eq(userId), anyCollection())).thenReturn(counts);
     }
 
     private void stubProgress(
