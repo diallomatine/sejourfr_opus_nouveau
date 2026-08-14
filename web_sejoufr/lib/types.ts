@@ -350,6 +350,37 @@ export interface PlanPublicResponse {
     googleProductId: string | null;
 }
 
+/**
+ * Ce que le pass ouvre en **simulations orales en direct** (examinateur vocal),
+ * la seule ressource dont le volume change d'un pass Intégral à l'autre : tout
+ * le reste (catalogue, examens blancs, corrections IA) est identique, seule la
+ * durée et ce quota progressent. Sans cette ligne, un candidat ne voyait aucune
+ * différence entre deux passes à part le prix.
+ *
+ * `null` = rien à annoncer sur cette ligne (Civique, plan gratuit) — l'appelant
+ * décide s'il affiche autre chose à la place.
+ *
+ * ⚠️ On ne dit **jamais** « sans simulation orale » pour un pass Intégral : un
+ * backend antérieur à `realtimeEoSessions` renvoie le champ absent (donc falsy),
+ * et l'affirmation serait fausse sur l'argument principal du produit.
+ *
+ * Miroir mot pour mot de `realtimeSessionsLabel` côté mobile
+ * (`core/models/billing_models.dart`).
+ */
+export function realtimeSessionsLabel(plan: {
+    realtimeEoSessions?: number | null;
+    moduleAccess: ModuleAccess;
+}): string | null {
+    const sessions = plan.realtimeEoSessions;
+    if (typeof sessions === "number" && sessions > 0) {
+        return sessions === 1
+            ? "1 simulation orale en direct"
+            : `${sessions} simulations orales en direct`;
+    }
+    if (plan.moduleAccess === "INTEGRAL") return "Simulations orales en direct incluses";
+    return null;
+}
+
 // ============ ATTEMPT SUMMARY (historique) ============
 // Renvoyé par GET /api/me/attempts — version légère sans les questions.
 export interface AttemptSummaryResponse {

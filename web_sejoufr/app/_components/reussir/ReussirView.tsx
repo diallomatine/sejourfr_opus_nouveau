@@ -19,7 +19,7 @@ import {
 import { diagnosticApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { SOCIAL_ACCOUNTS, STORE_LINKS } from "@/lib/site";
-import type { PlanPublicResponse } from "@/lib/types";
+import { realtimeSessionsLabel, type PlanPublicResponse } from "@/lib/types";
 import styles from "./reussir.module.css";
 
 /**
@@ -1133,21 +1133,14 @@ function monthlyLabel(plan: PlanPublicResponse): string {
 }
 
 /**
- * Libellé des simulations orales d'un pass.
- *
- * On ne dit JAMAIS « sans simulation orale » pour un pass Intégral : si le
- * backend déployé est antérieur à l'ajout de `realtimeEoSessions`, le champ
- * arrive absent (donc falsy) et l'affirmation serait fausse sur l'argument
- * principal du produit. Dans ce cas on retombe sur un libellé vrai mais sans
- * chiffre. Seul le module (source sûre) autorise le « sans ».
+ * Libellé des simulations orales d'un pass, en **puce de liste** : ici la ligne
+ * doit exister même quand il n'y en a aucune, d'où le repli sur le « sans » —
+ * que `realtimeSessionsLabel` ne rend jamais de lui-même (un pass Intégral
+ * servi par un backend antérieur au champ dirait une contrevérité sur
+ * l'argument principal du produit). Seul le module, source sûre, l'autorise.
  */
 function sessionsLabel(plan: PlanPublicResponse): string {
-  const sessions = plan.realtimeEoSessions;
-  if (typeof sessions === "number" && sessions > 0) {
-    return `${sessions} simulations orales en direct`;
-  }
-  if (plan.moduleAccess === "INTEGRAL") return "Simulations orales en direct incluses";
-  return "Sans simulation orale (réservée au TCF)";
+  return realtimeSessionsLabel(plan) ?? "Sans simulation orale (réservée au TCF)";
 }
 
 function featuresOf(plan: PlanPublicResponse): string[] {

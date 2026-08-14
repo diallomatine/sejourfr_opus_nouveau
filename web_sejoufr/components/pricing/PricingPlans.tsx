@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CalendarOff, Check, Sparkles } from "lucide-react";
 import { periodicityFromCycle, type PlanModuleTarget, type PlanPeriodicity } from "@/lib/api";
-import type { PlanPublicResponse } from "@/lib/types";
+import { realtimeSessionsLabel, type PlanPublicResponse } from "@/lib/types";
 
 interface Props {
   plans: PlanPublicResponse[];
@@ -353,6 +353,8 @@ function PassModuleCard({
         {passes.map((p) => {
           const popular = p.code === POPULAR_PASS_CODE;
           const monthly = passMonthlyEquivalent(p.price, p.durationDays);
+          // Ce qui distingue vraiment deux passes Intégral, à part la durée.
+          const sessions = realtimeSessionsLabel(p);
           return (
             <div key={p.code} className={`pp-pass ${popular ? "is-popular" : ""}`}>
               {popular && (
@@ -361,7 +363,10 @@ function PassModuleCard({
                   Le plus populaire
                 </span>
               )}
-              <span className="pp-pass-dur">{passDurationLabel(p.durationDays)}</span>
+              <span className="pp-pass-left">
+                <span className="pp-pass-dur">{passDurationLabel(p.durationDays)}</span>
+                {sessions !== null && <span className="pp-pass-sessions">{sessions}</span>}
+              </span>
               <span className="pp-pass-prices">
                 <span className="pp-pass-month">{formatPrice(p.price)} €</span>
                 {monthly !== null && (
@@ -435,10 +440,21 @@ const styles = `
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
+  .pp-pass-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
   .pp-pass-dur {
     font-weight: 700;
     font-size: 14px;
     color: var(--color-ink);
+  }
+  .pp-pass-sessions {
+    font-size: 11.5px;
+    color: var(--color-muted);
+    line-height: 1.3;
   }
   .pp-pass-prices {
     display: flex;

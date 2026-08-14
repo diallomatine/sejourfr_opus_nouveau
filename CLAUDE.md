@@ -2390,10 +2390,19 @@ masque le bouton d'achat IAP. Pareil dans l'autre sens.
 **`GET /api/billing/plans`** expose `realtimeEoSessions` (colonne
 `plans.realtime_eo_sessions`, V018/V113/V114) : le nombre de simulations orales
 en temps réel ouvertes par le pass — **5 (7 j) / 15 (1 mois) / 25 (2 mois)** sur
-Intégral, **0** sur Civique et Free. Les fronts l'affichent tel quel sur les
-cartes de tarifs (0 = « sans simulation orale ») au lieu de coder le quota en
-dur — il reste éditable côté admin. Miroirs : `web_sejoufr/lib/types.ts`,
-`mobile_sejourfr/lib/core/models/billing_models.dart`.
+Intégral, **0** sur Civique et Free. Les fronts l'affichent tel quel au lieu de
+coder le quota en dur — il reste éditable côté admin. **C'est la seule ressource
+qui distingue deux passes Intégral** (même catalogue, mêmes examens blancs,
+mêmes corrections IA : seules la durée et ce quota progressent), donc il est
+annoncé **sur chaque ligne de pass** — `/paiement`, `/tarifs`, `/reussir` et le
+paywall mobile — par un libellé unique par front, `realtimeSessionsLabel`
+(`web_sejoufr/lib/types.ts` ⇄ `PlanPublicResponse.realtimeSessionsLabel` dans
+`mobile_sejourfr/lib/core/models/billing_models.dart`), miroirs mot pour mot.
+⚠️ Il ne dit **jamais** « sans simulation orale » sur un pass **Intégral** : un
+backend antérieur au champ le renvoie à 0, et ce serait faux sur l'argument
+principal du produit — il rend alors « incluses », sans chiffre. Seul le module
+(source sûre) autorise le « sans », et seule `/reussir` l'écrit, parce que sa
+puce de liste doit exister même vide.
 
 **Endpoints** :
 - `GET /api/billing/subscription-status` — authentifié, statut agrégé.

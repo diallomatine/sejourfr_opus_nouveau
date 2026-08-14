@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import type {AuthenticatedUser, BillingCycle, PlanPublicResponse} from "@/lib/types";
+import {realtimeSessionsLabel} from "@/lib/types";
 
 // ============================================================================
 // CONSTANTES DE PRÉSENTATION
@@ -473,6 +474,9 @@ function OneTimePasses({
                                 const popular = p.code === POPULAR_PASS_CODE;
                                 const targeted = p.code === targetPlanCode;
                                 const monthly = passMonthlyEquivalent(p.price, p.durationDays);
+                                // Ce qui distingue vraiment deux passes Intégral, à part la
+                                // durée : le nombre de simulations orales en direct.
+                                const sessions = realtimeSessionsLabel(p);
                                 return (
                                     <button
                                         key={p.code}
@@ -483,7 +487,12 @@ function OneTimePasses({
                                         onClick={() => onSubscribe(p.code)}
                                     >
                                         {popular && <span className="otp-pop">Le plus populaire</span>}
-                                        <span className="otp-pass-dur">{durationLabel(p.durationDays)}</span>
+                                        <span className="otp-pass-left">
+                                            <span className="otp-pass-dur">{durationLabel(p.durationDays)}</span>
+                                            {sessions !== null && (
+                                                <span className="otp-pass-sessions">{sessions}</span>
+                                            )}
+                                        </span>
                                         <span className="otp-pass-prices">
                                             <span className="otp-pass-main">{formatPrice(p.price)} €</span>
                                             {monthly !== null && (
@@ -528,7 +537,9 @@ const otpStyles = `
 .otp-pass.is-popular { border-color:var(--color-red); background:var(--color-red-light); }
 .otp-pass.is-targeted { border-color:var(--color-blue); box-shadow:0 0 0 3px rgba(30,58,140,.16); }
 .otp-pop { position:absolute; top:-9px; left:14px; background:var(--color-red); color:#fff; font-family:var(--font-mono); font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:2px 8px; border-radius:100px; }
-.otp-pass-dur { font-weight:700; font-size:15px; color:var(--color-ink); flex:1; min-width:0; }
+.otp-pass-left { display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
+.otp-pass-dur { font-weight:700; font-size:15px; color:var(--color-ink); }
+.otp-pass-sessions { font-size:11.5px; color:var(--color-muted); line-height:1.3; }
 .otp-pass-prices { display:flex; flex-direction:column; align-items:flex-end; gap:1px; min-width:0; }
 .otp-pass-main { font-family:var(--font-display); font-size:21px; font-weight:700; color:var(--color-ink); line-height:1.05; white-space:nowrap; }
 .otp-pass-sub { font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em; color:var(--color-muted); white-space:nowrap; }
