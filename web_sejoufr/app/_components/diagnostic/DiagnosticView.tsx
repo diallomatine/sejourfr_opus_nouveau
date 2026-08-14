@@ -36,8 +36,12 @@ import {
   DIAGNOSTIC_TASK_COMPLETION_LABEL,
   DIAGNOSTIC_TASK_COMPLETION_TONE,
   type DiagnosticExerciseContent,
+  type DiagnosticExerciseMeasure,
   type DiagnosticSignalTone,
+  diagnosticBudgetLabel,
   diagnosticExerciseAsProductionTask,
+  diagnosticOralMeasureLabel,
+  diagnosticWrittenMeasureLabel,
   LEARNING_PLAN_SKILL_STATUS_LABEL,
   LEARNING_PLAN_SKILL_STATUS_TONE,
   niveauEstimateLabel,
@@ -350,6 +354,8 @@ function GuestDiagnostic() {
         error={error}
         submitting={false}
         guest
+        written={subjects.written}
+        oral={subjects.oral}
         onStart={() => {
           setStarted(true);
           trackAudienceEvent("/diagnostic", "DIAGNOSTIC_STARTED", {once: true});
@@ -829,7 +835,13 @@ function ConnectedDiagnostic() {
   if (diagnostic.status === "NOT_STARTED" || diagnostic.nextStep === "PRESENTATION") {
     return (
       <DiagnosticShell>
-        <DiagnosticIntro error={error} submitting={submitting} onStart={() => void start()} />
+        <DiagnosticIntro
+          error={error}
+          submitting={submitting}
+          written={diagnostic.written}
+          oral={diagnostic.oral}
+          onStart={() => void start()}
+        />
       </DiagnosticShell>
     );
   }
@@ -1015,39 +1027,103 @@ function DiagnosticShell({
   );
 }
 
+/**
+ * Les deux sujets vus par l'écran de présentation. Un compte qui n'a pas encore
+ * de session (`NOT_STARTED`) n'en reçoit aucun : le serveur ne les attache qu'à
+ * partir de `POST /api/diagnostics`. On relit alors le **catalogue public**, la
+ * seule route qui sert les sujets sans session — sinon le visiteur lirait ses
+ * mesures et le compte connecté n'en verrait aucune.
+ */
+function useIntroMeasures(
+  written: DiagnosticExerciseContent | null | undefined,
+  oral: DiagnosticExerciseContent | null | undefined,
+): {written: DiagnosticExerciseMeasure | null; oral: DiagnosticExerciseMeasure | null} {
+  const [fallback, setFallback] = useState<PublicDiagnosticResponse | null>(null);
+  const missing = written == null || oral == null;
+
+  useEffect(() => {
+    if (!missing || fallback) return;
+    let alive = true;
+    // Confort d'affichage : un échec laisse simplement la présentation sans
+    // chiffre, il ne doit jamais empêcher de commencer.
+    diagnosticApi
+      .publicCurrent()
+      .then((subjects) => {
+        if (alive) setFallback(subjects);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [missing, fallback]);
+
+  return {
+    written: written ?? fallback?.written ?? null,
+    oral: oral ?? fallback?.oral ?? null,
+  };
+}
+
 /** Écran de présentation, identique pour un visiteur et pour un compte : c'est
  *  le même parcours, seul le moment où l'on demande le compte change. */
 function DiagnosticIntro({
   error,
   submitting,
   guest = false,
+  written,
+  oral,
   onStart,
 }: {
   error: string | null;
   submitting: boolean;
   guest?: boolean;
+  written?: DiagnosticExerciseContent | null;
+  oral?: DiagnosticExerciseContent | null;
   onStart: () => void;
 }) {
+  const measures = useIntroMeasures(written, oral);
   return (
     <section className={styles.intro}>
       <span className={styles.heroIcon} aria-hidden>
         <Target size={30} />
       </span>
-      <p className={styles.eyebrow}>Diagnostic TCF SejourFR</p>
-      <h1>Découvrez vos priorités TCF</h1>
-      <p className={styles.lead}>
-        Un écrit et un oral suffisent pour construire une première feuille de route
-        personnalisée.
-      </p>
       <div className={styles.duration}>
-        <Clock3 size={18} aria-hidden />
-        2 exercices · environ 8 à 10 min
+        <Clock3 size={16} aria-hidden />
+        {diagnosticBudgetLabel(measures.written, measures.oral)}
       </div>
+      <h1>Découvrez vos priorités TCF</h1>
+      <p className={styles.lead}>Deux exercices courts, pas un examen.</p>
       <ul className={styles.introList}>
-        <li><FilePenLine size={19} aria-hidden /><span><b>1 écrit</b> pour observer votre façon de structurer et développer.</span></li>
-        <li><Mic size={19} aria-hidden /><span><b>1 oral enregistré</b>, sans conversation en temps réel.</span></li>
-        <li><Sparkles size={19} aria-hidden /><span><b>Une analyse personnalisée</b> avec trois priorités maximum.</span></li>
+        <li>
+          <span className={styles.introIcon} aria-hidden>
+            <FilePenLine size={18} />
+          </span>
+          <div>
+            <p className={styles.introHead}>
+              <b>Écrit</b>
+              <span>{diagnosticWrittenMeasureLabel(measures.written) ?? "un court texte"}</span>
+            </p>
+            <p className={styles.introNote}>Vous rédigez un court texte.</p>
+          </div>
+        </li>
+        <li>
+          <span className={styles.introIcon} aria-hidden>
+            <Mic size={18} />
+          </span>
+          <div>
+            <p className={styles.introHead}>
+              <b>Oral</b>
+              <span>{diagnosticOralMeasureLabel(measures.oral) ?? "un court enregistrement"}</span>
+            </p>
+            <p className={styles.introNote}>
+              Vous vous enregistrez, sans conversation en direct.
+            </p>
+          </div>
+        </li>
       </ul>
+      <p className={styles.introReassurance}>
+        Pas besoin d&apos;être parfait. Répondez naturellement : l&apos;objectif est simplement
+        d&apos;estimer votre niveau et de construire votre plan.
+      </p>
       {error && <p className={styles.error} role="alert">{error}</p>}
       <button className={styles.primaryButton} type="button" disabled={submitting} onClick={onStart}>
         {submitting ? "Préparation…" : "Commencer mon diagnostic gratuit"}

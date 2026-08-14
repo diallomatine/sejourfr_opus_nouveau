@@ -59,6 +59,100 @@ export type DiagnosticExerciseContent = Omit<
   "attemptId" | "submissionId" | "submissionStatus"
 >;
 
+/**
+ * Ce que l'écran de présentation a besoin de savoir d'un sujet pour annoncer
+ * son coût en temps. Volontairement réduit aux quatre mesures : la présentation
+ * ne montre ni consigne ni titre — elle annonce un effort, pas un exercice.
+ */
+export type DiagnosticExerciseMeasure = Pick<
+  DiagnosticExerciseContent,
+  "wordsMin" | "wordsMax" | "durationMinSeconds" | "durationMaxSeconds"
+>;
+
+/**
+ * Vitesse de rédaction retenue pour convertir une fourchette de mots en
+ * minutes sur l'écran de présentation, et **seulement là**. C'est un ordre de
+ * grandeur assumé (toujours précédé de « environ »), pas un engagement : rien
+ * dans le parcours ne chronomètre le candidat sur cette valeur.
+ *
+ * ⚠️ À ne pas confondre avec les 12 mots/minute de `ExerciseDuration` côté
+ * serveur, qui estime le temps d'un **exercice du Plan** rédaction comprise.
+ */
+export const DIAGNOSTIC_WRITING_WORDS_PER_MINUTE = 40;
+
+function midpoint(min: number | null, max: number | null): number | null {
+  if (min != null && max != null) return (min + max) / 2;
+  return min ?? max;
+}
+
+/** Minutes annoncées pour l'écrit, dérivées de la fourchette de mots servie. */
+export function diagnosticWrittenMinutes(
+  exercise: DiagnosticExerciseMeasure | null | undefined,
+): number | null {
+  const words = midpoint(exercise?.wordsMin ?? null, exercise?.wordsMax ?? null);
+  if (words == null || words <= 0) return null;
+  return Math.max(1, Math.round(words / DIAGNOSTIC_WRITING_WORDS_PER_MINUTE));
+}
+
+/** Minutes annoncées pour l'oral, dérivées du temps de parole servi. */
+export function diagnosticOralMinutes(
+  exercise: DiagnosticExerciseMeasure | null | undefined,
+): number | null {
+  const seconds = midpoint(
+    exercise?.durationMinSeconds ?? null,
+    exercise?.durationMaxSeconds ?? null,
+  );
+  if (seconds == null || seconds <= 0) return null;
+  return Math.max(1, Math.round(seconds / 60));
+}
+
+/**
+ * La mesure de l'écrit : la fourchette de mots servie, puis le temps estimé.
+ * `null` quand la base ne porte aucune borne — on n'invente pas un chiffre que
+ * le sujet contredirait à l'écran suivant.
+ */
+export function diagnosticWrittenMeasureLabel(
+  exercise: DiagnosticExerciseMeasure | null | undefined,
+): string | null {
+  const min = exercise?.wordsMin ?? null;
+  const max = exercise?.wordsMax ?? null;
+  const words =
+    min != null && max != null
+      ? `${min} à ${max} mots`
+      : min != null
+        ? `${min} mots minimum`
+        : max != null
+          ? `${max} mots maximum`
+          : null;
+  const minutes = diagnosticWrittenMinutes(exercise);
+  const time = minutes == null ? null : `environ ${minutes} min`;
+  const parts = [words, time].filter((part): part is string => part != null);
+  return parts.length === 0 ? null : parts.join(" · ");
+}
+
+/** La mesure de l'oral : son temps de parole, en clair. */
+export function diagnosticOralMeasureLabel(
+  exercise: DiagnosticExerciseMeasure | null | undefined,
+): string | null {
+  const minutes = diagnosticOralMinutes(exercise);
+  if (minutes == null) return null;
+  return `environ ${minutes} minute${minutes > 1 ? "s" : ""}`;
+}
+
+/**
+ * Le budget annoncé en tête de la présentation. Somme des deux exercices, donc
+ * il suit les sujets : si la base raccourcit l'écrit, la promesse raccourcit
+ * avec lui. Sans mesure exploitable, on annonce le nombre d'exercices plutôt
+ * qu'une durée inventée.
+ */
+export function diagnosticBudgetLabel(
+  written: DiagnosticExerciseMeasure | null | undefined,
+  oral: DiagnosticExerciseMeasure | null | undefined,
+): string {
+  const total = (diagnosticWrittenMinutes(written) ?? 0) + (diagnosticOralMinutes(oral) ?? 0);
+  return total > 0 ? `Diagnostic express · ~${total} min` : "Diagnostic express · 2 exercices";
+}
+
 /** Adapte le sujet diagnostic au composant de production existant, sans lui
  *  inventer de tâche officielle ni de niveau cible. */
 export function diagnosticExerciseAsProductionTask(

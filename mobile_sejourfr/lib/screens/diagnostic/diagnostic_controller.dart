@@ -220,6 +220,7 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
         isLoading: false,
         isGuest: false,
       );
+      await _loadSubjectsForPresentation(journey);
       _pollIfNeeded(journey);
     } catch (error) {
       if (!mounted) return;
@@ -227,6 +228,24 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
         isLoading: false,
         errorMessage: ApiClient.toApiException(error).message,
       );
+    }
+  }
+
+  /// Un compte sans session reçoit un parcours **sans sujets** : le serveur ne
+  /// les attache qu'à partir de `POST /api/diagnostics`. L'écran de
+  /// présentation annonce pourtant le coût en temps de chacun, mesures tirées
+  /// des sujets — on relit donc le catalogue public, la seule route qui les
+  /// sert sans session. Confort d'affichage : un échec laisse la présentation
+  /// sans chiffre, il ne bloque jamais le démarrage.
+  Future<void> _loadSubjectsForPresentation(DiagnosticJourney journey) async {
+    if (journey.nextStep != DiagnosticStep.presentation) return;
+    if (journey.written != null || state.subjects != null) return;
+    try {
+      final subjects = await _diagnosticRepository.publicCurrent();
+      if (!mounted) return;
+      state = state.copyWith(subjects: subjects);
+    } catch (_) {
+      // Sans mesure, l'écran reste utilisable : on n'affiche pas d'erreur.
     }
   }
 

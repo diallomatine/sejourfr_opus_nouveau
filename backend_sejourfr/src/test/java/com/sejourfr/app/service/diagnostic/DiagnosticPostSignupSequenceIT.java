@@ -253,7 +253,7 @@ class DiagnosticPostSignupSequenceIT extends AbstractIntegrationTest {
         return UUID.fromString(session.path(step).path("productionTaskId").asText());
     }
 
-    /** Copie EE dans les bornes du sujet diagnostic (100–130 mots). */
+    /** Copie EE dans les bornes du sujet diagnostic (100–120 mots depuis V756). */
     private static String copieDe(int mots) {
         StringBuilder texte = new StringBuilder("Bonjour");
         for (int i = 1; i < mots; i++) {

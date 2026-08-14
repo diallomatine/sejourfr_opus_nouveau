@@ -571,6 +571,38 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   `DiagnosticView` porte lui-même le `DualChromeShell` (sidebar pour un compte,
   fond applicatif nu + header/footer publics pour un visiteur).
 
+### Écran de présentation — « 5 minutes », pas un examen (2026-08-14)
+
+`DiagnosticIntro` (dans `DiagnosticView.tsx`, **partagé visiteur ⇄ compte**) annonce
+un budget court **en tête** (pilule `.duration`, avant le titre) puis les **deux
+exercices séparément**, chacun avec sa mesure. Le premier contact décidait de tout :
+« 2 exercices · environ 8 à 10 min » et trois puces de promesses donnaient
+l'impression d'un examen complet.
+
+- 🛑 **Aucun chiffre n'est écrit en dur.** Les mesures se dérivent des sujets servis
+  (`wordsMin/Max`, `durationMin/MaxSeconds`) par les règles **pures** de
+  `lib/diagnostic.ts` — `diagnosticBudgetLabel`, `diagnosticWrittenMeasureLabel`,
+  `diagnosticOralMeasureLabel` (+ `DIAGNOSTIC_WRITING_WORDS_PER_MINUTE = 40`,
+  vitesse de rédaction retenue **pour cet écran seulement**, à ne pas confondre
+  avec les 12 mots/min d'`ExerciseDuration` côté serveur). Le budget de tête est la
+  **somme** des deux : raccourcir un sujet en base raccourcit la promesse, l'écran
+  ne peut pas mentir. Miroir mot pour mot :
+  `mobile_sejourfr/lib/screens/diagnostic/diagnostic_intro_labels.dart`.
+- **Repli sans chiffre, jamais un chiffre inventé** : sans borne exploitable, la
+  pilule dit « Diagnostic express · 2 exercices » et les lignes « un court texte » /
+  « un court enregistrement ».
+- **Un compte sans session (`NOT_STARTED`) ne reçoit AUCUN sujet** (le serveur ne
+  les attache qu'à `POST /api/diagnostics`) : `useIntroMeasures` relit alors
+  `diagnosticApi.publicCurrent()` — un seul appel, sur cette page, en best-effort.
+  Sans lui, le visiteur lisait ses mesures et le compte connecté n'en voyait
+  aucune. Un échec laisse la présentation sans chiffre, il ne bloque jamais le
+  démarrage.
+- « ~5 min » est un **ordre de grandeur**, jamais un compte à rebours : rien dans le
+  parcours ne chronomètre le candidat dessus.
+- Les garanties restent : « Commencez sans compte… » en visiteur, « Estimation
+  d'entraînement, non officielle. » partout, et la mention « aucune note sur 20 »
+  vit toujours sur `ExerciseHeader`.
+
 ### Diagnostic en INVITÉ — produire d'abord, créer le compte ensuite (2026-08-10)
 
 Le mur d'inscription est passé **après** les deux productions : un visiteur

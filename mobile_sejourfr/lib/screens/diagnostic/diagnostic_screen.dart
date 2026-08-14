@@ -385,6 +385,10 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
       DiagnosticStep.presentation => DiagnosticIntro(
           isStarting: state.isSubmitting,
           errorMessage: state.errorMessage,
+          // Sans session, le serveur n'attache aucun sujet au parcours : les
+          // mesures viennent alors du catalogue public, chargé en repli.
+          written: journey.written ?? state.subjects?.written,
+          oral: journey.oral ?? state.subjects?.oral,
           onStart: () => unawaited(_startAuthenticated()),
         ),
       DiagnosticStep.written when journey.written != null =>
@@ -449,6 +453,9 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
       DiagnosticGuestStep.presentation => DiagnosticIntro(
           isStarting: false,
           errorMessage: state.errorMessage,
+          written: subjects.written,
+          oral: subjects.oral,
+          isGuest: true,
           onStart: _startGuest,
         ),
       DiagnosticGuestStep.written => DiagnosticWrittenStep(

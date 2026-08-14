@@ -642,6 +642,23 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   `DIAGNOSTIC_ACCOUNT_REQUIRED` (émis une fois, à l'affichage de l'écran de demande de compte)
   est la mesure de conversion du parcours.
 
+- **Écran de présentation (2026-08-14) — « 5 minutes », pas un examen.**
+  `DiagnosticIntro` annonce le budget **en tête** (pilule dans le hero, avant le titre)
+  puis les **deux exercices séparément**, chacun avec sa mesure — « Écrit · 100 à 120
+  mots · environ 3 min », « Oral · environ 2 minutes ». 🛑 **Aucun chiffre en dur** :
+  tout se dérive des sujets servis (`wordsMin/Max`, `durationMin/MaxSeconds`) par les
+  règles **pures** de `diagnostic_intro_labels.dart` (`diagnosticBudgetLabel`,
+  `diagnosticWrittenMeasureLabel`, `diagnosticOralMeasureLabel`,
+  `kDiagnosticWritingWordsPerMinute = 40`, valable **pour cet écran seulement**) —
+  miroir mot pour mot de `web_sejoufr/lib/diagnostic.ts`. Le budget est la **somme**
+  des deux : raccourcir un sujet en base raccourcit la promesse. Sans borne
+  exploitable, on annonce « Diagnostic express · 2 exercices » et « un court texte » /
+  « un court enregistrement » — jamais un chiffre inventé, et « ~5 min » reste un
+  **ordre de grandeur**, jamais un chrono. ⚠️ Un compte **sans session** ne reçoit
+  aucun sujet (le serveur ne les attache qu'à `POST /api/diagnostics`) :
+  `DiagnosticController._loadSubjectsForPresentation` relit alors `publicCurrent()`
+  en best-effort — sans lui, l'invité voyait ses mesures et le compte connecté non.
+
 **Les anciens hubs sont supprimés** : `screens/tcf/`, `screens/hub/`, `civique_screen.dart`
 et leurs widgets n'existent plus. `/civique` et `/tcf` sont des **redirects** vers `/reviser`
 (gardés pour les fallbacks et deep links).

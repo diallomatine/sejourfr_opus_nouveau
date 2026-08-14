@@ -35,10 +35,10 @@ class PublicDiagnosticControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.written.instruction", notNullValue()))
                 .andExpect(jsonPath("$.written.helperText", notNullValue()))
                 .andExpect(jsonPath("$.written.wordsMin", is(100)))
-                .andExpect(jsonPath("$.written.wordsMax", is(130)))
+                .andExpect(jsonPath("$.written.wordsMax", is(120)))
                 .andExpect(jsonPath("$.oral.epreuve", is("TCF_EO")))
-                .andExpect(jsonPath("$.oral.durationMinSeconds", is(120)))
-                .andExpect(jsonPath("$.oral.durationMaxSeconds", is(180)));
+                .andExpect(jsonPath("$.oral.durationMinSeconds", is(90)))
+                .andExpect(jsonPath("$.oral.durationMaxSeconds", is(150)));
     }
 
     @Test
