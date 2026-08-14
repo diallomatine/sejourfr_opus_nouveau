@@ -71,7 +71,7 @@ const PERIOD_SUFFIX: Record<PlanPeriodicity, string> = {
 };
 
 /** Pass mis en avant comme « le plus populaire » (cohérent web + mobile). */
-const POPULAR_PASS_CODE = "INTEGRAL_PASS_3M";
+const POPULAR_PASS_CODE = "INTEGRAL_PASS_2M";
 
 function formatPrice(value: number): string {
   if (value === 0) return "0";
@@ -105,7 +105,11 @@ function passMonthlyEquivalent(price: number, days: number): number | null {
   return price / months;
 }
 
-/** Libellé de durée d'un pass one-time (« 6 semaines », « 3 mois », « 1 an »). */
+/**
+ * Libellé de durée d'un pass one-time (« 7 jours », « 1 mois », « 2 mois »,
+ * « 1 an »). Une semaine seule s'annonce **en jours** — « 1 semaines » est ce
+ * que rendait la règle plurielle sur le pass d'essai.
+ */
 function passDurationLabel(days: number): string {
   if (days <= 0) return "";
   if (days % 365 === 0) {
@@ -113,7 +117,7 @@ function passDurationLabel(days: number): string {
     return y === 1 ? "1 an" : `${y} ans`;
   }
   if (days >= 30 && days % 30 === 0) return `${days / 30} mois`;
-  if (days % 7 === 0) return `${days / 7} semaines`;
+  if (days % 7 === 0) return days === 7 ? "7 jours" : `${days / 7} semaines`;
   return `${days} jours`;
 }
 

@@ -1082,7 +1082,9 @@ function durationLabel(days: number): string {
     return y === 1 ? "12 mois" : `${y} ans`;
   }
   if (days >= 30 && days % 30 === 0) return `${days / 30} mois`;
-  if (days % 7 === 0) return `${days / 7} semaines`;
+  // Une semaine seule s'annonce en jours : c'est ainsi que le pass d'essai est
+  // vendu, et la règle plurielle rendait « 1 semaines ».
+  if (days % 7 === 0) return days === 7 ? "7 jours" : `${days / 7} semaines`;
   return `${days} jours`;
 }
 
@@ -1093,13 +1095,17 @@ function planShortName(plan: PlanPublicResponse): string {
 }
 
 /**
- * Pass mis en avant : celui de 3 mois s'il existe (le plus vendu, cohérent avec
- * `POPULAR_PASS_CODE` de /paiement), sinon celui du milieu de la grille.
+ * Passes mis en avant, un par module : miroir de `POPULAR_PASS_CODE`
+ * (/paiement, /tarifs) et de `_popularPassCode` côté mobile — un pass ne doit
+ * pas être « le plus populaire » sur une surface et anonyme sur la suivante.
+ * Repli sur le milieu de la grille si aucun des deux n'est vendu.
  */
+const POPULAR_PASS_CODES = new Set(["INTEGRAL_PASS_2M", "CIVIQUE_PASS_3M"]);
+
 function popularCodeOf(list: PlanPublicResponse[]): string | null {
   if (list.length === 0) return null;
-  const quarter = list.find((p) => p.durationDays === 90);
-  if (quarter) return quarter.code;
+  const featured = list.find((p) => POPULAR_PASS_CODES.has(p.code));
+  if (featured) return featured.code;
   return list[Math.floor((list.length - 1) / 2)].code;
 }
 

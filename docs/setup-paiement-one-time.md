@@ -10,13 +10,21 @@ Console, puis renseigner les SKU en base.
 
 ## Catalogue (rappel)
 
-| Plan.code (backend)    | Product id store (Apple = Google, minuscules) | Module   | Prix    | Durée |
-|------------------------|-----------------------------------------------|----------|---------|-------|
-| `CIVIQUE_PASS_3M`      | `civique_pass_3m`                             | Civique  | 9,99 €  | 90 j  |
-| `CIVIQUE_PASS_1Y`      | `civique_pass_1y`                             | Civique  | 29,99 € | 365 j |
-| `INTEGRAL_PASS_SPRINT` | `integral_pass_sprint`                        | Intégral | 19,99 € | 42 j  |
-| `INTEGRAL_PASS_3M`     | `integral_pass_3m`                            | Intégral | 34,99 € | 90 j  |
-| `INTEGRAL_PASS_1Y`     | `integral_pass_1y`                            | Intégral | 79,99 € | 365 j |
+| Plan.code (backend)  | Product id store (Apple = Google, minuscules) | Module   | Prix    | Durée | Simulations orales |
+|----------------------|-----------------------------------------------|----------|---------|-------|--------------------|
+| `CIVIQUE_PASS_3M`    | `civique_pass_3m`                             | Civique  | 9,99 €  | 90 j  | —                  |
+| `CIVIQUE_PASS_1Y`    | `civique_pass_1y`                             | Civique  | 29,99 € | 365 j | —                  |
+| `INTEGRAL_PASS_7J`   | `integral_pass_7j`                            | Intégral | 9,99 €  | 7 j   | 5                  |
+| `INTEGRAL_PASS_1M`   | `integral_pass_1m`                            | Intégral | 19,99 € | 30 j  | 15                 |
+| `INTEGRAL_PASS_2M`   | `integral_pass_2m`                            | Intégral | 29,99 € | 60 j  | 25                 |
+
+⚠️ **Les trois anciens passes Intégral** (`integral_pass_sprint` 42 j / 19,99 €,
+`integral_pass_3m` 90 j / 34,99 €, `integral_pass_1y` 365 j / 79,99 €) sont
+**désactivés en base** par `V114`, donc absents de `GET /api/billing/plans`, du
+paywall et des grilles de tarifs. **Ne pas les supprimer des stores** : leurs
+product IDs doivent rester résolvables pour les remboursements et les webhooks
+des achats déjà encaissés. Il suffit de les rendre **indisponibles à la vente**
+côté console (cf. `docs/bascule-prix-integral.md`).
 
 Le même Product ID sert pour Apple et Google (en minuscules — contrainte Google,
 tolérée par Apple). Le mobile lit ces IDs depuis le backend
@@ -24,8 +32,8 @@ tolérée par Apple). Le mobile lit ces IDs depuis le backend
 de `Plan.code`.
 
 ⚠️ **La durée d'accès est posée par le backend** (`plans.duration_days`), pas par
-le store. Le store ne fait qu'encaisser un paiement unique. Donc 6 semaines (42 j)
-ne nécessite aucune config de durée côté store.
+le store. Le store ne fait qu'encaisser un paiement unique. Donc 7 jours ou
+2 mois ne nécessitent aucune config de durée côté store.
 
 ---
 
@@ -33,9 +41,12 @@ ne nécessite aucune config de durée côté store.
 
 1. Variable d'environnement : `BILLING_MODE=ONE_TIME` (défaut déjà `ONE_TIME`,
    mais à poser explicitement en prod pour la lisibilité).
-2. La migration `V418` a déjà activé les 5 passes et désactivé les 6 plans
-   récurrents. Vérifier : `SELECT code, is_active, purchase_type, duration_days
-   FROM plans WHERE purchase_type = 'ONE_TIME';` doit renvoyer 5 lignes actives.
+2. Les migrations de référence ont activé les passes et désactivé les plans
+   récurrents (`V100`), puis remplacé les passes Intégral (`V114`). Vérifier :
+   `SELECT code, is_active, purchase_type, duration_days, realtime_eo_sessions
+   FROM plans WHERE purchase_type = 'ONE_TIME' ORDER BY code;` doit renvoyer
+   **5 lignes actives** (2 Civique + 3 Intégral) et 3 lignes inactives (les
+   anciens passes Intégral).
 
 ---
 
@@ -96,9 +107,9 @@ des anciens IDs en majuscules, et identique aux IDs Google.
     | ID de produit (minuscules) | Prix cible | Nom affiché |
     |---|---|---|
     | `civique_pass_1y` | 29,99 € | Pass Civique 1 an |
-    | `integral_pass_sprint` | 19,99 € | Pass Intégral sprint 6 semaines |
-    | `integral_pass_3m` | 34,99 € | Pass Intégral 3 mois |
-    | `integral_pass_1y` | 79,99 € | Pass Intégral 1 an |
+    | `integral_pass_7j` | 9,99 € | Pass Intégral 7 jours |
+    | `integral_pass_1m` | 19,99 € | Pass Intégral 1 mois |
+    | `integral_pass_2m` | 29,99 € | Pass Intégral 2 mois |
 11. **Sandbox de test** : **Utilisateurs et accès → Sandbox → Testeurs** →
     **+** pour créer un compte de test, puis teste l'achat via **TestFlight**.
 12. **Webhook** (déjà configuré au lot 2, à vérifier) : **App Information →
@@ -132,9 +143,9 @@ On crée 5 **produits intégrés** (in-app products), product IDs en **minuscule
    | ID de produit (minuscules) | Prix | Nom |
    |---|---|---|
    | `civique_pass_1y` | 29,99 € | Pass Civique 1 an |
-   | `integral_pass_sprint` | 19,99 € | Pass Intégral sprint 6 semaines |
-   | `integral_pass_3m` | 34,99 € | Pass Intégral 3 mois |
-   | `integral_pass_1y` | 79,99 € | Pass Intégral 1 an |
+   | `integral_pass_7j` | 9,99 € | Pass Intégral 7 jours |
+   | `integral_pass_1m` | 19,99 € | Pass Intégral 1 mois |
+   | `integral_pass_2m` | 29,99 € | Pass Intégral 2 mois |
 8. **RTDN** (refunds, déjà configuré au lot 3) : **Monétiser → Configuration de
    la monétisation → Notifications développeur en temps réel** pointe sur le
    topic Pub/Sub `play-rtdn`. La push subscription Pub/Sub pointe sur

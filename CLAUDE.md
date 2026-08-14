@@ -2388,9 +2388,9 @@ fin la plus tardive. Exposée via `GET /api/billing/subscription-status`.
 masque le bouton d'achat IAP. Pareil dans l'autre sens.
 
 **`GET /api/billing/plans`** expose `realtimeEoSessions` (colonne
-`plans.realtime_eo_sessions`, V018/V113) : le nombre de simulations orales en
-temps réel ouvertes par le pass — 25 (sprint 6 sem) / 60 (3 mois) / 120 (1 an)
-sur Intégral, **0** sur Civique et Free. Les fronts l'affichent tel quel sur les
+`plans.realtime_eo_sessions`, V018/V113/V114) : le nombre de simulations orales
+en temps réel ouvertes par le pass — **5 (7 j) / 15 (1 mois) / 25 (2 mois)** sur
+Intégral, **0** sur Civique et Free. Les fronts l'affichent tel quel sur les
 cartes de tarifs (0 = « sans simulation orale ») au lieu de coder le quota en
 dur — il reste éditable côté admin. Miroirs : `web_sejoufr/lib/types.ts`,
 `mobile_sejourfr/lib/core/models/billing_models.dart`.
@@ -2503,8 +2503,19 @@ ce que le lot 4b mette à jour l'appel en `?planCode=<string>`.
 
 - **Lot 5 (bascule achat unique — feature-flaggée)** : le produit vend des
   **passes d'accès à durée fixe** (paiement unique, sans reconduction), au lieu
-  d'abonnements. Catalogue : Civique 3 mois (9,99) / 1 an (29,99) ; Intégral
-  sprint 6 sem (19,99) / 3 mois (35,99) / 1 an (79,99). Modèle : paiement →
+  d'abonnements. Catalogue **en vigueur (V114, 2026-08-14)** : Civique 3 mois
+  (9,99) / 1 an (29,99) — **inchangé** ; Intégral **7 jours (9,99) / 1 mois
+  (19,99) / 2 mois (29,99)**, codes `INTEGRAL_PASS_{7J,1M,2M}`, product IDs
+  `integral_pass_{7j,1m,2m}`. Les 3 anciens passes Intégral (sprint 6 sem 19,99 /
+  3 mois 34,99 / 1 an 79,99) sont **désactivés, jamais supprimés** : les
+  souscriptions vendues les référencent par FK et les stores doivent encore
+  résoudre leurs product IDs. **Une durée de plan ne se réécrit pas** — `ends_at`
+  est figé à l'achat, mais changer `duration_days` d'un plan encore vendu
+  falsifierait les achats suivants et le product ID du store, d'où des **codes
+  neufs** plutôt qu'une mise à jour en place. Le pass **mis en avant** (« le plus
+  populaire ») est `INTEGRAL_PASS_2M`, déclaré une fois par front
+  (`POPULAR_PASS_CODE` ⇄ `_popularPassCode`). Ce qu'il reste à faire côté stores
+  vit dans `docs/bascule-prix-integral.md`. Modèle : paiement →
   `user_subscriptions` `ACTIVE`, `auto_renew=false`, `ends_at = paiement +
   plans.duration_days` (durée posée par le **backend**, pas le store) ;
   expiration **lazy** à la lecture (`SubscriptionService.isCovering`), pas de
@@ -2529,8 +2540,10 @@ ce que le lot 4b mette à jour l'appel en `?planCode=<string>`.
     (`OneTimePasses`), `/tarifs` (`PassModuleCard`) et le paywall mobile
     (`_PassRow`). Ne pas réinverser sur une seule surface.
   - Stores : produits **Consommables** (Apple) / **managed in-app** (Google),
-    product IDs = `Plan.code` (Apple MAJ, Google minuscules). Guide pas-à-pas →
-    `docs/setup-paiement-one-time.md`.
+    product IDs **lus en base** (`plans.apple_product_id` / `google_product_id`,
+    identiques et en minuscules), **plus dérivés de `Plan.code`** — un ID Apple
+    supprimé n'étant jamais réutilisable, une recréation impose un ID neuf.
+    Guide pas-à-pas → `docs/setup-paiement-one-time.md`.
 
 > **⚠️ RÉVERSIBILITÉ — ne JAMAIS supprimer le code abonnement (lots 2/3/4).** La
 > bascule est pilotée par le flag `sejourfr.billing.mode` (`SUBSCRIPTION |
@@ -2692,6 +2705,8 @@ Référence à consulter quand le contexte le demande — pas chargé par défau
 - `docs/exams-tcf.md` — examens module (CO/CE) et examen blanc TCF complet
 - `docs/auth-social.md` — Google/Apple sign-in (backend + front, config env)
 - `docs/setup-paiement-one-time.md` — passes achat unique (lot 5) : setup Stripe/Apple/Google pas-à-pas + SKU
+- `docs/bascule-prix-integral.md` — nouvelle grille Intégral (7 j / 1 mois / 2 mois) : ce qui est fait
+  en base et dans les fronts, et ce qui reste à créer côté stores
 - `docs/pipeline-audio-co.md` — génération audio TCF CO (Claude → Azure Speech → R2)
 - `docs/pipeline-evaluation-eo-ee.md` — éval EO/EE (audio/transcription → correcteur configuré → R2 privé)
 - `docs/notation-ia-eo-ee.md` — **explication grand public** (non technique) de la notation

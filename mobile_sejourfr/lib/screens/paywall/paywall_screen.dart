@@ -577,9 +577,9 @@ class _OneTimeModuleCard extends StatelessWidget {
   }
 }
 
-/// Ligne d'un pass achetable : durée (« 3 mois ») + prix store + flèche.
+/// Ligne d'un pass achetable : durée (« 2 mois ») + prix store + flèche.
 /// Pass mis en avant comme « le plus populaire » (cohérent web + mobile).
-const String _popularPassCode = 'INTEGRAL_PASS_3M';
+const String _popularPassCode = 'INTEGRAL_PASS_2M';
 
 class _PassRow extends StatelessWidget {
   const _PassRow({

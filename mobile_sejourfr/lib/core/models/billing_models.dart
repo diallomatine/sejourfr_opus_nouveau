@@ -41,8 +41,12 @@ extension PlanPurchaseTypeParse on PlanPurchaseType {
   }
 }
 
-/// Libellé court de la durée d'un pass one-time (durationDays → « 6 semaines »,
-/// « 3 mois », « 1 an »). Tolérant aux valeurs proches.
+/// Libellé court de la durée d'un pass one-time (durationDays → « 7 jours »,
+/// « 1 mois », « 2 mois », « 1 an »). Tolérant aux valeurs proches.
+///
+/// Une semaine seule s'annonce **en jours** : c'est ainsi que le pass d'essai
+/// est vendu, et la règle plurielle rendait « 1 semaines ». Miroir mot pour mot
+/// de `durationLabel` / `passDurationLabel` côté web.
 String passDurationLabel(int days) {
   if (days <= 0) return '';
   if (days % 365 == 0) {
@@ -53,7 +57,7 @@ String passDurationLabel(int days) {
     return '${days ~/ 30} mois';
   }
   if (days % 7 == 0) {
-    return '${days ~/ 7} semaines';
+    return days == 7 ? '7 jours' : '${days ~/ 7} semaines';
   }
   return '$days jours';
 }

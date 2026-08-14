@@ -111,7 +111,11 @@ function formatPrice(n: number): string {
     return n.toFixed(2).replace(".", ",");
 }
 
-/** Libellé de durée d'un pass one-time (« 6 semaines », « 3 mois », « 1 an »). */
+/**
+ * Libellé de durée d'un pass one-time (« 7 jours », « 1 mois », « 2 mois »,
+ * « 1 an »). Une semaine seule s'annonce **en jours** : c'est ainsi que le pass
+ * d'essai est vendu, et « 1 semaines » est ce que rendait la règle plurielle.
+ */
 function durationLabel(days: number): string {
     if (days <= 0) return "";
     if (days % 365 === 0) {
@@ -119,7 +123,7 @@ function durationLabel(days: number): string {
         return y === 1 ? "1 an" : `${y} ans`;
     }
     if (days >= 30 && days % 30 === 0) return `${days / 30} mois`;
-    if (days % 7 === 0) return `${days / 7} semaines`;
+    if (days % 7 === 0) return days === 7 ? "7 jours" : `${days / 7} semaines`;
     return `${days} jours`;
 }
 
@@ -421,7 +425,7 @@ function PaiementInner() {
 // ============================================================================
 
 /** Pass mis en avant comme « le plus populaire » (cohérent web + mobile). */
-const POPULAR_PASS_CODE = "INTEGRAL_PASS_3M";
+const POPULAR_PASS_CODE = "INTEGRAL_PASS_2M";
 
 function OneTimePasses({
                            plans,
