@@ -20,7 +20,20 @@ const CRITERION_STATUS_TONE: Record<SkillCriterionStatus, string> = {
 };
 
 /**
- * « TON NIVEAU » — la réponse à *où j'en suis*, en trois secondes.
+ * Intitulé de la carte de niveau. **Il nomme la production, pas le candidat** :
+ * ce palier est celui de la réponse qui vient d'être rendue — quinze à trente
+ * mots —, pas le niveau TCF de la personne, qui se mesure sur des épreuves
+ * entières et vit sur le tableau de bord. « TON NIVEAU » laissait exactement
+ * cette confusion possible, et c'est la lecture la plus décourageante : un A2
+ * sur une phrase n'est pas un verdict sur soi.
+ *
+ * Miroir mot pour mot de `kSkillLevelCardEyebrow` côté mobile
+ * (`competences/widgets/skill_level_card.dart`).
+ */
+const LEVEL_EYEBROW = "NIVEAU DE TA RÉPONSE";
+
+/**
+ * « Niveau de ta réponse » — la réponse à *où j'en suis*, en trois secondes.
  *
  * **Rien n'est calculé ici.** Le niveau démontré, le palier visé, la phrase de
  * situation, les trois crans de la jauge et la position du curseur viennent tous
@@ -58,7 +71,7 @@ export function CompetenceLevelCard({
 
   return (
     <section className={s.levelCard}>
-      <span className={s.levelEyebrow}>TON NIVEAU</span>
+      <span className={s.levelEyebrow}>{LEVEL_EYEBROW}</span>
 
       <div className={s.levelTop}>
         <strong className={s.levelBig}>{niveauCecrlShort(progress.levelReached)}</strong>

@@ -1790,7 +1790,12 @@ retraits**, la parité web ⇄ mobile n'étant pas négociable. À ne pas rétab
 - **Ordre imposé de l'écran de résultat — contrat d'analyse v3** : bandeau de
   confirmation (`Production analysée` / `Progression mise à jour` ; une
   tentative **sans** analyse garde l'accusé historique « Sujet marqué comme
-  traité », l'annoncer analysée serait faux) → **carte `TON NIVEAU`** (niveau
+  traité », l'annoncer analysée serait faux) → **carte `NIVEAU DE TA RÉPONSE`**
+  (intitulé gelé, miroir de `kSkillLevelCardEyebrow` côté mobile : il nomme la
+  **production**, jamais le candidat — ce palier porte sur quinze à trente mots,
+  pas sur le niveau TCF de la personne, qui se mesure sur des épreuves entières ;
+  « TON NIVEAU » laissait cette confusion, et c'est la lecture la plus
+  décourageante) (niveau
   démontré en très grand, puce `Objectif {targetLevel}`, `situationLabel` rendu
   **tel quel**, jauge à 3 crans, puces `strengthTag` / `focusTag`) →
   `Pour viser {niveau}` (leviers) → `Une version plus aboutie` (texte réécrit,
@@ -1806,6 +1811,27 @@ retraits**, la parité web ⇄ mobile n'étant pas négociable. À ne pas rétab
   rapport de correction EE/EO** (`production/ProductionActionPlan.tsx`) depuis
   qu'il rend le même plan : ils ne se recopient pas. Ils rendent le **corps
   seul** — chaque écran pose son propre intertitre.
+  - 🛑 **AUCUNE carte englobante** (aligné sur le mobile le 2026-08-15) : les
+    blocs sont posés **à plat** sur le fond de page, comme la `ListView` de
+    `competence_result_screen.dart`. Chacun porte déjà sa propre surface (carte
+    de niveau teintée, leviers en liste blanche, exemple, mémo ambre, dépliants,
+    boîte de production) ; les empiler dans un `s.card s.panel` écrasait la
+    hiérarchie et faisait lire l'écran comme un seul pavé. **Ne pas les y
+    remettre.**
+  - **L'en-tête porte le sujet** : `SkillShell title={prompt.title}
+    meta={"compétence · épreuve"}`, miroir de `ScreenHeader` côté mobile. Sans
+    lui, l'écran rendait un verdict orphelin — on ne savait pas quel sujet
+    venait d'être traité. Le bandeau de confirmation est donc un `h2` : le `h1`
+    de la page, c'est le titre du sujet.
+  - **La boîte de production reprend la tête de `_ProductionCard`** : intitulé
+    « TA PRODUCTION » à gauche, mesure à droite (durée à l'oral, nombre de mots
+    à l'écrit). À l'oral **sans transcription**, la phrase est celle du mobile
+    (« Ta réponse orale est enregistrée. La transcription n'est produite que
+    lorsqu'une analyse IA est demandée. ») : l'ancien « Production
+    indisponible. » laissait croire à une perte, alors que l'audio est bien là.
+  - **Le dépliant des références s'ouvre sur « Comparer »**, pas « Afficher »
+    (le repli reste « Masquer ») — miroir du `collapsedLabel` de
+    `_SectionToggle` : l'invite nomme le geste que la section propose.
   - **Rien n'est calculé côté front** : `levelReached`, `targetLevel`,
     `situation`, `situationLabel`, `scale` (toujours 3 crans) et `cursorIndex`
     sont dérivés serveur (`SkillLevelProgressResolver`). Ne jamais recomposer la

@@ -258,9 +258,15 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
 
   return (
     <DualChromeShell>
+      {/* En-tête de sujet, miroir de `ScreenHeader` côté mobile : le **titre du
+          sujet** et « compétence · épreuve ». Sans lui, l'écran ne disait pas
+          quel sujet venait d'être traité — on arrivait sur un verdict orphelin.
+          Sujet pas encore chargé ⇒ « Résultat », jamais un titre inventé. */}
       <SkillShell
         backHref={`${base}/${skillId}`}
         backLabel={prompt?.skillTitle ?? "Petits sujets"}
+        title={prompt?.title ?? "Résultat"}
+        meta={prompt ? `${prompt.skillTitle} · ${config.label}` : config.label}
       >
         {error && <div className={s.error}>{error}</div>}
 
@@ -270,7 +276,13 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
             <p className={s.pendingText}>Chargement…</p>
           </div>
         ) : (
-          <section className={`${s.card} ${s.panel} ${s.result}`}>
+          /* ⚠️ **Pas de carte englobante.** Chaque bloc porte déjà sa propre
+             surface (carte de niveau teintée, leviers en liste blanche, exemple,
+             mémo ambre, dépliants, boîte de production) : les empiler dans une
+             grande carte blanche écrasait la hiérarchie et faisait lire l'écran
+             comme un seul pavé. Structure à plat, exactement comme la `ListView`
+             du mobile. Ne pas y remettre `s.card` / `s.panel`. */
+          <section className={s.result}>
             {/* Bandeau de confirmation : ce qui vient de se passer, puis la
                 conséquence sur la progression.
 
@@ -284,9 +296,12 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                 <Check size={20} strokeWidth={3} />
               </span>
               <div>
-                <h1 className={s.resultHeading}>
+                {/* `h2` et non `h1` : depuis que l'en-tête porte le titre du
+                    sujet, c'est lui le titre de la page — deux `h1` mettraient
+                    le lecteur d'écran devant deux titres concurrents. */}
+                <h2 className={s.resultHeading}>
                   {analysis ? "Production analysée" : "Sujet marqué comme traité"}
-                </h1>
+                </h2>
                 <p className={s.resultSub}>
                   {analysis
                     ? "Progression mise à jour"
@@ -344,6 +359,22 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
 
               {prodOpen && (
                 <div id={prodPanelId} className={s.answerBox}>
+                  {/* Intitulé + mesure en tête de carte, comme `_ProductionCard`
+                      côté mobile : la durée ou le nombre de mots se lisent avec
+                      la production, pas relégués sous elle. */}
+                  <div className={s.prodHead}>
+                    <span className={s.prodEyebrow}>TA PRODUCTION</span>
+                    {attempt.audioDurationSec != null ? (
+                      <span className={s.chip}>
+                        <Clock size={11} strokeWidth={2.4} aria-hidden />
+                        {formatDurationSec(attempt.audioDurationSec)}
+                      </span>
+                    ) : attempt.wordsCount != null ? (
+                      <span className={s.chip}>
+                        {attempt.wordsCount} mot{attempt.wordsCount > 1 ? "s" : ""}
+                      </span>
+                    ) : null}
+                  </div>
                   {/* Même lecteur que l'enregistreur (`EoRecordingForm`) — l'URL
                       R2 est présignée 15 min, `preload="metadata"` évite de la
                       consommer pour rien. */}
@@ -361,23 +392,17 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                       <p className={s.prodText}>{attempt.transcript}</p>
                     </>
                   )}
-                  {!attempt.writtenProduction && !attempt.audioUrl && (
-                    <p className={s.prodText}>Production indisponible.</p>
-                  )}
-                  {(attempt.audioDurationSec != null || attempt.wordsCount != null) && (
-                    <div className={s.chips}>
-                      {attempt.audioDurationSec != null && (
-                        <span className={s.chip}>
-                          <Clock size={11} strokeWidth={2.4} aria-hidden />
-                          {formatDurationSec(attempt.audioDurationSec)}
-                        </span>
-                      )}
-                      {attempt.audioDurationSec == null && attempt.wordsCount != null && (
-                        <span className={s.chip}>
-                          {attempt.wordsCount} mot{attempt.wordsCount > 1 ? "s" : ""}
-                        </span>
-                      )}
-                    </div>
+                  {/* À l'oral sans transcription, ce n'est pas une production
+                      « indisponible » : elle est bien enregistrée, c'est la
+                      transcription qui n'est produite qu'avec une analyse (on ne
+                      paie pas Whisper pour rien). Phrase reprise mot pour mot du
+                      mobile — l'ancienne laissait croire à une perte. */}
+                  {!attempt.writtenProduction && !attempt.transcript && (
+                    <p className={s.prodEmpty}>
+                      {config.mode === "audio"
+                        ? "Ta réponse orale est enregistrée. La transcription n'est produite que lorsqu'une analyse IA est demandée."
+                        : "Aucune réponse enregistrée."}
+                    </p>
                   )}
                 </div>
               )}

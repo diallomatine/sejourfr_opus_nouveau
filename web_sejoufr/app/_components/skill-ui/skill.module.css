@@ -1347,6 +1347,34 @@
   border: 1px solid var(--color-line);
 }
 
+/* Tête de la boîte de production : intitulé à gauche, mesure à droite (durée à
+   l'oral, nombre de mots à l'écrit). Miroir de `_ProductionCard` côté mobile,
+   où la pastille se lit avec la production et non sous elle. */
+.prodHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.prodEyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--color-muted);
+}
+
+/* Production sans texte à afficher : c'est une explication, pas la production —
+   d'où le gris et la taille réduite, qui la distinguent de `.prodText`. */
+.prodEmpty {
+  margin: 9px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
 .answerLabel {
   display: block;
   font-family: var(--font-mono);

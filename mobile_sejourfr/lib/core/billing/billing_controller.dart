@@ -252,11 +252,15 @@ class BillingController extends StateNotifier<BillingState> {
 
       final response = await _iap.loadProducts(skuToPlan.keys.toSet());
 
-      // Un SKU que le store ne connaît pas est ignoré en silence : le paywall
-      // vend ce qui est vendable au lieu de tomber en erreur. Le revers, c'est
-      // qu'un produit mal configuré côté console disparaît sans rien dire —
-      // d'où ce relevé, en debug uniquement (pas de bruit en release).
-      _logStoreCatalogue(skuToPlan, response);
+      if (response.notFoundIDs.isNotEmpty) {
+        // Log non-bloquant : on continue avec les produits trouvés. Cas
+        // courant pendant le setup quand les SKUs ne sont pas encore validés
+        // côté App Store Connect / Play Console. Gardé en debug uniquement
+        // (pas de bruit dans les logs release / idevicesyslog).
+        if (kDebugMode) {
+          debugPrint('IAP: SKUs introuvables côté store: ${response.notFoundIDs}');
+        }
+      }
 
       final products = <IapProduct>[];
       for (final pd in response.productDetails) {
@@ -289,51 +293,6 @@ class BillingController extends StateNotifier<BillingState> {
         error: d.message,
         actionBlocked: d.blocking,
       );
-    }
-  }
-
-  /// Relevé de ce que le store a réellement répondu, SKU par SKU.
-  ///
-  /// Trois choses qu'on ne voyait pas et qui expliquent la quasi-totalité des
-  /// « ce produit n'apparaît pas au paywall » :
-  ///
-  /// - la **liste demandée**, telle qu'elle sort de la base (un identifiant
-  ///   corrigé en console admin se lit ici, pas dans le code) ;
-  /// - **`response.error`**, qu'on ignorait entièrement : StoreKit peut
-  ///   répondre une erreur tout en renvoyant une liste partielle, et le
-  ///   paywall s'affichait alors amputé sans le moindre signal ;
-  /// - les **manquants**, avec le rappel que la cause est côté console
-  ///   (identifiant qui diffère d'une lettre, produit encore en
-  ///   « Métadonnées manquantes », ou propagation en cours) et jamais ici :
-  ///   quand une partie des SKUs remonte, le bundle, le compte de test et le
-  ///   réseau sont hors de cause.
-  ///
-  /// Debug uniquement — un paywall en production n'a rien à raconter.
-  void _logStoreCatalogue(
-    Map<String, PlanPublicResponse> demandes,
-    ProductDetailsResponse response,
-  ) {
-    if (!kDebugMode) return;
-
-    debugPrint('IAP: ${demandes.length} SKU(s) demandé(s) au store '
-        '(${IapService.currentSource.backendName}) : '
-        '${demandes.keys.toList()..sort()}');
-
-    if (response.error != null) {
-      debugPrint('IAP: erreur store — code=${response.error!.code} '
-          'message=${response.error!.message} details=${response.error!.details}');
-    }
-
-    for (final pd in response.productDetails) {
-      final plan = demandes[pd.id];
-      debugPrint('IAP: reçu ${pd.id} → prix=${pd.price} (${pd.rawPrice} '
-          '${pd.currencyCode}) titre="${pd.title}" '
-          'plan=${plan?.code ?? "INCONNU"}');
-    }
-
-    for (final sku in response.notFoundIDs) {
-      debugPrint('IAP: MANQUANT $sku (plan ${demandes[sku]?.code ?? "?"}) — '
-          'identifiant, état du produit ou propagation côté console du store');
     }
   }
 

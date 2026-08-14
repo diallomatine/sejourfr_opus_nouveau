@@ -7,9 +7,20 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_tag.dart';
 import 'skill_status_badge.dart';
 
-/// « TON NIVEAU » : le niveau démontré par la micro-production, l'objectif, la
-/// phrase de situation, la jauge à trois crans, le verdict du critère et les
-/// deux étiquettes.
+/// Intitulé de la carte de niveau. **Il nomme la production, pas le candidat** :
+/// ce palier est celui de la réponse qui vient d'être rendue — quinze à trente
+/// mots —, pas le niveau TCF de la personne, qui se mesure sur des épreuves
+/// entières et vit sur l'accueil. « TON NIVEAU » laissait exactement cette
+/// confusion possible, et c'est la lecture la plus décourageante : un A2 sur
+/// une phrase n'est pas un verdict sur soi.
+///
+/// Miroir mot pour mot de `LEVEL_EYEBROW` côté web
+/// (`app/_components/competences/CompetenceLevelCard.tsx`).
+const String kSkillLevelCardEyebrow = 'NIVEAU DE TA RÉPONSE';
+
+/// « Niveau de ta réponse » : le niveau démontré par la micro-production,
+/// l'objectif, la phrase de situation, la jauge à trois crans, le verdict du
+/// critère et les deux étiquettes.
 ///
 /// **Rien n'est calculé ici** : le niveau, le palier visé, la phrase, l'échelle
 /// et la position du curseur sont tous dérivés serveur
@@ -66,7 +77,7 @@ class SkillLevelCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('TON NIVEAU', style: AppFonts.label(size: 10)),
+          Text(kSkillLevelCardEyebrow, style: AppFonts.label(size: 10)),
           const SizedBox(height: 8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
