@@ -74,6 +74,9 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                         "/api/admin/diagnostics/INITIAL_TCF/versions/1/instruction-audio"),
                 Arguments.of(HttpMethod.POST,
                         "/api/admin/diagnostics/INITIAL_TCF/versions/1/instruction-audio"),
+                // Régénération forcée (consigne corrigée) : même route, opt-in explicite.
+                Arguments.of(HttpMethod.POST,
+                        "/api/admin/diagnostics/INITIAL_TCF/versions/1/instruction-audio?force=true"),
                 // Module competences : les 10 routes de la console, une par une.
                 Arguments.of(HttpMethod.GET, "/api/admin/skills"),
                 Arguments.of(HttpMethod.GET, "/api/admin/skills/stats"),

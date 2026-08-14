@@ -21,7 +21,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class DiagnosticInstructionAudioServiceTest {
@@ -99,6 +101,76 @@ class DiagnosticInstructionAudioServiceTest {
     }
 
     @Test
+    void objetDejaPresentSansForceNAppelleJamaisAzure() {
+        configureExternalServices();
+        when(r2.audioExists(TASK_ID)).thenReturn(true);
+        when(r2.audioPublicUrl(TASK_ID)).thenReturn(canonicalUrl());
+        task.setInstructionAudioUrl(canonicalUrl());
+
+        var result = service.generate(CODE, 1);
+
+        assertThat(result.generatedNow()).isFalse();
+        verifyNoInteractions(azure);
+        verify(r2, never()).uploadAudio(any(), any());
+        verify(taskManager, never()).save(any());
+    }
+
+    @Test
+    void forceRegenereSousLaMemeCleSansChangerLUrlEnBase() {
+        configureExternalServices();
+        when(r2.audioExists(TASK_ID)).thenReturn(true);
+        task.setInstructionAudioUrl(canonicalUrl());
+        task.setConsigne("Nouvelle consigne en trois etapes.");
+        when(azure.synthesize(any())).thenReturn(new byte[]{4, 5, 6});
+        when(r2.uploadAudio(eq(TASK_ID), any(byte[].class)))
+                .thenReturn(new CloudflareR2Client.R2UploadResult(
+                        "audio/" + TASK_ID + ".mp3", canonicalUrl()));
+
+        var result = service.generate(CODE, 1, true);
+
+        ArgumentCaptor<String> ssml = ArgumentCaptor.forClass(String.class);
+        verify(azure, times(1)).synthesize(ssml.capture());
+        assertThat(ssml.getValue()).contains("Nouvelle consigne en trois etapes.");
+        verify(r2, times(1)).uploadAudio(eq(TASK_ID), any(byte[].class));
+        // Ecrasement en place : jamais de suppression, donc jamais de 404 transitoire.
+        verify(r2, never()).deleteAudio(any());
+        verify(r2, never()).deleteObject(any());
+        assertThat(result.generatedNow()).isTrue();
+        assertThat(result.objectKey()).isEqualTo("audio/" + TASK_ID + ".mp3");
+        assertThat(result.audioUrl()).isEqualTo(canonicalUrl());
+        assertThat(task.getInstructionAudioUrl()).isEqualTo(canonicalUrl());
+    }
+
+    @Test
+    void forceRefuseAvantLaSyntheseSiAzureEstAbsent() {
+        configureR2();
+        when(r2.audioExists(TASK_ID)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.generate(CODE, 1, true))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Azure Speech");
+        verifyNoInteractions(azure);
+        verify(r2, never()).uploadAudio(any(), any());
+    }
+
+    @Test
+    void objetAbsentAvecForceGenereCommeSansForce() {
+        configureExternalServices();
+        when(r2.audioExists(TASK_ID)).thenReturn(false);
+        when(azure.synthesize(any())).thenReturn(new byte[]{1});
+        when(r2.uploadAudio(eq(TASK_ID), any(byte[].class)))
+                .thenReturn(new CloudflareR2Client.R2UploadResult(
+                        "audio/" + TASK_ID + ".mp3", canonicalUrl()));
+
+        var result = service.generate(CODE, 1, true);
+
+        verify(azure, times(1)).synthesize(any());
+        verify(r2, times(1)).uploadAudio(eq(TASK_ID), any(byte[].class));
+        assertThat(result.generatedNow()).isTrue();
+        assertThat(result.audioUrl()).isEqualTo(canonicalUrl());
+    }
+
+    @Test
     void objetAbsentUtiliseLaCleStableEtLitExactementLaConsigneVisible() {
         configureExternalServices();
         when(r2.audioExists(TASK_ID)).thenReturn(false);
@@ -117,6 +189,10 @@ class DiagnosticInstructionAudioServiceTest {
         verify(r2).uploadAudio(eq(TASK_ID), any(byte[].class));
         assertThat(result.generatedNow()).isTrue();
         assertThat(result.audioUrl()).endsWith("/audio/" + TASK_ID + ".mp3");
+    }
+
+    private static String canonicalUrl() {
+        return "https://audio.example/audio/" + TASK_ID + ".mp3";
     }
 
     private void configureExternalServices() {

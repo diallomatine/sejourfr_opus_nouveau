@@ -592,6 +592,27 @@ de rubriques et files de calibration doivent garder le filtre
   /api/admin/diagnostics/{code}/versions/{version}/instruction-audio` inspecte
   son état ; `POST` le génère ou répare idempotemment son URL sous la clé stable
   dérivée de l'UUID de tâche. Rien n'est généré au boot ni au démarrage candidat.
+  **`POST …?force=true` refait la synthèse même si l'objet existe** — seul moyen
+  de corriger un audio devenu faux quand la consigne change (cas V756 : trois
+  étapes à l'écran, quatre dans la voix), le retour anticipé idempotent ne sachant
+  que réparer l'URL. **Opt-in strict** : sans le paramètre, le comportement est
+  inchangé et aucun appel payant ne part, même sur une route rejouée. L'écrasement
+  se fait **sous la même clé** (`putObject`, last-write-wins — jamais de delete,
+  qui ouvrirait un 404 transitoire), donc l'URL en base et côté fronts ne bouge
+  pas, et `generatedNow` dit la vérité : `true` seulement si une synthèse a eu
+  lieu.
+  **V756 raccourcit les deux consignes EN PLACE dans la version 1** (EE 100-120
+  mots, EO 90-150 s) : les sujets de V755 se lisaient comme un examen complet dès
+  le premier contact, alors que le diagnostic doit se lire « 5 minutes et je
+  découvre mon niveau ». Aucun UUID ne bouge (clé de `diagnostic_sessions` **et**
+  de l'audio R2), aucune allowlist n'est touchée — les incises « et ce que vous en
+  avez pensé », « dites ce que vous cherchez » et « (activités, horaires, tarif,
+  inscription) » sont conservées exprès, sans elles `EE2-C7`, `EO1-C3` et `EO2-C4`
+  reviendraient `NOT_OBSERVED`. ⚠️ **L'audio de consigne de l'oral est donc faux
+  tant qu'il n'est pas régénéré** par le `POST` ci-dessus. V756 retire au passage
+  les bornes du diagnostic écrites en dur dans `chk_prod_task_tcf_irn_ee_word_bounds`
+  (piège de V723/V724) : un sujet diagnostique est exempté de la table officielle,
+  ses bornes vivent dans `production_tasks.mots_min/mots_max`.
 - **« Avant / après » de l'écran de résultat — SECOND APPEL LLM SÉPARÉ, ÉCRIT
   SEULEMENT** (`service/diagnostic/exemplecible/`, livré **ACTIF**). Rend la
   phrase du candidat **et la même phrase réécrite au palier qu'il vise** : on ne

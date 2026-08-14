@@ -370,6 +370,13 @@ Console de contenu du module Compétences (cf. la section utilisateur plus haut)
   vérifie d'abord la clé déterministe de l'UUID de tâche ; si l'objet existe,
   répare seulement son URL (même sans Azure), sinon génère explicitement la
   consigne avec Azure Speech, l'envoie dans R2 et persiste l'URL.
+  `?force=true` **régénère** au lieu de réparer : c'est le seul moyen de refaire
+  l'audio quand la consigne a été corrigée en base (sans lui, l'objet existant
+  fait sortir la route avant toute synthèse, et la voix continue d'annoncer
+  l'ancien texte). Opt-in délibéré — une synthèse est un appel payant, elle ne
+  doit jamais partir parce qu'un client rejoue la route. L'écrasement se fait
+  sous la **même** clé, donc l'URL déjà servie ne change pas, et `generatedNow`
+  ne vaut `true` que si Azure a réellement été appelé.
 
 Il n'existe volontairement aucun CRUD admin des sujets diagnostiques : contenu,
 bornes, version, URL fixe et allowlists restent **seed-only**. La migration ne
