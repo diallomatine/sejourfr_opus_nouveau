@@ -1180,29 +1180,73 @@ function usePrefersReducedMotion(): boolean {
   );
 }
 
-/** Révèle en cascade tous les `[data-rv]` du sous-arbre au passage du scroll. */
+/**
+ * Révèle en cascade tous les `[data-rv]` du sous-arbre au passage du scroll.
+ *
+ * ⚠️ Le sous-arbre n'est PAS figé : plusieurs sections en remontent une partie
+ * après le montage (le sélecteur de parcours des tarifs remplace ses cartes de
+ * pass, et chaque bascule crée des nœuds neufs). Comme `[data-rv]` vaut
+ * `opacity: 0` tant que `data-in` n'est pas posé, un nœud ajouté après coup et
+ * jamais observé reste **définitivement invisible** — c'est ainsi que les prix
+ * disparaissaient dès qu'on passait sur « examen civique seul », et ne
+ * revenaient pas en repassant sur « TCF IRN ». Un `MutationObserver` prend donc
+ * en charge les arrivées tardives : toute brique de cette page peut être rendue
+ * conditionnellement sans avoir à connaître ce mécanisme.
+ */
 function useReveal(rootRef: React.RefObject<HTMLElement | null>) {
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    const targets = Array.from(root.querySelectorAll<HTMLElement>("[data-rv]"));
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      targets.forEach((el) => el.setAttribute("data-in", ""));
-      return;
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reveal = (el: HTMLElement) => el.setAttribute("data-in", "");
+
+    if (reduced) {
+      const showAll = (scope: ParentNode) =>
+        scope.querySelectorAll<HTMLElement>("[data-rv]").forEach(reveal);
+      showAll(root);
+      // Même sans animation, un nœud tardif doit être rendu visible.
+      const mo = new MutationObserver(() => showAll(root));
+      mo.observe(root, { childList: true, subtree: true });
+      return () => mo.disconnect();
     }
+
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry, i) => {
           if (!entry.isIntersecting) return;
           const el = entry.target as HTMLElement;
-          window.setTimeout(() => el.setAttribute("data-in", ""), i * 65);
+          window.setTimeout(() => reveal(el), i * 65);
           io.unobserve(el);
         });
       },
       { rootMargin: "0px 0px -10% 0px", threshold: 0.1 },
     );
-    targets.forEach((el) => io.observe(el));
-    return () => io.disconnect();
+
+    // `data-in` sert de marqueur « déjà pris en charge » : un nœud remonté à
+    // l'identique n'est jamais observé deux fois, et l'observation est
+    // idempotente côté navigateur de toute façon.
+    const observeAll = (scope: ParentNode) =>
+      scope
+        .querySelectorAll<HTMLElement>("[data-rv]:not([data-in])")
+        .forEach((el) => io.observe(el));
+
+    observeAll(root);
+    const mo = new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (!(node instanceof HTMLElement)) continue;
+          if (node.matches("[data-rv]:not([data-in])")) io.observe(node);
+          observeAll(node);
+        }
+      }
+    });
+    mo.observe(root, { childList: true, subtree: true });
+
+    return () => {
+      mo.disconnect();
+      io.disconnect();
+    };
   }, [rootRef]);
 }
 
