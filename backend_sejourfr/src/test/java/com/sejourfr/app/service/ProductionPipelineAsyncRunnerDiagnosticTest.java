@@ -11,6 +11,7 @@ import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.service.diagnostic.DiagnosticProductionAnalysisService;
 import com.sejourfr.app.service.diagnostic.DiagnosticSessionCoordinator;
 import com.sejourfr.app.service.diagnostic.DiagnosticSessionFailureRecorder;
+import com.sejourfr.app.service.diagnostic.exemplecible.DiagnosticExempleCibleService;
 import com.sejourfr.app.service.versionciblee.ProductionVersionCibleeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,7 @@ class ProductionPipelineAsyncRunnerDiagnosticTest {
     private DiagnosticProductionAnalysisService diagnosticAnalysisService;
     private DiagnosticSessionCoordinator coordinator;
     private DiagnosticSessionFailureRecorder diagnosticFailureRecorder;
+    private DiagnosticExempleCibleService exempleCibleService;
     private ProductionPipelineAsyncRunner runner;
 
     @BeforeEach
@@ -50,10 +52,11 @@ class ProductionPipelineAsyncRunnerDiagnosticTest {
         diagnosticAnalysisService = mock(DiagnosticProductionAnalysisService.class);
         coordinator = mock(DiagnosticSessionCoordinator.class);
         diagnosticFailureRecorder = mock(DiagnosticSessionFailureRecorder.class);
+        exempleCibleService = mock(DiagnosticExempleCibleService.class);
         runner = new ProductionPipelineAsyncRunner(
                 submissionManager, transcriptionManager, whisperService, aiEvaluationService,
                 failureRecorder, versionCibleeService, diagnosticAnalysisService,
-                coordinator, diagnosticFailureRecorder);
+                coordinator, diagnosticFailureRecorder, exempleCibleService);
     }
 
     @Test
@@ -70,6 +73,8 @@ class ProductionPipelineAsyncRunnerDiagnosticTest {
         verify(coordinator, times(2)).onAnalysisCompleted(submission.getId());
         verify(aiEvaluationService, never()).evaluate(any());
         verify(versionCibleeService, never()).enrichir(any());
+        // SECOND appel du diagnostic, lance APRES l'analyse et l'assemblage.
+        verify(exempleCibleService).enrichir(submission.getId());
     }
 
     @Test
@@ -101,6 +106,8 @@ class ProductionPipelineAsyncRunnerDiagnosticTest {
         verify(versionCibleeService).enrichir(submission.getId());
         verify(diagnosticAnalysisService).observeStandardProduction(submission.getId());
         verify(coordinator, never()).onAnalysisCompleted(any());
+        // Une production standard n'est pas un diagnostic : aucun avant / apres.
+        verify(exempleCibleService, never()).enrichir(any());
     }
 
     private static ProductionSubmission submission(

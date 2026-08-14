@@ -11,6 +11,7 @@ import com.sejourfr.app.service.versionciblee.ProductionVersionCibleeService;
 import com.sejourfr.app.service.diagnostic.DiagnosticProductionAnalysisService;
 import com.sejourfr.app.service.diagnostic.DiagnosticSessionCoordinator;
 import com.sejourfr.app.service.diagnostic.DiagnosticSessionFailureRecorder;
+import com.sejourfr.app.service.diagnostic.exemplecible.DiagnosticExempleCibleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -53,6 +54,7 @@ public class ProductionPipelineAsyncRunner {
     private final DiagnosticProductionAnalysisService diagnosticAnalysisService;
     private final DiagnosticSessionCoordinator diagnosticSessionCoordinator;
     private final DiagnosticSessionFailureRecorder diagnosticFailureRecorder;
+    private final DiagnosticExempleCibleService diagnosticExempleCibleService;
 
     /**
      * Lance le pipeline d'évaluation IA en arrière-plan. Re-fetch la
@@ -103,6 +105,19 @@ public class ProductionPipelineAsyncRunner {
                 diagnosticSessionCoordinator.onAnalysisCompleted(submission.getId());
                 log.info("Pipeline diagnostic OK pour submission {} (epreuve={})",
                         submissionId, epreuve);
+                // SECOND APPEL LLM, totalement separe de l'analyse : la phrase du
+                // candidat reecrite au niveau qu'il VISE (ECRIT seulement — la
+                // production orale n'est jamais reecrite). Lance APRES que
+                // l'analyse est persistee et la session assemblee, et hors de
+                // toute transaction — comme le reste de ce runner.
+                //
+                // /!\ INVARIANT : il ne doit JAMAIS faire echouer un diagnostic
+                // deja obtenu, ni retrograder une session COMPLETED. Le service
+                // avale toutes ses exceptions ; le catch ci-dessous, qui poserait
+                // FAILED, est un filet supplementaire dont on ne veut pas
+                // dependre — d'ou l'appel deliberement place apres le log de
+                // succes, sur une analyse deja commitee.
+                diagnosticExempleCibleService.enrichir(submissionId);
                 return CompletableFuture.completedFuture(null);
             }
             AiEvaluation eval = aiEvaluationService.evaluate(submission.getId());

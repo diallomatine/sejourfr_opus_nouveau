@@ -170,6 +170,55 @@ class LearningPlanObservationServiceTest {
                 .isEqualTo(LearningPlanSourceType.PRODUCTION_EE);
     }
 
+    /**
+     * Quand le correcteur pose {@code PRIORITY} — ce qu'il ne fait quasiment
+     * jamais, d'ou la derivation cote diagnostic — le statut doit traverser la
+     * chaine intact : c'est lui qui met la competence en tete du Plan, et la
+     * contrainte {@code chk_learning_plan_observation_status} l'admet.
+     */
+    @Test
+    void unStatutPrioritaireDuCorrecteurEstPersisteTelQuel() {
+        ProductionSubmission submission = submission(EpreuveType.TCF_EE);
+        when(observationManager.findBySource(any(), any(), any(), any()))
+                .thenReturn(Optional.empty());
+
+        service.recordProduction(submission, List.of(skill()), analyse("PRIORITY"), true);
+
+        ArgumentCaptor<LearningPlanObservation> saved =
+                ArgumentCaptor.forClass(LearningPlanObservation.class);
+        verify(observationManager).save(saved.capture());
+        assertThat(saved.getValue().getStatus()).isEqualTo(LearningPlanSkillStatus.PRIORITY);
+        assertThat(saved.getValue().getSourceType())
+                .isEqualTo(LearningPlanSourceType.DIAGNOSTIC_EE);
+        assertThat(saved.getValue().isBaseline()).isTrue();
+    }
+
+    /** Une faiblesse : c'est de CE statut que le Plan derive une priorite. */
+    @Test
+    void uneFaiblesseObserveeEstPersisteeCommeToReinforce() {
+        ProductionSubmission submission = submission(EpreuveType.TCF_EO);
+        when(observationManager.findBySource(any(), any(), any(), any()))
+                .thenReturn(Optional.empty());
+
+        service.recordProduction(submission, List.of(skill()), analyse("TO_REINFORCE"), true);
+
+        ArgumentCaptor<LearningPlanObservation> saved =
+                ArgumentCaptor.forClass(LearningPlanObservation.class);
+        verify(observationManager).save(saved.capture());
+        assertThat(saved.getValue().getStatus()).isEqualTo(LearningPlanSkillStatus.TO_REINFORCE);
+        assertThat(saved.getValue().isObserved()).isTrue();
+    }
+
+    private static Map<String, Object> analyse(String status) {
+        return Map.of("skills", List.of(Map.of(
+                "skill_code", "EE1-C1",
+                "observed", true,
+                "status", status,
+                "evidence", "Je vous écris pour vous inviter à mon anniversaire.",
+                "explanation", "Le destinataire n'est pas encore pris en compte.",
+                "confidence", "HIGH")));
+    }
+
     private static Map<String, Object> analyse() {
         return Map.of("skills", List.of(Map.of(
                 "skill_code", "EE1-C1",

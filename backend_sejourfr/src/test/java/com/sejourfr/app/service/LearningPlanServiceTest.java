@@ -140,6 +140,46 @@ class LearningPlanServiceTest {
         assertThat(result.activitiesThisWeek()).isEqualTo(2);
     }
 
+    /**
+     * Le defaut mesure : le correcteur ne pose jamais {@code PRIORITY}, il range
+     * ses faiblesses en {@code TO_REINFORCE}. Le Plan doit designer une etape et
+     * un exercice dans ce cas — sinon il reste {@code ACTIVE} sans rien a faire,
+     * alors que l'ecran du diagnostic, lui, propose un exercice.
+     *
+     * <p>Et la <b>confiance</b> departage avant la recence, comme la regle du
+     * diagnostic : les deux productions du diagnostic sont observees au meme
+     * instant, la recence n'y trie rien.
+     */
+    @Test
+    void sansAucunePrioriteDesigneeLesFaiblessesFontLetapeLaPlusSureEnTete() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Instant now = Instant.now();
+        LearningPlanObservation recenteMoinsSure = observation(
+                "EE1-C1", LearningPlanSkillStatus.TO_REINFORCE, now);
+        recenteMoinsSure.setConfidence(ObservationConfidence.MEDIUM);
+        LearningPlanObservation ancienneSure = observation(
+                "EO2-C4", LearningPlanSkillStatus.TO_REINFORCE, now.minusSeconds(3600));
+        ancienneSure.setConfidence(ObservationConfidence.HIGH);
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId))
+                .thenReturn(List.of(recenteMoinsSure, ancienneSure));
+        when(observationManager.countSince(any(), any())).thenReturn(2L);
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        assertThat(result.state()).isEqualTo(LearningPlanState.ACTIVE);
+        assertThat(result.currentPriority()).isNotNull();
+        assertThat(result.currentPriority().skillCode()).isEqualTo("EO2-C4");
+        assertThat(result.currentPriority().status())
+                .isEqualTo(LearningPlanSkillStatus.TO_REINFORCE);
+        assertThat(result.currentPriority().recommendedExercise()).isNotNull();
+        assertThat(result.nextPriorities()).singleElement()
+                .satisfies(next -> assertThat(next.skillCode()).isEqualTo("EE1-C1"));
+    }
+
     @Test
     void seuleLaDerniereObservationDeChaqueCompetenceFaitFoi() {
         DiagnosticSession completed = new DiagnosticSession();

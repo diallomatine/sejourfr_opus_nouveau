@@ -12,14 +12,16 @@ import {
   FilePenLine,
   Headphones,
   Info,
+  Lock,
   Mic,
   RotateCcw,
   Sparkles,
   Target,
   TrendingUp,
-  Zap,
 } from "lucide-react";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
+import {ActionPlanExemple} from "@/app/_components/skill-ui/ActionPlan";
+import {SkillAccent} from "@/app/_components/skill-ui/SkillLayout";
 import {EeWritingForm, clearEeDraft} from "@/app/_components/production/EeWritingForm";
 import {EoRecordingForm} from "@/app/_components/production/EoRecordingForm";
 import {ApiException, diagnosticApi, productionApi} from "@/lib/api";
@@ -54,10 +56,14 @@ import {
 import {countEeWords} from "@/lib/ee-word-bounds";
 import { evidenceExcerpt } from "@/lib/evidence-excerpt";
 import type {
+  DiagnosticExempleCibleDto,
   DiagnosticProductionResultDto,
   DiagnosticResponse,
+  DiagnosticResultDto,
   DiagnosticSkillObservationDto,
+  LearningPlanSkillStatus,
   PublicDiagnosticResponse,
+  SkillSection,
 } from "@/lib/types";
 import {useTrafficSource} from "@/lib/use-traffic-source";
 import {DiagnosticAccountGate} from "./DiagnosticAccountGate";
@@ -883,6 +889,7 @@ function ConnectedDiagnostic() {
       <DiagnosticResult
         diagnostic={diagnostic}
         targetLevel={user.targetLevel ?? null}
+        hasTcf={user.hasTcf ?? false}
         planHref={withTrafficSource("/plan", trafficSource)}
         notice={notice}
       />
@@ -1267,14 +1274,121 @@ function AnalysisWaiting({
   );
 }
 
+/**
+ * Ce que l'écran met en tête : les priorités mesurées par l'analyse, ou — quand
+ * le serveur n'en a désigné aucune — les points à travailler relevés sur chaque
+ * production.
+ *
+ * ⚠️ `priorities` peut être **vide** : c'est un état normal, pas une panne. Le
+ * repli ne prétend jamais que ces points sont des priorités classées, et le
+ * drapeau `measured` est ce qui fait changer les libellés de l'écran.
+ */
+interface ResultLever {
+  key: string;
+  title: string;
+  detail: string | null;
+  evidence: string | null;
+  status: LearningPlanSkillStatus | null;
+  section: SkillSection | null;
+}
+
+function resultLevers(result: DiagnosticResultDto): {
+  levers: ResultLever[];
+  measured: boolean;
+} {
+  if (result.priorities.length > 0) {
+    return {
+      measured: true,
+      levers: result.priorities.slice(0, 3).map((priority, index) => ({
+        key: priority.skillId,
+        title: priority.skillTitle,
+        detail: (index === 0 ? result.mainPriorityExplanation : null) ?? priority.explanation,
+        evidence: priority.evidence,
+        status: priority.status,
+        section: priority.section,
+      })),
+    };
+  }
+
+  // Repli : on alterne écrit et oral pour ne pas servir trois points d'une
+  // seule production quand les deux en portent.
+  const written = result.written?.weaknesses ?? [];
+  const oral = result.oral?.weaknesses ?? [];
+  const fallback: ResultLever[] = [];
+  for (let i = 0; i < Math.max(written.length, oral.length); i += 1) {
+    if (written[i]) {
+      fallback.push({
+        key: `ee-${i}`,
+        title: written[i],
+        detail: null,
+        evidence: null,
+        status: null,
+        section: "EE",
+      });
+    }
+    if (oral[i]) {
+      fallback.push({
+        key: `eo-${i}`,
+        title: oral[i],
+        detail: null,
+        evidence: null,
+        status: null,
+        section: "EO",
+      });
+    }
+  }
+  return {measured: false, levers: fallback.slice(0, 3)};
+}
+
+/** Lien vers l'offre, avec sa mesure de conversion. Deux emplacements l'ouvrent
+ *  (paywall du plan, CTA final) : l'événement est émis au même endroit pour les
+ *  deux, jamais recopié dans un `onClick` de composant. */
+function PremiumLink({
+  className,
+  children,
+}: {
+  className: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      className={className}
+      href="/paiement?module=INTEGRAL"
+      onClick={() => trackAudienceEvent("/diagnostic", "DIAGNOSTIC_TO_PREMIUM_CLICKED")}
+    >
+      {children}
+    </Link>
+  );
+}
+
+/**
+ * Écran de RÉSULTAT du diagnostic.
+ *
+ * Géométrie de la maquette « diagnostic premium », couleurs et fontes de
+ * l'application (même méthode que `skill-ui/`). Trois choses de la maquette sont
+ * volontairement absentes, et ne doivent pas revenir :
+ *
+ * - **les barres de progression chiffrées** — le score de maîtrise n'est exposé
+ *   à aucun front, exprès. On affiche l'**état d'observation** de la compétence
+ *   (libellés gelés `LEARNING_PLAN_SKILL_STATUS_LABEL`) ;
+ * - **le calendrier « Semaine 1 · Étape 1 à 4 »** — le Plan n'a aucune notion de
+ *   semaine ni de jour. Ce qui existe vraiment, c'est l'exercice recommandé et,
+ *   le cas échéant, sa **vérification** (`kind === "REASSESSMENT"`) ;
+ * - **les emojis en texte brut** — le projet utilise `lucide-react`.
+ */
 function DiagnosticResult({
   diagnostic,
   targetLevel,
+  hasTcf,
   planHref,
   notice,
 }: {
   diagnostic: DiagnosticResponse;
   targetLevel: string | null;
+  /** Accès TCF du compte : il ne masque **aucune information** du Plan, il ne
+   *  décide que de l'affichage des cadenas d'accès et de l'invitation à
+   *  l'offre. */
+  hasTcf: boolean;
   planHref: string;
   notice?: ReactNode;
 }) {
@@ -1296,54 +1410,220 @@ function DiagnosticResult({
     );
   }
 
-  const mainPriority = result.priorities[0] ?? null;
-  const otherPriorities = result.priorities.slice(1, 3);
+  const {levers, measured} = resultLevers(result);
+  const nextAction = result.nextAction;
+  const exemple = result.exempleCible;
+  const nextSteps = measured ? levers.slice(1) : [];
 
   return (
     <DiagnosticShell>
       <div className={styles.result}>
         {notice}
+
         <header className={styles.resultHeader}>
           <span className={styles.doneBadge}>
             <i aria-hidden><Check size={11} strokeWidth={3.4} /></i> Diagnostic terminé
           </span>
-          <h1>On sait maintenant quoi travailler.</h1>
+          <p className={styles.resultEyebrow}>
+            Votre bilan personnalisé · 2 productions analysées
+          </p>
+          <h1>
+            Vous savez maintenant <em>quoi travailler en priorité</em>.
+          </h1>
           <p className={styles.resultLead}>
-            Vos productions écrite et orale ont permis d&apos;identifier les compétences qui
-            vous feront progresser le plus vite.
+            Vos deux productions ont été analysées ensemble. Inutile de tout revoir : voici
+            ce qui vous fera progresser le plus vite, et par quoi commencer.
           </p>
         </header>
 
-        {/* Bandeau : les deux niveaux estimés, seuls chiffres mis en avant. */}
-        <section className={styles.levelHero} aria-label="Niveaux estimés">
-          <p className={styles.levelHeroLabel}>Niveaux estimés aujourd&apos;hui</p>
-          <div className={styles.levelHeroGrid}>
-            <div>
-              <span><FilePenLine size={13} aria-hidden /> Expression écrite</span>
-              <b>{niveauEstimateLabel(result.written?.levelEstimate)}</b>
+        {/* ------------------------------ niveaux estimés + carte de décision */}
+        <div className={styles.heroGrid}>
+          <section className={styles.levelHero} aria-label="Niveaux estimés">
+            <p className={styles.levelHeroLabel}>Niveaux estimés aujourd&apos;hui</p>
+            <div className={styles.levelHeroGrid}>
+              <div>
+                <span><FilePenLine size={13} aria-hidden /> Expression écrite</span>
+                <b>{niveauEstimateLabel(result.written?.levelEstimate)}</b>
+              </div>
+              <div>
+                <span><Mic size={13} aria-hidden /> Expression orale</span>
+                <b>{niveauEstimateLabel(result.oral?.levelEstimate)}</b>
+              </div>
             </div>
-            <div>
-              <span><Mic size={13} aria-hidden /> Expression orale</span>
-              <b>{niveauEstimateLabel(result.oral?.levelEstimate)}</b>
-            </div>
-          </div>
-          <p className={styles.levelHeroFoot}>
-            <span>Objectif&nbsp;: <b>{targetLevel ?? "à définir"}</b></span>
-            <span>Estimation d&apos;entraînement, non officielle.</span>
-          </p>
-        </section>
+            <p className={styles.levelHeroFoot}>
+              <span>Objectif&nbsp;: <b>{targetLevel ?? "à définir"}</b></span>
+              <span>Estimation d&apos;entraînement, non officielle.</span>
+            </p>
+          </section>
+
+          <aside className={styles.convCard}>
+            <h2>Votre prochain niveau se joue ici.</h2>
+            <p className={styles.convLead}>
+              {measured
+                ? "Votre plan commence par ces priorités, puis se réordonne à chacune de vos nouvelles productions."
+                : "Votre plan part de ces points, puis se réordonne à chacune de vos nouvelles productions."}
+            </p>
+            {levers.length > 0 && (
+              <ol className={styles.convList}>
+                {levers.map((lever, index) => (
+                  <li key={lever.key} className={styles.convItem}>
+                    <span className={styles.convRank} data-rank={index + 1} aria-hidden>
+                      {index + 1}
+                    </span>
+                    <div className={styles.convCopy}>
+                      <b>{lever.title}</b>
+                      {lever.detail && <span>{lever.detail}</span>}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+            <Link href={planHref} className={styles.primaryButton}>
+              Voir mon plan personnalisé <ArrowRight size={17} aria-hidden />
+            </Link>
+            {exemple && (
+              <a href="#exemple" className={styles.secondaryButton}>
+                Voir un exemple d&apos;amélioration
+              </a>
+            )}
+            <p className={styles.convMicro}>
+              <Check size={13} aria-hidden />
+              {nextAction && !nextAction.locked
+                ? "Le premier exercice de votre plan est accessible sans payer."
+                : "Consulter votre plan ne demande aucun paiement."}
+            </p>
+          </aside>
+        </div>
 
         <p className={styles.note}>
           <Info size={15} aria-hidden />
           Cette estimation est pédagogique : elle ne remplace pas un résultat officiel du TCF.
         </p>
 
-        {/* ------------------------------------ ce que le diagnostic révèle */}
+        {/* ------------------------------------------------ avant / après */}
+        {exemple && (
+          <section id="exemple" aria-labelledby="exemple-title">
+            <ResultBlockHead
+              id="exemple-title"
+              title="Concrètement, à quoi ressemble le niveau visé ?"
+              text="Votre phrase, puis la même idée écrite au niveau que vous visez."
+            />
+            <BeforeAfter exemple={exemple} />
+          </section>
+        )}
+
+        {/* ----------------------------------------------- les priorités */}
+        {levers.length > 0 && (
+          <section aria-labelledby="levers-title">
+            <ResultBlockHead
+              id="levers-title"
+              title={measured ? "Vos priorités, dans l'ordre" : "Ce qu'il y a à travailler"}
+              text={
+                measured
+                  ? "Le diagnostic ne liste pas vos erreurs : il désigne les compétences qui feront bouger votre niveau."
+                  : "Ces points viennent de vos deux productions. Ils ne sont pas encore classés en priorités."
+              }
+            />
+            <div className={styles.leverGrid}>
+              {levers.map((lever, index) => (
+                <article key={lever.key} className={styles.leverCard}>
+                  <p className={styles.leverNum}>
+                    {measured ? `Priorité ${index + 1}` : "Point à travailler"}
+                  </p>
+                  <h3>{lever.title}</h3>
+                  {lever.detail && <p className={styles.leverText}>{lever.detail}</p>}
+                  <div className={styles.leverMeta}>
+                    {lever.status && (
+                      <span
+                        className={styles.leverStatus}
+                        data-tone={LEARNING_PLAN_SKILL_STATUS_TONE[lever.status]}
+                      >
+                        {LEARNING_PLAN_SKILL_STATUS_LABEL[lever.status]}
+                      </span>
+                    )}
+                    {lever.section && (
+                      <span className={styles.leverSection}>
+                        {productionSectionLabel(lever.section)}
+                      </span>
+                    )}
+                  </div>
+                  {lever.evidence && (
+                    <blockquote className={styles.leverQuote}>
+                      «&nbsp;{evidenceExcerpt(lever.evidence)}&nbsp;»
+                    </blockquote>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ---------------------------------------------------- votre plan */}
+        {nextAction && (
+          <section aria-labelledby="plan-title">
+            <ResultBlockHead
+              id="plan-title"
+              title="Votre plan est déjà construit"
+              text="Il commence par votre priorité n°1 et se réordonne à chacune de vos nouvelles productions."
+            />
+            <div className={styles.planShell}>
+              <article className={styles.planStep}>
+                <p className={styles.planStepNum}>
+                  {nextAction.kind === "REASSESSMENT" ? "Vérification" : "Étape 1"}
+                </p>
+                <h3>{nextAction.title}</h3>
+                <p className={styles.planStepMeta}>
+                  <Clock3 size={13} aria-hidden /> {nextAction.estimatedMinutes} min ·{" "}
+                  {productionSectionLabel(nextAction.section)}
+                </p>
+                <Link className={styles.planStepCta} href={recommendedExerciseHref(nextAction)}>
+                  {nextAction.kind === "REASSESSMENT"
+                    ? "Vérifier ma progression"
+                    : "Commencer cet exercice"}
+                  <ArrowRight size={15} aria-hidden />
+                </Link>
+              </article>
+
+              {nextSteps.map((step, index) => (
+                <article
+                  key={step.key}
+                  className={`${styles.planStep} ${hasTcf ? "" : styles.planStepLocked}`}
+                >
+                  <p className={styles.planStepNum}>Étape {index + 2}</p>
+                  <h3>{step.title}</h3>
+                  {step.detail && <p className={styles.planStepText}>{step.detail}</p>}
+                  {!hasTcf && (
+                    <p className={styles.planLock}>
+                      <Lock size={13} aria-hidden /> Accès inclus dans l&apos;abonnement
+                    </p>
+                  )}
+                </article>
+              ))}
+
+              {!hasTcf && (
+                <div className={styles.paywall}>
+                  <div>
+                    <h3>Ne repartez pas avec seulement un diagnostic.</h3>
+                    <p>
+                      Les exercices ciblés, les corrections IA et les vérifications de
+                      progression transforment ce bilan en progression réelle.
+                    </p>
+                  </div>
+                  <PremiumLink className={styles.paywallCta}>
+                    Débloquer mon plan <ArrowRight size={16} aria-hidden />
+                  </PremiumLink>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ---------------------------------------------- le détail observé */}
         <section aria-labelledby="reveal-title">
           <ResultBlockHead
             id="reveal-title"
-            title="Ce que votre diagnostic révèle"
-            text="Pas une liste de vingt erreurs : seulement ce qui est le plus utile pour avancer."
+            title="Le détail reste disponible"
+            text="Ce qui est déjà solide est replié : ouvrez seulement ce qui vous intéresse."
           />
           <div className={styles.snapshot}>
             {result.strengths.length > 0 && (
@@ -1364,62 +1644,12 @@ function DiagnosticResult({
           </div>
         </section>
 
-        {/* ------------------------------------------------- priorité n°1 */}
-        {mainPriority && (
-          <section aria-labelledby="priority-title">
-            <ResultBlockHead
-              id="priority-title"
-              title="Votre priorité n°1"
-              text="C'est ici que votre plan commencera."
-            />
-            <article className={styles.priorityCard}>
-              <div className={styles.priorityTop}>
-                <span className={styles.priorityImpact}><Zap size={13} aria-hidden /> Impact élevé</span>
-                <span className={styles.priorityRank}>Priorité 1/{result.priorities.length}</span>
-              </div>
-              <h3>{mainPriority.skillTitle}</h3>
-              {(result.mainPriorityExplanation ?? mainPriority.explanation) && (
-                <p>{result.mainPriorityExplanation ?? mainPriority.explanation}</p>
-              )}
-              {mainPriority.evidence && (
-                <blockquote className={styles.priorityEvidence}>
-                  <span>Extrait de votre production</span>
-                  «&nbsp;{evidenceExcerpt(mainPriority.evidence)}&nbsp;»
-                </blockquote>
-              )}
-              {result.nextAction && (
-                <Link className={styles.priorityCta} href={recommendedExerciseHref(result.nextAction)}>
-                  <span>{result.nextAction.title}</span>
-                  <span className={styles.priorityCtaMeta}>
-                    {result.nextAction.estimatedMinutes} min ·{" "}
-                    {productionSectionLabel(result.nextAction.section)}
-                    <ArrowRight size={15} aria-hidden />
-                  </span>
-                </Link>
-              )}
-            </article>
-            {otherPriorities.length > 0 && (
-              <ol className={styles.nextPriorities}>
-                {otherPriorities.map((priority, index) => (
-                  <li key={priority.skillId}>
-                    <span aria-hidden>{index + 2}</span>
-                    <div>
-                      <b>{priority.skillTitle}</b>
-                      {priority.explanation && <small>{priority.explanation}</small>}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
-        )}
-
         {/* ---------------------------------------------- vos 2 productions */}
         <section aria-labelledby="productions-title">
           <ResultBlockHead
             id="productions-title"
             title="Vos deux productions"
-            text="Ce que chacune a montré, avant le détail complet."
+            text="Ce que chacune a montré, dans le détail."
           />
           <div className={styles.productions}>
             <ProductionSummary kind="written" production={result.written} />
@@ -1428,37 +1658,72 @@ function DiagnosticResult({
         </section>
 
         {/* ------------------------------------------------------ CTA final */}
-        <section className={styles.ctaBox}>
-          <span className={styles.ctaSpark} aria-hidden><Sparkles size={20} /></span>
-          <h2>Votre plan est prêt</h2>
+        <section className={styles.finalCard}>
+          <span className={styles.finalSpark} aria-hidden><Sparkles size={20} /></span>
+          <h2>
+            Le diagnostic a trouvé <em>quoi</em> travailler. Le plan vous le fait travailler.
+          </h2>
           <p>
-            Il commence par vos priorités les plus importantes, puis se réordonne avec chacune
-            de vos nouvelles productions.
+            Commencez par votre priorité n°1, obtenez une correction IA, puis laissez le plan
+            se réordonner selon vos progrès.
           </p>
-          <Link href={planHref} className={styles.primaryButton}>
-            Découvrir mon plan <ArrowRight size={17} aria-hidden />
-          </Link>
-
-          <details className={styles.details}>
-            <summary>Voir le diagnostic complet</summary>
-            <div className={styles.observations}>
-              {observations.length === 0 ? (
-                <p>Aucune autre compétence n&apos;a été observée avec assez de confiance.</p>
-              ) : observations.map((skill) => (
-                <article key={skill.skillId}>
-                  <div>
-                    <b>{skill.skillTitle}</b>
-                    <span data-status={skill.status}>{LEARNING_PLAN_SKILL_STATUS_LABEL[skill.status]}</span>
-                  </div>
-                  {skill.evidence && <p><strong>Exemple observé :</strong> {evidenceExcerpt(skill.evidence)}</p>}
-                  {skill.explanation && <p>{skill.explanation}</p>}
-                </article>
-              ))}
-            </div>
-          </details>
+          <div className={styles.finalActions}>
+            <Link href={planHref} className={styles.finalPrimary}>
+              Découvrir mon plan <ArrowRight size={17} aria-hidden />
+            </Link>
+            {!hasTcf && (
+              <PremiumLink className={styles.finalGhost}>Voir les offres</PremiumLink>
+            )}
+          </div>
         </section>
       </div>
+
+      {/* Barre collante mobile : la réserve de pied de page est posée sur
+          `.result`, elle ne masque donc aucun contenu. */}
+      <div className={styles.stickyCta}>
+        <Link href={planHref} className={styles.primaryButton}>
+          Voir mon plan personnalisé <ArrowRight size={17} aria-hidden />
+        </Link>
+      </div>
     </DiagnosticShell>
+  );
+}
+
+/**
+ * La phrase du candidat, puis sa réécriture au niveau visé.
+ *
+ * Le « après » réutilise **`ActionPlanExemple`** — la brique partagée du plan
+ * d'action (rapport de correction EE/EO et micro-exercice de compétence) : elle
+ * sait déjà surligner les segments par recherche de chaîne en nœuds React et
+ * rendre la puce d'apport de chacun. Le seul ajout du diagnostic est le
+ * « avant ». `SkillAccent` pose `--skill-accent`, dont cette brique dépend et
+ * que le chrome du diagnostic ne porte pas.
+ */
+function BeforeAfter({exemple}: {exemple: DiagnosticExempleCibleDto}) {
+  return (
+    <article className={styles.revealCard}>
+      <div className={styles.revealTop}>
+        <h3>Exemple tiré de votre production écrite</h3>
+        <span className={styles.revealImpact}>
+          <TrendingUp size={13} aria-hidden /> Vers {niveauEstimateLabel(exemple.niveauVise)}
+        </span>
+      </div>
+      <div className={styles.beforeAfter}>
+        <div className={styles.phrase}>
+          <p className={styles.phraseLabel}>Votre formulation</p>
+          <blockquote>«&nbsp;{exemple.original}&nbsp;»</blockquote>
+        </div>
+        <div className={styles.arrowBox} aria-hidden>
+          <span><ArrowRight size={20} strokeWidth={2.6} /></span>
+        </div>
+        <div className={styles.phraseAfter}>
+          <p className={styles.phraseLabel}>Au niveau visé</p>
+          <SkillAccent>
+            <ActionPlanExemple exemple={exemple} />
+          </SkillAccent>
+        </div>
+      </div>
+    </article>
   );
 }
 

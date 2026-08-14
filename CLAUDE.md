@@ -37,7 +37,12 @@ mobile. Web : 1 examen blanc + 10 QCM d'entraînement par module pour convertir.
   `users.target_level` est **posé par le serveur** au choix de la démarche
   (`MeService.updateTargetProcedure`, seul point d'écriture) et **re-dérivé à la lecture**
   (`AuthenticatedUser.targetLevel`) : aucun front ne peut recevoir un couple contradictoire,
-  même sur une ligne héritée.
+  même sur une ligne héritée. **L'inscription y passe aussi** : `RegisterRequest.targetProcedure`
+  est **facultatif** (le web l'envoie depuis l'écran de compte du diagnostic, le mobile a son
+  écran `/target-path` dédié) et `AuthService.register` **appelle** `updateTargetProcedure` au
+  lieu d'écrire les colonnes — le champ était absent du DTO serveur, donc jeté en silence, et
+  les comptes créés en fin de diagnostic sortaient sans démarche ni palier. Une démarche
+  inconnue est refusée en **400 nommé** (champ, valeur reçue, valeurs acceptées).
 - **TargetLevel** (TCF) : `A2` / `B1` / `B2`
 - **AttemptType** : `TRAINING` (correction immédiate) / `MOCK_EXAM` (examen blanc, chrono,
   pas de correction live) / `REVIEW`
@@ -359,6 +364,26 @@ de rubriques et files de calibration doivent garder le filtre
   L'ancien départage se faisait sur l'ordre **alphabétique du code**, ce qui
   faisait mécaniquement passer toutes les priorités `EE…` devant les `EO…` et les
   compétences C1/C2 devant les autres. Déterministe, aucun appel LLM.
+- **Une priorité se DÉRIVE des faiblesses quand le correcteur n'en désigne
+  aucune** (`DiagnosticPriorityRanking.faiblesseObservee`, appliqué par
+  `DiagnosticSessionCoordinator`). Mesuré sur deux diagnostics réels joués de
+  bout en bout — dont un sur une production A1/A2 volontairement fautive : le
+  modèle range tout en `TO_REINFORCE` et ne pose jamais `status=PRIORITY`, donc
+  `priority_skill_codes` sortait **vide** et le Plan restait `ACTIVE` sans rien à
+  faire. Rien dans les rubriques ne l'y oblige (« **au plus** deux » est satisfait
+  par zéro) et une consigne ne serait qu'un vœu : la dérivation est déterministe
+  et serveur. Une priorité **désignée l'emporte toujours** (on complète, on ne
+  remplace pas) ; `SOLID` et `NOT_OBSERVED` n'en deviennent **jamais** une — zéro
+  faiblesse observée ⇒ zéro priorité, état légitime. Bornes inchangées (2 par
+  production, 3 après fusion, alternance écrit/oral), comptage
+  `DiagnosticReconciliationMetrics.PRIORITE_DERIVEE_DE_FAIBLESSE`.
+  **Le Plan applique la même règle** : `LearningPlanPriorityResolver.actionable`
+  traite une observation `TO_REINFORCE` comme une priorité dérivée et départage
+  par **confiance** avant la récence, miroir de `DiagnosticPriorityRanking` — les
+  deux productions du diagnostic sont observées au même instant, la récence n'y
+  trie rien. `/api/me/plan` et `GET /api/diagnostics/{id}` ne peuvent donc plus
+  désigner deux étapes n°1 différentes, et le freemium suit
+  (`SkillAccessService` ouvre la compétence de la priorité, dérivée comprise).
 - **Une étape du Plan = les 5 premiers sujets actifs de sa compétence**, par
   `display_order` croissant (`LearningPlanStep.PROMPTS_PAR_ETAPE`, arbitré le
   2026-08-11). **Dérivé, jamais persisté** : aucune table, aucune migration, le
@@ -567,6 +592,35 @@ de rubriques et files de calibration doivent garder le filtre
   /api/admin/diagnostics/{code}/versions/{version}/instruction-audio` inspecte
   son état ; `POST` le génère ou répare idempotemment son URL sous la clé stable
   dérivée de l'UUID de tâche. Rien n'est généré au boot ni au démarrage candidat.
+- **« Avant / après » de l'écran de résultat — SECOND APPEL LLM SÉPARÉ, ÉCRIT
+  SEULEMENT** (`service/diagnostic/exemplecible/`, livré **ACTIF**). Rend la
+  phrase du candidat **et la même phrase réécrite au palier qu'il vise** : on ne
+  lui dit pas qu'il a un problème, on lui montre à quoi ressemblerait sa propre
+  phrase un cran plus haut. Jumeau de `service/versionciblee/`, mêmes invariants :
+  **best-effort**, lancé par `ProductionPipelineAsyncRunner` **après** que
+  l'analyse est persistée et la session assemblée, **hors transaction**, toute
+  exception avalée, **aucun rejeu** — un échec laisse le diagnostic complet et la
+  session `COMPLETED`. **Le contrat d'analyse (`diagnostic-analysis-*-v1`) ne
+  bouge pas d'un octet** : le correcteur du diagnostic n'apprend jamais qu'on va
+  réécrire quoi que ce soit (v10/v11 ont mesuré qu'un bloc ajouté à une grille qui
+  juge fait tomber l'accord exact de 81,8 % à 75,6 %) ; verrou
+  `DiagnosticExempleCibleContractTest`. **La production ORALE n'est jamais
+  réécrite** — aucun appel n'est émis, aucun bloc produit. Le modèle **désigne la
+  phrase par son NUMÉRO** (`EvaluationProductionSegments`, technique v12), le
+  serveur la **résout en texte avant persistance** : aucun miroir DTO ne
+  transporte d'entier. DTO `DiagnosticResultDto.exempleCible` **nullable**
+  (`original` = sous-chaîne exacte de la production, `texte`, `segments[{extrait,
+  apport}]`, `niveauVise`) — **son absence est un cas NORMAL**. Persisté dans
+  `diagnostic_production_analyses.analysis_json.exemple_cible` (**aucune
+  migration**, legacy intact) et **pas** dans `summary_json`, que le coordinateur
+  remet à null puis reconstruit à chaque assemblage. Segments = **confort**
+  (`util/SegmentsSurlignage`) ; bornes du texte = `util/ProductionTextBounds`,
+  **plafond seul** (la borne basse décrit une production de 100 mots, on réécrit
+  une phrase) ; filet marqueurs A2 sur les `apport`, **4ᵉ surface**
+  (`EvaluationMarqueursA2`, compté `MARQUEUR_PALIER_APPORT_DIAGNOSTIC`). **Une
+  seule réparation par bloc**, et seulement sur du mécanique (numéro hors bornes,
+  texte trop long) ; compteurs dédiés `DiagnosticExempleCibleMetrics`. Retour
+  arrière : `DIAGNOSTIC_EXEMPLE_CIBLE_ENABLED=false`.
 
 Les migrations structurantes sont V029 (agrégats/observations et séparation des
 tâches), V030 (événements du funnel), V031 (sources d'examen blanc +

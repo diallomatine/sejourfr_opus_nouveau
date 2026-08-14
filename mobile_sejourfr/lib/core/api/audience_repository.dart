@@ -13,6 +13,12 @@ enum AudienceEvent {
   diagnosticAccountRequired('DIAGNOSTIC_ACCOUNT_REQUIRED'),
   diagnosticCompleted('DIAGNOSTIC_COMPLETED'),
   diagnosticResultViewed('DIAGNOSTIC_RESULT_VIEWED'),
+
+  /// Clic vers l'offre depuis le résultat du diagnostic ou depuis le Plan.
+  /// Événement **déjà admis** par l'allowlist serveur sur `/diagnostic` comme
+  /// sur `/plan` (`PageViewService.EVENTS_BY_PATH`) — rien de nouveau n'est
+  /// inventé ici, c'est le miroir mobile qui manquait.
+  diagnosticToPremiumClicked('DIAGNOSTIC_TO_PREMIUM_CLICKED'),
   planOpened('PLAN_OPENED'),
   planRecommendedExerciseStarted('PLAN_RECOMMENDED_EXERCISE_STARTED');
 

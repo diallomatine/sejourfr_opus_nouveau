@@ -36,6 +36,7 @@ class DiagnosticSessionCoordinatorTest {
     private DiagnosticSessionManager sessionManager;
     private AttemptManager attemptManager;
     private DiagnosticTaskSkillManager taskSkillManager;
+    private DiagnosticReconciliationMetrics metrics;
     private DiagnosticSessionCoordinator coordinator;
 
     @BeforeEach
@@ -45,9 +46,12 @@ class DiagnosticSessionCoordinatorTest {
         sessionManager = mock(DiagnosticSessionManager.class);
         attemptManager = mock(AttemptManager.class);
         taskSkillManager = mock(DiagnosticTaskSkillManager.class);
+        // Compteurs reels : une derivation qui ne se compte pas est une
+        // decision invisible.
+        metrics = new DiagnosticReconciliationMetrics();
         coordinator = new DiagnosticSessionCoordinator(
                 submissionManager, analysisManager, sessionManager, attemptManager,
-                taskSkillManager);
+                taskSkillManager, metrics);
     }
 
     @Test
@@ -130,6 +134,114 @@ class DiagnosticSessionCoordinatorTest {
                 .thenReturn(List.of(allowed("EE1-C1", 1), allowed("EE1-C2", 2)));
         when(taskSkillManager.findActiveByTaskId(session.getOralTask().getId()))
                 .thenReturn(List.of(allowed("EO1-C1", 2)));
+
+        coordinator.onAnalysisCompleted(written.getId());
+
+        assertThat(session.getSummaryJson().get("priority_skill_codes"))
+                .asList().containsExactly("EE1-C1", "EO1-C1", "EE1-C2");
+    }
+
+    /**
+     * Le defaut mesure sur deux diagnostics reels : le correcteur range ses
+     * faiblesses en {@code TO_REINFORCE} et ne pose jamais {@code PRIORITY}, si
+     * bien que {@code priority_skill_codes} sortait vide et que le Plan restait
+     * {@code ACTIVE} sans rien a faire. L'allowlist est ici a l'envers de
+     * l'alphabet : un departage alphabetique rendrait {@code EE1-C1} en tete.
+     */
+    @Test
+    void sansAucunePrioriteDesigneeLesFaiblessesObserveesEnTiennentLieu() {
+        Attempt writtenAttempt = attempt();
+        Attempt oralAttempt = attempt();
+        ProductionSubmission written = submission(writtenAttempt);
+        ProductionSubmission oral = submission(oralAttempt);
+        DiagnosticSession session = session(writtenAttempt, oralAttempt);
+        stubCompleted(session, written, oral,
+                List.of(faiblesse("EE1-C1", "MEDIUM"), faiblesse("EE1-C2", "HIGH"),
+                        faiblesse("EE1-C3", "HIGH")),
+                List.of());
+        when(taskSkillManager.findActiveByTaskId(session.getWrittenTask().getId()))
+                .thenReturn(List.of(allowed("EE1-C3", 1), allowed("EE1-C2", 2),
+                        allowed("EE1-C1", 3)));
+
+        coordinator.onAnalysisCompleted(written.getId());
+
+        // Confiance d'abord (les deux HIGH passent devant la MEDIUM), puis rang
+        // d'allowlist — jamais l'alphabet. Plafonne a 2 par production.
+        assertThat(session.getSummaryJson().get("priority_skill_codes"))
+                .asList().containsExactly("EE1-C3", "EE1-C2");
+        assertThat(session.getSummaryJson().get("main_priority_explanation"))
+                .isEqualTo("À renforcer");
+        assertThat(metrics.compteurs())
+                .containsEntry("PRIORITE_DERIVEE_DE_FAIBLESSE", 2L);
+    }
+
+    /** Ce que le correcteur designe l'emporte : on complete, on ne remplace pas. */
+    @Test
+    void unePrioriteDesigneeResteEnTeteEtLesFaiblessesCompletentJusquAuPlafond() {
+        Attempt writtenAttempt = attempt();
+        Attempt oralAttempt = attempt();
+        ProductionSubmission written = submission(writtenAttempt);
+        ProductionSubmission oral = submission(oralAttempt);
+        DiagnosticSession session = session(writtenAttempt, oralAttempt);
+        stubCompleted(session, written, oral,
+                List.of(priority("EE1-C9", "LOW"), faiblesse("EE1-C1", "HIGH"),
+                        faiblesse("EE1-C2", "HIGH")),
+                List.of());
+        when(taskSkillManager.findActiveByTaskId(session.getWrittenTask().getId()))
+                .thenReturn(List.of(allowed("EE1-C2", 1), allowed("EE1-C1", 2),
+                        allowed("EE1-C9", 3)));
+
+        coordinator.onAnalysisCompleted(written.getId());
+
+        // La designee passe devant malgre sa confiance LOW ; une seule derivee
+        // complete, le plafond par production valant 2.
+        assertThat(session.getSummaryJson().get("priority_skill_codes"))
+                .asList().containsExactly("EE1-C9", "EE1-C2");
+        assertThat(metrics.compteurs())
+                .containsEntry("PRIORITE_DERIVEE_DE_FAIBLESSE", 1L);
+    }
+
+    /** Rien a renforcer est un etat legitime : on ne fabrique pas une priorite. */
+    @Test
+    void queDesCompetencesSolidesNeFabriquentAucunePriorite() {
+        Attempt writtenAttempt = attempt();
+        Attempt oralAttempt = attempt();
+        ProductionSubmission written = submission(writtenAttempt);
+        ProductionSubmission oral = submission(oralAttempt);
+        DiagnosticSession session = session(writtenAttempt, oralAttempt);
+        stubCompleted(session, written, oral,
+                List.of(solide("EE1-C1"), nonObservee("EE1-C2")),
+                List.of(solide("EO1-C1")));
+
+        coordinator.onAnalysisCompleted(written.getId());
+
+        assertThat(session.getStatus()).isEqualTo(DiagnosticSessionStatus.COMPLETED);
+        assertThat(session.getSummaryJson().get("priority_skill_codes")).asList().isEmpty();
+        assertThat(session.getSummaryJson().get("main_priority_explanation")).isNull();
+        assertThat(metrics.compteurs()).doesNotContainKey("PRIORITE_DERIVEE_DE_FAIBLESSE");
+    }
+
+    /**
+     * Les priorites derivees passent par la meme fusion : 2 par production, 3 au
+     * total, et l'alternance ecrit/oral tient — un plan qui ne parlerait que
+     * d'une seule epreuve serait faux.
+     */
+    @Test
+    void lesPrioritesDeriveesRestentPlafonneesEtAlternentEcritEtOral() {
+        Attempt writtenAttempt = attempt();
+        Attempt oralAttempt = attempt();
+        ProductionSubmission written = submission(writtenAttempt);
+        ProductionSubmission oral = submission(oralAttempt);
+        DiagnosticSession session = session(writtenAttempt, oralAttempt);
+        stubCompleted(session, written, oral,
+                List.of(faiblesse("EE1-C1", "HIGH"), faiblesse("EE1-C2", "HIGH"),
+                        faiblesse("EE1-C3", "HIGH")),
+                List.of(faiblesse("EO1-C1", "HIGH"), faiblesse("EO1-C2", "HIGH")));
+        when(taskSkillManager.findActiveByTaskId(session.getWrittenTask().getId()))
+                .thenReturn(List.of(allowed("EE1-C1", 1), allowed("EE1-C2", 2),
+                        allowed("EE1-C3", 3)));
+        when(taskSkillManager.findActiveByTaskId(session.getOralTask().getId()))
+                .thenReturn(List.of(allowed("EO1-C1", 1), allowed("EO1-C2", 2)));
 
         coordinator.onAnalysisCompleted(written.getId());
 
@@ -294,11 +406,34 @@ class DiagnosticSessionCoordinatorTest {
     }
 
     private static Map<String, Object> priority(String code, String confidence) {
+        Map<String, Object> item = skill(code, confidence, "PRIORITY", true, true);
+        item.put("explanation", "À renforcer");
+        return item;
+    }
+
+    /** Ce que le correcteur produit reellement : une faiblesse, jamais une priorite. */
+    private static Map<String, Object> faiblesse(String code, String confidence) {
+        Map<String, Object> item = skill(code, confidence, "TO_REINFORCE", true, false);
+        item.put("explanation", "À renforcer");
+        return item;
+    }
+
+    private static Map<String, Object> solide(String code) {
+        return skill(code, "HIGH", "SOLID", true, false);
+    }
+
+    private static Map<String, Object> nonObservee(String code) {
+        return skill(code, "LOW", "NOT_OBSERVED", false, false);
+    }
+
+    private static Map<String, Object> skill(
+            String code, String confidence, String status, boolean observed, boolean priority) {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("skill_code", code);
-        item.put("priority", true);
+        item.put("observed", observed);
+        item.put("status", status);
+        item.put("priority", priority);
         item.put("confidence", confidence);
-        item.put("explanation", "À renforcer");
         return item;
     }
 }

@@ -8,7 +8,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
- * CE QUE LE SERVEUR RÉCONCILIE SUR UNE SORTIE DIAGNOSTIC, avant de la juger.
+ * CE QUE LE SERVEUR RÉCONCILIE SUR UNE SORTIE DIAGNOSTIC, avant de la juger —
+ * et ce qu'il <b>supplée</b> quand elle est incomplète, à l'assemblage des deux
+ * productions.
  *
  * <p>Famille de compteurs <b>distincte</b> des autres, et il ne faut pas les
  * mélanger :
@@ -43,7 +45,20 @@ public class DiagnosticReconciliationMetrics {
          * abaissée d'un cran, {@code PRIORITY -> TO_REINFORCE}. Le serveur
          * n'abaisse jamais qu'un cran et ne relève jamais.
          */
-        PRIORITE_TRONQUEE
+        PRIORITE_TRONQUEE,
+        /**
+         * Le correcteur n'a désigné aucune priorité sur cette production : une
+         * <b>faiblesse observée</b> ({@code TO_REINFORCE}) en tient lieu, la
+         * mieux classée d'abord.
+         *
+         * <p>Compté à l'assemblage ({@code DiagnosticSessionCoordinator}), pas à
+         * la réconciliation d'une sortie : c'est la même nature de décision — le
+         * serveur supplée une sortie LLM incomplète — donc la même famille de
+         * compteurs, pas une famille de plus. Sans lui, on ne saurait pas si la
+         * dérivation sert une fois sur cent ou sur tous les diagnostics, donc on
+         * ne pourrait pas juger s'il faut, un jour, contraindre le contrat.
+         */
+        PRIORITE_DERIVEE_DE_FAIBLESSE
     }
 
     private final Map<String, LongAdder> compteurs = new ConcurrentHashMap<>();

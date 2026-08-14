@@ -1075,3 +1075,24 @@ sejourfr:
       max-tokens: 2200
       temperature: 0
       max-session-retries: 3
+    # SECOND appel « avant / apres » de l'ecran de resultat : la phrase du
+    # candidat, et la meme phrase reecrite au niveau qu'il VISE. Emis APRES
+    # l'analyse et separement d'elle : le contrat d'analyse ne bouge pas d'un
+    # octet et le correcteur du diagnostic n'apprend jamais qu'on va reecrire
+    # quoi que ce soit (mesure v10/v11 : un bloc ajoute a une grille qui juge
+    # fait tomber l'accord exact de 81,8 % a 75,6 %).
+    # ECRIT SEULEMENT : la production orale n'est jamais reecrite.
+    # Best-effort : a false, ou en cas d'echec, le bloc est absent et le
+    # diagnostic reste complet.
+    exemple-cible:
+      enabled: ${DIAGNOSTIC_EXEMPLE_CIBLE_ENABLED:true}
+      # Consignes : prompts/diagnostic-exemple-cible-rubrics-<v>.json.
+      rubrics-version: ${DIAGNOSTIC_EXEMPLE_CIBLE_RUBRICS_VERSION:v1}
+      # Contrat de sortie : prompts/diagnostic-exemple-cible-tool-schema-<v>.json.
+      # Paire rubriques <-> tool-schema verifiee au demarrage, comme partout.
+      tool-schema-version: ${DIAGNOSTIC_EXEMPLE_CIBLE_TOOL_SCHEMA_VERSION:v1}
+      # Plafond de tokens de SORTIE, propre a cet appel : un numero, une phrase
+      # reecrite, deux ou trois etiquettes de trois mots. C'est un plafond.
+      max-tokens: 700
+      # Zero : deux lectures de la meme production doivent rendre la meme phrase.
+      temperature: 0

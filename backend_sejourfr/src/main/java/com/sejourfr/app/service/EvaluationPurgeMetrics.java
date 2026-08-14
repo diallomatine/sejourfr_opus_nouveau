@@ -61,6 +61,15 @@ public class EvaluationPurgeMetrics {
          */
         MARQUEUR_PALIER_LEVIER_COMPETENCE,
         /**
+         * Meme defaut, QUATRIEME surface : l'{@code apport} d'un passage surligne
+         * du bloc « avant / apres » du diagnostic, qui presente un moyen A2 comme
+         * ce que la reecriture apporte vers un palier superieur. Compte a part des
+         * trois autres pour la meme raison : le contrat, le service et l'appel LLM
+         * sont differents, les melanger empecherait de dire laquelle des surfaces
+         * derive. Ici la purge retire le SEGMENT, jamais le texte reecrit.
+         */
+        MARQUEUR_PALIER_APPORT_DIAGNOSTIC,
+        /**
          * Reformulation ORALE de {@code version_ciblee} dont tout l'apport tenait
          * a la forme d'un ou deux mots. Meme regle que
          * {@link #ARTEFACT_ORAL_FORME} ({@code EvaluationOralForme}), autre

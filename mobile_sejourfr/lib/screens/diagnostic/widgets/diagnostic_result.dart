@@ -8,179 +8,388 @@ import '../../../core/utils/evidence_excerpt.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_tag.dart';
+import '../../../core/widgets/fixed_action_bar.dart';
 import '../../../core/widgets/gradient_hero.dart';
+import '../../../core/widgets/premium_lock.dart';
+import '../../tcf_production/widgets/action_plan.dart';
 
-/// Écran de fin de diagnostic. Il rend **ce que le serveur a réellement
-/// observé** : les deux niveaux estimés, les compétences observées, la
-/// priorité n°1 et le détail des deux productions (`summary`,
-/// `taskCompletion`, `communicationStatus`, `weaknesses` — présents dans le
-/// contrat depuis le début, jamais affichés jusqu'ici).
+/// Écran de fin de diagnostic, refondu sur la maquette premium mobile.
 ///
-/// Aucun pourcentage de progression vers un palier : le brief l'interdit et le
-/// serveur n'en publie aucun.
-class DiagnosticResultView extends StatefulWidget {
+/// Il s'adresse à un visiteur venu des réseaux qui vient de rendre ses deux
+/// productions : il lui dit **où il en est**, **par où commencer**, lui montre
+/// **une différence concrète sur sa propre phrase**, puis lui présente son plan
+/// et l'offre. Rien n'y est décoratif — chaque bloc rend une donnée que le
+/// serveur a réellement produite, et **un bloc sans donnée n'est pas rendu**
+/// (jamais de squelette, jamais de « non disponible »).
+///
+/// Trois choses de la maquette sont volontairement **non reprises** :
+/// - aucune **barre ni pourcentage** de progression — le score de maîtrise
+///   n'est exposé à aucun front, on rend des états et des statuts ;
+/// - aucun **calendrier** (« Semaine 1 », jours) — le Plan n'a pas de notion de
+///   temps, une étape est un ensemble de sujets ;
+/// - aucun **emoji en texte brut** — les icônes viennent de `LucideIcons`.
+class DiagnosticResultView extends StatelessWidget {
   const DiagnosticResultView({
     super.key,
     required this.result,
+    required this.hasTcfAccess,
     required this.onOpenPlan,
     required this.onOpenRecommended,
+    required this.onSubscribe,
     this.objective,
   });
 
   final DiagnosticResult result;
   final String? objective;
+
+  /// Accès TCF réel du compte (`AuthUser.hasTcf`). Il ne sert qu'à **choisir la
+  /// pastille** des étapes à venir et à décider si l'offre est présentée :
+  /// aucune règle de verrou n'est recalculée ici — celle de l'exercice
+  /// recommandé vient de `PlanRecommendedExercise.locked`, posé par le serveur.
+  final bool hasTcfAccess;
+
   final VoidCallback onOpenPlan;
   final ValueChanged<PlanRecommendedExercise> onOpenRecommended;
-
-  @override
-  State<DiagnosticResultView> createState() => _DiagnosticResultViewState();
-}
-
-class _DiagnosticResultViewState extends State<DiagnosticResultView> {
-  bool _expanded = false;
+  final VoidCallback onSubscribe;
 
   @override
   Widget build(BuildContext context) {
-    final result = widget.result;
-    final observed = _observedSkills(result);
-    final priorities = result.priorities;
+    final focus = _focusItems(result);
+    final solid = _solidSkills(result);
+    final steps = _planSteps(result, hasTcfAccess: hasTcfAccess);
+    final exemple = result.exempleCible;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+    return Stack(
       children: [
-        const _DoneBadge(),
-        const SizedBox(height: 14),
-        Text(
-          'On sait maintenant quoi travailler.',
-          style: AppFonts.display(size: 27, height: 1.08),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Vos productions écrite et orale ont permis d’identifier les compétences qui vous feront progresser le plus vite.',
-          style: AppFonts.ui(size: 13.5, color: AppColors.inkSoft, height: 1.45),
-        ),
-        const SizedBox(height: 20),
-        _LevelsHero(
-          written: result.written?.levelEstimate,
-          oral: result.oral?.levelEstimate,
-          objective: widget.objective,
-        ),
-        const SizedBox(height: 10),
-        const _EstimationNote(),
-        if (observed.isNotEmpty || result.strengths.isNotEmpty) ...[
-          const SizedBox(height: 22),
-          const _SectionHead(
-            title: 'Ce que votre diagnostic révèle',
-            description:
-                'Pas une liste de fautes : seulement les éléments utiles pour avancer.',
-          ),
-          const SizedBox(height: 10),
-          if (result.strengths.isNotEmpty) ...[
-            _StrengthsCard(strengths: result.strengths.take(3).toList()),
-            const SizedBox(height: 10),
-          ],
-          if (observed.isNotEmpty) _SkillSnapshotCard(skills: observed),
-        ],
-        if (priorities.isNotEmpty) ...[
-          const SizedBox(height: 22),
-          const _SectionHead(
-            title: 'Votre priorité n°1',
-            description: 'C’est ici que votre plan commence.',
-          ),
-          const SizedBox(height: 10),
-          _MainPriorityCard(
-            priority: priorities.first,
-            explanation: result.mainPriorityExplanation,
-            rank: 1,
-            total: priorities.length,
-          ),
-          if (priorities.length > 1) ...[
-            const SizedBox(height: 10),
-            _NextPrioritiesCard(priorities: priorities.skip(1).toList()),
-          ],
-        ],
-        if (result.written != null || result.oral != null) ...[
-          const SizedBox(height: 22),
-          const _SectionHead(
-            title: 'Vos deux productions',
-            description: 'Ce que chaque production a montré.',
-          ),
-          const SizedBox(height: 10),
-          if (result.written != null)
-            _ProductionCard(
-              title: 'Expression écrite',
-              icon: LucideIcons.penLine,
-              accent: AppColors.blue,
-              accentSoft: AppColors.blueLight,
-              production: result.written!,
+        ListView(
+          // La réserve du bas laisse passer tout le contenu sous le CTA
+          // collant : rien n'est jamais masqué par la barre.
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 132),
+          children: [
+            const _DoneBadge(),
+            const SizedBox(height: 14),
+            Text(
+              'BILAN PERSONNALISÉ · 2 PRODUCTIONS',
+              style: AppFonts.eyebrow(color: AppColors.blue),
             ),
-          if (result.written != null && result.oral != null)
             const SizedBox(height: 10),
-          if (result.oral != null)
-            _ProductionCard(
-              title: 'Expression orale',
-              icon: LucideIcons.mic,
-              accent: AppColors.red,
-              accentSoft: AppColors.redLight,
-              production: result.oral!,
+            const _ResultTitle(),
+            const SizedBox(height: 10),
+            Text(
+              _intro(focus.length),
+              style: AppFonts.ui(
+                size: 14.5,
+                color: AppColors.inkSoft,
+                height: 1.5,
+              ),
             ),
-        ],
-        const SizedBox(height: 22),
-        _PlanCallToAction(
-          action: result.nextAction,
-          onOpenPlan: widget.onOpenPlan,
-          onOpenRecommended: widget.onOpenRecommended,
+            const SizedBox(height: 18),
+            _LevelsHero(
+              written: result.written?.levelEstimate,
+              oral: result.oral?.levelEstimate,
+              objective: objective,
+            ),
+            const SizedBox(height: 10),
+            const _EstimationNote(),
+            if (focus.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _FocusCard(focus: focus),
+            ],
+            if (exemple != null) ...[
+              const SizedBox(height: 26),
+              const _SectionHead(
+                kicker: 'EXEMPLE TIRÉ DE VOTRE PRODUCTION',
+                title: 'Voyez ce qui vous sépare du niveau supérieur.',
+                description:
+                    'Une petite différence de formulation peut rendre votre '
+                    'réponse beaucoup plus riche.',
+              ),
+              const SizedBox(height: 13),
+              _BeforeAfter(exemple: exemple),
+            ],
+            if (steps.isNotEmpty) ...[
+              const SizedBox(height: 26),
+              const _SectionHead(
+                kicker: 'VOTRE PLAN PERSONNALISÉ',
+                title: 'L’application sait déjà quoi vous faire travailler.',
+                description:
+                    'Votre plan se réorganise ensuite selon vos nouvelles '
+                    'productions.',
+              ),
+              const SizedBox(height: 13),
+              _PlanPreviewCard(
+                steps: steps,
+                exercise: result.nextAction,
+                onOpenRecommended: onOpenRecommended,
+                onSubscribe: onSubscribe,
+              ),
+            ],
+            if (!hasTcfAccess) ...[
+              const SizedBox(height: 14),
+              _ValueCard(onSubscribe: onSubscribe),
+            ],
+            if (solid.isNotEmpty || result.strengths.isNotEmpty) ...[
+              const SizedBox(height: 26),
+              const _SectionHead(
+                kicker: 'VOS ACQUIS',
+                title: 'Vous avez déjà de bonnes bases.',
+                description:
+                    'Le détail reste disponible, mais il ne prend plus toute '
+                    'la place dans le bilan.',
+              ),
+              const SizedBox(height: 13),
+              if (result.strengths.isNotEmpty) ...[
+                _StrengthsCard(strengths: result.strengths.take(3).toList()),
+                if (solid.isNotEmpty) const SizedBox(height: 9),
+              ],
+              for (final skill in solid)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _AcquisRow(skill: skill),
+                ),
+            ],
+            if (result.written != null || result.oral != null) ...[
+              const SizedBox(height: 22),
+              const _SectionHead(
+                kicker: 'LE DÉTAIL',
+                title: 'Vos deux productions',
+                description: 'Ce que chaque production a montré.',
+              ),
+              const SizedBox(height: 13),
+              if (result.written != null)
+                _ProductionCard(
+                  title: 'Expression écrite',
+                  icon: LucideIcons.penLine,
+                  accent: AppColors.blue,
+                  accentSoft: AppColors.blueLight,
+                  production: result.written!,
+                ),
+              if (result.written != null && result.oral != null)
+                const SizedBox(height: 9),
+              if (result.oral != null)
+                _ProductionCard(
+                  title: 'Expression orale',
+                  icon: LucideIcons.mic,
+                  accent: AppColors.red,
+                  accentSoft: AppColors.redLight,
+                  production: result.oral!,
+                ),
+            ],
+          ],
         ),
-        const SizedBox(height: 8),
-        AppButton(
-          label: _expanded
-              ? 'Masquer le diagnostic complet'
-              : 'Voir le diagnostic complet',
-          variant: AppButtonVariant.outline,
-          iconRight:
-              _expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
-          onPressed: () => setState(() => _expanded = !_expanded),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: FixedActionBar(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Semantics(
+                  button: true,
+                  label: 'Voir mon plan personnalisé',
+                  child: AppButton(
+                    label: 'Voir mon plan personnalisé',
+                    iconRight: LucideIcons.arrowRight,
+                    onPressed: onOpenPlan,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  'Basé sur vos réponses · vous pourrez commencer par un '
+                  'exercice',
+                  textAlign: TextAlign.center,
+                  style: AppFonts.ui(
+                    size: 10.5,
+                    weight: FontWeight.w700,
+                    color: AppColors.inkFaint,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-        if (_expanded) ...[
-          const SizedBox(height: 12),
-          _ProductionDetails(
-            title: 'Diagnostic écrit',
-            result: result.written,
-          ),
-          const SizedBox(height: 12),
-          _ProductionDetails(
-            title: 'Diagnostic oral',
-            result: result.oral,
-          ),
-        ],
       ],
     );
   }
+
+  String _intro(int focusCount) {
+    if (focusCount == 0) {
+      return 'Pas besoin de tout revoir. Votre diagnostic montre par où '
+          'commencer pour progresser plus vite.';
+    }
+    final priorites = focusCount > 1 ? 'priorités' : 'priorité';
+    return 'Pas besoin de tout revoir. Votre diagnostic a identifié '
+        '$focusCount $priorites pour progresser plus vite.';
+  }
 }
 
-/// Compétences réellement observées sur les deux productions, les plus
-/// actionnables d'abord. Aucune fusion savante : on dédoublonne par `skillId`
-/// et on garde ce que le serveur a dit.
-List<DiagnosticSkillObservation> _observedSkills(DiagnosticResult result) {
+// ---------------------------------------------------------------------------
+// Lecture des données
+// ---------------------------------------------------------------------------
+
+/// Une ligne de la carte « Votre progression se joue surtout ici ».
+///
+/// [ranked] distingue les **priorités mesurées** par le serveur (numérotées)
+/// des replis : ces derniers ne portent pas de rang, parce qu'ils ne sont pas
+/// un classement.
+class _FocusItem {
+  const _FocusItem({required this.title, required this.ranked, this.detail});
+
+  final String title;
+  final String? detail;
+  final bool ranked;
+}
+
+/// Ce sur quoi le candidat doit travailler, dans l'ordre de repli suivant :
+/// 1. les **priorités** servies par le serveur — le cas normal ;
+/// 2. sinon, les compétences observées non solides des deux productions ;
+/// 3. sinon, les `weaknesses` des deux productions, présentées comme ce que les
+///    productions ont montré, **jamais comme des priorités mesurées**.
+///
+/// Rien de tout ça ⇒ liste vide ⇒ la carte n'est pas rendue.
+List<_FocusItem> _focusItems(DiagnosticResult result) {
+  if (result.priorities.isNotEmpty) {
+    return result.priorities
+        .take(3)
+        .map(
+          (priority) => _FocusItem(
+            title: priority.skillTitle,
+            detail: priority.explanation,
+            ranked: true,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  final observed = <_FocusItem>[];
   final seen = <String>{};
-  final all = <DiagnosticSkillObservation>[];
   for (final production in [result.written, result.oral]) {
-    for (final skill in production?.skills ?? const []) {
+    for (final skill in production?.skills ?? const <DiagnosticSkillObservation>[]) {
       if (!skill.observed) continue;
+      if (skill.status == LearningPlanSkillStatus.solid) continue;
+      if (skill.status == LearningPlanSkillStatus.notObserved) continue;
       if (!seen.add(skill.skillId)) continue;
-      all.add(skill);
+      observed.add(
+        _FocusItem(
+          title: skill.skillTitle,
+          detail: skill.explanation,
+          ranked: false,
+        ),
+      );
     }
   }
-  all.sort((a, b) => _severity(a.status).compareTo(_severity(b.status)));
-  return all.take(6).toList(growable: false);
+  if (observed.isNotEmpty) return observed.take(3).toList(growable: false);
+
+  final weaknesses = <_FocusItem>[];
+  for (final production in [result.written, result.oral]) {
+    for (final weakness in production?.weaknesses ?? const <String>[]) {
+      weaknesses.add(_FocusItem(title: weakness, ranked: false));
+    }
+  }
+  return weaknesses.take(3).toList(growable: false);
 }
 
-int _severity(LearningPlanSkillStatus status) => switch (status) {
-      LearningPlanSkillStatus.priority => 0,
-      LearningPlanSkillStatus.toReinforce => 1,
-      LearningPlanSkillStatus.solid => 2,
-      LearningPlanSkillStatus.notObserved => 3,
-    };
+/// Les compétences que les deux productions ont montrées **solides**,
+/// dédoublonnées par `skillId`.
+List<DiagnosticSkillObservation> _solidSkills(DiagnosticResult result) {
+  final seen = <String>{};
+  final solid = <DiagnosticSkillObservation>[];
+  for (final production in [result.written, result.oral]) {
+    for (final skill in production?.skills ?? const <DiagnosticSkillObservation>[]) {
+      if (!skill.observed) continue;
+      if (skill.status != LearningPlanSkillStatus.solid) continue;
+      if (!seen.add(skill.skillId)) continue;
+      solid.add(skill);
+    }
+  }
+  return solid.take(4).toList(growable: false);
+}
+
+/// Une étape de l'aperçu du plan.
+class _PlanStep {
+  const _PlanStep({
+    required this.title,
+    required this.subtitle,
+    required this.state,
+  });
+
+  final String title;
+  final String subtitle;
+  final _StepState state;
+}
+
+enum _StepState {
+  /// L'étape que le candidat peut commencer tout de suite.
+  open,
+
+  /// L'étape est **entièrement lisible**, seul son accès demande un
+  /// abonnement.
+  locked,
+
+  /// Étape suivante d'un compte qui a déjà l'accès.
+  upcoming,
+}
+
+/// Les trois étapes de l'aperçu : l'exercice recommandé, puis les priorités
+/// suivantes, puis la vérification en situation si la place reste.
+///
+/// **Aucun titre n'est masqué** : le cadenas porte sur l'accès, jamais sur
+/// l'information.
+List<_PlanStep> _planSteps(
+  DiagnosticResult result, {
+  required bool hasTcfAccess,
+}) {
+  final exercise = result.nextAction;
+  final steps = <_PlanStep>[];
+
+  if (exercise != null) {
+    steps.add(
+      _PlanStep(
+        title: exercise.title,
+        subtitle: exercise.kind == PlanExerciseKind.reassessment
+            ? 'Vérification en situation · ${exercise.estimatedMinutes} min'
+            : 'Exercice ciblé · ${exercise.estimatedMinutes} min',
+        state: exercise.locked ? _StepState.locked : _StepState.open,
+      ),
+    );
+  } else if (result.priorities.isNotEmpty) {
+    steps.add(
+      _PlanStep(
+        title: result.priorities.first.skillTitle,
+        subtitle: 'Exercice ciblé',
+        state: hasTcfAccess ? _StepState.open : _StepState.locked,
+      ),
+    );
+  }
+
+  final nextState = hasTcfAccess ? _StepState.upcoming : _StepState.locked;
+  for (final priority in result.priorities.skip(1).take(2)) {
+    if (steps.length >= 3) break;
+    steps.add(
+      _PlanStep(
+        title: priority.skillTitle,
+        subtitle: 'Exercice ciblé',
+        state: nextState,
+      ),
+    );
+  }
+  if (steps.isNotEmpty && steps.length < 3) {
+    steps.add(
+      _PlanStep(
+        title: 'Nouvelle production évaluée par IA',
+        subtitle: 'Vérifier votre progression',
+        state: nextState,
+      ),
+    );
+  }
+  return steps;
+}
+
+// ---------------------------------------------------------------------------
+// En-tête
+// ---------------------------------------------------------------------------
 
 class _DoneBadge extends StatelessWidget {
   const _DoneBadge();
@@ -226,6 +435,31 @@ class _DoneBadge extends StatelessWidget {
       );
 }
 
+class _ResultTitle extends StatelessWidget {
+  const _ResultTitle();
+
+  @override
+  Widget build(BuildContext context) {
+    final base = AppFonts.display(size: 30, height: 1.05);
+    return Text.rich(
+      TextSpan(
+        style: base,
+        children: [
+          const TextSpan(text: 'On sait maintenant '),
+          TextSpan(
+            text: 'quoi travailler.',
+            style: base.copyWith(color: AppColors.blue),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Niveaux estimés
+// ---------------------------------------------------------------------------
+
 class _LevelsHero extends StatelessWidget {
   const _LevelsHero({
     required this.written,
@@ -240,11 +474,12 @@ class _LevelsHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GradientHero(
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'NIVEAU ESTIMÉ AUJOURD’HUI',
+            'VOTRE NIVEAU ESTIMÉ AUJOURD’HUI',
             style: AppFonts.label(
               color: AppColors.white.withValues(alpha: 0.76),
             ),
@@ -259,6 +494,7 @@ class _LevelsHero extends StatelessWidget {
               children: [
                 Expanded(
                   child: _LevelBlock(
+                    icon: LucideIcons.penLine,
                     label: 'Expression écrite',
                     level: written,
                   ),
@@ -266,6 +502,7 @@ class _LevelsHero extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: _LevelBlock(
+                    icon: LucideIcons.mic,
                     label: 'Expression orale',
                     level: oral,
                   ),
@@ -273,7 +510,7 @@ class _LevelsHero extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 14),
           Container(
             padding: const EdgeInsets.only(top: 13),
             decoration: BoxDecoration(
@@ -283,31 +520,30 @@ class _LevelsHero extends StatelessWidget {
                 ),
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                if (objective != null)
-                  Row(
-                    children: [
-                      Icon(
-                        LucideIcons.target,
-                        size: 15,
-                        color: AppColors.white.withValues(alpha: 0.8),
-                      ),
-                      const SizedBox(width: 7),
-                      Text(
-                        'Objectif : $objective',
-                        style: AppFonts.ui(
-                          size: 13,
-                          color: AppColors.white,
-                          weight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                if (objective != null) ...[
+                  Icon(
+                    LucideIcons.target,
+                    size: 14,
+                    color: AppColors.white.withValues(alpha: 0.8),
                   ),
-                if (objective != null) const SizedBox(height: 6),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      'Objectif : $objective',
+                      style: AppFonts.ui(
+                        size: 12,
+                        color: AppColors.white,
+                        weight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                const Spacer(),
                 Text(
-                  'Estimation d’entraînement, non officielle.',
+                  'Estimation pédagogique',
                   style: AppFonts.ui(
                     size: 11.5,
                     color: AppColors.white.withValues(alpha: 0.72),
@@ -323,8 +559,13 @@ class _LevelsHero extends StatelessWidget {
 }
 
 class _LevelBlock extends StatelessWidget {
-  const _LevelBlock({required this.label, required this.level});
+  const _LevelBlock({
+    required this.icon,
+    required this.label,
+    required this.level,
+  });
 
+  final IconData icon;
   final String label;
   final NiveauCecrl? level;
 
@@ -340,19 +581,27 @@ class _LevelBlock extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            maxLines: 2,
-            style: AppFonts.ui(
-              size: 11.5,
-              weight: FontWeight.w600,
-              color: AppColors.white.withValues(alpha: 0.8),
-            ),
+          Row(
+            children: [
+              Icon(icon, size: 13, color: AppColors.white.withValues(alpha: 0.8)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  style: AppFonts.ui(
+                    size: 11.5,
+                    weight: FontWeight.w600,
+                    color: AppColors.white.withValues(alpha: 0.8),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 7),
           Text(
             level?.shortName ?? '—',
-            style: AppFonts.display(size: 34, color: AppColors.white),
+            style: AppFonts.display(size: 36, color: AppColors.white),
           ),
         ],
       ),
@@ -373,7 +622,8 @@ class _EstimationNote extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Cette estimation est pédagogique : elle ne remplace pas un résultat officiel du TCF.',
+                'Cette estimation est pédagogique : elle ne remplace pas un '
+                'résultat officiel du TCF.',
                 style: AppFonts.ui(
                   size: 11.5,
                   height: 1.4,
@@ -386,10 +636,15 @@ class _EstimationNote extends StatelessWidget {
       );
 }
 
+// ---------------------------------------------------------------------------
+// Sections
+// ---------------------------------------------------------------------------
+
 class _SectionHead extends StatelessWidget {
-  const _SectionHead({required this.title, this.description});
+  const _SectionHead({required this.title, this.kicker, this.description});
 
   final String title;
+  final String? kicker;
   final String? description;
 
   @override
@@ -398,14 +653,18 @@ class _SectionHead extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: AppFonts.display(size: 19)),
+            if (kicker != null) ...[
+              Text(kicker!, style: AppFonts.eyebrow(color: AppColors.blue)),
+              const SizedBox(height: 6),
+            ],
+            Text(title, style: AppFonts.display(size: 22, height: 1.1)),
             if (description != null) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 5),
               Text(
                 description!,
                 style: AppFonts.ui(
-                  size: 12,
-                  height: 1.35,
+                  size: 12.5,
+                  height: 1.45,
                   color: AppColors.inkSoft,
                 ),
               ),
@@ -414,6 +673,517 @@ class _SectionHead extends StatelessWidget {
         ),
       );
 }
+
+/// « Votre progression se joue surtout ici » : les priorités du serveur, ou son
+/// repli. Teinte **ambre**, jamais rouge : on nomme un levier, pas un manque.
+class _FocusCard extends StatelessWidget {
+  const _FocusCard({required this.focus});
+
+  final List<_FocusItem> focus;
+
+  @override
+  Widget build(BuildContext context) {
+    final ranked = focus.first.ranked;
+    return AppCard(
+      padding: const EdgeInsets.all(18),
+      boxShadow: AppShadows.md,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 39,
+                height: 39,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.amberLight,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  LucideIcons.trendingUp,
+                  size: 19,
+                  color: AppColors.amberDark,
+                ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      ranked
+                          ? 'Votre progression se joue surtout ici.'
+                          : 'Ce que vos productions ont montré.',
+                      style: AppFonts.display(size: 20, height: 1.12),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      ranked
+                          ? 'Les compétences qui vous feront gagner le plus '
+                              'rapidement en niveau.'
+                          : 'Les éléments qui reviennent dans vos deux '
+                              'réponses.',
+                      style: AppFonts.ui(
+                        size: 12.5,
+                        height: 1.45,
+                        color: AppColors.inkSoft,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 15),
+          for (var index = 0; index < focus.length; index++) ...[
+            if (index > 0) const SizedBox(height: 8),
+            _FocusRow(item: focus[index], rank: index + 1),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FocusRow extends StatelessWidget {
+  const _FocusRow({required this.item, required this.rank});
+
+  final _FocusItem item;
+  final int rank;
+
+  /// L'intensité de l'ambre **décroît du rang 1 au rang 3** : la teinte dit le
+  /// rang au lieu de décorer trois pastilles identiques. Dérivée de
+  /// [AppColors.amber] vers le blanc — aucun token de plus, et le rang 2 retombe
+  /// par construction sur `amberLight`.
+  static Color _rankFill(int rank) {
+    const alphas = <double>[0.28, 0.17, 0.09];
+    final alpha = alphas[(rank - 1).clamp(0, alphas.length - 1)];
+    return Color.alphaBlend(
+      AppColors.amber.withValues(alpha: alpha),
+      AppColors.white,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final detail = item.detail;
+    return Container(
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: AppColors.line2),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 27,
+            height: 27,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: item.ranked ? _rankFill(rank) : AppColors.amberLight,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: item.ranked
+                ? Text(
+                    '$rank',
+                    style: AppFonts.display(
+                      size: 12,
+                      color: AppColors.amberDark,
+                    ),
+                  )
+                : const Icon(
+                    LucideIcons.dot,
+                    size: 18,
+                    color: AppColors.amberDark,
+                  ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  style: AppFonts.ui(
+                    size: 13,
+                    weight: FontWeight.w700,
+                    height: 1.28,
+                  ),
+                ),
+                if (detail != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    detail,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppFonts.ui(
+                      size: 11,
+                      height: 1.35,
+                      color: AppColors.inkSoft,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(
+            LucideIcons.arrowUpRight,
+            size: 16,
+            color: AppColors.amberDark,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Avant / après
+// ---------------------------------------------------------------------------
+
+/// La phrase du candidat, puis la même réécrite au niveau visé.
+///
+/// La seconde carte est **`ActionPlanExempleCard`**, la brique déjà employée
+/// par le rapport d'une production et par le résultat d'un micro-exercice :
+/// même surlignage par recherche de sous-chaîne, mêmes lignes « extrait →
+/// apport », aucune seconde mécanique. Un extrait introuvable est ignoré, le
+/// texte reste lisible.
+class _BeforeAfter extends StatelessWidget {
+  const _BeforeAfter({required this.exemple});
+
+  final DiagnosticExempleCible exemple;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.line),
+            boxShadow: AppShadows.card,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'VOTRE FORMULATION',
+                style: AppFonts.label(size: 10, color: AppColors.inkFaint),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                '« ${exemple.original} »',
+                style: AppFonts.ui(
+                  size: 13,
+                  height: 1.55,
+                  color: AppColors.inkSoft,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 9),
+        Center(
+          child: Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: AppColors.blueLight,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              LucideIcons.arrowDown,
+              size: 16,
+              color: AppColors.blue,
+            ),
+          ),
+        ),
+        const SizedBox(height: 9),
+        ActionPlanExempleCard(
+          exemple: exemple.asActionPlanExemple,
+          label: 'VERSION PLUS RICHE',
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Aperçu du plan
+// ---------------------------------------------------------------------------
+
+class _PlanPreviewCard extends StatelessWidget {
+  const _PlanPreviewCard({
+    required this.steps,
+    required this.exercise,
+    required this.onOpenRecommended,
+    required this.onSubscribe,
+  });
+
+  final List<_PlanStep> steps;
+  final PlanRecommendedExercise? exercise;
+  final ValueChanged<PlanRecommendedExercise> onOpenRecommended;
+  final VoidCallback onSubscribe;
+
+  @override
+  Widget build(BuildContext context) {
+    final action = exercise;
+    return AppCard(
+      padding: const EdgeInsets.all(16),
+      boxShadow: AppShadows.md,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Plan de progression',
+                  style: AppFonts.display(size: 19),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const AppTag(
+                label: 'Adapté par IA',
+                icon: LucideIcons.sparkles,
+                compact: true,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          for (var index = 0; index < steps.length; index++) ...[
+            if (index > 0) const SizedBox(height: 9),
+            _PlanStepRow(step: steps[index], number: index + 1),
+          ],
+          if (action != null) ...[
+            const SizedBox(height: 14),
+            AppButton(
+              label: _exerciseCta(action),
+              variant: action.locked
+                  ? AppButtonVariant.outline
+                  : AppButtonVariant.soft,
+              height: 46,
+              icon: action.locked ? LucideIcons.lock : null,
+              onPressed: action.locked
+                  ? onSubscribe
+                  : () => onOpenRecommended(action),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Mêmes libellés que le Plan (`plan_screen.dart`) : un candidat ne doit pas
+  /// lire deux formulations pour la même action.
+  static String _exerciseCta(PlanRecommendedExercise exercise) {
+    if (exercise.locked) return 'Débloquer cet exercice';
+    return exercise.kind == PlanExerciseKind.reassessment
+        ? 'Vérifier ma progression'
+        : 'Commencer';
+  }
+}
+
+class _PlanStepRow extends StatelessWidget {
+  const _PlanStepRow({required this.step, required this.number});
+
+  final _PlanStep step;
+  final int number;
+
+  @override
+  Widget build(BuildContext context) {
+    final row = _row();
+    if (step.state != _StepState.locked) return row;
+    // Le voile de la maquette (`.step.locked:after`) : l'étape reste
+    // **entièrement lisible**, elle recule d'un plan. Il couvre la ligne
+    // entière, pastille comprise, comme le `inset:0` du HTML.
+    return Stack(
+      children: [
+        row,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.bg.withValues(alpha: 0.46),
+                borderRadius: BorderRadius.circular(15),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _row() {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: AppColors.line2),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.blueLight,
+              borderRadius: BorderRadius.circular(AppRadii.md),
+            ),
+            child: Text(
+              number.toString().padLeft(2, '0'),
+              style: AppFonts.display(size: 13, color: AppColors.blue),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  step.title,
+                  style: AppFonts.ui(
+                    size: 12.5,
+                    weight: FontWeight.w700,
+                    height: 1.28,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  step.subtitle,
+                  style: AppFonts.ui(size: 10.5, color: AppColors.inkSoft),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          switch (step.state) {
+            _StepState.open => const AppTag(
+                label: 'À faire',
+                tone: TagTone.success,
+                compact: true,
+              ),
+            _StepState.locked => const PremiumLockTag(),
+            _StepState.upcoming => const AppTag(
+                label: 'À VENIR',
+                tone: TagTone.neutral,
+                compact: true,
+              ),
+          },
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Offre
+// ---------------------------------------------------------------------------
+
+/// Ce que l'abonnement change, en quatre phrases. Aucun prix, aucun verbe
+/// d'achat (guidelines Apple 3.1.1) : le libellé du bouton est celui, partagé,
+/// de [kPremiumLockCta].
+class _ValueCard extends StatelessWidget {
+  const _ValueCard({required this.onSubscribe});
+
+  final VoidCallback onSubscribe;
+
+  static const _arguments = <String>[
+    'Plan personnalisé après votre diagnostic',
+    'Corrections écrites et orales par IA',
+    'Exercices courts sur vos faiblesses',
+    'Réévaluation de vos compétences',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return GradientHero(
+      // Encre → bleu **foncé** : la maquette garde ce bloc plus sombre que le
+      // héros de niveau, pour que les deux dégradés ne se confondent pas.
+      from: AppColors.ink,
+      to: AppColors.blueDark,
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Ne vous entraînez plus au hasard.',
+            style: AppFonts.display(
+              size: 21,
+              height: 1.12,
+              color: AppColors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'SejourFR transforme vos erreurs en exercices ciblés, puis vérifie '
+            'si vous les avez réellement corrigées.',
+            style: AppFonts.ui(
+              size: 12.5,
+              height: 1.5,
+              color: AppColors.white.withValues(alpha: 0.78),
+            ),
+          ),
+          const SizedBox(height: 14),
+          for (final argument in _arguments)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2),
+                    child: Icon(
+                      LucideIcons.check,
+                      size: 14,
+                      color: AppColors.greenBright,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      argument,
+                      style: AppFonts.ui(
+                        size: 12.5,
+                        height: 1.4,
+                        color: AppColors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 6),
+          Semantics(
+            button: true,
+            label: kPremiumLockCta,
+            child: AppButton(
+              label: kPremiumLockCta,
+              variant: AppButtonVariant.soft,
+              height: 48,
+              onPressed: onSubscribe,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Vos acquis
+// ---------------------------------------------------------------------------
 
 class _StrengthsCard extends StatelessWidget {
   const _StrengthsCard({required this.strengths});
@@ -466,103 +1236,79 @@ class _StrengthsCard extends StatelessWidget {
       );
 }
 
-/// Les compétences observées, chacune teintée par son statut : vert solide,
-/// ambre à renforcer, rouge prioritaire. La teinte vient de
-/// `LearningPlanSkillStatus.color`, partagée avec le Plan.
-class _SkillSnapshotCard extends StatelessWidget {
-  const _SkillSnapshotCard({required this.skills});
-
-  final List<DiagnosticSkillObservation> skills;
-
-  @override
-  Widget build(BuildContext context) => AppCard(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-        child: Column(
-          children: [
-            for (var index = 0; index < skills.length; index++)
-              _SkillSnapshotRow(
-                skill: skills[index],
-                divider: index != skills.length - 1,
-              ),
-          ],
-        ),
-      );
-}
-
-/// Une compétence observée, **repliée par défaut**.
-///
-/// Déplié, le diagnostic alignait une douzaine d'explications de trois à quatre
-/// lignes : le candidat y voyait un mur de texte et n'en lisait aucune. Replié,
-/// il lit d'abord le **verdict** (titre + statut) et n'ouvre que ce qui
-/// l'intéresse. Rien n'est retiré — tout est à un geste.
-class _SkillSnapshotRow extends StatefulWidget {
-  const _SkillSnapshotRow({required this.skill, required this.divider});
+/// Une compétence déjà solide, **repliée par défaut** — l'équivalent du
+/// `<details>` de la maquette. Le verdict se lit d'un coup d'œil, l'explication
+/// et l'extrait ne s'ouvrent que si le candidat le demande.
+class _AcquisRow extends StatefulWidget {
+  const _AcquisRow({required this.skill});
 
   final DiagnosticSkillObservation skill;
-  final bool divider;
 
   @override
-  State<_SkillSnapshotRow> createState() => _SkillSnapshotRowState();
+  State<_AcquisRow> createState() => _AcquisRowState();
 }
 
-class _SkillSnapshotRowState extends State<_SkillSnapshotRow> {
+class _AcquisRowState extends State<_AcquisRow> {
   bool _open = false;
 
   @override
   Widget build(BuildContext context) {
     final skill = widget.skill;
-    final tone = skill.status.color;
     final detail = skill.explanation;
     final evidence = skill.evidence;
-    // Sans détail, l'encart n'a rien à ouvrir : ni chevron, ni zone tactile.
     final expandable = detail != null || evidence != null;
+    // La teinte d'un statut d'observation vient d'un seul endroit
+    // (`LearningPlanSkillStatus.color`), partagé Plan ⇄ Diagnostic ⇄
+    // Compétences : la coche et la pilule la dérivent au lieu de refixer du
+    // vert à la main.
+    final tone = skill.status.color;
 
-    final header = Row(
-      children: [
-        Container(
-          width: 38,
-          height: 38,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: tone.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(AppRadii.md),
+    final header = Padding(
+      padding: const EdgeInsets.all(13),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: tone.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(LucideIcons.check, size: 15, color: tone),
           ),
-          child: Icon(_statusIcon(skill.status), size: 18, color: tone),
-        ),
-        const SizedBox(width: 11),
-        Expanded(
-          child: Text(
-            skill.skillTitle,
-            style: AppFonts.ui(size: 13.5, weight: FontWeight.w700, height: 1.3),
-          ),
-        ),
-        const SizedBox(width: 8),
-        AppTag(
-          label: skill.status.label,
-          tone: _statusTone(skill.status),
-          compact: true,
-        ),
-        if (expandable) ...[
-          const SizedBox(width: 4),
-          AnimatedRotation(
-            turns: _open ? 0.5 : 0,
-            duration: const Duration(milliseconds: 180),
-            child: const Icon(
-              LucideIcons.chevronDown,
-              size: 18,
-              color: AppColors.inkFaint,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              skill.skillTitle,
+              style: AppFonts.ui(size: 12.5, weight: FontWeight.w800, height: 1.3),
             ),
           ),
+          const SizedBox(width: 8),
+          AppTag(
+            label: skill.status.label,
+            tone: tagToneForAccent(tone),
+            compact: true,
+          ),
+          if (expandable) ...[
+            const SizedBox(width: 4),
+            AnimatedRotation(
+              turns: _open ? 0.5 : 0,
+              duration: const Duration(milliseconds: 180),
+              child: const Icon(
+                LucideIcons.chevronDown,
+                size: 17,
+                color: AppColors.inkFaint,
+              ),
+            ),
+          ],
         ],
-      ],
+      ),
     );
 
-    return Container(
-      decoration: BoxDecoration(
-        border: widget.divider
-            ? const Border(bottom: BorderSide(color: AppColors.lineSoft))
-            : null,
-      ),
+    return AppCard(
+      padding: EdgeInsets.zero,
+      borderRadius: 16,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -573,17 +1319,12 @@ class _SkillSnapshotRowState extends State<_SkillSnapshotRow> {
               label: '${skill.skillTitle} · ${skill.status.label}',
               child: InkWell(
                 onTap: () => setState(() => _open = !_open),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: header,
-                ),
+                borderRadius: BorderRadius.circular(16),
+                child: header,
               ),
             )
           else
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: header,
-            ),
+            header,
           AnimatedSize(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOutCubic,
@@ -591,7 +1332,7 @@ class _SkillSnapshotRowState extends State<_SkillSnapshotRow> {
             child: !_open
                 ? const SizedBox(width: double.infinity)
                 : Padding(
-                    padding: const EdgeInsets.only(left: 49, bottom: 13),
+                    padding: const EdgeInsets.fromLTRB(51, 0, 13, 13),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -599,8 +1340,8 @@ class _SkillSnapshotRowState extends State<_SkillSnapshotRow> {
                           Text(
                             detail,
                             style: AppFonts.ui(
-                              size: 12,
-                              height: 1.4,
+                              size: 11.5,
+                              height: 1.45,
                               color: AppColors.inkSoft,
                             ),
                           ),
@@ -610,7 +1351,7 @@ class _SkillSnapshotRowState extends State<_SkillSnapshotRow> {
                             '« ${evidenceExcerpt(evidence)} »',
                             style: AppFonts.ui(
                               size: 11.5,
-                              height: 1.4,
+                              height: 1.45,
                               color: AppColors.inkFaint,
                             ),
                           ),
@@ -625,190 +1366,14 @@ class _SkillSnapshotRowState extends State<_SkillSnapshotRow> {
   }
 }
 
-IconData _statusIcon(LearningPlanSkillStatus status) => switch (status) {
-      LearningPlanSkillStatus.priority => LucideIcons.circleAlert,
-      LearningPlanSkillStatus.toReinforce => LucideIcons.trendingUp,
-      LearningPlanSkillStatus.solid => LucideIcons.circleCheck,
-      LearningPlanSkillStatus.notObserved => LucideIcons.circle,
-    };
+// ---------------------------------------------------------------------------
+// Le détail des deux productions
+// ---------------------------------------------------------------------------
 
-TagTone _statusTone(LearningPlanSkillStatus status) => switch (status) {
-      LearningPlanSkillStatus.priority => TagTone.red,
-      LearningPlanSkillStatus.toReinforce => TagTone.amber,
-      LearningPlanSkillStatus.solid => TagTone.success,
-      LearningPlanSkillStatus.notObserved => TagTone.neutral,
-    };
-
-class _MainPriorityCard extends StatelessWidget {
-  const _MainPriorityCard({
-    required this.priority,
-    required this.explanation,
-    required this.rank,
-    required this.total,
-  });
-
-  final DiagnosticSkillObservation priority;
-  final String? explanation;
-  final int rank;
-  final int total;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = explanation ?? priority.explanation;
-    return AppCard(
-      color: AppColors.redLight,
-      border: Border.all(color: AppColors.red.withValues(alpha: 0.2)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const AppTag(
-                label: 'IMPACT ÉLEVÉ',
-                tone: TagTone.red,
-                icon: LucideIcons.zap,
-                compact: true,
-              ),
-              const Spacer(),
-              Text(
-                'Priorité $rank/$total',
-                style: AppFonts.ui(
-                  size: 11.5,
-                  weight: FontWeight.w700,
-                  color: AppColors.inkSoft,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            priority.skillTitle,
-            style: AppFonts.display(size: 18, height: 1.22),
-          ),
-          if (text != null) ...[
-            const SizedBox(height: 7),
-            Text(
-              text,
-              style: AppFonts.ui(
-                size: 13,
-                height: 1.45,
-                color: AppColors.inkSoft,
-              ),
-            ),
-          ],
-          if (priority.evidence != null) ...[
-            const SizedBox(height: 12),
-            _EvidenceBlock(text: priority.evidence!),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _EvidenceBlock extends StatelessWidget {
-  const _EvidenceBlock({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(AppRadii.md),
-          border: Border.all(color: AppColors.red.withValues(alpha: 0.14)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'EXTRAIT DE VOTRE PRODUCTION',
-              style: AppFonts.label(size: 10, color: AppColors.inkFaint),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              '« ${evidenceExcerpt(text)} »',
-              style: AppFonts.ui(
-                size: 12.5,
-                height: 1.4,
-                color: AppColors.ink,
-              ),
-            ),
-          ],
-        ),
-      );
-}
-
-class _NextPrioritiesCard extends StatelessWidget {
-  const _NextPrioritiesCard({required this.priorities});
-
-  final List<DiagnosticSkillObservation> priorities;
-
-  @override
-  Widget build(BuildContext context) => AppCard(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        child: Column(
-          children: [
-            for (var index = 0; index < priorities.length; index++)
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 11),
-                decoration: BoxDecoration(
-                  border: index != priorities.length - 1
-                      ? const Border(
-                          bottom: BorderSide(color: AppColors.lineSoft),
-                        )
-                      : null,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 26,
-                      height: 26,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        color: AppColors.surface2,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        '${index + 2}',
-                        style: AppFonts.display(
-                          size: 12,
-                          color: AppColors.inkSoft,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 11),
-                    Expanded(
-                      child: Text(
-                        priorities[index].skillTitle,
-                        style: AppFonts.ui(size: 13, weight: FontWeight.w700),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    AppTag(
-                      label: priorities[index].section.wire,
-                      tone: TagTone.neutral,
-                      compact: true,
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      );
-}
-
-/// Carte d'une production. Elle met enfin à l'écran ce que le contrat serveur
-/// portait sans jamais l'afficher : le résumé, l'accomplissement de la
-/// consigne, l'efficacité du message et les points à travailler.
-/// Le bilan d'une production, **replié par défaut**.
-///
-/// Même raison que les compétences observées : résumé de cinq lignes, deux
-/// pastilles d'état et deux points à travailler multi-lignes, fois deux
-/// productions — le candidat voyait un mur. Replié, il lit l'épreuve et son
-/// niveau estimé, et n'ouvre que celle qui l'intéresse.
+/// Le bilan d'une production, **replié par défaut** : le candidat lit l'épreuve
+/// et son niveau estimé, et n'ouvre que celle qui l'intéresse. Il porte ce que
+/// le contrat serveur publie et que rien d'autre n'affiche : `summary`,
+/// `taskCompletion`, `communicationStatus` et `weaknesses`.
 class _ProductionCard extends StatefulWidget {
   const _ProductionCard({
     required this.title,
@@ -897,7 +1462,6 @@ class _ProductionCardState extends State<_ProductionCard> {
                 ? const SizedBox(width: double.infinity)
                 : _ProductionDetail(
                     production: production,
-                    accent: accent,
                     weaknesses: weaknesses,
                   ),
           ),
@@ -910,12 +1474,10 @@ class _ProductionCardState extends State<_ProductionCard> {
 class _ProductionDetail extends StatelessWidget {
   const _ProductionDetail({
     required this.production,
-    required this.accent,
     required this.weaknesses,
   });
 
   final DiagnosticProductionResult production;
-  final Color accent;
   final List<String> weaknesses;
 
   @override
@@ -957,8 +1519,12 @@ class _ProductionDetail extends StatelessWidget {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(11),
+              // « À travailler » se dit en **ambre**, comme les priorités du
+              // haut de l'écran : un gris neutre effaçait le seul signal que
+              // porte ce bloc, et l'accent du module (bleu en EE, rouge en EO)
+              // n'y disait rien de la nature du contenu.
               decoration: BoxDecoration(
-                color: AppColors.surface2,
+                color: AppColors.amberLight,
                 borderRadius: BorderRadius.circular(AppRadii.md),
               ),
               child: Column(
@@ -966,7 +1532,7 @@ class _ProductionDetail extends StatelessWidget {
                 children: [
                   Text(
                     'À TRAVAILLER',
-                    style: AppFonts.label(size: 10, color: AppColors.inkFaint),
+                    style: AppFonts.label(size: 10, color: AppColors.amberDark),
                   ),
                   const SizedBox(height: 6),
                   for (final weakness in weaknesses)
@@ -979,8 +1545,8 @@ class _ProductionDetail extends StatelessWidget {
                             width: 5,
                             height: 5,
                             margin: const EdgeInsets.only(top: 6, right: 8),
-                            decoration: BoxDecoration(
-                              color: accent,
+                            decoration: const BoxDecoration(
+                              color: AppColors.amberDark,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -1052,169 +1618,3 @@ Color _communicationTone(DiagnosticCommunicationStatus status) =>
       DiagnosticCommunicationStatus.partial => AppColors.amberDark,
       DiagnosticCommunicationStatus.ineffective => AppColors.red,
     };
-
-class _PlanCallToAction extends StatelessWidget {
-  const _PlanCallToAction({
-    required this.action,
-    required this.onOpenPlan,
-    required this.onOpenRecommended,
-  });
-
-  final PlanRecommendedExercise? action;
-  final VoidCallback onOpenPlan;
-  final ValueChanged<PlanRecommendedExercise> onOpenRecommended;
-
-  @override
-  Widget build(BuildContext context) {
-    final exercise = action;
-    return AppCard(
-      color: AppColors.blueSoft,
-      border: Border.all(color: AppColors.blue.withValues(alpha: 0.16)),
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.blue,
-                borderRadius: BorderRadius.circular(AppRadii.md),
-              ),
-              child: const Icon(
-                LucideIcons.sparkles,
-                size: 21,
-                color: AppColors.white,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Votre plan est prêt',
-            textAlign: TextAlign.center,
-            style: AppFonts.display(size: 20),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Il commence par vos priorités les plus importantes et s’adapte ensuite à vos nouvelles productions.',
-            textAlign: TextAlign.center,
-            style: AppFonts.ui(
-              size: 12.5,
-              height: 1.45,
-              color: AppColors.inkSoft,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Semantics(
-            button: true,
-            label: 'Découvrir mon plan personnalisé',
-            child: AppButton(
-              label: 'Découvrir mon plan',
-              iconRight: LucideIcons.arrowRight,
-              onPressed: onOpenPlan,
-            ),
-          ),
-          if (exercise != null) ...[
-            const SizedBox(height: 10),
-            Semantics(
-              button: true,
-              label: 'Commencer l’exercice recommandé ${exercise.title}',
-              child: AppButton(
-                label:
-                    'Commencer l’exercice · ${exercise.estimatedMinutes} min',
-                variant: AppButtonVariant.soft,
-                height: 46,
-                onPressed: () => onOpenRecommended(exercise),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              exercise.title,
-              textAlign: TextAlign.center,
-              style: AppFonts.ui(size: 11.5, color: AppColors.inkFaint),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ProductionDetails extends StatelessWidget {
-  const _ProductionDetails({required this.title, required this.result});
-
-  final String title;
-  final DiagnosticProductionResult? result;
-
-  @override
-  Widget build(BuildContext context) {
-    final observed = result?.skills.where((skill) => skill.observed).toList() ??
-        const <DiagnosticSkillObservation>[];
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: AppFonts.display(size: 17)),
-          if (result?.summary != null) ...[
-            const SizedBox(height: 5),
-            Text(
-              result!.summary!,
-              style: AppFonts.ui(
-                size: 13,
-                color: AppColors.inkSoft,
-                height: 1.4,
-              ),
-            ),
-          ],
-          if (observed.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            for (final skill in observed)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      margin: const EdgeInsets.only(top: 5),
-                      decoration: BoxDecoration(
-                        color: skill.status.color,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${skill.skillTitle} · ${skill.status.label}',
-                            style: AppFonts.ui(
-                              size: 12.5,
-                              weight: FontWeight.w700,
-                            ),
-                          ),
-                          if (skill.evidence != null)
-                            Text(
-                              '« ${evidenceExcerpt(skill.evidence!)} »',
-                              style: AppFonts.ui(
-                                size: 12,
-                                color: AppColors.inkFaint,
-                                height: 1.35,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-}

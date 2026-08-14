@@ -94,6 +94,42 @@ sans note sur 20, avec leurs propres consignes et format **v1 / v1** décrits ju
 > été testés sans appeler de fournisseur payant ; aucune campagne de mesure comparative du
 > jugement pédagogique n'a donc été menée pour cette première version.
 
+> 🆕 **14 août 2026 — à la fin du diagnostic, votre phrase et la même phrase au niveau que
+> vous visez.** L'écran de résultat montre désormais un **avant / après** : une phrase que
+> vous avez réellement écrite, puis cette même phrase réécrite comme l'écrirait quelqu'un au
+> palier qu'exige votre démarche (A2, B1 ou B2). Deux ou trois passages de la version réécrite
+> sont mis en évidence, avec une étiquette de trois mots qui dit ce qu'ils apportent
+> (« lien explicite », « précision concrète »). Le but n'est pas de vous dire ce qui ne va
+> pas : c'est de vous montrer à quoi ressemblerait **votre propre phrase** un cran plus haut.
+>
+> **La phrase affichée est bien la vôtre, au caractère près.** L'IA ne la recopie pas — elle
+> désigne un numéro de phrase, et c'est le serveur qui va chercher le texte exact dans ce que
+> vous avez écrit. Elle ne peut donc pas vous attribuer une phrase que vous n'avez pas écrite.
+> La version réécrite garde votre situation, vos faits, vos prénoms, vos chiffres et votre
+> intention : seule la langue monte d'un cran. Rien n'est inventé.
+>
+> **Uniquement à l'écrit, et c'est délibéré.** Votre production orale n'est jamais réécrite.
+> Ce que nous lisons de l'oral est une transcription automatique : afficher un beau texte à la
+> place de ce que vous avez dit serait trompeur. C'est la même règle que pour les corrections
+> complètes.
+>
+> **C'est un appel séparé, qui ne touche pas au jugement.** L'IA qui analyse votre diagnostic
+> ne sait pas qu'une réécriture aura lieu, et ne sait pas quel niveau vous visez : ses
+> consignes n'ont pas changé d'une virgule. Nous avons mesuré ailleurs qu'ajouter le niveau
+> visé à une grille qui juge dégrade sa fiabilité (accord exact 81,8 % → 75,6 %). La
+> réécriture est donc produite **après**, à part, par une seconde demande.
+>
+> **Ce bloc peut être absent, et ce n'est pas une panne.** Il n'apparaît pas si vous écrivez
+> déjà au niveau que vous visez (il n'y aurait rien à montrer), ni si la seconde demande
+> n'aboutit pas. Votre diagnostic, vos priorités et votre Plan sont complets dans tous les
+> cas : cette réécriture est un plus, jamais une pièce dont dépend le résultat. Les
+> diagnostics passés avant cette date n'en ont pas — nous ne rejouons rien a posteriori.
+>
+> **Aucune campagne de mesure n'était requise** : rien de ce qui note ne bouge, par
+> construction. Les consignes de la réécriture vivent dans leurs propres fichiers versionnés
+> (`diagnostic-exemple-cible-rubrics-v1.json` et son format de sortie), et le tout se coupe
+> par une seule variable si besoin.
+
 > 🆕 **8 août 2026 — sur une tâche isolée, plus de note sur 20 : votre niveau, et où vous en
 > êtes DANS ce niveau.** Explication complète aux **§6.2 bis** et **§6.3 bis**.
 >
@@ -3976,6 +4012,8 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 | **Les consignes du diagnostic initial et de l'observateur du Plan** (accomplissement avant langue, limites de l'oral transcrit, allowlist de compétences, aucune note officielle) | `backend_sejourfr/src/main/resources/prompts/diagnostic-analysis-rubrics-v1.json`, fichier **séparé** de la notation et des micro-exercices. Le même contrat sert à la baseline et aux observations de productions complètes, avec un `analysis_type` explicite ; une nouvelle règle durable crée une nouvelle version au lieu de réécrire v1 |
 | **Le format structuré du diagnostic/Plan** (niveau prudent ≤ B2, accomplissement, communication, preuves segmentées, confiance et priorités) | `backend_sejourfr/src/main/resources/prompts/diagnostic-analysis-tool-schema-v1.json`, renforcé par `DiagnosticAnalysisValidator` : clés exactes, allowlist exhaustive sans doublon, numéros de segment entiers et existants, cohérence observation/statut/preuve. Le drapeau « priorité » n'est plus contrôlé mais **recalculé** à partir du statut, et le maximum de deux priorités par production est appliqué en **retirant** les priorités surnuméraires (les moins sûres d'abord) : une analyse n'est jamais perdue pour ce motif. Aucun champ de note `/20` n'existe |
 | **Les réglages du diagnostic** (versions, plafond de sortie, température et relances de session) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.diagnostic.analysis`. Le fournisseur/modèle reste celui de `sejourfr.production-evaluation`, mais la persistance et le pipeline sont séparés de `ai_evaluations` et de la calibration |
+| **Les consignes de l'avant / après du diagnostic** (choisir une phrase par son numéro, ce que la réécriture garde du candidat, ne nommer aucun niveau, ne jamais vendre un moyen déjà acquis) | `backend_sejourfr/src/main/resources/prompts/diagnostic-exemple-cible-rubrics-v1.json` et son format `…-tool-schema-v1.json`, fichiers **séparés** de ceux de l'analyse — c'est ce qui garantit que le jugement du diagnostic ne change pas d'une virgule. Aucun champ n'existe pour une note, un verdict ou un niveau, et aucun pour recopier la phrase du candidat : elle est **désignée par un numéro** et retrouvée par le serveur |
+| **Les réglages de l'avant / après** (activation, versions, plafond de sortie, température) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.diagnostic.exemple-cible`. Écrit seulement, produit après l'analyse et sans rejeu : `DIAGNOSTIC_EXEMPLE_CIBLE_ENABLED=false` le coupe sans rien changer d'autre |
 | **La version au niveau que le candidat vise** (§5.9 — ce que la réécriture conserve de lui, la forme des leviers, ce qu'une reformulation orale ne corrige jamais, la règle d'accentuation) | `backend_sejourfr/src/main/resources/prompts/production-version-ciblee-rubrics-v2.json` et ses **deux** contrats de sortie : `production-version-ciblee-tool-schema-v2.json` (écrit) et `production-version-ciblee-tool-schema-oral-v2.json` (oral, qui ne prévoit aucun texte réécrit). La version v1 reste chargeable — retour arrière par configuration, sans migration. Fichiers **séparés de la grille de notation**, exactement comme pour les micro-exercices : c'est un **second correcteur**, qui ne note rien et à qui l'on ne montre pas la grille. Aucun champ n'y existe pour une note ou un niveau |
 | **Le coupe-circuit de cette version au niveau visé** | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.version-ciblee` — livré **actif**. `EVAL_VERSION_CIBLEE_ENABLED=false` supprime le second appel et l'encart, sans rien changer d'autre. Le **fournisseur** reste celui de tout le reste (`production-evaluation.provider`) |
 | **La situation dans le palier** (§6.3 bis — « A2 solide ») et **ses libellés** | `backend_sejourfr/src/main/java/com/sejourfr/app/enums/SituationDansNiveau.java`. Les bornes viennent de la **grille active**, pas de ce fichier ; les trois libellés y sont figés par un test, avec la règle qui les gouverne : aucun ne nomme un manque |

@@ -754,6 +754,26 @@ export interface DiagnosticProductionResultDto {
     skills: DiagnosticSkillObservationDto[];
 }
 
+/**
+ * La phrase du candidat, puis la même idée écrite au niveau qu'il vise.
+ *
+ * Produit par un **second appel LLM best-effort**, comme `version_ciblee` sur une
+ * production complète : son absence est un cas **NORMAL**, jamais une erreur —
+ * aucun front n'affiche de message d'échec ni de spinner quand il manque.
+ * **Production écrite seulement** : une transcription orale n'est jamais
+ * réécrite (même règle que `ActionPlanReformulation`).
+ *
+ * `original` est une sous-chaîne exacte de la production, et chaque
+ * `segments[].extrait` une sous-chaîne exacte de `texte` : on surligne par
+ * simple recherche de chaîne, en nœuds React, **jamais** par
+ * `dangerouslySetInnerHTML`. Introuvable ⇒ texte brut, sans surlignage inventé.
+ */
+export interface DiagnosticExempleCibleDto extends ActionPlanExempleCible {
+    /** La phrase du candidat, telle qu'il l'a écrite. */
+    original: string;
+    niveauVise: NiveauCecrl;
+}
+
 export interface DiagnosticResultDto {
     written: DiagnosticProductionResultDto | null;
     oral: DiagnosticProductionResultDto | null;
@@ -761,6 +781,8 @@ export interface DiagnosticResultDto {
     priorities: DiagnosticSkillObservationDto[];
     mainPriorityExplanation: string | null;
     nextAction: PlanRecommendedExerciseDto | null;
+    /** Second appel best-effort : `null` (ou absent) est un cas normal. */
+    exempleCible: DiagnosticExempleCibleDto | null;
 }
 
 export interface DiagnosticResponse {

@@ -36,6 +36,12 @@ class AppColors {
 
   static const green = Color(0xFF168F5B);
   static const greenLight = Color(0xFFE3F4EB);
+
+  /// Vert **posé sur un fond foncé** (coches du bloc offre, sur l'encre).
+  /// [greenLight] y vire au blanc et la coche perd son sens « acquis » ;
+  /// [green] y devient sombre et se noie. C'est la seule teinte verte du
+  /// produit dont le contraste est calculé contre l'encre, pas contre le blanc.
+  static const greenBright = Color(0xFF6DE0B1);
   static const amber = Color(0xFFE8A317);
   static const amberLight = Color(0xFFFCF1DA);
 

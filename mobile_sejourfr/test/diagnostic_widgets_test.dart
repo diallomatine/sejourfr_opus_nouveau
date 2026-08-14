@@ -93,7 +93,9 @@ void main() {
         ),
         objective: 'B2',
         onOpenPlan: () {},
+        hasTcfAccess: true,
         onOpenRecommended: (exercise) => openedExercise = exercise,
+        onSubscribe: () {},
       ),
     );
 
@@ -153,7 +155,9 @@ void main() {
           priorities: [_priority('Priorité 1')],
         ),
         onOpenPlan: () => openedPlan = true,
+        hasTcfAccess: true,
         onOpenRecommended: (_) {},
+        onSubscribe: () {},
       ),
     );
 

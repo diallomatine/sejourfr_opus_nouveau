@@ -36,6 +36,7 @@ public class DiagnosticSessionCoordinator {
     private final DiagnosticSessionManager sessionManager;
     private final AttemptManager attemptManager;
     private final DiagnosticTaskSkillManager taskSkillManager;
+    private final DiagnosticReconciliationMetrics metrics;
 
     /**
      * Réserve atomiquement une relance. Le verrou de l'agrégat empêche deux
@@ -180,7 +181,7 @@ public class DiagnosticSessionCoordinator {
     }
 
     /**
-     * Ordonne les priorités d'UNE production avec la règle partagée
+     * Les priorités d'UNE production, ordonnées par la règle partagée
      * {@link DiagnosticPriorityRanking} : confiance décroissante, puis rang de
      * la compétence dans l'allowlist du sujet
      * ({@code diagnostic_task_skills.display_order}).
@@ -189,6 +190,15 @@ public class DiagnosticSessionCoordinator {
      * huit compétences observables par ce sujet. Une compétence absente de
      * l'allowlist — cas qui ne devrait pas exister, le validateur la refuse —
      * passe en dernier, puis on retombe sur le code pour rester déterministe.
+     *
+     * <p><b>Une priorité se DÉRIVE quand le correcteur n'en désigne aucune.</b>
+     * Le filtre était strict sur {@code priority == true} ; or le modèle range
+     * ses faiblesses en {@code TO_REINFORCE} sans jamais poser {@code PRIORITY},
+     * et deux diagnostics réels sont sortis avec {@code priority_skill_codes: []}
+     * — Plan {@code ACTIVE}, rien à faire. On complète donc les priorités
+     * désignées par les <b>faiblesses observées</b>, les mieux classées d'abord,
+     * jusqu'au plafond par production. <b>Une priorité désignée l'emporte
+     * toujours</b> : on complète, on ne remplace jamais.
      */
     private List<DiagnosticPriorityRanking.Ranked> ranked(
             Map<String, Object> analysis, UUID taskId) {
@@ -196,7 +206,27 @@ public class DiagnosticSessionCoordinator {
         for (DiagnosticTaskSkill allowed : taskSkillManager.findActiveByTaskId(taskId)) {
             order.put(allowed.getSkill().getCode(), (int) allowed.getDisplayOrder());
         }
-        return DiagnosticPriorityRanking.ranked(prioritySkills(analysis), order);
+        List<Map<String, Object>> skills = skills(analysis);
+        int plafond = DiagnosticAnalysisValidator.MAX_PRIORITIES_PER_PRODUCTION;
+        List<DiagnosticPriorityRanking.Ranked> selected = new ArrayList<>(plafond);
+        LinkedHashSet<String> retenues = new LinkedHashSet<>();
+        for (DiagnosticPriorityRanking.Ranked designee : DiagnosticPriorityRanking.ranked(
+                skills.stream().filter(DiagnosticPriorityRanking::designee).toList(), order)) {
+            if (selected.size() >= plafond) break;
+            if (retenues.add(designee.skillCode())) selected.add(designee);
+        }
+        if (selected.size() >= plafond) return selected;
+
+        for (DiagnosticPriorityRanking.Ranked derivee : DiagnosticPriorityRanking.ranked(
+                skills.stream().filter(DiagnosticPriorityRanking::faiblesseObservee).toList(),
+                order)) {
+            if (selected.size() >= plafond) break;
+            if (!retenues.add(derivee.skillCode())) continue;
+            selected.add(derivee);
+            metrics.enregistrer(
+                    DiagnosticReconciliationMetrics.Motif.PRIORITE_DERIVEE_DE_FAIBLESSE);
+        }
+        return selected;
     }
 
     /**
@@ -245,13 +275,13 @@ public class DiagnosticSessionCoordinator {
         return byConfidence != 0 ? byConfidence : Integer.compare(written.order(), oral.order());
     }
 
+    /** Les compétences de la production, sans aucun filtre : le tri vient après. */
     @SuppressWarnings("unchecked")
-    private static List<Map<String, Object>> prioritySkills(Map<String, Object> analysis) {
+    private static List<Map<String, Object>> skills(Map<String, Object> analysis) {
         if (!(analysis.get("skills") instanceof List<?> raw)) return List.of();
         return raw.stream()
                 .filter(Map.class::isInstance)
                 .map(item -> (Map<String, Object>) item)
-                .filter(item -> Boolean.TRUE.equals(item.get("priority")))
                 .toList();
     }
 

@@ -1,3 +1,4 @@
+import 'action_plan.dart';
 import 'enums.dart';
 import 'skill_models.dart';
 
@@ -474,6 +475,68 @@ class PlanRecommendedExercise {
       );
 }
 
+/// L'**avant/après** du diagnostic : la phrase que le candidat a réellement
+/// écrite, sa réécriture au niveau visé, et les endroits où se joue la
+/// différence.
+///
+/// **Production ÉCRITE seulement** — une production orale n'est jamais
+/// réécrite (ce que lit le correcteur est une transcription automatique). Le
+/// bloc vient d'un **second appel LLM best-effort** : `null` est un cas
+/// **NORMAL**, jamais une erreur ni une attente à annoncer.
+///
+/// Les clés intérieures sont celles de `version_ciblee` / `exempleCible` du
+/// module Compétences, donc [ActionPlanSegment] et le surlignage de
+/// `screens/tcf_production/widgets/action_plan.dart` s'appliquent tels quels —
+/// on ne réécrit pas une seconde mécanique de mise en évidence.
+class DiagnosticExempleCible {
+  const DiagnosticExempleCible({
+    required this.original,
+    required this.texte,
+    required this.segments,
+    this.niveauVise,
+  });
+
+  /// La phrase du candidat, **sous-chaîne exacte** de sa production écrite.
+  final String original;
+
+  /// La même chose, réécrite au niveau visé.
+  final String texte;
+
+  /// Passages de [texte] à mettre en évidence. Chaque `extrait` est une
+  /// sous-chaîne exacte de [texte] ; introuvable ⇒ le texte reste brut.
+  final List<ActionPlanSegment> segments;
+
+  /// Palier visé par la réécriture. **Donnée de logique, pas une étiquette à
+  /// coller sur le texte modèle** : la longueur imposée à cette réécriture ne
+  /// laisse pas la place de démontrer honnêtement un palier annoncé (mesuré
+  /// côté productions — cf. `kActionPlanExempleTitle`).
+  final NiveauCecrl? niveauVise;
+
+  /// La partie déjà rendue par `ActionPlanExempleCard` — même contrat
+  /// intérieur, même surlignage.
+  ActionPlanExempleCible get asActionPlanExemple =>
+      ActionPlanExempleCible(texte: texte, segments: segments);
+
+  static DiagnosticExempleCible? fromJsonNullable(Object? json) {
+    if (json is! Map) return null;
+    final original = _trimmedOrNull(json['original']);
+    final texte = _trimmedOrNull(json['texte']);
+    if (original == null || texte == null) return null;
+    final raw = json['segments'];
+    return DiagnosticExempleCible(
+      original: original,
+      texte: texte,
+      segments: raw is! List
+          ? const <ActionPlanSegment>[]
+          : raw
+              .map(ActionPlanSegment.fromJsonNullable)
+              .whereType<ActionPlanSegment>()
+              .toList(growable: false),
+      niveauVise: _niveau(json['niveauVise']),
+    );
+  }
+}
+
 class DiagnosticResult {
   const DiagnosticResult({
     required this.strengths,
@@ -482,6 +545,7 @@ class DiagnosticResult {
     this.oral,
     this.mainPriorityExplanation,
     this.nextAction,
+    this.exempleCible,
   });
 
   final DiagnosticProductionResult? written;
@@ -490,6 +554,10 @@ class DiagnosticResult {
   final List<DiagnosticSkillObservation> priorities;
   final String? mainPriorityExplanation;
   final PlanRecommendedExercise? nextAction;
+
+  /// Écrit seulement, best-effort : `null` est un cas normal, le bloc
+  /// avant/après n'est simplement pas rendu.
+  final DiagnosticExempleCible? exempleCible;
 
   factory DiagnosticResult.fromJson(Map<String, dynamic> json) =>
       DiagnosticResult(
@@ -515,6 +583,8 @@ class DiagnosticResult {
             : PlanRecommendedExercise.fromJson(
                 json['nextAction'] as Map<String, dynamic>,
               ),
+        exempleCible:
+            DiagnosticExempleCible.fromJsonNullable(json['exempleCible']),
       );
 }
 
@@ -798,6 +868,17 @@ String? _trimmedOrNull(Object? raw) {
 }
 
 DateTime? _date(Object? raw) => raw is String ? DateTime.tryParse(raw) : null;
+
+/// Palier CECRL tolérant : une valeur inconnue vaut `null`, jamais une
+/// exception — un champ d'affichage ne doit pas faire échouer la lecture d'un
+/// résultat entier.
+NiveauCecrl? _niveau(Object? raw) {
+  if (raw is! String) return null;
+  for (final niveau in NiveauCecrl.values) {
+    if (niveau.wire == raw) return niveau;
+  }
+  return null;
+}
 
 List<String> _stringList(Object? raw) {
   if (raw is! List) return const [];

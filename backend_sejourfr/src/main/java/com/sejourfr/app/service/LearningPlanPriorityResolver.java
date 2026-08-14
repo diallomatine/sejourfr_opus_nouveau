@@ -2,6 +2,7 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
+import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -68,9 +69,25 @@ public class LearningPlanPriorityResolver {
 
     /**
      * Les priorites, deja ordonnees : {@code PRIORITY} avant
-     * {@code TO_REINFORCE}, puis l'observation la plus recente d'abord, au plus
-     * {@value #MAX_PRIORITIES}. Les fronts affichent cet ordre sans le
-     * recalculer.
+     * {@code TO_REINFORCE}, puis <b>confiance decroissante</b>, puis
+     * l'observation la plus recente, au plus {@value #MAX_PRIORITIES}. Les
+     * fronts affichent cet ordre sans le recalculer.
+     *
+     * <p><b>Une faiblesse observee EST une priorite derivee</b>, exactement
+     * comme cote diagnostic : le correcteur range ses faiblesses en
+     * {@code TO_REINFORCE} et ne pose quasiment jamais {@code PRIORITY}, si bien
+     * qu'exiger ce seul statut laisserait un Plan {@code ACTIVE} sans rien a
+     * faire. {@code SOLID} et {@code NOT_OBSERVED} n'en deviennent jamais une :
+     * zero faiblesse observee donne zero priorite, et c'est legitime.
+     *
+     * <p><b>La confiance departage avant la recence</b>, et ce n'est pas un
+     * detail : c'est ce qui empeche cette methode et
+     * {@code DiagnosticPriorityRanking} de designer deux etapes n&deg;1
+     * differentes. Les deux productions du diagnostic sont observees au meme
+     * instant — la recence n'y trie rien, la confiance si, et c'est le premier
+     * critere de la regle du diagnostic. Deux surfaces qui repondent
+     * differemment a la meme question, c'est le defaut deja corrige sur le
+     * niveau TCF estime.
      */
     public List<LearningPlanObservation> actionable(
             Collection<LearningPlanObservation> latestObserved) {
@@ -80,10 +97,25 @@ public class LearningPlanPriorityResolver {
                 .sorted(Comparator
                         .comparingInt((LearningPlanObservation item) ->
                                 item.getStatus() == LearningPlanSkillStatus.PRIORITY ? 0 : 1)
+                        .thenComparingInt(item -> -confidenceRank(item.getConfidence()))
                         .thenComparing(LearningPlanObservation::getObservedAt,
                                 Comparator.reverseOrder()))
                 .limit(MAX_PRIORITIES)
                 .toList();
+    }
+
+    /**
+     * {@code HIGH} 3, {@code MEDIUM} 2, tout le reste 1 — miroir de
+     * {@code DiagnosticPriorityRanking.confidenceRank}, sur l'observation
+     * persistee au lieu du JSON du correcteur.
+     */
+    private static int confidenceRank(ObservationConfidence confidence) {
+        if (confidence == null) return 1;
+        return switch (confidence) {
+            case HIGH -> 3;
+            case MEDIUM -> 2;
+            case LOW -> 1;
+        };
     }
 
     /**

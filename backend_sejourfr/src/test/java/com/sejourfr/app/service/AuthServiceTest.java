@@ -9,6 +9,7 @@ import com.sejourfr.app.entity.PasswordResetToken;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.Role;
+import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.PasswordResetTokenManager;
 import com.sejourfr.app.manager.UserManager;
@@ -47,6 +48,7 @@ class AuthServiceTest {
     private SessionService sessionService;
     private SubscriptionService subscriptionService;
     private MailService mailService;
+    private MeService meService;
     private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     private AuthService service;
 
@@ -59,10 +61,12 @@ class AuthServiceTest {
         sessionService = mock(SessionService.class);
         subscriptionService = mock(SubscriptionService.class);
         mailService = mock(MailService.class);
+        meService = mock(MeService.class);
         passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
 
         service = new AuthService(authenticationManager, userManager, passwordResetTokenManager,
-                jwtService, sessionService, subscriptionService, mailService, passwordEncoder);
+                jwtService, sessionService, subscriptionService, mailService, meService,
+                passwordEncoder);
 
         when(jwtService.accessTokenTtlSeconds()).thenReturn(3600L);
         when(subscriptionService.currentAccess(any()))
@@ -90,7 +94,7 @@ class AuthServiceTest {
         when(userManager.existsByEmail("dup@test.fr")).thenReturn(true);
 
         assertThatThrownBy(() -> service.register(
-                new RegisterRequest("dup@test.fr", "password1", "A", "B"), "ua", "ip"))
+                new RegisterRequest("dup@test.fr", "password1", "A", "B", null), "ua", "ip"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("existe déjà");
 
@@ -109,7 +113,8 @@ class AuthServiceTest {
         stubSessionFor(logged);
 
         TokenResponse resp = service.register(
-                new RegisterRequest("User@Test.fr", "password1", " Alice ", " Martin "), "ua", "ip");
+                new RegisterRequest("User@Test.fr", "password1", " Alice ", " Martin ", null),
+                "ua", "ip");
 
         assertThat(resp.accessToken()).isEqualTo("acc");
         assertThat(resp.refreshToken()).isEqualTo("ref");
@@ -122,6 +127,70 @@ class AuthServiceTest {
         assertThat(saved.getRole()).isEqualTo(Role.USER);
         assertThat(saved.getPasswordHash()).isEqualTo("hashed");
         verify(mailService).sendWelcomeEmail("user@test.fr", "Alice");
+    }
+
+    // -------------------------------------------------- register + démarche visée
+
+    /**
+     * Prépare une inscription qui aboutit, et rend l'id que le serveur posera
+     * sur le compte créé (le vrai id vient de {@code @UuidGenerator} au persist).
+     */
+    private UUID stubSuccessfulRegistration(String email) {
+        UUID id = UUID.randomUUID();
+        when(userManager.existsByEmail(email)).thenReturn(false);
+        when(passwordEncoder.encode(any())).thenReturn("hashed");
+        when(userManager.save(any())).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            if (u.getId() == null) u.setId(id);
+            return u;
+        });
+        User logged = userWith(email);
+        logged.setId(id);
+        when(authenticationManager.authenticate(any())).thenReturn(mock(Authentication.class));
+        when(userManager.findByEmail(email)).thenReturn(Optional.of(logged));
+        stubSessionFor(logged);
+        return id;
+    }
+
+    /**
+     * La démarche choisie sur l'écran de compte du diagnostic passe par
+     * l'UNIQUE point d'écriture ({@code MeService.updateTargetProcedure}), qui
+     * pose lui-même {@code target_level}. Le service d'inscription ne doit
+     * jamais écrire le palier : ce serait une seconde copie de la table
+     * démarche → niveau.
+     */
+    @Test
+    void register_withTargetProcedure_delegatesToTheSingleWritePoint() {
+        for (TargetProcedure procedure : TargetProcedure.values()) {
+            setUp(); // repart d'un jeu de mocks neuf pour chaque démarche
+            String email = procedure.name().toLowerCase() + "@test.fr";
+            UUID id = stubSuccessfulRegistration(email);
+
+            service.register(new RegisterRequest(email, "password1", "A", "B", procedure),
+                    "ua", "ip");
+
+            verify(meService).updateTargetProcedure(id, procedure);
+            org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
+            verify(userManager).save(captor.capture());
+            // Le palier n'est PAS posé par l'inscription : c'est le point
+            // d'écriture délégué (ici mocké) qui s'en charge.
+            assertThat(captor.getValue().getTargetLevel()).isNull();
+        }
+    }
+
+    /** Sans démarche (cas du mobile, qui a son écran de parcours dédié) : rien n'est touché. */
+    @Test
+    void register_withoutTargetProcedure_neverTouchesTheTargetColumns() {
+        String email = "sans@test.fr";
+        stubSuccessfulRegistration(email);
+
+        service.register(new RegisterRequest(email, "password1", "A", "B", null), "ua", "ip");
+
+        verify(meService, never()).updateTargetProcedure(any(), any());
+        org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
+        verify(userManager).save(captor.capture());
+        assertThat(captor.getValue().getTargetProcedure()).isNull();
+        assertThat(captor.getValue().getTargetLevel()).isNull();
     }
 
     // ------------------------------------------------------------------ login

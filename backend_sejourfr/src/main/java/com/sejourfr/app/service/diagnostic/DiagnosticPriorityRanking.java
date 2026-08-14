@@ -1,5 +1,7 @@
 package com.sejourfr.app.service.diagnostic;
 
+import com.sejourfr.app.enums.LearningPlanSkillStatus;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -56,6 +58,40 @@ final class DiagnosticPriorityRanking {
         }
         ranked.sort(PAR_IMPORTANCE);
         return ranked;
+    }
+
+    /**
+     * Une priorité <b>désignée</b> par le correcteur.
+     *
+     * <p>{@code priority} n'est plus ce que le modèle a écrit : c'est un champ
+     * dérivé de {@code status} par {@link DiagnosticAnalysisReconciler}, qui
+     * passe avant. Il vaut donc {@code true} exactement quand le correcteur a
+     * rendu {@code status=PRIORITY} sur une compétence observée.
+     */
+    static boolean designee(Map<String, Object> item) {
+        return Boolean.TRUE.equals(item.get("priority"));
+    }
+
+    /**
+     * Une <b>faiblesse observée</b>, c'est-à-dire ce dont le serveur dérive une
+     * priorité quand le correcteur n'en désigne aucune.
+     *
+     * <p>Mesuré sur deux diagnostics réels joués de bout en bout : le correcteur
+     * range ses faiblesses en {@code TO_REINFORCE} et ne pose jamais
+     * {@code status=PRIORITY} — les deux sessions sont ressorties avec zéro
+     * priorité, donc un Plan {@code ACTIVE} sans rien à faire. Rien dans les
+     * rubriques ne l'oblige à en désigner une (« <b>au plus</b> deux » est
+     * satisfait par zéro), et une consigne ne serait qu'un vœu : la dérivation
+     * est déterministe et serveur.
+     *
+     * <p><b>Ni {@code SOLID} ni {@code NOT_OBSERVED} ne devient jamais une
+     * priorité</b> : zéro faiblesse observée donne zéro priorité, et c'est un
+     * état légitime — on ne fabrique pas une priorité à partir de rien.
+     */
+    static boolean faiblesseObservee(Map<String, Object> item) {
+        return Boolean.TRUE.equals(item.get("observed"))
+                && LearningPlanSkillStatus.TO_REINFORCE.name()
+                        .equals(String.valueOf(item.get("status")).trim());
     }
 
     /** {@code HIGH} 3, {@code MEDIUM} 2, tout le reste 1. */

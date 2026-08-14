@@ -49,6 +49,7 @@ public class AuthService {
     private final SessionService sessionService;
     private final SubscriptionService subscriptionService;
     private final MailService mailService;
+    private final MeService meService;
     private final PasswordEncoder passwordEncoder;
 
     private final SecureRandom random = new SecureRandom();
@@ -102,6 +103,15 @@ public class AuthService {
     /**
      * Cree un compte USER puis enchaine sur {@link #login} pour retourner les
      * tokens (l'utilisateur est connecte sans avoir a re-saisir son mot de passe).
+     *
+     * <p><b>La démarche visée, si elle est fournie, passe par
+     * {@link MeService#updateTargetProcedure} — jamais par une écriture locale.</b>
+     * C'est le seul point d'écriture de {@code users.target_procedure} et donc le
+     * seul endroit qui pose {@code users.target_level} : poser le palier ici
+     * aurait fait une deuxième copie de la table démarche → niveau, exactement le
+     * défaut qui a tiré un candidat visant la naturalisation vers le B1. Sans
+     * démarche, on ne touche à rien (le mobile n'en envoie pas : il a son écran
+     * de parcours dédié).
      */
     public TokenResponse register(RegisterRequest req, String userAgent, String ipAddress) {
         String email = req.email().toLowerCase().trim();
@@ -117,6 +127,10 @@ public class AuthService {
         user.setRole(Role.USER);
         user.setCreatedAt(Instant.now());
         userManager.save(user);
+
+        if (req.targetProcedure() != null) {
+            meService.updateTargetProcedure(user.getId(), req.targetProcedure());
+        }
 
         mailService.sendWelcomeEmail(user.getEmail(), user.getFirstName());
 
