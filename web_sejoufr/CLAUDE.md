@@ -341,8 +341,10 @@ qui ne demande pas de Bearer et limite à 1 tentative/mois par IP.
 ## Temps des examens blancs TCF — un chrono PAR ÉPREUVE (2026-08-15)
 
 🛑 **Le chrono global de 90 min n'existe plus**, et `FULL_TCF_EXAM_DURATION_SEC` a été
-supprimée : le temps d'une épreuve ne se transfère jamais à la suivante, et l'abandon /
-reprise entre épreuves est officiellement supporté. Ne pas la réintroduire.
+supprimée : le temps d'une épreuve ne se transfère jamais à la suivante, et la reprise
+**entre** épreuves est officiellement supportée (cf. § *Suspendre un examen complet* :
+on reprend aux épreuves **jamais commencées**, jamais celle qui est en cours). Ne pas la
+réintroduire.
 
 - **Une seule source de vérité : le serveur.** `FullTcfExamSubAttempt` porte
   `timeLimitSeconds` (1200 CO · 2100 CE · 1800 EE · **null en EO**), `timerStartedAt` et
@@ -382,6 +384,96 @@ reprise entre épreuves est officiellement supporté. Ne pas la réintroduire.
   miroir mot pour mot du mobile — jamais une chaîne recopiée dans un composant. Le cas
   « pas de résultat global définitif » reste porté par `finalLevelPartial` /
   `epreuvesCountedInFinalLevel` : **ne pas créer de notion parallèle**.
+
+## Suspendre un examen complet — la règle de sortie (2026-08-15)
+
+> **Une épreuve COMMENCÉE ne se reprend jamais. Une épreuve JAMAIS COMMENCÉE
+> attend le candidat aussi longtemps qu'il faut.**
+
+Arbitrage propriétaire. Il **révoque** « quitter = abandonner » (vague 9) et
+complète le correctif de la flèche retour de la veille.
+
+- 🛑 **Aucun résultat tant que les 4 épreuves ne sont pas terminées.** Le hub
+  `/examens-blancs/tcf/[id]` n'a plus d'action menant au bilan depuis sa modale
+  de sortie : le bouton du bas est **« Suspendre l'examen »**, et sa modale ne
+  propose que **« Suspendre et reprendre plus tard »** / **« Continuer
+  l'examen »**. Rien n'appelle `fullTcfExamApi.finish` depuis cet écran.
+- **Suspendre clôture l'épreuve commencée, épargne les autres**, puis **sort de
+  la page** (`/examens-blancs`). Un examen suspendu **reste « en cours »
+  indéfiniment**, sans résultat, reprenable, et **garde son slot** dans la
+  grille : c'est **voulu**, ne pas le clôturer automatiquement pour libérer la
+  place.
+- **« Commencée » = `timerStartedAt != null`** sur le sous-attempt (l'ancre
+  posée par `POST /begin`). Même discriminant que l'état `not_taken` de
+  `subAttemptView` — **ne pas en inventer un second**.
+- **Règle et libellés déclarés une seule fois : `lib/full-exam-exit.ts`**
+  (`epreuvesAClore`, `fullExamSuspendMessage`, `epreuveExitMessage`,
+  `FULL_EXAM_SUSPEND_*`, `EPREUVE_EXIT_*`), **miroir mot pour mot** de
+  `mobile_sejourfr/lib/screens/tcf_full_exam/full_exam_exit_labels.dart`. La
+  modale **nomme l'épreuve** qui va être close ; **sans** épreuve commencée elle
+  dit simplement que la progression est conservée — on ne fait pas peur pour
+  rien.
+- **Quitter une épreuve la clôture aussi**, sur les trois écrans d'épreuve :
+  runner CO/CE (`/sessions/[id]?fullExamId=` → `quitMode="confirmFinish"` +
+  `quitConfirm`, `onCompleted` ramène au hub) et session EE/EO
+  (`ProductionSession` → `DetailShell onBack` = confirmation, puis
+  `markSubDone`). ⚠️ Cela **revient sur** le retrait de `markSubDone` du
+  « quitter » livré la veille : la règle produit a changé.
+- **Ce qui ne clôture RIEN** : la flèche/lien de retour du **hub**, un
+  démontage de composant, un back navigateur, une fermeture d'onglet. L'effet de
+  démontage de `ProductionSession` continue de **sauter** le cas `fullExamId` —
+  ne pas y ajouter de `markSubDone`, une navigation interne le déclencherait.
+  Et **aucune** épreuve jamais commencée n'est fermée par un geste de sortie.
+- **La grille dit « En cours · Reprendre »** : `ExamSlotData` porte
+  `reportLabel` et `restartable` — un examen `IN_PROGRESS` ouvre le **hub**,
+  jamais le bilan, et ne propose pas « Refaire » (parité mobile).
+- **Un examen dont les 4 épreuves sont closes reste finissable** : le hub
+  réaffiche « Voir mon résultat », et c'est la page bilan qui appelle `finish`.
+- **Backend inchangé** : `finish` refuse tant qu'un sous-attempt n'est pas
+  terminé, `beginEpreuve` ne ré-ancre jamais une épreuve terminée, et un attempt
+  fini refuse toute réponse (`submitAnswer` → « Session déjà terminée ») comme
+  toute soumission (`ProductionAccessService`). Rien à ajouter côté serveur.
+
+## Quitter un examen blanc QCM joué seul (2026-08-15)
+
+> **Quitter un examen, c'est le terminer.** La croix n'est pas un « je
+> reviendrai » : l'attempt est finalisé, donc définitif et non reprenable, et le
+> candidat arrive **directement sur son résultat**.
+
+Périmètre : civique global (40 Q), civique **par thème** (20 Q), examens TCF par
+épreuve (CO / CE / STRUCTURE via `moduleExamQuestionType`) et examens issus d'un
+`ExamTemplate` (diagnostic CO+CE, démo guest). **Hors périmètre** : les séries
+(`TRAINING`), où quitter n'a jamais rien coûté — `quitMode="link"`, comportement
+inchangé — et les sous-épreuves d'un examen complet (`fullExamId` présent), qui
+gardent les libellés de `lib/full-exam-exit.ts` : là, quitter **clôt l'épreuve
+sans ouvrir de bilan**.
+
+- **Mécanique inchangée** : `QuestionRunner quitMode="confirmFinish"` →
+  `ConfirmSheet` → `finishCurrentAttempt()` → `onCompleted` → écran de résultat.
+  Rien n'a été ajouté ; c'est le **texte** qui a changé, et il vit **une seule
+  fois** dans **`lib/mock-exam-exit.ts`** (`MOCK_EXAM_QUIT_TITLE` / `_MESSAGE` /
+  `_CONFIRM` / `_CANCEL`), **miroir mot pour mot** de
+  `mobile_sejourfr/lib/screens/question_runner/mock_exam_exit_labels.dart`.
+- **Le message dit les TROIS conséquences**, avant l'action : il ne pourra plus
+  reprendre cet examen ; il aura son résultat sur ce qu'il a déjà répondu ; les
+  questions restantes seront comptées **non répondues** (et pas « comptées comme
+  fausses », qui décrivait mal ce que fait le serveur).
+- **Le bouton de confirmation NOMME l'issue** — « Quitter et voir mon
+  résultat », jamais un « Confirmer » neutre. C'est une demande explicite du
+  propriétaire : la croix devient destructrice sur un simple appui, la
+  confirmation est la seule protection, elle doit être lisible.
+- **Annuler ne coûte rien… sauf le temps** : on revient à la question, aucune
+  réponse n'est perdue, mais le chrono a continué de courir — quitter ne
+  suspend jamais rien (règle du dépôt).
+- **Ce qui ne finalise RIEN** : le back navigateur, la fermeture d'onglet, un
+  rechargement. Aucun `beforeunload` n'est posé — un examen ne doit **jamais**
+  être finalisé sans confirmation. Conséquence assumée : sortir par le
+  navigateur laisse l'attempt reprenable, le serveur restant l'arbitre.
+  ⚠️ Ne pas « corriger » ce trou en finalisant sur `unload` ou au démontage.
+- **Ce qui finalise sans confirmation, et c'est normal** : l'expiration du
+  chrono (`timeLimitSeconds` atteint → `finishCurrentAttempt()`) et le **422**
+  « hors délai » sur une réponse (`finishCurrentAttempt(true)`, message serveur
+  conservé). Ce ne sont pas des gestes de sortie : c'est la règle de l'examen.
 
 ## Paiement — abonnements récurrents (lot 4b)
 
@@ -897,12 +989,11 @@ Chantier découpé en vagues :
     - **Intégration runners** : CO/CE (`/sessions/[attemptId]?fullExamId=`) et EE/EO
       (`ProductionSession`, `?fullExamId=`) détectent le param → retour au hub
       (`/examens-blancs/tcf/[id]`) au lieu du rapport individuel.
-    - **Quitter = abandonner** : on ne laisse pas d'examen « en cours ». Hub →
-      bouton « Abandonner » (`ConfirmSheet`) → finalise les épreuves incomplètes
-      (CO/CE `attemptApi.finish` = 0 si rien ; EE/EO `markSubDone`) puis `finish`
-      parent → bilan (corrige aussi l'auto-finish chrono 0 qui plantait sur un
-      examen incomplet). Examens autonomes (diagnostic guest, mocks) :
-      `QuestionRunner` prop `quitMode="confirmFinish"` → avertit + finalise.
+    - ⚠️ **« Quitter = abandonner » est RÉVOQUÉ** (2026-08-15) : le hub ne
+      finalise plus l'examen et n'ouvre plus le bilan. Cf. la section
+      *Suspendre un examen complet* ci-dessous, qui fait foi. Les examens
+      autonomes (diagnostic guest, mocks) gardent, eux,
+      `QuestionRunner quitMode="confirmFinish"` → avertit + finalise + résultat.
     - **Freemium** : sur `/examens-blancs`, **connecté gratuit ET abonné voient
       la même grille d'examen complet** (`fullExamSlotData`, `fullTcfExamApi`).
       Gratuit → `premium={false} freeSlots={1}` : **examen 1 offert** (EE/EO

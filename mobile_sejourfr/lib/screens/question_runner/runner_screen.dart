@@ -20,7 +20,9 @@ import '../civique/civique_full_exams_screen.dart' show civiqueGlobalExamsProvid
 import '../module_detail/civique_hub_data.dart' show civiqueThemeExamsHistoryProvider;
 import '../module_detail/qcm_hub_data.dart' show qcmExamsHistoryProvider;
 import '../module_detail/tcf_full_exams_screen.dart' show fullExamsHistoryProvider;
+import '../tcf_full_exam/full_exam_exit_labels.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
+import 'mock_exam_exit_labels.dart';
 import 'runner_controller.dart';
 import 'widgets/choice_tile.dart';
 import 'widgets/exam_timer.dart';
@@ -158,6 +160,41 @@ class _RunnerView extends ConsumerWidget {
     final isFavorite =
         state.favoriteQuestionIds.contains(state.current.question.id);
 
+    // Sur un **examen blanc** — épreuve d'un complet comme examen joué seul —
+    // le back système (et le geste de retour iOS) doit faire exactement ce que
+    // fait la croix : confirmer, puis clôturer. Sans cette interception, on
+    // sortait par le bas sans rien clore et l'examen se serait repris, ce que
+    // la règle interdit. Les séries d'entraînement, elles, se quittent
+    // librement : rien n'y est perdu, la correction y est immédiate.
+    return PopScope(
+      canPop: !isExam,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop || !isExam) return;
+        await _confirmQuit(context, ref);
+      },
+      child: _buildScaffold(context, ref, question, isExam, isTraining,
+          selected, isFavorite),
+    );
+  }
+
+  /// `fullExamId` **seulement** quand ce runner joue une épreuve d'examen
+  /// complet (`from=fullTcf`) — jamais sur un examen module ou une série.
+  static String? _fullExamIdOf(BuildContext context) {
+    final goState = GoRouterState.of(context);
+    return goState.uri.queryParameters['from'] == 'fullTcf'
+        ? goState.uri.queryParameters['fullExamId']
+        : null;
+  }
+
+  Widget _buildScaffold(
+    BuildContext context,
+    WidgetRef ref,
+    QuestionDto question,
+    bool isExam,
+    bool isTraining,
+    List<String> selected,
+    bool isFavorite,
+  ) {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -302,12 +339,49 @@ class _RunnerView extends ConsumerWidget {
   Future<void> _confirmQuit(BuildContext context, WidgetRef ref) async {
     final isTraining = state.activeAttempt.type == AttemptType.training;
     final isInfinite = state.isInfiniteTraining;
-    final title =
-        isInfinite ? 'Terminer la session ?' : 'Quitter cette session ?';
-    final message = isInfinite
-        ? 'Vos réponses ont été enregistrées. Vous pourrez consulter cette session dans votre historique.'
-        : 'Votre progression dans cette session sera conservée. Vous pourrez la reprendre plus tard.';
-    final confirmLabel = isInfinite ? 'Terminer' : 'Quitter';
+    // Épreuve d'un examen blanc TCF complet : elle a été **commencée** (le hub
+    // appelle `POST /begin` avant d'ouvrir le runner), donc elle ne se reprend
+    // jamais — quitter la clôture, avec ce qui a été répondu. Les épreuves
+    // suivantes, elles, attendent le candidat.
+    final fullExamId = _fullExamIdOf(context);
+    final isFullExamEpreuve = fullExamId != null;
+    // Examen blanc joué seul (civique global ou par thème, TCF CO/CE/STRUCTURE,
+    // template) : quitter, c'est le **terminer**. Il ne se reprend plus, le
+    // candidat va droit à son résultat, et le reste est compté non répondu.
+    final isStandaloneExam =
+        state.activeAttempt.isMockExam && !isFullExamEpreuve;
+    final title = isFullExamEpreuve
+        ? kEpreuveExitTitle
+        : isStandaloneExam
+            ? kMockExamQuitTitle
+            : isInfinite
+                ? 'Terminer la session ?'
+                : 'Quitter cette session ?';
+    final message = isFullExamEpreuve
+        ? epreuveExitMessage(
+            switch (state.activeAttempt.moduleExamQuestionType) {
+              QuestionType.co || QuestionType.coImage => EpreuveType.tcfCo,
+              QuestionType.ce => EpreuveType.tcfCe,
+              _ => null,
+            },
+          )
+        : isStandaloneExam
+            ? kMockExamQuitMessage
+            : isInfinite
+                ? 'Vos réponses ont été enregistrées. Vous pourrez consulter cette session dans votre historique.'
+                : 'Votre progression dans cette session sera conservée. Vous pourrez la reprendre plus tard.';
+    final confirmLabel = isFullExamEpreuve
+        ? kEpreuveExitConfirm
+        : isStandaloneExam
+            ? kMockExamQuitConfirm
+            : isInfinite
+                ? 'Terminer'
+                : 'Quitter';
+    final cancelLabel = isFullExamEpreuve
+        ? kEpreuveExitCancel
+        : isStandaloneExam
+            ? kMockExamQuitCancel
+            : 'Annuler';
 
     final result = await showDialog<bool>(
       context: context,
@@ -323,7 +397,7 @@ class _RunnerView extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Annuler'),
+            child: Text(cancelLabel),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
@@ -341,9 +415,38 @@ class _RunnerView extends ConsumerWidget {
     if (result != true) return;
     if (!context.mounted) return;
 
+    // Épreuve d'un examen complet : on **clôture** (le backend compte les
+    // questions non répondues comme fausses), puis on revient au hub, qui
+    // débloque l'épreuve suivante. Aucun `finish` du parent : l'examen reste
+    // « en cours », sans résultat, tant que les 4 épreuves ne sont pas
+    // terminées.
+    if (isFullExamEpreuve) {
+      await ref.read(runnerControllerProvider(attemptId).notifier).finish();
+      if (!context.mounted) return;
+      ref.invalidate(fullTcfExamProvider(fullExamId));
+      context.go(
+        AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', fullExamId),
+      );
+      return;
+    }
+
+    // Examen blanc joué seul : on **finalise** (le backend calcule le score sur
+    // les réponses existantes, les questions restantes demeurent non
+    // répondues), puis on va droit au résultat. L'examen est définitif : plus
+    // aucune réponse ne sera acceptée dessus. Une finalisation qui échoue
+    // (réseau) laisse le candidat sur sa question, avec le message d'erreur —
+    // on ne sort jamais en lui faisant croire que c'est fait.
+    if (isStandaloneExam) {
+      final attempt =
+          await ref.read(runnerControllerProvider(attemptId).notifier).finish();
+      if (attempt == null || !context.mounted) return;
+      _navigateToResult(context, ref, attempt);
+      return;
+    }
+
     // En entraînement infini, on finalise le batch courant pour que les
-    // réponses comptent dans les stats. En examen ou training non-infini,
-    // on quitte sans finaliser (resume possible).
+    // réponses comptent dans les stats. En training non-infini, on quitte sans
+    // finaliser (resume possible).
     if (isTraining && isInfinite) {
       await ref.read(runnerControllerProvider(attemptId).notifier).finish();
     }

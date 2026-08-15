@@ -916,7 +916,53 @@ garder runner et rapport cohérents.
 
 **Reprise d'un attempt** : si l'utilisateur quitte le runner avant de finir, l'attempt reste en cours côté
 backend. À la reprise, `RunnerController._load()` recalcule l'index de départ : première question non
-répondue, sinon dernière.
+répondue, sinon dernière. ⚠️ **Cela ne vaut plus pour un examen blanc** — cf. juste en dessous.
+
+### 🛑 Quitter un examen blanc QCM joué seul (2026-08-15)
+
+> **Quitter un examen, c'est le terminer.** La croix — et le retour système —
+> n'est pas un « je reviendrai » : l'attempt est finalisé, donc définitif et non
+> reprenable, et le candidat arrive **directement sur son résultat**.
+
+Périmètre : civique global (40 Q), civique **par thème** (20 Q), examens TCF par
+épreuve (CO / CE / STRUCTURE) et examens issus d'un `ExamTemplate`. **Hors
+périmètre** : les séries (`AttemptType.training`), où quitter n'a jamais rien
+coûté (comportement inchangé : entraînement infini → on finalise le batch,
+sinon on pop et la session se reprend), et les sous-épreuves d'un examen complet
+(`from=fullTcf`), qui gardent les libellés de
+`screens/tcf_full_exam/full_exam_exit_labels.dart` : là, quitter **clôt
+l'épreuve sans ouvrir de bilan**.
+
+- **C'était le vrai écart avec le web** : `_confirmQuit` ne finalisait que
+  l'entraînement infini — en examen module il **poppait sans finaliser**, donc
+  l'examen restait reprenable, alors que le web le clôturait déjà.
+  `_RunnerView._confirmQuit` appelle désormais `finish()` puis
+  `_navigateToResult` (qui pousse `AppRoutes.examResult` en `pushReplacement` et
+  invalide les 4 historiques). Une finalisation en échec (réseau) **laisse le
+  candidat sur sa question**, avec le message d'erreur : on ne sort jamais en
+  lui faisant croire que c'est fait.
+- **Le back système et le geste de retour iOS suivent EXACTEMENT la croix** :
+  `PopScope(canPop: !isExam)` (c'était `!isFullExamEpreuve`) → `_confirmQuit`.
+  Sans ça on sortait par le bas sans rien clore. Le runner est **hors
+  `ShellRoute`** : aucune bottom nav par laquelle s'échapper.
+- **Libellés déclarés une seule fois** dans
+  `screens/question_runner/mock_exam_exit_labels.dart` (`kMockExamQuitTitle` /
+  `…Message` / `…Confirm` / `…Cancel`), **miroir mot pour mot** de
+  `web_sejoufr/lib/mock-exam-exit.ts`. Le message dit les **trois**
+  conséquences avant l'action : plus de reprise ; un résultat sur ce qui a été
+  répondu ; les questions restantes comptées **non répondues**. Le bouton de
+  confirmation **nomme l'issue** — « Quitter et voir mon résultat », jamais un
+  « Confirmer » neutre : la croix devient destructrice sur un simple appui, la
+  confirmation est la seule protection.
+- **Annuler ne coûte rien… sauf le temps** : on revient à la question, aucune
+  réponse n'est perdue, mais le chrono a continué de courir.
+- **Ce qui ne finalise RIEN** : mettre l'app en arrière-plan, la tuer. Un examen
+  n'est **jamais** finalisé sans confirmation — ne pas ajouter de `finish` dans
+  un `dispose` ou un `AppLifecycleState.paused`.
+- **Ce qui finalise sans confirmation, et c'est normal** : l'expiration du
+  chrono (`ExamTimer.onElapsed` → `_autoFinish`) et le **422** « hors délai »
+  sur une réponse (`_handleTimeExpired`). Ce ne sont pas des gestes de sortie :
+  c'est la règle de l'examen.
 
 **Médias** : le `QuestionDto.media` est un `MediaDto` optionnel avec un `type` (AUDIO/IMAGE/VIDEO) + une
 `url`. Le `QuestionMediaView` dispatche vers le bon widget. Pour l'instant, les questions du seed ne
@@ -2084,8 +2130,9 @@ dans `screens/tcf_full_exam/` :
 ### 🛑 Le temps d'un examen TCF — refonte 2026-08-15
 
 - **Le chrono global de 90 min est SUPPRIMÉ.** Le temps d'une épreuve ne se transfère jamais à la
-  suivante et l'abandon-reprise entre épreuves est officiellement supporté : un décompte global n'a
-  plus de sens. Les 4 durées font **~95 min**, annoncé comme **indicatif**. Ne pas réintroduire
+  suivante et la reprise **entre** épreuves est officiellement supportée (cf. § *Suspendre un
+  examen* : on reprend aux épreuves **jamais commencées**, jamais celle qui est en cours) : un
+  décompte global n'a plus de sens. Les 4 durées font **~95 min**, annoncé comme **indicatif**. Ne pas réintroduire
   `_fullExamTotal` ni un timer ancré sur `FullTcfExamResponse.timerStartedAt` (qui n'est plus qu'une
   trace du début, servant au statut de continuité).
 - **Chaque épreuve a son chrono propre, servi par le DTO** :
@@ -2128,6 +2175,48 @@ dans `screens/tcf_full_exam/` :
   ⚠️ **Ne pas y ajouter un 3ᵉ cas** « pas de résultat global définitif » : il existe déjà, c'est
   `finalLevelPartial` / `epreuvesCountedInFinalLevel`, qui répondent à une autre question (sur combien
   d'épreuves porte le niveau).
+
+### 🛑 Suspendre un examen — la règle de sortie (2026-08-15)
+
+> **Une épreuve COMMENCÉE ne se reprend jamais. Une épreuve JAMAIS COMMENCÉE
+> attend le candidat aussi longtemps qu'il faut.**
+
+Arbitrage propriétaire, appliqué à l'identique sur le web. Il **révoque** « quitter =
+abandonner » et **revient en partie** sur le correctif de la veille (`markSubDone` retiré du
+« quitter » des épreuves EE/EO) : la règle produit a changé, c'est voulu.
+
+- 🛑 **Aucun résultat tant que les 4 épreuves ne sont pas terminées.** Le hub
+  (`TcfFullExamProgressScreen`) n'a plus d'action menant au bilan depuis sa feuille de sortie :
+  le bouton du bas est **« Suspendre l'examen »**, et la feuille ne propose que **« Suspendre et
+  reprendre plus tard »** / **« Continuer l'examen »**. Plus aucun `finish` du parent depuis cet
+  écran.
+- **Suspendre clôture l'épreuve commencée, épargne les autres**, puis **sort de l'écran**. Un
+  examen suspendu **reste « en cours » indéfiniment**, sans résultat, reprenable, et **garde son
+  slot** dans la grille : c'est **voulu**, ne pas le clôturer automatiquement pour libérer la
+  place.
+- **« Commencée » = `FullTcfExamSubAttempt.commencee`** (`timerStartedAt != null`, l'ancre posée
+  par `POST /begin`) — le discriminant dont `jamaisOuverte` est la lecture « close sans avoir été
+  ouverte ». **Ne pas en inventer un second.**
+- **Règle et libellés déclarés une seule fois** :
+  `screens/tcf_full_exam/full_exam_exit_labels.dart` (`epreuvesAClore`, `fullExamSuspendMessage`,
+  `epreuveExitMessage`, `kFullExamSuspend*`, `kEpreuveExit*`), **miroir mot pour mot** de
+  `web_sejoufr/lib/full-exam-exit.ts`. La feuille **nomme l'épreuve** qui va être close ;
+  **sans** épreuve commencée elle dit simplement que la progression est conservée — on ne fait
+  pas peur pour rien.
+- **Quitter une épreuve la clôture aussi**, sur les trois écrans d'épreuve :
+  `runner_screen` (CO/CE lancé avec `from=fullTcf` → `finish()` puis retour au hub),
+  `ee_briefing_writing_screen` et `eo_briefing_screen` (→ `markSubDone`). Le `PopScope`/back
+  système passe par le même chemin : back = quitter = clôturer.
+- **Ce qui ne clôture RIEN** : la **flèche retour du hub** (elle sort de l'écran, point), la mise
+  en arrière-plan, la fermeture de l'app. Et **aucune** épreuve jamais commencée n'est fermée par
+  un geste de sortie.
+- **La grille dit déjà « En cours · Reprendre »** (`tcf_full_exams_screen`) et ouvre le hub, pas
+  le bilan — c'est le web qui s'est aligné dessus.
+- **Un examen dont les 4 épreuves sont closes reste finissable** : le hub réaffiche « Voir mon
+  résultat », et c'est l'écran de bilan qui appelle `finish`.
+- **Backend inchangé** : `finish` refuse tant qu'un sous-attempt n'est pas terminé, `beginEpreuve`
+  ne ré-ancre jamais une épreuve terminée, et un attempt fini refuse toute réponse comme toute
+  soumission.
 
 **Freemium (parité web/backend)** : l'examen complet n'est plus 100 % premium.
 `TcfFullExamsView` ouvre le **slot 1 aux comptes gratuits** (examen offert,

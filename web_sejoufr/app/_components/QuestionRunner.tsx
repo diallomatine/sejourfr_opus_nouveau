@@ -19,6 +19,12 @@ import {
   type StartAttemptRequest,
   type SubmitAnswerRequest,
 } from "@/lib/types";
+import {
+  MOCK_EXAM_QUIT_CANCEL,
+  MOCK_EXAM_QUIT_CONFIRM,
+  MOCK_EXAM_QUIT_MESSAGE,
+  MOCK_EXAM_QUIT_TITLE,
+} from "@/lib/mock-exam-exit";
 
 export type RunnerMode = "training" | "exam";
 
@@ -69,9 +75,23 @@ export interface QuestionRunnerProps {
   /** Comportement du bouton "X" :
    *  - "link" (défaut) : navigue vers `quitHref` (entraînement, épreuve d'un
    *    examen complet → retour au hub).
-   *  - "confirmFinish" : avertit puis FINALISE l'examen (questions non répondues
-   *    comptées 0) et affiche le résultat — pas d'examen laissé « en cours ». */
+   *  - "confirmFinish" : avertit puis FINALISE l'attempt (les questions non
+   *    répondues restent non répondues, le score porte sur ce qui a été
+   *    répondu). Sur un examen blanc joué seul, le résultat s'affiche — quitter
+   *    un examen, c'est le terminer, il ne se reprend plus ; sur une épreuve
+   *    d'examen complet, `onCompleted` ramène au hub, l'épreuve est close et
+   *    les suivantes attendent. **Jamais de fermeture destructrice sur un
+   *    simple appui** : la confirmation est la seule protection. */
   quitMode?: "link" | "confirmFinish";
+  /** Textes de la confirmation de sortie. Le défaut décrit un examen blanc joué
+   *  seul (`lib/mock-exam-exit.ts`) ; une épreuve d'examen complet passe les
+   *  siens (`lib/full-exam-exit.ts`). */
+  quitConfirm?: {
+    title: string;
+    message: string;
+    confirmLabel: string;
+    cancelLabel: string;
+  };
   /** Appelé quand l'attempt actif est finalisé (score disponible). */
   onCompleted: (finalAttempt: AttemptResponse) => void;
   /** Mode exam : décompte total en secondes. Quand 0, on auto-finalise. */
@@ -83,6 +103,15 @@ export interface QuestionRunnerProps {
   /** Backend adapter : par défaut, endpoints authentifiés. La démo guest injecte les endpoints publics. */
   backend?: RunnerBackend;
 }
+
+/** Examen blanc joué seul : quitter finalise et montre le résultat.
+ *  Libellés déclarés une seule fois dans `lib/mock-exam-exit.ts`. */
+const DEFAULT_QUIT_CONFIRM = {
+  title: MOCK_EXAM_QUIT_TITLE,
+  message: MOCK_EXAM_QUIT_MESSAGE,
+  confirmLabel: MOCK_EXAM_QUIT_CONFIRM,
+  cancelLabel: MOCK_EXAM_QUIT_CANCEL,
+} as const;
 
 const DEFAULT_BACKEND: RunnerBackend = {
   submitAnswer: (id, body) => attemptApi.submitAnswer(id, body),
@@ -123,6 +152,7 @@ export function QuestionRunner({
   eyebrow,
   quitHref,
   quitMode = "link",
+  quitConfirm = DEFAULT_QUIT_CONFIRM,
   onCompleted,
   timeLimitSeconds,
   startedAt,
@@ -314,8 +344,11 @@ export function QuestionRunner({
     }
   }, [infinite, extensionParams, backend]);
 
-  // Quitter un examen autonome : avertit puis finalise (le reste compte 0) et
-  // montre le résultat — on ne laisse jamais un examen « en cours ».
+  // Quitter en mode `confirmFinish` : on avertit, puis on finalise l'attempt
+  // (le score porte sur ce qui a été répondu, le reste reste non répondu).
+  // Examen blanc joué seul → le résultat s'affiche, et l'examen ne se reprend
+  // plus. Épreuve d'un examen complet → `onCompleted` ramène au hub : l'épreuve
+  // est close, les suivantes attendent, et l'examen reste sans résultat.
   const [quitConfirmOpen, setQuitConfirmOpen] = useState(false);
   const confirmQuit = useCallback(() => {
     setQuitConfirmOpen(false);
@@ -798,10 +831,10 @@ export function QuestionRunner({
       <ConfirmSheet
         open={quitConfirmOpen}
         tone="warning"
-        title="Quitter l'examen ?"
-        message="Si vous quittez maintenant, l'examen est finalisé : les questions non répondues sont comptées comme fausses. Vous verrez votre résultat. Cette action est définitive."
-        confirmLabel="Quitter et voir le résultat"
-        cancelLabel="Continuer l'examen"
+        title={quitConfirm.title}
+        message={quitConfirm.message}
+        confirmLabel={quitConfirm.confirmLabel}
+        cancelLabel={quitConfirm.cancelLabel}
         onConfirm={confirmQuit}
         onClose={() => setQuitConfirmOpen(false)}
       />
