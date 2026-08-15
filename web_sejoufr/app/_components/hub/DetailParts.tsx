@@ -30,6 +30,13 @@ export interface ExamSlotData {
    *  seuil (`passThreshold`) ; un examen sans seuil ni métadonnée « en cours »
    *  compte comme réussi. */
   passed?: boolean | null;
+  /** Libellé du bouton qui ouvre l'examen existant. Défaut « Rapport » ; un
+   *  examen **encore en cours** dit « Reprendre » — il n'a pas de rapport. */
+  reportLabel?: string;
+  /** `false` retire « Refaire » : on ne relance pas par-dessus un examen qui
+   *  n'est pas terminé (parité mobile, où la carte d'un examen en cours ne
+   *  propose que la reprise). Défaut `true`. */
+  restartable?: boolean;
 }
 
 /**
@@ -41,6 +48,7 @@ export interface ExamSlotData {
 export function DetailShell({
   backHref,
   backLabel,
+  onBack,
   eyebrowIcon,
   eyebrow,
   title,
@@ -50,6 +58,9 @@ export function DetailShell({
 }: {
   backHref: string;
   backLabel: string;
+  /** Intercepte le retour (confirmation avant de sortir). Absent : simple lien
+   *  vers `backHref`, comportement historique. */
+  onBack?: () => void;
   eyebrowIcon: React.ReactNode;
   eyebrow: string;
   title: string;
@@ -59,10 +70,17 @@ export function DetailShell({
 }) {
   return (
     <main className={styles.wrap}>
-      <Link href={backHref} className={styles.back}>
-        <ArrowLeft size={16} aria-hidden />
-        {backLabel}
-      </Link>
+      {onBack ? (
+        <button type="button" className={styles.back} onClick={onBack}>
+          <ArrowLeft size={16} aria-hidden />
+          {backLabel}
+        </button>
+      ) : (
+        <Link href={backHref} className={styles.back}>
+          <ArrowLeft size={16} aria-hidden />
+          {backLabel}
+        </Link>
+      )}
       <header className={styles.head}>
         <div className={styles.headText}>
           <div className={styles.eyebrow}>
@@ -347,6 +365,8 @@ export function ExamsGrid({
                   : null
               }
               reportHref={exam ? (reportPath?.(exam.id) ?? `/sessions/${exam.id}`) : undefined}
+              reportLabel={exam?.reportLabel}
+              restartable={exam?.restartable ?? true}
               locked={locked}
               lockedLabel={lockedLabel}
               starting={starting}
@@ -394,6 +414,8 @@ export function ExamCard({
   passed = null,
   itemLabel = "Examen",
   reportHref,
+  reportLabel = "Rapport",
+  restartable = true,
   onStart,
   onLocked,
 }: {
@@ -414,6 +436,10 @@ export function ExamCard({
   itemLabel?: string;
   /** Cible du bouton Rapport (défaut : /sessions/{id}). */
   reportHref?: string;
+  /** Libellé de ce bouton — « Reprendre » quand l'examen n'est pas terminé. */
+  reportLabel?: string;
+  /** `false` : pas de « Refaire » (examen encore en cours). */
+  restartable?: boolean;
   onStart: (slot: number) => void;
   onLocked: () => void;
 }) {
@@ -461,16 +487,18 @@ export function ExamCard({
       <div className={styles.examBtns}>
         {done ? (
           <>
-            <button
-              type="button"
-              className={styles.examBtn}
-              onClick={locked ? onLocked : () => onStart(slot)}
-              disabled={!locked && starting}
-            >
-              <RotateCw size={15} aria-hidden /> Refaire
-            </button>
+            {restartable && (
+              <button
+                type="button"
+                className={styles.examBtn}
+                onClick={locked ? onLocked : () => onStart(slot)}
+                disabled={!locked && starting}
+              >
+                <RotateCw size={15} aria-hidden /> Refaire
+              </button>
+            )}
             <Link href={reportHref ?? `/sessions/${exam.id}`} className={styles.examBtn}>
-              Rapport
+              {reportLabel}
             </Link>
           </>
         ) : locked ? (

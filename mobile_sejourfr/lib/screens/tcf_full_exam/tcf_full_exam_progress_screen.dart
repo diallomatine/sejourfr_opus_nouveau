@@ -13,6 +13,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/epreuve_duration.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_sheet.dart';
+import 'full_exam_exit_labels.dart';
 import 'full_tcf_exam_provider.dart';
 
 /// Hub de progression d'un examen blanc TCF complet : 4 étapes (CO → CE →
@@ -40,20 +41,30 @@ import 'full_tcf_exam_provider.dart';
 /// serveur** à la lecture suivante, avec ce qui était enregistré. Il n'existe
 /// aucun flux « recommencer une épreuve interrompue ».
 ///
-/// **Sortir ≠ abandonner** (parité web). Deux gestes distincts, jamais
+/// **Sortir ≠ suspendre** (parité web). Deux gestes distincts, jamais
 /// confondus :
 /// - la **flèche retour** de la barre du haut *sort de l'écran*, point final —
-///   aucune finalisation, aucun appel serveur, l'examen reste reprenable ;
-/// - le bouton **« Abandonner l'examen »**, lui seul, mène à la finalisation.
+///   aucune finalisation, aucun appel serveur, rien n'est clos ;
+/// - le bouton **« Suspendre l'examen »** clôture l'épreuve **commencée** puis
+///   sort.
 ///
 /// La flèche a longtemps porté l'abandon : un candidat qui avait fini CO + CE
 /// et quittait l'écran voyait ses EE et EO closes en 54 ms, avec un niveau
 /// attribué à des épreuves jamais passées.
 ///
-/// **Abandon** : on affiche un avertissement qui **nomme la reprise**, puis on
-/// finalise chaque épreuve non terminée (CO/CE = score sur les réponses
-/// données, 0 si aucune ; EE/EO = `sub-done`), on finalise le parent et on
-/// route vers le bilan.
+/// 🛑 **Il n'y a AUCUN résultat tant que les 4 épreuves ne sont pas terminées**
+/// (arbitrage propriétaire, 2026-08-15) : le hub ne propose plus « abandonner
+/// et voir le résultat ». **Suspendre** applique la règle unique de
+/// `full_exam_exit_labels.dart` — l'épreuve **commencée** est clôturée
+/// sur-le-champ, définitivement, avec ce qui a été enregistré ; celles qui
+/// n'ont **jamais été ouvertes** sont épargnées et attendent le candidat. Ni
+/// `finish` du parent, ni navigation vers le bilan : l'examen reste « en
+/// cours » indéfiniment, garde son slot dans la grille, et se reprend. C'est
+/// **voulu** — ne pas le clôturer automatiquement pour libérer la place.
+///
+/// Le bilan reste accessible quand les 4 épreuves **sont** terminées (y compris
+/// par clôtures successives) : le CTA « Voir mon résultat » réapparaît, et
+/// c'est l'écran de bilan qui appelle `finish`.
 class TcfFullExamProgressScreen extends ConsumerStatefulWidget {
   const TcfFullExamProgressScreen({super.key, required this.parentAttemptId});
 
@@ -69,7 +80,7 @@ class _TcfFullExamProgressScreenState
     with WidgetsBindingObserver {
   Timer? _ticker;
   bool _expiryHandled = false;
-  bool _finishing = false;
+  bool _suspending = false;
 
   @override
   void initState() {
@@ -146,23 +157,23 @@ class _TcfFullExamProgressScreenState
                 return _ProgressView(
                   exam: exam,
                   remaining: remaining,
-                  finishing: _finishing,
+                  suspending: _suspending,
                   onExit: () => _close(context),
-                  onQuit: () => _confirmQuit(exam),
+                  onSuspend: () => _confirmSuspend(exam),
                 );
               },
             ),
           ),
-          if (_finishing) const Positioned.fill(child: _FinishingOverlay()),
+          if (_suspending) const Positioned.fill(child: _SuspendingOverlay()),
         ],
       ),
     );
   }
 
-  /// Avertit avant d'abandonner un examen en cours, puis finalise. Si l'examen
-  /// est déjà finalisé (éval IA en cours / terminé) ou que les 4 épreuves sont
-  /// jouées, il n'y a rien à abandonner → simple sortie.
-  Future<void> _confirmQuit(FullTcfExamResponse exam) async {
+  /// Annonce **épreuve par épreuve** ce que la suspension va coûter, puis
+  /// suspend. Si l'examen est déjà finalisé (éval IA en cours / terminé) ou que
+  /// les 4 épreuves sont jouées, il n'y a rien à suspendre → simple sortie.
+  Future<void> _confirmSuspend(FullTcfExamResponse exam) async {
     final allDone = exam.currentStepIndex >= 4;
     if (exam.finishedAt != null || allDone) {
       _close(context);
@@ -170,44 +181,42 @@ class _TcfFullExamProgressScreenState
     }
     final confirmed = await showAppSheet<bool>(
       context,
-      icon: LucideIcons.triangleAlert,
+      icon: LucideIcons.pause,
       iconBg: AppColors.redLight,
       iconColor: AppColors.red,
-      title: 'Abandonner l\'examen ?',
-      sub: 'Pour reprendre plus tard, quittez simplement cet écran avec la '
-          'flèche : votre progression est gardée (le chrono d\'une épreuve '
-          'déjà lancée, lui, continue de courir). Abandonner est définitif : '
-          'les épreuves restantes sont comptées 0 et l\'examen est finalisé. '
-          'Vous verrez votre résultat.',
+      title: kFullExamSuspendTitle,
+      sub: fullExamSuspendMessage(epreuvesAClore(exam)),
       children: [
         AppButton(
-          label: 'Abandonner et voir le résultat',
-          variant: AppButtonVariant.danger,
+          label: kFullExamSuspendConfirm,
           onPressed: () => Navigator.pop(context, true),
         ),
         AppButton(
-          label: 'Continuer l\'examen',
+          label: kFullExamSuspendCancel,
           variant: AppButtonVariant.ghost,
           onPressed: () => Navigator.pop(context, false),
         ),
       ],
     );
     if (confirmed == true) {
-      await _finalizeAndGoToBilan(exam);
+      await _suspendAndLeave(exam);
     }
   }
 
-  /// Finalise l'examen et va au bilan. Toute épreuve non terminée est finalisée
-  /// (CO/CE = score sur les réponses données, 0 si aucune ; EE/EO = `markSubDone`
-  /// → comptée A1 non atteint côté backend), sinon le `finish` parent échouerait
-  /// (le backend exige les 4 terminées). Parité avec le web.
-  Future<void> _finalizeAndGoToBilan(FullTcfExamResponse exam) async {
-    if (_finishing) return;
-    setState(() => _finishing = true);
+  /// Suspend l'examen : on clôture sur-le-champ l'épreuve **commencée** (elle
+  /// ne se reprend jamais), on **épargne** celles qui n'ont jamais été ouvertes,
+  /// et on sort de l'écran.
+  ///
+  /// 🛑 Aucun `finish` du parent, aucune navigation vers le bilan : il n'y a pas
+  /// de résultat tant que les 4 épreuves ne sont pas terminées, et un examen
+  /// suspendu reste « en cours » indéfiniment, reprenable, occupant son slot
+  /// dans la grille. Parité avec le web.
+  Future<void> _suspendAndLeave(FullTcfExamResponse exam) async {
+    if (_suspending) return;
+    setState(() => _suspending = true);
     final repo = ref.read(fullTcfExamRepositoryProvider);
     final attempts = ref.read(attemptsRepositoryProvider);
-    for (final sa in exam.subAttempts) {
-      if (sa.finishedAt != null) continue;
+    for (final sa in epreuvesAClore(exam)) {
       try {
         if (sa.epreuve == EpreuveType.tcfCo ||
             sa.epreuve == EpreuveType.tcfCe) {
@@ -219,16 +228,13 @@ class _TcfFullExamProgressScreenState
           );
         }
       } catch (_) {
-        // Best-effort : on tente quand même le finish parent.
+        // Best-effort : la sortie ne doit jamais être bloquée par un aléa
+        // réseau.
       }
     }
-    try {
-      await repo.finish(exam.id);
-    } catch (_) {
-      // Idempotent / déjà fini — le bilan lira l'état réel via polling.
-    }
     if (!mounted) return;
-    context.go(AppRoutes.tcfFullExamBilan.replaceFirst(':parentId', exam.id));
+    ref.invalidate(fullTcfExamProvider(exam.id));
+    _close(context);
   }
 
   void _close(BuildContext context) {
@@ -244,9 +250,9 @@ class _ProgressView extends ConsumerWidget {
   const _ProgressView({
     required this.exam,
     required this.remaining,
-    required this.finishing,
+    required this.suspending,
     required this.onExit,
-    required this.onQuit,
+    required this.onSuspend,
   });
 
   final FullTcfExamResponse exam;
@@ -255,15 +261,15 @@ class _ProgressView extends ConsumerWidget {
   /// encore lancée, qu'elle n'a pas de chrono (expression orale) ou que tout est
   /// joué — dans ces cas aucun décompte n'est affiché.
   final Duration? remaining;
-  final bool finishing;
+  final bool suspending;
 
-  /// Sortie simple de l'écran : **ne finalise rien**, l'examen reste reprenable.
+  /// Sortie simple de l'écran : **ne clôture rien**, l'examen reste reprenable.
   /// C'est ce que fait la flèche retour.
   final VoidCallback onExit;
 
-  /// Abandon explicite (confirmation puis finalisation). Seul le bouton
-  /// « Abandonner l'examen » y mène.
-  final VoidCallback onQuit;
+  /// Suspension explicite (confirmation, puis clôture de l'épreuve commencée et
+  /// sortie). Seul le bouton « Suspendre l'examen » y mène.
+  final VoidCallback onSuspend;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -279,7 +285,7 @@ class _ProgressView extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
         children: [
-          _TopBar(onClose: finishing ? () {} : onExit),
+          _TopBar(onClose: suspending ? () {} : onExit),
           const SizedBox(height: 20),
           _Hero(exam: exam, remaining: remaining),
           const SizedBox(height: 18),
@@ -301,9 +307,9 @@ class _ProgressView extends ConsumerWidget {
             ),
           const SizedBox(height: 10),
           AppButton(
-            label: allDone ? 'Quitter' : 'Abandonner l\'examen',
+            label: allDone ? 'Quitter' : 'Suspendre l\'examen',
             variant: AppButtonVariant.ghost,
-            onPressed: finishing ? null : (allDone ? onExit : onQuit),
+            onPressed: suspending ? null : (allDone ? onExit : onSuspend),
           ),
         ],
       ),
@@ -364,10 +370,10 @@ class _ProgressView extends ConsumerWidget {
   }
 }
 
-/// Scrim plein écran pendant la finalisation d'un abandon : bloque les taps et
-/// indique que l'examen se finalise avant la redirection vers le bilan.
-class _FinishingOverlay extends StatelessWidget {
-  const _FinishingOverlay();
+/// Scrim plein écran pendant une suspension : bloque les taps le temps que
+/// l'épreuve commencée soit clôturée côté serveur, avant de sortir de l'écran.
+class _SuspendingOverlay extends StatelessWidget {
+  const _SuspendingOverlay();
 
   @override
   Widget build(BuildContext context) {
@@ -382,7 +388,7 @@ class _FinishingOverlay extends StatelessWidget {
             const CircularProgressIndicator(color: AppColors.white),
             const SizedBox(height: 14),
             Text(
-              'Finalisation de l\'examen…',
+              'Mise en pause de l\'examen…',
               style: AppFonts.ui(
                 size: 14,
                 weight: FontWeight.w700,

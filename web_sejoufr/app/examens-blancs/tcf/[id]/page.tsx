@@ -11,6 +11,13 @@ import { ApiException, attemptApi, fullTcfExamApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { examIsStale, qcmScoreLabel, subAttemptView, type SubAttemptView } from "@/lib/exam-levels";
 import {
+  epreuvesAClore,
+  fullExamSuspendMessage,
+  FULL_EXAM_SUSPEND_CANCEL,
+  FULL_EXAM_SUSPEND_CONFIRM,
+  FULL_EXAM_SUSPEND_TITLE,
+} from "@/lib/full-exam-exit";
+import {
   EPREUVE_PRESENTATION,
   secondsUntil,
   subAttemptDurationLabel,
@@ -76,8 +83,8 @@ function ProgressInner() {
   const [exam, setExam] = useState<FullTcfExamResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [finishing, setFinishing] = useState(false);
-  const [quitConfirmOpen, setQuitConfirmOpen] = useState(false);
+  const [suspending, setSuspending] = useState(false);
+  const [suspendConfirmOpen, setSuspendConfirmOpen] = useState(false);
   const timedOutRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -110,15 +117,23 @@ function ProgressInner() {
   const remaining = useEpreuveCountdown(current?.deadlineAt);
   const [starting, setStarting] = useState(false);
 
-  // Finalise l'examen et va au bilan. Toute épreuve non terminée est finalisée
-  // (CO/CE = score sur les réponses données, 0 si aucune ; EE/EO = markSubDone),
-  // sinon le `finish` parent échouerait (le backend exige les 4 terminées).
-  const finalizeAndGoToBilan = useCallback(async () => {
-    if (finishing) return;
-    setFinishing(true);
-    const subs = exam?.subAttempts ?? [];
-    for (const sa of subs) {
-      if (sa.finishedAt) continue;
+  /** Les épreuves que « suspendre » va clôturer (commencées, pas terminées). */
+  const aClore = exam ? epreuvesAClore(exam) : [];
+
+  /**
+   * Suspend l'examen : on clôture sur-le-champ l'épreuve **commencée** (elle ne
+   * se reprend jamais), on **épargne** celles qui n'ont jamais été ouvertes, et
+   * on sort de la page.
+   *
+   * 🛑 Aucun `finish` du parent, aucune navigation vers le bilan : **il n'y a
+   * pas de résultat tant que les 4 épreuves ne sont pas terminées**, et un
+   * examen suspendu reste « en cours » indéfiniment, reprenable, occupant son
+   * slot dans la grille. C'est voulu.
+   */
+  const suspendAndLeave = useCallback(async () => {
+    if (suspending) return;
+    setSuspending(true);
+    for (const sa of exam ? epreuvesAClore(exam) : []) {
       try {
         if (sa.epreuve === "TCF_CO" || sa.epreuve === "TCF_CE") {
           await attemptApi.finish(sa.attemptId);
@@ -126,16 +141,11 @@ function ProgressInner() {
           await fullTcfExamApi.markSubDone(examId, sa.epreuve);
         }
       } catch {
-        // best-effort : on tente quand même le finish parent ci-dessous
+        // best-effort : la sortie ne doit jamais être bloquée par un aléa réseau
       }
     }
-    try {
-      await fullTcfExamApi.finish(examId);
-    } catch {
-      // idempotent / déjà finalisé — le bilan se chargera de l'état réel
-    }
-    router.push(`/examens-blancs/tcf/${examId}/bilan`);
-  }, [exam, examId, finishing, router]);
+    router.push("/examens-blancs");
+  }, [exam, examId, suspending, router]);
 
   // Une nouvelle épreuve courante remet le garde à plat : chaque épreuve a sa
   // propre échéance, donc sa propre expiration. Déclaré AVANT l'effet
@@ -149,10 +159,10 @@ function ProgressInner() {
   // afficher l'épreuve suivante. Aucune finalisation locale : rien n'est perdu,
   // et il n'existe aucun flux « recommencer une épreuve interrompue ».
   useEffect(() => {
-    if (!exam || remaining == null || remaining > 0 || timedOutRef.current || finishing) return;
+    if (!exam || remaining == null || remaining > 0 || timedOutRef.current || suspending) return;
     timedOutRef.current = true;
     void load();
-  }, [exam, remaining, finishing, load]);
+  }, [exam, remaining, suspending, load]);
 
   if (status === "loading") return <div className={s.loading}>Chargement…</div>;
   if (!user) return <ModuleDetailGate next={`/examens-blancs/tcf/${examId}`} />;
@@ -252,27 +262,27 @@ function ProgressInner() {
             <button
               type="button"
               className="btn btn-ghost"
-              onClick={() => setQuitConfirmOpen(true)}
-              disabled={finishing}
+              onClick={() => setSuspendConfirmOpen(true)}
+              disabled={suspending}
             >
-              Abandonner l&apos;examen
+              Suspendre l&apos;examen
             </button>
           </>
         ) : null}
       </div>
 
       <ConfirmSheet
-        open={quitConfirmOpen}
+        open={suspendConfirmOpen}
         tone="warning"
-        title="Abandonner l'examen ?"
-        message="Les épreuves restantes sont comptées 0 et l'examen est finalisé : vous verrez votre résultat. Cette action est définitive. Pour reprendre plus tard, fermez simplement cette page — le chrono de l'épreuve en cours continue de courir, mais les suivantes vous attendent."
-        confirmLabel="Abandonner et voir le résultat"
-        cancelLabel="Continuer l'examen"
+        title={FULL_EXAM_SUSPEND_TITLE}
+        message={fullExamSuspendMessage(aClore)}
+        confirmLabel={FULL_EXAM_SUSPEND_CONFIRM}
+        cancelLabel={FULL_EXAM_SUSPEND_CANCEL}
         onConfirm={() => {
-          setQuitConfirmOpen(false);
-          void finalizeAndGoToBilan();
+          setSuspendConfirmOpen(false);
+          void suspendAndLeave();
         }}
-        onClose={() => setQuitConfirmOpen(false)}
+        onClose={() => setSuspendConfirmOpen(false)}
       />
     </div>
   );

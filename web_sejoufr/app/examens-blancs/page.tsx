@@ -210,6 +210,13 @@ function ExamsConnectedHome() {
                         : e.status === "PENDING_EVALUATIONS"
                             ? "Éval en cours…"
                             : "En cours",
+                // Un examen encore en cours n'a **pas de résultat** : son bouton
+                // reprend le hub (« Reprendre »), il n'ouvre aucun bilan, et on
+                // ne propose pas de « Refaire » par-dessus — un examen suspendu
+                // garde son slot et reste reprenable indéfiniment (parité
+                // mobile, où la carte d'un examen en cours n'a que la reprise).
+                reportLabel: e.status === "IN_PROGRESS" ? "Reprendre" : undefined,
+                restartable: e.status !== "IN_PROGRESS",
             }
             : null,
     );

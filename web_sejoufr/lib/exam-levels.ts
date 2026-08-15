@@ -178,11 +178,17 @@ export type SubAttemptState =
     /** Pas de `finishedAt` : l'épreuve n'a pas été terminée. */
     | "not_started"
     /**
-     * Close **sans jamais avoir été ouverte** (`timerStartedAt` null) : examen
-     * abandonné avant d'y arriver. Le serveur ne lui donne AUCUN niveau
-     * (`null` = inconnu, jamais mauvais) et l'exclut du plancher. Sans cet
-     * état, elle tombait dans « evaluating » — spinner et « Évaluation en
-     * cours… » sur une épreuve que personne n'attend.
+     * Close **sans jamais avoir été ouverte** : examen abandonné avant d'y
+     * arriver. Le serveur ne lui donne AUCUN niveau (`null` = inconnu, jamais
+     * mauvais) et l'exclut du plancher. Sans cet état, elle tombait dans
+     * « evaluating » — spinner et « Évaluation en cours… » sur une épreuve que
+     * personne n'attend.
+     *
+     * ⚠️ **Les DEUX critères du serveur, jamais l'ancre seule** : pas d'ancre
+     * **et** rien de rendu. Tous les sous-attempts antérieurs au chrono par
+     * épreuve portent `timerStartedAt` null — s'en contenter afficherait
+     * « Non passée » sur une épreuve réellement jouée dont l'IA travaille
+     * encore. Miroir de `FullTcfExamResponseBuilder`.
      */
     | "not_taken"
     /** Niveau connu. */
@@ -237,7 +243,9 @@ export function subAttemptView(
           ? "evaluated"
           : failed.length > 0
             ? "failed"
-            : sa.timerStartedAt == null
+            : sa.timerStartedAt == null &&
+                (sa.submissionsCount ?? 0) === 0 &&
+                sa.score == null
               ? "not_taken"
               : opts.stale
                 ? "stalled"

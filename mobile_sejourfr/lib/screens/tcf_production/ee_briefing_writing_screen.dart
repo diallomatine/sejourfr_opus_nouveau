@@ -14,6 +14,7 @@ import '../../core/utils/epreuve_duration.dart';
 import '../../core/utils/query_propagation.dart';
 import '../../core/widgets/app_button.dart';
 import '../question_runner/widgets/exam_timer.dart';
+import '../tcf_full_exam/full_exam_exit_labels.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'draft_service.dart';
 import 'ee_session_controller.dart';
@@ -291,33 +292,31 @@ class _EeBriefingWritingScreenState
     );
   }
 
-  /// Sortie confirmée d'une session d'examen. En **examen blanc complet**, on
-  /// quitte sans rien clore : l'épreuve reste reprenable (cf. `_quitExam`). En
-  /// session d'examen module, on finalise l'attempt comme avant. En
-  /// entraînement libre, on garde le flux brouillon (pas de finish).
+  /// Sortie confirmée d'une session d'examen. En **examen blanc complet**, une
+  /// épreuve commencée ne se reprend jamais : quitter la **clôture** (cf.
+  /// `_quitExam`). En session d'examen module, on finalise l'attempt comme
+  /// avant. En entraînement libre, on garde le flux brouillon (pas de finish).
   Future<bool> _confirmQuitExam({required bool isFullExam}) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
-          isFullExam ? 'Quitter cette épreuve ?' : 'Quitter l\'examen ?',
+          isFullExam ? kEpreuveExitTitle : 'Quitter l\'examen ?',
         ),
         content: Text(
           isFullExam
-              ? 'Vous pourrez reprendre l\'expression écrite là où vous en '
-                  'êtes. Attention : son chrono continue de courir pendant '
-                  'votre absence.'
+              ? epreuveExitMessage(EpreuveType.tcfEe)
               : 'Votre examen sera terminé. Les tâches non rendues seront comptées comme non faites.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Continuer'),
+            child: Text(isFullExam ? kEpreuveExitCancel : 'Continuer'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(
-              'Quitter',
+              isFullExam ? kEpreuveExitConfirm : 'Quitter',
               style: AppFonts.ui(weight: FontWeight.w700, color: AppColors.red),
             ),
           ),
@@ -332,15 +331,20 @@ class _EeBriefingWritingScreenState
         GoRouterState.of(context).uri.queryParameters['fullExamId'];
     if (!await _confirmQuitExam(isFullExam: fullExamId != null)) return;
     if (!mounted) return;
-    // Examen blanc complet : **quitter ne ferme PAS l'épreuve**. Le chrono
-    // serveur de l'EE court déjà (`POST /begin`) et la clôture automatique à
-    // échéance fera le travail avec ce qui aura été rendu. Appeler
-    // `markSubDone` ici condamnait une épreuve qu'on venait seulement de
-    // mettre de côté — et c'est ce qui, en cascade, clôturait aussi l'EO puis
-    // l'examen entier. `markSubDone` reste posé à la fin normale de l'épreuve
-    // (3ᵉ tâche rendue), à l'expiration du chrono, et sur l'abandon explicite
-    // depuis le hub d'examen.
-    if (fullExamId == null) {
+    // Examen blanc complet : **quitter CLÔTURE l'épreuve**, avec ce qui a été
+    // rendu (arbitrage propriétaire du 2026-08-15, qui revient sur le correctif
+    // de la veille). La règle produit est « une épreuve commencée ne se reprend
+    // jamais » : la laisser ouverte laissait croire à une reprise qui n'existe
+    // pas. Les épreuves **jamais ouvertes**, elles, ne sont toujours touchées
+    // par aucun geste de sortie — ni ici, ni depuis le hub.
+    if (fullExamId != null) {
+      try {
+        await ref.read(fullTcfExamRepositoryProvider).markSubDone(
+              parentAttemptId: fullExamId,
+              epreuveWire: EpreuveType.tcfEe.wire,
+            );
+      } catch (_) {/* hook auto backend fallback */}
+    } else {
       await ref.read(eeSessionProvider.notifier).finishAttemptIfExam();
     }
     ref.read(eeSessionProvider.notifier).reset();
@@ -406,10 +410,10 @@ class _EeBriefingWritingScreenState
             ?.subFor(EpreuveType.tcfEe)
             ?.deadlineAt;
     return PopScope(
-      // En examen, on intercepte le retour pour confirmer la sortie (et
-      // finaliser l'attempt en session module seulement — en examen complet
-      // l'épreuve reste ouverte). En entraînement libre, le flux brouillon est
-      // conservé (pas de PopScope bloquant).
+      // En examen, on intercepte le retour pour confirmer la sortie, qui
+      // **clôture l'épreuve** (session module : finalisation de l'attempt ;
+      // examen complet : `markSubDone`). En entraînement libre, le flux
+      // brouillon est conservé (pas de PopScope bloquant).
       canPop: !isExam,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop || !isExam) return;

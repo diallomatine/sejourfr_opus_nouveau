@@ -153,12 +153,29 @@ class FullTcfExamSubAttempt {
   /// jamais.
   ///
   /// Miroir web : l'état `not_taken` de `subAttemptView` (`lib/exam-levels.ts`).
+  /// ⚠️ **Les DEUX critères du serveur, jamais l'ancre seule** : pas d'ancre
+  /// **et** rien de rendu. Tous les sous-attempts antérieurs au chrono par
+  /// épreuve portent [timerStartedAt] null — s'en contenter afficherait
+  /// « Non passée » sur une épreuve réellement jouée dont l'IA travaille encore.
   bool get jamaisOuverte =>
       finishedAt != null &&
       !locked &&
-      timerStartedAt == null &&
+      !commencee &&
       cecrlLevel == null &&
+      (submissionsCount ?? 0) == 0 &&
+      score == null &&
       failedSubmissionIds.isEmpty;
+
+  /// **Commencée** = le serveur a posé l'ancre du chrono au `POST /begin`.
+  ///
+  /// C'est le discriminant unique de la règle de sortie d'un examen complet —
+  /// « une épreuve commencée ne se reprend jamais, une épreuve jamais commencée
+  /// attend le candidat » (cf.
+  /// `screens/tcf_full_exam/full_exam_exit_labels.dart`) — et celui dont
+  /// [jamaisOuverte] est la lecture « close sans avoir été ouverte ».
+  ///
+  /// Miroir web : `epreuveCommencee` (`lib/full-exam-exit.ts`).
+  bool get commencee => timerStartedAt != null;
 
   /// Épreuve lancée, chronométrée et pas encore terminée.
   bool get isRunning => deadlineAt != null && finishedAt == null;

@@ -30,6 +30,13 @@ import {
 } from "@/lib/production-feedback";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
+import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
+import {
+  epreuveExitMessage,
+  EPREUVE_EXIT_CANCEL,
+  EPREUVE_EXIT_CONFIRM,
+  EPREUVE_EXIT_TITLE,
+} from "@/lib/full-exam-exit";
 import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
 import { DetailShell } from "@/app/_components/hub/DetailParts";
 import { EeWritingForm, clearEeDraft } from "./EeWritingForm";
@@ -88,6 +95,8 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  /** Confirmation de sortie d'une épreuve d'examen complet (elle sera close). */
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
 
   // Temps réel (EO Tâches 1 & 2). `taskMode` pilote l'UI de la tâche courante :
   // "classic" = enregistrement (montre le sujet + le bouton micro) ; "choosing" =
@@ -436,6 +445,20 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     }
   }, [attemptId, fullExamId, config.epreuve, router, startBilanPolling]);
 
+  /**
+   * Quitter une épreuve d'examen complet : **elle est close sur-le-champ**,
+   * avec ce qui a déjà été rendu, et ne se reprendra jamais. Les épreuves
+   * suivantes, elles, restent intactes — et l'examen n'est ni finalisé ni mené
+   * au bilan.
+   */
+  const exitEpreuve = useCallback(async () => {
+    if (!fullExamId) return;
+    finishedRef.current = true;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    await fullTcfExamApi.markSubDone(fullExamId, config.epreuve).catch(() => undefined);
+    router.push(`/examens-blancs/tcf/${fullExamId}`);
+  }, [fullExamId, config.epreuve, router]);
+
   const onEeTimeout = useCallback(
     async (texte: string, recevable: boolean) => {
       if (recevable && texte && currentTask && !submitting) {
@@ -505,6 +528,11 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           backTo ?? (fullExamId ? `/examens-blancs/tcf/${fullExamId}` : `${config.base}/examens`)
         }
         backLabel={backTo ? "Bilan de l'examen" : fullExamId ? "Examen complet" : "Examens blancs"}
+        // Épreuve d'examen complet en cours : sortir la clôture, donc on demande
+        // avant. En consultation de bilan (`backTo`) il n'y a plus rien à clore.
+        onBack={
+          fullExamId && phase !== "bilan" ? () => setExitConfirmOpen(true) : undefined
+        }
         eyebrowIcon={
           config.mode === "audio" ? (
             <Mic size={18} strokeWidth={2} />
@@ -674,6 +702,22 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           module="INTEGRAL"
           title={`Débloquez l'examen blanc ${config.shortLabel}`}
           message="L'examen blanc complet est réservé aux abonnés Intégral."
+        />
+
+        <ConfirmSheet
+          open={exitConfirmOpen}
+          tone="warning"
+          title={EPREUVE_EXIT_TITLE}
+          message={epreuveExitMessage(config.epreuve, {
+            perteEnregistrement: config.mode === "audio",
+          })}
+          confirmLabel={EPREUVE_EXIT_CONFIRM}
+          cancelLabel={EPREUVE_EXIT_CANCEL}
+          onConfirm={() => {
+            setExitConfirmOpen(false);
+            void exitEpreuve();
+          }}
+          onClose={() => setExitConfirmOpen(false)}
         />
       </DetailShell>
     </DualChromeShell>
