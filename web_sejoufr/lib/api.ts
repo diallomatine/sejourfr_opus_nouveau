@@ -48,7 +48,7 @@ import type {
   TokenResponse,
   UserStatsResponse,
 } from "./types";
-import {cached, clearDataCache, invalidateCache} from "./data-cache";
+import {cached, clearDataCache, invalidateCache, peekCached, primeCached} from "./data-cache";
 import {requiresDiagnosticRevalidation} from "./diagnostic";
 import {PRODUCTION_PROGRESS_PREFIXES} from "./production-catalog";
 import {SKILLS_CACHE_PREFIX} from "./skill-catalog";
@@ -780,8 +780,21 @@ function fetchCurrentDiagnostic(): Promise<DiagnosticResponse> {
     );
 }
 
+const LEARNING_PLAN_CACHE_KEY = `${LEARNING_PLAN_CACHE_PREFIX}current`;
+
+/**
+ * Toute lecture du Plan **range son résultat** sous la clé de cache, y compris
+ * la lecture directe de `/plan` : l'écran d'une compétence ouverte depuis le
+ * Plan y relit le périmètre de l'étape (`stepPromptIds`) **sans redemander le
+ * Plan au serveur**. Le comportement de `/plan` ne change pas pour autant — il
+ * continue d'appeler l'API à chaque montage, une analyse asynchrone ne doit
+ * jamais rester figée.
+ */
 function fetchLearningPlan(): Promise<LearningPlanDto> {
-    return apiFetch<LearningPlanDto>("/api/me/plan", {auth: true});
+    return apiFetch<LearningPlanDto>("/api/me/plan", {auth: true}).then((plan) => {
+        primeCached(LEARNING_PLAN_CACHE_KEY, plan);
+        return plan;
+    });
 }
 
 export const diagnosticApi = {
@@ -830,7 +843,14 @@ export const learningPlanApi = {
     get: fetchLearningPlan,
 
     getCached(): Promise<LearningPlanDto> {
-        return cached(`${LEARNING_PLAN_CACHE_PREFIX}current`, fetchLearningPlan);
+        return cached(LEARNING_PLAN_CACHE_KEY, fetchLearningPlan);
+    },
+
+    /** Le Plan **déjà chargé**, sans aucun appel. `undefined` quand rien n'a
+     *  encore été lu (lien profond direct) : l'appelant doit alors se replier,
+     *  jamais déclencher une requête pour un simple confort d'affichage. */
+    peekCached(): LearningPlanDto | undefined {
+        return peekCached<LearningPlanDto>(LEARNING_PLAN_CACHE_KEY);
     },
 };
 

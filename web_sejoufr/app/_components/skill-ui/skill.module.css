@@ -637,6 +637,25 @@
   align-items: flex-start;
 }
 
+/* Pastille « Étape de ton plan » : l'écran d'une compétence ouverte DEPUIS le
+   Plan ne montre que les sujets de l'étape — il doit dire d'où il vient, sinon
+   il ressemble à la fiche complète tout en n'en montrant qu'une partie. */
+.stepPill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  margin-bottom: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--skill-accent) 12%, transparent);
+  color: var(--skill-accent);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 700;
+}
+
 /* Colonne centrale du résumé : min-width 0 pour que le titre passe à la ligne
    au lieu de repousser le bouton d'information hors de la carte à 360 px. */
 .summaryBody {

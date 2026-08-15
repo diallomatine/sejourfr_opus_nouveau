@@ -6,6 +6,7 @@ import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -59,6 +60,25 @@ public record LearningPlanPriorityDto(
          * production. Aux fronts de le dire, pas de la faire disparaître.
          */
         boolean stepCompleted,
+        /**
+         * <b>Le périmètre de l'étape</b> : les identifiants des sujets qui la
+         * composent, dans l'ordre de l'étape (rang d'affichage croissant).
+         * Toujours présent, jamais {@code null}, et {@code stepPromptIds.size()
+         * == stepPromptCount} par construction.
+         *
+         * <p>Il est servi parce qu'un front qui ouvre la compétence <b>depuis le
+         * Plan</b> doit rester dans l'étape — les mêmes 5 sujets, « 2/5 » — au
+         * lieu de retomber sur la fiche générique et son « 1/15 ». La règle
+         * « les {@code LearningPlanStep.PROMPTS_PAR_ETAPE} premiers sujets
+         * actifs » vit côté serveur ({@code LearningPlanStep.scope}) et
+         * <b>ne se réimplémente nulle part</b> : deux copies finiraient par
+         * désigner deux étapes différentes.
+         *
+         * <p>Liste <b>vide</b> quand la compétence n'a aucun sujet actif — cas
+         * normal, pas une erreur ; plus courte que 5 quand elle en publie moins.
+         * Le périmètre vaut ce qui existe, aucun identifiant n'est inventé.
+         */
+        List<UUID> stepPromptIds,
         /**
          * Etat de maitrise agrege de la competence, issu du meme moteur que
          * {@code SkillDto.masteryState}. Derive serveur, jamais persiste,

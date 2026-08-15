@@ -1,12 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import {useParams, useRouter} from "next/navigation";
+import {useParams, useRouter, useSearchParams} from "next/navigation";
 import {useRef, useState} from "react";
 import {Check, Info, Lock, Sparkles} from "lucide-react";
-import {skillApi} from "@/lib/api";
+import {learningPlanApi, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {cached} from "@/lib/data-cache";
+import {
+  isPlanStep,
+  PLAN_STEP_BACK_LABEL,
+  PLAN_STEP_DONE_CTA,
+  PLAN_STEP_DONE_TITLE,
+  PLAN_STEP_LINK,
+  PLAN_STEP_PILL,
+  PLAN_STEP_SECTION_TITLE,
+  planStepDoneText,
+  planStepFor,
+  planStepPrompts,
+  planStepSectionText,
+  withPlanStep,
+} from "@/lib/plan-step";
 import {skillDetailKey} from "@/lib/skill-catalog";
 import {progressPercent} from "@/lib/skill-progress";
 import {useCachedData} from "@/lib/use-cached-data";
@@ -27,6 +41,7 @@ import {
   RowChevron,
   SectionHead,
   SkillLockBadge,
+  SkillNotice,
   SkillShell,
 } from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
@@ -47,15 +62,30 @@ function shortDate(iso: string): string {
  * La progression affichée est le nombre de **sujets traités**, pas de sujets
  * validés (spec §12) : on ne veut pas laisser croire qu'il faut tout valider
  * pour avancer — un sujet raté puis compris a fait son travail.
+ *
+ * ⚠️ **Deux vues, selon la porte d'entrée** (décision produit, cf.
+ * `lib/plan-step.ts`). Ouvert **depuis le Plan** (`?etape=1`) et tant que la
+ * compétence est une priorité, l'écran se limite aux **sujets de l'étape** et
+ * compte « 2/5 » ; par « Réviser → épreuve → Compétences », il garde la fiche
+ * complète et son « x/15 », **strictement inchangée**. Sans périmètre
+ * exploitable — Plan pas chargé, compétence sortie des priorités, étape vide —
+ * on retombe **silencieusement** sur la fiche complète : jamais d'erreur,
+ * jamais d'écran vide.
  */
 export function CompetenceDetail({config}: {config: ProductionConfig}) {
   const params = useParams<{n: string; skillId: string}>();
+  const searchParams = useSearchParams();
   const n = Number(params?.n ?? "0");
   const skillId = params?.skillId ?? "";
   const router = useRouter();
   const {user, status} = useAuth();
 
   const base = `${config.base}/tache/${n}/competences`;
+  // Le Plan est relu **en cache** : venir de lui, c'est l'avoir déjà chargé.
+  // Rien n'est demandé au serveur pour afficher une compétence.
+  const step = isPlanStep(searchParams)
+    ? planStepFor(learningPlanApi.peekCached(), skillId)
+    : null;
 
   const [filter, setFilter] = useState<Filter>("all");
   const [infoOpen, setInfoOpen] = useState(false);
@@ -78,7 +108,16 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   if (!user) return <ModuleDetailGate next={`${base}/${skillId}`} />;
 
   const skill = data?.skill;
-  const prompts = data?.prompts ?? [];
+  const allPrompts = data?.prompts ?? [];
+  /* Périmètre de l'étape : les identifiants servis par le serveur, dans leur
+     ordre. On ne rejoue **aucune** règle (« les 5 premiers par rang »), on ne
+     fait que retrouver les sujets correspondants. Rien à montrer ⇒ repli sur la
+     fiche complète, sans un mot. */
+  const stepPrompts = step ? planStepPrompts(allPrompts, step.stepPromptIds) : [];
+  const scoped = step !== null && stepPrompts.length > 0;
+  const prompts = scoped ? stepPrompts : allPrompts;
+  const promptHref = (promptId: string) =>
+    withPlanStep(`${base}/${skillId}/${promptId}`, scoped);
   /* Trois seaux **disjoints**, dont la somme fait exactement « Tous » — un
      compteur qui ne totalise pas est un compteur qui ment.
      - « Traités » décrit l'HISTORIQUE : un sujet produit y reste, même si le
@@ -101,8 +140,14 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
         : filter === "locked"
           ? lockedTodo
           : openTodo;
-  const pct = progressPercent(treated.length, prompts.length);
+  /* En mode étape, la progression affichée est **celle du serveur**
+     (`stepAttemptedCount` / `stepPromptCount`) : on ne la recompte pas depuis la
+     liste — seule la largeur de la barre se dérive de ces deux nombres. */
+  const attempted = scoped ? step.stepAttemptedCount : treated.length;
+  const total = scoped ? step.stepPromptCount : prompts.length;
+  const pct = progressPercent(attempted, total);
   const firstTodo = openTodo[0];
+  const stepDone = scoped && step.stepCompleted;
 
   const chips: [Filter, string, number][] = [
     ["all", "Tous", prompts.length],
@@ -116,8 +161,8 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   return (
     <DualChromeShell>
       <SkillShell
-        backHref={base}
-        backLabel="Compétences"
+        backHref={scoped ? "/plan" : base}
+        backLabel={scoped ? PLAN_STEP_BACK_LABEL : "Compétences"}
       >
         {error && <div className={s.error}>{error}</div>}
 
@@ -136,6 +181,9 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                     est celui de toute la tâche, il est déjà porté par le hero
                     de la liste des compétences et par l'écran d'un sujet. */}
                 <div className={s.summaryBody}>
+                  {/* On dit d'où l'on vient : sans ça, l'écran ressemble à la
+                      fiche complète tout en n'en montrant qu'une partie. */}
+                  {scoped && <span className={s.stepPill}>{PLAN_STEP_PILL}</span>}
                   <h1 className={s.summaryTitle}>{skill.title}</h1>
                 </div>
                 {skill.description && (
@@ -159,18 +207,34 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                 <p className={s.critText}>{skill.generalCriterion}</p>
               </div>
 
-              <MiniBar attempted={treated.length} total={prompts.length} percent={pct} />
+              <MiniBar attempted={attempted} total={total} percent={pct} />
             </section>
 
+            {/* Étape finie : on ne fabrique **aucun** second parcours de
+                vérification ici — « Vérifier ma progression » vit sur le Plan,
+                qui seul sait si le moteur de maîtrise est prêt. On y ramène. */}
+            {stepDone && (
+              <SkillNotice title={PLAN_STEP_DONE_TITLE}>
+                <p>{planStepDoneText(step.stepPromptCount)}</p>
+                <Link href="/plan" className={s.headLink}>
+                  {PLAN_STEP_DONE_CTA} →
+                </Link>
+              </SkillNotice>
+            )}
+
             <SectionHead
-              title="Petits sujets"
-              text="Les sujets déjà réalisés restent clairement identifiables."
+              title={scoped ? PLAN_STEP_SECTION_TITLE : "Petits sujets"}
+              text={
+                scoped
+                  ? planStepSectionText(step.stepPromptCount)
+                  : "Les sujets déjà réalisés restent clairement identifiables."
+              }
               action={
                 firstTodo && (
                   <button
                     type="button"
                     className={s.headLink}
-                    onClick={() => router.push(`${base}/${skill.id}/${firstTodo.id}`)}
+                    onClick={() => router.push(promptHref(firstTodo.id))}
                   >
                     Commencer le sujet {firstTodo.displayOrder} →
                   </button>
@@ -210,7 +274,7 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                     onOpen={
                       p.locked
                         ? () => setPaywallOpen(true)
-                        : () => router.push(`${base}/${skill.id}/${p.id}`)
+                        : () => router.push(promptHref(p.id))
                     }
                   />
                 ))}
@@ -221,9 +285,15 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                 parcouru, l'écran sert d'abord à en produire un de plus. */}
             <SkillTrajectory points={data?.trajectory ?? []} />
 
-            <Link href={`${config.base}/tache/${n}`} className={s.footLink}>
-              ← Revenir aux sujets TCF complets
-            </Link>
+            {scoped ? (
+              <Link href="/plan" className={s.footLink}>
+                ← {PLAN_STEP_LINK}
+              </Link>
+            ) : (
+              <Link href={`${config.base}/tache/${n}`} className={s.footLink}>
+                ← Revenir aux sujets TCF complets
+              </Link>
+            )}
 
             <PaywallSheet
               open={paywallOpen}

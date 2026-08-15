@@ -1,6 +1,6 @@
 "use client";
 
-import {useParams, useRouter} from "next/navigation";
+import {useParams, useRouter, useSearchParams} from "next/navigation";
 import {useCallback, useEffect, useId, useState} from "react";
 import {
   ArrowRight,
@@ -13,6 +13,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import {ApiException, skillApi} from "@/lib/api";
+import {isPlanStep, withPlanStep} from "@/lib/plan-step";
 import {useAuth} from "@/lib/auth-context";
 import {
   referencesOpenByDefault,
@@ -114,10 +115,16 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
   const skillId = params?.skillId ?? "";
   const promptId = params?.promptId ?? "";
   const attemptId = params?.attemptId ?? "";
+  const searchParams = useSearchParams();
   const router = useRouter();
   const {user, status} = useAuth();
 
   const base = `${config.base}/tache/${n}/competences`;
+  /* Le marqueur d'étape se propage jusqu'ici : remonter d'un résultat doit
+     ramener à l'étape (« 2/5 ») quand on est venu du Plan, pas à la fiche des
+     15 sujets. Absent, tout se comporte exactement comme avant. */
+  const step = isPlanStep(searchParams);
+  const skillHref = withPlanStep(`${base}/${skillId}`, step);
 
   const [attempt, setAttempt] = useState<SkillAttemptDto | null>(null);
   const [prompt, setPrompt] = useState<SkillPromptDto | null>(null);
@@ -263,7 +270,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
           quel sujet venait d'être traité — on arrivait sur un verdict orphelin.
           Sujet pas encore chargé ⇒ « Résultat », jamais un titre inventé. */}
       <SkillShell
-        backHref={`${base}/${skillId}`}
+        backHref={skillHref}
         backLabel={prompt?.skillTitle ?? "Petits sujets"}
         title={prompt?.title ?? "Résultat"}
         meta={prompt ? `${prompt.skillTitle} · ${config.label}` : config.label}
@@ -328,7 +335,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                 busy={retrying}
                 onRetry={() => void retry()}
                 onUnlock={() => setPaywallOpen(true)}
-                onRequest={() => router.push(`${base}/${skillId}/${promptId}`)}
+                onRequest={() => router.push(withPlanStep(`${base}/${skillId}/${promptId}`, step))}
               />
             )}
 
@@ -419,7 +426,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                 className={`btn btn-ghost ${s.actionWide}`}
                 disabled={!nextId}
                 title={nextId ? undefined : "Tous les sujets de cette compétence ont été traités."}
-                onClick={() => nextId && router.push(`${base}/${skillId}/${nextId}`)}
+                onClick={() => nextId && router.push(withPlanStep(`${base}/${skillId}/${nextId}`, step))}
               >
                 Sujet suivant
                 <ArrowRight size={16} strokeWidth={2.2} aria-hidden />
@@ -427,7 +434,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
               <button
                 type="button"
                 className={`btn ${s.actionWide}`}
-                onClick={() => router.push(`${base}/${skillId}/${promptId}`)}
+                onClick={() => router.push(withPlanStep(`${base}/${skillId}/${promptId}`, step))}
               >
                 <RefreshCw size={15} strokeWidth={2.2} aria-hidden />
                 S&apos;entraîner sur ce point

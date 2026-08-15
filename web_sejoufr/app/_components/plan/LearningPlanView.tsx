@@ -645,13 +645,19 @@ function ObservedSkills({skills, total}: {skills: LearningPlanSkillDto[]; total:
  *  La pastille dit l'état de maîtrise (tout l'historique) dès que le serveur en
  *  a un ; sans observation agrégée, elle retombe sur le verdict de la dernière
  *  production. **Jamais les deux** : « Priorité » et « Prioritaire » côte à côte
- *  se liraient comme deux informations, alors que c'est la même. */
+ *  se liraient comme deux informations, alors que c'est la même.
+ *
+ *  Le lien porte le marqueur d'étape (`?etape=1`) : ouverte **depuis le Plan**,
+ *  une compétence qui est encore une priorité s'affiche à l'échelle de son
+ *  étape (« 2/5 »), pas de la compétence entière (« 1/15 »). Si elle n'en est
+ *  plus une — le serveur l'en sort dès qu'une vérification a réussi —, l'écran
+ *  retombe **silencieusement** sur la fiche complète. */
 function SkillCard({skill}: {skill: LearningPlanSkillDto}) {
   const done = skill.promptCount > 0 && skill.attemptedCount >= skill.promptCount;
   const locked = skill.locked;
   return (
     <Link
-      href={locked ? SKILL_PREMIUM_HREF : competenceHref(skill)}
+      href={locked ? SKILL_PREMIUM_HREF : competenceHref(skill, {planStep: true})}
       onClick={locked ? trackPremiumClick : undefined}
       className={`${s.card} ${s.rowCard} ${s.ringRow}`}
     >

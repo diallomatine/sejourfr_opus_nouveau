@@ -107,8 +107,15 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
     unawaited(openRecommendedExercise(context, ref, exercise));
   }
 
+  /// Ouverte **depuis le Plan**, une compétence encore prioritaire s'affiche à
+  /// l'échelle de son **étape** (les 5 sujets, « 2/5 »), pas de la compétence
+  /// entière (« 1/15 »). Sortie des priorités — ce que fait le serveur dès
+  /// qu'une vérification en situation a réussi —, l'écran retombe
+  /// **silencieusement** sur la fiche complète.
   void _openSkill(String skillId, SkillSection section) {
-    context.push(competenceDetailPath(_moduleOf(section), skillId));
+    context.push(
+      competenceDetailPath(_moduleOf(section), skillId, planStep: true),
+    );
   }
 
   @override

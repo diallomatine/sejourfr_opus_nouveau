@@ -144,6 +144,14 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.currentPriority.stepAttemptedCount").value(4))
                 .andExpect(jsonPath("$.currentPriority.stepValidatedCount").value(0))
                 .andExpect(jsonPath("$.currentPriority.stepCompleted").value(false))
+                // Le PERIMETRE de l'etape : ses 5 sujets, dans l'ordre. C'est lui
+                // qu'un front ouvre quand on clique la competence depuis le Plan,
+                // au lieu de retomber sur la fiche generique et son « 4/15 ».
+                .andExpect(jsonPath("$.currentPriority.stepPromptIds.length()").value(5))
+                .andExpect(jsonPath("$.currentPriority.stepPromptIds[0]")
+                        .value(prompts.get(0).getId().toString()))
+                .andExpect(jsonPath("$.currentPriority.stepPromptIds[4]")
+                        .value(prompts.get(4).getId().toString()))
                 // Le rang 5, jamais traite — jamais le rang 6, hors etape.
                 .andExpect(jsonPath("$.currentPriority.recommendedExercise.skillPromptId")
                         .value(prompts.get(4).getId().toString()))

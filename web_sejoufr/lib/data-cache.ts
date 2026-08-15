@@ -37,6 +37,14 @@ export interface DataCache {
    * rien n'est chargé (ou qu'un chargement est encore en vol).
    */
   peek<T>(key: string): T | undefined;
+  /**
+   * Range une valeur **déjà obtenue** sous `key`, sans appel. Sert quand un
+   * écran charge sa donnée directement (pour ne jamais lire un instantané
+   * périmé) mais qu'un autre écran doit pouvoir la relire **sans redemander**
+   * — c'est le cas du Plan, lu frais sur `/plan` et relu par l'écran d'une
+   * compétence pour retrouver le périmètre de l'étape.
+   */
+  prime<T>(key: string, value: T): void;
   /** Purge toutes les clés commençant par `prefix`. Renvoie le nombre d'entrées
    *  retirées (les chargements en vol sont détachés : leur résultat ne
    *  reviendra pas s'écrire par-dessus). */
@@ -99,6 +107,11 @@ export function createDataCache(options: {enabled?: boolean} = {}): DataCache {
     return hit?.resolved ? (hit.value as T) : undefined;
   }
 
+  function prime<T>(key: string, value: T): void {
+    if (!enabled) return;
+    store.set(key, {value, resolved: true});
+  }
+
   function invalidate(prefix: string): number {
     let removed = 0;
     for (const key of [...store.keys()]) {
@@ -113,6 +126,7 @@ export function createDataCache(options: {enabled?: boolean} = {}): DataCache {
   return {
     cached,
     peek,
+    prime,
     invalidate,
     clear: () => store.clear(),
     size: () => store.size,
@@ -126,5 +140,6 @@ export const dataCache: DataCache = createDataCache({
 
 export const cached: DataCache["cached"] = (key, loader) => dataCache.cached(key, loader);
 export const peekCached: DataCache["peek"] = (key) => dataCache.peek(key);
+export const primeCached: DataCache["prime"] = (key, value) => dataCache.prime(key, value);
 export const invalidateCache: DataCache["invalidate"] = (prefix) => dataCache.invalidate(prefix);
 export const clearDataCache: DataCache["clear"] = () => dataCache.clear();

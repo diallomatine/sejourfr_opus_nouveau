@@ -65,9 +65,14 @@ public class SkillProgressCounter {
 
         for (UUID skillId : skillIds) {
             List<SkillPrompt> prompts = promptsBySkill.getOrDefault(skillId, List.of());
-            List<SkillPrompt> stepPrompts = LearningPlanStep.scope(prompts);
-            Set<UUID> stepPromptIds = new HashSet<>(stepPrompts.size());
-            stepPrompts.forEach(prompt -> stepPromptIds.add(prompt.getId()));
+            // Le PERIMETRE de l'etape, servi tel quel aux fronts : ils ouvrent
+            // la competence sur ces sujets-la, dans cet ordre-la, plutot que de
+            // rejouer « les 5 premiers actifs » chacun de leur cote. Il ne coute
+            // rien — les sujets sont deja charges pour les compteurs.
+            List<UUID> stepPromptIds = LearningPlanStep.scope(prompts).stream()
+                    .map(SkillPrompt::getId)
+                    .toList();
+            Set<UUID> stepPromptIdSet = new HashSet<>(stepPromptIds);
 
             SkillProgressTally skillTally = new SkillProgressTally();
             SkillProgressTally stepTally = new SkillProgressTally();
@@ -76,7 +81,7 @@ public class SkillProgressCounter {
                 if (latest == null) continue;
                 SkillPromptStatus status = statusResolver.resolve(latest);
                 skillTally.add(status);
-                if (stepPromptIds.contains(prompt.getId())) stepTally.add(status);
+                if (stepPromptIdSet.contains(prompt.getId())) stepTally.add(status);
             }
 
             out.put(skillId, new SkillProgress(
@@ -85,7 +90,7 @@ public class SkillProgressCounter {
                     skillTally.validated(),
                     skillTally.toReinforce(),
                     new LearningPlanStep.Progress(
-                            stepPrompts.size(), stepTally.attempted(), stepTally.validated())));
+                            stepPromptIds, stepTally.attempted(), stepTally.validated())));
         }
         return out;
     }

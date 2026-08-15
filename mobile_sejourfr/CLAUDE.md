@@ -569,6 +569,41 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   décrivent l'**étape** — les **5 premiers** sujets de la compétence : c'est ce couple que
   l'anneau d'une étape du parcours affiche (« 2/5 », jamais « 2/15 »). Tout est dérivé
   serveur, y compris `stepCompleted` : l'écran ne compare plus rien lui-même.
+- **L'étape SUIT le candidat jusque dans la fiche de compétence** (2026-08-15).
+  Une compétence ouverte **depuis le Plan** (`CompetenceDetailScreen.planStep`)
+  n'affiche plus que les **sujets de l'étape** et compte « 2/5 » ; par
+  « Réviser → épreuve → Compétences », la fiche complète (les 15 sujets,
+  « x/15 ») est **strictement inchangée**. Deux vues d'une même compétence selon
+  la porte d'entrée : c'est **assumé** (décision propriétaire, prise sur maquette).
+  - **Le périmètre est servi** : `LearningPlanPriority.stepPromptIds` (jamais
+    `null`, éventuellement vide, `length == stepPromptCount`). On ne rejoue
+    **jamais** la règle « les 5 premiers par rang d'affichage », qui vit côté
+    serveur.
+  - **Aucun identifiant ne voyage dans la route** : un simple marqueur
+    `?etape=1`, posé par `competenceDetailPath(..., planStep: true)` depuis
+    `_openSkill` du Plan (la seule navigation Plan → compétence des deux
+    fronts), lu par le router (`isPlanStepQuery`). Règle + libellés **gelés**
+    dans `screens/plan/plan_step_labels.dart`, **miroir mot pour mot de
+    `web_sejoufr/lib/plan-step.ts`**. Rien à propager plus loin : le retour d'un
+    petit sujet est un `pop`, il ramène naturellement dans l'étape.
+  - **Zéro appel réseau de plus** : `learningPlanProvider` est **déjà vivant**
+    (l'écran Plan reste monté sous celui-ci), on ne fait que le lire.
+  - **Repli silencieux, obligatoire** : Plan pas chargé, `stepPromptIds` vide,
+    ou compétence **sortie des priorités** (cas **normal** — le serveur l'en
+    sort dès qu'une vérification en situation a réussi) ⇒ on retombe sur la
+    fiche complète. Ni message, ni écran vide, ni spinner. Le repli se lit à
+    l'**identité** de la liste rendue par `_prompts`, pas à un compteur.
+  - **Compteurs servis, jamais recomptés** : `_SummaryCard` reçoit
+    `attempted`/`total`/`validated` (les `step*Count` en mode étape). Les
+    filtres (Tous / À faire / Traités / Verrouillés) portent sur les **5** et
+    leur somme reste juste, comme sur les 15 ; la `FixedActionBar` vise un sujet
+    **de l'étape**.
+  - 🛑 **Aucun second parcours de vérification ici.** Étape terminée
+    (`stepCompleted`) ⇒ un `ProductionNotice` « Étape terminée » + « Revenir à
+    mon plan ». « Vérifier ma progression » vit **sur le Plan**, qui seul
+    connaît la deuxième condition (moteur de maîtrise prêt) : une étape peut
+    donc afficher « 5/5 » sans que la vérification s'ouvre — **c'est voulu**, ne
+    pas l'expliquer par un message ni contourner la règle.
 - **Une étape peut être TERMINÉE, et elle reste affichée** : badge `EN COURS` →
   `TERMINÉE`, plus la ligne « Réévaluée à ta prochaine production. » sous le titre
   (`_StepDoneLines`, miroir mot pour mot de `LearningPlanView` côté web). Les priorités ne

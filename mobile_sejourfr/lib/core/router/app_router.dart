@@ -40,6 +40,7 @@ import '../../screens/profile/mon_entrainement_screen.dart';
 import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/plan/plan_screen.dart';
+import '../../screens/plan/plan_step_labels.dart';
 import '../../screens/question_runner/runner_screen.dart';
 import '../../screens/review/review_screen.dart';
 import '../../screens/shell/main_shell.dart';
@@ -680,6 +681,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => CompetenceDetailScreen(
           module: _productionModuleFromKey(state.pathParameters['moduleKey']),
           skillId: state.pathParameters['skillId']!,
+          // Marqueur d'étape du Plan : la compétence s'affiche alors à
+          // l'échelle de l'étape (« 2/5 »). Cf. plan_step_labels.dart.
+          planStep: isPlanStepQuery(state.uri.queryParameters),
         ),
       ),
       GoRoute(

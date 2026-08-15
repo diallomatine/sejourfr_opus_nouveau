@@ -639,6 +639,44 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   couple — « 2/5 », jamais « 2/15 ». Ne pas les mélanger : c'est le seul piège
   de cet écran. `stepCompleted` est **servi**, plus déduit d'un
   `attemptedCount >= promptCount` local.
+- **L'étape SUIT le candidat jusque dans la fiche de compétence** (2026-08-15).
+  Une compétence ouverte **depuis le Plan** n'affiche plus que les **sujets de
+  l'étape** et compte « 2/5 » ; par « Réviser → épreuve → Compétences », la
+  fiche complète (les 15 sujets, « x/15 ») est **strictement inchangée**. Deux
+  vues d'une même compétence selon la porte d'entrée : c'est **assumé**
+  (décision propriétaire, prise sur maquette).
+  - **Le périmètre est servi** : `LearningPlanPriorityDto.stepPromptIds`
+    (jamais `null`, éventuellement vide, `length === stepPromptCount`). On ne
+    rejoue **jamais** la règle « les 5 premiers par rang d'affichage », qui vit
+    côté serveur.
+  - **Aucun identifiant ne voyage dans l'URL** : un simple marqueur `?etape=1`
+    (`lib/plan-step.ts` — `PLAN_STEP_PARAM`, `withPlanStep`, `isPlanStep`,
+    `planStepFor`, `planStepPrompts` + les libellés gelés, **miroir mot pour mot
+    de `mobile/lib/screens/plan/plan_step_labels.dart`**). Il est posé par
+    `competenceHref(skill, {planStep: true})` sur les cartes « compétences
+    observées » du Plan — la seule navigation Plan → compétence des deux fronts
+    — puis **propagé** par `CompetencePrompt` et `CompetenceResult` (backHref et
+    poussées), pour que remonter d'un sujet ramène à l'étape et non aux 15. Sur
+    mobile ce même effet vient du `pop` : c'est la parité, pas un ajout.
+  - **Zéro appel réseau de plus** : le Plan se relit **en cache**
+    (`learningPlanApi.peekCached()`). Toute lecture de `/api/me/plan` **range**
+    désormais son résultat sous la clé de cache (`primeCached`, `lib/data-cache
+    .ts`), y compris celle de `/plan`, qui continue par ailleurs d'appeler le
+    serveur à chaque montage.
+  - **Repli silencieux, obligatoire** : Plan pas chargé, `stepPromptIds` vide,
+    ou compétence **sortie des priorités** (cas **normal** — le serveur l'en
+    sort dès qu'une vérification en situation a réussi) ⇒ on retombe sur la
+    fiche complète. Ni message, ni écran vide, ni spinner.
+  - **Compteurs servis, jamais recomptés** : la barre lit
+    `stepAttemptedCount`/`stepPromptCount`. Les filtres (À faire / Traités /
+    Verrouillés) portent sur les **5** et leur somme reste juste, comme sur les
+    15.
+  - 🛑 **Aucun second parcours de vérification ici.** Étape terminée
+    (`stepCompleted`) ⇒ un encart « Étape terminée » + « Revenir à mon plan ».
+    « Vérifier ma progression » vit **sur le Plan**, qui seul connaît la
+    deuxième condition (moteur de maîtrise prêt) : une étape peut donc afficher
+    « 5/5 » sans que la vérification s'ouvre — **c'est voulu**, ne pas
+    l'expliquer par un message ni contourner la règle.
 - **Une étape peut être TERMINÉE, et elle reste affichée** : le badge passe de
   « En cours » à « Terminée » (état `done`, vert), et une ligne apparaît sous le
   titre — « Réévaluée à ta prochaine production. ». Les priorités ne changent

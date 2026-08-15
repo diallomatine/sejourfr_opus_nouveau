@@ -757,6 +757,7 @@ class LearningPlanPriority {
     this.stepAttemptedCount = 0,
     this.stepValidatedCount = 0,
     this.stepCompleted = false,
+    this.stepPromptIds = const <String>[],
     this.masteryState,
     this.readyForReassessment = false,
     this.locked = false,
@@ -792,6 +793,19 @@ class LearningPlanPriority {
   /// tout validé, d'où [stepValidatedCount] à côté. Une étape terminée **reste
   /// affichée** : les priorités ne changent qu'à la prochaine production.
   final bool stepCompleted;
+
+  /// **Le périmètre de l'étape** : les identifiants de ses sujets, dans l'ordre
+  /// de l'étape (rang d'affichage croissant). **Jamais `null`**, et
+  /// `stepPromptIds.length == stepPromptCount` par construction — on ne
+  /// recompte rien à partir de là.
+  ///
+  /// Il permet à l'écran d'une compétence ouverte **depuis le Plan** de rester
+  /// dans l'étape (les mêmes 5 sujets, « 2/5 ») au lieu de retomber sur la
+  /// fiche complète et son « 1/15 ». La règle « les 5 premiers sujets actifs »
+  /// vit côté serveur : elle ne se réimplémente nulle part.
+  ///
+  /// Liste **vide** quand la compétence n'a aucun sujet actif — cas normal.
+  final List<String> stepPromptIds;
 
   /// État de maîtrise agrégé de la compétence, identique à
   /// `SkillDto.masteryState` et issu du même moteur. À ne pas confondre avec
@@ -836,6 +850,9 @@ class LearningPlanPriority {
         stepAttemptedCount: (json['stepAttemptedCount'] as num? ?? 0).toInt(),
         stepValidatedCount: (json['stepValidatedCount'] as num? ?? 0).toInt(),
         stepCompleted: json['stepCompleted'] as bool? ?? false,
+        stepPromptIds: (json['stepPromptIds'] as List<dynamic>? ?? const [])
+            .map((id) => id.toString())
+            .toList(growable: false),
         masteryState:
             SkillMasteryState.fromWireNullable(json['masteryState'] as String?),
         readyForReassessment: json['readyForReassessment'] as bool? ?? false,

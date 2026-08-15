@@ -86,11 +86,15 @@ public class LearningPlanService {
         // L'ordre des priorités vit dans LearningPlanPriorityResolver : c'est le
         // même code qui décide, côté accès, quelle compétence reste ouverte à un
         // compte gratuit. Deux copies auraient fini par désigner deux étapes n°1.
+        // Il reçoit l'historique ENTIER, pas seulement la dernière observation de
+        // chaque compétence : c'est lui qui écarte les compétences dont le
+        // transfert est déjà prouvé en situation — « une fois réussi, on passe à
+        // la compétence suivante ».
         List<LearningPlanObservation> allObservations =
                 observationManager.findAllByUserWithSkill(userId);
         Map<UUID, LearningPlanObservation> latest =
                 priorityResolver.latestObservedBySkill(allObservations);
-        List<LearningPlanObservation> actionable = priorityResolver.actionable(latest.values());
+        List<LearningPlanObservation> actionable = priorityResolver.actionable(allObservations);
         List<LearningPlanObservation> observedItems = latest.values().stream()
                 .sorted(Comparator.comparing(LearningPlanObservation::getObservedAt).reversed())
                 .limit(8)
@@ -220,8 +224,7 @@ public class LearningPlanService {
                         .thenComparing(item -> item.getSkill().getCode()))
                 .orElse(null);
 
-        LearningPlanObservation top = priorityResolver
-                .actionable(priorityResolver.latestObservedBySkill(all).values()).stream()
+        LearningPlanObservation top = priorityResolver.actionable(all).stream()
                 .findFirst()
                 .orElse(null);
         boolean nouvelle = top != null
@@ -290,7 +293,8 @@ public class LearningPlanService {
                 observation.getConfidence(), observation.getObservedAt(), exercise,
                 counts.promptCount(), counts.attemptedCount(), counts.validatedCount(),
                 step.promptCount(), step.attemptedCount(), step.validatedCount(),
-                step.completed(), mastery.state(), readyForReassessment, locked);
+                step.completed(), step.promptIds(),
+                mastery.state(), readyForReassessment, locked);
     }
 
     private static SkillMasteryEngine.SkillMastery mastery(

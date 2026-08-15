@@ -942,6 +942,21 @@ export interface LearningPlanPriorityDto extends LearningPlanSkillCounters, Skil
      * affichée** : les priorités ne changent qu'à la prochaine production.
      */
     stepCompleted: boolean;
+    /**
+     * **Le périmètre de l'étape** : les identifiants des sujets qui la
+     * composent, dans l'ordre de l'étape (rang d'affichage croissant).
+     * **Jamais `null`**, et `stepPromptIds.length === stepPromptCount` par
+     * construction — ne rien recompter à partir de là.
+     *
+     * Il permet à l'écran d'une compétence ouverte **depuis le Plan** de rester
+     * dans l'étape (les mêmes 5 sujets, « 2/5 ») au lieu de retomber sur la
+     * fiche complète et son « 1/15 ». La règle « les 5 premiers sujets actifs »
+     * vit côté serveur : elle ne se réimplémente nulle part.
+     *
+     * Liste **vide** quand la compétence n'a aucun sujet actif — cas normal ;
+     * plus courte que 5 quand elle en publie moins.
+     */
+    stepPromptIds: string[];
     /** État agrégé de la compétence, identique à `SkillDto.masteryState` — à ne
      *  pas confondre avec `status`, verdict de la **dernière** production. */
     masteryState: SkillMasteryState | null;

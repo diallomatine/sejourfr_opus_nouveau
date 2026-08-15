@@ -1,3 +1,4 @@
+import {withPlanStep} from "./plan-step.ts";
 import {productionTaskHref} from "./production-catalog.ts";
 import type {
   DiagnosticCommunicationStatus,
@@ -209,17 +210,30 @@ export function recommendedExerciseHref(
   return `${base}/tache/${task}/competences/${exercise.skillId}/${exercise.skillPromptId}`;
 }
 
-/** Fiche d'une compétence observée dans le module Compétences — le Plan et
- *  « Réviser → Compétences » ouvrent le **même** écran. */
-export function competenceHref(skill: {
-  skillId: string;
-  skillCode: string;
-  section: SkillSection;
-}): string {
+/**
+ * Fiche d'une compétence observée dans le module Compétences — le Plan et
+ * « Réviser → Compétences » ouvrent le **même** écran.
+ *
+ * `planStep` y ajoute le marqueur `?etape=1` : arrivé **depuis le Plan**,
+ * l'écran se limite aux sujets de l'étape et compte « 2/5 » au lieu de
+ * « 1/15 » (cf. `lib/plan-step.ts`). Sans le marqueur, comportement
+ * strictement inchangé.
+ */
+export function competenceHref(
+  skill: {
+    skillId: string;
+    skillCode: string;
+    section: SkillSection;
+  },
+  options: {planStep?: boolean} = {},
+): string {
   const base = `/entrainement/tcf/${skill.section.toLowerCase()}`;
   const task = skillTaskNumber(skill.skillCode);
   if (!task) return `${base}/tache/1/competences`;
-  return `${base}/tache/${task}/competences/${skill.skillId}`;
+  return withPlanStep(
+    `${base}/tache/${task}/competences/${skill.skillId}`,
+    options.planStep === true,
+  );
 }
 
 /** Nom complet d'une épreuve de production, écrit une seule fois pour le

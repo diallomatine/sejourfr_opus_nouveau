@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/skill_models.dart';
 import '../../../core/router/route_observer.dart';
 import '../../../core/theme/app_theme.dart';
@@ -15,6 +16,8 @@ import '../../../core/widgets/fixed_action_bar.dart';
 import '../../../core/widgets/premium_lock.dart';
 import '../../../core/widgets/progress_track.dart';
 import '../../../core/widgets/screen_header.dart';
+import '../../plan/learning_plan_provider.dart';
+import '../../plan/plan_step_labels.dart';
 import '../widgets/exam_filter_chips.dart';
 import '../tcf_production_module.dart';
 import 'competences_nav.dart';
@@ -26,15 +29,28 @@ import 'widgets/skill_trajectory.dart';
 
 /// Détail d'une compétence : carte de résumé, progression en sujets traités,
 /// filtres, puis la liste des petits sujets avec leur statut.
+///
+/// ⚠️ **Deux vues, selon la porte d'entrée** (décision produit, cf.
+/// `screens/plan/plan_step_labels.dart`). Ouvert **depuis le Plan**
+/// ([planStep]) et tant que la compétence est une priorité, l'écran se limite
+/// aux **sujets de l'étape** et compte « 2/5 » ; par « Réviser → épreuve →
+/// Compétences », il garde la fiche complète et son « x/15 », **strictement
+/// inchangée**. Sans périmètre exploitable — Plan pas chargé, compétence sortie
+/// des priorités, étape vide — on retombe **silencieusement** sur la fiche
+/// complète : jamais d'erreur, jamais d'écran vide.
 class CompetenceDetailScreen extends ConsumerStatefulWidget {
   const CompetenceDetailScreen({
     super.key,
     required this.module,
     required this.skillId,
+    this.planStep = false,
   });
 
   final TcfProductionModule module;
   final String skillId;
+
+  /// Marqueur `?etape=1` : on arrive du Plan.
+  final bool planStep;
 
   @override
   ConsumerState<CompetenceDetailScreen> createState() =>
@@ -75,7 +91,8 @@ class _CompetenceDetailScreenState
       context.pop();
       return;
     }
-    context.go('/tcf/${widget.module.routeKey}');
+    // Venu du Plan, on y retourne : l'étape est son écran, pas l'épreuve.
+    context.go(widget.planStep ? '/plan' : '/tcf/${widget.module.routeKey}');
   }
 
   /// Verrou freemium servi par le serveur : un sujet fermé ouvre l'offre, pas
@@ -90,10 +107,38 @@ class _CompetenceDetailScreenState
     );
   }
 
+  /// L'étape du Plan qui porte cette compétence, ou `null` (cas normal).
+  ///
+  /// Le Plan est **déjà chargé** : on n'arrive ici avec le marqueur qu'en
+  /// venant de l'écran Plan, qui reste monté sous celui-ci — le provider est
+  /// donc vivant et rend sa valeur **sans aucun appel réseau**.
+  LearningPlanPriority? _step() {
+    if (!widget.planStep) return null;
+    return planStepFor(
+      ref.watch(learningPlanProvider).valueOrNull,
+      widget.skillId,
+    );
+  }
+
+  /// Les sujets de l'étape, **dans l'ordre servi**. On ne rejoue aucune règle
+  /// (« les 5 premiers par rang ») : on retrouve simplement les sujets des
+  /// identifiants servis. Vide ⇒ l'appelant se replie sur la fiche complète.
+  List<SkillPromptSummary> _stepPrompts(
+    List<SkillPromptSummary> prompts,
+    LearningPlanPriority step,
+  ) {
+    final byId = {for (final p in prompts) p.id: p};
+    return [
+      for (final id in step.stepPromptIds)
+        if (byId[id] != null) byId[id]!,
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(skillDetailProvider(widget.skillId));
     final detail = async.valueOrNull;
+    final step = _step();
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -118,11 +163,13 @@ class _CompetenceDetailScreenState
                   onRetry: () =>
                       ref.invalidate(skillDetailProvider(widget.skillId)),
                 ),
-                data: _list,
+                data: (detail) => _list(detail, step),
               ),
             ),
-            if (detail != null && detail.prompts.isNotEmpty)
-              FixedActionBar(child: _primaryAction(detail)),
+            if (detail != null && _prompts(detail, step).isNotEmpty)
+              FixedActionBar(
+                child: _primaryAction(_prompts(detail, step)),
+              ),
           ],
         ),
       ),
@@ -133,8 +180,8 @@ class _CompetenceDetailScreenState
   /// « Commencer » sur un sujet verrouillé mènerait droit au paywall alors que
   /// d'autres sujets sont disponibles. Quand plus rien n'est ouvert, le bouton
   /// dit la seule chose vraie qui reste.
-  Widget _primaryAction(SkillDetail detail) {
-    final open = detail.prompts.where((p) => !p.locked);
+  Widget _primaryAction(List<SkillPromptSummary> prompts) {
+    final open = prompts.where((p) => !p.locked);
     if (open.isEmpty) {
       return AppButton(
         label: kPremiumLockCta,
@@ -156,8 +203,22 @@ class _CompetenceDetailScreenState
     );
   }
 
-  Widget _list(SkillDetail detail) {
-    final prompts = detail.prompts;
+  /// Le périmètre affiché : l'étape quand on vient du Plan et qu'elle est
+  /// exploitable, la compétence entière sinon.
+  List<SkillPromptSummary> _prompts(
+    SkillDetail detail,
+    LearningPlanPriority? step,
+  ) {
+    if (step == null) return detail.prompts;
+    final scoped = _stepPrompts(detail.prompts, step);
+    return scoped.isEmpty ? detail.prompts : scoped;
+  }
+
+  Widget _list(SkillDetail detail, LearningPlanPriority? step) {
+    final prompts = _prompts(detail, step);
+    // `_prompts` rend **l'instance** de la fiche complète quand il se replie :
+    // c'est ce qui distingue les deux vues sans recompter quoi que ce soit.
+    final scoped = !identical(prompts, detail.prompts);
     if (prompts.isEmpty) {
       return const ProductionEmptyView(
         description: 'Les sujets de cette compétence ne sont pas encore prêts.',
@@ -198,14 +259,43 @@ class _CompetenceDetailScreenState
           _SummaryCard(
             skill: detail.skill,
             accent: _accent,
-            treated: treated,
+            // En mode étape, la progression affichée est **celle du serveur**
+            // (`stepAttemptedCount` / `stepPromptCount`) : on ne la recompte
+            // pas depuis la liste.
+            attempted: scoped ? step!.stepAttemptedCount : treated,
+            total: scoped ? step!.stepPromptCount : detail.skill.promptCount,
+            validated:
+                scoped ? step!.stepValidatedCount : detail.skill.validatedCount,
+            stepPill: scoped,
             icon: widget.module.icon,
           ),
+          // Étape finie : on ne fabrique **aucun** second parcours de
+          // vérification ici — « Vérifier ma progression » vit sur le Plan,
+          // qui seul sait si le moteur de maîtrise est prêt. On y ramène.
+          if (scoped && step!.stepCompleted) ...[
+            const SizedBox(height: 14),
+            ProductionNotice(
+              icon: LucideIcons.circleCheck,
+              tone: AppColors.green,
+              toneSoft: AppColors.greenLight,
+              title: kPlanStepDoneTitle,
+              body: planStepDoneText(step.stepPromptCount),
+            ),
+            const SizedBox(height: 12),
+            AppButton(
+              label: kPlanStepDoneCta,
+              icon: LucideIcons.arrowRight,
+              variant: AppButtonVariant.soft,
+              onPressed: () => context.go('/plan'),
+            ),
+          ],
           const SizedBox(height: 21),
-          const ProductionSectionHead(
-            title: 'Petits sujets',
-            description: 'Les sujets déjà réalisés restent clairement '
-                'identifiables.',
+          ProductionSectionHead(
+            title: scoped ? kPlanStepSectionTitle : 'Petits sujets',
+            description: scoped
+                ? planStepSectionText(step!.stepPromptCount)
+                : 'Les sujets déjà réalisés restent clairement identifiables.',
+            accent: _accent,
           ),
           const SizedBox(height: 11),
           ExamFilterChips(
@@ -274,14 +364,26 @@ class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
     required this.skill,
     required this.accent,
-    required this.treated,
+    required this.attempted,
+    required this.total,
+    required this.validated,
     required this.icon,
+    this.stepPill = false,
   });
 
   final SkillDto skill;
   final Color accent;
-  final int treated;
+
+  /// Progression affichée. En mode étape, ces trois nombres **viennent du
+  /// serveur** (`step*Count`) : rien n'est recompté ici.
+  final int attempted;
+  final int total;
+  final int validated;
   final IconData icon;
+
+  /// Pastille « Étape de ton plan » : on dit d'où l'on vient, sinon l'écran
+  /// ressemble à la fiche complète tout en n'en montrant qu'une partie.
+  final bool stepPill;
 
   @override
   Widget build(BuildContext context) {
@@ -314,6 +416,10 @@ class _SummaryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (stepPill) ...[
+                      _StepPill(accent: accent),
+                      const SizedBox(height: 6),
+                    ],
                     Text(
                       skill.title,
                       style: AppFonts.display(size: 19, height: 1.2),
@@ -341,26 +447,24 @@ class _SummaryCard extends StatelessWidget {
             children: [
               Expanded(
                 child: ProgressTrack(
-                  value: skill.promptCount == 0
-                      ? 0
-                      : treated / skill.promptCount * 100,
+                  value: total == 0 ? 0 : attempted / total * 100,
                   color: accent,
                   height: 5,
                 ),
               ),
               const SizedBox(width: 8),
               Text(
-                '$treated/${skill.promptCount} traités',
+                '$attempted/$total traités',
                 style: AppFonts.ui(
                   size: 11,
                   weight: FontWeight.w800,
                   color: AppColors.inkSoft,
                 ),
               ),
-              if (skill.validatedCount > 0) ...[
+              if (validated > 0) ...[
                 const SizedBox(width: 8),
                 Text(
-                  '${skill.validatedCount} ✓',
+                  '$validated ✓',
                   style: AppFonts.ui(
                     size: 11,
                     weight: FontWeight.w800,
@@ -371,6 +475,29 @@ class _SummaryCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Pastille « Étape de ton plan » de la carte de résumé, rendue seulement quand
+/// la compétence a été ouverte depuis le Plan.
+class _StepPill extends StatelessWidget {
+  const _StepPill({required this.accent});
+
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        kPlanStepPill.toUpperCase(),
+        style: AppFonts.label(size: 10, color: accent),
       ),
     );
   }

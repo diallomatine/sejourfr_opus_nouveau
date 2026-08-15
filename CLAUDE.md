@@ -532,6 +532,44 @@ de rubriques et files de calibration doivent garder le filtre
   porte que les compteurs de compétence. Un seul calcul dans
   `SkillProgressCounter` (+ `SkillProgressTally`, `SkillStatusResolver`), **2
   requêtes** quel que soit le nombre de compétences.
+- **Le PÉRIMÈTRE de l'étape est publié, pas redécoupé par les fronts** :
+  `LearningPlanPriorityDto.stepPromptIds` (liste ordonnée d'UUID, **jamais
+  `null`**, éventuellement vide, `display_order` croissant sur les sujets
+  actifs), dérivée de `LearningPlanStep.scope`. Invariant garanti :
+  `stepPromptIds.size() == stepPromptCount` — le compteur en est **dérivé**, ils
+  ne peuvent plus diverger. **Zéro requête ajoutée** : les sujets étaient déjà
+  chargés pour les compteurs. Motif : ouvrir une compétence **depuis le Plan**
+  affichait « 1/15 » (la fiche générique), l'étape se perdait à la navigation.
+  Les fronts servent désormais un écran **scopé aux 5 sujets** quand on vient du
+  Plan, et la fiche complète (« x/15 ») par le chemin Réviser → Compétences —
+  deux vues assumées pour une même compétence. Ils **ne réimplémentent pas**
+  « les 5 premiers par ordre d'affichage » : deux copies désigneraient deux
+  étapes différentes.
+- **Une VÉRIFICATION RÉUSSIE fait sortir la compétence des priorités**
+  (2026-08-15, `LearningPlanPriorityResolver.transfertProuve`) : dès que la
+  **dernière** observation issue d'une source **contextualisée**
+  (`PRODUCTION_EE/EO`, `MOCK_EXAM_EE/EO` — jamais un micro-entraînement, jamais
+  le diagnostic qui est la baseline) porte le statut `SOLID`, la compétence
+  cesse d'être *actionable* et la suivante devient l'étape n°1. « La dernière »
+  et non « au moins une » : c'est ce qui rend la règle **réversible** — une
+  production ultérieure qui fragilise ramène la compétence en priorité, tandis
+  qu'un micro-exercice raté après la preuve ne révoque rien (même sens que
+  `SkillMasteryEngine`, où seule une fragilité contextualisée défait un
+  transfert prouvé).
+  🛑 **L'état agrégé `SOLID` du moteur n'a PAS bougé** (il exige toujours 2
+  observations positives dont une contextualisée, sujets différents) : une
+  compétence sortie des priorités peut donc rester `CONSOLIDATING`, et
+  `PlanMilestoneSelector` voit exactement les mêmes compétences `SOLID` qu'avant.
+  C'est **voulu** — une preuve n'est pas une maîtrise installée. Ne pas
+  « aligner » les deux notions.
+  ⚠️ **Le déclencheur de la vérification est INCHANGÉ** : il faut toujours
+  `readyForReassessment` **et** `step.completed()`. Une étape peut donc afficher
+  « 5/5 » sans que la vérification s'ouvre — arbitrage explicite du propriétaire,
+  qui a refusé d'assouplir la règle *et* de l'expliquer à l'écran.
+  Conséquence sur le freemium : `SkillAccessService` ouvrant la compétence de la
+  priorité n°1, celle-ci **se déplace** avec l'enchaînement. Sans effet réel pour
+  un compte gratuit, qui plafonne à 2 sujets sur 5, ne termine jamais une étape
+  et n'obtient donc jamais cette preuve par cette voie.
 - **Achèvement d'une étape, dérivé serveur** (`LearningPlanStep.Progress
   .completed()`, jamais persisté, jamais recalculé par un front — philosophie
   `SkillStatusResolver` / `SituationDansNiveau`) : terminée quand ses 5 sujets
