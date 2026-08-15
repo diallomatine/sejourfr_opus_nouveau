@@ -31,6 +31,10 @@ class FullTcfExamRepository {
 
   /// État courant d'un examen blanc complet (parent + sous-attempts +
   /// agrégation CECRL plancher si toutes les évals IA sont prêtes).
+  ///
+  /// ⚠️ Cet appel **clôture automatiquement** une épreuve dont l'échéance est
+  /// passée, avec ce qui avait été enregistré : un retour dans l'app peut donc
+  /// rendre une épreuve déjà `finishedAt` — c'est normal, pas une erreur.
   Future<FullTcfExamResponse> get(String parentAttemptId) async {
     final res = await _client.dio.get<Map<String, dynamic>>(
       '/api/full-tcf-exams/$parentAttemptId',
@@ -38,12 +42,21 @@ class FullTcfExamRepository {
     return FullTcfExamResponse.fromJson(res.data!);
   }
 
-  /// Démarre le chrono d'une épreuve (CO/CE) au moment où le candidat la
-  /// lance, AVANT d'ouvrir le runner. Le backend pose l'ancre globale 90 min
-  /// au premier appel et recale le `startedAt` de l'épreuve sur l'instant réel
-  /// pour que son chrono propre (CO 20 min / CE 30 min) reparte à neuf — sinon
-  /// la CE héritait du temps écoulé sur la CO. Idempotent : une reprise ne
-  /// remet pas le compteur à zéro.
+  /// Démarre le chrono d'une épreuve **au moment où le candidat la lance**,
+  /// AVANT d'ouvrir l'écran de l'épreuve. À appeler pour les **4** épreuves :
+  /// tant qu'il n'est pas appelé, l'épreuve n'a **pas d'échéance** (les 4
+  /// sous-attempts sont créés d'un bloc au démarrage de l'examen, leur
+  /// `startedAt` ne dit rien du moment où le candidat les ouvre). Le backend
+  /// pose `timerStartedAt` et recale `startedAt` sur l'instant réel, puis expose
+  /// `deadlineAt` — la seule source du compte à rebours.
+  ///
+  /// Il n'y a **plus d'enveloppe globale de 90 min** : chaque épreuve porte sa
+  /// durée (CO 20 min, CE 35 min **partout**, EE 30 min ; l'EO se chronomètre
+  /// par tâche) et rien ne se transfère de l'une à l'autre.
+  ///
+  /// Idempotent : une reprise ne remet pas le compteur à zéro — **et le temps a
+  /// continué de courir pendant l'absence**. Il n'existe volontairement aucun
+  /// flux « recommencer une épreuve interrompue ».
   Future<FullTcfExamResponse> beginEpreuve({
     required String parentAttemptId,
     required String epreuveWire,

@@ -4,6 +4,7 @@ import com.sejourfr.app.config.LearningPlanProperties;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.LearningPlanObservation;
+import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.SkillMasteryState;
@@ -37,7 +38,7 @@ import java.util.UUID;
  *          |   c'est elle qui debloque SOLID
  *   Epreuve transferee -&gt; Examen blanc d'epreuve (EE ou EO, 3 taches)
  *          |
- *   Les deux epreuves -&gt; Examen blanc TCF complet (4 epreuves, 90 min)
+ *   Les deux epreuves -&gt; Examen blanc TCF complet (4 epreuves, ~95 min)
  * </pre>
  * Attendre « les 3 etapes finies » aurait ete inatteignable (un compte gratuit
  * plafonne a 2 des 5 sujets d'une etape) et aurait fige les competences en
@@ -59,7 +60,7 @@ import java.util.UUID;
  *       un echec, pas un progres.</li>
  *   <li><b>Jalon complet</b> : les deux epreuves ont franchi le leur <b>et l'ont
  *       prouve</b> (un examen blanc de chaque, recent). Ce qui reste a verifier
- *       n'est plus une epreuve, c'est de les tenir <b>ensemble</b> en 90 minutes
+ *       n'est plus une epreuve, c'est de les tenir <b>ensemble</b> d'une traite
  *       — c'est la seule chose que l'examen complet ajoute.</li>
  * </ol>
  *
@@ -193,9 +194,13 @@ public class PlanMilestoneSelector {
         int slot = nextSlot(
                 attemptManager.countProductionExamSessions(userId, epreuve),
                 ProductionExamCompositionService.EXAM_SLOTS_PER_EPREUVE);
+        // Duree ANNONCEE du jalon. A l'ecrit c'est le chrono de l'epreuve
+        // (30 min) ; a l'oral il n'y en a pas — le temps se compte par tache —
+        // donc on annonce le temps de parole cumule des 3 taches (10 min), pas
+        // le garde-fou de session, qui n'est pas une duree d'examen.
         int minutes = (epreuve == EpreuveType.TCF_EO
-                ? AttemptService.PRODUCTION_EO_EXAM_SECONDS
-                : AttemptService.PRODUCTION_EE_EXAM_SECONDS) / 60;
+                ? DureeEpreuve.EO_TEMPS_DE_PAROLE_SECONDS
+                : DureeEpreuve.secondes(EpreuveType.TCF_EE)) / 60;
         // Le verrou est REPORTE, jamais applique a la designation : un jalon
         // verrouille reste designe avec son cadenas. La regle est lue chez
         // l'autorite que le serveur oppose au demarrage, jamais recopiee.
@@ -217,7 +222,7 @@ public class PlanMilestoneSelector {
         if (recent) return Optional.empty();
         return Optional.of(PlanRecommendedExerciseDto.fullTcfMockExam(
                 nextSlot(complets.size(), FullTcfExamService.EXAM_SLOTS),
-                FullTcfExamService.FULL_EXAM_TOTAL_SECONDS / 60,
+                DureeEpreuve.secondesExamenComplet() / 60,
                 productionAccessService.isFullExamProductionLocked(userId)));
     }
 

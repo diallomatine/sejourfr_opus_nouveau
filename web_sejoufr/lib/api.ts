@@ -1270,10 +1270,12 @@ export const fullTcfExamApi = {
         );
     },
 
-    /** Démarre le chrono d'une épreuve (CO/CE) au moment où le candidat la
-     *  lance, AVANT d'ouvrir le runner. Pose l'ancre globale 90 min au 1er
-     *  appel et recale le `started_at` de l'épreuve sur l'instant réel (sinon
-     *  la CE héritait du temps écoulé sur la CO). Idempotent par ancre. */
+    /** Démarre le chrono PROPRE d'une épreuve au moment où le candidat la
+     *  lance, AVANT d'ouvrir l'écran de l'épreuve. **Obligatoire sur les 4** :
+     *  tant qu'il n'est pas appelé, l'épreuve n'a aucune échéance et son
+     *  `deadlineAt` reste null. Il n'y a plus de chrono global — le temps d'une
+     *  épreuve ne se reporte jamais sur la suivante. Idempotent : une reprise
+     *  ne remet rien à zéro et rend le temps réellement restant. */
     begin(id: string, epreuve: string): Promise<FullTcfExamResponse> {
         return apiFetch<FullTcfExamResponse>(
             `/api/full-tcf-exams/${id}/begin?epreuve=${encodeURIComponent(epreuve)}`,

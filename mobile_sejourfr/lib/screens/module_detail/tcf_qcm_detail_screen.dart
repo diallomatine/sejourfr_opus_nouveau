@@ -10,6 +10,7 @@ import '../../core/models/lot_models.dart';
 import '../../core/providers/lots_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/epreuve_duration.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
@@ -39,8 +40,7 @@ enum TcfQcmModule {
         'le format exact de l\'examen. C\'est l\'épreuve qui distingue le '
         'plus les niveaux : la travailler régulièrement sécurise ton palier CECRL.',
     icon: LucideIcons.ear,
-    durationLabel: '≈ 20 min',
-    examSubtitle: '25 questions · 20 min',
+    epreuve: EpreuveType.tcfCo,
     heroProgressLine: 'progression A2 → B1 → B2',
   ),
   ce(
@@ -54,8 +54,7 @@ enum TcfQcmModule {
         'que tu auras le jour J. Lecture rapide, choix juste : ici se joue ton '
         'aisance écrite au TCF.',
     icon: LucideIcons.fileText,
-    durationLabel: '≈ 35 min',
-    examSubtitle: '25 questions · 35 min',
+    epreuve: EpreuveType.tcfCe,
     heroProgressLine: 'progression A2 → B1 → B2',
   ),
   structure(
@@ -69,8 +68,7 @@ enum TcfQcmModule {
         'officiel — mais chaque point de grammaire que tu consolides ici fait '
         'gagner des points sur CE, EE et EO.',
     icon: LucideIcons.layoutGrid,
-    durationLabel: '≈ 20 min',
-    examSubtitle: '25 questions · 20 min',
+    epreuve: EpreuveType.tcfStructure,
     heroProgressLine: 'grammaire en conditions réelles',
     notice:
         'Module non évalué dans le TCF IRN officiel. Cet entraînement reste très utile pour consolider ta grammaire et progresser sur les autres épreuves.',
@@ -85,8 +83,7 @@ enum TcfQcmModule {
     required this.headlineNoun,
     required this.description,
     required this.icon,
-    required this.durationLabel,
-    required this.examSubtitle,
+    required this.epreuve,
     required this.heroProgressLine,
     this.notice,
   });
@@ -99,10 +96,20 @@ enum TcfQcmModule {
   final String headlineNoun;
   final String description;
   final IconData icon;
-  final String durationLabel;
 
-  /// Sous-titre affiché dans le briefing examen (ex: "25 questions · 20 min").
-  final String examSubtitle;
+  /// Épreuve TCF correspondante — **la clé de la durée**. Elle n'est plus écrite
+  /// en dur ici : [durationLabel] et [examSubtitle] la lisent dans
+  /// `kEpreuveDurationSeconds`, la seule table de l'app (miroir de
+  /// `DureeEpreuve` côté backend). Une épreuve a la même durée où qu'elle soit
+  /// jouée — c'est ce qui avait dérivé sur la CE (30 min ici, 35 là).
+  final EpreuveType epreuve;
+
+  /// Durée annoncée sur la carte du module (« ≈ 35 min »).
+  String get durationLabel => '≈ ${epreuveDurationLabelFor(epreuve)}';
+
+  /// Sous-titre affiché dans le briefing examen (ex: "25 questions · 35 min").
+  String get examSubtitle =>
+      '25 questions · ${epreuveDurationLabelFor(epreuve)}';
 
   /// Fragment de phrase utilisé dans la description du briefing examen.
   final String heroProgressLine;

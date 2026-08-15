@@ -277,6 +277,9 @@ export interface AttemptResponse {
     examTemplateSlug: string | null;
     examTemplateName: string | null;
     totalQuestions: number;
+    /** Chrono de l'épreuve, en secondes. **Absent sur une session d'examen
+     *  EO** : l'oral se chronomètre par tâche, au lancement de chaque tâche —
+     *  l'épreuve elle-même n'a pas d'échéance. */
     timeLimitSeconds?: number;
     passThreshold?: number;
     startedAt: string;
@@ -2621,17 +2624,53 @@ export interface FullTcfExamSubAttempt {
     submissionsCount: number | null;
     failedSubmissionIds: string[];
     locked: boolean;
+    /** Chrono PROPRE de l'épreuve, en secondes : 1200 CO, 2100 CE, 1800 EE.
+     *  **Null en EO** (l'oral se chronomètre par tâche, au lancement de chaque
+     *  tâche) et null sur une épreuve verrouillée. Le temps d'une épreuve ne se
+     *  transfère jamais à la suivante — il n'y a plus de chrono global. */
+    timeLimitSeconds: number | null;
+    /** Lancement réel de l'épreuve (`POST /begin`). Null tant qu'elle n'a pas
+     *  été lancée : l'épreuve n'a alors AUCUNE échéance. */
+    timerStartedAt: string | null;
+    /** `timerStartedAt + timeLimitSeconds`. **Unique source du compte à
+     *  rebours**, y compris au retour dans l'app : quitter ne suspend rien, le
+     *  temps a couru pendant l'absence. Ne jamais recalculer une échéance côté
+     *  client. */
+    deadlineAt: string | null;
+}
+
+/** Comment l'examen a été mené : d'une traite, ou repris en plusieurs fois.
+ *  L'abandon/reprise entre épreuves est officiellement supporté — ce champ dit
+ *  seulement ce qui s'est passé, il ne disqualifie rien. */
+export type FullTcfExamContinuite = "SESSION_UNIQUE" | "PLUSIEURS_SESSIONS";
+
+/** Libellés gelés côté backend (miroir mot pour mot du mobile). Déclarés ici et
+ *  nulle part ailleurs : aucune de ces chaînes ne se recopie dans un composant. */
+export const FULL_TCF_EXAM_CONTINUITE_LABEL: Record<FullTcfExamContinuite, string> = {
+    SESSION_UNIQUE: "Simulation complète — conditions examen",
+    PLUSIEURS_SESSIONS: "Simulation complétée en plusieurs sessions",
+};
+
+/** `null` tant que l'examen n'est pas terminé : rien à afficher, cas normal. */
+export function fullTcfExamContinuiteLabel(
+    continuite: FullTcfExamContinuite | null | undefined,
+): string | null {
+    return continuite == null ? null : FULL_TCF_EXAM_CONTINUITE_LABEL[continuite];
 }
 
 export interface FullTcfExamResponse {
     id: string;
     startedAt: string;
-    /** Lancement réel de la 1re épreuve (CO) — ancre du chrono 90 min. Null
-     *  tant que le candidat n'a pas commencé (hub de progression). */
+    /** Lancement réel de la 1re épreuve — **trace du début réel de l'examen**,
+     *  plus l'ancre d'un décompte : chaque épreuve porte son propre chrono
+     *  (`FullTcfExamSubAttempt.deadlineAt`). Null tant que le candidat n'a pas
+     *  commencé (hub de progression). */
     timerStartedAt: string | null;
     finishedAt: string | null;
     finalCecrlLevel: NiveauCecrl | null;
     status: FullTcfExamStatus;
+    /** Null tant que l'examen n'est pas terminé. */
+    continuite: FullTcfExamContinuite | null;
     subAttempts: FullTcfExamSubAttempt[];
     /** Périmètre réel du plancher `finalCecrlLevel` : nombre d'épreuves qui
      *  portent un niveau et y entrent vraiment. Une épreuve verrouillée
@@ -2659,11 +2698,9 @@ export interface FullTcfExamSummaryResponse {
      *  « dernier examen » et à annoter dans la grille des slots — un examen
      *  amputé n'est pas un résultat d'examen complet (`isCompleteExamResult`). */
     finalLevelPartial: boolean;
+    /** Null tant que l'examen n'est pas terminé. */
+    continuite: FullTcfExamContinuite | null;
 }
-
-/** Durée totale de l'examen complet (90 min). Constante backend
- *  `FullTcfExamService.FULL_EXAM_TOTAL_SECONDS`, non exposée dans le DTO. */
-export const FULL_TCF_EXAM_DURATION_SEC = 90 * 60;
 
 /** Ordre canonique des 4 épreuves de l'examen complet. */
 export const FULL_TCF_EXAM_EPREUVES = [

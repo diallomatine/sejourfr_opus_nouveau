@@ -37,6 +37,10 @@ class RunnerScreen extends ConsumerStatefulWidget {
 }
 
 class _RunnerScreenState extends ConsumerState<RunnerScreen> {
+  /// Le 422 « temps écoulé » ne se traite qu'une fois : le message serveur est
+  /// affiché, puis on bascule sur l'écran de fin.
+  bool _timeExpiredHandled = false;
+
   @override
   void initState() {
     super.initState();
@@ -54,10 +58,50 @@ class _RunnerScreenState extends ConsumerState<RunnerScreen> {
     });
   }
 
+  /// Le backend a refusé la réponse en **422** : l'échéance de l'épreuve (plus
+  /// 60 s de grâce) est passée. Le refus porte sur **une** réponse — celles
+  /// d'avant sont conservées et l'épreuve est clôturée côté serveur. On dit
+  /// pourquoi, puis on va à l'écran de fin plutôt que de laisser le candidat
+  /// retenter une soumission qui sera toujours refusée.
+  Future<void> _handleTimeExpired(String message) async {
+    if (_timeExpiredHandled || !mounted) return;
+    _timeExpiredHandled = true;
+    final attemptId = widget.attemptId;
+    final ctrl = ref.read(runnerControllerProvider(attemptId).notifier);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.red,
+        duration: const Duration(seconds: 5),
+      ),
+    );
+    var attempt = await ctrl.finish();
+    if (!mounted) return;
+    if (attempt == null) {
+      // `finish` peut échouer si le serveur a déjà clôturé l'épreuve : on relit
+      // l'état réel plutôt que d'afficher un score périmé.
+      await ctrl.retry();
+      if (!mounted) return;
+      attempt = ref.read(runnerControllerProvider(attemptId)).valueOrNull
+          ?.activeAttempt;
+    }
+    if (attempt == null || !mounted) return;
+    _navigateToResult(context, ref, attempt);
+  }
+
   @override
   Widget build(BuildContext context) {
     final attemptId = widget.attemptId;
     final state = ref.watch(runnerControllerProvider(attemptId));
+
+    ref.listen(runnerControllerProvider(attemptId), (prev, next) {
+      final was = prev?.valueOrNull?.timeExpired ?? false;
+      final now = next.valueOrNull?.timeExpired ?? false;
+      if (!was && now) {
+        _handleTimeExpired(next.valueOrNull?.errorMessage ??
+            'Le temps de cette épreuve est écoulé.');
+      }
+    });
 
     return state.when(
       loading: () => const Scaffold(
@@ -138,7 +182,10 @@ class _RunnerView extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(right: 12),
               child: Center(
-                child: ExamTimer(
+                // `startedAt` EST l'ancre : le backend le recale sur le
+                // lancement réel de l'épreuve (`POST /begin`) dans un examen
+                // complet, et c'est le vrai début d'une session isolée.
+                child: ExamTimer.fromStart(
                   durationSeconds: state.activeAttempt.timeLimitSeconds!,
                   startedAt: state.activeAttempt.startedAt,
                   onElapsed: () => _autoFinish(context, ref),

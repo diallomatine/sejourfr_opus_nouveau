@@ -7,8 +7,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
+import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/epreuve_duration.dart';
 import '../../core/utils/query_propagation.dart';
 import '../../core/widgets/app_button.dart';
 import '../question_runner/widgets/exam_timer.dart';
@@ -19,11 +21,6 @@ import 'widgets/consigne_card.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
 import 'widgets/writing_zone.dart';
-
-/// Durée de l'examen EE complet (30 min), comme côté backend pour le module.
-/// Utilisée côté front pour le sous-attempt EE d'un examen TCF complet, qui
-/// n'expose pas de `timeLimitSeconds`.
-const int _eeExamDurationSeconds = 1800;
 
 /// Briefing + zone d'ecriture combines (un seul long scroll), aligne sur
 /// le mockup `EE · 01` de sejourfr_mobile_v3.html.
@@ -389,6 +386,17 @@ class _EeBriefingWritingScreenState
         fullExamId != null ? '/tcf/examen-blanc/$fullExamId' : '/tcf/ee';
     final session = sessionAsync.value;
     final isExam = session?.isExam ?? false;
+    // Examen complet : `deadlineAt` du sous-attempt EE est **l'unique** source
+    // du compte à rebours (quitter ne suspend rien, le temps a couru pendant
+    // l'absence). Null tant que l'épreuve n'a pas été lancée ou face à un
+    // backend antérieur au champ — on retombe alors sur `startedAt + durée`.
+    final examDeadline = fullExamId == null
+        ? null
+        : ref
+            .watch(fullTcfExamProvider(fullExamId))
+            .valueOrNull
+            ?.subFor(EpreuveType.tcfEe)
+            ?.deadlineAt;
     return PopScope(
       // En examen, on intercepte le retour pour confirmer l'abandon + finaliser
       // (copie ramassée). En entraînement libre, le flux brouillon est conservé
@@ -430,17 +438,29 @@ class _EeBriefingWritingScreenState
               return const Center(child: CircularProgressIndicator());
             }
             _loadDraftIfNeeded(task);
-            // Chrono EE 30:00 : module → ancre backend (`attempt.startedAt` +
-            // `timeLimitSeconds`) ; examen complet → ancre front
-            // (`attempt.startedAt` posé à `startInFullExam`), durée 1800 s.
-            final examTimer = session.isExam
-                ? ExamTimer(
-                    durationSeconds: session.attempt!.timeLimitSeconds ??
-                        _eeExamDurationSeconds,
-                    startedAt: session.attempt!.startedAt,
-                    onElapsed: () => _handleTimeout(task),
-                  )
-                : null;
+            // Chrono d'épreuve EE : **une seule source, le backend**
+            // (`attempt.timeLimitSeconds` + `attempt.startedAt`, ce dernier
+            // recalé sur le lancement réel par `POST /begin` dans un examen
+            // complet). Il porte sur les **3 tâches ensemble** et court même
+            // quand on quitte. Plus de constante front : c'est elle qui faisait
+            // repartir 30 minutes à chaque réouverture d'un examen complet.
+            final limit = session.attempt?.timeLimitSeconds;
+            final examTimer = !session.isExam || limit == null
+                ? null
+                : (examDeadline != null
+                    // Examen complet : l'échéance vient du serveur, seule source
+                    // fiable — le sous-attempt est créé au lancement de
+                    // l'examen, son `startedAt` n'est l'ancre qu'une fois
+                    // `POST /begin` passé.
+                    ? ExamTimer(
+                        deadline: examDeadline,
+                        onElapsed: () => _handleTimeout(task),
+                      )
+                    : ExamTimer.fromStart(
+                        durationSeconds: limit,
+                        startedAt: session.attempt!.startedAt,
+                        onElapsed: () => _handleTimeout(task),
+                      ));
             return _Content(
               task: task,
               session: session,
@@ -539,6 +559,10 @@ class _Content extends StatelessWidget {
                   task.niveauCible,
                 ],
               ),
+              // Repère de rythme, **indicatif et jamais bloquant** : le seul
+              // chrono opposable porte sur les 3 tâches ensemble. Rien ne se
+              // ferme quand ce repère est dépassé.
+              if (session.isExam) _TempsConseille(task: task),
               WritingZone(
                 key: const ValueKey('ee-writing-zone'),
                 controller: controller,
@@ -589,6 +613,43 @@ class _Content extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Ligne discrète « ≈ 10 min conseillées sur cette tâche · les 30 min portent
+/// sur les 3 ». Aide au rythme : **elle n'ouvre ni ne ferme rien**, et le seul
+/// décompte réel est celui de l'épreuve, affiché en haut. Se retire d'elle-même
+/// quand la tâche n'a pas de repère.
+class _TempsConseille extends StatelessWidget {
+  const _TempsConseille({required this.task});
+
+  final ProductionTaskDto task;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = eeTempsConseilleLabel(task.tacheNumero);
+    if (label == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(LucideIcons.timer, size: 15, color: AppColors.muted2),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$label sur cette tâche — un repère, pas une limite : '
+              'le chrono affiché couvre les 3 tâches.',
+              style: AppFonts.ui(
+                size: 12.5,
+                color: AppColors.muted,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

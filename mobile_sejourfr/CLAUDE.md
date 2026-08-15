@@ -2067,6 +2067,54 @@ avec le mode « Sujets » TCF, qui est un tout autre écran (spec §4).
 Backend : cf. `CLAUDE.md` racine section « Examen blanc TCF complet ». Côté mobile, l'orchestration vit
 dans `screens/tcf_full_exam/` :
 
+### 🛑 Le temps d'un examen TCF — refonte 2026-08-15
+
+- **Le chrono global de 90 min est SUPPRIMÉ.** Le temps d'une épreuve ne se transfère jamais à la
+  suivante et l'abandon-reprise entre épreuves est officiellement supporté : un décompte global n'a
+  plus de sens. Les 4 durées font **~95 min**, annoncé comme **indicatif**. Ne pas réintroduire
+  `_fullExamTotal` ni un timer ancré sur `FullTcfExamResponse.timerStartedAt` (qui n'est plus qu'une
+  trace du début, servant au statut de continuité).
+- **Chaque épreuve a son chrono propre, servi par le DTO** :
+  `FullTcfExamSubAttempt.timeLimitSeconds` (CO 1200, CE 2100, EE 1800, **null pour l'EO**) +
+  `deadlineAt`, **l'unique source du compte à rebours**. On ne recompose jamais une échéance côté app,
+  et le tick se lit sur `DateTime.now()` face à une échéance **absolue** — donc juste au retour
+  d'arrière-plan, où le temps a couru.
+- **CE = 35 min PARTOUT**, y compris dans l'examen complet (elle y était raccourcie à 30 min pour tenir
+  dans les 90 min, qui n'existent plus). C'est exactement là que web et mobile avaient divergé.
+- **`core/utils/epreuve_duration.dart` est la SEULE table de durées de l'app** (miroir de `DureeEpreuve`
+  côté backend). Elle ne sert **que** aux écrans de catalogue et de briefing, qui annoncent une durée
+  **avant** qu'aucune session n'existe : dès que la donnée serveur est là (`timeLimitSeconds`), c'est
+  elle qui fait foi. `TcfQcmModule` et `TcfProductionModule` y lisent leur `durationLabel` via leur
+  `epreuve` — aucun « 20 min » / « 35 min » recopié dans un écran.
+- **L'expression orale se chronomètre PAR TÂCHE, et seulement quand la tâche est lancée** — calqué sur
+  le vrai TCF : la consigne s'affiche **sans aucun décompte**, le candidat presse « Je suis prêt ·
+  Commencer la tâche », et c'est **à cet instant** que part le chrono sur `dureeMaxSec`
+  (180 / 210 / 210 s). Auto-stop à zéro, puis tâche suivante. **L'épreuve EO n'a plus de chrono global
+  de 15 min** (`AttemptResponse.timeLimitSeconds` est désormais `null` pour une session EO — il valait
+  900). L'auto-stop passe par le **flux d'état du service** d'enregistrement, jamais par un `stop()`
+  posé dans `start()` : c'est ce câblage qui évite une fuite du wake lock écran. Vaut pour l'EO d'un
+  examen complet **comme** pour l'épreuve EO jouée seule.
+- **EE : temps conseillé par tâche, indicatif et JAMAIS bloquant** (≈ 7 / 10 / 13 min,
+  `eeTempsConseilleMinutes`) — affiché sous la consigne, **à côté** du chrono réel de 30 min, qui porte
+  sur les **3 tâches ensemble**. Rien ne se ferme quand ce repère est dépassé. Ces 3 valeurs sont
+  éditoriales : elles ne se dérivent d'aucune donnée serveur et aucun endpoint ne les publie.
+- **Quitter ne suspend rien** (sauf à l'oral, où le temps ne court que pendant une tâche lancée) : le
+  chrono continue pendant l'absence, on reprend avec le temps réellement restant, et une épreuve dont
+  l'échéance est passée est **clôturée automatiquement par le serveur** (`GET /api/attempts/{id}` et
+  `GET /api/full-tcf-exams/{id}` le font avant de répondre). Il n'existe **aucun** flux « recommencer
+  une épreuve interrompue » — n'en construis pas. Le progress screen relit l'état à l'expiration et au
+  retour au premier plan ; il ne finalise **pas** l'examen entier.
+- **`POST /api/attempts/{id}/answers` renvoie 422 après l'échéance + 60 s.** Le refus porte sur **une**
+  réponse, pas sur la session : `RunnerState.timeExpired` le porte, `RunnerScreen` affiche le message du
+  serveur puis bascule sur l'écran de fin. Le runner ne plante pas et ne perd rien.
+- **Statut de simulation** : `FullTcfExamResponse.continuite` (`ContinuiteSimulation`, **nullable** —
+  `null` tant que l'examen n'est pas terminé, cas normal). Libellés **gelés** et miroirs du backend :
+  « Simulation complète — conditions examen » / « Simulation complétée en plusieurs sessions », portés
+  par le `label` de l'enum, jamais par une chaîne d'écran. Affiché sous le hero du bilan.
+  ⚠️ **Ne pas y ajouter un 3ᵉ cas** « pas de résultat global définitif » : il existe déjà, c'est
+  `finalLevelPartial` / `epreuvesCountedInFinalLevel`, qui répondent à une autre question (sur combien
+  d'épreuves porte le niveau).
+
 **Freemium (parité web/backend)** : l'examen complet n'est plus 100 % premium.
 `TcfFullExamsView` ouvre le **slot 1 aux comptes gratuits** (examen offert,
 EE/EO évaluées une fois) ; les slots 2-20 affichent un cadenas → `showPaywallSheet`
@@ -2087,8 +2135,13 @@ niveau ni check vert ni lien). Miroir `locked` dans `core/models/full_tcf_exam.d
   - **EE/EO** → briefing existant `/tcf/expression-X/t/0?fullExamId=$parentId&subAttemptId=$subId`. Le
     briefing détecte la query et appelle `EeSessionController.startInFullExam(subAttemptId:)` /
     `EoSessionController.startInFullExam(subAttemptId:)` — ces variantes REPRENNENT l'attempt existant
-    côté backend (sans `niveau`) et chargent ses 3 tâches via `getExamTasks`. L'EE complet a un chrono
-    30:00 front-side ; l'EO complet enchaîne tâche par tâche comme le module.
+    côté backend (sans `niveau`), le **relisent** via `GET /api/attempts/{id}` (jamais un `Attempt`
+    fabriqué : c'est lui qui porte `startedAt` recalé et `timeLimitSeconds`) et chargent ses 3 tâches
+    via `getExamTasks`.
+  - **`POST /begin?epreuve=…` est appelé pour les 4 épreuves**, juste avant d'ouvrir leur écran :
+    tant qu'il ne l'est pas, l'épreuve **n'a pas d'échéance** (les 4 sous-attempts sont créés d'un bloc
+    au lancement de l'examen, leur `startedAt` ne dit rien du moment où le candidat les ouvre). Il est
+    **obligatoire pour l'EE**.
 - **`TcfFullExamBilanScreen`** (route `/tcf/examen-blanc/:parentId/bilan`) — bilan agrégé. À l'init,
   appelle `POST /api/full-tcf-exams/{id}/finish` (idempotent) puis poll toutes les 4 s jusqu'à
   `status == COMPLETED`. Affiche le niveau CECRL plancher en gros + 4 cards par épreuve avec leur niveau
@@ -2294,15 +2347,11 @@ Backend : anonymisation (cf. CLAUDE.md racine + `docs/api-endpoints.md`).
 
 ## Roadmap (ce qui n'est pas encore fait)
 
-- ~~**Chrono global examen blanc**~~ ✅ fait. Le chrono global 90 min est affiché en haut du
-  progress screen (`_GlobalTimer`), ancré sur `FullTcfExamResponse.timerStartedAt` (lancement réel de
-  la CO), pas sur `startedAt` (création) — figé à 90:00 tant qu'aucune épreuve n'a démarré. Chaque
-  épreuve garde **en plus** son chrono propre (CO 20 / CE 30 via `time_limit_seconds` du sous-attempt) :
-  `_startStep` appelle `POST /api/full-tcf-exams/{id}/begin?epreuve=…` (`beginEpreuve`) AVANT d'ouvrir le
-  runner, ce qui recale `started_at` du sous-attempt sur le lancement réel. Sans ce recalage, la CE —
-  créée en même temps que la CO — héritait du temps déjà écoulé et démarrait amputée (bug « la CE
-  n'avait que 10 min »). Les deux chronos coexistent : le premier à 0 force la suite (auto-finish
-  sous-attempt côté runner / auto-finalisation de l'examen côté hub).
+- ~~**Chrono d'examen blanc**~~ ✅ fait, puis **refondu le 2026-08-15** : le chrono global de 90 min a
+  été **supprimé**, chaque épreuve porte le sien (`FullTcfExamSubAttempt.timeLimitSeconds` +
+  `deadlineAt`) et l'oral se chronomètre par tâche. Détail complet et invariants : § « Le temps d'un
+  examen TCF » de la section *Examen blanc TCF complet*. ⚠️ Ne pas se fier à la description qui vivait
+  ici (`_GlobalTimer`, 90:00 figé, double chrono) : elle est **révoquée**.
 - **Offline-first** : pas de SQLite/Drift pour l'instant, tout passe par le réseau. À ajouter dans
   `core/storage/` quand on aura besoin (questions civiques stables, peuvent être cachées).
 - **Notifications push** (rappels d'entraînement) : à ajouter via `firebase_messaging` ou OneSignal.

@@ -1756,9 +1756,18 @@ C'est le seul niveau qui fait foi. Il apparaît à la fin d'un examen blanc qui 
   une tâche orale dans une session d'expression écrite (ou l'inverse) est refusée. Sans
   cette règle, une production mal aiguillée pouvait clore la mauvaise épreuve et lui poser
   un niveau qui n'était pas le sien.
-- **Un examen d'expression orale dure 15 minutes**, comme l'examen d'expression écrite en
-  dure 30. Les trois tâches orales plafonnent le temps de parole à 3 + 3,5 + 3,5 minutes ;
-  les 5 minutes restantes couvrent la lecture des consignes et les transitions.
+- **À l'oral, le temps se compte tâche par tâche — il n'y a pas de chrono d'épreuve.**
+  Avant chaque tâche, la consigne s'affiche **sans aucun décompte** : on la lit, on la
+  prépare, on souffle. Le chrono ne démarre qu'au moment où le candidat appuie sur
+  « Je suis prêt · Commencer la tâche », et il porte sur le **temps de parole de cette
+  tâche seule** (3 min, puis 3,5 min, puis 3,5 min — les durées du vrai TCF). À zéro,
+  l'enregistrement s'arrête et on passe à la tâche suivante. C'est exactement le
+  déroulé de l'examen réel, et cela veut dire qu'**une pause entre deux tâches ne coûte
+  rien**. *(Il subsiste, invisible, une limite technique de plusieurs heures sur une
+  session laissée ouverte : c'est un garde-fou contre les abus automatisés, jamais un
+  chrono d'examen.)*
+- **Un examen d'expression écrite dure 30 minutes** pour les trois tâches, à répartir
+  librement — comme au TCF.
 - **Une épreuve qu'on n'a pas pu passer n'a pas de niveau — elle n'est pas « ratée ».**
   Deux cas : l'épreuve était **verrouillée** (compte gratuit qui refait un examen blanc
   complet après avoir déjà utilisé son expression écrite et orale offertes), ou ses

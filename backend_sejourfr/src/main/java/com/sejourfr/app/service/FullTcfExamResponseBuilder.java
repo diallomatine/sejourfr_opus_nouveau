@@ -5,11 +5,13 @@ import com.sejourfr.app.dto.FullTcfExamSummaryResponse;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionSubmission;
+import com.sejourfr.app.enums.ContinuiteSimulation;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
+import com.sejourfr.app.service.attempt.AttemptChrono;
 import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
@@ -43,6 +45,11 @@ public class FullTcfExamResponseBuilder {
     private final TcfLevelEstimatorService levelEstimator;
     private final ProductionBilanService productionBilanService;
 
+    /** Ordre canonique d'affichage — et de déroulé — des 4 épreuves. */
+    private static final List<EpreuveType> ORDRE_EPREUVES = List.of(
+            EpreuveType.TCF_CO, EpreuveType.TCF_CE,
+            EpreuveType.TCF_EE, EpreuveType.TCF_EO);
+
     public FullTcfExamResponse buildResponse(Attempt parent) {
         List<Attempt> subs = attemptManager.findSubAttempts(parent.getId());
         Map<EpreuveType, FullTcfExamResponse.SubAttempt> mapped = new EnumMap<>(EpreuveType.class);
@@ -52,9 +59,7 @@ public class FullTcfExamResponseBuilder {
 
         // Ordre canonique d'affichage : CO → CE → EE → EO.
         List<FullTcfExamResponse.SubAttempt> ordered = new ArrayList<>();
-        for (EpreuveType e : List.of(
-                EpreuveType.TCF_CO, EpreuveType.TCF_CE,
-                EpreuveType.TCF_EE, EpreuveType.TCF_EO)) {
+        for (EpreuveType e : ORDRE_EPREUVES) {
             FullTcfExamResponse.SubAttempt s = mapped.get(e);
             if (s != null) ordered.add(s);
         }
@@ -75,6 +80,7 @@ public class FullTcfExamResponseBuilder {
                 parent.getFinishedAt(),
                 finalCecrl,
                 status,
+                continuite(parent, ordered),
                 counted,
                 EXPECTED_EPREUVES,
                 counted < EXPECTED_EPREUVES,
@@ -87,7 +93,21 @@ public class FullTcfExamResponseBuilder {
                 full.id(), full.startedAt(), full.finishedAt(),
                 full.finalCecrlLevel(), full.status(),
                 parent.getSlotNumber(),
-                full.finalLevelPartial());
+                full.finalLevelPartial(),
+                full.continuite());
+    }
+
+    /**
+     * L'examen a-t-il été enchaîné d'une traite ? Dérivé à la lecture, jamais
+     * persisté. {@code null} tant que l'examen n'est pas terminé : la question
+     * ne se pose qu'au moment de restituer le résultat.
+     */
+    private static ContinuiteSimulation continuite(
+            Attempt parent, List<FullTcfExamResponse.SubAttempt> ordered) {
+        if (parent.getFinishedAt() == null) return null;
+        return ContinuiteSimulation.of(ordered.stream()
+                .map(s -> new ContinuiteSimulation.Etape(s.timerStartedAt(), s.finishedAt()))
+                .toList());
     }
 
     private FullTcfExamResponse.SubAttempt mapSubAttempt(Attempt sub, boolean parentProductionLocked) {
@@ -103,9 +123,12 @@ public class FullTcfExamResponseBuilder {
             // langue : « ton niveau TCF IRN : A1 non atteint » à côté d'un
             // cadenas « réservé à l'abonnement ». Le verrou lui-même ne bouge
             // pas — seule la restitution change.
+            // Épreuve verrouillée : jamais lancée, donc aucune donnée de temps
+            // — un chrono sur une porte fermée n'aurait aucun sens.
             return new FullTcfExamResponse.SubAttempt(
                     sub.getId(), e, sub.getFinishedAt(), null,
-                    null, null, 0, List.of(), true);
+                    null, null, 0, List.of(), true,
+                    null, null, null);
         }
         if (e == EpreuveType.TCF_CO || e == EpreuveType.TCF_CE) {
             // Source de vérité : cecrl_level posé à la finalisation par
@@ -121,7 +144,9 @@ public class FullTcfExamResponseBuilder {
             return new FullTcfExamResponse.SubAttempt(
                     sub.getId(), e, sub.getFinishedAt(), level,
                     sub.getWeightedScore(), sub.getMaxWeightedScore(),
-                    null, List.of(), locked);
+                    null, List.of(), locked,
+                    sub.getTimeLimitSeconds(), sub.getTimerStartedAt(),
+                    AttemptChrono.echeance(sub));
         }
         // EE / EO : on compte les tâches EVALUATED pour le niveau CECRL
         // ET on remonte les ids des FAILED — le mobile propose un bouton
@@ -155,9 +180,16 @@ public class FullTcfExamResponseBuilder {
         } else {
             level = null;
         }
+        // EE : chrono d'épreuve (30 min) ancré sur son lancement réel.
+        // EO : timeLimitSeconds NULL — pas de chrono d'épreuve, le temps se
+        // compte par tâche (production_tasks.dureeMaxSec) et ne démarre qu'au
+        // lancement de la tâche. `timerStartedAt` reste servi : il dit quand
+        // l'épreuve a été ouverte, ce qui sert au statut de continuité.
         return new FullTcfExamResponse.SubAttempt(
                 sub.getId(), e, sub.getFinishedAt(), level,
-                null, null, evaluatedCount, failedIds, locked);
+                null, null, evaluatedCount, failedIds, locked,
+                sub.getTimeLimitSeconds(), sub.getTimerStartedAt(),
+                AttemptChrono.echeance(sub));
     }
 
     private FullTcfExamResponse.FullTcfExamStatus computeStatus(

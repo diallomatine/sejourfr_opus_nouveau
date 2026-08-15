@@ -448,6 +448,20 @@
   margin: 0.75rem auto 0;
   max-width: 42ch;
 }
+/* Statut de simulation (`continuite`) : un constat neutre, en pastille sourde
+   sous le niveau — jamais une alerte, s'arrêter entre deux épreuves est prévu. */
+.bilanContinuite {
+  display: inline-block;
+  margin: 0.9rem auto 0;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
+  max-width: 100%;
+}
 .bilanPending {
   display: flex;
   flex-direction: column;

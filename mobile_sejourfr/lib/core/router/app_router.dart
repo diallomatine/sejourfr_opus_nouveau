@@ -691,9 +691,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
-      // Examen blanc TCF complet (CO + CE + EE + EO en 90 min). Pushé
-      // depuis la carte sombre du hub TCF. Orchestration des 4 épreuves
-      // enchaînées à finaliser en lot dédié.
+      // Examen blanc TCF complet : CO + CE + EE + EO, **chacune avec son propre
+      // chrono** (~95 min au total, indicatif — il n'y a plus d'enveloppe
+      // globale et rien ne se reporte d'une épreuve à l'autre). Pushé depuis la
+      // carte sombre du hub TCF.
       GoRoute(
         path: AppRoutes.tcfFullExams,
         builder: (_, __) => const TcfFullExamsScreen(),

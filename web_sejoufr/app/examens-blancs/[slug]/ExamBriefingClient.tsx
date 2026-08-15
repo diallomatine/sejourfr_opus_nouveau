@@ -8,6 +8,7 @@ import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { attemptApi, publicAttemptApi } from "@/lib/api";
 import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
+import { EPREUVE_PRESENTATION, plannedEpreuveLabel } from "@/lib/exam-durations";
 import {
   canAccessModule,
   type AttemptSummaryResponse,
@@ -200,14 +201,18 @@ function ExamBriefingInner({
                 <div className="brf-section-label">LES 4 ÉPREUVES DU TCF IRN</div>
                 <div className="brf-deroule">
                   <div className="brf-dr-row">
-                    <span className="brf-dr-ico" aria-hidden>🎧</span>
-                    <span className="brf-dr-label">Compréhension orale</span>
-                    <span className="brf-dr-meta">25 questions · 20 min</span>
+                    <span className="brf-dr-ico" aria-hidden>{EPREUVE_PRESENTATION.TCF_CO.icon}</span>
+                    <span className="brf-dr-label">{EPREUVE_PRESENTATION.TCF_CO.label}</span>
+                    <span className="brf-dr-meta">
+                      {EPREUVE_PRESENTATION.TCF_CO.volume} · {plannedEpreuveLabel("TCF_CO")}
+                    </span>
                   </div>
                   <div className="brf-dr-row">
-                    <span className="brf-dr-ico" aria-hidden>📖</span>
-                    <span className="brf-dr-label">Compréhension écrite</span>
-                    <span className="brf-dr-meta">25 questions · 35 min</span>
+                    <span className="brf-dr-ico" aria-hidden>{EPREUVE_PRESENTATION.TCF_CE.icon}</span>
+                    <span className="brf-dr-label">{EPREUVE_PRESENTATION.TCF_CE.label}</span>
+                    <span className="brf-dr-meta">
+                      {EPREUVE_PRESENTATION.TCF_CE.volume} · {plannedEpreuveLabel("TCF_CE")}
+                    </span>
                   </div>
                   {isGuest ? (
                     <>

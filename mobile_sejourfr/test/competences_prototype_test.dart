@@ -43,7 +43,10 @@ void main() {
       expect(TcfProductionModule.ee.actionVerb, 'Rédiger');
       expect(TcfProductionModule.eo.actionVerb, 'Enregistrer');
       expect(TcfProductionModule.ee.epreuveMeta, 'TCF IRN · 3 tâches · 30 min');
-      expect(TcfProductionModule.eo.epreuveMeta, 'TCF IRN · 3 tâches · 15 min');
+      // L'oral n'a plus de chrono d'épreuve (il valait 15 min) : son temps se
+      // compte par tâche et ne part qu'au lancement de la tâche.
+      expect(TcfProductionModule.eo.epreuveMeta,
+          'TCF IRN · 3 tâches · Chrono par tâche');
     });
   });
 

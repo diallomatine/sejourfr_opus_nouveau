@@ -4,17 +4,28 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { fullTcfExamApi } from "@/lib/api";
 import { handleStartFailure } from "@/lib/start-failure";
+import {
+  EPREUVE_PRESENTATION,
+  FULL_TCF_EXAM_INDICATIVE_SEC,
+  minutesLabel,
+  plannedEpreuveLabel,
+} from "@/lib/exam-durations";
+import { FULL_TCF_EXAM_EPREUVES } from "@/lib/types";
 import s from "./tcfFullExam.module.css";
 
-const EPREUVES = [
-  { icon: "🎧", label: "Compréhension orale", duration: "20 min", questions: "25 questions" },
-  { icon: "📖", label: "Compréhension écrite", duration: "30 min", questions: "25 questions" },
-  { icon: "✍️", label: "Expression écrite", duration: "30 min", questions: "3 tâches" },
-  { icon: "🎙️", label: "Expression orale", duration: "10 min", questions: "3 tâches" },
-];
+// L'examen n'existe pas encore à ce stade : aucune donnée serveur n'est
+// disponible, on lit la table de référence partagée (`lib/exam-durations.ts`)
+// plutôt que de réécrire des minutes ici.
+const EPREUVES = FULL_TCF_EXAM_EPREUVES.map((epreuve) => ({
+  ...EPREUVE_PRESENTATION[epreuve],
+  duration: plannedEpreuveLabel(epreuve),
+}));
 
 const A_SAVOIR = [
-  "Aucune correction entre les épreuves — le chrono global continue.",
+  "Chaque épreuve a son propre chrono : le temps d'une épreuve ne se reporte jamais sur la suivante.",
+  "Vous pouvez vous arrêter entre deux épreuves et reprendre plus tard.",
+  "Le chrono d'une épreuve lancée continue de courir même si vous quittez la page.",
+  "En expression orale, le temps ne part qu'au moment où vous lancez une tâche.",
   "Les épreuves CO et CE ne peuvent pas être reprises en arrière.",
   "Les productions EE et EO sont évaluées par l'IA en arrière-plan.",
   "Le niveau final est le plancher de vos 4 épreuves (règle TCF IRN).",
@@ -67,7 +78,9 @@ export function TcfFullExamBriefingSheet({ slotNumber, onClose, isFreeAccount, o
 
         <div className={s.sheetEyebrow}>
           <span>EXAMEN BLANC #{slotNumber}</span>
-          <span className={s.sheetDurationBadge}>90 min</span>
+          <span className={s.sheetDurationBadge}>
+            ≈ {minutesLabel(FULL_TCF_EXAM_INDICATIVE_SEC)}
+          </span>
         </div>
         <div className={s.sheetTitle}>TCF IRN en conditions réelles</div>
 
@@ -78,7 +91,7 @@ export function TcfFullExamBriefingSheet({ slotNumber, onClose, isFreeAccount, o
               <span className={s.deroulementLabel}>
                 {e.label}
                 <span style={{ display: "block", fontSize: "0.72rem", color: "var(--color-muted)", marginTop: 1 }}>
-                  {e.questions}
+                  {e.volume}
                 </span>
               </span>
               <span className={s.deroulementDuration}>{e.duration}</span>

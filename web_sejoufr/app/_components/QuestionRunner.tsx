@@ -227,6 +227,20 @@ export function QuestionRunner({
     [state.submitting, hasFeedback, state.questions, state.currentIndex],
   );
 
+  // Déclaré AVANT `submitCurrent`, qui en dépend : une réponse refusée hors
+  // délai (422) bascule directement sur l'écran de fin.
+  const finishCurrentAttempt = useCallback(async (keepError = false) => {
+    setState((s) => ({ ...s, submitting: true, error: keepError ? s.error : null }));
+    try {
+      const finalAttempt = await backend.finish(state.activeAttempt.id);
+      setState((s) => ({ ...s, submitting: false, activeAttempt: finalAttempt }));
+      onCompleted(finalAttempt);
+    } catch (e) {
+      const msg = e instanceof ApiException ? e.message : "Erreur lors de la finalisation.";
+      setState((s) => ({ ...s, submitting: false, error: msg }));
+    }
+  }, [backend, state.activeAttempt.id, onCompleted]);
+
   const submitCurrent = useCallback(async () => {
     const q = state.questions[state.currentIndex];
     if (!q) return;
@@ -244,9 +258,25 @@ export function QuestionRunner({
       setState((s) => ({ ...s, submitting: false, lastResult: res }));
     } catch (e) {
       const msg = e instanceof ApiException ? e.message : "Erreur lors de la soumission.";
+      // 422 = échéance de l'épreuve dépassée. Le refus porte sur CETTE réponse,
+      // jamais sur la session : les précédentes sont conservées côté serveur.
+      // On affiche le message tel quel puis on bascule sur l'écran de fin — on
+      // ne laisse pas le candidat retenter une réponse qui ne sera plus prise.
+      if (e instanceof ApiException && e.status === 422) {
+        setState((s) => ({ ...s, submitting: false, error: msg }));
+        void finishCurrentAttempt(true);
+        return;
+      }
       setState((s) => ({ ...s, submitting: false, error: msg }));
     }
-  }, [backend, state.questions, state.currentIndex, state.answersByQuestion, state.attemptIdByQuestionId]);
+  }, [
+    backend,
+    state.questions,
+    state.currentIndex,
+    state.answersByQuestion,
+    state.attemptIdByQuestionId,
+    finishCurrentAttempt,
+  ]);
 
   const extendBatch = useCallback(async () => {
     if (!infinite || !extensionParams || !backend.extend) return false;
@@ -283,18 +313,6 @@ export function QuestionRunner({
       return false;
     }
   }, [infinite, extensionParams, backend]);
-
-  const finishCurrentAttempt = useCallback(async () => {
-    setState((s) => ({ ...s, submitting: true, error: null }));
-    try {
-      const finalAttempt = await backend.finish(state.activeAttempt.id);
-      setState((s) => ({ ...s, submitting: false, activeAttempt: finalAttempt }));
-      onCompleted(finalAttempt);
-    } catch (e) {
-      const msg = e instanceof ApiException ? e.message : "Erreur lors de la finalisation.";
-      setState((s) => ({ ...s, submitting: false, error: msg }));
-    }
-  }, [backend, state.activeAttempt.id, onCompleted]);
 
   // Quitter un examen autonome : avertit puis finalise (le reste compte 0) et
   // montre le résultat — on ne laisse jamais un examen « en cours ».

@@ -19,6 +19,7 @@ import {
   type ProductionTaskDto,
   type RealtimeSessionDescriptor,
 } from "@/lib/types";
+import {eeAdvisedMinutesLabel, findSubAttempt} from "@/lib/exam-durations";
 import {
   BILAN_PROCHAINES_ETAPES_TITLE,
   TACHE_EVALUEE_LABEL,
@@ -44,9 +45,6 @@ import skill from "@/app/_components/skill-ui/skill.module.css";
 const TACHES = [1, 2, 3] as const;
 const POLL_MS = 3000;
 const MAX_POLLS = 40;
-/** Durée de l'examen EE quand le backend ne porte pas de `timeLimitSeconds`
- *  (sous-attempt EE d'un examen TCF complet) : 30 min côté front. */
-const EE_FALLBACK_LIMIT_SEC = 1800;
 
 function fmtChrono(sec: number): string {
   const s = Math.max(0, Math.round(sec));
@@ -61,9 +59,13 @@ function fmtChrono(sec: number): string {
  * un même attempt, chronométrées, puis bilan avec niveau CECRL plancher. La
  * phase (saisie vs bilan) est dérivée des soumissions existantes (resume).
  *
- * EE : chrono 30:00 global ancré sur `attempt.startedAt + timeLimitSeconds`
- * (survit au refresh) ; à 0:00 auto-soumission recevable + finish + bilan.
- * EO : chrono par tâche dans le recorder (auto-stop + soumission immédiate).
+ * EE : chrono d'épreuve porté par le SERVEUR (30 min sur les 3 tâches), lu sur
+ * `deadlineAt` quand l'épreuve appartient à un examen complet, sinon dérivé de
+ * `startedAt + timeLimitSeconds`. Il court même pendant une absence ; à 0:00,
+ * auto-soumission recevable + finish + bilan.
+ * EO : **aucun chrono d'épreuve** — chaque tâche est chronométrée à part, et
+ * son décompte ne part qu'au moment où le candidat lance la tâche (recorder :
+ * auto-stop + soumission immédiate).
  */
 export function ProductionSession({ config }: { config: ProductionConfig }) {
   const params = useParams<{ attemptId: string }>();
@@ -176,32 +178,36 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     cancelledRef.current = false;
     (async () => {
       try {
-        const [examTasks, subs, attempt] = await Promise.all([
+        const [examTasks, subs, attempt, fullExam] = await Promise.all([
           productionApi.getExamTasks(attemptId),
           fetchSubs(),
           attemptApi.get(attemptId).catch(() => null),
+          fullExamId ? fullTcfExamApi.get(fullExamId).catch(() => null) : Promise.resolve(null),
         ]);
         if (cancelledRef.current) return;
         const ordered = [...examTasks].sort((a, b) => a.tacheNumero - b.tacheNumero);
         setTasks(ordered);
         setSubsByTache(subs);
 
-        // Chrono d'épreuve :
-        // - Examen module EE (30 min) ou EO (15 min) : ancré sur
-        //   `startedAt + timeLimitSeconds` backend (survit au refresh, source
-        //   de vérité — c'est lui qui refuse les soumissions hors délai).
-        // - Sous-épreuve EE d'examen complet : le backend ne pose pas
-        //   `timeLimitSeconds` et ne réaligne pas `startedAt` à l'entrée EE → on
-        //   démarre un décompte 30 min côté front à l'arrivée dans l'épreuve.
-        // - Sous-épreuve EO d'examen complet : AUCUN chrono local, le temps y
-        //   est tenu par le compteur global des 90 min du hub (deux décomptes
-        //   concurrents finiraient par se contredire).
+        // Chrono d'épreuve — UNE seule source, le serveur, et jamais une durée
+        // recalculée ici :
+        // - épreuve d'un examen complet : `deadlineAt` du sous-attempt, posé
+        //   par `POST /begin`. C'est l'unique échéance qui vaille, y compris au
+        //   retour dans l'app : le temps a couru pendant l'absence.
+        // - épreuve jouée seule : `startedAt + timeLimitSeconds` de l'attempt.
+        // - EO dans les deux cas : AUCUN chrono d'épreuve. Le backend renvoie
+        //   `timeLimitSeconds` à null et l'oral se chronomètre tâche par tâche,
+        //   au lancement de chacune (`EoRecordingForm`).
         if (attempt && !attempt.finishedAt) {
-          if (attempt.timeLimitSeconds != null) {
+          const sub = fullExam
+            ? findSubAttempt(fullExam.subAttempts, config.epreuve)
+            : null;
+          if (sub?.deadlineAt) {
+            const at = Date.parse(sub.deadlineAt);
+            if (!Number.isNaN(at)) setDeadline(at);
+          } else if (!fullExam && attempt.timeLimitSeconds != null) {
             const start = new Date(attempt.startedAt).getTime();
             setDeadline(start + attempt.timeLimitSeconds * 1000);
-          } else if (config.mode === "text") {
-            setDeadline(Date.now() + EE_FALLBACK_LIMIT_SEC * 1000);
           }
         }
 
@@ -512,13 +518,12 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           phase === "bilan"
             ? "Le niveau global est calculé sur vos 3 tâches une fois évaluées."
             : config.mode === "text"
-              ? "3 tâches enchaînées en 30 minutes — évaluation IA à la fin."
-              : chronoActive
-                ? "3 tâches enchaînées en 15 minutes, chacune limitée en temps de parole — évaluation IA à la fin."
-                : "3 tâches enchaînées, chronométrées par tâche — évaluation IA à la fin."
+              ? "3 tâches enchaînées, un seul chrono pour les trois — évaluation IA à la fin."
+              : "3 tâches enchaînées : le chrono d'une tâche ne part qu'au moment où vous la lancez — évaluation IA à la fin."
         }
       >
-        {/* Chrono d'épreuve permanent (EE 30:00, EO 15:00) */}
+        {/* Chrono de l'épreuve — écrit seulement. L'oral n'en a pas : son temps
+            se compte tâche par tâche, dans l'enregistreur. */}
         {chronoActive && (
           <div className={`${skill.chrono} ${chronoUrgent ? skill.chronoUrgent : ""}`}>
             <span className={skill.chronoLabel}>
@@ -599,6 +604,10 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                 submitting={submitting}
                 submitLabel={submitLabel}
                 exerciseTitle={productionTaskTitle(config.epreuve, currentTask.tacheNumero)}
+                // Aide au rythme, jamais bloquante : le seul chrono réel est
+                // celui de l'épreuve, affiché plus haut, et il porte sur les
+                // 3 tâches ensemble.
+                advisedTimeLabel={eeAdvisedMinutesLabel(currentTask.tacheNumero)}
                 autoSubmitSignal={autoSubmitSignal}
                 onAutoSubmit={onEeTimeout}
                 onSubmit={(texte) =>

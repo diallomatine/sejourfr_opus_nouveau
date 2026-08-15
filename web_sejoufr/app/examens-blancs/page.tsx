@@ -9,6 +9,12 @@ import {GuestGateSheet} from "@/app/_components/GuestGateSheet";
 import {ExamsGrid, type ExamSlotData} from "@/app/_components/hub/DetailParts";
 import {ExamIntroSheet} from "@/app/_components/hub/ExamIntroSheet";
 import {examSlotGrid} from "@/lib/exam-slots";
+import {
+    EPREUVE_PRESENTATION,
+    FULL_TCF_EXAM_INDICATIVE_SEC,
+    minutesLabel,
+    plannedEpreuveLabel,
+} from "@/lib/exam-durations";
 import {isCompleteExamResult} from "@/lib/exam-levels";
 import {moduleAverage} from "@/lib/dashboard";
 import {TcfFullExamBriefingSheet} from "@/app/examens-blancs/tcf/TcfFullExamBriefingSheet";
@@ -281,7 +287,14 @@ function ExamsConnectedHome() {
             hint: estimatedTcfLevelScopeLabel(summary),
         },
     ];
-    const tcfTips = ["Conditions réelles", "90 minutes", "4 épreuves", "Niveau CECRL"];
+    // Durée indicative, jamais un chrono : il n'y a plus de décompte global,
+    // chaque épreuve porte le sien (cf. `lib/exam-durations.ts`).
+    const tcfTips = [
+        "Conditions réelles",
+        `≈ ${minutesLabel(FULL_TCF_EXAM_INDICATIVE_SEC)}`,
+        "4 épreuves",
+        "Niveau CECRL",
+    ];
 
     const civiqueProgress = summary ? moduleAverage(summary.civique) : null;
     const civiqueStats: StatItem[] = [
@@ -677,9 +690,10 @@ function ExamsGuestHome() {
                     title="TCF IRN"
                     chip="Tous les modules"
                     // Sans compte, l'épreuve offerte est le diagnostic de
-                    // compréhension (CO + CE, 50 Q / 55 min) : annoncer les
-                    // 90 minutes et 4 épreuves de l'examen complet promettait
-                    // ce que la modale de lancement refuse juste après.
+                    // compréhension (CO + CE, 50 Q / 55 min) : annoncer la
+                    // durée totale et les 4 épreuves de l'examen complet
+                    // promettait ce que la modale de lancement refuse juste
+                    // après.
                     tips={["Conditions réelles", "55 minutes", "50 questions", "Niveau CECRL"]}
                     sub={`${SLOTS} épreuves disponibles · 1 offerte sans compte`}
                 >
@@ -738,10 +752,28 @@ function ExamsGuestHome() {
                     {label: "restitution", value: "Niveau CECRL", highlight: true},
                 ]}
                 epreuves={[
-                    {icon: "🎧", label: "Compréhension orale", meta: "25 questions · 20 min"},
-                    {icon: "📖", label: "Compréhension écrite", meta: "25 questions · 35 min"},
-                    {icon: "✍️", label: "Expression écrite", meta: "3 tâches", locked: true},
-                    {icon: "🎙️", label: "Expression orale", meta: "3 tâches", locked: true},
+                    {
+                        icon: EPREUVE_PRESENTATION.TCF_CO.icon,
+                        label: EPREUVE_PRESENTATION.TCF_CO.label,
+                        meta: `${EPREUVE_PRESENTATION.TCF_CO.volume} · ${plannedEpreuveLabel("TCF_CO")}`,
+                    },
+                    {
+                        icon: EPREUVE_PRESENTATION.TCF_CE.icon,
+                        label: EPREUVE_PRESENTATION.TCF_CE.label,
+                        meta: `${EPREUVE_PRESENTATION.TCF_CE.volume} · ${plannedEpreuveLabel("TCF_CE")}`,
+                    },
+                    {
+                        icon: EPREUVE_PRESENTATION.TCF_EE.icon,
+                        label: EPREUVE_PRESENTATION.TCF_EE.label,
+                        meta: EPREUVE_PRESENTATION.TCF_EE.volume,
+                        locked: true,
+                    },
+                    {
+                        icon: EPREUVE_PRESENTATION.TCF_EO.icon,
+                        label: EPREUVE_PRESENTATION.TCF_EO.label,
+                        meta: EPREUVE_PRESENTATION.TCF_EO.volume,
+                        locked: true,
+                    },
                 ]}
                 epreuvesLabel="Les 4 épreuves du TCF IRN"
                 tips={[

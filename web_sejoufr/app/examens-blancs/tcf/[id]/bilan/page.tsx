@@ -18,6 +18,7 @@ import {
 } from "@/lib/exam-levels";
 import {
   FULL_TCF_EXAM_EPREUVES,
+  fullTcfExamContinuiteLabel,
   niveauCecrlLabel,
   type FullTcfExamResponse,
   type FullTcfExamSubAttempt,
@@ -200,6 +201,10 @@ function BilanInner() {
     level,
   );
   const failedCount = views.reduce((n, v) => n + v.failedSubmissionIds.length, 0);
+  // Comment l'examen a été mené : d'une traite, ou repris en plusieurs fois.
+  // Un constat, pas un reproche — s'arrêter entre deux épreuves est prévu.
+  // `null` tant que l'examen n'est pas terminé : rien ne s'affiche.
+  const continuiteLabel = fullTcfExamContinuiteLabel(exam.continuite);
 
   return (
     <div className={s.page}>
@@ -230,6 +235,7 @@ function BilanInner() {
             <p className={s.bilanRule}>{floorRuleSentence(scope)}</p>
           </>
         )}
+        {continuiteLabel && <div className={s.bilanContinuite}>{continuiteLabel}</div>}
       </div>
 
       {/* Bannière si plus rien ne tourne */}

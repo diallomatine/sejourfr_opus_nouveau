@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/models/enums.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/epreuve_duration.dart';
 import '../../core/widgets/app_button.dart';
 
-/// Briefing avant le démarrage d'un examen blanc TCF complet (les 4 épreuves
-/// enchaînées : CO 20 + CE 30 + EE 30 + EO 10 = 90 min). Bottomsheet modal
-/// dans la palette stricte bleu / blanc / rouge SejourFR.
+/// Briefing avant le démarrage d'un examen blanc TCF complet (les 4 épreuves).
+/// Bottomsheet modal dans la palette stricte bleu / blanc / rouge SejourFR.
 ///
-/// `onStart` n'est pas encore branché sur une orchestration complète : pour
-/// cette itération, il déclenche un snackbar "Bientôt". L'orchestration
-/// (parent attempt TCF_COMPLET + chaînage des 4 sous-attempts + bilan
-/// agrégé) arrive dans un lot dédié.
+/// 🛑 **Il n'y a plus d'enveloppe globale de 90 min.** Chaque épreuve porte son
+/// propre chrono, rien ne se transfère de l'une à l'autre et l'abandon-reprise
+/// entre épreuves est officiellement supporté. Le total annoncé (~95 min) est un
+/// **ordre de grandeur**, pas un décompte — et les durées viennent de
+/// [kEpreuveDurationSeconds], jamais d'un chiffre écrit dans cet écran (c'est
+/// exactement ici que la CE affichait 30 min alors qu'elle en vaut 35).
 class TcfFullExamBriefingSheet extends StatelessWidget {
   const TcfFullExamBriefingSheet({
     super.key,
@@ -70,7 +73,10 @@ class TcfFullExamBriefingSheet extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      const _DurationBadge(label: '90 min'),
+                      _DurationBadge(
+                        label: '≈ '
+                            '${epreuveDurationLabel(kExamenCompletSecondes) ?? ''}',
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -281,11 +287,31 @@ class _DurationBadge extends StatelessWidget {
 }
 
 class _DerouleCard extends StatelessWidget {
-  static const _rows = <_DerouleRow>[
-    _DerouleRow(icon: '🎧', label: 'Compréhension orale', duration: '20 min'),
-    _DerouleRow(icon: '📖', label: 'Compréhension écrite', duration: '30 min'),
-    _DerouleRow(icon: '✍️', label: 'Expression écrite', duration: '30 min'),
-    _DerouleRow(icon: '🎙️', label: 'Expression orale', duration: '10 min'),
+  /// Durées lues dans [kEpreuveDurationSeconds] — la même table que les écrans
+  /// d'épreuve isolée, pour qu'un même examen ne s'annonce pas différemment
+  /// selon l'endroit d'où on le lance. L'oral n'a pas de durée d'épreuve : on le
+  /// dit au lieu d'inventer un chiffre.
+  static final _rows = <_DerouleRow>[
+    _DerouleRow(
+      icon: '🎧',
+      label: 'Compréhension orale',
+      duration: epreuveDurationLabelFor(EpreuveType.tcfCo),
+    ),
+    _DerouleRow(
+      icon: '📖',
+      label: 'Compréhension écrite',
+      duration: epreuveDurationLabelFor(EpreuveType.tcfCe),
+    ),
+    _DerouleRow(
+      icon: '✍️',
+      label: 'Expression écrite',
+      duration: epreuveDurationLabelFor(EpreuveType.tcfEe),
+    ),
+    _DerouleRow(
+      icon: '🎙️',
+      label: 'Expression orale',
+      duration: kChronoParTacheLabel,
+    ),
   ];
 
   @override
@@ -377,9 +403,13 @@ class _ASavoirCard extends StatelessWidget {
   const _ASavoirCard();
 
   static const _items = <_ASavoirItem>[
-    _ASavoirItem(icon: '📱', label: 'Ne ferme pas l\'application'),
+    _ASavoirItem(
+        icon: '⏱️', label: 'Chaque épreuve a son propre temps, rien ne se reporte'),
+    _ASavoirItem(
+        icon: '🚪',
+        label: 'Le chrono continue si tu quittes — tu reprends là où tu en étais'),
     _ASavoirItem(icon: '🎧', label: 'Les audios se lancent une fois'),
-    _ASavoirItem(icon: '⏱️', label: 'Pas de retour en arrière, respecte le temps'),
+    _ASavoirItem(icon: '🎙️', label: 'À l\'oral, tu lances chaque tâche quand tu es prêt'),
     _ASavoirItem(icon: '✨', label: 'Correction IA pour écrit et oral'),
   ];
 

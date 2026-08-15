@@ -338,6 +338,51 @@ multi-réponses, adapter `toggleChoice` pour additionner au lieu de remplacer.
 Pour autoriser vraiment une démo publique, il faudra exposer côté Spring un endpoint `POST /api/attempts/demo`
 qui ne demande pas de Bearer et limite à 1 tentative/mois par IP.
 
+## Temps des examens blancs TCF — un chrono PAR ÉPREUVE (2026-08-15)
+
+🛑 **Le chrono global de 90 min n'existe plus**, et `FULL_TCF_EXAM_DURATION_SEC` a été
+supprimée : le temps d'une épreuve ne se transfère jamais à la suivante, et l'abandon /
+reprise entre épreuves est officiellement supporté. Ne pas la réintroduire.
+
+- **Une seule source de vérité : le serveur.** `FullTcfExamSubAttempt` porte
+  `timeLimitSeconds` (1200 CO · 2100 CE · 1800 EE · **null en EO**), `timerStartedAt` et
+  `deadlineAt`. **`deadlineAt` est L'UNIQUE base du compte à rebours**, y compris au retour
+  dans l'app — quitter ne suspend rien, le temps a couru pendant l'absence. **Ne jamais
+  recalculer une échéance côté client.**
+- **`POST /api/full-tcf-exams/{id}/begin?epreuve=…` est appelé sur les 4 épreuves** au
+  lancement (obligatoire pour l'EE) : sans lui l'épreuve n'a **aucune** échéance.
+  Idempotent — une reprise rend le temps réellement restant.
+- **CE = 35 min partout**, y compris dans l'examen complet (elle y était raccourcie à 30
+  pour tenir dans les 90 min, qui n'existent plus).
+- **`lib/exam-durations.ts` est la seule table de durées du web.** Elle ne sert qu'aux
+  écrans **antérieurs à l'examen** (briefing de lancement, vitrines) : dès qu'un objet
+  serveur existe, c'est lui qui fait foi (`subAttemptDurationLabel`). Le total annoncé
+  (≈ 95 min) est **recalculé** depuis la table, jamais écrit — raccourcir une épreuve
+  raccourcit la promesse. `EE_ADVISED_MINUTES_BY_TACHE` (7 / 10 / 13) est **éditorial** et
+  purement indicatif : le seul chrono réel de l'EE porte sur les 3 tâches ensemble, et rien
+  ne bloque sur le temps conseillé.
+- **L'expression orale n'a PAS de chrono d'épreuve.** Elle se chronomètre **par tâche**, et
+  le décompte ne part **qu'au lancement de la tâche** (`EoRecordingForm`, `examMode`) : la
+  consigne s'affiche **sans aucun décompte** — `examIdle` masque le chrono — et un CTA
+  « Je suis prêt · Commencer la tâche » met le temps en marche sur `dureeMaxSec`. Auto-stop
+  à zéro, puis tâche suivante. Vaut pour l'EO **d'un examen complet ET jouée seule**.
+  `AttemptResponse.timeLimitSeconds` est absent sur une session d'examen EO.
+- **Réponse hors délai** : `POST /api/attempts/{id}/answers` renvoie **422**. Le refus porte
+  sur **une réponse**, jamais sur la session — `QuestionRunner` affiche le message du
+  serveur et bascule sur l'écran de fin (`finishCurrentAttempt(true)`, qui conserve le
+  message). Les réponses précédentes sont conservées.
+- **Une épreuve hors délai est clôturée par le SERVEUR** à la lecture (`GET /attempts/{id}`,
+  `GET /full-tcf-exams/{id}`) : un retour dans l'app peut rendre une épreuve déjà
+  `finishedAt`, c'est normal. Le hub relit l'examen à l'expiration au lieu de finaliser
+  lui-même. **Il n'existe aucun flux « recommencer une épreuve interrompue » — ne pas en
+  construire.**
+- **`continuite`** (`SESSION_UNIQUE` / `PLUSIEURS_SESSIONS`, **null tant que l'examen n'est
+  pas terminé**) s'affiche sur le bilan de l'examen complet. Libellés **gelés par le
+  backend**, déclarés une seule fois dans `FULL_TCF_EXAM_CONTINUITE_LABEL` (`lib/types.ts`),
+  miroir mot pour mot du mobile — jamais une chaîne recopiée dans un composant. Le cas
+  « pas de résultat global définitif » reste porté par `finalLevelPartial` /
+  `epreuvesCountedInFinalLevel` : **ne pas créer de notion parallèle**.
+
 ## Paiement — abonnements récurrents (lot 4b)
 
 Depuis le **lot 4b** (refonte backend lot 4) le web vend des **abonnements

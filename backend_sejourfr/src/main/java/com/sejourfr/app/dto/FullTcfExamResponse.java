@@ -1,5 +1,6 @@
 package com.sejourfr.app.dto;
 
+import com.sejourfr.app.enums.ContinuiteSimulation;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
 
@@ -26,12 +27,24 @@ import java.util.UUID;
 public record FullTcfExamResponse(
         UUID id,
         Instant startedAt,
-        /** Lancement réel de la 1re épreuve (CO) — ancre du chrono 90 min.
+        /** Lancement réel de la 1re épreuve — <b>trace du début de l'examen</b>,
+         *  plus l'ancre d'un décompte : l'enveloppe globale de 90 min a été
+         *  supprimée (chaque épreuve porte sa durée, rien ne se transfère de
+         *  l'une à l'autre, et l'abandon-reprise entre épreuves est supporté).
+         *  Les fronts n'en dérivent aucun compte à rebours — ils lisent
+         *  {@link SubAttempt#timerStartedAt} / {@link SubAttempt#deadlineAt}.
          *  NULL tant que le candidat n'a pas commencé (hub de progression). */
         Instant timerStartedAt,
         Instant finishedAt,
         NiveauCecrl finalCecrlLevel,
         FullTcfExamStatus status,
+        /** Examen enchaîné d'une traite, ou repris entre plusieurs épreuves ?
+         *  Dérivé serveur, jamais persisté (cf. {@link ContinuiteSimulation}).
+         *  NULL tant que l'examen n'est pas terminé — la question ne se pose
+         *  qu'au moment de restituer le résultat. À ne pas confondre avec
+         *  {@link #finalLevelPartial}, qui dit tout autre chose : sur combien
+         *  d'épreuves porte le niveau. */
+        ContinuiteSimulation continuite,
         /** Nombre d'épreuves qui portent un niveau et entrent réellement dans
          *  le plancher {@link #finalCecrlLevel} (0..{@link #epreuvesExpected}). */
         int epreuvesCountedInFinalLevel,
@@ -90,6 +103,29 @@ public record FullTcfExamResponse(
      *                            plancher global. Un verrou commercial n'est pas un
      *                            verdict de langue. Les fronts affichent un cadenas +
      *                            invitation à l'abonnement. Toujours false pour CO/CE.
+     * @param timeLimitSeconds    durée de CETTE épreuve, en secondes (CO 1200, CE 2100,
+     *                            EE 1800). <b>NULL pour l'expression orale</b>, qui n'a
+     *                            volontairement pas de chrono d'épreuve : son temps se
+     *                            compte par tâche, et ne démarre qu'au lancement de la
+     *                            tâche ({@code production_tasks.dureeMaxSec}). C'est le
+     *                            <b>seul</b> endroit où lire la durée d'une épreuve :
+     *                            les fronts affichent « CE · 35 min » depuis ce champ,
+     *                            jamais depuis une constante locale (elles avaient déjà
+     *                            divergé — 30 min dans un écran, 35 dans un autre).
+     * @param timerStartedAt      instant où le candidat a <b>lancé</b> l'épreuve
+     *                            ({@code POST /api/full-tcf-exams/{id}/begin}). NULL tant
+     *                            qu'elle n'a pas été lancée : les 4 sous-attempts sont
+     *                            créés d'un bloc au démarrage de l'examen, leur
+     *                            {@code startedAt} ne dit donc rien du moment où le
+     *                            candidat les ouvre. Tant qu'il est NULL, l'épreuve n'a
+     *                            pas d'échéance.
+     * @param deadlineAt          échéance effective = {@code timerStartedAt +
+     *                            timeLimitSeconds}, calculée serveur pour que les fronts
+     *                            n'aient pas à la recomposer. NULL quand l'épreuve n'a
+     *                            pas de chrono (EO) ou n'a pas encore été lancée. Le
+     *                            temps court pendant l'absence : quitter ne suspend
+     *                            rien, et passé cette échéance l'épreuve est clôturée
+     *                            automatiquement avec ce qui avait été enregistré.
      */
     public record SubAttempt(
             UUID attemptId,
@@ -100,7 +136,10 @@ public record FullTcfExamResponse(
             Integer maxScore,
             Integer submissionsCount,
             List<UUID> failedSubmissionIds,
-            boolean locked
+            boolean locked,
+            Integer timeLimitSeconds,
+            Instant timerStartedAt,
+            Instant deadlineAt
     ) {
     }
 }

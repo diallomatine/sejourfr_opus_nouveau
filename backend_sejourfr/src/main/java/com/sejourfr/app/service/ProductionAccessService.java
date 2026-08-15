@@ -2,11 +2,13 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionTask;
+import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
+import com.sejourfr.app.service.attempt.AttemptChrono;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -35,8 +37,12 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ProductionAccessService {
 
-    /** Grâce après expiration du chrono d'épreuve (latence de l'auto-soumission front). */
-    static final int SUBMIT_GRACE_SECONDS = 60;
+    /**
+     * Grâce après expiration du chrono d'épreuve (latence de l'auto-soumission
+     * front). Une seule valeur pour tout le dépôt, partagée avec le chrono QCM
+     * — cf. {@link DureeEpreuve#GRACE_SOUMISSION_SECONDS}.
+     */
+    static final int SUBMIT_GRACE_SECONDS = DureeEpreuve.GRACE_SOUMISSION_SECONDS;
 
     /** Essais d'entrainement par epreuve pour les comptes non-Premium (a vie). */
     private static final int FREE_TRAINING_PER_EPREUVE = 1;
@@ -59,6 +65,7 @@ public class ProductionAccessService {
         assertPurposeAndDiagnosticPair(userId, attempt, task);
         assertNotFinished(attempt);
         assertWithinTimeLimit(attempt);
+        assertWithinSessionGuard(attempt);
         assertEpreuveMatches(attempt, task);
         assertTacheNotAlreadySubmitted(attempt, task);
     }
@@ -87,15 +94,49 @@ public class ProductionAccessService {
     }
 
     /**
-     * Chrono d'épreuve (sessions d'examen EE et EO). Grâce de 60 s pour couvrir
-     * la latence réseau de l'auto-soumission front à 0:00.
+     * Chrono d'épreuve — <b>expression écrite uniquement</b> (30 min pour les
+     * 3 tâches, allocation libre). Grâce de {@value #SUBMIT_GRACE_SECONDS} s
+     * pour couvrir la latence réseau de l'auto-soumission front à 0:00.
+     * L'ancre est celle de {@link AttemptChrono} : sur une sous-épreuve
+     * d'examen complet, le décompte ne part qu'au lancement réel de l'épreuve.
+     *
+     * <p>L'expression <b>orale</b> n'a pas de chrono d'épreuve : son temps se
+     * compte par tâche, au lancement de chaque tâche. Elle n'a donc pas de
+     * {@code time_limit_seconds} et ne passe que par
+     * {@link #assertWithinSessionGuard}.
      */
     private void assertWithinTimeLimit(Attempt attempt) {
-        if (attempt.getTimeLimitSeconds() == null || attempt.getStartedAt() == null) return;
-        Instant deadline = attempt.getStartedAt()
-                .plusSeconds(attempt.getTimeLimitSeconds() + SUBMIT_GRACE_SECONDS);
-        if (Instant.now().isAfter(deadline)) {
+        if (AttemptChrono.horsDelai(attempt, Instant.now())) {
             throw new BusinessException("Le temps de l'épreuve est écoulé — soumission refusée.");
+        }
+    }
+
+    /**
+     * <b>Garde-fou de session à l'oral — ce n'est pas un chrono d'épreuve.</b>
+     * Une session EO n'a pas de compte à rebours ; sans aucune borne, elle
+     * resterait ouverte indéfiniment et un compte gratuit pourrait y accumuler
+     * des évaluations IA payantes (Whisper + LLM) longtemps après l'avoir
+     * abandonnée. Volontairement très large
+     * ({@value DureeEpreuve#EO_GARDE_SESSION_SECONDS} s, cf.
+     * {@link DureeEpreuve#EO_GARDE_SESSION_SECONDS}) et <b>jamais exposé</b> :
+     * il n'est ni persisté sur l'attempt, ni publié dans un DTO.
+     *
+     * <p>Périmètre inchangé par rapport au chrono qu'il remplace : les
+     * <b>sessions d'examen EO isolées</b>. Les sous-épreuves EO d'un examen
+     * complet n'en ont pas — leur {@code started_at} date de la création de
+     * l'examen, des dizaines de minutes avant que l'oral ne s'ouvre, et leur
+     * coût IA est déjà borné par le plafond « une soumission par tâche ».
+     */
+    private void assertWithinSessionGuard(Attempt attempt) {
+        if (attempt.getEpreuve() != EpreuveType.TCF_EO) return;
+        if (attempt.getParentAttempt() != null) return;
+        Instant ancre = AttemptChrono.ancre(attempt);
+        if (ancre == null) return;
+        Instant limite = ancre.plusSeconds(DureeEpreuve.EO_GARDE_SESSION_SECONDS);
+        if (Instant.now().isAfter(limite)) {
+            throw new BusinessException(
+                    "Cette session d'expression orale est ouverte depuis trop longtemps — "
+                            + "relancez l'épreuve pour continuer.");
         }
     }
 

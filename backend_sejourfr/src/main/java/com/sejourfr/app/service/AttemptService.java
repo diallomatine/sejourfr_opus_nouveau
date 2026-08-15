@@ -13,6 +13,7 @@ import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
@@ -65,25 +66,6 @@ public class AttemptService {
     private static final int TCF_EXAM_TIME = 90 * 60;
 
     /**
-     * Chrono global de l'épreuve EE en examen blanc (30 min, comme le vrai TCF
-     * IRN). Lu aussi par {@link PlanMilestoneSelector}, qui annonce la durée du
-     * jalon d'épreuve — le nombre ne vit qu'ici.
-     */
-    static final int PRODUCTION_EE_EXAM_SECONDS = 30 * 60;
-
-    /**
-     * Chrono global de l'épreuve EO en examen blanc : 15 min. Les 3 tâches EO
-     * du catalogue plafonnent le temps de parole à 180 + 210 + 210 s = 10 min ;
-     * on ajoute 50 % (5 min) pour la lecture des consignes, les transitions
-     * entre tâches et la latence d'upload. Sans ce chrono, une session d'examen
-     * EO restait ouverte indéfiniment — un compte gratuit pouvait y accumuler
-     * des évaluations IA (Whisper + LLM) jusqu'au plafond du rate-limit.
-     *
-     * <p>Lu aussi par {@link PlanMilestoneSelector} (durée annoncée du jalon).
-     */
-    static final int PRODUCTION_EO_EXAM_SECONDS = 15 * 60;
-
-    /**
      * Slots de la grille d'examens blancs QCM (cf. V110) : 20 par module,
      * aligné sur les fronts (web {@code SLOTS = 20}, mobile
      * {@code CiviqueFullExamsScreen} / {@code TcfFullExamsScreen}).
@@ -95,13 +77,9 @@ public class AttemptService {
     private static final int PREMIUM_TRAINING_MAX_SIZE = 50;
     private static final int DEFAULT_TRAINING_SIZE = 10;
 
-    // Durée des examens module — Compréhension orale 20 min, écrite 35 min en
-    // standalone. En examen blanc complet (TCF_COMPLET), CE est raccourci à
-    // 30 min pour tenir dans l'enveloppe globale de 90 min.
-    private static final int MODULE_EXAM_CO_SECONDS = 20 * 60;
-    private static final int MODULE_EXAM_CE_SECONDS = 35 * 60;
-    private static final int MODULE_EXAM_STRUCTURE_SECONDS = 20 * 60;
-    private static final int FULL_EXAM_CE_SECONDS = 30 * 60;
+    // Les durées d'épreuve vivent TOUTES dans DureeEpreuve (CO 20 min, CE
+    // 35 min partout — y compris en examen complet, STRUCTURE 20 min, EE
+    // 30 min, EO chronométrée tâche par tâche). Ne pas en redéclarer ici.
 
     private final AttemptManager attemptManager;
     private final AttemptQuestionManager attemptQuestionManager;
@@ -288,18 +266,20 @@ public class AttemptService {
         if (isExamSession) {
             attempt.setSlotNumber(validateProductionExamSlot(req.slotNumber()));
         }
-        // Session d'examen module EE (30 min, comme au vrai TCF IRN) ou EO
-        // (15 min, cf. PRODUCTION_EO_EXAM_SECONDS) : chrono global enforcé
-        // backend — startedAt = vrai début de session. PAS posé sur les
-        // sous-attempts d'un examen complet : leur startedAt date de la
-        // création de l'examen (avant CO/CE), le décompte y est géré front-side
-        // dans l'enveloppe des 90 min du parent.
-        if (isExamSession) {
-            if (req.epreuve() == EpreuveType.TCF_EE) {
-                attempt.setTimeLimitSeconds(PRODUCTION_EE_EXAM_SECONDS);
-            } else if (req.epreuve() == EpreuveType.TCF_EO) {
-                attempt.setTimeLimitSeconds(PRODUCTION_EO_EXAM_SECONDS);
-            }
+        // Chrono d'épreuve : 30 min pour l'expression ÉCRITE (comme au vrai TCF
+        // IRN), qu'elle soit jouée en examen blanc d'épreuve ou en sous-épreuve
+        // d'un examen complet — une épreuve a la même durée où qu'elle soit
+        // jouée (cf. DureeEpreuve). L'ancre du décompte, elle, diffère : sur un
+        // sous-attempt d'examen complet c'est `timer_started_at`, posé au
+        // lancement réel de l'épreuve (cf. AttemptChrono).
+        //
+        // L'expression ORALE n'a volontairement AUCUN chrono d'épreuve : son
+        // temps se compte par tâche, au lancement de chaque tâche
+        // (production_tasks.duree_max_sec). Le seul plafond de session est le
+        // garde-fou anti-abus DureeEpreuve.EO_GARDE_SESSION_SECONDS, opposé par
+        // ProductionAccessService et jamais persisté ni exposé.
+        if ((isExamSession || parent != null) && req.epreuve() == EpreuveType.TCF_EE) {
+            attempt.setTimeLimitSeconds(DureeEpreuve.secondes(EpreuveType.TCF_EE));
         }
         // Pas de QCM -> totalQuestions / threshold restent null.
         attempt = attemptManager.save(attempt);
@@ -676,9 +656,9 @@ public class AttemptService {
 
     /**
      * Demarre un examen blanc scope a une epreuve TCF QCM (CO, CE ou
-     * STRUCTURE). Composition : 8 A2 + 9 B1 + 8 B2 progressifs (constantes
-     * MODULE_EXAM_*), tire aleatoirement dans le pool filtre par module +
-     * questionType. Si une strate est trop petite, on complete avec les
+     * STRUCTURE). Composition : 8 A2 + 9 B1 + 8 B2 progressifs, tire
+     * aleatoirement dans le pool filtre par module + questionType. Duree lue
+     * dans {@link DureeEpreuve}, jamais recopiee ici. Si une strate est trop petite, on complete avec les
      * niveaux voisins pour atteindre 25 questions au total (fallback).
      *
      * <p>STRUCTURE est un module bonus (hors TCF IRN officiel), inclus ici
@@ -713,12 +693,7 @@ public class AttemptService {
             throw new BusinessException("Aucune question disponible pour cet examen module.");
         }
 
-        int timeLimit = switch (qType) {
-            case CO -> MODULE_EXAM_CO_SECONDS;
-            case CE -> MODULE_EXAM_CE_SECONDS;
-            case STRUCTURE -> MODULE_EXAM_STRUCTURE_SECONDS;
-            default -> throw new BusinessException("qType non supporte pour examen module : " + qType);
-        };
+        int timeLimit = DureeEpreuve.secondesPourQcm(qType);
 
         Attempt attempt = new Attempt();
         attempt.setUser(user);
@@ -758,8 +733,13 @@ public class AttemptService {
     /**
      * Variante de {@link #startModuleExam} pour les sous-attempts d'un examen
      * blanc TCF complet (parent TCF_COMPLET). Skip le check premium (l'accès
-     * est porté par le parent), pose {@code parent_attempt_id} et applique la
-     * durée full-exam pour CE (30 min au lieu de 35).
+     * est porté par le parent) et pose {@code parent_attempt_id}.
+     *
+     * <p>La durée est celle de l'épreuve, <b>identique au standalone</b> (CO
+     * 20 min, CE 35 min) : la CE n'est plus raccourcie à 30 min, l'enveloppe
+     * globale de 90 min qui l'imposait ayant disparu. Son décompte ne démarre
+     * qu'au lancement réel de l'épreuve ({@code timer_started_at}, posé par
+     * {@link FullTcfExamService#beginEpreuve}) — cf. {@code AttemptChrono}.
      *
      * <p>Réservé à {@link FullTcfExamService} qui valide l'access avant l'appel.
      */
@@ -777,7 +757,7 @@ public class AttemptService {
             throw new BusinessException("Aucune question disponible pour le sous-attempt " + qType + ".");
         }
 
-        int timeLimit = qType == QuestionType.CO ? MODULE_EXAM_CO_SECONDS : FULL_EXAM_CE_SECONDS;
+        int timeLimit = DureeEpreuve.secondesPourQcm(qType);
 
         Attempt attempt = new Attempt();
         attempt.setUser(user);
@@ -811,7 +791,16 @@ public class AttemptService {
     // Lecture — délégué à AttemptInteractionService
     // ------------------------------------------------------------------------
 
+    /**
+     * Lecture d'une session. Clôture d'abord la session si son délai est
+     * écoulé — clôture <b>paresseuse, à la lecture</b>, sans job planifié
+     * (même philosophie que l'expiration d'abonnement dans
+     * {@code SubscriptionService.isCovering}). Quitter ne suspend rien : le
+     * candidat qui revient après l'échéance retrouve son épreuve close avec ce
+     * qui avait été enregistré.
+     */
     public AttemptResponse getById(UUID userId, UUID attemptId) {
+        interactionService.closeIfExpired(attemptId);
         return interactionService.getById(userId, attemptId);
     }
 

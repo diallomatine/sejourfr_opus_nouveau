@@ -28,7 +28,9 @@ class ProductionExamBriefingSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isEo = module.epreuve == EpreuveType.tcfEo;
-    final durationLabel = '${module.durationLabel} min';
+    // Durée d'épreuve servie par la table partagée : « 30 min » à l'écrit,
+    // « Chrono par tâche » à l'oral, qui n'a plus de chrono d'épreuve.
+    final durationLabel = module.durationLabel;
     final tasks = isEo ? _eoTasks : _eeTasks;
 
     return DraggableScrollableSheet(
@@ -79,8 +81,8 @@ class ProductionExamBriefingSheet extends StatelessWidget {
                     icon: module.icon,
                     title: isEo ? 'Prêt à parler ?' : 'Prêt à écrire ?',
                     description: isEo
-                        ? 'Tu enchaînes 3 tâches orales d\'affilée comme au vrai TCF. Chaque réponse est enregistrée puis notée par l\'IA.'
-                        : 'Tu enchaînes 3 tâches écrites d\'affilée comme au vrai TCF. Chaque réponse est corrigée par l\'IA en fin de session.',
+                        ? 'Tu enchaînes 3 tâches orales comme au vrai TCF. Tu lis chaque consigne sans chrono, puis tu lances la tâche quand tu es prêt : le temps de parole ne part qu\'à cet instant. Chaque réponse est enregistrée puis notée par l\'IA.'
+                        : 'Tu enchaînes 3 tâches écrites d\'affilée comme au vrai TCF. Le chrono de $durationLabel couvre les 3 tâches ensemble, à toi de répartir. Chaque réponse est corrigée par l\'IA en fin de session.',
                   ),
                   const SizedBox(height: 16),
                   _TasksCard(tasks: tasks),

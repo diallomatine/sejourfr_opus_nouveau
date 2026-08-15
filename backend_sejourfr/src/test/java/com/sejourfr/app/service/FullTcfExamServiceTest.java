@@ -70,8 +70,9 @@ class FullTcfExamServiceTest {
                 subscriptionService, attemptManager, productionSubmissionManager,
                 mock(com.sejourfr.app.manager.DiagnosticSessionManager.class));
         service = new FullTcfExamService(
-                attemptManager, userManager, attemptService, productionAccessService,
-                responseBuilder);
+                attemptManager, userManager, attemptService,
+                mock(com.sejourfr.app.service.attempt.AttemptInteractionService.class),
+                productionAccessService, responseBuilder);
 
         when(attemptManager.save(any(Attempt.class))).thenAnswer(inv -> inv.getArgument(0));
         when(levelEstimator.capB2(any())).thenAnswer(inv -> inv.getArgument(0));

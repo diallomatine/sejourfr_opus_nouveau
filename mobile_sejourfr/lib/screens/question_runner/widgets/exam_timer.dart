@@ -5,18 +5,28 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
-/// Timer décompte pour l'examen blanc. Appelle [onElapsed] quand le temps
-/// arrive à zéro.
+/// Timer décompte d'une épreuve. Appelle [onElapsed] quand le temps arrive à
+/// zéro.
+///
+/// 🛑 **Il décompte vers une ÉCHÉANCE ABSOLUE**, jamais vers une durée relancée
+/// à l'ouverture de l'écran : quitter ne suspend rien, le temps court pendant
+/// l'absence et l'app doit reprendre avec le temps réellement restant. Passer
+/// `deadline` évite de recomposer un chrono localement — l'échéance vient du
+/// serveur (`FullTcfExamSubAttempt.deadlineAt`) chaque fois qu'elle est
+/// disponible ; [ExamTimer.fromStart] n'est là que pour les sessions isolées,
+/// dont le `startedAt` **est** l'ancre.
 class ExamTimer extends StatefulWidget {
-  const ExamTimer({
-    super.key,
-    required this.durationSeconds,
-    required this.startedAt,
-    required this.onElapsed,
-  });
+  const ExamTimer({super.key, required this.deadline, required this.onElapsed});
 
-  final int durationSeconds;
-  final DateTime startedAt;
+  /// Session isolée : l'échéance se déduit de son début et de sa durée.
+  ExamTimer.fromStart({
+    super.key,
+    required DateTime startedAt,
+    required int durationSeconds,
+    required this.onElapsed,
+  }) : deadline = startedAt.add(Duration(seconds: durationSeconds));
+
+  final DateTime deadline;
   final VoidCallback onElapsed;
 
   @override
@@ -36,9 +46,7 @@ class _ExamTimerState extends State<ExamTimer> {
   }
 
   void _compute() {
-    final elapsed = DateTime.now().difference(widget.startedAt);
-    final remaining =
-        Duration(seconds: widget.durationSeconds) - elapsed;
+    final remaining = widget.deadline.difference(DateTime.now());
     final clamped = remaining.isNegative ? Duration.zero : remaining;
     if (mounted) setState(() => _remaining = clamped);
     if (!_fired && clamped == Duration.zero) {

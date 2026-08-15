@@ -243,6 +243,14 @@ class _BilanView extends StatelessWidget {
         _TopBar(onBack: () => _backToExams(context)),
         const SizedBox(height: 20),
         _Hero(exam: exam),
+        // Statut de simulation, dérivé serveur — null tant que l'examen n'est
+        // pas terminé, et c'est le cas normal pendant l'évaluation IA. Il ne
+        // remplace pas `finalLevelPartial` (le hero), qui dit tout autre chose :
+        // sur combien d'épreuves porte le niveau.
+        if (exam.continuite != null) ...[
+          const SizedBox(height: 12),
+          _ContinuiteLine(continuite: exam.continuite!),
+        ],
         const SizedBox(height: 18),
         if (pollExhausted && exam.status != FullTcfExamStatus.completed) ...[
           _PollExhaustedBanner(onRefresh: onManualRefresh),
@@ -272,6 +280,49 @@ class _BilanView extends StatelessWidget {
     } else {
       context.go(AppRoutes.tcfFullExams);
     }
+  }
+}
+
+/// Ligne « Simulation complète — conditions examen » / « Simulation complétée en
+/// plusieurs sessions ». Le libellé vient de l'enum
+/// ([ContinuiteSimulation.label], miroir gelé du backend) : aucune phrase n'est
+/// recomposée ici, et rien n'est recalculé — reprendre l'examen le lendemain
+/// reste légitime, on le dit simplement au lieu de le taire.
+class _ContinuiteLine extends StatelessWidget {
+  const _ContinuiteLine({required this.continuite});
+
+  final ContinuiteSimulation continuite;
+
+  @override
+  Widget build(BuildContext context) {
+    final unique = continuite == ContinuiteSimulation.sessionUnique;
+    final tint = unique ? AppColors.blue : AppColors.muted;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+      decoration: BoxDecoration(
+        color: unique ? AppColors.blueSoft : AppColors.surface2,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Row(
+        children: [
+          Icon(unique ? LucideIcons.shieldCheck : LucideIcons.history,
+              size: 17, color: tint),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              continuite.label,
+              style: AppFonts.ui(
+                size: 12.5,
+                weight: FontWeight.w700,
+                color: AppColors.ink,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

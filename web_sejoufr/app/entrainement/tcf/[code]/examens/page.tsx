@@ -20,16 +20,30 @@ import { moduleDetailStyles as ds } from "@/app/_components/module_detail/parts"
 import { DetailShell, DetailStatCard, ExamsGrid } from "@/app/_components/hub/DetailParts";
 import { ExamIntroSheet, type ExamFact } from "@/app/_components/hub/ExamIntroSheet";
 import { examSlotGrid } from "@/lib/exam-slots";
+import { plannedEpreuveLabel } from "@/lib/exam-durations";
 import detail from "@/app/_components/hub/detail.module.css";
 
 const SLOTS = 20;
 
+// CO et CE lisent la table de référence partagée (`lib/exam-durations.ts`) :
+// la même épreuve doit annoncer la même durée jouée seule et dans un examen
+// complet — c'est exactement là que la CE avait divergé (30 vs 35 min).
 const TCF_QCM = {
-  co: { questionType: "CO" as QuestionType, title: "Compréhension orale", duration: "20 min" },
-  ce: { questionType: "CE" as QuestionType, title: "Compréhension écrite", duration: "35 min" },
+  co: {
+    questionType: "CO" as QuestionType,
+    title: "Compréhension orale",
+    duration: plannedEpreuveLabel("TCF_CO"),
+  },
+  ce: {
+    questionType: "CE" as QuestionType,
+    title: "Compréhension écrite",
+    duration: plannedEpreuveLabel("TCF_CE"),
+  },
   structure: {
     questionType: "STRUCTURE" as QuestionType,
     title: "Structure de la langue",
+    // Épreuve absente de l'examen complet : aucune donnée serveur avant le
+    // démarrage, la minute reste écrite ici (cf. rapport).
     duration: "20 min",
   },
 } as const;

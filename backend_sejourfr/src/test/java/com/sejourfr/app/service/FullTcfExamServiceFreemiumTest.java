@@ -70,8 +70,9 @@ class FullTcfExamServiceFreemiumTest {
                 subscriptionService, attemptManager, productionSubmissionManager,
                 mock(com.sejourfr.app.manager.DiagnosticSessionManager.class));
         service = new FullTcfExamService(
-                attemptManager, userManager, attemptService, productionAccessService,
-                responseBuilder);
+                attemptManager, userManager, attemptService,
+                mock(com.sejourfr.app.service.attempt.AttemptInteractionService.class),
+                productionAccessService, responseBuilder);
 
         when(userManager.findById(userId)).thenReturn(Optional.of(new User()));
         // Compte gratuit (pas d'abonnement TCF).

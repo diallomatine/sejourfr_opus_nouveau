@@ -10,22 +10,35 @@ import '../../core/models/enums.dart';
 import '../../core/models/full_tcf_exam.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/epreuve_duration.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_sheet.dart';
 import 'full_tcf_exam_provider.dart';
 
 /// Hub de progression d'un examen blanc TCF complet : 4 étapes (CO → CE →
-/// EE → EO), chrono global 90 min, CTA "Commencer cette épreuve" qui push
-/// le runner ou la session production avec l'attemptId du sous-attempt
+/// EE → EO), **chrono de l'épreuve en cours**, CTA "Commencer cette épreuve"
+/// qui push le runner ou la session production avec l'attemptId du sous-attempt
 /// correspondant.
 ///
 /// **Refresh** : invalide `fullTcfExamProvider` à chaque mount (re-fetch
-/// frais), et les écrans appelants (runner + bilans EE/EO) doivent appeler
-/// `ref.invalidate(fullTcfExamProvider(parentId))` avant `context.go` vers
-/// ce hub pour que les épreuves récemment terminées apparaissent.
+/// frais) et au retour au premier plan, et les écrans appelants (runner +
+/// bilans EE/EO) doivent appeler `ref.invalidate(fullTcfExamProvider(parentId))`
+/// avant `context.go` vers ce hub pour que les épreuves récemment terminées
+/// apparaissent.
 ///
-/// **Timer global** : 90 min décomptés depuis `exam.startedAt`. À 0,
-/// finalisation automatique + redirect vers le bilan.
+/// **Il n'y a plus d'enveloppe globale de 90 min.** Le temps d'une épreuve ne se
+/// transfère jamais à la suivante et l'abandon-reprise entre épreuves est
+/// officiellement supporté : un décompte global n'aurait plus de sens. Chaque
+/// épreuve porte sa durée, servie par le DTO
+/// (`FullTcfExamSubAttempt.timeLimitSeconds`), et son échéance absolue
+/// (`deadlineAt`) — **seule** source du compte à rebours affiché ici. Les 4
+/// durées font ~95 min au total, annoncé comme indicatif.
+///
+/// **Quitter ne suspend rien** : le chrono d'une épreuve lancée continue de
+/// courir pendant l'absence, on reprend avec le temps réellement restant, et une
+/// épreuve dont l'échéance est passée est **clôturée automatiquement par le
+/// serveur** à la lecture suivante, avec ce qui était enregistré. Il n'existe
+/// aucun flux « recommencer une épreuve interrompue ».
 ///
 /// **Abandon** (parité web) : quitter un examen en cours ne le laisse plus
 /// « En cours ». On affiche un avertissement, puis on finalise chaque épreuve
@@ -42,19 +55,17 @@ class TcfFullExamProgressScreen extends ConsumerStatefulWidget {
       _TcfFullExamProgressScreenState();
 }
 
-/// Chrono global : 90 minutes (= `time_limit_seconds` posé sur le parent
-/// côté backend, cf. `FullTcfExamService.FULL_EXAM_TOTAL_SECONDS`).
-const Duration _fullExamTotal = Duration(minutes: 90);
-
 class _TcfFullExamProgressScreenState
-    extends ConsumerState<TcfFullExamProgressScreen> {
+    extends ConsumerState<TcfFullExamProgressScreen>
+    with WidgetsBindingObserver {
   Timer? _ticker;
-  bool _timeoutHandled = false;
+  bool _expiryHandled = false;
   bool _finishing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Re-fetch frais à chaque entrée sur le hub : indispensable après le
     // retour d'un sous-attempt (CO/CE/EE/EO), sinon les épreuves terminées
     // restent affichées comme "current".
@@ -63,7 +74,9 @@ class _TcfFullExamProgressScreenState
       ref.invalidate(fullTcfExamProvider(widget.parentAttemptId));
     });
     // Tick chaque seconde pour mettre à jour le chrono — léger, pas de
-    // setState destructif.
+    // setState destructif. Le décompte se lit sur `deadlineAt`, une échéance
+    // absolue : il reste juste après un passage en arrière-plan, où le temps a
+    // continué de courir.
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -72,7 +85,19 @@ class _TcfFullExamProgressScreenState
   @override
   void dispose() {
     _ticker?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Retour au premier plan : le temps a couru pendant l'absence et le serveur
+    // a peut-être déjà clôturé l'épreuve. On relit l'état plutôt que de
+    // continuer sur une échéance périmée.
+    if (state == AppLifecycleState.resumed && mounted) {
+      _expiryHandled = false;
+      ref.invalidate(fullTcfExamProvider(widget.parentAttemptId));
+    }
   }
 
   @override
@@ -93,15 +118,20 @@ class _TcfFullExamProgressScreenState
                     fullTcfExamProvider(widget.parentAttemptId)),
               ),
               data: (exam) {
-                final remaining = _remaining(exam);
-                // Temps épuisé : on finalise une seule fois (les épreuves
-                // restantes comptées 0) et on redirige vers le bilan.
-                if (remaining <= Duration.zero &&
-                    !_timeoutHandled &&
+                final current = exam.currentSubAttempt;
+                final remaining = current?.remainingAt(DateTime.now());
+                // Échéance de l'épreuve en cours dépassée : le serveur la
+                // clôture lui-même à la lecture suivante, avec ce qui avait été
+                // enregistré. On relit, on ne finalise pas l'examen entier —
+                // les épreuves suivantes restent à passer.
+                if (remaining == Duration.zero &&
+                    !_expiryHandled &&
                     exam.finishedAt == null) {
-                  _timeoutHandled = true;
+                  _expiryHandled = true;
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) _finalizeAndGoToBilan(exam);
+                    if (!mounted) return;
+                    ref.invalidate(
+                        fullTcfExamProvider(widget.parentAttemptId));
                   });
                 }
                 return _ProgressView(
@@ -117,18 +147,6 @@ class _TcfFullExamProgressScreenState
         ],
       ),
     );
-  }
-
-  Duration _remaining(FullTcfExamResponse exam) {
-    // Le chrono global est ancré sur `timerStartedAt` (lancement réel de la
-    // CO), pas sur `startedAt` (création de l'examen) : tant que le candidat
-    // n'a rien lancé, il reste figé à 90:00 et ne décompte que dès la 1re
-    // épreuve démarrée.
-    final anchor = exam.timerStartedAt;
-    if (anchor == null) return _fullExamTotal;
-    final ends = anchor.add(_fullExamTotal);
-    final diff = ends.difference(DateTime.now());
-    return diff.isNegative ? Duration.zero : diff;
   }
 
   /// Avertit avant d'abandonner un examen en cours, puis finalise. Si l'examen
@@ -219,7 +237,11 @@ class _ProgressView extends ConsumerWidget {
   });
 
   final FullTcfExamResponse exam;
-  final Duration remaining;
+
+  /// Temps restant sur l'**épreuve en cours**. `null` quand elle n'est pas
+  /// encore lancée, qu'elle n'a pas de chrono (expression orale) ou que tout est
+  /// joué — dans ces cas aucun décompte n'est affiché.
+  final Duration? remaining;
   final bool finishing;
   final VoidCallback onQuit;
 
@@ -269,14 +291,7 @@ class _ProgressView extends ConsumerWidget {
   }
 
   String _ctaLabel(FullTcfExamResponse exam) {
-    final stepIdx = exam.currentStepIndex;
-    const order = [
-      EpreuveType.tcfCo,
-      EpreuveType.tcfCe,
-      EpreuveType.tcfEe,
-      EpreuveType.tcfEo,
-    ];
-    final ep = order[stepIdx];
+    final ep = kFullTcfExamOrder[exam.currentStepIndex];
     return 'Commencer · ${_StepMeta.of(ep).title}';
   }
 
@@ -286,31 +301,29 @@ class _ProgressView extends ConsumerWidget {
     FullTcfExamResponse exam,
     int stepIdx,
   ) async {
-    const order = [
-      EpreuveType.tcfCo,
-      EpreuveType.tcfCe,
-      EpreuveType.tcfEe,
-      EpreuveType.tcfEo,
-    ];
-    final ep = order[stepIdx];
+    final ep = kFullTcfExamOrder[stepIdx];
     final sub = exam.subFor(ep);
     if (sub == null) return;
+
+    // Démarre le chrono propre de l'épreuve côté backend AVANT d'ouvrir son
+    // écran, pour les **4** épreuves : tant que `begin` n'est pas appelé,
+    // l'épreuve n'a pas d'échéance (les 4 sous-attempts sont créés d'un bloc au
+    // lancement de l'examen). Il est **obligatoire pour l'EE** et sert à l'EO à
+    // dater l'ouverture de l'épreuve (statut de continuité). Best-effort — si
+    // l'appel réseau échoue on ouvre quand même l'écran, le chrono restant
+    // ancré sur la dernière valeur serveur.
+    try {
+      await ref.read(fullTcfExamRepositoryProvider).beginEpreuve(
+            parentAttemptId: exam.id,
+            epreuveWire: ep.wire,
+          );
+    } catch (_) {}
+    if (!context.mounted) return;
+    ref.invalidate(fullTcfExamProvider(exam.id));
 
     switch (ep) {
       case EpreuveType.tcfCo:
       case EpreuveType.tcfCe:
-        // Démarre/recale le chrono propre de l'épreuve côté backend AVANT
-        // d'ouvrir le runner : il décompte depuis `startedAt`, qu'on vient de
-        // recaler sur le lancement réel (sinon la CE héritait du temps écoulé
-        // sur la CO). Best-effort — si l'appel réseau échoue on ouvre quand
-        // même le runner (chrono ancré sur la dernière valeur serveur).
-        try {
-          await ref.read(fullTcfExamRepositoryProvider).beginEpreuve(
-                parentAttemptId: exam.id,
-                epreuveWire: ep.wire,
-              );
-        } catch (_) {}
-        if (!context.mounted) return;
         context.push(
           '${AppRoutes.runner.replaceFirst(':attemptId', sub.attemptId)}'
           '?from=fullTcf&fullExamId=${exam.id}',
@@ -420,13 +433,14 @@ class _Hero extends StatelessWidget {
   const _Hero({required this.exam, required this.remaining});
 
   final FullTcfExamResponse exam;
-  final Duration remaining;
+  final Duration? remaining;
 
   @override
   Widget build(BuildContext context) {
     final stepIdx = exam.currentStepIndex;
     final allDone = stepIdx >= 4;
-    final timedOut = remaining <= Duration.zero;
+    final current = exam.currentSubAttempt;
+    final timedOut = remaining == Duration.zero;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
@@ -461,7 +475,8 @@ class _Hero extends StatelessWidget {
                   ),
                 ),
               ),
-              if (!allDone) _GlobalTimer(remaining: remaining, timedOut: timedOut),
+              if (!allDone && remaining != null)
+                _EpreuveTimer(remaining: remaining!),
             ],
           ),
           const SizedBox(height: 10),
@@ -479,9 +494,9 @@ class _Hero extends StatelessWidget {
             allDone
                 ? 'Toutes les épreuves sont terminées. Découvre ton niveau CECRL final.'
                 : timedOut
-                    ? 'Temps écoulé. On finalise ton examen…'
-                    : 'Enchaîne les 4 épreuves dans l\'ordre. Le chrono court en arrière-plan, '
-                        'même quand tu es dans une épreuve.',
+                    ? 'Temps écoulé sur cette épreuve. On enregistre ce que tu as '
+                        'fait, puis tu passes à la suivante.'
+                    : _heroSentence(current),
             style: AppFonts.ui(
               size: 13.5,
               color: AppColors.white.withValues(alpha: 0.9),
@@ -519,15 +534,36 @@ class _Hero extends StatelessWidget {
       ),
     );
   }
+
+  /// Phrase du hero selon l'épreuve en cours. Aucune durée en dur : elle vient
+  /// de `timeLimitSeconds`, et l'oral n'en a pas — il se chronomètre par tâche.
+  String _heroSentence(FullTcfExamSubAttempt? current) {
+    if (current == null) {
+      return 'Enchaîne les 4 épreuves dans l\'ordre. Chaque épreuve a son propre '
+          'temps : rien ne se reporte de l\'une à l\'autre.';
+    }
+    final meta = _StepMeta.of(current.epreuve);
+    final duree = epreuveDurationLabel(current.timeLimitSeconds);
+    if (duree == null) {
+      return '${meta.title} : le temps se compte par tâche. Tu lances chaque '
+          'tâche quand tu es prêt.';
+    }
+    if (current.deadlineAt == null) {
+      return '${meta.title} : $duree. Le chrono part quand tu lances '
+          'l\'épreuve, et il ne s\'arrête plus si tu quittes.';
+    }
+    return '${meta.title} : $duree. Le chrono court même quand tu quittes — '
+        'le temps restant ne se reporte pas sur l\'épreuve suivante.';
+  }
 }
 
-/// Pill chrono affichée dans le hero : 90 min décomptés depuis `startedAt`.
-/// Devient rouge foncé/blanc clignotant sous les 5 dernières minutes.
-class _GlobalTimer extends StatelessWidget {
-  const _GlobalTimer({required this.remaining, required this.timedOut});
+/// Pill chrono affichée dans le hero : temps restant sur **l'épreuve en cours**,
+/// décompté depuis son `deadlineAt` (échéance absolue servie par le backend).
+/// Devient plus contrastée sous les 5 dernières minutes.
+class _EpreuveTimer extends StatelessWidget {
+  const _EpreuveTimer({required this.remaining});
 
   final Duration remaining;
-  final bool timedOut;
 
   @override
   Widget build(BuildContext context) {
@@ -544,7 +580,7 @@ class _GlobalTimer extends StatelessWidget {
           const Icon(LucideIcons.timer, size: 13, color: AppColors.white),
           const SizedBox(width: 5),
           Text(
-            timedOut ? '00:00' : _format(remaining),
+            _format(remaining),
             style: AppFonts.mono(
               size: 12,
               color: AppColors.white,
@@ -572,28 +608,22 @@ class _StepsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const order = [
-      EpreuveType.tcfCo,
-      EpreuveType.tcfCe,
-      EpreuveType.tcfEe,
-      EpreuveType.tcfEo,
-    ];
     final currentIdx = exam.currentStepIndex;
 
     return Column(
       children: [
-        for (int i = 0; i < order.length; i++) ...[
+        for (int i = 0; i < kFullTcfExamOrder.length; i++) ...[
           _StepCard(
             index: i,
-            epreuve: order[i],
-            sub: exam.subFor(order[i]),
+            epreuve: kFullTcfExamOrder[i],
+            sub: exam.subFor(kFullTcfExamOrder[i]),
             state: i < currentIdx
                 ? _StepState.done
                 : i == currentIdx
                     ? _StepState.current
                     : _StepState.locked,
           ),
-          if (i != order.length - 1) const SizedBox(height: 10),
+          if (i != kFullTcfExamOrder.length - 1) const SizedBox(height: 10),
         ],
       ],
     );
@@ -713,19 +743,27 @@ class _StepCard extends StatelessWidget {
     );
   }
 
+  /// La durée affichée vient **du DTO** (`timeLimitSeconds`), jamais d'une
+  /// constante d'écran : c'est exactement là que la CE annonçait 30 min ici et
+  /// 35 min sur la grille standalone. L'expression orale n'en a pas — elle se
+  /// chronomètre par tâche, et on le dit.
   String _subtitle(_StepMeta meta, FullTcfExamSubAttempt? sub, _StepState st) {
+    final duree = epreuveDurationLabel(sub?.timeLimitSeconds) ??
+        (sub?.epreuve == EpreuveType.tcfEo
+            ? kChronoParTacheLabel
+            : epreuveDurationLabelFor(epreuve));
     if (st == _StepState.done && sub != null) {
       if (sub.score != null && sub.maxScore != null) {
-        return '${meta.duration} · ${sub.score}/${sub.maxScore}'
+        return '$duree · ${sub.score}/${sub.maxScore}'
             '${sub.cecrlLevel != null ? ' · ${sub.cecrlLevel!.displayName}' : ''}';
       }
       if (sub.submissionsCount != null) {
-        return '${meta.duration} · ${sub.submissionsCount}/3 évaluées'
+        return '$duree · ${sub.submissionsCount}/3 évaluées'
             '${sub.cecrlLevel != null ? ' · ${sub.cecrlLevel!.displayName}' : ''}';
       }
-      return '${meta.duration} · Terminé';
+      return '$duree · Terminé';
     }
-    return '${meta.duration} · ${meta.detail}';
+    return '$duree · ${meta.detail}';
   }
 }
 
@@ -772,17 +810,18 @@ class _StepTrailing extends StatelessWidget {
   }
 }
 
+/// Libellés d'une étape. **Aucune durée ici** : elle est servie par le DTO
+/// (`FullTcfExamSubAttempt.timeLimitSeconds`), une seule source pour les 3
+/// fronts.
 class _StepMeta {
   const _StepMeta({
     required this.title,
     required this.icon,
-    required this.duration,
     required this.detail,
   });
 
   final String title;
   final IconData icon;
-  final String duration;
   final String detail;
 
   static _StepMeta of(EpreuveType e) {
@@ -791,35 +830,30 @@ class _StepMeta {
         return const _StepMeta(
           title: 'Compréhension orale',
           icon: LucideIcons.headphones,
-          duration: '20 min',
           detail: '25 questions audio',
         );
       case EpreuveType.tcfCe:
         return const _StepMeta(
           title: 'Compréhension écrite',
           icon: LucideIcons.bookOpen,
-          duration: '30 min',
           detail: '25 questions texte',
         );
       case EpreuveType.tcfEe:
         return const _StepMeta(
           title: 'Expression écrite',
           icon: LucideIcons.penLine,
-          duration: '30 min',
           detail: '3 tâches IA',
         );
       case EpreuveType.tcfEo:
         return const _StepMeta(
           title: 'Expression orale',
           icon: LucideIcons.mic,
-          duration: '10 min',
           detail: '3 tâches IA',
         );
       default:
         return const _StepMeta(
           title: '—',
           icon: LucideIcons.circleHelp,
-          duration: '—',
           detail: '—',
         );
     }

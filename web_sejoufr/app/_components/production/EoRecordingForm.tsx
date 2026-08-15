@@ -485,6 +485,10 @@ export function EoRecordingForm({
   // En examen, le chrono décompte la durée restante (auto-stop à 0) ; sinon il
   // chronomètre simplement le temps écoulé.
   const examCountdown = examMode && max != null;
+  /** Consigne d'examen encore à lire : rien n'est lancé, donc rien n'est
+   *  chronométré — c'est le « Je suis prêt » qui met le temps en marche, comme
+   *  au vrai TCF. */
+  const examIdle = examMode && phase === "idle";
   const shownSec = examCountdown ? Math.max(0, max - elapsed) : elapsed;
   const examUrgent = examCountdown && phase === "recording" && shownSec <= 15;
   const timerClass = examCountdown
@@ -523,7 +527,10 @@ export function EoRecordingForm({
   // un correctif n'atterrir que d'un côté.
   const recorder = (
     <div className={styles.recorder}>
-      <div className={`${styles.timerBig} ${timerClass}`}>{fmtTimer(shownSec)}</div>
+      {/* En examen, la consigne se lit SANS aucun décompte : le chrono de la
+          tâche n'existe pas encore, il naît du « Je suis prêt ». Afficher
+          « 3:00 » figé donnait déjà l'impression d'être chronométré. */}
+      {!examIdle && <div className={`${styles.timerBig} ${timerClass}`}>{fmtTimer(shownSec)}</div>}
 
       {phase === "recording" ? (
         <button
@@ -533,6 +540,16 @@ export function EoRecordingForm({
           aria-label="Arrêter l'enregistrement"
         >
           <Square size={28} strokeWidth={2.2} fill="currentColor" />
+        </button>
+      ) : examIdle ? (
+        <button
+          type="button"
+          className={styles.readyBtn}
+          onClick={handleStartClick}
+          disabled={submitting || blocked}
+        >
+          <Mic size={18} strokeWidth={2.2} aria-hidden />
+          Je suis prêt · Commencer la tâche
         </button>
       ) : (
         <button
@@ -563,7 +580,7 @@ export function EoRecordingForm({
               ? "Réponse envoyée à l'évaluation…"
               : copy.recorded
             : examCountdown
-              ? `Appuyez sur le micro : vous avez ${rangeLabel || formatDurationSec(max ?? 0)} et votre réponse est soumise dès l'arrêt. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`
+              ? `Prenez le temps de lire la consigne : rien n'est chronométré tant que vous n'avez pas commencé. Le temps de parole (${formatDurationSec(max ?? 0)}) démarre quand vous lancez la tâche, et votre réponse est soumise dès l'arrêt. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`
               : copy.idle(
                   rangeLabel ? ` (durée conseillée ${rangeLabel})` : "",
                   hardCapSec != null ? `, ${formatDurationSec(hardCapSec)} maximum` : "",

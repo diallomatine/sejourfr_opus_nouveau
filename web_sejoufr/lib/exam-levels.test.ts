@@ -30,6 +30,9 @@ function sub(over: Partial<FullTcfExamSubAttempt> = {}): FullTcfExamSubAttempt {
         submissionsCount: null,
         failedSubmissionIds: [],
         locked: false,
+        timeLimitSeconds: null,
+        timerStartedAt: null,
+        deadlineAt: null,
         ...over,
     };
 }

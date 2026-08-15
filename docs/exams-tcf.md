@@ -31,8 +31,13 @@ Migration `V098__attempts_module_exam_columns.sql` ajoute :
 
 ### Chrono
 
-20 min CO / 35 min CE / 20 min STRUCTURE (constantes `MODULE_EXAM_CO_SECONDS` /
-`MODULE_EXAM_CE_SECONDS` / `MODULE_EXAM_STRUCTURE_SECONDS`).
+20 min CO / 35 min CE / 20 min STRUCTURE. **Source unique : l'enum `DureeEpreuve`**
+(données d'examen, pas de config YAML) — les anciennes constantes `MODULE_EXAM_*` ont
+disparu. Une épreuve a la **même durée où qu'elle soit jouée**, standalone comme en
+examen complet. Le chrono est **opposable serveur** : une réponse postée après
+l'échéance (+ 60 s de grâce, `DureeEpreuve.GRACE_SOUMISSION_SECONDS`) est refusée en 422,
+et la session est **clôturée automatiquement à la lecture suivante** avec les réponses
+déjà enregistrées (pas de job planifié — expiration paresseuse, comme les abonnements).
 
 ### Score pondéré
 
@@ -57,21 +62,46 @@ avec badge score coloré, `_ErrorsTab` liste les questions ratées avec leur niv
 
 ## Examen blanc TCF complet (les 4 épreuves enchaînées)
 
-Enchaîne **CO + CE + EE + EO** sous un seul parent `epreuve = TCF_COMPLET`. Chrono global
-90 min (CO 20 + CE 30 + EE 30 + EO 10). Le niveau final est le **plancher CECRL des 4
-sous-épreuves** (règle officielle TCF IRN).
+Enchaîne **CO + CE + EE + EO** sous un seul parent `epreuve = TCF_COMPLET`. Le niveau
+final est le **plancher CECRL des 4 sous-épreuves** (règle officielle TCF IRN).
+
+⚠️ **Il n'y a plus de chrono global.** L'enveloppe de 90 min a été supprimée : le total
+réel fait ~95 min (CO 20 + CE 35 + EE 30 + EO ~10 de parole), le temps restant d'une
+épreuve ne se transfère **jamais** à la suivante, et l'abandon-reprise entre deux épreuves
+est officiellement supporté — un compte à rebours d'ensemble expirerait au nez du candidat
+qui reprend le lendemain. Chaque sous-épreuve porte sa propre durée, servie aux fronts sur
+`FullTcfExamResponse.SubAttempt.timeLimitSeconds` / `timerStartedAt` / `deadlineAt` (ils ne
+recopient plus les minutes en dur).
 
 ### Modèle de données
 
 - Parent `attempts` avec `epreuve = TCF_COMPLET`, sans questions propres,
-  `time_limit_seconds = 5400` (90 min), `final_cecrl_level` rempli à la finalisation quand
-  toutes les évaluations IA EE/EO sont prêtes.
+  **`time_limit_seconds` NULL** (plus d'enveloppe globale), `final_cecrl_level` rempli à la
+  finalisation quand toutes les évaluations IA EE/EO sont prêtes. `timer_started_at` y
+  reste, mais comme **trace du début réel** de l'examen — plus comme ancre d'un décompte.
 - 4 sous-attempts liés via `attempts.parent_attempt_id` (cf. migration V96) :
     - `TCF_CO` : 25 QCM (8 A2 + 9 B1 + 8 B2), chrono 20 min, score pondéré /50
-    - `TCF_CE` : idem CE, chrono **30 min** (raccourci du 35 min standalone via constante
-      `FULL_EXAM_CE_SECONDS`)
-    - `TCF_EE` : attempt vide, 3 submissions liées via `production_submissions.attempt_id`
-    - `TCF_EO` : idem EO
+    - `TCF_CE` : idem CE, chrono **35 min** — comme en standalone. Il valait 30 min ici
+      pour tenir dans l'enveloppe de 90 min, désormais supprimée.
+    - `TCF_EE` : attempt vide, chrono **30 min**, 3 submissions liées via
+      `production_submissions.attempt_id`
+    - `TCF_EO` : idem, mais **sans chrono d'épreuve** (`time_limit_seconds` NULL) : le
+      temps se compte **par tâche**, au lancement de chaque tâche
+      (`production_tasks.duree_max_sec` = 180 / 210 / 210 s)
+
+Le chrono d'une sous-épreuve **ne démarre qu'au lancement réel** de l'épreuve
+(`POST /api/full-tcf-exams/{id}/begin` → `timer_started_at`) : les 4 sous-attempts étant
+créés d'un bloc, leur `started_at` ne dit rien du moment où le candidat les ouvre. Tant que
+`timer_started_at` est NULL, l'épreuve n'a **pas** d'échéance. Autorité unique :
+`AttemptChrono`.
+
+### Statut de continuité (dérivé serveur, jamais persisté)
+
+`FullTcfExamResponse.continuite` (`ContinuiteSimulation`, NULL tant que l'examen n'est pas
+terminé) : `SESSION_UNIQUE` (« Simulation complète — conditions examen ») si aucune pause
+entre deux épreuves ne dépasse 15 min, `PLUSIEURS_SESSIONS` (« Simulation complétée en
+plusieurs sessions ») sinon. À ne pas confondre avec `finalLevelPartial`, qui répond à une
+autre question : sur combien d'épreuves porte le niveau.
 - Migration `V099__attempts_final_cecrl_level.sql` : colonne
   `final_cecrl_level VARCHAR(24)` nullable sur `attempts`.
 

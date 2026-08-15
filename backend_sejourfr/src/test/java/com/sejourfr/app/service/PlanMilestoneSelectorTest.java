@@ -5,6 +5,7 @@ import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanSourceType;
@@ -169,12 +170,17 @@ class PlanMilestoneSelectorTest {
     }
 
     @Test
-    @DisplayName("L'oral a son propre jalon, avec son propre chrono")
+    @DisplayName("L'oral annonce son temps de parole, pas un chrono d'epreuve")
     void loralASonPropreJalon() {
         PlanRecommendedExerciseDto jalon = select(epreuvePrete(SkillSection.EO)).orElseThrow();
 
         assertThat(jalon.epreuve()).isEqualTo(EpreuveType.TCF_EO);
-        assertThat(jalon.estimatedMinutes()).isEqualTo(15);
+        // L'EO n'a AUCUN chrono d'epreuve : le temps se compte par tache. La
+        // duree annoncee est donc le temps de parole cumule des 3 taches
+        // (3 + 3,5 + 3,5 min), jamais le garde-fou de session.
+        assertThat(jalon.estimatedMinutes())
+                .isEqualTo(DureeEpreuve.EO_TEMPS_DE_PAROLE_SECONDS / 60)
+                .isEqualTo(10);
     }
 
     @Test
@@ -221,7 +227,10 @@ class PlanMilestoneSelectorTest {
         assertThat(jalon.kind()).isEqualTo(PlanExerciseKind.FULL_TCF_MOCK_EXAM);
         assertThat(jalon.epreuve()).isEqualTo(EpreuveType.TCF_COMPLET);
         assertThat(jalon.slotNumber()).isEqualTo(1);
-        assertThat(jalon.estimatedMinutes()).isEqualTo(90);
+        // Somme des 4 epreuves (20 + 35 + 30 + 10), plus l'ancienne enveloppe
+        // globale de 90 min : elle a ete supprimee, et la CE vaut 35 min
+        // partout.
+        assertThat(jalon.estimatedMinutes()).isEqualTo(95);
     }
 
     @Test
