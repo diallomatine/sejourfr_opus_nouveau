@@ -9,6 +9,7 @@ import com.sejourfr.app.enums.AttemptStatus;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.SubmissionStatut;
+import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +36,10 @@ import static org.mockito.Mockito.when;
  *       elle n'a aucun niveau et sort du plancher global. Un verrou commercial
  *       n'est pas un verdict de langue — le défaut historique affichait
  *       « A1 non atteint » à un candidat qui n'avait simplement pas payé ;</li>
+ *   <li>une épreuve close <b>sans avoir jamais été ouverte</b> (le candidat a
+ *       quitté après la CE ; les fronts clôturent le reste pour permettre
+ *       l'abandon) n'a pas non plus de niveau — à ne pas confondre avec une
+ *       épreuve OUVERTE puis écourtée, qui vaut A1_NON_ATTEINT et compte ;</li>
  *   <li>une épreuve dont les évaluations IA ont <b>échoué</b> est également hors
  *       plancher (niveau inconnu, pas mauvais niveau) ;</li>
  *   <li>dans les deux cas le périmètre réel du plancher est publié
@@ -50,6 +55,7 @@ import static org.mockito.Mockito.when;
 class FullTcfExamResponseBuilderTest {
 
     private AttemptManager attemptManager;
+    private AnswerManager answerManager;
     private ProductionSubmissionManager productionSubmissionManager;
     private ProductionBilanService productionBilanService;
     private FullTcfExamResponseBuilder builder;
@@ -57,10 +63,11 @@ class FullTcfExamResponseBuilderTest {
     @BeforeEach
     void setUp() {
         attemptManager = mock(AttemptManager.class);
+        answerManager = mock(AnswerManager.class);
         productionSubmissionManager = mock(ProductionSubmissionManager.class);
         productionBilanService = mock(ProductionBilanService.class);
         builder = new FullTcfExamResponseBuilder(
-                attemptManager, productionSubmissionManager,
+                attemptManager, answerManager, productionSubmissionManager,
                 new TcfLevelEstimatorService(), productionBilanService);
 
         when(productionSubmissionManager.findByAttemptId(any())).thenReturn(List.of());
@@ -100,11 +107,17 @@ class FullTcfExamResponseBuilderTest {
         return p;
     }
 
-    /** Sous-attempt QCM terminé portant son niveau persisté. */
+    /**
+     * Sous-attempt QCM terminé portant son niveau persisté. <b>Ouvert</b> :
+     * {@code timerStartedAt} posé — une épreuve qui porte un score a
+     * forcément été lancée, et sans cette ancre elle serait « jamais
+     * ouverte », donc sans niveau.
+     */
     private static Attempt qcm(EpreuveType e, NiveauCecrl level) {
         Attempt a = new Attempt();
         a.setId(UUID.randomUUID());
         a.setEpreuve(e);
+        a.setTimerStartedAt(Instant.now().minusSeconds(1200));
         a.setFinishedAt(Instant.now());
         a.setStatus(AttemptStatus.TERMINE);
         a.setCecrlLevel(level);
@@ -113,8 +126,30 @@ class FullTcfExamResponseBuilderTest {
         return a;
     }
 
-    /** Sous-attempt productif terminé (EE/EO). */
+    /**
+     * Sous-attempt productif terminé (EE/EO) et <b>ouvert</b> : le candidat a
+     * lancé l'épreuve. C'est ce qui la distingue de {@link #jamaisOuverte} —
+     * ouverte puis écourtée, elle a un vrai résultat ; jamais ouverte, elle
+     * n'en a aucun.
+     */
     private static Attempt production(EpreuveType e) {
+        Attempt a = new Attempt();
+        a.setId(UUID.randomUUID());
+        a.setEpreuve(e);
+        a.setTimerStartedAt(Instant.now().minusSeconds(1800));
+        a.setFinishedAt(Instant.now());
+        a.setStatus(AttemptStatus.TERMINE);
+        return a;
+    }
+
+    /**
+     * Sous-attempt clos <b>sans avoir jamais été ouvert</b> : aucune ancre de
+     * chrono ({@code timerStartedAt} null, le seul signal de lancement d'une
+     * sous-épreuve) et rien de rendu. C'est ce que produisent les fronts quand
+     * le candidat abandonne l'examen : ils clôturent les épreuves restantes
+     * avant d'appeler {@code finish}.
+     */
+    private static Attempt jamaisOuverte(EpreuveType e) {
         Attempt a = new Attempt();
         a.setId(UUID.randomUUID());
         a.setEpreuve(e);
@@ -132,6 +167,95 @@ class FullTcfExamResponseBuilderTest {
 
     private static FullTcfExamResponse.SubAttempt subOf(FullTcfExamResponse r, EpreuveType e) {
         return r.subAttempts().stream().filter(s -> s.epreuve() == e).findFirst().orElseThrow();
+    }
+
+    // ------------------------------------------------------- score calibré
+
+    /**
+     * Ce que le candidat lit sur le hub de progression : le relevé du TCF se
+     * lit sur 100-499, pas sur le score pondéré interne (« 23/50 »), qui ne
+     * veut rien dire pour lui. Le pondéré reste servi comme repli.
+     *
+     * <p>40/50 pondéré = 80 % brut, corrigé du hasard (25 %) → (0,80 − 0,25)
+     * / 0,75 = 0,7333 → 100 + 0,7333 × 399 = <b>393</b>. La valeur est celle
+     * du vrai {@link TcfLevelEstimatorService} : si elle bouge ici sans avoir
+     * bougé là-bas, c'est qu'une copie de la formule s'est glissée quelque part.
+     */
+    @Test
+    void sousEpreuvesQcm_portentLeScoreCalibre100_499() {
+        Attempt p = parent(false);
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                qcm(EpreuveType.TCF_CO, NiveauCecrl.B1),
+                qcm(EpreuveType.TCF_CE, NiveauCecrl.B1),
+                production(EpreuveType.TCF_EE),
+                production(EpreuveType.TCF_EO)));
+
+        FullTcfExamResponse r = builder.buildResponse(p);
+
+        int attendu = new TcfLevelEstimatorService().calibratedScore(40, 50);
+        assertThat(attendu).isEqualTo(393);
+        assertThat(subOf(r, EpreuveType.TCF_CO).calibratedScore()).isEqualTo(attendu);
+        assertThat(subOf(r, EpreuveType.TCF_CE).calibratedScore()).isEqualTo(attendu);
+        // Le pondéré reste servi : c'est le repli des fronts, pas leur affichage.
+        assertThat(subOf(r, EpreuveType.TCF_CO).score()).isEqualTo(40);
+        assertThat(subOf(r, EpreuveType.TCF_CO).maxScore()).isEqualTo(50);
+    }
+
+    /** EE/EO n'ont pas de QCM : aucun score calibré à inventer. */
+    @Test
+    void epreuvesProductives_nOntAucunScoreCalibre() {
+        Attempt p = parent(false);
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                qcm(EpreuveType.TCF_CO, NiveauCecrl.B1),
+                qcm(EpreuveType.TCF_CE, NiveauCecrl.B1),
+                production(EpreuveType.TCF_EE),
+                production(EpreuveType.TCF_EO)));
+
+        FullTcfExamResponse r = builder.buildResponse(p);
+
+        assertThat(subOf(r, EpreuveType.TCF_EE).calibratedScore()).isNull();
+        assertThat(subOf(r, EpreuveType.TCF_EO).calibratedScore()).isNull();
+    }
+
+    /** Épreuve verrouillée : jamais passée, donc aucun score — calibré compris. */
+    @Test
+    void epreuveVerrouillee_nAAucunScoreCalibre() {
+        Attempt p = parent(true);
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                qcm(EpreuveType.TCF_CO, NiveauCecrl.B1),
+                qcm(EpreuveType.TCF_CE, NiveauCecrl.B1),
+                production(EpreuveType.TCF_EE),
+                production(EpreuveType.TCF_EO)));
+
+        FullTcfExamResponse r = builder.buildResponse(p);
+
+        assertThat(subOf(r, EpreuveType.TCF_EE).locked()).isTrue();
+        assertThat(subOf(r, EpreuveType.TCF_EE).calibratedScore()).isNull();
+        assertThat(subOf(r, EpreuveType.TCF_EO).calibratedScore()).isNull();
+    }
+
+    /**
+     * Épreuve QCM sans score pondéré (en cours, ou terminée sans notation) :
+     * {@code null}, jamais 100. Le service rend sa borne basse sur une entrée
+     * nulle — l'afficher reviendrait à écrire « 100/499 » là où on ne sait rien.
+     */
+    @Test
+    void epreuveQcmSansScorePondere_nInventePasUnCalibre() {
+        Attempt p = parent(false);
+        Attempt co = qcm(EpreuveType.TCF_CO, null);
+        co.setFinishedAt(null);
+        co.setWeightedScore(null);
+        co.setMaxWeightedScore(null);
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                co,
+                qcm(EpreuveType.TCF_CE, NiveauCecrl.B1),
+                production(EpreuveType.TCF_EE),
+                production(EpreuveType.TCF_EO)));
+
+        FullTcfExamResponse r = builder.buildResponse(p);
+
+        assertThat(subOf(r, EpreuveType.TCF_CO).calibratedScore()).isNull();
+        assertThat(subOf(r, EpreuveType.TCF_CO).score()).isNull();
     }
 
     // ------------------------------------------------- épreuve VERROUILLÉE
@@ -286,13 +410,16 @@ class FullTcfExamResponseBuilderTest {
     }
 
     /**
-     * Épreuve productive terminée SANS verrou et sans rien rendre (abandon,
-     * chrono écoulé) : elle vaut bien A1_NON_ATTEINT et compte au plancher.
-     * Le « reste noté 0 » d'un examen écourté n'est pas remis en cause — seul
-     * le verrou commercial l'était.
+     * Épreuve productive <b>OUVERTE puis écourtée</b>, sans verrou et sans rien
+     * rendre (abandon, chrono écoulé) : elle vaut bien A1_NON_ATTEINT et compte
+     * au plancher. Le candidat a vu le sujet et n'a rien produit — c'est un
+     * vrai résultat. Le « reste noté 0 » d'un examen écourté n'est pas remis en
+     * cause : seules la porte verrouillée et la porte jamais franchie le sont.
+     *
+     * <p>L'ancre {@code timerStartedAt} est ce qui sépare ce cas du suivant.
      */
     @Test
-    void epreuveAbandonnee_sansVerrou_compteToujoursAuPlancher() {
+    void epreuveOuvertePuisAbandonnee_compteToujoursAuPlancher() {
         Attempt p = parent(false);
         when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
                 qcm(EpreuveType.TCF_CO, NiveauCecrl.B2),
@@ -302,9 +429,174 @@ class FullTcfExamResponseBuilderTest {
 
         FullTcfExamResponse r = builder.buildResponse(p);
 
+        assertThat(subOf(r, EpreuveType.TCF_EE).timerStartedAt()).isNotNull();
         assertThat(subOf(r, EpreuveType.TCF_EE).cecrlLevel()).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
         assertThat(r.finalCecrlLevel()).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
         assertThat(r.epreuvesCountedInFinalLevel()).isEqualTo(4);
         assertThat(r.finalLevelPartial()).isFalse();
+    }
+
+    // -------------------------------------------------- épreuve JAMAIS OUVERTE
+
+    /**
+     * LE défaut corrigé : le candidat termine la CO et la CE puis quitte. Les
+     * fronts clôturent l'EE et l'EO — jamais lancées, zéro soumission — pour
+     * pouvoir appeler {@code finish}, et le bilan leur attribuait
+     * A1_NON_ATTEINT. Ce niveau entrait au plancher, écrasait la CO et la CE,
+     * et {@code finalLevelPartial} restait false : l'écran affirmait un bilan
+     * complet sur 4 épreuves alors que 2 n'avaient jamais été ouvertes.
+     *
+     * <p>Une porte jamais franchie n'a pas davantage été passée qu'une porte
+     * verrouillée : {@code null = inconnu, jamais mauvais}.
+     */
+    @Test
+    void epreuveJamaisOuverte_naAucunNiveauEtSortDuPlancher() {
+        Attempt p = parent(false);
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                qcm(EpreuveType.TCF_CO, NiveauCecrl.A2),
+                qcm(EpreuveType.TCF_CE, NiveauCecrl.A1),
+                jamaisOuverte(EpreuveType.TCF_EE),
+                jamaisOuverte(EpreuveType.TCF_EO)));
+
+        FullTcfExamResponse r = builder.buildResponse(p);
+
+        assertThat(subOf(r, EpreuveType.TCF_EE).cecrlLevel()).isNull();
+        assertThat(subOf(r, EpreuveType.TCF_EE).locked()).isFalse();
+        assertThat(subOf(r, EpreuveType.TCF_EO).cecrlLevel()).isNull();
+        // Le plancher ne porte que sur ce qui a été réellement joué : CO + CE.
+        assertThat(r.finalCecrlLevel()).isEqualTo(NiveauCecrl.A1);
+        assertThat(r.epreuvesCountedInFinalLevel()).isEqualTo(2);
+        assertThat(r.epreuvesExpected()).isEqualTo(4);
+        assertThat(r.finalLevelPartial()).isTrue();
+        assertThat(r.status()).isEqualTo(FullTcfExamResponse.FullTcfExamStatus.COMPLETED);
+    }
+
+    /** On ne calcule aucun bilan de production pour une épreuve jamais ouverte. */
+    @Test
+    void epreuveJamaisOuverte_neDeclencheAucunCalculDeBilan() {
+        Attempt p = parent(false);
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                qcm(EpreuveType.TCF_CO, NiveauCecrl.B1),
+                qcm(EpreuveType.TCF_CE, NiveauCecrl.B1),
+                jamaisOuverte(EpreuveType.TCF_EE),
+                jamaisOuverte(EpreuveType.TCF_EO)));
+
+        builder.buildResponse(p);
+
+        verify(productionBilanService, never()).bilanEpreuveTerminee(any());
+        verify(productionBilanService, never()).bilanEpreuve(any());
+    }
+
+    /**
+     * Même règle en compréhension : une CO close sans jamais avoir été lancée
+     * et sans une seule réponse n'a pas de niveau. Un score pondéré à 0 y
+     * produisait A1_NON_ATTEINT — la borne basse de l'échelle rendue pour une
+     * épreuve que le candidat n'a pas vue.
+     *
+     * <p>Et l'examen reste {@code COMPLETED} : sans niveau à attendre, le
+     * laisser en PENDING_EVALUATIONS le figerait pour toujours.
+     */
+    @Test
+    void epreuveQcmJamaisOuverte_naAucunNiveauEtNeBloquePasLeStatut() {
+        Attempt p = parent(false);
+        Attempt co = jamaisOuverte(EpreuveType.TCF_CO);
+        co.setWeightedScore(0);
+        co.setMaxWeightedScore(50);
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                co,
+                qcm(EpreuveType.TCF_CE, NiveauCecrl.B1),
+                production(EpreuveType.TCF_EE),
+                production(EpreuveType.TCF_EO)));
+        when(answerManager.hasAnyAnswer(co.getId())).thenReturn(false);
+
+        FullTcfExamResponse r = builder.buildResponse(p);
+
+        assertThat(subOf(r, EpreuveType.TCF_CO).cecrlLevel()).isNull();
+        assertThat(r.status()).isEqualTo(FullTcfExamResponse.FullTcfExamStatus.COMPLETED);
+        // CE(B1) + EE/EO abandonnées après ouverture (A1_NON_ATTEINT) = 3 épreuves.
+        assertThat(r.epreuvesCountedInFinalLevel()).isEqualTo(3);
+        assertThat(r.finalLevelPartial()).isTrue();
+    }
+
+    /**
+     * Le second critère n'est pas décoratif : les sous-attempts antérieurs au
+     * chrono par épreuve portent tous {@code timer_started_at} null. Une CO
+     * ancienne qui porte des réponses reste une épreuve passée, et garde son
+     * niveau.
+     */
+    @Test
+    void epreuveQcmSansAncre_maisAvecReponses_gardeSonNiveau() {
+        Attempt p = parent(false);
+        Attempt co = jamaisOuverte(EpreuveType.TCF_CO);
+        co.setCecrlLevel(NiveauCecrl.A2);
+        co.setWeightedScore(20);
+        co.setMaxWeightedScore(50);
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                co,
+                qcm(EpreuveType.TCF_CE, NiveauCecrl.B1),
+                production(EpreuveType.TCF_EE),
+                production(EpreuveType.TCF_EO)));
+        when(answerManager.hasAnyAnswer(co.getId())).thenReturn(true);
+
+        FullTcfExamResponse r = builder.buildResponse(p);
+
+        assertThat(subOf(r, EpreuveType.TCF_CO).cecrlLevel()).isEqualTo(NiveauCecrl.A2);
+        assertThat(r.epreuvesCountedInFinalLevel()).isEqualTo(4);
+    }
+
+    /** Idem côté production : une soumission suffit à prouver que l'épreuve a été ouverte. */
+    @Test
+    void epreuveProductiveSansAncre_maisAvecSoumission_gardeSonNiveau() {
+        Attempt p = parent(false);
+        Attempt ee = jamaisOuverte(EpreuveType.TCF_EE);
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                qcm(EpreuveType.TCF_CO, NiveauCecrl.B1),
+                qcm(EpreuveType.TCF_CE, NiveauCecrl.B1),
+                ee,
+                production(EpreuveType.TCF_EO)));
+        when(productionSubmissionManager.findByAttemptId(ee.getId())).thenReturn(List.of(
+                submission(SubmissionStatut.EVALUATED)));
+
+        FullTcfExamResponse r = builder.buildResponse(p);
+
+        assertThat(subOf(r, EpreuveType.TCF_EE).cecrlLevel()).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
+        assertThat(r.epreuvesCountedInFinalLevel()).isEqualTo(4);
+    }
+
+    /**
+     * Une épreuve encore ouverte (pas de {@code finishedAt}) n'est jamais
+     * qualifiée de « jamais ouverte » — et surtout, on n'interroge pas la base
+     * pour rien : l'examen est de toute façon IN_PROGRESS.
+     */
+    @Test
+    void epreuveEnCours_neDeclencheAucuneRequeteDeReponses() {
+        Attempt p = parent(false);
+        Attempt co = jamaisOuverte(EpreuveType.TCF_CO);
+        co.setFinishedAt(null);
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                co,
+                qcm(EpreuveType.TCF_CE, NiveauCecrl.B1),
+                production(EpreuveType.TCF_EE),
+                production(EpreuveType.TCF_EO)));
+
+        FullTcfExamResponse r = builder.buildResponse(p);
+
+        verify(answerManager, never()).hasAnyAnswer(any());
+        assertThat(r.status()).isEqualTo(FullTcfExamResponse.FullTcfExamStatus.IN_PROGRESS);
+    }
+
+    /** Une épreuve QCM lancée ne coûte aucune requête supplémentaire. */
+    @Test
+    void epreuveQcmLancee_neDeclencheAucuneRequeteDeReponses() {
+        Attempt p = parent(false);
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                qcm(EpreuveType.TCF_CO, NiveauCecrl.B1),
+                qcm(EpreuveType.TCF_CE, NiveauCecrl.B1),
+                production(EpreuveType.TCF_EE),
+                production(EpreuveType.TCF_EO)));
+
+        builder.buildResponse(p);
+
+        verify(answerManager, never()).hasAnyAnswer(any());
     }
 }

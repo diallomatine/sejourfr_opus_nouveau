@@ -868,6 +868,17 @@ Chantier découpé en vagues :
       finalisé depuis > 2 min sans être COMPLETED ⇒ plus rien ne tourne : on
       coupe le spinner et on propose « Actualiser », parité mobile),
       `epreuveLevelTone` / `floorMarks` (couleur = palier, plancher = texte),
+      **`qcmScoreLabel`** (le score d'une sous-épreuve CO/CE, **toujours sur
+      l'échelle du relevé TCF** : `calibratedScore` 100-499 dérivé serveur par
+      `TcfLevelEstimatorService`, repli sur le pondéré `x/maxScore` seulement
+      quand il manque, `null` quand il n'y a rien — EE/EO, épreuve verrouillée,
+      pas encore notée). Le `score`/`maxScore` du DTO est le score **pondéré
+      interne** (A2=1, B1=2, B2=3) : « 23/50 » ne correspond à rien sur le relevé
+      d'un candidat, et **on ne dérive jamais un /499 d'un pondéré côté front**.
+      Lu par le hub de progression (`StepBadge`) et par `subAttemptView` (donc le
+      bilan), miroir de `FullTcfExamSubAttempt.qcmScoreLabel` côté mobile. Même
+      barème que les examens **module** CO/CE, déjà en /499 — le **civique** n'est
+      pas concerné (/40 ou /20),
       `floorScope` + `floorRuleSentence` (la phrase du plancher dit le
       **périmètre réel**), `isCompleteExamResult`. Une épreuve dont
       `failedSubmissionIds` n'est pas vide affiche une bannière rouge +

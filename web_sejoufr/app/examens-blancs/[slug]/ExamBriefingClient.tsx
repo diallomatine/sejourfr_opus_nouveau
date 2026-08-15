@@ -302,8 +302,13 @@ function ExamBriefingInner({
                       <span>
                         Dernier niveau :{" "}
                         <strong>
+                          {/* Le /499 n'appartient qu'au score CALIBRÉ : le
+                              `score` brut est un nombre de bonnes réponses, le
+                              présenter sur 499 fabriquait un relevé faux. */}
                           {lastAttempt.cecrlLevel ??
-                            `${lastAttempt.calibratedScore ?? lastAttempt.score ?? 0}/499`}
+                            (lastAttempt.calibratedScore != null
+                              ? `${lastAttempt.calibratedScore}/499`
+                              : `${lastAttempt.score ?? 0}/${lastAttempt.totalQuestions}`)}
                         </strong>
                       </span>
                     ) : (

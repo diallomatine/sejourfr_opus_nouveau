@@ -312,6 +312,17 @@ comme ancre d'un décompte. Ne pas la réintroduire.
   cesserait de courir pendant une absence. C'est l'absence de ces champs qui
   avait forcé les durées en dur, et fait diverger web et mobile (CE annoncée
   30 min ici, 35 min là).
+- **Un score QCM TCF s'affiche TOUJOURS sur 100-499**, jamais sur le pondéré
+  interne. `SubAttempt` porte `calibratedScore` (nullable), rempli par
+  `FullTcfExamResponseBuilder` **en déléguant à `TcfLevelEstimatorService`** —
+  la formule (correction du hasard 25 %, bornes 100-499) ne se recopie jamais.
+  `null` pour EE/EO, pour une épreuve `locked`, et quand le pondéré manque : le
+  service rendrait sinon sa borne basse et l'écran afficherait « 100/499 » là où
+  on ne sait rien. Repli déclaré une fois par front (`qcmScoreLabel`, miroirs
+  `web/lib/exam-levels.ts` ⇄ `mobile/core/models/full_tcf_exam.dart`) : calibré
+  ⇒ `x/499`, sinon le brut `x/maxScore`, **jamais un `/499` fabriqué à partir
+  d'un pondéré**. `score`/`maxScore` restent servis. ⚠️ Ne vaut que pour le
+  **TCF** — le civique se lit sur `/40` ou `/20`.
 - **`POST /begin?epreuve=…` est appelé sur les 4 épreuves** (obligatoire pour
   l'EE, qui n'avait **aucune** échéance avant). Idempotent par ancre : reprendre
   une épreuve ne remet pas son chrono à zéro.
@@ -1786,8 +1797,28 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   été passée, la compter `A1_NON_ATTEINT` revenait à dire à un compte gratuit
   qu'il n'atteint pas le A1 parce qu'il n'a pas payé) et une épreuve à
   `cecrlLevel` null (évals FAILED ou en vol) : **null = inconnu, jamais mauvais**.
-  Une épreuve **abandonnée sans verrou** (chrono écoulé, rien rendu) reste,
-  elle, comptée `A1_NON_ATTEINT` — elle a été passée et ratée. Partialité
+  Une épreuve **ouverte puis abandonnée** (`timer_started_at` posé, chrono
+  écoulé, rien rendu) reste, elle, comptée `A1_NON_ATTEINT` — elle a été passée
+  et ratée. ⚠️ **Une épreuve JAMAIS OUVERTE en sort** (2026-08-15) :
+  `timer_started_at` NULL **et** rien de rendu (aucune réponse en CO/CE, aucune
+  soumission en EE/EO) ⇒ `cecrlLevel` **null**, hors plancher, donc
+  `finalLevelPartial` vrai. Les **deux** critères, jamais l'un seul : tous les
+  sous-attempts antérieurs au chrono par épreuve portent `timer_started_at`
+  null, et s'en contenter effacerait le niveau d'épreuves réellement passées.
+  Motif mesuré : un candidat ayant joué CO (A2) + CE (A1) puis quitté voyait ses
+  EE/EO closes par le front, notées `A1_NON_ATTEINT`, son A2 écrasé, et un bilan
+  annoncé **complet sur 4 épreuves**. Même raisonnement que la branche `locked`
+  vingt lignes plus haut — une porte jamais franchie n'a pas été passée, et
+  `null = inconnu, jamais mauvais`. ⚠️ **Le serveur ne refuse PAS
+  `markSubAttemptDone` sur une épreuve jamais lancée** (pas de 422) : le flux
+  d'abandon volontaire des fronts l'appelle avant `finish`, qui exige tous les
+  sous-attempts terminés — un refus casserait le bouton « Abandonner ».
+  Abandonner sans ouvrir l'EE est un geste **valide** ; c'est le **verdict**
+  qu'on en tirait qui était faux. Conséquence côté fronts : une sous-épreuve
+  terminée, non verrouillée, sans échec et **sans niveau** est désormais un cas
+  normal, à lire « non passée » et **jamais** « évaluation en cours » (web :
+  état `not_taken` de `subAttemptView` ; mobile : `SubAttempt.jamaisOuverte` —
+  sans quoi un spinner tourne sans issue). Partialité
   exposée aux fronts par `epreuvesCountedInFinalLevel` / `epreuvesExpected` /
   `finalLevelPartial` (+ `finalLevelPartial` sur le résumé) : aucun front ne doit
   plus écrire « le plus bas de tes 4 épreuves » en dur, ni agréger un examen

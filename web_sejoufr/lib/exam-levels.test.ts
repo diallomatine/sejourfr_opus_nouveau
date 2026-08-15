@@ -27,6 +27,7 @@ function sub(over: Partial<FullTcfExamSubAttempt> = {}): FullTcfExamSubAttempt {
         cecrlLevel: null,
         score: null,
         maxScore: null,
+        calibratedScore: null,
         submissionsCount: null,
         failedSubmissionIds: [],
         locked: false,

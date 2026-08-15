@@ -9,7 +9,7 @@ import { ModuleDetailGate } from "@/app/_components/module_detail/parts";
 import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
 import { ApiException, attemptApi, fullTcfExamApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { examIsStale, subAttemptView, type SubAttemptView } from "@/lib/exam-levels";
+import { examIsStale, qcmScoreLabel, subAttemptView, type SubAttemptView } from "@/lib/exam-levels";
 import {
   EPREUVE_PRESENTATION,
   secondsUntil,
@@ -366,12 +366,14 @@ function StepBadge({ sub, view }: { sub: FullTcfExamSubAttempt; view: SubAttempt
   if (view.state === "stalled") {
     return <span className={`${s.stepBadge} ${s.evaluating}`}>Éval interrompue</span>;
   }
-  if (sub.score != null && sub.maxScore != null) {
-    return (
-      <span className={`${s.stepBadge} ${s.done}`}>
-        {sub.score}/{sub.maxScore}
-      </span>
-    );
+  {
+    // Échelle du relevé TCF (100-499) dès que le backend a calibré ; le score
+    // pondéré interne (« 23/50 ») ne reste qu'en repli — il ne veut rien dire
+    // pour un candidat.
+    const scoreLabel = qcmScoreLabel(sub);
+    if (scoreLabel) {
+      return <span className={`${s.stepBadge} ${s.done}`}>{scoreLabel}</span>;
+    }
   }
   return (
     <span className={`${s.stepBadge} ${s.done}`}>

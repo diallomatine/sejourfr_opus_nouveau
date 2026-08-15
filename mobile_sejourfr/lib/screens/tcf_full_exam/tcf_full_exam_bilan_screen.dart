@@ -709,10 +709,15 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
     // épreuve non passée, réservée à l'abonnement — pas de niveau, pas de lien.
     final lockedProd = sub?.locked == true;
     final level = lockedProd ? null : sub?.cecrlLevel;
+    // `jamaisOuverte` exclu : une épreuve close sans avoir été ouverte n'aura
+    // JAMAIS de niveau (le serveur le lui refuse exprès), donc l'annoncer « en
+    // attente » faisait tourner un spinner sans issue. Elle retombe sur le
+    // tiret, comme une donnée qu'on n'a pas.
     final pending = !lockedProd &&
         sub != null &&
         level == null &&
         sub.isFinished &&
+        !sub.jamaisOuverte &&
         (sub.failedSubmissionIds.isEmpty);
     final hasFailures =
         !lockedProd && sub != null && sub.failedSubmissionIds.isNotEmpty;
@@ -837,8 +842,15 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
 
   String _subtitle(FullTcfExamSubAttempt? sub, bool pending) {
     if (sub == null) return 'Non passée';
-    if (sub.score != null && sub.maxScore != null) {
-      return 'Score ${sub.score}/${sub.maxScore}';
+    // Avant le score : une épreuve close sans jamais avoir été ouverte n'a rien
+    // produit, et un « Score … » ou un décompte d'évaluations y serait un
+    // contresens. Miroir web : l'état `not_taken`.
+    if (sub.jamaisOuverte) return 'Non passée';
+    // Échelle du relevé TCF (100-499) dès que le backend a calibré ; le score
+    // pondéré interne ne reste qu'en repli.
+    final scoreLabel = sub.qcmScoreLabel;
+    if (scoreLabel != null) {
+      return 'Score $scoreLabel';
     }
     // EE/EO : `submissionsCount` = nb EVALUATED. `failedSubmissionIds.length`
     // = nb FAILED. Le total attendu est 3 par épreuve productive.

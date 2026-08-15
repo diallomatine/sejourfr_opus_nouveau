@@ -56,7 +56,8 @@ class FullTcfExamTempsEtContinuiteTest {
         ProductionSubmissionManager productionSubmissionManager = mock(ProductionSubmissionManager.class);
         ProductionBilanService productionBilanService = mock(ProductionBilanService.class);
         builder = new FullTcfExamResponseBuilder(
-                attemptManager, productionSubmissionManager,
+                attemptManager, mock(com.sejourfr.app.manager.AnswerManager.class),
+                productionSubmissionManager,
                 new TcfLevelEstimatorService(), productionBilanService);
 
         when(productionSubmissionManager.findByAttemptId(any())).thenReturn(List.of());

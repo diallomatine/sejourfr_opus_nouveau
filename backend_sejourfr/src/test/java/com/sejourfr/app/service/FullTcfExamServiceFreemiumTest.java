@@ -60,7 +60,8 @@ class FullTcfExamServiceFreemiumTest {
         ProductionBilanService productionBilanService = mock(ProductionBilanService.class);
 
         FullTcfExamResponseBuilder responseBuilder = new FullTcfExamResponseBuilder(
-                attemptManager, productionSubmissionManager, levelEstimator, productionBilanService);
+                attemptManager, mock(com.sejourfr.app.manager.AnswerManager.class),
+                productionSubmissionManager, levelEstimator, productionBilanService);
         // Le verrou EE/EO d'un examen complet vit desormais dans
         // ProductionAccessService, qui le sert AUSSI en lecture au jalon du
         // Plan. On le construit ICI POUR DE VRAI, sur les memes mocks : c'est ce

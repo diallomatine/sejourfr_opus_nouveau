@@ -60,7 +60,8 @@ class FullTcfExamServiceTest {
         productionBilanService = mock(ProductionBilanService.class);
 
         FullTcfExamResponseBuilder responseBuilder = new FullTcfExamResponseBuilder(
-                attemptManager, productionSubmissionManager, levelEstimator, productionBilanService);
+                attemptManager, mock(com.sejourfr.app.manager.AnswerManager.class),
+                productionSubmissionManager, levelEstimator, productionBilanService);
         // Le verrou EE/EO d'un examen complet vit desormais dans
         // ProductionAccessService, qui le sert AUSSI en lecture au jalon du
         // Plan. On le construit ICI POUR DE VRAI, sur les memes mocks : c'est ce
@@ -94,10 +95,17 @@ class FullTcfExamServiceTest {
         return p;
     }
 
+    /**
+     * Sous-épreuve <b>lancée</b> par le candidat ({@code timerStartedAt} posé,
+     * la seule ancre d'une sous-épreuve), terminée ou non. Sans cette ancre et
+     * sans rien de rendu, elle serait « jamais ouverte » et n'aurait aucun
+     * niveau — cf. {@link #jamaisOuverte}.
+     */
     private Attempt sub(EpreuveType e, boolean finished) {
         Attempt a = new Attempt();
         a.setId(UUID.randomUUID());
         a.setEpreuve(e);
+        a.setTimerStartedAt(Instant.now().minusSeconds(1800));
         if (finished) {
             a.setFinishedAt(Instant.now());
             a.setStatus(AttemptStatus.TERMINE);
@@ -105,6 +113,17 @@ class FullTcfExamServiceTest {
         if ((e == EpreuveType.TCF_CO || e == EpreuveType.TCF_CE) && finished) {
             a.setCecrlLevel(NiveauCecrl.B1);
         }
+        return a;
+    }
+
+    /**
+     * Sous-épreuve <b>jamais ouverte</b> : aucune ancre de chrono, rien de
+     * rendu. C'est l'état des EE/EO d'un candidat qui quitte après la CE.
+     */
+    private Attempt jamaisOuverte(EpreuveType e) {
+        Attempt a = new Attempt();
+        a.setId(UUID.randomUUID());
+        a.setEpreuve(e);
         return a;
     }
 
@@ -213,7 +232,8 @@ class FullTcfExamServiceTest {
     void beginEpreuve_ancreLesChronosParentEtSousEpreuve() {
         UUID id = UUID.randomUUID();
         Attempt p = parent(id);
-        Attempt co = sub(EpreuveType.TCF_CO, false);
+        // Épreuve pas encore lancée : c'est justement ce que beginEpreuve ancre.
+        Attempt co = jamaisOuverte(EpreuveType.TCF_CO);
         when(attemptManager.findById(id)).thenReturn(Optional.of(p));
         when(attemptManager.findSubAttempts(id)).thenReturn(List.of(co));
 
@@ -285,6 +305,63 @@ class FullTcfExamServiceTest {
         assertThat(r.status()).isEqualTo(FullTcfExamResponse.FullTcfExamStatus.COMPLETED);
         assertThat(p.getFinalCecrlLevel()).isEqualTo(NiveauCecrl.B1);
         assertThat(r.subAttempts()).hasSize(4);
+    }
+
+    /**
+     * Le scénario réel du défaut : le candidat termine la CO (A2) et la CE
+     * (A1), puis quitte. Les fronts clôturent l'EE et l'EO — jamais lancées,
+     * zéro soumission — parce que {@code finish} refuse tant qu'un
+     * sous-attempt n'est pas terminé, et l'abandon volontaire est un geste
+     * valide (aucun refus posé sur {@code markSubAttemptDone}).
+     *
+     * <p>Avant correction, ces deux épreuves valaient A1_NON_ATTEINT : le
+     * plancher tombait au plus bas, écrasait la CO et la CE, et
+     * {@code finalLevelPartial} restait false — l'écran affirmait un bilan
+     * complet sur 4 épreuves. Désormais elles n'ont aucun niveau, le plancher
+     * ne porte que sur les deux épreuves réellement jouées, et le bilan le dit.
+     */
+    @Test
+    void finish_epreuvesJamaisOuvertes_neFondentPasLeNiveauFinal() {
+        TcfLevelEstimatorService reel = new TcfLevelEstimatorService();
+        when(levelEstimator.min(any(), any()))
+                .thenAnswer(inv -> reel.min(inv.getArgument(0), inv.getArgument(1)));
+
+        UUID id = UUID.randomUUID();
+        Attempt p = parent(id);
+        Attempt co = sub(EpreuveType.TCF_CO, true);
+        co.setCecrlLevel(NiveauCecrl.A2);
+        Attempt ce = sub(EpreuveType.TCF_CE, true);
+        ce.setCecrlLevel(NiveauCecrl.A1);
+        Attempt ee = jamaisOuverte(EpreuveType.TCF_EE);
+        Attempt eo = jamaisOuverte(EpreuveType.TCF_EO);
+        when(attemptManager.findById(id)).thenReturn(Optional.of(p));
+        when(attemptManager.findSubAttempts(id)).thenReturn(List.of(co, ce, ee, eo));
+
+        // Abandon volontaire : les fronts clôturent les épreuves restantes
+        // AVANT d'appeler finish. Aucun refus ici — c'est le verdict qui était
+        // faux, pas le geste.
+        service.markSubAttemptDone(userId, id, EpreuveType.TCF_EE);
+        service.markSubAttemptDone(userId, id, EpreuveType.TCF_EO);
+        assertThat(ee.getFinishedAt()).isNotNull();
+
+        FullTcfExamResponse r = service.finish(userId, id);
+
+        assertThat(r.subAttempts()).hasSize(4);
+        assertThat(subOf(r, EpreuveType.TCF_EE).cecrlLevel()).isNull();
+        assertThat(subOf(r, EpreuveType.TCF_EO).cecrlLevel()).isNull();
+        assertThat(subOf(r, EpreuveType.TCF_EE).locked()).isFalse();
+        // Plancher des seules épreuves passées : min(A2, A1) = A1.
+        assertThat(r.finalCecrlLevel()).isEqualTo(NiveauCecrl.A1);
+        assertThat(p.getFinalCecrlLevel()).isEqualTo(NiveauCecrl.A1);
+        assertThat(r.epreuvesCountedInFinalLevel()).isEqualTo(2);
+        assertThat(r.epreuvesExpected()).isEqualTo(4);
+        assertThat(r.finalLevelPartial()).isTrue();
+        // Aucun bilan de production n'est même calculé sur une épreuve absente.
+        verify(productionBilanService, never()).bilanEpreuveTerminee(any());
+    }
+
+    private static FullTcfExamResponse.SubAttempt subOf(FullTcfExamResponse r, EpreuveType e) {
+        return r.subAttempts().stream().filter(s -> s.epreuve() == e).findFirst().orElseThrow();
     }
 
     // ---- listMine / findLatestForUser ----

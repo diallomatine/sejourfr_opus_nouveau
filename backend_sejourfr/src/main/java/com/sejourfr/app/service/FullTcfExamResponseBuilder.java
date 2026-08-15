@@ -9,6 +9,7 @@ import com.sejourfr.app.enums.ContinuiteSimulation;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.SubmissionStatut;
+import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.service.attempt.AttemptChrono;
@@ -16,8 +17,10 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Component;
@@ -41,6 +44,7 @@ public class FullTcfExamResponseBuilder {
     public static final int EXPECTED_EPREUVES = 4;
 
     private final AttemptManager attemptManager;
+    private final AnswerManager answerManager;
     private final ProductionSubmissionManager productionSubmissionManager;
     private final TcfLevelEstimatorService levelEstimator;
     private final ProductionBilanService productionBilanService;
@@ -52,19 +56,22 @@ public class FullTcfExamResponseBuilder {
 
     public FullTcfExamResponse buildResponse(Attempt parent) {
         List<Attempt> subs = attemptManager.findSubAttempts(parent.getId());
-        Map<EpreuveType, FullTcfExamResponse.SubAttempt> mapped = new EnumMap<>(EpreuveType.class);
+        Map<EpreuveType, Sous> mapped = new EnumMap<>(EpreuveType.class);
         for (Attempt sub : subs) {
             mapped.put(sub.getEpreuve(), mapSubAttempt(sub, parent.isProductionLocked()));
         }
 
         // Ordre canonique d'affichage : CO → CE → EE → EO.
         List<FullTcfExamResponse.SubAttempt> ordered = new ArrayList<>();
+        Set<EpreuveType> jamaisOuvertes = EnumSet.noneOf(EpreuveType.class);
         for (EpreuveType e : ORDRE_EPREUVES) {
-            FullTcfExamResponse.SubAttempt s = mapped.get(e);
-            if (s != null) ordered.add(s);
+            Sous s = mapped.get(e);
+            if (s == null) continue;
+            ordered.add(s.dto());
+            if (s.jamaisOuverte()) jamaisOuvertes.add(e);
         }
 
-        FullTcfExamResponse.FullTcfExamStatus status = computeStatus(parent, ordered);
+        FullTcfExamResponse.FullTcfExamStatus status = computeStatus(parent, ordered, jamaisOuvertes);
         NiveauCecrl finalCecrl = parent.getFinalCecrlLevel();
         if (finalCecrl == null && status == FullTcfExamResponse.FullTcfExamStatus.COMPLETED) {
             finalCecrl = floorOfCecrls(ordered);
@@ -110,7 +117,42 @@ public class FullTcfExamResponseBuilder {
                 .toList());
     }
 
-    private FullTcfExamResponse.SubAttempt mapSubAttempt(Attempt sub, boolean parentProductionLocked) {
+    /**
+     * Sous-épreuve mappée, plus l'unique information dérivée qui n'a pas sa
+     * place dans le DTO : cette épreuve a-t-elle été <b>close sans jamais avoir
+     * été ouverte</b> ? Elle ne sert qu'au statut agrégé — pour une CO/CE, un
+     * {@code cecrlLevel} null signifie normalement « notation pas encore
+     * décidée » (PENDING_EVALUATIONS), et une porte jamais franchie ne doit pas
+     * y bloquer l'examen indéfiniment.
+     */
+    private record Sous(FullTcfExamResponse.SubAttempt dto, boolean jamaisOuverte) {
+    }
+
+    /**
+     * Épreuve <b>close sans avoir jamais été ouverte</b> : {@code timer_started_at}
+     * absent (elle n'a jamais été lancée, cf. {@link AttemptChrono} — pour un
+     * sous-attempt c'est la seule ancre) <b>et</b> rien de rendu (aucune
+     * réponse en CO/CE, aucune soumission en EE/EO). C'est le cas du candidat
+     * qui fait la CO et la CE puis quitte : les fronts clôturent les épreuves
+     * restantes pour permettre l'abandon volontaire (cf.
+     * {@code FullTcfExamService.markSubAttemptDone}), sans que le candidat ait
+     * jamais vu le sujet.
+     *
+     * <p>Ne s'évalue que sur une épreuve TERMINÉE : tant qu'elle ne l'est pas,
+     * l'examen est de toute façon {@code IN_PROGRESS} et aucun niveau n'est
+     * calculé — inutile d'aller interroger la base.
+     *
+     * <p>⚠️ Les deux conditions comptent. Les sous-attempts antérieurs au chrono
+     * par épreuve portent tous {@code timer_started_at} null : sans le second
+     * critère, on effacerait le niveau d'épreuves réellement passées.
+     */
+    private boolean jamaisOuverteQcm(Attempt sub) {
+        return sub.getFinishedAt() != null
+                && sub.getTimerStartedAt() == null
+                && !answerManager.hasAnyAnswer(sub.getId());
+    }
+
+    private Sous mapSubAttempt(Attempt sub, boolean parentProductionLocked) {
         EpreuveType e = sub.getEpreuve();
         // Le verrou ne concerne que les épreuves productives EE/EO.
         boolean locked = parentProductionLocked
@@ -125,28 +167,36 @@ public class FullTcfExamResponseBuilder {
             // pas — seule la restitution change.
             // Épreuve verrouillée : jamais lancée, donc aucune donnée de temps
             // — un chrono sur une porte fermée n'aurait aucun sens.
-            return new FullTcfExamResponse.SubAttempt(
+            return new Sous(new FullTcfExamResponse.SubAttempt(
                     sub.getId(), e, sub.getFinishedAt(), null,
-                    null, null, 0, List.of(), true,
-                    null, null, null);
+                    null, null, null, 0, List.of(), true,
+                    null, null, null), false);
         }
         if (e == EpreuveType.TCF_CO || e == EpreuveType.TCF_CE) {
+            // Même raisonnement que le verrou ci-dessus, appliqué à l'autre
+            // porte jamais franchie : une épreuve close SANS avoir jamais été
+            // ouverte n'a pas été PASSÉE, donc elle n'a AUCUN niveau. La
+            // compter A1_NON_ATTEINT (0 réponse → 0 % → borne basse) restituait
+            // une absence comme un verdict de langue. Doctrine du dépôt :
+            // null = inconnu, jamais mauvais.
+            boolean jamaisOuverte = jamaisOuverteQcm(sub);
             // Source de vérité : cecrl_level posé à la finalisation par
             // TcfLevelEstimatorService. Fallback weightedScoreToCecrl pour les
             // sous-attempts finis avant V416 (cecrl_level encore NULL).
             NiveauCecrl level = null;
-            if (sub.getFinishedAt() != null) {
+            if (sub.getFinishedAt() != null && !jamaisOuverte) {
                 level = sub.getCecrlLevel() != null
                         ? sub.getCecrlLevel()
                         : weightedScoreToCecrl(sub.getWeightedScore(), sub.getMaxWeightedScore());
                 level = levelEstimator.capB2(level);
             }
-            return new FullTcfExamResponse.SubAttempt(
+            return new Sous(new FullTcfExamResponse.SubAttempt(
                     sub.getId(), e, sub.getFinishedAt(), level,
                     sub.getWeightedScore(), sub.getMaxWeightedScore(),
+                    calibratedScoreOf(sub),
                     null, List.of(), locked,
                     sub.getTimeLimitSeconds(), sub.getTimerStartedAt(),
-                    AttemptChrono.echeance(sub));
+                    AttemptChrono.echeance(sub)), jamaisOuverte);
         }
         // EE / EO : on compte les tâches EVALUATED pour le niveau CECRL
         // ET on remonte les ids des FAILED — le mobile propose un bouton
@@ -164,16 +214,28 @@ public class FullTcfExamResponseBuilder {
                 inFlight = true; // SUBMITTED / TRANSCRIBING / EVALUATING
             }
         }
-        Map<Integer, AiEvaluation> evalsByTache = productionBilanService.latestEvalsByTache(submissions);
+        // Épreuve close SANS avoir jamais été ouverte : aucun niveau (cf.
+        // jamaisOuverteQcm — même règle, mais « rien de rendu » se lit ici sur
+        // les soumissions, déjà chargées).
+        boolean jamaisOuverte = sub.getFinishedAt() != null
+                && sub.getTimerStartedAt() == null
+                && submissions.isEmpty();
+        Map<Integer, AiEvaluation> evalsByTache = jamaisOuverte
+                ? Map.of()
+                : productionBilanService.latestEvalsByTache(submissions);
         int evaluatedCount = evalsByTache.size();
         // Niveau d'épreuve = moyenne pondérée des compétences des 3 tâches
         // (cf. ProductionBilanService), plafonné B2. La note brute reste
         // stockée intacte. Épreuve TERMINÉE incomplète (chrono écoulé, abandon)
         // sans pipeline IA en cours ni FAILED à retenter : les tâches non
         // rendues comptent 0 (« le reste noté 0 ») — y compris zéro soumission
-        // → A1_NON_ATTEINT.
+        // → A1_NON_ATTEINT. ⚠️ Sauf si elle n'a JAMAIS été ouverte : le
+        // candidat n'a pas vu le sujet, ce n'est pas un abandon mais une
+        // absence, et une absence n'a pas de niveau.
         NiveauCecrl level;
-        if (evaluatedCount == EXPECTED_PRODUCTION_SUBMISSIONS) {
+        if (jamaisOuverte) {
+            level = null;
+        } else if (evaluatedCount == EXPECTED_PRODUCTION_SUBMISSIONS) {
             level = levelEstimator.capB2(productionBilanService.bilanEpreuve(evalsByTache));
         } else if (sub.getFinishedAt() != null && !inFlight && failedIds.isEmpty()) {
             level = levelEstimator.capB2(productionBilanService.bilanEpreuveTerminee(evalsByTache));
@@ -185,15 +247,32 @@ public class FullTcfExamResponseBuilder {
         // compte par tâche (production_tasks.dureeMaxSec) et ne démarre qu'au
         // lancement de la tâche. `timerStartedAt` reste servi : il dit quand
         // l'épreuve a été ouverte, ce qui sert au statut de continuité.
-        return new FullTcfExamResponse.SubAttempt(
+        return new Sous(new FullTcfExamResponse.SubAttempt(
                 sub.getId(), e, sub.getFinishedAt(), level,
-                null, null, evaluatedCount, failedIds, locked,
+                null, null, null, evaluatedCount, failedIds, locked,
                 sub.getTimeLimitSeconds(), sub.getTimerStartedAt(),
-                AttemptChrono.echeance(sub));
+                AttemptChrono.echeance(sub)), jamaisOuverte);
+    }
+
+    /**
+     * Score calibré 100-499 d'une sous-épreuve QCM (CO / CE) — l'échelle du
+     * relevé TCF, seule lisible par un candidat. Délégué à
+     * {@link TcfLevelEstimatorService}, comme {@code AttemptMapper} le fait pour
+     * les examens module : la correction du hasard et les bornes n'existent
+     * qu'à un seul endroit, deux copies finiraient par diverger.
+     *
+     * <p>{@code null} tant que le score pondéré n'est pas posé (épreuve en
+     * cours, ou finalisée sans score) : le service rendrait alors 100, ce qui
+     * afficherait « 100/499 » là où on ne sait rien.
+     */
+    private Integer calibratedScoreOf(Attempt sub) {
+        if (sub.getWeightedScore() == null || sub.getMaxWeightedScore() == null) return null;
+        return levelEstimator.calibratedScore(sub.getWeightedScore(), sub.getMaxWeightedScore());
     }
 
     private FullTcfExamResponse.FullTcfExamStatus computeStatus(
-            Attempt parent, List<FullTcfExamResponse.SubAttempt> subs) {
+            Attempt parent, List<FullTcfExamResponse.SubAttempt> subs,
+            Set<EpreuveType> jamaisOuvertes) {
         // 4 sous-attempts attendus (CO, CE, EE, EO). Si un manque ou n'est
         // pas fini → IN_PROGRESS.
         if (subs.size() < EXPECTED_EPREUVES) return FullTcfExamResponse.FullTcfExamStatus.IN_PROGRESS;
@@ -217,8 +296,11 @@ public class FullTcfExamResponseBuilder {
                 if (hasInFlightProduction(s.attemptId())) {
                     return FullTcfExamResponse.FullTcfExamStatus.PENDING_EVALUATIONS;
                 }
-            } else if (s.cecrlLevel() == null) {
+            } else if (s.cecrlLevel() == null && !jamaisOuvertes.contains(s.epreuve())) {
                 // CO/CE sans niveau calculé : finishedAt présent mais weightedScore manquant.
+                // Une épreuve close sans avoir jamais été ouverte est, elle,
+                // définitivement décidée : elle n'aura jamais de niveau, et
+                // l'attendre laisserait l'examen en PENDING pour toujours.
                 return FullTcfExamResponse.FullTcfExamStatus.PENDING_EVALUATIONS;
             }
         }
@@ -270,7 +352,8 @@ public class FullTcfExamResponseBuilder {
      * <ul>
      *   <li>épreuve {@code locked} : fermée par le freemium, jamais passée ;</li>
      *   <li>niveau {@code null} : inconnu (évaluations IA échouées ou encore en
-     *       vol), et {@code min()} ignore déjà l'inconnu.</li>
+     *       vol, <b>ou épreuve close sans avoir jamais été ouverte</b>), et
+     *       {@code min()} ignore déjà l'inconnu.</li>
      * </ul>
      * Le nombre d'épreuves effectivement comptées est exposé aux fronts
      * ({@code epreuvesCountedInFinalLevel}) pour qu'ils n'affirment pas « le

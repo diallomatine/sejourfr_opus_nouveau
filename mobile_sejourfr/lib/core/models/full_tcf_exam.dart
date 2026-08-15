@@ -65,6 +65,7 @@ class FullTcfExamSubAttempt {
     required this.cecrlLevel,
     required this.score,
     required this.maxScore,
+    this.calibratedScore,
     required this.submissionsCount,
     required this.failedSubmissionIds,
     this.locked = false,
@@ -77,8 +78,17 @@ class FullTcfExamSubAttempt {
   final EpreuveType epreuve;
   final DateTime? finishedAt;
   final NiveauCecrl? cecrlLevel;
+  /// CO/CE : score **pondéré interne** (A2=1, B1=2, B2=3) et sa borne. Servis
+  /// comme repli — « 23/50 » ne correspond à rien sur le relevé d'un candidat.
   final int? score;
   final int? maxScore;
+
+  /// CO/CE : score calibré **100-499**, l'échelle du relevé TCF. Dérivé serveur
+  /// (`TcfLevelEstimatorService`, correction du hasard comprise) — **jamais
+  /// recalculé ici** depuis [score]/[maxScore]. Null pour EE/EO (pas de QCM),
+  /// pour une épreuve `locked` et tant que le score pondéré n'est pas posé.
+  final int? calibratedScore;
+
   /// EE/EO : nombre de submissions ayant atteint EVALUATED (sur 3 attendues).
   final int? submissionsCount;
 
@@ -120,6 +130,36 @@ class FullTcfExamSubAttempt {
   bool get isFinished => finishedAt != null;
   bool get hasFailures => failedSubmissionIds.isNotEmpty;
 
+  /// Score d'une sous-épreuve QCM (CO/CE) **sur l'échelle du relevé TCF**.
+  ///
+  /// [calibratedScore] (100-499) est ce qu'on affiche : le pondéré interne
+  /// (« 23/50 ») ne veut rien dire pour un candidat. Repli sur le pondéré quand
+  /// le calibré manque — on n'invente **jamais** un /499 à partir d'un pondéré,
+  /// et on ne remplace pas par un tiret une donnée qu'on possède. Null quand il
+  /// n'y a rien à afficher (EE/EO, épreuve verrouillée, pas encore notée).
+  ///
+  /// Miroir web : `qcmScoreLabel` (`lib/exam-levels.ts`).
+  String? get qcmScoreLabel {
+    if (calibratedScore != null) return '$calibratedScore/499';
+    if (score != null && maxScore != null) return '$score/$maxScore';
+    return null;
+  }
+
+  /// Close **sans jamais avoir été ouverte** : l'examen a été abandonné avant
+  /// d'y arriver. Le serveur ne lui donne alors **aucun** niveau (`null` =
+  /// inconnu, jamais mauvais) et l'exclut du plancher — cf.
+  /// `FullTcfExamResponseBuilder`. Sans ce discriminant, une telle épreuve se
+  /// lit « Évaluation en cours… », c'est-à-dire une attente qui n'aboutira
+  /// jamais.
+  ///
+  /// Miroir web : l'état `not_taken` de `subAttemptView` (`lib/exam-levels.ts`).
+  bool get jamaisOuverte =>
+      finishedAt != null &&
+      !locked &&
+      timerStartedAt == null &&
+      cecrlLevel == null &&
+      failedSubmissionIds.isEmpty;
+
   /// Épreuve lancée, chronométrée et pas encore terminée.
   bool get isRunning => deadlineAt != null && finishedAt == null;
 
@@ -144,6 +184,7 @@ class FullTcfExamSubAttempt {
       cecrlLevel: NiveauCecrl.fromWireNullable(json['cecrlLevel'] as String?),
       score: json['score'] as int?,
       maxScore: json['maxScore'] as int?,
+      calibratedScore: (json['calibratedScore'] as num?)?.toInt(),
       submissionsCount: json['submissionsCount'] as int?,
       failedSubmissionIds: failed.map((e) => e as String).toList(),
       locked: json['locked'] as bool? ?? false,

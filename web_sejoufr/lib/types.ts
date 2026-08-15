@@ -2619,8 +2619,18 @@ export interface FullTcfExamSubAttempt {
     epreuve: EpreuveType;
     finishedAt: string | null;
     cecrlLevel: NiveauCecrl | null;
+    /** Score **pondéré interne** (A2=1, B1=2, B2=3) et sa borne. Conservés
+     *  comme repli — ce n'est pas ce qu'on affiche à un candidat, « 23/50 » ne
+     *  correspond à rien sur son relevé. */
     score: number | null;
     maxScore: number | null;
+    /** CO/CE : score calibré **100-499**, l'échelle du relevé TCF. Dérivé
+     *  serveur (`TcfLevelEstimatorService`, correction du hasard comprise) :
+     *  ne jamais le recalculer depuis `score`/`maxScore`. **C'est ce que les
+     *  écrans affichent.** Null pour EE/EO, pour une épreuve verrouillée et
+     *  tant que le score pondéré n'est pas posé — on retombe alors sur
+     *  `score`/`maxScore`, jamais sur un `/499` inventé. */
+    calibratedScore: number | null;
     submissionsCount: number | null;
     failedSubmissionIds: string[];
     locked: boolean;

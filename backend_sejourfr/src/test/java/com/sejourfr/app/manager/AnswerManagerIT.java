@@ -163,6 +163,31 @@ class AnswerManagerIT extends AbstractIntegrationTest {
                 .orElseThrow(() -> new AssertionError("Aucune ligne pour le thème " + themeId));
     }
 
+    /**
+     * « Zéro réponse » est ce qui distingue, sur une sous-épreuve d'examen
+     * blanc complet, une épreuve <b>jamais ouverte</b> (aucun niveau) d'une
+     * épreuve ouverte puis écourtée (A1_NON_ATTEINT). Le compteur doit donc
+     * répondre sur l'attempt, et sur lui seul.
+     */
+    @Test
+    void hasAnyAnswer_distingueUneSessionVideDUneSessionRepondue() {
+        User user = testData.user();
+        Attempt vide = attempt(user, Module.TCF);
+        Attempt repondu = attempt(user, Module.TCF);
+
+        assertThat(answerManager.hasAnyAnswer(vide.getId())).isFalse();
+        assertThat(answerManager.hasAnyAnswer(repondu.getId())).isFalse();
+
+        answer(user, repondu, testData.question(), false, Instant.now(), List.of());
+
+        // Une réponse FAUSSE compte : ce qui est mesuré, c'est « quelque chose
+        // a été rendu », pas la réussite.
+        assertThat(answerManager.hasAnyAnswer(repondu.getId())).isTrue();
+        // Et rien ne déborde sur la session voisine du même utilisateur.
+        assertThat(answerManager.hasAnyAnswer(vide.getId())).isFalse();
+        assertThat(answerManager.hasAnyAnswer(UUID.randomUUID())).isFalse();
+    }
+
     private Attempt attempt(User user, Module module) {
         Attempt a = new Attempt();
         a.setUser(user);

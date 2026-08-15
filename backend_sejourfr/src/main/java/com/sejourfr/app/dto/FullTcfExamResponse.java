@@ -18,8 +18,9 @@ import java.util.UUID;
  * <b>réellement passées</b> (règle officielle TCF IRN). NULL tant que toutes
  * les évaluations IA (EE/EO) ne sont pas EVALUATED, ou tant que l'examen n'a
  * pas été finalisé. Sont hors périmètre : une épreuve {@link SubAttempt#locked
- * verrouillée} par le freemium (jamais passée) et une épreuve dont le niveau
- * est resté inconnu (évaluations IA échouées). Le périmètre effectif est
+ * verrouillée} par le freemium (jamais passée), une épreuve close <b>sans avoir
+ * jamais été ouverte</b> (le candidat a quitté avant d'y arriver) et une épreuve
+ * dont le niveau est resté inconnu (évaluations IA échouées). Le périmètre effectif est
  * publié via {@link #epreuvesCountedInFinalLevel} / {@link #finalLevelPartial}
  * — les fronts doivent s'en servir plutôt que d'affirmer « le plus bas de tes
  * 4 épreuves » en dur.
@@ -88,11 +89,36 @@ public record FullTcfExamResponse(
      *                            ce n'est plus le plancher des submissions
      *                            EVALUATED. NULL quand le niveau n'est pas
      *                            calculable : évaluations encore en vol, en échec
-     *                            (cf. {@code failedSubmissionIds}), ou épreuve
-     *                            {@code locked}. Un NULL n'est jamais un mauvais
-     *                            niveau — c'est un niveau inconnu.
-     * @param score               CO/CE uniquement : weightedScore (X / maxScore)
-     * @param maxScore            CO/CE uniquement
+     *                            (cf. {@code failedSubmissionIds}), épreuve
+     *                            {@code locked}, ou épreuve <b>close sans avoir
+     *                            jamais été ouverte</b> ({@code timerStartedAt}
+     *                            NULL et rien de rendu — le candidat a quitté
+     *                            l'examen avant d'y arriver, et les fronts
+     *                            clôturent les épreuves restantes pour permettre
+     *                            l'abandon volontaire). Une épreuve OUVERTE puis
+     *                            écourtée garde son niveau (A1_NON_ATTEINT si
+     *                            rien n'a été rendu) : le candidat a vu le
+     *                            sujet, c'est un vrai résultat. Un NULL n'est
+     *                            jamais un mauvais niveau — c'est un niveau
+     *                            inconnu.
+     * @param score               CO/CE uniquement : weightedScore (X / maxScore).
+     *                            Score <b>pondéré interne</b> (A2=1, B1=2, B2=3),
+     *                            conservé comme repli et pour l'existant — mais ce
+     *                            n'est <b>pas</b> ce qu'un candidat doit lire.
+     * @param maxScore            CO/CE uniquement : borne du score pondéré interne
+     * @param calibratedScore     CO/CE uniquement : score calibré <b>100-499</b>,
+     *                            l'échelle du relevé TCF. Produit par
+     *                            {@code TcfLevelEstimatorService.calibratedScore(
+     *                            weighted, maxWeighted)} — jamais recopié ailleurs :
+     *                            la correction du hasard (25 % sur un QCM à 4 choix)
+     *                            et les bornes 100-499 vivent dans ce seul service.
+     *                            C'est LE nombre que les fronts affichent, le
+     *                            {@code score}/{@code maxScore} pondéré (« 23/50 »)
+     *                            ne voulant rien dire pour un candidat. NULL pour
+     *                            EE/EO (pas de QCM), pour une épreuve {@code locked}
+     *                            et tant que le score pondéré n'est pas posé — les
+     *                            fronts retombent alors sur {@code score}/{@code
+     *                            maxScore}, jamais sur un /499 inventé.
      * @param submissionsCount    EE/EO uniquement : submissions EVALUATED (sur 3 attendues)
      * @param failedSubmissionIds EE/EO uniquement : ids des submissions FAILED — le mobile
      *                            peut les retry via POST /api/production-submissions/{id}/retry
@@ -134,6 +160,7 @@ public record FullTcfExamResponse(
             NiveauCecrl cecrlLevel,
             Integer score,
             Integer maxScore,
+            Integer calibratedScore,
             Integer submissionsCount,
             List<UUID> failedSubmissionIds,
             boolean locked,

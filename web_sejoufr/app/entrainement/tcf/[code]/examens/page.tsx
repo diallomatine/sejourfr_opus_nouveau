@@ -50,7 +50,7 @@ const TCF_QCM = {
 type TcfCode = keyof typeof TCF_QCM;
 
 /**
- * Examens blancs d'une épreuve TCF QCM (25 Q A2→B1→B2, score /50) — maquette
+ * Examens blancs d'une épreuve TCF QCM (25 Q A2→B1→B2, score /499) — maquette
  * sejour_fr.html : 3 stat cards (passés / meilleur score / niveau estimé) +
  * grille de 20 examens. Examen 1 gratuit, 2+ premium.
  *
@@ -152,7 +152,9 @@ export default function TcfModuleExamsPage() {
     ? [
         { label: "questions (A2→B2)", value: "25" },
         { label: "en conditions réelles", value: config.duration },
-        { label: "score + niveau CECRL", value: "/50" },
+        // Barème du relevé TCF. Le /50 annoncé ici était le score pondéré
+        // interne, que le candidat ne voit nulle part ailleurs.
+        { label: "score + niveau CECRL", value: "/499" },
       ]
     : [];
   const introTips =
