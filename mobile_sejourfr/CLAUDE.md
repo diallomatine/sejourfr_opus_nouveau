@@ -756,6 +756,20 @@ mobile, à ne pas défaire : le bilan **ne dit jamais « tes 4 épreuves » en d
 dérivée du décompte, et sans chiffre si le champ manque), et un examen partiel n'alimente
 pas « meilleur niveau » / « dernier examen » — il est annoté « partiel ».
 
+**Score d'une sous-épreuve QCM : TOUJOURS sur 499, jamais le pondéré.**
+`FullTcfExamSubAttempt.calibratedScore` (100-499, dérivé serveur par
+`TcfLevelEstimatorService`) est ce qu'affichent le hub de progression et le bilan —
+`score`/`maxScore` reste servi mais c'est le score **pondéré interne** (A2=1, B1=2,
+B2=3) et « 23/50 » ne correspond à rien sur le relevé d'un candidat. La règle vit à
+**un seul endroit**, `FullTcfExamSubAttempt.qcmScoreLabel` (`core/models/full_tcf_exam.dart`,
+miroir de `qcmScoreLabel` dans `web_sejoufr/lib/exam-levels.ts`) : calibré présent ⇒
+`x/499`, sinon repli sur `x/maxScore`, `null` quand il n'y a rien (EE/EO, épreuve
+verrouillée, pas encore notée). **Ne jamais dériver un /499 d'un pondéré côté app**, et
+ne pas remplacer par un tiret une donnée qu'on possède. Mêmes barèmes que les examens
+**module** CO/CE (`tcf_qcm_exams_screen`, `qcm_history_section`), qui étaient déjà en
+/499 — c'est cette cohérence-là qu'on rétablit. Le **civique** n'est pas concerné (/40
+ou /20 selon l'examen).
+
 **Modules affichés :**
 - **Civique** = les 5 thèmes officiels chargés via `/api/themes?module=CIVIQUE` (Principes &
   symboles, Institutions, Droits & devoirs, Histoire-Géo, Société). Tap → push

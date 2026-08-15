@@ -369,16 +369,24 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     }
   }
 
-  /// Abandon confirmé en cours d'examen EO → finalise (copie ramassée : les
-  /// tâches non rendues sont comptées 0) puis sort vers le hub / le progress de
-  /// l'examen complet.
+  /// Sortie confirmée d'une session d'examen EO. En **examen blanc complet**,
+  /// on quitte sans rien clore : l'épreuve reste reprenable. En session
+  /// d'examen module, on finalise l'attempt comme avant.
   Future<void> _quitExam(BuildContext context, String fallbackRoute) async {
+    final fullExamId =
+        GoRouterState.of(context).uri.queryParameters['fullExamId'];
+    final isFullExam = fullExamId != null;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Quitter l\'examen ?'),
-        content: const Text(
-          'Votre examen sera terminé. Les tâches non rendues seront comptées comme non faites.',
+        title: Text(
+          isFullExam ? 'Quitter cette épreuve ?' : 'Quitter l\'examen ?',
+        ),
+        content: Text(
+          isFullExam
+              ? 'Vous pourrez reprendre l\'expression orale là où vous en '
+                  'êtes. Votre enregistrement en cours, lui, sera perdu.'
+              : 'Votre examen sera terminé. Les tâches non rendues seront comptées comme non faites.',
         ),
         actions: [
           TextButton(
@@ -396,18 +404,16 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
       ),
     );
     if (ok != true || !context.mounted) return;
-    final fullExamId =
-        GoRouterState.of(context).uri.queryParameters['fullExamId'];
     _examAutoStop?.cancel();
     await ref.read(recordingControllerProvider.notifier).cancel();
-    if (fullExamId != null) {
-      try {
-        await ref.read(fullTcfExamRepositoryProvider).markSubDone(
-              parentAttemptId: fullExamId,
-              epreuveWire: 'TCF_EO',
-            );
-      } catch (_) {/* hook auto backend fallback */}
-    } else {
+    // Examen blanc complet : **quitter ne ferme PAS l'épreuve**. L'EO n'a
+    // aucun chrono d'épreuve (`timeLimitSeconds` null, le temps se compte par
+    // tâche) : la clore sur un simple « quitter » est une pure perte — le
+    // candidat n'a plus aucun moyen de la repasser, et elle ressort comptée
+    // sans avoir été jouée. `markSubDone` reste posé à la fin normale de
+    // l'épreuve (3ᵉ tâche rendue) et sur l'abandon explicite depuis le hub
+    // d'examen.
+    if (!isFullExam) {
       await ref.read(eoSessionProvider.notifier).finishAttemptIfExam();
     }
     ref.read(eoSessionProvider.notifier).reset();
@@ -474,8 +480,9 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     final fallbackRoute = _fallbackRouteFor(context);
 
     return PopScope(
-      // En examen, le retour confirme l'abandon de l'examen entier. Hors examen,
-      // il confirme l'abandon de l'enregistrement en cours.
+      // En examen, le retour confirme la sortie de l'épreuve (qui reste
+      // ouverte en examen complet). Hors examen, il confirme l'abandon de
+      // l'enregistrement en cours.
       canPop: !isRecording && !isExam,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;

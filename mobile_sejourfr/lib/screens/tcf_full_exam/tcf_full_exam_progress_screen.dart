@@ -40,11 +40,20 @@ import 'full_tcf_exam_provider.dart';
 /// serveur** à la lecture suivante, avec ce qui était enregistré. Il n'existe
 /// aucun flux « recommencer une épreuve interrompue ».
 ///
-/// **Abandon** (parité web) : quitter un examen en cours ne le laisse plus
-/// « En cours ». On affiche un avertissement, puis on finalise chaque épreuve
-/// non terminée (CO/CE = score sur les réponses données, 0 si aucune ; EE/EO =
-/// `sub-done` → comptée A1 non atteint côté backend), on finalise le parent et
-/// on route vers le bilan. Le reste est donc bien noté 0 et le résultat affiché.
+/// **Sortir ≠ abandonner** (parité web). Deux gestes distincts, jamais
+/// confondus :
+/// - la **flèche retour** de la barre du haut *sort de l'écran*, point final —
+///   aucune finalisation, aucun appel serveur, l'examen reste reprenable ;
+/// - le bouton **« Abandonner l'examen »**, lui seul, mène à la finalisation.
+///
+/// La flèche a longtemps porté l'abandon : un candidat qui avait fini CO + CE
+/// et quittait l'écran voyait ses EE et EO closes en 54 ms, avec un niveau
+/// attribué à des épreuves jamais passées.
+///
+/// **Abandon** : on affiche un avertissement qui **nomme la reprise**, puis on
+/// finalise chaque épreuve non terminée (CO/CE = score sur les réponses
+/// données, 0 si aucune ; EE/EO = `sub-done`), on finalise le parent et on
+/// route vers le bilan.
 class TcfFullExamProgressScreen extends ConsumerStatefulWidget {
   const TcfFullExamProgressScreen({super.key, required this.parentAttemptId});
 
@@ -138,6 +147,7 @@ class _TcfFullExamProgressScreenState
                   exam: exam,
                   remaining: remaining,
                   finishing: _finishing,
+                  onExit: () => _close(context),
                   onQuit: () => _confirmQuit(exam),
                 );
               },
@@ -164,9 +174,11 @@ class _TcfFullExamProgressScreenState
       iconBg: AppColors.redLight,
       iconColor: AppColors.red,
       title: 'Abandonner l\'examen ?',
-      sub: 'Vous perdez tout ce qui n\'a pas été terminé : les épreuves '
-          'restantes sont comptées 0 et l\'examen est finalisé. Vous verrez '
-          'votre résultat. Cette action est définitive.',
+      sub: 'Pour reprendre plus tard, quittez simplement cet écran avec la '
+          'flèche : votre progression est gardée (le chrono d\'une épreuve '
+          'déjà lancée, lui, continue de courir). Abandonner est définitif : '
+          'les épreuves restantes sont comptées 0 et l\'examen est finalisé. '
+          'Vous verrez votre résultat.',
       children: [
         AppButton(
           label: 'Abandonner et voir le résultat',
@@ -233,6 +245,7 @@ class _ProgressView extends ConsumerWidget {
     required this.exam,
     required this.remaining,
     required this.finishing,
+    required this.onExit,
     required this.onQuit,
   });
 
@@ -243,6 +256,13 @@ class _ProgressView extends ConsumerWidget {
   /// joué — dans ces cas aucun décompte n'est affiché.
   final Duration? remaining;
   final bool finishing;
+
+  /// Sortie simple de l'écran : **ne finalise rien**, l'examen reste reprenable.
+  /// C'est ce que fait la flèche retour.
+  final VoidCallback onExit;
+
+  /// Abandon explicite (confirmation puis finalisation). Seul le bouton
+  /// « Abandonner l'examen » y mène.
   final VoidCallback onQuit;
 
   @override
@@ -259,7 +279,7 @@ class _ProgressView extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
         children: [
-          _TopBar(onClose: finishing ? () {} : onQuit),
+          _TopBar(onClose: finishing ? () {} : onExit),
           const SizedBox(height: 20),
           _Hero(exam: exam, remaining: remaining),
           const SizedBox(height: 18),
@@ -283,7 +303,7 @@ class _ProgressView extends ConsumerWidget {
           AppButton(
             label: allDone ? 'Quitter' : 'Abandonner l\'examen',
             variant: AppButtonVariant.ghost,
-            onPressed: finishing ? null : onQuit,
+            onPressed: finishing ? null : (allDone ? onExit : onQuit),
           ),
         ],
       ),
@@ -376,6 +396,9 @@ class _FinishingOverlay extends StatelessWidget {
   }
 }
 
+/// Barre du haut. Sa flèche **sort de l'écran et rien d'autre** : elle n'a
+/// jamais à finaliser l'examen ni à appeler le serveur — l'abandon vit sur son
+/// propre bouton, nommé.
 class _TopBar extends StatelessWidget {
   const _TopBar({required this.onClose});
 
@@ -753,8 +776,12 @@ class _StepCard extends StatelessWidget {
             ? kChronoParTacheLabel
             : epreuveDurationLabelFor(epreuve));
     if (st == _StepState.done && sub != null) {
-      if (sub.score != null && sub.maxScore != null) {
-        return '$duree · ${sub.score}/${sub.maxScore}'
+      // Score sur l'échelle du relevé TCF (100-499) : le pondéré interne
+      // (« 23/50 ») ne veut rien dire pour un candidat. Repli sur le pondéré
+      // seulement quand le serveur n'a pas calibré.
+      final scoreLabel = sub.qcmScoreLabel;
+      if (scoreLabel != null) {
+        return '$duree · $scoreLabel'
             '${sub.cecrlLevel != null ? ' · ${sub.cecrlLevel!.displayName}' : ''}';
       }
       if (sub.submissionsCount != null) {

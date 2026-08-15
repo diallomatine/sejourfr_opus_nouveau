@@ -291,16 +291,23 @@ class _EeBriefingWritingScreenState
     );
   }
 
-  /// Abandon confirmé en cours d'examen → finalise (la copie ramassée comptera
-  /// les tâches manquantes à 0) puis sort. En entraînement libre, on garde le
-  /// flux brouillon (pas de finish).
-  Future<bool> _confirmQuitExam() async {
+  /// Sortie confirmée d'une session d'examen. En **examen blanc complet**, on
+  /// quitte sans rien clore : l'épreuve reste reprenable (cf. `_quitExam`). En
+  /// session d'examen module, on finalise l'attempt comme avant. En
+  /// entraînement libre, on garde le flux brouillon (pas de finish).
+  Future<bool> _confirmQuitExam({required bool isFullExam}) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Quitter l\'examen ?'),
-        content: const Text(
-          'Votre examen sera terminé. Les tâches non rendues seront comptées comme non faites.',
+        title: Text(
+          isFullExam ? 'Quitter cette épreuve ?' : 'Quitter l\'examen ?',
+        ),
+        content: Text(
+          isFullExam
+              ? 'Vous pourrez reprendre l\'expression écrite là où vous en '
+                  'êtes. Attention : son chrono continue de courir pendant '
+                  'votre absence.'
+              : 'Votre examen sera terminé. Les tâches non rendues seront comptées comme non faites.',
         ),
         actions: [
           TextButton(
@@ -321,18 +328,19 @@ class _EeBriefingWritingScreenState
   }
 
   Future<void> _quitExam(String fallbackRoute) async {
-    if (!await _confirmQuitExam()) return;
+    final fullExamId =
+        GoRouterState.of(context).uri.queryParameters['fullExamId'];
+    if (!await _confirmQuitExam(isFullExam: fullExamId != null)) return;
     if (!mounted) return;
-    final goState = GoRouterState.of(context);
-    final fullExamId = goState.uri.queryParameters['fullExamId'];
-    if (fullExamId != null) {
-      try {
-        await ref.read(fullTcfExamRepositoryProvider).markSubDone(
-              parentAttemptId: fullExamId,
-              epreuveWire: 'TCF_EE',
-            );
-      } catch (_) {/* hook auto backend fallback */}
-    } else {
+    // Examen blanc complet : **quitter ne ferme PAS l'épreuve**. Le chrono
+    // serveur de l'EE court déjà (`POST /begin`) et la clôture automatique à
+    // échéance fera le travail avec ce qui aura été rendu. Appeler
+    // `markSubDone` ici condamnait une épreuve qu'on venait seulement de
+    // mettre de côté — et c'est ce qui, en cascade, clôturait aussi l'EO puis
+    // l'examen entier. `markSubDone` reste posé à la fin normale de l'épreuve
+    // (3ᵉ tâche rendue), à l'expiration du chrono, et sur l'abandon explicite
+    // depuis le hub d'examen.
+    if (fullExamId == null) {
       await ref.read(eeSessionProvider.notifier).finishAttemptIfExam();
     }
     ref.read(eeSessionProvider.notifier).reset();
@@ -398,9 +406,10 @@ class _EeBriefingWritingScreenState
             ?.subFor(EpreuveType.tcfEe)
             ?.deadlineAt;
     return PopScope(
-      // En examen, on intercepte le retour pour confirmer l'abandon + finaliser
-      // (copie ramassée). En entraînement libre, le flux brouillon est conservé
-      // (pas de PopScope bloquant).
+      // En examen, on intercepte le retour pour confirmer la sortie (et
+      // finaliser l'attempt en session module seulement — en examen complet
+      // l'épreuve reste ouverte). En entraînement libre, le flux brouillon est
+      // conservé (pas de PopScope bloquant).
       canPop: !isExam,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop || !isExam) return;
