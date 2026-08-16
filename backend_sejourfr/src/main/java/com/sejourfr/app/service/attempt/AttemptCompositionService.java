@@ -45,21 +45,31 @@ public class AttemptCompositionService {
      * proportions A2/B1/B2 et en evitant les doublons. Tire aleatoirement
      * dans chaque strate, puis complete par un tirage libre si une strate
      * est sous-dotee (fallback).
+     *
+     * @param deterministic si vrai, ordre stable {@code created_at ASC, id ASC}
+     *                      au lieu de {@code random()} — meme convention que
+     *                      {@link #pickQuestionsForTemplate}. Utilise pour
+     *                      l'examen 1 joue sans compte : rejouer redonne
+     *                      toujours le meme examen (conversion, pas
+     *                      entrainement — cf. AttemptService.startGuestDemo).
      */
-    public List<Question> composeModuleExam(Module module, QuestionType questionType) {
+    public List<Question> composeModuleExam(Module module, QuestionType questionType, boolean deterministic) {
         LinkedHashSet<Question> picked = new LinkedHashSet<>();
         List<UUID> exclude = new ArrayList<>();
-        addStrata(picked, exclude, module, questionType, Difficulty.A2, MODULE_EXAM_A2);
-        addStrata(picked, exclude, module, questionType, Difficulty.B1, MODULE_EXAM_B1);
-        addStrata(picked, exclude, module, questionType, Difficulty.B2, MODULE_EXAM_B2);
+        addStrata(picked, exclude, module, questionType, Difficulty.A2, MODULE_EXAM_A2, deterministic);
+        addStrata(picked, exclude, module, questionType, Difficulty.B1, MODULE_EXAM_B1, deterministic);
+        addStrata(picked, exclude, module, questionType, Difficulty.B2, MODULE_EXAM_B2, deterministic);
 
         int missing = MODULE_EXAM_TOTAL - picked.size();
         if (missing > 0) {
             // Fallback : on complete sans contrainte de niveau si une strate
             // etait sous-dotee. Garantit qu'on serve quand meme un examen
             // utile plutot que d'en refuser le demarrage.
-            List<Question> extra = questionManager.findRandomExcluding(
-                    module, null, null, questionType, exclude, missing);
+            List<Question> extra = deterministic
+                    ? questionManager.findOrderedExcluding(
+                            module, null, null, questionType, exclude, missing)
+                    : questionManager.findRandomExcluding(
+                            module, null, null, questionType, exclude, missing);
             for (Question q : extra) {
                 if (picked.add(q)) exclude.add(q.getId());
             }
@@ -69,9 +79,13 @@ public class AttemptCompositionService {
 
     private void addStrata(
             LinkedHashSet<Question> picked, List<UUID> exclude,
-            Module module, QuestionType questionType, Difficulty difficulty, int count) {
-        List<Question> drawn = questionManager.findRandomExcluding(
-                module, null, difficulty, questionType, exclude, count);
+            Module module, QuestionType questionType, Difficulty difficulty, int count,
+            boolean deterministic) {
+        List<Question> drawn = deterministic
+                ? questionManager.findOrderedExcluding(
+                        module, null, difficulty, questionType, exclude, count)
+                : questionManager.findRandomExcluding(
+                        module, null, difficulty, questionType, exclude, count);
         for (Question q : drawn) {
             if (picked.add(q)) exclude.add(q.getId());
         }

@@ -389,8 +389,10 @@ public class AttemptService {
     @Transactional
     public AttemptResponse startGuestDemo(StartAttemptRequest req, String clientIp) {
         // Validation du type (TRAINING / MOCK_EXAM) faite cote PublicAttemptService.
-        // Les examens cibles (theme civique / epreuve TCF) exigent un compte :
-        // seul un template free (diagnostic complet) est jouable en guest.
+        // Les examens civiques de theme exigent toujours un compte. Les examens
+        // blancs d'epreuve TCF QCM (CO / CE / STRUCTURE) ouvrent leur SLOT 1 aux
+        // visiteurs (cf. startGuestModuleExam) ; les templates free (diagnostic
+        // complet) restent jouables en guest.
         int size;
         Integer timeLimit = null;
         Integer threshold = null;
@@ -409,9 +411,14 @@ public class AttemptService {
                 threshold = template.getPassingScore();
                 // Guest sur template free : tirage deterministe.
                 questions = compositionService.pickQuestionsForTemplate(template, true);
-            } else if (req.moduleExamQuestionType() != null || req.themeId() != null) {
+            } else if (req.themeId() != null) {
+                // Examens civiques de thème : toujours réservés aux comptes.
                 throw new AccessDeniedException(
-                        "Les examens blancs par thème ou épreuve sont réservés aux comptes. Créez un compte gratuit pour continuer.");
+                        "Les examens blancs par thème sont réservés aux comptes. Créez un compte gratuit pour continuer.");
+            } else if (req.moduleExamQuestionType() != null) {
+                // Examen blanc d'une épreuve TCF QCM (CO / CE / STRUCTURE) :
+                // l'examen 1 est OUVERT aux visiteurs depuis le 2026-08-16.
+                return startGuestModuleExam(req, clientIp);
             } else {
                 if (req.module() == Module.CIVIQUE) {
                     size = CIVIQUE_EXAM_SIZE;
@@ -499,6 +506,63 @@ public class AttemptService {
         attempt = attemptManager.save(attempt);
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
+        return mapper.toResponse(attempt, aqList, false);
+    }
+
+    /**
+     * Examen blanc d'une epreuve TCF QCM (CO / CE / STRUCTURE) joue SANS COMPTE.
+     *
+     * <p><b>Changement de regle, 2026-08-16.</b> Ces examens etaient refuses aux
+     * visiteurs (403 sur tout MOCK_EXAM guest portant un
+     * {@code moduleExamQuestionType}) et les pages web n'etaient que des
+     * vitrines. Le proprietaire a arbitre d'ouvrir le <b>slot 1</b> de chaque
+     * epreuve : un visiteur doit pouvoir se tester en conditions d'examen avant
+     * de creer un compte. Ce n'est pas un correctif, c'est une nouvelle regle.
+     *
+     * <p>Perimetre volontairement etroit, rien d'autre n'est ouvert :
+     * <ul>
+     *   <li>slots 2..{@value #MOCK_EXAM_SLOTS} : refuses (compte requis) ;</li>
+     *   <li>examens civiques de theme ({@code themeId}) : toujours refuses ;</li>
+     *   <li>EE / EO : hors de ce chemin, toujours reservees aux comptes.</li>
+     * </ul>
+     *
+     * <p>Tirage <b>deterministe</b>, comme toutes les entrees guest (serie 1,
+     * template free) : rejouer redonne le meme examen. L'objectif est de
+     * convertir, pas d'offrir la banque de questions sans compte.
+     */
+    private AttemptResponse startGuestModuleExam(StartAttemptRequest req, String clientIp) {
+        if (req.module() != Module.TCF) {
+            throw new BusinessException("Les examens module sont reserves au module TCF.");
+        }
+        QuestionType qType = req.moduleExamQuestionType();
+        if (qType != QuestionType.CO && qType != QuestionType.CE && qType != QuestionType.STRUCTURE) {
+            throw new BusinessException("moduleExamQuestionType doit etre CO, CE ou STRUCTURE.");
+        }
+        int slot = validateMockExamSlot(req.slotNumber());
+        if (slot != 1) {
+            throw new AccessDeniedException(
+                    "Seul le premier examen blanc est offert sans compte. Créez un compte gratuit pour continuer.");
+        }
+
+        List<Question> picked = compositionService.composeModuleExam(req.module(), qType, true);
+        if (picked.isEmpty()) {
+            throw new BusinessException("Aucune question disponible pour cet examen module.");
+        }
+
+        Attempt attempt = new Attempt();
+        // user = null (guest)
+        attempt.setClientIp(clientIp);
+        attempt.setType(AttemptType.MOCK_EXAM);
+        attempt.setModule(req.module());
+        attempt.setEpreuve(moduleExamEpreuve(qType));
+        attempt.setModuleExamQuestionType(qType);
+        attempt.setTotalQuestions(picked.size());
+        attempt.setTimeLimitSeconds(DureeEpreuve.secondesPourQcm(qType));
+        attempt.setStartedAt(Instant.now());
+        attempt.setSlotNumber(slot);
+        attempt = attemptManager.save(attempt);
+
+        List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, picked);
         return mapper.toResponse(attempt, aqList, false);
     }
 
@@ -688,7 +752,7 @@ public class AttemptService {
         // composition (cf. composeModuleExam) — c'est un repère de grille (V110).
         enforceMockExamSlotAccess(user.getId(), req.module(), req.slotNumber(), qType + " ");
 
-        List<Question> picked = compositionService.composeModuleExam(req.module(), qType);
+        List<Question> picked = compositionService.composeModuleExam(req.module(), qType, false);
         if (picked.isEmpty()) {
             throw new BusinessException("Aucune question disponible pour cet examen module.");
         }
@@ -752,7 +816,7 @@ public class AttemptService {
             throw new BusinessException("parent doit être un attempt TCF_COMPLET.");
         }
 
-        List<Question> picked = compositionService.composeModuleExam(Module.TCF, qType);
+        List<Question> picked = compositionService.composeModuleExam(Module.TCF, qType, false);
         if (picked.isEmpty()) {
             throw new BusinessException("Aucune question disponible pour le sous-attempt " + qType + ".");
         }

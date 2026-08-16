@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Flame, GraduationCap, LayoutGrid, Target, Trophy } from "lucide-react";
-import { attemptApi } from "@/lib/api";
+import { attemptApi, publicAttemptApi } from "@/lib/api";
 import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -24,6 +24,13 @@ import { plannedEpreuveLabel } from "@/lib/exam-durations";
 import detail from "@/app/_components/hub/detail.module.css";
 
 const SLOTS = 20;
+
+/**
+ * Examens ouverts sans abonnement — et, depuis le 2026-08-16, sans compte du
+ * tout. Miroir de `AttemptService.enforceMockExamSlotAccess` (slot 1 offert et
+ * rejouable) et de `AttemptService.startGuestModuleExam` (slot 1 seulement).
+ */
+const FREE_SLOTS = 1;
 
 // CO et CE lisent la table de référence partagée (`lib/exam-durations.ts`) :
 // la même épreuve doit annoncer la même durée jouée seule et dans un examen
@@ -54,9 +61,11 @@ type TcfCode = keyof typeof TCF_QCM;
  * sejour_fr.html : 3 stat cards (passés / meilleur score / niveau estimé) +
  * grille de 20 examens. Examen 1 gratuit, 2+ premium.
  *
- * Mode guest : la page sert de vitrine (grille visible) mais tous les
- * examens ciblés exigent un compte → GuestGateSheet. La découverte guest
- * passe par les séries 1 et l'examen diagnostic de /examens-blancs.
+ * Mode guest (règle du 2026-08-16, elle REMPLACE la vitrine intégrale) :
+ * l'examen 1 se joue **sans compte**, en anonyme, par la voie publique
+ * (`publicAttemptApi.startDemo` → attempt `user NULL` côté backend, exactement
+ * le montage de la série 1). Les examens 2 à 20 ouvrent la GuestGateSheet.
+ * Le backend applique le même verrou (403 au-delà du slot 1).
  */
 export default function TcfModuleExamsPage() {
   const params = useParams<{ code: string }>();
@@ -97,7 +106,9 @@ export default function TcfModuleExamsPage() {
 
   function requestStart(slot: number) {
     if (starting) return;
-    if (isGuest) {
+    // Un visiteur n'a droit qu'à l'examen 1 (même verrou que ExamsGrid, et
+    // que le backend). Au-delà : inscription.
+    if (isGuest && slot > FREE_SLOTS) {
       setGuestGateOpen(true);
       return;
     }
@@ -111,18 +122,24 @@ export default function TcfModuleExamsPage() {
     setError(null);
     setStarting(true);
     try {
-      const a = await attemptApi.start({
-        type: "MOCK_EXAM",
-        module: "TCF",
+      const body = {
+        type: "MOCK_EXAM" as const,
+        module: "TCF" as const,
         moduleExamQuestionType: questionType,
         slotNumber: pendingSlot,
-      });
+      };
+      // Visiteur : voie publique (attempt anonyme), jamais l'API authentifiée
+      // — même montage que la série 1 de /entrainement/tcf/[code]/[level].
+      const a = isGuest
+        ? await publicAttemptApi.startDemo(body)
+        : await attemptApi.start(body);
       router.push(`/sessions/${a.id}`);
     } catch (e) {
       handleStartFailure(e, {
         onPaywall: () => {
           setIntroOpen(false);
-          setPaywallOpen(true);
+          if (isGuest) setGuestGateOpen(true);
+          else setPaywallOpen(true);
         },
         onMessage: setError,
         fallbackMessage: "Impossible de démarrer l'examen.",
@@ -230,7 +247,7 @@ export default function TcfModuleExamsPage() {
           count={SLOTS}
           exams={bySlot}
           premium={isPremium}
-          freeSlots={isGuest ? 0 : 1}
+          freeSlots={FREE_SLOTS}
           lockedLabel={isGuest ? "Compte gratuit" : undefined}
           starting={starting}
           onStart={requestStart}
@@ -252,7 +269,7 @@ export default function TcfModuleExamsPage() {
         <GuestGateSheet
           open={guestGateOpen}
           onClose={() => setGuestGateOpen(false)}
-          message="Les examens blancs par épreuve sont réservés aux comptes. Créez un compte gratuit pour les passer — et l'examen diagnostic complet reste offert sur la page Examens blancs."
+          message="Le premier examen blanc de chaque épreuve est offert sans compte. Pour passer les suivants et retrouver vos scores, créez un compte gratuit."
         />
       </DetailShell>
     </DualChromeShell>

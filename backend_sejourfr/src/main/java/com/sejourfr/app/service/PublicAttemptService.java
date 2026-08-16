@@ -23,6 +23,11 @@ import java.util.UUID;
  *       déterministes (cf. {@link AttemptService#startGuestDemo}), donc relancer
  *       une démo redonne toujours la même série — l'objectif est de convertir,
  *       pas d'offrir un entraînement complet.</li>
+ *   <li>Périmètre ouvert sans compte : série 1, template free (diagnostic
+ *       complet), examen civique global, et depuis le 2026-08-16 le
+ *       <b>slot 1</b> d'un examen blanc d'épreuve TCF QCM (CO / CE /
+ *       STRUCTURE). Les examens civiques de thème, les slots 2+ et les
+ *       productions EE/EO restent réservés aux comptes.</li>
  *   <li>Accès en lecture / answers / finish : exige que l'attempt soit guest
  *       (user IS NULL) ET que l'IP du caller corresponde. Sinon 404 silencieux
  *       (pas 403, pour ne pas révéler l'existence).</li>

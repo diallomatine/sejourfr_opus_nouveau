@@ -1232,12 +1232,28 @@ enfants sans sidebar quand `status !== "authenticated"`).
   start anonyme MOCK_EXAM template free). Examens 2-20 → `GuestGateSheet`.
   Les attempts guests sont en base (user NULL + IP) → analytics « combien
   de visiteurs se testent ».
-- **Examens ciblés = compte requis, pages vitrines** : les pages `*/examens`
-  (civique thème + TCF CO/CE/STRUCTURE) s'affichent en guest (grille des 20
+- **Examen blanc d'épreuve TCF QCM : le n° 1 est JOUABLE SANS COMPTE**
+  (règle du **2026-08-16**, elle **révoque** la vitrine intégrale décrite
+  ci-dessous pour ces trois pages). `/entrainement/tcf/{co,ce,structure}/examens`
+  passe `freeSlots=1` en guest comme pour un compte gratuit, et le démarrage
+  part par la **voie publique** — `publicAttemptApi.startDemo({type:"MOCK_EXAM",
+  module:"TCF", moduleExamQuestionType, slotNumber:1})` → nouveau
+  `AttemptService.startGuestModuleExam` (attempt `user NULL` + `clientIp`,
+  tirage **déterministe** : rejouer redonne le même examen). Le retour de
+  session `/sessions/[attemptId]` fonctionne déjà en guest (`GUEST_BACKEND` +
+  `GuestResultCta`), rien n'y a été ajouté. Examens **2 à 20** →
+  `GuestGateSheet`, et le backend rend **403** (même verrou, `slot != 1`).
+  La constante `FREE_SLOTS` de la page est le miroir de
+  `AttemptService.enforceMockExamSlotAccess` / `startGuestModuleExam`.
+  ⚠️ Le **mobile n'est pas concerné** : il n'a aucun mode invité (garde
+  `redirect` de `core/router/app_router.dart`), un compte y est exigé avant
+  d'atteindre ces écrans, et seul l'**abonnement** s'y vérifie. Écart web ⇄
+  mobile **assumé et documenté**, pas un oubli de parité.
+- **Examens ciblés CIVIQUES = compte requis, page vitrine** : la page
+  `/entrainement/civique/[theme]/examens` s'affiche en guest (grille des
   examens, stats « — · compte requis ») mais tout slot est verrouillé
   (`freeSlots=0`, badge « Compte gratuit ») → `GuestGateSheet`. Le backend
-  double le verrou (403 sur MOCK_EXAM guest themeId/moduleExamQuestionType).
-  Le seul examen guest est le diagnostic complet de /examens-blancs.
+  double le verrou (403 sur un MOCK_EXAM guest portant un `themeId`).
   **EE/EO** : réservés aux comptes (`ModuleDetailGate`).
 
 **URLs civique en slugs** : `/entrainement/civique/[theme]` où `theme` est le
