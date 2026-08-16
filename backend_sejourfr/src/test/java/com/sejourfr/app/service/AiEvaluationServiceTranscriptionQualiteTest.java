@@ -77,6 +77,7 @@ class AiEvaluationServiceTranscriptionQualiteTest {
     private AiEvaluationManager aiEvaluationManager;
     private EvaluationLlmClient llmClient;
     private ProductionEvaluationProperties props;
+    private EvaluationPurgeMetrics purgeMetrics;
     private AiEvaluationService service;
 
     @BeforeEach
@@ -98,7 +99,7 @@ class AiEvaluationServiceTranscriptionQualiteTest {
             new ProductionValidityService(props),
             new ProductionSecondePasseService(props, mock(EvaluationLlmClient.class), rubrics),
             new ProductionFluiditeService(props), new EvaluationRefusalMetrics(),
-            new EvaluationPurgeMetrics(), props);
+            purgeMetrics = new EvaluationPurgeMetrics(), props);
     }
 
     // ------------------------------------------- la note ne bouge JAMAIS
@@ -149,14 +150,16 @@ class AiEvaluationServiceTranscriptionQualiteTest {
         assertThat(commentaire(eval, "morphosyntaxe"))
             .as("a l'ecrit, le candidat tape chaque lettre : 0 artefact sur 67 productions mesurees")
             .contains("abit à Lille");
-        assertThat(avertissements(eval))
-            .noneSatisfy(a -> assertThat(a)
-                .isEqualTo(EvaluationOralArtifactFilter.AVERTISSEMENT_FORME));
+        assertThat(purgeMetrics.compteurs()).doesNotContainKey("ARTEFACT_ORAL_FORME/remarques");
     }
 
-    /** A l'ORAL, la meme phrase sur la meme forme est retiree, et le candidat est prevenu. */
+    /**
+     * A l'ORAL, la meme phrase sur la meme forme est retiree — et la purge est
+     * COMPTEE sans etre annoncee : depuis le 2026-08-17 le candidat ne recoit
+     * que l'unique avertissement oral, jamais le detail de nos filets.
+     */
     @Test
-    void a_l_oral_la_meme_forme_est_retiree_et_le_candidat_est_prevenu() {
+    void a_l_oral_la_meme_forme_est_retiree_sans_etre_annoncee() {
         Map<String, Object> feedback = feedbackOral();
         scoreDe(feedback, "morphosyntaxe").put("commentaire",
             "Phrases simples correctement construites. "
@@ -166,8 +169,9 @@ class AiEvaluationServiceTranscriptionQualiteTest {
         AiEvaluation eval = service.evaluate(submissionOrale(DIALOGUE_ABIT).getId());
 
         assertThat(commentaire(eval, "morphosyntaxe")).doesNotContain("abit à Lille");
+        assertThat(purgeMetrics.compteurs().get("ARTEFACT_ORAL_FORME/remarques")).isPositive();
         assertThat(avertissements(eval))
-            .contains(EvaluationOralArtifactFilter.AVERTISSEMENT_FORME);
+            .containsExactly(AiEvaluationService.AVERTISSEMENT_TRANSCRIPTION);
     }
 
     /** Transcription saine ou non, la meme forme isolee est ecartee a l'oral. */

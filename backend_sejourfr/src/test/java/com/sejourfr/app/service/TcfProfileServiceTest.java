@@ -124,6 +124,37 @@ class TcfProfileServiceTest {
         assertThat(service.levelProfile(userId).ce()).isEqualTo(NiveauCecrl.B2);
     }
 
+    // ------------------------------------------------------- plancher produit A1
+
+    /**
+     * Le <b>plancher produit SejourFR</b> (« au moins une bonne réponse ⇒ au
+     * moins A1 ») se propage ici <b>sans être recodé</b> : le service ne fait
+     * que lire {@code cecrl_level}, ou le dériver par
+     * {@link TcfLevelEstimatorService#levelFromWeighted}, qui le porte déjà.
+     * 1/50 pondéré (2 %, sous la ligne du hasard) valait
+     * {@code A1_NON_ATTEINT} ; il vaut désormais A1.
+     */
+    @Test
+    void plancherProduit_uneBonneReponseSuffitAFaireA1_sansRecoderLaRegle() {
+        Attempt legacy = qcm(null);
+        legacy.setWeightedScore(1);
+        legacy.setMaxWeightedScore(50);
+        stubQcm(EpreuveType.TCF_CO, List.of(legacy));
+
+        assertThat(service.levelProfile(userId).co()).isEqualTo(NiveauCecrl.A1);
+    }
+
+    /** Zéro bonne réponse : le plancher ne rachète rien, l'épreuve reste au plus bas. */
+    @Test
+    void plancherProduit_zeroBonneReponse_resteA1NonAtteint() {
+        Attempt legacy = qcm(null);
+        legacy.setWeightedScore(0);
+        legacy.setMaxWeightedScore(50);
+        stubQcm(EpreuveType.TCF_CO, List.of(legacy));
+
+        assertThat(service.levelProfile(userId).co()).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
+    }
+
     // ------------------------------------------------------------------ épreuve non passée
 
     @Test

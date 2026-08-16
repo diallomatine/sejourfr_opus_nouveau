@@ -49,16 +49,23 @@ public class AiEvaluationService {
     private static final BigDecimal SEUIL_ECART_CALIBRATION = new BigDecimal("3");
 
     /**
-     * Limite ASSUMEE de la correction orale : on ne dispose que du texte
-     * transcrit (en temps reel, l'audio ne transite meme pas par nos serveurs).
-     * Ce n'est pas un choix pedagogique — on le dit au candidat, mot pour mot.
+     * SEUL avertissement d'une production ORALE (2026-08-17). Il dit trois
+     * choses et s'arrete la : on lit la transcription et pas la voix, cette
+     * transcription peut se tromper sans que le candidat en paie le prix, et la
+     * prononciation n'est donc pas notee.
+     *
+     * <p>Il a remplace un pave de trois paragraphes. Les deux autres
+     * avertissements annoncaient une purge — c'est-a-dire une mecanique interne
+     * dont le candidat n'a rien a faire, et que la deuxieme phrase couvre deja.
+     * La mention « prononciation et aisance ne sont pas evaluees » est
+     * CONSERVEE : la retirer laisserait croire que l'oral a ete juge dessus et
+     * que c'est bon. Le renvoi a l'examen officiel, lui, a sa place dans
+     * {@code docs/notation-ia-eo-ee.md}, pas sur une carte de resultat.
      */
     static final String AVERTISSEMENT_TRANSCRIPTION =
-        "Cette évaluation est fondée sur la transcription écrite de votre production : "
-            + "nous n'analysons pas votre voix. L'aisance, la fluidité, le débit et la "
-            + "prononciation ne sont donc pas évalués ici — c'est une limite technique de "
-            + "notre correction, pas un choix pédagogique. À l'examen officiel, ces "
-            + "dimensions comptent.";
+        "Nous analysons la transcription écrite de votre enregistrement, pas votre voix — "
+            + "et la transcription peut se tromper. Dans ce cas, l'erreur ne vous est jamais "
+            + "comptée. La prononciation et l'aisance ne sont donc pas évaluées ici.";
 
     static final String AVERTISSEMENT_PREUVE_RETIREE =
         "Une des quatre citations justificatives n'a pas pu être reliée de façon sûre "
@@ -558,15 +565,15 @@ public class AiEvaluationService {
                     submissionId, purge.remarquesRetirees(), purge.remarquesLangueRetirees(),
                     purge.remarquesFormeRetirees(), purge.exemplesRetires());
             }
-            if (purge.remarquesRetirees() > 0) {
-                addAvertissement(feedback, EvaluationOralArtifactFilter.AVERTISSEMENT_ARTEFACT);
-            }
-            if (purge.remarquesLangueRetirees() > 0) {
-                addAvertissement(feedback, EvaluationOralArtifactFilter.AVERTISSEMENT_LANGUE);
-            }
-            if (purge.remarquesFormeRetirees() > 0) {
-                addAvertissement(feedback, EvaluationOralArtifactFilter.AVERTISSEMENT_FORME);
-            }
+            // 🛑 UNE PURGE NE S'ANNONCE PLUS AU CANDIDAT (2026-08-17). Les trois
+            // avertissements dedies (mot isole / langue etrangere / forme en
+            // morphosyntaxe) lui expliquaient une MECANIQUE INTERNE dont il n'a
+            // rien a faire, et empilaient un pave de trois paragraphes sous son
+            // resultat. Ce qu'il doit savoir tient dans l'unique
+            // AVERTISSEMENT_TRANSCRIPTION : la transcription peut se tromper, et
+            // dans ce cas l'erreur ne lui est jamais comptee — c'est exactement
+            // ce que ces trois filets garantissent. La TRACE, elle, reste
+            // entiere : les purges continuent et sont comptees juste en dessous.
             purgeMetrics.enregistrer(EvaluationPurgeMetrics.Filtre.ARTEFACT_ORAL_MOT,
                 purge.remarquesRetirees(), 0);
             purgeMetrics.enregistrer(EvaluationPurgeMetrics.Filtre.ARTEFACT_ORAL_LANGUE,
@@ -1319,10 +1326,17 @@ public class AiEvaluationService {
     /**
      * Avertissements affiches a l'utilisateur (construits serveur, hors IA) :
      * <ul>
-     *   <li>EO : limite assumee « evaluation fondee sur la transcription »,
-     *       TOUJOURS en tete (cf. {@link #AVERTISSEMENT_TRANSCRIPTION}) ;</li>
+     *   <li>EO : limite assumee « on lit la transcription, pas la voix »,
+     *       TOUJOURS en tete et desormais SEULE (cf.
+     *       {@link #AVERTISSEMENT_TRANSCRIPTION}) — les trois avertissements de
+     *       purge d'{@code EvaluationOralArtifactFilter} ont ete supprimes ;</li>
      *   <li>EE : depassement de la limite de mots pour les anciennes donnees ;</li>
      * </ul>
+     *
+     * <p>S'y ajoutent, au fil du pipeline, les raisons de validite et les
+     * avertissements de degradation (preuve retiree, marqueur de palier purge) :
+     * la liste servie aux fronts n'a donc pas de taille fixe, et les evaluations
+     * deja persistees gardent leurs anciens textes — aucune migration.
      */
     private List<String> buildAvertissements(ProductionSubmission sub, ProductionTask task) {
         List<String> out = new ArrayList<>();

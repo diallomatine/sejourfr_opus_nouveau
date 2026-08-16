@@ -1946,6 +1946,32 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   Au passage, `reprocheDeNiveauMot` (volet MOT) exige désormais ≥ 1 mot porteur :
   il purgeait par inadvertance les citations 100 % mots-outils, qui sont de vrais
   reproches de grammaire. Resserrement pur.
+- **UN SEUL avertissement sur une production ORALE** (2026-08-17). Le bloc « À savoir sur
+  cette évaluation » empilait **trois** paragraphes ; il n'en porte plus qu'un,
+  `AiEvaluationService.AVERTISSEMENT_TRANSCRIPTION`, réécrit en trois phrases : « Nous
+  analysons la transcription écrite de votre enregistrement, pas votre voix — et la
+  transcription peut se tromper. Dans ce cas, l'erreur ne vous est jamais comptée. La
+  prononciation et l'aisance ne sont donc pas évaluées ici. » Les constantes
+  `AVERTISSEMENT_ARTEFACT`, `AVERTISSEMENT_FORME` et `AVERTISSEMENT_LANGUE` d'
+  `EvaluationOralArtifactFilter` sont **supprimées**, ainsi que les trois `addAvertissement`
+  qui les posaient. Motifs : elles racontaient au candidat la **mécanique interne** de nos
+  purges, et leur seul contenu utile (« la transcription peut se tromper, on ne vous le
+  compte pas ») est **exactement** ce que dit la 2ᵉ phrase du texte unique — d'où l'absorption
+  de `AVERTISSEMENT_LANGUE` avec les deux autres. La mention « prononciation et aisance »
+  est **conservée** (la retirer laisserait croire que l'oral a été jugé dessus et que c'est
+  bon) ; le renvoi à l'examen officiel part dans `docs/notation-ia-eo-ee.md` §9.
+  🛑 **Aucun filtre n'est désactivé, aucun compteur n'est retiré** : les purges des trois
+  volets tournent à l'identique et restent comptées par `EvaluationPurgeMetrics` — c'est le
+  **texte affiché** qui disparaît, pas le nettoyage ni sa trace. Ne pas recréer ces
+  constantes. Miroirs front (le **repli** quand la liste arrive vide sur une tâche orale,
+  évaluations antérieures) : `web/ProductionFeedbackView.TRANSCRIPTION_LIMIT` ⇄
+  `mobile/kOralEvaluationLimitNotice`, mot pour mot. **Legacy intact** : les `feedback_json`
+  déjà persistés gardent leurs anciens textes, aucune migration, et les fronts affichent la
+  liste reçue quel qu'en soit le nombre. Les **commentaires de critère de remplacement**
+  (`COMMENTAIRE_CRITERE_PURGE*`, `OBJECTIF_RESUME_PURGE_LANGUE`) sont **inchangés** : ce sont
+  des champs obligatoires qui ne peuvent pas rester vides, pas des avertissements. Le
+  **diagnostic** n'est pas concerné (`DiagnosticOralArtifactFilter` remplace le `summary`, il
+  ne pose aucun avertissement).
 - **Indicateur de qualité de transcription** (`TranscriptionQualityAudit`, migration
   `V027`). Whisper renvoie `segments[].avg_logprob/no_speech_prob/compression_ratio` dans
   `verbose_json` — **payés depuis toujours, jamais lus** ; le temps réel n'expose rien.
@@ -2048,6 +2074,62 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   plancher où une épreuve abandonnée compte `A1_NON_ATTEINT`. L'arbitrage
   ci-dessus ne vaut que pour le **niveau d'un candidat dans le temps** — ne pas
   le propager à ces deux calculs sans une décision explicite.
+
+## Niveau QCM — plancher A1 dès UNE bonne réponse (2026-08-17)
+
+Sur les trois épreuves QCM (**CO**, **CE**, **STRUCTURE**), `A1_NON_ATTEINT` est
+réservé au candidat qui a **zéro** bonne réponse. Dès qu'il en a **au moins une**,
+le niveau rendu est au minimum **A1**. Décision produit du propriétaire.
+
+- **La table officielle et la formule calibrée ne bougent pas d'un octet.**
+  `BandeNoteTcf` reste en code (donnée officielle, pas réglage), les bandes du
+  score calibré (≥400 B2 · ≥300 B1 · ≥200 A2 · ≥101 A1 · sinon A1 non atteint) et
+  la correction du hasard à 25 % de `TcfLevelEstimatorService` sont **inchangées
+  et gelées par test** (frontières 43/44, 62/63, 81/82 ; valeurs 100 / 233 / 499).
+  Le score affiché ne bouge pas non plus : une seule bonne réponse reste
+  **100/499**, seul le niveau change. Motif de la règle : sous ~25 % pondéré la
+  correction du hasard ramène **tout** à la borne basse, donc 1, 6 ou 12 bonnes
+  réponses rendaient le même « A1 non atteint ».
+- **Autorité unique : `TcfLevelEstimatorService.plancherA1SiUneBonneReponse`**,
+  posée **par-dessus** la bande, appelée par les deux entrées (`estimateQcm`,
+  `levelFromWeighted`) et par le repli legacy de `FullTcfExamResponseBuilder`.
+  Jamais recopiée : `AttemptScoringService`, `AttemptMapper`, `TcfProfileService`
+  et le builder d'examen complet en héritent sans une ligne de règle. Trivial à
+  retirer — trois appels et une méthode.
+- ⚠️ **Ce garde-fou RELÈVE**, à l'inverse de tous les autres du dépôt
+  (`applyCouplage`, `applyPlafonds`, `applyConfiance`,
+  `CompetenceLevelEvidenceGuard`, `CoherenceBilan`), qui ne peuvent qu'**abaisser**.
+  **L'asymétrie est VOULUE — ne pas la « corriger ».** Elle est sûre parce
+  qu'elle est bornée : elle ne relève que **depuis** `A1_NON_ATTEINT` et
+  seulement d'**un cran**, vers `A1` ; aucun seuil de bande ne peut être franchi.
+- **« Aucune bonne réponse » englobe « aucune réponse donnée »** : un candidat
+  qui n'a rien répondu a bien zéro bonne réponse et reste `A1_NON_ATTEINT`. À ne
+  pas confondre avec « pas de donnée », qui reste `null` en amont (*null =
+  inconnu, jamais mauvais*) et que le plancher ne touche pas non plus. Dans
+  `levelFromWeighted`, faute du nombre de bonnes réponses, le signal est
+  `weighted > 0` — équivalence stricte sur un examen stratifié, où toute question
+  porte une strate A2/B1/B2 donc un poids ≥ 1.
+- 🛑 **Les exclusions du plancher d'examen complet sont INTACTES** : une épreuve
+  `locked` (freemium), une épreuve à `cecrlLevel` null, et une épreuve **jamais
+  ouverte** (`timer_started_at` NULL **et** rien de rendu, règle du 2026-08-15)
+  restent hors de `floorOfCecrls`. Aucune n'est « rachetée » à A1 : elles n'ont
+  pas de bonne réponse à compter, elles n'ont pas de niveau. En revanche une
+  épreuve **ouverte puis abandonnée** reste comptée — 0 bonne réponse ⇒
+  `A1_NON_ATTEINT`, comportement voulu. Relever une épreuve QCM peut donc
+  relever `finalCecrlLevel` : c'est attendu.
+- 🛑 **Aucune migration, aucun recalcul rétroactif** des `attempts.cecrl_level`
+  déjà persistés — c'est l'historique. Volume mesuré au moment de la bascule :
+  **18 lignes CO/CE/STRUCTURE sur 4 comptes** (13 CO, 4 CE, 1 TCF_CO) auraient
+  changé, soit 37,5 % des lignes `A1_NON_ATTEINT` ; 0 sur le repli de lecture.
+- ⚠️ **`FullTcfExamResponseBuilder.weightedScoreToCecrl` est une SECONDE table,
+  volontairement divergente** (ratio brut 80/60/40/20 %, sans correction du
+  hasard) : repli des sous-attempts antérieurs à V416 dont `cecrl_level` est
+  NULL. Elle n'est **pas** fusionnée avec l'estimateur — la faire déléguer
+  changerait rétroactivement le niveau affiché sur cet historique. Seul le
+  **plancher** s'y applique, via l'autorité unique, jamais une copie locale.
+- Les 3 fronts n'ont rien à changer : aucun ne dérive un niveau CECRL depuis un
+  score ou un nombre de bonnes réponses (vérifié). Le niveau est **calculé
+  serveur** et lu tel quel.
 
 ## L'audio d'une production de candidat n'est pas conservé (2026-08-16)
 

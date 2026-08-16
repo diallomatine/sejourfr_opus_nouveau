@@ -253,25 +253,17 @@ final class EvaluationOralArtifactFilter {
         "Ton objectif a été évalué sur ce que tu as dit en français : les passages transcrits "
             + "dans une autre langue n'ont pas été retenus contre toi.";
 
-    /** Avertissement candidat, pose des qu'au moins une remarque a ete retiree. */
-    static final String AVERTISSEMENT_ARTEFACT =
-        "Une ou plusieurs remarques portaient sur un mot isolé de la transcription "
-            + "automatique : elles ont été retirées. À l'oral, un mot mal transcrit n'est "
-            + "jamais compté comme une erreur de votre part.";
-
-    /** Avertissement candidat propre au volet FORME. */
-    static final String AVERTISSEMENT_FORME =
-        "Une ou plusieurs remarques de grammaire portaient sur la forme d'un ou deux mots de "
-            + "la transcription automatique : elles ont été retirées. À l'oral, une faute de "
-            + "grammaire se voit sur une structure de phrase — la forme d'un mot isolé, elle, "
-            + "ne s'entend pas et peut venir de notre machine.";
-
-    /** Avertissement candidat propre au volet LANGUE. */
-    static final String AVERTISSEMENT_LANGUE =
-        "Une ou plusieurs remarques vous reprochaient d'être passé à une autre langue : elles "
-            + "ont été retirées. Ces passages sont produits par notre transcription "
-            + "automatique, qui bascule parfois de langue toute seule — ils ne vous sont "
-            + "jamais comptés comme une faute.";
+    // 🛑 LES TROIS AVERTISSEMENTS CANDIDAT DE CE FILET ONT ETE SUPPRIMES
+    // (2026-08-17) : `AVERTISSEMENT_ARTEFACT` (mot isole),
+    // `AVERTISSEMENT_FORME` (forme d'un ou deux mots) et
+    // `AVERTISSEMENT_LANGUE` (langue etrangere du transcripteur). Ils
+    // racontaient au candidat la mecanique de nos purges, et empilaient un pave
+    // de trois paragraphes sous son resultat. La seule chose qu'il en retenait
+    // — « la transcription peut se tromper, on ne vous le compte pas » — est
+    // desormais dite une fois, dans
+    // {@code AiEvaluationService.AVERTISSEMENT_TRANSCRIPTION}. Ne PAS les
+    // recreer : ce sont les compteurs {@code EvaluationPurgeMetrics} qui
+    // portent la trace de ces purges, pas un texte a l'ecran.
 
     /** Resultat d'une purge : le feedback est modifie en place. */
     record Resultat(int remarquesRetirees, int remarquesLangueRetirees,

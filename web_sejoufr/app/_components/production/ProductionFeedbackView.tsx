@@ -12,11 +12,22 @@ import {ResultsSummaryTiles} from "./ResultsSummaryTiles";
 import {TargetLevelReachedCard} from "./TargetLevelReachedCard";
 import styles from "./production.module.css";
 
+/**
+ * Limite de l'évaluation orale, **mot pour mot** le seul avertissement que le
+ * serveur pose sur une production orale (`AiEvaluationService
+ * .AVERTISSEMENT_TRANSCRIPTION`). Repli quand la liste arrive vide sur une tâche
+ * orale (évaluation antérieure) — le candidat doit savoir dans tous les cas que
+ * sa voix n'a pas été écoutée.
+ *
+ * ⚠️ Il a remplacé un pavé de trois paragraphes (2026-08-17) : les deux autres
+ * avertissements annonçaient une purge, c'est-à-dire une mécanique interne dont
+ * le candidat n'a rien à faire. Le renvoi à l'examen officiel vit désormais dans
+ * `docs/notation-ia-eo-ee.md`, pas sur une carte de résultat.
+ */
 const TRANSCRIPTION_LIMIT =
-  "Cette évaluation est fondée sur la transcription écrite de votre production : nous " +
-  "n'analysons pas votre voix. L'aisance, la fluidité, le débit et la prononciation ne sont " +
-  "donc pas évalués ici — c'est une limite technique de notre correction, pas un choix " +
-  "pédagogique. À l'examen officiel, ces dimensions comptent.";
+  "Nous analysons la transcription écrite de votre enregistrement, pas votre voix — et la " +
+  "transcription peut se tromper. Dans ce cas, l'erreur ne vous est jamais comptée. La " +
+  "prononciation et l'aisance ne sont donc pas évaluées ici.";
 
 /**
  * Restitution d'une production EE/EO. Ce n'est pas un rapport d'expertise pour

@@ -335,15 +335,29 @@ public class FullTcfExamResponseBuilder {
      * Seuils calibrés sur l'esprit du TCF (60 % = B1 d'usage). Le vrai TCF
      * IRN utilise une grille interne non publique — ces seuils sont
      * volontairement simples pour rester explicables à l'utilisateur.
+     *
+     * <p>⚠️ <b>Table volontairement figée, et divergente</b> de celle de
+     * {@link TcfLevelEstimatorService} (bandes du score calibré 100-499 corrigé
+     * du hasard) : elle ne sert qu'aux sous-attempts <b>antérieurs à V416</b>,
+     * dont le {@code cecrl_level} n'a jamais été posé. La faire déléguer à
+     * l'estimateur changerait rétroactivement le niveau affiché sur cet
+     * historique — ce n'est pas un arbitrage à prendre ici.
+     *
+     * <p>Le <b>plancher produit</b> « au moins une bonne réponse ⇒ au moins A1 »
+     * s'y applique quand même : c'est une règle d'affichage transverse, et une
+     * seule autorité la porte ({@link TcfLevelEstimatorService
+     * #plancherA1SiUneBonneReponse}) — jamais une copie locale.
      */
     private NiveauCecrl weightedScoreToCecrl(Integer score, Integer maxScore) {
         if (score == null || maxScore == null || maxScore <= 0) return null;
         double ratio = (double) score / (double) maxScore;
-        if (ratio >= 0.80) return NiveauCecrl.B2;
-        if (ratio >= 0.60) return NiveauCecrl.B1;
-        if (ratio >= 0.40) return NiveauCecrl.A2;
-        if (ratio >= 0.20) return NiveauCecrl.A1;
-        return NiveauCecrl.A1_NON_ATTEINT;
+        NiveauCecrl niveau =
+                  ratio >= 0.80 ? NiveauCecrl.B2
+                : ratio >= 0.60 ? NiveauCecrl.B1
+                : ratio >= 0.40 ? NiveauCecrl.A2
+                : ratio >= 0.20 ? NiveauCecrl.A1
+                : NiveauCecrl.A1_NON_ATTEINT;
+        return levelEstimator.plancherA1SiUneBonneReponse(niveau, score > 0);
     }
 
     /**

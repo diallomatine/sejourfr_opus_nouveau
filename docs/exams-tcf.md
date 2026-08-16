@@ -44,6 +44,37 @@ déjà enregistrées (pas de job planifié — expiration paresseuse, comme les 
 A2=1, B1=2, B2=3 → max 50 pts pour la répartition 8/9/8. Calculé à la finalisation par
 `computeWeightedScore`.
 
+### Le niveau affiché après une épreuve CO, CE ou STRUCTURE
+
+Après chaque épreuve à questions à choix multiples, deux informations sont
+rendues : un **score sur 499**, l'échelle du relevé officiel du TCF, et un
+**niveau** (A1 non atteint, A1, A2, B1, B2).
+
+Le score est calculé « au-dessus du hasard » : dans un QCM à quatre propositions,
+on obtient déjà environ un quart de bonnes réponses en cochant au petit bonheur.
+Ce quart-là ne compte donc pas, et un résultat qui reste en dessous retombe à la
+note plancher de 100 sur 499.
+
+Une conséquence était injuste, et elle est corrigée depuis le 17 août 2026 :
+**« A1 non atteint » est désormais réservé au candidat qui n'a obtenu aucune
+bonne réponse.** Dès qu'il en a **au moins une**, le niveau affiché est au
+minimum **A1**. Avant, une personne ayant six bonnes réponses sur vingt-cinq
+recevait exactement le même verdict que celle qui n'en avait aucune — le score
+étant identique dans les deux cas, le niveau l'était aussi. Ce n'était pas faux
+au sens du calcul, mais c'était faux au sens de ce que la personne avait montré.
+
+Deux précisions, pour être exact :
+
+- **Le score, lui, ne change pas.** Une seule bonne réponse vaut toujours
+  100 sur 499 : on ne relève pas la note, on cesse seulement de dire « A1 non
+  atteint » à quelqu'un qui a réussi quelque chose. Le barème du TCF n'est pas
+  retouché, cette règle est une décision de SejourFR posée par-dessus.
+- **Ne pas répondre du tout, c'est n'avoir aucune bonne réponse** : le niveau
+  reste « A1 non atteint ». En revanche, une épreuve qu'on n'a **jamais ouverte**
+  — parce qu'on a quitté l'examen avant, ou parce qu'elle est réservée à
+  l'abonnement — n'a pas de niveau du tout, et n'est comptée nulle part. Ne rien
+  savoir n'est pas la même chose que mal faire.
+
 ### Endpoints
 
 - `POST /api/attempts {type:MOCK_EXAM, module:TCF, moduleExamQuestionType:CO|CE|STRUCTURE}`

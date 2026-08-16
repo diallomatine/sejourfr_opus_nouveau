@@ -15,6 +15,7 @@ import com.sejourfr.app.enums.AttemptStatus;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
@@ -224,6 +225,42 @@ class AttemptServiceReadIT extends AbstractIntegrationTest {
         assertThat(persisted.getCecrlLevel()).isNotNull();
         assertThat(persisted.getWeightedScore()).isEqualTo(0); // aucune réponse correcte
         assertThat(persisted.getMaxWeightedScore()).isGreaterThan(0);
+        // Zéro bonne réponse : le plancher produit ne rachète rien.
+        assertThat(persisted.getCecrlLevel()).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
+    }
+
+    /**
+     * PLANCHER PRODUIT SEJOURFR — « au moins une bonne réponse ⇒ au moins A1 ».
+     * Vérifié là où le niveau est réellement PERSISTÉ ({@code attempts.cecrl_level}),
+     * sur les trois épreuves QCM. Une seule bonne réponse pèse ~1/50 pondéré,
+     * donc bien sous la ligne du hasard : le score calibré reste à sa borne
+     * basse (100/499) et la bande vaut {@code A1_NON_ATTEINT} — c'est le
+     * plancher, et lui seul, qui rend {@code A1}.
+     */
+    @Test
+    void finish_moduleExamTcf_uneSeuleBonneReponse_poseA1_surLesTroisEpreuves() {
+        for (QuestionType epreuve : List.of(QuestionType.CO, QuestionType.CE, QuestionType.STRUCTURE)) {
+            User user = data.user();
+            data.userSubscription(user, data.plan());
+            AttemptResponse started = service.start(user.getId(), new StartAttemptRequest(
+                    AttemptType.MOCK_EXAM, Module.TCF, null, null, null, null, null, null,
+                    epreuve, null));
+
+            AttemptQuestion first = attemptQuestionManager
+                    .findByAttemptOrderedByPosition(started.id()).get(0);
+            service.submitAnswer(user.getId(), started.id(),
+                    new SubmitAnswerRequest(first.getId(), List.of(correctChoiceId(first))));
+
+            AttemptResponse finished = service.finish(user.getId(), started.id());
+
+            assertThat(finished.score()).as("épreuve %s", epreuve).isEqualTo(1);
+            Attempt persisted = attemptManager.findById(started.id()).orElseThrow();
+            assertThat(persisted.getWeightedScore()).as("épreuve %s", epreuve).isGreaterThan(0);
+            assertThat(persisted.getCecrlLevel()).as("épreuve %s", epreuve)
+                    .isEqualTo(NiveauCecrl.A1);
+            // Le score calibré servi aux fronts, lui, n'a pas bougé d'un point.
+            assertThat(finished.calibratedScore()).as("épreuve %s", epreuve).isEqualTo(100);
+        }
     }
 
     @Test

@@ -13,16 +13,23 @@ import 'results_summary_tiles.dart';
 import 'results_section_head.dart';
 import 'target_level_reached_card.dart';
 
-/// Limite de l'evaluation orale, mot pour mot (cf. `docs/notation-ia-eo-ee.md`
-/// §9). Le correcteur la renvoie normalement dans ses `avertissements` ; ce
-/// texte est le REPLI quand la liste arrive vide sur une tache orale — le
+/// Limite de l'evaluation orale, **mot pour mot** le seul avertissement que le
+/// serveur pose sur une production orale (`AiEvaluationService
+/// .AVERTISSEMENT_TRANSCRIPTION`, cf. `docs/notation-ia-eo-ee.md` §9). Le
+/// serveur le renvoie normalement dans `avertissements` ; ce texte est le REPLI
+/// quand la liste arrive vide sur une tache orale (evaluation anterieure) — le
 /// candidat doit savoir dans tous les cas que sa voix n'a pas ete ecoutee.
+///
+/// ⚠️ Il a remplace un pave de trois paragraphes (2026-08-17) : les deux autres
+/// avertissements annoncaient une purge, c'est-a-dire une mecanique interne dont
+/// le candidat n'a rien a faire. Le renvoi a l'examen officiel vit desormais
+/// dans la doc, pas sur une carte de resultat. Miroir web :
+/// `TRANSCRIPTION_LIMIT` de `ProductionFeedbackView.tsx`.
 const String kOralEvaluationLimitNotice =
-    'Cette évaluation est fondée sur la transcription écrite de votre '
-    'production : nous n\'analysons pas votre voix. L\'aisance, la fluidité, '
-    'le débit et la prononciation ne sont donc pas évalués ici — c\'est une '
-    'limite technique de notre correction, pas un choix pédagogique. '
-    'À l\'examen officiel, ces dimensions comptent.';
+    'Nous analysons la transcription écrite de votre enregistrement, pas votre '
+    'voix — et la transcription peut se tromper. Dans ce cas, l\'erreur ne vous '
+    'est jamais comptée. La prononciation et l\'aisance ne sont donc pas '
+    'évaluées ici.';
 
 /// Corps commun des ecrans de resultats EE et EO : meme correction, meme ordre,
 /// un seul endroit a faire evoluer.

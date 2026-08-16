@@ -288,6 +288,99 @@ class FullTcfExamResponseBuilderTest {
         assertThat(r.finalLevelPartial()).isTrue();
     }
 
+    // ------------------------------------------- plancher produit « ≥ 1 bonne »
+
+    /**
+     * Le <b>plancher produit SejourFR</b> (« au moins une bonne réponse ⇒ au
+     * moins A1 ») remonte jusqu'ici par le {@code cecrl_level} persisté : une CO
+     * à une seule bonne réponse vaut désormais A1, et c'est cet A1 — non plus
+     * {@code A1_NON_ATTEINT} — qui devient le plancher global de l'examen.
+     *
+     * <p>Les trois exclusions du plancher restent intactes et se cumulent :
+     * épreuve {@code locked} (freemium), épreuve à niveau {@code null}, épreuve
+     * <b>jamais ouverte</b>. Aucune n'est « remontée » à A1 par la nouvelle
+     * règle : elles n'ont pas de bonne réponse à compter, elles n'ont pas de
+     * niveau du tout.
+     */
+    @Test
+    void plancherProduit_uneEpreuveQcmAUnA1_devientLePlancherGlobal() {
+        Attempt p = parent(true);
+        Attempt co = qcm(EpreuveType.TCF_CO, NiveauCecrl.A1);
+        co.setWeightedScore(1);
+        co.setMaxWeightedScore(50);
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                co,
+                qcm(EpreuveType.TCF_CE, NiveauCecrl.B1),
+                production(EpreuveType.TCF_EE),          // verrouillée par le parent
+                jamaisOuverte(EpreuveType.TCF_EO)));     // jamais ouverte
+
+        FullTcfExamResponse r = builder.buildResponse(p);
+
+        assertThat(subOf(r, EpreuveType.TCF_CO).cecrlLevel()).isEqualTo(NiveauCecrl.A1);
+        // Le score calibré, lui, reste à sa borne basse : la règle ne le touche pas.
+        assertThat(subOf(r, EpreuveType.TCF_CO).calibratedScore()).isEqualTo(100);
+        assertThat(subOf(r, EpreuveType.TCF_EE).locked()).isTrue();
+        assertThat(subOf(r, EpreuveType.TCF_EE).cecrlLevel()).isNull();
+        assertThat(subOf(r, EpreuveType.TCF_EO).cecrlLevel()).isNull();
+        // Plancher = A1, plus A1_NON_ATTEINT : seules CO et CE sont comptées.
+        assertThat(r.finalCecrlLevel()).isEqualTo(NiveauCecrl.A1);
+        assertThat(r.epreuvesCountedInFinalLevel()).isEqualTo(2);
+        assertThat(r.finalLevelPartial()).isTrue();
+    }
+
+    /**
+     * Une épreuve QCM réellement passée et <b>tout fausse</b> reste
+     * {@code A1_NON_ATTEINT} et continue de tirer le plancher : le plancher
+     * produit ne rachète pas une épreuve à zéro bonne réponse.
+     */
+    @Test
+    void plancherProduit_neRachetePasUneEpreuveSansAucuneBonneReponse() {
+        Attempt p = parent(false);
+        Attempt co = qcm(EpreuveType.TCF_CO, NiveauCecrl.A1_NON_ATTEINT);
+        co.setWeightedScore(0);
+        co.setMaxWeightedScore(50);
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                co,
+                qcm(EpreuveType.TCF_CE, NiveauCecrl.B1),
+                production(EpreuveType.TCF_EE),
+                production(EpreuveType.TCF_EO)));
+        when(productionSubmissionManager.findByAttemptId(any()))
+                .thenReturn(List.of(submission(SubmissionStatut.EVALUATED)));
+
+        FullTcfExamResponse r = builder.buildResponse(p);
+
+        assertThat(subOf(r, EpreuveType.TCF_CO).cecrlLevel()).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
+        assertThat(r.finalCecrlLevel()).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
+    }
+
+    /**
+     * Repli legacy (sous-attempts antérieurs à V416, {@code cecrl_level} null) :
+     * sa table de seuils reste celle d'origine — on ne réécrit pas
+     * rétroactivement l'historique — mais le plancher produit s'y applique
+     * aussi, via l'autorité unique de {@link TcfLevelEstimatorService}. 1/50 =
+     * 2 %, sous les 20 % de la table legacy, donc {@code A1_NON_ATTEINT} avant
+     * plancher.
+     */
+    @Test
+    void plancherProduit_sappliqueAussiAuRepliLegacyDuNiveau() {
+        Attempt p = parent(false);
+        Attempt co = qcm(EpreuveType.TCF_CO, null);   // pas de cecrl_level persisté
+        co.setWeightedScore(1);
+        co.setMaxWeightedScore(50);
+        Attempt ce = qcm(EpreuveType.TCF_CE, null);
+        ce.setWeightedScore(0);                        // zéro bonne réponse
+        ce.setMaxWeightedScore(50);
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                co, ce, production(EpreuveType.TCF_EE), production(EpreuveType.TCF_EO)));
+        when(productionSubmissionManager.findByAttemptId(any()))
+                .thenReturn(List.of(submission(SubmissionStatut.EVALUATED)));
+
+        FullTcfExamResponse r = builder.buildResponse(p);
+
+        assertThat(subOf(r, EpreuveType.TCF_CO).cecrlLevel()).isEqualTo(NiveauCecrl.A1);
+        assertThat(subOf(r, EpreuveType.TCF_CE).cecrlLevel()).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
+    }
+
     /** On ne calcule même pas un bilan pour une épreuve jamais passée. */
     @Test
     void epreuveVerrouillee_neDeclencheAucunCalculDeBilan() {

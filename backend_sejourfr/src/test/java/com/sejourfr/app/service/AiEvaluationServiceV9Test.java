@@ -61,6 +61,7 @@ class AiEvaluationServiceV9Test {
     private com.sejourfr.app.manager.AiEvaluationManager aiEvaluationManager;
     private EvaluationLlmClient llmClient;
     private ProductionEvaluationProperties props;
+    private EvaluationPurgeMetrics purgeMetrics;
     private AiEvaluationService service;
 
     @BeforeEach
@@ -81,11 +82,12 @@ class AiEvaluationServiceV9Test {
     private void buildService() {
         ProductionRubricsProvider rubrics = new ProductionRubricsProvider(props, new ObjectMapper());
         rubrics.load();
+        purgeMetrics = new EvaluationPurgeMetrics();
         service = new AiEvaluationService(submissionManager, transcriptionManager, aiEvaluationManager,
             llmClient, new EvaluationPromptBuilder(new ObjectMapper(), rubrics), rubrics,
             new ProductionValidityService(props),
             new ProductionSecondePasseService(props, mock(EvaluationLlmClient.class), rubrics),
-            new ProductionFluiditeService(props), new EvaluationRefusalMetrics(), new EvaluationPurgeMetrics(), props);
+            new ProductionFluiditeService(props), new EvaluationRefusalMetrics(), purgeMetrics, props);
     }
 
     // ------------------------------------------------------- non-regression
@@ -126,8 +128,12 @@ class AiEvaluationServiceV9Test {
         assertThat(score(feedback, "lexique").get("commentaire"))
             .isEqualTo("Le lexique du quotidien est employé correctement.");
         assertThat((List<Object>) feedback.get("suggestions")).isEmpty();
+        // 🛑 LA PURGE NE S'ANNONCE PLUS. Le candidat n'a pas a connaitre la
+        // mecanique : il ne recoit que l'unique avertissement oral. La TRACE,
+        // elle, reste — le compteur est la preuve que le filet a bien agi.
         assertThat((List<String>) feedback.get("avertissements"))
-            .contains(EvaluationOralArtifactFilter.AVERTISSEMENT_ARTEFACT);
+            .containsExactly(AiEvaluationService.AVERTISSEMENT_TRANSCRIPTION);
+        assertThat(purgeMetrics.compteurs().get("ARTEFACT_ORAL_MOT/remarques")).isPositive();
         // La restitution seule est touchee : la note ne bouge pas.
         assertThat(eval.getNoteSur20()).isEqualByComparingTo("7.0");
         assertThat(eval.getNiveauCecrl()).isEqualTo(NiveauCecrl.B1);
@@ -146,15 +152,21 @@ class AiEvaluationServiceV9Test {
 
         assertThat(score(feedback, "lexique").get("commentaire")).isEqualTo(commentaire);
         assertThat((List<String>) feedback.getOrDefault("avertissements", List.of()))
-            .doesNotContain(EvaluationOralArtifactFilter.AVERTISSEMENT_ARTEFACT);
+            .doesNotContain(AiEvaluationService.AVERTISSEMENT_TRANSCRIPTION);
+        assertThat(purgeMetrics.compteurs()).doesNotContainKey("ARTEFACT_ORAL_MOT/remarques");
     }
 
     // ------------------------------------------------- filet oral (volet LANGUE)
 
     /**
      * Bout en bout : le reproche de langue etrangere disparait de la restitution
-     * ORALE, l'avertissement DEDIE est pose, et la note ne bouge pas d'un iota —
-     * ce filet n'agit que sur du texte.
+     * ORALE, la purge est COMPTEE, et la note ne bouge pas d'un iota — ce filet
+     * n'agit que sur du texte.
+     *
+     * <p>⚠️ Plus aucun avertissement dedie n'est pose (2026-08-17) : « la
+     * transcription peut se tromper, on ne vous le compte pas » couvre deja le
+     * cas, et le candidat n'a pas a apprendre que notre transcripteur bascule
+     * parfois de langue.
      */
     @Test
     @SuppressWarnings("unchecked")
@@ -175,7 +187,8 @@ class AiEvaluationServiceV9Test {
             .isEqualTo("Le propos suit un fil clair.");
         assertThat((List<Object>) feedback.get("suggestions")).isEmpty();
         assertThat((List<String>) feedback.get("avertissements"))
-            .contains(EvaluationOralArtifactFilter.AVERTISSEMENT_LANGUE);
+            .containsExactly(AiEvaluationService.AVERTISSEMENT_TRANSCRIPTION);
+        assertThat(purgeMetrics.compteurs().get("ARTEFACT_ORAL_LANGUE/remarques")).isPositive();
         assertThat(eval.getNoteSur20()).isEqualByComparingTo("7.0");
         assertThat(eval.getNiveauCecrl()).isEqualTo(NiveauCecrl.B1);
     }
@@ -183,7 +196,7 @@ class AiEvaluationServiceV9Test {
     /**
      * ASYMETRIE EE / EO — a l'ECRIT, le candidat a tape chaque mot : une langue
      * etrangere est une VRAIE non-realisation et doit remonter. Rien n'est purge,
-     * aucun avertissement.
+     * rien n'est compte.
      */
     @Test
     @SuppressWarnings("unchecked")
@@ -198,7 +211,8 @@ class AiEvaluationServiceV9Test {
 
         assertThat(score(feedback, "communiquer").get("commentaire")).isEqualTo(commentaire);
         assertThat((List<String>) feedback.getOrDefault("avertissements", List.of()))
-            .doesNotContain(EvaluationOralArtifactFilter.AVERTISSEMENT_LANGUE);
+            .doesNotContain(AiEvaluationService.AVERTISSEMENT_TRANSCRIPTION);
+        assertThat(purgeMetrics.compteurs()).doesNotContainKey("ARTEFACT_ORAL_LANGUE/remarques");
     }
 
     // ------------------------------------------- exemples corriges (volet 3)

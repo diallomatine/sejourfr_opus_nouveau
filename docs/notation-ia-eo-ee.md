@@ -2112,11 +2112,13 @@ chose, elle **cite** un passage qu'on retrouve réellement dans les paroles du c
 passage ne nomme **qu'un seul mot**. Un conseil qui cite un mot (« relie tes idées avec
 “parce que” ») n'est jamais touché.
 
-Quand une remarque est retirée, le candidat en est informé :
-
-> Une ou plusieurs remarques portaient sur un mot isolé de la transcription automatique :
-> elles ont été retirées. À l'oral, un mot mal transcrit n'est jamais compté comme une erreur
-> de votre part.
+⚠️ **Cette purge ne s'annonce plus au candidat** (17 août 2026). Elle portait jusque-là un
+avertissement dédié — « une ou plusieurs remarques portaient sur un mot isolé de la
+transcription automatique : elles ont été retirées » — qui lui expliquait une mécanique
+interne dont il n'a rien à faire, et qui empilait un paragraphe de plus sous son résultat.
+L'avertissement oral unique (§9) dit désormais l'essentiel en une phrase : *la transcription
+peut se tromper, et dans ce cas l'erreur ne vous est jamais comptée.* **Le filet, lui, n'a pas
+bougé d'un octet**, et chaque phrase retirée reste comptée côté serveur.
 
 **Ce filet ne touche ni la note, ni le niveau, ni un seuil, ni un barème** : il n'agit que sur
 le texte du rapport.
@@ -2270,9 +2272,14 @@ points forts, le résumé d'objectif et les exemples corrigés. Une priorité do
 disparaît est retirée en entier — on ne rend pas un demi-conseil. Un commentaire vidé n'est
 jamais laissé vide : il est remplacé par une phrase qui dit franchement pourquoi.
 
-**Le candidat est prévenu.** Un avertissement dédié apparaît dans son rapport : *une ou
-plusieurs remarques vous reprochaient d'être passé à une autre langue ; elles ont été retirées,
-ces passages viennent de notre transcription automatique.* Nous ne corrigeons rien en douce.
+**Ce que le candidat en voit.** Jusqu'au 17 août 2026, un avertissement dédié apparaissait
+dans son rapport : *une ou plusieurs remarques vous reprochaient d'être passé à une autre
+langue ; elles ont été retirées, ces passages viennent de notre transcription automatique.* Il
+a été **supprimé** avec les deux autres annonces de purge (§9) : il disait, en un paragraphe
+de plus, exactement ce que l'avertissement oral unique dit en une phrase — la transcription
+peut se tromper, et dans ce cas l'erreur n'est jamais comptée. Nous ne corrigeons toujours
+rien en douce ; nous cessons simplement de raconter au candidat le détail de nos filtres. Un
+commentaire vidé continue, lui, de dire franchement pourquoi il l'est.
 
 **Ce qu'il ne fait pas.** Il ne touche **ni à la note, ni au niveau, ni à aucun seuil** : la
 même correction donne exactement le même résultat chiffré avec ou sans lui. C'est précisément
@@ -2487,10 +2494,14 @@ Entre les deux — un ou deux mots pleins isolés (« abit à Lille », « zére
 décrit pas une structure : il nomme une **forme**. Or une forme isolée est exactement ce que
 la reconnaissance vocale fabrique, et une faute de forme courte (« les enfant ») est de toute
 façon **inaudible** : c'est de l'orthographe, que notre grille interdit déjà de reprocher à
-l'oral. La remarque est donc retirée, et le candidat est prévenu :
+l'oral. La remarque est donc retirée.
 
-> Une ou plusieurs remarques de grammaire portaient sur la forme d'un ou deux mots de la
-> transcription automatique : elles ont été retirées.
+⚠️ **Cette purge non plus ne s'annonce plus au candidat** (17 août 2026). Elle portait un
+avertissement dédié — « une ou plusieurs remarques de grammaire portaient sur la forme d'un ou
+deux mots de la transcription automatique : elles ont été retirées » — supprimé avec les deux
+autres (§9). Le retrait, lui, est **inchangé**, et il reste compté côté serveur. Un
+commentaire de critère entièrement vidé continue de dire franchement pourquoi il l'est : c'est
+un champ obligatoire du rapport, pas une note de bas de page.
 
 **Où ça s'applique, et nulle part ailleurs** : à l'**oral** seulement, sur le **critère de
 grammaire** et sur les priorités qui le reprennent. Jamais sur le vocabulaire — une remarque
@@ -2649,14 +2660,49 @@ l'intelligibilité et la prononciation — qui comptent pourtant à l'examen off
 
 Chaque correction orale porte donc cet avertissement, mot pour mot :
 
-> Cette évaluation est fondée sur la transcription écrite de votre production : nous
-> n'analysons pas votre voix. L'aisance, la fluidité, le débit et la prononciation ne sont
-> donc pas évalués ici — c'est une limite technique de notre correction, pas un choix
-> pédagogique. À l'examen officiel, ces dimensions comptent.
+> Nous analysons la transcription écrite de votre enregistrement, pas votre voix — et la
+> transcription peut se tromper. Dans ce cas, l'erreur ne vous est jamais comptée. La
+> prononciation et l'aisance ne sont donc pas évaluées ici.
 
 Il est **interdit** à l'IA de présenter cette absence comme un avantage (« votre accent n'est
 pas pénalisé »), et interdit de dire quoi que ce soit de l'accent, de l'aisance ou de la
 fluidité — elle ne les a pas entendus.
+
+### Trois avertissements ramenés à un (17 août 2026)
+
+Jusqu'à cette date, l'écran de résultat d'une production orale empilait **trois**
+paragraphes sous le titre « À savoir sur cette évaluation » : celui ci-dessus, dans une
+version deux fois plus longue qui renvoyait à l'examen officiel, puis **deux annonces de
+purge** — « une ou plusieurs remarques portaient sur un mot isolé de la transcription : elles
+ont été retirées », et son équivalent pour les remarques de grammaire. Un quatrième existait
+pour les passages en langue étrangère.
+
+Le propriétaire a jugé ce bloc **énorme**, et il l'était : le candidat venait de produire, il
+voulait savoir où il en est, et il tombait d'abord sur un pavé qui lui expliquait la
+mécanique interne de nos filtres. **Cette mécanique ne le concerne pas.** Ce qu'il doit
+savoir tient en une idée : *on lit la transcription, elle peut se tromper, et dans ce cas on
+ne vous le compte pas* — ce qui est **exactement** ce que ces filtres garantissent. Les trois
+annonces de purge disaient donc, en trois paragraphes, ce que l'avertissement principal dit
+en une phrase.
+
+Ce qui **n'a pas** changé, et qu'il ne faut pas confondre avec une simplification :
+
+- **les filtres continuent de purger**, à l'identique — c'est le texte affiché qui a
+  disparu, jamais le nettoyage (§8 bis, §8 ter, §8 quater sont inchangés) ;
+- **les compteurs continuent de compter** chaque phrase retirée, filtre par filtre : la
+  trace de ce que nos contrôles font vit côté serveur, pas dans un message à l'écran ;
+- **la mention « prononciation et aisance ne sont pas évaluées » est conservée**, réduite à
+  une phrase. La supprimer laisserait croire au candidat que son oral a été jugé sur ces
+  points et qu'ils sont bons : c'est une information de loyauté, pas du remplissage.
+
+Ce qui a quitté l'écran, et **vit désormais ici seulement** : le rappel qu'à l'examen
+officiel l'aisance, la fluidité, le débit et l'intelligibilité comptent (début de ce §9), et
+l'explication détaillée des purges (§8 bis, §8 ter, §8 quater). Une carte de résultat n'est
+pas le bon endroit pour une note de bas de page.
+
+Les corrections **déjà enregistrées** gardent leurs anciens textes : rien n'est réécrit,
+aucune migration n'a été faite, et l'écran affiche sans broncher la liste qu'il reçoit, quel
+qu'en soit le nombre.
 
 ### Un garde-fou qui ne doit plus détruire une correction entière
 

@@ -117,6 +117,109 @@ class TcfLevelEstimatorServiceTest {
     }
 
     // ------------------------------------------------------------------------
+    // PLANCHER PRODUIT « au moins une bonne reponse => au moins A1 »
+    // ------------------------------------------------------------------------
+
+    /**
+     * La regle produit : {@code A1_NON_ATTEINT} est reserve a ZERO bonne
+     * reponse. Un candidat qui n'a rien repondu a bien zero bonne reponse, donc
+     * il y reste — « aucune reponse donnee » n'est pas un cas separe.
+     */
+    @Test
+    void zeroBonneReponse_reste_A1_non_atteint() {
+        List<QcmAnswerResult> aucune = List.of(
+                ans(Difficulty.A2, false), ans(Difficulty.B1, false), ans(Difficulty.B2, false));
+        assertThat(service.estimateQcm(aucune)).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
+        assertThat(service.levelFromWeighted(0, 50)).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
+    }
+
+    /**
+     * UNE seule bonne reponse suffit a lever le plancher, meme quand le score
+     * calibre retombe a sa borne basse (1/50 pondere = 2 %, donc sous la ligne
+     * du hasard => 100/499, bande A1_NON_ATTEINT). C'est tout l'objet de la
+     * regle : le score ne bouge pas, le niveau rendu si.
+     */
+    @Test
+    void uneSeuleBonneReponse_est_plancheree_a_A1() {
+        List<QcmAnswerResult> uneSeule = List.of(
+                ans(Difficulty.A2, true),
+                ans(Difficulty.A2, false), ans(Difficulty.B1, false), ans(Difficulty.B2, false));
+        // Le score calibre reste celui de la formule, inchange.
+        assertThat(service.calibratedScore(uneSeule)).isEqualTo(100);
+        assertThat(service.estimateQcm(uneSeule)).isEqualTo(NiveauCecrl.A1);
+
+        assertThat(service.calibratedScore(1, 50)).isEqualTo(100);
+        assertThat(service.levelFromWeighted(1, 50)).isEqualTo(NiveauCecrl.A1);
+    }
+
+    /**
+     * Le plancher ne releve QUE depuis {@code A1_NON_ATTEINT}, et QUE d'un
+     * cran. Un niveau deja atteint n'est jamais touche — aucun seuil de bande
+     * ne peut etre franchi par ce garde-fou.
+     */
+    @Test
+    void plancher_ne_releve_que_depuis_A1_non_atteint_et_dun_seul_cran() {
+        assertThat(service.plancherA1SiUneBonneReponse(NiveauCecrl.A1_NON_ATTEINT, true))
+                .isEqualTo(NiveauCecrl.A1);
+        for (NiveauCecrl deja : List.of(
+                NiveauCecrl.A1, NiveauCecrl.A2, NiveauCecrl.B1, NiveauCecrl.B2)) {
+            assertThat(service.plancherA1SiUneBonneReponse(deja, true)).isEqualTo(deja);
+        }
+        // Sans bonne reponse, c'est l'identite.
+        for (NiveauCecrl n : List.of(
+                NiveauCecrl.A1_NON_ATTEINT, NiveauCecrl.A1, NiveauCecrl.A2,
+                NiveauCecrl.B1, NiveauCecrl.B2)) {
+            assertThat(service.plancherA1SiUneBonneReponse(n, false)).isEqualTo(n);
+        }
+        // Un niveau inconnu le reste : le plancher n'invente jamais un niveau.
+        assertThat(service.plancherA1SiUneBonneReponse(null, true)).isNull();
+    }
+
+    /**
+     * Un score qui vaut deja A2 / B1 / B2 sort intact des deux entrees : le
+     * plancher est bien pose PAR-DESSUS la bande, il ne la remplace pas.
+     */
+    @Test
+    void un_score_deja_A2_B1_ou_B2_nest_pas_touche_par_le_plancher() {
+        assertThat(service.levelFromWeighted(50, 100)).isEqualTo(NiveauCecrl.A2);   // 233
+        assertThat(service.levelFromWeighted(70, 100)).isEqualTo(NiveauCecrl.B1);   // 339
+        assertThat(service.levelFromWeighted(90, 100)).isEqualTo(NiveauCecrl.B2);   // 446
+    }
+
+    /**
+     * La table officielle (bandes du score calibre) et la formule 100-499
+     * corrigee du hasard ne bougent PAS : le plancher est une couche au-dessus,
+     * pas une reecriture. On verrouille ici les 3 frontieres hautes au point de
+     * bascule pres, la ou le plancher n'a aucun effet.
+     */
+    @Test
+    void la_table_officielle_et_la_formule_calibree_ne_bougent_pas() {
+        // Formule : 100 + max(0, (ratio - 0.25) / 0.75) * 399, arrondi.
+        assertThat(service.calibratedScore(0, 100)).isEqualTo(100);
+        assertThat(service.calibratedScore(25, 100)).isEqualTo(100);   // hasard pur
+        assertThat(service.calibratedScore(50, 100)).isEqualTo(233);
+        assertThat(service.calibratedScore(100, 100)).isEqualTo(499);
+
+        // Frontiere A1 / A2 (bande >= 200).
+        assertThat(service.calibratedScore(43, 100)).isEqualTo(196);
+        assertThat(service.levelFromWeighted(43, 100)).isEqualTo(NiveauCecrl.A1);
+        assertThat(service.calibratedScore(44, 100)).isEqualTo(201);
+        assertThat(service.levelFromWeighted(44, 100)).isEqualTo(NiveauCecrl.A2);
+
+        // Frontiere A2 / B1 (bande >= 300).
+        assertThat(service.calibratedScore(62, 100)).isEqualTo(297);
+        assertThat(service.levelFromWeighted(62, 100)).isEqualTo(NiveauCecrl.A2);
+        assertThat(service.calibratedScore(63, 100)).isEqualTo(302);
+        assertThat(service.levelFromWeighted(63, 100)).isEqualTo(NiveauCecrl.B1);
+
+        // Frontiere B1 / B2 (bande >= 400).
+        assertThat(service.calibratedScore(81, 100)).isEqualTo(398);
+        assertThat(service.levelFromWeighted(81, 100)).isEqualTo(NiveauCecrl.B1);
+        assertThat(service.calibratedScore(82, 100)).isEqualTo(403);
+        assertThat(service.levelFromWeighted(82, 100)).isEqualTo(NiveauCecrl.B2);
+    }
+
+    // ------------------------------------------------------------------------
     // capB2
     // ------------------------------------------------------------------------
 

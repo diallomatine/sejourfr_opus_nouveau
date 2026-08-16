@@ -15,6 +15,9 @@ import java.util.Map;
  * <ul>
  *   <li>l'estimation du niveau d'une épreuve QCM (CO / CE) à partir des
  *       réponses, par score calibré + garde-fou « palier maîtrisé » ;</li>
+ *   <li>le <b>plancher produit SejourFR</b> « au moins une bonne réponse ⇒ au
+ *       moins A1 » (cf. {@link #plancherA1SiUneBonneReponse}) — seul garde-fou
+ *       du dépôt qui <b>relève</b> ;</li>
  *   <li>le plafonnement à B2 (l'IRN ne classe pas au-delà) ;</li>
  *   <li>le niveau global = plancher (le plus faible) des épreuves.</li>
  * </ul>
@@ -76,20 +79,66 @@ public class TcfLevelEstimatorService {
      * hasard, l'ancien garde-fou « palier maîtrisé » (min des deux lectures)
      * n'a plus de raison d'être — il produisait des couples incohérents du
      * type « 292/499 · A1 non atteint ».
+     *
+     * <p>Puis le <b>plancher produit</b> {@link #plancherA1SiUneBonneReponse} :
+     * {@code A1_NON_ATTEINT} n'est rendu que sur <b>zéro</b> bonne réponse. La
+     * bande ci-dessus est inchangée — le plancher s'applique par-dessus.
      */
     public NiveauCecrl estimateQcm(List<QcmAnswerResult> answers) {
         if (answers == null || answers.isEmpty()) return NiveauCecrl.A1_NON_ATTEINT;
-        return capB2(levelByScore(calibratedScore(answers)));
+        boolean auMoinsUneBonneReponse = answers.stream().anyMatch(QcmAnswerResult::correct);
+        return plancherA1SiUneBonneReponse(
+                capB2(levelByScore(calibratedScore(answers))), auMoinsUneBonneReponse);
     }
 
     /**
      * Niveau dérivé d'un score pondéré déjà stocké — même formule que
      * {@link #estimateQcm}, ce qui garantit que le niveau affiché correspond
-     * toujours à la bande du score calibré renvoyé aux fronts.
+     * toujours à la bande du score calibré renvoyé aux fronts — plancher produit
+     * {@link #plancherA1SiUneBonneReponse} compris.
      */
     public NiveauCecrl levelFromWeighted(Integer weighted, Integer maxWeighted) {
         if (weighted == null || maxWeighted == null || maxWeighted <= 0) return null;
-        return capB2(levelByScore(calibratedScore(weighted, maxWeighted)));
+        // « Au moins une bonne réponse » se lit ici sur le score pondéré : sur un
+        // examen TCF stratifié, toute question porte une strate A2/B1/B2 donc un
+        // poids ≥ 1, et `weighted > 0` équivaut exactement à « au moins une bonne
+        // réponse ». C'est la seule information disponible à ce point (le nombre
+        // de bonnes réponses n'est pas passé) — cf. estimateQcm, qui le compte.
+        return plancherA1SiUneBonneReponse(
+                capB2(levelByScore(calibratedScore(weighted, maxWeighted))), weighted > 0);
+    }
+
+    /**
+     * <b>PLANCHER PRODUIT SEJOURFR — « au moins une bonne réponse ⇒ au moins
+     * A1 ».</b> Sur une épreuve QCM (CO / CE / STRUCTURE), {@code A1_NON_ATTEINT}
+     * est réservé au candidat qui n'a <b>aucune</b> bonne réponse ; dès qu'il en
+     * a une, le niveau rendu est au minimum {@code A1}.
+     *
+     * <p>🛑 <b>Ce n'est PAS une règle du TCF</b> et ce n'est pas une réécriture
+     * de la table officielle : la bande du score calibré ({@link #levelByScore})
+     * et la formule 100-499 corrigée du hasard ne bougent pas d'un octet. C'est
+     * une décision produit posée <b>par-dessus</b>, dans un seul endroit, et
+     * triviale à retirer : supprimer les deux appels ci-dessus et cette méthode
+     * restaure le comportement d'avant, à l'identique.
+     *
+     * <p>⚠️ <b>Ce garde-fou RELÈVE, à l'inverse de tous les autres du dépôt</b>
+     * ({@code applyCouplage}, {@code applyPlafonds}, {@code applyConfiance},
+     * {@code CompetenceLevelEvidenceGuard}, {@code CoherenceBilan}), qui ne
+     * peuvent qu'<b>abaisser</b>. <b>Cette asymétrie est VOULUE, ce n'est pas un
+     * oubli — ne pas la « corriger ».</b> Elle est sûre parce qu'elle est
+     * strictement bornée : elle ne relève que depuis {@code A1_NON_ATTEINT}, et
+     * seulement d'un cran, vers {@code A1}. Un niveau A2/B1/B2 n'est jamais
+     * touché, et rien ne peut jamais franchir un seuil de bande.
+     *
+     * <p>« Aucune bonne réponse » englobe « aucune réponse donnée » : un
+     * candidat qui n'a rien répondu a bien zéro bonne réponse et reste
+     * {@code A1_NON_ATTEINT}. À ne pas confondre avec « pas de donnée », qui se
+     * rend {@code null} en amont (doctrine du dépôt : <i>null = inconnu, jamais
+     * mauvais</i>) et que ce plancher ne touche pas non plus.
+     */
+    public NiveauCecrl plancherA1SiUneBonneReponse(NiveauCecrl niveau, boolean auMoinsUneBonneReponse) {
+        if (niveau != NiveauCecrl.A1_NON_ATTEINT || !auMoinsUneBonneReponse) return niveau;
+        return NiveauCecrl.A1;
     }
 
     private static NiveauCecrl levelByScore(int score) {
