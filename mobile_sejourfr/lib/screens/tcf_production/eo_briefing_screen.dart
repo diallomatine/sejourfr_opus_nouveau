@@ -213,6 +213,20 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
         return true; // modal fermé sans choix → on reste sur le briefing
       case RealtimeDecision.classic:
         setState(() => _negotiating = false);
+        // Le candidat avait demandé l'examinateur et on n'a pas pu le lui
+        // donner : on le DIT avant de l'envoyer sur l'enregistreur seul. Sans
+        // ce message, son choix disparaissait sans trace — c'est exactement ce
+        // qui a laissé quatre jours de temps réel mort passer inaperçus.
+        final refus = negotiation.refusalMessage;
+        if (refus != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(refus),
+              backgroundColor: AppColors.ink,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
         return false; // → enregistrement classique (fall-through)
       case RealtimeDecision.realtime:
         final args = RealtimeRunnerArgs(

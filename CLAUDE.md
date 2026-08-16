@@ -844,9 +844,12 @@ de rubriques et files de calibration doivent garder le filtre
   - **Exposition** : `masteryState` sur `SkillDto` (**c'est ce que la carte de
     compétence affiche à la place de « 2/15 traités »** — les compteurs restent,
     ils servent l'anneau d'étape), `LearningPlanSkillDto` et
-    `LearningPlanPriorityDto` ; `trajectory` (liste `SkillObservationPointDto`,
-    de la plus ancienne à la plus récente, `NOT_OBSERVED` exclus) sur
-    `SkillDetailDto` — l'endpoint de détail existant, pas une route de plus.
+    `LearningPlanPriorityDto`. ⚠️ **La `trajectory` de `SkillDetailDto` a été
+    SUPPRIMÉE** le 2026-08-16 (DTO, `SkillObservationPointDto`,
+    `SkillMasteryResolver.trajectory` et les deux miroirs front) : la section
+    « Ton parcours sur cette compétence » n'apportait rien au candidat, et la
+    servir coûtait **une requête à chaque ouverture** d'une compétence. Ne pas
+    la réintroduire sans un écran qui la lise vraiment.
   - **`LearningPlanPriorityResolver` reste l'unique autorité sur l'ordre des
     priorités** : le moteur ne le réordonne pas, `SkillAccessService` continue
     d'en dépendre pour ouvrir la compétence de la priorité n°1.
@@ -1623,8 +1626,27 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   - **Pré-roll de lecture** (120 ms web / 150 ms mobile) : sans lui, un hoquet
     réseau donne un trou puis un clic. Amorçage forcé en fin de tour pour ne pas
     coincer une réponse courte.
-  - **VAD de fin de tour** : `end-sensitivity` `LOW` → **`MEDIUM`**. `HIGH` est
-    écarté — le public apprend le français et cherche ses mots.
+  - 🛑 **VAD de fin de tour : `END_SENSITIVITY_MEDIUM` N'EXISTE PAS.** L'enum du
+    fournisseur n'a que `..._UNSPECIFIED`, `..._LOW` et `..._HIGH` — sur chacune
+    des deux sensibilités. Posée le 2026-08-12 (« répondre plus vite en fin de
+    tour »), cette valeur a fait répondre `auth_tokens` en **400
+    INVALID_ARGUMENT à CHAQUE émission de token** : `GeminiTokenBroker.mint`
+    levait, `RealtimeSessionService.start` retombait en `ASYNC_FALLBACK`, et
+    **plus une seule session temps réel n'a eu lieu du 2026-08-12 au 2026-08-16**
+    (dernière ligne `realtime_sessions` : 2026-08-11 21:33) — sur les **deux**
+    fronts, **en silence** : le candidat choisissait « Avec un examinateur » et
+    atterrissait sur l'enregistreur solo, sans un mot. **La valeur retenue est
+    donc `LOW`** : c'est le réglage le plus lent, mais `HIGH` couperait un
+    apprenant A2 en pleine hésitation et il n'y a pas de troisième choix — le
+    vrai levier de réactivité est `silence-duration-ms`, pas cette enum.
+    Deux verrous posés le 2026-08-16 : allowlists
+    `RealtimeProperties.Vad.{START,END}_SENSITIVITES` **opposées au BOOT**
+    (`GeminiTokenBroker.assertVadSupportee` → une valeur inconnue fait échouer le
+    démarrage, jamais de repli muet — philosophie des contrats de prompts), et un
+    **message au candidat** quand son choix de temps réel n'aboutit pas
+    (`kRealtimeUnavailableMessage` ⇄ `REALTIME_UNAVAILABLE_MESSAGE`, miroirs mot
+    pour mot) : on continue de ne **jamais** le bloquer, mais on ne le dépose
+    plus sur l'enregistreur solo comme s'il l'avait choisi.
     `silence-duration-ms` reste à **500** (plancher Google, en dessous les pauses
     naturelles fragmentent l'énoncé) et `prefix-padding-ms` à **300** (sinon la
     première syllabe est rognée). Les 5 valeurs sont surchargeables par env.

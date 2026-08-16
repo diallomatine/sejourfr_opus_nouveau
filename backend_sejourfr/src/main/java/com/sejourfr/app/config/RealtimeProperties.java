@@ -2,6 +2,8 @@ package com.sejourfr.app.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.Set;
+
 /**
  * Configuration du mode "expression orale temps reel" (examinateur vocal IA,
  * Taches 1 & 2). Lu via {@code sejourfr.realtime.*}.
@@ -133,24 +135,46 @@ public class RealtimeProperties {
      * Specifique au fournisseur (les valeurs de sensibilite sont des enums
      * Gemini).
      *
-     * <p>Arbitrage patience ↔ reactivite. {@code endSensitivity=MEDIUM} est le
-     * compromis retenu : {@code LOW} (l'ancien defaut) demande la confirmation la
-     * plus prudente avant de declarer la fin de parole, ce qui se paie par une
-     * attente ressentie « l'examinateur met trop de temps a repondre » une fois
-     * que le candidat a fini ; {@code HIGH} couperait un apprenant A2 en pleine
-     * hesitation. {@code startSensitivity=HIGH} detecte vite le DEBUT de parole.
-     * Une SEULE fenetre de silence pour tous les niveaux ({@code silenceDurationMs}),
-     * a 500 ms = plancher recommande par Google (500-800) — ne pas descendre sous
-     * 500 sous peine de fragmenter un enonce sur ses pauses naturelles.
+     * <p>🛑 <b>Les sensibilites n'admettent que TROIS valeurs chacune</b> —
+     * {@code UNSPECIFIED}, {@code LOW}, {@code HIGH}. <b>Il n'existe PAS de
+     * {@code MEDIUM}</b> : pose du 2026-08-12 au 2026-08-16, il a fait repondre
+     * l'API {@code auth_tokens} en {@code 400 INVALID_ARGUMENT} sur CHAQUE
+     * emission de token, donc bascule silencieuse de tout le temps reel en
+     * asynchrone — quatre jours sans une seule session, sur les deux fronts, sans
+     * un message. D'ou les allowlists ci-dessous, opposees au BOOT par
+     * {@code GeminiTokenBroker} : une valeur inconnue fait echouer le demarrage
+     * au lieu de degrader en silence.
+     *
+     * <p>Arbitrage patience ↔ reactivite. {@code endSensitivity=LOW} demande la
+     * confirmation la plus prudente avant de declarer la fin de parole : c'est le
+     * reglage le plus lent, mais {@code HIGH} couperait un apprenant A2 en pleine
+     * hesitation — et il n'y a pas de troisieme choix. {@code startSensitivity=HIGH}
+     * detecte vite le DEBUT de parole. Une SEULE fenetre de silence pour tous les
+     * niveaux ({@code silenceDurationMs}), a 500 ms = plancher recommande par
+     * Google (500-800) — ne pas descendre sous 500 sous peine de fragmenter un
+     * enonce sur ses pauses naturelles. C'est elle, et non la sensibilite, qui
+     * reste le levier de reactivite reellement disponible.
      *
      * <p>Les cinq valeurs sont surchargeables par variable d'environnement
      * ({@code REALTIME_GEMINI_VAD_*}) : essayer un autre reglage ne demande pas
      * de recompilation.
      */
     public static class Vad {
+
+        /** Les seules valeurs admises par {@code AutomaticActivityDetection.StartSensitivity}. */
+        public static final Set<String> START_SENSITIVITES = Set.of(
+                "START_SENSITIVITY_UNSPECIFIED", "START_SENSITIVITY_LOW", "START_SENSITIVITY_HIGH");
+
+        /**
+         * Les seules valeurs admises par {@code AutomaticActivityDetection.EndSensitivity}.
+         * <b>Aucun {@code MEDIUM}</b> — cf. javadoc de classe.
+         */
+        public static final Set<String> END_SENSITIVITES = Set.of(
+                "END_SENSITIVITY_UNSPECIFIED", "END_SENSITIVITY_LOW", "END_SENSITIVITY_HIGH");
+
         private boolean disabled = false;
         private String startSensitivity = "START_SENSITIVITY_HIGH";
-        private String endSensitivity = "END_SENSITIVITY_MEDIUM";
+        private String endSensitivity = "END_SENSITIVITY_LOW";
         private int prefixPaddingMs = 300;
         /**
          * Fenetre de silence (ms) avant de considerer le tour du candidat fini.

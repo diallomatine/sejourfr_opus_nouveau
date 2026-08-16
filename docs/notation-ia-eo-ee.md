@@ -2801,10 +2801,30 @@ elles sont opposées :
 - trop **prudent**, il attend longuement après le dernier mot, et l'échange devient poussif :
   « je finis ma phrase et l'examinateur met une éternité à répondre ».
 
-Jusqu'ici, le réglage était volontairement au maximum de la prudence — le plus lent des trois
-disponibles. En usage réel, c'était trop : le propriétaire de la plateforme a constaté lui-même
-l'attente. Le réglage est passé au **cran intermédiaire** (2026-08-12). Le cran le plus rapide
-n'a **pas** été retenu : sur un public d'apprenants A2, il aurait coupé la parole.
+Le réglage est volontairement au maximum de la prudence. En usage réel c'est un peu lent — le
+propriétaire de la plateforme a constaté lui-même l'attente — et une tentative a été faite le
+2026-08-12 pour passer à un « cran intermédiaire ».
+
+**Ce cran intermédiaire n'existe pas**, et l'avoir cru a coûté cher : le service vocal
+n'accepte que deux réglages, le prudent et le rapide. En lui demandant une valeur inconnue, il
+a **refusé d'ouvrir chaque conversation** — du 12 au 16 août 2026, plus **aucun** oral avec
+examinateur n'a pu démarrer, ni sur le site ni sur l'application. Pire : personne ne le voyait.
+Le candidat choisissait « avec un examinateur », et se retrouvait sur l'enregistrement seul
+**sans un mot d'explication**, comme s'il l'avait demandé.
+
+Trois choses ont changé le 2026-08-16 :
+
+- le réglage est **revenu au cran prudent**, le seul autre disponible — le cran rapide reste
+  écarté, il couperait la parole à un apprenant A2 qui cherche son mot ;
+- une valeur de réglage inconnue **empêche désormais le serveur de démarrer**, au lieu de
+  désactiver l'oral en silence : mieux vaut une panne visible qu'une fonctionnalité morte que
+  personne ne remarque ;
+- quand l'examinateur n'est **pas** disponible, quelle qu'en soit la raison, le candidat le
+  **lit** avant de s'enregistrer seul. Il n'est toujours jamais bloqué — mais on ne fait plus
+  disparaître son choix sans rien dire.
+
+Le vrai levier de réactivité, lui, n'a jamais dépendu de ce cran : c'est la durée de silence
+ci-dessous, déjà ramenée à son minimum recommandé.
 
 Deux garde-fous n'ont pas bougé et ne doivent pas bouger :
 

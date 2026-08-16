@@ -859,12 +859,19 @@ sejourfr:
       voice: ${REALTIME_GEMINI_VOICE:Aoede}
       temperature: 0.7
       # VAD verrouillée dans le token (realtimeInputConfig.automaticActivityDetection).
+      # 🛑 Chaque sensibilité n'admet que TROIS valeurs : ..._UNSPECIFIED,
+      # ..._LOW, ..._HIGH. IL N'Y A PAS DE « MEDIUM ». Posé du 2026-08-12 au
+      # 2026-08-16, END_SENSITIVITY_MEDIUM faisait répondre auth_tokens en 400
+      # INVALID_ARGUMENT à CHAQUE émission de token : plus une seule session
+      # temps réel pendant 4 jours, sur les deux fronts, et en silence (le
+      # serveur retombe en ASYNC_FALLBACK). Une valeur hors liste fait
+      # désormais échouer le BOOT (GeminiTokenBroker.assertVadSupportee).
       # Arbitrage patience ↔ réactivité :
-      #   * end-sensitivity MEDIUM (2026-08-12, remplace LOW) — LOW demande la
-      #     confirmation la plus prudente avant de déclarer la fin de parole,
-      #     c'est le réglage le plus LENT : en usage réel, « je finis mes propos
-      #     et l'examinateur met trop de temps à répondre ». HIGH couperait un
-      #     apprenant A2 en pleine hésitation. MEDIUM est le compromis.
+      #   * end-sensitivity LOW = la confirmation la plus prudente avant de
+      #     déclarer la fin de parole. C'est le réglage le plus LENT, et c'est
+      #     assumé : le seul autre choix est HIGH, qui couperait un apprenant A2
+      #     en pleine hésitation. Le vrai levier de réactivité est
+      #     silence-duration-ms, pas cette enum.
       #   * silence-duration-ms 500 = PLANCHER recommandé par Google (500-800) :
       #     en dessous, un énoncé se fragmente sur ses pauses naturelles. Ne pas
       #     descendre.
@@ -875,7 +882,7 @@ sejourfr:
       vad:
         disabled: ${REALTIME_GEMINI_VAD_DISABLED:false}
         start-sensitivity: ${REALTIME_GEMINI_VAD_START_SENSITIVITY:START_SENSITIVITY_HIGH}
-        end-sensitivity: ${REALTIME_GEMINI_VAD_END_SENSITIVITY:END_SENSITIVITY_MEDIUM}
+        end-sensitivity: ${REALTIME_GEMINI_VAD_END_SENSITIVITY:END_SENSITIVITY_LOW}
         prefix-padding-ms: ${REALTIME_GEMINI_VAD_PREFIX_PADDING_MS:300}
         silence-duration-ms: ${REALTIME_GEMINI_VAD_SILENCE_DURATION_MS:500}
       # REPRISE DE SESSION après coupure réseau (sessionResumption du setup

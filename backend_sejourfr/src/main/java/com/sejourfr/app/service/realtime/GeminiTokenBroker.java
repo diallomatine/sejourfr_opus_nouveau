@@ -16,6 +16,8 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Adaptateur Gemini Live. Emet un token ephemere via l'endpoint REST
@@ -43,6 +45,36 @@ public class GeminiTokenBroker implements RealtimeTokenBroker {
         this.restClient = RestClient.builder()
                 .requestFactory(buildRequestFactory(props.getGemini().getTimeoutSec()))
                 .build();
+        assertVadSupportee(props.getGemini().getVad());
+    }
+
+    /**
+     * <b>Une sensibilite de VAD inconnue fait echouer le BOOT</b>, elle ne
+     * degrade jamais en silence. Ces valeurs sont recopiees telles quelles dans
+     * le setup verrouille du token : une valeur qui n'existe pas cote
+     * fournisseur fait repondre {@code auth_tokens} en {@code 400
+     * INVALID_ARGUMENT}, {@link #mint} leve, et {@code RealtimeSessionService}
+     * bascule tout le temps reel en asynchrone — le candidat choisit
+     * « avec un examinateur » et se retrouve a s'enregistrer seul, sans un mot.
+     * C'est exactement ce qu'a produit {@code END_SENSITIVITY_MEDIUM} (valeur
+     * inexistante) du 2026-08-12 au 2026-08-16. Meme philosophie que les
+     * contrats de prompts : une version inconnue echoue au demarrage, jamais de
+     * repli muet.
+     */
+    static void assertVadSupportee(RealtimeProperties.Vad vad) {
+        assertValeurSupportee("start-sensitivity", vad.getStartSensitivity(),
+                RealtimeProperties.Vad.START_SENSITIVITES);
+        assertValeurSupportee("end-sensitivity", vad.getEndSensitivity(),
+                RealtimeProperties.Vad.END_SENSITIVITES);
+    }
+
+    private static void assertValeurSupportee(String champ, String valeur, Set<String> admises) {
+        if (valeur != null && !valeur.isBlank() && admises.contains(valeur)) return;
+        throw new IllegalStateException(
+                "sejourfr.realtime.gemini.vad." + champ + " : valeur inconnue « " + valeur
+                        + " ». Valeurs acceptees : " + new TreeSet<>(admises)
+                        + ". Une valeur hors de cette liste fait refuser chaque token par le "
+                        + "fournisseur et bascule tout le temps reel en asynchrone.");
     }
 
     @Override
@@ -153,10 +185,11 @@ public class GeminiTokenBroker implements RealtimeTokenBroker {
     }
 
     /**
-     * VAD verrouillee dans le token : reactif au DEBUT de parole, et sur la FIN
-     * de parole un compromis ({@code END_SENSITIVITY_MEDIUM}) entre couper un
-     * apprenant qui hesite et le faire attendre apres qu'il a fini. Les valeurs
-     * viennent toutes de la configuration — rien en dur ici.
+     * VAD verrouillee dans le token : reactif au DEBUT de parole, et prudent sur
+     * la FIN ({@code END_SENSITIVITY_LOW}) — le fournisseur n'offre que
+     * {@code LOW} ou {@code HIGH}, et {@code HIGH} couperait un apprenant qui
+     * hesite. Les valeurs viennent toutes de la configuration — rien en dur ici —
+     * et sont opposees au boot par {@link #assertVadSupportee}.
      */
     private static Map<String, Object> buildRealtimeInputConfig(RealtimeProperties.Vad vad) {
         Map<String, Object> aad = new LinkedHashMap<>();

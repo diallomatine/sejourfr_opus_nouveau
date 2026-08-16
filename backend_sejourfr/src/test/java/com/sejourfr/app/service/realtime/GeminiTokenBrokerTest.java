@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Corps de la requete d'emission du token ephemere Gemini (partie testable sans
@@ -37,19 +38,55 @@ class GeminiTokenBrokerTest {
     // ----- VAD -----
 
     @Test
-    void locksVadOnMediumEndOfSpeech() {
+    void locksVadOnCautiousEndOfSpeech() {
         Map<String, Object> aad = aad();
 
         assertThat(aad.get("disabled")).isEqualTo(false);
         assertThat(aad.get("startOfSpeechSensitivity")).isEqualTo("START_SENSITIVITY_HIGH");
-        // MEDIUM (et non LOW) : LOW est le reglage le plus PRUDENT donc le plus
-        // LENT a declarer la fin de parole — l'examinateur repondait trop tard.
-        // HIGH couperait un apprenant qui hesite.
-        assertThat(aad.get("endOfSpeechSensitivity")).isEqualTo("END_SENSITIVITY_MEDIUM");
+        // LOW est le reglage le plus PRUDENT donc le plus LENT a declarer la fin
+        // de parole ; c'est assume, le seul autre choix est HIGH, qui couperait
+        // un apprenant A2 qui hesite. Il n'existe PAS de MEDIUM (cf. le test
+        // ci-dessous) : l'avoir cru a coute 4 jours de temps reel.
+        assertThat(aad.get("endOfSpeechSensitivity")).isEqualTo("END_SENSITIVITY_LOW");
         assertThat(aad.get("prefixPaddingMs")).isEqualTo(300);
         // Plancher recommande par le fournisseur (500-800) : en dessous, un
         // enonce se fragmente sur ses pauses naturelles.
         assertThat(aad.get("silenceDurationMs")).isEqualTo(500);
+    }
+
+    /**
+     * 🛑 Le fournisseur n'expose que {@code UNSPECIFIED|LOW|HIGH} sur chaque
+     * sensibilite. {@code END_SENSITIVITY_MEDIUM}, pose du 2026-08-12 au
+     * 2026-08-16, faisait refuser CHAQUE token en 400 INVALID_ARGUMENT : tout le
+     * temps reel basculait en asynchrone, en silence, sur les deux fronts. La
+     * valeur est donc opposee au BOOT, jamais au premier candidat.
+     */
+    @Test
+    void refusesAnUnknownVadSensitivityAtBoot() {
+        RealtimeProperties.Vad vad = props.getGemini().getVad();
+
+        assertThat(RealtimeProperties.Vad.END_SENSITIVITES)
+                .containsExactlyInAnyOrder("END_SENSITIVITY_UNSPECIFIED",
+                        "END_SENSITIVITY_LOW", "END_SENSITIVITY_HIGH");
+        assertThat(RealtimeProperties.Vad.START_SENSITIVITES)
+                .containsExactlyInAnyOrder("START_SENSITIVITY_UNSPECIFIED",
+                        "START_SENSITIVITY_LOW", "START_SENSITIVITY_HIGH");
+
+        // Le defaut livre, lui, doit passer.
+        GeminiTokenBroker.assertVadSupportee(vad);
+
+        vad.setEndSensitivity("END_SENSITIVITY_MEDIUM");
+        assertThatThrownBy(() -> GeminiTokenBroker.assertVadSupportee(vad))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("end-sensitivity")
+                .hasMessageContaining("END_SENSITIVITY_MEDIUM")
+                .hasMessageContaining("END_SENSITIVITY_LOW");
+
+        vad.setEndSensitivity("END_SENSITIVITY_HIGH");
+        vad.setStartSensitivity("START_SENSITIVITY_MEDIUM");
+        assertThatThrownBy(() -> GeminiTokenBroker.assertVadSupportee(vad))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("start-sensitivity");
     }
 
     @Test

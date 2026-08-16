@@ -43,7 +43,7 @@ import { EeWritingForm, clearEeDraft } from "./EeWritingForm";
 import { EoRecordingForm } from "./EoRecordingForm";
 import { RealtimeLaunchSheet } from "./RealtimeLaunchSheet";
 import { RealtimeEoRunner } from "./RealtimeEoRunner";
-import { useRealtimeEo } from "./useRealtimeEo";
+import { REALTIME_UNAVAILABLE_MESSAGE, useRealtimeEo } from "./useRealtimeEo";
 import { type ProductionConfig } from "./config";
 import detail from "@/app/_components/hub/detail.module.css";
 import prod from "./production.module.css";
@@ -367,8 +367,11 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         setRtRefused(true);
         setRtError(res.message);
       } else {
-        // Quota épuisé / non éligible : bascule silencieuse en classique.
+        // Quota épuisé / non éligible / fournisseur indisponible : on bascule en
+        // classique — jamais bloqué — mais on le DIT. Une bascule muette a caché
+        // quatre jours de temps réel mort (cf. REALTIME_UNAVAILABLE_MESSAGE).
         setRtRefused(true);
+        setRtError(REALTIME_UNAVAILABLE_MESSAGE);
         setTaskMode("classic");
       }
     } finally {
