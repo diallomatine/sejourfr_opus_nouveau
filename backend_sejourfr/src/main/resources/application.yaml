@@ -196,6 +196,27 @@ sejourfr:
   trusted-proxies:
     ranges: ${TRUSTED_PROXY_RANGES:}
 
+  # Purge des attempts INVITES (user_id IS NULL) — cf. GuestAttemptPurgeJob.
+  # LIVREE ETEINTE, comme production-evaluation.fluidite / seconde-passe :
+  # a false, la passe sort immediatement, aucune ligne supprimee.
+  #
+  # PREREQUIS AVANT D'ACTIVER : ces lignes SONT la mesure « combien de
+  # visiteurs se testent avant de creer un compte » (client_ip posee expres).
+  # Les purger detruit la mesure. Il faut d'abord un compteur agrege des
+  # passages invites — une ligne par (surface, jour), patron de la table
+  # page_views (V020), borne par construction. Tant qu'il n'existe pas, laisser
+  # enabled a false.
+  guest-attempt-purge:
+    enabled: ${GUEST_ATTEMPT_PURGE_ENABLED:false}
+    # Age au-dela duquel un attempt invite est purgeable, compte sur
+    # started_at (un attempt abandonne n'a pas de finished_at). Decision
+    # produit, pas constante : 2 h.
+    retention: ${GUEST_ATTEMPT_PURGE_RETENTION:2h}
+    # Plafond de lignes supprimees par lot (une transaction par lot).
+    batch-size: ${GUEST_ATTEMPT_PURGE_BATCH_SIZE:500}
+    # Toutes les 30 min : deux fois plus fin que la retention.
+    cron: ${GUEST_ATTEMPT_PURGE_CRON:0 0/30 * * * *}
+
   # Pipeline d'evaluation des productions (EO/EE du TCF IRN).
   # Distinct de sejourfr.anthropic (qui sert a generer des questions audio CO).
   # Cles API exclusivement via variables d'environnement.

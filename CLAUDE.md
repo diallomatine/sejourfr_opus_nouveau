@@ -118,10 +118,29 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
   `user NULL` + `clientIp` — sert d'analytics « combien se testent »). Tirages
   guests déterministes. Série 2+/examen 2+ → inscription. `GET /api/public/lots`
   + `POST /api/public/attempts/demo` (TRAINING lotNumero=1 ou MOCK_EXAM
-  template free). **Examens ciblés** (thème civique / épreuve TCF) et EE/EO :
-  compte obligatoire — le backend renvoie 403 sur un MOCK_EXAM guest avec
-  themeId ou moduleExamQuestionType ; côté web les pages `*/examens` restent
-  des vitrines (grille visible, tout verrouillé → GuestGateSheet).
+  template free). **Examen blanc de MODULE TCF : slot 1 offert aux visiteurs**
+  (2026-08-16, `AttemptService.startGuestModuleExam`) — CO / CE / STRUCTURE, un
+  seul examen par épreuve, tirage **déterministe** (rejouer redonne le même : on
+  n'ouvre pas la banque de questions sans compte). Slots 2-20 → inscription.
+  ⚠️ Cette règle **révoque** la précédente (« pages `*/examens` = vitrines,
+  tout verrouillé ») **pour ce seul cas**. Restent fermés aux visiteurs, et le
+  backend le double d'un 403 : les examens de **thème civique** (`themeId`) et
+  **EE/EO**. Ne pas déverrouiller le reste « par symétrie ».
+  ⚠️ **Le mobile n'a AUCUN mode invité** (le redirect global renvoie tout
+  non-authentifié vers `/login`, allowlist limitée à l'aide, `/about` et le
+  diagnostic) : il ne vérifie que l'**abonnement**. L'asymétrie web ouvert /
+  mobile compte requis est un **choix**, pas un trou.
+- **Purge des attempts invités : écrite, livrée ÉTEINTE**
+  (`GuestAttemptPurgeJob` + `sejourfr.guest-attempt-purge.enabled=false`, POJO
+  et YAML à la même valeur ; rétention 2 h, lots de 500, cron configurables).
+  🛑 **Prérequis avant de l'activer** : ces lignes **sont** la mesure « combien
+  de visiteurs se testent ». Les purger sans avoir d'abord un **compteur
+  agrégé** (une ligne par jour, patron `page_views` V020) détruit cette donnée
+  — le propriétaire a explicitement demandé de la conserver. `user IS NULL` est
+  vérifié **deux fois** (sélection puis DELETE), les tables filles partent en
+  cascade DB, l'index partiel `idx_attempts_demo_quota` (V006) couvre le
+  filtre. Un test vérifie qu'à `false` **rien** n'est supprimé, un autre qu'un
+  attempt de compte vieux d'un an est épargné.
 - **Compte gratuit, EE/EO** : 1 essai d'entraînement par épreuve à vie + 1
   examen blanc production offert. L'examen est marqué `attempts.slot_number=1`
   au start (`ProductionAttemptStartRequest.exam`) ; ses soumissions bypassent

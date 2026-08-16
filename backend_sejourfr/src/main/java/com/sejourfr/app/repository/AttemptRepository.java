@@ -13,7 +13,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -86,6 +88,39 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
     // Quota guest (countByClientIp...AndStartedAtAfter) supprimé 2026-05-17 :
     // la démo est désormais illimitée. L'index partiel idx_attempts_demo_quota
     // est laissé en base (cf. V092) au cas où on rétablit un quota plus tard.
+
+    /**
+     * Ids des attempts <b>invités</b> ({@code user_id IS NULL}) démarrés avant
+     * {@code cutoff}, plafonnés par la page — lot d'une passe de purge (cf.
+     * {@code GuestAttemptPurgeJob}). Le filtre est celui que couvre déjà
+     * l'index partiel {@code idx_attempts_demo_quota} (V006), dont la clause
+     * {@code WHERE user_id IS NULL} est exactement notre prédicat.
+     *
+     * <p>Le tri sur {@code startedAt} rend les lots déterministes : une passe
+     * traite toujours les plus anciens d'abord, donc deux passes successives ne
+     * repassent pas sur le même sous-ensemble.
+     */
+    @Query("""
+            SELECT a.id FROM Attempt a
+            WHERE a.user IS NULL AND a.startedAt < :cutoff
+            ORDER BY a.startedAt ASC
+            """)
+    List<UUID> findGuestAttemptIdsStartedBefore(@Param("cutoff") Instant cutoff, Pageable pageable);
+
+    /**
+     * Supprime un lot d'attempts invités. Le {@code a.user IS NULL} est
+     * <b>redondant</b> avec la sélection ci-dessus et c'est volontaire : un
+     * attempt rattaché à un compte est l'historique du candidat et la source de
+     * vérité du freemium, il ne doit pouvoir être emporté par aucune passe de
+     * purge, même sur une liste d'ids fausse.
+     *
+     * <p>Les tables filles partent en cascade <b>base</b>
+     * ({@code attempt_questions} → {@code answers}, V006) : aucune suppression
+     * manuelle à écrire ici.
+     */
+    @Modifying
+    @Query("DELETE FROM Attempt a WHERE a.id IN :ids AND a.user IS NULL")
+    int deleteGuestAttemptsByIds(@Param("ids") Collection<UUID> ids);
 
     /**
      * Lookup sécurisé d'un attempt guest : exige que l'attempt soit bien
