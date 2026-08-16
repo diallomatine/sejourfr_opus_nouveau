@@ -28,11 +28,6 @@
   color: var(--muted);
 }
 
-.audio {
-  width: 100%;
-  max-width: 100%;
-}
-
 .sourceTag {
   font-family: "JetBrains Mono", monospace;
   font-size: 10px;

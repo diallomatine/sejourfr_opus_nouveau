@@ -31,7 +31,6 @@ class ProductionPipelineAsyncRunnerDiagnosticTest {
 
     private ProductionSubmissionManager submissionManager;
     private TranscriptionManager transcriptionManager;
-    private WhisperTranscriptionService whisperService;
     private AiEvaluationService aiEvaluationService;
     private ProductionPipelineFailureRecorder failureRecorder;
     private ProductionVersionCibleeService versionCibleeService;
@@ -45,7 +44,6 @@ class ProductionPipelineAsyncRunnerDiagnosticTest {
     void setUp() {
         submissionManager = mock(ProductionSubmissionManager.class);
         transcriptionManager = mock(TranscriptionManager.class);
-        whisperService = mock(WhisperTranscriptionService.class);
         aiEvaluationService = mock(AiEvaluationService.class);
         failureRecorder = mock(ProductionPipelineFailureRecorder.class);
         versionCibleeService = mock(ProductionVersionCibleeService.class);
@@ -54,7 +52,7 @@ class ProductionPipelineAsyncRunnerDiagnosticTest {
         diagnosticFailureRecorder = mock(DiagnosticSessionFailureRecorder.class);
         exempleCibleService = mock(DiagnosticExempleCibleService.class);
         runner = new ProductionPipelineAsyncRunner(
-                submissionManager, transcriptionManager, whisperService, aiEvaluationService,
+                submissionManager, transcriptionManager, aiEvaluationService,
                 failureRecorder, versionCibleeService, diagnosticAnalysisService,
                 coordinator, diagnosticFailureRecorder, exempleCibleService);
     }

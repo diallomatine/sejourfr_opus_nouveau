@@ -577,7 +577,9 @@ export function EoRecordingForm({
               : copy.recording
           : phase === "recorded"
             ? examMode
-              ? "Réponse envoyée à l'évaluation…"
+              ? error
+                ? "L'envoi n'a pas abouti. Votre enregistrement est encore là : renvoyez-le."
+                : "Réponse envoyée à l'évaluation…"
               : copy.recorded
             : examCountdown
               ? `Prenez le temps de lire la consigne : rien n'est chronométré tant que vous n'avez pas commencé. Le temps de parole (${formatDurationSec(max ?? 0)}) démarre quand vous lancez la tâche, et votre réponse est soumise dès l'arrêt. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`
@@ -696,6 +698,27 @@ export function EoRecordingForm({
           sur les références — se décide AVANT de parler : c'est pour ça qu'il
           peut être rendu dès l'ouverture de l'écran. */}
       {!examMode && (footerAlwaysVisible || phase === "recorded") && footerSlot}
+
+      {/* EN EXAMEN, un envoi qui échoue laissait le candidat SANS ISSUE : le
+          micro est verrouillé et aucun bouton n'est rendu. Depuis que la
+          transcription se fait pendant l'envoi, un échec est un cas réel — on
+          rend LE MÊME enregistrement renvoyable. Ni réenregistrement, ni
+          réécoute : les règles d'examen ne bougent pas. */}
+      {examMode && phase === "recorded" && error && (
+        <div className={s.actionRow}>
+          <button
+            type="button"
+            className={s.primary}
+            disabled={submitting}
+            onClick={() =>
+              blobRef.current &&
+              onSubmit(blobRef.current, Math.min(elapsed, hardCapSec ?? elapsed))
+            }
+          >
+            {submitting ? "Envoi en cours…" : "Renvoyer ma réponse"}
+          </button>
+        </div>
+      )}
 
       {!examMode && phase === "recorded" && (
         <div className={s.actionRow}>

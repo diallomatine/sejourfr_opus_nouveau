@@ -15,7 +15,8 @@ import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.service.AccountDeletionService;
-import com.sejourfr.app.service.ProductionAudioStorageService;
+import com.sejourfr.app.service.WhisperTranscriptionClient;
+import com.sejourfr.app.service.WhisperTranscriptionService;
 import com.sejourfr.app.service.ProductionPipelineAsyncRunner;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.AuthTestSupport;
@@ -59,8 +60,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * attempt » porté sur la session entière, ou quota freemium appliqué à une
  * production diagnostique. Ce test échoue si l'une d'elles refuse la séquence.
  *
- * <p>Seuls les deux ports externes sont remplacés — le pipeline d'analyse
- * (Whisper + LLM payant) et R2. Toutes les gardes serveur (propriété de
+ * <p>Seuls les deux ports externes sont remplacés — la transcription Whisper
+ * (payante) et le pipeline d'analyse (LLM payant). Aucun stockage d'audio n'est
+ * mocké : il n'y en a plus. Toutes les gardes serveur (propriété de
  * l'attempt, correspondance d'épreuve, chrono, une soumission par tâche, quota)
  * restent réellement exercées.
  */
@@ -80,15 +82,14 @@ class DiagnosticPostSignupSequenceIT extends AbstractIntegrationTest {
     @Autowired private DiagnosticProductionAnalysisManager analysisManager;
 
     @MockitoBean private ProductionPipelineAsyncRunner pipelineRunner;
-    @MockitoBean private ProductionAudioStorageService audioStorage;
+    @MockitoBean private WhisperTranscriptionService whisperService;
 
     @Test
     void inscriptionPuisEcritPuisOralCoupSurCoup() throws Exception {
         User user = data.user();
         String bearer = auth.bearer(user);
-        ProductionAudioStorageService.StoredAudio stored =
-                new ProductionAudioStorageService.StoredAudio("productions/test.m4a", "audio/mp4");
-        when(audioStorage.upload(any(), any(), any(), any())).thenReturn(stored);
+        when(whisperService.transcribe(any(), any())).thenReturn(
+                new WhisperTranscriptionClient.WhisperResult("je voudrais reserver une salle", "fr", 95));
         try {
             JsonNode session = startSession(bearer);
             assertThat(session.path("status").asText()).isEqualTo("IN_PROGRESS");

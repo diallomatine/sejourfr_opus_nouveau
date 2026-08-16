@@ -1963,6 +1963,67 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   ci-dessus ne vaut que pour le **niveau d'un candidat dans le temps** — ne pas
   le propager à ces deux calculs sans une décision explicite.
 
+## L'audio d'une production de candidat n'est pas conservé (2026-08-16)
+
+Décision du propriétaire, **motif consentement** : « on ne stocke pas les
+enregistrements audio des gens ; l'audio sert **uniquement** à produire la
+transcription, et après la transcription on ne le stocke pas ». Ce qui reste
+d'une production orale, c'est **son texte**.
+
+- **Aucune production de candidat n'est écrite sur R2.** `ProductionAudioStorageService`
+  (préfixe `submissions/`) et `SkillTranscriptionService` sont **supprimés** — pas
+  désactivés : il n'existe plus de code capable d'écrire ou de relire un audio de
+  candidat. Les trois voies concernées étaient les **productions EE/EO**
+  (`production_submissions.media_url`), les **micro-exercices de compétence EO**
+  (`user_skill_attempts.audio_object_key`) et l'**oral du diagnostic** (qui passe
+  par la même route de production). La session vocale **temps réel** n'a jamais
+  rien persisté (flux client ⇄ Gemini, production = transcript).
+- 🛑 **Ne touche PAS aux audios ÉDITORIAUX** : consignes du diagnostic, exemples
+  EO, audios de compréhension orale, médias de questions. Ils passent par
+  `CloudflareR2Client` / `MediaStorageService` et sont du **contenu**, pas de la
+  donnée personnelle.
+- 🛑 **Rien n'est supprimé rétroactivement** : les objets déjà sur R2 restent, les
+  clés déjà en base restent. `media_url` et `audio_object_key` deviennent des
+  colonnes **LEGACY, plus jamais écrites**. **Ne jamais écrire de migration de
+  purge, de job de suppression ni de `delete` rétroactif.**
+- **La transcription est SYNCHRONE**, dans la requête de soumission — seul moment
+  où les octets existent. Ordre volontaire : **transcrire PUIS insérer**. Un échec
+  Whisper ne laisse alors **aucune ligne**, **aucun quota consommé**, et le
+  candidat renvoie depuis son appareil (les 4 fronts gardent le fichier local
+  après un envoi raté). L'ordre inverse fabriquerait des productions `FAILED`
+  définitivement irrécupérables. Coût mesuré sur la base : audio médian 90 s,
+  p90 175 s ⇒ quelques secondes d'attente ajoutées à l'envoi, contre ~0 avant.
+- **`AudioEphemere.avecOctets` est le seul endroit qui tient la promesse** : le
+  tampon est remis à zéro dans un `finally`, donc **aussi quand la transcription
+  échoue**. À utiliser dès qu'on manipule les octets d'une production.
+- **`spring.servlet.multipart.file-size-threshold: 26MB`** : au défaut (`0B`)
+  Spring écrivait **tout** upload multipart dans un fichier temporaire — l'audio
+  touchait le disque à chaque soumission. Ne pas rabaisser.
+- **Les runners ne transcrivent plus.** `ProductionPipelineAsyncRunner` et
+  `SkillAnalysisAsyncRunner` partent toujours d'une production **écrite** ; une
+  production orale sans transcription est un état impossible (sauf ligne
+  antérieure) et échoue clairement au lieu de noter du vide.
+- **Retries** : le retry d'une **évaluation** repart de la transcription (il ne
+  relisait déjà que le texte). Le retry d'une **transcription** n'existe plus —
+  un échec est une **réponse HTTP 503** (`GlobalExceptionHandler.handleTranscription`)
+  qui dit au candidat de **renvoyer**, pas d'attendre. Le retry **agrégé du
+  diagnostic** et `POST /api/skill-attempts/{id}/analyse` sont inchangés, mais
+  `analyse` refuse **avant** de consommer le quota une tentative orale LEGACY
+  sans transcription.
+- **Aucun DTO ne porte plus d'URL audio** : `ProductionSubmissionDto.mediaUrl` et
+  `SkillAttemptDto.audioUrl` sont **retirés** du backend et des **trois miroirs**
+  (`admin/src/types/api.ts`, `web/lib/types.ts`, `mobile/core/models/*.dart`).
+  `mediaDurationSec` / `audioDurationSec` restent : la durée n'est pas l'audio.
+- **Écrans** : aucun ne propose plus de réécouter une production **soumise** (web
+  `CompetenceResult`, mobile `competence_result_screen`, admin
+  `calibration/ProductionView` — les seuls qui le faisaient). ✅ **La réécoute
+  LOCALE, avant validation, reste** : le fichier est encore sur l'appareil, rien
+  n'est stocké, et elle protège le candidat d'envoyer une prise ratée.
+- Contraintes desserrées par **V033** : `chk_prod_sub_audio_or_text` (une
+  soumission orale n'a plus ni média ni texte, sa production vit dans
+  `transcriptions`, comme le temps réel depuis V017) et
+  `chk_user_skill_attempts_has_production` (qui accepte désormais `transcript`).
+
 ## Module « Compétences TCF » (micro-entraînement EE/EO)
 
 Voie **parallèle** aux productions complètes, pas une réutilisation : le candidat
@@ -2271,10 +2332,14 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
 - **`POST .../retry`** ne re-consomme pas le quota (l'échec n'est pas du fait du
   candidat) : c'est ce qui **impose** le plafond persisté `retry_count` ≤ 3,
   appliqué dans le service (422) **et** en base.
-- **Transcription Whisper seulement si une analyse est demandée** (on ne paie pas
-  pour un audio que personne ne corrigera) ; l'**audio est conservé dans tous les
-  cas** — les deux fronts doivent permettre de se réécouter sur l'écran de
-  résultat EO. Pipeline async **sans transaction englobante**, même invariant que
+- **Transcription SYSTÉMATIQUE, audio JAMAIS conservé** (cf. la section
+  transverse « L'audio d'une production de candidat n'est pas conservé »).
+  ⚠️ **Révoque** l'ancienne règle « Whisper seulement si une analyse est
+  demandée » et « l'audio est conservé dans tous les cas, les deux fronts
+  permettent de se réécouter » : sans audio gardé, ne pas transcrire ne
+  laisserait **rien** de la production. Elle est donc écrite dès la soumission,
+  analyse demandée ou non, et l'écran de résultat n'a plus de lecteur. Pipeline
+  async **sans transaction englobante**, même invariant que
   `ProductionPipelineAsyncRunner` (+ `SkillAnalysisFailureRecorder` en
   `REQUIRES_NEW` pour rendre `FAILED` durable).
 - **Garde-fou EO, identique à celui des productions complètes** : la **durée n'est
@@ -2290,8 +2355,10 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
   400 mots en EE, 180 s en EO, taille audio max partagée avec
   `production-evaluation`.
 - **Libellés gelés du bandeau « Sujet déjà traité »**, une seule action par
-  section : EE « Reprendre ma réponse » (préremplit), EO « Écouter ma dernière
-  réponse » (ouvre le résultat).
+  section : EE « Reprendre ma réponse » (préremplit), EO « **Relire** ma dernière
+  réponse » (ouvre le résultat). ⚠️ L'EO disait « Écouter » jusqu'au 2026-08-16 :
+  il n'y a plus rien à réécouter, l'enregistrement n'étant pas conservé — c'est
+  la transcription qu'on relit.
 - `SkillPromptDto` porte `skillPromptCount` / `skillDescription` /
   `skillGeneralCriterion` / `skillTargetLevel` **exprès** : l'écran de production
   affiche le fil d'Ariane « Sujet i/5 », l'encart d'explication et le palier

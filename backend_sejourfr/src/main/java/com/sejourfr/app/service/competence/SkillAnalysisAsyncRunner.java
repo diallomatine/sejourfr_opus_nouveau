@@ -2,6 +2,8 @@ package com.sejourfr.app.service.competence;
 
 import com.sejourfr.app.entity.UserSkillAttempt;
 import com.sejourfr.app.enums.SkillAttemptStatut;
+import com.sejourfr.app.enums.SkillSection;
+import com.sejourfr.app.exception.TranscriptionException;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
 import com.sejourfr.app.service.LearningPlanObservationService;
 import com.sejourfr.app.service.competence.niveauvise.CompetenceNiveauViseService;
@@ -44,20 +46,22 @@ import java.util.concurrent.CompletableFuture;
 public class SkillAnalysisAsyncRunner {
 
     private final UserSkillAttemptManager attemptManager;
-    private final SkillTranscriptionService transcriptionService;
     private final CompetenceAnalysisService analysisService;
     private final CompetenceNiveauViseService niveauViseService;
     private final SkillAnalysisFailureRecorder failureRecorder;
     private final LearningPlanObservationService learningPlanObservationService;
 
     /**
-     * @param estOral vrai pour une production orale : la transcription Whisper
-     *                precede alors l'analyse. Elle n'est declenchee que sur
-     *                cette voie — une tentative sans analyse n'arrive jamais
-     *                ici, donc on ne paie jamais Whisper pour rien.
+     * <p><b>Aucune transcription ici</b> : depuis que l'audio n'est plus stocke,
+     * elle se fait pendant la requete de soumission — c'est le seul moment ou
+     * les octets existent. Ce runner part donc toujours d'une production
+     * ECRITE : le texte du candidat en EE, sa transcription en EO. Une tentative
+     * orale qui arriverait sans transcription est un etat impossible depuis la
+     * soumission, sauf sur une ligne anterieure au changement : on echoue
+     * clairement plutot que d'analyser du vide.
      */
     @Async
-    public CompletableFuture<Void> runAsync(UUID attemptId, boolean estOral) {
+    public CompletableFuture<Void> runAsync(UUID attemptId) {
         // JOIN FETCH : la tentative est lue hors de la session Hibernate du
         // thread appelant, deja fermee quand on arrive ici.
         UserSkillAttempt attempt = attemptManager.findByIdWithPrompt(attemptId).orElse(null);
@@ -66,12 +70,14 @@ public class SkillAnalysisAsyncRunner {
             return CompletableFuture.completedFuture(null);
         }
         try {
-            if (estOral && attempt.getTranscript() == null) {
-                transcriptionService.transcribe(attemptId);
-            } else {
-                attempt.setStatut(SkillAttemptStatut.EVALUATING);
-                attemptManager.save(attempt);
+            if (attempt.getSkillPrompt().getSection() == SkillSection.EO
+                    && (attempt.getTranscript() == null || attempt.getTranscript().isBlank())) {
+                throw new TranscriptionException(
+                        "Cet enregistrement n'a pas pu être retranscrit et n'a pas été conservé : "
+                                + "refaites le sujet.");
             }
+            attempt.setStatut(SkillAttemptStatut.EVALUATING);
+            attemptManager.save(attempt);
             analysisService.analyse(attemptId);
             // SECOND APPEL, séparé de l'analyse : « pour viser X ». Il tourne
             // ICI, après que l'analyse est persistée et hors de sa transaction —

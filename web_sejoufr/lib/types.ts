@@ -609,9 +609,13 @@ export interface ProductionSubmissionDto {
     /** Numéro de tâche (1/2/3) — sert à regrouper par tâche dans les hubs. */
     tacheNumero: number | null;
     statut: SubmissionStatut;
-    mediaUrl: string | null; // EO
     texteSoumis: string | null; // EE
     motsCount: number | null;
+    /**
+     * Durée de l'enregistrement (EO). Seule trace qui subsiste de l'audio :
+     * il n'est pas conservé, donc aucune URL n'est servie — ce qui reste d'une
+     * production orale, c'est `transcription`.
+     */
     mediaDurationSec: number | null; // EO
     retryCount: number;
     erreurMessage: string | null;
@@ -1484,9 +1488,12 @@ export interface SkillAttemptDto {
     statut: SkillAttemptStatut;
     analysisRequested: boolean;
     writtenProduction: string | null;
-    /** URL R2 présignée (15 min) — jamais la clé brute. EO uniquement. */
-    audioUrl: string | null;
+    /**
+     * Durée de l'enregistrement (EO). Seule trace qui subsiste de l'audio : il
+     * n'est pas conservé, donc aucune URL n'est servie.
+     */
     audioDurationSec: number | null;
+    /** Transcription Whisper — LA production orale conservée. */
     transcript: string | null;
     wordsCount: number | null;
     selfEvaluation: SkillSelfEvaluation | null;

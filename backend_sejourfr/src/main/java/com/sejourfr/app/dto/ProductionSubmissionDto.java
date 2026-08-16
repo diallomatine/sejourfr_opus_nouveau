@@ -9,6 +9,9 @@ import java.util.UUID;
  * Vue front d'une {@link com.sejourfr.app.entity.ProductionSubmission}. Le
  * champ {@code evaluation} est nul tant que le pipeline IA n'a pas abouti
  * (statut != EVALUATED).
+ *
+ * <p><b>Aucune URL audio</b> : l'enregistrement d'un candidat n'est pas
+ * conserve. Ce que rend une production orale, c'est {@code transcription}.
  */
 public record ProductionSubmissionDto(
         UUID id,
@@ -18,18 +21,20 @@ public record ProductionSubmissionDto(
          *  d'entrainement a regrouper la derniere submission par numero. */
         Short tacheNumero,
         SubmissionStatut statut,
-        String mediaUrl,
         String texteSoumis,
         Integer motsCount,
+        /**
+         * Duree de l'enregistrement (EO), en secondes. C'est la seule trace qui
+         * subsiste de l'audio : il n'est pas conserve, aucune URL n'est servie.
+         */
         Integer mediaDurationSec,
         short retryCount,
         String erreurMessage,
         Instant submittedAt,
         EvaluationResultDto evaluation,
         /**
-         * Transcription Whisper de l'audio (EO uniquement). Null pour EE et tant
-         * que Whisper n'a pas tourne. Exposee pour afficher dans l'ecran detail
-         * de l'evaluation cote mobile.
+         * Transcription Whisper (EO uniquement) — <b>la production orale
+         * conservee</b>, ecrite pendant la requete de soumission. Null pour EE.
          */
         String transcription,
         /**
@@ -45,7 +50,7 @@ public record ProductionSubmissionDto(
     /** Meme soumission, avec le changement de Plan resolu a la lecture. */
     public ProductionSubmissionDto withPlanChange(PlanChangeDto planChange) {
         return new ProductionSubmissionDto(
-                id, attemptId, productionTaskId, tacheNumero, statut, mediaUrl, texteSoumis,
+                id, attemptId, productionTaskId, tacheNumero, statut, texteSoumis,
                 motsCount, mediaDurationSec, retryCount, erreurMessage, submittedAt,
                 evaluation, transcription, planChange);
     }

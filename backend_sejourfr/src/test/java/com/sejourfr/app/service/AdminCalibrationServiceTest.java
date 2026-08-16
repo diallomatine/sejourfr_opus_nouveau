@@ -110,13 +110,13 @@ class AdminCalibrationServiceTest {
                 .thenReturn(List.of(annotee, vierge));
         when(humanNoteManager.findAnnotatedSubmissionIds(any()))
                 .thenReturn(Set.of(annotee.getId()));
-        when(submissionMapper.toDtoWithSignedAudio(any())).thenReturn(mock(ProductionSubmissionDto.class));
+        when(submissionMapper.toDto(any())).thenReturn(mock(ProductionSubmissionDto.class));
 
         List<CalibrationSubmissionDto> result = service.listSubmissions("evaluated", true, 50);
 
         assertThat(result).hasSize(1);
-        verify(submissionMapper).toDtoWithSignedAudio(annotee);
-        verify(submissionMapper, never()).toDtoWithSignedAudio(vierge);
+        verify(submissionMapper).toDto(annotee);
+        verify(submissionMapper, never()).toDto(vierge);
     }
 
     @Test
@@ -127,12 +127,12 @@ class AdminCalibrationServiceTest {
                 .thenReturn(List.of(annotee, vierge));
         when(humanNoteManager.findAnnotatedSubmissionIds(any()))
                 .thenReturn(Set.of(annotee.getId()));
-        when(submissionMapper.toDtoWithSignedAudio(any())).thenReturn(mock(ProductionSubmissionDto.class));
+        when(submissionMapper.toDto(any())).thenReturn(mock(ProductionSubmissionDto.class));
 
         List<CalibrationSubmissionDto> result = service.listSubmissions("evaluated", false, 50);
 
         assertThat(result).hasSize(1);
-        verify(submissionMapper).toDtoWithSignedAudio(vierge);
+        verify(submissionMapper).toDto(vierge);
     }
 
     /** Les ids annotes sont charges en UNE requete, pas une par submission. */
@@ -143,7 +143,7 @@ class AdminCalibrationServiceTest {
         when(submissionManager.findByStatutOrderedBySubmittedAt(SubmissionStatut.EVALUATED))
                 .thenReturn(base);
         when(humanNoteManager.findAnnotatedSubmissionIds(any())).thenReturn(Set.of());
-        when(submissionMapper.toDtoWithSignedAudio(any())).thenReturn(mock(ProductionSubmissionDto.class));
+        when(submissionMapper.toDto(any())).thenReturn(mock(ProductionSubmissionDto.class));
 
         service.listSubmissions("evaluated", false, 50);
 
@@ -163,7 +163,7 @@ class AdminCalibrationServiceTest {
         when(submissionManager.findByStatutOrderedBySubmittedAt(SubmissionStatut.EVALUATED))
                 .thenReturn(List.of(vierge));
         when(humanNoteManager.findAnnotatedSubmissionIds(any())).thenReturn(Set.of());
-        when(submissionMapper.toDtoWithSignedAudio(any())).thenReturn(mock(ProductionSubmissionDto.class));
+        when(submissionMapper.toDto(any())).thenReturn(mock(ProductionSubmissionDto.class));
         when(aiEvaluationManager.findLatestBySubmissionId(vierge.getId()))
                 .thenReturn(Optional.of(eval));
 
@@ -190,7 +190,7 @@ class AdminCalibrationServiceTest {
         when(submissionManager.findByStatutOrderedBySubmittedAt(SubmissionStatut.EVALUATED))
                 .thenReturn(List.of(ancienne, sansEval));
         when(humanNoteManager.findAnnotatedSubmissionIds(any())).thenReturn(Set.of());
-        when(submissionMapper.toDtoWithSignedAudio(any())).thenReturn(mock(ProductionSubmissionDto.class));
+        when(submissionMapper.toDto(any())).thenReturn(mock(ProductionSubmissionDto.class));
         when(aiEvaluationManager.findLatestBySubmissionId(ancienne.getId()))
                 .thenReturn(Optional.of(legacy));
         when(aiEvaluationManager.findLatestBySubmissionId(sansEval.getId()))

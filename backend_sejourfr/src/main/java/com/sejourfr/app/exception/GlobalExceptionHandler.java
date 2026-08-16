@@ -93,6 +93,25 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * La transcription echoue PENDANT la soumission d'une production orale —
+     * c'est le seul moment ou elle peut avoir lieu, l'audio n'etant pas
+     * conserve. Rien n'a donc ete enregistre, et il n'y a rien a relancer : le
+     * candidat doit RENVOYER, depuis l'enregistrement encore present sur son
+     * appareil. Le message le dit, parce qu'un 500 opaque le laisserait attendre
+     * une correction qui n'arrivera jamais.
+     *
+     * <p>503 et non 4xx : l'echec vient de nous (fournisseur indisponible), pas
+     * de ce qu'il a envoye.
+     */
+    @ExceptionHandler(TranscriptionException.class)
+    public ResponseEntity<Map<String, Object>> handleTranscription(TranscriptionException e, WebRequest req) {
+        return build(HttpStatus.SERVICE_UNAVAILABLE,
+                "Nous n'avons pas pu retranscrire votre enregistrement. Il n'a pas été "
+                        + "conservé : renvoyez-le, ou refaites-le si vous avez quitté l'écran.",
+                req, null, e);
+    }
+
+    /**
      * Depassement d'une limite anti-abus. Renvoie 429 + header {@code Retry-After}
      * (secondes) pour que les clients reessaient apres le delai indique.
      */

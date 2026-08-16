@@ -824,7 +824,6 @@ class SkillAttemptDto {
     required this.analysisRequested,
     required this.createdAt,
     this.writtenProduction,
-    this.audioUrl,
     this.audioDurationSec,
     this.transcript,
     this.wordsCount,
@@ -841,7 +840,9 @@ class SkillAttemptDto {
   final bool analysisRequested;
   final DateTime createdAt;
   final String? writtenProduction;
-  final String? audioUrl;
+
+  /// Durée de l'enregistrement (EO). Seule trace qui subsiste de l'audio : il
+  /// n'est pas conservé, donc aucune URL n'est servie.
   final int? audioDurationSec;
   final String? transcript;
   final int? wordsCount;
@@ -850,9 +851,9 @@ class SkillAttemptDto {
   final SkillAnalysisDto? analysis;
   final String? errorMessage;
 
-  /// Le texte à relire : la rédaction en EE, la transcription en EO (absente
-  /// tant qu'aucune analyse n'a été demandée — on ne paie pas Whisper pour
-  /// rien).
+  /// Le texte à relire : la rédaction en EE, la transcription en EO. À l'oral
+  /// c'est TOUT ce qui reste de la production — l'enregistrement n'est pas
+  /// conservé —, et elle est donc produite systématiquement.
   String? get productionText =>
       (writtenProduction?.trim().isNotEmpty ?? false)
           ? writtenProduction
@@ -871,7 +872,6 @@ class SkillAttemptDto {
             DateTime.tryParse(json['createdAt'] as String? ?? '')?.toLocal() ??
                 DateTime.now(),
         writtenProduction: json['writtenProduction'] as String?,
-        audioUrl: json['audioUrl'] as String?,
         audioDurationSec: (json['audioDurationSec'] as num?)?.toInt(),
         transcript: json['transcript'] as String?,
         wordsCount: (json['wordsCount'] as num?)?.toInt(),

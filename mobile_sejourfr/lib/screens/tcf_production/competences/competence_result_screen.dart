@@ -11,7 +11,6 @@ import '../../../core/models/skill_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_tag.dart';
-import '../../../core/widgets/audio_player.dart';
 import '../../../core/widgets/list_group.dart';
 import '../../../core/widgets/paywall_sheet.dart';
 import '../../../core/widgets/screen_header.dart';
@@ -392,7 +391,6 @@ class _CompetenceResultScreenState
           _ProductionCard(
             attempt: attempt,
             isEo: widget.module.isEo,
-            accent: _accent,
           ),
         ],
         const SizedBox(height: 17),
@@ -674,24 +672,21 @@ class _AnalysisBanner extends StatelessWidget {
   }
 }
 
-/// `.answer-box` du prototype, augmenté du lecteur audio en EO.
+/// `.answer-box` du prototype. Aucun lecteur audio, même en EO :
+/// l'enregistrement n'est pas conservé, ce qui est rendu c'est la transcription.
 class _ProductionCard extends StatelessWidget {
   const _ProductionCard({
     required this.attempt,
     required this.isEo,
-    required this.accent,
   });
 
   final SkillAttemptDto attempt;
   final bool isEo;
-  final Color accent;
 
   @override
   Widget build(BuildContext context) {
     final text = attempt.productionText;
     final duration = attempt.audioDurationSec;
-    final audioUrl = attempt.audioUrl;
-    final hasAudio = isEo && audioUrl != null && audioUrl.isNotEmpty;
 
     return Container(
       width: double.infinity,
@@ -727,26 +722,18 @@ class _ProductionCard extends StatelessWidget {
                 ),
             ],
           ),
-          // Se réécouter en lisant l'analyse fait la moitié de la valeur
-          // pédagogique de l'oral (spec §15 : « l'oral conserve l'audio »).
-          if (hasAudio) ...[
-            const SizedBox(height: 12),
-            SejourAudioPlayer(
-              url: audioUrl,
-              label: 'TON ENREGISTREMENT',
-              icon: LucideIcons.mic,
-              accent: accent,
-              background: accent.withValues(alpha: 0.06),
-            ),
-          ],
+          // Pas de lecteur : l'enregistrement n'est pas conservé (il sert à
+          // produire la transcription, puis il disparaît). Ce qu'on rend d'une
+          // production orale, c'est son texte — la réécoute existe avant
+          // l'envoi, sur l'écran d'enregistrement.
           const SizedBox(height: 7),
           if (text != null)
             Text(text, style: AppFonts.ui(size: 13, height: 1.55))
           else
             Text(
               isEo
-                  ? 'Ta réponse orale est enregistrée. La transcription n\'est '
-                      'produite que lorsqu\'une analyse IA est demandée.'
+                  ? 'La transcription de ta réponse orale n\'a pas pu être '
+                      'récupérée.'
                   : 'Aucune réponse enregistrée.',
               style: AppFonts.ui(
                 size: 12.5,

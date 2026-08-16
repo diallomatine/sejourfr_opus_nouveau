@@ -408,7 +408,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
                         )
                       }
                     >
-                      Écouter ma dernière réponse
+                      Relire ma dernière réponse
                     </button>
                   ) : (
                     <button

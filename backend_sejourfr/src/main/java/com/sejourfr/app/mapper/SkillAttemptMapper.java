@@ -7,7 +7,6 @@ import com.sejourfr.app.entity.UserSkillAttempt;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.SkillCriterionStatus;
 import com.sejourfr.app.enums.TargetLevel;
-import com.sejourfr.app.service.ProductionAudioStorageService;
 import com.sejourfr.app.service.competence.CompetenceAnalysisFields;
 import com.sejourfr.app.service.competence.SkillLevelProgressResolver;
 import com.sejourfr.app.service.competence.niveauvise.CompetenceNiveauViseFields;
@@ -21,11 +20,10 @@ import java.util.Map;
 /**
  * Mapper {@link UserSkillAttempt} -&gt; {@link SkillAttemptDto}.
  *
- * <p>{@link #toDto} laisse {@code audioUrl} a {@code null} : la cle d'objet R2
- * brute ne doit jamais sortir du backend. {@link #toDtoWithSignedAudio} est la
- * seule variante qui expose l'audio, via une URL presignee a TTL court —
- * meme decoupage que {@code ProductionSubmissionMapper}, pour ne pas payer un
- * aller-retour R2 quand l'appelant n'a pas besoin d'ecouter.
+ * <p><b>Il n'existe plus de variante « avec audio »</b> : l'enregistrement d'un
+ * candidat n'est pas conserve (decision produit, motif consentement), donc il
+ * n'y a rien a presigner et le DTO ne porte plus d'URL. La production orale
+ * rendue aux ecrans, c'est sa transcription.
  *
  * <p><b>Deux generations d'analyses cohabitent en base</b>, et rien n'a ete
  * migre : le contrat v1/v2 ({@code success_point},
@@ -39,22 +37,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SkillAttemptMapper {
 
-    private final ProductionAudioStorageService audioStorage;
-
     public SkillAttemptDto toDto(UserSkillAttempt attempt) {
-        return build(attempt, null);
-    }
-
-    /** Variante qui expose l'audio via une URL signee (TTL court). */
-    public SkillAttemptDto toDtoWithSignedAudio(UserSkillAttempt attempt) {
-        String key = attempt.getAudioObjectKey();
-        if (key == null || key.isBlank()) {
-            return build(attempt, null);
-        }
-        return build(attempt, audioStorage.presignGet(key));
-    }
-
-    private SkillAttemptDto build(UserSkillAttempt attempt, String audioUrl) {
         return new SkillAttemptDto(
                 attempt.getId(),
                 attempt.getSkillPrompt().getId(),
@@ -62,7 +45,6 @@ public class SkillAttemptMapper {
                 attempt.getStatut(),
                 attempt.isAnalysisRequested(),
                 attempt.getWrittenProduction(),
-                audioUrl,
                 attempt.getAudioDurationSec(),
                 attempt.getTranscript(),
                 attempt.getWordsCount(),

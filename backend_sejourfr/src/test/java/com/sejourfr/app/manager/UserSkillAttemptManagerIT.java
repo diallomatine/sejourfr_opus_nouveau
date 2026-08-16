@@ -241,8 +241,8 @@ class UserSkillAttemptManagerIT extends AbstractIntegrationTest {
 
     @Test
     void attemptWithoutAnyProductionIsRejectedByDatabase() {
-        // chk_user_skill_attempts_has_production : ni texte ni audio = pas de
-        // production, donc pas de tentative.
+        // chk_user_skill_attempts_has_production : ni texte, ni transcription,
+        // ni cle audio legacy = pas de production, donc pas de tentative.
         UserSkillAttempt invalid = new UserSkillAttempt();
         invalid.setUser(testData.user());
         invalid.setSkillPrompt(testData.skillPrompt());
@@ -252,8 +252,12 @@ class UserSkillAttemptManagerIT extends AbstractIntegrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    /**
+     * LEGACY : les lignes ecrites quand l'audio etait encore stocke gardent leur
+     * cle et doivent rester valides. Rien ne les migre, rien ne les purge.
+     */
     @Test
-    void audioOnlyAttemptIsAccepted() {
+    void aLegacyAudioKeyOnlyAttemptRemainsAccepted() {
         UserSkillAttempt attempt = new UserSkillAttempt();
         attempt.setUser(testData.user());
         attempt.setSkillPrompt(testData.skillPrompt());
@@ -262,6 +266,27 @@ class UserSkillAttemptManagerIT extends AbstractIntegrationTest {
         attempt.setStatut(SkillAttemptStatut.RECORDED);
 
         assertThat(repository.saveAndFlush(attempt).getId()).isNotNull();
+    }
+
+    /**
+     * LA FORME NOMINALE depuis que l'audio n'est plus conserve (V033) : une
+     * production orale, c'est sa TRANSCRIPTION, sans aucune cle de stockage. La
+     * contrainte doit l'accepter — sinon aucune tentative orale ne serait plus
+     * insérable.
+     */
+    @Test
+    void aTranscriptOnlyOralAttemptIsAccepted() {
+        UserSkillAttempt attempt = new UserSkillAttempt();
+        attempt.setUser(testData.user());
+        attempt.setSkillPrompt(testData.skillPrompt());
+        attempt.setTranscript("je voudrais reserver une salle pour samedi");
+        attempt.setAudioDurationSec(42);
+        attempt.setStatut(SkillAttemptStatut.RECORDED);
+
+        UserSkillAttempt saved = repository.saveAndFlush(attempt);
+
+        assertThat(saved.getId()).isNotNull();
+        assertThat(saved.getAudioObjectKey()).isNull();
     }
 
     @Test

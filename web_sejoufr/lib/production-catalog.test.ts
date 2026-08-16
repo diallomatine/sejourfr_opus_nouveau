@@ -61,7 +61,6 @@ function submission(
     productionTaskId,
     tacheNumero: 1,
     statut: note == null ? "SUBMITTED" : "EVALUATED",
-    mediaUrl: null,
     texteSoumis: "…",
     motsCount: 70,
     mediaDurationSec: null,

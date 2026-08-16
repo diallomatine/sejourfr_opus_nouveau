@@ -382,14 +382,10 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                       </span>
                     ) : null}
                   </div>
-                  {/* Même lecteur que l'enregistreur (`EoRecordingForm`) — l'URL
-                      R2 est présignée 15 min, `preload="metadata"` évite de la
-                      consommer pour rien. */}
-                  {attempt.audioUrl && (
-                    <div className={s.player}>
-                      <audio src={attempt.audioUrl} controls preload="metadata" />
-                    </div>
-                  )}
+                  {/* Pas de lecteur : l'enregistrement n'est pas conservé (il
+                      sert à produire la transcription, puis il disparaît). Ce
+                      qu'on rend d'une production orale, c'est son texte — la
+                      réécoute existe avant l'envoi, dans `EoRecordingForm`. */}
                   {attempt.writtenProduction && (
                     <p className={s.prodText}>{attempt.writtenProduction}</p>
                   )}

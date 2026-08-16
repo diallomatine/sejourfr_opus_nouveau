@@ -60,7 +60,7 @@ class SkillAttemptServiceTest {
     @Mock private SkillAccessService accessService;
     @Mock private SkillAnalysisAccessService analysisAccessService;
     @Mock private SkillAnalysisAsyncRunner analysisRunner;
-    @Mock private ProductionAudioStorageService audioStorage;
+    @Mock private WhisperTranscriptionService whisperService;
     @Mock private SkillAttemptMapper mapper;
     @Mock private RateLimitGuard rateLimitGuard;
     @Mock private CurrentUser currentUser;
@@ -76,7 +76,7 @@ class SkillAttemptServiceTest {
     @BeforeEach
     void setUp() {
         service = new SkillAttemptService(promptManager, attemptManager, userManager,
-                accessService, analysisAccessService, analysisRunner, audioStorage, mapper,
+                accessService, analysisAccessService, analysisRunner, whisperService, mapper,
                 rateLimitGuard, currentUser, props, productionProps);
         user.setId(userId);
         when(currentUser.getId()).thenReturn(userId);
@@ -87,7 +87,6 @@ class SkillAttemptServiceTest {
             return saved;
         });
         when(mapper.toDto(any())).thenReturn(dummyDto());
-        when(mapper.toDtoWithSignedAudio(any())).thenReturn(dummyDto());
     }
 
     // ------------------------------------------------------------------------
@@ -115,7 +114,7 @@ class SkillAttemptServiceTest {
                 prompt.getId(), audioFile(), 30, null, false))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("expression écrite");
-        verify(audioStorage, never()).upload(any(), any(), any(), any());
+        verify(whisperService, never()).transcribe(any(), any());
     }
 
     @Test
@@ -207,7 +206,7 @@ class SkillAttemptServiceTest {
                 .hasMessage(SkillAccessService.LOCKED_MESSAGE);
         // Rien n'est persiste, rien n'est envoye au correcteur.
         verify(attemptManager, never()).save(any());
-        verify(analysisRunner, never()).runAsync(any(), anyBoolean());
+        verify(analysisRunner, never()).runAsync(any());
     }
 
     @Test
@@ -231,7 +230,7 @@ class SkillAttemptServiceTest {
 
         assertThatThrownBy(() -> service.submitAudio(prompt.getId(), audioFile(), 30, null, false))
                 .isInstanceOf(AccessDeniedException.class);
-        verify(audioStorage, never()).upload(any(), any(), any(), any());
+        verify(whisperService, never()).transcribe(any(), any());
     }
 
     @Test
@@ -249,7 +248,7 @@ class SkillAttemptServiceTest {
         assertThatThrownBy(() -> service.analyse(attempt.getId()))
                 .isInstanceOf(AccessDeniedException.class);
         verify(analysisAccessService, never()).assertCanAnalyse(any());
-        verify(analysisRunner, never()).runAsync(any(), anyBoolean());
+        verify(analysisRunner, never()).runAsync(any());
     }
 
     @Test
@@ -268,7 +267,7 @@ class SkillAttemptServiceTest {
         assertThatThrownBy(() -> service.retry(attempt.getId()))
                 .isInstanceOf(AccessDeniedException.class);
         assertThat(attempt.getRetryCount()).isZero();
-        verify(analysisRunner, never()).runAsync(any(), anyBoolean());
+        verify(analysisRunner, never()).runAsync(any());
     }
 
     // ------------------------------------------------------------------------
@@ -290,7 +289,7 @@ class SkillAttemptServiceTest {
         assertThat(saved.getSelfEvaluation()).isEqualTo(SkillSelfEvaluation.INCERTAIN);
         // Ni verification de quota, ni appel au correcteur.
         verify(analysisAccessService, never()).assertCanAnalyse(any());
-        verify(analysisRunner, never()).runAsync(any(), anyBoolean());
+        verify(analysisRunner, never()).runAsync(any());
     }
 
     @Test
@@ -307,7 +306,7 @@ class SkillAttemptServiceTest {
         // echec offrirait des analyses supplementaires.
         assertThat(saved.isAnalysisRequested()).isTrue();
         verify(analysisAccessService).assertCanAnalyse(userId);
-        verify(analysisRunner).runAsync(saved.getId(), false);
+        verify(analysisRunner).runAsync(saved.getId());
     }
 
     @Test
@@ -321,25 +320,69 @@ class SkillAttemptServiceTest {
                 .isInstanceOf(AccessDeniedException.class);
 
         verify(attemptManager, never()).save(any());
-        verify(analysisRunner, never()).runAsync(any(), anyBoolean());
+        verify(analysisRunner, never()).runAsync(any());
     }
 
+    /**
+     * L'AUDIO N'EST JAMAIS STOCKE : il est transcrit PENDANT la requete, puis
+     * efface. Ce que la ligne conserve, c'est la transcription — jamais une cle.
+     */
     @Test
-    void audioIsUploadedBeforeTheRowIsInsertedAndTheKeyIsStoredNotAnUrl() {
+    void oralAudioIsTranscribedInRequestAndNoObjectKeyIsEverStored() {
         SkillPrompt prompt = prompt(SkillSection.EO);
         when(promptManager.findActiveByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
-        when(audioStorage.upload(any(), any(), any(), anyString()))
-                .thenReturn(new ProductionAudioStorageService.StoredAudio(
-                        "submissions/abc.webm", "audio/webm"));
+        when(whisperService.transcribe(any(), any())).thenReturn(
+                new WhisperTranscriptionClient.WhisperResult("je voudrais reserver", "fr", 37));
 
         service.submitAudio(prompt.getId(), audioFile(), 40, null, true);
 
         UserSkillAttempt saved = captureSaved();
-        assertThat(saved.getAudioObjectKey()).isEqualTo("submissions/abc.webm");
-        assertThat(saved.getAudioDurationSec()).isEqualTo(40);
+        assertThat(saved.getAudioObjectKey()).isNull();
+        assertThat(saved.getTranscript()).isEqualTo("je voudrais reserver");
+        // La duree DETECTEE fait foi sur celle annoncee par le client (40).
+        assertThat(saved.getAudioDurationSec()).isEqualTo(37);
         assertThat(saved.getWrittenProduction()).isNull();
-        // estOral = true : la transcription Whisper precede l'analyse.
-        verify(analysisRunner).runAsync(saved.getId(), true);
+        verify(analysisRunner).runAsync(saved.getId());
+    }
+
+    /**
+     * ⚠️ REGLE REVOQUEE : « on ne paie pas Whisper pour un audio que personne ne
+     * corrigera ». Sans audio conserve, ne pas transcrire ne laisserait RIEN de
+     * la production — on transcrit donc meme sans analyse demandee.
+     */
+    @Test
+    void oralAudioIsTranscribedEvenWithoutAnAnalysisRequest() {
+        SkillPrompt prompt = prompt(SkillSection.EO);
+        when(promptManager.findActiveByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
+        when(whisperService.transcribe(any(), any())).thenReturn(
+                new WhisperTranscriptionClient.WhisperResult("quelques phrases", "fr", 20));
+
+        service.submitAudio(prompt.getId(), audioFile(), 40, null, false);
+
+        UserSkillAttempt saved = captureSaved();
+        assertThat(saved.getStatut()).isEqualTo(SkillAttemptStatut.RECORDED);
+        assertThat(saved.getTranscript()).isEqualTo("quelques phrases");
+        verify(whisperService).transcribe(any(), any());
+        verify(analysisRunner, never()).runAsync(any());
+    }
+
+    /** Les octets sont effaces meme quand la transcription echoue, et rien n'est insere. */
+    @Test
+    void oralBytesAreWipedAndNothingIsInsertedWhenTranscriptionFails() {
+        SkillPrompt prompt = prompt(SkillSection.EO);
+        when(promptManager.findActiveByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
+        java.util.concurrent.atomic.AtomicReference<byte[]> vus = new java.util.concurrent.atomic.AtomicReference<>();
+        when(whisperService.transcribe(any(), any())).thenAnswer(inv -> {
+            vus.set(inv.getArgument(0));
+            throw new com.sejourfr.app.exception.TranscriptionException("Whisper indisponible");
+        });
+
+        assertThatThrownBy(() -> service.submitAudio(prompt.getId(), audioFile(), 40, null, true))
+                .isInstanceOf(com.sejourfr.app.exception.TranscriptionException.class);
+
+        assertThat(vus.get()).containsOnly((byte) 0);
+        verify(attemptManager, never()).save(any());
+        verify(analysisRunner, never()).runAsync(any());
     }
 
     @Test
@@ -366,7 +409,7 @@ class SkillAttemptServiceTest {
 
         assertThat(attempt.getStatut()).isEqualTo(SkillAttemptStatut.SUBMITTED);
         assertThat(attempt.getErrorMessage()).isNull();
-        verify(analysisRunner).runAsync(attempt.getId(), false);
+        verify(analysisRunner).runAsync(attempt.getId());
         // Le quota a deja ete decompte a l'acceptation : on ne le reconsomme pas.
         verify(analysisAccessService, never()).assertCanAnalyse(any());
     }
@@ -427,22 +470,48 @@ class SkillAttemptServiceTest {
         assertThat(attempt.getStatut()).isEqualTo(SkillAttemptStatut.SUBMITTED);
         assertThat(attempt.isAnalysisRequested()).isTrue();
         verify(analysisAccessService).assertCanAnalyse(userId);
-        verify(analysisRunner).runAsync(attempt.getId(), false);
+        verify(analysisRunner).runAsync(attempt.getId());
         verify(rateLimitGuard).checkSkillAttempt(userId);
     }
 
+    /**
+     * Une production orale rendue sans analyse est desormais DEJA transcrite :
+     * l'analyse part du texte, il n'y a plus rien a transcrire.
+     */
     @Test
-    void analysingAnOralProductionTranscribesFirst() {
-        // La transcription Whisper n'a jamais eu lieu (production rendue sans
-        // analyse) : le pipeline doit la declencher, comme sur la voie normale.
+    void analysingAnOralProductionStartsFromItsTranscript() {
         UserSkillAttempt attempt = ownedAttempt(SkillAttemptStatut.RECORDED, false);
         attempt.setWrittenProduction(null);
-        attempt.setAudioObjectKey("submissions/abc.webm");
+        attempt.setTranscript("je voudrais reserver une salle");
+        attempt.getSkillPrompt().setSection(SkillSection.EO);
         when(attemptManager.findByIdWithPrompt(attempt.getId())).thenReturn(Optional.of(attempt));
 
         service.analyse(attempt.getId());
 
-        verify(analysisRunner).runAsync(attempt.getId(), true);
+        verify(analysisRunner).runAsync(attempt.getId());
+    }
+
+    /**
+     * LEGACY : une tentative orale enregistree AVANT le changement n'a ni
+     * transcription ni audio relisible. On la refuse AVANT assertCanAnalyse —
+     * le candidat ne doit pas y perdre une de ses 3 analyses offertes.
+     */
+    @Test
+    void analysingALegacyOralProductionWithoutTranscriptCostsNoQuota() {
+        UserSkillAttempt attempt = ownedAttempt(SkillAttemptStatut.RECORDED, false);
+        attempt.setWrittenProduction(null);
+        attempt.setAudioObjectKey("submissions/legacy.webm");
+        attempt.setTranscript(null);
+        attempt.getSkillPrompt().setSection(SkillSection.EO);
+        when(attemptManager.findByIdWithPrompt(attempt.getId())).thenReturn(Optional.of(attempt));
+
+        assertThatThrownBy(() -> service.analyse(attempt.getId()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Refaites le sujet");
+
+        verify(analysisAccessService, never()).assertCanAnalyse(any());
+        verify(attemptManager, never()).save(any());
+        verify(analysisRunner, never()).runAsync(any());
     }
 
     @Test
@@ -456,7 +525,7 @@ class SkillAttemptServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("déjà fait l'objet");
         verify(analysisAccessService, never()).assertCanAnalyse(any());
-        verify(analysisRunner, never()).runAsync(any(), anyBoolean());
+        verify(analysisRunner, never()).runAsync(any());
     }
 
     @Test
@@ -471,7 +540,7 @@ class SkillAttemptServiceTest {
         assertThat(attempt.getStatut()).isEqualTo(SkillAttemptStatut.RECORDED);
         assertThat(attempt.isAnalysisRequested()).isFalse();
         verify(attemptManager, never()).save(any());
-        verify(analysisRunner, never()).runAsync(any(), anyBoolean());
+        verify(analysisRunner, never()).runAsync(any());
     }
 
     @Test
@@ -564,7 +633,7 @@ class SkillAttemptServiceTest {
 
     private static SkillAttemptDto dummyDto() {
         return new SkillAttemptDto(UUID.randomUUID(), UUID.randomUUID(), "EE1-C1-S1",
-                SkillAttemptStatut.RECORDED, false, null, null, null, null, null, null, null,
+                SkillAttemptStatut.RECORDED, false, null, null, null, null, null, null,
                 null, null, null);
     }
 }

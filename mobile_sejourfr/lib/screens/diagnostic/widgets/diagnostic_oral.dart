@@ -251,7 +251,9 @@ class _RecorderCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  'La prononciation fine n’est pas évaluée à partir de la transcription.',
+                  'La prononciation fine n’est pas évaluée à partir de la transcription. '
+                  'Ton enregistrement n’est pas conservé : il sert à produire la '
+                  'transcription, puis il est supprimé.',
                   textAlign: TextAlign.center,
                   style: AppFonts.ui(
                     size: 12.5,

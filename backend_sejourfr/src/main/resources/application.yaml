@@ -35,6 +35,14 @@ spring:
     multipart:
       max-file-size: 25MB
       max-request-size: 25MB
+      # L'AUDIO D'UN CANDIDAT NE DOIT JAMAIS TOUCHER LE DISQUE. Par defaut ce
+      # seuil vaut 0B : Spring ecrit alors TOUT upload multipart dans un fichier
+      # temporaire, y compris les enregistrements des candidats — que la
+      # decision produit interdit precisement de stocker. En le portant
+      # au-dessus de max-file-size, tout tient en memoire et rien n'est spoule.
+      # Cout : au pire 25 Mo de tas par upload concurrent (les productions
+      # reelles pesent quelques centaines de Ko). Ne pas rabaisser.
+      file-size-threshold: 26MB
   data:
     web:
       pageable:

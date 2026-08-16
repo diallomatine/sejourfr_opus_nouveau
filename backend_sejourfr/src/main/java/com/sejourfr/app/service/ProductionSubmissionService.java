@@ -78,7 +78,7 @@ public class ProductionSubmissionService {
 
         ProductionSubmission saved = evaluationService.submitAndEvaluate(
                 userId, productionTaskId, attemptId, audio, null);
-        return mapper.toDtoWithSignedAudio(saved);
+        return mapper.toDto(saved);
     }
 
     public ProductionSubmissionDto submitText(SubmitProductionTextRequest req) {
@@ -96,7 +96,7 @@ public class ProductionSubmissionService {
     public ProductionSubmissionDto retry(UUID submissionId) {
         UUID userId = currentUser.getId();
         ProductionSubmission saved = evaluationService.retry(submissionId, userId);
-        return mapWithSignedAudioIfPresent(saved);
+        return mapper.toDto(saved);
     }
 
     @Transactional(readOnly = true)
@@ -109,7 +109,7 @@ public class ProductionSubmissionService {
             // 404 plutot que 403 : ne pas reveler l'existence des submissions d'autrui.
             throw new NotFoundException("Submission introuvable : " + submissionId);
         }
-        return mapWithSignedAudioIfPresent(sub).withPlanChange(planChange(userId, sub));
+        return mapper.toDto(sub).withPlanChange(planChange(userId, sub));
     }
 
     /**
@@ -147,7 +147,7 @@ public class ProductionSubmissionService {
         UUID userId = currentUser.getId();
         List<ProductionSubmission> list = submissionManager.findLatestPerTask(
                 userId, epreuve, niveau.toUpperCase());
-        return list.stream().map(this::mapWithSignedAudioIfPresent).toList();
+        return list.stream().map(mapper::toDto).toList();
     }
 
     /**
@@ -259,10 +259,6 @@ public class ProductionSubmissionService {
 
     private void enforceQuota(UUID userId, ProductionTask task, UUID attemptId) {
         accessService.enforceQuota(userId, task, attemptId);
-    }
-
-    private ProductionSubmissionDto mapWithSignedAudioIfPresent(ProductionSubmission sub) {
-        return sub.getMediaUrl() != null ? mapper.toDtoWithSignedAudio(sub) : mapper.toDto(sub);
     }
 
     private int clampLimit(int limit) {

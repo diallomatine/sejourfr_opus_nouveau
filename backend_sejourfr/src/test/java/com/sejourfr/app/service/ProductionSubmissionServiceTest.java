@@ -310,7 +310,7 @@ class ProductionSubmissionServiceTest {
 
     private ProductionSubmissionDto dto(UUID subId, SubmissionStatut statut) {
         return new ProductionSubmissionDto(
-                subId, null, taskId, (short) 1, statut, null, "Texte", 60, null,
+                subId, null, taskId, (short) 1, statut, "Texte", 60, null,
                 (short) 0, null, Instant.now(), null, null, null);
     }
 

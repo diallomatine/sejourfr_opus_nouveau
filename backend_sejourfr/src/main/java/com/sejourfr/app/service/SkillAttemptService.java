@@ -19,6 +19,7 @@ import com.sejourfr.app.mapper.SkillAttemptMapper;
 import com.sejourfr.app.ratelimit.RateLimitGuard;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.competence.SkillAnalysisAsyncRunner;
+import com.sejourfr.app.util.AudioEphemere;
 import com.sejourfr.app.util.ProductionPayloadSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -76,7 +77,7 @@ public class SkillAttemptService {
     private final SkillAccessService accessService;
     private final SkillAnalysisAccessService analysisAccessService;
     private final SkillAnalysisAsyncRunner analysisRunner;
-    private final ProductionAudioStorageService audioStorage;
+    private final WhisperTranscriptionService whisperService;
     private final SkillAttemptMapper mapper;
     private final RateLimitGuard rateLimitGuard;
     private final CurrentUser currentUser;
@@ -113,7 +114,7 @@ public class SkillAttemptService {
         attempt.setWordsCount(mots);
         attempt = attemptManager.save(attempt);
 
-        return finish(attempt, analyse, false);
+        return finish(attempt, analyse);
     }
 
     /** Production ORALE (section EO). */
@@ -154,22 +155,30 @@ public class SkillAttemptService {
 
         boolean analyse = acceptAnalysis(userId, requestAnalysis);
 
-        // Upload AVANT l'insert : la contrainte
-        // chk_user_skill_attempts_has_production exige deja une source, donc la
-        // ligne ne peut pas exister sans sa cle audio. La cle utilise un UUID
-        // independant — pre-assigner l'id de l'entite ferait echouer Hibernate
-        // avec @UuidGenerator (« detached entity »).
-        UUID storageKeyId = UUID.randomUUID();
-        ProductionAudioStorageService.StoredAudio stored = audioStorage.upload(
-                storageKeyId, bytes, audio.getContentType(),
-                ProductionPayloadSupport.extractExtension(audio));
+        // TRANSCRIPTION SYNCHRONE ET SYSTEMATIQUE, avant l'insert. L'audio n'est
+        // plus stocke (decision produit, motif consentement) : les octets
+        // n'existent que le temps de cette requete. AudioEphemere efface le
+        // tampon dans un finally, y compris si Whisper echoue.
+        //
+        // ⚠️ La regle « on ne paie pas Whisper pour un audio que personne ne
+        // corrigera » est REVOQUEE ici : sans audio conserve, ne pas transcrire
+        // ne laisserait plus RIEN de la production. On transcrit donc meme sans
+        // analyse demandee — c'est le prix de ne rien garder.
+        //
+        // Transcrire PUIS inserer : un echec Whisper ne laisse aucune ligne,
+        // aucun quota consomme, et le candidat renvoie depuis son appareil.
+        WhisperTranscriptionClient.WhisperResult transcrit = AudioEphemere.avecOctets(
+                bytes, octets -> whisperService.transcribe(octets, fileNameOf(audio)));
 
         UserSkillAttempt attempt = newAttempt(userId, prompt, selfEvaluation, analyse);
-        attempt.setAudioObjectKey(stored.objectKey());
-        attempt.setAudioDurationSec(durationSec);
+        attempt.setTranscript(transcrit.texte());
+        // La duree detectee par Whisper fait foi sur celle annoncee par le
+        // client : c'est la seule mesure faite sur le fichier reellement recu.
+        attempt.setAudioDurationSec(
+                transcrit.durationSec() != null ? transcrit.durationSec() : durationSec);
         attempt = attemptManager.save(attempt);
 
-        return finish(attempt, analyse, true);
+        return finish(attempt, analyse);
     }
 
     /**
@@ -179,9 +188,14 @@ public class SkillAttemptService {
      * <p>Cas reel : un compte gratuit produit sans analyse, puis s'abonne. Sans
      * cette route, sa seule issue etait de refaire le sujet — donc de perdre sa
      * production. Le quota est consomme ici comme a la soumission, a
-     * l'acceptation ; en oral, la transcription Whisper n'ayant jamais ete
-     * faite, le pipeline la declenche d'abord, exactement comme sur la voie
-     * normale.
+     * l'acceptation.
+     *
+     * <p>A l'oral, la production analysee est la <b>transcription</b>, ecrite des
+     * la soumission : il n'y a plus rien a transcrire ici, et il n'y aurait plus
+     * rien a transcrire AVEC quoi — l'audio n'est pas conserve. Les tentatives
+     * orales anterieures a ce changement, enregistrees sans analyse donc sans
+     * transcription, ne sont plus analysables : elles sont refusees ci-dessous
+     * <b>avant</b> toute consommation de quota.
      */
     public SkillAttemptDto analyse(UUID attemptId) {
         UUID userId = currentUser.getId();
@@ -198,6 +212,18 @@ public class SkillAttemptService {
                     "Cette production a déjà fait l'objet d'une analyse (statut actuel : "
                             + attempt.getStatut() + ").");
         }
+        // LEGACY : une tentative orale rendue sans analyse AVANT que l'audio
+        // cesse d'etre stocke n'a ni transcription ni audio relisible. On le dit
+        // franchement, et surtout AVANT assertCanAnalyse : le candidat ne doit
+        // pas depenser une de ses 3 analyses offertes sur une production qu'on
+        // ne peut plus lire.
+        if (attempt.getSkillPrompt().getSection() == SkillSection.EO
+                && (attempt.getTranscript() == null || attempt.getTranscript().isBlank())) {
+            throw new BusinessException(
+                    "Cet enregistrement date d'avant la mise en place de la transcription "
+                            + "automatique et n'a pas pu être retranscrit. Refaites le sujet "
+                            + "pour obtenir une analyse.");
+        }
         analysisAccessService.assertCanAnalyse(userId);
 
         attempt.setAnalysisRequested(true);
@@ -205,7 +231,7 @@ public class SkillAttemptService {
         attempt.setStatut(SkillAttemptStatut.SUBMITTED);
         UserSkillAttempt saved = attemptManager.save(attempt);
 
-        return finish(saved, true, saved.getAudioObjectKey() != null);
+        return finish(saved, true);
     }
 
     /**
@@ -240,7 +266,7 @@ public class SkillAttemptService {
         attempt.setStatut(SkillAttemptStatut.SUBMITTED);
         UserSkillAttempt saved = attemptManager.save(attempt);
 
-        return finish(saved, true, saved.getAudioObjectKey() != null);
+        return finish(saved, true);
     }
 
     /**
@@ -250,7 +276,7 @@ public class SkillAttemptService {
      */
     @Transactional(readOnly = true)
     public SkillAttemptDto detail(UUID attemptId) {
-        return mapWithAudioIfPresent(loadOwnAttempt(attemptId));
+        return mapper.toDto(loadOwnAttempt(attemptId));
     }
 
     /** Historique du candidat sur un sujet, plus recente d'abord. */
@@ -259,7 +285,7 @@ public class SkillAttemptService {
         UUID userId = currentUser.getId();
         SkillPrompt prompt = loadActivePrompt(promptId);
         return attemptManager.findByUserAndPrompt(userId, prompt.getId(), clampLimit(limit)).stream()
-                .map(this::mapWithAudioIfPresent)
+                .map(mapper::toDto)
                 .toList();
     }
 
@@ -303,11 +329,19 @@ public class SkillAttemptService {
      * candidat n'attend jamais le correcteur : il recoit sa tentative en
      * {@code SUBMITTED} et poll ensuite.
      */
-    private SkillAttemptDto finish(UserSkillAttempt attempt, boolean analyse, boolean estOral) {
+    private SkillAttemptDto finish(UserSkillAttempt attempt, boolean analyse) {
         if (analyse) {
-            analysisRunner.runAsync(attempt.getId(), estOral);
+            analysisRunner.runAsync(attempt.getId());
         }
-        return mapWithAudioIfPresent(attempt);
+        return mapper.toDto(attempt);
+    }
+
+    /**
+     * Nom transmis a Whisper : il en deduit le format du conteneur. On ne rend
+     * jamais le nom d'origine du fichier du candidat.
+     */
+    private static String fileNameOf(MultipartFile audio) {
+        return "competence." + ProductionPayloadSupport.extractExtension(audio);
     }
 
     private SkillPrompt loadActivePrompt(UUID promptId) {
@@ -336,12 +370,6 @@ public class SkillAttemptService {
                     ? "Ce sujet est un sujet d'expression orale : il attend un enregistrement, pas un texte."
                     : "Ce sujet est un sujet d'expression écrite : il attend un texte, pas un enregistrement.");
         }
-    }
-
-    private SkillAttemptDto mapWithAudioIfPresent(UserSkillAttempt attempt) {
-        return attempt.getAudioObjectKey() != null
-                ? mapper.toDtoWithSignedAudio(attempt)
-                : mapper.toDto(attempt);
     }
 
     private static int clampLimit(int limit) {

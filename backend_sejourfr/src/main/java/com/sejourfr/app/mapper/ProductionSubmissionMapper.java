@@ -9,7 +9,6 @@ import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.SituationDansNiveau;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.TranscriptionManager;
-import com.sejourfr.app.service.ProductionAudioStorageService;
 import com.sejourfr.app.service.ProductionRubricsProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -31,7 +30,6 @@ public class ProductionSubmissionMapper {
 
     private final AiEvaluationManager aiEvaluationManager;
     private final TranscriptionManager transcriptionManager;
-    private final ProductionAudioStorageService audioStorage;
     /**
      * Bornes de bande de la GRILLE ACTIVE (bloc {@code commun.niveau}). Ce n'est
      * ni un repository ni un manager : c'est le porteur de configuration deja
@@ -54,18 +52,12 @@ public class ProductionSubmissionMapper {
             .findLatestTexteBySubmissionId(s.getId())
             .orElse(null);
 
-        // L'URL signee n'est generee qu'a la demande : on s'epargne un round-trip
-        // R2 quand le client n'est pas l'utilisateur final (ex: l'admin liste
-        // des submissions pour calibration).
-        String mediaUrl = s.getMediaUrl();
-
         return new ProductionSubmissionDto(
             s.getId(),
             s.getAttempt() != null ? s.getAttempt().getId() : null,
             s.getProductionTask() != null ? s.getProductionTask().getId() : null,
             s.getProductionTask() != null ? s.getProductionTask().getTacheNumero() : null,
             s.getStatut(),
-            mediaUrl,
             s.getTexteSoumis(),
             s.getMotsCount(),
             s.getMediaDurationSec(),
@@ -78,22 +70,6 @@ public class ProductionSubmissionMapper {
             // detail : un mapper ne le calcule pas, et une liste d'historique
             // n'a aucune raison de le payer.
             null
-        );
-    }
-
-    /** Variante qui remplace media_url par une URL signee (TTL court). */
-    public ProductionSubmissionDto toDtoWithSignedAudio(ProductionSubmission s) {
-        ProductionSubmissionDto base = toDto(s);
-        if (s.getMediaUrl() == null || s.getMediaUrl().isBlank()) return base;
-        String signed = audioStorage.presignGet(s.getMediaUrl());
-        return new ProductionSubmissionDto(
-            base.id(), base.attemptId(), base.productionTaskId(),
-            base.tacheNumero(),
-            base.statut(), signed, base.texteSoumis(),
-            base.motsCount(), base.mediaDurationSec(),
-            base.retryCount(), base.erreurMessage(),
-            base.submittedAt(), base.evaluation(),
-            base.transcription(), base.planChange()
         );
     }
 

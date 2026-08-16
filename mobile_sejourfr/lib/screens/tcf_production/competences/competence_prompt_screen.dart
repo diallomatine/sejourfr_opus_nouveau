@@ -464,13 +464,14 @@ class _PromptViewState extends ConsumerState<_PromptView> {
                   accent: _accent,
                   busy: _loadingLastProduction,
                   // Libellés fixés par le contrat, identiques au web : en EO on
-                  // ouvre la dernière réponse pour la réécouter, en EE on la
+                  // ouvre la dernière réponse pour la RELIRE — l'enregistrement
+                  // n'est pas conservé, il n'y a rien à réécouter —, en EE on la
                   // recharge dans la zone d'écriture.
                   actionLabel: _isEo
-                      ? 'Écouter ma dernière réponse'
+                      ? 'Relire ma dernière réponse'
                       : 'Reprendre ma réponse',
                   actionIcon:
-                      _isEo ? LucideIcons.headphones : LucideIcons.rotateCcw,
+                      _isEo ? LucideIcons.fileText : LucideIcons.rotateCcw,
                   onAction: () {
                     final id = prompt.lastAttemptId!;
                     if (_isEo) {

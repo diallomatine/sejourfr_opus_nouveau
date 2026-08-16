@@ -3350,9 +3350,22 @@ C'est la même limite, pour les mêmes raisons, que celle expliquée au §9 — 
 la même façon : mieux vaut ne pas juger la prononciation que la juger mal, en pénalisant
 systématiquement certains accents.
 
-Par économie, l'enregistrement n'est transcrit **que si une analyse est demandée** : on ne fait
-pas travailler la transcription pour un audio que personne ne corrigera. **L'audio, lui, est
-toujours conservé** — le candidat doit pouvoir se réécouter.
+**Votre enregistrement n'est pas conservé.** Il sert à une seule chose : produire la
+transcription, dont le correcteur a besoin pour lire ce que vous avez dit. Une fois cette
+transcription faite, l'enregistrement disparaît — il n'est stocké ni sur nos serveurs, ni
+ailleurs. C'est pour cette raison que la transcription est faite **à chaque fois**, même
+quand vous ne demandez pas d'analyse : sans elle, il ne resterait rien de votre production.
+
+Deux conséquences visibles pour vous. D'abord, l'envoi d'une réponse orale prend quelques
+secondes de plus qu'avant : la transcription se fait pendant que vous attendez. Ensuite, les
+écrans de résultat ne proposent plus de vous réécouter — ils affichent le texte de ce que
+vous avez dit. En revanche, **avant de valider**, vous pouvez toujours réécouter votre prise
+et la refaire : à ce moment-là le fichier est encore sur votre appareil, et il n'a été envoyé
+nulle part.
+
+Si la transcription échoue (panne du service), rien n'est enregistré et rien ne vous est
+décompté : le message vous demande de **renvoyer** votre réponse, pas d'attendre une
+correction qui ne viendrait jamais.
 
 ### Ce qui n'a pas été mesuré — à dire franchement
 

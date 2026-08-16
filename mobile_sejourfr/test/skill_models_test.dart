@@ -258,15 +258,18 @@ void main() {
       expect(attempt.criterionStatus, isNull);
     });
 
-    test('en EO sans analyse, il n\'y a pas de transcription à relire', () {
+    test('en EO sans analyse, la transcription tient quand même lieu de production',
+        () {
+      // L'audio n'est pas conservé : la transcription est produite dès la
+      // soumission, analyse demandée ou non — sinon il ne resterait rien.
       final attempt = SkillAttemptDto.fromJson(base({
         'statut': 'RECORDED',
         'analysisRequested': false,
-        'audioUrl': 'https://r2.example/audio.wav',
+        'transcript': 'Bonjour, je voudrais réserver une salle.',
         'audioDurationSec': 42,
       }));
 
-      expect(attempt.productionText, isNull);
+      expect(attempt.productionText, 'Bonjour, je voudrais réserver une salle.');
       expect(attempt.audioDurationSec, 42);
     });
 

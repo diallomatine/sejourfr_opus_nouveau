@@ -3,22 +3,37 @@ package com.sejourfr.app.service;
 import com.sejourfr.app.config.OpenAiProperties;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.Transcription;
-import com.sejourfr.app.enums.SubmissionStatut;
-import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.exception.TranscriptionException;
-import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.TranscriptionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
-
 /**
- * Orchestration de la transcription Whisper pour une {@link ProductionSubmission}.
- * Pas de retry maison ici : le retry est dans {@link WhisperTranscriptionClient}
- * via Spring Retry.
+ * Transcription Whisper d'une production ORALE de candidat.
+ *
+ * <p><b>L'audio n'est jamais stocké</b> (décision produit, motif consentement) :
+ * les octets arrivent dans la requête de soumission, servent à produire la
+ * transcription, et disparaissent avec elle. Ce service ne connaît donc plus
+ * aucun stockage — il reçoit un {@code byte[]} et rend un résultat. Le corollaire
+ * assumé : <b>la transcription se fait PENDANT la requête</b>, seul moment où les
+ * octets existent, et non plus dans un runner asynchrone qui relisait l'objet R2.
+ *
+ * <p>Deux étapes volontairement séparées :
+ * <ul>
+ *   <li>{@link #transcribe} — l'appel réseau, <b>hors transaction</b> : on ne
+ *       tient pas une transaction ouverte pendant plusieurs secondes d'attente
+ *       fournisseur ;</li>
+ *   <li>{@link #persist} — l'écriture de la ligne {@code transcriptions}, une
+ *       fois la {@link ProductionSubmission} créée (la clé étrangère
+ *       {@code submission_id} est NOT NULL).</li>
+ * </ul>
+ *
+ * <p>Pas de retry maison : il est dans {@link WhisperTranscriptionClient} via
+ * Spring Retry. Un échec remonte au candidat, qui a encore son enregistrement
+ * sur son appareil et peut renvoyer — c'est la seule reprise possible, et c'est
+ * pour ça qu'elle est SYNCHRONE.
  */
 @Service
 @RequiredArgsConstructor
@@ -28,42 +43,38 @@ public class WhisperTranscriptionService {
     /** Cout indicatif Whisper : 0.006 USD / minute -> on stocke en centimes de cent, arrondi sup. */
     private static final double COUT_USD_PAR_SECONDE = 0.006 / 60.0;
 
-    private final ProductionSubmissionManager submissionManager;
     private final TranscriptionManager transcriptionManager;
-    private final ProductionAudioStorageService audioStorage;
     private final WhisperTranscriptionClient whisperClient;
     private final OpenAiProperties props;
 
-    @Transactional
-    public Transcription transcribe(UUID submissionId) {
-        ProductionSubmission sub = submissionManager.findById(submissionId)
-            .orElseThrow(() -> new NotFoundException("Submission introuvable : " + submissionId));
-        if (sub.getMediaUrl() == null || sub.getMediaUrl().isBlank()) {
-            throw new TranscriptionException("Submission " + submissionId + " n'a pas de media_url (texte uniquement ?)");
+    /**
+     * Transcrit des octets audio qui ne seront jamais écrits nulle part.
+     *
+     * @param bytes    l'enregistrement, tel qu'il a été reçu dans la requête
+     * @param fileName nom porteur d'une extension : Whisper devine le format
+     *                 avec, un nom vide le ferait échouer sur certains conteneurs
+     */
+    public WhisperTranscriptionClient.WhisperResult transcribe(byte[] bytes, String fileName) {
+        if (bytes == null || bytes.length == 0) {
+            throw new TranscriptionException("Aucun octet audio à transcrire.");
         }
+        return whisperClient.transcribe(bytes, safeFileName(fileName));
+    }
 
-        // Marquer le statut intermediaire (utile pour la migration future en async).
-        sub.setStatut(SubmissionStatut.TRANSCRIBING);
-        submissionManager.save(sub);
-
-        byte[] bytes = audioStorage.download(sub.getMediaUrl());
-        String fileName = sub.getMediaUrl();
-        int slash = fileName.lastIndexOf('/');
-        if (slash >= 0 && slash < fileName.length() - 1) fileName = fileName.substring(slash + 1);
-
-        WhisperTranscriptionClient.WhisperResult result = whisperClient.transcribe(bytes, fileName);
-
-        Integer detectedDuration = result.durationSec();
-        Integer storedDuration = sub.getMediaDurationSec() != null ? sub.getMediaDurationSec() : detectedDuration;
-
+    /**
+     * Écrit la transcription d'une soumission déjà persistée. Rend aussi la durée
+     * détectée par Whisper — la seule mesure faite sur le fichier réellement reçu.
+     */
+    @Transactional
+    public Transcription persist(ProductionSubmission sub, WhisperTranscriptionClient.WhisperResult result) {
         Transcription t = new Transcription();
         t.setSubmission(sub);
         t.setTexte(result.texte());
         t.setLangueDetectee(result.languageDetected());
         t.setModeleUtilise(props.getWhisper().getModel());
         t.setPromptUtilise(props.getWhisper().getLiteralModePrompt());
-        t.setAudioDurationSec(detectedDuration);
-        t.setCoutEstimeCentimes(estimerCout(detectedDuration));
+        t.setAudioDurationSec(result.durationSec());
+        t.setCoutEstimeCentimes(estimerCout(result.durationSec()));
         t.setAvgLogprob(result.quality().avgLogprob());
         t.setNoSpeechProb(result.quality().noSpeechProb());
         t.setCompressionRatio(result.quality().compressionRatio());
@@ -72,13 +83,14 @@ public class WhisperTranscriptionService {
         TranscriptionQualityAudit.renseigner(t, result.texte());
         transcriptionManager.save(t);
 
-        sub.setStatut(SubmissionStatut.EVALUATING);
-        sub.setMediaDurationSec(storedDuration);
-        submissionManager.save(sub);
-
         log.info("Transcription persistee submission={} chars={} model={}",
-            submissionId, result.texte().length(), props.getWhisper().getModel());
+            sub.getId(), result.texte().length(), props.getWhisper().getModel());
         return t;
+    }
+
+    /** Whisper exige un nom de fichier avec extension pour deviner le format. */
+    static String safeFileName(String fileName) {
+        return (fileName == null || fileName.isBlank()) ? "audio.webm" : fileName;
     }
 
     private static Integer estimerCout(Integer durationSec) {

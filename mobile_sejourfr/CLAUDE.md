@@ -2126,19 +2126,25 @@ lui-même** : le fil d'Ariane « Sujet i/N », le palier et l'encart n'entraîne
 appel à `GET /api/skills/{id}`. ⚠ Supprimer un appel réseau ne doit jamais coûter un
 affichage : le palier est exigé sur l'écran d'un petit sujet (spec §3 niveau 5).
 
-**Réécoute de l'oral** (spec §15 : « l'oral conserve l'audio ») : l'écran de résultat d'une
-tentative EO monte `SejourAudioPlayer` (`core/widgets/audio_player.dart`, déplacé là depuis
-`question_runner/` le jour où un 3ᵉ domaine en a eu besoin) sur `attempt.audioUrl` — URL R2
-présignée 15 min. Le lecteur s'habille via `label`/`icon`/`accent`/`background` ; on ne le
-forke pas. La durée seule ne suffit pas : se réécouter en lisant l'analyse fait la moitié de
-la valeur pédagogique de l'oral. **Le même lecteur sert la réécoute d'avant validation** sur
-l'écran de saisie, monté sur le fichier local — deux lecteurs pour un même geste finiraient
-par diverger.
+**Réécoute de l'oral — AVANT l'envoi seulement** (2026-08-16). ⚠️ **Révoque** la règle
+précédente (« l'oral conserve l'audio », `SejourAudioPlayer` sur `attempt.audioUrl` dans
+l'écran de résultat) et la spec §15 qu'elle citait : l'enregistrement d'un candidat **n'est
+plus conservé** — il sert à produire la transcription, puis il disparaît (cf. CLAUDE.md
+racine, § « L'audio d'une production de candidat n'est pas conservé »). `SkillAttemptDto`
+ne porte plus d'`audioUrl`, `ProductionSubmissionDto` plus de `mediaUrl`, et
+`competence_result_screen` n'a plus de lecteur : ce qu'il rend, c'est `productionText`
+(la transcription, désormais écrite systématiquement). ✅ **Ce qui reste** :
+`SejourAudioPlayer` (`core/widgets/audio_player.dart`) monté sur le **fichier local**, sur
+l'écran de saisie (`skill_recorder_panel`, `diagnostic_oral`) — le fichier est encore sur
+l'appareil, rien n'est stocké, et se réécouter avant de valider protège d'une prise ratée.
+Ne pas reforker de lecteur : celui-là suffit.
 
 **Libellés du bandeau « Sujet déjà traité »** (identiques au web, mot pour mot) : EE →
 **« Reprendre ma réponse »** (recharge la dernière production dans la zone d'écriture via
-`lastAttemptId`) ; EO → **« Écouter ma dernière réponse »** (ouvre l'écran de résultat de
-`lastAttemptId`). **Une seule action par section**, jamais deux. Le bandeau est
+`lastAttemptId`) ; EO → **« Relire ma dernière réponse »** (ouvre l'écran de résultat de
+`lastAttemptId`). ⚠️ Ce libellé disait **« Écouter »** jusqu'au 2026-08-16 : il promettait une
+réécoute que l'écran n'offre plus, l'enregistrement n'étant plus conservé — c'est la
+transcription qu'on relit. **Une seule action par section**, jamais deux. Le bandeau est
 **tenu sur une ligne** (toute la carte est tappable) : en pavé — pastille, deux
 lignes de méta, bouton pleine largeur — il suffisait à repousser la zone de
 production sous la ligne de flottaison dès la deuxième visite d'un sujet.
@@ -2231,9 +2237,12 @@ jamais s'afficher tel quel. Un 403 à la soumission passe quand même par
 **Oral** : la capture réutilise `AudioRecorderService` / `recordingControllerProvider`
 (panneau `SkillRecorderPanel`). Le plafond de capture est **180 s**, aligné sur la borne
 serveur — la durée conseillée du sujet reste indicative et ne coupe jamais la parole. La
-**transcription n'est produite que si une analyse IA est demandée** (on ne paie pas Whisper
-pour rien) : une tentative EO `RECORDED` n'a donc pas de texte à relire, et l'écran de
-résultat le dit au lieu d'afficher un vide.
+**transcription est SYSTÉMATIQUE**, analyse demandée ou non (2026-08-16) : ⚠️ cela
+**révoque** « on ne paie pas Whisper pour rien » — l'enregistrement n'étant plus conservé,
+ne pas transcrire ne laisserait **rien** de la production. Une tentative EO `RECORDED` a
+donc bien son texte à relire. Corollaire visible : l'envoi prend quelques secondes de plus
+(la transcription se fait pendant la requête), et un échec rend **503** sans rien
+enregistrer — le fichier local n'est pas effacé, le candidat renvoie.
 
 **Polling du résultat** : 3 s, arrêt sur `statut.isFinal` ou au bout de **120 s**.
 `RECORDED` et `FAILED` sont des statuts **finaux** : on saute le bloc IA et on va droit aux

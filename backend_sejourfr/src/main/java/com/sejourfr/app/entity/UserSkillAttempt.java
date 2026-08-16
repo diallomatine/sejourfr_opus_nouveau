@@ -31,8 +31,8 @@ import java.util.UUID;
  *
  * <p><b>Analyse facultative</b> — c'est la particularite du module. Produire est
  * gratuit et illimite ; l'analyse IA est payante. Une tentative sans analyse
- * s'arrete a {@link SkillAttemptStatut#RECORDED} : ni Whisper sur l'oral, ni
- * correcteur, donc ni {@link #transcript}, ni {@link #criterionStatus}, ni
+ * s'arrete a {@link SkillAttemptStatut#RECORDED} : pas de
+ * correcteur, donc ni {@link #criterionStatus}, ni
  * {@link #analysisJson}. L'audio est neanmoins conserve — le candidat doit
  * pouvoir se reecouter, et pouvoir faire analyser plus tard.
  *
@@ -63,14 +63,15 @@ public class UserSkillAttempt {
     @JoinColumn(name = "skill_prompt_id", nullable = false)
     private SkillPrompt skillPrompt;
 
-    /** EE uniquement. Exclusif de {@link #audioObjectKey} au niveau applicatif. */
+    /** EE uniquement. Exclusif de {@link #transcript} au niveau applicatif. */
     @Column(name = "written_production", columnDefinition = "text")
     private String writtenProduction;
 
     /**
-     * EO uniquement. CLE D'OBJET R2, jamais une URL : l'URL presignee (TTL
-     * court) est fabriquee au moment de servir le DTO. Meme convention que
-     * {@code ProductionSubmission.mediaUrl}.
+     * LEGACY — plus jamais ecrite. Cle R2 des productions orales enregistrees
+     * avant que l'audio du candidat cesse d'etre stocke (decision produit, motif
+     * consentement). Conservee telle quelle sur les lignes historiques ; aucune
+     * nouvelle tentative ne la renseigne, et aucun DTO ne l'expose.
      */
     @Column(name = "audio_object_key", length = 500)
     private String audioObjectKey;
@@ -78,7 +79,11 @@ public class UserSkillAttempt {
     @Column(name = "audio_duration_sec")
     private Integer audioDurationSec;
 
-    /** Transcription Whisper (EO + analyse demandee uniquement). */
+    /**
+     * Transcription Whisper (EO) — <b>LA production orale conservee</b>, puisque
+     * l'audio ne l'est pas. Ecrite SYSTEMATIQUEMENT pendant la requete de
+     * soumission, analyse demandee ou non : sans elle il ne resterait rien.
+     */
     @Column(columnDefinition = "text")
     private String transcript;
 

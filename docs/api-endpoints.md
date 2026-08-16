@@ -272,8 +272,11 @@ gratuits et illimités. Un abonné TCF n'a aucun verrou.
 - La garde des **références** (« au moins une tentative sur ce sujet ») est **inchangée** et
   indépendante de `locked`.
 
-**Oral** : l'audio est conservé dans tous les cas ; la transcription Whisper n'est déclenchée
-**que si une analyse est demandée**. Cf. `notation-ia-eo-ee.md` §11 bis.
+**Oral** : l'enregistrement **n'est pas conservé** — il sert à produire la transcription
+pendant la requête de soumission, puis il disparaît. La transcription est donc
+**systématique**, analyse demandée ou non, et le DTO ne porte **aucune URL audio**. Un échec
+de transcription rend **503** et rien n'est enregistré : le candidat renvoie. Cf.
+`notation-ia-eo-ee.md` §11 bis.
 
 ## Audience des landings
 

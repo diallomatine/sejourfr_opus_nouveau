@@ -11,7 +11,6 @@ import com.sejourfr.app.enums.SituationDansNiveau;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.TranscriptionManager;
-import com.sejourfr.app.service.ProductionAudioStorageService;
 import com.sejourfr.app.service.ProductionRubricsFixture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,27 +31,25 @@ import static org.mockito.Mockito.when;
 
 /**
  * Le mapper interroge AiEvaluationManager / TranscriptionManager (dernière éval
- * + transcription) et ProductionAudioStorageService (URL signée) : ces
- * collaborateurs touchent le repo / R2 et sont mockés. Le reste est du mapping
- * pur (sanitisation du feedback, branches null d'attempt / task).
+ * + transcription) : ces collaborateurs touchent le repo et sont mockés. Le
+ * reste est du mapping pur (sanitisation du feedback, branches null d'attempt /
+ * task).
  */
 class ProductionSubmissionMapperTest {
 
     private AiEvaluationManager aiEvaluationManager;
     private TranscriptionManager transcriptionManager;
-    private ProductionAudioStorageService audioStorage;
     private ProductionSubmissionMapper mapper;
 
     @BeforeEach
     void setUp() {
         aiEvaluationManager = mock(AiEvaluationManager.class);
         transcriptionManager = mock(TranscriptionManager.class);
-        audioStorage = mock(ProductionAudioStorageService.class);
         // Grille active v13 : bandes de l'echelle du TCF (A2 = 2-5, B1 = 6-9,
         // B2 = 10-20). La situation dans le palier s'y lit, elle n'est pas
         // codee en dur dans le mapper.
         mapper = new ProductionSubmissionMapper(aiEvaluationManager, transcriptionManager,
-            audioStorage, ProductionRubricsFixture.charge("v13"));
+            ProductionRubricsFixture.charge("v13"));
     }
 
     private ProductionSubmission submission(UUID id) {
@@ -105,7 +102,6 @@ class ProductionSubmissionMapperTest {
         assertThat(dto.productionTaskId()).isEqualTo(taskId);
         assertThat(dto.tacheNumero()).isEqualTo((short) 2);
         assertThat(dto.statut()).isEqualTo(SubmissionStatut.EVALUATED);
-        assertThat(dto.mediaUrl()).isEqualTo("eo/key.mp3");
         assertThat(dto.texteSoumis()).isEqualTo("Mon texte");
         assertThat(dto.motsCount()).isEqualTo(80);
         assertThat(dto.mediaDurationSec()).isEqualTo(95);
@@ -297,7 +293,29 @@ class ProductionSubmissionMapperTest {
         assertThat(dto.tacheNumero()).isNull();
         assertThat(dto.evaluation()).isNull();
         assertThat(dto.transcription()).isNull();
-        assertThat(dto.mediaUrl()).isEqualTo("eo/key.mp3");
+    }
+
+    /**
+     * L'audio d'un candidat n'est pas conserve : le DTO ne porte AUCUNE URL, pas
+     * meme sur une ligne LEGACY qui garde encore sa cle R2 en base.
+     */
+    @Test
+    void aLegacyMediaKeyIsNeverExposed() {
+        UUID id = UUID.randomUUID();
+        ProductionSubmission s = submission(id);
+        s.setAttempt(null);
+        s.setProductionTask(null);
+        s.setMediaUrl("submissions/legacy.webm");
+
+        when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
+        when(transcriptionManager.findLatestTexteBySubmissionId(id))
+            .thenReturn(Optional.of("je voudrais reserver une salle"));
+
+        ProductionSubmissionDto dto = mapper.toDto(s);
+
+        assertThat(dto.transcription()).isEqualTo("je voudrais reserver une salle");
+        assertThat(ProductionSubmissionDto.class.getRecordComponents())
+            .noneMatch(c -> c.getName().toLowerCase().contains("mediaurl"));
     }
 
     @Test
@@ -321,38 +339,4 @@ class ProductionSubmissionMapperTest {
         assertThat(dto.evaluation().feedback()).isNull();
     }
 
-    @Test
-    void toDtoWithSignedAudio_replacesMediaUrlWithPresignedUrl() {
-        UUID id = UUID.randomUUID();
-        ProductionSubmission s = submission(id);
-        s.setAttempt(null);
-        s.setProductionTask(null);
-
-        when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
-        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
-        when(audioStorage.presignGet("eo/key.mp3")).thenReturn("https://signed.example/key.mp3?sig=x");
-
-        ProductionSubmissionDto dto = mapper.toDtoWithSignedAudio(s);
-
-        assertThat(dto.mediaUrl()).isEqualTo("https://signed.example/key.mp3?sig=x");
-        assertThat(dto.id()).isEqualTo(id);
-        assertThat(dto.texteSoumis()).isEqualTo("Mon texte");
-    }
-
-    @Test
-    void toDtoWithSignedAudio_blankMediaUrl_skipsPresign() {
-        UUID id = UUID.randomUUID();
-        ProductionSubmission s = submission(id);
-        s.setAttempt(null);
-        s.setProductionTask(null);
-        s.setMediaUrl("   ");
-
-        when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
-        when(transcriptionManager.findLatestTexteBySubmissionId(id)).thenReturn(Optional.empty());
-
-        ProductionSubmissionDto dto = mapper.toDtoWithSignedAudio(s);
-
-        assertThat(dto.mediaUrl()).isEqualTo("   ");
-        verify(audioStorage, never()).presignGet(any());
-    }
 }

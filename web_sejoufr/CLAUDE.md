@@ -2146,8 +2146,11 @@ retraits**, la parité web ⇄ mobile n'étant pas négociable. À ne pas rétab
 - **Bandeau « Sujet déjà traité »**, libellés gelés par le contrat (parité mot
   pour mot avec le mobile) : **une seule** action, `Reprendre ma réponse` en EE
   (préremplit la zone de saisie depuis `lastAttemptId`) et
-  `Écouter ma dernière réponse` en EO (ouvre l'écran de résultat de
-  `lastAttemptId`). Un enregistrement ne se « reprend » pas — il se réécoute.
+  `Relire ma dernière réponse` en EO (ouvre l'écran de résultat de
+  `lastAttemptId`). ⚠️ Ce libellé disait **« Écouter »** jusqu'au 2026-08-16 : il
+  promettait une réécoute que l'écran n'offre plus, l'enregistrement n'étant plus
+  conservé. Une production orale ne se « reprend » pas non plus — elle se relit,
+  dans sa transcription.
 - **Un sujet déjà traité se RELIT, il ne se refait pas d'office** (2026-08-16).
   Cliquer une carte de `CompetenceDetail` (y compris sa **vue scopée à l'étape**,
   `?etape=1`) ouvrait systématiquement l'écran de production : le candidat ne
@@ -2280,11 +2283,13 @@ retraits**, la parité web ⇄ mobile n'étant pas négociable. À ne pas rétab
   tirages » ici, « timeout 90 s » là-bas) que les deux fronts avaient divergé,
   une analyse de 100 s aboutissant sur le web et échouant sur le mobile. On
   retient la valeur la plus généreuse — abandonner une analyse qui allait
-  aboutir est le pire des deux défauts. En EO,
-  le bloc `Ta production` porte le **lecteur audio** (`SkillAttemptDto.audioUrl`,
-  URL R2 présignée 15 min, même `<audio controls preload="metadata">` que
-  `EoRecordingForm`) **et** la durée : se réécouter en lisant le retour est la
-  moitié de la valeur de l'oral.
+  aboutir est le pire des deux défauts. En EO, le bloc `Ta production` porte la
+  **transcription** et la **durée**, et ⚠️ **plus aucun lecteur audio** : depuis
+  le 2026-08-16 l'enregistrement d'un candidat n'est pas conservé (cf. CLAUDE.md
+  racine, § « L'audio d'une production de candidat n'est pas conservé »), et
+  `SkillAttemptDto.audioUrl` / `ProductionSubmissionDto.mediaUrl` ont disparu du
+  contrat. ✅ La réécoute **locale, avant envoi**, reste dans `EoRecordingForm`
+  (blob + `URL.createObjectURL`) : rien n'y est stocké.
 - **Le retour IA est DÉPLIÉ, les références sont REPLIÉES** (inversion demandée
   par le client — c'était l'inverse). Règles pures dans
   **`lib/skill-result-view.ts`** (`skillResultAnalysisView`,
