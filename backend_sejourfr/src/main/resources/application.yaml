@@ -756,12 +756,21 @@ sejourfr:
       # Tarification gpt-5.4 (USD / 1M tokens, relevée sur la page tarifaire
       # OpenAI le 2026-08-07 : 2,50 en entrée / 15,00 en sortie).
       # ⚠ Ces deux valeurs vont AVEC `model` ci-dessus : le coût estimé est
-      # PERSISTÉ dans ai_evaluations.cout_centimes, un tarif faux y reste faux
+      # PERSISTÉ dans ai_evaluations.cout_micro_usd, un tarif faux y reste faux
       # pour toujours. Le tarif se surcharge DANS LA MÊME SOURCE que le modèle :
       # poser EVAL_OPENAI_MODEL sans EVAL_OPENAI_COST_INPUT/OUTPUT fait échouer
       # le build (EvaluationPricingTest), exprès.
       cost-per-million-input-tokens: ${EVAL_OPENAI_COST_INPUT:2.50}
       cost-per-million-output-tokens: ${EVAL_OPENAI_COST_OUTPUT:15.00}
+      # Tarif des tokens d'entrée servis par le cache de préfixe. 0 = non
+      # modélisé ici : ces tokens sont alors facturés au tarif d'entrée plein,
+      # ce qui SURESTIME, jamais l'inverse. OpenAI applique bien une remise de
+      # cache ; on ne la déclare pas tant qu'OpenAI n'est pas le correcteur
+      # actif, plutôt que de figer un chiffre qu'on ne vérifie pas.
+      cost-per-million-cached-input-tokens: ${EVAL_OPENAI_COST_CACHED_INPUT:0}
+      # Pas d'heures pleines chez OpenAI : multiplicateur neutre, plages vides.
+      peak-multiplier: ${EVAL_OPENAI_PEAK_MULTIPLIER:1.0}
+      peak-utc-ranges: "${EVAL_OPENAI_PEAK_UTC:}"
     anthropic:
       api-key: ${EVAL_ANTHROPIC_API_KEY:${ANTHROPIC_API_KEY:}}
       api-url: https://api.anthropic.com/v1/messages
@@ -777,20 +786,33 @@ sejourfr:
       # et dans la même source que lui.
       cost-per-million-input-tokens: ${EVAL_ANTHROPIC_COST_INPUT:3.0}
       cost-per-million-output-tokens: ${EVAL_ANTHROPIC_COST_OUTPUT:15.0}
+      # Le cache Anthropic se DEMANDE (`cache_control` sur un bloc du prompt) ;
+      # nous ne l'envoyons pas, donc aucun token n'est jamais servi par le
+      # cache et ce tarif ne s'appliquerait à rien. Laissé à 0 = plein tarif.
+      cost-per-million-cached-input-tokens: ${EVAL_ANTHROPIC_COST_CACHED_INPUT:0}
+      peak-multiplier: ${EVAL_ANTHROPIC_PEAK_MULTIPLIER:1.0}
+      peak-utc-ranges: "${EVAL_ANTHROPIC_PEAK_UTC:}"
     # DeepSeek : API compatible OpenAI (meme client). CORRECTEUR ACTIF depuis le
     # 2026-08-08 (cf. provider ci-dessus) — clé via EVAL_DEEPSEEK_API_KEY (ou
     # DEEPSEEK_API_KEY).
     deepseek:
       api-key: ${EVAL_DEEPSEEK_API_KEY:${DEEPSEEK_API_KEY:}}
       api-url: https://api.deepseek.com/chat/completions
-      # deepseek-v4-flash : correcteur EN VIGUEUR — choix EN COURS DE REEXAMEN.
+      # deepseek-v4-flash : correcteur EN VIGUEUR — choix ARBITRE ET CLOS le
+      # 2026-08-16, motif LATENCE. `flash` repond en 16,3 s de mediane et 36 s
+      # au pire appel, contre 28,8 s / 66,7 s pour `pro` : sur un ecran ou le
+      # candidat attend sa correction, c'est le seul ecart qui se voit. Et la
+      # justesse ne se gagne pas en changeant de moteur — la campagne du
+      # 2026-08-16 a pris +14,5 points d'accord exact SANS toucher au modele,
+      # uniquement par les contrats de sortie et les controles serveur.
       # /!\ CONTRE-INTUITIF, et c'est exactement pour ca que c'est ecrit ici :
       # `deepseek-v4-pro`, le « grand » modele de la gamme V4, coute PLUS CHER
-      # que `flash` (0,435/0,87 contre 0,14/0,28 ; 1,12 $ contre 0,91 $ sur la
-      # meme campagne de 48 corrections) SANS mieux noter (pieges 4/8 contre
-      # 8/8, B2 3/7 contre 6/7). Le nom du modele ne dit rien de son prix
-      # relatif ni de son aptitude a corriger une production TCF. Ne pas
-      # « reparer » ce choix en repassant a `pro` sans avoir remesure au banc.
+      # que `flash` (0,022/0,66/1,98 contre 0,007/0,22/0,66 ; 1,12 $ contre
+      # 0,91 $ sur la meme campagne de 48 corrections, ancienne grille) SANS
+      # mieux noter (pieges 4/8 contre 8/8, B2 3/7 contre 6/7). Le nom du modele
+      # ne dit rien de son prix relatif ni de son aptitude a corriger une
+      # production TCF. Ne pas « reparer » ce choix en repassant a `pro` sans
+      # avoir remesure au banc.
       # /!\ NE PAS CITER la ligne « corrections perdues » des campagnes v9 :
       # elles n'ont pas tourne avec le meme `calibration.retries` (9 / 3 / 1)
       # alors que la PRODUCTION n'accorde qu'UN SEUL rejeu — cette metrique
@@ -831,16 +853,33 @@ sejourfr:
       # fournisseur qui a accepte la requete et genere.
       timeout-sec: ${EVAL_DEEPSEEK_TIMEOUT_SEC:90}
       prompt-version: ${EVAL_PROMPT_VERSION:v9}
-      # Tarif deepseek-v4-flash (USD / 1M tokens, relevé sur
-      # api-docs.deepseek.com le 2026-08-07 : 0,14 en entrée cache-miss / 0,28
-      # en sortie ; le tarif cache-hit, plus bas, n'est pas modélisé — on
-      # facture toujours au plein tarif, ce qui SURESTIME le coût, jamais
-      # l'inverse).
-      # Pour mémoire : deepseek-v4-pro vaut 0,435 / 0,87. L'ancien 0,27 / 1,10
-      # écrit ici datait de la gamme V3 et surestimait déjà 2 à 4× les coûts
-      # `flash` persistés dans ai_evaluations.cout_centimes.
-      cost-per-million-input-tokens: ${EVAL_DEEPSEEK_COST_INPUT:0.14}
-      cost-per-million-output-tokens: ${EVAL_DEEPSEEK_COST_OUTPUT:0.28}
+      # TARIFICATION deepseek-v4-flash — grille en vigueur depuis le 2026-08-16
+      # 16:00 UTC (USD / 1M tokens), en HEURES CREUSES :
+      #     entrée cache hit 0,007 · entrée cache miss 0,22 · sortie 0,66
+      # HEURES PLEINES = exactement le DOUBLE des trois (0,014 / 0,44 / 1,32),
+      # sur 01:00-04:00 et 06:00-10:00 UTC. D'où un multiplicateur unique plutôt
+      # que six chiffres : la grille EST proportionnelle, la recopier six fois
+      # n'ajouterait que des occasions de divergence.
+      # Pour mémoire, même structure chez deepseek-v4-pro : 0,022 / 0,66 / 1,98
+      # en creuses, ×2 en pleines.
+      # ⚠ L'ancienne paire 0,14 / 0,28 écrite ici était fausse DANS LES DEUX
+      # SENS : elle sous-estimait la sortie d'un facteur 2,4 à 4,7 et l'entrée
+      # cache miss d'un facteur 1,6 à 3,1, tout en SURestimant l'entrée cache
+      # hit d'un facteur 20. Les lignes déjà persistées gardent l'ancienne
+      # grille, on ne réécrit pas l'historique.
+      cost-per-million-input-tokens: ${EVAL_DEEPSEEK_COST_INPUT:0.22}
+      cost-per-million-output-tokens: ${EVAL_DEEPSEEK_COST_OUTPUT:0.66}
+      # Tarif des tokens d'entrée servis par le cache de préfixe : 31× moins
+      # cher que le cache miss. Le découpage n'est PAS deviné — DeepSeek le
+      # renvoie dans `usage.prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`,
+      # on ne fait que le lire (cf. util/CoutAppelLlm). Champ absent ⇒ tout est
+      # facturé cache miss, hypothèse prudente.
+      cost-per-million-cached-input-tokens: ${EVAL_DEEPSEEK_COST_CACHED_INPUT:0.007}
+      # Heures pleines : les trois tarifs sont doublés. Les BORNES vivent en
+      # configuration, jamais en dur dans le Java — c'est une donnée commerciale
+      # du fournisseur, elle doit se corriger par une ligne de .env.
+      peak-multiplier: ${EVAL_DEEPSEEK_PEAK_MULTIPLIER:2.0}
+      peak-utc-ranges: "${EVAL_DEEPSEEK_PEAK_UTC:01:00-04:00,06:00-10:00}"
 
   # Expression orale en TEMPS RÉEL (examinateur vocal IA, Tâches 1 & 2).
   # S'ajoute au pipeline async — ne le remplace pas. Schéma de connexion (A) :

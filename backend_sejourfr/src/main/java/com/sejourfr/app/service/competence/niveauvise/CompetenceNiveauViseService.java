@@ -267,9 +267,11 @@ public class CompetenceNiveauViseService {
         // le suivi de cout du module sous-estime ce qu'une tentative coute
         // vraiment — exactement sur les cas qui coutent le plus.
         attempt.setTokensInput(nz(attempt.getTokensInput()) + nz(outcome.inputTokens()));
+        attempt.setTokensInputCacheHit(
+            nz(attempt.getTokensInputCacheHit()) + nz(outcome.cachedInputTokens()));
         attempt.setTokensOutput(nz(attempt.getTokensOutput()) + nz(outcome.outputTokens()));
-        attempt.setCoutEstimeCentimes(
-            nz(attempt.getCoutEstimeCentimes()) + nz(outcome.costEstimateCents()));
+        attempt.setCoutMicroUsd(
+            nz(attempt.getCoutMicroUsd()) + nz(outcome.costEstimateMicroUsd()));
         attemptManager.save(attempt);
 
         log.info("Bloc « pour viser » ajoute attempt={} : {} -> {} (objectif {}, modele={})",
@@ -650,8 +652,9 @@ public class CompetenceNiveauViseService {
         return new CompetenceNiveauViseLlmClient.Outcome(
             second.sortie(),
             nz(premier.inputTokens()) + nz(second.inputTokens()),
+            nz(premier.cachedInputTokens()) + nz(second.cachedInputTokens()),
             nz(premier.outputTokens()) + nz(second.outputTokens()),
-            nz(premier.costEstimateCents()) + nz(second.costEstimateCents()));
+            nz(premier.costEstimateMicroUsd()) + nz(second.costEstimateMicroUsd()));
     }
 
     private static int nz(Integer v) {

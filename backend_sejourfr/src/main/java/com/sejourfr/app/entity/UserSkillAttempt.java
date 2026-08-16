@@ -133,8 +133,22 @@ public class UserSkillAttempt {
     @Column(name = "tokens_output")
     private Integer tokensOutput;
 
-    @Column(name = "cout_estime_centimes")
-    private Integer coutEstimeCentimes;
+    /**
+     * Part de {@code tokensInput} servie par le CACHE DE PREFIXE du fournisseur,
+     * telle qu'il la rapporte. {@code null} = non rapporte, donc facturee au
+     * plein tarif. Le cache miss se deduit, il n'a pas de colonne.
+     */
+    @Column(name = "tokens_input_cache_hit")
+    private Integer tokensInputCacheHit;
+
+    /**
+     * Cout estime de l'appel en MILLIONIEMES de dollar. L'ancienne colonne en
+     * centimes arrondissait au cent SUPERIEUR : sur une analyse a 0,0013 $ elle
+     * multipliait la facture par ~8. Elle reste en base, LEGACY, plus jamais
+     * ecrite — l'historique n'est pas reecrit.
+     */
+    @Column(name = "cout_micro_usd")
+    private Integer coutMicroUsd;
 
     /**
      * Relances d'analyse deja consommees sur cette tentative, plafonnees a

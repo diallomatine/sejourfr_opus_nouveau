@@ -165,8 +165,9 @@ public class CompetenceAnalysisServiceImpl implements CompetenceAnalysisService 
         return new CompetenceAnalysisLlmClient.Outcome(
                 seconde.analysis(),
                 somme(premiere.inputTokens(), seconde.inputTokens()),
+                somme(premiere.cachedInputTokens(), seconde.cachedInputTokens()),
                 somme(premiere.outputTokens(), seconde.outputTokens()),
-                somme(premiere.costEstimateCents(), seconde.costEstimateCents()));
+                somme(premiere.costEstimateMicroUsd(), seconde.costEstimateMicroUsd()));
     }
 
     private void persister(UserSkillAttempt attempt, CompetenceAnalysisLlmClient.Outcome outcome,
@@ -191,8 +192,9 @@ public class CompetenceAnalysisServiceImpl implements CompetenceAnalysisService 
         attempt.setPromptVersion(client.getToolSchemaVersion());
         attempt.setRubricsVersion(rubrics.getVersion());
         attempt.setTokensInput(outcome.inputTokens());
+        attempt.setTokensInputCacheHit(outcome.cachedInputTokens());
         attempt.setTokensOutput(outcome.outputTokens());
-        attempt.setCoutEstimeCentimes(outcome.costEstimateCents());
+        attempt.setCoutMicroUsd(outcome.costEstimateMicroUsd());
         attempt.setErrorMessage(null);
         attempt.setStatut(SkillAttemptStatut.EVALUATED);
         attemptManager.save(attempt);

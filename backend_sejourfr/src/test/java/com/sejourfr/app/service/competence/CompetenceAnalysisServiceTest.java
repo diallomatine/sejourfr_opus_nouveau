@@ -172,7 +172,7 @@ class CompetenceAnalysisServiceTest {
         assertThat(attempt.getRubricsVersion()).isEqualTo("v6");
         assertThat(attempt.getTokensInput()).isEqualTo(1200);
         assertThat(attempt.getTokensOutput()).isEqualTo(180);
-        assertThat(attempt.getCoutEstimeCentimes()).isEqualTo(3);
+        assertThat(attempt.getCoutMicroUsd()).isEqualTo(3);
         assertThat(attempt.getErrorMessage()).isNull();
         verify(attemptManager).save(attempt);
     }
@@ -233,7 +233,7 @@ class CompetenceAnalysisServiceTest {
         // plus chers rendrait le suivi de cout faux la ou il sert.
         assertThat(attempt.getTokensInput()).isEqualTo(2100);
         assertThat(attempt.getTokensOutput()).isEqualTo(220);
-        assertThat(attempt.getCoutEstimeCentimes()).isEqualTo(5);
+        assertThat(attempt.getCoutMicroUsd()).isEqualTo(5);
     }
 
     @Test

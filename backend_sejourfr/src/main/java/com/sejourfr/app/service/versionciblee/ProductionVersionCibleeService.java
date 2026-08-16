@@ -227,9 +227,11 @@ public class ProductionVersionCibleeService {
         // Le second appel est PAYE : son cout rejoint celui de la correction,
         // sinon le suivi de cout sous-estime ce qu'une tache coute vraiment.
         eval.setTokensInput(nz(eval.getTokensInput()) + nz(outcome.inputTokens()));
+        eval.setTokensInputCacheHit(
+            nz(eval.getTokensInputCacheHit()) + nz(outcome.cachedInputTokens()));
         eval.setTokensOutput(nz(eval.getTokensOutput()) + nz(outcome.outputTokens()));
-        eval.setCoutEstimeCentimes(
-            nz(eval.getCoutEstimeCentimes()) + nz(outcome.costEstimateCents()));
+        eval.setCoutMicroUsd(
+            nz(eval.getCoutMicroUsd()) + nz(outcome.costEstimateMicroUsd()));
         aiEvaluationManager.save(eval);
 
         log.info("Version au niveau vise ajoutee submission={} ({}) : {} -> {} (modele={})",
@@ -759,8 +761,9 @@ public class ProductionVersionCibleeService {
         return new VersionCibleeLlmClient.Outcome(
             second.sortie(),
             nz(premier.inputTokens()) + nz(second.inputTokens()),
+            nz(premier.cachedInputTokens()) + nz(second.cachedInputTokens()),
             nz(premier.outputTokens()) + nz(second.outputTokens()),
-            nz(premier.costEstimateCents()) + nz(second.costEstimateCents()));
+            nz(premier.costEstimateMicroUsd()) + nz(second.costEstimateMicroUsd()));
     }
 
     private static int nz(Integer v) {

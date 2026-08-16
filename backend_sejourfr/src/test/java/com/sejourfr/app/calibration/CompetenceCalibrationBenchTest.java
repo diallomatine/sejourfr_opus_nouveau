@@ -128,11 +128,13 @@ class CompetenceCalibrationBenchTest {
         contexte.put("preuve_du_niveau_exigee", runner.preuveExigee());
         contexte.put("provider", correcteur.getProvider());
         contexte.put("modele", runner.modele());
-        // Les tarifs voyagent avec le modele : sans eux, le rapport ne saurait
-        // publier que la somme des couts ARRONDIS AU CENT SUPERIEUR par appel,
-        // qui multiplie par dix la facture d'une campagne de micro-analyses.
+        // Les tarifs DATENT le chiffre de cout : le meme nombre de tokens ne
+        // vaut pas le meme prix d'une grille a l'autre. Trois tarifs depuis le
+        // 2026-08-16, l'entree servie par le cache de prefixe etant facturee a
+        // part (31x moins cher chez DeepSeek).
         EvaluationConfigFixture.BlocProvider bloc = EvaluationConfigFixture.blocActif(correcteur);
         contexte.put("cout_entree_par_million_usd", bloc.coutEntree());
+        contexte.put("cout_entree_cache_par_million_usd", bloc.coutEntreeCache());
         contexte.put("cout_sortie_par_million_usd", bloc.coutSortie());
         contexte.put("cles_attendues", runner.clesAttendues());
         contexte.put("corpus", CompetenceGoldenSet.RESOURCE);

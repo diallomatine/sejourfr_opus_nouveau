@@ -241,7 +241,7 @@ final class CalibrationRunner {
             attendu.pointsOublies(), libelles(feedback, "points_oublies"),
             attendu.pieges(), manquants, criteresManquants,
             recorder.appele, tentatives, ratees, eval.getModeleUtilise(),
-            eval.getTokensInput(), eval.getTokensOutput(), eval.getCoutEstimeCentimes(), duree,
+            eval.getTokensInput(), eval.getTokensOutput(), eval.getCoutMicroUsd(), duree,
             recorder.appels, List.copyOf(traces));
     }
 

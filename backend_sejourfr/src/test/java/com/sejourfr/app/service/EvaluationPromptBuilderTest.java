@@ -297,4 +297,60 @@ class EvaluationPromptBuilderTest {
                 .contains("# Exemples d'ancrage");
         assertThat(system).doesNotContain("{MODALITE}").doesNotContain("{CRITERES}");
     }
+
+    // ------------------------------------------------------ cache de prefixe
+
+    /**
+     * LE PREFIXE INVARIANT EST DEVANT, ET IL NE BOUGE PAS D'UN APPEL A L'AUTRE.
+     *
+     * <p>DeepSeek facture les tokens d'entree servis par son cache de prefixe
+     * <b>31 fois moins cher</b> que les autres (0,007 contre 0,22 $ / 1M). Ce
+     * cache ne mord que si le debut de la requete est strictement identique
+     * d'un appel a l'autre : il suffit d'un horodatage, d'un identifiant de
+     * candidat ou d'un compteur glisse en tete pour le reduire a neant, sans
+     * qu'aucun test fonctionnel ne s'en apercoive — le correcteur, lui, notera
+     * exactement pareil.
+     *
+     * <p>Ce que ce test verrouille : le system prompt (la grille, ~80 ko sur
+     * v15) est stable, et le user prompt d'une MEME tache ne diverge qu'a
+     * partir de la production du candidat. Ce sont les deux seules conditions
+     * dont depend le tarif de cache.
+     */
+    @Test
+    void le_prefixe_envoye_au_correcteur_est_invariant_donc_le_cache_peut_mordre() {
+        EvaluationPromptBuilder b = builderV5();
+
+        assertThat(b.buildSystemPrompt())
+            .as("la grille doit etre identique a chaque appel : c'est elle qui pese, "
+                + "et c'est elle qui se met en cache")
+            .isEqualTo(b.buildSystemPrompt());
+
+        ProductionTask task = new ProductionTask();
+        task.setEpreuve(EpreuveType.TCF_EE);
+        task.setTacheNumero((short) 1);
+        task.setNiveauCible("A2");
+        task.setConsigne("Annoncez votre demenagement a un ami et invitez-le.");
+        task.setMotsMin(30);
+        task.setMotsMax(60);
+
+        String premier = b.buildUserPrompt(task, "Salut Marie, j'ai demenage.", false, null);
+        String second = b.buildUserPrompt(task, "Bonjour Paul, je change d'appartement.", false, null);
+
+        int commun = 0;
+        while (commun < premier.length() && commun < second.length()
+                && premier.charAt(commun) == second.charAt(commun)) {
+            commun++;
+        }
+        assertThat(premier.substring(0, commun))
+            .as("tout ce qui precede la production du candidat doit etre identique "
+                + "pour deux copies de la meme tache")
+            .contains("ÉPREUVE : Expression ecrite, tâche 1")
+            .contains("CONSIGNE DONNÉE AU CANDIDAT")
+            .contains("BARÈME DE LA NOTE /20")
+            .contains("PRODUCTION DU CANDIDAT");
+        assertThat(commun)
+            .as("le prefixe commun doit rester la part ecrasante du message : "
+                + "c'est lui qui est facture au tarif de cache")
+            .isGreaterThan(premier.length() / 2);
+    }
 }

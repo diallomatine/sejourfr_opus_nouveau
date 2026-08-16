@@ -3,6 +3,7 @@ package com.sejourfr.app.service.competence;
 import com.sejourfr.app.config.CompetenceProperties;
 import com.sejourfr.app.config.ProductionEvaluationProperties;
 import com.sejourfr.app.exception.AiEvaluationException;
+import com.sejourfr.app.util.CoutAppelLlm;
 import com.sejourfr.app.exception.AiEvaluationTransientException;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -45,6 +46,8 @@ public class CompetenceAnthropicClient implements CompetenceAnalysisLlmClient {
 
     private final ProductionEvaluationProperties.Anthropic connection;
     private final CompetenceProperties.Analysis analysis;
+    /** Seul endroit qui sait ce que coute un appel : trois tarifs + heures pleines. */
+    private final CoutAppelLlm tarification;
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
     private Map<String, Object> toolSchema;
@@ -53,6 +56,7 @@ public class CompetenceAnthropicClient implements CompetenceAnalysisLlmClient {
                                      CompetenceProperties.Analysis analysis,
                                      ObjectMapper objectMapper) {
         this.connection = connection;
+        this.tarification = new CoutAppelLlm(connection);
         this.analysis = analysis;
         this.objectMapper = objectMapper;
         this.restClient = RestClient.builder()
@@ -202,16 +206,13 @@ public class CompetenceAnthropicClient implements CompetenceAnalysisLlmClient {
         JsonNode usage = response.path("usage");
         Integer inputTokens = usage.hasNonNull("input_tokens") ? usage.get("input_tokens").asInt() : null;
         Integer outputTokens = usage.hasNonNull("output_tokens") ? usage.get("output_tokens").asInt() : null;
-        return new Outcome(parsed, inputTokens, outputTokens, estimateCostCents(inputTokens, outputTokens));
+        // Anthropic ne sert du cache que si la requete le demande (`cache_control`),
+        // ce que nous ne faisons pas : aucun token n'est jamais servi par le cache.
+        Integer cacheHit = null;
+        return new Outcome(parsed, inputTokens, cacheHit, outputTokens,
+            tarification.microDollars(inputTokens, cacheHit, outputTokens));
     }
 
-    private Integer estimateCostCents(Integer in, Integer out) {
-        double usd = 0;
-        if (in != null) usd += in * (connection.getCostPerMillionInputTokens() / 1_000_000.0);
-        if (out != null) usd += out * (connection.getCostPerMillionOutputTokens() / 1_000_000.0);
-        if (usd <= 0) return null;
-        return (int) Math.ceil(usd * 100.0);
-    }
 
     private static ClientHttpRequestFactory buildRequestFactory(int timeoutSec) {
         HttpClient httpClient = HttpClient.newBuilder()

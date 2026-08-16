@@ -63,7 +63,7 @@ record CaseRun(
     String modele,
     Integer tokensInput,
     Integer tokensOutput,
-    Integer coutCentimes,
+    Integer coutMicroUsd,
     long dureeMs,
     int appelsLlm,
     List<Tentative> traces) {
@@ -108,12 +108,12 @@ record CaseRun(
         List<String> pointsOubliesAttendus, List<String> pointsOubliesObtenus,
         List<String> pieges, List<String> champsRequisManquants, List<String> criteresManquants,
         boolean llmAppele, int tentatives, int tentativesRatees, String modele,
-        Integer tokensInput, Integer tokensOutput, Integer coutCentimes, long dureeMs) {
+        Integer tokensInput, Integer tokensOutput, Integer coutMicroUsd, long dureeMs) {
         this(casId, groupe, passe, statut, erreur, niveauAttendu, niveauTolerance, niveauObtenu,
             niveauIa, note, criteres, noteMin, noteMax, confianceAttendue, confianceObtenue,
             obligatoireTraiteAttendu, obligatoireTraiteObtenu, pointsOubliesAttendus,
             pointsOubliesObtenus, pieges, champsRequisManquants, criteresManquants, llmAppele,
-            tentatives, tentativesRatees, modele, tokensInput, tokensOutput, coutCentimes, dureeMs,
+            tentatives, tentativesRatees, modele, tokensInput, tokensOutput, coutMicroUsd, dureeMs,
             tentatives, List.of());
     }
 

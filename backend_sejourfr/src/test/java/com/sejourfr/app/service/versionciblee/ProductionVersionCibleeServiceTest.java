@@ -172,14 +172,14 @@ class ProductionVersionCibleeServiceTest {
         AiEvaluation eval = eval(NiveauCecrl.A2, sub.getId());
         eval.setTokensInput(1000);
         eval.setTokensOutput(500);
-        eval.setCoutEstimeCentimes(3);
+        eval.setCoutMicroUsd(3);
         stubLlm(sortieEcriteConforme());
 
         service.enrichir(sub.getId());
 
         assertThat(eval.getTokensInput()).isEqualTo(1300);
         assertThat(eval.getTokensOutput()).isEqualTo(700);
-        assertThat(eval.getCoutEstimeCentimes()).isEqualTo(4);
+        assertThat(eval.getCoutMicroUsd()).isEqualTo(4);
     }
 
     /**

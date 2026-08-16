@@ -113,7 +113,9 @@ final class CalibrationReport {
         racine.put("accomplissement", CalibrationMetrics.accomplissement(runs));
         racine.put("conformite", conformiteJson(CalibrationMetrics.conformite(runs)));
         racine.put("stabilite", CalibrationMetrics.stabilite(runs));
-        racine.put("cout_total_centimes", CalibrationMetrics.coutTotalCentimes(runs));
+        racine.put("cout_total_micro_usd", CalibrationMetrics.coutTotalMicroUsd(runs));
+        racine.put("cout_total_usd",
+            CalibrationMetrics.coutTotalMicroUsd(runs) / 1_000_000.0);
         racine.put("runs", runs);
 
         try {
@@ -211,7 +213,8 @@ final class CalibrationReport {
             c.casPerdus(), c.total(), c.pctCasPerdus(),
             c.casNonMesures(), c.total(), c.pctCasNonMesures()));
         sb.append("  motifs : ").append(motifs(c)).append('\n');
-        sb.append(String.format("Cout estime : %d centimes%n%n", CalibrationMetrics.coutTotalCentimes(runs)));
+        sb.append(String.format("Cout estime : %.4f $%n%n",
+            CalibrationMetrics.coutTotalMicroUsd(runs) / 1_000_000.0));
         sb.append(CONVENTION).append("\n\n");
 
         sb.append(entete());

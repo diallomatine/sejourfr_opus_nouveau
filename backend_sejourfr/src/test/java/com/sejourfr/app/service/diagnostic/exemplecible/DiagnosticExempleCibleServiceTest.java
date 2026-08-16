@@ -127,7 +127,7 @@ class DiagnosticExempleCibleServiceTest {
         analyse.setLevelEstimate(constate);
         analyse.setTokensInput(1000);
         analyse.setTokensOutput(100);
-        analyse.setCostEstimateCents(2);
+        analyse.setCostMicroUsd(2);
         Map<String, Object> json = new LinkedHashMap<>();
         json.put("level_estimate", constate.name());
         json.put("summary", "Le message est compréhensible.");
@@ -223,7 +223,7 @@ class DiagnosticExempleCibleServiceTest {
 
         assertThat(analyse.getTokensInput()).isEqualTo(1800);
         assertThat(analyse.getTokensOutput()).isEqualTo(300);
-        assertThat(analyse.getCostEstimateCents()).isEqualTo(5);
+        assertThat(analyse.getCostMicroUsd()).isEqualTo(5);
     }
 
     /** LA DEMARCHE FAIT PLANCHER : NAT exige B2, meme avec un B1 declare. */

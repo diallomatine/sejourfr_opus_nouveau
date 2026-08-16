@@ -85,8 +85,22 @@ public class AiEvaluation {
     @Column(name = "tokens_output")
     private Integer tokensOutput;
 
-    @Column(name = "cout_estime_centimes")
-    private Integer coutEstimeCentimes;
+    /**
+     * Part de {@code tokensInput} servie par le CACHE DE PREFIXE du fournisseur,
+     * telle qu'il la rapporte. {@code null} = non rapporte, donc facturee au
+     * plein tarif. Le cache miss se deduit, il n'a pas de colonne.
+     */
+    @Column(name = "tokens_input_cache_hit")
+    private Integer tokensInputCacheHit;
+
+    /**
+     * Cout estime de l'appel en MILLIONIEMES de dollar. L'ancienne colonne en
+     * centimes arrondissait au cent SUPERIEUR : sur une analyse a 0,0013 $ elle
+     * multipliait la facture par ~8. Elle reste en base, LEGACY, plus jamais
+     * ecrite — l'historique n'est pas reecrit.
+     */
+    @Column(name = "cout_micro_usd")
+    private Integer coutMicroUsd;
 
     @Column(name = "nb_retries", nullable = false)
     private short nbRetries = 0;
@@ -133,8 +147,11 @@ public class AiEvaluation {
     public Integer getTokensOutput() { return tokensOutput; }
     public void setTokensOutput(Integer tokensOutput) { this.tokensOutput = tokensOutput; }
 
-    public Integer getCoutEstimeCentimes() { return coutEstimeCentimes; }
-    public void setCoutEstimeCentimes(Integer coutEstimeCentimes) { this.coutEstimeCentimes = coutEstimeCentimes; }
+    public Integer getTokensInputCacheHit() { return tokensInputCacheHit; }
+    public void setTokensInputCacheHit(Integer v) { this.tokensInputCacheHit = v; }
+
+    public Integer getCoutMicroUsd() { return coutMicroUsd; }
+    public void setCoutMicroUsd(Integer coutMicroUsd) { this.coutMicroUsd = coutMicroUsd; }
 
     public short getNbRetries() { return nbRetries; }
     public void setNbRetries(short nbRetries) { this.nbRetries = nbRetries; }

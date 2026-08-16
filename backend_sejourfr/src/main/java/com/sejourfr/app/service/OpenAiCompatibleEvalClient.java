@@ -5,6 +5,7 @@ import com.sejourfr.app.exception.AiEvaluationException;
 import com.sejourfr.app.exception.AiEvaluationTransientException;
 import com.sejourfr.app.util.ChatCompletionDialect;
 import com.sejourfr.app.util.ChatCompletionDialectNegotiator;
+import com.sejourfr.app.util.CoutAppelLlm;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +52,8 @@ public class OpenAiCompatibleEvalClient implements EvaluationLlmClient {
     private static final String TOOL_SCHEMA_PATH_FORMAT = "prompts/production-evaluation-tool-schema-%s.json";
 
     private final ChatCompletionSettings settings;
+    /** Seul endroit qui sait ce que coute un appel : trois tarifs + heures pleines. */
+    private final CoutAppelLlm tarification;
     /** Libelle lisible du provider (ex: "OpenAI", "DeepSeek") pour logs + erreurs. */
     private final String label;
     private final ObjectMapper objectMapper;
@@ -65,6 +68,7 @@ public class OpenAiCompatibleEvalClient implements EvaluationLlmClient {
     public OpenAiCompatibleEvalClient(
             ChatCompletionSettings settings, String label, ObjectMapper objectMapper) {
         this.settings = settings;
+        this.tarification = new CoutAppelLlm(settings);
         this.label = label;
         this.objectMapper = objectMapper;
         this.dialecte = new ChatCompletionDialectNegotiator(
@@ -285,17 +289,12 @@ public class OpenAiCompatibleEvalClient implements EvaluationLlmClient {
         JsonNode usage = response.path("usage");
         Integer inputTokens  = usage.hasNonNull("prompt_tokens")     ? usage.get("prompt_tokens").asInt()     : null;
         Integer outputTokens = usage.hasNonNull("completion_tokens") ? usage.get("completion_tokens").asInt() : null;
-        Integer cost = estimateCostCents(inputTokens, outputTokens);
+        // Le decoupage cache hit / cache miss est RENVOYE par le fournisseur :
+        // on le lit, on ne le devine pas. Absent -> tout au plein tarif.
+        Integer cachedTokens = CoutAppelLlm.lireCacheHitTokens(usage);
+        Integer cost = tarification.microDollars(inputTokens, cachedTokens, outputTokens);
 
-        return new Outcome(parsed, inputTokens, outputTokens, cost);
-    }
-
-    private Integer estimateCostCents(Integer in, Integer out) {
-        double usd = 0;
-        if (in != null)  usd += in  * (settings.getCostPerMillionInputTokens()  / 1_000_000.0);
-        if (out != null) usd += out * (settings.getCostPerMillionOutputTokens() / 1_000_000.0);
-        if (usd <= 0) return null;
-        return (int) Math.ceil(usd * 100.0);
+        return new Outcome(parsed, inputTokens, cachedTokens, outputTokens, cost);
     }
 
     private static ClientHttpRequestFactory buildRequestFactory(int timeoutSec) {

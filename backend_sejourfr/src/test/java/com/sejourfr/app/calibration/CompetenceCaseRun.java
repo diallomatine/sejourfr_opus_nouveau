@@ -65,7 +65,7 @@ record CompetenceCaseRun(
     String modele,
     Integer tokensInput,
     Integer tokensOutput,
-    Integer coutCentimes,
+    Integer coutMicroUsd,
     long dureeMs) {
 
     /**

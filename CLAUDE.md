@@ -1365,7 +1365,7 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   **négociée** (`ChatCompletionDialectNegotiator` : déduit le remplacement du 400 du
   fournisseur, rejoue **une fois**, mémorise par processus ; un **400 métier** ne
   renégocie **jamais** ; les heuristiques par famille ne sont qu'un point de départ) ;
-  le **modèle et ses deux tarifs** sont des `${EVAL_*_MODEL/COST_INPUT/COST_OUTPUT}` ;
+  le **modèle et ses tarifs** sont des `${EVAL_*_MODEL/COST_INPUT/COST_OUTPUT/COST_CACHED_INPUT}` ;
   le même dialecte sert `CompetenceOpenAiCompatibleClient` — sinon une bascule casse
   le module Compétences en silence. `EvaluationPricingTest` ne fige plus une table
   « tel modèle = tel prix » (elle rendait rouge tout changement de modèle) mais une
@@ -1395,15 +1395,83 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   sur cette colonne.
   ⚠️ **`pro` est plus cher que `flash`** — le nom ne dit rien de l'aptitude à cette
   tâche. `gpt-5.4` est le seul sans aucun appel refusé, mais 4,5× le prix (écarté sur
-  le coût, 2026-08-08). **Choix en cours de réexamen.**
+  le coût, 2026-08-08).
+  ✅ **CHOIX CLOS le 2026-08-16 : `flash` est retenu, motif LATENCE.** 16,3 s de
+  médiane et 36 s au pire appel contre 28,8 s / 66,7 s pour `pro` — c'est le seul
+  écart que le candidat ressent, il attend sa correction devant l'écran. Renforcé
+  par un fait mesuré le même jour : **la justesse se gagne dans les contrats et les
+  contrôles serveur, pas dans le moteur** (+14,5 points d'accord exact sans changer
+  de modèle). Payer 4,5× pour `gpt-5.4`, qui note **aussi juste** (81,3 % des deux
+  côtés), n'achèterait pas de la précision ; et les 42,9 % d'appels refusés à l'oral
+  se traitent chez **nos validateurs**, pas chez le fournisseur. Ne pas rouvrir ce
+  dossier sans une mesure neuve, à réessais égaux.
   **Le rejet est un problème purement ORAL** : 0 % d'appels refusés en EE chez les
   trois moteurs. Et ce ne sont pas des JSON cassés — ce sont **nos validateurs** qui
-  refusent des sorties bien formées. Tarifs relevés le 2026-08-07 sur
-  api-docs.deepseek.com : flash 0,14 / 0,28 ; pro 0,435 / 0,87 — **l'ancien
-  0,27 / 1,10 du YAML était faux** et surestimait 2 à 4× les coûts déjà persistés.
+  refusent des sorties bien formées.
+  ⚠️ **Les tarifs du tableau ci-dessus datent de l'ANCIENNE grille** (relevés le
+  2026-08-07 : flash 0,14 / 0,28 ; pro 0,435 / 0,87) — conservés parce que les
+  campagnes ont été payées à ce prix-là. La grille **en vigueur** est celle du
+  2026-08-16 16:00 UTC, à trois tarifs et deux plages horaires (cf. § *Ce que coûte
+  un appel LLM* ci-dessous).
   `timeout-sec` deepseek 60 → **90** (read timeout **par appel** : pire appel `flash`
   36 s, `pro` 67 s ; les « 5 min » d'un rapport sont un **cas entier**, pas un appel).
-  Bascule = un bloc de 3 lignes de `.env`. Détail : `docs/notation-ia-eo-ee.md` §12.6.
+  Bascule = un bloc de `.env`. Détail : `docs/notation-ia-eo-ee.md` §12.6.
+- **Ce que coûte un appel LLM — TROIS tarifs, deux plages horaires, et un cout au
+  MICRO-DOLLAR** (2026-08-16). Autorité unique : **`util/CoutAppelLlm`**, extraite à
+  la **11ᵉ** occurrence — chacun des 11 clients portait sa propre copie de
+  `estimateCostCents`, et passer de 2 tarifs à 3 les aurait fait diverger. Contrat
+  partagé : **`config/TarifsLlm`** (implémenté par `BlocTarifs`, dont héritent les 3
+  blocs provider).
+  - **Grille DeepSeek en vigueur depuis le 2026-08-16 16:00 UTC** (USD / 1M tokens),
+    en heures creuses : `flash` **0,007 / 0,22 / 0,66** (entrée cache hit / cache
+    miss / sortie), `pro` **0,022 / 0,66 / 1,98**. **Heures pleines = ×2 sur les
+    trois**, sur **01:00-04:00 et 06:00-10:00 UTC**. L'ancienne paire `0,14 / 0,28`
+    était fausse **dans les deux sens** : sortie sous-estimée ×2,4 à ×4,7, entrée
+    cache miss ×1,6 à ×3,1, et entrée cache **hit SUR**estimée ×20.
+  - **Un multiplicateur, pas six chiffres** : la grille est exactement
+    proportionnelle (×2 sur les 3 tarifs et les 2 gammes), donc
+    `peak-multiplier` + `peak-utc-ranges` disent la même chose sans tripler la
+    surface d'env. Si un fournisseur cessait d'être proportionnel, **alors** on
+    scinde. Les bornes horaires vivent **en configuration**, jamais en dur.
+    L'heure est résolue **à l'instant de l'appel**, en UTC, depuis un `Clock`
+    paramètre du calcul (`CoutAppelLlm(tarifs, horloge)`) — testable, jamais un
+    `Instant.now()` enfoui dans 11 clients.
+  - **Le découpage cache hit / miss est LU, jamais deviné** : DeepSeek renvoie
+    `usage.prompt_cache_hit_tokens`, OpenAI `usage.prompt_tokens_details.cached_tokens`,
+    les deux dialectes sont acceptés (`CoutAppelLlm.lireCacheHitTokens`). **Absent ⇒
+    tout en cache miss**, l'hypothèse **prudente** : on surestime, jamais l'inverse.
+    Même repli quand un provider ne déclare pas de tarif de cache (`0` ⇒ plein tarif).
+    🛑 **L'invariant « changer de LLM ne touche aucun `.java` ni `.yaml` » survit** :
+    tarif de cache et heures pleines sont **facultatifs**, avec des neutres (`0`, `1`,
+    `""`), verrouillé par `EvaluationProviderSwapTest`.
+  - **Fin de l'arrondi au centime supérieur.** `Math.ceil(usd * 100)` multipliait par
+    ~8 la facture d'une micro-analyse (~0,0013 $) : la campagne de 90 cas du
+    2026-08-16 a persisté **90 centimes pour 9,9 centimes réels**, et
+    `CompetenceCalibrationReport` avait dû republier un `cout_reel_usd` recalculé pour
+    le contourner (supprimé, il n'a plus lieu d'être). Le coût est désormais un
+    **entier de micro-dollars** — additionnable sans erreur flottante quand un second
+    appel s'ajoute au premier, et arrondi au **micro-dollar supérieur** (même prudence,
+    granularité 10 000× plus fine).
+  - **V034, additive** : `cout_micro_usd` (+ `cost_micro_usd` côté diagnostic) et
+    `tokens_input_cache_hit` sur `ai_evaluations`, `user_skill_attempts`,
+    `diagnostic_production_analyses`. Le cache **miss** n'a pas de colonne, il se
+    déduit. 🛑 `cout_estime_centimes` / `cost_estimate_cents` deviennent **LEGACY,
+    plus jamais écrites, plus mappées** — les valeurs restent, **aucun recalcul
+    rétroactif** : le prix du jour n'a jamais été stocké à côté des tokens, le
+    recalculer serait une invention. Exception : `transcriptions.cout_estime_centimes`
+    reste **active** (Whisper facture à la minute d'audio, pas au token).
+  - **Le cache PEUT mordre chez nous, et l'ordre des prompts est déjà bon** (vérifié
+    le 2026-08-16, aucun réordonnancement nécessaire — en faire un aurait changé ce
+    que le correcteur lit, donc la version du contrat). La grille invariante est le
+    **message système**, envoyé en tête : **~80 ko sur 120** pour les productions
+    (`commun.sections` 58 ko + few-shot 22 ko), **~94 %** pour Compétences,
+    `versionciblee` et `niveauvise`. Rien de variable ne la précède, et la production
+    du candidat est **le dernier élément** du message utilisateur. Verrou :
+    `EvaluationPromptBuilderTest.le_prefixe_envoye_au_correcteur_est_invariant_donc_le_cache_peut_mordre`
+    — ne jamais glisser d'horodatage, d'identifiant ni de compteur en tête d'un
+    prompt, c'est invisible fonctionnellement et ça éteint la remise de 31×.
+    ⚠️ Le **taux de cache réel** n'est pas mesuré : c'est précisément ce que la
+    nouvelle colonne servira à répondre, en une requête SQL.
 - **Une sortie LLM malformée est TRANSITOIRE, donc rejouée** (`@Retryable` des deux
   clients) : absence de `tool_calls`, `finish_reason=length`, arguments vides,
   JSON illisible, réponse vide. Seuls la configuration absente et les 4xx sont

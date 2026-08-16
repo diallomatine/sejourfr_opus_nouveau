@@ -239,9 +239,17 @@ sans note sur 20, avec leurs propres consignes et format **v1 / v1** décrits ju
 > retour en arrière tient en **deux variables** (`EVAL_RUBRICS_VERSION=v9` +
 > `EVAL_PROMPT_VERSION=v5`) et ne demande aucune migration.
 
-> 🆕 **Correcteur en vigueur : `deepseek-v4-flash`. Ce choix est en cours de réexamen.**
-> **Aucune règle de notation n'est en jeu** : mêmes rubriques v9, même format de réponse v5,
-> mêmes seuils, mêmes garde-fous. Seul le moteur qui lit les consignes est discuté.
+> 🆕 **Correcteur en vigueur : `deepseek-v4-flash` — choix ARBITRÉ ET CLOS le 16 août 2026,
+> pour sa RAPIDITÉ.** **Aucune règle de notation n'est en jeu** : mêmes rubriques, même
+> format de réponse, mêmes seuils, mêmes garde-fous. Seul le moteur qui lit les consignes
+> était en discussion.
+>
+> **Le motif est le temps d'attente du candidat** : pris appel par appel, `flash` répond en
+> **16,3 s** en médiane et **36 s** au pire, contre **28,8 s** et **66,7 s** pour
+> `deepseek-v4-pro`. Et la justesse, elle, ne s'est pas gagnée en changeant de moteur : la
+> campagne du 16 août a fait monter l'accord exact de **14,5 points sans toucher au modèle**,
+> uniquement par les contrats de sortie et les contrôles automatiques. Détail au **§12.6** ;
+> ce que coûte réellement une correction, au **§12.6 bis**.
 >
 > Trois moteurs ont été comparés sur les mêmes 48 cas les 7 et 8 août 2026 (§12.6). **Une
 > partie de cette comparaison s'est révélée faussée** : les trois campagnes n'ont pas accordé
@@ -267,8 +275,9 @@ sans note sur 20, avec leurs propres consignes et format **v1 / v1** décrits ju
 > facturé en double, et — en vraie utilisation, où le réessai est unique — **un risque réel
 > de correction non rendue**. `deepseek-v4-pro` refuse moins (17,9 % ; 31,2 % à l'oral),
 > `gpt-5.4` ne refuse jamais (0 %). C'est ce chiffre-là, et non la ligne « corrections
-> perdues » du banc, qui doit peser dans l'arbitrage. Comparaison colonne par colonne au
-> **§12.6** ; changer de moteur tient en trois lignes de configuration.
+> perdues » du banc, qui a pesé dans l'arbitrage — et il se traite du côté de **nos
+> contrôles**, pas en changeant de fournisseur. Comparaison colonne par colonne au
+> **§12.6** ; changer de moteur reste affaire de quelques lignes de configuration.
 
 > 🆕 **7 août 2026 — on ne vous reproche plus une langue étrangère que vous n'avez pas
 > parlée.** Le transcripteur de l'oral **en temps réel** change parfois de langue tout seul :
@@ -4172,17 +4181,30 @@ médiane et **36 s au pire** — mesuré sur les 41 cas réglés en un seul appe
 chiffre-là, et pas la pointe, qui dimensionne le délai d'attente côté serveur (90 s, soit
 2,5 fois le pire appel observé).
 
-**Où en est la décision.** `deepseek-v4-flash` est le correcteur **en vigueur**, et **le choix
-est en cours de réexamen** : l'argument qui le soutenait le plus fortement — « il ne perd
-jamais de correction » — ne tient plus. Ce qui reste solide : il est **le moins cher** (0,91 $
-contre 1,12 $ et 4,14 $) et **le plus fiable sur les cas-pièges** (8/8). Ce qui joue contre
-lui : **42,9 % d'appels refusés à l'oral**, là où `gpt-5.4` n'en refuse aucun. `gpt-5.4` note
-**aussi juste** que lui (81,3 % tous les deux, pas mieux) et bien plus régulièrement, mais
-coûte **4,5 fois plus cher**. L'arbitrage revient au propriétaire ; ce document ne le
-préempte pas.
+**La décision est prise — `deepseek-v4-flash` est retenu (2026-08-16).** Le réexamen ouvert
+après les campagnes des 7 et 8 août est **clos**, et le motif décisif est la **rapidité de
+réponse** : pris appel par appel, `flash` répond en **16,3 s** en médiane et **36 s** au pire,
+contre **28,8 s** et **66,7 s** pour `deepseek-v4-pro`. Sur un écran où le candidat attend sa
+correction, c'est le seul écart qu'il ressent vraiment ; une minute d'attente supplémentaire
+n'est pas un détail d'exploitation.
 
-**Revenir en arrière** ne demande ni migration ni recompilation : trois lignes dans le fichier
-d'environnement (le fournisseur, le modèle, ses deux tarifs), un redémarrage. Les blocs
+Deux constats l'ont emporté sur les arguments contraires :
+
+- **la justesse ne se gagne pas en changeant de moteur.** Elle s'est gagnée dans les
+  **contrats de sortie et les contrôles automatiques** : la campagne du 2026-08-16 a fait
+  monter l'accord exact de **14,5 points sans changer une seule ligne de modèle**. Payer 4,5
+  fois plus cher pour un moteur qui note *aussi juste* (81,3 % des deux côtés, pas mieux)
+  n'achèterait donc pas de la précision ;
+- **le seul vrai défaut de `flash` — 42,9 % d'appels refusés à l'oral — est un défaut de nos
+  contrôles autant que du moteur**, et c'est de ce côté-là qu'il se traite (désignation de la
+  preuve par numéro, filtres serveur), pas en changeant de fournisseur.
+
+Ce qui reste vrai et joue aussi dans ce sens : `flash` est **le moins cher** et **le plus
+fiable sur les cas-pièges** (8/8). Les blocs OpenAI et Anthropic restent complets et testés :
+la décision est réversible en trois lignes de configuration, elle n'est pas définitive.
+
+**Revenir en arrière** ne demande ni migration ni recompilation : quelques lignes dans le
+fichier d'environnement (le fournisseur, le modèle, ses tarifs), un redémarrage. Les blocs
 OpenAI et Anthropic restent complets et testés.
 
 **Changer de modèle ne demande plus de toucher au code.** Chaque fournisseur a ses petites
@@ -4198,7 +4220,7 @@ Le **tarif** suivait la même logique à l'envers : il vivait dans une liste éc
 code, si bien que le premier modèle absent de cette liste faisait échouer la construction du
 projet alors que rien n'était cassé. Il se déclare désormais **à côté du modèle, dans le même
 fichier d'environnement** : si le modèle se choisit là, son prix aussi. Ce qui reste
-verrouillé, c'est la **cohérence** — choisir un modèle sans poser ses deux tarifs fait échouer
+verrouillé, c'est la **cohérence** — choisir un modèle sans poser ses tarifs fait échouer
 la construction, parce que le coût d'une correction est enregistré en base et qu'un tarif faux
 y resterait faux pour toujours. Ce qui n'est plus verrouillé, c'est le **choix** : aucun test
 ne dit plus quel moteur doit être utilisé.
@@ -4209,6 +4231,66 @@ ne dit plus quel moteur doit être utilisé.
 > à faire en connaissance de cause, pas par accident. `deepseek-v4-flash`, `deepseek-v4-pro`,
 > `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.2`, `gpt-4.1` et `gpt-4o-mini` acceptent tous la notation
 > déterministe.
+
+### 12.6 bis Ce que coûte vraiment une correction (grille du 2026-08-16)
+
+Cette section existe pour une raison simple : **les chiffres de coût affichés jusqu'ici étaient
+faux**, dans les deux sens, et il vaut mieux le dire que le corriger en silence.
+
+**Ce qui a changé chez le fournisseur.** Le 16 août 2026 à 16 h (heure de Londres), DeepSeek a
+publié une nouvelle grille de prix. Elle n'est plus faite de deux nombres mais de **trois**, et
+elle **double** à certaines heures de la journée. Les prix ci-dessous s'entendent en dollars
+pour un million de « jetons » — l'unité de facturation des IA de texte, à peu près trois quarts
+de mot en français.
+
+| | entrée **déjà connue** de l'IA | entrée **nouvelle** | réponse produite |
+|---|---|---|---|
+| **heures creuses** | **0,007 $** | **0,22 $** | **0,66 $** |
+| heures pleines (1 h-4 h et 6 h-10 h, heure de Londres) | 0,014 $ | 0,44 $ | 1,32 $ |
+
+**« Entrée déjà connue », c'est quoi ?** À chaque correction, on renvoie au correcteur la même
+grille d'évaluation — un document de plusieurs dizaines de pages, rigoureusement identique d'une
+copie à l'autre. Le fournisseur s'en aperçoit, la garde en mémoire quelques heures, et la
+facture **31 fois moins cher** la fois d'après. Ce n'est pas une astuce à mettre en place : il
+le fait tout seul, et il **nous dit** dans sa réponse quelle part de l'envoi a été reconnue.
+Nous ne le lisions pas ; nous le lisons désormais, et nous l'enregistrons — c'est la seule façon
+de savoir quelle part de nos envois profite réellement de cette remise.
+
+**Nos anciens chiffres, et de combien ils se trompaient.** La configuration portait encore
+0,14 $ en entrée et 0,28 $ en réponse. Autrement dit :
+
+- la **réponse** était sous-estimée de 2,4 à 4,7 fois ;
+- l'**entrée nouvelle** de 1,6 à 3,1 fois ;
+- l'**entrée déjà connue**, elle, était **sur**estimée d'un facteur 20.
+
+**Et un défaut d'arrondi, plus grossier encore.** Le coût de chaque appel était arrondi **au
+centime supérieur** avant d'être enregistré. Une correction coûte quelques millièmes de
+centime : elle laissait donc « 1 centime » en base, soit **environ huit fois son prix**. Sur une
+campagne de mesure de 90 corrections, la base indiquait 90 centimes pour 9,9 centimes réellement
+dépensés. Le coût est désormais conservé au **millionième de dollar** — assez fin pour que la
+plus petite correction du site en vaille encore près de deux mille, et assez précis pour que
+deux appels s'additionnent sans gonfler.
+
+**Ce que ça donne sur une correction réelle**, en moyenne sur les corrections déjà enregistrées
+(EE : 16 200 jetons envoyés, 1 150 produits ; EO : 10 200 et 1 290) :
+
+| | ancienne grille, prix réel | nouvelle grille, **sans** remise | nouvelle grille, **avec** remise |
+|---|---|---|---|
+| une expression **écrite** | 0,0026 $ | **0,0043 $** | ≈ 0,0014 $ |
+| une expression **orale** | 0,0018 $ | **0,0031 $** | ≈ 0,0011 $ |
+
+Aux heures pleines, il faut doubler la colonne du milieu. Autrement dit : **une correction coûte
+entre un dixième et un demi-centime**, et la remise de mémoire, quand elle joue, la ramène
+au-dessous de l'ancien prix — c'est même le seul levier de coût qui reste, une fois la grille
+subie.
+
+**Ce que ça ne change pas.** Ni la note, ni le niveau, ni un seuil, ni une consigne donnée au
+correcteur. C'est de la comptabilité, pas de la notation. Et **rien n'a été réécrit dans le
+passé** : les corrections déjà enregistrées gardent le montant calculé à leur époque, avec les
+tarifs et l'arrondi de leur époque. Recalculer ces montants aujourd'hui reviendrait à inventer
+un prix qu'on n'a jamais payé — le prix du jour n'a jamais été conservé à côté du décompte de
+jetons.
+
 
 ## 13. Deux réglages **préparés mais éteints** (aucun effet aujourd'hui)
 
@@ -4281,9 +4363,9 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 | **Toutes les consignes de notation** (nos 4 critères et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et tout ce qui se lit sur une note** : seuils note → niveau, écart du garde-fou, seuils des plafonds, bornes des bandes affichées) **et toutes les consignes de restitution** (confiance, anti-répétition, levier de progression, verdict, plafonds d'affichage) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v15.json` (version **active**, profil `TCF_IRN`, maximum B2 — **c'est la v14 au caractère près pour tout ce qui note ; elle ne fait que retirer les consignes décrivant les « exemples corrigés » et les « suggestions », supprimés du rapport**, §5.7 bis). `v14` (retrait de la version améliorée, §5.8), `v13` (accentuation, §10 bis), `v12`, `v9`, `v8`, `v7` et les versions antérieures restent en place et chargeables. ⚠️ **`v10` et `v11` existent aussi, et sont écartées** : elles ajoutaient une consigne sur la langue étrangère à l'oral et ont été **mesurées moins bonnes que v9** (§8 quater) — les activer ferait revenir ces chiffres. Un rollback change la **paire compatible** `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION` (v15/v9 → v14/v8 → v13/v7 → v12/v6 → v9/v5 → v8/v5 → v7/v4), jamais un seul côté du contrat. ⚠️ **v12, v13, v14 et v15 sont les seules versions dont la notation n'a pas été mesurée au banc** — parce qu'elle ne la change pas : elle est la v9 au caractère près pour tout ce qui note (verrouillé par un test qui compare les deux fichiers), et ne modifie que **deux choses de forme** : la façon dont l'IA désigne sa preuve (§5.5), et le fait qu'elle ne **recopie plus** les bornes de mots des tâches EE — elle renvoie à celles qui lui sont injectées depuis la base (§2). Retour à la recopie littérale : `EVAL_RUBRICS_VERSION=v9` + `EVAL_PROMPT_VERSION=v5`, sans migration — ⚠️ **ce retour arrière réintroduit la contradiction sur les bornes de mots** (grille à 60-90, base à 40-90, §2). |
 | **Le format de réponse de l'IA** (note, confiance, accomplissement **et son verdict**, preuves, points forts, priorités…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v9.json` (version active — **v8 privée des deux cases `exemples_corriges` et `suggestions` ; un test exige l'égalité stricte de tout le reste**, §5.7 bis ; `v8` = v7 privée de `version_amelioree`, §5.8 ; `v7` = v6 réaccentuée, §10 bis) ; structure figée depuis v6 : structure complète, quatre critères exacts, niveaux limités à B2, aucun champ imprévu, au plus 2 points forts et 2 priorités). **La seule différence avec la v5** : la preuve d'un critère y est un **numéro de morceau** (un entier), plus une citation recopiée — c'est ce qui rend une preuve inventée impossible plutôt que simplement interdite (§5.5). La v5 reste en place et chargeable. |
 | **Le découpage de la production en morceaux numérotés** (une prise de parole du candidat à l'oral, une phrase à l'écrit) et sa **résolution en texte** avant affichage | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationProductionSegments.java`. Le découpage est **le même** pour ce qui est envoyé à l'IA, pour la vérification du numéro et pour le texte affiché — un seul point de vérité, comme pour le recollage des phrases coupées (§3.1) |
-| **Le correcteur utilisé partout** (async, fin de session temps réel, réparation, seconde passe, calibration) | Le **fichier d'environnement** (`.env`), pas le code : `EVAL_LLM_PROVIDER` et `EVAL_<FOURNISSEUR>_MODEL`. `application.yaml` ne porte que les **défauts** — aujourd'hui **DeepSeek / `deepseek-v4-flash`**, et **pas** son homonyme « pro », plus cher sans mieux noter. ⚠️ **Ce choix est en cours de réexamen** (§12.6). Les blocs OpenAI (`gpt-5.4`) et Anthropic restent complets et testés : basculer, c'est décommenter un bloc de trois lignes. Gemini reste l'examinateur vocal/transcripteur, jamais le correcteur. |
+| **Le correcteur utilisé partout** (async, fin de session temps réel, réparation, seconde passe, calibration) | Le **fichier d'environnement** (`.env`), pas le code : `EVAL_LLM_PROVIDER` et `EVAL_<FOURNISSEUR>_MODEL`. `application.yaml` ne porte que les **défauts** — aujourd'hui **DeepSeek / `deepseek-v4-flash`**, et **pas** son homonyme « pro », plus cher sans mieux noter. ✅ **Choix arbitré et clos le 2026-08-16, motif rapidité** (§12.6). Les blocs OpenAI (`gpt-5.4`) et Anthropic restent complets et testés : basculer, c'est décommenter un bloc de trois lignes. Gemini reste l'examinateur vocal/transcripteur, jamais le correcteur. |
 | **La façon dont on parle à un fournisseur** (nom du réglage de longueur maximale, envoi ou non d'une température) | Personne ne l'écrit : elle est **négociée avec le fournisseur** au premier appel, à partir de ses messages d'erreur, puis retenue jusqu'au redémarrage (`backend_sejourfr/src/main/java/com/sejourfr/app/util/ChatCompletionDialectNegotiator.java`). Deux clés d'environnement par fournisseur permettent de reprendre la main sans code si besoin : `EVAL_<FOURNISSEUR>_MAX_TOKENS_PARAM` et `EVAL_<FOURNISSEUR>_SEND_TEMPERATURE` |
-| **Le tarif du modèle** (le coût d'une correction est enregistré en base : un tarif faux y reste faux) | Le **même fichier d'environnement que le modèle** : `EVAL_<FOURNISSEUR>_COST_INPUT` / `..._COST_OUTPUT` (défauts dans `application.yaml`). C'est délibéré : le prix doit voyager avec le modèle. Un test **fait échouer la construction du projet** si un modèle est choisi sans ses deux tarifs — mais il ne dit plus « tel modèle vaut tel prix », sinon essayer un modèle nouveau redeviendrait une modification de code |
+| **Le tarif du modèle** (le coût d'une correction est enregistré en base : un tarif faux y reste faux) | Le **même fichier d'environnement que le modèle** : `EVAL_<FOURNISSEUR>_COST_INPUT` / `..._COST_OUTPUT`, plus le **facultatif** `..._COST_CACHED_INPUT` (défauts dans `application.yaml`). C'est délibéré : le prix doit voyager avec le modèle. Un test **fait échouer la construction du projet** si un modèle est choisi sans ses deux tarifs obligatoires — mais il ne dit plus « tel modèle vaut tel prix », sinon essayer un modèle nouveau redeviendrait une modification de code. Le tarif de cache et les heures pleines restent **optionnels**, avec des valeurs neutres, pour qu'un modèle inédit se branche sans eux (cf. §12.6 bis) |
 | **Le comportement de l'examinateur vocal** (ton, cadre, interdiction d'orienter le candidat, ouverture T1/T2, façon de rendre la fiche de scénario T2, **verrou de langue** §10) | `backend_sejourfr/src/main/resources/prompts/realtime-personas-v3.json` (version active ; v2 — sans verrou de langue — et v1 — sans fiche de scénario — restent disponibles en repli) |
 | **Les faits d'un jeu de rôle T2** (prix, délais, horaires, attitude du personnage) | colonne `agent_role_card` du sujet, en base — renseignée par les migrations `db/migration/300_tcf/production/eo/tache_2/` |
 | **Les seuils de niveau, les plafonds, les vérifications automatiques, les deux réglages éteints** | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.production-evaluation` |

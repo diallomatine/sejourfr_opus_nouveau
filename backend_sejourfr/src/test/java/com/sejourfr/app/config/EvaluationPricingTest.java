@@ -34,6 +34,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  *       fichier de configuration ;</li>
  *   <li>les tarifs effectivement resolus existent, sont strictement positifs et
  *       plausibles (entree ≤ sortie, ordres de grandeur d'une API publique) ;</li>
+ *   <li>le tarif d'entree SERVIE PAR LE CACHE, quand il est declare, est
+ *       inferieur ou egal au tarif d'entree plein : un cache plus cher que le
+ *       plein tarif est une inversion, jamais une grille reelle. Il est
+ *       FACULTATIF (0 = non declare, on facture plein tarif), sinon brancher un
+ *       modele inedit exigerait une variable de plus ;</li>
  *   <li><b>le tarif voyage avec le modele</b> : un modele choisi ailleurs que
  *       dans {@code application.yaml} doit apporter ses deux tarifs depuis la
  *       MEME source. C'est exactement l'incident de gpt-4o-mini, exprime comme
@@ -48,6 +53,17 @@ class EvaluationPricingTest {
      * API publique n'a jamais approche ce montant.
      */
     private static final double PLAFOND_PLAUSIBLE = 1_000.0;
+
+    /**
+     * <b>Aucun plancher n'est oppose a un tarif.</b> Le tarif d'entree servie
+     * par le cache de DeepSeek vaut <b>0,007</b> $ / 1M : trois millimes de
+     * dollar le million de tokens est une valeur PUBLIEE, pas une faute de
+     * saisie. Toute borne basse posee ici retomberait le jour ou un fournisseur
+     * baisse ses prix — et la regle du depot est de figer une COHERENCE, pas un
+     * ordre de grandeur d'epoque.
+     */
+    private static final String NOTE_PAS_DE_PLANCHER =
+        "aucun plancher : DeepSeek publie 0,007 $/1M en entree cache";
 
     /** {@code ${VAR:defaut}} — la forme qui rend une cle surchargeable sans editer le yaml. */
     private static final Pattern PLACEHOLDER = Pattern.compile("^\\$\\{[A-Za-z_][A-Za-z0-9_]*:.*}$");
@@ -133,8 +149,25 @@ class EvaluationPricingTest {
         assertThat(bloc.coutSortie())
             .as("%s (modele %s) : la sortie coute %s et l'entree %s. Aucun fournisseur ne "
                 + "facture la sortie moins cher que l'entree — les deux valeurs sont "
-                + "probablement inversees.",
-                bloc.provider(), bloc.modele(), bloc.coutSortie(), bloc.coutEntree())
+                + "probablement inversees. (%s)",
+                bloc.provider(), bloc.modele(), bloc.coutSortie(), bloc.coutEntree(),
+                NOTE_PAS_DE_PLANCHER)
             .isGreaterThanOrEqualTo(bloc.coutEntree());
+
+        // FACULTATIF : 0 = ce fournisseur ne declare pas de tarif de cache, et
+        // ses tokens d'entree sont alors factures au plein tarif — on surestime,
+        // jamais l'inverse. On ne verifie donc QUE le sens quand il est declare.
+        if (bloc.coutEntreeCache() > 0) {
+            assertThat(bloc.coutEntreeCache())
+                .as("%s (modele %s) : l'entree servie par le CACHE coute %s, soit plus que "
+                    + "l'entree pleine (%s). Un cache plus cher que le plein tarif n'existe "
+                    + "chez aucun fournisseur — les deux valeurs sont probablement inversees. "
+                    + "(%s)",
+                    bloc.provider(), bloc.modele(), bloc.coutEntreeCache(), bloc.coutEntree(),
+                    NOTE_PAS_DE_PLANCHER)
+                .isLessThanOrEqualTo(bloc.coutEntree())
+                .isFinite()
+                .isLessThan(PLAFOND_PLAUSIBLE);
+        }
     }
 }

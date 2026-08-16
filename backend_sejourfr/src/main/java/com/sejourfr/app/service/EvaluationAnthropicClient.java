@@ -2,6 +2,7 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.config.ProductionEvaluationProperties;
 import com.sejourfr.app.exception.AiEvaluationException;
+import com.sejourfr.app.util.CoutAppelLlm;
 import com.sejourfr.app.exception.AiEvaluationTransientException;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -45,12 +46,15 @@ public class EvaluationAnthropicClient implements EvaluationLlmClient {
     private static final String TOOL_SCHEMA_PATH_FORMAT = "prompts/production-evaluation-tool-schema-%s.json";
 
     private final ProductionEvaluationProperties props;
+    /** Seul endroit qui sait ce que coute un appel : trois tarifs + heures pleines. */
+    private final CoutAppelLlm tarification;
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
     private Map<String, Object> toolSchema;
 
     public EvaluationAnthropicClient(ProductionEvaluationProperties props, ObjectMapper objectMapper) {
         this.props = props;
+        this.tarification = new CoutAppelLlm(props.getAnthropic());
         this.objectMapper = objectMapper;
         this.restClient = RestClient.builder()
             .baseUrl(props.getAnthropic().getApiUrl())
@@ -212,19 +216,14 @@ public class EvaluationAnthropicClient implements EvaluationLlmClient {
         JsonNode usage = response.path("usage");
         Integer inputTokens = usage.hasNonNull("input_tokens") ? usage.get("input_tokens").asInt() : null;
         Integer outputTokens = usage.hasNonNull("output_tokens") ? usage.get("output_tokens").asInt() : null;
-        Integer cost = estimateCostCents(inputTokens, outputTokens);
+        // Anthropic ne sert du cache que si la requete le demande (`cache_control`),
+        // ce que nous ne faisons pas : aucun token n'est jamais servi par le cache.
+        Integer cacheHit = null;
+        Integer cost = tarification.microDollars(inputTokens, cacheHit, outputTokens);
 
-        return new Outcome(parsed, inputTokens, outputTokens, cost);
+        return new Outcome(parsed, inputTokens, cacheHit, outputTokens, cost);
     }
 
-    private Integer estimateCostCents(Integer in, Integer out) {
-        ProductionEvaluationProperties.Anthropic a = props.getAnthropic();
-        double usd = 0;
-        if (in != null)  usd += in  * (a.getCostPerMillionInputTokens()  / 1_000_000.0);
-        if (out != null) usd += out * (a.getCostPerMillionOutputTokens() / 1_000_000.0);
-        if (usd <= 0) return null;
-        return (int) Math.ceil(usd * 100.0);
-    }
 
     private static ClientHttpRequestFactory buildRequestFactory(int timeoutSec) {
         HttpClient httpClient = HttpClient.newBuilder()

@@ -51,9 +51,18 @@ public final class EvaluationConfigFixture {
     /**
      * Vue uniforme d'un bloc provider. Les trois blocs n'ont pas de type commun
      * ({@code Anthropic} ne parle pas Chat Completions), mais ils portent tous
-     * ces quatre informations — les seules dont parlent les tests de coherence.
+     * ces informations — les seules dont parlent les tests de coherence.
+     *
+     * @param coutEntreeCache tarif des tokens d'entree servis par le cache de
+     *                        prefixe. <b>0 = ce fournisseur n'en declare pas</b>,
+     *                        et ces tokens sont alors factures au tarif d'entree
+     *                        plein : c'est un NEUTRE valide, pas une lacune, et
+     *                        les tests de plausibilite doivent l'accepter tel
+     *                        quel — sinon brancher un modele inedit exigerait
+     *                        une variable de plus.
      */
-    public record BlocProvider(String provider, String modele, double coutEntree, double coutSortie,
+    public record BlocProvider(String provider, String modele, double coutEntree,
+                               double coutEntreeCache, double coutSortie,
                                boolean cleRenseignee) {
     }
 
@@ -130,16 +139,19 @@ public final class EvaluationConfigFixture {
             case "openai" -> {
                 ProductionEvaluationProperties.OpenAi o = props.getOpenai();
                 yield new BlocProvider("openai", o.getModel(), o.getCostPerMillionInputTokens(),
+                    o.getCostPerMillionCachedInputTokens(),
                     o.getCostPerMillionOutputTokens(), o.isConfigured());
             }
             case "deepseek" -> {
                 ProductionEvaluationProperties.DeepSeek d = props.getDeepseek();
                 yield new BlocProvider("deepseek", d.getModel(), d.getCostPerMillionInputTokens(),
+                    d.getCostPerMillionCachedInputTokens(),
                     d.getCostPerMillionOutputTokens(), d.isConfigured());
             }
             case "anthropic" -> {
                 ProductionEvaluationProperties.Anthropic a = props.getAnthropic();
                 yield new BlocProvider("anthropic", a.getModel(), a.getCostPerMillionInputTokens(),
+                    a.getCostPerMillionCachedInputTokens(),
                     a.getCostPerMillionOutputTokens(), a.isConfigured());
             }
             default -> throw new IllegalArgumentException("provider inconnu : " + provider);
@@ -174,6 +186,14 @@ public final class EvaluationConfigFixture {
     /** Nom de la variable de tarif de sortie d'un provider. */
     public static String varCoutSortie(String provider) {
         return "EVAL_" + normalise(provider).toUpperCase(Locale.ROOT) + "_COST_OUTPUT";
+    }
+
+    /**
+     * Nom de la variable de tarif d'entree SERVIE PAR LE CACHE. Facultative :
+     * absente, ces tokens sont factures au tarif d'entree plein.
+     */
+    public static String varCoutEntreeCache(String provider) {
+        return "EVAL_" + normalise(provider).toUpperCase(Locale.ROOT) + "_COST_CACHED_INPUT";
     }
 
     /**

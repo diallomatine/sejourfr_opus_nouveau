@@ -3,6 +3,7 @@ package com.sejourfr.app.service.versionciblee;
 import com.sejourfr.app.config.ProductionEvaluationProperties;
 import com.sejourfr.app.config.ProductionEvaluationProperties.VersionCiblee;
 import com.sejourfr.app.exception.AiEvaluationException;
+import com.sejourfr.app.util.CoutAppelLlm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -37,6 +38,8 @@ public class VersionCibleeAnthropicClient implements VersionCibleeLlmClient {
     private final ProductionEvaluationProperties.Anthropic connection;
     private final VersionCiblee reglages;
     private final VersionCibleeTools tools;
+    /** Seul endroit qui sait ce que coute un appel : trois tarifs + heures pleines. */
+    private final CoutAppelLlm tarification;
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
 
@@ -45,6 +48,7 @@ public class VersionCibleeAnthropicClient implements VersionCibleeLlmClient {
                                         VersionCibleeTools tools,
                                         ObjectMapper objectMapper) {
         this.connection = connection;
+        this.tarification = new CoutAppelLlm(connection);
         this.reglages = reglages;
         this.tools = tools;
         this.objectMapper = objectMapper;
@@ -147,16 +151,12 @@ public class VersionCibleeAnthropicClient implements VersionCibleeLlmClient {
         JsonNode usage = response.path("usage");
         Integer in = usage.hasNonNull("input_tokens") ? usage.get("input_tokens").asInt() : null;
         Integer out = usage.hasNonNull("output_tokens") ? usage.get("output_tokens").asInt() : null;
-        return new Outcome(parsed, in, out, estimateCostCents(in, out));
+        // Anthropic ne sert du cache que si la requete le demande (`cache_control`),
+        // ce que nous ne faisons pas : aucun token n'est jamais servi par le cache.
+        Integer cacheHit = null;
+        return new Outcome(parsed, in, cacheHit, out, tarification.microDollars(in, cacheHit, out));
     }
 
-    private Integer estimateCostCents(Integer in, Integer out) {
-        double usd = 0;
-        if (in != null) usd += in * (connection.getCostPerMillionInputTokens() / 1_000_000.0);
-        if (out != null) usd += out * (connection.getCostPerMillionOutputTokens() / 1_000_000.0);
-        if (usd <= 0) return null;
-        return (int) Math.ceil(usd * 100.0);
-    }
 
     private static ClientHttpRequestFactory buildRequestFactory(int timeoutSec) {
         HttpClient httpClient = HttpClient.newBuilder()

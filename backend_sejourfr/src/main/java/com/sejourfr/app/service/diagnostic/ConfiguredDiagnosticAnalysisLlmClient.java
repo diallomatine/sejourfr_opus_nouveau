@@ -4,6 +4,7 @@ import com.sejourfr.app.config.DiagnosticProperties;
 import com.sejourfr.app.config.ProductionEvaluationProperties;
 import com.sejourfr.app.config.ProductionEvaluationProperties.ChatCompletionSettings;
 import com.sejourfr.app.exception.AiEvaluationException;
+import com.sejourfr.app.util.CoutAppelLlm;
 import com.sejourfr.app.exception.AiEvaluationTransientException;
 import com.sejourfr.app.util.ChatCompletionDialect;
 import com.sejourfr.app.util.ChatCompletionDialectNegotiator;
@@ -206,8 +207,11 @@ public class ConfiguredDiagnosticAnalysisLlmClient implements DiagnosticAnalysis
         JsonNode usage = response.path("usage");
         Integer in = usage.hasNonNull("prompt_tokens") ? usage.get("prompt_tokens").asInt() : null;
         Integer out = usage.hasNonNull("completion_tokens") ? usage.get("completion_tokens").asInt() : null;
-        return new Outcome(parsed, in, out, cost(in, out,
-                connection.getCostPerMillionInputTokens(), connection.getCostPerMillionOutputTokens()));
+        // Le decoupage cache hit / cache miss est RENVOYE par le fournisseur :
+        // on le lit, on ne le devine pas. Absent -> tout au plein tarif.
+        Integer cacheHit = CoutAppelLlm.lireCacheHitTokens(usage);
+        return new Outcome(parsed, in, cacheHit, out,
+                new CoutAppelLlm(connection).microDollars(in, cacheHit, out));
     }
 
     private Outcome analyseAnthropic(String systemPrompt, String userPrompt) {
@@ -278,10 +282,24 @@ public class ConfiguredDiagnosticAnalysisLlmClient implements DiagnosticAnalysis
             throw new AiEvaluationTransientException("Sortie Anthropic diagnostic non désérialisable", e);
         }
         JsonNode usage = response.path("usage");
-        Integer in = usage.hasNonNull("input_tokens") ? usage.get("input_tokens").asInt() : null;
         Integer out = usage.hasNonNull("output_tokens") ? usage.get("output_tokens").asInt() : null;
-        return new Outcome(parsed, in, out, cost(in, out,
-                connection.getCostPerMillionInputTokens(), connection.getCostPerMillionOutputTokens()));
+        // Anthropic est le SEUL appel du depot qui demande vraiment du cache
+        // (`cache_control: ephemeral` sur le bloc systeme, cf. buildAnthropicBody),
+        // et il compte a part : `input_tokens` EXCLUT les tokens lus dans le
+        // cache et ceux qui viennent de l'y ecrire. On recompose donc le total,
+        // et on laisse la lecture de cache au tarif d'entree plein tant que le
+        // bloc anthropic ne declare pas de tarif de cache : on surestime,
+        // jamais l'inverse.
+        int entreePleine = usage.hasNonNull("input_tokens") ? usage.get("input_tokens").asInt() : 0;
+        int cacheLu = usage.hasNonNull("cache_read_input_tokens")
+                ? usage.get("cache_read_input_tokens").asInt() : 0;
+        int cacheEcrit = usage.hasNonNull("cache_creation_input_tokens")
+                ? usage.get("cache_creation_input_tokens").asInt() : 0;
+        Integer in = entreePleine + cacheLu + cacheEcrit == 0
+                ? null : entreePleine + cacheLu + cacheEcrit;
+        Integer cacheHit = cacheLu == 0 ? null : cacheLu;
+        return new Outcome(parsed, in, cacheHit, out,
+                new CoutAppelLlm(connection).microDollars(in, cacheHit, out));
     }
 
     private ChatCompletionSettings openAiConnection() {
@@ -302,13 +320,6 @@ public class ConfiguredDiagnosticAnalysisLlmClient implements DiagnosticAnalysis
 
     private String providerLabel() {
         return "openai".equals(normalizedProvider()) ? "OpenAI" : "DeepSeek";
-    }
-
-    private static Integer cost(Integer in, Integer out, double inputRate, double outputRate) {
-        double usd = 0;
-        if (in != null) usd += in * inputRate / 1_000_000.0;
-        if (out != null) usd += out * outputRate / 1_000_000.0;
-        return usd <= 0 ? null : (int) Math.ceil(usd * 100.0);
     }
 
     private static RestClient client(String baseUrl, int timeoutSec) {

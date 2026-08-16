@@ -238,8 +238,9 @@ public class AiEvaluationService {
                 sub, task, verdict, input.production(), validated.avertissements(), submissionId);
 
         int tokensIn = nz(outcome.inputTokens());
+        int tokensCache = nz(outcome.cachedInputTokens());
         int tokensOut = nz(outcome.outputTokens());
-        int cout = nz(outcome.costEstimateCents());
+        int cout = nz(outcome.costEstimateMicroUsd());
 
         // Seconde passe en ZONE FLOUE uniquement (drapeau seconde-passe.enabled,
         // false par defaut). On retient la plus basse des deux et on abaisse la
@@ -262,8 +263,9 @@ public class AiEvaluationService {
                             submissionId);
                     passe = secondePasseService.arbitrer(passe, passe2, raisons, submissionId);
                     tokensIn += nz(outcome2.inputTokens());
+                    tokensCache += nz(outcome2.cachedInputTokens());
                     tokensOut += nz(outcome2.outputTokens());
-                    cout += nz(outcome2.costEstimateCents());
+                    cout += nz(outcome2.costEstimateMicroUsd());
                 } catch (RuntimeException e) {
                     log.warn("Seconde passe en echec submission={} ({}) — premiere passe conservee.",
                             submissionId, e.toString());
@@ -290,8 +292,9 @@ public class AiEvaluationService {
         eval.setNiveauCecrlIa(passe.niveauIa());
         eval.setFeedbackJson(feedback);
         eval.setTokensInput(tokensIn);
+        eval.setTokensInputCacheHit(tokensCache);
         eval.setTokensOutput(tokensOut);
-        eval.setCoutEstimeCentimes(cout);
+        eval.setCoutMicroUsd(cout);
         aiEvaluationManager.save(eval);
 
         sub.setStatut(SubmissionStatut.EVALUATED);
@@ -378,8 +381,9 @@ public class AiEvaluationService {
         return new EvaluationLlmClient.Outcome(
             feedback,
             sumNullable(first.inputTokens(), repaired.inputTokens()),
+            sumNullable(first.cachedInputTokens(), repaired.cachedInputTokens()),
             sumNullable(first.outputTokens(), repaired.outputTokens()),
-            sumNullable(first.costEstimateCents(), repaired.costEstimateCents()));
+            sumNullable(first.costEstimateMicroUsd(), repaired.costEstimateMicroUsd()));
     }
 
     @SuppressWarnings("unchecked")
@@ -745,7 +749,7 @@ public class AiEvaluationService {
         eval.setFeedbackJson(feedback);
         eval.setTokensInput(0);
         eval.setTokensOutput(0);
-        eval.setCoutEstimeCentimes(0);
+        eval.setCoutMicroUsd(0);
         aiEvaluationManager.save(eval);
 
         sub.setStatut(SubmissionStatut.EVALUATED);

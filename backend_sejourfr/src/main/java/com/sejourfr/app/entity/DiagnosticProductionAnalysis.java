@@ -64,8 +64,22 @@ public class DiagnosticProductionAnalysis {
     @Column(name = "tokens_output")
     private Integer tokensOutput;
 
-    @Column(name = "cost_estimate_cents")
-    private Integer costEstimateCents;
+    /**
+     * Part de {@code tokensInput} servie par le CACHE DE PREFIXE du fournisseur,
+     * telle qu'il la rapporte. {@code null} = non rapporte, donc facturee au
+     * plein tarif. Le cache miss se deduit, il n'a pas de colonne.
+     */
+    @Column(name = "tokens_input_cache_hit")
+    private Integer tokensInputCacheHit;
+
+    /**
+     * Cout estime de l'appel en MILLIONIEMES de dollar. L'ancienne colonne en
+     * centimes arrondissait au cent SUPERIEUR : sur une analyse a 0,0013 $ elle
+     * multipliait la facture par ~8. Elle reste en base, LEGACY, plus jamais
+     * ecrite — l'historique n'est pas reecrit.
+     */
+    @Column(name = "cost_micro_usd")
+    private Integer costMicroUsd;
 
     @Column(name = "analyzed_at", nullable = false, updatable = false)
     private Instant analyzedAt;
@@ -93,8 +107,11 @@ public class DiagnosticProductionAnalysis {
     public void setTokensInput(Integer tokensInput) { this.tokensInput = tokensInput; }
     public Integer getTokensOutput() { return tokensOutput; }
     public void setTokensOutput(Integer tokensOutput) { this.tokensOutput = tokensOutput; }
-    public Integer getCostEstimateCents() { return costEstimateCents; }
-    public void setCostEstimateCents(Integer costEstimateCents) { this.costEstimateCents = costEstimateCents; }
+    public Integer getTokensInputCacheHit() { return tokensInputCacheHit; }
+    public void setTokensInputCacheHit(Integer v) { this.tokensInputCacheHit = v; }
+
+    public Integer getCostMicroUsd() { return costMicroUsd; }
+    public void setCostMicroUsd(Integer costMicroUsd) { this.costMicroUsd = costMicroUsd; }
     public Instant getAnalyzedAt() { return analyzedAt; }
     public void setAnalyzedAt(Instant analyzedAt) { this.analyzedAt = analyzedAt; }
 }

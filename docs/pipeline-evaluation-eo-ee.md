@@ -80,7 +80,7 @@ référence pédagogique exhaustive reste [`notation-ia-eo-ee.md`](notation-ia-e
   Le nom « pro » ne présume rien de l'aptitude à cette tâche ni du prix — ne pas y revenir
   sans remesurer, à nombre de rejeux égal. `gpt-5.4` fait jeu égal sur la justesse (81,3 %) et
   ne se fait jamais refuser, mais coûte 4,5× plus cher. OpenAI et Anthropic restent câblés et
-  testés : **une bascule = un bloc de `.env`** (provider + modèle + ses deux tarifs), zéro
+  testés : **une bascule = un bloc de `.env`** (provider + modèle + ses tarifs), zéro
   ligne de code, zéro ligne de `.yaml`.
 - **Première campagne à `retries=1` (comme la production), 2026-08-07** : `flash` sous v9
   rend **81,8 %** de niveaux exacts, **8,33 %** de corrections perdues et **22,8 %** de sorties
@@ -246,9 +246,10 @@ redémarrage, ça marche**. Trois mécanismes la tiennent, aucun ne doit être d
    dans les POJO (`ProductionEvaluationProperties` livre `model = null`), donc `application.yaml`
    reste la seule source des défauts.
 3. **Le tarif voyage avec le modèle.** Le coût estimé est **persisté** dans
-   `ai_evaluations.cout_centimes` et n'est pas recalculable a posteriori : les deux tarifs sont
+   `ai_evaluations.cout_micro_usd` et n'est pas recalculable a posteriori : les tarifs sont
    donc eux aussi des `${EVAL_*_COST_INPUT/OUTPUT:…}`, et `EvaluationPricingTest` **fait échouer
-   le build** si un modèle est choisi hors du `.yaml` sans ses deux tarifs dans la même source.
+   le build** si un modèle est choisi hors du `.yaml` sans ses deux tarifs obligatoires dans la
+   même source (le tarif de cache et les heures pleines, eux, restent facultatifs).
 
 Ce que ces tests **ne font plus** : nommer le provider ou le modèle attendu. `CalibrationEnvTest`
 vérifiait `provider == "openai"` et une table fermée de tarifs listait les modèles connus —

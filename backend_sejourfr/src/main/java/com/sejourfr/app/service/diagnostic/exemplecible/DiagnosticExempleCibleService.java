@@ -246,9 +246,11 @@ public class DiagnosticExempleCibleService {
         // le suivi de cout du diagnostic sous-estime ce qu'un candidat coute
         // vraiment — exactement sur les cas qui coutent le plus.
         analyse.setTokensInput(nz(analyse.getTokensInput()) + nz(outcome.inputTokens()));
+        analyse.setTokensInputCacheHit(
+            nz(analyse.getTokensInputCacheHit()) + nz(outcome.cachedInputTokens()));
         analyse.setTokensOutput(nz(analyse.getTokensOutput()) + nz(outcome.outputTokens()));
-        analyse.setCostEstimateCents(
-            nz(analyse.getCostEstimateCents()) + nz(outcome.costEstimateCents()));
+        analyse.setCostMicroUsd(
+            nz(analyse.getCostMicroUsd()) + nz(outcome.costEstimateMicroUsd()));
         analysisManager.save(analyse);
 
         log.info("Bloc « avant / apres » ajoute submission={} : {} -> {} (modele={})",
@@ -419,8 +421,9 @@ public class DiagnosticExempleCibleService {
         return new DiagnosticExempleCibleLlmClient.Outcome(
             second.sortie(),
             nz(premier.inputTokens()) + nz(second.inputTokens()),
+            nz(premier.cachedInputTokens()) + nz(second.cachedInputTokens()),
             nz(premier.outputTokens()) + nz(second.outputTokens()),
-            nz(premier.costEstimateCents()) + nz(second.costEstimateCents()));
+            nz(premier.costEstimateMicroUsd()) + nz(second.costEstimateMicroUsd()));
     }
 
     private static int nz(Integer v) {

@@ -3,6 +3,7 @@ package com.sejourfr.app.service.competence;
 import com.sejourfr.app.config.CompetenceProperties;
 import com.sejourfr.app.config.ProductionEvaluationProperties.ChatCompletionSettings;
 import com.sejourfr.app.exception.AiEvaluationException;
+import com.sejourfr.app.util.CoutAppelLlm;
 import com.sejourfr.app.exception.AiEvaluationTransientException;
 import com.sejourfr.app.util.ChatCompletionDialect;
 import com.sejourfr.app.util.ChatCompletionDialectNegotiator;
@@ -69,6 +70,8 @@ public class CompetenceOpenAiCompatibleClient implements CompetenceAnalysisLlmCl
     private final CompetenceProperties.Analysis analysis;
     /** Libelle lisible du fournisseur ("OpenAI", "DeepSeek") pour logs + erreurs. */
     private final String label;
+    /** Seul endroit qui sait ce que coute un appel : trois tarifs + heures pleines. */
+    private final CoutAppelLlm tarification;
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
     /** Forme de requete negociee avec le fournisseur, memorisee par processus. */
@@ -79,6 +82,7 @@ public class CompetenceOpenAiCompatibleClient implements CompetenceAnalysisLlmCl
                                             CompetenceProperties.Analysis analysis,
                                             String label, ObjectMapper objectMapper) {
         this.connection = connection;
+        this.tarification = new CoutAppelLlm(connection);
         this.analysis = analysis;
         this.label = label;
         this.objectMapper = objectMapper;
@@ -260,16 +264,13 @@ public class CompetenceOpenAiCompatibleClient implements CompetenceAnalysisLlmCl
         Integer inputTokens = usage.hasNonNull("prompt_tokens") ? usage.get("prompt_tokens").asInt() : null;
         Integer outputTokens = usage.hasNonNull("completion_tokens")
             ? usage.get("completion_tokens").asInt() : null;
-        return new Outcome(parsed, inputTokens, outputTokens, estimateCostCents(inputTokens, outputTokens));
+        // Le decoupage cache hit / cache miss est RENVOYE par le fournisseur :
+        // on le lit, on ne le devine pas. Absent -> tout au plein tarif.
+        Integer cacheHit = CoutAppelLlm.lireCacheHitTokens(usage);
+        return new Outcome(parsed, inputTokens, cacheHit, outputTokens,
+            tarification.microDollars(inputTokens, cacheHit, outputTokens));
     }
 
-    private Integer estimateCostCents(Integer in, Integer out) {
-        double usd = 0;
-        if (in != null) usd += in * (connection.getCostPerMillionInputTokens() / 1_000_000.0);
-        if (out != null) usd += out * (connection.getCostPerMillionOutputTokens() / 1_000_000.0);
-        if (usd <= 0) return null;
-        return (int) Math.ceil(usd * 100.0);
-    }
 
     private static ClientHttpRequestFactory buildRequestFactory(int timeoutSec) {
         HttpClient httpClient = HttpClient.newBuilder()

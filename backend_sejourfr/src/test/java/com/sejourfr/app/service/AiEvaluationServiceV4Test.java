@@ -589,7 +589,7 @@ class AiEvaluationServiceV4Test {
         assertThat(eval.getFeedbackJson()).doesNotContainKey("seconde_passe");
         // Couts : ceux de l'unique appel.
         assertThat(eval.getTokensInput()).isEqualTo(100);
-        assertThat(eval.getCoutEstimeCentimes()).isEqualTo(3);
+        assertThat(eval.getCoutMicroUsd()).isEqualTo(3);
     }
 
     @Test
@@ -624,7 +624,7 @@ class AiEvaluationServiceV4Test {
         assertThat(eval.getFeedbackJson().get("confiance")).isEqualTo("MOYENNE");
         // Couts cumules sur les deux appels.
         assertThat(eval.getTokensInput()).isEqualTo(150);
-        assertThat(eval.getCoutEstimeCentimes()).isEqualTo(5);
+        assertThat(eval.getCoutMicroUsd()).isEqualTo(5);
         assertThat(eval.getFeedbackJson()).containsKey("seconde_passe");
     }
 

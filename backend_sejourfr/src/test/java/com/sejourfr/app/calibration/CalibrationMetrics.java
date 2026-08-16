@@ -458,7 +458,13 @@ final class CalibrationMetrics {
             java.util.Collections.unmodifiableMap(motifs));
     }
 
-    static int coutTotalCentimes(List<CaseRun> runs) {
-        return runs.stream().mapToInt(r -> r.coutCentimes() == null ? 0 : r.coutCentimes()).sum();
+    /**
+     * Cout TOTAL de la campagne, en MILLIONIEMES de dollar. Le millionieme, et
+     * non le centime : une micro-analyse coute ~0,0013 $, et l'ancien arrondi au
+     * cent SUPERIEUR par appel multipliait la facture affichee par ~8. Le cout
+     * persiste est desormais exact, il n'y a plus rien a recalculer a cote.
+     */
+    static long coutTotalMicroUsd(List<CaseRun> runs) {
+        return runs.stream().mapToLong(r -> r.coutMicroUsd() == null ? 0 : r.coutMicroUsd()).sum();
     }
 }

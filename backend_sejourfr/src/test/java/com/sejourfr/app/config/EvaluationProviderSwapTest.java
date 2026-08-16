@@ -111,6 +111,45 @@ class EvaluationProviderSwapTest {
         assertThat(ChatCompletionDialect.premiereForme(MODELE_INEDIT).maxTokensParam()).isNotBlank();
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"openai", "deepseek", "anthropic"})
+    void le_tarif_de_cache_et_les_heures_pleines_restent_FACULTATIFS(String provider) {
+        // Le passage de deux tarifs a trois (entree cache hit / cache miss /
+        // sortie) plus un multiplicateur d'heures pleines ne doit RIEN exiger de
+        // plus pour brancher un modele inedit : la bascule ci-dessus ne pose que
+        // le modele et ses deux tarifs historiques, et elle doit continuer de
+        // produire une configuration exploitable.
+        ProductionEvaluationProperties props = EvaluationConfigFixture.avec(bascule(provider));
+        TarifsLlm bloc = tarifs(props, provider);
+
+        // 0 = pas de tarif de cache declare -> ces tokens sont factures au
+        // tarif d'entree PLEIN. On surestime, jamais l'inverse : c'est la seule
+        // retombee acceptable quand on ne connait pas la grille d'un modele.
+        assertThat(bloc.getCostPerMillionCachedInputTokens())
+            .as("%s : un tarif de cache non declare doit valoir 0 (= plein tarif), "
+                + "jamais faire echouer la bascule", provider)
+            .isGreaterThanOrEqualTo(0.0);
+
+        // 1 = pas d'heures pleines. Un fournisseur qui n'en a pas ne doit avoir
+        // aucune plage a declarer.
+        assertThat(bloc.getPeakMultiplier())
+            .as("%s : le multiplicateur d'heures pleines doit rester neutre (1) "
+                + "quand rien n'est declare", provider)
+            .isGreaterThanOrEqualTo(1.0);
+        assertThat(bloc.getPeakUtcRanges())
+            .as("%s : les plages d'heures pleines ne doivent jamais etre null "
+                + "(vide = facturation identique a toute heure)", provider)
+            .isNotNull();
+    }
+
+    private static TarifsLlm tarifs(ProductionEvaluationProperties props, String provider) {
+        return switch (provider) {
+            case "openai" -> props.getOpenai();
+            case "deepseek" -> props.getDeepseek();
+            default -> props.getAnthropic();
+        };
+    }
+
     @Test
     void aucun_nom_de_modele_n_est_ecrit_dans_le_code_de_production() {
         // La configuration livree ne doit venir que d'application.yaml : si un

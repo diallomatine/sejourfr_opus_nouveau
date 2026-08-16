@@ -178,40 +178,32 @@ final class CompetenceCalibrationReport {
     }
 
     /**
-     * Cout de la campagne, sous DEUX formes, et il faut les deux.
+     * Cout de la campagne, en MILLIONIEMES de dollar et en dollars.
      *
-     * <p>{@code cout_total_centimes} est la somme des couts persistes par le
-     * client — chacun ARRONDI AU CENT SUPERIEUR
-     * ({@code Math.ceil}). Sur une analyse de competence, qui coute quelques
-     * millimes, cet arrondi multiplie la facture affichee par un facteur dix :
-     * il est fidele a ce que la base enregistre, il ne dit rien de la depense
-     * reelle. {@code cout_reel_usd} recalcule celle-ci a partir des tokens et
-     * des tarifs du provider ACTIF, sans arrondi intermediaire — c'est le chiffre
-     * a citer quand on decide de payer une campagne.
+     * <p>Il n'y a plus qu'UN chiffre. Le rapport en publiait deux : la somme des
+     * couts persistes, chacun arrondi au cent SUPERIEUR — donc ~8 fois trop haut
+     * sur une campagne de micro-analyses — et un {@code cout_reel_usd} recalcule
+     * ici depuis les tokens pour contourner cet arrondi. Le cout persiste etant
+     * desormais exact au millionieme de dollar, ce contournement n'a plus de
+     * raison d'etre : on additionne ce que la base contient.
+     *
+     * <p>Les tarifs du provider actif restent publies : ils datent le chiffre.
+     * Le meme nombre de tokens ne coute pas le meme prix d'une grille a l'autre,
+     * ni d'une heure creuse a une heure pleine.
      */
     private static Map<String, Object> coutJson(List<CompetenceCaseRun> runs, Map<String, Object> contexte) {
         int in = CompetenceCalibrationMetrics.tokensInput(runs);
         int out = CompetenceCalibrationMetrics.tokensOutput(runs);
+        long micro = CompetenceCalibrationMetrics.coutTotalMicroUsd(runs);
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("tokens_input", in);
         m.put("tokens_output", out);
-        m.put("cout_total_centimes", CompetenceCalibrationMetrics.coutTotalCentimes(runs));
-        m.put("cout_total_centimes_note",
-            "somme des couts persistes, chacun arrondi au cent SUPERIEUR : surestime "
-                + "fortement une campagne de micro-analyses");
-        Double reel = coutReelUsd(in, out, contexte);
-        m.put("cout_reel_usd", reel == null ? null : Math.round(reel * 100000.0) / 100000.0);
+        m.put("cout_total_micro_usd", micro);
+        m.put("cout_total_usd", micro / 1_000_000.0);
         m.put("cout_entree_par_million_usd", contexte.get("cout_entree_par_million_usd"));
+        m.put("cout_entree_cache_par_million_usd", contexte.get("cout_entree_cache_par_million_usd"));
         m.put("cout_sortie_par_million_usd", contexte.get("cout_sortie_par_million_usd"));
         return m;
-    }
-
-    /** {@code null} quand la campagne n'a pas publie les tarifs du provider actif. */
-    static Double coutReelUsd(int tokensIn, int tokensOut, Map<String, Object> contexte) {
-        Object cin = contexte.get("cout_entree_par_million_usd");
-        Object cout = contexte.get("cout_sortie_par_million_usd");
-        if (!(cin instanceof Number in) || !(cout instanceof Number sortie)) return null;
-        return tokensIn * in.doubleValue() / 1_000_000.0 + tokensOut * sortie.doubleValue() / 1_000_000.0;
     }
 
     private static double arrondi(double v) {
@@ -246,13 +238,10 @@ final class CompetenceCalibrationReport {
             c.preuvesServies(), c.niveauxAbaisses(), c.pctNiveauxAbaisses()));
         int tokensIn = CompetenceCalibrationMetrics.tokensInput(runs);
         int tokensOut = CompetenceCalibrationMetrics.tokensOutput(runs);
-        Double reel = coutReelUsd(tokensIn, tokensOut, contexte);
         sb.append(String.format(
-            "Cout : %d tokens entree · %d tokens sortie · %s (persiste : %d centimes, arrondi au cent "
-                + "SUPERIEUR par appel, donc surestime)%n%n",
+            "Cout : %d tokens entree · %d tokens sortie · %.4f $%n%n",
             tokensIn, tokensOut,
-            reel == null ? "tarifs indisponibles" : String.format("%.4f $ reels", reel),
-            CompetenceCalibrationMetrics.coutTotalCentimes(runs)));
+            CompetenceCalibrationMetrics.coutTotalMicroUsd(runs) / 1_000_000.0));
         sb.append(CONVENTION).append("\n\n");
 
         sb.append(entete());

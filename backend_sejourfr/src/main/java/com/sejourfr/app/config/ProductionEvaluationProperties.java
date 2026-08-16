@@ -60,7 +60,7 @@ public class ProductionEvaluationProperties {
      */
     private long maxAudioSizeBytes = 25L * 1024 * 1024;
     /**
-     * Logging systematique des couts (tokens/centimes).
+     * Logging systematique des couts (tokens / micro-dollars).
      */
     private boolean costTrackingEnabled = true;
     /**
@@ -253,7 +253,7 @@ public class ProductionEvaluationProperties {
      * function calling) : OpenAI, DeepSeek, ou tout endpoint OpenAI-compatible.
      * Pilote {@code OpenAiCompatibleEvalClient} sans dupliquer le client.
      */
-    public interface ChatCompletionSettings {
+    public interface ChatCompletionSettings extends TarifsLlm {
         String getApiKey();
 
         String getApiUrl();
@@ -265,10 +265,6 @@ public class ProductionEvaluationProperties {
         int getTimeoutSec();
 
         String getPromptVersion();
-
-        double getCostPerMillionInputTokens();
-
-        double getCostPerMillionOutputTokens();
 
         boolean isConfigured();
 
@@ -310,7 +306,73 @@ public class ProductionEvaluationProperties {
         }
     }
 
-    public static class Anthropic {
+    /**
+     * Le bloc TARIFAIRE d'un fournisseur, commun aux trois. Extrait a la
+     * troisieme occurrence — les cinq memes champs vivaient recopies dans
+     * {@code Anthropic}, {@code OpenAi} et {@code DeepSeek}, et le passage de
+     * deux tarifs a trois les aurait fait diverger.
+     *
+     * <p>Les valeurs viennent toutes d'{@code application.yaml} : aucun defaut
+     * metier en dur ici, sinon supprimer une variable d'environnement rendrait
+     * un tarif fantome au lieu d'un echec visible. Seules exceptions, et ce sont
+     * des NEUTRES : pas de tarif de cache (0 → plein tarif) et pas d'heures
+     * pleines (1 → aucune modulation), pour qu'un fournisseur qui ignore ces
+     * notions n'ait rien a declarer.
+     */
+    public abstract static class BlocTarifs implements TarifsLlm {
+        private double costPerMillionInputTokens;
+        private double costPerMillionOutputTokens;
+        private double costPerMillionCachedInputTokens;
+        private double peakMultiplier = 1.0;
+        private String peakUtcRanges = "";
+
+        @Override
+        public double getCostPerMillionInputTokens() {
+            return costPerMillionInputTokens;
+        }
+
+        public void setCostPerMillionInputTokens(double v) {
+            this.costPerMillionInputTokens = v;
+        }
+
+        @Override
+        public double getCostPerMillionOutputTokens() {
+            return costPerMillionOutputTokens;
+        }
+
+        public void setCostPerMillionOutputTokens(double v) {
+            this.costPerMillionOutputTokens = v;
+        }
+
+        @Override
+        public double getCostPerMillionCachedInputTokens() {
+            return costPerMillionCachedInputTokens;
+        }
+
+        public void setCostPerMillionCachedInputTokens(double v) {
+            this.costPerMillionCachedInputTokens = v;
+        }
+
+        @Override
+        public double getPeakMultiplier() {
+            return peakMultiplier;
+        }
+
+        public void setPeakMultiplier(double v) {
+            this.peakMultiplier = v;
+        }
+
+        @Override
+        public String getPeakUtcRanges() {
+            return peakUtcRanges;
+        }
+
+        public void setPeakUtcRanges(String v) {
+            this.peakUtcRanges = v;
+        }
+    }
+
+    public static class Anthropic extends BlocTarifs {
         // Valeurs fournies par application.yaml
         // (sejourfr.production-evaluation.anthropic.*) — pas de defaut metier en dur.
         private String apiKey = "";
@@ -322,8 +384,6 @@ public class ProductionEvaluationProperties {
         private int maxRetries;
         private long retryBackoffMs;
         private String promptVersion;
-        private double costPerMillionInputTokens;
-        private double costPerMillionOutputTokens;
 
         public boolean isConfigured() {
             return apiKey != null && !apiKey.isBlank();
@@ -400,22 +460,6 @@ public class ProductionEvaluationProperties {
         public void setPromptVersion(String promptVersion) {
             this.promptVersion = promptVersion;
         }
-
-        public double getCostPerMillionInputTokens() {
-            return costPerMillionInputTokens;
-        }
-
-        public void setCostPerMillionInputTokens(double v) {
-            this.costPerMillionInputTokens = v;
-        }
-
-        public double getCostPerMillionOutputTokens() {
-            return costPerMillionOutputTokens;
-        }
-
-        public void setCostPerMillionOutputTokens(double v) {
-            this.costPerMillionOutputTokens = v;
-        }
     }
 
     /**
@@ -424,7 +468,7 @@ public class ProductionEvaluationProperties {
      * de la requete change. La cle peut etre la meme que celle utilisee pour
      * Whisper (sejourfr.openai.api-key) ou une cle dediee.
      */
-    public static class OpenAi implements ChatCompletionSettings {
+    public static class OpenAi extends BlocTarifs implements ChatCompletionSettings {
         // Valeurs fournies par application.yaml
         // (sejourfr.production-evaluation.openai.*) — pas de defaut metier en dur.
         private String apiKey = "";
@@ -438,8 +482,6 @@ public class ProductionEvaluationProperties {
         private double temperature;
         private String sendTemperature = com.sejourfr.app.util.ChatCompletionDialect.AUTO;
         private String maxTokensParam = com.sejourfr.app.util.ChatCompletionDialect.AUTO;
-        private double costPerMillionInputTokens;
-        private double costPerMillionOutputTokens;
 
         public boolean isConfigured() {
             return apiKey != null && !apiKey.isBlank();
@@ -535,22 +577,6 @@ public class ProductionEvaluationProperties {
         public void setPromptVersion(String promptVersion) {
             this.promptVersion = promptVersion;
         }
-
-        public double getCostPerMillionInputTokens() {
-            return costPerMillionInputTokens;
-        }
-
-        public void setCostPerMillionInputTokens(double v) {
-            this.costPerMillionInputTokens = v;
-        }
-
-        public double getCostPerMillionOutputTokens() {
-            return costPerMillionOutputTokens;
-        }
-
-        public void setCostPerMillionOutputTokens(double v) {
-            this.costPerMillionOutputTokens = v;
-        }
     }
 
     /**
@@ -561,7 +587,7 @@ public class ProductionEvaluationProperties {
      * modele est celui d'{@code application.yaml}, lui-meme surchargeable par
      * {@code EVAL_DEEPSEEK_MODEL} : aucun nom de modele n'est ecrit ici.
      */
-    public static class DeepSeek implements ChatCompletionSettings {
+    public static class DeepSeek extends BlocTarifs implements ChatCompletionSettings {
         // Toutes les valeurs viennent de application.yaml
         // (sejourfr.production-evaluation.deepseek.*) — pas de defaut metier en dur
         // ici, le yaml est la source unique (api-url, model, disable-thinking, tarifs…).
@@ -575,8 +601,6 @@ public class ProductionEvaluationProperties {
         private double temperature;
         private String sendTemperature = com.sejourfr.app.util.ChatCompletionDialect.AUTO;
         private String maxTokensParam = com.sejourfr.app.util.ChatCompletionDialect.AUTO;
-        private double costPerMillionInputTokens;
-        private double costPerMillionOutputTokens;
 
         public boolean isConfigured() {
             return apiKey != null && !apiKey.isBlank();
@@ -670,22 +694,6 @@ public class ProductionEvaluationProperties {
 
         public void setPromptVersion(String promptVersion) {
             this.promptVersion = promptVersion;
-        }
-
-        public double getCostPerMillionInputTokens() {
-            return costPerMillionInputTokens;
-        }
-
-        public void setCostPerMillionInputTokens(double v) {
-            this.costPerMillionInputTokens = v;
-        }
-
-        public double getCostPerMillionOutputTokens() {
-            return costPerMillionOutputTokens;
-        }
-
-        public void setCostPerMillionOutputTokens(double v) {
-            this.costPerMillionOutputTokens = v;
         }
     }
 

@@ -222,7 +222,7 @@ final class CompetenceCalibrationRunner {
             manquantes,
             tentatives, ratees, recorder.appels(), recorder.refus().size(),
             recorder.refus(), attempt.getAiModel() == null ? modele() : attempt.getAiModel(),
-            attempt.getTokensInput(), attempt.getTokensOutput(), attempt.getCoutEstimeCentimes(),
+            attempt.getTokensInput(), attempt.getTokensOutput(), attempt.getCoutMicroUsd(),
             duree);
     }
 

@@ -155,8 +155,9 @@ public class DiagnosticProductionAnalysisService {
             }
             accepted = new DiagnosticAnalysisLlmClient.Outcome(
                     second.analysis(), sum(first.inputTokens(), second.inputTokens()),
+                    sum(first.cachedInputTokens(), second.cachedInputTokens()),
                     sum(first.outputTokens(), second.outputTokens()),
-                    sum(first.costEstimateCents(), second.costEstimateCents()));
+                    sum(first.costEstimateMicroUsd(), second.costEstimateMicroUsd()));
         }
         Map<String, Object> normalized = validator.normalize(analysis, segments);
         // APRÈS le validateur, jamais dedans : une purge retire une phrase du
@@ -193,8 +194,9 @@ public class DiagnosticProductionAnalysisService {
         entity.setModelUsed(client.getModelName());
         entity.setSchemaVersion(client.getToolSchemaVersion() + "/" + rubrics.version());
         entity.setTokensInput(run.outcome().inputTokens());
+        entity.setTokensInputCacheHit(run.outcome().cachedInputTokens());
         entity.setTokensOutput(run.outcome().outputTokens());
-        entity.setCostEstimateCents(run.outcome().costEstimateCents());
+        entity.setCostMicroUsd(run.outcome().costEstimateMicroUsd());
         return entity;
     }
 

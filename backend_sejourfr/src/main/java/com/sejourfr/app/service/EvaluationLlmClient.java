@@ -38,13 +38,28 @@ public interface EvaluationLlmClient {
 
     /**
      * Resultat d'une evaluation : feedback JSON deja parse + tokens consommes
-     * + cout estime (centimes EUR/USD selon config). Le cout est calcule par
-     * le client lui-meme car le tarif depend du provider et du modele.
+     * + cout estime en MICRO-DOLLARS. Le cout est calcule par le client
+     * lui-meme (le tarif depend du provider, du modele et de l'heure), en
+     * deleguant a {@code util/CoutAppelLlm} — seul endroit du depot qui sait ce
+     * que coute un appel.
      */
     record Outcome(
             Map<String, Object> feedback,
             Integer inputTokens,
+            Integer cachedInputTokens,
             Integer outputTokens,
-            Integer costEstimateCents
-    ) {}
+            Integer costEstimateMicroUsd
+    ) {
+
+        /**
+         * Tokens d'entree servis par le CACHE DE PREFIXE du fournisseur, sous-ensemble
+         * de {@code inputTokens} ; {@code null} quand la reponse ne le dit pas. Ce
+         * constructeur a quatre arguments facture alors TOUT au plein tarif :
+         * l'hypothese prudente, jamais l'inverse.
+         */
+        public Outcome(Map<String, Object> feedback, Integer inputTokens,
+                       Integer outputTokens, Integer costEstimateMicroUsd) {
+            this(feedback, inputTokens, null, outputTokens, costEstimateMicroUsd);
+        }
+    }
 }

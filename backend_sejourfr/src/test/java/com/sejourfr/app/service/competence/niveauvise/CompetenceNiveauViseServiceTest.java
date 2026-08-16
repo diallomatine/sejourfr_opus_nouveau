@@ -113,7 +113,7 @@ class CompetenceNiveauViseServiceTest {
         attempt.setWrittenProduction("Bonjour, je veux un rendez-vous jeudi. Merci.");
         attempt.setTokensInput(1000);
         attempt.setTokensOutput(100);
-        attempt.setCoutEstimeCentimes(2);
+        attempt.setCoutMicroUsd(2);
 
         Map<String, Object> analyse = new LinkedHashMap<>();
         analyse.put(CompetenceAnalysisFields.STATUS, "PARTIAL");
@@ -211,7 +211,7 @@ class CompetenceNiveauViseServiceTest {
         // la ou il sert.
         assertThat(attempt.getTokensInput()).isEqualTo(1800);
         assertThat(attempt.getTokensOutput()).isEqualTo(300);
-        assertThat(attempt.getCoutEstimeCentimes()).isEqualTo(5);
+        assertThat(attempt.getCoutMicroUsd()).isEqualTo(5);
     }
 
     /**

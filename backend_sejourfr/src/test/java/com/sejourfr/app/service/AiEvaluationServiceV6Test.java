@@ -227,7 +227,7 @@ class AiEvaluationServiceV6Test {
         assertThat(eval.getNoteSur20()).isEqualByComparingTo("7.0");
         assertThat(eval.getTokensInput()).isEqualTo(210);
         assertThat(eval.getTokensOutput()).isEqualTo(50);
-        assertThat(eval.getCoutEstimeCentimes()).isEqualTo(3);
+        assertThat(eval.getCoutMicroUsd()).isEqualTo(3);
         verify(llmClient, times(2)).evaluate(anyString(), anyString());
     }
 
@@ -276,7 +276,7 @@ class AiEvaluationServiceV6Test {
             .contains(AiEvaluationService.AVERTISSEMENT_PREUVE_RETIREE);
         assertThat(eval.getTokensInput()).isEqualTo(210);
         assertThat(eval.getTokensOutput()).isEqualTo(50);
-        assertThat(eval.getCoutEstimeCentimes()).isEqualTo(3);
+        assertThat(eval.getCoutMicroUsd()).isEqualTo(3);
         assertThat(sub.getStatut()).isEqualTo(SubmissionStatut.EVALUATED);
         verify(aiEvaluationManager).save(eval);
         verify(llmClient, times(2)).evaluate(anyString(), anyString());
