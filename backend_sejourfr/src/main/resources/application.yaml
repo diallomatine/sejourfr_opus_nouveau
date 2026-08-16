@@ -973,24 +973,31 @@ sejourfr:
   competences:
     analysis:
       # Consignes d'analyse : prompts/competence-analysis-rubrics-<v>.json.
-      # v4 = v3 au bit pres pour tout ce qui JUGE (verdicts, regle de decision,
-      # attribution du niveau, brievete, garde-fou oral, accentuation, plafonds).
-      # Ce qu'elle ajoute : `level_evidence`, le NUMERO du segment de la
-      # production qui DEMONTRE un B1 ou un B2 — meme technique que la preuve par
-      # numero du contrat v12 des productions completes, qui a supprime la
-      # categorie entiere des « citations introuvables ». Sans preuve
-      # exploitable, le serveur ABAISSE le niveau d'un palier ; il ne le releve
-      # jamais et ne perd jamais l'analyse pour autant.
-      # /!\ Aucune campagne de mesure n'appuie ce choix et c'est assume : le
-      # corpus de calibration (48 cas) est celui des productions completes, il
-      # n'existe aucun corpus pour la voie Competences. Ce qui tient la regle,
-      # c'est la contrainte dure (schema + controle serveur), pas une mesure.
+      # v5 = v4 au bit pres pour tout ce qui JUGE (verdicts, regle de decision,
+      # table des cinq paliers, preuve du niveau par numero, brievete, garde-fou
+      # oral, accentuation, plafonds). Elle corrige des BIAIS lisibles dans le
+      # prompt lui-meme, mesures en base sur 18 tentatives reelles : zero B2
+      # jamais rendu, aucun sujet rejoue n'ayant jamais donne deux niveaux
+      # differents. Trois editions, et rien d'autre :
+      #  (a) trois ancres ajoutees (2 B2, 1 A1_NON_ATTEINT) — v4 n'en avait
+      #      AUCUNE sur ces deux paliers, le correcteur ne les avait jamais vus ;
+      #  (b) retrait de « c'est meme le cas le plus frequent, et c'est normal »,
+      #      qui etait une consigne de repartition deguisee en repere ;
+      #  (c) le niveau cible de la COMPETENCE (`targetLevel`) n'est plus envoye
+      #      dans le prompt utilisateur — etiquette de palier non expliquee,
+      #      posee a cote du texte a niveler.
+      # /!\ Aucune campagne de mesure n'appuie cette bascule, et c'est assume :
+      # il n'existe aucun corpus de micro-productions avec niveau attendu (le
+      # golden-set des 48 cas est celui des productions completes). Ce qui la
+      # justifie, c'est qu'on retire des biais VISIBLES dans le prompt, pas
+      # qu'on ajuste un reglage fin.
       # La note /20 reste interdite : aucun champ ne peut la loger.
-      # Retour arriere : v3 + v3 (ou v2 + v2, ou v1 + v1).
-      rubrics-version: ${COMPETENCE_RUBRICS_VERSION:v4}
+      # Retour arriere : v4 + v4 (ou v3 + v3, v2 + v2, v1 + v1).
+      rubrics-version: ${COMPETENCE_RUBRICS_VERSION:v5}
       # Contrat de sortie : prompts/competence-analysis-tool-schema-<v>.json.
       # Versionne separement des consignes — deux analyses produites avec le
       # meme schema mais des consignes differentes ne sont pas comparables.
+      # v5 ne change AUCUN champ de sortie : elle reste sur le tool-schema v4.
       tool-schema-version: ${COMPETENCE_TOOL_SCHEMA_VERSION:v4}
       # Plafond de tokens de SORTIE. 600 suffit largement : la reponse tient en
       # cinq champs courts (verdict, niveau, deux etiquettes de trois mots).
@@ -1018,10 +1025,18 @@ sejourfr:
     niveau-vise:
       enabled: ${COMPETENCE_NIVEAU_VISE_ENABLED:true}
       # Consignes : prompts/competence-niveau-vise-rubrics-<v>.json.
-      rubrics-version: ${COMPETENCE_NIVEAU_VISE_RUBRICS_VERSION:v1}
+      # v3 : chaque levier declare le PROCEDE de langue qu'il met en œuvre, dans
+      # la meme enumeration fermee que les marqueurs du palier — un conseil de
+      # ton (« rends ton invitation plus chaleureuse ») n'est pas un levier. Le
+      # procede ne purge JAMAIS un levier : il est compte, pas oppose.
+      # v2 : le texte modele vise la MARCHE SUIVANTE (constate + 1, plafonne a
+      # l'objectif), sa longueur est bornee par celle du sujet, et il doit
+      # designer des marqueurs_du_palier recopies de lui-meme.
+      # Retour arriere sans migration : v2 + v2, ou v1 + v1.
+      rubrics-version: ${COMPETENCE_NIVEAU_VISE_RUBRICS_VERSION:v3}
       # Contrat de sortie : prompts/competence-niveau-vise-tool-schema-<v>.json.
       # Paire rubriques <-> tool-schema verifiee au demarrage, comme partout.
-      tool-schema-version: ${COMPETENCE_NIVEAU_VISE_TOOL_SCHEMA_VERSION:v1}
+      tool-schema-version: ${COMPETENCE_NIVEAU_VISE_TOOL_SCHEMA_VERSION:v3}
       # Plafond de tokens de SORTIE, propre a cet appel : deux ou trois leviers
       # de six mots, un texte court, une tournure. C'est un plafond.
       max-tokens: 900

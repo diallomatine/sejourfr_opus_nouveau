@@ -2213,7 +2213,7 @@ retraits**, la parité web ⇄ mobile n'étant pas négociable. À ne pas rétab
   décourageante) (niveau
   démontré en très grand, puce `Objectif {targetLevel}`, `situationLabel` rendu
   **tel quel**, jauge à 3 crans, puces `strengthTag` / `focusTag`) →
-  `Pour viser {niveau}` (leviers) → `Une version plus aboutie` (texte réécrit,
+  `Pour passer au niveau {palier cible}` (leviers) → `Une version plus aboutie` (texte réécrit,
   extraits surlignés, puce par segment) → `À retenir` → `Ta production`
   **repliée** → dépliant de références (replié) → 2 actions (`Sujet suivant` via
   `nextPromptId`, désactivé si null ; `S'entraîner sur ce point`, primaire
@@ -2221,8 +2221,14 @@ retraits**, la parité web ⇄ mobile n'étant pas négociable. À ne pas rétab
   flèche de l'en-tête. Blocs : `CompetenceLevelCard`, puis le **plan d'action
   partagé** `skill-ui/ActionPlan.tsx` (`ActionPlanLeviers`,
   `ActionPlanExemple`, `ActionPlanReformulations`, `ActionPlanMemoCard` +
-  les libellés gelés `pourViserTitle` / `ACTION_PLAN_EXEMPLE_TITLE` /
-  `ACTION_PLAN_REFORMULATIONS_TITLE`). ⚠️ **Ces blocs sont partagés avec le
+  les libellés gelés `pourViserTitle` / `pourPasserAuTitle` /
+  `ACTION_PLAN_EXEMPLE_TITLE` / `ACTION_PLAN_REFORMULATIONS_TITLE`).
+  ⚠️ **Deux intertitres de leviers, et c'est voulu** : une production complète
+  vise l'objectif du candidat (`pourViserTitle`) ; un micro-exercice vise la
+  **marche suivante**, seule chose que son texte modèle démontre vraiment
+  (`pourPasserAuTitle`) — depuis le contrat v2 de `competence-niveau-vise`,
+  `SkillNiveauViseDto.niveauVise` porte ce **palier cible**, pas l'objectif.
+  ⚠️ **Ces blocs sont partagés avec le
   rapport de correction EE/EO** (`production/ProductionActionPlan.tsx`) depuis
   qu'il rend le même plan : ils ne se recopient pas. Ils rendent le **corps
   seul** — chaque écran pose son propre intertitre.

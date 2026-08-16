@@ -3090,10 +3090,13 @@ lecture, et ils sont écrits dans les consignes de l'IA :
   interdit de réclamer « plus de texte » pour accorder un niveau supérieur. Ce qui borne
   réellement le jugement, c'est la matière disponible : une seule phrase simple ne peut pas
   démontrer un B2 — non parce qu'elle est courte, mais parce que rien n'y montre le B2 ;
-- **le niveau est indépendant du verdict.** Un critère peut être **validé en A2**, et c'est même
-  le cas le plus fréquent : le candidat a fait exactement ce qu'on lui demandait, avec les moyens
-  qu'il a. À l'inverse, un candidat qui écrit bien mais répond à côté aura un critère **non
-  atteint** avec un niveau B1.
+- **le niveau est indépendant du verdict.** Un critère peut être **validé en A2** comme **en
+  B2** : le verdict dit ce que le candidat a fait, le niveau dit avec quels moyens. À l'inverse,
+  un candidat qui écrit bien mais répond à côté aura un critère **non atteint** avec un niveau
+  B1. ⚠️ Cette phrase disait, jusqu'au 16 août 2026, que le A2 était « **le cas le plus
+  fréquent** » — et cette précision se trouvait aussi, mot pour mot, dans les consignes envoyées
+  à l'IA. C'était une **consigne de répartition** déguisée en repère ; elle a été retirée (voir
+  juste dessous).
 
 ⚠️ **Ce niveau ne remplace pas un résultat d'examen.** Il est établi sur quelques phrases écrites
 pour exercer un point précis. Un candidat qui veut savoir où il en est pour de vrai doit passer
@@ -3158,6 +3161,57 @@ complètes** ; il n'existe aucun équivalent pour les micro-exercices. Ce qui ti
 ce n'est donc pas une mesure : c'est le fait que le format de réponse n'accepte **qu'un entier**
 et que le serveur **vérifie ce numéro lui-même**.
 
+### Le niveau ne bougeait jamais — trois biais retirés le 16 août 2026
+
+Le garde-fou décrit ci-dessus empêchait l'IA d'**exagérer** un niveau. Il n'empêchait pas le
+défaut inverse, et c'est celui qu'on a constaté en regardant les analyses réellement produites
+et stockées dans notre base : sur **18 micro-productions**, **pas un seul B2**, jamais. Pire, le
+niveau ne réagissait presque pas à ce qui était écrit — un message truffé de fautes de frappe et
+une réponse propre, avec subordonnée et conditionnel, recevaient **le même A2**. Et aucun sujet
+refait plusieurs fois n'a jamais donné deux niveaux différents.
+
+En relisant les consignes, trois causes sautaient aux yeux. Elles n'ont rien d'un réglage fin :
+ce sont des **biais visibles dans le texte même qu'on envoyait à l'IA**.
+
+1. **Deux paliers n'avaient aucun exemple.** Les consignes contiennent des exemples de
+   correction — un petit sujet, une production, l'analyse attendue — qui montrent à l'IA à quoi
+   ressemble une bonne réponse. Il y en avait sept : quatre en A2, deux en B1, un en A1.
+   **Zéro en B2, zéro en « A1 non atteint ».** L'IA n'avait donc jamais vu à quoi ressemble
+   l'un ou l'autre dans ce format d'exercice — difficile, ensuite, de lui reprocher de ne
+   jamais les employer. Trois exemples ont été ajoutés : deux B2 (une objection reconnue puis
+   dépassée à l'écrit, un argument développé à l'oral) et un « A1 non atteint » (une réponse
+   qui n'est pas rédigée en français). Le A2 reste **majoritaire** parmi les exemples : le but
+   est que les cinq paliers soient tous montrés, pas que le B2 devienne facile.
+2. **Une fréquence attendue était écrite noir sur blanc.** Les consignes disaient : « un critère
+   peut être validé en A2 — *c'est même le cas le plus fréquent, et c'est normal* ». L'intention
+   était bienveillante, mais la phrase dit à l'IA **quelle réponse donner le plus souvent**.
+   L'idée légitime qu'elle portait est conservée (un critère peut parfaitement être validé à un
+   palier modeste, le verdict et le niveau sont deux questions différentes) ; la fréquence a
+   disparu, remplacée par l'inverse : *aucun palier n'est plus attendu qu'un autre, tu décris
+   cette production-ci, pas une moyenne*.
+3. **Une étiquette de niveau était posée à côté du texte à évaluer.** Chaque compétence porte un
+   palier de référence — une donnée éditoriale du catalogue, pas le niveau de la personne. Ce
+   palier était envoyé à l'IA **dans le même bloc d'informations que la production**, et les
+   consignes ne lui expliquaient nulle part ce que c'était. Sur les compétences de la première
+   tâche, où il vaut « A2 », l'IA n'a jamais rendu autre chose que du A2. C'est exactement le
+   piège que tout le reste de ce document s'emploie à éviter (§11 bis, la séparation en deux
+   appels ; §12 pour la mesure qui l'a établi côté tâches complètes : annoncer un objectif au
+   correcteur fait chuter sa justesse de 81,8 % à 75,6 %). Ce palier **n'est plus envoyé**.
+
+**Rien d'autre n'a bougé.** Les trois verdicts et leur règle de décision, la table des cinq
+paliers, l'obligation de montrer un B1 ou un B2, l'interdiction de la note, les limites de
+l'oral, les longueurs maximales : tout est repris **mot pour mot**. Le format de réponse
+demandé à l'IA est rigoureusement le même qu'avant — aucune case n'est ajoutée ni retirée.
+
+⚠️ **Aucune campagne de mesure n'appuie ce changement, et il faut le dire franchement.** Le jeu
+de copies de référence (§12) a été écrit pour les **tâches complètes** ; il n'existe toujours
+aucun équivalent pour les micro-exercices, donc rien ne permet de chiffrer un « avant / après »
+ici. Ce qui justifie de livrer quand même : on ne règle pas un curseur, on **retire des biais
+qu'on peut lire directement dans le texte envoyé à l'IA** — deux paliers jamais montrés, une
+fréquence attendue écrite en toutes lettres, une étiquette de niveau posée à côté de la copie.
+Ce qu'on ne peut pas affirmer, en revanche, c'est de combien le résultat s'améliore : ça reste à
+observer sur les prochaines analyses.
+
 ### Ce que l'IA renvoie : un niveau, un verdict, deux étiquettes
 
 Le retour est volontairement **très court** — l'écran doit se comprendre en trois secondes. Il
@@ -3214,11 +3268,11 @@ candidat** :
 Les mots interdits sont les mêmes qu'ailleurs dans ce document : pas de « très mauvais », pas de
 « niveau faible », pas de « vous ne savez pas écrire ».
 
-### « Pour viser le B2 » : une seconde IA, appelée séparément
+### « Pour passer au niveau suivant » : une seconde IA, appelée séparément
 
-Une fois le niveau établi, l'écran répond à la question suivante : **que faut-il pour atteindre
-le niveau que je vise ?** Cette partie-là est produite par un **deuxième appel à l'IA,
-totalement séparé du premier**.
+Une fois le niveau établi, l'écran répond à la question suivante : **que faut-il pour franchir
+la marche suivante ?** Cette partie-là est produite par un **deuxième appel à l'IA, totalement
+séparé du premier**.
 
 **Pourquoi deux appels au lieu d'un.** C'est le point le plus important de ce montage, et il
 repose sur une mesure. Sur la voie principale, on a essayé d'indiquer au correcteur le niveau
@@ -3237,19 +3291,37 @@ moments différents :
 C'est exactement le montage déjà en place sur les productions écrites complètes (§5.9), pour la
 même raison.
 
-**Quel est le niveau visé.** Il est déduit de la **démarche administrative** choisie par le
+**Quel est l'objectif.** Il est déduit de la **démarche administrative** choisie par le
 candidat, jamais d'un réglage isolé : carte de séjour → A2, carte de résident → B1,
 naturalisation → B2. Et **la démarche fait plancher** : quelqu'un qui vise la naturalisation tout
 en ayant coché « B1 » quelque part se voit proposer le **B2**, parce que c'est ce dont sa
 démarche a besoin. Le féliciter d'avoir atteint son objectif à B1 reviendrait à ne jamais le
 tirer vers le niveau qui compte pour lui.
 
+**Mais le texte modèle vise UNE marche, pas l'étage entier.** C'est la correction du 16 août
+2026, et elle vient d'un cas réel, vérifié en base : un candidat constaté A2 et visant le B2
+recevait un texte présenté comme sa « version pour viser le B2 ». Il l'a **recopié tel quel**,
+l'a renvoyé comme sa propre réponse — et la correction l'a classé **A2**. Le texte modèle
+n'était pas au niveau qu'il annonçait, et rien ne l'y obligeait : sur un micro-exercice de
+vingt-huit mots, on ne démontre pas deux paliers d'un coup, et la consigne demandait même de
+« garder une longueur proche » de la production du candidat — c'est-à-dire de reproduire son
+plafond.
+
+Depuis, le niveau du texte modèle est **le palier juste au-dessus de celui qui vient d'être
+constaté, sans jamais dépasser l'objectif** : constaté A2 et objectif B2 → le texte vise le
+**B1** ; constaté B1 et objectif B2 → il vise le B2, comme avant. L'objectif du candidat n'est
+pas perdu pour autant : il reste ce que la petite jauge à trois crans (juste après) situe, et il
+sert de **plafond** à l'ambition d'un exercice. L'intertitre nomme la marche réellement
+démontrée — « Pour passer au niveau B1 » — au lieu d'annoncer un palier que le texte n'atteint
+pas.
+
 **Ce que ce second appel rend**, en trois blocs et rien d'autre :
 
 | Bloc | Ce que c'est |
 |---|---|
-| **Deux ou trois leviers** | Chacun est un couple : une **action** en six mots à l'impératif (« Formule ta demande plus poliment ») et un **exemple de langue** en cinq mots, recopiable tel quel (« Serait-il possible de… »). |
-| **L'exemple cible** | **Sa** réponse, réécrite au niveau visé — même situation, mêmes faits, mêmes prénoms, longueur proche de la sienne. Deux ou trois passages y sont **surlignés**, chacun avec ce qu'il apporte en trois mots (« plus poli », « plus nuancé »). |
+| **Deux ou trois leviers** | Chacun est un trio : une **action** en six mots à l'impératif (« Formule ta demande plus poliment »), un **exemple de langue** en cinq mots, recopiable tel quel (« Serait-il possible de… »), et le **procédé de langue** que cette action met en œuvre — pris dans la même liste fermée que les marqueurs du palier ci-dessous. Le procédé ne s'affiche pas : il sert à empêcher un conseil de ton de se faire passer pour un levier de niveau (voir juste après). |
+| **L'exemple cible** | **Sa** réponse, réécrite au niveau de la marche suivante — même situation, mêmes faits, mêmes prénoms, et la **longueur que le sujet demande** (plus celle de sa propre réponse, qui est souvent trop courte pour démontrer quoi que ce soit). Deux ou trois passages y sont **surlignés**, chacun avec ce qu'il apporte en trois mots (« plus poli », « plus nuancé »). |
+| **Les marqueurs du palier** *(nouveau, août 2026)* | Deux ou trois passages du texte modèle qui **prouvent** le niveau annoncé, chacun étiqueté par le procédé qu'il illustre — registre ajusté, articulation logique, subordination, lexique précis, nuance, objection traitée. Ils ne s'affichent pas : c'est une **contrainte**, pas un contenu. L'IA doit d'abord mettre la matière du palier dans son texte, puis la désigner ; le serveur vérifie que le passage y est vraiment. |
 | **À retenir** | Une tournure réutilisable ailleurs (« Serait-il possible de + infinitif ») et, en une phrase courte, quand elle sert. |
 
 **Trois contrôles automatiques, avant que le candidat voie quoi que ce soit :**
@@ -3272,6 +3344,39 @@ tirer vers le niveau qui compte pour lui.
   mesuré : un candidat avait suivi un conseil de ce genre, réécrit sa réponse, et obtenu
   exactement la même évaluation. S'il ne reste plus assez de leviers, une réparation est tentée,
   puis le bloc est abandonné ;
+- **le texte modèle tient dans la longueur du sujet.** Le serveur recompte ses mots et refuse
+  au-delà du maximum annoncé par l'exercice — au mot près, sans tolérance : un modèle plus long
+  que ce que l'exercice accepte n'est plus « sa » réponse. Trop long, une reprise est demandée
+  en disant combien de mots retirer ; si elle échoue, **seule cette partie disparaît** et les
+  leviers comme la tournure à retenir restent affichés. Un texte plus **court** que le minimum
+  conseillé, lui, reste servi : il est encore lisible et utile ;
+- **les marqueurs du palier sont vérifiés, mais ne coûtent rien.** Chaque passage désigné doit
+  se retrouver dans le texte modèle, et son procédé ne doit pas **sur-vendre** le niveau visé
+  (on ne démontre pas l'A2 en « traitant une objection »). Un marqueur qui échoue est
+  simplement **retiré** — jamais de reprise payante, jamais de texte perdu. Ce qui tient la
+  règle, ce n'est pas ce nettoyage : c'est que le contrat de sortie **exige** ces marqueurs, si
+  bien qu'un texte sans matière de palier ne peut plus être produit ;
+- **un levier nomme un moyen de langue, jamais un effet de ton** *(nouveau, 16 août 2026)*.
+  Cas réel : les trois leviers servis à un candidat pour passer au B2 étaient « Rends ton
+  invitation plus chaleureuse », « Propose une alternative concrète », « Termine par une
+  formule engageante ». Ce sont de bons conseils de **ton** — mais on peut être très
+  chaleureux en A2, et quelqu'un qui les applique à la lettre reste exactement où il est. Le
+  contrôle du point précédent ne pouvait rien y voir : il ne reconnaît que six petits mots
+  cités, et aucun de ces trois leviers n'en cite un seul. Depuis, **chaque levier doit
+  déclarer le procédé de langue qu'il met en œuvre**, dans la même liste fermée que les
+  marqueurs du palier : registre ajusté, articulation logique, subordination, lexique précis,
+  nuance, objection traitée. Le levier refusé devient alors « Subordonne ta demande à sa
+  disponibilité — *si jamais tu es libre* », procédé **subordination**.
+
+  🛑 **Et ce contrôle-là ne retire jamais rien.** Si le procédé manque, n'existe pas, ou
+  promet un niveau plus haut que celui qu'on vise, le levier est **affiché quand même**, tel
+  quel : c'est le seul bloc dont l'absence viderait entièrement l'écran, et un candidat n'a
+  rien à gagner à perdre son plan d'action parce qu'une étiquette invisible était mal
+  remplie. L'anomalie est **comptée** — pour savoir si la règle est respectée et pouvoir la
+  revoir —, elle ne coûte **aucune reprise payante**, et l'étiquette douteuse n'est pas
+  conservée. Ce qui tient réellement la règle, ce n'est pas ce comptage : c'est que le
+  formulaire de réponse **oblige** à remplir ce champ, si bien qu'un conseil de ton ne peut
+  plus être écrit sans qu'on ait à dire quel moyen de langue le porte ;
 - **une seule réparation, jamais deux.** Ce bloc est un confort : payer deux appels
   supplémentaires pour reconstruire une sortie cassée n'en vaut pas le prix.
 
@@ -3284,7 +3389,10 @@ tirer vers le niveau qui compte pour lui.
 - **l'IA n'a pas répondu, ou sa réponse a été refusée** par l'un des contrôles ci-dessus.
 
 Dans les trois cas, **l'analyse reste entière** : le niveau, le verdict et les deux étiquettes
-sont là. Le bloc « pour viser » ne peut jamais faire échouer une analyse déjà obtenue.
+sont là. Le bloc « pour passer au niveau suivant » ne peut jamais faire échouer une analyse déjà
+obtenue. Et **une partie de ce bloc peut manquer sans emporter le reste** : si le texte modèle
+est inexploitable, les leviers et la tournure à retenir sont affichés quand même — ils ne
+dépendent d'aucun texte.
 
 ### Où j'en suis : la petite jauge à trois crans
 
@@ -3402,6 +3510,13 @@ campagne** — le banc du §12 ne note que des tâches complètes, et il n'exist
 micro-productions avec un niveau attendu écrit à l'avance. C'est la raison pour laquelle ce
 niveau est présenté au candidat comme un repère d'entraînement, et pourquoi la phrase « passe une
 tâche complète pour savoir où tu en es » reste valable.
+
+⚠️ **Cela vaut également pour les deux derniers ajouts au plan d'action** (les marqueurs du
+palier, puis le procédé exigé sur chaque levier) : aucune campagne ne les appuie, pour la même
+raison. Ce qui les rend malgré tout défendables, c'est leur nature : ils **ajoutent une case
+obligatoire au formulaire de réponse** de l'IA — la façon la plus fiable de rendre un
+comportement impossible — sans déplacer aucun seuil, aucune note, aucun niveau. On ne règle pas
+un curseur au jugé ; on interdit une forme de réponse.
 
 La suite logique est la même que pour l'autre voie, et elle passe par les mêmes outils : faire
 annoter de vraies productions de candidats par des enseignants, puis en tirer un corpus de
@@ -4112,8 +4227,9 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 | **La patience / réactivité de l'examinateur vocal** (détection de fin de parole, §10) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.realtime.gemini.vad`. Les cinq valeurs sont modifiables **sans reconstruire l'application** (variables d'environnement `REALTIME_GEMINI_VAD_*`). Aucune n'a d'effet sur la note |
 | **La reprise d'un entretien après une coupure réseau** (§10) | `backend_sejourfr/src/main/resources/application.yaml`, sections `sejourfr.realtime.gemini.session-resumption` et `.context-window-compression`, plus la durée de validité de l'autorisation (`token-uses`, `new-session-expire-seconds`). Le décompte du forfait, lui, ne dépend d'aucun de ces réglages : il vit dans `RealtimeSessionService` et n'a lieu qu'**une fois par entretien**, sous verrou |
 | **La longueur maximale d'une réponse du correcteur** (§12.3 bis — au-delà, la réponse est coupée et la correction est perdue) | `backend_sejourfr/src/main/resources/application.yaml`, `max-tokens` des trois correcteurs de `sejourfr.production-evaluation` : **la même valeur pour les trois**, verrouillée par un test |
-| **Les consignes des micro-exercices par compétence** (§11 bis — ce que l'IA regarde, les trois verdicts, l'interdiction d'une note, la façon dont le niveau doit se montrer dans la copie, les limites de l'oral) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-rubrics-v4.json` (version active — **v3 mot pour mot pour tout ce qui juge, plus l'obligation de montrer un B1 ou un B2 dans un passage réel** ; v1, v2 et v3 restent chargeables). Fichier **séparé** de celui des tâches complètes : les deux voies n'ont ni les mêmes règles ni le même but, et on ne veut pas qu'une modification de l'une déborde sur l'autre |
+| **Les consignes des micro-exercices par compétence** (§11 bis — ce que l'IA regarde, les trois verdicts, l'interdiction d'une note, la façon dont le niveau doit se montrer dans la copie, les limites de l'oral) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-rubrics-v5.json` (version active — **v4 mot pour mot pour tout ce qui juge** ; elle ajoute trois exemples de correction sur les deux paliers qui n'en avaient aucun et retire une fréquence attendue. Elle garde le **format de réponse v4**, inchangé. v1 à v4 restent chargeables). Fichier **séparé** de celui des tâches complètes : les deux voies n'ont ni les mêmes règles ni le même but, et on ne veut pas qu'une modification de l'une déborde sur l'autre |
 | **Le format de réponse des micro-exercices** (les quatre éléments rendus, les trois verdicts, les longueurs maximales) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-tool-schema-v2.json` (consignes réaccentuées, contrat inchangé) — **aucun champ n'y existe pour une note ou un niveau**, c'est ce qui rend leur apparition impossible plutôt que simplement interdite |
+| **Le plan d'action « pour passer au niveau suivant » des micro-exercices** (§11 bis — la forme des leviers, ce que la réécriture garde du candidat, les marqueurs qui prouvent le palier, le procédé exigé sur chaque levier) | `backend_sejourfr/src/main/resources/prompts/competence-niveau-vise-rubrics-v3.json` et son format de réponse `competence-niveau-vise-tool-schema-v3.json` (version **active** — **la v2 mot pour mot** pour tout ce qui concerne la réécriture et la tournure à retenir ; elle n'édite que la partie « leviers », à laquelle elle ajoute un **procédé de langue obligatoire**). v1 et v2 restent chargeables. Fichiers **séparés** de ceux de l'analyse : c'est un **second correcteur**, qui ne juge rien et à qui l'on ne montre pas la grille d'analyse. Aucun champ n'y existe pour une note ou un niveau |
 | **Les réglages des micro-exercices** (longueur maximale acceptée, durée maximale d'un enregistrement, nombre d'analyses offertes) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.competences.analysis`. Le **correcteur**, lui, n'a pas de réglage propre : cette voie utilise le même que tout le reste (`sejourfr.production-evaluation.provider`) |
 | **Le contenu des micro-exercices** (les compétences, les petits sujets, les trois réponses de référence et leurs notes pédagogiques) | migrations `db/migration/300_tcf/competences/` — fichiers **générés**, à ne pas modifier à la main ; le volume publié est figé par un test automatique |
 | **Les consignes du diagnostic initial et de l'observateur du Plan** (accomplissement avant langue, limites de l'oral transcrit, allowlist de compétences, aucune note officielle) | `backend_sejourfr/src/main/resources/prompts/diagnostic-analysis-rubrics-v1.json`, fichier **séparé** de la notation et des micro-exercices. Le même contrat sert à la baseline et aux observations de productions complètes, avec un `analysis_type` explicite ; une nouvelle règle durable crée une nouvelle version au lieu de réécrire v1 |

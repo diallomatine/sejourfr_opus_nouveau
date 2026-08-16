@@ -2060,12 +2060,42 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
   viser X ») reçoit niveau constaté + niveau visé et produit le plan d'action.
   Motif **mesuré** côté productions : donner l'objectif au correcteur fait tomber
   l'accord exact de **81,8 % à 75,6 %** (campagnes v10/v11). Montage calqué sur
-  `service/versionciblee/`. **Ne pas fusionner.** Le `targetLevel` présent dans le
-  prompt de l'appel 1 est celui de la **compétence** (donnée éditoriale du sujet,
-  comme `production_tasks.niveau_cible`), jamais celui de la personne — verrou :
-  `CompetenceAnalysisServiceTest`, `CompetenceAnalysisContractTest`.
+  `service/versionciblee/`. **Ne pas fusionner.** ⚠️ **Depuis v5, l'appel 1 ne
+  reçoit PLUS AUCUN niveau cible** — même pas celui de la **compétence** (donnée
+  éditoriale du sujet, comme `production_tasks.niveau_cible`), qui y était jusqu'à
+  v4 sans que la grille le nomme nulle part : une étiquette de palier posée dans
+  le même objet JSON que le texte à niveler. Autorité unique :
+  `CompetenceRubricsProvider.envoieLeNiveauCibleDeLaCompetence()`, allowlist des
+  versions v1..v4 (un retour arrière doit reproduire le prompt d'avant, une
+  version future ne doit pas hériter du défaut). Verrous :
+  `CompetenceAnalysisServiceTest`, `CompetenceRubricsProviderTest`.
+- **v5 = LE NIVEAU CESSE D'ÊTRE PLAFONNÉ AU A2** (2026-08-16). Mesuré par SQL sur
+  la base locale : **0 B2 sur 18 tentatives**, jamais ; une production fautive et
+  une production propre avec subordonnée et conditionnel recevaient **le même
+  A2** ; **aucun sujet rejoué n'a jamais rendu deux niveaux différents**. Trois
+  causes, toutes **lisibles dans le prompt lui-même**, trois éditions et rien
+  d'autre : **(a)** les 7 ancres v4 étaient A2×4, B1×2, A1×1 — **zéro B2, zéro
+  `A1_NON_ATTEINT`** ⇒ 3 ancres ajoutées (2 B2, 1 `A1_NON_ATTEINT`), le A2 restant
+  majoritaire (on ouvre le haut de l'échelle, on ne bascule pas le prior) ;
+  **(b)** retrait de « *c'est même le cas le plus fréquent, et c'est normal* », une
+  **consigne de répartition** — l'idée légitime (verdict et niveau indépendants,
+  un critère peut être validé à un palier modeste) est conservée ; **(c)** le
+  `targetLevel` de la compétence quitte le prompt (ci-dessus). v5 est **v4 au bit
+  près pour tout ce qui JUGE** (rôle, les 3 verdicts et leur règle de décision,
+  `commun.statuts/niveaux/contraintes_longueur`, la brièveté, le garde-fou oral,
+  la preuve du niveau par numéro) — verrou `CompetenceAnalysisContractTest`, qui
+  **reconstruit v4 depuis v5** par l'unique édition énumérée et exige l'égalité des
+  11 sections et des 7 premières ancres. **Le CONTRAT DE SORTIE NE BOUGE PAS** :
+  v5 déclare `tool_schema_version: v4`, aucun champ ajouté ni retiré, aucun miroir
+  front — première version de ce module à réutiliser le schéma de la précédente
+  (`TOOL_SCHEMA_BY_RUBRICS_VERSION` : `v5 -> v4` ; demander un « v5 » échoue au
+  boot). ⚠️ **Bascule NON mesurée, et il n'existe AUCUN corpus de
+  micro-productions avec niveau attendu** (le golden-set des 48 cas est celui des
+  productions complètes) : ce qui la justifie, c'est qu'on retire des **biais
+  visibles dans le prompt**, pas qu'on règle un curseur. Retour arrière :
+  `COMPETENCE_RUBRICS_VERSION=v4` + `COMPETENCE_TOOL_SCHEMA_VERSION=v4`.
 - **Contrat de l'analyse (appel 1)** : rubriques
-  `prompts/competence-analysis-rubrics-v4.json` + tool-schema
+  `prompts/competence-analysis-rubrics-v5.json` + tool-schema
   `prompts/competence-analysis-tool-schema-v4.json` (`profile: TCF_IRN`, paire
   `rubrics-version` ⇄ `tool_schema_version` validée au boot — **aucune consigne de
   notation en dur dans le Java**). **v3 = v2 au bit près pour tout ce qui JUGE**
@@ -2148,12 +2178,121 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
     calculé et le prompt repart **inchangé d'un octet**
     (`CompetenceAnalysisFields.porteLaPreuveDuNiveau`).
 - **Contrat du plan d'action (appel 2)** : `service/competence/niveauvise/` +
-  `prompts/competence-niveau-vise-{rubrics,tool-schema}-v1.json`. Sortie stricte à
+  `prompts/competence-niveau-vise-{rubrics,tool-schema}-v3.json`. Sortie stricte à
   **3 champs**, `additionalProperties: false` : `leviers[2..3]`
-  `{action ≤6 mots impératif, exemple ≤5 mots}`, `exemple_cible`
-  `{texte, segments[2..3] {extrait, apport ≤3 mots}}`, `a_retenir`
-  `{formule ≤8 mots, explication ≤14 mots}`. **Aucun champ de note, de verdict ni
-  de niveau** : le serveur pose lui-même `niveau_vise` / `niveau_constate`.
+  `{action ≤6 mots impératif, exemple ≤5 mots, procede}`, `exemple_cible`
+  `{texte, segments[2..3] {extrait, apport ≤3 mots}, marqueurs_du_palier[2..3]
+  {extrait, type}}`, `a_retenir` `{formule ≤8 mots, explication ≤14 mots}`.
+  **Aucun champ de note, de verdict ni de niveau** : le serveur pose lui-même
+  `niveau_vise` / `niveau_constate`.
+- **v3 = UN LEVIER NOMME UNE OPÉRATION DE LANGUE** (2026-08-16). Chaque levier
+  gagne un **`procede` requis**, `enum` reprenant **exactement** `MarqueurPalier`
+  — la même énumération, la même table de compatibilité procédé ⇄ palier
+  (`MarqueurPalier.demontre`), jamais une copie. Motif, cas réel : les trois
+  leviers servis vers le B2 étaient « Rends ton invitation plus chaleureuse »,
+  « Propose une alternative concrète », « Termine par une formule engageante » —
+  des conseils de **ton**, qu'on peut suivre à la lettre en restant A2. Le filet
+  `EvaluationMarqueursA2` ne pouvait rien y voir (liste fermée de 6 mots-outils,
+  égalité exacte) et **il ne faut pas l'élargir** : deux variantes plus larges ont
+  déjà été mesurées et rejetées côté productions pour faux positifs.
+  - 🛑 **RÈGLE ABSOLUE : un levier n'est JAMAIS purgé à cause de son procédé.**
+    Ce qui tient la règle, c'est le **schéma** — le modèle ne peut plus produire
+    un conseil de ton sans le rattacher à un moyen de langue réel —, pas une
+    sanction à l'affichage. Les leviers portent le **bloc entier** (purgés sous
+    leur minimum et non réparés, tout est abandonné) : purger sur ce motif
+    viderait l'écran du candidat. Donc procédé **manquant**, **inconnu** ou qui
+    **sur-vend** le palier cible ⇒ le levier est **servi tel quel**, l'anomalie est
+    **comptée**, et **aucune réparation payée** n'est déclenchée.
+    `CompetenceNiveauViseProcedeAudit` est la seule autorité ; il ne retire
+    jamais un levier, seulement le procédé fautif de l'objet persisté.
+  - **Le procédé fautif n'est PAS persisté** (arbitrage). Le champ n'est exposé à
+    **aucun front** (doctrine `level_evidence` — pas d'API morte) : il existe pour
+    répondre en **une requête SQL** à « ce levier nommait-il un vrai moyen de
+    langue ? ». Une colonne pouvant contenir n'importe quelle chaîne du modèle ne
+    répond à rien ; un procédé **absent** dit exactement « ce levier n'était pas
+    vérifiable », et le compteur porte le motif.
+  - **Le validateur ADMET le procédé, il ne le juge pas** : une violation de la
+    section `LEVIERS` est **fatale**, l'y ranger reviendrait à purger. Il n'ajoute
+    donc que la clé à l'allowlist du levier.
+  - Compteurs : `CompetenceNiveauViseMetrics.procedeAnormal` →
+    `PROCEDE_ANORMAL/{ABSENT,INCONNU,SUR_VENDU}`. Famille inchangée, jamais
+    mélangée à `EvaluationRefusalMetrics` ni `EvaluationPurgeMetrics`.
+  - Le filet **`CompetenceNiveauViseLevierFilter`** (marqueur A2 vendu pour un
+    palier supérieur) est **conservé inchangé** : lui purge, c'est un motif
+    différent, et il garde sa réparation. Ne pas le fusionner avec le nouveau
+    contrôle, ne pas le désactiver.
+  - **v3 = v2 au bit près** pour tout ce qui juge, pour `exemple_cible` et pour
+    `a_retenir` : seule la section « Les leviers » est éditée, plus un `procede`
+    ajouté à chaque levier des 2 ancres. Verrou :
+    `CompetenceNiveauViseContractTest` **reconstruit v2 depuis v3** (rubriques et
+    tool-schema) par une liste **énumérée** d'éditions.
+  - **Retour arrière réel** : `COMPETENCE_NIVEAU_VISE_{RUBRICS,TOOL_SCHEMA}_VERSION=v2`
+    (ou `v1`) — sous v2 le champ n'est ni demandé dans le prompt, ni admis par le
+    validateur (il redevient une clé hors contrat), ni compté. Conditionné par une
+    **allowlist explicite** (`CompetenceNiveauViseFields.porteLeProcedeDesLeviers`,
+    patron `CompetenceRubricsProvider.envoieLeNiveauCibleDeLaCompetence`), jamais
+    par un test `!= v3`. Aucune migration.
+  - ⚠️ **Non mesuré, et il faut le dire** : il n'existe **aucun corpus** de
+    micro-productions avec un niveau attendu (le banc porte sur les productions
+    complètes). Défendable sans mesure parce qu'on **ajoute une contrainte de
+    schéma** — la façon la plus fiable de rendre un comportement impossible — et
+    qu'on ne déplace **aucun seuil, aucune note, aucun niveau**.
+- **v2 = LE PALIER DEVIENT EXIGIBLE** (2026-08-16). Trois changements, un seul
+  motif — mesuré en base : un candidat a copié-collé le `exemple_cible.texte`
+  servi comme « version pour viser B2 », l'a resoumis, et l'appel 1 l'a réévalué
+  **A2** (`written_production = analysis_json->'pour_viser'->'exemple_cible'->>'texte'`
+  vaut `true`). Rien n'obligeait ce texte à être au niveau annoncé, et la consigne
+  tirait dans l'autre sens (« longueur PROCHE de la sienne »).
+  - **Le texte modèle vise la MARCHE SUIVANTE** : `palierCible = min(constaté + 1,
+    visé)`, ramené dans `[A2, B2]`. **Autorité unique**
+    `CompetenceNiveauViseService.palierCible`, à côté de la garde « constaté ≥ visé
+    ⇒ aucun appel » (inchangée). Effet voulu : les 2 ancres few-shot (A2→B1,
+    B1→B2) couvrent désormais 100 % des cas — le cas réel était un saut A2→B2
+    **sans aucune ancre**. Le palier VISÉ du candidat reste calculé comme avant
+    (`TargetProcedure.niveauVise`, plancher de la démarche) mais devient le
+    **plafond** de l'ambition. `SkillLevelProgressResolver` / `SituationNiveauVise`
+    **inchangés** : c'est là que le candidat se situe par rapport à son objectif
+    réel. ⚠️ `analysis_json.pour_viser.niveau_vise` et donc
+    `SkillNiveauViseDto.niveauVise` portent le **palier cible**, pas l'objectif —
+    aucun changement de type, seuls les libellés fronts bougent.
+  - **`marqueurs_du_palier` requis** : 2 à 3 passages **recopiés du texte modèle**
+    + un `type` d'une énumération fermée (`MarqueurPalier` : `REGISTRE_AJUSTE` /
+    `ARTICULATION_LOGIQUE` A2, `SUBORDINATION` / `LEXIQUE_PRECIS` B1, `NUANCE` /
+    `OBJECTION_TRAITEE` B2). Doctrine du dépôt : un champ **requis et vérifiable**
+    force le contenu, une consigne ne serait qu'un vœu. Extraits résolus par
+    `util/SegmentsSurlignage` (mécanique partagée, jamais recopiée) ; un type qui
+    **sur-vend** le palier cible est retiré (`objection_traitee` pour viser A2). La
+    table `MarqueurPalier` est **opposée à `commun.marqueurs_palier` au BOOT**
+    (divergence ⇒ échec du démarrage). **Persistés, exposés à aucun front** (même
+    arbitrage que `level_evidence`) : ils répondront en SQL à « sur quoi ce B1
+    était-il fondé ? ».
+  - **Longueur du texte modèle bornée** par `skill_prompts.recommended_min/max_words`
+    (**plafond seul, au mot près, sans tolérance** — patron `ProductionTextBounds`
+    + `ProductionPayloadSupport.countWords`), bornes **injectées dans le prompt**
+    (`mots_min`/`mots_max`). `null` sur un sujet **oral** (il porte une durée, pas
+    une fourchette) : on n'invente pas de borne.
+  - 🛑 **Rien ne disparaît de l'écran.** Les violations sont désormais rangées
+    **par section** (`CompetenceNiveauViseValidator.Section`, patron
+    `VersionCibleeValidator`) : `exemple_cible` et `a_retenir` tombent **seules**,
+    seuls la racine et les **leviers** emportent le bloc. Un marqueur retiré, comme
+    un segment, ne coûte que sa propre mise en évidence et **n'ouvre aucun appel
+    payé**. **Une seule réparation par bloc, tous motifs confondus**
+    (`CompetenceNiveauViseRepairPrompt.pour`) : leviers purgés **et/ou** texte hors
+    bornes partent dans le **même** message actionnable.
+  - Compteurs : `CompetenceNiveauViseMetrics` gagne `Motif.TEXTE_HORS_BORNES`,
+    `sectionAbandonnee(section, motif)` et `marqueurRetire(motif)` — même famille,
+    jamais mélangée à `EvaluationRefusalMetrics` ni `EvaluationPurgeMetrics`.
+  - Retour arrière sans migration : `COMPETENCE_NIVEAU_VISE_RUBRICS_VERSION=v1` +
+    `COMPETENCE_NIVEAU_VISE_TOOL_SCHEMA_VERSION=v1` — sous v1 **tout** ce chantier
+    est inerte (ni marqueurs, ni bornes de longueur). Verrou :
+    `CompetenceNiveauViseContractTest` reconstruit le tool-schema v1 depuis v2 par
+    une liste **énumérée** d'éditions.
+  - **Fronts** : l'intertitre nomme le palier cible — « Pour passer au niveau B1 »
+    (`pourPasserAuTitle`, web `skill-ui/ActionPlan.tsx` ⇄ mobile
+    `widgets/action_plan.dart`), déclaré une fois par front. `pourViserTitle`
+    **reste** pour les productions complètes, dont le `niveauVise` est toujours
+    l'objectif. ⚠️ **Aucune campagne** : le corpus de calibration est celui des
+    productions complètes, il n'existe aucun corpus pour cette voie.
   Persisté dans `user_skill_attempts.analysis_json.pour_viser` — **aucune
   migration**.
   - **Best-effort, jamais bloquant** : lancé par `SkillAnalysisAsyncRunner`
@@ -2218,12 +2357,17 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
   `CompetenceLlmConfig` et `CompetenceNiveauViseLlmConfig` lisent
   `sejourfr.production-evaluation.provider`, comme tout le reste (règle « un seul
   correcteur configurable »). Ne pas leur en donner un second.
-  Retours arrière, sans migration : `COMPETENCE_RUBRICS_VERSION=v2` +
-  `COMPETENCE_TOOL_SCHEMA_VERSION=v2` pour l'analyse,
-  `COMPETENCE_NIVEAU_VISE_ENABLED=false` pour le plan d'action.
-  ⚠️ **Bascule v3 NON mesurée au banc** : il n'existe aucun corpus de
-  micro-productions avec un niveau attendu (cf. `docs/notation-ia-eo-ee.md`
-  §11 bis, qui le dit franchement au lecteur).
+  Retours arrière, sans migration : `COMPETENCE_RUBRICS_VERSION=v4` +
+  `COMPETENCE_TOOL_SCHEMA_VERSION=v4` pour l'analyse (⚠️ **le rang des deux
+  n'est plus le même** : v5 tourne sur le tool-schema **v4**, demander « v5 »
+  échoue au boot),
+  `COMPETENCE_NIVEAU_VISE_ENABLED=false` pour le plan d'action (ou ses contrats
+  antérieurs par `COMPETENCE_NIVEAU_VISE_{RUBRICS,TOOL_SCHEMA}_VERSION=v2`, ou
+  `=v1`).
+  ⚠️ **Bascules v3, v4 et v5 de l'analyse, et v2/v3 du plan d'action, NON
+  mesurées au banc** : il n'existe aucun corpus de micro-productions avec un
+  niveau attendu (cf. `docs/notation-ia-eo-ee.md` §11 bis, qui le dit franchement
+  au lecteur).
 - **Volume figé** : 6 tâches (`EE1..EE3`, `EO1..EO3`) × **8 compétences** × **15
   sujets** × **3 références** (`INSUFFICIENT`/`EXPECTED`/`EXCELLENT`) = 48 / 720 /
   2160. Les 6 tâches sont un référentiel officiel (**enum `SkillTaskCode`, pas de

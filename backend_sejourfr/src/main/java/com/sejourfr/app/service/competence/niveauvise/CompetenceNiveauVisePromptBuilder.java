@@ -4,6 +4,7 @@ import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.TargetLevel;
+import com.sejourfr.app.util.ProductionTextBounds;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
@@ -55,17 +56,22 @@ public class CompetenceNiveauVisePromptBuilder {
     }
 
     /**
-     * @param production texte du candidat (EE) ou transcription Whisper (EO).
-     * @param estOral    choisit la cle {@code transcript} plutot que
-     *                   {@code candidateProduction} : le redacteur doit savoir
-     *                   qu'il lit une transcription automatique, sinon il
-     *                   corrigerait une ponctuation que le candidat n'a jamais
-     *                   ecrite.
-     * @param constate   le niveau demontre par cette production (appel 1).
-     * @param vise       le palier qu'exige la demarche du candidat.
+     * @param production  texte du candidat (EE) ou transcription Whisper (EO).
+     * @param estOral     choisit la cle {@code transcript} plutot que
+     *                    {@code candidateProduction} : le redacteur doit savoir
+     *                    qu'il lit une transcription automatique, sinon il
+     *                    corrigerait une ponctuation que le candidat n'a jamais
+     *                    ecrite.
+     * @param constate    le niveau demontre par cette production (appel 1).
+     * @param palierCible le palier que le bloc doit faire atteindre : celui
+     *                    JUSTE AU-DESSUS du constate, plafonne a l'objectif du
+     *                    candidat. Voir {@code CompetenceNiveauViseService.palierCible}.
+     * @param bornes      fourchette de mots du sujet, ou {@code null} quand il n'en
+     *                    declare pas (les sujets ORAUX portent une duree).
      */
     public String buildUserPrompt(SkillPrompt prompt, Skill skill, String production,
-                                  boolean estOral, NiveauCecrl constate, TargetLevel vise) {
+                                  boolean estOral, NiveauCecrl constate, TargetLevel palierCible,
+                                  ProductionTextBounds bornes) {
         Map<String, Object> entrees = new LinkedHashMap<>();
         entrees.put("exam", EXAM);
         entrees.put("section", skill.getSection() == null ? null : skill.getSection().name());
@@ -75,7 +81,14 @@ public class CompetenceNiveauVisePromptBuilder {
         entrees.put("instruction", prompt.getInstruction());
         entrees.put("uniqueCriterion", prompt.getUniqueCriterion());
         entrees.put("niveau_constate", constate == null ? null : constate.name());
-        entrees.put("niveau_vise", vise.name());
+        entrees.put("niveau_vise", palierCible.name());
+        // BORNES DU SUJET, injectees et non devinees : sans elles, le modele
+        // rendait des textes de cinquante mots sur un sujet qui en attend quinze
+        // a trente-cinq. Le serveur les recompte ensuite au mot pres.
+        if (bornes != null) {
+            entrees.put("mots_min", bornes.min());
+            entrees.put("mots_max", bornes.max());
+        }
         entrees.put(estOral ? "transcript" : "candidateProduction", production);
 
         StringBuilder sb = new StringBuilder();
@@ -85,11 +98,27 @@ public class CompetenceNiveauVisePromptBuilder {
             sb.append("\nRappel : `transcript` est une transcription automatique, pas l'audio. ")
                 .append("Tu n'as aucun moyen d'entendre ce candidat.\n");
         }
-        sb.append("\nDonne deux ou trois leviers vers le niveau ").append(vise.name())
-            .append(", réécris SA réponse à ce niveau en gardant sa situation et sa longueur, ")
-            .append("désigne deux ou trois passages recopiés MOT POUR MOT depuis ta version ")
-            .append("(le serveur les y cherche, et abandonne tout le bloc s'il ne les trouve ")
-            .append("pas), puis donne une tournure à retenir. Appelle l'outil `")
+        sb.append("\nDonne deux ou trois leviers vers le niveau ").append(palierCible.name());
+        if (rubrics.leviersPortentUnProcede()) {
+            // Le procede est ce qui separe un levier d'un conseil de ton : il est
+            // rappele HORS du JSON, comme le niveau vise, parce que c'est la
+            // phrase d'action que le modele lit en dernier.
+            sb.append(", chacun nommant dans `procede` l'opération de langue qu'il met en œuvre");
+        }
+        sb.append(", réécris SA réponse à ce niveau en gardant sa situation, ses faits et son ")
+            .append("intention");
+        if (bornes != null) {
+            sb.append(", en ").append(bornes.libelle())
+                .append(" (le serveur les recompte, et refuse le texte au-delà du maximum)");
+        }
+        sb.append(". Désigne deux ou trois passages recopiés MOT POUR MOT depuis ta version ")
+            .append("dans `segments`");
+        if (rubrics.marqueursDuPalierExiges()) {
+            sb.append(", puis deux ou trois passages, eux aussi recopiés MOT POUR MOT, qui ")
+                .append("DÉMONTRENT le niveau ").append(palierCible.name())
+                .append(" dans `marqueurs_du_palier` avec le procédé que chacun illustre");
+        }
+        sb.append(". Termine par une tournure à retenir. Appelle l'outil `")
             .append(CompetenceNiveauViseFields.TOOL_NAME).append("`.");
         return sb.toString();
     }
@@ -109,6 +138,16 @@ public class CompetenceNiveauVisePromptBuilder {
             sb.append("# Plafonds de longueur (en mots, à respecter strictement)\n");
             contraintes.forEach((cle, max) -> sb.append("- ").append(cle).append(" : ")
                 .append(max).append(" mots maximum\n"));
+            sb.append('\n');
+        }
+        if (commun.get("marqueurs_palier") instanceof Map<?, ?> marqueurs && !marqueurs.isEmpty()) {
+            // La table est opposee a l'enum MarqueurPalier au BOOT : ce que le
+            // modele lit ici est exactement ce que le serveur acceptera.
+            sb.append("# Procédés de `marqueurs_du_palier`")
+                .append(rubrics.leviersPortentUnProcede() ? " et de `leviers[].procede`" : "")
+                .append(" (valeur → palier à partir duquel il prouve quelque chose)\n");
+            marqueurs.forEach((cle, palier) -> sb.append("- ").append(cle).append(" : ")
+                .append(palier).append(" et au-delà\n"));
             sb.append('\n');
         }
         if (commun.get("few_shot") instanceof List<?> fewShot && !fewShot.isEmpty()) {

@@ -12,6 +12,7 @@ import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
 import com.sejourfr.app.service.EvaluationPurgeMetrics;
 import com.sejourfr.app.service.competence.CompetenceAnalysisFields;
+import com.sejourfr.app.util.ProductionTextBounds;
 import com.sejourfr.app.util.SegmentsSurlignage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,33 @@ import java.util.UUID;
  *       en reste moins de deux, et la reparation n'a rien repare.</li>
  * </ul>
  *
+ * <p><b>LE TEXTE MODELE VISE LA MARCHE SUIVANTE, PAS L'OBJECTIF LOINTAIN</b>
+ * (contrat v2) : {@link #palierCible} pose {@code min(constate + 1, vise)}. Un
+ * micro-exercice de quelques phrases ne demontre pas deux paliers d'un coup — et
+ * on l'a mesure : un candidat a recopie tel quel le texte servi comme « version
+ * pour viser le B2 », l'a resoumis, et le correcteur l'a reevalue A2. Le palier
+ * annonce devient en outre <b>exigible</b> : le texte est borne par la fourchette
+ * de mots du sujet, et il doit designer des {@code marqueurs_du_palier} recopies
+ * de lui-meme ({@link CompetenceNiveauViseMarqueurFilter}).
+ *
+ * <p><b>UN LEVIER NOMME UNE OPERATION DE LANGUE</b> (contrat v3) : chaque levier
+ * declare son {@code procede} dans la meme enumeration fermee que les marqueurs
+ * ({@link MarqueurPalier}). C'est le <b>schema</b> qui tient la regle — le
+ * modele ne peut plus rendre « rends ton invitation plus chaleureuse » sans le
+ * rattacher a un moyen de langue reel. 🛑 <b>Un levier n'est JAMAIS purge a cause
+ * de son procede</b> : manquant, inconnu ou sur-vendu, il est servi tel quel,
+ * l'anomalie est comptee et le procede fautif n'est pas persiste
+ * ({@link CompetenceNiveauViseProcedeAudit}). Les leviers portent le bloc
+ * entier ; les purger pour une etiquette viderait l'ecran du candidat.
+ *
+ * <p><b>UNE SECTION QUI TOMBE N'EMPORTE PAS LE BLOC.</b>
+ * {@code exemple_cible} et {@code a_retenir} sont facultatives : inexploitables
+ * apres l'unique reparation, elles tombent <b>seules</b> et le reste est servi.
+ * Seuls la sortie elle-meme et les <b>leviers</b> portent le bloc — un plan
+ * d'action sans levier n'a aucun interet. Meme contrat que
+ * {@code VersionCibleeValidator.Section}, qui porte le meme plan d'action sur
+ * l'ecran des productions.
+ *
  * <p><b>UN SEGMENT QUI TOMBE N'EMPORTE PAS SON TEXTE</b> (2026-08-12, alignement
  * sur les productions). Les {@code segments} de l'{@code exemple_cible} sont un
  * confort de lecture : un extrait introuvable ou mal forme est <b>retire</b>
@@ -85,6 +113,15 @@ public class CompetenceNiveauViseService {
      */
     private static final SegmentsSurlignage SEGMENTS = SegmentsSurlignage.surLesChamps(
         CompetenceNiveauViseFields.EXTRAIT, CompetenceNiveauViseFields.APPORT);
+
+    /**
+     * Sections qui tombent SEULES, sans emporter le bloc : elles ne dependent
+     * d'aucune des autres, et un ecran ampute d'une section reste utile la ou un
+     * ecran vide ne l'est pas.
+     */
+    private static final List<CompetenceNiveauViseValidator.Section> FACULTATIVES = List.of(
+        CompetenceNiveauViseValidator.Section.EXEMPLE_CIBLE,
+        CompetenceNiveauViseValidator.Section.A_RETENIR);
 
     private final UserSkillAttemptManager attemptManager;
     private final CompetenceNiveauViseLlmClient llmClient;
@@ -135,7 +172,8 @@ public class CompetenceNiveauViseService {
             log.debug("Bloc « pour viser » sans objet attempt={} : palier vise inconnu.", attemptId);
             return;
         }
-        if (!aQuelqueChoseAViser(constate, vise)) {
+        TargetLevel cible = palierCible(constate, vise);
+        if (cible == null) {
             log.info("Niveau vise deja atteint attempt={} (constate={}, vise={}) — aucun appel.",
                 attemptId, constate, vise);
             return;
@@ -145,41 +183,47 @@ public class CompetenceNiveauViseService {
         String production = estOral ? attempt.getTranscript() : attempt.getWrittenProduction();
         if (production == null || production.isBlank()) return;
 
+        ProductionTextBounds bornes = bornesDuSujet(prompt);
         String systemPrompt = promptBuilder.buildSystemPrompt();
         String userPrompt = promptBuilder.buildUserPrompt(
-            prompt, skill, production, estOral, constate, vise);
+            prompt, skill, production, estOral, constate, cible, bornes);
 
         CompetenceNiveauViseLlmClient.Outcome outcome = llmClient.produire(systemPrompt, userPrompt);
-        Sortie sortie = examiner(outcome.sortie(), cfg.getMaxLeviers(), vise);
+        Sortie sortie = examiner(outcome.sortie(), cfg.getMaxLeviers(), cible, bornes);
 
-        if (!sortie.conforme()) {
-            String reparation = messageDeReparation(sortie, userPrompt, vise);
-            if (reparation == null) {
-                // Sortie structurellement fausse : pas de reessai. Le bloc est un
-                // confort, pas une analyse — payer un second appel pour
-                // reconstruire une sortie cassee depenserait l'argent du
-                // proprietaire sur du facultatif.
-                metrics.blocAbandonne(CompetenceNiveauViseMetrics.motif(sortie.violations()));
-                log.warn("Bloc « pour viser » refuse attempt={} modele={} : {}",
-                    attemptId, llmClient.getModelName(), sortie.motifs());
-                return;
-            }
-            // UNE seule reparation, quel qu'en soit le motif, avec la violation
-            // nommee et l'operation a faire ; toujours refusee ensuite, on
-            // abandonne le bloc — les fronts traitent proprement son absence.
-            metrics.reparationPayee(CompetenceNiveauViseMetrics.motif(sortie.violations()));
+        String reparation = messageDeReparation(sortie, userPrompt, cible, bornes);
+        if (reparation != null) {
+            // UNE seule reparation par bloc, tous motifs confondus, avec la
+            // violation nommee et l'operation a faire.
+            metrics.reparationPayee(CompetenceNiveauViseMetrics.motif(sortie.reparables()));
             log.info("Bloc « pour viser » a reparer attempt={} ({}) — une reparation.",
                 attemptId, sortie.motifs());
             CompetenceNiveauViseLlmClient.Outcome reparee =
                 llmClient.produire(systemPrompt, reparation);
             outcome = cumule(outcome, reparee);
-            sortie = examiner(reparee.sortie(), cfg.getMaxLeviers(), vise);
-            if (!sortie.conforme()) {
-                metrics.blocAbandonne(CompetenceNiveauViseMetrics.motif(sortie.violations()));
-                log.warn("Bloc « pour viser » abandonne apres reparation attempt={} modele={} : {}",
-                    attemptId, llmClient.getModelName(), sortie.motifs());
-                return;
-            }
+            sortie = examiner(reparee.sortie(), cfg.getMaxLeviers(), cible, bornes);
+        }
+
+        if (sortie.blocPerdu()) {
+            // Sortie structurellement fausse, ou plan d'action sans levier : le
+            // bloc n'a plus rien a montrer. Les fronts traitent proprement son
+            // absence — ni message d'echec, ni spinner.
+            metrics.blocAbandonne(CompetenceNiveauViseMetrics.motif(sortie.violationsFatales()));
+            log.warn("Bloc « pour viser » abandonne attempt={} modele={} : {}",
+                attemptId, llmClient.getModelName(), sortie.motifs());
+            return;
+        }
+
+        // UNE SECTION FACULTATIVE TOMBE SEULE — elle ne vide jamais l'ecran. Les
+        // leviers et la tournure a retenir ne dependent d'aucun texte modele ;
+        // les perdre parce qu'une reecriture etait trop longue couterait au
+        // candidat toute la partie « comment y arriver ».
+        for (CompetenceNiveauViseValidator.Section section : FACULTATIVES) {
+            List<String> violations = sortie.rapport().de(section);
+            if (violations.isEmpty()) continue;
+            metrics.sectionAbandonnee(section, CompetenceNiveauViseMetrics.motif(violations));
+            log.info("Section {} abandonnee attempt={} — le reste du bloc est servi : {}",
+                section, attemptId, violations);
         }
 
         if (!sortie.segmentsRetires().isEmpty()) {
@@ -191,16 +235,34 @@ public class CompetenceNiveauViseService {
             sortie.segmentsRetires().forEach(retire -> metrics.segmentRetire(retire.motif()));
         }
 
+        if (!sortie.marqueursRetires().isEmpty()) {
+            log.info("Marqueur(s) de palier retire(s) attempt={} (cible={}) : {}",
+                attemptId, cible, sortie.marqueursRetires().stream()
+                    .map(CompetenceNiveauViseMarqueurFilter.Retire::libelle).toList());
+            sortie.marqueursRetires().forEach(retire -> metrics.marqueurRetire(retire.motif()));
+        }
+
+        if (!sortie.procedes().isEmpty()) {
+            // AUCUN levier n'a ete retire ici : ils sont tous servis. On mesure
+            // seulement combien d'entre eux ne nommaient pas une operation de
+            // langue opposable — sans ce compte, la contrainte de schema serait
+            // invisible et ne pourrait ni se durcir ni se desarmer.
+            log.info("Levier(s) sans procédé opposable attempt={} (cible={}) — servis quand "
+                    + "même : {}", attemptId, cible, sortie.procedes().stream()
+                    .map(CompetenceNiveauViseProcedeAudit.Anomalie::libelle).toList());
+            sortie.procedes().forEach(anomalie -> metrics.procedeAnormal(anomalie.motif()));
+        }
+
         if (!sortie.retires().isEmpty()) {
             log.info("Levier(s) A2 vendu(s) comme la marche vers {} retire(s) attempt={} : {}",
-                vise, attemptId, sortie.retires().stream()
+                cible, attemptId, sortie.retires().stream()
                     .map(CompetenceNiveauViseLevierFilter::libelle).toList());
             purgeMetrics.enregistrer(
                 EvaluationPurgeMetrics.Filtre.MARQUEUR_PALIER_LEVIER_COMPETENCE,
                 0, sortie.retires().size());
         }
 
-        attempt.setAnalysisJson(analyseAvecBloc(analyse, sortie, constate, vise));
+        attempt.setAnalysisJson(analyseAvecBloc(analyse, sortie, constate, cible));
         // Le second appel est PAYE : son cout rejoint celui de l'analyse, sinon
         // le suivi de cout du module sous-estime ce qu'une tentative coute
         // vraiment — exactement sur les cas qui coutent le plus.
@@ -210,8 +272,8 @@ public class CompetenceNiveauViseService {
             nz(attempt.getCoutEstimeCentimes()) + nz(outcome.costEstimateCents()));
         attemptManager.save(attempt);
 
-        log.info("Bloc « pour viser » ajoute attempt={} : {} -> {} (modele={})",
-            attemptId, constate, vise, llmClient.getModelName());
+        log.info("Bloc « pour viser » ajoute attempt={} : {} -> {} (objectif {}, modele={})",
+            attemptId, constate, cible, vise, llmClient.getModelName());
     }
 
     // ------------------------------------------------------------- decisions
@@ -246,6 +308,62 @@ public class CompetenceNiveauViseService {
         return NiveauCecrl.valueOf(vise.name()).ordinal() > constate.ordinal();
     }
 
+    /**
+     * LE PALIER QUE LE BLOC DOIT REELLEMENT FAIRE ATTEINDRE — <b>seule autorite</b>,
+     * a cote de la garde ci-dessus, et jamais recopiee ailleurs.
+     *
+     * <p>{@code min(constate + 1, vise)}, ramene dans l'echelle des paliers
+     * visables : le texte modele vise <b>la marche suivante</b>, pas l'objectif
+     * lointain de la demarche.
+     *
+     * <p><b>Pourquoi.</b> Mesure en base sur un cas reel : un candidat constate A2
+     * visant le B2 recevait un « exemple pour viser B2 » qu'il a recopie tel quel
+     * et resoumis — le correcteur l'a reevalue <b>A2</b>. Sur un micro-exercice de
+     * vingt-huit mots, deux paliers d'un coup ne se demontrent pas, et les deux
+     * ancres de la grille n'enseignaient que des sauts d'UN palier (A2→B1, B1→B2) :
+     * le cas le plus frequent n'avait donc aucun exemple. Avec cette regle, les
+     * ancres couvrent tous les cas.
+     *
+     * <p>Le palier VISE du candidat n'est pas perdu pour autant : il reste
+     * l'<b>objectif</b>, il devient le <b>plafond</b> de l'ambition d'un exercice.
+     * C'est {@code SkillLevelProgressResolver} qui continue de situer le candidat
+     * par rapport a lui, sur un autre ecran et sans rien devoir a cet appel.
+     *
+     * <p>Plancher A2 et plafond B2 par construction : le vise est un
+     * {@link TargetLevel}, donc entre A2 et B2, et la cible est bornee par lui.
+     * Depuis A1 ou en dessous, la marche suivante est donc l'A2 — le plus bas
+     * palier qu'une demarche puisse exiger.
+     *
+     * @return {@code null} quand il n'y a rien a viser : aucun appel n'est emis.
+     */
+    static TargetLevel palierCible(NiveauCecrl constate, TargetLevel vise) {
+        if (!aQuelqueChoseAViser(constate, vise)) return null;
+        int marcheSuivante = constate.ordinal() + 1;
+        int plancher = NiveauCecrl.A2.ordinal();
+        int plafond = NiveauCecrl.valueOf(vise.name()).ordinal();
+        int cible = Math.min(Math.max(marcheSuivante, plancher), plafond);
+        return TargetLevel.valueOf(NiveauCecrl.values()[cible].name());
+    }
+
+    /**
+     * BORNES DE LONGUEUR DU TEXTE MODELE, lues sur le sujet
+     * ({@code skill_prompts.recommended_min_words / recommended_max_words}) et
+     * croisees avec le garde-fou anti-abus de la configuration.
+     *
+     * <p>{@code null} quand le sujet n'en declare pas — c'est le cas des sujets
+     * <b>ORAUX</b>, qui portent une duree conseillee et non une fourchette de
+     * mots : on ne fabrique pas une borne a partir d'un debit de parole suppose.
+     * {@code null} aussi sous le contrat <b>v1</b>, ou rien de ce chantier n'existe :
+     * le retour arriere doit etre reel, pas partiel.
+     */
+    private ProductionTextBounds bornesDuSujet(SkillPrompt prompt) {
+        if (!rubrics.marqueursDuPalierExiges()) return null;
+        Integer max = prompt.getRecommendedMaxWords();
+        if (max == null || max <= 0) return null;
+        return ProductionTextBounds.of(prompt.getRecommendedMinWords(), max,
+            0, props.getAnalysis().getMaxTextWords());
+    }
+
     /** Niveau lu dans l'analyse. Null si absent ou illisible (contrat v1/v2). */
     static NiveauCecrl niveauConstate(Map<String, Object> analyse) {
         Object brut = analyse == null ? null : analyse.get(CompetenceAnalysisFields.LEVEL_REACHED);
@@ -269,46 +387,74 @@ public class CompetenceNiveauViseService {
     // -------------------------------------------------------------- examen
 
     /**
-     * Ce que vaut UNE sortie du modele, une fois validee puis passee au filet des
-     * leviers.
+     * Ce que vaut UNE sortie du modele, une fois validee puis passee aux filets.
      *
      * @param brute      la sortie telle que rendue, pour les messages de reparation
-     * @param leviers    leviers CONSERVES, dans l'ordre rendu
+     * @param leviers    leviers CONSERVES, dans l'ordre rendu, procede deja
+     *                   normalise (et retire quand il n'etait pas opposable)
      * @param retires    leviers retires par {@link CompetenceNiveauViseLevierFilter}
+     * @param procedes   anomalies de procede constatees sur des leviers
+     *                   <b>CONSERVES</b> : elles se comptent, elles ne retirent
+     *                   jamais rien ({@link CompetenceNiveauViseProcedeAudit})
      * @param segments   passages a surligner CONSERVES, extrait deja resolu en
      *                   sous-chaine originale exacte du texte modele
      * @param segmentsRetires passages retires par {@link SegmentsSurlignage} — ils
      *                   ne coutent QUE leur surlignage, jamais le texte
-     * @param violations violations de structure ou de longueur ; non vide ⇒ les
-     *                   leviers et les segments sont vides (rien n'a ete inspecte)
+     * @param marqueurs  marqueurs du palier CONSERVES, extrait resolu de meme
+     * @param marqueursRetires marqueurs retires — ils ne coutent QUE leur preuve
+     * @param rapport    violations rangees par section ; une section en defaut
+     *                   tombe seule, sauf {@code RACINE} et {@code LEVIERS}
      */
     private record Sortie(Map<String, Object> brute, List<Map<String, Object>> leviers,
                           List<Map<String, Object>> retires,
+                          List<CompetenceNiveauViseProcedeAudit.Anomalie> procedes,
                           List<Map<String, Object>> segments,
                           List<SegmentsSurlignage.Retire> segmentsRetires,
-                          List<String> violations) {
+                          List<Map<String, Object>> marqueurs,
+                          List<CompetenceNiveauViseMarqueurFilter.Retire> marqueursRetires,
+                          CompetenceNiveauViseValidator.Rapport rapport) {
 
         /**
-         * Conforme = rien a redire cote validateur, ET il reste assez de leviers
-         * apres purge. Le contrat en impose deux au minimum : un seul ne montre
-         * pas un chemin, il montre un detail.
+         * Rien ne sera servi : la sortie est hors contrat, ou il ne reste pas
+         * assez de leviers apres purge. Le contrat en impose deux au minimum : un
+         * seul ne montre pas un chemin, il montre un detail.
          *
-         * <p><b>Les segments n'entrent pas dans ce jugement</b> : ils peuvent tous
-         * avoir ete retires sans que le bloc cesse d'etre servable — un texte sans
-         * surlignage reste un texte modele.
+         * <p><b>Ni les segments, ni les marqueurs, ni meme le texte modele
+         * n'entrent dans ce jugement</b> : ils tombent seuls, sans emporter le
+         * reste.
          */
-        boolean conforme() {
-            return violations.isEmpty()
-                && leviers.size() >= CompetenceNiveauViseValidator.MIN_LEVIERS;
+        boolean blocPerdu() {
+            return rapport.fatale()
+                || leviers.size() < CompetenceNiveauViseValidator.MIN_LEVIERS;
+        }
+
+        /** Violations des sections FATALES, pour le comptage d'un bloc abandonne. */
+        List<String> violationsFatales() {
+            List<String> out = new ArrayList<>(
+                rapport.de(CompetenceNiveauViseValidator.Section.RACINE));
+            out.addAll(rapport.de(CompetenceNiveauViseValidator.Section.LEVIERS));
+            return out;
+        }
+
+        /** Violations qui ouvrent droit a la reparation payee, s'il y en a. */
+        List<String> reparables() {
+            List<String> exemple =
+                rapport.de(CompetenceNiveauViseValidator.Section.EXEMPLE_CIBLE);
+            return CompetenceNiveauViseValidator.uniquementReparables(exemple)
+                ? exemple : List.of();
         }
 
         List<String> motifs() {
-            if (!violations.isEmpty()) return violations;
-            List<String> motifs = new ArrayList<>();
-            motifs.add(retires.size() + " levier(s) retire(s), il n'en reste que "
-                + leviers.size());
+            List<String> motifs = new ArrayList<>(rapport.toutes());
+            if (leviers.size() < CompetenceNiveauViseValidator.MIN_LEVIERS) {
+                motifs.add(retires.size() + " levier(s) retire(s), il n'en reste que "
+                    + leviers.size());
+            }
             for (SegmentsSurlignage.Retire retire : segmentsRetires) {
                 motifs.add("segment retire (" + retire.motif() + ") : " + retire.libelle());
+            }
+            for (CompetenceNiveauViseMarqueurFilter.Retire retire : marqueursRetires) {
+                motifs.add("marqueur retire (" + retire.motif() + ") : " + retire.libelle());
             }
             return motifs;
         }
@@ -316,53 +462,90 @@ public class CompetenceNiveauViseService {
 
     /**
      * Valide la sortie BRUTE, puis retire les leviers qui vendent un moyen deja
-     * acquis et les passages qu'on ne saurait pas surligner. L'ordre compte : tant
-     * que la structure est fausse, rien n'est exploitable, donc rien n'est
-     * inspecte ni compte comme purge.
+     * acquis, les passages qu'on ne saurait pas surligner et les marqueurs qui
+     * sur-vendent le palier. L'ordre compte : tant que la structure d'une section
+     * est fausse, son contenu n'est pas exploitable, donc rien n'y est inspecte ni
+     * compte comme purge.
      */
-    private Sortie examiner(Map<String, Object> brute, int maxLeviers, TargetLevel vise) {
-        List<String> violations = validator.violations(brute, maxLeviers);
-        if (!violations.isEmpty()) {
-            return new Sortie(brute, List.of(), List.of(), List.of(), List.of(), violations);
+    private Sortie examiner(Map<String, Object> brute, int maxLeviers, TargetLevel cible,
+                            ProductionTextBounds bornes) {
+        CompetenceNiveauViseValidator.Rapport rapport =
+            validator.violations(brute, maxLeviers, bornes);
+
+        CompetenceNiveauViseLevierFilter.Resultat purge =
+            rapport.de(CompetenceNiveauViseValidator.Section.LEVIERS).isEmpty()
+                ? CompetenceNiveauViseLevierFilter.purge(
+                    leviers(brute.get(CompetenceNiveauViseFields.LEVIERS), maxLeviers), cible)
+                : new CompetenceNiveauViseLevierFilter.Resultat(List.of(), List.of());
+
+        // LE PROCEDE NE RETIRE RIEN — il inspecte ce qui sera servi et compte
+        // l'ecart. Sous les contrats v1/v2 le champ n'existe pas : l'audit ne
+        // tourne pas, et les leviers sont servis exactement comme avant.
+        CompetenceNiveauViseProcedeAudit.Resultat procedes =
+            rubrics.leviersPortentUnProcede()
+                ? CompetenceNiveauViseProcedeAudit.inspecter(purge.gardes(), cible)
+                : new CompetenceNiveauViseProcedeAudit.Resultat(purge.gardes(), List.of());
+
+        SegmentsSurlignage.Resultat segments = new SegmentsSurlignage.Resultat(List.of(), List.of());
+        CompetenceNiveauViseMarqueurFilter.Resultat marqueurs =
+            new CompetenceNiveauViseMarqueurFilter.Resultat(List.of(), List.of());
+        if (rapport.de(CompetenceNiveauViseValidator.Section.EXEMPLE_CIBLE).isEmpty()) {
+            String texte = texteModele(brute);
+            segments = SEGMENTS.purge(sousChamp(brute, CompetenceNiveauViseFields.SEGMENTS), texte,
+                rubrics.contraintesLongueur().get(CompetenceNiveauViseFields.APPORT));
+            marqueurs = CompetenceNiveauViseMarqueurFilter.purge(
+                sousChamp(brute, CompetenceNiveauViseFields.MARQUEURS_PALIER), texte, cible);
         }
-        CompetenceNiveauViseLevierFilter.Resultat purge = CompetenceNiveauViseLevierFilter.purge(
-            leviers(brute.get(CompetenceNiveauViseFields.LEVIERS), maxLeviers), vise);
-        SegmentsSurlignage.Resultat segments = SEGMENTS.purge(
-            segmentsBruts(brute), texteModele(brute),
-            rubrics.contraintesLongueur().get(CompetenceNiveauViseFields.APPORT));
-        return new Sortie(brute, purge.gardes(), purge.retires(),
-            segments.gardes(), segments.retires(), List.of());
+        return new Sortie(brute, procedes.leviers(), purge.retires(), procedes.anomalies(),
+            segments.gardes(), segments.retires(),
+            marqueurs.gardes(), marqueurs.retires(), rapport);
     }
 
-    /** Valeur brute de {@code exemple_cible.segments}, ou {@code null}. */
-    private static Object segmentsBruts(Map<String, Object> brute) {
+    /** Valeur brute d'un champ de {@code exemple_cible}, ou {@code null}. */
+    private static Object sousChamp(Map<String, Object> brute, String cle) {
         if (brute == null
             || !(brute.get(CompetenceNiveauViseFields.EXEMPLE_CIBLE) instanceof Map<?, ?> m)) {
             return null;
         }
-        return m.get(CompetenceNiveauViseFields.SEGMENTS);
+        return m.get(cle);
     }
 
     /**
-     * Message de LA seule reparation payee, ou {@code null} quand la sortie n'en
-     * vaut pas une.
+     * Message de LA seule reparation payee, tous motifs confondus, ou {@code null}
+     * quand la sortie n'en vaut pas une.
      *
-     * <p>Un seul defaut y ouvre droit : des leviers <b>purges</b> ramenant la liste
-     * sous le minimum. Il est <b>mecanique et nommable</b>, donc reparable par un
-     * message qui dit ce qui a ete refuse et l'operation exacte a faire (le depot a
-     * mesure qu'un reessai non actionnable repare <b>0 cas sur 8</b>), et
-     * abandonner le bloc entier parce qu'un levier sur trois etait faux couterait
-     * au candidat toute la partie « comment y arriver » de son ecran.
+     * <p>Deux defauts y ouvrent droit, et ils partent dans le MEME message :
+     * <ul>
+     *   <li>des leviers <b>purges</b> ramenant la liste sous le minimum — abandonner
+     *       le bloc parce qu'un levier sur trois etait faux couterait au candidat
+     *       toute la partie « comment y arriver » de son ecran ;</li>
+     *   <li>un <b>texte modele hors des bornes du sujet</b> — le candidat est invite
+     *       a rejouer l'exercice avec ce modele sous les yeux.</li>
+     * </ul>
+     * Les deux sont <b>mecaniques et nommables</b>, donc reparables par un message
+     * qui dit ce qui a ete refuse et l'operation exacte a faire (le depot a mesure
+     * qu'un reessai non actionnable repare <b>0 cas sur 8</b>).
      *
-     * <p>Une sortie structurellement fausse (cle en trop, champ vide) n'ouvre droit
-     * a aucun second appel : le bloc reste un confort. Un <b>extrait introuvable</b>
-     * non plus, depuis qu'il ne coute que son surlignage — payer un appel pour un
-     * surlignage serait disproportionne.
+     * <p>N'y ouvrent droit ni une sortie structurellement fausse (cle en trop,
+     * champ vide) — le bloc reste un confort —, ni un <b>extrait introuvable</b>,
+     * ni un <b>marqueur retire</b> : ces deux-la ne coutent que leur propre mise en
+     * evidence, et payer un appel pour un surlignage serait disproportionne.
      */
-    private static String messageDeReparation(Sortie sortie, String userPrompt, TargetLevel vise) {
-        if (!sortie.violations().isEmpty()) return null;
-        return CompetenceNiveauViseRepairPrompt.pourLeviers(
-            userPrompt, sortie.retires(), sortie.leviers(), vise);
+    private static String messageDeReparation(Sortie sortie, String userPrompt, TargetLevel cible,
+                                              ProductionTextBounds bornes) {
+        if (!sortie.rapport().de(CompetenceNiveauViseValidator.Section.RACINE).isEmpty()) {
+            return null;
+        }
+        boolean leviers = !sortie.rapport().de(CompetenceNiveauViseValidator.Section.LEVIERS)
+            .isEmpty();
+        if (leviers) return null;
+
+        List<Map<String, Object>> leviersRefuses =
+            sortie.leviers().size() < CompetenceNiveauViseValidator.MIN_LEVIERS
+                ? sortie.retires() : List.of();
+        String texteRefuse = sortie.reparables().isEmpty() ? null : texteModele(sortie.brute());
+        return CompetenceNiveauViseRepairPrompt.pour(userPrompt, leviersRefuses, sortie.leviers(),
+            cible, texteRefuse, texteRefuse == null ? null : bornes);
     }
 
     // ---------------------------------------------------------- persistance
@@ -377,15 +560,26 @@ public class CompetenceNiveauViseService {
      * persistee en {@code jsonb} et c'est le remplacement de l'instance qui rend
      * la modification visible au dirty-checking de maniere sûre.
      */
-    private static Map<String, Object> analyseAvecBloc(Map<String, Object> analyse, Sortie sortie,
-                                                       NiveauCecrl constate, TargetLevel vise) {
+    private Map<String, Object> analyseAvecBloc(Map<String, Object> analyse, Sortie sortie,
+                                                NiveauCecrl constate, TargetLevel cible) {
         Map<String, Object> bloc = new LinkedHashMap<>();
-        bloc.put(CompetenceNiveauViseFields.NIVEAU_VISE, vise.name());
+        // NIVEAU_VISE porte le palier CIBLE — celui que le texte modele demontre
+        // vraiment, pas l'objectif lointain de la demarche. C'est ce que les
+        // fronts nomment dans leur intertitre ; annoncer un palier que le texte
+        // n'atteint pas etait exactement le defaut mesure. L'objectif du candidat,
+        // lui, reste dit par SkillLevelProgressResolver, sur son propre ecran.
+        bloc.put(CompetenceNiveauViseFields.NIVEAU_VISE, cible.name());
         bloc.put(CompetenceNiveauViseFields.NIVEAU_CONSTATE, constate.name());
         bloc.put(CompetenceNiveauViseFields.LEVIERS, sortie.leviers());
-        bloc.put(CompetenceNiveauViseFields.EXEMPLE_CIBLE, exempleCible(sortie));
-        bloc.put(CompetenceNiveauViseFields.A_RETENIR,
-            sortie.brute().get(CompetenceNiveauViseFields.A_RETENIR));
+        // Une section facultative en defaut est simplement ABSENTE : les fronts
+        // traitent deja `exempleCible` et `aRetenir` comme nullables.
+        if (sortie.rapport().de(CompetenceNiveauViseValidator.Section.EXEMPLE_CIBLE).isEmpty()) {
+            bloc.put(CompetenceNiveauViseFields.EXEMPLE_CIBLE, exempleCible(sortie));
+        }
+        if (sortie.rapport().de(CompetenceNiveauViseValidator.Section.A_RETENIR).isEmpty()) {
+            bloc.put(CompetenceNiveauViseFields.A_RETENIR,
+                sortie.brute().get(CompetenceNiveauViseFields.A_RETENIR));
+        }
 
         Map<String, Object> enrichi = new LinkedHashMap<>(analyse);
         enrichi.put(CompetenceAnalysisFields.BLOC_POUR_VISER, bloc);
@@ -423,10 +617,17 @@ public class CompetenceNiveauViseService {
      * <p>La liste peut etre <b>vide</b> : un texte sans surlignage reste un texte
      * modele.
      */
-    private static Map<String, Object> exempleCible(Sortie sortie) {
+    private Map<String, Object> exempleCible(Sortie sortie) {
         Map<String, Object> exemple = new LinkedHashMap<>();
         exemple.put(CompetenceNiveauViseFields.TEXTE, texteModele(sortie.brute()));
         exemple.put(CompetenceNiveauViseFields.SEGMENTS, sortie.segments());
+        if (rubrics.marqueursDuPalierExiges()) {
+            // PERSISTE, mais expose a AUCUN front (aucun ecran ne l'affiche, et
+            // une API morte est une dette) : c'est ce qui permettra de repondre en
+            // une requete SQL a « sur quoi ce B1 etait-il fonde ? ». Meme
+            // arbitrage que `level_evidence` cote analyse.
+            exemple.put(CompetenceNiveauViseFields.MARQUEURS_PALIER, sortie.marqueurs());
+        }
         return exemple;
     }
 

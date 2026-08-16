@@ -725,6 +725,14 @@ class SkillNiveauViseDto {
     required this.aRetenir,
   });
 
+  /// ⚠️ Le **palier CIBLE** de cet exercice — la marche suivante
+  /// (`niveauConstate + 1`, plafonnée à l'objectif de la démarche) —, **pas**
+  /// l'objectif lointain du candidat. C'est ce que le texte modèle démontre
+  /// réellement, donc ce que l'intertitre nomme (`pourPasserAuTitle`). Le
+  /// contrat v2 le rend exigible : le texte est borné par la fourchette de mots
+  /// du sujet et doit désigner des marqueurs de palier recopiés de lui-même.
+  ///
+  /// L'objectif du candidat, lui, reste dit par [SkillLevelProgressDto].
   final TargetLevel niveauVise;
   final NiveauCecrl? niveauConstate;
 

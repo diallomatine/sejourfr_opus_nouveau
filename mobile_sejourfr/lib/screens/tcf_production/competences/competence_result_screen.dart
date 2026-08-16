@@ -303,7 +303,11 @@ class _CompetenceResultScreenState
             if (niveauVise != null) ...[
               if (niveauVise.leviers.isNotEmpty) ...[
                 const SizedBox(height: 18),
-                SectionTitle(title: pourViserTitle(niveauVise.niveauVise)),
+                // `niveauVise` porte ici le PALIER CIBLE (la marche suivante),
+                // pas l'objectif lointain : le titre nomme donc ce que le texte
+                // modele demontre vraiment. L'objectif, lui, est dit juste
+                // au-dessus par la carte de niveau (`SkillLevelProgress`).
+                SectionTitle(title: pourPasserAuTitle(niveauVise.niveauVise)),
                 const SizedBox(height: 9),
                 ActionPlanLeviers(leviers: niveauVise.leviers),
               ],

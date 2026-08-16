@@ -50,23 +50,25 @@ public class CompetenceProperties {
          * Version du fichier de consignes charge par le fournisseur de
          * rubriques : {@code prompts/competence-analysis-rubrics-<v>.json}.
          *
-         * <p>v4 = v3 au bit pres pour tout ce qui JUGE (role, les trois
-         * verdicts et leur regle de decision, l'attribution du niveau, la
-         * brievete, le garde-fou oral, l'accentuation, les plafonds). Ce qu'elle
-         * ajoute : {@code level_evidence}, le NUMERO du segment de la production
-         * qui demontre un B1 ou un B2. Sans preuve exploitable, le serveur
-         * abaisse le niveau d'un palier — il ne le releve jamais et ne perd
-         * jamais l'analyse. La note sur 20 reste interdite.
-         * Retour arriere : v3 + v3, v2 + v2, ou v1 + v1.
+         * <p>v5 = v4 au bit pres pour tout ce qui JUGE (role, les trois
+         * verdicts et leur regle de decision, la table des cinq paliers, la
+         * preuve du niveau par numero, la brievete, le garde-fou oral,
+         * l'accentuation, les plafonds). Elle ne corrige que des BIAIS lisibles
+         * dans le prompt : trois ancres ajoutees (2 B2, 1 A1_NON_ATTEINT — ces
+         * deux paliers n'etaient jamais montres au correcteur) et le retrait
+         * d'une consigne de repartition (« c'est meme le cas le plus frequent »).
+         * <b>Son contrat de sortie reste v4</b>, aucun champ ne bouge.
+         * Retour arriere : v4 + v4, v3 + v3, v2 + v2, ou v1 + v1.
          */
-        private String rubricsVersion = "v4";
+        private String rubricsVersion = "v5";
 
         /**
          * Version du contrat de sortie :
          * {@code prompts/competence-analysis-tool-schema-<v>.json}. Versionnee
          * separement des consignes, comme cote productions : deux analyses
          * produites avec le meme schema mais des consignes differentes ne sont
-         * pas comparables.
+         * pas comparables. C'est exactement le cas de v5, qui rend le meme JSON
+         * que v4 en lisant des consignes differentes.
          */
         private String toolSchemaVersion = "v4";
 
@@ -148,11 +150,32 @@ public class CompetenceProperties {
          */
         private boolean enabled = true;
 
-        /** {@code prompts/competence-niveau-vise-rubrics-<v>.json}. */
-        private String rubricsVersion = "v1";
+        /**
+         * {@code prompts/competence-niveau-vise-rubrics-<v>.json}.
+         *
+         * <p>v3 = UN LEVIER NOMME UNE OPERATION DE LANGUE. Chaque levier declare
+         * son {@code procede} dans la MEME enumeration fermee que les marqueurs
+         * du palier. Motif mesure : les leviers servis vers le B2 etaient « Rends
+         * ton invitation plus chaleureuse », « Propose une alternative concrete »,
+         * « Termine par une formule engageante » — des conseils de TON, qu'on
+         * peut suivre a la lettre en restant A2. C'est le SCHEMA qui tient la
+         * regle : 🛑 un levier n'est jamais purge a cause de son procede, il est
+         * servi tel quel et l'anomalie est comptee.
+         *
+         * <p>v2 = le PALIER DEVIENT EXIGIBLE. Le texte modele vise la marche
+         * suivante (palier constate + 1, plafonne a l'objectif du candidat), sa
+         * longueur est bornee par celle du sujet, et il doit DESIGNER deux a
+         * trois {@code marqueurs_du_palier} recopies de lui-meme. Motif mesure :
+         * un candidat a recopie tel quel un texte servi comme « version pour
+         * viser le B2 », l'a resoumis, et le correcteur l'a reevalue A2 — rien
+         * n'obligeait ce texte a etre au niveau annonce.
+         *
+         * <p>Retour arriere : v2 + v2, ou v1 + v1, sans migration.
+         */
+        private String rubricsVersion = "v3";
 
         /** {@code prompts/competence-niveau-vise-tool-schema-<v>.json}. */
-        private String toolSchemaVersion = "v1";
+        private String toolSchemaVersion = "v3";
 
         /**
          * Plafond de tokens de SORTIE, propre a cet appel : deux ou trois

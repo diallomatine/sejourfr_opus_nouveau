@@ -2022,11 +2022,17 @@ Points de comportement à ne pas défaire :
     correction EE/EO : ils vivent dans `tcf_production/widgets/action_plan.dart`
     (`ActionPlanLeviers`, `ActionPlanExempleCard`,
     `ActionPlanReformulationsList`, `ActionPlanMemoCard` + les libellés gelés
-    `pourViserTitle` / `kActionPlanExempleTitle` /
+    `pourViserTitle` / `pourPasserAuTitle` / `kActionPlanExempleTitle` /
     `kActionPlanReformulationsTitle`), promus depuis `competences/widgets/` à
     leur deuxième consommateur. Ils rendent le **corps seul** — chaque écran pose
     son propre intertitre (`SectionTitle` ici, `ResultsSectionHead` dans le
-    rapport). Ne pas les recopier.
+    rapport). Ne pas les recopier. ⚠️ **Deux intertitres de leviers, et c'est
+    voulu** : une production complète vise l'objectif du candidat
+    (`pourViserTitle`, « Pour viser B2 ») ; un micro-exercice vise la **marche
+    suivante**, seule chose que son texte modèle démontre vraiment
+    (`pourPasserAuTitle`, « Pour passer au niveau B1 »). Depuis le contrat v2 de
+    `competence-niveau-vise`, `SkillNiveauViseDto.niveauVise` porte ce **palier
+    cible**, pas l'objectif.
   - **Tout est dérivé serveur** : `SkillLevelProgressDto` porte le niveau
     démontré, le palier visé, la situation, **son libellé prêt à afficher**,
     les 3 crans de la jauge et l'index du curseur. `SkillLevelCard` /

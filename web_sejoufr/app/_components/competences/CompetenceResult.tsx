@@ -46,7 +46,7 @@ import {
   ActionPlanLeviers,
   ActionPlanMemoCard,
   ActionPlanPending,
-  pourViserTitle,
+  pourPasserAuTitle,
 } from "@/app/_components/skill-ui/ActionPlan";
 import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
@@ -505,7 +505,11 @@ function AnalysisView({
         <>
           {cible.leviers && cible.leviers.length > 0 && (
             <section className={s.block}>
-              <h3 className={s.resultSectionTitle}>{pourViserTitle(cible.niveauVise)}</h3>
+              {/* `niveauVise` porte ici le PALIER CIBLE (la marche suivante), pas
+                  l'objectif lointain : le titre nomme donc ce que le texte modèle
+                  démontre vraiment. L'objectif, lui, est dit juste au-dessus par
+                  la carte de niveau. */}
+              <h3 className={s.resultSectionTitle}>{pourPasserAuTitle(cible.niveauVise)}</h3>
               <ActionPlanLeviers leviers={cible.leviers} />
             </section>
           )}

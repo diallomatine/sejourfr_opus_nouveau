@@ -19,12 +19,23 @@ import java.util.List;
  * <p>{@code niveauVise} et {@code niveauConstate} sont poses par le SERVEUR : le
  * contrat de sortie du modele ne prevoit aucun champ ou les ecrire.
  *
- * @param niveauVise     le palier qu'exige la demarche du candidat
+ * <p>⚠️ {@code niveauVise} porte le <b>palier CIBLE</b> — la marche suivante
+ * ({@code niveauConstate + 1}, plafonnee a l'objectif de la demarche), pas
+ * l'objectif lointain du candidat. C'est ce que le texte modele demontre
+ * reellement, et donc ce que les fronts doivent nommer dans leur intertitre :
+ * annoncer un palier que le texte n'atteint pas est le defaut mesure qui a
+ * motive le contrat v2. L'objectif du candidat, lui, reste dit par
+ * {@link SkillLevelProgressDto}, sur son propre bloc d'ecran.
+ *
+ * @param niveauVise     le palier CIBLE de cet exercice : la marche suivante
  * @param niveauConstate le palier demontre par cette production
  * @param leviers        2 a 3 leviers, du plus rentable au moins rentable
- * @param exempleCible   sa reponse reecrite au niveau vise, avec les passages
- *                       a mettre en evidence
- * @param aRetenir       la tournure a emporter ailleurs
+ * @param exempleCible   sa reponse reecrite au palier cible, avec les passages
+ *                       a mettre en evidence. <b>Nullable</b> : la section tombe
+ *                       seule quand son texte est inexploitable, le reste du
+ *                       bloc restant servi
+ * @param aRetenir       la tournure a emporter ailleurs. <b>Nullable</b>, meme
+ *                       raison
  */
 public record SkillNiveauViseDto(
         TargetLevel niveauVise,

@@ -1447,11 +1447,22 @@ export interface ActionPlanMemo {
  *  palier visé inconnu, fournisseur muet, sortie refusée. Aucun front n'affiche
  *  de message d'échec, de spinner ni d'encart d'excuse quand il manque. */
 export interface SkillNiveauViseDto {
+    /** ⚠️ Le **palier CIBLE** de cet exercice — la marche suivante
+     *  (`niveauConstate + 1`, plafonnée à l'objectif de la démarche) —, **pas**
+     *  l'objectif lointain du candidat. C'est ce que le texte modèle démontre
+     *  réellement, donc ce que l'intertitre nomme (`pourPasserAuTitle`). Le
+     *  contrat v2 le rend exigible : longueur bornée par le sujet, et marqueurs
+     *  de palier recopiés du texte, vérifiés serveur.
+     *
+     *  L'objectif du candidat, lui, reste dit par `SkillLevelProgressDto`. */
     niveauVise: TargetLevel;
     niveauConstate: NiveauCecrl | null;
     /** 2 à 3 leviers, du plus rentable au moins rentable. */
     leviers: ActionPlanLevier[] | null;
+    /** **Nullable** : la section tombe seule quand son texte est inexploitable,
+     *  le reste du bloc restant servi. */
     exempleCible: ActionPlanExempleCible | null;
+    /** **Nullable**, même raison. */
     aRetenir: ActionPlanMemo | null;
 }
 

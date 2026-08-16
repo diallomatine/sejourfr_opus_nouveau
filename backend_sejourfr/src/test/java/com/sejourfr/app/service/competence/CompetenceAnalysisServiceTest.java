@@ -166,8 +166,10 @@ class CompetenceAnalysisServiceTest {
         assertThat(attempt.getStatut()).isEqualTo(SkillAttemptStatut.EVALUATED);
         assertThat(attempt.getCriterionStatus()).isEqualTo(SkillCriterionStatus.PARTIAL);
         assertThat(attempt.getAiModel()).isEqualTo("deepseek-v4-flash");
+        // Les deux versions ne coincident plus : v5 lit d'autres consignes en
+        // rendant exactement le meme JSON, donc le meme contrat de sortie.
         assertThat(attempt.getPromptVersion()).isEqualTo("v4");
-        assertThat(attempt.getRubricsVersion()).isEqualTo("v4");
+        assertThat(attempt.getRubricsVersion()).isEqualTo("v5");
         assertThat(attempt.getTokensInput()).isEqualTo(1200);
         assertThat(attempt.getTokensOutput()).isEqualTo(180);
         assertThat(attempt.getCoutEstimeCentimes()).isEqualTo(3);
@@ -319,8 +321,53 @@ class CompetenceAnalysisServiceTest {
         verify(client).analyse(anyString(), user.capture());
         assertThat(user.getValue()).contains(
             "\"exam\":\"TCF_IRN\"", "\"section\":\"EE\"", "\"taskCode\":\"EE1\"",
-            "\"skillId\":\"EE1-C3\"", "\"targetLevel\":\"A2\"",
-            "uniqueCriterion", "candidateProduction");
+            "\"skillId\":\"EE1-C3\"", "uniqueCriterion", "candidateProduction");
+    }
+
+    /**
+     * AUCUNE ETIQUETTE DE PALIER n'accompagne plus le texte a niveler (v5).
+     *
+     * <p>Le {@code targetLevel} envoye jusqu'a v4 etait celui de la COMPETENCE,
+     * pas de la personne — mais la grille ne le nommait <b>nulle part</b> : le
+     * correcteur recevait un « A2 » dans le meme objet JSON que la production, et
+     * n'a jamais rendu autre chose que du A2 sur ces sujets-la (mesure en base :
+     * 0 B2 sur 18 tentatives). Le principe est celui du montage a deux appels :
+     * on ne pose pas un niveau a cote d'un texte qu'on demande de niveler.
+     */
+    @Test
+    void leNiveauCibleDeLaCompetenceNAccompagnePlusLaProduction() {
+        UserSkillAttempt attempt = attempt(SkillSection.EE);
+        when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
+        when(client.analyse(anyString(), anyString()))
+            .thenReturn(outcome(sortieValide(), 10, 10, 1));
+
+        service.analyse(ATTEMPT_ID);
+
+        ArgumentCaptor<String> user = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> system = ArgumentCaptor.forClass(String.class);
+        verify(client).analyse(system.capture(), user.capture());
+        assertThat(user.getValue()).doesNotContain("targetLevel");
+        assertThat(system.getValue()).doesNotContain("targetLevel");
+    }
+
+    /**
+     * RETOUR ARRIERE REEL : sous les consignes v4, le prompt reprend exactement
+     * la forme d'avant, {@code targetLevel} compris. Une bascule qui ne se defait
+     * pas au bit pres n'est pas un retour arriere.
+     */
+    @Test
+    void leRetourArriereEnV4RemetLeNiveauCibleDeLaCompetenceDansLePrompt() {
+        CompetenceAnalysisServiceImpl v4 = service(proprietes("v4", "v4"));
+        UserSkillAttempt attempt = attempt(SkillSection.EE);
+        when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
+        when(client.analyse(anyString(), anyString()))
+            .thenReturn(outcome(sortieValide(), 10, 10, 1));
+
+        v4.analyse(ATTEMPT_ID);
+
+        ArgumentCaptor<String> user = ArgumentCaptor.forClass(String.class);
+        verify(client).analyse(anyString(), user.capture());
+        assertThat(user.getValue()).contains("\"targetLevel\":\"A2\"");
     }
 
     @Test
@@ -377,9 +424,10 @@ class CompetenceAnalysisServiceTest {
             .doesNotContain("NAT")
             .doesNotContain("naturalisation");
         assertThat(system.getValue()).doesNotContain("niveau_vise");
-        // Le targetLevel present est celui de la COMPETENCE (donnee editoriale du
-        // sujet), pas celui de la personne : le skill de ce test est en A2.
-        assertThat(user.getValue()).contains("\"targetLevel\":\"A2\"");
+        // Et depuis v5, meme le niveau cible de la COMPETENCE (donnee editoriale
+        // du sujet) a disparu du prompt : aucune etiquette de palier n'accompagne
+        // plus le texte a niveler.
+        assertThat(user.getValue()).doesNotContain("targetLevel", "\"B1\"");
     }
 
     // ============================ preuve du niveau (contrat v4) ============

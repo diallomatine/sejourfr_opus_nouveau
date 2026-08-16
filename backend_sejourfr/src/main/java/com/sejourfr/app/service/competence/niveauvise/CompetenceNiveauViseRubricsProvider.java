@@ -40,8 +40,14 @@ public class CompetenceNiveauViseRubricsProvider {
         LoggerFactory.getLogger(CompetenceNiveauViseRubricsProvider.class);
     private static final String PATH_FORMAT = "prompts/competence-niveau-vise-rubrics-%s.json";
 
-    /** Paires consignes -> tool-schema supportees. On versionne, on ne reecrit jamais. */
-    private static final Map<String, String> TOOL_SCHEMA_BY_RUBRICS_VERSION = Map.of("v1", "v1");
+    /**
+     * Paires consignes -> tool-schema supportees. On versionne, on ne reecrit
+     * jamais : v1 reste chargeable au bit pres, c'est le retour arriere
+     * ({@code COMPETENCE_NIVEAU_VISE_RUBRICS_VERSION=v1} +
+     * {@code COMPETENCE_NIVEAU_VISE_TOOL_SCHEMA_VERSION=v1}), sans migration.
+     */
+    private static final Map<String, String> TOOL_SCHEMA_BY_RUBRICS_VERSION =
+        Map.of("v1", "v1", "v2", "v2", "v3", "v3");
 
     /** Ce module ne sert que le TCF IRN : aucune autre grille n'est acceptee. */
     private static final String PROFILE_ATTENDU = "TCF_IRN";
@@ -51,6 +57,8 @@ public class CompetenceNiveauViseRubricsProvider {
 
     private Map<String, Object> commun = Map.of();
     private Map<String, Integer> contraintesLongueur = Map.of();
+    private boolean marqueursDuPalierExiges;
+    private boolean leviersPortentUnProcede;
 
     public CompetenceNiveauViseRubricsProvider(CompetenceProperties props,
                                                ObjectMapper objectMapper) {
@@ -83,11 +91,21 @@ public class CompetenceNiveauViseRubricsProvider {
             }
 
             this.contraintesLongueur = resolveContraintes(communMap.get("contraintes_longueur"));
+            String schema = TOOL_SCHEMA_BY_RUBRICS_VERSION.get(version);
+            this.marqueursDuPalierExiges =
+                CompetenceNiveauViseFields.porteLesMarqueursDuPalier(schema);
+            this.leviersPortentUnProcede =
+                CompetenceNiveauViseFields.porteLeProcedeDesLeviers(schema);
+            if (marqueursDuPalierExiges) {
+                validateMarqueursPalier(communMap.get("marqueurs_palier"));
+            }
             this.commun = Map.copyOf(communMap);
 
             log.info("Consignes « pour viser » chargees ({}) : {} sections, {} ancres, "
-                    + "plafonds {} mots, tool-schema {}",
+                    + "plafonds {} mots, marqueurs de palier {}, procede des leviers {}, "
+                    + "tool-schema {}",
                 version, sections.size(), fewShot.size(), contraintesLongueur,
+                marqueursDuPalierExiges, leviersPortentUnProcede,
                 props.getNiveauVise().getToolSchemaVersion());
         } catch (Exception e) {
             throw new IllegalStateException(
@@ -121,6 +139,54 @@ public class CompetenceNiveauViseRubricsProvider {
             throw new IllegalStateException("contrat consignes/tool-schema incompatible : consignes "
                 + configuredVersion + " -> " + expectedSchema + ", config -> " + configuredSchema);
         }
+    }
+
+    /**
+     * LA TABLE DES MARQUEURS EST OPPOSEE AU BOOT, jamais deduite a l'execution.
+     *
+     * <p>{@link MarqueurPalier} et {@code commun.marqueurs_palier} disent la meme
+     * chose a deux endroits : le procede que le modele peut declarer, et le palier
+     * a partir duquel il prouve quelque chose. Une divergence — un procede ajoute
+     * d'un cote seulement, un palier deplace — ferait purger en silence des
+     * marqueurs que la grille vient d'autoriser. Elle fait donc echouer le
+     * demarrage, comme toute paire de contrat de ce depot : <b>jamais de repli
+     * muet</b>.
+     */
+    private static void validateMarqueursPalier(Object node) {
+        if (!(node instanceof Map<?, ?> m) || m.isEmpty()) {
+            throw new IllegalStateException("bloc 'commun.marqueurs_palier' absent ou vide");
+        }
+        Map<String, String> declares = new LinkedHashMap<>();
+        m.forEach((cle, valeur) -> declares.put(String.valueOf(cle), String.valueOf(valeur)));
+        Map<String, String> attendus = MarqueurPalier.table();
+        if (!attendus.equals(declares)) {
+            throw new IllegalStateException("table des marqueurs de palier incoherente : grille="
+                + declares + ", enum MarqueurPalier=" + attendus);
+        }
+    }
+
+    /**
+     * Le contrat actif exige-t-il que le palier soit DEMONTRE par des marqueurs
+     * recopies du texte modele ? Faux sous v1 : tout ce qui les entoure reste
+     * inerte, c'est ce qui garde le retour arriere reel.
+     */
+    public boolean marqueursDuPalierExiges() {
+        return marqueursDuPalierExiges;
+    }
+
+    /**
+     * Le contrat actif exige-t-il que chaque levier nomme le PROCEDE de langue
+     * qu'il met en œuvre ? Vrai a partir de v3.
+     *
+     * <p><b>Ce booleen n'autorise jamais une purge.</b> Il ouvre trois choses, et
+     * trois seulement : le procede est demande dans le prompt, admis par le
+     * validateur comme une cle du contrat, et son anomalie est comptee. Un levier
+     * dont le procede manque, est inconnu ou sur-vend le palier cible reste
+     * <b>servi tel quel</b> — les leviers portent le bloc entier, les purger sur
+     * ce motif viderait l'ecran du candidat pour une etiquette.
+     */
+    public boolean leviersPortentUnProcede() {
+        return leviersPortentUnProcede;
     }
 
     /** Bloc {@code commun} complet (sections, plafonds, ancres). */

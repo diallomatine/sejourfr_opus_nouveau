@@ -29,12 +29,34 @@ import s from "./skill.module.css";
  * ------------------------------------------------------------------------- */
 
 /**
- * Intertitre des leviers. **Il garde le palier** : c'est l'objectif du candidat,
- * pas une affirmation sur un texte — donc il est exact, contrairement à un titre
- * qui étiquetterait un modèle d'un niveau que rien ne vérifie.
+ * Intertitre des leviers d'une **production complète**. Il garde le palier :
+ * c'est l'objectif du candidat, pas une affirmation sur un texte — donc il est
+ * exact, contrairement à un titre qui étiquetterait un modèle d'un niveau que
+ * rien ne vérifie.
  */
 export function pourViserTitle(niveauVise: string): string {
   return `Pour viser ${niveauVise}`;
+}
+
+/**
+ * Intertitre des leviers d'un **micro-exercice de compétence**.
+ *
+ * Depuis le contrat v2 de `competence-niveau-vise`, `niveauVise` n'y porte plus
+ * l'objectif lointain du candidat mais le **palier cible** : la marche suivante
+ * (`niveau constaté + 1`, plafonnée à son objectif), que le texte modèle doit
+ * réellement démontrer — bornes de longueur du sujet appliquées, marqueurs de
+ * palier recopiés du texte et vérifiés serveur. Le titre le nomme donc tel
+ * quel : annoncer « Pour viser B2 » sur un texte qui vaut B1 est exactement le
+ * défaut mesuré (un candidat a recopié ce modèle, l'a resoumis, et a été
+ * réévalué A2).
+ *
+ * ⚠️ Formulation **positive**, règle gelée du dépôt : on nomme la marche
+ * atteignable, jamais un manque (« presque B1 » est banni).
+ *
+ * Miroir mobile : `pourPasserAuTitle` (`widgets/action_plan.dart`).
+ */
+export function pourPasserAuTitle(palierCible: string): string {
+  return `Pour passer au niveau ${palierCible}`;
 }
 
 /**

@@ -50,6 +50,22 @@ class CompetenceAnalysisContractTest {
     private static final String TITRE_CHAMPS_V3 = "Les cinq champs à produire";
     private static final String TITRE_CHAMPS_V4 = "Les six champs à produire";
     private static final String TITRE_INTERDICTIONS = "Interdictions absolues";
+    /** La seule section que v5 edite. */
+    private static final String TITRE_NIVEAU = "Le niveau de langue démontré : `level_reached`";
+    /**
+     * L'UNIQUE fragment que v5 remplace. Il annoncait une FREQUENCE ATTENDUE,
+     * c'est-a-dire une consigne de repartition : mesure en base, le correcteur
+     * n'a jamais rendu un seul B2 sur 18 tentatives reelles.
+     */
+    private static final String FRAGMENT_NIVEAU_V4 =
+        "Un critère peut être VALIDATED en A2 — c'est même le cas le plus fréquent, "
+            + "et c'est normal : le candidat a fait exactement ce qu'on lui demandait, avec "
+            + "les moyens qu'il a.";
+    private static final String FRAGMENT_NIVEAU_V5 =
+        "Un critère peut être VALIDATED en A2 comme en B2 : le verdict dit ce que le "
+            + "candidat a fait, le niveau dit avec quels moyens. Aucun palier n'est plus "
+            + "« attendu » qu'un autre et tu n'as aucune répartition à respecter — tu "
+            + "décris cette production-ci, pas une moyenne.";
     private static final List<String> STATUTS = List.of("VALIDATED", "PARTIAL", "NOT_VALIDATED");
     /** Profil TCF IRN : plafonne au B2, jamais C1 ni C2. */
     private static final List<String> NIVEAUX =
@@ -204,10 +220,12 @@ class CompetenceAnalysisContractTest {
         CompetenceProperties.Analysis analysis = new CompetenceProperties().getAnalysis();
         Properties yaml = applicationYaml();
 
-        assertThat(analysis.getRubricsVersion()).isEqualTo("v4");
-        assertThat(analysis.getToolSchemaVersion()).isEqualTo("v4");
+        assertThat(analysis.getRubricsVersion()).isEqualTo("v5");
+        assertThat(analysis.getToolSchemaVersion())
+            .as("v5 ne change AUCUN champ de sortie : elle reste sur le contrat v4")
+            .isEqualTo("v4");
         assertThat(yaml.getProperty("sejourfr.competences.analysis.rubrics-version"))
-            .isEqualTo("${COMPETENCE_RUBRICS_VERSION:v4}");
+            .isEqualTo("${COMPETENCE_RUBRICS_VERSION:v5}");
         assertThat(yaml.getProperty("sejourfr.competences.analysis.tool-schema-version"))
             .isEqualTo("${COMPETENCE_TOOL_SCHEMA_VERSION:v4}");
     }
@@ -732,6 +750,198 @@ class CompetenceAnalysisContractTest {
     @Test
     void lesConsignesV4NeParlentJamaisDuNiveauViseParLeCandidat() {
         String consignes = resourceText("prompts/competence-analysis-rubrics-v4.json");
+
+        assertThat(consignes)
+            .doesNotContain("niveau_vise")
+            .doesNotContain("NIVEAU VISÉ PAR LE CANDIDAT")
+            .doesNotContain("TargetProcedure");
+        assertThat(consignes).contains("Tu ne sais pas quel niveau ce candidat VISE");
+    }
+
+    // ======================================================== contrat v5 ====
+
+    /**
+     * v5 <b>ne change aucun champ de sortie</b> : elle declare le tool-schema v4.
+     * C'est la premiere version de consignes de ce module qui reutilise le
+     * contrat de la precedente — deux consignes differentes peuvent produire le
+     * meme JSON, et rien n'obligeait a fabriquer un cinquieme schema identique.
+     */
+    @Test
+    void lesConsignesV5DeclarentLeToolSchemaV4EtLeProfilTcfIrn() {
+        assertThat(resource("prompts/competence-analysis-rubrics-v5.json"))
+            .containsEntry("rubrics-version", "v5")
+            .containsEntry("tool_schema_version", "v4")
+            .containsEntry("profile", "TCF_IRN");
+    }
+
+    /**
+     * LE VERROU CENTRAL DE v5 : elle est v4 <b>au bit pres</b> partout ou l'on
+     * juge. Meme technique de reconstruction inverse que pour v4 depuis v3.
+     *
+     * <p>v5 ne corrige que des BIAIS lisibles dans le prompt : deux paliers sans
+     * la moindre ancre, et une frequence attendue ecrite noir sur blanc. Aucun
+     * verdict, aucun descripteur de palier, aucune regle de preuve ne bouge —
+     * sans ce verrou, un ajout d'ancres pourrait faire glisser un seuil sans que
+     * personne ne le voie.
+     */
+    @Test
+    void lesConsignesV5SontV4AuBitPresPourToutCeQuiJuge() {
+        Map<String, Object> communV4 = map(
+            resource("prompts/competence-analysis-rubrics-v4.json").get("commun"));
+        Map<String, Object> communV5 = map(
+            resource("prompts/competence-analysis-rubrics-v5.json").get("commun"));
+
+        for (String bloc : List.of("statuts", "niveaux", "contraintes_longueur")) {
+            assertThat(communV5.get(bloc))
+                .as("v5 ne touche pas a commun.%s : rien de ce qui juge ne bouge", bloc)
+                .isEqualTo(communV4.get(bloc));
+        }
+
+        Map<String, Object> sectionsV4 = sectionsParTitre(communV4);
+        Map<String, Object> sectionsV5 = sectionsParTitre(communV5);
+        assertThat(sectionsV5.keySet())
+            .as("aucune section ajoutee, aucune supprimee, aucune renommee")
+            .containsExactlyElementsOf(sectionsV4.keySet());
+
+        for (Map.Entry<String, Object> attendue : sectionsV4.entrySet()) {
+            if (TITRE_NIVEAU.equals(attendue.getKey())) continue;
+            assertThat(sectionsV5.get(attendue.getKey()))
+                .as("la section « %s » est reprise telle quelle", attendue.getKey())
+                .isEqualTo(attendue.getValue());
+        }
+    }
+
+    /**
+     * L'UNIQUE edition d'une section existante : le prior vers le A2 disparait.
+     * Le test l'inverse pour reconstruire v4 caractere par caractere — aucune
+     * reformulation ne peut se glisser derriere le pretexte d'un biais retire.
+     *
+     * <p>Ce qu'on retire est une <b>consigne de repartition</b> (« c'est meme le
+     * cas le plus frequent, et c'est normal »), pas l'idee qu'elle portait : un
+     * critere peut toujours etre valide a un palier modeste, et le verdict reste
+     * independant du niveau.
+     */
+    @Test
+    void laSeuleSectionEditeeParV5SeReconstruitExactementEnV4() {
+        Map<String, Object> communV4 = map(
+            resource("prompts/competence-analysis-rubrics-v4.json").get("commun"));
+        Map<String, Object> communV5 = map(
+            resource("prompts/competence-analysis-rubrics-v5.json").get("commun"));
+
+        String v5 = contenuSection(communV5, TITRE_NIVEAU);
+        assertThat(v5)
+            .as("aucune frequence attendue : ce serait une instruction de repartition")
+            .doesNotContain("le cas le plus fréquent")
+            .contains(FRAGMENT_NIVEAU_V5)
+            .as("l'independance verdict/niveau, elle, est conservee")
+            .contains("LE NIVEAU EST INDÉPENDANT DU VERDICT")
+            .contains("NOT_VALIDATED alors que la langue est B1");
+
+        assertThat(v5.replace(FRAGMENT_NIVEAU_V5, FRAGMENT_NIVEAU_V4))
+            .as("une seule edition, et elle se defait exactement")
+            .isEqualTo(contenuSection(communV4, TITRE_NIVEAU));
+    }
+
+    /**
+     * Les sept ancres de v4 sont reprises TELLES QUELLES, dans l'ordre : une ancre
+     * reecrite reapprendrait un jugement au correcteur. v5 en AJOUTE trois, sur
+     * les deux paliers que v4 n'ancrait pas du tout.
+     */
+    @Test
+    void lesAncresDeV4SontReprisesTellesQuellesEtTroisSAjoutent() {
+        List<?> v4 = list(map(
+            resource("prompts/competence-analysis-rubrics-v4.json").get("commun")).get("few_shot"));
+        List<?> v5 = list(map(
+            resource("prompts/competence-analysis-rubrics-v5.json").get("commun")).get("few_shot"));
+
+        assertThat(v5).hasSize(v4.size() + 3);
+        assertThat(v5.subList(0, v4.size()))
+            .as("on ajoute des ancres, on n'en retouche aucune")
+            .isEqualTo(v4);
+    }
+
+    /**
+     * LE DEFAUT QUE v5 CORRIGE, fige ici : v4 comptait 4 ancres A2, 2 B1, 1 A1 —
+     * et <b>zero</b> sur B2 comme sur A1_NON_ATTEINT. Le correcteur n'avait donc
+     * jamais vu a quoi ressemblent ces deux paliers dans ce format, et la base
+     * locale le montrait : 0 B2 sur 18 tentatives reelles.
+     *
+     * <p>On exige que les CINQ paliers soient demontres, pas que le B2 devienne
+     * facile : le A2 reste majoritaire dans les ancres, c'est voulu.
+     */
+    @Test
+    void lesCinqPaliersSontDesormaisTousAncres() {
+        List<?> fewShot = list(map(
+            resource("prompts/competence-analysis-rubrics-v5.json").get("commun")).get("few_shot"));
+
+        Map<String, Integer> parNiveau = new java.util.LinkedHashMap<>();
+        for (Object brut : fewShot) {
+            String niveau = String.valueOf(map(map(brut).get("attendu")).get("level_reached"));
+            parNiveau.merge(niveau, 1, Integer::sum);
+        }
+
+        assertThat(parNiveau.keySet())
+            .as("un palier sans ancre est un palier que le correcteur ne rendra jamais")
+            .containsExactlyInAnyOrderElementsOf(NIVEAUX);
+        assertThat(parNiveau.get("B2")).isGreaterThanOrEqualTo(2);
+        assertThat(parNiveau.get("A1_NON_ATTEINT")).isGreaterThanOrEqualTo(1);
+        assertThat(parNiveau.get("A2"))
+            .as("on ouvre le haut de l'echelle, on ne bascule pas le prior vers le B2")
+            .isGreaterThanOrEqualTo(parNiveau.get("B2"));
+    }
+
+    /**
+     * Les ancres ajoutees respectent le contrat v4 au meme titre que les autres :
+     * memes cles, etiquettes de trois mots, et surtout une preuve qui DESIGNE UN
+     * SEGMENT REEL — decoupe par le serveur ({@link EvaluationProductionSegments}),
+     * pas relue a l'oeil.
+     */
+    @Test
+    void chaqueAncreV5DemontreSonPalierParUnNumeroDeSegmentReel() {
+        List<?> fewShot = list(map(
+            resource("prompts/competence-analysis-rubrics-v5.json").get("commun")).get("few_shot"));
+
+        Set<String> verdictsCouverts = new java.util.LinkedHashSet<>();
+        for (Object brut : fewShot) {
+            Map<String, Object> ancre = map(brut);
+            Map<String, Object> attendu = map(ancre.get("attendu"));
+            assertThat(CLES_V4).containsAll(attendu.keySet());
+            assertThat(attendu.keySet()).containsAll(CLES_V3);
+            assertThat(STATUTS).contains(String.valueOf(attendu.get("status")));
+            String niveau = String.valueOf(attendu.get("level_reached"));
+            assertThat(NIVEAUX).contains(niveau);
+            assertThat(motsDe(attendu.get("strength_tag"))).isLessThanOrEqualTo(3);
+            assertThat(motsDe(attendu.get("focus_tag"))).isLessThanOrEqualTo(3);
+            verdictsCouverts.add(String.valueOf(attendu.get("status")));
+
+            Object preuve = attendu.get("level_evidence");
+            if (!List.of("B1", "B2").contains(niveau)) {
+                assertThat(preuve)
+                    .as("A2 et en dessous n'ont rien a demontrer : le champ est omis")
+                    .isNull();
+                continue;
+            }
+            assertThat(preuve)
+                .as("une ancre B1/B2 sans preuve apprendrait au correcteur a s'en passer")
+                .isInstanceOf(Integer.class);
+            EvaluationProductionSegments segments = EvaluationProductionSegments.of(
+                String.valueOf(ancre.get("production")),
+                "EO".equals(String.valueOf(ancre.get("section")))
+                    ? EpreuveType.TCF_EO : EpreuveType.TCF_EE);
+            assertThat(segments.texte((Integer) preuve))
+                .as("l'ancre « %s » designe le segment %s d'une production qui n'en a que %d",
+                    ancre.get("titre"), preuve, segments.taille())
+                .isPresent();
+        }
+        assertThat(verdictsCouverts)
+            .as("les trois verdicts doivent rester ancres")
+            .containsExactlyInAnyOrderElementsOf(STATUTS);
+    }
+
+    /** L'invariant du montage a deux appels survit a v5. */
+    @Test
+    void lesConsignesV5NeParlentJamaisDuNiveauViseParLeCandidat() {
+        String consignes = resourceText("prompts/competence-analysis-rubrics-v5.json");
 
         assertThat(consignes)
             .doesNotContain("niveau_vise")

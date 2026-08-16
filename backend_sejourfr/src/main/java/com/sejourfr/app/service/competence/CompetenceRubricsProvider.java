@@ -62,11 +62,36 @@ public class CompetenceRubricsProvider {
      * un B1 ou un B2. Le niveau cesse d'etre nomme a vue — sans preuve, le
      * serveur l'abaisse d'un palier.
      *
-     * <p>v1/v1, v2/v2 et v3/v3 restent chargeables : c'est le retour arriere, et
-     * on versionne sans jamais reecrire une version livree.
+     * <p>v5 = v4 au bit pres pour tout ce qui JUGE. Elle ne corrige que des BIAIS
+     * lisibles dans le prompt lui-meme : deux paliers n'avaient <b>aucune</b>
+     * ancre (B2 et A1_NON_ATTEINT, donc jamais montres au correcteur), et la
+     * section du niveau annoncait noir sur blanc une frequence attendue
+     * (« un critere peut etre VALIDATED en A2 — c'est meme le cas le plus
+     * frequent »), c'est-a-dire une consigne de repartition. <b>Son contrat de
+     * sortie reste v4</b> : aucun champ n'est ajoute ni retire.
+     *
+     * <p>v1/v1, v2/v2, v3/v3 et v4/v4 restent chargeables : c'est le retour
+     * arriere, et on versionne sans jamais reecrire une version livree.
      */
     private static final Map<String, String> TOOL_SCHEMA_BY_RUBRICS_VERSION =
-        Map.of("v1", "v1", "v2", "v2", "v3", "v3", "v4", "v4");
+        Map.of("v1", "v1", "v2", "v2", "v3", "v3", "v4", "v4", "v5", "v4");
+
+    /**
+     * Versions de consignes qui recevaient le <b>niveau cible de la COMPETENCE</b>
+     * dans le prompt utilisateur ({@code targetLevel}, donnee editoriale du
+     * sujet). Elles ne le nommaient <b>nulle part</b> dans la grille : c'etait
+     * une etiquette de palier non expliquee, posee dans le meme objet JSON que le
+     * texte a niveler — exactement ce que le montage a deux appels evite partout
+     * ailleurs (mesure cote productions : donner l'objectif au correcteur fait
+     * tomber l'accord exact de 81,8 % a 75,6 %, campagnes v10/v11).
+     *
+     * <p>A partir de v5 il n'est plus envoye. La liste reste une <b>allowlist des
+     * versions anterieures</b> plutot qu'un test sur v5 : un retour arriere
+     * {@code COMPETENCE_RUBRICS_VERSION=v4} doit reproduire le prompt d'avant au
+     * bit pres, et une version future ne doit pas heriter du defaut par accident.
+     */
+    private static final java.util.Set<String> VERSIONS_AVEC_NIVEAU_CIBLE =
+        java.util.Set.of("v1", "v2", "v3", "v4");
 
     /** Le module ne sert que le TCF IRN : aucune autre grille n'est acceptee. */
     private static final String PROFILE_ATTENDU = "TCF_IRN";
@@ -165,6 +190,18 @@ public class CompetenceRubricsProvider {
     /** Version des consignes actives, persistee sur chaque tentative analysee. */
     public String getVersion() {
         return props.getAnalysis().getRubricsVersion();
+    }
+
+    /**
+     * Le prompt utilisateur doit-il porter le niveau cible de la COMPETENCE
+     * ({@code targetLevel}) ? Vrai jusqu'a v4, faux a partir de v5.
+     *
+     * <p>C'est la version des CONSIGNES qui tranche, pas celle du contrat de
+     * sortie : le champ est une entree du prompt, pas une cle du JSON produit —
+     * v5 et v4 partagent d'ailleurs le meme tool-schema.
+     */
+    public boolean envoieLeNiveauCibleDeLaCompetence() {
+        return VERSIONS_AVEC_NIVEAU_CIBLE.contains(props.getAnalysis().getRubricsVersion());
     }
 
     /**

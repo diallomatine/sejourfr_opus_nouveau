@@ -28,9 +28,8 @@ import java.util.Map;
  *   <li><b>user</b> = <b>uniquement des donnees</b>, exactement les entrees
  *       minimales de la specification : {@code exam}, {@code section},
  *       {@code taskCode}, {@code skillId}, {@code skillName},
- *       {@code targetLevel}, {@code context}, {@code instruction},
- *       {@code uniqueCriterion}, et {@code candidateProduction} (ecrit) ou
- *       {@code transcript} (oral).</li>
+ *       {@code context}, {@code instruction}, {@code uniqueCriterion}, et
+ *       {@code candidateProduction} (ecrit) ou {@code transcript} (oral).</li>
  * </ul>
  *
  * <p><b>Ce qui n'est deliberement PAS envoye.</b> La duree de l'enregistrement
@@ -39,15 +38,21 @@ import java.util.Map;
  * sont indicatives, les envoyer inviterait a reprocher une brievete que la
  * consigne autorise (regles 14 et 15 de la specification).
  *
- * <p><b>Et surtout : le NIVEAU VISE PAR LE CANDIDAT n'entre jamais ici.</b>
- * C'est l'invariant du montage a deux appels. Le depot a mesure sur les
- * productions completes qu'un correcteur qui apprend l'objectif aligne son
- * jugement dessus (rubriques v10/v11 : accord exact 81,8 % → 75,6 %). Le
- * {@code targetLevel} present dans le prompt est celui de la COMPETENCE — une
- * donnee editoriale du sujet, au meme titre que
- * {@code production_tasks.niveau_cible} cote productions —, jamais le palier
- * qu'exige la demarche de la personne. Ce dernier n'existe que dans le prompt du
- * second appel ({@code service.competence.niveauvise}).
+ * <p><b>Et surtout : AUCUN NIVEAU CIBLE n'entre ici, depuis v5.</b> C'est
+ * l'invariant du montage a deux appels. Le depot a mesure sur les productions
+ * completes qu'un correcteur qui apprend l'objectif aligne son jugement dessus
+ * (rubriques v10/v11 : accord exact 81,8 % → 75,6 %). Le palier qu'exige la
+ * demarche de la personne n'a jamais ete envoye ; il n'existe que dans le prompt
+ * du second appel ({@code service.competence.niveauvise}).
+ *
+ * <p>Le {@code targetLevel} de la COMPETENCE — donnee editoriale du sujet, au
+ * meme titre que {@code production_tasks.niveau_cible} cote productions — y
+ * etait, lui, jusqu'a v4 : <b>une etiquette de palier posee dans le meme objet
+ * JSON que le texte a niveler, et que la grille ne nommait nulle part</b>. Sur
+ * les competences de tache 1, ou il vaut {@code A2}, le correcteur n'a jamais
+ * rendu autre chose que du A2. v5 cesse de l'envoyer ; les versions anterieures
+ * continuent de le recevoir, pour que le retour arriere reste reel
+ * ({@link CompetenceRubricsProvider#envoieLeNiveauCibleDeLaCompetence()}).
  */
 @Component
 public class CompetenceAnalysisPromptBuilder {
@@ -96,7 +101,9 @@ public class CompetenceAnalysisPromptBuilder {
         entrees.put("taskCode", skill.getTaskCode() == null ? null : skill.getTaskCode().name());
         entrees.put("skillId", skill.getCode());
         entrees.put("skillName", skill.getTitle());
-        entrees.put("targetLevel", skill.getTargetLevel());
+        if (rubrics.envoieLeNiveauCibleDeLaCompetence()) {
+            entrees.put("targetLevel", skill.getTargetLevel());
+        }
         entrees.put("context", prompt.getContext());
         entrees.put("instruction", prompt.getInstruction());
         entrees.put("uniqueCriterion", prompt.getUniqueCriterion());

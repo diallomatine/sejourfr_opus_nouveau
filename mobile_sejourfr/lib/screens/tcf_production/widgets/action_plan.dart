@@ -21,11 +21,27 @@ import '../../../core/theme/app_theme.dart';
 /// titre empilees dans un meme ecran se lisent comme un bug. Les libelles, eux,
 /// sont ici — ils sont geles et communs aux deux surfaces.
 
-/// Intertitre des leviers. **Il garde le palier** : c'est l'objectif du
-/// candidat, pas une affirmation sur un texte — donc il est exact, contrairement
-/// a un titre qui etiquetterait un modele d'un niveau que rien ne verifie.
+/// Intertitre des leviers d'une PRODUCTION complete. **Il garde le palier** :
+/// c'est l'objectif du candidat, pas une affirmation sur un texte — donc il est
+/// exact, contrairement a un titre qui etiquetterait un modele d'un niveau que
+/// rien ne verifie.
 String pourViserTitle(TargetLevel niveauVise) =>
     'Pour viser ${niveauVise.asNiveau.shortName}';
+
+/// Intertitre des leviers d'un MICRO-EXERCICE de competence.
+///
+/// Depuis le contrat v2 de `competence-niveau-vise`, `niveauVise` n'y porte plus
+/// l'objectif lointain du candidat mais le **palier cible** : la marche suivante
+/// (`niveau constate + 1`, plafonnee a son objectif), que le texte modele doit
+/// reellement demontrer. Le titre le nomme donc telle quelle — annoncer « Pour
+/// viser B2 » sur un texte qui vaut B1 est exactement le defaut mesure.
+///
+/// ⚠️ Formulation **positive**, regle gelee du depot : on nomme la marche
+/// atteignable, jamais un manque (« presque B1 » est banni).
+///
+/// Miroir web : `pourPasserAuTitle` (`skill-ui/ActionPlan.tsx`).
+String pourPasserAuTitle(TargetLevel palierCible) =>
+    'Pour passer au niveau ${palierCible.asNiveau.shortName}';
 
 /// Intertitre du texte modele. **Il ne nomme aucun palier** : la grille impose a
 /// ce texte une longueur proche de la production du candidat, ce qui ne laisse

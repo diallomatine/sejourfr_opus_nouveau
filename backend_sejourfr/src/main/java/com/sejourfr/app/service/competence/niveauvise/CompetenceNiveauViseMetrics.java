@@ -45,21 +45,68 @@ public class CompetenceNiveauViseMetrics {
         /** Champ absent, vide, mal type, cle en trop, cardinalite fausse, plafond depasse. */
         STRUCTURE,
         /** Leviers retires par le filet des marqueurs A2, sous leur minimum. */
-        PURGE_LEVIERS
+        PURGE_LEVIERS,
+        /**
+         * Texte modele au-dela des bornes du sujet
+         * ({@code skill_prompts.recommended_max_words}). Seul motif MECANIQUE de la
+         * section {@code exemple_cible}, donc le seul qui vaille une reparation.
+         */
+        TEXTE_HORS_BORNES
     }
 
     private final Map<String, LongAdder> compteurs = new ConcurrentHashMap<>();
 
     /**
-     * Le bloc ENTIER n'arrive pas a l'ecran.
-     *
-     * <p>Il n'y a pas de compteur « par section » ici, contrairement aux
-     * productions : le contrat de ce module n'a aucune partie facultative — ses
-     * trois champs sont requis ensemble, donc le bloc tombe d'un bloc. Le seul
-     * element qui peut disparaitre seul est un <b>segment</b>, compte a part.
+     * Le bloc ENTIER n'arrive pas a l'ecran : une section FATALE est en defaut
+     * (sortie hors contrat, ou leviers — un plan d'action sans levier n'a aucun
+     * interet).
      */
     public void blocAbandonne(Motif motif) {
         ajouter("BLOC_ABANDONNE/" + motif.name());
+    }
+
+    /**
+     * UNE section facultative tombe seule, le reste du bloc etant servi.
+     *
+     * <p>Ce compteur n'existait pas : le contrat n'avait aucune partie
+     * facultative, donc le bloc tombait d'un bloc. Depuis que le texte modele est
+     * borde en longueur, un exemple cible inexploitable ne doit plus emporter les
+     * leviers ni la tournure a retenir, qui ne dependent d'aucun texte — meme
+     * arbitrage que {@code VersionCibleeMetrics.sectionAbandonnee} sur l'ecran des
+     * productions.
+     */
+    public void sectionAbandonnee(CompetenceNiveauViseValidator.Section section, Motif motif) {
+        ajouter("SECTION_ABANDONNEE/" + section.name() + "/" + motif.name());
+    }
+
+    /**
+     * Un MARQUEUR DE PALIER est retire, le texte modele restant servi. C'est la
+     * preuve du palier qu'on perd, jamais le texte : un marqueur ne coute que sa
+     * propre mise en evidence, comme un segment de surlignage.
+     */
+    public void marqueurRetire(CompetenceNiveauViseMarqueurFilter.Motif motif) {
+        ajouter("MARQUEUR_RETIRE/" + motif.name());
+    }
+
+    /**
+     * UN LEVIER A ETE SERVI SANS PROCEDE OPPOSABLE — et il a bien ete servi.
+     *
+     * <p>Contrat v3 : chaque levier declare l'operation de langue qu'il met en
+     * œuvre, ce qui est la seule façon fiable d'empecher un conseil de <b>ton</b>
+     * (« rends ton invitation plus chaleureuse ») de se faire passer pour un
+     * levier de <b>palier</b>. 🛑 Ce compteur ne mesure <b>jamais</b> une purge :
+     * un procede manquant, inconnu ou qui sur-vend le palier cible ne coute pas
+     * son levier au candidat — les leviers portent le bloc entier, et le vider
+     * pour une etiquette serait l'inverse du but. Il ne coute pas non plus un
+     * appel de reparation.
+     *
+     * <p>Sans ce compteur, la contrainte de schema serait invisible : on ne
+     * saurait pas si le modele la respecte, donc on ne pourrait ni la durcir ni
+     * la desarmer. Aucune ligne n'existe sous les contrats v1 et v2, ou le champ
+     * n'est pas demande.
+     */
+    public void procedeAnormal(CompetenceNiveauViseProcedeAudit.Motif motif) {
+        ajouter("PROCEDE_ANORMAL/" + motif.name());
     }
 
     /** UN appel de reparation a ete paye. Le motif dit ce qu'on a redemande. */
@@ -106,6 +153,12 @@ public class CompetenceNiveauViseMetrics {
                 && violation.startsWith(CompetenceNiveauViseValidator.VIOLATION_SORTIE_VIDE)) {
                 return Motif.SORTIE_HORS_CONTRAT;
             }
+        }
+        // La longueur ne l'emporte que si TOUTES les violations en relevent :
+        // melangee a une faute de structure, c'est la structure qui decide, car
+        // c'est elle qui interdit la reparation.
+        if (CompetenceNiveauViseValidator.uniquementReparables(violations)) {
+            return Motif.TEXTE_HORS_BORNES;
         }
         return Motif.STRUCTURE;
     }
