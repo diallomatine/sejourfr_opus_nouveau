@@ -18,8 +18,16 @@ import {
 } from "@/lib/audience";
 import { diagnosticApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import {
+  formatPassPrice,
+  passCheckoutHref,
+  passDurationLabel,
+  passMonthlyLabel,
+  popularPassCodeOf,
+  passSessionsLabel,
+} from "@/lib/passes";
 import { SOCIAL_ACCOUNTS, STORE_LINKS } from "@/lib/site";
-import { realtimeSessionsLabel, type PlanPublicResponse } from "@/lib/types";
+import { type PlanPublicResponse } from "@/lib/types";
 import styles from "./reussir.module.css";
 
 /**
@@ -778,7 +786,7 @@ function PricingSection({ plans }: { plans: PlanPublicResponse[] }) {
   const visible = byParcours[parcours];
   if (byParcours.tcf.length === 0 && byParcours.civique.length === 0) return null;
 
-  const popular = popularCodeOf(visible);
+  const popular = popularPassCodeOf(visible);
 
   return (
     <section className={`${styles.sec} ${styles.paper}`} id="tarifs">
@@ -866,23 +874,25 @@ function PlanCard({
   popular: boolean;
   isAuth: boolean;
 }) {
-  const target = plan.moduleAccess === "INTEGRAL" ? "INTEGRAL" : "CIVIQUE";
-  const hasOral = target === "INTEGRAL";
-  const checkout = `/paiement?module=${target}&plan=${encodeURIComponent(plan.code)}`;
-  // Non connecté : on passe par l'inscription en gardant la destination — le
-  // nouvel inscrit retombe sur le pass qu'il vient de choisir, pas au dashboard.
-  const href = isAuth ? checkout : `/inscription?next=${encodeURIComponent(checkout)}`;
+  const hasOral = plan.moduleAccess === "INTEGRAL";
+  const monthly = passMonthlyLabel(plan);
+  // Un clic sur un prix mène au RÉCAPITULATIF du pass cliqué — même geste, même
+  // destination que sur /tarifs (`lib/passes.ts`). Non connecté : on passe par
+  // l'inscription en gardant la destination, le nouvel inscrit retombe sur le
+  // pass qu'il vient de choisir et non au dashboard.
+  const href = passCheckoutHref(plan.code, isAuth);
 
   return (
     <article className={`${styles.plan} ${popular ? styles.planHi : ""}`} data-rv>
       {popular && <span className={styles.planTag}>Le plus choisi</span>}
       <span className={styles.planName}>{planShortName(plan)}</span>
       <span className={styles.planPrice}>
-        <b>{formatPrice(plan.price)}&nbsp;€</b>
+        <b>{formatPassPrice(plan.price)}&nbsp;€</b>
         <span>payés une fois</span>
       </span>
       <span className={styles.planDur}>
-        {durationLabel(plan.durationDays)} d&apos;accès{monthlyLabel(plan)}
+        {passDurationLabel(plan.durationDays)} d&apos;accès
+        {monthly !== null ? ` · ${monthly}` : ""}
       </span>
 
       <span className={styles.planSessions} data-none={hasOral ? undefined : ""}>
@@ -1071,76 +1081,20 @@ function StickyCta() {
 // HELPERS DONNÉES
 // ============================================================================
 
-function formatPrice(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ",");
-}
-
-function durationLabel(days: number): string {
-  if (days <= 0) return "";
-  if (days % 365 === 0) {
-    const y = days / 365;
-    return y === 1 ? "12 mois" : `${y} ans`;
-  }
-  if (days >= 30 && days % 30 === 0) return `${days / 30} mois`;
-  // Une semaine seule s'annonce en jours : c'est ainsi que le pass d'essai est
-  // vendu, et la règle plurielle rendait « 1 semaines ».
-  if (days % 7 === 0) return days === 7 ? "7 jours" : `${days / 7} semaines`;
-  return `${days} jours`;
-}
-
-/** Nom court affichable : « Intégral · 3 mois » plutôt que le libellé DB complet. */
 function planShortName(plan: PlanPublicResponse): string {
   const family = plan.moduleAccess === "INTEGRAL" ? "Intégral" : "Examen civique";
-  return `${family} · ${durationLabel(plan.durationDays)}`;
-}
-
-/**
- * Passes mis en avant, un par module : miroir de `POPULAR_PASS_CODE`
- * (/paiement, /tarifs) et de `_popularPassCode` côté mobile — un pass ne doit
- * pas être « le plus populaire » sur une surface et anonyme sur la suivante.
- * Repli sur le milieu de la grille si aucun des deux n'est vendu.
- */
-const POPULAR_PASS_CODES = new Set(["INTEGRAL_PASS_2M", "CIVIQUE_PASS_3M"]);
-
-function popularCodeOf(list: PlanPublicResponse[]): string | null {
-  if (list.length === 0) return null;
-  const featured = list.find((p) => POPULAR_PASS_CODES.has(p.code));
-  if (featured) return featured.code;
-  return list[Math.floor((list.length - 1) / 2)].code;
-}
-
-/**
- * Équivalent mensuel affiché en sous-texte (« soit 13,33 €/mois »). Le montant
- * réellement débité reste le prix principal — un pass se paie une fois, mettre
- * un « /mois » en avant laisserait croire à un abonnement. Null sous un mois
- * d'accès, où le prix affiché est déjà mensuel. Parité : /paiement, /tarifs et
- * le paywall mobile suivent la même hiérarchie.
- */
-function monthlyLabel(plan: PlanPublicResponse): string {
-  const days = plan.durationDays;
-  const months =
-    days <= 0
-      ? 0
-      : days % 365 === 0
-        ? (days / 365) * 12
-        : days % 30 === 0
-          ? days / 30
-          : days % 7 === 0
-            ? days / 7 / 4
-            : days / 30;
-  if (months <= 1) return "";
-  return ` · soit ${formatPrice(Number((plan.price / months).toFixed(2)))} €/mois`;
+  return `${family} · ${passDurationLabel(plan.durationDays)}`;
 }
 
 /**
  * Libellé des simulations orales d'un pass, en **puce de liste** : ici la ligne
  * doit exister même quand il n'y en a aucune, d'où le repli sur le « sans » —
- * que `realtimeSessionsLabel` ne rend jamais de lui-même (un pass Intégral
- * servi par un backend antérieur au champ dirait une contrevérité sur
- * l'argument principal du produit). Seul le module, source sûre, l'autorise.
+ * que `passSessionsLabel` ne rend jamais de lui-même (un pass Intégral servi
+ * par un backend antérieur au champ dirait une contrevérité sur l'argument
+ * principal du produit). Seul le module, source sûre, l'autorise.
  */
 function sessionsLabel(plan: PlanPublicResponse): string {
-  return realtimeSessionsLabel(plan) ?? "Sans simulation orale (réservée au TCF)";
+  return passSessionsLabel(plan) ?? "Sans simulation orale (réservée au TCF)";
 }
 
 function featuresOf(plan: PlanPublicResponse): string[] {

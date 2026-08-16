@@ -2,9 +2,20 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { CalendarOff, Check, Sparkles } from "lucide-react";
+import { ArrowRight, CalendarOff, Check, Sparkles } from "lucide-react";
 import { periodicityFromCycle, type PlanModuleTarget, type PlanPeriodicity } from "@/lib/api";
-import { realtimeSessionsLabel, type PlanPublicResponse } from "@/lib/types";
+import { useAuth } from "@/lib/auth-context";
+import {
+  formatPassPrice,
+  isOneTimeCatalog,
+  oneTimePassesOf,
+  passCheckoutHref,
+  passDurationLabel,
+  passMonthlyLabel,
+  passSessionsLabel,
+  POPULAR_PASS_CODE,
+} from "@/lib/passes";
+import type { PlanPublicResponse } from "@/lib/types";
 
 interface Props {
   plans: PlanPublicResponse[];
@@ -70,9 +81,6 @@ const PERIOD_SUFFIX: Record<PlanPeriodicity, string> = {
   yearly: "/ an",
 };
 
-/** Pass mis en avant comme « le plus populaire » (cohérent web + mobile). */
-const POPULAR_PASS_CODE = "INTEGRAL_PASS_2M";
-
 function formatPrice(value: number): string {
   if (value === 0) return "0";
   if (Number.isInteger(value)) return String(value);
@@ -87,38 +95,6 @@ function monthlyEquivalent(price: number, periodicity: PlanPeriodicity): number 
   if (periodicity === "quarterly") return price / 3;
   if (periodicity === "yearly") return price / 12;
   return null;
-}
-
-/**
- * Équivalent mensuel d'un pass one-time, dérivé de sa durée (1 an → /12,
- * 3 mois → /3, 6 semaines → /1,5 en comptant un mois = 4 semaines). Null pour
- * un pass ≤ 1 mois (le prix affiché est déjà mensuel).
- */
-function passMonthlyEquivalent(price: number, days: number): number | null {
-  const months =
-    days <= 0 ? 0
-      : days % 365 === 0 ? (days / 365) * 12
-        : days % 30 === 0 ? days / 30
-          : days % 7 === 0 ? (days / 7) / 4
-            : days / 30;
-  if (months <= 1) return null;
-  return price / months;
-}
-
-/**
- * Libellé de durée d'un pass one-time (« 7 jours », « 1 mois », « 2 mois »,
- * « 1 an »). Une semaine seule s'annonce **en jours** — « 1 semaines » est ce
- * que rendait la règle plurielle sur le pass d'essai.
- */
-function passDurationLabel(days: number): string {
-  if (days <= 0) return "";
-  if (days % 365 === 0) {
-    const y = days / 365;
-    return y === 1 ? "1 an" : `${y} ans`;
-  }
-  if (days >= 30 && days % 30 === 0) return `${days / 30} mois`;
-  if (days % 7 === 0) return days === 7 ? "7 jours" : `${days / 7} semaines`;
-  return `${days} jours`;
 }
 
 /** Indexe les Plans payants par (module, periodicity). */
@@ -140,23 +116,37 @@ function indexPaidPlans(
 
 export function PricingPlans({ plans, variant = "full", defaultPeriodicity = "quarterly" }: Props) {
   const [periodicity, setPeriodicity] = useState<PlanPeriodicity>(defaultPeriodicity);
+  const { status } = useAuth();
   const index = useMemo(() => indexPaidPlans(plans), [plans]);
   const freePlan = plans.find((p) => p.code === "FREE") ?? null;
 
-  // Mode passes one-time (lot 5) : on ignore les plans non payables (FREE) dans
-  // la détection, puis on rend une carte par module listant ses passes.
-  const payablePlans = plans.filter((p) => p.moduleAccess !== "NONE" && p.price > 0);
-  const oneTime =
-    payablePlans.length > 0 && payablePlans.every((p) => p.purchaseType === "ONE_TIME");
-
-  if (oneTime) {
-    const passesFor = (mod: "CIVIQUE" | "INTEGRAL") =>
-      payablePlans
-        .filter((p) => p.moduleAccess === mod)
-        .sort((a, b) => a.durationDays - b.durationDays);
+  // Mode passes one-time (lot 5) : une carte par module, chaque durée étant une
+  // ligne cliquable qui emmène droit au récapitulatif du pass choisi.
+  if (isOneTimeCatalog(plans)) {
+    // `loading` → null : on vise le récapitulatif et le middleware tranche.
+    const authenticated = status === "loading" ? null : status === "authenticated";
     return (
       <div className={`pp pp-${variant}`}>
+        <p className="pp-lead">
+          Un pass se paie <strong>une seule fois</strong>. Choisissez la durée qui
+          couvre votre échéance — aucune reconduction, et les durées se cumulent
+          si vous prolongez.
+        </p>
         <div className="pp-cards">
+          <PassModuleCard
+            preset={PRESENTATIONS.CIVIQUE}
+            name="Civique"
+            passes={oneTimePassesOf(plans, "CIVIQUE")}
+            featured={false}
+            authenticated={authenticated}
+          />
+          <PassModuleCard
+            preset={PRESENTATIONS.INTEGRAL}
+            name="Intégral"
+            passes={oneTimePassesOf(plans, "INTEGRAL")}
+            featured
+            authenticated={authenticated}
+          />
           {freePlan && (
             <PricingCard
               preset={PRESENTATIONS.FREE}
@@ -168,8 +158,6 @@ export function PricingPlans({ plans, variant = "full", defaultPeriodicity = "qu
               href="/inscription"
             />
           )}
-          <PassModuleCard preset={PRESENTATIONS.CIVIQUE} name="Civique" module="CIVIQUE" passes={passesFor("CIVIQUE")} featured={false} />
-          <PassModuleCard preset={PRESENTATIONS.INTEGRAL} name="Intégral" module="INTEGRAL" passes={passesFor("INTEGRAL")} featured />
         </div>
         <style>{styles}</style>
       </div>
@@ -321,68 +309,75 @@ function PricingCard({
   );
 }
 
-/** Carte marketing d'un module en mode passes : preset + liste des passes
- *  (durée + prix) + CTA vers /paiement pour choisir et payer. */
+/**
+ * Carte d'un module en mode passes : **chaque durée est un prix cliquable**
+ * qui mène au récapitulatif du pass choisi. Il n'y a plus de CTA générique en
+ * pied — il renvoyait vers une grille où il fallait re-choisir, alors que le
+ * candidat vient précisément de choisir.
+ *
+ * Hiérarchie imposée par le CLAUDE.md racine : le **montant réellement débité**
+ * domine, l'équivalent mensuel reste en sous-texte.
+ */
 function PassModuleCard({
   preset,
   name,
-  module,
   passes,
   featured,
+  authenticated,
 }: {
   preset: Preset;
   name: string;
-  module: "CIVIQUE" | "INTEGRAL";
   passes: PlanPublicResponse[];
   featured: boolean;
+  authenticated: boolean | null;
 }) {
   if (passes.length === 0) return null;
-  const ctaClass =
-    preset.cta.variant === "red"
-      ? "btn btn-red pp-cta"
-      : preset.cta.variant === "ghost"
-        ? "btn btn-ghost pp-cta"
-        : "btn pp-cta";
   return (
     <article className={`pp-card ${featured ? "is-featured" : ""}`}>
       <header className="pp-head">
         <h3 className="pp-name">{name}</h3>
         <p className="pp-desc">{preset.description}</p>
       </header>
-      <div className="pp-passes">
+
+      <ul className="pp-passes">
         {passes.map((p) => {
           const popular = p.code === POPULAR_PASS_CODE;
-          const monthly = passMonthlyEquivalent(p.price, p.durationDays);
+          const monthly = passMonthlyLabel(p);
           // Ce qui distingue vraiment deux passes Intégral, à part la durée.
-          const sessions = realtimeSessionsLabel(p);
+          const sessions = passSessionsLabel(p);
           return (
-            <div key={p.code} className={`pp-pass ${popular ? "is-popular" : ""}`}>
-              {popular && (
-                <span className="pp-pop">
-                  <Sparkles className="pp-badge-icon" />
-                  Le plus populaire
-                </span>
-              )}
-              <span className="pp-pass-left">
-                <span className="pp-pass-dur">{passDurationLabel(p.durationDays)}</span>
-                {sessions !== null && <span className="pp-pass-sessions">{sessions}</span>}
-              </span>
-              <span className="pp-pass-prices">
-                <span className="pp-pass-month">{formatPrice(p.price)} €</span>
-                {monthly !== null && (
-                  <span className="pp-pass-total">
-                    soit {formatPrice(Number(monthly.toFixed(2)))} €/mois
+            <li key={p.code}>
+              <Link
+                href={passCheckoutHref(p.code, authenticated)}
+                className={`pp-pass ${popular ? "is-popular" : ""}`}
+              >
+                {popular && (
+                  <span className="pp-pop">
+                    <Sparkles className="pp-badge-icon" />
+                    Le plus populaire
                   </span>
                 )}
-              </span>
-            </div>
+                <span className="pp-pass-top">
+                  <span className="pp-pass-dur">{passDurationLabel(p.durationDays)}</span>
+                  <span className="pp-pass-prices">
+                    <span className="pp-pass-main">{formatPassPrice(p.price)} €</span>
+                    {monthly !== null && <span className="pp-pass-sub">{monthly}</span>}
+                  </span>
+                  <ArrowRight className="pp-pass-go" aria-hidden />
+                </span>
+                {sessions !== null && <span className="pp-pass-sessions">{sessions}</span>}
+              </Link>
+            </li>
           );
         })}
-      </div>
+      </ul>
+
       <p className="pp-norenew">
         <CalendarOff className="pp-norenew-icon" />
         Paiement unique — aucun renouvellement automatique.
       </p>
+
+      <p className="pp-feats-label">Ce que ce pass ouvre</p>
       <ul className="pp-feats">
         {preset.features.map((f) => (
           <li key={f.label}>
@@ -391,37 +386,67 @@ function PassModuleCard({
           </li>
         ))}
       </ul>
-      <div className="pp-foot">
-        <Link href={`/paiement?module=${module}`} className={ctaClass}>
-          {preset.cta.label}
-        </Link>
-      </div>
     </article>
   );
 }
 
 const styles = `
   .pp { max-width: 1100px; margin: 0 auto; }
+  .pp-lead {
+    max-width: 620px;
+    margin: 0 auto 28px;
+    text-align: center;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--color-muted);
+  }
+  .pp-lead strong { color: var(--color-ink); font-weight: 700; }
+
   .pp-passes {
+    list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 10px;
+    gap: 10px;
+    margin: 0 0 12px;
+    padding: 0;
   }
   .pp-pass {
     position: relative;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 14px;
-    border: 1px solid var(--color-line);
-    border-radius: 12px;
-    background: var(--color-paper);
+    flex-direction: column;
+    gap: 4px;
+    padding: 13px 14px;
+    border: 1.5px solid var(--color-line);
+    border-radius: 14px;
+    background: white;
+    text-decoration: none;
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
   }
+  .pp-pass:hover,
+  .pp-pass:focus-visible {
+    border-color: var(--color-blue);
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px -18px color-mix(in srgb, var(--color-ink) 45%, transparent);
+  }
+  .pp-pass:focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
   .pp-pass.is-popular {
     border-color: var(--color-red);
     background: var(--color-red-light);
+  }
+  .pp-pass-go {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+    color: var(--color-blue);
+  }
+  .pp-pass.is-popular .pp-pass-go { color: var(--color-red); }
+  .pp-feats-label {
+    margin: 0 0 10px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-muted-2);
   }
   .pp-pop {
     position: absolute;
@@ -440,15 +465,19 @@ const styles = `
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
-  .pp-pass-left {
+  /* Ligne 1 : durée à gauche, prix débité à droite. Ligne 2 (pleine largeur) :
+     ce que le pass ouvre en simulations orales — sur 360 px, la coincer dans
+     une colonne de gauche la faisait courir sur trois lignes. */
+  .pp-pass-top {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
+    align-items: center;
+    gap: 12px;
   }
   .pp-pass-dur {
+    flex: 1;
+    min-width: 0;
     font-weight: 700;
-    font-size: 14px;
+    font-size: 15px;
     color: var(--color-ink);
   }
   .pp-pass-sessions {
@@ -463,20 +492,26 @@ const styles = `
     gap: 1px;
     min-width: 0;
   }
-  .pp-pass-month {
+  /* Le montant réellement débité domine ; l'équivalent mensuel reste dessous. */
+  .pp-pass-main {
     font-family: var(--font-display);
-    font-size: 20px;
+    font-size: 24px;
     font-weight: 700;
     color: var(--color-ink);
     line-height: 1.05;
     white-space: nowrap;
   }
-  .pp-pass-total {
+  .pp-pass-sub {
     font-family: var(--font-mono);
     font-size: 10.5px;
     letter-spacing: 0.04em;
     color: var(--color-muted);
     white-space: nowrap;
+  }
+  @media (max-width: 400px) {
+    .pp-pass { padding: 12px; gap: 10px; }
+    .pp-pass-main { font-size: 21px; }
+    .pp-pass-sessions { font-size: 11px; }
   }
   .pp-norenew {
     display: flex;

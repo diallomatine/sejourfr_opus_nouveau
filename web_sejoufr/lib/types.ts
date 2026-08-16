@@ -323,7 +323,10 @@ export interface AnswerResultResponse {
 
 // ============ PLAN (vitrine publique) ============
 export type BillingCycle = "NONE" | "MONTHLY" | "YEARLY" | "THREE_MONTHS" | "SIX_MONTHS";
-export type ModuleAccess = "NONE" | "CIVIQUE" | "TCF" | "INTEGRAL";
+/** Miroir strict de l'enum Java `ModuleAccess` : NONE < CIVIQUE < INTEGRAL.
+ *  ⚠️ Pas de valeur "TCF" — le serveur ne l'a jamais eue, et la garder ici
+ *  laissait croire qu'un plan pouvait vendre le TCF sans le civique. */
+export type ModuleAccess = "NONE" | "CIVIQUE" | "INTEGRAL";
 
 /** Nature commerciale d'un plan (lot 5). ONE_TIME = pass à durée fixe sans
  *  reconduction ; SUBSCRIPTION = abonnement récurrent (dormant). */

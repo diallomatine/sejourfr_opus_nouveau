@@ -122,7 +122,9 @@ app/
 │   ├── sessions/[attemptId]/page.tsx   # ★ runner générique : training OU exam selon attempt.type
 │   │                              #   (charge l'attempt + favoris, gère running/result/error,
 │   │                              #   timer si MOCK_EXAM via QuestionRunner)
-│   ├── paiement/page.tsx, succes/page.tsx        # Stripe Payment Link
+│   ├── paiement/page.tsx, recapitulatif/page.tsx, succes/page.tsx
+│   │                              #   grille de passes / récapitulatif du pass choisi
+│   │                              #   (cf. section « Choisir un pass ») / retour Stripe
 │
 ├── diagnostic/page.tsx           # ★ route DUALE (guest + connecté) : présentation → EE → EO
 │                                 #   enregistré → (invité : écran de compte) → analyse
@@ -147,6 +149,9 @@ lib/
 │                                 #   header/footer/bandeau marketing, la sidebar porte tout)
 ├── dashboard.ts                  # helpers catégories dashboard : categoryHref (CTA Réviser),
 │                                 #   barTone (vert ≥80 / ambre <60 / bleu), moduleAverage
+├── passes.ts                     # passes d'accès (lot 5) : pass mis en avant, prix débité vs
+│                                 #   équivalent mensuel, durée, tri, et passCheckoutHref
+│                                 #   (le parcours prix → récapitulatif → Stripe). Purs.
 ├── start-failure.ts              # classifyStartFailure / handleStartFailure : un 403 au
 │                                 #   démarrage d'un attempt = paywall, pas erreur technique
 └── types.ts                      # DTOs miroirs Java + helper canAccessModule()
@@ -539,6 +544,81 @@ Intégral × mensuel / trimestriel / annuel.
 **Backend** : géré dans le lot 4 (cf. `CLAUDE.md` racine — Stripe Subscription
 mode, `customer.subscription.*` webhooks, `plans.stripe_price_id` en DB).
 
+## Choisir un pass — `/tarifs` → récapitulatif → Stripe (2026-08-16)
+
+> **Ce que le candidat a cliqué le suit jusqu'au paiement.** Un prix cliqué ne
+> doit jamais réapparaître sous forme de grille où il faut re-choisir.
+
+Trois clics, un seul parcours, valable pour `/tarifs` **et** `/reussir` :
+
+1. **clic sur un prix** → connecté : `/paiement/recapitulatif?plan=<code>` ;
+   visiteur : `/inscription?next=<cette URL>` (qui propage à `/connexion`) ;
+2. **récapitulatif** : le pass choisi, seul à l'écran, avec sa durée, ce qu'il
+   ouvre, son montant, et un retour « ← Modifier mon choix » vers `/tarifs` ;
+3. **« Poursuivre vers le paiement »** → `billingApi.getPaymentLink(planCode)` →
+   Checkout Stripe. **Aucun endpoint nouveau.**
+
+- **Règles et libellés déclarés UNE SEULE FOIS : `lib/passes.ts`** (pur, aucune
+  dépendance React). `POPULAR_PASS_CODE` / `POPULAR_CIVIQUE_PASS_CODE`,
+  `popularPassCodeOf`, `formatPassPrice`, `passDurationLabel`,
+  `passMonthlyEquivalent` / `passMonthlyLabel`, `passSessionsLabel`,
+  `isOneTimeCatalog`, `oneTimePassesOf`, `findOneTimePass`, `passModuleOf`,
+  `PASS_RECAP_PATH`, `passRecapHref`, **`passCheckoutHref`**. Ces règles
+  vivaient en **trois copies** (`/tarifs`, `/paiement`, `/reussir`), dont une
+  avait déjà divergé — 365 jours rendait « 12 mois » sur la landing et « 1 an »
+  ailleurs. Le CLAUDE.md racine exige un pass mis en avant « déclaré une fois
+  par front ». Ne pas recopier une de ces fonctions dans un écran.
+- **Hiérarchie des prix, inchangée et vérifiée sur les 3 surfaces** : le
+  **montant réellement débité** est le prix principal, l'équivalent mensuel
+  reste en sous-texte. Un pass se paie une fois — un « /mois » en avant
+  laisserait croire à un abonnement.
+- **Le nombre de simulations orales vient du serveur** (`realtimeEoSessions` /
+  `realtimeSessionsLabel`), jamais codé en dur, et on n'écrit **jamais** « sans
+  simulation orale » sur un pass Intégral (un backend antérieur au champ
+  renvoie 0). Seule `/reussir` pose ce repli, parce que sa **puce de liste**
+  doit exister même vide, et seulement à partir du module (source sûre).
+- **`/tarifs` en mode passes** (`isOneTimeCatalog`) : plus de CTA générique en
+  pied de carte (il renvoyait vers `/paiement?module=`, donc vers une grille) —
+  **chaque durée est un `<Link>`**, prix débité dominant, badge « Le plus
+  populaire » sur `POPULAR_PASS_CODE`, durées croissantes. Ordre des cartes :
+  Civique · Intégral (mise en avant) · Découverte. `PricingPlans` lit `useAuth`
+  pour choisir la destination ; **auth encore en chargement ⇒ on vise le
+  récapitulatif**, le middleware renvoyant un visiteur sur `/connexion?next=…`.
+  Jamais l'inverse — envoyer un compte connecté sur `/inscription` serait un
+  cul-de-sac.
+
+### `/paiement/recapitulatif` — deux pièges qui portent sur de l'argent
+
+`app/(app)/paiement/recapitulatif/page.tsx`. **Authentifiée** : déjà couverte
+par `middleware.ts`, dont le test est un **préfixe** (`/paiement` couvre
+`/paiement/recapitulatif`) — ne pas transformer ce `startsWith` en égalité.
+
+- 🛑 **Aucune date de fin d'accès n'est CALCULÉE.** `ends_at` est posé par le
+  backend (`OneTimeAccessService.grantOneTimeAccess`) et les passes **se
+  cumulent par module** : pour un candidat qui a déjà un accès couvrant, la base
+  n'est pas « aujourd'hui », c'est la fin de l'accès en cours. L'écran annonce
+  donc une **durée** (« 2 mois d'accès ») ; la seule date affichée est la fin de
+  l'accès **actuel**, qui vient du serveur (`subscription-status.expiresAt`).
+  La date exacte de fin est confirmée par email. Ne jamais afficher
+  « aujourd'hui + durée » ici.
+- **Trois cas d'accès, dérivés du rang serveur `NONE < CIVIQUE < INTEGRAL`**
+  (`accessCase`, miroir de `SubscriptionService.currentEndForAtLeast`) :
+  `new` (rien en cours) · `extension` (accès couvrant ⇒ « les durées se
+  cumulent, ce pass ajoute X à la suite ») · `upgrade` (pass **Civique** en
+  cours + achat **Intégral**).
+- ⚠️ **Le cas `upgrade` est PRORATÉ côté Stripe** (`BillingService
+  .computeOneTimeAmountCents` : crédit du temps restant, plancher 0,50 €), donc
+  le montant débité est **inférieur** au prix affiché. L'écran ne présente alors
+  **aucun total ferme** : l'étiquette passe de « Montant à payer » à « Prix du
+  pass » et une note ambre dit que le montant sera ajusté et que Stripe affiche
+  le montant exact avant validation. **Ne pas y écrire de « Total ».**
+- **Le statut d'abonnement est un CONFORT** : `getSubscriptionStatus()` est
+  chargé séparément de `listPlans()` et son échec n'affiche simplement aucune
+  note — il ne doit jamais empêcher de payer.
+- **Replis, jamais d'écran cassé** : `?plan=` absent ⇒ `router.replace("/tarifs")` ;
+  code inconnu, plan désactivé (`listPlans` ne sert que les actifs) ou catalogue
+  injoignable ⇒ carte explicite + « Voir les pass → ».
+
 ## « Mon pass » (détail de l'accès — lot 5, achat unique)
 
 Page `app/(app)/profil/abonnement/page.tsx` (route `/profil/abonnement`),
@@ -584,9 +664,12 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   nombre de simulations orales vient de `PlanPublicResponse.realtimeEoSessions`
   (cf. CLAUDE.md racine), jamais codé en dur.
 - **Parcours d'achat continu** : un clic sur un pass va sur
-  `/paiement?module=…&plan=<code>` si l'utilisateur est connecté, sinon sur
+  `/paiement/recapitulatif?plan=<code>` si l'utilisateur est connecté, sinon sur
   `/inscription?next=<cette URL>`. C'est ce qui a motivé les deux ajouts
-  ci-dessous.
+  ci-dessous. ⚠️ Depuis le 2026-08-16 la destination est **déclarée une seule
+  fois** — `passCheckoutHref` (`lib/passes.ts`), partagée avec `/tarifs` : même
+  geste, même destination. Elle visait `/paiement?module=…&plan=…`, c'est-à-dire
+  la grille où il fallait re-choisir.
 - **Section app mobile** : bloc encre dédié (iOS + Android, même compte, même
   progression) avec un aperçu d'écran rendu en **CSS pur** (`PhoneMockup`) —
   pas de capture à re-shooter à chaque refonte de l'app, rien à charger. Les
@@ -618,7 +701,10 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
 - **`/paiement?plan=<code>`** : met en évidence le pass ciblé (`.otp-pass.is-targeted`)
   et scrolle dessus au montage. Le gate non-connecté de `/paiement` conserve
   désormais l'URL complète (module + plan) dans son `?next=`, et propose
-  inscription **et** connexion.
+  inscription **et** connexion. ⚠️ Plus **aucun** écran n'émet ce `?plan=`
+  depuis le 2026-08-16 (le clic sur un prix va au récapitulatif) : le mécanisme
+  reste en place pour les URLs déjà partagées et pour `/paiement` en mode
+  prolongation, il n'est simplement plus le chemin nominal.
 
 ## Diagnostic TCF initial + Plan (2026-08-09)
 
