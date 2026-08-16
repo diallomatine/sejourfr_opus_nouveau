@@ -9,6 +9,7 @@ import '../../core/models/attempt_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/epreuve_duration.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/utils/start_failure.dart';
 import '../../core/widgets/app_button.dart';
@@ -136,7 +137,9 @@ class _ModuleExamBriefingSheetState
                         ),
                       ),
                       const Spacer(),
-                      _DurationBadge(label: copy.durationLabel),
+                      _DurationBadge(
+                        label: epreuveDurationLabelFor(mod.epreuve),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -205,12 +208,14 @@ class _ConsigneLine {
 }
 
 /// Textes du briefing dérivés du module. Centralise les variations entre CO,
-/// CE et STRUCTURE (durée, hero, consignes, conseil) — évite les ternaires
-/// imbriqués dans `build()`. `notice` est non-null uniquement pour STRUCTURE
-/// (rappel : module hors TCF IRN).
+/// CE et STRUCTURE (hero, consignes, conseil) — évite les ternaires imbriqués
+/// dans `build()`. `notice` est non-null uniquement pour STRUCTURE (rappel :
+/// module hors TCF IRN).
+///
+/// 🛑 **Aucune durée ici** : elle se lit sur `TcfQcmModule.durationLabel`, qui
+/// la tire de `kEpreuveDurationSeconds`. Deux copies avaient déjà divergé.
 class _BriefingCopy {
   const _BriefingCopy({
-    required this.durationLabel,
     required this.heroIcon,
     required this.heroTitle,
     required this.heroDescription,
@@ -219,7 +224,6 @@ class _BriefingCopy {
     this.notice,
   });
 
-  final String durationLabel;
   final IconData heroIcon;
   final String heroTitle;
   final String heroDescription;
@@ -231,7 +235,6 @@ class _BriefingCopy {
     switch (mod.questionType) {
       case QuestionType.co:
         return const _BriefingCopy(
-          durationLabel: '20 min',
           heroIcon: LucideIcons.headphones,
           heroTitle: 'Prêt à écouter ?',
           heroDescription:
@@ -247,7 +250,6 @@ class _BriefingCopy {
         );
       case QuestionType.ce:
         return const _BriefingCopy(
-          durationLabel: '35 min',
           heroIcon: LucideIcons.bookOpen,
           heroTitle: 'Prêt à lire ?',
           heroDescription:
@@ -263,7 +265,6 @@ class _BriefingCopy {
         );
       case QuestionType.structure:
         return const _BriefingCopy(
-          durationLabel: '20 min',
           heroIcon: LucideIcons.spellCheck,
           heroTitle: 'Prêt à analyser ?',
           heroDescription:
@@ -286,7 +287,6 @@ class _BriefingCopy {
         // validation backend `startModuleExam`). Garde un fallback pour
         // l'exhaustivité du switch.
         return const _BriefingCopy(
-          durationLabel: '20 min',
           heroIcon: LucideIcons.circleHelp,
           heroTitle: 'Prêt à commencer ?',
           heroDescription: '25 questions à enchaîner sans retour en arrière.',

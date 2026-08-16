@@ -8,6 +8,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
+import '../../core/utils/screen_wake_lock.dart';
+
 /// Etat haut-niveau de la phase d'enregistrement EO.
 enum RecordingPhase {
   idle,
@@ -85,6 +87,17 @@ class AudioRecorderService {
   String? _currentPath;
   String? _currentMime;
 
+  /// Dernière amplitude lue, **retenue entre deux mesures**.
+  ///
+  /// Deux sources émettent sur le même flux : le micro (toutes les 100 ms, avec
+  /// l'amplitude) et le ticker de durée (toutes les 200 ms, sans). Le ticker
+  /// reconstruisait un `RecordingState` **sans** ce champ, si bien que la forme
+  /// d'onde retombait plusieurs fois par seconde sur sa valeur décorative de
+  /// repli : elle ne pouvait pas refléter la voix, et un micro muet ressemblait
+  /// trait pour trait à un micro qui capte. On conserve donc la dernière mesure
+  /// connue au lieu de la perdre à chaque tic.
+  double? _lastAmplitude;
+
   Stream<RecordingState>? _stateStream;
   final _stateController = StreamController<RecordingState>.broadcast();
 
@@ -158,6 +171,7 @@ class AudioRecorderService {
     // jusqu'a la prochaine version de record_ios.
     _currentMime = 'audio/wav';
     _elapsed = Duration.zero;
+    _lastAmplitude = null;
     _maxDuration = maxDuration;
     await _recorder.start(
       const RecordConfig(
@@ -188,6 +202,7 @@ class AudioRecorderService {
         maxDuration: maxDuration,
         filePath: _currentPath,
         fileMime: _currentMime,
+        lastAmplitude: _lastAmplitude,
       ));
       if (_elapsed >= maxDuration) {
         await stop();
@@ -202,6 +217,7 @@ class AudioRecorderService {
         .listen((amp) {
       // dBFS typique : -60 (silence) a 0 (saturation). On normalise sur 0..1.
       final norm = ((amp.current + 60) / 60).clamp(0.0, 1.0);
+      _lastAmplitude = norm;
       _stateController.add(RecordingState(
         phase: RecordingPhase.recording,
         elapsed: _elapsed,
@@ -274,6 +290,7 @@ class AudioRecorderService {
     _currentPath = null;
     _currentMime = null;
     _elapsed = Duration.zero;
+    _lastAmplitude = null;
     _stateController.add(const RecordingState(phase: RecordingPhase.idle));
   }
 
@@ -298,15 +315,38 @@ final audioRecorderServiceProvider = Provider<AudioRecorderService>((ref) {
 });
 
 class RecordingController extends StateNotifier<RecordingState> {
-  RecordingController(this._svc)
+  RecordingController(this._svc, this._wakeLock)
       : super(const RecordingState(phase: RecordingPhase.idle)) {
     _sub = _svc.stateStream.listen((s) {
+      _syncWakeLock(s.phase);
       if (mounted) state = s;
     });
   }
 
+  /// Un seul detenteur pour les 3 modules qui enregistrent (production EO,
+  /// competences EO, diagnostic EO) : le service est un singleton applicatif,
+  /// il n'y a jamais deux captures en vol.
+  static const String _wakeLockReason = 'eo-recording';
+
   final AudioRecorderService _svc;
+  final ScreenWakeLock _wakeLock;
   StreamSubscription<RecordingState>? _sub;
+  bool _wakeLockHeld = false;
+
+  /// Le maintien de l'ecran suit la **phase reelle du service**, pas les appels
+  /// de ce controller. C'est le seul point de cablage qui couvre tous les
+  /// chemins de sortie : `stop()`, `cancel()`, l'auto-stop a `maxDuration`
+  /// (declenche par le ticker **interne** au service, qui ne repasse pas par
+  /// `RecordingController.stop`) et un `start()` qui echoue (aucun etat
+  /// `recording` n'est alors emis, donc rien n'est acquis).
+  void _syncWakeLock(RecordingPhase phase) {
+    final shouldHold = phase == RecordingPhase.recording;
+    if (shouldHold == _wakeLockHeld) return;
+    _wakeLockHeld = shouldHold;
+    unawaited(shouldHold
+        ? _wakeLock.acquire(_wakeLockReason)
+        : _wakeLock.release(_wakeLockReason));
+  }
 
   /// Mute le state seulement si le notifier est encore mounted (sinon no-op).
   /// Sert de garde apres chaque await -- evite les crashes "_debugIsMounted".
@@ -357,6 +397,9 @@ class RecordingController extends StateNotifier<RecordingState> {
   @override
   void dispose() {
     _sub?.cancel();
+    // Filet de securite : si le controller meurt pendant une capture, le
+    // wakelock ne doit pas survivre au dernier detenteur.
+    _syncWakeLock(RecordingPhase.idle);
     super.dispose();
   }
 }
@@ -364,5 +407,5 @@ class RecordingController extends StateNotifier<RecordingState> {
 final recordingControllerProvider =
     StateNotifierProvider<RecordingController, RecordingState>((ref) {
   final svc = ref.watch(audioRecorderServiceProvider);
-  return RecordingController(svc);
+  return RecordingController(svc, ref.watch(screenWakeLockProvider));
 });

@@ -16,6 +16,7 @@ import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.util.AudioEphemere;
 import com.sejourfr.app.util.ProductionPayloadSupport;
 import com.sejourfr.app.util.ProductionTextBounds;
 import lombok.RequiredArgsConstructor;
@@ -31,15 +32,24 @@ import java.util.UUID;
  * Orchestration end-to-end d'une submission EO ou EE :
  * <ol>
  *   <li>valide l'entree (taille audio / nombre de mots) ;</li>
- *   <li>uploade l'audio sur R2 (EO) ;</li>
- *   <li>cree la submission en {@code SUBMITTED} ;</li>
- *   <li>appelle Whisper (si EO) puis Claude ;</li>
+ *   <li><b>transcrit l'audio (EO) PENDANT la requete</b>, puis efface les
+ *       octets ;</li>
+ *   <li>cree la submission en {@code SUBMITTED} + sa transcription ;</li>
+ *   <li>appelle le correcteur en arriere-plan ;</li>
  *   <li>passe la submission a {@code EVALUATED} ou {@code FAILED} avec un
  *       {@code erreur_message} parlant.</li>
  * </ol>
- * Le mecanisme de retry est dans les clients HTTP (Spring Retry). Cette classe
+ *
+ * <p><b>L'audio d'un candidat n'est jamais stocke</b> (decision produit, motif
+ * consentement) : ni R2, ni base, ni disque. Il sert a produire la
+ * transcription, puis il disparait. C'est ce qui impose l'etape 2 en synchrone :
+ * un runner asynchrone ne pourrait plus relire les octets. La production
+ * conservee, c'est le texte — et lui seul est rendu aux ecrans.
+ *
+ * <p>Le mecanisme de retry est dans les clients HTTP (Spring Retry). Cette classe
  * expose en plus {@link #retry(UUID, UUID)} pour relancer une submission
- * marquee {@code FAILED}.
+ * marquee {@code FAILED} : il repart <b>de la transcription</b>, jamais de
+ * l'audio, qui n'existe plus.
  */
 @Service
 @RequiredArgsConstructor
@@ -51,7 +61,7 @@ public class ProductionEvaluationService {
     private final TranscriptionManager transcriptionManager;
     private final AttemptManager attemptManager;
     private final UserManager userManager;
-    private final ProductionAudioStorageService audioStorage;
+    private final WhisperTranscriptionService whisperService;
     private final ProductionPipelineAsyncRunner pipelineRunner;
     private final ProductionAccessService accessService;
     private final ProductionEvaluationProperties props;
@@ -98,29 +108,41 @@ public class ProductionEvaluationService {
         if (estOral) {
             byte[] bytes = ProductionPayloadSupport.readBytes(audio);
             validateAudio(bytes);
-            // On uploade R2 AVANT de creer la row pour respecter le CHECK
-            // `chk_prod_sub_audio_or_text` (media_url DOIT etre non-null pour
-            // une submission EO). La cle R2 utilise un UUID independant : on
-            // ne pre-assigne pas l'id de la submission (Hibernate refuse
-            // "Detached entity" avec @UuidGenerator + id pre-set).
-            UUID storageKeyId = UUID.randomUUID();
-            String extension = ProductionPayloadSupport.extractExtension(audio);
-            ProductionAudioStorageService.StoredAudio stored = audioStorage.upload(
-                storageKeyId, bytes, audio.getContentType(), extension
-            );
-            submission.setMediaUrl(stored.objectKey());
-            submission.setMediaDurationSec(null); // sera mis a jour apres Whisper
+            // TRANSCRIPTION SYNCHRONE, avant toute écriture. L'audio n'est plus
+            // stocké nulle part (décision produit, motif consentement) : les
+            // octets n'existent que le temps de cette requête, c'est donc le
+            // SEUL moment où l'on peut transcrire. AudioEphemere efface le
+            // tampon dans un finally, y compris si Whisper échoue.
+            //
+            // Ordre volontaire — transcrire PUIS insérer :
+            //   * un échec Whisper ne laisse alors AUCUNE ligne, aucun quota
+            //     consommé, et le candidat, qui a encore son enregistrement sur
+            //     son appareil, renvoie simplement. C'est la seule reprise
+            //     possible depuis que l'audio ne survit pas ;
+            //   * l'ordre inverse (insérer puis transcrire) fabriquerait des
+            //     productions FAILED définitivement irrécupérables.
+            // Coût assumé : sur un double-clic diagnostic, le perdant paie une
+            // transcription jetée — rare, borné, et préférable à une production
+            // morte.
+            WhisperTranscriptionClient.WhisperResult transcrit = AudioEphemere.avecOctets(
+                bytes, octets -> whisperService.transcribe(octets, fileNameOf(audio)));
+
+            submission.setMediaUrl(null);
+            submission.setMediaDurationSec(transcrit.durationSec());
             try {
                 submission = submissionManager.save(submission);
             } catch (DataIntegrityViolationException duplicateDiagnostic) {
-                // L'index partiel uq_prod_submission_diagnostic_attempt rend le double-clic
-                // atomique. Nettoyage best-effort de l'objet uploadé par le perdant.
+                // L'index partiel uq_prod_submission_diagnostic_attempt rend le
+                // double-clic atomique.
                 if (task.isDiagnostic()) {
-                    audioStorage.delete(stored.objectKey());
                     throw new BusinessException("Cette étape du diagnostic a déjà été rendue.");
                 }
                 throw duplicateDiagnostic;
             }
+            // La production, désormais : le texte. Persistée AVANT le pipeline,
+            // qui saute alors Whisper (branche « transcription déjà présente »,
+            // celle qu'emprunte déjà la voie temps réel).
+            whisperService.persist(submission, transcrit);
         } else {
             String clean = ProductionPayloadSupport.sanitizeText(texte);
             int mots = ProductionPayloadSupport.countWords(clean);
@@ -325,6 +347,15 @@ public class ProductionEvaluationService {
         if (estOral && audio != null && !audio.isEmpty()) {
             ProductionPayloadSupport.validateAudioContentType(audio);
         }
+    }
+
+    /**
+     * Nom transmis à Whisper : il en déduit le format du conteneur. On ne rend
+     * jamais le nom d'origine du fichier du candidat — seulement son extension
+     * sûre, résolue comme elle l'était pour la clé de stockage.
+     */
+    private static String fileNameOf(MultipartFile audio) {
+        return "production." + ProductionPayloadSupport.extractExtension(audio);
     }
 
     private void validateAudio(byte[] bytes) {

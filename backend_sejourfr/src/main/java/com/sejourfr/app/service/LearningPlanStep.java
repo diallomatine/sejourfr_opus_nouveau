@@ -3,6 +3,7 @@ package com.sejourfr.app.service;
 import com.sejourfr.app.entity.SkillPrompt;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * <b>Ce qu'est une etape du Plan</b> : son perimetre et son achevement, ecrits
@@ -54,16 +55,38 @@ public final class LearningPlanStep {
     }
 
     /**
-     * Progression sur les seuls sujets de l'etape.
+     * Progression sur les seuls sujets de l'etape, <b>et le perimetre lui-meme</b>.
      *
      * <p><b>Distincte des compteurs de competence</b>, qui portent sur les 15
      * sujets et gardent la semantique de {@code SkillDto} : le Plan afficherait
      * « /5 » et la fiche de competence « /15 » pour une meme competence si l'on
      * detournait les seconds.
+     *
+     * <p>Le perimetre voyage sous forme d'<b>identifiants de sujets</b>
+     * ({@link #promptIds()}), parce qu'un front qui ouvre une competence depuis
+     * le Plan doit afficher l'etape — les memes cinq sujets, dans le meme ordre —
+     * et non la fiche generique. Le denominateur est <b>la taille de cette
+     * liste</b> ({@link #promptCount()}) et rien d'autre : impossible d'annoncer
+     * « 5 » puis d'en servir 3.
+     *
+     * @param promptIds sujets de l'etape, par rang d'affichage croissant.
      */
-    public record Progress(int promptCount, int attemptedCount, int validatedCount) {
+    public record Progress(List<UUID> promptIds, int attemptedCount, int validatedCount) {
 
-        public static final Progress EMPTY = new Progress(0, 0, 0);
+        public static final Progress EMPTY = new Progress(List.of(), 0, 0);
+
+        public Progress {
+            promptIds = List.copyOf(promptIds);
+        }
+
+        /**
+         * Sujets de l'etape. Vaut ce qui existe : une competence qui publie
+         * moins de {@value #PROMPTS_PAR_ETAPE} sujets a une etape plus courte,
+         * aucune ne se voit inventer de denominateur.
+         */
+        public int promptCount() {
+            return promptIds.size();
+        }
 
         /**
          * L'etape est <b>terminee</b> quand tous ses sujets ont ete traites —
@@ -72,9 +95,20 @@ public final class LearningPlanStep {
          *
          * <p>Une etape sans aucun sujet actif n'est jamais terminee : il n'y a
          * rien a faire, le dire « fini » serait un contresens.
+         *
+         * <p><b>C'est aussi la seconde condition de la bascule vers la
+         * verification en situation</b> ({@code LearningPlanService}) : le
+         * signal du moteur de maitrise ne suffit pas, l'etape doit etre finie.
+         * Le perimetre est ici l'<b>editorial</b> — les
+         * {@value #PROMPTS_PAR_ETAPE} sujets, ceux que les fronts affichent —
+         * et non ce que l'acces du candidat lui ouvre. Un compte gratuit,
+         * plafonne a 2 sujets sur 5, ne bascule donc jamais : c'est un
+         * <b>arbitrage produit</b> (la verification est premium), pas une
+         * propriete du moteur. Ne pas le « reparer » en comptant les sujets
+         * ouverts.
          */
         public boolean completed() {
-            return promptCount > 0 && attemptedCount >= promptCount;
+            return !promptIds.isEmpty() && attemptedCount >= promptIds.size();
         }
     }
 }

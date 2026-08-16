@@ -8,12 +8,14 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/api/audience_repository.dart';
 import '../../core/api/repositories.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/providers/target_level_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
+import '../../core/widgets/premium_lock.dart';
 import '../../core/widgets/screen_header.dart';
 import '../tcf_production/audio_recorder_service.dart';
 import '../tcf_production/recommended_exercise_launcher.dart';
@@ -55,6 +57,14 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   bool _resultViewedTracked = false;
   bool _accountGateTracked = false;
   bool _writingHydrated = false;
+
+  /// Accès TCF du compte, lu **au moment du rendu** : un achat conclu pendant
+  /// que l'écran est ouvert doit lever les cadenas sans le remonter. Un visiteur
+  /// n'a pas d'accès — et n'atteint de toute façon jamais l'écran de résultat.
+  bool get _hasTcfAccess {
+    final auth = ref.watch(authControllerProvider);
+    return auth is AuthAuthenticated && auth.user.hasTcf;
+  }
 
   @override
   void initState() {
@@ -335,7 +345,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   }) {
     if (state.isGuest) return _guestContent(state: state, recording: recording);
 
-    if (state.isSyncing) return const DiagnosticSendingView();
+    if (state.isSyncing) return DiagnosticSendingView(stage: state.syncStage);
     if (state.canRetrySync) {
       return DiagnosticSyncFailedView(
         isBusy: state.isSyncing,
@@ -368,12 +378,17 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
         errorMessage: state.errorMessage,
         onRefresh: () => unawaited(_controller.refreshDetail()),
         onRetry: () => unawaited(_controller.retryAnalysis()),
+        onOpenPlan: () => context.go(AppRoutes.plan),
       );
     }
     return switch (journey.nextStep) {
       DiagnosticStep.presentation => DiagnosticIntro(
           isStarting: state.isSubmitting,
           errorMessage: state.errorMessage,
+          // Sans session, le serveur n'attache aucun sujet au parcours : les
+          // mesures viennent alors du catalogue public, chargé en repli.
+          written: journey.written ?? state.subjects?.written,
+          oral: journey.oral ?? state.subjects?.oral,
           onStart: () => unawaited(_startAuthenticated()),
         ),
       DiagnosticStep.written when journey.written != null =>
@@ -401,8 +416,15 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
       DiagnosticStep.result when journey.result != null => DiagnosticResultView(
           result: journey.result!,
           objective: objective,
+          // Le serveur reste l'arbitre du verrou : on ne lit ici que l'accès
+          // déjà résolu sur le compte, jamais une règle « étape 1 ouverte »
+          // réécrite côté app.
+          hasTcfAccess: _hasTcfAccess,
           onOpenPlan: () => context.go(AppRoutes.plan),
           onOpenRecommended: _openRecommended,
+          // Même feuille que le Plan et les Compétences : un seul parcours
+          // d'achat, jamais un second.
+          onSubscribe: () => unawaited(showTcfLockPaywall(context)),
         ),
       _ => _InitialState(
           isLoading: state.isLoading,
@@ -431,6 +453,9 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
       DiagnosticGuestStep.presentation => DiagnosticIntro(
           isStarting: false,
           errorMessage: state.errorMessage,
+          written: subjects.written,
+          oral: subjects.oral,
+          isGuest: true,
           onStart: _startGuest,
         ),
       DiagnosticGuestStep.written => DiagnosticWrittenStep(

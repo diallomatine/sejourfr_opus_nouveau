@@ -20,6 +20,12 @@ import {
   userContentApi,
 } from "@/lib/api";
 import { handleStartFailure } from "@/lib/start-failure";
+import {
+  epreuveExitMessage,
+  EPREUVE_EXIT_CANCEL,
+  EPREUVE_EXIT_CONFIRM,
+  EPREUVE_EXIT_TITLE,
+} from "@/lib/full-exam-exit";
 import { useAuth } from "@/lib/auth-context";
 import type { AttemptResponse, Difficulty } from "@/lib/types";
 
@@ -538,7 +544,26 @@ function SessionRunnerInner({ params }: PageProps) {
               ? examReturnPath(attempt)
               : (lotQuitHref ?? "/entrainement")
         }
-        quitMode={isExam && !fullExamId ? "confirmFinish" : "link"}
+        // Une épreuve COMMENCÉE ne se reprend jamais : quitter la clôture, ici
+        // comme sur le hub. En examen complet, `onCompleted` ramène au hub sans
+        // ouvrir de bilan — les épreuves suivantes restent à passer.
+        quitMode={isExam ? "confirmFinish" : "link"}
+        quitConfirm={
+          fullExamId
+            ? {
+                title: EPREUVE_EXIT_TITLE,
+                message: epreuveExitMessage(
+                  attempt.moduleExamQuestionType === "CO"
+                    ? "TCF_CO"
+                    : attempt.moduleExamQuestionType === "CE"
+                      ? "TCF_CE"
+                      : null,
+                ),
+                confirmLabel: EPREUVE_EXIT_CONFIRM,
+                cancelLabel: EPREUVE_EXIT_CANCEL,
+              }
+            : undefined
+        }
         timeLimitSeconds={isExam ? attempt.timeLimitSeconds : undefined}
         startedAt={isExam ? attempt.startedAt : undefined}
         // En examen complet, l'épreuve a déjà été lancée depuis le hub

@@ -30,6 +30,21 @@ public record SkillPromptSummaryDto(
         int attemptCount,
         Instant lastAttemptAt,
         /**
+         * Derniere production du candidat sur ce sujet, ou {@code null} s'il n'y
+         * en a aucune. Meme source que {@code SkillPromptDto.lastAttemptId} : la
+         * tentative deja chargee pour deriver {@link #status} — <b>aucune requete
+         * de plus</b>, alors qu'une liste de competence en compte 15 et qu'un
+         * ecran en charge 24.
+         *
+         * <p>Sans lui, la liste ne pouvait pointer que vers l'ecran de
+         * production : le candidat n'avait aucun moyen de relire le rapport
+         * qu'il venait de payer avec une de ses analyses. Il peut valoir
+         * {@code null} sur un sujet pourtant marque traite (ligne heritee) — les
+         * fronts retombent alors sur l'entree directe en production, jamais sur
+         * un bouton mort.
+         */
+        UUID lastAttemptId,
+        /**
          * {@code true} quand ce candidat <b>ne peut pas produire</b> sur ce
          * sujet. C'est ici que se voit la règle « seuls les 2 premiers sujets
          * d'une compétence ouverte le sont » : sans ce champ, le candidat ne

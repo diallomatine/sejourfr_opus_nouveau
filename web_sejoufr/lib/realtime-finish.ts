@@ -33,7 +33,10 @@ export type RealtimeFinishKind = "evaluated" | "noSpeech" | "lost" | "retryable"
 
 export interface RealtimeFinishResult {
     kind: RealtimeFinishKind;
-    /** Tours de dialogue perdus par le relais best-effort (jamais arrivés). */
+    /** Tours de dialogue DÉFINITIVEMENT perdus : le relais les a réessayés (à
+     *  `turnIndex` constant, donc sans risque de doublon côté serveur) et aucun
+     *  essai n'est passé. Les tours suivants portant un index plus haut,
+     *  celui-ci ne pourra plus être appliqué. */
     droppedTurns: number;
 }
 
@@ -92,6 +95,17 @@ export const RT_FINISH_LOST_MESSAGE =
 export const RT_FINISH_PARTIAL_TITLE = "Transmission partielle";
 export const RT_FINISH_PARTIAL_MESSAGE =
     "Une partie de votre échange n'a pas pu être transmise. Votre évaluation portera uniquement sur ce qui nous est parvenu.";
+// Reprise de session après coupure du WebSocket — mêmes chaînes côté mobile
+// (`kRtResume*` dans `realtime_finish.dart`). Ton du produit : on annonce ce qui
+// se passe et ce qui est conservé, jamais un manque du candidat.
+export const RT_RESUME_TITLE = "Connexion perdue";
+export const RT_RESUME_MESSAGE =
+    "Reprise de l'échange en cours — votre transcription et votre temps de parole sont conservés.";
+export const RT_RESUME_STATUS = "Reprise de la connexion…";
+export const RT_RESUME_HINT = "Restez sur cet écran, on repart là où vous en étiez.";
+export const RT_RESUME_FAILED_MESSAGE =
+    "La connexion à l'examinateur n'a pas pu être rétablie. Vous pouvez faire cette tâche en enregistrement classique.";
+
 export const RT_FINISH_RETRY_ACTION = "Réessayer l'envoi";
 export const RT_FINISH_GIVE_UP_ACTION = "Continuer sans cette réponse";
 export const RT_FINISH_SEE_RESULT_ACTION = "Voir mon évaluation";

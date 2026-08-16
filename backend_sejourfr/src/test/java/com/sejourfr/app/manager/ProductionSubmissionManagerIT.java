@@ -6,6 +6,7 @@ import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.SubmissionStatut;
+import com.sejourfr.app.repository.ProductionSubmissionRepository;
 import com.sejourfr.app.repository.ProductionTaskRepository;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ProductionSubmissionManagerIT extends AbstractIntegrationTest {
 
@@ -31,6 +33,9 @@ class ProductionSubmissionManagerIT extends AbstractIntegrationTest {
 
     @Autowired
     private ProductionTaskRepository taskRepository;
+
+    @Autowired
+    private ProductionSubmissionRepository submissionRepository;
 
     @Autowired
     private TestData testData;
@@ -323,5 +328,46 @@ class ProductionSubmissionManagerIT extends AbstractIntegrationTest {
                 .extracting(ProductionSubmission::getId)
                 .containsExactly(earlier.getId(), later.getId())
                 .doesNotContain(otherStatus.getId());
+    }
+    /**
+     * FORME NOMINALE d'une soumission ORALE depuis V033 : ni media, ni texte —
+     * l'audio n'est plus stocke, la production vit dans {@code transcriptions},
+     * exactement comme la voie temps reel. La contrainte
+     * {@code chk_prod_sub_audio_or_text} doit l'accepter, sinon plus aucune
+     * production orale n'est insérable.
+     */
+    @Test
+    void anOralSubmissionWithoutMediaNorTextIsAccepted() {
+        User user = testData.user();
+        Attempt attempt = testData.attempt(user);
+        ProductionSubmission s = new ProductionSubmission();
+        s.setUser(user);
+        s.setAttempt(attempt);
+        s.setProductionTask(task(EpreuveType.TCF_EO, (short) 1));
+        s.setStatut(SubmissionStatut.SUBMITTED);
+        s.setMediaDurationSec(95);
+
+        ProductionSubmission saved = submissionRepository.saveAndFlush(s);
+
+        assertThat(saved.getId()).isNotNull();
+        assertThat(saved.getMediaUrl()).isNull();
+        assertThat(saved.getTexteSoumis()).isNull();
+    }
+
+    /** Ce que la contrainte continue d'interdire : media ET texte sur la meme ligne. */
+    @Test
+    void aSubmissionCarryingBothMediaAndTextIsStillRejected() {
+        User user = testData.user();
+        Attempt attempt = testData.attempt(user);
+        ProductionSubmission s = new ProductionSubmission();
+        s.setUser(user);
+        s.setAttempt(attempt);
+        s.setProductionTask(task(EpreuveType.TCF_EE, (short) 1));
+        s.setStatut(SubmissionStatut.SUBMITTED);
+        s.setMediaUrl("submissions/legacy.webm");
+        s.setTexteSoumis("Bonjour cher voisin.");
+
+        assertThatThrownBy(() -> submissionRepository.saveAndFlush(s))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     }
 }

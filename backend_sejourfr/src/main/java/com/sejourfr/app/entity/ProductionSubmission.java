@@ -52,7 +52,13 @@ public class ProductionSubmission {
     @Column(name = "submitted_at", nullable = false)
     private Instant submittedAt;
 
-    /** EO uniquement : URL R2 (signee ou cle de stockage). NULL pour EE. */
+    /**
+     * LEGACY — plus jamais ecrite. Cle R2 des productions orales enregistrees
+     * avant que l'audio du candidat cesse d'etre stocke (decision produit, motif
+     * consentement). Conservee telle quelle sur les lignes historiques ; aucune
+     * nouvelle soumission ne la renseigne, et aucun DTO ne l'expose. La
+     * production orale conservee, c'est sa {@link Transcription}.
+     */
     @Column(name = "media_url", length = 500)
     private String mediaUrl;
 

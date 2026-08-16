@@ -94,6 +94,42 @@ sans note sur 20, avec leurs propres consignes et format **v1 / v1** décrits ju
 > été testés sans appeler de fournisseur payant ; aucune campagne de mesure comparative du
 > jugement pédagogique n'a donc été menée pour cette première version.
 
+> 🆕 **14 août 2026 — à la fin du diagnostic, votre phrase et la même phrase au niveau que
+> vous visez.** L'écran de résultat montre désormais un **avant / après** : une phrase que
+> vous avez réellement écrite, puis cette même phrase réécrite comme l'écrirait quelqu'un au
+> palier qu'exige votre démarche (A2, B1 ou B2). Deux ou trois passages de la version réécrite
+> sont mis en évidence, avec une étiquette de trois mots qui dit ce qu'ils apportent
+> (« lien explicite », « précision concrète »). Le but n'est pas de vous dire ce qui ne va
+> pas : c'est de vous montrer à quoi ressemblerait **votre propre phrase** un cran plus haut.
+>
+> **La phrase affichée est bien la vôtre, au caractère près.** L'IA ne la recopie pas — elle
+> désigne un numéro de phrase, et c'est le serveur qui va chercher le texte exact dans ce que
+> vous avez écrit. Elle ne peut donc pas vous attribuer une phrase que vous n'avez pas écrite.
+> La version réécrite garde votre situation, vos faits, vos prénoms, vos chiffres et votre
+> intention : seule la langue monte d'un cran. Rien n'est inventé.
+>
+> **Uniquement à l'écrit, et c'est délibéré.** Votre production orale n'est jamais réécrite.
+> Ce que nous lisons de l'oral est une transcription automatique : afficher un beau texte à la
+> place de ce que vous avez dit serait trompeur. C'est la même règle que pour les corrections
+> complètes.
+>
+> **C'est un appel séparé, qui ne touche pas au jugement.** L'IA qui analyse votre diagnostic
+> ne sait pas qu'une réécriture aura lieu, et ne sait pas quel niveau vous visez : ses
+> consignes n'ont pas changé d'une virgule. Nous avons mesuré ailleurs qu'ajouter le niveau
+> visé à une grille qui juge dégrade sa fiabilité (accord exact 81,8 % → 75,6 %). La
+> réécriture est donc produite **après**, à part, par une seconde demande.
+>
+> **Ce bloc peut être absent, et ce n'est pas une panne.** Il n'apparaît pas si vous écrivez
+> déjà au niveau que vous visez (il n'y aurait rien à montrer), ni si la seconde demande
+> n'aboutit pas. Votre diagnostic, vos priorités et votre Plan sont complets dans tous les
+> cas : cette réécriture est un plus, jamais une pièce dont dépend le résultat. Les
+> diagnostics passés avant cette date n'en ont pas — nous ne rejouons rien a posteriori.
+>
+> **Aucune campagne de mesure n'était requise** : rien de ce qui note ne bouge, par
+> construction. Les consignes de la réécriture vivent dans leurs propres fichiers versionnés
+> (`diagnostic-exemple-cible-rubrics-v1.json` et son format de sortie), et le tout se coupe
+> par une seule variable si besoin.
+
 > 🆕 **8 août 2026 — sur une tâche isolée, plus de note sur 20 : votre niveau, et où vous en
 > êtes DANS ce niveau.** Explication complète aux **§6.2 bis** et **§6.3 bis**.
 >
@@ -1720,9 +1756,18 @@ C'est le seul niveau qui fait foi. Il apparaît à la fin d'un examen blanc qui 
   une tâche orale dans une session d'expression écrite (ou l'inverse) est refusée. Sans
   cette règle, une production mal aiguillée pouvait clore la mauvaise épreuve et lui poser
   un niveau qui n'était pas le sien.
-- **Un examen d'expression orale dure 15 minutes**, comme l'examen d'expression écrite en
-  dure 30. Les trois tâches orales plafonnent le temps de parole à 3 + 3,5 + 3,5 minutes ;
-  les 5 minutes restantes couvrent la lecture des consignes et les transitions.
+- **À l'oral, le temps se compte tâche par tâche — il n'y a pas de chrono d'épreuve.**
+  Avant chaque tâche, la consigne s'affiche **sans aucun décompte** : on la lit, on la
+  prépare, on souffle. Le chrono ne démarre qu'au moment où le candidat appuie sur
+  « Je suis prêt · Commencer la tâche », et il porte sur le **temps de parole de cette
+  tâche seule** (3 min, puis 3,5 min, puis 3,5 min — les durées du vrai TCF). À zéro,
+  l'enregistrement s'arrête et on passe à la tâche suivante. C'est exactement le
+  déroulé de l'examen réel, et cela veut dire qu'**une pause entre deux tâches ne coûte
+  rien**. *(Il subsiste, invisible, une limite technique de plusieurs heures sur une
+  session laissée ouverte : c'est un garde-fou contre les abus automatisés, jamais un
+  chrono d'examen.)*
+- **Un examen d'expression écrite dure 30 minutes** pour les trois tâches, à répartir
+  librement — comme au TCF.
 - **Une épreuve qu'on n'a pas pu passer n'a pas de niveau — elle n'est pas « ratée ».**
   Deux cas : l'épreuve était **verrouillée** (compte gratuit qui refait un examen blanc
   complet après avoir déjà utilisé son expression écrite et orale offertes), ou ses
@@ -2519,6 +2564,71 @@ sans cela, on répare un cas et on reste aveugle au suivant.
 
 ---
 
+## 8 octies. Le **diagnostic** oral protégé lui aussi (nouveau, 14 août 2026)
+
+### Ce qui s'est passé
+
+Le **diagnostic initial** — les deux exercices de 5 minutes qu'on passe en arrivant, un écrit
+puis un oral — est corrigé par une machine **distincte** de celle qui corrige les productions
+complètes. Elle a son propre contrat, ses propres garde-fous, et surtout : elle ne traversait
+**aucun** des filets décrits dans les sections précédentes.
+
+Résultat, sur une session réellement jouée. Le candidat a demandé les **horaires** d'une
+activité ; notre transcription a écrit **« horreurs »**. Le rapport lui a alors répondu :
+
+> « Demande les horaires et le tarif, mais « horreurs » pour « horaires » est une erreur
+> lexicale qui peut gêner. »
+
+On lui reprochait un mot qu'il n'avait pas dit — et sur le **tout premier écran** du produit,
+celui qui doit lui donner envie de continuer.
+
+### La correction
+
+La même règle qu'à la section 8 sexies s'applique désormais au **volet oral du diagnostic** :
+
+- une remarque **qui reproche quelque chose**, **qui cite un passage réel** de la
+  transcription, et dont la citation ne nomme **qu'un ou deux mots pleins**, est **retirée** ;
+- une remarque qui cite **trois mots ou plus**, ou **aucun mot plein** (« pour ne pas que »),
+  décrit une **structure de phrase** : elle est **conservée** ;
+- si la transcription a été jugée **abîmée** (section 8 septies), toute remarque appuyée sur
+  une citation tombe, quelle que soit sa longueur.
+
+### La seule différence avec les productions complètes
+
+Sur une production complète, ce nettoyage ne touche que les remarques de **grammaire**, jamais
+celles de **vocabulaire** : on y a mesuré des cas où une vraie remarque de vocabulaire aurait
+été effacée à tort.
+
+Le diagnostic, lui, **n'a pas cette séparation** : ses observations portent sur des
+**compétences** (« poser des questions précises », par exemple), pas sur des critères de
+langue. Il n'y a donc rien sur quoi restreindre le nettoyage.
+
+Le choix retenu est de nettoyer **quand même**, y compris quand la remarque se dit
+« lexicale », parce que les deux explications possibles mènent au même endroit : soit notre
+transcripteur a mal entendu, soit le candidat a mal prononcé — et **nous nous interdisons déjà
+de juger la prononciation** (section 9). Dans les deux cas, la remarque n'a pas à être rendue.
+
+### Ce qui n'est jamais touché
+
+- **L'écrit du diagnostic.** Rien du tout. À l'écrit, le candidat tape chaque mot : aucune
+  machine ne s'interpose. Le déséquilibre vient de notre chaîne technique, pas du niveau exigé.
+- **Le jugement.** Ni le niveau estimé, ni le verdict sur la tâche, ni la priorité, ni la
+  confiance, ni l'ordre des priorités du Plan. On retire une **phrase**, pas un verdict. Le
+  diagnostic ne produit d'ailleurs aucune note sur 20.
+- **Les points forts.** On n'efface pas un compliment.
+- **Le passage cité en preuve.** Il reste affiché : sans lui, le reste devient incompréhensible.
+- **L'observation elle-même.** Si son explication disparaît en entier, l'observation **reste**,
+  simplement sans explication. **Un nettoyage ne fait jamais échouer un diagnostic** — le
+  candidat ne perd jamais ses deux productions pour cette raison.
+
+### Ce qu'on en mesure
+
+Chaque phrase retirée est comptée à part de celles des productions complètes. Sur les
+**8 analyses orales de diagnostic** existantes, **une** portait ce défaut — la même proportion,
+environ une sur huit, que celle mesurée sur les productions complètes.
+
+---
+
 ## 9. L'oral : ce que nous ne savons pas évaluer
 
 **C'est une limite technique, pas un choix pédagogique — et le candidat en est informé.**
@@ -2661,7 +2771,7 @@ Quatre précisions qui comptent :
   connexion et d'accueil n'est **pas** décompté du temps de parole du candidat.
 - **L'examinateur est patient mais réactif.** Il laisse le candidat finir ses phrases (il ne le
   coupe pas sur une pause de réflexion), tout en répondant assez vite pour que l'échange reste
-  fluide.
+  fluide. Le détail de ce réglage — et pourquoi il vient d'être modifié — est juste en dessous.
 - **Quand le temps est écoulé, l'examinateur termine sa phrase de conclusion.** Il n'est pas
   coupé au milieu d'un mot, et il n'y a pas non plus de silence inutile avant la suite.
 - **Il parle un français normal**, clair et accessible, sans s'adapter artificiellement au
@@ -2679,6 +2789,98 @@ Quatre précisions qui comptent :
   simulation orale obéit exactement aux mêmes règles que l'enregistrement classique — elle ne
   permet pas de rendre une tâche que l'autre voie aurait refusée, et on ne peut plus consommer
   une simulation pour s'entendre dire à la fin qu'il n'y avait rien à noter.
+
+### Quand l'examinateur décide que vous avez fini de parler
+
+Pendant un oral, personne ne dit « à toi » : c'est la machine qui doit deviner, à partir du
+silence, que le candidat a terminé sa phrase. Ce réglage a **deux façons de mal tourner**, et
+elles sont opposées :
+
+- trop **impatient**, il coupe un apprenant au milieu d'une hésitation — celui qui cherche son
+  mot est puni d'avoir cherché ;
+- trop **prudent**, il attend longuement après le dernier mot, et l'échange devient poussif :
+  « je finis ma phrase et l'examinateur met une éternité à répondre ».
+
+Le réglage est volontairement au maximum de la prudence. En usage réel c'est un peu lent — le
+propriétaire de la plateforme a constaté lui-même l'attente — et une tentative a été faite le
+2026-08-12 pour passer à un « cran intermédiaire ».
+
+**Ce cran intermédiaire n'existe pas**, et l'avoir cru a coûté cher : le service vocal
+n'accepte que deux réglages, le prudent et le rapide. En lui demandant une valeur inconnue, il
+a **refusé d'ouvrir chaque conversation** — du 12 au 16 août 2026, plus **aucun** oral avec
+examinateur n'a pu démarrer, ni sur le site ni sur l'application. Pire : personne ne le voyait.
+Le candidat choisissait « avec un examinateur », et se retrouvait sur l'enregistrement seul
+**sans un mot d'explication**, comme s'il l'avait demandé.
+
+Trois choses ont changé le 2026-08-16 :
+
+- le réglage est **revenu au cran prudent**, le seul autre disponible — le cran rapide reste
+  écarté, il couperait la parole à un apprenant A2 qui cherche son mot ;
+- une valeur de réglage inconnue **empêche désormais le serveur de démarrer**, au lieu de
+  désactiver l'oral en silence : mieux vaut une panne visible qu'une fonctionnalité morte que
+  personne ne remarque ;
+- quand l'examinateur n'est **pas** disponible, quelle qu'en soit la raison, le candidat le
+  **lit** avant de s'enregistrer seul. Il n'est toujours jamais bloqué — mais on ne fait plus
+  disparaître son choix sans rien dire.
+
+Le vrai levier de réactivité, lui, n'a jamais dépendu de ce cran : c'est la durée de silence
+ci-dessous, déjà ramenée à son minimum recommandé.
+
+Deux garde-fous n'ont pas bougé et ne doivent pas bouger :
+
+- **la durée de silence attendue reste à une demi-seconde**, qui est le plancher recommandé par
+  le fournisseur. En dessous, un même énoncé se retrouve découpé en deux à chaque respiration ;
+- **le petit délai gardé avant le début de parole reste identique** : c'est lui qui évite de
+  perdre la première syllabe.
+
+Enfin, **rien de tout cela ne touche la note**. Ce réglage décide du rythme de la conversation,
+pas du jugement : la correction se fait après coup, sur le texte de l'échange, par une autre IA
+qui ne sait rien de ces paramètres. Les cinq valeurs sont modifiables sans reconstruire
+l'application, pour pouvoir en essayer d'autres.
+
+### Si le réseau coupe, l'entretien n'est plus perdu (nouveau)
+
+Le candidat parle **directement** au service vocal depuis son téléphone ou son navigateur ; le
+serveur, lui, ne fait que délivrer l'autorisation et recueillir le texte de l'échange. Cette
+liaison directe est ce qui rend la conversation fluide — mais elle est fragile : un tunnel de
+métro, un ascenseur, une bascule wifi → 4G, l'application passée en arrière-plan quelques
+secondes, et elle tombe.
+
+**Ce qui se passait avant.** L'autorisation délivrée au démarrage ne valait **qu'une seule
+connexion** et **deux minutes** pour l'ouvrir. Une coupure était donc définitive : l'entretien
+s'arrêtait là, sans reprise possible. Et comme la simulation était **déjà décomptée** du forfait
+dès les premiers mots prononcés, le candidat perdait à la fois son entretien **et** sa
+simulation. Il payait pour quelque chose qu'il n'avait pas pu terminer.
+
+**Ce qui se passe maintenant.** L'entretien peut **reprendre là où il s'est arrêté**. Le service
+vocal remet régulièrement une sorte de « marque-page » de la conversation ; l'application la
+conserve, et le serveur en garde aussi une copie — ce qui permet de reprendre même si
+l'application a été fermée entre-temps. À la reconnexion, le serveur délivre une nouvelle
+autorisation qui rouvre **le même entretien**, avec **le même historique**.
+
+Quatre points qui comptent pour le candidat :
+
+- **La simulation n'est jamais décomptée deux fois.** C'est la garantie centrale de ce
+  changement : le forfait se débite au premier mot de l'entretien, une fois pour toutes.
+  Reprendre après une coupure ne coûte rien de plus, et deux connexions qui se chevaucheraient
+  ne peuvent pas non plus provoquer un double décompte.
+- **Le texte de l'échange continue, il ne repart pas de zéro** et il ne se duplique pas. Avant,
+  quand l'envoi d'un morceau de texte échouait, l'application préférait l'abandonner plutôt que
+  de risquer de l'écrire en double ; désormais elle peut le renvoyer sans risque, parce que le
+  serveur reconnaît un morceau déjà reçu. Concrètement : moins de phrases perdues dans le texte
+  qui sera corrigé.
+- **La reprise est bornée** : quelques reprises par entretien, et une fenêtre de reconnexion de
+  dix minutes (contre deux avant). Au-delà, il faut recommencer — mais dix minutes couvrent très
+  largement les coupures ordinaires.
+- **Rien de ceci ne change la correction.** La note, le niveau, les critères et les contrôles
+  automatiques sont exactement les mêmes. Un entretien repris est corrigé comme un entretien
+  qui n'aurait jamais été interrompu.
+
+En complément, l'échange est désormais protégé contre une limite technique du service vocal :
+une conversation audio trop longue finit par saturer sa mémoire. Une « fenêtre glissante » fait
+que seule la partie récente de l'échange y reste chargée. Nos entretiens durent deux à trois
+minutes, donc la limite n'était pas atteinte de toute façon — mais un entretien **repris**
+repart avec un historique déjà constitué, et c'est là que ce filet sert.
 
 ---
 
@@ -3148,9 +3350,22 @@ C'est la même limite, pour les mêmes raisons, que celle expliquée au §9 — 
 la même façon : mieux vaut ne pas juger la prononciation que la juger mal, en pénalisant
 systématiquement certains accents.
 
-Par économie, l'enregistrement n'est transcrit **que si une analyse est demandée** : on ne fait
-pas travailler la transcription pour un audio que personne ne corrigera. **L'audio, lui, est
-toujours conservé** — le candidat doit pouvoir se réécouter.
+**Votre enregistrement n'est pas conservé.** Il sert à une seule chose : produire la
+transcription, dont le correcteur a besoin pour lire ce que vous avez dit. Une fois cette
+transcription faite, l'enregistrement disparaît — il n'est stocké ni sur nos serveurs, ni
+ailleurs. C'est pour cette raison que la transcription est faite **à chaque fois**, même
+quand vous ne demandez pas d'analyse : sans elle, il ne resterait rien de votre production.
+
+Deux conséquences visibles pour vous. D'abord, l'envoi d'une réponse orale prend quelques
+secondes de plus qu'avant : la transcription se fait pendant que vous attendez. Ensuite, les
+écrans de résultat ne proposent plus de vous réécouter — ils affichent le texte de ce que
+vous avez dit. En revanche, **avant de valider**, vous pouvez toujours réécouter votre prise
+et la refaire : à ce moment-là le fichier est encore sur votre appareil, et il n'a été envoyé
+nulle part.
+
+Si la transcription échoue (panne du service), rien n'est enregistré et rien ne vous est
+décompté : le message vous demande de **renvoyer** votre réponse, pas d'attendre une
+correction qui ne viendrait jamais.
 
 ### Ce qui n'a pas été mesuré — à dire franchement
 
@@ -3894,15 +4109,18 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 | **Les bornes de longueur d'une production écrite** (celles qui refusent votre copie **et** celles que doit respecter la version modèle du §5.9) | `backend_sejourfr/src/main/java/com/sejourfr/app/util/ProductionTextBounds.java`, alimenté par les colonnes `mots_min` / `mots_max` du sujet en base. **Un seul endroit décide**, ce qui garantit qu'un texte modèle est toujours une copie recevable |
 | **Ce que les filets de rapport retirent** (compteurs par famille) | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationPurgeMetrics.java`. Distinct du compteur des **refus** (§12.3 bis) : un refus peut coûter la correction, un retrait n'enlève qu'une phrase |
 | **Le compteur de français désaccentué** (§10 bis — il MESURE, il ne refuse jamais) | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationAccentAudit.java`. La liste fermée des formes détectées y est écrite, avec la règle qui l'a construite : en cas de doute, on ne signale rien. Aucun effet sur la note, le niveau, ni le texte rendu |
-| **La patience / réactivité de l'examinateur vocal** (détection de fin de parole) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.realtime.gemini.vad` |
+| **La patience / réactivité de l'examinateur vocal** (détection de fin de parole, §10) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.realtime.gemini.vad`. Les cinq valeurs sont modifiables **sans reconstruire l'application** (variables d'environnement `REALTIME_GEMINI_VAD_*`). Aucune n'a d'effet sur la note |
+| **La reprise d'un entretien après une coupure réseau** (§10) | `backend_sejourfr/src/main/resources/application.yaml`, sections `sejourfr.realtime.gemini.session-resumption` et `.context-window-compression`, plus la durée de validité de l'autorisation (`token-uses`, `new-session-expire-seconds`). Le décompte du forfait, lui, ne dépend d'aucun de ces réglages : il vit dans `RealtimeSessionService` et n'a lieu qu'**une fois par entretien**, sous verrou |
 | **La longueur maximale d'une réponse du correcteur** (§12.3 bis — au-delà, la réponse est coupée et la correction est perdue) | `backend_sejourfr/src/main/resources/application.yaml`, `max-tokens` des trois correcteurs de `sejourfr.production-evaluation` : **la même valeur pour les trois**, verrouillée par un test |
 | **Les consignes des micro-exercices par compétence** (§11 bis — ce que l'IA regarde, les trois verdicts, l'interdiction d'une note, la façon dont le niveau doit se montrer dans la copie, les limites de l'oral) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-rubrics-v4.json` (version active — **v3 mot pour mot pour tout ce qui juge, plus l'obligation de montrer un B1 ou un B2 dans un passage réel** ; v1, v2 et v3 restent chargeables). Fichier **séparé** de celui des tâches complètes : les deux voies n'ont ni les mêmes règles ni le même but, et on ne veut pas qu'une modification de l'une déborde sur l'autre |
 | **Le format de réponse des micro-exercices** (les quatre éléments rendus, les trois verdicts, les longueurs maximales) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-tool-schema-v2.json` (consignes réaccentuées, contrat inchangé) — **aucun champ n'y existe pour une note ou un niveau**, c'est ce qui rend leur apparition impossible plutôt que simplement interdite |
 | **Les réglages des micro-exercices** (longueur maximale acceptée, durée maximale d'un enregistrement, nombre d'analyses offertes) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.competences.analysis`. Le **correcteur**, lui, n'a pas de réglage propre : cette voie utilise le même que tout le reste (`sejourfr.production-evaluation.provider`) |
 | **Le contenu des micro-exercices** (les compétences, les petits sujets, les trois réponses de référence et leurs notes pédagogiques) | migrations `db/migration/300_tcf/competences/` — fichiers **générés**, à ne pas modifier à la main ; le volume publié est figé par un test automatique |
 | **Les consignes du diagnostic initial et de l'observateur du Plan** (accomplissement avant langue, limites de l'oral transcrit, allowlist de compétences, aucune note officielle) | `backend_sejourfr/src/main/resources/prompts/diagnostic-analysis-rubrics-v1.json`, fichier **séparé** de la notation et des micro-exercices. Le même contrat sert à la baseline et aux observations de productions complètes, avec un `analysis_type` explicite ; une nouvelle règle durable crée une nouvelle version au lieu de réécrire v1 |
-| **Le format structuré du diagnostic/Plan** (niveau prudent ≤ B2, accomplissement, communication, preuves segmentées, confiance et priorités) | `backend_sejourfr/src/main/resources/prompts/diagnostic-analysis-tool-schema-v1.json`, renforcé par `DiagnosticAnalysisValidator` : clés exactes, allowlist exhaustive sans doublon, numéros de segment entiers et existants, cohérence observation/statut/preuve/priorité et maximum deux priorités par production. Aucun champ de note `/20` n'existe |
+| **Le format structuré du diagnostic/Plan** (niveau prudent ≤ B2, accomplissement, communication, preuves segmentées, confiance et priorités) | `backend_sejourfr/src/main/resources/prompts/diagnostic-analysis-tool-schema-v1.json`, renforcé par `DiagnosticAnalysisValidator` : clés exactes, allowlist exhaustive sans doublon, numéros de segment entiers et existants, cohérence observation/statut/preuve. Le drapeau « priorité » n'est plus contrôlé mais **recalculé** à partir du statut, et le maximum de deux priorités par production est appliqué en **retirant** les priorités surnuméraires (les moins sûres d'abord) : une analyse n'est jamais perdue pour ce motif. Aucun champ de note `/20` n'existe |
 | **Les réglages du diagnostic** (versions, plafond de sortie, température et relances de session) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.diagnostic.analysis`. Le fournisseur/modèle reste celui de `sejourfr.production-evaluation`, mais la persistance et le pipeline sont séparés de `ai_evaluations` et de la calibration |
+| **Les consignes de l'avant / après du diagnostic** (choisir une phrase par son numéro, ce que la réécriture garde du candidat, ne nommer aucun niveau, ne jamais vendre un moyen déjà acquis) | `backend_sejourfr/src/main/resources/prompts/diagnostic-exemple-cible-rubrics-v1.json` et son format `…-tool-schema-v1.json`, fichiers **séparés** de ceux de l'analyse — c'est ce qui garantit que le jugement du diagnostic ne change pas d'une virgule. Aucun champ n'existe pour une note, un verdict ou un niveau, et aucun pour recopier la phrase du candidat : elle est **désignée par un numéro** et retrouvée par le serveur |
+| **Les réglages de l'avant / après** (activation, versions, plafond de sortie, température) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.diagnostic.exemple-cible`. Écrit seulement, produit après l'analyse et sans rejeu : `DIAGNOSTIC_EXEMPLE_CIBLE_ENABLED=false` le coupe sans rien changer d'autre |
 | **La version au niveau que le candidat vise** (§5.9 — ce que la réécriture conserve de lui, la forme des leviers, ce qu'une reformulation orale ne corrige jamais, la règle d'accentuation) | `backend_sejourfr/src/main/resources/prompts/production-version-ciblee-rubrics-v2.json` et ses **deux** contrats de sortie : `production-version-ciblee-tool-schema-v2.json` (écrit) et `production-version-ciblee-tool-schema-oral-v2.json` (oral, qui ne prévoit aucun texte réécrit). La version v1 reste chargeable — retour arrière par configuration, sans migration. Fichiers **séparés de la grille de notation**, exactement comme pour les micro-exercices : c'est un **second correcteur**, qui ne note rien et à qui l'on ne montre pas la grille. Aucun champ n'y existe pour une note ou un niveau |
 | **Le coupe-circuit de cette version au niveau visé** | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.version-ciblee` — livré **actif**. `EVAL_VERSION_CIBLEE_ENABLED=false` supprime le second appel et l'encart, sans rien changer d'autre. Le **fournisseur** reste celui de tout le reste (`production-evaluation.provider`) |
 | **La situation dans le palier** (§6.3 bis — « A2 solide ») et **ses libellés** | `backend_sejourfr/src/main/java/com/sejourfr/app/enums/SituationDansNiveau.java`. Les bornes viennent de la **grille active**, pas de ce fichier ; les trois libellés y sont figés par un test, avec la règle qui les gouverne : aucun ne nomme un manque |

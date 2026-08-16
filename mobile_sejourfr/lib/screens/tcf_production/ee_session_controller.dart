@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/attempts_repository.dart';
 import '../../core/api/production_repository.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/attempt_models.dart';
@@ -64,17 +65,19 @@ class EeSessionState {
 
 class EeSessionNotifier extends StateNotifier<AsyncValue<EeSessionState>> {
   EeSessionNotifier(
-    this._repo, {
+    this._repo,
+    this._attempts, {
     void Function()? onPlanChanged,
   })  : _onPlanChanged = onPlanChanged ?? _noop,
         super(const AsyncData(EeSessionState.empty()));
 
   final ProductionRepository _repo;
+  final AttemptsRepository _attempts;
   final void Function() _onPlanChanged;
 
   /// (Re)demarre une **session d'examen blanc module** sur le slot donné :
   /// - cree un attempt d'examen (`exam:true, slotNumber:N`) qui porte
-  ///   `timeLimitSeconds` (1800 pour l'EE) + `startedAt`,
+  ///   `timeLimitSeconds` (30 min pour l'EE, servi par le backend) + `startedAt`,
   /// - charge les **3 tâches déterministes** du slot via `getExamTasks`.
   /// Si une session est deja en cours pour le meme slot et pas encore
   /// terminee, on la conserve telle quelle (pour ne pas perdre le progress
@@ -132,6 +135,13 @@ class EeSessionNotifier extends StateNotifier<AsyncValue<EeSessionState>> {
   ///
   /// Si la session est déjà en cours pour ce même sous-attempt, on la garde
   /// pour ne pas perdre la progression entre T1/T2/T3.
+  ///
+  /// 🛑 **Le sous-attempt est LU sur le serveur**, il n'est pas fabriqué : son
+  /// `startedAt` a été recalé sur le lancement réel de l'épreuve par
+  /// `POST /api/full-tcf-exams/{id}/begin`, et il porte son `timeLimitSeconds`
+  /// (30 min). Ancrer le chrono sur `DateTime.now()` côté front, comme avant,
+  /// remettait 30 minutes au candidat à chaque réouverture — or quitter ne
+  /// suspend rien.
   Future<void> startInFullExam({required String subAttemptId}) async {
     final current = state.value;
     if (current != null &&
@@ -148,17 +158,7 @@ class EeSessionNotifier extends StateNotifier<AsyncValue<EeSessionState>> {
       if (tasks.isEmpty) {
         throw StateError('Aucune tâche EE pour cet examen.');
       }
-      // On a juste besoin d'un container avec l'id du sous-attempt — le
-      // submit utilise attempt.id uniquement. Pas de `timeLimitSeconds`
-      // backend sur ce sous-attempt : le chrono EE 30:00 est piloté côté front.
-      final attempt = Attempt(
-        id: subAttemptId,
-        type: AttemptType.training,
-        module: AppModule.tcf,
-        totalQuestions: 0,
-        startedAt: DateTime.now(),
-        questions: const [],
-      );
+      final attempt = await _attempts.getById(subAttemptId);
       return EeSessionState(
         attempt: attempt,
         tasks: tasks,
@@ -235,6 +235,7 @@ final eeSessionProvider =
     StateNotifierProvider<EeSessionNotifier, AsyncValue<EeSessionState>>(
   (ref) => EeSessionNotifier(
     ref.watch(productionRepositoryProvider),
+    ref.watch(attemptsRepositoryProvider),
     onPlanChanged: () =>
         ref.read(learningPlanRevisionProvider.notifier).state++,
   ),

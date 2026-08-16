@@ -15,8 +15,13 @@ import java.util.regex.Pattern;
  * purgent « la phrase, pas le champ » doivent decouper les phrases exactement de
  * la meme façon, sinon deux remarques identiques se purgent differemment selon le
  * filet qui les voit.
+ *
+ * <p><b>Classe rendue publique le 2026-08-14</b> pour une TROISIEME surface, le
+ * volet oral du diagnostic ({@code service.diagnostic.DiagnosticOralArtifactFilter}),
+ * qui purge lui aussi « la phrase, pas le champ » depuis un autre paquet. Seul
+ * {@link #phrases(String)} est ouvert : le reste reste interne au paquet.
  */
-final class EvaluationTexte {
+public final class EvaluationTexte {
 
     /** Ponctuation forte : candidate a une fin de phrase. */
     private static final String PONCTUATION_FORTE = ".!?…";
@@ -34,7 +39,7 @@ final class EvaluationTexte {
      * se coupait au point de « Ja. », la premiere moitie partait a la purge et le
      * candidat recevait le debris restant.
      */
-    static List<String> phrases(String texte) {
+    public static List<String> phrases(String texte) {
         List<String> out = new ArrayList<>();
         int debut = 0;
         int parentheses = 0;

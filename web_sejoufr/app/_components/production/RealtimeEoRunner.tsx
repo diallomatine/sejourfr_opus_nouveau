@@ -1,8 +1,8 @@
 "use client";
 
 import {useCallback, useEffect, useRef, useState} from "react";
-import {ChevronDown, Mic, MessagesSquare, Square, Volume2, X} from "lucide-react";
-import {realtimeApi} from "@/lib/api";
+import {ChevronDown, Mic, MessagesSquare, Square, Volume2, WifiOff, X} from "lucide-react";
+import {ApiException, realtimeApi} from "@/lib/api";
 import {GeminiLiveSession, type GeminiLiveState} from "@/lib/realtime/geminiLive";
 import {
     needsRealtimeAcknowledgement,
@@ -11,9 +11,15 @@ import {
     RT_FINISH_GIVE_UP_ACTION,
     RT_FINISH_RETRY_ACTION,
     RT_FINISH_SEE_RESULT_ACTION,
+    RT_RESUME_FAILED_MESSAGE,
+    RT_RESUME_HINT,
+    RT_RESUME_MESSAGE,
+    RT_RESUME_STATUS,
+    RT_RESUME_TITLE,
     type RealtimeFinishResult,
 } from "@/lib/realtime-finish";
 import type {ProductionTaskDto, RealtimeSessionDescriptor, RealtimeSpeaker} from "@/lib/types";
+import {useScreenWakeLock} from "@/lib/use-screen-wake-lock";
 import {TranscriptDialogue} from "./TranscriptDialogue";
 
 /**
@@ -25,6 +31,58 @@ import {TranscriptDialogue} from "./TranscriptDialogue";
  */
 const CLOSE_SETTLE_MS = 1200;
 const CLOSE_CAP_SEC = 12;
+
+/**
+ * Période de relais du transcript vers le backend. Valeur commune web ⇄ mobile
+ * (le mobile relayait toutes les 1500 ms, deux cadences pour un même artefact
+ * de notation).
+ */
+const TRANSCRIPT_RELAY_MS = 1200;
+
+/**
+ * Repli de DERNIER RECOURS quand le backend n'envoie pas `targetDurationSec`.
+ * La valeur canonique est `production_tasks.duree_max_sec`, servie sur le
+ * descripteur — elle vaut 180 s (EO tâche 1) et 210 s (EO tâche 2), les deux
+ * seules tâches ouvertes au temps réel. On prend la plus COURTE : un repli ne
+ * doit jamais accorder plus de temps que la tâche réelle. Valeur commune
+ * web ⇄ mobile (le mobile repliait sur 200 s, le web sur 210 s).
+ */
+const DEFAULT_TARGET_SEC = 180;
+
+/**
+ * Essais d'envoi d'un MÊME fragment de transcript. Le tour garde son
+ * `turnIndex` d'un essai à l'autre, donc le serveur ignore un doublon : le
+ * renvoi ne peut plus fabriquer de parole, ce qui l'interdisait avant.
+ */
+const TRANSCRIPT_MAX_ATTEMPTS = 3;
+
+/**
+ * Attente entre deux essais d'un fragment (ms) : assez pour laisser passer une
+ * micro-coupure, assez court pour ne pas retarder la clôture, qui attend la
+ * chaîne d'envoi.
+ */
+const TRANSCRIPT_RETRY_DELAY_MS = 600;
+
+/**
+ * Tentatives de reprise pour UNE coupure : 3 essais espacés couvrent un tunnel
+ * court ou une bascule wifi→4G sans transformer une panne durable en boucle de
+ * reconnexion infinie.
+ */
+const RESUME_MAX_ATTEMPTS = 3;
+
+/**
+ * Backoff entre deux tentatives de reprise (ms). Le premier essai part
+ * IMMÉDIATEMENT : la fenêtre de reprise du token est comptée, on ne l'entame pas
+ * en attendant que le candidat revienne devant son écran.
+ */
+const RESUME_BACKOFF_MS = [0, 1000, 3000];
+
+/**
+ * Budget total d'une reprise (s). Au-delà on cesse de faire patienter le
+ * candidat devant un écran figé. Borné aussi par `connectWindowSec` : passé
+ * cette fenêtre le token de reprise ne peut plus ouvrir de connexion.
+ */
+const RESUME_BUDGET_SEC = 15;
 
 function fmt(sec: number): string {
     const m = Math.floor(sec / 60);
@@ -62,7 +120,7 @@ export function RealtimeEoRunner({
     onFatalError: (message: string) => void;
 }) {
     const sessionId = descriptor.sessionId ?? "";
-    const target = descriptor.targetDurationSec ?? 210;
+    const target = descriptor.targetDurationSec ?? DEFAULT_TARGET_SEC;
 
     const [state, setState] = useState<GeminiLiveState>("connecting");
     const [elapsed, setElapsed] = useState(0);
@@ -79,6 +137,9 @@ export function RealtimeEoRunner({
     // nominal, on a déjà rendu la main à l'appelant).
     const [notice, setNotice] = useState<RealtimeFinishResult | null>(null);
     const [retrying, setRetrying] = useState(false);
+    // Le WebSocket est tombé et une reprise est en cours. Le transcript, le
+    // sujet et le chrono restent à l'écran : bandeau discret, rien de bloquant.
+    const [reconnecting, setReconnecting] = useState(false);
 
     const liveRef = useRef<GeminiLiveSession | null>(null);
     const sheetBodyRef = useRef<HTMLDivElement | null>(null);
@@ -104,6 +165,32 @@ export function RealtimeEoRunner({
     const relayedRef = useRef(0);
     const droppedRef = useRef(0);
 
+    // --- État de REPRISE. Ce runner en est le seul propriétaire : la session WS
+    // remonte le handle et signale la chute, elle ne décide rien. -------------
+    // Numéro du prochain tour relayé (0, 1, 2…, strictement croissant sur la
+    // session). Attribué UNE SEULE FOIS par segment, à la construction du lot, et
+    // CONSERVÉ pendant les réessais : c'est lui qui rend l'envoi idempotent et
+    // protège le quota du candidat.
+    const turnIndexRef = useRef(0);
+    // Dernier handle reçu du fournisseur, et dernier handle déjà transmis au
+    // serveur — pour ne le joindre au POST /transcript que s'il est plus récent.
+    const handleRef = useRef<string | null>(null);
+    const handleRelayedRef = useRef<string | null>(null);
+    const resumableRef = useRef(descriptor.resumable);
+    const resumptionsLeftRef = useRef(descriptor.resumptionsRemaining ?? 0);
+    const connectWindowRef = useRef(descriptor.connectWindowSec ?? null);
+    const reconnectingRef = useRef(false);
+    // La session WS est montée une seule fois (deps []) : elle appelle ce relais
+    // plutôt qu'un handler figé dans la closure du premier rendu.
+    const connectionLostRef = useRef<() => void>(() => undefined);
+
+    // Écran allumé tant que l'échange est en cours : le candidat parle sans
+    // toucher l'écran pendant plusieurs minutes, et une mise en veille couperait
+    // le micro et la voix de l'examinateur au milieu de sa production. Relâché
+    // dès que la session est close, en erreur, ou qu'un panneau d'issue attend
+    // une décision (plus rien de temps réel à ce moment-là).
+    useScreenWakeLock(state !== "closed" && state !== "error" && notice === null);
+
     // Relais batché du transcript (~1,2 s) : capture serveur fiable du dialogue
     // (artefact de notation). On NE l'affiche PAS — on l'envoie seulement. Les
     // tours consécutifs d'un même locuteur sont fusionnés (un appel par
@@ -114,29 +201,55 @@ export function RealtimeEoRunner({
         if (!sessionId || pendingRef.current.length === 0) return sendChainRef.current;
         const batch = pendingRef.current;
         pendingRef.current = [];
-        const segments: {speaker: RealtimeSpeaker; text: string; turns: number}[] = [];
+        // Le numéro de tour est attribué ICI, une seule fois par segment et de
+        // façon strictement croissante : c'est ce que le serveur déduplique.
+        const segments: {speaker: RealtimeSpeaker; text: string; turns: number; index: number}[] = [];
         for (const turn of batch) {
             const last = segments[segments.length - 1];
             if (last && last.speaker === turn.speaker) {
                 last.text += ` ${turn.text}`;
                 last.turns += 1;
             } else {
-                segments.push({...turn, turns: 1});
+                segments.push({...turn, turns: 1, index: turnIndexRef.current++});
             }
         }
         sendChainRef.current = sendChainRef.current.then(async () => {
             for (const seg of segments) {
-                try {
-                    await realtimeApi.appendTranscript(sessionId, seg.speaker, seg.text);
+                let sent = false;
+                for (let attempt = 0; attempt < TRANSCRIPT_MAX_ATTEMPTS && !sent; attempt++) {
+                    if (attempt > 0) {
+                        await new Promise((r) => setTimeout(r, TRANSCRIPT_RETRY_DELAY_MS));
+                    }
+                    // Le handle voyage sur un appel qui a déjà lieu : pas
+                    // d'aller-retour dédié. Seulement s'il est plus récent que
+                    // le dernier transmis.
+                    const handle =
+                        handleRef.current !== handleRelayedRef.current ? handleRef.current : null;
+                    try {
+                        // MÊME index à chaque essai : un tour déjà appliqué est
+                        // ignoré par le serveur, donc un réessai ne peut plus
+                        // dupliquer de parole ni rendre une citation ambiguë.
+                        // C'est ce qui a remplacé l'ancien « on ne renvoie jamais ».
+                        await realtimeApi.appendTranscript(
+                            sessionId,
+                            seg.speaker,
+                            seg.text,
+                            seg.index,
+                            handle,
+                        );
+                        if (handle) handleRelayedRef.current = handle;
+                        sent = true;
+                    } catch {
+                        // Réessai avec le même index ; si tout échoue, la perte
+                        // est comptée.
+                    }
+                }
+                if (sent) {
                     if (seg.speaker === "CANDIDATE") relayedRef.current += seg.turns;
-                } catch {
-                    // Best-effort assumé : on NE renvoie PAS. `appendTranscript`
-                    // n'est pas idempotent — un renvoi après un succès dont la
-                    // réponse s'est perdue dupliquerait un tour, donc
-                    // fabriquerait de la parole et rendrait une citation
-                    // ambiguë (le contrôle de preuve littérale exige un match
-                    // unique). Une fusion douteuse est pire qu'un manque : on
-                    // compte la perte au lieu de la maquiller, et on l'annonce.
+                } else {
+                    // Perte RÉELLE : les tours suivants portent un index plus
+                    // haut, donc celui-ci ne pourra plus être appliqué. On la
+                    // compte au lieu de la maquiller, et on l'annonce.
                     droppedRef.current += seg.turns;
                 }
             }
@@ -194,6 +307,38 @@ export function RealtimeEoRunner({
         onFinished(result);
     }, [flush, onFinished, resolveFinish]);
 
+    /** Demande un nouveau token de reprise et rouvre le WebSocket avec.
+     *  Réessaie sur une erreur réseau (backoff court et borné) ; un refus
+     *  explicite du serveur (422 session terminée / plafond atteint / reprise
+     *  désactivée, 404 session d'autrui) ou un `ASYNC_FALLBACK` arrête tout de
+     *  suite : réessayer ne changerait rien. */
+    const attemptResume = useCallback(async (): Promise<boolean> => {
+        const window = connectWindowRef.current;
+        const budgetMs = Math.min(RESUME_BUDGET_SEC, window ?? RESUME_BUDGET_SEC) * 1000;
+        const startedAt = Date.now();
+        for (let attempt = 0; attempt < RESUME_MAX_ATTEMPTS; attempt++) {
+            if (attempt > 0) await new Promise((r) => setTimeout(r, RESUME_BACKOFF_MS[attempt]));
+            if (finishedRef.current || Date.now() - startedAt > budgetMs) return false;
+            try {
+                const next = await realtimeApi.resumeSession(sessionId, handleRef.current);
+                // ASYNC_FALLBACK (mint impossible côté serveur) ou descripteur
+                // inexploitable : rien à rouvrir, on bascule sans réessayer.
+                if (next.mode !== "REALTIME" || !next.wsEndpoint || !next.ephemeralToken) {
+                    return false;
+                }
+                resumableRef.current = next.resumable;
+                resumptionsLeftRef.current = next.resumptionsRemaining ?? 0;
+                connectWindowRef.current = next.connectWindowSec ?? connectWindowRef.current;
+                liveRef.current?.reconnect(next);
+                return true;
+            } catch (e) {
+                if (e instanceof ApiException && e.status >= 400 && e.status < 500) return false;
+                // Réseau / 5xx : on retente avec le même handle.
+            }
+        }
+        return false;
+    }, [sessionId]);
+
     /** Relance demandée par le candidat : `finish` est idempotent côté backend
      *  et le transcript est déjà en base — c'est bien l'ENVOI qu'on rejoue, pas
      *  l'oral. On repasse d'abord les fragments encore en attente. */
@@ -206,6 +351,56 @@ export function RealtimeEoRunner({
         if (needsRealtimeAcknowledgement(result)) setNotice(result);
         else onFinished(result);
     }, [flush, onFinished, resolveFinish, retrying]);
+
+    /** La reprise n'est pas (ou plus) possible. Ce qui est déjà arrivé au
+     *  serveur est évaluable : on CLÔTURE plutôt que de le jeter, et
+     *  `resolveRealtimeFinish` dira honnêtement ce qui s'est passé. Si rien
+     *  n'est parti, il n'y a rien à sauver : on bascule sur l'enregistrement
+     *  classique (chemin de repli existant, `onFatalError`). */
+    const giveUpRealtime = useCallback(() => {
+        if (relayedRef.current > 0) {
+            void finish();
+            return;
+        }
+        if (!finishedRef.current) {
+            finishedRef.current = true;
+            onFatalError(RT_RESUME_FAILED_MESSAGE);
+        }
+    }, [finish, onFatalError]);
+
+    /** Le transport est tombé. Trois issues, dans cet ordre :
+     *   1. le temps est écoulé (ou la clôture est engagée) → on clôture, il n'y
+     *      a plus d'échange à reprendre ;
+     *   2. la reprise est armée et il reste des reprises → on la demande TOUT
+     *      DE SUITE (la fenêtre du token est comptée) ;
+     *   3. sinon → repli.
+     *
+     *  🛑 On ne rappelle JAMAIS `POST /sessions` ici : cela créerait une seconde
+     *  session et débiterait un second slot de simulation au candidat. */
+    const handleConnectionLost = useCallback(async () => {
+        if (finishedRef.current || reconnectingRef.current) return;
+        if (timeUpRef.current) {
+            void finish();
+            return;
+        }
+        if (!resumableRef.current || resumptionsLeftRef.current <= 0) {
+            giveUpRealtime();
+            return;
+        }
+        reconnectingRef.current = true;
+        // Le chrono s'ARRÊTE pendant la coupure (effet du minuteur, plus bas) :
+        // le candidat ne doit pas perdre du temps de parole à cause de notre
+        // réseau. Il ne repart pas de zéro non plus — `elapsedRef` est conservé.
+        setReconnecting(true);
+        const resumed = await attemptResume();
+        reconnectingRef.current = false;
+        setReconnecting(false);
+        if (!resumed) giveUpRealtime();
+    }, [attemptResume, finish, giveUpRealtime]);
+
+    useEffect(() => {
+        connectionLostRef.current = () => void handleConnectionLost();
+    }, [handleConnectionLost]);
 
     // Connexion Gemini Live (montée une seule fois).
     useEffect(() => {
@@ -221,6 +416,11 @@ export function RealtimeEoRunner({
                 pendingRef.current.push({speaker: "EXAMINER", text: t});
                 setLines((prev) => [...prev, {speaker: "EXAMINER", text: t}]);
             },
+            // Mémorisé ici, relayé gratuitement sur le prochain POST /transcript.
+            onResumptionHandle: (h) => {
+                handleRef.current = h;
+            },
+            onConnectionLost: () => connectionLostRef.current(),
             onError: (m) => {
                 if (!finishedRef.current) {
                     finishedRef.current = true;
@@ -230,7 +430,7 @@ export function RealtimeEoRunner({
         });
         liveRef.current = live;
         live.start();
-        const relay = setInterval(flush, 1200);
+        const relay = setInterval(flush, TRANSCRIPT_RELAY_MS);
         return () => {
             clearInterval(relay);
             if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
@@ -248,7 +448,11 @@ export function RealtimeEoRunner({
         // connexion/greeting ne doit pas amputer le temps de parole du candidat.
         // Le garde-fou de 8 s côté client promeut welcoming → live même sans
         // audio, donc le chrono finit toujours par démarrer.
-        if (state !== "live") return;
+        //
+        // `reconnecting` MET LE DÉCOMPTE EN PAUSE : `elapsedRef` n'est jamais
+        // remis à zéro, le chrono reprend là où il s'était arrêté quand le
+        // WebSocket est rétabli.
+        if (state !== "live" || reconnecting) return;
         const id = setInterval(() => {
             elapsedRef.current += 1;
             setElapsed(elapsedRef.current);
@@ -263,7 +467,7 @@ export function RealtimeEoRunner({
             }
         }, 1000);
         return () => clearInterval(id);
-    }, [state, target, finish]);
+    }, [state, target, finish, reconnecting]);
 
     // Clôture pilotée par la parole de l'examinateur après 0:00 : on attend qu'il
     // ait prononcé sa conclusion (a parlé au moins une fois) PUIS qu'il se taise
@@ -290,25 +494,30 @@ export function RealtimeEoRunner({
     }, [showTranscript, lines.length]);
 
     const remaining = Math.max(0, target - elapsed);
-    const yourTurn = state === "live" && !examinerSpeaking && !timeUp;
-    const statusLabel = finishing
-        ? "Préparation de votre évaluation…"
-        : state === "connecting"
-          ? "Connexion à l'examinateur…"
+    const speaking = examinerSpeaking && !reconnecting;
+    const yourTurn = state === "live" && !speaking && !timeUp && !reconnecting;
+    const statusLabel = reconnecting
+        ? RT_RESUME_STATUS
+        : finishing
+          ? "Préparation de votre évaluation…"
+          : state === "connecting"
+            ? "Connexion à l'examinateur…"
+            : state === "welcoming"
+              ? "L'examinateur vous accueille…"
+              : timeUp
+                ? "Temps écoulé — l'examinateur conclut."
+                : speaking
+                  ? "L'examinateur parle…"
+                  : "À vous de parler.";
+    const hint = reconnecting
+        ? RT_RESUME_HINT
+        : finishing || state === "connecting" || timeUp
+          ? taskTitle
           : state === "welcoming"
-            ? "L'examinateur vous accueille…"
-            : timeUp
-              ? "Temps écoulé — l'examinateur conclut."
-              : examinerSpeaking
-                ? "L'examinateur parle…"
-                : "À vous de parler.";
-    const hint = finishing || state === "connecting" || timeUp
-        ? taskTitle
-        : state === "welcoming"
-          ? "Un instant — votre micro s'activera après son accueil."
-          : examinerSpeaking
-            ? "Écoutez sa question, puis répondez à voix haute."
-            : "Parlez naturellement, comme à un vrai oral.";
+            ? "Un instant — votre micro s'activera après son accueil."
+            : speaking
+              ? "Écoutez sa question, puis répondez à voix haute."
+              : "Parlez naturellement, comme à un vrai oral.";
 
     if (notice) {
         const {title, message} = realtimeFinishNotice(notice);
@@ -391,6 +600,16 @@ export function RealtimeEoRunner({
                 </span>
             </div>
 
+            {reconnecting && (
+                <div className="rte-reco" role="status" aria-live="polite">
+                    <WifiOff size={16} strokeWidth={2.2} className="rte-reco-icon" />
+                    <span className="rte-reco-text">
+                        <span className="rte-reco-title">{RT_RESUME_TITLE}</span>
+                        <span className="rte-reco-msg">{RT_RESUME_MESSAGE}</span>
+                    </span>
+                </div>
+            )}
+
             <div className="rte-subject">
                 <button
                     type="button"
@@ -414,10 +633,10 @@ export function RealtimeEoRunner({
             </div>
 
             <div className="rte-stage">
-                <div className={`rte-mic${examinerSpeaking ? " is-exam" : ""}${yourTurn ? " is-you" : ""}`} aria-hidden>
+                <div className={`rte-mic${speaking ? " is-exam" : ""}${yourTurn ? " is-you" : ""}`} aria-hidden>
                     <span className="rte-halo" />
                     <span className="rte-disc">
-                        {examinerSpeaking ? <Volume2 size={46} strokeWidth={1.8} /> : <Mic size={46} strokeWidth={1.8} />}
+                        {speaking ? <Volume2 size={46} strokeWidth={1.8} /> : <Mic size={46} strokeWidth={1.8} />}
                     </span>
                 </div>
                 <p className="rte-state">{statusLabel}</p>
@@ -483,6 +702,21 @@ export function RealtimeEoRunner({
                     color: var(--color-red-dark); background: white;
                     border: 1px solid var(--color-red); border-radius: 5px; padding: 1px 5px;
                 }
+                /* Bandeau de reprise : discret, non bloquant, il n'efface ni le
+                   sujet, ni la transcription, ni le chrono (mis en pause). */
+                .rte-reco {
+                    display: flex; align-items: flex-start; gap: 10px;
+                    background: var(--color-blue-soft);
+                    border: 1px solid var(--color-blue);
+                    border-radius: 14px; padding: 11px 14px;
+                }
+                .rte-reco-icon { flex-shrink: 0; margin-top: 2px; color: var(--color-blue); }
+                .rte-reco-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+                .rte-reco-title {
+                    font-family: var(--font-sans); font-weight: 800; font-size: 13px;
+                    color: var(--color-blue);
+                }
+                .rte-reco-msg { font-size: 12.5px; line-height: 1.45; color: var(--color-ink-2); }
                 .rte-subject {
                     background: var(--color-red-light);
                     border: 1px solid var(--color-red);

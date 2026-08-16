@@ -20,6 +20,7 @@ import {
   type LearningPlanSkillStatus,
   SKILL_MASTERY_STATE_LABEL,
   type SkillMasteryState,
+  type SkillPromptStatus,
 } from "@/lib/types";
 import s from "./skill.module.css";
 
@@ -740,6 +741,34 @@ export function SkillRowCard({
  */
 export const SKILL_PREMIUM_HREF = "/paiement?module=INTEGRAL";
 
+/** Le libellé du bouton qui ouvre l'offre depuis le module. Wording neutre
+ *  (guidelines Apple 3.1.1), **miroir mot pour mot** de `kPremiumLockCta`
+ *  (`mobile_sejourfr/lib/core/widgets/premium_lock.dart`). */
+export const SKILL_PREMIUM_CTA = "Voir l'abonnement Intégral";
+
+/**
+ * Les deux actions proposées sur un petit sujet **déjà traité** : relire son
+ * dernier retour, ou le refaire. Libellés gelés, **miroirs mot pour mot** de
+ * `kSkillPromptRedoCta` / `skillPromptLastAttemptCta`
+ * (`mobile_sejourfr/lib/screens/tcf_production/competences/competence_detail_screen.dart`).
+ *
+ * ⚠️ Le premier libellé **suit le statut servi**, et c'est volontaire : une
+ * tentative `TREATED` a été produite **sans analyse IA** (quota épuisé, ou
+ * production rendue sans la demander). Son écran de résultat le dit lui-même
+ * (« Sujet marqué comme traité ») et ne montre que la production et les
+ * références — lui promettre un « rapport » serait faux.
+ */
+export const SKILL_PROMPT_REPORT_CTA = "Voir mon dernier rapport";
+export const SKILL_PROMPT_ANSWER_CTA = "Voir ma dernière réponse";
+export const SKILL_PROMPT_REDO_CTA = "Refaire ce sujet";
+
+/** Le libellé exact du premier choix, selon qu'un verdict existe ou non. */
+export function skillPromptLastAttemptCta(status: SkillPromptStatus): string {
+  return status === "VALIDATED" || status === "TO_REINFORCE"
+    ? SKILL_PROMPT_REPORT_CTA
+    : SKILL_PROMPT_ANSWER_CTA;
+}
+
 /** Pastille « Premium » d'une carte verrouillée — une seule formulation dans
  *  tout le module, cadenas compris. */
 export function SkillLockBadge() {
@@ -762,7 +791,7 @@ export function SkillLockBadge() {
 export function SkillLockedCard({
   title,
   text,
-  ctaLabel = "Voir l'abonnement Intégral",
+  ctaLabel = SKILL_PREMIUM_CTA,
 }: {
   title: string;
   text: string;

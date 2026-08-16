@@ -4,6 +4,7 @@ import com.sejourfr.app.config.RealtimeProperties;
 import com.sejourfr.app.dto.AppendTranscriptRequest;
 import com.sejourfr.app.dto.RealtimeSessionDescriptor;
 import com.sejourfr.app.dto.RealtimeSessionStateResponse;
+import com.sejourfr.app.dto.ResumeRealtimeSessionRequest;
 import com.sejourfr.app.dto.StartRealtimeSessionRequest;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionTask;
@@ -29,10 +30,17 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Orchestre les sessions d'expression orale temps reel (Taches 1 & 2). Trois
+ * Orchestre les sessions d'expression orale temps reel (Taches 1 & 2). Quatre
  * cas d'usage : (1) demarrer une session (verif quota -> emission token ephemere
  * Gemini, ou bascule async si indisponible), (2) accumuler le transcript relaye
- * par le client (et debiter le quota a la 1re connexion reelle), (3) cloturer.
+ * par le client (et debiter le quota a la 1re connexion reelle), (3) REPRENDRE
+ * une session dont le WebSocket est tombe, (4) cloturer.
+ *
+ * <p>INVARIANT CENTRAL : un slot de simulation n'est debite QU'UNE FOIS par
+ * session, quoi qu'il arrive au reseau. Il l'est a la transition
+ * {@code PENDING -> ACTIVE}, faite sous verrou de ligne, jamais a l'emission
+ * d'un token — donc ni le demarrage, ni une reprise, ni un reessai de fragment
+ * ne peuvent le rejouer.
  *
  * <p>Le mode temps reel S'AJOUTE : il ne remplace pas le pipeline async. Quand il
  * n'est pas possible (quota epuise, pass non eligible, non configure, echec de
@@ -89,7 +97,7 @@ public class RealtimeSessionService {
 
         RealtimeTokenBroker.MintedSession minted;
         try {
-            minted = tokenBroker.mint(personaBuilder.build(task));
+            minted = tokenBroker.mint(personaBuilder.build(task), null);
         } catch (RuntimeException e) {
             // Mint en echec : on ne bloque pas, on bascule en async.
             log.warn("Mint token realtime echoue, bascule async : {}", e.getMessage());
@@ -108,7 +116,133 @@ public class RealtimeSessionService {
         session.setStatus(RealtimeSessionStatus.PENDING);
         session = sessionManager.save(session);
 
+        // Slot reserve par cette session -> on l'enleve de l'affichage.
+        return descriptor(session, minted, tache, target, Math.max(0, quota.remaining() - 1));
+    }
+
+    /**
+     * REPREND une session dont le WebSocket est tombe (coupure reseau, appli en
+     * arriere-plan) : emet un NOUVEAU token ephemere qui rouvre la MEME
+     * conversation, sans re-debiter le slot de simulation.
+     *
+     * <p>Le handle de reprise est verrouille dans le setup du token cote serveur :
+     * le token est contraint, le client ne peut poser aucun champ de setup, donc
+     * c'est le seul chemin possible pour le lui transmettre.
+     *
+     * <p>Aucune ecriture de quota ici : le slot a deja ete debite au premier
+     * fragment de transcript ({@code PENDING -> ACTIVE}), et une session encore
+     * {@code PENDING} le sera a son premier fragment — dans les deux cas, une
+     * seule fois.
+     */
+    @Transactional
+    public RealtimeSessionDescriptor resume(User user, UUID sessionId, ResumeRealtimeSessionRequest req) {
+        RealtimeSession session = ownedSessionForUpdate(user, sessionId);
+        if (session.getStatus() == RealtimeSessionStatus.COMPLETED
+                || session.getStatus() == RealtimeSessionStatus.FAILED) {
+            throw new BusinessException("Cette simulation est deja terminee : elle ne peut plus etre reprise.");
+        }
+        RealtimeProperties.SessionResumption conf = props.getGemini().getSessionResumption();
+        if (!conf.isEnabled() || !tokenBroker.supportsResumption()) {
+            throw new BusinessException("La reprise de session n'est pas disponible.");
+        }
+        if (session.getResumptionCount() >= conf.getMaxResumptions()) {
+            throw new BusinessException("Nombre de reprises atteint pour cette simulation.");
+        }
+        ProductionTask task = session.getProductionTask();
+        if (task == null) {
+            throw new BusinessException("Cette simulation n'a plus de consigne rattachee.");
+        }
+
+        applyResumptionHandle(session, req == null ? null : req.resumptionHandle());
+        RealtimeTokenBroker.MintedSession minted;
+        try {
+            minted = tokenBroker.mint(personaBuilder.build(task), session.getResumptionHandle());
+        } catch (RuntimeException e) {
+            // Meme philosophie qu'au demarrage : on ne bloque pas le candidat.
+            log.warn("Reprise de session {} impossible (mint KO) : {}", session.getId(), e.getMessage());
+            return RealtimeSessionDescriptor.asyncFallback(
+                    session.getTacheNumero(), task.getDureeMaxSec(), quotaService.remaining(user.getId()));
+        }
+        session.setResumptionCount(session.getResumptionCount() + 1);
+        sessionManager.save(session);
+
+        // Le slot est deja debite des lors que la session a parle (ACTIVE) ; il
+        // ne le sera qu'au premier fragment tant qu'elle est PENDING.
+        int remaining = quotaService.remaining(user.getId());
+        int shown = session.getStatus() == RealtimeSessionStatus.PENDING
+                ? Math.max(0, remaining - 1) : remaining;
+        return descriptor(session, minted, session.getTacheNumero(), task.getDureeMaxSec(), shown);
+    }
+
+    @Transactional
+    public void appendTranscript(User user, UUID sessionId, AppendTranscriptRequest req) {
+        // Lecture VERROUILLEE : deux connexions du meme candidat peuvent se
+        // chevaucher (celle qui tombe et celle qui reprend). Sans le verrou, deux
+        // ajouts concurrents debitaient deux fois le slot et perdaient un tour.
+        RealtimeSession session = ownedSessionForUpdate(user, sessionId);
+        if (session.getStatus() == RealtimeSessionStatus.COMPLETED
+                || session.getStatus() == RealtimeSessionStatus.FAILED) {
+            // Fragment tardif apres cloture : on ignore silencieusement.
+            return;
+        }
+        boolean handleUpdated = applyResumptionHandle(session, req.resumptionHandle());
+        if (isAlreadyApplied(session, req.turnIndex())) {
+            // Reessai reseau d'un tour deja enregistre : ne rien dupliquer, et
+            // surtout ne pas rejouer la transition PENDING -> ACTIVE.
+            if (handleUpdated) {
+                sessionManager.save(session);
+            }
+            return;
+        }
+        if (session.getStatus() == RealtimeSessionStatus.PENDING) {
+            // Premiere activite reelle : connexion etablie -> debit d'UNE session
+            // sur le solde du pass. Transition PENDING->ACTIVE unique (garde du
+            // if + verrou de ligne), donc debit exactement une fois par session ;
+            // le debit est lui-meme conditionne au solde > 0. Une session jamais
+            // connectee (PENDING) ou en echec sans connexion ne consomme rien.
+            session.setStatus(RealtimeSessionStatus.ACTIVE);
+            session.setConnectedAt(Instant.now());
+            UserSubscription subscription = session.getSubscription();
+            if (subscription != null) {
+                userSubscriptionManager.decrementRealtimeSessions(subscription.getId());
+            }
+        }
+        if (req.turnIndex() != null) {
+            session.setLastTurnIndex(req.turnIndex());
+        }
+        session.setTranscript(appendLine(session.getTranscript(), req.speaker(), req.text()));
+        sessionManager.save(session);
+    }
+
+    /**
+     * Vrai si ce tour a deja ete applique. Le client numerote ses tours de facon
+     * strictement croissante ; un index deja vu est donc un REESSAI, pas un
+     * nouveau tour. Sans index (client historique), on ne peut rien dedupliquer :
+     * l'appel reste ajoutant, comme avant.
+     */
+    private static boolean isAlreadyApplied(RealtimeSession session, Integer turnIndex) {
+        return turnIndex != null
+                && session.getLastTurnIndex() != null
+                && turnIndex <= session.getLastTurnIndex();
+    }
+
+    /** Memorise le dernier handle de reprise. Vrai si la session a change. */
+    private static boolean applyResumptionHandle(RealtimeSession session, String handle) {
+        if (handle == null || handle.isBlank() || handle.equals(session.getResumptionHandle())) {
+            return false;
+        }
+        session.setResumptionHandle(handle);
+        return true;
+    }
+
+    private RealtimeSessionDescriptor descriptor(RealtimeSession session,
+                                                 RealtimeTokenBroker.MintedSession minted,
+                                                 int tache,
+                                                 Integer target,
+                                                 int sessionsRemaining) {
         RealtimeProperties.Audio audio = props.getAudio();
+        RealtimeProperties.Gemini gemini = props.getGemini();
+        boolean resumable = gemini.getSessionResumption().isEnabled() && tokenBroker.supportsResumption();
         return new RealtimeSessionDescriptor(
                 RealtimeSessionDescriptor.MODE_REALTIME,
                 session.getId(),
@@ -119,37 +253,16 @@ public class RealtimeSessionService {
                 audio.getInputMimeType(),
                 audio.getInputSampleRate(),
                 audio.getOutputSampleRate(),
-                props.getGemini().getVoice(),
+                gemini.getVoice(),
                 tache,
                 target,
-                // Slot reserve par cette session -> on l'enleve de l'affichage.
-                Math.max(0, quota.remaining() - 1)
+                sessionsRemaining,
+                resumable,
+                resumable
+                        ? Math.max(0, gemini.getSessionResumption().getMaxResumptions() - session.getResumptionCount())
+                        : 0,
+                gemini.getNewSessionExpireSeconds()
         );
-    }
-
-    @Transactional
-    public void appendTranscript(User user, UUID sessionId, AppendTranscriptRequest req) {
-        RealtimeSession session = ownedSession(user, sessionId);
-        if (session.getStatus() == RealtimeSessionStatus.COMPLETED
-                || session.getStatus() == RealtimeSessionStatus.FAILED) {
-            // Fragment tardif apres cloture : on ignore silencieusement.
-            return;
-        }
-        if (session.getStatus() == RealtimeSessionStatus.PENDING) {
-            // Premiere activite reelle : connexion etablie -> debit d'UNE session
-            // sur le solde du pass. Transition PENDING->ACTIVE unique (garde du
-            // if), donc debit exactement une fois par session ; le debit est
-            // conditionne au solde > 0 (concurrence). Une session jamais connectee
-            // (PENDING) ou en echec sans connexion ne consomme rien.
-            session.setStatus(RealtimeSessionStatus.ACTIVE);
-            session.setConnectedAt(Instant.now());
-            UserSubscription subscription = session.getSubscription();
-            if (subscription != null) {
-                userSubscriptionManager.decrementRealtimeSessions(subscription.getId());
-            }
-        }
-        session.setTranscript(appendLine(session.getTranscript(), req.speaker(), req.text()));
-        sessionManager.save(session);
     }
 
     /**
@@ -259,9 +372,18 @@ public class RealtimeSessionService {
     }
 
     private RealtimeSession ownedSession(User user, UUID sessionId) {
-        RealtimeSession session = sessionManager.findById(sessionId)
-                .orElseThrow(() -> new NotFoundException("Session introuvable : " + sessionId));
-        if (session.getUser() == null || !session.getUser().getId().equals(user.getId())) {
+        return owned(user, sessionId, sessionManager.findById(sessionId).orElse(null));
+    }
+
+    /** Idem, mais verrouillee : a utiliser des qu'on va ecrire sur la session. */
+    private RealtimeSession ownedSessionForUpdate(User user, UUID sessionId) {
+        return owned(user, sessionId, sessionManager.findByIdForUpdate(sessionId).orElse(null));
+    }
+
+    private static RealtimeSession owned(User user, UUID sessionId, RealtimeSession session) {
+        if (session == null || session.getUser() == null
+                || !session.getUser().getId().equals(user.getId())) {
+            // 404 plutot que 403 : ne pas reveler l'existence des sessions d'autrui.
             throw new NotFoundException("Session introuvable : " + sessionId);
         }
         return session;

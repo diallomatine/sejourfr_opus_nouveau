@@ -188,35 +188,6 @@ class ProductionSubjectCard extends StatelessWidget {
     }
     return const AppTag(label: 'À faire', tone: TagTone.neutral, compact: true);
   }
-
-  /// Contraintes **réelles** du sujet, telles que servies par l'API : la
-  /// longueur (écrit) ou la durée (oral), puis la tâche d'appartenance. Rien
-  /// n'est affiché quand le champ est absent — pas de chiffre inventé.
-  ///
-  /// Le palier du sujet a quitté cette rangée : il est annoncé une fois pour
-  /// toutes par le badge « NIVEAU VISÉ » de l'en-tête du parcours, et le
-  /// répéter sur chaque carte noyait la contrainte de production, seule
-  /// information qui change d'un sujet à l'autre.
-  List<Widget> _metaChips() {
-    final chips = <Widget>[];
-
-    final constraint = productionTaskConstraint(task, isOral: isOral);
-    if (constraint != null) {
-      chips.add(AppTag(
-        label: constraint,
-        tone: TagTone.ghost,
-        icon: isOral ? LucideIcons.clock : LucideIcons.type,
-        compact: true,
-      ));
-    }
-
-    chips.add(AppTag(
-      label: 'Tâche ${task.tacheNumero}',
-      tone: TagTone.neutral,
-      compact: true,
-    ));
-    return chips;
-  }
 }
 
 /// Bouton rond du prototype (`.small-action`, 36×36).

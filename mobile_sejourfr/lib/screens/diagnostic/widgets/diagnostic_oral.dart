@@ -157,17 +157,9 @@ class _RecorderCard extends StatelessWidget {
               label: 'Enregistrement en cours, ${_format(recording.elapsed)}',
               child: Column(
                 children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: AppColors.redLight,
-                      borderRadius: BorderRadius.circular(AppRadii.pill),
-                    ),
-                    child: Text(
-                      'ENREGISTREMENT',
-                      style: AppFonts.label(color: AppColors.red),
-                    ),
+                  const RecordingPill(
+                    color: AppColors.red,
+                    background: AppColors.redLight,
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -178,15 +170,7 @@ class _RecorderCard extends StatelessWidget {
                     amplitude: recording.lastAmplitude,
                     color: AppColors.blue,
                   ),
-                  Text(
-                    'Parlez naturellement. Vous pourrez vous réécouter avant l’envoi.',
-                    textAlign: TextAlign.center,
-                    style: AppFonts.ui(
-                      size: 12.5,
-                      color: AppColors.inkFaint,
-                      height: 1.35,
-                    ),
-                  ),
+                  _VoiceHint(amplitude: recording.lastAmplitude),
                 ],
               ),
             ),
@@ -267,7 +251,9 @@ class _RecorderCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  'La prononciation fine n’est pas évaluée à partir de la transcription.',
+                  'La prononciation fine n’est pas évaluée à partir de la transcription. '
+                  'Ton enregistrement n’est pas conservé : il sert à produire la '
+                  'transcription, puis il est supprimé.',
                   textAlign: TextAlign.center,
                   style: AppFonts.ui(
                     size: 12.5,
@@ -286,5 +272,71 @@ class _RecorderCard extends StatelessWidget {
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$minutes:$seconds';
+  }
+}
+
+/// La ligne sous la forme d'onde : elle **dit franchement si on entend le
+/// candidat**.
+///
+/// C'est la réponse au vrai symptôme rapporté — « j'ai l'impression de parler
+/// sans m'en rendre compte ». Un chronomètre qui défile prouve qu'un compteur
+/// tourne, pas qu'une voix est captée : micro saisi par un lecteur audio,
+/// permission révoquée en cours de route, casque mal branché, et la capture
+/// s'enregistre muette jusqu'au bout. Ici on le dit **pendant**, quand c'est
+/// encore rattrapable, plutôt qu'après analyse.
+///
+/// Le verdict vient de [recordingVoiceLevel], le **même** seuil que celui qui
+/// pilote la forme d'onde : la phrase ne peut pas contredire les barres.
+/// Horloge **monotone** ([Stopwatch]), jamais `DateTime.now()`.
+class _VoiceHint extends StatefulWidget {
+  const _VoiceHint({required this.amplitude});
+
+  /// Amplitude brute 0..1 remontée par le service, `null` tant qu'aucune mesure
+  /// n'est arrivée — auquel cas on n'affirme rien.
+  final double? amplitude;
+
+  @override
+  State<_VoiceHint> createState() => _VoiceHintState();
+}
+
+class _VoiceHintState extends State<_VoiceHint> {
+  /// Le silence n'est signalé qu'au bout de ce délai : une pause pour réfléchir
+  /// est normale à l'oral, et le public de l'app cherche ses mots.
+  static const Duration _silenceGrace = Duration(seconds: 3);
+
+  /// Au-dessus de ce niveau de voix, on considère que quelqu'un parle.
+  static const double _audibleLevel = 0.06;
+
+  final Stopwatch _sinceVoice = Stopwatch()..start();
+  bool _unheard = false;
+
+  @override
+  void didUpdateWidget(covariant _VoiceHint oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final amplitude = widget.amplitude;
+    if (amplitude == null || recordingVoiceLevel(amplitude) > _audibleLevel) {
+      _sinceVoice.reset();
+    }
+    final unheard = amplitude != null && _sinceVoice.elapsed >= _silenceGrace;
+    // On ne reconstruit que quand le verdict bascule : l'amplitude arrive dix
+    // fois par seconde.
+    if (unheard != _unheard) setState(() => _unheard = unheard);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      _unheard
+          ? 'On ne vous entend pas. Rapprochez-vous du micro ou parlez plus '
+              'fort.'
+          : 'Parlez naturellement. Vous pourrez vous réécouter avant l’envoi.',
+      textAlign: TextAlign.center,
+      style: AppFonts.ui(
+        size: 12.5,
+        height: 1.35,
+        color: _unheard ? AppColors.amberDark : AppColors.inkFaint,
+        weight: _unheard ? FontWeight.w700 : FontWeight.w400,
+      ),
+    );
   }
 }

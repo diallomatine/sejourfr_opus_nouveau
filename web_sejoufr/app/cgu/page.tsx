@@ -329,7 +329,7 @@ export default function CguPage() {
                         durée déterminée</strong>, réglés en un <strong>paiement
                         unique</strong>. Chaque pass ouvre l'accès aux Contenus Premium pour
                         la durée indiquée sur la page <Link href="/tarifs">Tarifs</Link>{" "}
-                        (par exemple 3 mois, 6 semaines ou 1 an), à compter de la validation
+                        (par exemple 7 jours, 2 mois ou 1 an), à compter de la validation
                         du paiement.
                     </p>
                     <p>

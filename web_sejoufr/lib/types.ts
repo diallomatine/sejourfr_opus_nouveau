@@ -277,6 +277,9 @@ export interface AttemptResponse {
     examTemplateSlug: string | null;
     examTemplateName: string | null;
     totalQuestions: number;
+    /** Chrono de l'épreuve, en secondes. **Absent sur une session d'examen
+     *  EO** : l'oral se chronomètre par tâche, au lancement de chaque tâche —
+     *  l'épreuve elle-même n'a pas d'échéance. */
     timeLimitSeconds?: number;
     passThreshold?: number;
     startedAt: string;
@@ -320,7 +323,10 @@ export interface AnswerResultResponse {
 
 // ============ PLAN (vitrine publique) ============
 export type BillingCycle = "NONE" | "MONTHLY" | "YEARLY" | "THREE_MONTHS" | "SIX_MONTHS";
-export type ModuleAccess = "NONE" | "CIVIQUE" | "TCF" | "INTEGRAL";
+/** Miroir strict de l'enum Java `ModuleAccess` : NONE < CIVIQUE < INTEGRAL.
+ *  ⚠️ Pas de valeur "TCF" — le serveur ne l'a jamais eue, et la garder ici
+ *  laissait croire qu'un plan pouvait vendre le TCF sans le civique. */
+export type ModuleAccess = "NONE" | "CIVIQUE" | "INTEGRAL";
 
 /** Nature commerciale d'un plan (lot 5). ONE_TIME = pass à durée fixe sans
  *  reconduction ; SUBSCRIPTION = abonnement récurrent (dormant). */
@@ -348,6 +354,37 @@ export interface PlanPublicResponse {
      *  Billing. Inutilisés côté web (paiement Stripe). Null si non configurés. */
     appleProductId: string | null;
     googleProductId: string | null;
+}
+
+/**
+ * Ce que le pass ouvre en **simulations orales en direct** (examinateur vocal),
+ * la seule ressource dont le volume change d'un pass Intégral à l'autre : tout
+ * le reste (catalogue, examens blancs, corrections IA) est identique, seule la
+ * durée et ce quota progressent. Sans cette ligne, un candidat ne voyait aucune
+ * différence entre deux passes à part le prix.
+ *
+ * `null` = rien à annoncer sur cette ligne (Civique, plan gratuit) — l'appelant
+ * décide s'il affiche autre chose à la place.
+ *
+ * ⚠️ On ne dit **jamais** « sans simulation orale » pour un pass Intégral : un
+ * backend antérieur à `realtimeEoSessions` renvoie le champ absent (donc falsy),
+ * et l'affirmation serait fausse sur l'argument principal du produit.
+ *
+ * Miroir mot pour mot de `realtimeSessionsLabel` côté mobile
+ * (`core/models/billing_models.dart`).
+ */
+export function realtimeSessionsLabel(plan: {
+    realtimeEoSessions?: number | null;
+    moduleAccess: ModuleAccess;
+}): string | null {
+    const sessions = plan.realtimeEoSessions;
+    if (typeof sessions === "number" && sessions > 0) {
+        return sessions === 1
+            ? "1 simulation orale en direct"
+            : `${sessions} simulations orales en direct`;
+    }
+    if (plan.moduleAccess === "INTEGRAL") return "Simulations orales en direct incluses";
+    return null;
 }
 
 // ============ ATTEMPT SUMMARY (historique) ============
@@ -572,9 +609,13 @@ export interface ProductionSubmissionDto {
     /** Numéro de tâche (1/2/3) — sert à regrouper par tâche dans les hubs. */
     tacheNumero: number | null;
     statut: SubmissionStatut;
-    mediaUrl: string | null; // EO
     texteSoumis: string | null; // EE
     motsCount: number | null;
+    /**
+     * Durée de l'enregistrement (EO). Seule trace qui subsiste de l'audio :
+     * il n'est pas conservé, donc aucune URL n'est servie — ce qui reste d'une
+     * production orale, c'est `transcription`.
+     */
     mediaDurationSec: number | null; // EO
     retryCount: number;
     erreurMessage: string | null;
@@ -709,14 +750,27 @@ interface SkillLockable {
 }
 
 /**
- * Nature de l'action proposée par une étape du Plan — **même carte, même
- * emplacement, action différente**. Les deux ne mènent pas au même écran : le
- * front lit `kind`, il ne le devine jamais d'un `null`.
+ * Nature de l'action proposée par le Plan — **même carte, même emplacement,
+ * action différente**. Les quatre ne mènent pas au même écran : le front lit
+ * `kind`, il ne le devine jamais d'un `null`.
+ *
+ * Les deux derniers rangs sont des **jalons** : ils ne désignent aucun contenu
+ * éditorial mais une session d'examen blanc **déjà existante**, par son épreuve
+ * et son slot de grille.
  */
-export type PlanExerciseKind = "MICRO_TRAINING" | "REASSESSMENT";
+export type PlanExerciseKind =
+    | "MICRO_TRAINING"
+    | "REASSESSMENT"
+    | "EPREUVE_MOCK_EXAM"
+    | "FULL_TCF_MOCK_EXAM";
 
-export interface PlanRecommendedExerciseDto extends SkillLockable {
-    kind: PlanExerciseKind;
+/**
+ * L'exercice d'une **étape** : un micro-sujet du module Compétences, ou une
+ * vérification en situation sur une vraie tâche TCF. Tout le bloc compétence y
+ * est renseigné — c'est ce qui distingue une étape d'un jalon.
+ */
+export interface PlanStepExerciseDto extends SkillLockable {
+    kind: "MICRO_TRAINING" | "REASSESSMENT";
     /** Micro-exercice uniquement ; `null` sur une vérification. */
     skillPromptId: string | null;
     /** Vérification uniquement ; `null` sur un micro-exercice. */
@@ -729,7 +783,50 @@ export interface PlanRecommendedExerciseDto extends SkillLockable {
      *  uniquement, `null` sur un micro-exercice. */
     tacheNumero: number | null;
     estimatedMinutes: number;
+    epreuve: null;
+    slotNumber: null;
 }
+
+/**
+ * Un **jalon** : une session d'examen blanc **déjà existante**, désignée par son
+ * épreuve et son slot de grille. Aucun contenu n'est créé.
+ *
+ * ⚠️ **Tout le bloc compétence y est `null`** — `skillId`, `skillCode`, `title`
+ * et `section` — et c'est voulu : un jalon ne désigne pas un contenu éditorial.
+ * Sa phrase appartient aux fronts (`planMilestoneLabel`), le serveur n'expose
+ * que des faits : quelle épreuve, quel slot, verrouillé ou non.
+ */
+export interface PlanMilestoneExerciseDto extends SkillLockable {
+    kind: "EPREUVE_MOCK_EXAM" | "FULL_TCF_MOCK_EXAM";
+    skillPromptId: null;
+    productionTaskId: null;
+    skillId: null;
+    skillCode: null;
+    title: null;
+    section: null;
+    tacheNumero: null;
+    estimatedMinutes: number;
+    /**
+     * `TCF_EE` / `TCF_EO` pour un examen blanc d'épreuve, `TCF_COMPLET` pour
+     * l'examen blanc complet — c'est **ce champ**, jamais `section`, qui dit
+     * vers quel examen le front doit envoyer.
+     */
+    epreuve: Extract<EpreuveType, "TCF_EE" | "TCF_EO" | "TCF_COMPLET">;
+    /**
+     * Slot de la grille d'examens blancs à démarrer. Le serveur désigne le
+     * premier slot non joué : le front le repasse tel quel au démarrage, il ne
+     * le choisit pas.
+     */
+    slotNumber: number;
+}
+
+/**
+ * L'exercice que le Plan désigne — sur une compétence (une étape) ou, d'un cran
+ * au-dessus, comme **jalon** du parcours. **Union discriminée par `kind`** : les
+ * identifiants sont mutuellement exclusifs par nature, et c'est le type qui
+ * l'impose plutôt qu'une convention à relire.
+ */
+export type PlanRecommendedExerciseDto = PlanStepExerciseDto | PlanMilestoneExerciseDto;
 
 export interface DiagnosticSkillObservationDto {
     skillId: string;
@@ -754,13 +851,37 @@ export interface DiagnosticProductionResultDto {
     skills: DiagnosticSkillObservationDto[];
 }
 
+/**
+ * La phrase du candidat, puis la même idée écrite au niveau qu'il vise.
+ *
+ * Produit par un **second appel LLM best-effort**, comme `version_ciblee` sur une
+ * production complète : son absence est un cas **NORMAL**, jamais une erreur —
+ * aucun front n'affiche de message d'échec ni de spinner quand il manque.
+ * **Production écrite seulement** : une transcription orale n'est jamais
+ * réécrite (même règle que `ActionPlanReformulation`).
+ *
+ * `original` est une sous-chaîne exacte de la production, et chaque
+ * `segments[].extrait` une sous-chaîne exacte de `texte` : on surligne par
+ * simple recherche de chaîne, en nœuds React, **jamais** par
+ * `dangerouslySetInnerHTML`. Introuvable ⇒ texte brut, sans surlignage inventé.
+ */
+export interface DiagnosticExempleCibleDto extends ActionPlanExempleCible {
+    /** La phrase du candidat, telle qu'il l'a écrite. */
+    original: string;
+    niveauVise: NiveauCecrl;
+}
+
 export interface DiagnosticResultDto {
     written: DiagnosticProductionResultDto | null;
     oral: DiagnosticProductionResultDto | null;
     strengths: string[];
     priorities: DiagnosticSkillObservationDto[];
     mainPriorityExplanation: string | null;
-    nextAction: PlanRecommendedExerciseDto | null;
+    /** Toujours une étape : le diagnostic désigne la compétence de la priorité
+     *  n°1, jamais un jalon d'examen blanc. */
+    nextAction: PlanStepExerciseDto | null;
+    /** Second appel best-effort : `null` (ou absent) est un cas normal. */
+    exempleCible: DiagnosticExempleCibleDto | null;
 }
 
 export interface DiagnosticResponse {
@@ -815,7 +936,7 @@ export interface LearningPlanPriorityDto extends LearningPlanSkillCounters, Skil
     evidence: string | null;
     confidence: ObservationConfidence;
     observedAt: string;
-    recommendedExercise: PlanRecommendedExerciseDto | null;
+    recommendedExercise: PlanStepExerciseDto | null;
     /** Sujets de l'étape : au plus les 5 premiers actifs, moins si la compétence en publie moins. */
     stepPromptCount: number;
     /** Sujets de l'étape déjà traités (tout sauf « À faire »). */
@@ -828,6 +949,21 @@ export interface LearningPlanPriorityDto extends LearningPlanSkillCounters, Skil
      * affichée** : les priorités ne changent qu'à la prochaine production.
      */
     stepCompleted: boolean;
+    /**
+     * **Le périmètre de l'étape** : les identifiants des sujets qui la
+     * composent, dans l'ordre de l'étape (rang d'affichage croissant).
+     * **Jamais `null`**, et `stepPromptIds.length === stepPromptCount` par
+     * construction — ne rien recompter à partir de là.
+     *
+     * Il permet à l'écran d'une compétence ouverte **depuis le Plan** de rester
+     * dans l'étape (les mêmes 5 sujets, « 2/5 ») au lieu de retomber sur la
+     * fiche complète et son « 1/15 ». La règle « les 5 premiers sujets actifs »
+     * vit côté serveur : elle ne se réimplémente nulle part.
+     *
+     * Liste **vide** quand la compétence n'a aucun sujet actif — cas normal ;
+     * plus courte que 5 quand elle en publie moins.
+     */
+    stepPromptIds: string[];
     /** État agrégé de la compétence, identique à `SkillDto.masteryState` — à ne
      *  pas confondre avec `status`, verdict de la **dernière** production. */
     masteryState: SkillMasteryState | null;
@@ -835,6 +971,41 @@ export interface LearningPlanPriorityDto extends LearningPlanSkillCounters, Skil
      *  sans preuve de transfert récente : l'étape devient une **vérification**
      *  (`recommendedExercise.kind === "REASSESSMENT"`). */
     readyForReassessment: boolean;
+}
+
+/**
+ * Une **étape franchie** du parcours : une compétence dont le transfert est
+ * prouvé, donc qui n'est plus une priorité.
+ *
+ * Jusqu'ici une compétence réussie sortait simplement des priorités et son
+ * étape **disparaissait** du Plan — le candidat perdait la trace de ce qu'il
+ * avait passé. Elles sont désormais servies pour être affichées **avant**
+ * l'étape courante et les suivantes, dans le même parcours numéroté, et
+ * **cochées**.
+ *
+ * ⚠️ **Ni `recommendedExercise`, ni `locked`** : il n'y a plus rien à y faire,
+ * et une étape franchie n'est pas une porte commerciale. Ne pas en inventer.
+ *
+ * ⚠️ **`masteryState` n'est PAS toujours `SOLID`** : une preuve de transfert
+ * récente suffit à franchir l'étape. **L'appartenance à cette liste EST la
+ * coche** — ne jamais conditionner l'affichage à un état de maîtrise.
+ */
+export interface LearningPlanCompletedStepDto {
+    skillId: string;
+    skillCode: string;
+    title: string;
+    section: SkillSection;
+    /** Dernière observation probante : c'est elle qui ordonne les étapes franchies. */
+    observedAt: string;
+    /** Sujets de l'étape : au plus les 5 premiers actifs, moins si la compétence en publie moins. */
+    stepPromptCount: number;
+    /** Sujets de l'étape déjà traités. Une étape franchie n'est pas forcément à 5/5. */
+    stepAttemptedCount: number;
+    /** Sujets de l'étape dont le critère a été validé. Toujours ≤ `stepAttemptedCount`. */
+    stepValidatedCount: number;
+    /** Périmètre de l'étape, dans l'ordre. **Jamais `null`**, éventuellement vide. */
+    stepPromptIds: string[];
+    masteryState: SkillMasteryState | null;
 }
 
 export interface LearningPlanSkillDto extends LearningPlanSkillCounters, SkillLockable {
@@ -853,12 +1024,35 @@ export interface LearningPlanDto {
     state: LearningPlanState;
     diagnosticSessionId: string | null;
     diagnosticCompletedAt: string | null;
+    /**
+     * Les étapes **déjà franchies**, de la plus ancienne à la plus récente :
+     * elles se lisent **avant** `currentPriority` et `nextPriorities`, dans le
+     * même parcours numéroté.
+     *
+     * **Jamais `null`** ; **vide** tant qu'aucune compétence n'a prouvé son
+     * transfert — cas normal, y compris dans les états `NEEDS_DIAGNOSTIC` et
+     * `DIAGNOSTIC_IN_PROGRESS`. Déjà **bornée par le serveur** aux plus
+     * récentes : ne rien reborner ici.
+     */
+    completedSteps: LearningPlanCompletedStepDto[];
     currentPriority: LearningPlanPriorityDto | null;
     nextPriorities: LearningPlanPriorityDto[];
     observedSkills: LearningPlanSkillDto[];
     observedSkillCount: number;
     activitiesThisWeek: number;
     progressionAvailable: boolean;
+    /**
+     * Le **jalon** du parcours, un cran au-dessus des étapes : un examen blanc
+     * d'épreuve puis l'examen blanc TCF complet. Il vit **à côté** des
+     * priorités, il ne les remplace pas — chaque étape garde son propre
+     * `recommendedExercise`.
+     *
+     * **`null` est le cas NORMAL** (comme `planChange` ou `versionCiblee`) :
+     * rien ne s'affiche, aucun indicateur, aucun message d'erreur. Verrouillé,
+     * le jalon reste **désigné** avec son `locked` — le Plan reste
+     * intégralement visible, seuls les accès sont fermés.
+     */
+    milestone: PlanMilestoneExerciseDto | null;
 }
 
 // ============================================================================
@@ -1057,6 +1251,17 @@ export interface SkillPromptSummaryDto extends SkillLockable {
     status: SkillPromptStatus;
     attemptCount: number;
     lastAttemptAt: string | null;
+    /**
+     * Dernière production du candidat sur ce sujet — l'identifiant qui ouvre son
+     * écran de résultat. Même source que `SkillPromptDto.lastAttemptId` : la
+     * tentative dont le serveur a déjà dérivé `status`, donc **aucun appel
+     * réseau de plus**.
+     *
+     * `null` quand le sujet n'a jamais été traité — et parfois sur un sujet
+     * pourtant marqué traité (ligne héritée) : on retombe alors sur l'entrée
+     * directe en production, jamais sur un bouton mort.
+     */
+    lastAttemptId: string | null;
 }
 
 /** Familles d'icônes des étiquettes de contrainte. **Liste fermée**, partagée
@@ -1088,28 +1293,6 @@ export interface SkillConstraintTagDto {
 export interface SkillDetailDto {
     skill: SkillDto;
     prompts: SkillPromptSummaryDto[];
-    /** Les observations probantes de la compétence, **de la plus ancienne à la
-     *  plus récente** — le sens dans lequel une frise se lit. Jamais `null`,
-     *  souvent vide : la section n'est alors pas affichée du tout. */
-    trajectory: SkillObservationPointDto[];
-}
-
-/**
- * Un point de la frise d'une compétence : ce qui a été constaté, quand, et dans
- * quoi. `status` est le verdict de **cette production-là**, à ne pas confondre
- * avec `SkillDto.masteryState`, qui agrège tout l'historique.
- *
- * `confidence` n'est **pas** affichée au candidat : c'est la certitude du
- * correcteur, pas une information sur son niveau.
- */
-export interface SkillObservationPointDto {
-    observedAt: string;
-    source: LearningPlanSourceType;
-    status: LearningPlanSkillStatus;
-    explanation: string | null;
-    confidence: ObservationConfidence;
-    /** `true` pour les deux productions du diagnostic initial : le point de départ. */
-    baseline: boolean;
 }
 
 /** GET /api/skill-prompts/{promptId} — écran de production. Ne porte JAMAIS
@@ -1305,9 +1488,12 @@ export interface SkillAttemptDto {
     statut: SkillAttemptStatut;
     analysisRequested: boolean;
     writtenProduction: string | null;
-    /** URL R2 présignée (15 min) — jamais la clé brute. EO uniquement. */
-    audioUrl: string | null;
+    /**
+     * Durée de l'enregistrement (EO). Seule trace qui subsiste de l'audio : il
+     * n'est pas conservé, donc aucune URL n'est servie.
+     */
     audioDurationSec: number | null;
+    /** Transcription Whisper — LA production orale conservée. */
     transcript: string | null;
     wordsCount: number | null;
     selfEvaluation: SkillSelfEvaluation | null;
@@ -1390,6 +1576,22 @@ export interface RealtimeSessionDescriptor {
     tacheNumero: number;
     targetDurationSec?: number | null;
     sessionsRemaining: number;
+    /** La reprise après coupure est armée côté serveur : le client DOIT
+     *  mémoriser le dernier handle reçu du fournisseur et le renvoyer (avec ses
+     *  fragments de transcript, puis à la reprise) pour rouvrir la MÊME
+     *  conversation. Toujours `false` en `ASYNC_FALLBACK`. */
+    resumable: boolean;
+    /** Reprises encore accordées (`0` = plus de reprise possible). ⚠️ ABSENT du
+     *  JSON quand nul (`@JsonInclude(NON_NULL)` côté backend), donc optionnel. */
+    resumptionsRemaining?: number | null;
+    /** Secondes pendant lesquelles ce token peut encore ouvrir une connexion ;
+     *  au-delà, il faut redemander une reprise. ⚠️ Absent du JSON quand nul. */
+    connectWindowSec?: number | null;
+}
+
+/** Body de POST /api/realtime/eo/sessions/{id}/resume (corps entier facultatif). */
+export interface ResumeRealtimeSessionRequest {
+    resumptionHandle?: string | null;
 }
 
 /** Réponse de GET /api/realtime/eo/quota. */
@@ -2477,22 +2679,68 @@ export interface FullTcfExamSubAttempt {
     epreuve: EpreuveType;
     finishedAt: string | null;
     cecrlLevel: NiveauCecrl | null;
+    /** Score **pondéré interne** (A2=1, B1=2, B2=3) et sa borne. Conservés
+     *  comme repli — ce n'est pas ce qu'on affiche à un candidat, « 23/50 » ne
+     *  correspond à rien sur son relevé. */
     score: number | null;
     maxScore: number | null;
+    /** CO/CE : score calibré **100-499**, l'échelle du relevé TCF. Dérivé
+     *  serveur (`TcfLevelEstimatorService`, correction du hasard comprise) :
+     *  ne jamais le recalculer depuis `score`/`maxScore`. **C'est ce que les
+     *  écrans affichent.** Null pour EE/EO, pour une épreuve verrouillée et
+     *  tant que le score pondéré n'est pas posé — on retombe alors sur
+     *  `score`/`maxScore`, jamais sur un `/499` inventé. */
+    calibratedScore: number | null;
     submissionsCount: number | null;
     failedSubmissionIds: string[];
     locked: boolean;
+    /** Chrono PROPRE de l'épreuve, en secondes : 1200 CO, 2100 CE, 1800 EE.
+     *  **Null en EO** (l'oral se chronomètre par tâche, au lancement de chaque
+     *  tâche) et null sur une épreuve verrouillée. Le temps d'une épreuve ne se
+     *  transfère jamais à la suivante — il n'y a plus de chrono global. */
+    timeLimitSeconds: number | null;
+    /** Lancement réel de l'épreuve (`POST /begin`). Null tant qu'elle n'a pas
+     *  été lancée : l'épreuve n'a alors AUCUNE échéance. */
+    timerStartedAt: string | null;
+    /** `timerStartedAt + timeLimitSeconds`. **Unique source du compte à
+     *  rebours**, y compris au retour dans l'app : quitter ne suspend rien, le
+     *  temps a couru pendant l'absence. Ne jamais recalculer une échéance côté
+     *  client. */
+    deadlineAt: string | null;
+}
+
+/** Comment l'examen a été mené : d'une traite, ou repris en plusieurs fois.
+ *  L'abandon/reprise entre épreuves est officiellement supporté — ce champ dit
+ *  seulement ce qui s'est passé, il ne disqualifie rien. */
+export type FullTcfExamContinuite = "SESSION_UNIQUE" | "PLUSIEURS_SESSIONS";
+
+/** Libellés gelés côté backend (miroir mot pour mot du mobile). Déclarés ici et
+ *  nulle part ailleurs : aucune de ces chaînes ne se recopie dans un composant. */
+export const FULL_TCF_EXAM_CONTINUITE_LABEL: Record<FullTcfExamContinuite, string> = {
+    SESSION_UNIQUE: "Simulation complète — conditions examen",
+    PLUSIEURS_SESSIONS: "Simulation complétée en plusieurs sessions",
+};
+
+/** `null` tant que l'examen n'est pas terminé : rien à afficher, cas normal. */
+export function fullTcfExamContinuiteLabel(
+    continuite: FullTcfExamContinuite | null | undefined,
+): string | null {
+    return continuite == null ? null : FULL_TCF_EXAM_CONTINUITE_LABEL[continuite];
 }
 
 export interface FullTcfExamResponse {
     id: string;
     startedAt: string;
-    /** Lancement réel de la 1re épreuve (CO) — ancre du chrono 90 min. Null
-     *  tant que le candidat n'a pas commencé (hub de progression). */
+    /** Lancement réel de la 1re épreuve — **trace du début réel de l'examen**,
+     *  plus l'ancre d'un décompte : chaque épreuve porte son propre chrono
+     *  (`FullTcfExamSubAttempt.deadlineAt`). Null tant que le candidat n'a pas
+     *  commencé (hub de progression). */
     timerStartedAt: string | null;
     finishedAt: string | null;
     finalCecrlLevel: NiveauCecrl | null;
     status: FullTcfExamStatus;
+    /** Null tant que l'examen n'est pas terminé. */
+    continuite: FullTcfExamContinuite | null;
     subAttempts: FullTcfExamSubAttempt[];
     /** Périmètre réel du plancher `finalCecrlLevel` : nombre d'épreuves qui
      *  portent un niveau et y entrent vraiment. Une épreuve verrouillée
@@ -2520,11 +2768,9 @@ export interface FullTcfExamSummaryResponse {
      *  « dernier examen » et à annoter dans la grille des slots — un examen
      *  amputé n'est pas un résultat d'examen complet (`isCompleteExamResult`). */
     finalLevelPartial: boolean;
+    /** Null tant que l'examen n'est pas terminé. */
+    continuite: FullTcfExamContinuite | null;
 }
-
-/** Durée totale de l'examen complet (90 min). Constante backend
- *  `FullTcfExamService.FULL_EXAM_TOTAL_SECONDS`, non exposée dans le DTO. */
-export const FULL_TCF_EXAM_DURATION_SEC = 90 * 60;
 
 /** Ordre canonique des 4 épreuves de l'examen complet. */
 export const FULL_TCF_EXAM_EPREUVES = [

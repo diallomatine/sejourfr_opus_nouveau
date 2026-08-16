@@ -13,6 +13,7 @@ import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
@@ -64,19 +65,6 @@ public class AttemptService {
     private static final int TCF_EXAM_SIZE = 60;
     private static final int TCF_EXAM_TIME = 90 * 60;
 
-    /** Chrono global de l'épreuve EE en examen blanc (30 min, comme le vrai TCF IRN). */
-    private static final int PRODUCTION_EE_EXAM_SECONDS = 30 * 60;
-
-    /**
-     * Chrono global de l'épreuve EO en examen blanc : 15 min. Les 3 tâches EO
-     * du catalogue plafonnent le temps de parole à 180 + 210 + 210 s = 10 min ;
-     * on ajoute 50 % (5 min) pour la lecture des consignes, les transitions
-     * entre tâches et la latence d'upload. Sans ce chrono, une session d'examen
-     * EO restait ouverte indéfiniment — un compte gratuit pouvait y accumuler
-     * des évaluations IA (Whisper + LLM) jusqu'au plafond du rate-limit.
-     */
-    private static final int PRODUCTION_EO_EXAM_SECONDS = 15 * 60;
-
     /**
      * Slots de la grille d'examens blancs QCM (cf. V110) : 20 par module,
      * aligné sur les fronts (web {@code SLOTS = 20}, mobile
@@ -89,13 +77,9 @@ public class AttemptService {
     private static final int PREMIUM_TRAINING_MAX_SIZE = 50;
     private static final int DEFAULT_TRAINING_SIZE = 10;
 
-    // Durée des examens module — Compréhension orale 20 min, écrite 35 min en
-    // standalone. En examen blanc complet (TCF_COMPLET), CE est raccourci à
-    // 30 min pour tenir dans l'enveloppe globale de 90 min.
-    private static final int MODULE_EXAM_CO_SECONDS = 20 * 60;
-    private static final int MODULE_EXAM_CE_SECONDS = 35 * 60;
-    private static final int MODULE_EXAM_STRUCTURE_SECONDS = 20 * 60;
-    private static final int FULL_EXAM_CE_SECONDS = 30 * 60;
+    // Les durées d'épreuve vivent TOUTES dans DureeEpreuve (CO 20 min, CE
+    // 35 min partout — y compris en examen complet, STRUCTURE 20 min, EE
+    // 30 min, EO chronométrée tâche par tâche). Ne pas en redéclarer ici.
 
     private final AttemptManager attemptManager;
     private final AttemptQuestionManager attemptQuestionManager;
@@ -106,6 +90,7 @@ public class AttemptService {
     private final LotService lotService;
     private final AttemptCompositionService compositionService;
     private final AttemptInteractionService interactionService;
+    private final ProductionAccessService productionAccessService;
     private final AttemptMapper mapper;
 
     // ------------------------------------------------------------------------
@@ -264,8 +249,8 @@ public class AttemptService {
         Attempt parent = resolveParentAttempt(userId, req.parentAttemptId());
 
         final boolean isExamSession = Boolean.TRUE.equals(req.exam());
-        if (isExamSession && !subscriptionService.hasTcf(userId)) {
-            enforceFreeProductionExamBudget(userId);
+        if (isExamSession) {
+            productionAccessService.assertCanStartProductionExam(userId);
         }
 
         Attempt attempt = new Attempt();
@@ -281,18 +266,20 @@ public class AttemptService {
         if (isExamSession) {
             attempt.setSlotNumber(validateProductionExamSlot(req.slotNumber()));
         }
-        // Session d'examen module EE (30 min, comme au vrai TCF IRN) ou EO
-        // (15 min, cf. PRODUCTION_EO_EXAM_SECONDS) : chrono global enforcé
-        // backend — startedAt = vrai début de session. PAS posé sur les
-        // sous-attempts d'un examen complet : leur startedAt date de la
-        // création de l'examen (avant CO/CE), le décompte y est géré front-side
-        // dans l'enveloppe des 90 min du parent.
-        if (isExamSession) {
-            if (req.epreuve() == EpreuveType.TCF_EE) {
-                attempt.setTimeLimitSeconds(PRODUCTION_EE_EXAM_SECONDS);
-            } else if (req.epreuve() == EpreuveType.TCF_EO) {
-                attempt.setTimeLimitSeconds(PRODUCTION_EO_EXAM_SECONDS);
-            }
+        // Chrono d'épreuve : 30 min pour l'expression ÉCRITE (comme au vrai TCF
+        // IRN), qu'elle soit jouée en examen blanc d'épreuve ou en sous-épreuve
+        // d'un examen complet — une épreuve a la même durée où qu'elle soit
+        // jouée (cf. DureeEpreuve). L'ancre du décompte, elle, diffère : sur un
+        // sous-attempt d'examen complet c'est `timer_started_at`, posé au
+        // lancement réel de l'épreuve (cf. AttemptChrono).
+        //
+        // L'expression ORALE n'a volontairement AUCUN chrono d'épreuve : son
+        // temps se compte par tâche, au lancement de chaque tâche
+        // (production_tasks.duree_max_sec). Le seul plafond de session est le
+        // garde-fou anti-abus DureeEpreuve.EO_GARDE_SESSION_SECONDS, opposé par
+        // ProductionAccessService et jamais persisté ni exposé.
+        if ((isExamSession || parent != null) && req.epreuve() == EpreuveType.TCF_EE) {
+            attempt.setTimeLimitSeconds(DureeEpreuve.secondes(EpreuveType.TCF_EE));
         }
         // Pas de QCM -> totalQuestions / threshold restent null.
         attempt = attemptManager.save(attempt);
@@ -372,20 +359,6 @@ public class AttemptService {
         return slot;
     }
 
-    /**
-     * Budget freemium des examens blancs production (règles validées
-     * 2026-06-06) : 1ʳᵉ session gratuite ; une 2ᵉ session (refaire l'examen 1)
-     * est tolérée mais consomme les essais d'entraînement EE/EO restants
-     * (le front prévient via une modale) ; au-delà → premium.
-     */
-    private void enforceFreeProductionExamBudget(UUID userId) {
-        long sessions = attemptManager.countProductionExamSessions(userId);
-        if (sessions >= 2) {
-            throw new AccessDeniedException(
-                    "Examens blancs production réservés aux abonnés Intégral au-delà des essais gratuits.");
-        }
-    }
-
     private Attempt resolveParentAttempt(UUID userId, UUID parentAttemptId) {
         if (parentAttemptId == null) return null;
 
@@ -416,8 +389,10 @@ public class AttemptService {
     @Transactional
     public AttemptResponse startGuestDemo(StartAttemptRequest req, String clientIp) {
         // Validation du type (TRAINING / MOCK_EXAM) faite cote PublicAttemptService.
-        // Les examens cibles (theme civique / epreuve TCF) exigent un compte :
-        // seul un template free (diagnostic complet) est jouable en guest.
+        // Les examens civiques de theme exigent toujours un compte. Les examens
+        // blancs d'epreuve TCF QCM (CO / CE / STRUCTURE) ouvrent leur SLOT 1 aux
+        // visiteurs (cf. startGuestModuleExam) ; les templates free (diagnostic
+        // complet) restent jouables en guest.
         int size;
         Integer timeLimit = null;
         Integer threshold = null;
@@ -436,9 +411,14 @@ public class AttemptService {
                 threshold = template.getPassingScore();
                 // Guest sur template free : tirage deterministe.
                 questions = compositionService.pickQuestionsForTemplate(template, true);
-            } else if (req.moduleExamQuestionType() != null || req.themeId() != null) {
+            } else if (req.themeId() != null) {
+                // Examens civiques de thème : toujours réservés aux comptes.
                 throw new AccessDeniedException(
-                        "Les examens blancs par thème ou épreuve sont réservés aux comptes. Créez un compte gratuit pour continuer.");
+                        "Les examens blancs par thème sont réservés aux comptes. Créez un compte gratuit pour continuer.");
+            } else if (req.moduleExamQuestionType() != null) {
+                // Examen blanc d'une épreuve TCF QCM (CO / CE / STRUCTURE) :
+                // l'examen 1 est OUVERT aux visiteurs depuis le 2026-08-16.
+                return startGuestModuleExam(req, clientIp);
             } else {
                 if (req.module() == Module.CIVIQUE) {
                     size = CIVIQUE_EXAM_SIZE;
@@ -526,6 +506,63 @@ public class AttemptService {
         attempt = attemptManager.save(attempt);
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
+        return mapper.toResponse(attempt, aqList, false);
+    }
+
+    /**
+     * Examen blanc d'une epreuve TCF QCM (CO / CE / STRUCTURE) joue SANS COMPTE.
+     *
+     * <p><b>Changement de regle, 2026-08-16.</b> Ces examens etaient refuses aux
+     * visiteurs (403 sur tout MOCK_EXAM guest portant un
+     * {@code moduleExamQuestionType}) et les pages web n'etaient que des
+     * vitrines. Le proprietaire a arbitre d'ouvrir le <b>slot 1</b> de chaque
+     * epreuve : un visiteur doit pouvoir se tester en conditions d'examen avant
+     * de creer un compte. Ce n'est pas un correctif, c'est une nouvelle regle.
+     *
+     * <p>Perimetre volontairement etroit, rien d'autre n'est ouvert :
+     * <ul>
+     *   <li>slots 2..{@value #MOCK_EXAM_SLOTS} : refuses (compte requis) ;</li>
+     *   <li>examens civiques de theme ({@code themeId}) : toujours refuses ;</li>
+     *   <li>EE / EO : hors de ce chemin, toujours reservees aux comptes.</li>
+     * </ul>
+     *
+     * <p>Tirage <b>deterministe</b>, comme toutes les entrees guest (serie 1,
+     * template free) : rejouer redonne le meme examen. L'objectif est de
+     * convertir, pas d'offrir la banque de questions sans compte.
+     */
+    private AttemptResponse startGuestModuleExam(StartAttemptRequest req, String clientIp) {
+        if (req.module() != Module.TCF) {
+            throw new BusinessException("Les examens module sont reserves au module TCF.");
+        }
+        QuestionType qType = req.moduleExamQuestionType();
+        if (qType != QuestionType.CO && qType != QuestionType.CE && qType != QuestionType.STRUCTURE) {
+            throw new BusinessException("moduleExamQuestionType doit etre CO, CE ou STRUCTURE.");
+        }
+        int slot = validateMockExamSlot(req.slotNumber());
+        if (slot != 1) {
+            throw new AccessDeniedException(
+                    "Seul le premier examen blanc est offert sans compte. Créez un compte gratuit pour continuer.");
+        }
+
+        List<Question> picked = compositionService.composeModuleExam(req.module(), qType, true);
+        if (picked.isEmpty()) {
+            throw new BusinessException("Aucune question disponible pour cet examen module.");
+        }
+
+        Attempt attempt = new Attempt();
+        // user = null (guest)
+        attempt.setClientIp(clientIp);
+        attempt.setType(AttemptType.MOCK_EXAM);
+        attempt.setModule(req.module());
+        attempt.setEpreuve(moduleExamEpreuve(qType));
+        attempt.setModuleExamQuestionType(qType);
+        attempt.setTotalQuestions(picked.size());
+        attempt.setTimeLimitSeconds(DureeEpreuve.secondesPourQcm(qType));
+        attempt.setStartedAt(Instant.now());
+        attempt.setSlotNumber(slot);
+        attempt = attemptManager.save(attempt);
+
+        List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, picked);
         return mapper.toResponse(attempt, aqList, false);
     }
 
@@ -683,9 +720,9 @@ public class AttemptService {
 
     /**
      * Demarre un examen blanc scope a une epreuve TCF QCM (CO, CE ou
-     * STRUCTURE). Composition : 8 A2 + 9 B1 + 8 B2 progressifs (constantes
-     * MODULE_EXAM_*), tire aleatoirement dans le pool filtre par module +
-     * questionType. Si une strate est trop petite, on complete avec les
+     * STRUCTURE). Composition : 8 A2 + 9 B1 + 8 B2 progressifs, tire
+     * aleatoirement dans le pool filtre par module + questionType. Duree lue
+     * dans {@link DureeEpreuve}, jamais recopiee ici. Si une strate est trop petite, on complete avec les
      * niveaux voisins pour atteindre 25 questions au total (fallback).
      *
      * <p>STRUCTURE est un module bonus (hors TCF IRN officiel), inclus ici
@@ -715,17 +752,12 @@ public class AttemptService {
         // composition (cf. composeModuleExam) — c'est un repère de grille (V110).
         enforceMockExamSlotAccess(user.getId(), req.module(), req.slotNumber(), qType + " ");
 
-        List<Question> picked = compositionService.composeModuleExam(req.module(), qType);
+        List<Question> picked = compositionService.composeModuleExam(req.module(), qType, false);
         if (picked.isEmpty()) {
             throw new BusinessException("Aucune question disponible pour cet examen module.");
         }
 
-        int timeLimit = switch (qType) {
-            case CO -> MODULE_EXAM_CO_SECONDS;
-            case CE -> MODULE_EXAM_CE_SECONDS;
-            case STRUCTURE -> MODULE_EXAM_STRUCTURE_SECONDS;
-            default -> throw new BusinessException("qType non supporte pour examen module : " + qType);
-        };
+        int timeLimit = DureeEpreuve.secondesPourQcm(qType);
 
         Attempt attempt = new Attempt();
         attempt.setUser(user);
@@ -765,8 +797,13 @@ public class AttemptService {
     /**
      * Variante de {@link #startModuleExam} pour les sous-attempts d'un examen
      * blanc TCF complet (parent TCF_COMPLET). Skip le check premium (l'accès
-     * est porté par le parent), pose {@code parent_attempt_id} et applique la
-     * durée full-exam pour CE (30 min au lieu de 35).
+     * est porté par le parent) et pose {@code parent_attempt_id}.
+     *
+     * <p>La durée est celle de l'épreuve, <b>identique au standalone</b> (CO
+     * 20 min, CE 35 min) : la CE n'est plus raccourcie à 30 min, l'enveloppe
+     * globale de 90 min qui l'imposait ayant disparu. Son décompte ne démarre
+     * qu'au lancement réel de l'épreuve ({@code timer_started_at}, posé par
+     * {@link FullTcfExamService#beginEpreuve}) — cf. {@code AttemptChrono}.
      *
      * <p>Réservé à {@link FullTcfExamService} qui valide l'access avant l'appel.
      */
@@ -779,12 +816,12 @@ public class AttemptService {
             throw new BusinessException("parent doit être un attempt TCF_COMPLET.");
         }
 
-        List<Question> picked = compositionService.composeModuleExam(Module.TCF, qType);
+        List<Question> picked = compositionService.composeModuleExam(Module.TCF, qType, false);
         if (picked.isEmpty()) {
             throw new BusinessException("Aucune question disponible pour le sous-attempt " + qType + ".");
         }
 
-        int timeLimit = qType == QuestionType.CO ? MODULE_EXAM_CO_SECONDS : FULL_EXAM_CE_SECONDS;
+        int timeLimit = DureeEpreuve.secondesPourQcm(qType);
 
         Attempt attempt = new Attempt();
         attempt.setUser(user);
@@ -818,7 +855,16 @@ public class AttemptService {
     // Lecture — délégué à AttemptInteractionService
     // ------------------------------------------------------------------------
 
+    /**
+     * Lecture d'une session. Clôture d'abord la session si son délai est
+     * écoulé — clôture <b>paresseuse, à la lecture</b>, sans job planifié
+     * (même philosophie que l'expiration d'abonnement dans
+     * {@code SubscriptionService.isCovering}). Quitter ne suspend rien : le
+     * candidat qui revient après l'échéance retrouve son épreuve close avec ce
+     * qui avait été enregistré.
+     */
     public AttemptResponse getById(UUID userId, UUID attemptId) {
+        interactionService.closeIfExpired(attemptId);
         return interactionService.getById(userId, attemptId);
     }
 

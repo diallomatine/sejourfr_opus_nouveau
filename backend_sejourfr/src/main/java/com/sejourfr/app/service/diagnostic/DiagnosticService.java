@@ -4,6 +4,7 @@ import com.sejourfr.app.config.DiagnosticProperties;
 import com.sejourfr.app.dto.DiagnosticExerciseDto;
 import com.sejourfr.app.dto.DiagnosticProductionResultDto;
 import com.sejourfr.app.dto.DiagnosticResponse;
+import com.sejourfr.app.dto.DiagnosticExempleCibleDto;
 import com.sejourfr.app.dto.DiagnosticResultDto;
 import com.sejourfr.app.dto.DiagnosticSkillObservationDto;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
@@ -16,6 +17,7 @@ import com.sejourfr.app.enums.DiagnosticJourneyStatus;
 import com.sejourfr.app.enums.DiagnosticSessionStatus;
 import com.sejourfr.app.enums.DiagnosticStep;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
+import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
@@ -24,6 +26,7 @@ import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.service.ProductionEvaluationService;
 import com.sejourfr.app.service.RecommendedExerciseSelector;
+import com.sejourfr.app.service.diagnostic.exemplecible.DiagnosticExempleCibleFields;
 import com.sejourfr.app.ratelimit.RateLimitGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -155,8 +158,9 @@ public class DiagnosticService {
             DiagnosticSession session,
             ProductionSubmission writtenSubmission,
             ProductionSubmission oralSubmission) {
-        DiagnosticProductionResultDto written = productionResult(writtenSubmission);
-        DiagnosticProductionResultDto oral = productionResult(oralSubmission);
+        DiagnosticProductionAnalysis writtenAnalysis = analysis(writtenSubmission);
+        DiagnosticProductionResultDto written = productionResult(writtenAnalysis);
+        DiagnosticProductionResultDto oral = productionResult(analysis(oralSubmission));
         Map<String, DiagnosticSkillObservationDto> observations = new LinkedHashMap<>();
         if (written != null) written.skills().forEach(item -> observations.put(item.skillCode(), item));
         if (oral != null) oral.skills().forEach(item -> observations.put(item.skillCode(), item));
@@ -168,7 +172,59 @@ public class DiagnosticService {
         PlanRecommendedExerciseDto next = recommendedAction(userId, observations, priorities);
         return new DiagnosticResultDto(
                 written, oral, strings(summary.get("strengths")), priorities,
-                nullableText(summary.get("main_priority_explanation")), next);
+                nullableText(summary.get("main_priority_explanation")), next,
+                exempleCible(writtenAnalysis));
+    }
+
+    /**
+     * AVANT / APRÈS de la production ÉCRITE, lu tel quel dans le JSON déjà
+     * persisté de son analyse — {@code null} quand le second appel best-effort
+     * n'a rien produit, ce qui est un cas <b>normal</b> (coupe-circuit, objectif
+     * déjà atteint, fournisseur muet, ou analyse antérieure à la mise en
+     * service). Aucune migration : le bloc vit dans le {@code jsonb} existant.
+     *
+     * <p>Le serveur ne recalcule rien ici : {@code original} est déjà la
+     * sous-chaîne exacte de la production, résolue depuis le numéro de segment au
+     * moment de l'écriture, et chaque {@code extrait} est déjà une sous-chaîne
+     * exacte de {@code texte}.
+     */
+    static DiagnosticExempleCibleDto exempleCible(DiagnosticProductionAnalysis analysis) {
+        if (analysis == null || analysis.getAnalysisJson() == null) return null;
+        if (!(analysis.getAnalysisJson().get(DiagnosticExempleCibleFields.BLOC)
+                instanceof Map<?, ?> bloc)) {
+            return null;
+        }
+        String original = nullableText(bloc.get(DiagnosticExempleCibleFields.ORIGINAL));
+        String texte = nullableText(bloc.get(DiagnosticExempleCibleFields.TEXTE));
+        if (original == null || texte == null) return null;
+
+        List<DiagnosticExempleCibleDto.Segment> segments = new ArrayList<>();
+        if (bloc.get(DiagnosticExempleCibleFields.SEGMENTS) instanceof List<?> items) {
+            for (Object raw : items) {
+                if (!(raw instanceof Map<?, ?> item)) continue;
+                String extrait = nullableText(item.get(DiagnosticExempleCibleFields.EXTRAIT));
+                String apport = nullableText(item.get(DiagnosticExempleCibleFields.APPORT));
+                if (extrait == null || apport == null) continue;
+                segments.add(new DiagnosticExempleCibleDto.Segment(extrait, apport));
+            }
+        }
+        return new DiagnosticExempleCibleDto(original, texte, List.copyOf(segments),
+                niveau(bloc.get(DiagnosticExempleCibleFields.NIVEAU_VISE)));
+    }
+
+    private static NiveauCecrl niveau(Object raw) {
+        String texte = nullableText(raw);
+        if (texte == null) return null;
+        try {
+            return NiveauCecrl.valueOf(texte.toUpperCase());
+        } catch (IllegalArgumentException unknown) {
+            return null;
+        }
+    }
+
+    private DiagnosticProductionAnalysis analysis(ProductionSubmission submission) {
+        if (submission == null) return null;
+        return analysisManager.findBySubmissionId(submission.getId()).orElse(null);
     }
 
     /**
@@ -213,11 +269,7 @@ public class DiagnosticService {
                 "Aucun micro-exercice actif pour les compétences du diagnostic");
     }
 
-    @SuppressWarnings("unchecked")
-    private DiagnosticProductionResultDto productionResult(ProductionSubmission submission) {
-        if (submission == null) return null;
-        DiagnosticProductionAnalysis analysis = analysisManager
-                .findBySubmissionId(submission.getId()).orElse(null);
+    private DiagnosticProductionResultDto productionResult(DiagnosticProductionAnalysis analysis) {
         if (analysis == null) return null;
         Map<String, Object> json = analysis.getAnalysisJson();
         List<DiagnosticSkillObservationDto> skills = new ArrayList<>();

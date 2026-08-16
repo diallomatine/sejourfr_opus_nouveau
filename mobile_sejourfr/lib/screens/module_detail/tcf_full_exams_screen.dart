@@ -9,6 +9,7 @@ import '../../core/models/enums.dart';
 import '../../core/models/full_tcf_exam.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/epreuve_duration.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/utils/start_failure.dart';
 import '../../core/widgets/app_button.dart';
@@ -141,12 +142,18 @@ class TcfFullExamsView extends ConsumerWidget {
         children: [
           _ResultStats(history: historyAsync.valueOrNull ?? const []),
           const SizedBox(height: 14),
-          const ExamInfoChips(
+          ExamInfoChips(
             accent: AppColors.red,
             soft: AppColors.redLight,
             items: [
               (icon: LucideIcons.zap, label: 'Simulation réelle'),
-              (icon: LucideIcons.clock, label: '≈ 1 h 30'),
+              // Ordre de grandeur, pas un décompte : il n'y a plus d'enveloppe
+              // globale, chaque épreuve porte son propre chrono. La somme vient
+              // de `kExamenCompletSecondes`, jamais d'un chiffre écrit ici.
+              (
+                icon: LucideIcons.clock,
+                label: '≈ ${epreuveDurationLabel(kExamenCompletSecondes) ?? ''}'
+              ),
               (
                 icon: LucideIcons.layoutGrid,
                 label: '4 épreuves CO · CE · EE · EO'
@@ -482,7 +489,10 @@ class _ExamSlotCard extends StatelessWidget {
       };
     }
     if (lockedEmpty) return 'Réservé à l\'abonnement Intégral';
-    if (slot == 1) return 'Offert · 4 épreuves, 1 h 30';
+    if (slot == 1) {
+      return 'Offert · 4 épreuves, ≈ '
+          '${epreuveDurationLabel(kExamenCompletSecondes) ?? ''}';
+    }
     return 'Pas encore fait';
   }
 

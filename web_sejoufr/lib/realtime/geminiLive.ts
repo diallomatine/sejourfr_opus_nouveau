@@ -18,6 +18,37 @@ import type {RealtimeSessionDescriptor} from "../types";
 
 export type GeminiLiveState = "connecting" | "welcoming" | "live" | "closed" | "error";
 
+// --- Réglages temps réel (déclarés une fois, lus par tout le fichier) --------
+
+/** Taille d'un paquet micro envoyé à Gemini, en millisecondes. Recommandation
+ *  officielle du fournisseur : « Send audio in chunks of 20ms to 40ms » /
+ *  « Don't buffer input audio significantly » (ai.google.dev/gemini-api/docs/
+ *  live-api/best-practices). À 16 kHz → 640 frames = 1280 octets par paquet.
+ *  Avant : un message WS par render quantum (128 frames), soit ~125 msg/s. */
+const MIC_PACKET_MS = 40;
+
+/** Repli ScriptProcessor (navigateur sans AudioWorklet) : 512 frames, la seule
+ *  puissance de 2 qui tombe dans la fourchette 20–40 ms à 16 kHz (32 ms).
+ *  L'ancienne valeur 4096 valait 256 ms, huit fois la borne haute. */
+const SCRIPT_PROCESSOR_FRAMES = 512;
+
+/** Pré-roll de lecture : on décale le début d'un tour examinateur de 120 ms
+ *  (~3 chunks Gemini) pour absorber la gigue réseau. Sans lui, le moindre
+ *  hoquet réseau produit un trou puis un clic, l'horloge de lecture se
+ *  resynchronisant sans lissage. */
+const PLAYBACK_PREROLL_SEC = 0.12;
+
+/** Marge du garde-fou AU-DESSUS de la fin de lecture réelle (`playHead`).
+ *  Remplace l'ancienne marge fixe de 900 ms posée sur une fin ESTIMÉE : trop
+ *  tôt le micro rouvrait sur la voix de l'examinateur (écho → faux tour
+ *  candidat), trop tard les premiers mots du candidat étaient jetés. */
+const SPEAK_GUARD_MARGIN_SEC = 0.1;
+
+/** Tenue du micro après la fin de parole de l'examinateur. 120 ms (et non 300)
+ *  depuis que la fin de parole suit la position de lecture RÉELLE : les 300 ms
+ *  compensaient l'imprécision de l'estimation qu'on vient de supprimer. */
+const MIC_HOLD_AFTER_SPEECH_MS = 120;
+
 export interface GeminiLiveCallbacks {
     /** Transcription d'un fragment dit par le CANDIDAT (micro). */
     onCandidateTranscript?: (text: string) => void;
@@ -26,6 +57,15 @@ export interface GeminiLiveCallbacks {
     /** L'examinateur parle / s'arrête (pour un indicateur visuel). */
     onSpeakingChange?: (speaking: boolean) => void;
     onStateChange?: (state: GeminiLiveState) => void;
+    /** Dernier `sessionResumptionUpdate.newHandle` reçu du fournisseur. Cette
+     *  session ne le stocke PAS : l'état de reprise a un seul propriétaire, le
+     *  runner, qui le relaie au serveur et le renvoie à la reprise. */
+    onResumptionHandle?: (handle: string) => void;
+    /** Le WebSocket est tombé alors que l'entretien avait commencé. Le client ne
+     *  décide rien : c'est le runner qui arbitre reprise ou repli. */
+    onConnectionLost?: () => void;
+    /** Erreur FATALE, non rattrapable par une reprise (micro refusé, connexion
+     *  jamais établie). */
     onError?: (message: string) => void;
 }
 
@@ -75,13 +115,45 @@ function base64ToInt16(b64: string): Int16Array {
     return new Int16Array(bytes.buffer);
 }
 
-/** Module AudioWorklet (inline) : poste les frames Float32 du micro au main thread. */
+/**
+ * Module AudioWorklet (inline) : ACCUMULE les frames du micro et ne poste qu'un
+ * paquet plein (`packetMs`, cf. MIC_PACKET_MS) au main thread.
+ *
+ * L'agrégation vit ICI, pas côté main thread : `process()` reçoit un render
+ * quantum fixe de 128 frames, donc poster à chaque appel produisait ~125
+ * `postMessage` ET ~125 `ws.send` par seconde. Accumuler dans le worklet divise
+ * les deux d'un coup (~5 fois moins de trafic vers le main thread, un `send`
+ * par paquet de 40 ms). Le message `flush` vide le reliquat à l'arrêt.
+ */
 const WORKLET_SRC = `
 class PcmCaptureProcessor extends AudioWorkletProcessor {
+  constructor(options) {
+    super();
+    const ms = (options && options.processorOptions && options.processorOptions.packetMs) || 40;
+    // 128 = render quantum : plancher en dessous duquel accumuler n'a plus de sens.
+    this.size = Math.max(128, Math.round((sampleRate * ms) / 1000));
+    this.buf = new Float32Array(this.size);
+    this.filled = 0;
+    this.port.onmessage = (e) => {
+      if (e.data === 'flush') this.emit(this.filled);
+    };
+  }
+  emit(count) {
+    if (count <= 0) return;
+    const out = this.buf.slice(0, count);
+    this.filled = 0;
+    this.port.postMessage(out, [out.buffer]);
+  }
   process(inputs) {
-    const input = inputs[0];
-    if (input && input[0]) {
-      this.port.postMessage(input[0].slice(0));
+    const ch = inputs[0] && inputs[0][0];
+    if (!ch) return true;
+    let read = 0;
+    while (read < ch.length) {
+      const n = Math.min(this.size - this.filled, ch.length - read);
+      this.buf.set(ch.subarray(read, read + n), this.filled);
+      this.filled += n;
+      read += n;
+      if (this.filled === this.size) this.emit(this.size);
     }
     return true;
   }
@@ -90,7 +162,10 @@ registerProcessor('pcm-capture', PcmCaptureProcessor);
 `;
 
 export class GeminiLiveSession {
-    private readonly descriptor: RealtimeSessionDescriptor;
+    /** Paramètres de la connexion COURANTE. Non `readonly` : une reprise
+     *  (`reconnect`) remplace endpoint/token/modèle par ceux du descripteur émis
+     *  par `POST /sessions/{id}/resume`. Les réglages audio ne changent pas. */
+    private descriptor: RealtimeSessionDescriptor;
     private readonly cb: GeminiLiveCallbacks;
     private readonly inputRate: number;
     private readonly outputRate: number;
@@ -108,14 +183,18 @@ export class GeminiLiveSession {
     // contexte (un AudioContext recréé hors geste utilisateur peut rester
     // suspendu → examinateur définitivement muet pour le reste de la session).
     private activeSources = new Set<AudioBufferSourceNode>();
-    // Garde-fou anti-blocage : fin de lecture estimée en horloge murale. Si le
-    // contexte audio reste suspendu (autoplay) ou que `onended` ne se déclenche
-    // jamais, `speaking` resterait true → micro verrouillé à vie (half-duplex).
-    // Ce timer force speaking=false peu après la fin théorique de la lecture.
-    private expectedEndMs = 0;
+    // Garde-fou anti-blocage, ARMÉ SUR `playHead` (la position de lecture
+    // réelle), jamais sur une durée cumulée en horloge murale : il ne peut plus
+    // déclarer la fin avant que `ctx.currentTime` ait atteint `playHead`.
+    // Il reste nécessaire parce que `onended` peut ne jamais venir (contexte
+    // suspendu par la politique autoplay) → `speaking` bloqué à true → micro
+    // verrouillé à vie (half-duplex). Détection de l'horloge figée : si
+    // `currentTime` n'a pas progressé entre deux réveils, la lecture n'avance
+    // pas et on rend la parole au candidat.
     private speakGuard: ReturnType<typeof setTimeout> | null = null;
-    // Tenue du micro ~300 ms après la fin de parole de l'examinateur : un trou
-    // de jitter entre deux chunks rouvrait le micro en pleine phrase → l'écho
+    private guardRemainingRef = -1;
+    // Tenue du micro après la fin de parole de l'examinateur : un trou de
+    // jitter entre deux chunks rouvrait le micro en pleine phrase → l'écho
     // résiduel du haut-parleur partait à Gemini (VAD start=HIGH) → faux
     // barge-in → réponse coupée (« l'examinateur se perd en cours d'entretien »).
     private micHoldUntilMs = 0;
@@ -128,6 +207,14 @@ export class GeminiLiveSession {
     // garde-fou si rien n'arrive.
     private awaitingFirstExaminer = true;
     private welcomeTimer: ReturnType<typeof setTimeout> | null = null;
+    // La session a-t-elle été établie au moins une fois (`setupComplete`) ? Ce
+    // qui tombe AVANT n'est pas une coupure rattrapable mais un échec de
+    // connexion : reprendre une conversation qui n'a jamais commencé n'a aucun
+    // sens.
+    private everConnected = false;
+    // Une chute de socket ne se signale qu'UNE fois : `onerror` et `onclose` du
+    // même socket tirent coup sur coup.
+    private socketDownNotified = false;
     // Transcription : on accumule les fragments Gemini VERBATIM (ils portent leur
     // propre espacement) et on n'émet une ligne qu'à la fin du tour (turnComplete
     // / interrupted). Ajouter un espace entre fragments coupait les mots.
@@ -200,8 +287,8 @@ export class GeminiLiveSession {
         ws.onerror = () => {
             // Session déjà fermée (cleanup StrictMode/Fast Refresh) : ne pas
             // remonter une fausse erreur qui tuerait le vrai flux.
-            if (this.closed) return;
-            this.fail("La connexion à l'examinateur a échoué.");
+            if (this.closed || ws !== this.ws) return;
+            this.handleSocketDown("erreur WS");
         };
         ws.onclose = (ev) => {
             // Code/raison utiles au diagnostic (1007 = setup invalide, 1008 = auth,
@@ -209,11 +296,62 @@ export class GeminiLiveSession {
             if (ev.code !== 1000 && ev.code !== 1005) {
                 console.warn(`[realtime] WS fermé code=${ev.code} raison=${ev.reason || "—"}`);
             }
-            if (!this.closed) {
-                this.closed = true;
-                this.cb.onStateChange?.("closed");
-            }
+            // Socket remplacé par une reprise : sa fermeture ne concerne plus
+            // personne.
+            if (this.closed || ws !== this.ws) return;
+            this.handleSocketDown(`fermeture code=${ev.code}`);
         };
+    }
+
+    /**
+     * Rouvre le WebSocket avec le descripteur d'une REPRISE
+     * (`POST /sessions/{id}/resume`) : nouveau token, même conversation. La
+     * chaîne audio (micro, contexte de lecture) reste EN PLACE — on ne
+     * redemande pas la permission, on ne recrée pas de contexte : seul le
+     * transport change.
+     *
+     * ⚠️ Le handle de reprise est verrouillé dans le setup du token côté serveur
+     * (endpoint contraint) : on ne peut ni le poser ici, ni réutiliser l'ancien
+     * token, d'où le passage obligé par le serveur.
+     */
+    reconnect(next: RealtimeSessionDescriptor): void {
+        if (this.closed) return;
+        this.descriptor = next;
+        const old = this.ws;
+        this.ws = null;
+        if (old) {
+            old.onopen = null;
+            old.onmessage = null;
+            old.onerror = null;
+            old.onclose = null;
+            try {
+                old.close();
+            } catch {
+                // déjà fermé
+            }
+        }
+        // Le tour de l'examinateur est mort avec le socket : on jette ce qui
+        // restait planifié (sinon un bout de phrase se rejouerait) et on rend la
+        // parole au candidat.
+        this.flushPlayback();
+        this.socketDownNotified = false;
+        this.openSocket();
+    }
+
+    /** Chute du transport. Avant `setupComplete` c'est un échec de connexion
+     *  (fatal) ; après, c'est une coupure que le runner peut reprendre. */
+    private handleSocketDown(reason: string): void {
+        if (this.closed || this.socketDownNotified) return;
+        this.socketDownNotified = true;
+        console.warn(`[realtime] transport tombé (${reason})`);
+        if (!this.everConnected) {
+            this.fail("La connexion à l'examinateur a échoué.");
+            return;
+        }
+        // Ce qui restait à jouer est perdu avec le socket : on rend le micro au
+        // candidat au lieu de le laisser verrouillé en half-duplex.
+        this.flushPlayback();
+        this.cb.onConnectionLost?.();
     }
 
     private async onMessage(ev: MessageEvent): Promise<void> {
@@ -236,15 +374,28 @@ export class GeminiLiveSession {
             return;
         }
         if (msg.setupComplete) {
-            // Phase d'accueil : micro coupé, on attend la 1re phrase de l'examinateur.
-            this.cb.onStateChange?.("welcoming");
-            // Gemini ne parle pas spontanément : on déclenche l'accueil par un
-            // premier tour utilisateur « Bonjour. » — l'examinateur enchaîne
-            // aussitôt (fin de l'attente « il met du temps à arriver »).
-            this.sendOpeningTrigger();
-            // Garde-fou : si rien sous ~8 s, on libère le micro et on passe en
-            // conversation (un greeting audio manquant ne doit pas bloquer le candidat).
-            this.welcomeTimer = setTimeout(() => this.beginConversation(), 8000);
+            this.everConnected = true;
+            // Après une REPRISE, l'entretien a déjà commencé : le contexte est
+            // restauré côté fournisseur et renvoyer « Bonjour. » ferait rejouer
+            // un accueil. On ne réamorce que si l'examinateur n'a jamais parlé.
+            if (this.awaitingFirstExaminer) {
+                // Phase d'accueil : micro coupé, on attend sa 1re phrase.
+                this.cb.onStateChange?.("welcoming");
+                // Gemini ne parle pas spontanément : on déclenche l'accueil par un
+                // premier tour utilisateur « Bonjour. » — l'examinateur enchaîne
+                // aussitôt (fin de l'attente « il met du temps à arriver »).
+                this.sendOpeningTrigger();
+                // Garde-fou : si rien sous ~8 s, on libère le micro et on passe en
+                // conversation (un greeting audio manquant ne doit pas bloquer le candidat).
+                this.welcomeTimer = setTimeout(() => this.beginConversation(), 8000);
+            }
+            return;
+        }
+        // Handle de reprise : remonté tel quel, jamais stocké ici (le runner est
+        // le seul propriétaire de l'état de reprise).
+        const newHandle = msg.sessionResumptionUpdate?.newHandle;
+        if (newHandle) {
+            this.cb.onResumptionHandle?.(newHandle);
             return;
         }
         const sc = msg.serverContent;
@@ -332,7 +483,9 @@ export class GeminiLiveSession {
                 await ctx.audioWorklet.addModule(blobUrl);
                 if (this.closed) return;
                 URL.revokeObjectURL(blobUrl);
-                const node = new AudioWorkletNode(ctx, "pcm-capture");
+                const node = new AudioWorkletNode(ctx, "pcm-capture", {
+                    processorOptions: {packetMs: MIC_PACKET_MS},
+                });
                 node.port.onmessage = (e) => this.sendFrame(e.data as Float32Array, ctx.sampleRate);
                 source.connect(node);
                 // Pas de connexion à la destination : on ne veut pas réémettre le micro.
@@ -342,7 +495,7 @@ export class GeminiLiveSession {
                 // Repli ScriptProcessor ci-dessous.
             }
         }
-        const node = ctx.createScriptProcessor(4096, 1, 1);
+        const node = ctx.createScriptProcessor(SCRIPT_PROCESSOR_FRAMES, 1, 1);
         node.onaudioprocess = (e) => this.sendFrame(e.inputBuffer.getChannelData(0), ctx.sampleRate);
         source.connect(node);
         node.connect(ctx.destination);
@@ -395,7 +548,12 @@ export class GeminiLiveSession {
         src.buffer = buf;
         src.connect(ctx.destination);
         const now = ctx.currentTime;
-        const startAt = Math.max(now, this.playHead);
+        // Pré-roll : au PREMIER chunk d'un tour (la file de lecture est vide,
+        // donc `playHead` est derrière l'horloge), on part avec une petite
+        // avance de planification au lieu de démarrer au ras de `currentTime`.
+        // En cours de tour on ne touche pas à `playHead` : les chunks
+        // s'enchaînent bord à bord.
+        const startAt = this.playHead > now ? this.playHead : now + PLAYBACK_PREROLL_SEC;
         src.start(startAt);
         this.playHead = startAt + buf.duration;
         this.activeSources.add(src);
@@ -403,34 +561,63 @@ export class GeminiLiveSession {
             this.speaking = true;
             this.cb.onSpeakingChange?.(true);
         }
-        this.armSpeakGuard(buf.duration);
+        // Ré-armé à CHAQUE chunk planifié : le garde-fou suit toujours la fin
+        // réelle de la file, pas la durée du seul lot reçu.
+        this.guardRemainingRef = -1;
+        this.armSpeakGuard();
         src.onended = () => {
             this.activeSources.delete(src);
-            if (this.playbackCtx && this.playHead - this.playbackCtx.currentTime <= 0.05 && this.speaking) {
-                this.speaking = false;
-                this.micHoldUntilMs = Date.now() + 300;
-                this.cb.onSpeakingChange?.(false);
+            // Fin réelle du tour : la dernière source planifiée vient de finir
+            // et rien n'a été ajouté derrière (`playHead` atteint).
+            if (this.playbackCtx && this.playHead - this.playbackCtx.currentTime <= 0.05) {
+                this.endSpeaking();
             }
         };
     }
 
-    /** (Ré)arme la fin de lecture estimée : maintenant (ou la fin déjà prévue)
-     *  + la durée du lot reçu. Marge 900 ms avant de forcer speaking=false —
-     *  filet de sécurité si `onended` ne vient jamais (contexte suspendu). */
-    private armSpeakGuard(durationSec: number): void {
-        const now = Date.now();
-        this.expectedEndMs = Math.max(this.expectedEndMs, now) + durationSec * 1000;
+    /**
+     * (Ré)arme le garde-fou sur la fin de lecture RÉELLE : `playHead` est
+     * l'échéance de la dernière source planifiée dans l'horloge du contexte
+     * audio. Le réveil est repoussé tant que cette échéance n'est pas atteinte,
+     * donc le garde ne peut jamais couper l'examinateur ni, à l'inverse,
+     * laisser le micro fermé bien après lui (l'ancienne marge fixe de 900 ms
+     * faisait jeter les premiers mots du candidat).
+     *
+     * Seule échappatoire : une horloge de lecture FIGÉE (contexte suspendu par
+     * la politique autoplay). On la détecte au fait que le reste à lire ne
+     * décroît pas d'un réveil à l'autre, et on rend alors la parole au candidat.
+     */
+    private armSpeakGuard(): void {
+        const ctx = this.playbackCtx;
+        if (!ctx) return;
         if (this.speakGuard != null) clearTimeout(this.speakGuard);
+        const remainingSec = this.playHead - ctx.currentTime;
         this.speakGuard = setTimeout(() => {
-            if (this.closed) return;
-            // Lecture jamais terminée proprement : on rend la parole au candidat
-            // plutôt que de bloquer la session (au pire, échange sans le son).
-            if (this.speaking) {
-                this.speaking = false;
-                this.micHoldUntilMs = Date.now() + 300;
-                this.cb.onSpeakingChange?.(false);
+            this.speakGuard = null;
+            if (this.closed || !this.speaking) return;
+            const playback = this.playbackCtx;
+            const left = playback ? this.playHead - playback.currentTime : 0;
+            const progressing = this.guardRemainingRef < 0 || left < this.guardRemainingRef;
+            if (left > 0 && progressing) {
+                this.guardRemainingRef = left;
+                this.armSpeakGuard();
+                return;
             }
-        }, this.expectedEndMs - now + 900);
+            // Fin atteinte, ou lecture qui n'avance plus : on rend la parole au
+            // candidat plutôt que de bloquer la session (au pire, échange sans
+            // le son de l'examinateur, mais évaluable).
+            this.endSpeaking();
+        }, Math.max(0, (remainingSec + SPEAK_GUARD_MARGIN_SEC) * 1000));
+    }
+
+    /** Fin de parole de l'examinateur : le micro se rouvre après une courte
+     *  tenue anti-écho. Point de passage unique (fin réelle, garde-fou,
+     *  barge-in) pour que la tenue ne puisse pas diverger d'un chemin à l'autre. */
+    private endSpeaking(): void {
+        if (!this.speaking) return;
+        this.speaking = false;
+        this.micHoldUntilMs = Date.now() + MIC_HOLD_AFTER_SPEECH_MS;
+        this.cb.onSpeakingChange?.(false);
     }
 
     /** Fin de l'accueil : ouvre le micro et passe en conversation. */
@@ -458,16 +645,12 @@ export class GeminiLiveSession {
         }
         this.activeSources.clear();
         this.playHead = 0;
-        this.expectedEndMs = 0;
+        this.guardRemainingRef = -1;
         if (this.speakGuard != null) {
             clearTimeout(this.speakGuard);
             this.speakGuard = null;
         }
-        if (this.speaking) {
-            this.speaking = false;
-            this.micHoldUntilMs = Date.now() + 300;
-            this.cb.onSpeakingChange?.(false);
-        }
+        this.endSpeaking();
     }
 
     /**
@@ -475,6 +658,11 @@ export class GeminiLiveSession {
      * utilisateur ({@code clientContent} + {@code turnComplete}) — c'est ce qui
      * déclenche la phrase de clôture de la persona. Un {@code realtimeInput.text}
      * n'est PAS un tour de dialogue et serait ignoré.
+     *
+     * ⚠️ Texte MIROIR du mobile (`_timeUpPrompt` dans `gemini_live_client.dart`) :
+     * il est actionnable (il dit au modèle quoi faire) et c'est lui qui déclenche
+     * la phrase de clôture de la persona — deux textes = deux fins d'entretien
+     * selon le front.
      */
     notifyTimeUp(): void {
         // Le candidat ne parle plus : on coupe son micro pour que le seul tour
@@ -506,6 +694,11 @@ export class GeminiLiveSession {
             this.welcomeTimer = null;
         }
         try {
+            // Reliquat du paquet en cours (< MIC_PACKET_MS) : on demande au
+            // worklet de le poster avant de couper. Best-effort — le message
+            // traverse le thread audio, et `sendFrame` ignore de toute façon un
+            // paquet arrivé après la fermeture du socket.
+            this.workletNode?.port.postMessage("flush");
             this.workletNode?.disconnect();
             this.scriptNode?.disconnect();
             this.captureCtx?.close().catch(() => undefined);
@@ -571,4 +764,7 @@ interface GeminiServerContent {
 interface GeminiServerMessage {
     setupComplete?: unknown;
     serverContent?: GeminiServerContent;
+    /** Émis quand le serveur a armé `sessionResumption` dans le setup du token :
+     *  `newHandle` rouvre la MÊME conversation après une coupure. */
+    sessionResumptionUpdate?: {newHandle?: string; resumable?: boolean};
 }

@@ -11,7 +11,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +55,24 @@ public class AttemptManager {
     /** Purge tous les attempts d'un user (suppression de compte). */
     public int deleteByUserId(UUID userId) {
         return repository.deleteByUserId(userId);
+    }
+
+    /**
+     * Un lot d'ids d'attempts <b>invités</b> ({@code user_id IS NULL}) démarrés
+     * avant {@code cutoff}, les plus anciens d'abord.
+     */
+    public List<UUID> findGuestAttemptIdsStartedBefore(Instant cutoff, int limit) {
+        if (limit <= 0) return List.of();
+        return repository.findGuestAttemptIdsStartedBefore(cutoff, PageRequest.of(0, limit));
+    }
+
+    /**
+     * Supprime un lot d'attempts invités. Le repository redouble la condition
+     * {@code user IS NULL} : un attempt de compte n'est jamais purgeable.
+     */
+    public int deleteGuestAttemptsByIds(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) return 0;
+        return repository.deleteGuestAttemptsByIds(ids);
     }
 
     /**
@@ -150,6 +170,15 @@ public class AttemptManager {
     public long countProductionExamSessions(UUID userId) {
         return repository.countProductionExamSessions(
                 userId, List.of(EpreuveType.TCF_EE, EpreuveType.TCF_EO));
+    }
+
+    /**
+     * Idem, pour une <b>seule</b> épreuve. Sert au jalon du Plan à désigner le
+     * prochain slot de la grille d'examens blancs de cette épreuve — le budget
+     * freemium, lui, reste global aux deux.
+     */
+    public long countProductionExamSessions(UUID userId, EpreuveType epreuve) {
+        return repository.countProductionExamSessions(userId, List.of(epreuve));
     }
 
     /**

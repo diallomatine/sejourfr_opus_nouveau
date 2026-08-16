@@ -2,12 +2,12 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
+import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -33,6 +33,13 @@ public class LearningPlanPriorityResolver {
     static final int MAX_PRIORITIES = 3;
 
     private final LearningPlanObservationManager observationManager;
+
+    /**
+     * Le moteur de maitrise, <b>seule autorite</b> sur « le transfert est-il
+     * prouve ? ». Il travaille sur l'historique <b>deja charge</b>
+     * ({@code fromObservations}) : cette dependance ne coute pas une requete.
+     */
+    private final SkillMasteryResolver masteryResolver;
 
     /**
      * La derniere observation <b>probante</b> de chaque competence, la plus
@@ -68,18 +75,59 @@ public class LearningPlanPriorityResolver {
 
     /**
      * Les priorites, deja ordonnees : {@code PRIORITY} avant
-     * {@code TO_REINFORCE}, puis l'observation la plus recente d'abord, au plus
-     * {@value #MAX_PRIORITIES}. Les fronts affichent cet ordre sans le
-     * recalculer.
+     * {@code TO_REINFORCE}, puis <b>confiance decroissante</b>, puis
+     * l'observation la plus recente, au plus {@value #MAX_PRIORITIES}. Les
+     * fronts affichent cet ordre sans le recalculer.
+     *
+     * <p><b>Une faiblesse observee EST une priorite derivee</b>, exactement
+     * comme cote diagnostic : le correcteur range ses faiblesses en
+     * {@code TO_REINFORCE} et ne pose quasiment jamais {@code PRIORITY}, si bien
+     * qu'exiger ce seul statut laisserait un Plan {@code ACTIVE} sans rien a
+     * faire. {@code SOLID} et {@code NOT_OBSERVED} n'en deviennent jamais une :
+     * zero faiblesse observee donne zero priorite, et c'est legitime.
+     *
+     * <p><b>Une competence dont le transfert est prouve sort des priorites</b>,
+     * quel que soit son statut le plus recent — et « transfert prouve » se lit
+     * chez {@code SkillMasteryEngine}
+     * ({@code SkillMastery.transferProven()}), <b>jamais ici</b>. « Une fois
+     * reussi, on passe a la competence suivante » : c'est ce qui fait avancer le
+     * Plan d'une etape.
+     *
+     * <p><b>La confiance departage avant la recence</b>, et ce n'est pas un
+     * detail : c'est ce qui empeche cette methode et
+     * {@code DiagnosticPriorityRanking} de designer deux etapes n&deg;1
+     * differentes. Les deux productions du diagnostic sont observees au meme
+     * instant — la recence n'y trie rien, la confiance si, et c'est le premier
+     * critere de la regle du diagnostic. Deux surfaces qui repondent
+     * differemment a la meme question, c'est le defaut deja corrige sur le
+     * niveau TCF estime.
+     *
+     * @param observations tout l'historique du candidat, <b>de la plus recente a
+     *                     la plus ancienne</b>. L'historique entier est
+     *                     necessaire : la derniere observation d'une competence
+     *                     ne dit pas si son transfert a deja ete prouve.
+     */
+    public List<LearningPlanObservation> actionable(List<LearningPlanObservation> observations) {
+        return actionable(observations, mastery(observations));
+    }
+
+    /**
+     * Meme regle, sur des etats de maitrise <b>deja calcules</b> — ce que fait
+     * {@link LearningPlanService}, qui a besoin des memes etats pour ses cartes,
+     * ses jalons et sa bascule de verification. Sans cette surcharge le meme
+     * calcul tournerait deux fois par lecture du Plan.
      */
     public List<LearningPlanObservation> actionable(
-            Collection<LearningPlanObservation> latestObserved) {
-        return latestObserved.stream()
+            List<LearningPlanObservation> observations,
+            Map<UUID, SkillMasteryEngine.SkillMastery> mastery) {
+        return latestObservedBySkill(observations).values().stream()
+                .filter(item -> !transfertProuve(mastery, item))
                 .filter(item -> item.getStatus() == LearningPlanSkillStatus.PRIORITY
                         || item.getStatus() == LearningPlanSkillStatus.TO_REINFORCE)
                 .sorted(Comparator
                         .comparingInt((LearningPlanObservation item) ->
                                 item.getStatus() == LearningPlanSkillStatus.PRIORITY ? 0 : 1)
+                        .thenComparingInt(item -> -confidenceRank(item.getConfidence()))
                         .thenComparing(LearningPlanObservation::getObservedAt,
                                 Comparator.reverseOrder()))
                 .limit(MAX_PRIORITIES)
@@ -87,8 +135,89 @@ public class LearningPlanPriorityResolver {
     }
 
     /**
+     * Les <b>etapes franchies</b> : la derniere observation probante de chaque
+     * competence dont le transfert est prouve, <b>de la plus recente a la plus
+     * ancienne</b> et departagee par code pour rester deterministe.
+     *
+     * <p>Exactement le complement de {@link #actionable} : ce que l'une ecarte,
+     * l'autre le rend. Une competence franchie ne <b>disparait</b> donc plus du
+     * parcours — le candidat garde la trace de ce qu'il a passe, et c'est aux
+     * fronts de la cocher. Le bornage a l'affichage appartient a
+     * {@link LearningPlanService}, pas ici : la regle n'est pas une question de
+     * place a l'ecran.
+     */
+    public List<LearningPlanObservation> franchies(
+            List<LearningPlanObservation> observations,
+            Map<UUID, SkillMasteryEngine.SkillMastery> mastery) {
+        return latestObservedBySkill(observations).values().stream()
+                .filter(item -> transfertProuve(mastery, item))
+                .sorted(Comparator
+                        .comparing(LearningPlanObservation::getObservedAt,
+                                Comparator.reverseOrder())
+                        .thenComparing(item -> item.getSkill().getCode()))
+                .toList();
+    }
+
+    /**
+     * « Le transfert de cette competence est-il prouve ? » — <b>lu</b> chez
+     * {@code SkillMasteryEngine}, jamais recalcule.
+     *
+     * <p><b>Ce qui a change le 2026-08-15, et pourquoi.</b> Cette classe portait
+     * sa propre definition : « la <b>derniere</b> observation issue d'une
+     * production contextualisee vaut {@code SOLID} ». Deux lectures du meme
+     * historique coexistaient donc, et elles se sont contredites en production —
+     * un candidat ayant prouve son transfert <b>trois fois</b> en situation puis
+     * rendu une production moins bonne restait priorite n&deg;1 pour cette regle,
+     * pendant que le moteur le declarait {@code SOLID} et fermait, pour cette
+     * raison meme, le signal de verification. Ni sortie de priorite, ni bouton
+     * de verification : blocage <b>definitif</b>, aucun micro-entrainement ne
+     * pouvant en sortir (la voie ciblee n'ecrit jamais d'observation
+     * contextualisee).
+     *
+     * <p>L'ancienne regle avait de surcroit une tolerance <b>nulle</b> la ou le
+     * moteur en accorde {@code fragility-tolerance}, et comptait comme
+     * revocatrice une observation {@code TO_REINFORCE} que le moteur ne tient
+     * meme pas pour une fragilite. C'est le moteur qui a raison : il lit la
+     * fenetre glissante, les ponderations et la tolerance. Il ne reste donc
+     * qu'une definition, et elle vit chez lui.
+     */
+    private static boolean transfertProuve(
+            Map<UUID, SkillMasteryEngine.SkillMastery> mastery,
+            LearningPlanObservation observation) {
+        SkillMasteryEngine.SkillMastery state = mastery.get(observation.getSkill().getId());
+        return state != null && state.transferProven();
+    }
+
+    /** Le moteur, sur l'historique deja en main : aucune requete de plus. */
+    private Map<UUID, SkillMasteryEngine.SkillMastery> mastery(
+            List<LearningPlanObservation> observations) {
+        return masteryResolver.fromObservations(
+                observations, latestObservedBySkill(observations).keySet());
+    }
+
+    /**
+     * {@code HIGH} 3, {@code MEDIUM} 2, tout le reste 1 — miroir de
+     * {@code DiagnosticPriorityRanking.confidenceRank}, sur l'observation
+     * persistee au lieu du JSON du correcteur.
+     */
+    private static int confidenceRank(ObservationConfidence confidence) {
+        if (confidence == null) return 1;
+        return switch (confidence) {
+            case HIGH -> 3;
+            case MEDIUM -> 2;
+            case LOW -> 1;
+        };
+    }
+
+    /**
      * La competence de la priorite n&deg;1 de ce candidat, vide s'il n'en a
      * aucune.
+     *
+     * <p><b>Elle se deplace quand une competence est reussie</b> : des que le
+     * transfert d'une competence est prouve, elle sort des priorites et c'est la
+     * suivante que ce verrou ouvre a un compte gratuit. Coherent avec ce que le
+     * Plan affiche — le candidat lit « a faire maintenant » et trouve ce
+     * sujet-la ouvert.
      *
      * <p><b>On n'exige pas ici de diagnostic termine</b>, alors que le Plan ne
      * rend ses priorites qu'une fois le diagnostic {@code COMPLETED} : une
@@ -98,7 +227,7 @@ public class LearningPlanPriorityResolver {
      */
     @Transactional(readOnly = true)
     public Optional<UUID> currentPrioritySkillId(UUID userId) {
-        return actionable(latestObservedBySkill(userId).values()).stream()
+        return actionable(observationManager.findAllByUserWithSkill(userId)).stream()
                 .findFirst()
                 .map(observation -> observation.getSkill().getId());
     }

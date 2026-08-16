@@ -16,6 +16,8 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Adaptateur Gemini Live. Emet un token ephemere via l'endpoint REST
@@ -43,6 +45,36 @@ public class GeminiTokenBroker implements RealtimeTokenBroker {
         this.restClient = RestClient.builder()
                 .requestFactory(buildRequestFactory(props.getGemini().getTimeoutSec()))
                 .build();
+        assertVadSupportee(props.getGemini().getVad());
+    }
+
+    /**
+     * <b>Une sensibilite de VAD inconnue fait echouer le BOOT</b>, elle ne
+     * degrade jamais en silence. Ces valeurs sont recopiees telles quelles dans
+     * le setup verrouille du token : une valeur qui n'existe pas cote
+     * fournisseur fait repondre {@code auth_tokens} en {@code 400
+     * INVALID_ARGUMENT}, {@link #mint} leve, et {@code RealtimeSessionService}
+     * bascule tout le temps reel en asynchrone — le candidat choisit
+     * « avec un examinateur » et se retrouve a s'enregistrer seul, sans un mot.
+     * C'est exactement ce qu'a produit {@code END_SENSITIVITY_MEDIUM} (valeur
+     * inexistante) du 2026-08-12 au 2026-08-16. Meme philosophie que les
+     * contrats de prompts : une version inconnue echoue au demarrage, jamais de
+     * repli muet.
+     */
+    static void assertVadSupportee(RealtimeProperties.Vad vad) {
+        assertValeurSupportee("start-sensitivity", vad.getStartSensitivity(),
+                RealtimeProperties.Vad.START_SENSITIVITES);
+        assertValeurSupportee("end-sensitivity", vad.getEndSensitivity(),
+                RealtimeProperties.Vad.END_SENSITIVITES);
+    }
+
+    private static void assertValeurSupportee(String champ, String valeur, Set<String> admises) {
+        if (valeur != null && !valeur.isBlank() && admises.contains(valeur)) return;
+        throw new IllegalStateException(
+                "sejourfr.realtime.gemini.vad." + champ + " : valeur inconnue « " + valeur
+                        + " ». Valeurs acceptees : " + new TreeSet<>(admises)
+                        + ". Une valeur hors de cette liste fait refuser chaque token par le "
+                        + "fournisseur et bascule tout le temps reel en asynchrone.");
     }
 
     @Override
@@ -56,10 +88,15 @@ public class GeminiTokenBroker implements RealtimeTokenBroker {
     }
 
     @Override
-    public MintedSession mint(String systemInstruction) {
+    public boolean supportsResumption() {
+        return props.getGemini().getSessionResumption().isEnabled();
+    }
+
+    @Override
+    public MintedSession mint(String systemInstruction, String resumptionHandle) {
         RealtimeProperties.Gemini g = props.getGemini();
         Instant now = Instant.now();
-        Map<String, Object> body = buildRequestBody(g, systemInstruction, now);
+        Map<String, Object> body = buildRequestBody(g, systemInstruction, resumptionHandle, now);
         try {
             String json = restClient.post()
                     .uri(g.getAuthTokensUrl())
@@ -87,8 +124,15 @@ public class GeminiTokenBroker implements RealtimeTokenBroker {
     /**
      * Construit le corps de la requete {@code auth_tokens} : la config verrouillee
      * dans le token. Package-private pour etre testable sans reseau.
+     *
+     * @param resumptionHandle handle d'une session a REPRENDRE, ou {@code null}
+     *                         pour une session neuve. Il est verrouille ici cote
+     *                         serveur : l'endpoint contraint interdit au client de
+     *                         poser le moindre champ de setup, donc c'est le seul
+     *                         endroit ou un handle peut entrer.
      */
-    Map<String, Object> buildRequestBody(RealtimeProperties.Gemini g, String systemInstruction, Instant now) {
+    Map<String, Object> buildRequestBody(RealtimeProperties.Gemini g, String systemInstruction,
+                                         String resumptionHandle, Instant now) {
         // Sous-message generationConfig : modalite de sortie + voix + temperature.
         Map<String, Object> generationConfig = new LinkedHashMap<>();
         generationConfig.put("responseModalities", List.of("AUDIO"));
@@ -110,6 +154,27 @@ public class GeminiTokenBroker implements RealtimeTokenBroker {
         setup.put("inputAudioTranscription", Map.of());
         setup.put("outputAudioTranscription", Map.of());
         setup.put("realtimeInputConfig", buildRealtimeInputConfig(g.getVad()));
+        // Reprise de session : le handle (quand il y en a un) est VERROUILLE ici,
+        // pas envoye par le client — l'endpoint contraint le lui interdit.
+        if (g.getSessionResumption().isEnabled()) {
+            Map<String, Object> resumption = new LinkedHashMap<>();
+            if (resumptionHandle != null && !resumptionHandle.isBlank()) {
+                resumption.put("handle", resumptionHandle);
+            }
+            setup.put("sessionResumption", resumption);
+        }
+        // Fenetre glissante : borne le contexte d'une session longue ou reprise.
+        RealtimeProperties.ContextWindowCompression cwc = g.getContextWindowCompression();
+        if (cwc.isEnabled()) {
+            Map<String, Object> compression = new LinkedHashMap<>();
+            if (cwc.getTriggerTokens() > 0) {
+                compression.put("triggerTokens", cwc.getTriggerTokens());
+            }
+            compression.put("slidingWindow", cwc.getTargetTokens() > 0
+                    ? Map.of("targetTokens", cwc.getTargetTokens())
+                    : Map.of());
+            setup.put("contextWindowCompression", compression);
+        }
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("uses", g.getTokenUses());
@@ -120,11 +185,11 @@ public class GeminiTokenBroker implements RealtimeTokenBroker {
     }
 
     /**
-     * VAD verrouillee dans le token : examinateur PATIENT (fin de parole peu
-     * sensible, fenetre de silence confortable, la meme pour tous les niveaux)
-     * mais reactif au DEBUT de parole. Corrige le tour clos trop tot sur une pause
-     * de reflexion (l'examinateur relancait/coupait alors que le candidat
-     * reprenait).
+     * VAD verrouillee dans le token : reactif au DEBUT de parole, et prudent sur
+     * la FIN ({@code END_SENSITIVITY_LOW}) — le fournisseur n'offre que
+     * {@code LOW} ou {@code HIGH}, et {@code HIGH} couperait un apprenant qui
+     * hesite. Les valeurs viennent toutes de la configuration — rien en dur ici —
+     * et sont opposees au boot par {@link #assertVadSupportee}.
      */
     private static Map<String, Object> buildRealtimeInputConfig(RealtimeProperties.Vad vad) {
         Map<String, Object> aad = new LinkedHashMap<>();

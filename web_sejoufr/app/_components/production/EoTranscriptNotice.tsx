@@ -9,6 +9,11 @@ import styles from "./production.module.css";
  * d'une production orale : l'IA n'évalue que la transcription (contenu + langue),
  * pas la prononciation/intonation — celles-ci comptent le jour de l'examen.
  *
+ * <p>Il dit aussi ce que devient l'enregistrement : il sert à produire la
+ * transcription, puis il n'est pas conservé. C'est l'endroit exact où le
+ * candidat décide de parler — le lui apprendre ailleurs serait le lui apprendre
+ * trop tard. Miroir mobile : `SkillTranscriptNotice`.
+ *
  * `voice` suit le formulaire qui le rend : tutoiement dans le module
  * « Compétences », vouvoiement par défaut sur les écrans de production TCF.
  */
@@ -22,7 +27,12 @@ export function EoTranscriptNotice({voice = "vouvoiement"}: {voice?: ProductionV
         vocabulaire, grammaire) de ce que {voice === "tutoiement" ? "tu dis" : "vous dites"}. La{" "}
         <strong>prononciation</strong> et l&apos;<strong>intonation</strong>{" "}
         ne sont pas évaluées ici — elles compteront le jour de l&apos;examen,
-        face à un examinateur.
+        face à un examinateur.{" "}
+        <strong>
+          {voice === "tutoiement" ? "Ton enregistrement" : "Votre enregistrement"} n&apos;est pas
+          conservé
+        </strong>{" "}
+        : il sert à produire la transcription, puis il est supprimé.
       </span>
     </div>
   );

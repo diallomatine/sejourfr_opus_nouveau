@@ -48,7 +48,7 @@ import type {
   TokenResponse,
   UserStatsResponse,
 } from "./types";
-import {cached, clearDataCache, invalidateCache} from "./data-cache";
+import {cached, clearDataCache, invalidateCache, peekCached, primeCached} from "./data-cache";
 import {requiresDiagnosticRevalidation} from "./diagnostic";
 import {PRODUCTION_PROGRESS_PREFIXES} from "./production-catalog";
 import {SKILLS_CACHE_PREFIX} from "./skill-catalog";
@@ -780,8 +780,21 @@ function fetchCurrentDiagnostic(): Promise<DiagnosticResponse> {
     );
 }
 
+const LEARNING_PLAN_CACHE_KEY = `${LEARNING_PLAN_CACHE_PREFIX}current`;
+
+/**
+ * Toute lecture du Plan **range son résultat** sous la clé de cache, y compris
+ * la lecture directe de `/plan` : l'écran d'une compétence ouverte depuis le
+ * Plan y relit le périmètre de l'étape (`stepPromptIds`) **sans redemander le
+ * Plan au serveur**. Le comportement de `/plan` ne change pas pour autant — il
+ * continue d'appeler l'API à chaque montage, une analyse asynchrone ne doit
+ * jamais rester figée.
+ */
 function fetchLearningPlan(): Promise<LearningPlanDto> {
-    return apiFetch<LearningPlanDto>("/api/me/plan", {auth: true});
+    return apiFetch<LearningPlanDto>("/api/me/plan", {auth: true}).then((plan) => {
+        primeCached(LEARNING_PLAN_CACHE_KEY, plan);
+        return plan;
+    });
 }
 
 export const diagnosticApi = {
@@ -830,7 +843,14 @@ export const learningPlanApi = {
     get: fetchLearningPlan,
 
     getCached(): Promise<LearningPlanDto> {
-        return cached(`${LEARNING_PLAN_CACHE_PREFIX}current`, fetchLearningPlan);
+        return cached(LEARNING_PLAN_CACHE_KEY, fetchLearningPlan);
+    },
+
+    /** Le Plan **déjà chargé**, sans aucun appel. `undefined` quand rien n'a
+     *  encore été lu (lien profond direct) : l'appelant doit alors se replier,
+     *  jamais déclencher une requête pour un simple confort d'affichage. */
+    peekCached(): LearningPlanDto | undefined {
+        return peekCached<LearningPlanDto>(LEARNING_PLAN_CACHE_KEY);
     },
 };
 
@@ -1182,15 +1202,49 @@ export const realtimeApi = {
         );
     },
 
-    /** Relaie un fragment de transcript (candidat ou examinateur). 204. */
+    /** Reprend une session dont le WebSocket est tombé : NOUVEAU token, MÊME
+     *  conversation, MÊME transcript, et surtout AUCUN slot de simulation
+     *  re-débité. Ne JAMAIS rappeler `startSession` après une coupure : cela
+     *  créerait une seconde session et débiterait un second slot au candidat.
+     *  Peut répondre `ASYNC_FALLBACK` ; 422 si la session est terminée, si le
+     *  plafond de reprises est atteint ou si la reprise est désactivée. */
+    resumeSession(
+        sessionId: string,
+        resumptionHandle: string | null,
+    ): Promise<import("./types").RealtimeSessionDescriptor> {
+        return apiFetch<import("./types").RealtimeSessionDescriptor>(
+            `/api/realtime/eo/sessions/${sessionId}/resume`,
+            {method: "POST", json: {resumptionHandle}, auth: true},
+        );
+    },
+
+    /** Relaie un fragment de transcript (candidat ou examinateur). 204.
+     *
+     *  `turnIndex` rend l'appel IDEMPOTENT : le serveur ignore un index déjà
+     *  appliqué, donc un réessai après coupure réseau ne duplique plus un tour.
+     *  Il doit être strictement croissant sur la session et CONSERVÉ d'un essai
+     *  à l'autre. `resumptionHandle` voyage ici plutôt que dans un appel dédié :
+     *  le client POSTe déjà toutes les 1,2 s, le serveur reste à jour sans un
+     *  aller-retour de plus. */
     appendTranscript(
         sessionId: string,
         speaker: import("./types").RealtimeSpeaker,
         text: string,
+        turnIndex?: number,
+        resumptionHandle?: string | null,
     ): Promise<void> {
         return apiFetch<void>(
             `/api/realtime/eo/sessions/${sessionId}/transcript`,
-            {method: "POST", json: {speaker, text}, auth: true},
+            {
+                method: "POST",
+                json: {
+                    speaker,
+                    text,
+                    ...(turnIndex === undefined ? {} : {turnIndex}),
+                    ...(resumptionHandle ? {resumptionHandle} : {}),
+                },
+                auth: true,
+            },
         );
     },
 
@@ -1236,10 +1290,12 @@ export const fullTcfExamApi = {
         );
     },
 
-    /** Démarre le chrono d'une épreuve (CO/CE) au moment où le candidat la
-     *  lance, AVANT d'ouvrir le runner. Pose l'ancre globale 90 min au 1er
-     *  appel et recale le `started_at` de l'épreuve sur l'instant réel (sinon
-     *  la CE héritait du temps écoulé sur la CO). Idempotent par ancre. */
+    /** Démarre le chrono PROPRE d'une épreuve au moment où le candidat la
+     *  lance, AVANT d'ouvrir l'écran de l'épreuve. **Obligatoire sur les 4** :
+     *  tant qu'il n'est pas appelé, l'épreuve n'a aucune échéance et son
+     *  `deadlineAt` reste null. Il n'y a plus de chrono global — le temps d'une
+     *  épreuve ne se reporte jamais sur la suivante. Idempotent : une reprise
+     *  ne remet rien à zéro et rend le temps réellement restant. */
     begin(id: string, epreuve: string): Promise<FullTcfExamResponse> {
         return apiFetch<FullTcfExamResponse>(
             `/api/full-tcf-exams/${id}/begin?epreuve=${encodeURIComponent(epreuve)}`,

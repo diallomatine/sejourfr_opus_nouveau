@@ -192,7 +192,7 @@ class ProductionTranscriptRecollageTest {
         ProductionRubricsProvider rubrics = new ProductionRubricsProvider(props, new ObjectMapper());
         rubrics.load();
         ProductionSubmissionDto dto = new ProductionSubmissionMapper(
-            aiEvaluationManager, manager, mock(ProductionAudioStorageService.class), rubrics).toDto(sub);
+            aiEvaluationManager, manager, rubrics).toDto(sub);
 
         // Les quatre citations survivent : les deux qui enjambaient une
         // frontiere sont desormais rattachables.

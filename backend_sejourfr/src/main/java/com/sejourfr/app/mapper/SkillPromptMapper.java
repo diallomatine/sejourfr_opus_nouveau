@@ -26,11 +26,16 @@ public class SkillPromptMapper {
      * Carte de sujet dans la liste d'une competence. {@code locked} est
      * <b>passe</b>, resolu une seule fois pour les sujets de l'ecran : la
      * regle d'acces appartient a {@code SkillAccessService}.
+     *
+     * <p>{@code lastAttemptAt} et {@code lastAttemptId} viennent de la
+     * <b>meme</b> tentative — celle qui a servi a deriver {@code status}. Les
+     * chercher ici couterait une requete par sujet.
      */
     public SkillPromptSummaryDto toSummaryDto(SkillPrompt prompt,
                                               SkillPromptStatus status,
                                               int attemptCount,
                                               Instant lastAttemptAt,
+                                              UUID lastAttemptId,
                                               boolean locked) {
         return new SkillPromptSummaryDto(
                 prompt.getId(),
@@ -45,6 +50,7 @@ public class SkillPromptMapper {
                 status,
                 attemptCount,
                 lastAttemptAt,
+                lastAttemptId,
                 locked);
     }
 

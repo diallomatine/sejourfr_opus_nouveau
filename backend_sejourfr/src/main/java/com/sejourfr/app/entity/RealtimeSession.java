@@ -88,6 +88,27 @@ public class RealtimeSession {
     @Column(columnDefinition = "text", nullable = false)
     private String transcript = "";
 
+    /**
+     * Dernier handle de REPRISE relaye par le client. Conserve cote serveur (et
+     * pas seulement en memoire du client) pour qu'une appli tuee par le systeme
+     * ne perde pas la session. Verrouille dans le setup du token de reprise :
+     * l'endpoint contraint interdit au client de poser un champ de setup.
+     */
+    @Column(name = "resumption_handle", columnDefinition = "text")
+    private String resumptionHandle;
+
+    /** Reprises deja accordees (bornees par la config, anti-emission infinie). */
+    @Column(name = "resumption_count", nullable = false)
+    private int resumptionCount = 0;
+
+    /**
+     * Index du dernier tour applique au transcript. Rend l'ajout de transcript
+     * idempotent face a un reessai reseau. NULL = client sans index (comportement
+     * historique : chaque appel ajoute une ligne).
+     */
+    @Column(name = "last_turn_index")
+    private Integer lastTurnIndex;
+
     /** Emission du token (creation de la session). */
     @Column(name = "started_at", nullable = false)
     private Instant startedAt;
@@ -151,6 +172,15 @@ public class RealtimeSession {
 
     public String getTranscript() { return transcript; }
     public void setTranscript(String transcript) { this.transcript = transcript; }
+
+    public String getResumptionHandle() { return resumptionHandle; }
+    public void setResumptionHandle(String resumptionHandle) { this.resumptionHandle = resumptionHandle; }
+
+    public int getResumptionCount() { return resumptionCount; }
+    public void setResumptionCount(int resumptionCount) { this.resumptionCount = resumptionCount; }
+
+    public Integer getLastTurnIndex() { return lastTurnIndex; }
+    public void setLastTurnIndex(Integer lastTurnIndex) { this.lastTurnIndex = lastTurnIndex; }
 
     public Instant getStartedAt() { return startedAt; }
     public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }

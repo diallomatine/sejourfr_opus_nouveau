@@ -47,7 +47,7 @@ class ProductionEvaluationServiceTest {
     private TranscriptionManager transcriptionManager;
     private AttemptManager attemptManager;
     private UserManager userManager;
-    private ProductionAudioStorageService audioStorage;
+    private WhisperTranscriptionService whisperService;
     private ProductionPipelineAsyncRunner pipelineRunner;
     private ProductionEvaluationProperties props;
     private SubscriptionService subscriptionService;
@@ -64,7 +64,7 @@ class ProductionEvaluationServiceTest {
         transcriptionManager = mock(TranscriptionManager.class);
         attemptManager = mock(AttemptManager.class);
         userManager = mock(UserManager.class);
-        audioStorage = mock(ProductionAudioStorageService.class);
+        whisperService = mock(WhisperTranscriptionService.class);
         pipelineRunner = mock(ProductionPipelineAsyncRunner.class);
         props = mock(ProductionEvaluationProperties.class);
         subscriptionService = mock(SubscriptionService.class);
@@ -75,7 +75,7 @@ class ProductionEvaluationServiceTest {
                 mock(com.sejourfr.app.manager.DiagnosticSessionManager.class));
         service = new ProductionEvaluationService(
                 taskManager, submissionManager, transcriptionManager, attemptManager,
-                userManager, audioStorage, pipelineRunner, accessService, props);
+                userManager, whisperService, pipelineRunner, accessService, props);
 
         when(props.getMinTextWords()).thenReturn(10);
         when(props.getMaxTextWords()).thenReturn(300);
@@ -190,7 +190,7 @@ class ProductionEvaluationServiceTest {
         assertThatThrownBy(() -> service.submitAndEvaluate(userId, taskId, attemptId, audio, null))
                 .isInstanceOf(BusinessException.class);
         verify(pipelineRunner, never()).runPipelineAsync(any(), anyBoolean());
-        verify(audioStorage, never()).upload(any(), any(), any(), any());
+        verify(whisperService, never()).transcribe(any(), any());
     }
 
     @Test
@@ -357,21 +357,53 @@ class ProductionEvaluationServiceTest {
         assertThat(captor.getValue().getStatut()).isEqualTo(SubmissionStatut.SUBMITTED);
         assertThat(saved.getMotsCount()).isEqualTo(20);
         verify(pipelineRunner).runPipelineAsync(any(), eq(false));
-        verify(audioStorage, never()).upload(any(), any(), any(), any());
+        verify(whisperService, never()).transcribe(any(), any());
     }
 
+    /**
+     * L'AUDIO N'EST JAMAIS STOCKE. Il est transcrit PENDANT la requete — seul
+     * moment ou les octets existent — puis la submission est creee sans media et
+     * la transcription persistee. Le runner n'a donc plus rien a transcrire.
+     */
     @Test
-    void submit_EO_valide_uploade_l_audio_avant_de_persister() {
+    void submit_EO_transcrit_dans_la_requete_et_ne_persiste_aucun_media() {
         stubCommon(task(EpreuveType.TCF_EO), ownedAttempt(EpreuveType.TCF_EO));
-        when(audioStorage.upload(any(), any(), any(), any()))
-                .thenReturn(new ProductionAudioStorageService.StoredAudio("submissions/k.mp3", "audio/mpeg"));
+        WhisperTranscriptionClient.WhisperResult resultat =
+                new WhisperTranscriptionClient.WhisperResult("je voudrais reserver", "fr", 95);
+        when(whisperService.transcribe(any(), any())).thenReturn(resultat);
         MockMultipartFile audio = new MockMultipartFile("audio", "rec.mp3", "audio/mpeg", new byte[]{1, 2, 3, 4});
 
         ProductionSubmission saved = service.submitAndEvaluate(userId, taskId, attemptId, audio, null);
 
-        assertThat(saved.getMediaUrl()).isEqualTo("submissions/k.mp3");
-        verify(audioStorage).upload(any(), any(), eq("audio/mpeg"), eq("mp3"));
+        assertThat(saved.getMediaUrl()).isNull();
+        assertThat(saved.getMediaDurationSec()).isEqualTo(95);
+        verify(whisperService).transcribe(any(), eq("production.mp3"));
+        verify(whisperService).persist(saved, resultat);
         verify(pipelineRunner).runPipelineAsync(any(), eq(true));
+    }
+
+    /**
+     * Les octets d'une production sont EFFACES au retour de la transcription,
+     * meme quand elle echoue — et un echec ne laisse AUCUNE ligne : rien a
+     * relancer, rien de perdu, le candidat renvoie depuis son appareil.
+     */
+    @Test
+    void submit_EO_efface_les_octets_et_ne_persiste_rien_si_la_transcription_echoue() {
+        stubCommon(task(EpreuveType.TCF_EO), ownedAttempt(EpreuveType.TCF_EO));
+        byte[] contenu = {7, 7, 7, 7};
+        MockMultipartFile audio = new MockMultipartFile("audio", "rec.mp3", "audio/mpeg", contenu);
+        java.util.concurrent.atomic.AtomicReference<byte[]> vus = new java.util.concurrent.atomic.AtomicReference<>();
+        when(whisperService.transcribe(any(), any())).thenAnswer(inv -> {
+            vus.set(inv.getArgument(0));
+            throw new com.sejourfr.app.exception.TranscriptionException("Whisper indisponible");
+        });
+
+        assertThatThrownBy(() -> service.submitAndEvaluate(userId, taskId, attemptId, audio, null))
+                .isInstanceOf(com.sejourfr.app.exception.TranscriptionException.class);
+
+        assertThat(vus.get()).containsOnly((byte) 0);
+        verify(submissionManager, never()).save(any());
+        verify(pipelineRunner, never()).runPipelineAsync(any(), anyBoolean());
     }
 
     // ------------------------------------------------------------------------

@@ -4,7 +4,7 @@ import Link from "next/link";
 import {useCallback, useEffect, useMemo, useState, type ReactNode} from "react";
 import {
   ArrowRight,
-  CalendarCheck,
+  Check,
   ChevronDown,
   Clock3,
   FilePenLine,
@@ -24,13 +24,23 @@ import {
 import {useAuth} from "@/lib/auth-context";
 import {
   competenceHref,
+  PLAN_MILESTONE_SECTION_TEXT,
+  PLAN_MILESTONE_SECTION_TITLE,
   productionSectionLabel,
   recommendedExerciseHref,
 } from "@/lib/diagnostic";
+import {PlanMilestoneCard} from "./PlanMilestoneCard";
+import {
+  planDoneSectionCta,
+  planPathSubtitle,
+  PLAN_STEP_BADGE_DONE,
+  PLAN_STEP_DONE_MARK_LABEL,
+} from "@/lib/plan-step";
 import {competenceProgressLabel} from "@/lib/skill-progress";
 import {
   type DashboardSummaryResponse,
   estimatedTcfLevelScopeLabel,
+  type LearningPlanCompletedStepDto,
   type LearningPlanDto,
   type LearningPlanPriorityDto,
   type LearningPlanSkillDto,
@@ -208,7 +218,7 @@ function ActivePlan({plan, targetLevel}: {plan: LearningPlanDto; targetLevel: st
     () => plan.observedSkills.filter((skill) => skill.status !== "NOT_OBSERVED"),
     [plan.observedSkills],
   );
-  const steps = useMemo<Array<{priority: LearningPlanPriorityDto; current: boolean}>>(
+  const activeSteps = useMemo<Array<{priority: LearningPlanPriorityDto; current: boolean}>>(
     () => [
       ...(plan.currentPriority ? [{priority: plan.currentPriority, current: true}] : []),
       // Une courante + **deux** suivantes, comme le serveur en sert au plus
@@ -217,6 +227,17 @@ function ActivePlan({plan, targetLevel}: {plan: LearningPlanDto; targetLevel: st
       ...plan.nextPriorities.slice(0, 2).map((priority) => ({priority, current: false})),
     ],
     [plan.currentPriority, plan.nextPriorities],
+  );
+  /* Le parcours s'ouvre sur les priorités **actives**, numérotées à partir de
+     1 — l'étape courante puis les suivantes. Les étapes **franchies** vivent
+     dessous, repliées : servies par cinq, en tête elles repoussaient la
+     priorité en 6ᵉ position, hors écran. Elles restent consultables, elles ne
+     s'imposent plus. Ordre et borne viennent du serveur : on ne trie ni ne
+     reborne rien. */
+  const completedSteps = plan.completedSteps ?? [];
+  const path = useMemo<PathEntry[]>(
+    () => activeSteps.map(({priority, current}): PathEntry => ({kind: "active", priority, current})),
+    [activeSteps],
   );
   const diagnosticDate = formatDate(plan.diagnosticCompletedAt);
 
@@ -231,7 +252,7 @@ function ActivePlan({plan, targetLevel}: {plan: LearningPlanDto; targetLevel: st
         estimatedLevel={summary?.estimatedTcfLevel ?? null}
         scopeLabel={estimatedTcfLevelScopeLabel(summary)}
         targetLevel={targetLevel}
-        priorities={steps.length}
+        priorities={activeSteps.length}
         activitiesThisWeek={plan.activitiesThisWeek}
         observedSkillCount={plan.observedSkillCount}
       />
@@ -252,15 +273,27 @@ function ActivePlan({plan, targetLevel}: {plan: LearningPlanDto; targetLevel: st
         </EmptyCard>
       )}
 
-      {/* Sans aucune priorité, un « chemin » réduit à sa dernière étape ne
+      {/* Sans aucune étape — ni active, ni franchie — un « chemin » ne
           raconterait rien : on ne l'affiche pas. */}
-      {steps.length > 0 && (
+      {(path.length > 0 || completedSteps.length > 0) && (
         <>
           <BlockHead
             title="Votre parcours"
-            text={`${steps.length} priorité${plural(steps.length)} active${plural(steps.length)}, puis une vérification.`}
+            text={planPathSubtitle(activeSteps.length)}
           />
-          <PlanPath steps={steps} />
+          {path.length > 0 && <PlanPath path={path} />}
+          <CompletedStepsBlock steps={completedSteps} />
+        </>
+      )}
+
+      {/* Le jalon vit SOUS les priorités, jamais à leur place : c'est un cran
+          au-dessus des étapes, pas un remplaçant. `milestone === null` est le
+          cas NORMAL (rien à mesurer, ou examen blanc tout juste passé) — rien
+          ne s'affiche, ni indicateur, ni message. */}
+      {plan.milestone && (
+        <>
+          <BlockHead title={PLAN_MILESTONE_SECTION_TITLE} text={PLAN_MILESTONE_SECTION_TEXT} />
+          <PlanMilestoneCard milestone={plan.milestone} onPremiumClick={trackPremiumClick} />
         </>
       )}
 
@@ -390,18 +423,11 @@ function TodayCard({priority}: {priority: LearningPlanPriorityDto}) {
         )}
       </div>
 
-      {exercise && (
-        <div className={styles.todayTask}>
-          <span className={styles.todayTaskIcon} aria-hidden>
-            {exercise.section === "EE" ? <FilePenLine size={17} /> : <Mic size={17} />}
-          </span>
-          <span>
-            <b>{exercise.title}</b>
-            <small>{productionSectionLabel(exercise.section)} · {exercise.skillCode}</small>
-          </span>
-        </div>
-      )}
-
+      {/* Le Plan ne nomme QUE des compétences, jamais un sujet : le titre de
+          l'exercice vit sur l'écran d'étape, où le candidat voit les 5 et
+          choisit. « Commencer » l'y emmène. Seule la vérification lance encore
+          une production directement — c'est une tâche d'examen, pas un
+          micro-sujet, et elle n'a pas de liste où atterrir. */}
       {locked ? (
         <>
           <Link
@@ -419,8 +445,12 @@ function TodayCard({priority}: {priority: LearningPlanPriorityDto}) {
       ) : exercise ? (
         <Link
           className={`${styles.primaryButton} ${styles.todayCta}`}
-          href={recommendedExerciseHref(exercise)}
-          onClick={() => trackAudienceEvent("/plan", "PLAN_RECOMMENDED_EXERCISE_STARTED")}
+          href={check ? recommendedExerciseHref(exercise) : competenceHref(priority, {planStep: true})}
+          onClick={
+            check
+              ? () => trackAudienceEvent("/plan", "PLAN_RECOMMENDED_EXERCISE_STARTED")
+              : undefined
+          }
         >
           {check ? "Vérifier ma progression" : "Commencer"} <ArrowRight size={17} aria-hidden />
         </Link>
@@ -439,40 +469,145 @@ function TodayCard({priority}: {priority: LearningPlanPriorityDto}) {
 /* -------------------------------------------------------------- le parcours */
 
 /**
+ * Une entrée du parcours : une étape **franchie** (cochée) ou une étape active
+ * (courante ou à venir). Union discriminée — une carte franchie n'a ni exercice
+ * ni cadenas, le type l'impose plutôt qu'une convention à relire.
+ */
+type PathEntry =
+  | {kind: "done"; step: LearningPlanCompletedStepDto}
+  | {kind: "active"; priority: LearningPlanPriorityDto; current: boolean};
+
+/**
  * Le chemin en étapes numérotées verticales — colonne vertébrale de l'écran.
  *
  * Les étapes sont **reliées** par un filet continu : c'est ce qui les fait lire
- * comme un chemin et non comme une pile de cartes. La dernière étape est
- * toujours la réévaluation, qui flottait jusqu'ici à part alors qu'elle est
- * précisément la fin du parcours.
+ * comme un chemin et non comme une pile de cartes.
+ *
+ * 🛑 **Aucun élément décoratif de fin.** Une carte « Réévaluation / Prochaine
+ * vérification » était rendue en dur ici : elle ne venait d'aucun champ du DTO,
+ * ne portait aucun lien et annonçait une action qui n'existait pas. La
+ * vérification, quand elle est réellement disponible, est portée par l'étape
+ * courante elle-même (`recommendedExercise.kind === "REASSESSMENT"`).
+ *
+ * La numérotation est **continue sur toute la liste** : les étapes franchies
+ * occupent les premiers rangs, l'étape en cours et les suivantes continuent la
+ * série — aucun numéro dupliqué ni sauté quand le nombre de franchies change.
  */
-function PlanPath({steps}: {steps: Array<{priority: LearningPlanPriorityDto; current: boolean}>}) {
+/**
+ * Les étapes franchies, **sous** le parcours et **repliées par défaut**.
+ *
+ * Elles s'accumulent (le serveur en sert 5) : en tête de liste, elles
+ * repoussaient la priorité en 6ᵉ position, hors écran — l'inverse de ce que le
+ * Plan doit faire. Elles n'ont pas de numéro : elles ne sont plus des rangs du
+ * chemin, mais ce qui a déjà été franchi.
+ */
+function CompletedStepsBlock({steps}: {steps: LearningPlanCompletedStepDto[]}) {
+  const [open, setOpen] = useState(false);
+  if (steps.length === 0) return null;
+  return (
+    <div className={styles.doneBlock}>
+      <button
+        type="button"
+        className={styles.doneToggle}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Check size={15} strokeWidth={3} aria-hidden />
+        {planDoneSectionCta(steps.length, open)}
+      </button>
+      {open && (
+        <SkillAccent>
+          <ol className={styles.path}>
+            {steps.map((step, index) => (
+              <CompletedPathStep
+                key={step.skillId}
+                step={step}
+                index={index + 1}
+                last={index === steps.length - 1}
+              />
+            ))}
+          </ol>
+        </SkillAccent>
+      )}
+    </div>
+  );
+}
+
+function PlanPath({path}: {path: PathEntry[]}) {
   return (
     <SkillAccent>
       <ol className={styles.path}>
-        {steps.map(({priority, current}, index) => (
-          <PathStep
-            key={priority.skillId}
-            priority={priority}
-            index={index + 1}
-            current={current}
-          />
-        ))}
-        <li className={`${styles.step} ${styles.stepLast}`}>
-          <span className={styles.stepMark} aria-hidden><CalendarCheck size={17} /></span>
-          <div className={`${styles.stepCard} ${styles.stepCardFinal}`}>
-            <div className={styles.stepHead}>
-              <span className={styles.stepState} data-state="later">Réévaluation</span>
-            </div>
-            <h3 className={styles.stepTitle}>Prochaine vérification</h3>
-            <p className={styles.stepText}>
-              Après quelques entraînements, une nouvelle production permettra de vérifier si
-              cette faiblesse est réellement corrigée.
-            </p>
-          </div>
-        </li>
+        {path.map((entry, index) =>
+          entry.kind === "done" ? (
+            <CompletedPathStep
+              key={entry.step.skillId}
+              step={entry.step}
+              index={index + 1}
+              last={index === path.length - 1}
+            />
+          ) : (
+            <PathStep
+              key={entry.priority.skillId}
+              priority={entry.priority}
+              index={index + 1}
+              current={entry.current}
+              last={index === path.length - 1}
+            />
+          ),
+        )}
       </ol>
     </SkillAccent>
+  );
+}
+
+/**
+ * Une étape **franchie** : à la place de son numéro, une **coche**, et la
+ * pastille passe au vert.
+ *
+ * Sobre par construction — titre, code · épreuve, compteurs d'étape — et
+ * **sans aucun bouton d'action** : il n'y a plus rien à y faire, et ce n'est pas
+ * une porte commerciale (le DTO ne porte d'ailleurs ni exercice ni `locked`).
+ * Elle reste **cliquable** et ouvre l'écran d'étape, pour se relire.
+ *
+ * ⚠️ La coche ne dépend **pas** de `masteryState` : sur un compte réel une seule
+ * compétence franchie est `SOLID`, les autres sont `CONSOLIDATING`.
+ * L'appartenance à `completedSteps` **est** la coche.
+ */
+function CompletedPathStep({
+  step,
+  index,
+  last,
+}: {
+  step: LearningPlanCompletedStepDto;
+  index: number;
+  last: boolean;
+}) {
+  return (
+    <li className={`${styles.step} ${last ? styles.stepLast : ""}`}>
+      <span className={`${styles.stepMark} ${styles.stepMarkDone}`} role="img" aria-label={`${PLAN_STEP_DONE_MARK_LABEL} ${index}`}>
+        <Check size={17} strokeWidth={3} aria-hidden />
+      </span>
+      <Link className={`${styles.stepCard} ${styles.stepCardDone}`} href={competenceHref(step, {planStep: true})}>
+        <div className={styles.stepHead}>
+          <span className={styles.stepState} data-state="done">{PLAN_STEP_BADGE_DONE}</span>
+          <span className={styles.stepMeta}>
+            {step.skillCode} · {productionSectionLabel(step.section)}
+          </span>
+        </div>
+
+        {/* Pas d'anneau de sujets sur une etape franchie : c'est l'ETAPE qui
+            est cochee, pas ses micro-sujets. Une competence prouvee par de
+            vraies productions n'en a souvent traite aucun, et l'anneau
+            affichait alors « 0/5 » a cote de « Terminee » — exact, et
+            illisible. La coche dit tout ce qu'il y a a dire. */}
+        <div className={styles.stepBody}>
+          <div className={styles.stepBodyText}>
+            <h3 className={styles.stepTitle}>{step.title}</h3>
+          </div>
+          <span className={styles.stepChevron}><RowChevron /></span>
+        </div>
+      </Link>
+    </li>
   );
 }
 
@@ -480,10 +615,12 @@ function PathStep({
   priority,
   index,
   current,
+  last,
 }: {
   priority: LearningPlanPriorityDto;
   index: number;
   current: boolean;
+  last: boolean;
 }) {
   const exercise = priority.recommendedExercise;
   // Une étape, ce sont les 5 premiers sujets de la compétence — jamais ses 15.
@@ -499,7 +636,7 @@ function PathStep({
   // on ne propose plus un micro-sujet — on va vérifier en situation.
   const check = current && exercise?.kind === "REASSESSMENT";
   return (
-    <li className={`${styles.step} ${current ? styles.stepCurrent : ""}`}>
+    <li className={`${styles.step} ${current ? styles.stepCurrent : ""} ${last ? styles.stepLast : ""}`}>
       <span className={`${styles.stepMark} ${current ? styles.stepMarkCurrent : ""}`} aria-hidden>
         {index}
       </span>
@@ -546,42 +683,46 @@ function PathStep({
             l'étape 1 EST cette priorité, la redire deux fois n'apprend rien.
             Miroir de `_CurrentStepCard` / `_NextStepCard` côté mobile. */}
 
+        {/* ⚠️ La carte d'étape NE NOMME PLUS l'exercice (décision propriétaire) :
+            un seul endroit nomme ce qu'il y a à faire — « À faire maintenant »
+            pour l'action immédiate, l'écran d'étape pour la liste des sujets.
+            « Continuer cette étape » ouvre donc les 5 sujets de l'étape, et le
+            candidat voit enfin LESQUELS sont les siens avant de s'y remettre.
+            🛑 **Sauf pour une vérification** : là, le candidat vient
+            précisément de terminer ces 5 sujets — l'y renvoyer serait un
+            cul-de-sac. La carte garde alors son comportement d'origine et lance
+            la vraie production par `recommendedExerciseHref`. */}
         {current && exercise && (
-          <>
-            <div className={styles.stepTask}>
-              <span className={styles.stepTaskIcon} aria-hidden>
-                {exercise.section === "EE" ? <FilePenLine size={16} /> : <Mic size={16} />}
-              </span>
-              <span>
-                <b>{exercise.title}</b>
-                <small>{productionSectionLabel(exercise.section)} · {exercise.estimatedMinutes} min</small>
-              </span>
-            </div>
-            {locked ? (
-              <Link
-                className={styles.stepCtaStrong}
-                href={SKILL_PREMIUM_HREF}
-                aria-label={`Débloquer cette étape : ${priority.title}`}
-                onClick={trackPremiumClick}
-              >
-                <Lock size={15} aria-hidden /> Débloquer cette étape
-              </Link>
-            ) : (
-              <Link
-                className={styles.stepCtaStrong}
-                href={recommendedExerciseHref(exercise)}
-                aria-label={
-                  check
-                    ? `Vérifier ma progression : ${priority.title}`
-                    : `Continuer cette étape : ${priority.title}`
-                }
-                onClick={() => trackAudienceEvent("/plan", "PLAN_RECOMMENDED_EXERCISE_STARTED")}
-              >
-                {check ? "Vérifier ma progression" : "Continuer cette étape"}{" "}
-                <ArrowRight size={16} aria-hidden />
-              </Link>
-            )}
-          </>
+          locked ? (
+            <Link
+              className={styles.stepCtaStrong}
+              href={SKILL_PREMIUM_HREF}
+              aria-label={`Débloquer cette étape : ${priority.title}`}
+              onClick={trackPremiumClick}
+            >
+              <Lock size={15} aria-hidden /> Débloquer cette étape
+            </Link>
+          ) : check ? (
+            <Link
+              className={styles.stepCtaStrong}
+              href={recommendedExerciseHref(exercise)}
+              aria-label={`Vérifier ma progression : ${priority.title}`}
+              onClick={() => trackAudienceEvent("/plan", "PLAN_RECOMMENDED_EXERCISE_STARTED")}
+            >
+              Vérifier ma progression <ArrowRight size={16} aria-hidden />
+            </Link>
+          ) : (
+            /* Pas d'événement « exercice démarré » ici : ce lien n'en démarre
+               plus aucun, il ouvre une liste. La mesure du funnel reste portée
+               par « À faire maintenant », qui lance toujours l'exercice. */
+            <Link
+              className={styles.stepCtaStrong}
+              href={competenceHref(priority, {planStep: true})}
+              aria-label={`Continuer cette étape : ${priority.title}`}
+            >
+              Continuer cette étape <ArrowRight size={16} aria-hidden />
+            </Link>
+          )
         )}
       </div>
     </li>
@@ -631,13 +772,19 @@ function ObservedSkills({skills, total}: {skills: LearningPlanSkillDto[]; total:
  *  La pastille dit l'état de maîtrise (tout l'historique) dès que le serveur en
  *  a un ; sans observation agrégée, elle retombe sur le verdict de la dernière
  *  production. **Jamais les deux** : « Priorité » et « Prioritaire » côte à côte
- *  se liraient comme deux informations, alors que c'est la même. */
+ *  se liraient comme deux informations, alors que c'est la même.
+ *
+ *  Le lien porte le marqueur d'étape (`?etape=1`) : ouverte **depuis le Plan**,
+ *  une compétence qui est encore une priorité s'affiche à l'échelle de son
+ *  étape (« 2/5 »), pas de la compétence entière (« 1/15 »). Si elle n'en est
+ *  plus une — le serveur l'en sort dès qu'une vérification a réussi —, l'écran
+ *  retombe **silencieusement** sur la fiche complète. */
 function SkillCard({skill}: {skill: LearningPlanSkillDto}) {
   const done = skill.promptCount > 0 && skill.attemptedCount >= skill.promptCount;
   const locked = skill.locked;
   return (
     <Link
-      href={locked ? SKILL_PREMIUM_HREF : competenceHref(skill)}
+      href={locked ? SKILL_PREMIUM_HREF : competenceHref(skill, {planStep: true})}
       onClick={locked ? trackPremiumClick : undefined}
       className={`${s.card} ${s.rowCard} ${s.ringRow}`}
     >

@@ -117,7 +117,6 @@ class ProductionSubmissionDto {
     required this.submittedAt,
     required this.retryCount,
     this.tacheNumero,
-    this.mediaUrl,
     this.texteSoumis,
     this.motsCount,
     this.mediaDurationSec,
@@ -138,11 +137,12 @@ class ProductionSubmissionDto {
 
   final SubmissionStatut statut;
 
-  /// URL pre-signee (TTL court) vers l'audio EO. NULL pour EE.
-  final String? mediaUrl;
-
   final String? texteSoumis;
   final int? motsCount;
+
+  /// Duree de l'enregistrement (EO). Seule trace qui subsiste de l'audio : il
+  /// n'est pas conserve, donc aucune URL n'est servie — ce qui reste d'une
+  /// production orale, c'est [transcription].
   final int? mediaDurationSec;
 
   final int retryCount;
@@ -152,8 +152,8 @@ class ProductionSubmissionDto {
   /// Presente uniquement quand `statut == evaluated`.
   final EvaluationResult? evaluation;
 
-  /// Texte transcrit par Whisper (EO uniquement). Null pour EE et tant que la
-  /// transcription n'a pas tourne.
+  /// Texte transcrit par Whisper (EO uniquement) — **LA production orale
+  /// conservee**, ecrite pendant la requete de soumission. Null pour EE.
   final String? transcription;
 
   /// Ce que cette production a change dans le Plan — **une ligne, pas un
@@ -161,8 +161,6 @@ class ProductionSubmissionDto {
   /// (ecrites APRES la correction) ne sont pas encore la. Servi seulement sur
   /// le detail d'une soumission.
   final PlanChange? planChange;
-
-  bool get isAudio => mediaUrl != null;
 
   bool get isText => texteSoumis != null;
 
@@ -173,7 +171,6 @@ class ProductionSubmissionDto {
         productionTaskId: json['productionTaskId'] as String?,
         tacheNumero: (json['tacheNumero'] as num?)?.toInt(),
         statut: SubmissionStatut.fromWire(json['statut'] as String),
-        mediaUrl: json['mediaUrl'] as String?,
         texteSoumis: json['texteSoumis'] as String?,
         motsCount: (json['motsCount'] as num?)?.toInt(),
         mediaDurationSec: (json['mediaDurationSec'] as num?)?.toInt(),

@@ -145,6 +145,40 @@
   text-overflow: ellipsis;
 }
 
+/* ===== panne de chargement du catalogue =====
+   Prend la place de la grille quand le serveur n'a rien renvoyé : sans lui,
+   l'écran restait muet et paraissait vide. */
+
+.loadError {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: #fff;
+  border: 1px dashed var(--color-line);
+  border-radius: 14px;
+  padding: 22px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--color-muted);
+}
+
+.loadErrorBtn {
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-blue);
+  background: color-mix(in srgb, var(--color-blue) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-blue) 25%, transparent);
+  border-radius: 10px;
+  padding: 9px 16px;
+  cursor: pointer;
+}
+
+.loadErrorBtn:hover {
+  background: color-mix(in srgb, var(--color-blue) 14%, transparent);
+}
+
 /* ===== grille de cards ===== */
 
 .grid {

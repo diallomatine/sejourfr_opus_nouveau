@@ -101,26 +101,6 @@ class SkillMasteryResolverIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("La frise se lit de la plus ancienne a la plus recente, sans les non observees")
-    void laFriseEstChronologiqueEtProbante() {
-        User user = data.user();
-        Skill skill = data.skill();
-        observation(user, skill, LearningPlanSourceType.DIAGNOSTIC_EO,
-                LearningPlanSkillStatus.PRIORITY, jours(30));
-        observation(user, skill, LearningPlanSourceType.SKILL_TRAINING,
-                LearningPlanSkillStatus.TO_REINFORCE, jours(10));
-        observation(user, skill, LearningPlanSourceType.PRODUCTION_EO,
-                LearningPlanSkillStatus.NOT_OBSERVED, jours(5));
-
-        List<LearningPlanObservation> trajectory = resolver.trajectory(user.getId(), skill.getId());
-
-        assertThat(trajectory).hasSize(2);
-        assertThat(trajectory.get(0).getSourceType()).isEqualTo(LearningPlanSourceType.DIAGNOSTIC_EO);
-        assertThat(trajectory.get(1).getSourceType()).isEqualTo(LearningPlanSourceType.SKILL_TRAINING);
-        assertThat(trajectory.get(0).getObservedAt()).isBefore(trajectory.get(1).getObservedAt());
-    }
-
-    @Test
     @DisplayName("Une competence sans aucune observation reste presente, sans etat invente")
     void uneCompetenceSansObservationNInventeRien() {
         User user = data.user();

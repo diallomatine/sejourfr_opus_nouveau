@@ -144,6 +144,14 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.currentPriority.stepAttemptedCount").value(4))
                 .andExpect(jsonPath("$.currentPriority.stepValidatedCount").value(0))
                 .andExpect(jsonPath("$.currentPriority.stepCompleted").value(false))
+                // Le PERIMETRE de l'etape : ses 5 sujets, dans l'ordre. C'est lui
+                // qu'un front ouvre quand on clique la competence depuis le Plan,
+                // au lieu de retomber sur la fiche generique et son « 4/15 ».
+                .andExpect(jsonPath("$.currentPriority.stepPromptIds.length()").value(5))
+                .andExpect(jsonPath("$.currentPriority.stepPromptIds[0]")
+                        .value(prompts.get(0).getId().toString()))
+                .andExpect(jsonPath("$.currentPriority.stepPromptIds[4]")
+                        .value(prompts.get(4).getId().toString()))
                 // Le rang 5, jamais traite — jamais le rang 6, hors etape.
                 .andExpect(jsonPath("$.currentPriority.recommendedExercise.skillPromptId")
                         .value(prompts.get(4).getId().toString()))
@@ -255,6 +263,39 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.currentPriority.recommendedExercise.locked").value(true));
     }
 
+    /**
+     * Le cas reel : le correcteur du diagnostic n'a designe aucune priorite, il
+     * n'a rendu que des faiblesses ({@code TO_REINFORCE}). Le Plan doit quand
+     * meme designer une etape ET un exercice — sinon il reste {@code ACTIVE}
+     * sans rien a faire pendant que l'ecran du diagnostic, lui, en propose un.
+     *
+     * <p>Il verifie aussi le freemium sur une priorite <b>derivee</b> : la
+     * competence n'est pas la premiere de sa tache, elle n'est donc ouverte que
+     * parce que {@code SkillAccessService} suit le meme resolveur de priorites.
+     */
+    @Test
+    void sansPrioriteDesigneeLePlanDesigneQuandMemeUneEtapeOuverteEtUnExercice()
+            throws Exception {
+        User user = data.user();
+        Skill skill = data.skill(SkillTaskCode.EE3);
+        SkillPrompt premier = data.skillPrompt(skill);
+        data.skillPrompt(skill);
+        observation(user, skill, LearningPlanSkillStatus.TO_REINFORCE);
+        completedSession(user);
+
+        mvc.perform(get("/api/me/plan")
+                        .header(HttpHeaders.AUTHORIZATION, auth.bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state").value("ACTIVE"))
+                .andExpect(jsonPath("$.currentPriority.skillCode").value(skill.getCode()))
+                .andExpect(jsonPath("$.currentPriority.status").value("TO_REINFORCE"))
+                .andExpect(jsonPath("$.currentPriority.recommendedExercise.skillPromptId")
+                        .value(premier.getId().toString()))
+                // Une priorite derivee ouvre la competence comme une designee.
+                .andExpect(jsonPath("$.currentPriority.locked").value(false))
+                .andExpect(jsonPath("$.currentPriority.recommendedExercise.locked").value(false));
+    }
+
     @Test
     void unAbonneTcfNaAucunCadenasSurSonPlan() throws Exception {
         User user = data.user();
@@ -280,13 +321,17 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
     }
 
     private void observation(User user, Skill skill) {
+        observation(user, skill, LearningPlanSkillStatus.PRIORITY);
+    }
+
+    private void observation(User user, Skill skill, LearningPlanSkillStatus status) {
         LearningPlanObservation observation = new LearningPlanObservation();
         observation.setUser(user);
         observation.setSkill(skill);
         observation.setSourceType(LearningPlanSourceType.DIAGNOSTIC_EE);
         observation.setSourceId(UUID.randomUUID());
         observation.setObserved(true);
-        observation.setStatus(LearningPlanSkillStatus.PRIORITY);
+        observation.setStatus(status);
         observation.setEvidence("Bonjour Paul, je t'écris…");
         observation.setExplanation("Le destinataire n'est pas encore pris en compte.");
         observation.setConfidence(ObservationConfidence.HIGH);

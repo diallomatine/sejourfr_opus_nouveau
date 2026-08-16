@@ -3,11 +3,13 @@
 import {useEffect, useRef, useState, type ReactNode} from "react";
 import {Clock, Lightbulb, Mic, RotateCcw, Square, Target} from "lucide-react";
 import {formatDurationSec, type ProductionTaskDto} from "@/lib/types";
+import {useScreenWakeLock} from "@/lib/use-screen-wake-lock";
 import {SkillAccent} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
 import {type ProductionVoice} from "./config";
 import {EoTranscriptNotice} from "./EoTranscriptNotice";
 import {ProductionCriteriaCard} from "./ProductionCriteriaCard";
+import {RecordingLevelMeter} from "./RecordingLevelMeter";
 import styles from "./production.module.css";
 
 /**
@@ -235,6 +237,14 @@ export function EoRecordingForm({
   const [elapsed, setElapsed] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [permError, setPermError] = useState<string | null>(null);
+  // Le flux micro en cours, exposé en état (et pas seulement en ref) parce que
+  // c'est lui qui alimente le retour visuel : un `ref` ne déclencherait pas le
+  // montage du compteur de niveau.
+  const [micStream, setMicStream] = useState<MediaStream | null>(null);
+  // Réécoute en cours dans le lecteur inline : l'écran doit rester allumé le
+  // temps de l'écoute, pas pendant toute la phase « enregistré » (le candidat
+  // peut y rester longtemps avant d'envoyer).
+  const [replaying, setReplaying] = useState(false);
   // État du droit micro, déterminé au montage (avant tout clic) pour guider
   // l'utilisateur : "ready" = on peut demander/enregistrer, sinon cas bloquant.
   const [micState, setMicState] = useState<
@@ -256,6 +266,12 @@ export function EoRecordingForm({
   const lastTimeoutSignalRef = useRef(0);
 
   const copy = COPY[voice];
+
+  // Une prise de parole de 2-3 min sans toucher l'écran, c'est exactement le
+  // scénario où le téléphone se verrouille — et sur mobile un écran verrouillé
+  // coupe la capture `MediaRecorder`. Dégradation silencieuse si l'API manque.
+  useScreenWakeLock(phase === "recording" || replaying);
+
   // Plafond dur de capture : hors examen seulement (en examen, c'est
   // `task.dureeMaxSec` qui borne déjà la prise et déclenche la soumission).
   const hardCapSec = !examMode && maxDurationSec != null && maxDurationSec > 0 ? maxDurationSec : null;
@@ -355,6 +371,7 @@ export function EoRecordingForm({
       const stream = await navigator.mediaDevices.getUserMedia({audio: true});
       setMicState("ready");
       streamRef.current = stream;
+      setMicStream(stream);
       const mime = pickMime();
       const rec = mime ? new MediaRecorder(stream, {mimeType: mime}) : new MediaRecorder(stream);
       chunksRef.current = [];
@@ -366,6 +383,9 @@ export function EoRecordingForm({
         blobRef.current = blob;
         streamRef.current?.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
+        // Libère l'`AudioContext` du compteur de niveau : sans ça on en fuirait
+        // un par enregistrement.
+        setMicStream(null);
         if (timeoutOnStopRef.current) {
           timeoutOnStopRef.current = false;
           setPhase("recorded");
@@ -388,6 +408,9 @@ export function EoRecordingForm({
       recorderRef.current = rec;
       rec.start();
       setElapsed(0);
+      // Le lecteur de réécoute est démonté par le passage en « recording » :
+      // son `onPause` ne partira pas, on remet le drapeau à plat nous-mêmes.
+      setReplaying(false);
       setPhase("recording");
       timerRef.current = setInterval(
         () =>
@@ -452,6 +475,7 @@ export function EoRecordingForm({
     });
     blobRef.current = null;
     setElapsed(0);
+    setReplaying(false);
     setPhase("idle");
   }
 
@@ -461,6 +485,10 @@ export function EoRecordingForm({
   // En examen, le chrono décompte la durée restante (auto-stop à 0) ; sinon il
   // chronomètre simplement le temps écoulé.
   const examCountdown = examMode && max != null;
+  /** Consigne d'examen encore à lire : rien n'est lancé, donc rien n'est
+   *  chronométré — c'est le « Je suis prêt » qui met le temps en marche, comme
+   *  au vrai TCF. */
+  const examIdle = examMode && phase === "idle";
   const shownSec = examCountdown ? Math.max(0, max - elapsed) : elapsed;
   const examUrgent = examCountdown && phase === "recording" && shownSec <= 15;
   const timerClass = examCountdown
@@ -499,7 +527,10 @@ export function EoRecordingForm({
   // un correctif n'atterrir que d'un côté.
   const recorder = (
     <div className={styles.recorder}>
-      <div className={`${styles.timerBig} ${timerClass}`}>{fmtTimer(shownSec)}</div>
+      {/* En examen, la consigne se lit SANS aucun décompte : le chrono de la
+          tâche n'existe pas encore, il naît du « Je suis prêt ». Afficher
+          « 3:00 » figé donnait déjà l'impression d'être chronométré. */}
+      {!examIdle && <div className={`${styles.timerBig} ${timerClass}`}>{fmtTimer(shownSec)}</div>}
 
       {phase === "recording" ? (
         <button
@@ -509,6 +540,16 @@ export function EoRecordingForm({
           aria-label="Arrêter l'enregistrement"
         >
           <Square size={28} strokeWidth={2.2} fill="currentColor" />
+        </button>
+      ) : examIdle ? (
+        <button
+          type="button"
+          className={styles.readyBtn}
+          onClick={handleStartClick}
+          disabled={submitting || blocked}
+        >
+          <Mic size={18} strokeWidth={2.2} aria-hidden />
+          Je suis prêt · Commencer la tâche
         </button>
       ) : (
         <button
@@ -522,6 +563,11 @@ export function EoRecordingForm({
         </button>
       )}
 
+      {/* Ce qui prouve que la voix est captée : sans lui, un micro muet est
+          indiscernable d'un enregistrement qui marche, et le candidat ne
+          l'apprend qu'après l'analyse. */}
+      {phase === "recording" && <RecordingLevelMeter stream={micStream} />}
+
       <p className={styles.recordHint}>
         {phase === "recording"
           ? examCountdown
@@ -531,10 +577,12 @@ export function EoRecordingForm({
               : copy.recording
           : phase === "recorded"
             ? examMode
-              ? "Réponse envoyée à l'évaluation…"
+              ? error
+                ? "L'envoi n'a pas abouti. Votre enregistrement est encore là : renvoyez-le."
+                : "Réponse envoyée à l'évaluation…"
               : copy.recorded
             : examCountdown
-              ? `Appuyez sur le micro : vous avez ${rangeLabel || formatDurationSec(max ?? 0)} et votre réponse est soumise dès l'arrêt. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`
+              ? `Prenez le temps de lire la consigne : rien n'est chronométré tant que vous n'avez pas commencé. Le temps de parole (${formatDurationSec(max ?? 0)}) démarre quand vous lancez la tâche, et votre réponse est soumise dès l'arrêt. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`
               : copy.idle(
                   rangeLabel ? ` (durée conseillée ${rangeLabel})` : "",
                   hardCapSec != null ? `, ${formatDurationSec(hardCapSec)} maximum` : "",
@@ -543,7 +591,14 @@ export function EoRecordingForm({
 
       {!examMode && phase === "recorded" && audioUrl && (
         <div className={styles.player}>
-          <audio src={audioUrl} controls preload="metadata" />
+          <audio
+            src={audioUrl}
+            controls
+            preload="metadata"
+            onPlay={() => setReplaying(true)}
+            onPause={() => setReplaying(false)}
+            onEnded={() => setReplaying(false)}
+          />
         </div>
       )}
     </div>
@@ -643,6 +698,27 @@ export function EoRecordingForm({
           sur les références — se décide AVANT de parler : c'est pour ça qu'il
           peut être rendu dès l'ouverture de l'écran. */}
       {!examMode && (footerAlwaysVisible || phase === "recorded") && footerSlot}
+
+      {/* EN EXAMEN, un envoi qui échoue laissait le candidat SANS ISSUE : le
+          micro est verrouillé et aucun bouton n'est rendu. Depuis que la
+          transcription se fait pendant l'envoi, un échec est un cas réel — on
+          rend LE MÊME enregistrement renvoyable. Ni réenregistrement, ni
+          réécoute : les règles d'examen ne bougent pas. */}
+      {examMode && phase === "recorded" && error && (
+        <div className={s.actionRow}>
+          <button
+            type="button"
+            className={s.primary}
+            disabled={submitting}
+            onClick={() =>
+              blobRef.current &&
+              onSubmit(blobRef.current, Math.min(elapsed, hardCapSec ?? elapsed))
+            }
+          >
+            {submitting ? "Envoi en cours…" : "Renvoyer ma réponse"}
+          </button>
+        </div>
+      )}
 
       {!examMode && phase === "recorded" && (
         <div className={s.actionRow}>

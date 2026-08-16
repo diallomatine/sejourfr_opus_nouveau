@@ -35,6 +35,7 @@ class RunnerState {
     this.noMoreQuestions = false,
     this.errorMessage,
     this.fixedBatch = false,
+    this.timeExpired = false,
   });
 
   /// IDs des Questions (et non des AttemptQuestion) marquées en favori.
@@ -70,6 +71,13 @@ class RunnerState {
   /// (lot TCF avec taille déterminée par le backend) : pas d'auto-extend,
   /// "Question X / N" affiché, bouton "Terminer" à la dernière question.
   final bool fixedBatch;
+
+  /// Le backend a refusé la dernière réponse parce que **le temps de l'épreuve
+  /// est écoulé** (422, au-delà de l'échéance + 60 s de grâce). Le refus porte
+  /// sur **une** réponse, pas sur la session : les réponses précédentes restent
+  /// acquises. L'écran affiche le message du serveur puis bascule sur l'écran de
+  /// fin — il ne plante pas et ne perd rien.
+  final bool timeExpired;
 
   AttemptQuestion get current => questions[currentIndex];
 
@@ -115,6 +123,7 @@ class RunnerState {
     String? errorMessage,
     bool clearError = false,
     bool? fixedBatch,
+    bool? timeExpired,
   }) =>
       RunnerState(
         activeAttempt: activeAttempt ?? this.activeAttempt,
@@ -130,6 +139,7 @@ class RunnerState {
         noMoreQuestions: noMoreQuestions ?? this.noMoreQuestions,
         errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
         fixedBatch: fixedBatch ?? this.fixedBatch,
+        timeExpired: timeExpired ?? this.timeExpired,
       );
 }
 
@@ -339,9 +349,16 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
       }
       return true;
     } catch (e) {
+      final api = ApiClient.toApiException(e);
+      // 422 = le temps de l'épreuve est écoulé (échéance + 60 s de grâce). Le
+      // serveur refuse CETTE réponse et conserve les précédentes ; il clôturera
+      // l'épreuve à la lecture suivante. On le signale à l'écran, qui bascule
+      // sur la fin de session — plutôt que de laisser le candidat retenter une
+      // soumission qui sera toujours refusée.
       state = AsyncValue.data(cur.copyWith(
         submitting: false,
-        errorMessage: ApiClient.toApiException(e).message,
+        errorMessage: api.message,
+        timeExpired: api.statusCode == 422,
       ));
       return false;
     }

@@ -10,6 +10,7 @@ import '../../../core/models/realtime_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_sheet.dart';
+import '../../../core/widgets/keep_screen_awake.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../widgets/transcript_dialogue.dart';
 import 'realtime_eo_controller.dart';
@@ -289,43 +290,60 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     }
     if (_noSpeech) return _buildNoSpeech(context, task);
 
-    return PopScope(
-      canPop: state.phase == RealtimePhase.done ||
-          state.phase == RealtimePhase.failed,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _confirmLeave();
-      },
-      child: Scaffold(
-        backgroundColor: AppColors.bg,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              ScreenHeader(
-                title: 'Oral avec un examinateur',
-                sub: task.displayTitle,
-                onBack: _confirmLeave,
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: _LiveStrip(state: state),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: _SubjectPanel(
-                  task: task,
-                  expanded: _showSubject,
-                  onToggle: () => setState(() => _showSubject = !_showSubject),
+    // Écran allumé tant que l'échange est en cours : le candidat parle plusieurs
+    // minutes sans toucher l'écran, et une mise en veille couperait le micro et
+    // la voix de l'examinateur au milieu de sa production. Raison DISTINCTE de
+    // celle de l'enregistreur solo ('eo-recording') : le compteur de références
+    // additionne les détenteurs, deux surfaces ne doivent pas se relâcher l'une
+    // l'autre.
+    return KeepScreenAwake(
+      reason: 'eo-realtime',
+      enabled: state.phase != RealtimePhase.done &&
+          state.phase != RealtimePhase.failed,
+      child: PopScope(
+        canPop: state.phase == RealtimePhase.done ||
+            state.phase == RealtimePhase.failed,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _confirmLeave();
+        },
+        child: Scaffold(
+          backgroundColor: AppColors.bg,
+          body: SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                ScreenHeader(
+                  title: 'Oral avec un examinateur',
+                  sub: task.displayTitle,
+                  onBack: _confirmLeave,
                 ),
-              ),
-              Expanded(child: _MicStage(pulse: _pulse, state: state)),
-              _BottomBar(
-                state: state,
-                onFinish: _confirmLeave,
-                onExit: _exitFailed,
-                onShowTranscript: _openTranscript,
-              ),
-            ],
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: _LiveStrip(state: state),
+                ),
+                if (state.reconnecting)
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: _ReconnectBanner(),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: _SubjectPanel(
+                    task: task,
+                    expanded: _showSubject,
+                    onToggle: () =>
+                        setState(() => _showSubject = !_showSubject),
+                  ),
+                ),
+                Expanded(child: _MicStage(pulse: _pulse, state: state)),
+                _BottomBar(
+                  state: state,
+                  onFinish: _confirmLeave,
+                  onExit: _exitFailed,
+                  onShowTranscript: _openTranscript,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -391,6 +409,51 @@ class _LiveStrip extends StatelessWidget {
     final m = sec ~/ 60;
     final s = sec % 60;
     return '$m:${s.toString().padLeft(2, '0')}';
+  }
+}
+
+/// Bandeau discret pendant une reprise de connexion. Non bloquant : la
+/// transcription, le sujet et le chrono restent à l'écran — seul le décompte est
+/// en pause. Sans lui, une reconnexion de 3 s se vit comme un plantage.
+class _ReconnectBanner extends StatelessWidget {
+  const _ReconnectBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.blue.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(color: AppColors.blue.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(
+            width: 15,
+            height: 15,
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: AppColors.blue),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(kRtResumeTitle,
+                    style: AppFonts.ui(
+                        size: 13, weight: FontWeight.w800, color: AppColors.blue)),
+                const SizedBox(height: 2),
+                Text(kRtResumeMessage,
+                    style: AppFonts.ui(
+                        size: 12, color: AppColors.inkSoft, height: 1.4)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -533,30 +596,37 @@ class _MicStage extends StatelessWidget {
       );
     }
 
-    final examiner = state.examinerSpeaking;
-    final yourTurn = state.phase == RealtimePhase.live && !examiner;
-    // Accueil + connexion : on attend (micro coupé), on montre un état neutre.
+    final examiner = state.examinerSpeaking && !state.reconnecting;
+    final yourTurn =
+        state.phase == RealtimePhase.live && !examiner && !state.reconnecting;
+    // Accueil + connexion + reprise : on attend (micro coupé), état neutre.
     final waiting = state.phase == RealtimePhase.connecting ||
-        state.phase == RealtimePhase.welcoming;
+        state.phase == RealtimePhase.welcoming ||
+        state.reconnecting;
 
-    final (String label, String hint) = switch (state.phase) {
-      RealtimePhase.connecting => (
-          'Connexion à l\'examinateur…',
-          'Préparez-vous à parler.'
-        ),
-      RealtimePhase.welcoming => (
-          'L\'examinateur vous accueille…',
-          'Un instant — votre micro s\'activera après son accueil.'
-        ),
-      RealtimePhase.live => examiner
-          ? ('L\'examinateur parle…', 'Écoutez sa question.')
-          : ('À vous de parler', 'Parlez naturellement, comme à un vrai oral.'),
-      RealtimePhase.finishing => examiner
-          ? ('Temps écoulé — l\'examinateur conclut.', '')
-          : ('Préparation de votre évaluation…', ''),
-      RealtimePhase.done => ('Échange terminé', ''),
-      RealtimePhase.failed => ('', ''),
-    };
+    final (String label, String hint) = state.reconnecting
+        ? (kRtResumeStatus, kRtResumeHint)
+        : switch (state.phase) {
+            RealtimePhase.connecting => (
+                'Connexion à l\'examinateur…',
+                'Préparez-vous à parler.'
+              ),
+            RealtimePhase.welcoming => (
+                'L\'examinateur vous accueille…',
+                'Un instant — votre micro s\'activera après son accueil.'
+              ),
+            RealtimePhase.live => examiner
+                ? ('L\'examinateur parle…', 'Écoutez sa question.')
+                : (
+                    'À vous de parler',
+                    'Parlez naturellement, comme à un vrai oral.'
+                  ),
+            RealtimePhase.finishing => examiner
+                ? ('Temps écoulé — l\'examinateur conclut.', '')
+                : ('Préparation de votre évaluation…', ''),
+            RealtimePhase.done => ('Échange terminé', ''),
+            RealtimePhase.failed => ('', ''),
+          };
 
     final accent = examiner ? AppColors.blue : AppColors.red;
     final accentSoft =

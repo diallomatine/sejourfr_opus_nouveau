@@ -101,7 +101,7 @@ public class AdminCalibrationService {
 
         return filtered.stream()
                 .map(s -> calibrationMapper.toDto(
-                        submissionMapper.toDtoWithSignedAudio(s),
+                        submissionMapper.toDto(s),
                         aiEvaluationManager.findLatestBySubmissionId(s.getId()).orElse(null)))
                 .toList();
     }

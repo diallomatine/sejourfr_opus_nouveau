@@ -1,5 +1,6 @@
 package com.sejourfr.app.dto;
 
+import com.sejourfr.app.enums.ContinuiteSimulation;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
 
@@ -17,8 +18,9 @@ import java.util.UUID;
  * <b>réellement passées</b> (règle officielle TCF IRN). NULL tant que toutes
  * les évaluations IA (EE/EO) ne sont pas EVALUATED, ou tant que l'examen n'a
  * pas été finalisé. Sont hors périmètre : une épreuve {@link SubAttempt#locked
- * verrouillée} par le freemium (jamais passée) et une épreuve dont le niveau
- * est resté inconnu (évaluations IA échouées). Le périmètre effectif est
+ * verrouillée} par le freemium (jamais passée), une épreuve close <b>sans avoir
+ * jamais été ouverte</b> (le candidat a quitté avant d'y arriver) et une épreuve
+ * dont le niveau est resté inconnu (évaluations IA échouées). Le périmètre effectif est
  * publié via {@link #epreuvesCountedInFinalLevel} / {@link #finalLevelPartial}
  * — les fronts doivent s'en servir plutôt que d'affirmer « le plus bas de tes
  * 4 épreuves » en dur.
@@ -26,12 +28,24 @@ import java.util.UUID;
 public record FullTcfExamResponse(
         UUID id,
         Instant startedAt,
-        /** Lancement réel de la 1re épreuve (CO) — ancre du chrono 90 min.
+        /** Lancement réel de la 1re épreuve — <b>trace du début de l'examen</b>,
+         *  plus l'ancre d'un décompte : l'enveloppe globale de 90 min a été
+         *  supprimée (chaque épreuve porte sa durée, rien ne se transfère de
+         *  l'une à l'autre, et l'abandon-reprise entre épreuves est supporté).
+         *  Les fronts n'en dérivent aucun compte à rebours — ils lisent
+         *  {@link SubAttempt#timerStartedAt} / {@link SubAttempt#deadlineAt}.
          *  NULL tant que le candidat n'a pas commencé (hub de progression). */
         Instant timerStartedAt,
         Instant finishedAt,
         NiveauCecrl finalCecrlLevel,
         FullTcfExamStatus status,
+        /** Examen enchaîné d'une traite, ou repris entre plusieurs épreuves ?
+         *  Dérivé serveur, jamais persisté (cf. {@link ContinuiteSimulation}).
+         *  NULL tant que l'examen n'est pas terminé — la question ne se pose
+         *  qu'au moment de restituer le résultat. À ne pas confondre avec
+         *  {@link #finalLevelPartial}, qui dit tout autre chose : sur combien
+         *  d'épreuves porte le niveau. */
+        ContinuiteSimulation continuite,
         /** Nombre d'épreuves qui portent un niveau et entrent réellement dans
          *  le plancher {@link #finalCecrlLevel} (0..{@link #epreuvesExpected}). */
         int epreuvesCountedInFinalLevel,
@@ -75,11 +89,36 @@ public record FullTcfExamResponse(
      *                            ce n'est plus le plancher des submissions
      *                            EVALUATED. NULL quand le niveau n'est pas
      *                            calculable : évaluations encore en vol, en échec
-     *                            (cf. {@code failedSubmissionIds}), ou épreuve
-     *                            {@code locked}. Un NULL n'est jamais un mauvais
-     *                            niveau — c'est un niveau inconnu.
-     * @param score               CO/CE uniquement : weightedScore (X / maxScore)
-     * @param maxScore            CO/CE uniquement
+     *                            (cf. {@code failedSubmissionIds}), épreuve
+     *                            {@code locked}, ou épreuve <b>close sans avoir
+     *                            jamais été ouverte</b> ({@code timerStartedAt}
+     *                            NULL et rien de rendu — le candidat a quitté
+     *                            l'examen avant d'y arriver, et les fronts
+     *                            clôturent les épreuves restantes pour permettre
+     *                            l'abandon volontaire). Une épreuve OUVERTE puis
+     *                            écourtée garde son niveau (A1_NON_ATTEINT si
+     *                            rien n'a été rendu) : le candidat a vu le
+     *                            sujet, c'est un vrai résultat. Un NULL n'est
+     *                            jamais un mauvais niveau — c'est un niveau
+     *                            inconnu.
+     * @param score               CO/CE uniquement : weightedScore (X / maxScore).
+     *                            Score <b>pondéré interne</b> (A2=1, B1=2, B2=3),
+     *                            conservé comme repli et pour l'existant — mais ce
+     *                            n'est <b>pas</b> ce qu'un candidat doit lire.
+     * @param maxScore            CO/CE uniquement : borne du score pondéré interne
+     * @param calibratedScore     CO/CE uniquement : score calibré <b>100-499</b>,
+     *                            l'échelle du relevé TCF. Produit par
+     *                            {@code TcfLevelEstimatorService.calibratedScore(
+     *                            weighted, maxWeighted)} — jamais recopié ailleurs :
+     *                            la correction du hasard (25 % sur un QCM à 4 choix)
+     *                            et les bornes 100-499 vivent dans ce seul service.
+     *                            C'est LE nombre que les fronts affichent, le
+     *                            {@code score}/{@code maxScore} pondéré (« 23/50 »)
+     *                            ne voulant rien dire pour un candidat. NULL pour
+     *                            EE/EO (pas de QCM), pour une épreuve {@code locked}
+     *                            et tant que le score pondéré n'est pas posé — les
+     *                            fronts retombent alors sur {@code score}/{@code
+     *                            maxScore}, jamais sur un /499 inventé.
      * @param submissionsCount    EE/EO uniquement : submissions EVALUATED (sur 3 attendues)
      * @param failedSubmissionIds EE/EO uniquement : ids des submissions FAILED — le mobile
      *                            peut les retry via POST /api/production-submissions/{id}/retry
@@ -90,6 +129,29 @@ public record FullTcfExamResponse(
      *                            plancher global. Un verrou commercial n'est pas un
      *                            verdict de langue. Les fronts affichent un cadenas +
      *                            invitation à l'abonnement. Toujours false pour CO/CE.
+     * @param timeLimitSeconds    durée de CETTE épreuve, en secondes (CO 1200, CE 2100,
+     *                            EE 1800). <b>NULL pour l'expression orale</b>, qui n'a
+     *                            volontairement pas de chrono d'épreuve : son temps se
+     *                            compte par tâche, et ne démarre qu'au lancement de la
+     *                            tâche ({@code production_tasks.dureeMaxSec}). C'est le
+     *                            <b>seul</b> endroit où lire la durée d'une épreuve :
+     *                            les fronts affichent « CE · 35 min » depuis ce champ,
+     *                            jamais depuis une constante locale (elles avaient déjà
+     *                            divergé — 30 min dans un écran, 35 dans un autre).
+     * @param timerStartedAt      instant où le candidat a <b>lancé</b> l'épreuve
+     *                            ({@code POST /api/full-tcf-exams/{id}/begin}). NULL tant
+     *                            qu'elle n'a pas été lancée : les 4 sous-attempts sont
+     *                            créés d'un bloc au démarrage de l'examen, leur
+     *                            {@code startedAt} ne dit donc rien du moment où le
+     *                            candidat les ouvre. Tant qu'il est NULL, l'épreuve n'a
+     *                            pas d'échéance.
+     * @param deadlineAt          échéance effective = {@code timerStartedAt +
+     *                            timeLimitSeconds}, calculée serveur pour que les fronts
+     *                            n'aient pas à la recomposer. NULL quand l'épreuve n'a
+     *                            pas de chrono (EO) ou n'a pas encore été lancée. Le
+     *                            temps court pendant l'absence : quitter ne suspend
+     *                            rien, et passé cette échéance l'épreuve est clôturée
+     *                            automatiquement avec ce qui avait été enregistré.
      */
     public record SubAttempt(
             UUID attemptId,
@@ -98,9 +160,13 @@ public record FullTcfExamResponse(
             NiveauCecrl cecrlLevel,
             Integer score,
             Integer maxScore,
+            Integer calibratedScore,
             Integer submissionsCount,
             List<UUID> failedSubmissionIds,
-            boolean locked
+            boolean locked,
+            Integer timeLimitSeconds,
+            Instant timerStartedAt,
+            Instant deadlineAt
     ) {
     }
 }

@@ -78,6 +78,15 @@ public class AnswerManager {
     }
 
     /**
+     * Cette session QCM porte-t-elle au moins une réponse ? « Zéro réponse » =
+     * rien n'a été rendu — même définition que
+     * {@code AttemptManager.findQcmEpreuvesPassees}.
+     */
+    public boolean hasAnyAnswer(UUID attemptId) {
+        return repository.existsByAttemptId(attemptId);
+    }
+
+    /**
      * Choix sélectionnés par l'utilisateur lors de sa <b>dernière</b> tentative
      * sur cette question. Liste vide si jamais tentée. Sert au sheet review
      * pour marquer en rouge le choix incorrect choisi.

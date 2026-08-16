@@ -75,6 +75,23 @@ class SkillProgressCounterTest {
         assertThat(progress.step().completed()).isFalse();
     }
 
+    /**
+     * Le <b>perimetre</b> de l'etape est publie, pas seulement compte : c'est ce
+     * que les fronts affichent quand on ouvre la competence depuis le Plan. Ils
+     * ne rejouent pas « les cinq premiers actifs » de leur cote.
+     */
+    @Test
+    void lePerimetreDeLEtapeEstLesCinqPremiersSujetsDansLOrdre() {
+        stub(prompts, Map.of());
+
+        SkillProgressCounter.SkillProgress progress = progress();
+
+        assertThat(progress.step().promptIds()).containsExactly(
+                prompts.get(0).getId(), prompts.get(1).getId(), prompts.get(2).getId(),
+                prompts.get(3).getId(), prompts.get(4).getId());
+        assertThat(progress.step().promptCount()).isEqualTo(5);
+    }
+
     @Test
     void quatreSujetsSurCinqNeTerminentPasLEtape() {
         stub(prompts, latestOn(0, 1, 2, 3));
@@ -125,6 +142,11 @@ class SkillProgressCounterTest {
 
         assertThat(progress.promptCount()).isEqualTo(3);
         assertThat(progress.step().promptCount()).isEqualTo(3);
+        // Aucun identifiant invente pour completer a cinq : le perimetre vaut
+        // exactement ce qui est publie.
+        assertThat(progress.step().promptIds()).containsExactly(
+                troisSujets.get(0).getId(), troisSujets.get(1).getId(),
+                troisSujets.get(2).getId());
         assertThat(progress.step().attemptedCount()).isEqualTo(3);
         assertThat(progress.step().completed()).isTrue();
     }
@@ -137,6 +159,8 @@ class SkillProgressCounterTest {
 
         assertThat(progress.promptCount()).isZero();
         assertThat(progress.step().promptCount()).isZero();
+        // Liste VIDE, cas normal : la competence n'a rien a proposer.
+        assertThat(progress.step().promptIds()).isEmpty();
         assertThat(progress.step().attemptedCount()).isZero();
         assertThat(progress.step().completed()).isFalse();
     }

@@ -11,10 +11,12 @@ import com.sejourfr.app.entity.Choice;
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.enums.AttemptStatus;
 import com.sejourfr.app.enums.AttemptType;
+import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
@@ -23,6 +25,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -125,7 +128,28 @@ public class AttemptInteractionService {
         return doSubmitAnswer(attempt, req);
     }
 
+    /**
+     * Chrono d'épreuve QCM, <b>opposable serveur</b>. {@code time_limit_seconds}
+     * n'était lu que par les fronts : rien n'empêchait de répondre après
+     * l'échéance, alors que les productions EE/EO sont protégées depuis
+     * toujours par {@code ProductionAccessService.assertWithinTimeLimit}. Même
+     * grâce que là-bas ({@value DureeEpreuve#GRACE_SOUMISSION_SECONDS} s), pour
+     * couvrir la latence de l'auto-soumission déclenchée à 0:00.
+     *
+     * <p>Le refus porte sur <b>une</b> réponse et ne fait pas échouer la
+     * session : les réponses déjà enregistrées restent acquises et l'épreuve se
+     * clôture proprement à la lecture suivante ({@link #closeIfExpired}).
+     */
+    private void assertWithinTimeLimit(Attempt attempt) {
+        if (AttemptChrono.horsDelai(attempt, Instant.now())) {
+            throw new BusinessException(
+                    "Le temps de cette épreuve est écoulé — cette réponse n'est plus "
+                            + "enregistrée. Vos réponses précédentes sont conservées.");
+        }
+    }
+
     private AnswerResultResponse doSubmitAnswer(Attempt attempt, SubmitAnswerRequest req) {
+        assertWithinTimeLimit(attempt);
         AttemptQuestion aq = attemptQuestionManager.findById(req.attemptQuestionId())
                 .orElseThrow(() -> new EntityNotFoundException("Question introuvable dans la session"));
 
@@ -188,6 +212,63 @@ public class AttemptInteractionService {
         return doFinish(attempt);
     }
 
+    // ------------------------------------------------------------------------
+    // Clôture automatique à échéance (paresseuse, à la lecture)
+    // ------------------------------------------------------------------------
+
+    /**
+     * Clôture la session si son délai est écoulé, avec ce qui a été enregistré.
+     * <b>Paresseux, à la lecture</b> — aucun job planifié, même philosophie que
+     * l'expiration d'abonnement de {@code SubscriptionService.isCovering} :
+     * l'état se dérive du temps, on ne le pousse pas.
+     *
+     * <p>Quitter ne suspend rien. Le candidat qui revient <b>avant</b>
+     * l'échéance reprend avec le temps réellement restant ; celui qui revient
+     * <b>après</b> retrouve son épreuve close, notée sur les réponses
+     * existantes. Il n'y a volontairement aucun flux « recommencer une épreuve
+     * interrompue ».
+     *
+     * <p>Transaction <b>propre</b> ({@link Propagation#REQUIRES_NEW}) : les
+     * appelants lisent en {@code readOnly}, et une écriture doit pouvoir s'y
+     * glisser sans les rendre écrivables. Idempotent (une session déjà
+     * terminée est ignorée) et sans effet quand l'épreuve n'a pas de chrono
+     * (entraînement libre, expression orale, épreuve d'examen complet pas
+     * encore lancée).
+     *
+     * @return true si la session vient d'être close par cet appel.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean closeIfExpired(UUID attemptId) {
+        if (attemptId == null) return false;
+        return attemptManager.findById(attemptId)
+                .map(this::closeExpired)
+                .orElse(false);
+    }
+
+    /**
+     * Même clôture, appliquée aux sous-épreuves d'un examen blanc TCF complet.
+     * Chacune porte son propre chrono, ancré sur son lancement réel : la CO
+     * peut expirer pendant que la CE n'a même pas commencé.
+     *
+     * @return nombre de sous-épreuves closes par cet appel.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public int closeExpiredSubAttempts(UUID parentAttemptId) {
+        if (parentAttemptId == null) return 0;
+        int closed = 0;
+        for (Attempt sub : attemptManager.findSubAttempts(parentAttemptId)) {
+            if (closeExpired(sub)) closed++;
+        }
+        return closed;
+    }
+
+    private boolean closeExpired(Attempt attempt) {
+        if (attempt.getFinishedAt() != null) return false;
+        if (!AttemptChrono.horsDelai(attempt, Instant.now())) return false;
+        doFinish(attempt);
+        return true;
+    }
+
     private AttemptResponse doFinish(Attempt attempt) {
         UUID attemptId = attempt.getId();
 
@@ -216,6 +297,11 @@ public class AttemptInteractionService {
                 .count();
 
         attempt.setFinishedAt(Instant.now());
+        // Le statut restait EN_COURS sur une session QCM pourtant terminée
+        // (seule la branche production le posait). C'est lui qui distingue une
+        // épreuve en cours d'une épreuve close, y compris pour la clôture
+        // automatique à échéance.
+        attempt.setStatus(AttemptStatus.TERMINE);
         attempt.setScore(score);
 
         if (attempt.getModule() == Module.TCF) {

@@ -90,11 +90,15 @@ export default function CiviqueThemeExamsPage() {
   const { bySlot, latest, doneCount } = useMemo(() => examSlotGrid(exams, SLOTS), [exams]);
 
   function requestStart(slot: number) {
-    if (starting || !theme) return;
+    if (starting) return;
+    // La porte visiteur passe avant le thème : elle n'a besoin d'aucune donnée
+    // chargée, et un thème resté null (serveur muet) ne doit pas transformer un
+    // slot verrouillé en bouton mort.
     if (isGuest) {
       setGuestGateOpen(true);
       return;
     }
+    if (!theme) return;
     setError(null);
     setPendingSlot(slot);
     setIntroOpen(true);

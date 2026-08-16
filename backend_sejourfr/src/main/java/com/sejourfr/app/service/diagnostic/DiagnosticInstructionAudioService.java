@@ -11,6 +11,7 @@ import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
  * automatiquement une autre clé et une relance ne crée jamais de copie.
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class DiagnosticInstructionAudioService {
 
@@ -37,19 +39,31 @@ public class DiagnosticInstructionAudioService {
         return toDto(task, present, false);
     }
 
+    /** Comportement par défaut : idempotent, aucune synthèse si l'objet existe déjà. */
+    public DiagnosticInstructionAudioDto generate(String code, int version) {
+        return generate(code, version, false);
+    }
+
     /**
      * Génère au plus un objet par sujet/version. Si un upload existe après une
      * interruption avant l'écriture DB, l'URL est simplement réparée sans TTS.
+     *
+     * <p>{@code force} est le seul moyen de refaire la synthèse quand l'objet
+     * existe déjà : une consigne corrigée (cf. V756) rend l'audio faux, et la
+     * relance idempotente ne savait alors que réparer l'URL. Opt-in strict — un
+     * client qui rejoue la route sans le paramètre ne paie jamais Azure. La clé
+     * R2 reste l'UUID du sujet, donc l'écrasement se fait sous la même clé et
+     * l'URL en base ne bouge pas (le front garde son lien).</p>
      */
-    public DiagnosticInstructionAudioDto generate(String code, int version) {
+    public DiagnosticInstructionAudioDto generate(String code, int version, boolean force) {
         ProductionTask task = loadOralTask(code, version);
         if (!r2Properties.isConfigured()) {
             throw new BusinessException("Cloudflare R2 n'est pas configuré pour stocker l'audio diagnostic.");
         }
 
         boolean present = r2Client.audioExists(task.getId());
-        String canonicalUrl = r2Client.audioPublicUrl(task.getId());
-        if (present) {
+        if (present && !force) {
+            String canonicalUrl = r2Client.audioPublicUrl(task.getId());
             if (!canonicalUrl.equals(task.getInstructionAudioUrl())) {
                 task.setInstructionAudioUrl(canonicalUrl);
                 task = taskManager.save(task);
@@ -61,7 +75,15 @@ public class DiagnosticInstructionAudioService {
             throw new BusinessException("Azure Speech n'est pas configuré pour générer l'audio diagnostic.");
         }
 
+        if (present) {
+            log.warn("Régénération forcée de l'audio diagnostic {} v{} : écrasement de {}",
+                    code, version, r2Client.audioObjectKey(task.getId()));
+        }
+
+        // La synthèse part toujours du texte courant en base, jamais d'une copie.
         byte[] mp3 = azureSpeechClient.synthesize(buildSsml(task.getConsigne()));
+        // putObject sur la même clé = remplacement atomique last-write-wins ; un
+        // delete préalable ouvrirait une fenêtre où l'URL servie renvoie 404.
         CloudflareR2Client.R2UploadResult upload = r2Client.uploadAudio(task.getId(), mp3);
         task.setInstructionAudioUrl(upload.publicUrl());
         task = taskManager.save(task);

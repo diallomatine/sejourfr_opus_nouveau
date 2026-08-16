@@ -141,6 +141,23 @@ public final class EvaluationMarqueursA2 {
         return MARQUEUR_DESIGNE.matcher(EvaluationTexte.normaliserPourMarqueur(recommande)).find();
     }
 
+    /**
+     * Vrai quand le texte EST un marqueur A2, sans guillemets ni verbe de
+     * designation autour.
+     *
+     * <p>Complement de {@link #designe(String)} pour les champs qui sont
+     * eux-memes des ETIQUETTES de trois mots — l'{@code apport} d'un passage
+     * surligne. Dans une phrase, « et » est un mot de liaison ordinaire et ne
+     * prouve rien ; dans une etiquette qui dit ce qu'un passage APPORTE, « et »
+     * ou « parce que » ne peut etre qu'une chose : le moyen qu'on vend comme la
+     * marche suivante. La forme citee reste couverte par {@code designe}, qui
+     * lit les guillemets.
+     */
+    public static boolean estUnMarqueur(String etiquette) {
+        if (etiquette == null || etiquette.isBlank()) return false;
+        return MARQUEURS_A2.contains(nettoyer(etiquette));
+    }
+
     /** Tranche du texte qui precede la premiere formule de rejet, sinon tout le texte. */
     private static String avantLeRejet(String texte) {
         Matcher rejet = REJET.matcher(texte);

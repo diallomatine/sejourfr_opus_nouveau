@@ -40,6 +40,7 @@ import '../../screens/profile/mon_entrainement_screen.dart';
 import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/plan/plan_screen.dart';
+import '../../screens/plan/plan_step_labels.dart';
 import '../../screens/question_runner/runner_screen.dart';
 import '../../screens/review/review_screen.dart';
 import '../../screens/shell/main_shell.dart';
@@ -680,6 +681,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => CompetenceDetailScreen(
           module: _productionModuleFromKey(state.pathParameters['moduleKey']),
           skillId: state.pathParameters['skillId']!,
+          // Marqueur d'étape du Plan : la compétence s'affiche alors à
+          // l'échelle de l'étape (« 2/5 »). Cf. plan_step_labels.dart.
+          planStep: isPlanStepQuery(state.uri.queryParameters),
         ),
       ),
       GoRoute(
@@ -691,9 +695,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
-      // Examen blanc TCF complet (CO + CE + EE + EO en 90 min). Pushé
-      // depuis la carte sombre du hub TCF. Orchestration des 4 épreuves
-      // enchaînées à finaliser en lot dédié.
+      // Examen blanc TCF complet : CO + CE + EE + EO, **chacune avec son propre
+      // chrono** (~95 min au total, indicatif — il n'y a plus d'enveloppe
+      // globale et rien ne se reporte d'une épreuve à l'autre). Pushé depuis la
+      // carte sombre du hub TCF.
       GoRoute(
         path: AppRoutes.tcfFullExams,
         builder: (_, __) => const TcfFullExamsScreen(),

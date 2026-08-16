@@ -37,10 +37,9 @@ export function ProductionView({
         </span>
       </div>
 
-      {submission.mediaUrl && (
-        <audio className={styles.audio} controls src={submission.mediaUrl} />
-      )}
-
+      {/* Pas de lecteur : l'enregistrement d'un candidat n'est pas conservé.
+          Ce que le correcteur a lu — et donc ce qu'on annote — c'est la
+          transcription. */}
       {submission.transcription && (
         <>
           <div className={styles.sourceTag}>
@@ -79,10 +78,8 @@ export function ProductionView({
 
       {!submission.transcription && !submission.texteSoumis && (
         <p className={styles.none}>
-          Aucun texte ni transcription rattaché à cette soumission.
-          {submission.mediaUrl
-            ? " Seul l'enregistrement est disponible."
-            : " Rien à lire pour le correcteur."}
+          Aucun texte ni transcription rattaché à cette soumission. Rien à lire
+          pour le correcteur.
         </p>
       )}
     </section>

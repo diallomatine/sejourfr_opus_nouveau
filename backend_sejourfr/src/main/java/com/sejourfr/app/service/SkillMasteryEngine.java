@@ -21,7 +21,14 @@ import java.util.UUID;
 
 /**
  * <b>LE</b> moteur de maitrise : d'un historique d'observations, il tire l'etat
- * d'une competence et le signal interne « prete a etre verifiee en situation ».
+ * d'une competence, le signal interne « prete a etre verifiee en situation » et
+ * la reponse a « son transfert est-il prouve ? »
+ * ({@link SkillMastery#transferProven()}, lue par
+ * {@link LearningPlanPriorityResolver} pour sortir une competence des priorites).
+ * <b>Ces trois conclusions viennent du meme calcul</b> : c'est ce qui empeche le
+ * Plan de dire « encore une etape a faire » pendant que le moteur dit « c'est
+ * acquis » — le defaut corrige le 2026-08-15, ou les deux lectures se
+ * contredisaient et bloquaient un candidat definitivement.
  *
  * <p><b>Fonction pure, aucun acces base.</b> Le chargement en lot vit dans
  * {@link SkillMasteryResolver} ; ici il n'y a que du calcul, testable sans mock
@@ -130,7 +137,51 @@ public class SkillMasteryEngine {
                 full.distinctSubjects.size(),
                 readyForReassessment(state, full, config),
                 vigilance,
+                transferProven(state, full, revocatrices, config),
                 retained.getFirst().getObservedAt());
+    }
+
+    /**
+     * <b>LA</b> definition de « le transfert de cette competence est prouve », et
+     * la seule : c'est elle que {@link LearningPlanPriorityResolver} lit pour
+     * sortir une competence des priorites du Plan — « une fois reussi, on passe a
+     * la competence suivante ».
+     *
+     * <p>Deux voies, jamais recalculees ailleurs :
+     * <ul>
+     *   <li>l'etat agrege vaut {@code SOLID} — la maitrise est installee, il n'y
+     *       a plus rien a demander ;</li>
+     *   <li>ou une <b>reussite en situation</b> ({@code SOLID} issu d'une
+     *       production complete ou d'un examen blanc, jamais d'un
+     *       micro-entrainement ni du diagnostic qui est la baseline) est encore
+     *       dans la fenetre {@code transfer-proof-days}, et les fragilites
+     *       contextualisees recentes restent <b>sous la meme tolerance</b> que
+     *       celle qui protege {@code SOLID}.</li>
+     * </ul>
+     *
+     * <p><b>Pourquoi la seconde voie existe</b> : {@code SOLID} exige un score
+     * pondere superieur a {@code solid-score}, or cinq micro-entrainements
+     * reussis valent {@code 0.5} chacun et diluent mecaniquement la moyenne — le
+     * parcours normal (5 micro-sujets valides puis <b>une</b> verification
+     * reussie) plafonne autour de {@code 0.68} et n'atteint donc pas
+     * {@code SOLID}. S'en tenir a l'etat agrege aurait redemande une seconde
+     * preuve en situation, c'est-a-dire exactement ce que le proprietaire a
+     * tranche de ne pas faire.
+     *
+     * <p><b>Et pourquoi la tolerance est celle du moteur</b> : la regle
+     * precedente ne regardait que la <b>derniere</b> observation contextualisee,
+     * donc une seule production moins bonne revoquait trois {@code SOLID}
+     * anterieurs — tolerance nulle, alors que le filet de stabilite en accorde
+     * {@code fragility-tolerance}. Pire, elle comptait comme revocatrice une
+     * observation {@code TO_REINFORCE}, que le moteur ne tient meme pas pour une
+     * fragilite. Un candidat pouvait s'y retrouver bloque <b>definitivement</b> :
+     * ni sortie de priorite, ni signal de verification.
+     */
+    private static boolean transferProven(
+            SkillMasteryState state, Tally tally, long revocatrices,
+            LearningPlanProperties.Mastery config) {
+        if (state == SkillMasteryState.SOLID) return true;
+        return tally.recentContextualProof && revocatrices < config.getFragilityTolerance();
     }
 
     // ------------------------------------------------------------------------
@@ -142,10 +193,11 @@ public class SkillMasteryEngine {
      *
      * <p>Signal <b>interne</b>, jamais un etat affiche : il dit au Plan de
      * cesser d'empiler les micro-exercices et de proposer une production. Quatre
-     * conditions — assez de reussites ciblees, sur des <b>sujets differents</b>,
-     * une performance <b>ciblee</b> suffisante, et <b>pas encore de preuve de
-     * transfert recente</b>. Une competence deja {@code SOLID} n'a plus rien a
-     * verifier.
+     * conditions — assez de <b>reussites</b> ciblees au sens de
+     * {@link #estReussiteCiblee} (un echec cible n'en est jamais une), sur des
+     * <b>sujets differents</b>, une performance <b>ciblee</b> suffisante, et
+     * <b>pas encore de preuve de transfert recente</b>. Une competence deja
+     * {@code SOLID} n'a plus rien a verifier.
      *
      * <p><b>C'est la performance CIBLEE qui compte ici, pas le score global</b>,
      * et c'est structurel : la baseline du diagnostic est justement une
@@ -153,6 +205,17 @@ public class SkillMasteryEngine {
      * Un seuil pose sur le score global serait mecaniquement hors d'atteinte
      * tant que le diagnostic reste dans la fenetre — le Plan proposerait un
      * quatrieme, puis un dixieme micro-exercice, indefiniment.
+     *
+     * <p>⚠️ <b>Ce signal ne suffit pas a basculer l'etape.</b>
+     * {@code LearningPlanService} lui ajoute une seconde condition, qu'il est le
+     * seul a pouvoir voir : l'etape doit etre <b>terminee</b>
+     * ({@code LearningPlanStep.Progress.completed()}, ses 5 sujets traites).
+     * Sans elle, un candidat validant 2 des 5 sujets de son etape se voyait
+     * proposer « verifier ma progression » avec un anneau a 2/5 — deux messages
+     * contradictoires sur la meme carte. Corollaire <b>voulu</b> : un compte
+     * gratuit, plafonne a 2 sujets, ne bascule jamais (la verification est
+     * premium) et n'atteint donc jamais {@code SOLID}, qui exige la preuve
+     * contextualisee qu'elle seule apporte.
      */
     private static boolean readyForReassessment(
             SkillMasteryState state, Tally tally, LearningPlanProperties.Mastery config) {
@@ -192,23 +255,60 @@ public class SkillMasteryEngine {
             tally.poidsTotal += poids;
             tally.valeurPonderee += valeur * poids;
             tally.distinctSubjects.add(sujet(item));
-            if (item.getSourceType() != null && item.getSourceType().isTargeted()) {
+            LearningPlanSourceType source = item.getSourceType();
+            if (source != null && source.isTargeted()) {
                 tally.targetedPoids += poids;
                 tally.targetedValeurPonderee += valeur * poids;
+                // Filtre PROPRE au signal de reevaluation, volontairement
+                // decouple du « valeur >= 0.5 » ci-dessous : les deux ensembles
+                // ne repondent pas a la meme question, et les faire dependre du
+                // meme nombre magique revenait a recalibrer l'un en touchant
+                // l'autre.
+                if (estReussiteCiblee(item.getStatus())) {
+                    tally.targetedPositiveSubjects.add(sujet(item));
+                }
             }
             if (valeur < 0.5) continue;
 
             tally.positiveCount++;
-            LearningPlanSourceType source = item.getSourceType();
             if (source == null) continue;
             if (source.isContextual()) {
                 tally.contextualPositiveCount++;
-                if (!item.getObservedAt().isBefore(transferStart)) tally.recentContextualProof = true;
-            } else if (source.isTargeted()) {
-                tally.targetedPositiveSubjects.add(sujet(item));
+                // Une PREUVE de transfert, c'est une reussite en situation, donc
+                // SOLID et rien d'autre. Une contextualisee TO_REINFORCE dit
+                // « fragile en situation » : la compter comme preuve eteignait le
+                // signal de verification au moment precis ou il devenait utile.
+                // Elle reste une observation positive (contextualPositiveCount),
+                // ce qu'elle est — les deux ensembles repondent a deux questions
+                // differentes.
+                if (item.getStatus() == LearningPlanSkillStatus.SOLID
+                        && !item.getObservedAt().isBefore(transferStart)) {
+                    tally.recentContextualProof = true;
+                }
             }
         }
         return tally;
+    }
+
+    /**
+     * Un micro-entrainement <b>reussi</b>, et rien d'autre.
+     *
+     * <p>Ce que le module Competences ecrit reellement
+     * ({@code LearningPlanObservationService.recordSkillAttempt}) : critere
+     * {@code VALIDATED} &rarr; {@code TO_REINFORCE}, critere partiel ou non
+     * atteint &rarr; {@code PRIORITY}. <b>Sur une observation CIBLEE,
+     * {@code TO_REINFORCE} est donc un succes</b>, malgre son libelle « A
+     * renforcer » — il dit « critere valide, mais une fois seulement, et en
+     * situation guidee », pas « rate ». {@code SOLID} est accepte par
+     * completude : cette voie ne l'ecrit jamais, et exiger {@code SOLID} ici
+     * rendrait la verification en situation <b>structurellement inatteignable</b>
+     * — donc {@code SOLID} lui-meme, qui reclame une preuve contextualisee que
+     * seule cette verification apporte a un candidat qui ne fait que des
+     * micro-exercices. Ne pas « corriger » cette methode a {@code SOLID} seul.
+     */
+    private static boolean estReussiteCiblee(LearningPlanSkillStatus status) {
+        return status == LearningPlanSkillStatus.SOLID
+                || status == LearningPlanSkillStatus.TO_REINFORCE;
     }
 
     /**
@@ -303,10 +403,17 @@ public class SkillMasteryEngine {
             boolean readyForReassessment,
             /** {@code SOLID} conserve malgre une fragilite recente toleree. */
             boolean vigilance,
+            /**
+             * Le transfert de cette competence est <b>prouve</b> : elle sort des
+             * priorites du Plan et son etape est <b>franchie</b>. Signal interne,
+             * lu par {@link LearningPlanPriorityResolver} et par lui seul ; il
+             * n'est expose a aucun front, qui lisent {@code state}.
+             */
+            boolean transferProven,
             Instant lastObservedAt) {
 
         /** Aucune observation exploitable : le moteur ne conclut rien. */
         public static final SkillMastery NONE =
-                new SkillMastery(null, 0, 0, 0, 0, 0, false, false, null);
+                new SkillMastery(null, 0, 0, 0, 0, 0, false, false, false, null);
     }
 }

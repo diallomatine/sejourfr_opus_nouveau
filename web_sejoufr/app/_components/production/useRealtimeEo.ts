@@ -11,6 +11,18 @@ export type RealtimeStart =
   | {kind: "paywall"}
   | {kind: "error"; message: string};
 
+/**
+ * Le candidat a demandé l'examinateur et on n'a pas pu le lui donner : on
+ * bascule sur l'enregistrement seul (il n'est JAMAIS bloqué), mais on le DIT.
+ * Le silence a caché quatre jours de temps réel mort — une valeur de VAD
+ * inexistante faisait refuser chaque token par le fournisseur, et les deux
+ * fronts déposaient le candidat sur l'enregistreur solo sans un mot, comme
+ * s'il l'avait choisi. Miroir mot pour mot de `kRealtimeUnavailableMessage`
+ * (mobile, `realtime_launch.dart`).
+ */
+export const REALTIME_UNAVAILABLE_MESSAGE =
+  "L'examinateur n'est pas disponible pour l'instant. Vous allez vous enregistrer seul(e) — votre réponse sera évaluée normalement.";
+
 /** Une tâche EO est éligible au temps réel : audio + Tâche 1 ou 2 (T3 = async). */
 export function isRealtimeEligible(mode: "text" | "audio", tacheNumero: number): boolean {
   return mode === "audio" && (tacheNumero === 1 || tacheNumero === 2);

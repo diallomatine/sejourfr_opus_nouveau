@@ -1,3 +1,4 @@
+import 'action_plan.dart';
 import 'enums.dart';
 import 'skill_models.dart';
 
@@ -117,16 +118,34 @@ enum LearningPlanSourceType {
       );
 }
 
-/// Nature de l'action proposée par une étape du Plan — **même carte, même
-/// emplacement, action différente**. Les deux ne mènent pas au même écran : on
-/// lit [PlanRecommendedExercise.kind], on ne le devine jamais d'un `null`.
+/// Nature de l'action proposée par le Plan — **même carte, même emplacement,
+/// action différente**. Les quatre ne mènent pas au même écran : on lit `kind`,
+/// on ne le devine jamais d'un `null`.
+///
+/// Une échelle à trois barreaux, du plus assisté au moins assisté :
+/// [microTraining] → [reassessment] (ce qui fait passer une compétence à
+/// « solide »), puis [epreuveMockExam] (une épreuve entière en conditions
+/// d'examen), puis [fullTcfMockExam] (les deux tenues ensemble).
+///
+/// ⚠️ Les **deux derniers rangs sont des jalons** : ils ne pointent aucun
+/// contenu nouveau, ils désignent une session d'examen blanc **déjà existante**
+/// par son épreuve et son slot de grille — et ils ne voyagent jamais sur un
+/// [PlanRecommendedExercise], qui reste réservé aux étapes. Un jalon est un
+/// [PlanMilestone].
 enum PlanExerciseKind {
   /// Un petit sujet du module Compétences (`skillPromptId`).
   microTraining('MICRO_TRAINING'),
 
   /// Une vraie tâche TCF à produire (`productionTaskId`), pour vérifier que le
   /// moyen travaillé en ciblé se retrouve **en situation**.
-  reassessment('REASSESSMENT');
+  reassessment('REASSESSMENT'),
+
+  /// Jalon : un examen blanc d'**épreuve** — 3 tâches d'expression écrite ou
+  /// orale d'affilée (`epreuve` + `slotNumber`).
+  epreuveMockExam('EPREUVE_MOCK_EXAM'),
+
+  /// Jalon final : l'examen blanc **TCF complet**, les 4 épreuves enchaînées.
+  fullTcfMockExam('FULL_TCF_MOCK_EXAM');
 
   const PlanExerciseKind(this.wire);
 
@@ -139,6 +158,10 @@ enum PlanExerciseKind {
         (kind) => kind.wire == value,
         orElse: () => PlanExerciseKind.microTraining,
       );
+
+  bool get isMilestone =>
+      this == PlanExerciseKind.epreuveMockExam ||
+      this == PlanExerciseKind.fullTcfMockExam;
 }
 
 enum ObservationConfidence {
@@ -415,13 +438,18 @@ class DiagnosticProductionResult {
       );
 }
 
-/// L'exercice réellement disponible que le Plan recommande.
+/// L'exercice d'une **étape** du Plan.
 ///
 /// **Deux natures, un seul champ** ([kind]) : un micro-exercice du module
 /// Compétences, ou une **vérification en situation** sur une vraie tâche TCF.
 /// D'où deux identifiants mutuellement exclusifs — [skillPromptId] pour
 /// [PlanExerciseKind.microTraining], [productionTaskId] + [tacheNumero] pour
 /// [PlanExerciseKind.reassessment].
+///
+/// ⚠️ **Un jalon n'est jamais un [PlanRecommendedExercise]** : il n'a ni titre,
+/// ni compétence, ni section, et le serveur ne le sert que sur
+/// `LearningPlanDto.milestone`. C'est [PlanMilestone], une classe à part, pour
+/// qu'aucun écran ne puisse lire ici un titre qui n'existerait pas.
 class PlanRecommendedExercise {
   const PlanRecommendedExercise({
     required this.kind,
@@ -474,6 +502,125 @@ class PlanRecommendedExercise {
       );
 }
 
+/// Le **jalon** du Plan : un examen blanc que le serveur juge mérité, un cran
+/// au-dessus des étapes.
+///
+/// Il ne désigne **aucun contenu nouveau** — juste une session d'examen blanc
+/// déjà existante, par son [epreuve] et son [slotNumber]. D'où l'absence
+/// assumée de titre, de compétence et de section : le serveur expose des faits,
+/// la phrase appartient aux fronts (`plan_milestone_labels.dart`), exactement
+/// comme pour `PlanChange`.
+///
+/// Deux natures : un examen blanc d'épreuve ([PlanExerciseKind.epreuveMockExam],
+/// `TCF_EE` ou `TCF_EO`) ou l'examen blanc TCF complet
+/// ([PlanExerciseKind.fullTcfMockExam], `TCF_COMPLET`).
+class PlanMilestone {
+  const PlanMilestone({
+    required this.kind,
+    required this.epreuve,
+    required this.slotNumber,
+    required this.estimatedMinutes,
+    this.locked = false,
+  });
+
+  final PlanExerciseKind kind;
+
+  /// `TCF_EE` / `TCF_EO` / `TCF_COMPLET` — c'est **ce champ** qui dit vers quel
+  /// examen envoyer, jamais une section de compétence.
+  final EpreuveType epreuve;
+
+  /// Slot de la grille d'examens blancs à démarrer. Le serveur désigne le
+  /// premier slot non joué : on le repasse tel quel, on ne le choisit pas.
+  final int slotNumber;
+
+  final int estimatedMinutes;
+
+  /// Verrou freemium **calculé par le serveur**. Le jalon reste **désigné et
+  /// affiché en entier** : seul le bouton devient une invitation à s'abonner.
+  final bool locked;
+
+  bool get isFullExam => kind == PlanExerciseKind.fullTcfMockExam;
+
+  static PlanMilestone? fromJsonOrNull(Object? value) {
+    if (value is! Map<String, dynamic>) return null;
+    final kind = PlanExerciseKind.fromWire(value['kind'] as String?);
+    // Un rang non-jalon ici n'existe pas côté serveur ; s'il arrivait, mieux
+    // vaut ne rien afficher que d'ouvrir un examen qu'on aurait deviné.
+    if (!kind.isMilestone) return null;
+    final epreuve = value['epreuve'] as String?;
+    if (epreuve == null) return null;
+    return PlanMilestone(
+      kind: kind,
+      epreuve: EpreuveType.fromWire(epreuve),
+      slotNumber: (value['slotNumber'] as num? ?? 1).toInt(),
+      estimatedMinutes: (value['estimatedMinutes'] as num? ?? 0).toInt(),
+      locked: value['locked'] as bool? ?? false,
+    );
+  }
+}
+
+/// L'**avant/après** du diagnostic : la phrase que le candidat a réellement
+/// écrite, sa réécriture au niveau visé, et les endroits où se joue la
+/// différence.
+///
+/// **Production ÉCRITE seulement** — une production orale n'est jamais
+/// réécrite (ce que lit le correcteur est une transcription automatique). Le
+/// bloc vient d'un **second appel LLM best-effort** : `null` est un cas
+/// **NORMAL**, jamais une erreur ni une attente à annoncer.
+///
+/// Les clés intérieures sont celles de `version_ciblee` / `exempleCible` du
+/// module Compétences, donc [ActionPlanSegment] et le surlignage de
+/// `screens/tcf_production/widgets/action_plan.dart` s'appliquent tels quels —
+/// on ne réécrit pas une seconde mécanique de mise en évidence.
+class DiagnosticExempleCible {
+  const DiagnosticExempleCible({
+    required this.original,
+    required this.texte,
+    required this.segments,
+    this.niveauVise,
+  });
+
+  /// La phrase du candidat, **sous-chaîne exacte** de sa production écrite.
+  final String original;
+
+  /// La même chose, réécrite au niveau visé.
+  final String texte;
+
+  /// Passages de [texte] à mettre en évidence. Chaque `extrait` est une
+  /// sous-chaîne exacte de [texte] ; introuvable ⇒ le texte reste brut.
+  final List<ActionPlanSegment> segments;
+
+  /// Palier visé par la réécriture. **Donnée de logique, pas une étiquette à
+  /// coller sur le texte modèle** : la longueur imposée à cette réécriture ne
+  /// laisse pas la place de démontrer honnêtement un palier annoncé (mesuré
+  /// côté productions — cf. `kActionPlanExempleTitle`).
+  final NiveauCecrl? niveauVise;
+
+  /// La partie déjà rendue par `ActionPlanExempleCard` — même contrat
+  /// intérieur, même surlignage.
+  ActionPlanExempleCible get asActionPlanExemple =>
+      ActionPlanExempleCible(texte: texte, segments: segments);
+
+  static DiagnosticExempleCible? fromJsonNullable(Object? json) {
+    if (json is! Map) return null;
+    final original = _trimmedOrNull(json['original']);
+    final texte = _trimmedOrNull(json['texte']);
+    if (original == null || texte == null) return null;
+    final raw = json['segments'];
+    return DiagnosticExempleCible(
+      original: original,
+      texte: texte,
+      segments: raw is! List
+          ? const <ActionPlanSegment>[]
+          : raw
+              .map(ActionPlanSegment.fromJsonNullable)
+              .whereType<ActionPlanSegment>()
+              .toList(growable: false),
+      niveauVise: _niveau(json['niveauVise']),
+    );
+  }
+}
+
 class DiagnosticResult {
   const DiagnosticResult({
     required this.strengths,
@@ -482,6 +629,7 @@ class DiagnosticResult {
     this.oral,
     this.mainPriorityExplanation,
     this.nextAction,
+    this.exempleCible,
   });
 
   final DiagnosticProductionResult? written;
@@ -490,6 +638,10 @@ class DiagnosticResult {
   final List<DiagnosticSkillObservation> priorities;
   final String? mainPriorityExplanation;
   final PlanRecommendedExercise? nextAction;
+
+  /// Écrit seulement, best-effort : `null` est un cas normal, le bloc
+  /// avant/après n'est simplement pas rendu.
+  final DiagnosticExempleCible? exempleCible;
 
   factory DiagnosticResult.fromJson(Map<String, dynamic> json) =>
       DiagnosticResult(
@@ -515,6 +667,8 @@ class DiagnosticResult {
             : PlanRecommendedExercise.fromJson(
                 json['nextAction'] as Map<String, dynamic>,
               ),
+        exempleCible:
+            DiagnosticExempleCible.fromJsonNullable(json['exempleCible']),
       );
 }
 
@@ -603,6 +757,7 @@ class LearningPlanPriority {
     this.stepAttemptedCount = 0,
     this.stepValidatedCount = 0,
     this.stepCompleted = false,
+    this.stepPromptIds = const <String>[],
     this.masteryState,
     this.readyForReassessment = false,
     this.locked = false,
@@ -638,6 +793,19 @@ class LearningPlanPriority {
   /// tout validé, d'où [stepValidatedCount] à côté. Une étape terminée **reste
   /// affichée** : les priorités ne changent qu'à la prochaine production.
   final bool stepCompleted;
+
+  /// **Le périmètre de l'étape** : les identifiants de ses sujets, dans l'ordre
+  /// de l'étape (rang d'affichage croissant). **Jamais `null`**, et
+  /// `stepPromptIds.length == stepPromptCount` par construction — on ne
+  /// recompte rien à partir de là.
+  ///
+  /// Il permet à l'écran d'une compétence ouverte **depuis le Plan** de rester
+  /// dans l'étape (les mêmes 5 sujets, « 2/5 ») au lieu de retomber sur la
+  /// fiche complète et son « 1/15 ». La règle « les 5 premiers sujets actifs »
+  /// vit côté serveur : elle ne se réimplémente nulle part.
+  ///
+  /// Liste **vide** quand la compétence n'a aucun sujet actif — cas normal.
+  final List<String> stepPromptIds;
 
   /// État de maîtrise agrégé de la compétence, identique à
   /// `SkillDto.masteryState` et issu du même moteur. À ne pas confondre avec
@@ -682,10 +850,83 @@ class LearningPlanPriority {
         stepAttemptedCount: (json['stepAttemptedCount'] as num? ?? 0).toInt(),
         stepValidatedCount: (json['stepValidatedCount'] as num? ?? 0).toInt(),
         stepCompleted: json['stepCompleted'] as bool? ?? false,
+        stepPromptIds: (json['stepPromptIds'] as List<dynamic>? ?? const [])
+            .map((id) => id.toString())
+            .toList(growable: false),
         masteryState:
             SkillMasteryState.fromWireNullable(json['masteryState'] as String?),
         readyForReassessment: json['readyForReassessment'] as bool? ?? false,
         locked: json['locked'] as bool? ?? false,
+      );
+}
+
+/// Une **étape franchie** du parcours : une compétence dont le transfert est
+/// prouvé, donc qui n'est plus une priorité.
+///
+/// Jusqu'ici une compétence réussie sortait simplement des priorités et son
+/// étape **disparaissait** du Plan — le candidat perdait la trace de ce qu'il
+/// avait passé. Elles sont désormais servies pour être affichées **avant**
+/// l'étape courante et les suivantes, dans le même parcours numéroté, et
+/// **cochées**.
+///
+/// ⚠️ **Ni exercice recommandé, ni `locked`** : il n'y a plus rien à y faire, et
+/// une étape franchie n'est pas une porte commerciale. Ne pas en inventer.
+///
+/// ⚠️ **[masteryState] n'est PAS toujours `solid`** : une preuve de transfert
+/// récente suffit à franchir l'étape. **L'appartenance à cette liste EST la
+/// coche** — ne jamais conditionner l'affichage à un état de maîtrise.
+class LearningPlanCompletedStep {
+  const LearningPlanCompletedStep({
+    required this.skillId,
+    required this.skillCode,
+    required this.title,
+    required this.section,
+    required this.observedAt,
+    this.stepPromptCount = 0,
+    this.stepAttemptedCount = 0,
+    this.stepValidatedCount = 0,
+    this.stepPromptIds = const <String>[],
+    this.masteryState,
+  });
+
+  final String skillId;
+  final String skillCode;
+  final String title;
+  final SkillSection section;
+
+  /// Dernière observation probante : c'est elle qui ordonne les étapes
+  /// franchies entre elles (ordre déjà appliqué par le serveur).
+  final DateTime observedAt;
+
+  /// Compteurs de l'**étape** — les 5 premiers sujets actifs de la compétence.
+  /// Une étape franchie n'est pas forcément à 5/5.
+  final int stepPromptCount;
+  final int stepAttemptedCount;
+  final int stepValidatedCount;
+
+  /// Périmètre de l'étape, dans l'ordre. **Jamais `null`**, éventuellement vide.
+  /// Même sémantique que [LearningPlanPriority.stepPromptIds] : rouvrir une
+  /// étape franchie doit mener aux mêmes sujets.
+  final List<String> stepPromptIds;
+
+  final SkillMasteryState? masteryState;
+
+  factory LearningPlanCompletedStep.fromJson(Map<String, dynamic> json) =>
+      LearningPlanCompletedStep(
+        skillId: json['skillId'] as String,
+        skillCode: json['skillCode'] as String? ?? '',
+        title: json['title'] as String? ?? '',
+        section: SkillSection.fromWire(json['section'] as String),
+        observedAt: _date(json['observedAt']) ??
+            DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        stepPromptCount: (json['stepPromptCount'] as num? ?? 0).toInt(),
+        stepAttemptedCount: (json['stepAttemptedCount'] as num? ?? 0).toInt(),
+        stepValidatedCount: (json['stepValidatedCount'] as num? ?? 0).toInt(),
+        stepPromptIds: (json['stepPromptIds'] as List<dynamic>? ?? const [])
+            .map((id) => id.toString())
+            .toList(growable: false),
+        masteryState:
+            SkillMasteryState.fromWireNullable(json['masteryState'] as String?),
       );
 }
 
@@ -753,14 +994,26 @@ class LearningPlan {
     required this.observedSkillCount,
     required this.activitiesThisWeek,
     required this.progressionAvailable,
+    this.completedSteps = const <LearningPlanCompletedStep>[],
     this.diagnosticSessionId,
     this.diagnosticCompletedAt,
     this.currentPriority,
+    this.milestone,
   });
 
   final LearningPlanState state;
   final String? diagnosticSessionId;
   final DateTime? diagnosticCompletedAt;
+
+  /// Les étapes **déjà franchies**, de la plus ancienne à la plus récente :
+  /// elles se lisent **avant** [currentPriority] et [nextPriorities], dans le
+  /// même parcours numéroté.
+  ///
+  /// **Jamais `null`** ; **vide** tant qu'aucune compétence n'a prouvé son
+  /// transfert — cas normal, y compris avant le diagnostic. Déjà **bornée par
+  /// le serveur** aux plus récentes : ne rien reborner ici.
+  final List<LearningPlanCompletedStep> completedSteps;
+
   final LearningPlanPriority? currentPriority;
   final List<LearningPlanPriority> nextPriorities;
   final List<LearningPlanSkill> observedSkills;
@@ -768,12 +1021,25 @@ class LearningPlan {
   final int activitiesThisWeek;
   final bool progressionAvailable;
 
+  /// Le **jalon** du parcours, un cran au-dessus des étapes : un examen blanc
+  /// d'épreuve puis l'examen blanc TCF complet. Il vit **à côté** des priorités,
+  /// il ne les remplace pas — chaque étape garde son `recommendedExercise`.
+  ///
+  /// **`null` est le cas NORMAL** (comme `PlanChange`) : tant qu'une épreuve n'a
+  /// pas majoritairement transféré il n'y a rien à mesurer, et juste après un
+  /// examen blanc il n'y a rien à re-mesurer. Rien ne s'affiche alors, ni
+  /// indicateur, ni message d'erreur.
+  final PlanMilestone? milestone;
+
   factory LearningPlan.fromJson(Map<String, dynamic> json) => LearningPlan(
         state: LearningPlanState.fromWire(
           json['state'] as String? ?? 'NEEDS_DIAGNOSTIC',
         ),
         diagnosticSessionId: json['diagnosticSessionId'] as String?,
         diagnosticCompletedAt: _date(json['diagnosticCompletedAt']),
+        completedSteps: _objectList(json['completedSteps'])
+            .map(LearningPlanCompletedStep.fromJson)
+            .toList(growable: false),
         currentPriority: json['currentPriority'] == null
             ? null
             : LearningPlanPriority.fromJson(
@@ -788,6 +1054,7 @@ class LearningPlan {
         observedSkillCount: (json['observedSkillCount'] as num? ?? 0).toInt(),
         activitiesThisWeek: (json['activitiesThisWeek'] as num? ?? 0).toInt(),
         progressionAvailable: json['progressionAvailable'] as bool? ?? false,
+        milestone: PlanMilestone.fromJsonOrNull(json['milestone']),
       );
 }
 
@@ -798,6 +1065,17 @@ String? _trimmedOrNull(Object? raw) {
 }
 
 DateTime? _date(Object? raw) => raw is String ? DateTime.tryParse(raw) : null;
+
+/// Palier CECRL tolérant : une valeur inconnue vaut `null`, jamais une
+/// exception — un champ d'affichage ne doit pas faire échouer la lecture d'un
+/// résultat entier.
+NiveauCecrl? _niveau(Object? raw) {
+  if (raw is! String) return null;
+  for (final niveau in NiveauCecrl.values) {
+    if (niveau.wire == raw) return niveau;
+  }
+  return null;
+}
 
 List<String> _stringList(Object? raw) {
   if (raw is! List) return const [];

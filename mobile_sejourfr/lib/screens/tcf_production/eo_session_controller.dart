@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/attempts_repository.dart';
 import '../../core/api/production_repository.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/attempt_models.dart';
@@ -31,8 +32,9 @@ class EoSessionState {
   final List<ProductionTaskDto> tasks;
   final Map<int, ProductionSubmissionDto> submissions;
 
-  /// True pour une session d'examen blanc (3 tâches enchaînées, décompte par
-  /// tâche, soumission immédiate au stop). False pour l'entraînement libre.
+  /// True pour une session d'examen blanc (3 tâches enchaînées, **décompte par
+  /// tâche déclenché au « Je suis prêt »**, soumission immédiate au stop).
+  /// False pour l'entraînement libre.
   final bool isExam;
 
   /// Slot d'examen blanc module (1-10) — null en full exam et en single-task.
@@ -63,20 +65,24 @@ class EoSessionState {
 
 class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
   EoSessionNotifier(
-    this._repo, {
+    this._repo,
+    this._attempts, {
     void Function()? onPlanChanged,
   })  : _onPlanChanged = onPlanChanged ?? _noop,
         super(const AsyncData(EoSessionState.empty()));
 
   final ProductionRepository _repo;
+  final AttemptsRepository _attempts;
   final void Function() _onPlanChanged;
 
   /// (Re)demarre une **session d'examen blanc module EO** sur le slot donné :
   /// crée un attempt d'examen (`exam:true, slotNumber:N`) puis charge les 3
-  /// tâches déterministes du slot. L'`AttemptResponse` porte `timeLimitSeconds`
-  /// (900 s pour l'EO, 1800 pour l'EE) : le briefing en fait un chrono global
-  /// qui court à travers les 3 tâches, en plus du décompte par tâche basé sur
-  /// `dureeMaxSec`.
+  /// tâches déterministes du slot.
+  ///
+  /// ⚠️ **L'épreuve orale n'a pas de chrono d'épreuve** — `timeLimitSeconds` est
+  /// désormais `null` (il valait 900 s). Le temps se compte **par tâche** et ne
+  /// démarre qu'au moment où le candidat lance la tâche (« Je suis prêt ») ; la
+  /// borne est `ProductionTaskDto.dureeMaxSec` (180 / 210 / 210 s).
   Future<void> startExam({required int slotNumber}) async {
     final current = state.value;
     if (current != null &&
@@ -144,14 +150,9 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
       if (tasks.isEmpty) {
         throw StateError('Aucune tâche EO pour cet examen.');
       }
-      final attempt = Attempt(
-        id: subAttemptId,
-        type: AttemptType.training,
-        module: AppModule.tcf,
-        totalQuestions: 0,
-        startedAt: DateTime.now(),
-        questions: const [],
-      );
+      // Sous-attempt LU sur le serveur, jamais fabriqué : c'est lui qui porte
+      // l'état réel de l'épreuve (et son absence de chrono d'épreuve).
+      final attempt = await _attempts.getById(subAttemptId);
       return EoSessionState(
         attempt: attempt,
         tasks: tasks,
@@ -225,6 +226,7 @@ final eoSessionProvider =
     StateNotifierProvider<EoSessionNotifier, AsyncValue<EoSessionState>>(
   (ref) => EoSessionNotifier(
     ref.watch(productionRepositoryProvider),
+    ref.watch(attemptsRepositoryProvider),
     onPlanChanged: () =>
         ref.read(learningPlanRevisionProvider.notifier).state++,
   ),

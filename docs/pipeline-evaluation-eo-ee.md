@@ -113,16 +113,21 @@ Les paires antérieures restent intactes pour rollback ; on versionne, on ne ré
 
 ### Expression orale enregistrée
 
-1. L'audio est envoyé dans le stockage R2 privé.
-2. `WhisperTranscriptionService` produit une transcription littérale.
-3. La transcription suit exactement le même `AiEvaluationService` que l'EE.
+1. **L'audio n'est stocké nulle part.** Il arrive dans la requête de soumission, sert à
+   produire la transcription, et le tampon est effacé au retour (`AudioEphemere`, remise à
+   zéro dans un `finally`, y compris en cas d'échec).
+2. `WhisperTranscriptionService` produit une transcription littérale — **pendant la
+   requête**, seul moment où les octets existent. Elle est écrite avant même que la
+   soumission soit créée : transcrire puis insérer, pour qu'un échec ne laisse aucune ligne
+   ni aucun quota consommé.
+3. La transcription suit exactement le même `AiEvaluationService` que l'EE, en asynchrone.
 
 **Langue imposée.** `WhisperTranscriptionClient` envoie systématiquement
 `language` (`sejourfr.openai.whisper.language: fr`) **et** `prompt`
 (`literal-mode-prompt`, transcription verbatim). Whisper n'a donc rien à deviner.
 C'est vérifié en base : **0 transcription sur 36** issue de cette voie porte une
 écriture non latine, et `langue_detectee` vaut toujours `fr`/`french`. Le module
-« Compétences » réutilise **le même client** (`SkillTranscriptionService`) et
+« Compétences » réutilise **le même client** et
 hérite du réglage — aucune divergence possible entre les deux voies.
 
 ### Expression orale temps réel
@@ -535,8 +540,13 @@ continuer à dépasser, mais il n'est pas recevable tant qu'il n'est pas corrig�
 - `ai_evaluations` : résultat structuré, modèle, version, tokens et coût ;
 - `human_calibration_notes` : annotations humaines.
 
-Les audios utilisateur restent dans R2 privé avec URL signée. Les audios de compréhension
-orale utilisent un stockage public distinct.
+Les audios **des candidats ne sont pas stockés** : ni R2, ni base, ni disque. Ce qui reste
+d'une production orale, c'est sa ligne dans `transcriptions`. Les enregistrements déjà
+présents sur R2 avant ce changement ne sont **ni supprimés ni touchés**, et les colonnes
+`production_submissions.media_url` / `user_skill_attempts.audio_object_key` gardent leurs
+valeurs historiques (LEGACY, plus jamais écrites). Les audios de **compréhension orale** et
+les autres contenus éditoriaux (consignes, exemples) utilisent un stockage distinct et sont
+inchangés.
 
 ## Calibration opt-in
 

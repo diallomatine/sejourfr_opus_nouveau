@@ -132,9 +132,7 @@ export default function ProfilPage() {
         ? "Découverte"
         : access === "INTEGRAL"
             ? "Pass Intégral"
-            : access === "TCF"
-                ? "Pass TCF"
-                : "Pass Civique";
+            : "Pass Civique";
     const passAccent = !premium ? "neutral" : access === "INTEGRAL" ? "red" : "blue";
     const expiresAt = subscription?.expiresAt ?? user.premiumEndsAt ?? null;
     const passSub = !premium

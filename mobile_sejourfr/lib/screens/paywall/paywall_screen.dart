@@ -577,9 +577,9 @@ class _OneTimeModuleCard extends StatelessWidget {
   }
 }
 
-/// Ligne d'un pass achetable : durée (« 3 mois ») + prix store + flèche.
+/// Ligne d'un pass achetable : durée (« 2 mois ») + prix store + flèche.
 /// Pass mis en avant comme « le plus populaire » (cohérent web + mobile).
-const String _popularPassCode = 'INTEGRAL_PASS_3M';
+const String _popularPassCode = 'INTEGRAL_PASS_2M';
 
 class _PassRow extends StatelessWidget {
   const _PassRow({
@@ -669,6 +669,18 @@ class _PassRow extends StatelessWidget {
                       style:
                           AppFonts.ui(size: 15, weight: FontWeight.w700),
                     ),
+                    // Ce qui distingue vraiment deux passes Intégral, à part la
+                    // durée : le nombre de simulations orales en direct. Rien
+                    // n'est rendu sur un pass qui n'en ouvre pas (Civique).
+                    if (pass.plan.realtimeSessionsLabel != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          pass.plan.realtimeSessionsLabel!,
+                          style: AppFonts.ui(
+                              size: 11.5, color: AppColors.muted),
+                        ),
+                      ),
                   ],
                 ),
               ),

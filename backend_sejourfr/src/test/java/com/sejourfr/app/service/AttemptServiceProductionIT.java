@@ -78,17 +78,50 @@ class AttemptServiceProductionIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void startProduction_eoExamen_poseSlotEtChrono15min() {
+    void startProduction_eoExamen_poseSlotMaisAucunChronoDepreuve() {
         User user = data.user();
 
         AttemptResponse r = service.startProductionAttempt(user.getId(), req(EpreuveType.TCF_EO, null, true, 1));
 
-        // Une session d'examen EO n'avait AUCUN chrono : elle restait ouverte
-        // indéfiniment et acceptait des évaluations IA à la chaîne. 15 min =
-        // 10 min de parole (180+210+210 s) + 50 % de marge.
-        assertThat(r.timeLimitSeconds()).isEqualTo(15 * 60);
+        // L'expression orale se chronomètre PAR TÂCHE, au lancement de chaque
+        // tâche (production_tasks.duree_max_sec), jamais par un compte à rebours
+        // d'épreuve. Le seul plafond restant est le garde-fou de session
+        // (DureeEpreuve.EO_GARDE_SESSION_SECONDS), opposé par
+        // ProductionAccessService et JAMAIS persisté ni exposé : un
+        // timeLimitSeconds non nul ici referait apparaître un chrono d'examen
+        // sur les 3 fronts.
+        assertThat(r.timeLimitSeconds()).isNull();
         Attempt persisted = attemptManager.findById(r.id()).orElseThrow();
+        assertThat(persisted.getTimeLimitSeconds()).isNull();
         assertThat(persisted.getSlotNumber()).isEqualTo(1);
+    }
+
+    @Test
+    void startProduction_eeSousAttemptDexamenComplet_porteSonChrono30min() {
+        User user = data.user();
+        Attempt parent = completParent(user);
+
+        AttemptResponse r = service.startProductionAttempt(
+                user.getId(), req(EpreuveType.TCF_EE, parent.getId(), null, null));
+
+        // Une épreuve a la même durée où qu'elle soit jouée : l'EE d'un examen
+        // complet vaut 30 min comme l'EE isolée. Son décompte ne part qu'au
+        // lancement réel (timer_started_at), cf. AttemptChrono.
+        assertThat(r.timeLimitSeconds()).isEqualTo(30 * 60);
+        Attempt persisted = attemptManager.findById(r.id()).orElseThrow();
+        assertThat(persisted.getTimeLimitSeconds()).isEqualTo(30 * 60);
+        assertThat(persisted.getTimerStartedAt()).isNull();
+    }
+
+    @Test
+    void startProduction_eoSousAttemptDexamenComplet_aucunChrono() {
+        User user = data.user();
+        Attempt parent = completParent(user);
+
+        AttemptResponse r = service.startProductionAttempt(
+                user.getId(), req(EpreuveType.TCF_EO, parent.getId(), null, null));
+
+        assertThat(r.timeLimitSeconds()).isNull();
     }
 
     @Test

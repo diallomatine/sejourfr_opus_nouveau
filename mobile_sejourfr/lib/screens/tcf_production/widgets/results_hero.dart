@@ -427,56 +427,6 @@ class _PaliersBar extends StatelessWidget {
   }
 }
 
-/// Le rappel d'enjeu : un A2 qui vise la carte de séjour pluriannuelle EST au
-/// niveau demandé, et personne ne le lui disait. Filet vertical côté gauche,
-/// jamais rouge — un objectif encore devant n'est pas une faute.
-class _StakeBlock extends StatelessWidget {
-  const _StakeBlock({required this.rappel});
-
-  final DemarcheRappel rappel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
-      decoration: BoxDecoration(
-        color: AppColors.white
-            .withValues(alpha: rappel.atteint ? 0.17 : 0.12),
-        borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border(
-          left: BorderSide(
-            color: AppColors.white
-                .withValues(alpha: rappel.atteint ? 1 : 0.55),
-            width: 3,
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'VOTRE DÉMARCHE',
-            style: AppFonts.label(
-              size: 10,
-              color: AppColors.white.withValues(alpha: 0.75),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            rappel.text,
-            style: AppFonts.ui(
-              size: 13,
-              color: AppColors.white.withValues(alpha: 0.92),
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// La confiance dit ce que l'évaluation SAIT, pas ce que vaut la production.
 /// Elle n'apparaît que lorsqu'elle n'est pas haute — sinon c'est du bruit.
 class _ConfianceBlock extends StatelessWidget {

@@ -4,15 +4,23 @@ import {useEffect} from "react";
 import {FileText, RotateCcw} from "lucide-react";
 
 /**
- * Feuille « examen déjà fait » — miroir de `ExamDoneSheet` mobile. Affichée
- * quand on tape un examen terminé dans l'historique : « Voir le détail »
- * (rapport / session finie) + « Reprendre » (nouvel examen, premium-gated en
- * amont par l'appelant). Bottom sheet sur mobile, dialog centré sur desktop.
+ * Feuille « déjà fait » — miroir de `ExamDoneSheet` mobile. Affichée quand on
+ * tape quelque chose de terminé : « Voir le détail » (rapport / session finie)
+ * + « Reprendre » (nouvelle tentative, premium-gated en amont par l'appelant).
+ * Bottom sheet sur mobile, dialog centré sur desktop.
+ *
+ * Les deux libellés et la teinte du second bouton sont **facultatifs**, valeurs
+ * par défaut inchangées : c'est ce qui permet au module « Compétences » de
+ * réutiliser exactement ce geste (relire son dernier retour / refaire le sujet)
+ * au lieu d'inventer une seconde feuille pour la même intention.
  */
 export function ExamDoneSheet({
   open,
   title = "Examen blanc",
   subtitle,
+  detailLabel = "Voir le détail",
+  resumeLabel = "Reprendre",
+  resumeTone = "red",
   onViewDetail,
   onResume,
   onClose,
@@ -20,6 +28,10 @@ export function ExamDoneSheet({
   open: boolean;
   title?: string;
   subtitle?: string | null;
+  detailLabel?: string;
+  resumeLabel?: string;
+  /** `red` = geste lourd (relancer un examen) ; `blue` = simple reprise. */
+  resumeTone?: "red" | "blue";
   onViewDetail: () => void;
   onResume: () => void;
   onClose: () => void;
@@ -43,11 +55,15 @@ export function ExamDoneSheet({
         {subtitle && <p className="eds-sub">{subtitle}</p>}
         <button type="button" className="eds-btn eds-detail" onClick={onViewDetail}>
           <FileText size={18} strokeWidth={2} />
-          Voir le détail
+          {detailLabel}
         </button>
-        <button type="button" className="eds-btn eds-resume" onClick={onResume}>
+        <button
+          type="button"
+          className={`eds-btn ${resumeTone === "blue" ? "eds-resume-blue" : "eds-resume"}`}
+          onClick={onResume}
+        >
           <RotateCcw size={18} strokeWidth={2} />
-          Reprendre
+          {resumeLabel}
         </button>
 
         <style>{`
@@ -87,6 +103,7 @@ export function ExamDoneSheet({
           }
           .eds-detail { background: var(--color-blue-light); color: var(--color-blue); }
           .eds-resume { background: var(--color-red); color: #fff; }
+          .eds-resume-blue { background: var(--color-blue); color: #fff; }
           @media (min-width: 560px) {
             .eds-overlay { align-items: center; }
             .eds-sheet { border-radius: 20px; }

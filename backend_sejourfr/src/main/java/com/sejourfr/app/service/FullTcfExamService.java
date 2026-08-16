@@ -13,8 +13,8 @@ import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
-import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.service.attempt.AttemptInteractionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,9 +26,18 @@ import java.util.UUID;
 
 /**
  * Orchestration d'un examen blanc TCF complet (les 4 épreuves enchaînées :
- * CO + CE + EE + EO, 90 min total). Un appel à {@link #start} crée un parent
- * portant {@code epreuve = TCF_COMPLET} et les 4 sous-attempts qui en
- * dépendent — atomique, transactionnel.
+ * CO + CE + EE + EO). Un appel à {@link #start} crée un parent portant
+ * {@code epreuve = TCF_COMPLET} et les 4 sous-attempts qui en dépendent —
+ * atomique, transactionnel.
+ *
+ * <p><b>Il n'y a plus de chrono global.</b> Chaque épreuve porte sa propre
+ * durée ({@code DureeEpreuve}), le temps restant de l'une ne se transfère
+ * <b>jamais</b> à la suivante, et l'abandon-reprise entre deux épreuves est
+ * officiellement supporté : un compte à rebours d'ensemble y serait
+ * structurellement faux (le candidat qui reprend le lendemain trouverait
+ * l'examen expiré). Le parent ne porte donc plus de
+ * {@code time_limit_seconds} ; {@code timer_started_at} y reste, mais comme
+ * <b>trace du début réel</b> de l'examen, plus comme ancre d'un décompte.
  *
  * <p>Le niveau CECRL final est le plancher des sous-épreuves <b>réellement
  * passées</b> (règle officielle TCF IRN) : une épreuve verrouillée par le
@@ -39,7 +48,8 @@ import java.util.UUID;
  * <p>Les sous-attempts vivent indépendamment :
  * <ul>
  *   <li>CO / CE : 25 QCM A2/B1/B2 progressifs, score pondéré X/50.
- *       Composition + chrono via {@link AttemptService#startModuleExamSubAttempt}.</li>
+ *       Composition + chrono via {@link AttemptService#startModuleExamSubAttempt}
+ *       (CO 20 min, CE 35 min — mêmes durées qu'en standalone).</li>
  *   <li>EE / EO : 3 tâches par épreuve, attached au sous-attempt EE/EO via
  *       {@code production_submissions.attempt_id}. Évaluation IA asynchrone.</li>
  * </ul>
@@ -49,9 +59,6 @@ import java.util.UUID;
 @Slf4j
 public class FullTcfExamService {
 
-    /** Chrono global affiché côté mobile (parent). */
-    private static final int FULL_EXAM_TOTAL_SECONDS = 90 * 60;
-
     private static final int HISTORY_LIMIT_MAX = 100;
 
     /** Nombre de slots de la grille d'examens blancs complets (cf. V110). */
@@ -59,9 +66,9 @@ public class FullTcfExamService {
 
     private final AttemptManager attemptManager;
     private final UserManager userManager;
-    private final ProductionSubmissionManager productionSubmissionManager;
-    private final SubscriptionService subscriptionService;
     private final AttemptService attemptService;
+    private final AttemptInteractionService attemptInteractionService;
+    private final ProductionAccessService productionAccessService;
     private final FullTcfExamResponseBuilder responseBuilder;
 
     // ------------------------------------------------------------------------
@@ -88,9 +95,11 @@ public class FullTcfExamService {
                 .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
 
         // EE/EO déverrouillées pour les abonnés, et pour un compte gratuit tant
-        // qu'il n'a pas encore soumis de tâche EE/EO en examen complet.
-        boolean productionUnlocked = subscriptionService.hasTcf(userId)
-                || !productionSubmissionManager.hasFullExamProductionSubmission(userId);
+        // qu'il n'a pas encore soumis de tâche EE/EO en examen complet. La règle
+        // vit dans ProductionAccessService, qui la sert AUSSI en lecture au
+        // jalon du Plan : deux copies auraient fini par afficher un cadenas que
+        // le serveur ne pose pas, ou l'inverse.
+        boolean productionUnlocked = !productionAccessService.isFullExamProductionLocked(userId);
 
         Attempt parent = createParent(user, slot, !productionUnlocked);
 
@@ -152,7 +161,9 @@ public class FullTcfExamService {
         parent.setModule(Module.TCF);
         parent.setEpreuve(EpreuveType.TCF_COMPLET);
         parent.setStatus(AttemptStatus.EN_COURS);
-        parent.setTimeLimitSeconds(FULL_EXAM_TOTAL_SECONDS);
+        // Pas de time_limit_seconds sur le parent : l'enveloppe globale de
+        // 90 min a été supprimée (cf. javadoc de classe). Chaque sous-attempt
+        // porte la durée de son épreuve.
         parent.setStartedAt(Instant.now());
         // Slot UI (cf. V110) — propage le slot visé par l'utilisateur dans la
         // grille « 20 slots TCF complets ». Les sous-attempts CO/CE/EE/EO
@@ -170,10 +181,19 @@ public class FullTcfExamService {
     // Lecture
     // ------------------------------------------------------------------------
 
-    /** Détail complet d'un examen blanc (parent + 4 sous-attempts + agrégation CECRL). */
+    /**
+     * Détail complet d'un examen blanc (parent + 4 sous-attempts + agrégation
+     * CECRL).
+     *
+     * <p>Clôture d'abord les sous-épreuves dont le délai est écoulé — clôture
+     * <b>paresseuse, à la lecture</b>, sans job planifié : quitter ne suspend
+     * rien, et le candidat qui revient après l'échéance d'une épreuve la
+     * retrouve close avec ce qui avait été enregistré.
+     */
     @Transactional(readOnly = true)
     public FullTcfExamResponse get(UUID userId, UUID parentAttemptId) {
         Attempt parent = loadParentAndCheck(userId, parentAttemptId);
+        attemptInteractionService.closeExpiredSubAttempts(parent.getId());
         return responseBuilder.buildResponse(parent);
     }
 
@@ -245,20 +265,27 @@ public class FullTcfExamService {
      * Démarre le chrono d'une épreuve au moment où le candidat la lance
      * (« Commencer · … »). Deux ancres, chacune posée une seule fois :
      * <ul>
-     *   <li>{@code parent.timer_started_at} — ancre du chrono global 90 min,
-     *       posée au tout premier lancement (la CO).</li>
+     *   <li>{@code parent.timer_started_at} — <b>trace du début réel de
+     *       l'examen</b>, posée au tout premier lancement (la CO). Ce n'est
+     *       plus l'ancre d'un décompte : l'enveloppe globale de 90 min a été
+     *       supprimée (cf. javadoc de classe). Elle sert au bilan et au calcul
+     *       de {@code ContinuiteSimulation}.</li>
      *   <li>{@code sub.timer_started_at} + {@code sub.started_at} — ancre du
-     *       chrono PROPRE de l'épreuve (CO 20 min / CE 30 min). On recale
-     *       {@code started_at} sur le lancement réel pour que le runner (qui
-     *       décompte depuis {@code started_at}) reparte à neuf. Sans ça, la CE
-     *       — créée en même temps que la CO au lancement de l'examen — héritait
-     *       du temps déjà écoulé et démarrait amputée de la durée passée sur la
-     *       CO (bug « la CE n'avait que 10 min »).</li>
+     *       chrono PROPRE de l'épreuve (CO 20 min / CE 35 min / EE 30 min).
+     *       C'est la <b>seule</b> ancre opposable d'une sous-épreuve : les 4
+     *       sous-attempts étant créés d'un bloc au lancement de l'examen, leur
+     *       {@code started_at} ne dit rien du moment où le candidat les ouvre —
+     *       tant que {@code timer_started_at} est null, l'épreuve n'a pas
+     *       d'échéance (cf. {@code AttemptChrono}). On recale
+     *       {@code started_at} sur le lancement réel pour que le runner
+     *       reparte à neuf.</li>
      * </ul>
      *
      * <p>Idempotent par ancre : revenir au hub puis reprendre la même épreuve
      * ne remet pas son chrono à zéro (un {@code timer_started_at} déjà posé
-     * n'est jamais retouché).
+     * n'est jamais retouché) — <b>et le temps a continué de courir pendant
+     * l'absence</b>. Il n'existe volontairement aucun flux « recommencer une
+     * épreuve interrompue ».
      */
     @Transactional
     public FullTcfExamResponse beginEpreuve(UUID userId, UUID parentAttemptId, EpreuveType epreuve) {

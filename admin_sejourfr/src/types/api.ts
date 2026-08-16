@@ -975,9 +975,13 @@ export interface ProductionSubmissionDto {
   productionTaskId: string | null;
   tacheNumero: number | null;
   statut: SubmissionStatut;
-  mediaUrl: string | null;
   texteSoumis: string | null;
   motsCount: number | null;
+  /**
+   * Durée de l'enregistrement (EO). Seule trace qui subsiste de l'audio : il
+   * n'est pas conservé, donc aucune URL n'est servie — ce qui reste d'une
+   * production orale, c'est `transcription`.
+   */
   mediaDurationSec: number | null;
   retryCount: number;
   erreurMessage: string | null;

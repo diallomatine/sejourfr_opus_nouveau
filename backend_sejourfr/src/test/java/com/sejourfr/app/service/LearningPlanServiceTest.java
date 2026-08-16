@@ -6,6 +6,7 @@ import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.LearningPlanState;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,9 +33,12 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -44,6 +49,7 @@ class LearningPlanServiceTest {
     private LearningPlanObservationManager observationManager;
     private RecommendedExerciseSelector exerciseSelector;
     private ReassessmentExerciseSelector reassessmentSelector;
+    private PlanMilestoneSelector milestoneSelector;
     private SkillProgressCounter progressCounter;
     private SkillAccessService accessService;
     private LearningPlanService service;
@@ -68,13 +74,16 @@ class LearningPlanServiceTest {
         LearningPlanProperties planProperties = new LearningPlanProperties();
         reassessmentSelector = mock(ReassessmentExerciseSelector.class);
         when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of());
+        milestoneSelector = mock(PlanMilestoneSelector.class);
+        when(milestoneSelector.select(eq(userId), anyCollection(), anyMap(), anyCollection(), any()))
+                .thenReturn(Optional.empty());
+        SkillMasteryResolver masteryResolver = new SkillMasteryResolver(observationManager,
+                new SkillMasteryEngine(planProperties), planProperties);
         service = new LearningPlanService(new DiagnosticProperties(), taskManager,
                 sessionManager, observationManager,
-                new LearningPlanPriorityResolver(observationManager),
-                exerciseSelector, reassessmentSelector, progressCounter,
-                new SkillMasteryResolver(observationManager,
-                        new SkillMasteryEngine(planProperties), planProperties),
-                accessService);
+                new LearningPlanPriorityResolver(observationManager, masteryResolver),
+                exerciseSelector, reassessmentSelector, milestoneSelector, progressCounter,
+                masteryResolver, accessService);
     }
 
     @Test
@@ -138,6 +147,46 @@ class LearningPlanServiceTest {
         assertThat(result.currentPriority().recommendedExercise()).isNotNull();
         assertThat(result.observedSkillCount()).isEqualTo(5);
         assertThat(result.activitiesThisWeek()).isEqualTo(2);
+    }
+
+    /**
+     * Le defaut mesure : le correcteur ne pose jamais {@code PRIORITY}, il range
+     * ses faiblesses en {@code TO_REINFORCE}. Le Plan doit designer une etape et
+     * un exercice dans ce cas — sinon il reste {@code ACTIVE} sans rien a faire,
+     * alors que l'ecran du diagnostic, lui, propose un exercice.
+     *
+     * <p>Et la <b>confiance</b> departage avant la recence, comme la regle du
+     * diagnostic : les deux productions du diagnostic sont observees au meme
+     * instant, la recence n'y trie rien.
+     */
+    @Test
+    void sansAucunePrioriteDesigneeLesFaiblessesFontLetapeLaPlusSureEnTete() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Instant now = Instant.now();
+        LearningPlanObservation recenteMoinsSure = observation(
+                "EE1-C1", LearningPlanSkillStatus.TO_REINFORCE, now);
+        recenteMoinsSure.setConfidence(ObservationConfidence.MEDIUM);
+        LearningPlanObservation ancienneSure = observation(
+                "EO2-C4", LearningPlanSkillStatus.TO_REINFORCE, now.minusSeconds(3600));
+        ancienneSure.setConfidence(ObservationConfidence.HIGH);
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId))
+                .thenReturn(List.of(recenteMoinsSure, ancienneSure));
+        when(observationManager.countSince(any(), any())).thenReturn(2L);
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        assertThat(result.state()).isEqualTo(LearningPlanState.ACTIVE);
+        assertThat(result.currentPriority()).isNotNull();
+        assertThat(result.currentPriority().skillCode()).isEqualTo("EO2-C4");
+        assertThat(result.currentPriority().status())
+                .isEqualTo(LearningPlanSkillStatus.TO_REINFORCE);
+        assertThat(result.currentPriority().recommendedExercise()).isNotNull();
+        assertThat(result.nextPriorities()).singleElement()
+                .satisfies(next -> assertThat(next.skillCode()).isEqualTo("EE1-C1"));
     }
 
     @Test
@@ -210,7 +259,7 @@ class LearningPlanServiceTest {
         when(observationManager.countSince(any(), any())).thenReturn(0L);
         stubExercisesForEverySkill();
         stubProgress(priority, new SkillProgressCounter.SkillProgress(
-                15, 4, 2, 2, new LearningPlanStep.Progress(5, 2, 1)));
+                15, 4, 2, 2, etape(5, 2, 1)));
 
         var result = service.get(userId);
 
@@ -231,6 +280,56 @@ class LearningPlanServiceTest {
     }
 
     /**
+     * Le <b>perimetre</b> de l'etape voyage avec elle : un front qui ouvre la
+     * competence depuis le Plan affiche ces sujets-la, dans cet ordre-la, au
+     * lieu de retomber sur la fiche generique et son « 1/15 ». Il ne
+     * reimplemente pas « les 5 premiers actifs » : deux copies finiraient par
+     * designer deux etapes differentes.
+     */
+    @Test
+    void lePerimetreDeLetapeEstServiAvecLaPriorite() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        LearningPlanObservation priority = observation(
+                "EE1-C4", LearningPlanSkillStatus.PRIORITY, Instant.now());
+        List<UUID> sujets = List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), UUID.randomUUID());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(priority));
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+        stubExercisesForEverySkill();
+        stubProgress(priority, new SkillProgressCounter.SkillProgress(
+                15, 4, 2, 2, new LearningPlanStep.Progress(sujets, 2, 1)));
+
+        var priorite = service.get(userId).currentPriority();
+
+        assertThat(priorite.stepPromptIds()).containsExactlyElementsOf(sujets);
+        assertThat(priorite.stepPromptCount()).isEqualTo(sujets.size());
+    }
+
+    /** Aucun sujet actif : liste vide, pas de denominateur invente, pas d'erreur. */
+    @Test
+    void uneCompetenceSansSujetActifRendUnPerimetreVide() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        LearningPlanObservation priority = observation(
+                "EO3-C7", LearningPlanSkillStatus.PRIORITY, Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(priority));
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+        stubExercisesForEverySkill();
+        when(progressCounter.bySkillIds(eq(userId), anyCollection())).thenReturn(Map.of());
+
+        var priorite = service.get(userId).currentPriority();
+
+        assertThat(priorite.stepPromptIds()).isEmpty();
+        assertThat(priorite.stepPromptCount()).isZero();
+        assertThat(priorite.stepCompleted()).isFalse();
+    }
+
+    /**
      * Une etape terminee <b>reste affichee</b> : les priorites ne changent qu'a
      * l'arrivee d'une nouvelle observation, donc a la prochaine production. La
      * faire disparaitre se lirait comme un bug et priverait le candidat de son
@@ -248,7 +347,7 @@ class LearningPlanServiceTest {
         when(observationManager.countSince(any(), any())).thenReturn(0L);
         stubExercisesForEverySkill();
         stubProgress(priority, new SkillProgressCounter.SkillProgress(
-                15, 5, 2, 3, new LearningPlanStep.Progress(5, 5, 2)));
+                15, 5, 2, 3, etape(5, 5, 2)));
 
         var result = service.get(userId);
 
@@ -359,6 +458,7 @@ class LearningPlanServiceTest {
         when(observationManager.findAllByUserWithSkill(userId))
                 .thenReturn(List.of(dernier, precedent));
         when(observationManager.countSince(any(), any())).thenReturn(2L);
+        stubStep(skill, etape(5, 5, 2));
         stubExercisesForEverySkill();
 
         var result = service.get(userId);
@@ -470,6 +570,292 @@ class LearningPlanServiceTest {
         verify(reassessmentSelector, never()).selectAll(any(), anyCollection());
     }
 
+    /**
+     * L'etape entiere traitee (5/5) et le signal du moteur : la carte bascule.
+     * C'est le seul cas ou elle le fait, et il suppose un abonnement — les 5
+     * sujets ne sont jouables qu'avec.
+     */
+    @Test
+    void uneEtapeTermineeAvecLeSignalBasculeEnVerification() {
+        Skill skill = skill("EE3-C2");
+        stubPlanPretAVerifier(skill);
+        stubStep(skill, etape(5, 5, 4));
+        UUID sujet = UUID.randomUUID();
+        when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of(
+                skill.getId(), PlanRecommendedExerciseDto.reassessment(
+                        sujet, skill.getId(), skill.getCode(), "Donner son opinion",
+                        skill.getSection(), (short) 3, 7, false)));
+
+        var priority = service.get(userId).currentPriority();
+
+        assertThat(priority.readyForReassessment()).isTrue();
+        assertThat(priority.stepCompleted()).isTrue();
+        assertThat(priority.recommendedExercise().kind())
+                .isEqualTo(PlanExerciseKind.REASSESSMENT);
+        assertThat(priority.recommendedExercise().productionTaskId()).isEqualTo(sujet);
+    }
+
+    /**
+     * Le cas signale en production le 2026-08-14 : le moteur dit « pret », mais
+     * l'etape n'est qu'a 2 sujets sur 5 (compte abonne, qui peut donc les jouer
+     * tous). La carte ne bascule pas — proposer « verifier ma progression » sous
+     * un anneau a 2/5 etait la contradiction a corriger.
+     */
+    @Test
+    void uneEtapeInacheveeNeBasculePasEnVerification() {
+        Skill skill = skill("EE3-C2");
+        stubPlanPretAVerifier(skill);
+        stubStep(skill, etape(5, 2, 2));
+        when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of(
+                skill.getId(), PlanRecommendedExerciseDto.reassessment(
+                        UUID.randomUUID(), skill.getId(), skill.getCode(), "Donner son opinion",
+                        skill.getSection(), (short) 3, 7, false)));
+
+        var priority = service.get(userId).currentPriority();
+
+        assertThat(priority.readyForReassessment()).isFalse();
+        assertThat(priority.recommendedExercise().kind())
+                .isEqualTo(PlanExerciseKind.MICRO_TRAINING);
+        verify(reassessmentSelector, never()).selectAll(any(), anyCollection());
+    }
+
+    /**
+     * <b>CHOIX PRODUIT, pas un bug freemium</b> (arbitre le 2026-08-14) : la
+     * verification de progression est PREMIUM. Un compte gratuit plafonne a 2
+     * sujets sur les 5 de l'etape ; il a beau les avoir tous joues et remplir le
+     * signal du moteur, l'etape n'est pas <b>terminee</b>, donc la carte reste un
+     * micro-exercice. Consequences voulues : aucune de ses competences n'atteint
+     * SOLID (la preuve contextualisee vient de cette verification), et il ne voit
+     * donc pas non plus les jalons d'examen blanc. Ne pas « reparer » en comptant
+     * les sujets que son acces lui ouvre.
+     */
+    @Test
+    void unCompteGratuitNeBasculeJamaisEnVerificationCarElleEstPremium() {
+        Skill skill = skill("EE3-C2");
+        stubPlanPretAVerifier(skill);
+        // Les 2 sujets ouverts d'un compte gratuit, tous deux traites et valides.
+        stubStep(skill, etape(5, 2, 2));
+        when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of(
+                skill.getId(), PlanRecommendedExerciseDto.reassessment(
+                        UUID.randomUUID(), skill.getId(), skill.getCode(), "Donner son opinion",
+                        skill.getSection(), (short) 3, 7, false)));
+
+        var priority = service.get(userId).currentPriority();
+
+        assertThat(priority.readyForReassessment()).isFalse();
+        assertThat(priority.stepCompleted()).isFalse();
+        assertThat(priority.stepAttemptedCount()).isEqualTo(2);
+        assertThat(priority.stepPromptCount()).isEqualTo(5);
+        assertThat(priority.recommendedExercise().kind())
+                .isEqualTo(PlanExerciseKind.MICRO_TRAINING);
+        verify(reassessmentSelector, never()).selectAll(any(), anyCollection());
+    }
+
+    // ------------------------------------------------------------------------
+    // Une verification reussie fait passer a la competence suivante
+    // ------------------------------------------------------------------------
+
+    /**
+     * « Une fois reussi, on passe a la competence suivante » : la competence dont
+     * le transfert vient d'etre prouve en situation quitte les priorites, la
+     * suivante prend l'etape n&deg;1. Elle reste <b>visible</b> parmi les
+     * competences observees, avec son etat de maitrise — on ne cache jamais au
+     * candidat le resultat de sa propre production.
+     */
+    @Test
+    void unTransfertProuveLibereLetapePourLaCompetenceSuivante() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Skill reussie = skill("EE1-C1");
+        Skill suivante = skill("EE1-C2");
+        Instant now = Instant.now();
+        LearningPlanObservation preuve = observation(reussie, LearningPlanSkillStatus.SOLID,
+                now.minusSeconds(60), LearningPlanSourceType.PRODUCTION_EE, UUID.randomUUID());
+        // Un micro-exercice rate APRES la preuve : sans la regle, il remettait la
+        // competence en tete du Plan.
+        LearningPlanObservation rechute = observation(reussie, LearningPlanSkillStatus.PRIORITY,
+                now, LearningPlanSourceType.SKILL_TRAINING, UUID.randomUUID());
+        LearningPlanObservation aFaire = observation(suivante,
+                LearningPlanSkillStatus.TO_REINFORCE, now.minusSeconds(3600),
+                LearningPlanSourceType.DIAGNOSTIC_EE, UUID.randomUUID());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId))
+                .thenReturn(List.of(rechute, preuve, aFaire));
+        when(observationManager.countSince(any(), any())).thenReturn(3L);
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        assertThat(result.currentPriority().skillCode()).isEqualTo("EE1-C2");
+        assertThat(result.nextPriorities()).isEmpty();
+        // Visible, jamais masquee : le Plan pose des cadenas, il ne cache rien.
+        assertThat(result.observedSkills())
+                .extracting(item -> item.skillCode())
+                .containsExactlyInAnyOrder("EE1-C1", "EE1-C2");
+        // Et l'etape franchie reste DANS le parcours, cochee, au lieu de
+        // disparaitre : le candidat garde la trace de ce qu'il a passe.
+        assertThat(result.completedSteps()).singleElement()
+                .satisfies(step -> assertThat(step.skillCode()).isEqualTo("EE1-C1"));
+    }
+
+    // ------------------------------------------------------------------------
+    // Les etapes FRANCHIES restent dans le parcours
+    // ------------------------------------------------------------------------
+
+    /**
+     * Elles portent de quoi rendre la <b>meme carte</b> qu'une priorite : identite
+     * de la competence et compteurs d'etape.
+     */
+    @Test
+    void uneEtapeFranchiePorteSonIdentiteEtSesCompteursDetape() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Skill reussie = skill("EE1-C1");
+        LearningPlanObservation preuve = observation(reussie, LearningPlanSkillStatus.SOLID,
+                Instant.now(), LearningPlanSourceType.PRODUCTION_EE, UUID.randomUUID());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(preuve));
+        when(observationManager.countSince(any(), any())).thenReturn(1L);
+        stubExercisesForEverySkill();
+        stubProgress(preuve, new SkillProgressCounter.SkillProgress(
+                15, 5, 4, 1, etape(5, 5, 4)));
+
+        var result = service.get(userId);
+
+        assertThat(result.currentPriority()).isNull();
+        assertThat(result.completedSteps()).singleElement().satisfies(step -> {
+            assertThat(step.skillId()).isEqualTo(reussie.getId());
+            assertThat(step.skillCode()).isEqualTo("EE1-C1");
+            assertThat(step.title()).isEqualTo(reussie.getTitle());
+            assertThat(step.section()).isEqualTo(SkillSection.EE);
+            assertThat(step.observedAt()).isEqualTo(preuve.getObservedAt());
+            assertThat(step.stepPromptCount()).isEqualTo(5);
+            assertThat(step.stepAttemptedCount()).isEqualTo(5);
+            assertThat(step.stepValidatedCount()).isEqualTo(4);
+            assertThat(step.stepPromptIds()).hasSize(5);
+        });
+        // Aucune requete ajoutee : les compteurs des etapes franchies sortent du
+        // MEME appel groupe que ceux des priorites et des competences observees.
+        verify(progressCounter).bySkillIds(eq(userId),
+                argThat(ids -> ids.contains(reussie.getId())));
+        verify(progressCounter, times(1)).bySkillIds(eq(userId), anyCollection());
+        verify(observationManager, times(1)).findAllByUserWithSkill(userId);
+    }
+
+    /**
+     * Elles s'accumulent sans fin : le parcours n'en publie que les plus
+     * recentes, et les rend de la plus ancienne a la plus recente — le sens dans
+     * lequel un parcours se lit.
+     */
+    @Test
+    void lesEtapesFranchiesSontBorneesEtChronologiques() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Instant now = Instant.now();
+        List<LearningPlanObservation> historique = new ArrayList<>();
+        for (int rang = 0; rang < LearningPlanService.MAX_COMPLETED_STEPS + 3; rang++) {
+            historique.add(observation(skill("EE1-C" + rang), LearningPlanSkillStatus.SOLID,
+                    now.minusSeconds(60L * rang), LearningPlanSourceType.PRODUCTION_EE,
+                    UUID.randomUUID()));
+        }
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(historique);
+        when(observationManager.countSince(any(), any())).thenReturn(8L);
+        stubExercisesForEverySkill();
+
+        var completedSteps = service.get(userId).completedSteps();
+
+        assertThat(completedSteps).hasSize(LearningPlanService.MAX_COMPLETED_STEPS);
+        assertThat(completedSteps).extracting(step -> step.skillCode())
+                .containsExactly("EE1-C4", "EE1-C3", "EE1-C2", "EE1-C1", "EE1-C0");
+        assertThat(completedSteps.getFirst().observedAt())
+                .isBefore(completedSteps.getLast().observedAt());
+    }
+
+    @Test
+    void sansAucuneEtapeFranchieLaListeEstVideJamaisNulle() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        LearningPlanObservation priority = observation(
+                "EE1-C4", LearningPlanSkillStatus.PRIORITY, Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(priority));
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+        stubExercisesForEverySkill();
+
+        assertThat(service.get(userId).completedSteps()).isEmpty();
+        // Et avant meme le diagnostic, le champ existe deja vide.
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
+        when(taskManager.findLatestActiveDiagnosticVersion("INITIAL_TCF"))
+                .thenReturn(Optional.empty());
+        assertThat(service.get(userId).completedSteps()).isEmpty();
+    }
+
+    /**
+     * Non-regression : sortir des priorites n'est <b>pas</b> devenir {@code SOLID}
+     * au sens du moteur. Le jalon continue de voir exactement les memes
+     * competences qu'avant — son declencheur d'epreuve compte les competences
+     * {@code SOLID}, et une seule preuve ne suffit pas a l'etre.
+     */
+    @Test
+    void leJalonVoitTouteLhistoireMemeQuandUneCompetenceQuitteLesPriorites() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Skill reussie = skill("EE1-C1");
+        Instant now = Instant.now();
+        LearningPlanObservation preuve = observation(reussie, LearningPlanSkillStatus.SOLID,
+                now.minusSeconds(60), LearningPlanSourceType.PRODUCTION_EE, UUID.randomUUID());
+        LearningPlanObservation rechute = observation(reussie, LearningPlanSkillStatus.PRIORITY,
+                now, LearningPlanSourceType.SKILL_TRAINING, UUID.randomUUID());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId))
+                .thenReturn(List.of(rechute, preuve));
+        when(observationManager.countSince(any(), any())).thenReturn(2L);
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        assertThat(result.currentPriority()).isNull();
+        // Une preuve n'est pas une maitrise installee : l'etat agrege ne ment pas.
+        assertThat(result.observedSkills()).singleElement()
+                .satisfies(item -> assertThat(item.masteryState())
+                        .isNotEqualTo(SkillMasteryState.SOLID));
+        verify(milestoneSelector).select(eq(userId), anyCollection(), anyMap(), anyCollection(),
+                any());
+    }
+
+    // ------------------------------------------------------------------------
+    // Le jalon, a cote des etapes
+    // ------------------------------------------------------------------------
+
+    @Test
+    void leJalonEstServiACoteDesPrioritesSansLesRemplacer() {
+        Skill skill = skill("EE3-C2");
+        stubPlanPretAVerifier(skill);
+        PlanRecommendedExerciseDto jalon = PlanRecommendedExerciseDto.epreuveMockExam(
+                EpreuveType.TCF_EE, 1, 30, false);
+        when(milestoneSelector.select(eq(userId), anyCollection(), anyMap(), anyCollection(), any()))
+                .thenReturn(Optional.of(jalon));
+
+        var result = service.get(userId);
+
+        assertThat(result.milestone()).isEqualTo(jalon);
+        assertThat(result.currentPriority()).isNotNull();
+        assertThat(result.currentPriority().recommendedExercise()).isNotNull();
+    }
+
+    @Test
+    void sansJalonMeriteLeChampResteNull() {
+        stubPlanPretAVerifier(skill("EE3-C2"));
+
+        assertThat(service.get(userId).milestone()).isNull();
+    }
+
     // ------------------------------------------------------------------------
     // « Le Plan a change » apres une production
     // ------------------------------------------------------------------------
@@ -575,7 +961,32 @@ class LearningPlanServiceTest {
         when(observationManager.findAllByUserWithSkill(userId))
                 .thenReturn(List.of(dernier, precedent));
         when(observationManager.countSince(any(), any())).thenReturn(2L);
+        // Etape TERMINEE : les 5 sujets traites. C'est la seconde condition de
+        // la bascule, et seul un abonne peut la remplir (cf. le test de choix
+        // produit plus haut).
+        stubStep(skill, etape(5, 5, 5));
         stubExercisesForEverySkill();
+    }
+
+    /**
+     * Une etape de {@code promptCount} sujets. <b>Le perimetre fait le
+     * denominateur</b> : depuis que l'etape porte ses identifiants de sujets, il
+     * n'existe plus de « 5 » qui ne serait adosse a aucun sujet reel.
+     */
+    private static LearningPlanStep.Progress etape(
+            int promptCount, int attempted, int validated) {
+        List<UUID> promptIds = new ArrayList<>();
+        for (int rang = 0; rang < promptCount; rang++) {
+            promptIds.add(UUID.randomUUID());
+        }
+        return new LearningPlanStep.Progress(promptIds, attempted, validated);
+    }
+
+    /** Compteurs d'etape d'une competence, sans passer par une observation. */
+    private void stubStep(Skill skill, LearningPlanStep.Progress step) {
+        Map<UUID, SkillProgressCounter.SkillProgress> counts = new LinkedHashMap<>();
+        counts.put(skill.getId(), new SkillProgressCounter.SkillProgress(15, 2, 2, 0, step));
+        when(progressCounter.bySkillIds(eq(userId), anyCollection())).thenReturn(counts);
     }
 
     private void stubProgress(

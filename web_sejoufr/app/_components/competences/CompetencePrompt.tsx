@@ -1,6 +1,6 @@
 "use client";
 
-import {useParams, useRouter} from "next/navigation";
+import {useParams, useRouter, useSearchParams} from "next/navigation";
 import {useCallback, useEffect, useState} from "react";
 import {Check, Mic, PenLine} from "lucide-react";
 import {ApiException, skillApi} from "@/lib/api";
@@ -11,6 +11,7 @@ import {
   SKILL_ANALYSIS_MAX_WORDS,
   tipOf,
 } from "@/lib/skill-guidance";
+import {isPlanStep, withPlanStep} from "@/lib/plan-step";
 import {loadSectionSkills} from "@/lib/skill-catalog";
 import {findSkillProgress, type SkillProgress} from "@/lib/skill-progress";
 import {handleStartFailure} from "@/lib/start-failure";
@@ -108,6 +109,7 @@ function toProductionTask(prompt: SkillPromptDto, tacheNumero: number): Producti
  */
 export function CompetencePrompt({config}: {config: ProductionConfig}) {
   const params = useParams<{n: string; skillId: string; promptId: string}>();
+  const searchParams = useSearchParams();
   const n = Number(params?.n ?? "0");
   const skillId = params?.skillId ?? "";
   const promptId = params?.promptId ?? "";
@@ -115,6 +117,11 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
   const {user, status} = useAuth();
 
   const base = `${config.base}/tache/${n}/competences`;
+  /* Le marqueur d'étape se propage : venu du Plan, le candidat doit retrouver
+     l'étape (les 5 sujets, « 2/5 ») en remontant, pas la fiche des 15 — c'est
+     ce que fait naturellement le « retour » du mobile, qui dépile. */
+  const step = isPlanStep(searchParams);
+  const skillHref = withPlanStep(`${base}/${skillId}`, step);
   const oral = config.mode === "audio";
 
   const [prompt, setPrompt] = useState<SkillPromptDto | null>(null);
@@ -225,7 +232,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
                 requestAnalysis,
               });
         if (!oral) clearEeDraft(promptId);
-        router.push(`${base}/${skillId}/${promptId}/resultat/${attempt.id}`);
+        router.push(withPlanStep(`${base}/${skillId}/${promptId}/resultat/${attempt.id}`, step));
       } catch (e) {
         handleStartFailure(e, {
           onPaywall: () => setPaywallOpen(true),
@@ -235,7 +242,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
         setSubmitting(false);
       }
     },
-    [submitting, analysisAllowed, promptId, oral, router, base, skillId],
+    [submitting, analysisAllowed, promptId, oral, router, base, skillId, step],
   );
 
   /** Recharge la production précédente dans la zone de saisie (§13.5, EE). */
@@ -312,9 +319,17 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
 
   return (
     <DualChromeShell>
+      {/* L'en-tête nomme LE SUJET, pas la compétence (parité mobile,
+          `competence_prompt_screen`). Le candidat est ici pour produire une
+          réponse à ce sujet-là ; la compétence est déjà annoncée par l'écran
+          d'où il vient, et la répéter en titre lui laissait vingt sujets
+          impossibles à distinguer les uns des autres. Elle reste le libellé du
+          retour et la pastille de la carte de résumé. */}
       <SkillShell
-        backHref={`${base}/${skillId}`}
+        backHref={skillHref}
         backLabel={prompt?.skillTitle ?? "Petits sujets"}
+        title={prompt?.title}
+        meta={prompt?.taskTitle}
       >
         {loadError && <div className={s.error}>{loadError}</div>}
 
@@ -394,11 +409,14 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
                       className={s.previousAction}
                       onClick={() =>
                         router.push(
-                          `${base}/${skillId}/${promptId}/resultat/${prompt.lastAttemptId}`,
+                          withPlanStep(
+                            `${base}/${skillId}/${promptId}/resultat/${prompt.lastAttemptId}`,
+                            step,
+                          ),
                         )
                       }
                     >
-                      Écouter ma dernière réponse
+                      Relire ma dernière réponse
                     </button>
                   ) : (
                     <button

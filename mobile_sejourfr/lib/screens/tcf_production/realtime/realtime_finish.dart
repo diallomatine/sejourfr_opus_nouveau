@@ -35,7 +35,10 @@ class RealtimeFinishResult {
 
   final RealtimeFinishKind kind;
 
-  /// Tours de dialogue perdus par le relais best-effort (jamais arrivés).
+  /// Tours de dialogue DÉFINITIVEMENT perdus : le relais les a réessayés (à
+  /// `turnIndex` constant, donc sans risque de doublon côté serveur) et aucun
+  /// essai n'est passé. Les tours suivants portant un index plus haut, celui-ci
+  /// ne pourra plus être appliqué.
   final int droppedTurns;
 
   bool get isEvaluated => kind == RealtimeFinishKind.evaluated;
@@ -119,6 +122,20 @@ const String kRtFinishPartialTitle = 'Transmission partielle';
 const String kRtFinishPartialMessage =
     "Une partie de votre échange n'a pas pu être transmise. Votre évaluation "
     "portera uniquement sur ce qui nous est parvenu.";
+// Reprise de session après coupure du WebSocket — mêmes chaînes côté web
+// (`RT_RESUME_*` dans `lib/realtime-finish.ts`). Ton du produit : on annonce ce
+// qui se passe et ce qui est conservé, jamais un manque du candidat.
+const String kRtResumeTitle = 'Connexion perdue';
+const String kRtResumeMessage =
+    'Reprise de l\'échange en cours — votre transcription et votre temps de '
+    'parole sont conservés.';
+const String kRtResumeStatus = 'Reprise de la connexion…';
+const String kRtResumeHint = 'Restez sur cet écran, on repart là où vous en '
+    'étiez.';
+const String kRtResumeFailedMessage =
+    "La connexion à l'examinateur n'a pas pu être rétablie. Vous pouvez faire "
+    "cette tâche en enregistrement classique.";
+
 const String kRtFinishRetryAction = "Réessayer l'envoi";
 const String kRtFinishGiveUpAction = 'Continuer sans cette réponse';
 const String kRtFinishSeeResultAction = 'Voir mon évaluation';

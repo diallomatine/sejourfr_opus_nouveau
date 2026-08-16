@@ -228,9 +228,20 @@ class _LevierRow extends StatelessWidget {
 /// Un extrait introuvable est simplement ignore — le texte reste lisible, on
 /// n'invente jamais un surlignage et on ne plante jamais.
 class ActionPlanExempleCard extends StatelessWidget {
-  const ActionPlanExempleCard({super.key, required this.exemple});
+  const ActionPlanExempleCard({
+    super.key,
+    required this.exemple,
+    this.label,
+  });
 
   final ActionPlanExempleCible exemple;
+
+  /// Petit label posé **dans** la carte, quand l'écran l'oppose à une autre
+  /// carte citée juste au-dessus (l'avant/après du diagnostic). Les rapports
+  /// de production et de compétence n'en ont pas besoin : leur intertitre de
+  /// section suffit. **N'annonce jamais un palier** — cf.
+  /// [kActionPlanExempleTitle].
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
@@ -253,6 +264,10 @@ class ActionPlanExempleCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (label != null) ...[
+            Text(label!, style: AppFonts.label(size: 10, color: AppColors.blue)),
+            const SizedBox(height: 7),
+          ],
           Text.rich(
             TextSpan(
               children: _highlightedSpans(

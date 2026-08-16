@@ -35,6 +35,14 @@ spring:
     multipart:
       max-file-size: 25MB
       max-request-size: 25MB
+      # L'AUDIO D'UN CANDIDAT NE DOIT JAMAIS TOUCHER LE DISQUE. Par defaut ce
+      # seuil vaut 0B : Spring ecrit alors TOUT upload multipart dans un fichier
+      # temporaire, y compris les enregistrements des candidats — que la
+      # decision produit interdit precisement de stocker. En le portant
+      # au-dessus de max-file-size, tout tient en memoire et rien n'est spoule.
+      # Cout : au pire 25 Mo de tas par upload concurrent (les productions
+      # reelles pesent quelques centaines de Ko). Ne pas rabaisser.
+      file-size-threshold: 26MB
   data:
     web:
       pageable:
@@ -195,6 +203,27 @@ sejourfr:
   # tout appelant : uniquement si le port n'est joignable que par le LB.
   trusted-proxies:
     ranges: ${TRUSTED_PROXY_RANGES:}
+
+  # Purge des attempts INVITES (user_id IS NULL) — cf. GuestAttemptPurgeJob.
+  # LIVREE ETEINTE, comme production-evaluation.fluidite / seconde-passe :
+  # a false, la passe sort immediatement, aucune ligne supprimee.
+  #
+  # PREREQUIS AVANT D'ACTIVER : ces lignes SONT la mesure « combien de
+  # visiteurs se testent avant de creer un compte » (client_ip posee expres).
+  # Les purger detruit la mesure. Il faut d'abord un compteur agrege des
+  # passages invites — une ligne par (surface, jour), patron de la table
+  # page_views (V020), borne par construction. Tant qu'il n'existe pas, laisser
+  # enabled a false.
+  guest-attempt-purge:
+    enabled: ${GUEST_ATTEMPT_PURGE_ENABLED:false}
+    # Age au-dela duquel un attempt invite est purgeable, compte sur
+    # started_at (un attempt abandonne n'a pas de finished_at). Decision
+    # produit, pas constante : 2 h.
+    retention: ${GUEST_ATTEMPT_PURGE_RETENTION:2h}
+    # Plafond de lignes supprimees par lot (une transaction par lot).
+    batch-size: ${GUEST_ATTEMPT_PURGE_BATCH_SIZE:500}
+    # Toutes les 30 min : deux fois plus fin que la retention.
+    cron: ${GUEST_ATTEMPT_PURGE_CRON:0 0/30 * * * *}
 
   # Pipeline d'evaluation des productions (EO/EE du TCF IRN).
   # Distinct de sejourfr.anthropic (qui sert a generer des questions audio CO).
@@ -859,23 +888,67 @@ sejourfr:
       voice: ${REALTIME_GEMINI_VOICE:Aoede}
       temperature: 0.7
       # VAD verrouillée dans le token (realtimeInputConfig.automaticActivityDetection).
-      # Arbitrage patience ↔ réactivité : end-sensitivity LOW garde l'examinateur
-      # tolérant aux pauses de réflexion (il ne coupe pas l'apprenant), tandis que
-      # silence-duration-ms=500 (bas de la fourchette Google recommandée 500-800,
-      # défaut serveur ~800) réduit ~de moitié l'attente contrôlable avant qu'il
-      # réponde. start-sensitivity HIGH = détection rapide du début de parole. Ne
-      # pas descendre silence-duration-ms sous ~500 (fragmenterait la parole).
-      # Tunable sans redeploy via env (REALTIME_GEMINI_VAD_* si surchargé).
+      # 🛑 Chaque sensibilité n'admet que TROIS valeurs : ..._UNSPECIFIED,
+      # ..._LOW, ..._HIGH. IL N'Y A PAS DE « MEDIUM ». Posé du 2026-08-12 au
+      # 2026-08-16, END_SENSITIVITY_MEDIUM faisait répondre auth_tokens en 400
+      # INVALID_ARGUMENT à CHAQUE émission de token : plus une seule session
+      # temps réel pendant 4 jours, sur les deux fronts, et en silence (le
+      # serveur retombe en ASYNC_FALLBACK). Une valeur hors liste fait
+      # désormais échouer le BOOT (GeminiTokenBroker.assertVadSupportee).
+      # Arbitrage patience ↔ réactivité :
+      #   * end-sensitivity LOW = la confirmation la plus prudente avant de
+      #     déclarer la fin de parole. C'est le réglage le plus LENT, et c'est
+      #     assumé : le seul autre choix est HIGH, qui couperait un apprenant A2
+      #     en pleine hésitation. Le vrai levier de réactivité est
+      #     silence-duration-ms, pas cette enum.
+      #   * silence-duration-ms 500 = PLANCHER recommandé par Google (500-800) :
+      #     en dessous, un énoncé se fragmente sur ses pauses naturelles. Ne pas
+      #     descendre.
+      #   * prefix-padding-ms 300 : plus bas, la première syllabe est coupée.
+      #   * start-sensitivity HIGH = détection rapide du DÉBUT de parole.
+      # Les cinq valeurs sont surchargeables par env : essayer HIGH ne demande
+      # aucune recompilation.
       vad:
-        disabled: false
-        start-sensitivity: START_SENSITIVITY_HIGH
-        end-sensitivity: END_SENSITIVITY_LOW
-        prefix-padding-ms: 300
-        silence-duration-ms: 500
-      token-uses: 1
-      new-session-expire-seconds: 120
-      session-expire-seconds: 1800
-      timeout-sec: 15
+        disabled: ${REALTIME_GEMINI_VAD_DISABLED:false}
+        start-sensitivity: ${REALTIME_GEMINI_VAD_START_SENSITIVITY:START_SENSITIVITY_HIGH}
+        end-sensitivity: ${REALTIME_GEMINI_VAD_END_SENSITIVITY:END_SENSITIVITY_LOW}
+        prefix-padding-ms: ${REALTIME_GEMINI_VAD_PREFIX_PADDING_MS:300}
+        silence-duration-ms: ${REALTIME_GEMINI_VAD_SILENCE_DURATION_MS:500}
+      # REPRISE DE SESSION après coupure réseau (sessionResumption du setup
+      # verrouillé). Sans elle, un WebSocket qui tombe (métro, ascenseur, appli
+      # en arrière-plan) détruisait la session ET le slot déjà débité : le
+      # candidat payait une simulation qu'il n'a pas pu terminer.
+      # Le handle ne peut PAS venir du client (token contraint = aucun champ de
+      # setup côté client) : il est relayé au serveur, qui le verrouille dans le
+      # setup d'un nouveau token via POST /api/realtime/eo/sessions/{id}/resume.
+      # Retour arrière : REALTIME_SESSION_RESUMPTION_ENABLED=false.
+      session-resumption:
+        enabled: ${REALTIME_SESSION_RESUMPTION_ENABLED:true}
+        max-resumptions: ${REALTIME_SESSION_MAX_RESUMPTIONS:3}
+      # Fenêtre glissante de contexte. L'audio consomme ~25 tokens/s et une
+      # session audio est plafonnée à 15 min SANS compression ; nos sessions
+      # visent ~200 s, donc ce n'est pas encore bloquant — c'est ce qui permet à
+      # une session REPRISE de ne pas heurter ce plafond. 0 sur un seuil = champ
+      # non envoyé, défaut du fournisseur appliqué.
+      # Retour arrière : REALTIME_CONTEXT_COMPRESSION_ENABLED=false.
+      context-window-compression:
+        enabled: ${REALTIME_CONTEXT_COMPRESSION_ENABLED:true}
+        trigger-tokens: ${REALTIME_CONTEXT_COMPRESSION_TRIGGER_TOKENS:25600}
+        target-tokens: ${REALTIME_CONTEXT_COMPRESSION_TARGET_TOKENS:12800}
+      # Ouvertures de WebSocket admises pour UN token. 1 (l'ancien défaut) = le
+      # token meurt à la première connexion, donc toute coupure était fatale.
+      # 3 = ouverture + 2 reprises. Contrepartie assumée : un token volé est
+      # rejouable pendant sa fenêtre de validité — mais son setup est verrouillé
+      # (il ne peut parler qu'à NOTRE persona) et le quota se débite côté
+      # serveur, pas par connexion. Ne pas monter sans raison.
+      token-uses: ${REALTIME_GEMINI_TOKEN_USES:3}
+      # Délai pour ouvrir (ou ROUVRIR) une connexion avec le token. 120 s ne
+      # couvrait pas une coupure réelle : un tunnel de métro suffisait à tuer le
+      # token avant le retour du réseau. 600 s couvre les coupures courantes tout
+      # en restant très en deçà de session-expire-seconds (1800).
+      new-session-expire-seconds: ${REALTIME_GEMINI_NEW_SESSION_EXPIRE_SECONDS:600}
+      session-expire-seconds: ${REALTIME_GEMINI_SESSION_EXPIRE_SECONDS:1800}
+      timeout-sec: ${REALTIME_GEMINI_TIMEOUT_SEC:15}
     # Formats audio Gemini Live : entrée PCM 16 bits 16 kHz mono, sortie 24 kHz.
     audio:
       input-sample-rate: 16000
@@ -1022,11 +1095,40 @@ sejourfr:
       # baseline du diagnostic est une fragilite et un micro-exercice reussi ne
       # vaut qu'une demi-preuve, donc un seuil global serait mecaniquement hors
       # d'atteinte et le Plan proposerait des micro-exercices a l'infini.
+      # ARITHMETIQUE, a refaire avant de toucher ce nombre : un micro-exercice
+      # reussi vaut 0.5, un rate 0, et la voie ciblee n'ecrit JAMAIS SOLID
+      # (critere valide -> TO_REINFORCE) -> la performance ciblee est BORNEE a
+      # 0.50. Au-dela, le signal s'eteint ; a 0.50 pile, il exige un sans-faute.
+      # Ce que 0.30 tranche : 2 reussites sans echec = 0.50 (oui) ; 1 echec
+      # ancien puis 2 reussites = 0.351 (oui, trajectoire normale) ; 2 reussites
+      # noyees dans 3 echecs recents = 0.20 (non). 0.30 vaut 60 % du plafond
+      # reel — ce n'est pas un seuil « trop bas ».
       readiness-targeted-score: 0.30
+      # Ce nombre ne decide PAS de la bascule : LearningPlanService exige en
+      # plus une etape TERMINEE (LearningPlanStep.Progress.completed(), les 5
+      # sujets). La verification de progression est donc premium par arbitrage
+      # produit — inutile de monter ce seuil pour « proteger » d'une bascule
+      # prematuree, il n'en protege rien.
       readiness-targeted-subjects: 2
       # Duree de validite d'une preuve de transfert : tant qu'elle tient, on ne
       # redemande pas de verification.
       transfer-proof-days: 60
+    # JALONS : les deux barreaux au-dessus de l'etape. On ESCALADE, on ne
+    # reporte pas — la verification ciblee est le seul mecanisme qui fait passer
+    # une competence en SOLID, la repousser bloquerait tout le monde en
+    # consolidation. Ces jalons ne creent aucun contenu : ils designent un
+    # examen blanc DEJA existant (epreuve + slot de grille).
+    milestone:
+      # Competences transferees (SOLID) exigees dans une epreuve avant de
+      # proposer son examen blanc : une seule ne dit rien d'une epreuve entiere.
+      epreuve-min-solid-skills: 2
+      # ... et il en faut une majorite parmi les competences OBSERVEES de
+      # l'epreuve : proposer un examen blanc a un candidat dont la moitie des
+      # competences restent des priorites lui ferait mesurer un echec.
+      epreuve-solid-ratio: 0.5
+      # Duree de validite d'un jalon franchi : un jalon est une etape, pas une
+      # boucle — on ne represente pas un examen blanc qu'on vient de passer.
+      proof-days: 45
 
   # Diagnostic initial : même fournisseur/modèle que production-evaluation,
   # mais contrat et consignes séparés (aucune note /20, aucune tâche officielle).
@@ -1038,3 +1140,24 @@ sejourfr:
       max-tokens: 2200
       temperature: 0
       max-session-retries: 3
+    # SECOND appel « avant / apres » de l'ecran de resultat : la phrase du
+    # candidat, et la meme phrase reecrite au niveau qu'il VISE. Emis APRES
+    # l'analyse et separement d'elle : le contrat d'analyse ne bouge pas d'un
+    # octet et le correcteur du diagnostic n'apprend jamais qu'on va reecrire
+    # quoi que ce soit (mesure v10/v11 : un bloc ajoute a une grille qui juge
+    # fait tomber l'accord exact de 81,8 % a 75,6 %).
+    # ECRIT SEULEMENT : la production orale n'est jamais reecrite.
+    # Best-effort : a false, ou en cas d'echec, le bloc est absent et le
+    # diagnostic reste complet.
+    exemple-cible:
+      enabled: ${DIAGNOSTIC_EXEMPLE_CIBLE_ENABLED:true}
+      # Consignes : prompts/diagnostic-exemple-cible-rubrics-<v>.json.
+      rubrics-version: ${DIAGNOSTIC_EXEMPLE_CIBLE_RUBRICS_VERSION:v1}
+      # Contrat de sortie : prompts/diagnostic-exemple-cible-tool-schema-<v>.json.
+      # Paire rubriques <-> tool-schema verifiee au demarrage, comme partout.
+      tool-schema-version: ${DIAGNOSTIC_EXEMPLE_CIBLE_TOOL_SCHEMA_VERSION:v1}
+      # Plafond de tokens de SORTIE, propre a cet appel : un numero, une phrase
+      # reecrite, deux ou trois etiquettes de trois mots. C'est un plafond.
+      max-tokens: 700
+      # Zero : deux lectures de la meme production doivent rendre la meme phrase.
+      temperature: 0

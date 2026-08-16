@@ -18,8 +18,16 @@ import {
 } from "@/lib/audience";
 import { diagnosticApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import {
+  formatPassPrice,
+  passCheckoutHref,
+  passDurationLabel,
+  passMonthlyLabel,
+  popularPassCodeOf,
+  passSessionsLabel,
+} from "@/lib/passes";
 import { SOCIAL_ACCOUNTS, STORE_LINKS } from "@/lib/site";
-import type { PlanPublicResponse } from "@/lib/types";
+import { type PlanPublicResponse } from "@/lib/types";
 import styles from "./reussir.module.css";
 
 /**
@@ -778,7 +786,7 @@ function PricingSection({ plans }: { plans: PlanPublicResponse[] }) {
   const visible = byParcours[parcours];
   if (byParcours.tcf.length === 0 && byParcours.civique.length === 0) return null;
 
-  const popular = popularCodeOf(visible);
+  const popular = popularPassCodeOf(visible);
 
   return (
     <section className={`${styles.sec} ${styles.paper}`} id="tarifs">
@@ -866,23 +874,25 @@ function PlanCard({
   popular: boolean;
   isAuth: boolean;
 }) {
-  const target = plan.moduleAccess === "INTEGRAL" ? "INTEGRAL" : "CIVIQUE";
-  const hasOral = target === "INTEGRAL";
-  const checkout = `/paiement?module=${target}&plan=${encodeURIComponent(plan.code)}`;
-  // Non connecté : on passe par l'inscription en gardant la destination — le
-  // nouvel inscrit retombe sur le pass qu'il vient de choisir, pas au dashboard.
-  const href = isAuth ? checkout : `/inscription?next=${encodeURIComponent(checkout)}`;
+  const hasOral = plan.moduleAccess === "INTEGRAL";
+  const monthly = passMonthlyLabel(plan);
+  // Un clic sur un prix mène au RÉCAPITULATIF du pass cliqué — même geste, même
+  // destination que sur /tarifs (`lib/passes.ts`). Non connecté : on passe par
+  // l'inscription en gardant la destination, le nouvel inscrit retombe sur le
+  // pass qu'il vient de choisir et non au dashboard.
+  const href = passCheckoutHref(plan.code, isAuth);
 
   return (
     <article className={`${styles.plan} ${popular ? styles.planHi : ""}`} data-rv>
       {popular && <span className={styles.planTag}>Le plus choisi</span>}
       <span className={styles.planName}>{planShortName(plan)}</span>
       <span className={styles.planPrice}>
-        <b>{formatPrice(plan.price)}&nbsp;€</b>
+        <b>{formatPassPrice(plan.price)}&nbsp;€</b>
         <span>payés une fois</span>
       </span>
       <span className={styles.planDur}>
-        {durationLabel(plan.durationDays)} d&apos;accès{monthlyLabel(plan)}
+        {passDurationLabel(plan.durationDays)} d&apos;accès
+        {monthly !== null ? ` · ${monthly}` : ""}
       </span>
 
       <span className={styles.planSessions} data-none={hasOral ? undefined : ""}>
@@ -1071,77 +1081,20 @@ function StickyCta() {
 // HELPERS DONNÉES
 // ============================================================================
 
-function formatPrice(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ",");
-}
-
-function durationLabel(days: number): string {
-  if (days <= 0) return "";
-  if (days % 365 === 0) {
-    const y = days / 365;
-    return y === 1 ? "12 mois" : `${y} ans`;
-  }
-  if (days >= 30 && days % 30 === 0) return `${days / 30} mois`;
-  if (days % 7 === 0) return `${days / 7} semaines`;
-  return `${days} jours`;
-}
-
-/** Nom court affichable : « Intégral · 3 mois » plutôt que le libellé DB complet. */
 function planShortName(plan: PlanPublicResponse): string {
   const family = plan.moduleAccess === "INTEGRAL" ? "Intégral" : "Examen civique";
-  return `${family} · ${durationLabel(plan.durationDays)}`;
+  return `${family} · ${passDurationLabel(plan.durationDays)}`;
 }
 
 /**
- * Pass mis en avant : celui de 3 mois s'il existe (le plus vendu, cohérent avec
- * `POPULAR_PASS_CODE` de /paiement), sinon celui du milieu de la grille.
- */
-function popularCodeOf(list: PlanPublicResponse[]): string | null {
-  if (list.length === 0) return null;
-  const quarter = list.find((p) => p.durationDays === 90);
-  if (quarter) return quarter.code;
-  return list[Math.floor((list.length - 1) / 2)].code;
-}
-
-/**
- * Équivalent mensuel affiché en sous-texte (« soit 13,33 €/mois »). Le montant
- * réellement débité reste le prix principal — un pass se paie une fois, mettre
- * un « /mois » en avant laisserait croire à un abonnement. Null sous un mois
- * d'accès, où le prix affiché est déjà mensuel. Parité : /paiement, /tarifs et
- * le paywall mobile suivent la même hiérarchie.
- */
-function monthlyLabel(plan: PlanPublicResponse): string {
-  const days = plan.durationDays;
-  const months =
-    days <= 0
-      ? 0
-      : days % 365 === 0
-        ? (days / 365) * 12
-        : days % 30 === 0
-          ? days / 30
-          : days % 7 === 0
-            ? days / 7 / 4
-            : days / 30;
-  if (months <= 1) return "";
-  return ` · soit ${formatPrice(Number((plan.price / months).toFixed(2)))} €/mois`;
-}
-
-/**
- * Libellé des simulations orales d'un pass.
- *
- * On ne dit JAMAIS « sans simulation orale » pour un pass Intégral : si le
- * backend déployé est antérieur à l'ajout de `realtimeEoSessions`, le champ
- * arrive absent (donc falsy) et l'affirmation serait fausse sur l'argument
- * principal du produit. Dans ce cas on retombe sur un libellé vrai mais sans
- * chiffre. Seul le module (source sûre) autorise le « sans ».
+ * Libellé des simulations orales d'un pass, en **puce de liste** : ici la ligne
+ * doit exister même quand il n'y en a aucune, d'où le repli sur le « sans » —
+ * que `passSessionsLabel` ne rend jamais de lui-même (un pass Intégral servi
+ * par un backend antérieur au champ dirait une contrevérité sur l'argument
+ * principal du produit). Seul le module, source sûre, l'autorise.
  */
 function sessionsLabel(plan: PlanPublicResponse): string {
-  const sessions = plan.realtimeEoSessions;
-  if (typeof sessions === "number" && sessions > 0) {
-    return `${sessions} simulations orales en direct`;
-  }
-  if (plan.moduleAccess === "INTEGRAL") return "Simulations orales en direct incluses";
-  return "Sans simulation orale (réservée au TCF)";
+  return passSessionsLabel(plan) ?? "Sans simulation orale (réservée au TCF)";
 }
 
 function featuresOf(plan: PlanPublicResponse): string[] {
@@ -1180,29 +1133,73 @@ function usePrefersReducedMotion(): boolean {
   );
 }
 
-/** Révèle en cascade tous les `[data-rv]` du sous-arbre au passage du scroll. */
+/**
+ * Révèle en cascade tous les `[data-rv]` du sous-arbre au passage du scroll.
+ *
+ * ⚠️ Le sous-arbre n'est PAS figé : plusieurs sections en remontent une partie
+ * après le montage (le sélecteur de parcours des tarifs remplace ses cartes de
+ * pass, et chaque bascule crée des nœuds neufs). Comme `[data-rv]` vaut
+ * `opacity: 0` tant que `data-in` n'est pas posé, un nœud ajouté après coup et
+ * jamais observé reste **définitivement invisible** — c'est ainsi que les prix
+ * disparaissaient dès qu'on passait sur « examen civique seul », et ne
+ * revenaient pas en repassant sur « TCF IRN ». Un `MutationObserver` prend donc
+ * en charge les arrivées tardives : toute brique de cette page peut être rendue
+ * conditionnellement sans avoir à connaître ce mécanisme.
+ */
 function useReveal(rootRef: React.RefObject<HTMLElement | null>) {
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    const targets = Array.from(root.querySelectorAll<HTMLElement>("[data-rv]"));
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      targets.forEach((el) => el.setAttribute("data-in", ""));
-      return;
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reveal = (el: HTMLElement) => el.setAttribute("data-in", "");
+
+    if (reduced) {
+      const showAll = (scope: ParentNode) =>
+        scope.querySelectorAll<HTMLElement>("[data-rv]").forEach(reveal);
+      showAll(root);
+      // Même sans animation, un nœud tardif doit être rendu visible.
+      const mo = new MutationObserver(() => showAll(root));
+      mo.observe(root, { childList: true, subtree: true });
+      return () => mo.disconnect();
     }
+
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry, i) => {
           if (!entry.isIntersecting) return;
           const el = entry.target as HTMLElement;
-          window.setTimeout(() => el.setAttribute("data-in", ""), i * 65);
+          window.setTimeout(() => reveal(el), i * 65);
           io.unobserve(el);
         });
       },
       { rootMargin: "0px 0px -10% 0px", threshold: 0.1 },
     );
-    targets.forEach((el) => io.observe(el));
-    return () => io.disconnect();
+
+    // `data-in` sert de marqueur « déjà pris en charge » : un nœud remonté à
+    // l'identique n'est jamais observé deux fois, et l'observation est
+    // idempotente côté navigateur de toute façon.
+    const observeAll = (scope: ParentNode) =>
+      scope
+        .querySelectorAll<HTMLElement>("[data-rv]:not([data-in])")
+        .forEach((el) => io.observe(el));
+
+    observeAll(root);
+    const mo = new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (!(node instanceof HTMLElement)) continue;
+          if (node.matches("[data-rv]:not([data-in])")) io.observe(node);
+          observeAll(node);
+        }
+      }
+    });
+    mo.observe(root, { childList: true, subtree: true });
+
+    return () => {
+      mo.disconnect();
+      io.disconnect();
+    };
   }, [rootRef]);
 }
 

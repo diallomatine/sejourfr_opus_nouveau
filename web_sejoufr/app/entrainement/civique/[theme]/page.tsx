@@ -13,6 +13,7 @@ import {
   themeApi,
 } from "@/lib/api";
 import { handleStartFailure } from "@/lib/start-failure";
+import { loadFailureMessage } from "@/lib/load-failure";
 import { useAuth } from "@/lib/auth-context";
 import { themeSlug, resolveThemeRef } from "@/lib/themes";
 import {
@@ -81,9 +82,14 @@ export default function CiviqueThemeSeriesPage() {
         const l = await (auth
           ? lotApi.listCivique(found.id)
           : publicLotApi.listCivique(found.id));
-        if (!cancelled) setLots(l);
-      } catch {
-        /* la grille restera vide, message "aucune série" */
+        if (!cancelled) {
+          setLots(l);
+          setError(null);
+        }
+      } catch (e) {
+        // Une panne de chargement se dit ; elle ne se déguise pas en
+        // « aucune série disponible », qui décrirait un catalogue vide.
+        if (!cancelled) setError(loadFailureMessage(e, "Impossible de charger les séries."));
       }
       if (!cancelled) setLoading(false);
     })();
@@ -167,9 +173,11 @@ export default function CiviqueThemeSeriesPage() {
         {loading ? (
           <div className={detail.loading}>Chargement des séries…</div>
         ) : lots.length === 0 ? (
-          <p className={detail.empty}>
-            Aucune série disponible pour ce thème pour l&apos;instant.
-          </p>
+          error ? null : (
+            <p className={detail.empty}>
+              Aucune série disponible pour ce thème pour l&apos;instant.
+            </p>
+          )
         ) : (
           <>
             <SeriesProgressCard done={doneCount} total={lots.length} />

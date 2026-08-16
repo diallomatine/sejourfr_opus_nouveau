@@ -1,7 +1,7 @@
 "use client";
 
 import {useEffect, useRef, useState, type ReactNode} from "react";
-import {FileText, Lightbulb, Target} from "lucide-react";
+import {Clock, FileText, Lightbulb, Target} from "lucide-react";
 import type {ProductionTaskDto} from "@/lib/types";
 import {countEeWords, isEeWordCountWithinBounds} from "@/lib/ee-word-bounds";
 import {SkillAccent} from "@/app/_components/skill-ui/SkillLayout";
@@ -71,6 +71,7 @@ export function EeWritingForm({
   lengthAdvisory = false,
   clearLabel,
   voice = "vouvoiement",
+  advisedTimeLabel,
   autoSubmitSignal = 0,
   onAutoSubmit,
   onSubmit,
@@ -116,6 +117,11 @@ export function EeWritingForm({
    *  longueur). Vouvoiement par défaut ; le module « Compétences » tutoie. Ne
    *  touche jamais au texte du sujet, ni à l'amorce fournie par la base. */
   voice?: ProductionVoice;
+  /** Temps **conseillé** pour cette tâche (« ≈ 7 min conseillées »), affiché à
+   *  côté de la fourchette de mots. 🛑 Purement indicatif : rien ne se ferme
+   *  dessus, aucune tâche n'est coupée — le seul chrono réel est celui de
+   *  l'épreuve, porté par le parent. Absent = rien ne s'affiche. */
+  advisedTimeLabel?: string | null;
   /** Incrémenté par le parent (chrono examen à 0:00) pour déclencher une
    *  auto-soumission du texte courant si recevable. */
   autoSubmitSignal?: number;
@@ -218,12 +224,20 @@ export function EeWritingForm({
             </div>
           )}
 
-          {rangeLabel && (
+          {(rangeLabel || advisedTimeLabel) && (
             <div className={s.requirements}>
-              <span className={s.requirement}>
-                <FileText size={11} strokeWidth={2.4} aria-hidden />
-                {rangeLabel}
-              </span>
+              {rangeLabel && (
+                <span className={s.requirement}>
+                  <FileText size={11} strokeWidth={2.4} aria-hidden />
+                  {rangeLabel}
+                </span>
+              )}
+              {advisedTimeLabel && (
+                <span className={s.requirement}>
+                  <Clock size={11} strokeWidth={2.4} aria-hidden />
+                  {advisedTimeLabel}
+                </span>
+              )}
             </div>
           )}
         </section>

@@ -2,7 +2,6 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.SkillDetailDto;
 import com.sejourfr.app.dto.SkillDto;
-import com.sejourfr.app.dto.SkillObservationPointDto;
 import com.sejourfr.app.dto.SkillPromptDto;
 import com.sejourfr.app.dto.SkillPromptSummaryDto;
 import com.sejourfr.app.dto.SkillReferenceDto;
@@ -217,6 +216,10 @@ public class SkillService {
                     status,
                     attemptCounts.getOrDefault(prompt.getId(), 0L).intValue(),
                     latest == null ? null : latest.getCreatedAt(),
+                    // Meme tentative que celle qui donne le statut : la liste
+                    // peut donc pointer vers le dernier rapport sans qu'aucune
+                    // requete soit ajoutee (15 sujets par competence).
+                    latest == null ? null : latest.getId(),
                     access.isPromptLocked(prompt.getId())));
         }
 
@@ -224,19 +227,7 @@ public class SkillService {
                 skill, prompts.size(), tally.attempted(), tally.validated(), tally.toReinforce(),
                 masteryState(masteryResolver.bySkillIds(userId, List.of(skillId)), skillId),
                 access.isSkillLocked(skill.getId()));
-        // La frise part avec la fiche : l'ecran affiche les deux ensemble, un
-        // second aller-retour n'aurait apporte que de la latence.
-        List<SkillObservationPointDto> trajectory =
-                masteryResolver.trajectory(userId, skillId).stream()
-                        .map(observation -> new SkillObservationPointDto(
-                                observation.getObservedAt(),
-                                observation.getSourceType(),
-                                observation.getStatus(),
-                                observation.getExplanation(),
-                                observation.getConfidence(),
-                                observation.isBaseline()))
-                        .toList();
-        return new SkillDetailDto(dto, summaries, trajectory);
+        return new SkillDetailDto(dto, summaries);
     }
 
     /** Le sujet complet pour l'ecran de production. Ne contient jamais les references. */

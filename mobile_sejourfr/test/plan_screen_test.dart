@@ -45,7 +45,9 @@ void main() {
 
     expect(find.text('Mon plan'), findsOneWidget);
     expect(find.text('Développer un argument'), findsWidgets);
-    expect(find.text('Donner une raison et un exemple'), findsWidgets);
+    // Le Plan ne nomme QUE des compétences : le titre du sujet recommandé vit
+    // sur l'écran d'étape, où le candidat voit les 5 et choisit.
+    expect(find.text('Donner une raison et un exemple'), findsNothing);
     expect(find.text('Commencer'), findsOneWidget);
 
     await tester.scrollUntilVisible(
@@ -87,38 +89,42 @@ void main() {
       (tester) async {
     await pumpPlan(tester);
 
+    // On défile jusqu'à la DERNIÈRE étape, pas jusqu'au titre de section : une
+    // liste ne construit que ses enfants visibles, et s'arrêter au titre
+    // laissait les étapes hors de l'arbre.
     await tester.scrollUntilVisible(
-      find.text('Votre parcours'),
+      find.text('Relier ses idées'),
       250,
       scrollable: find.byType(Scrollable).first,
     );
 
-    // 3 priorités numérotées 1..3, puis la réévaluation qui ferme le chemin
-    // (elle porte une icône, pas un rang : ce n'est pas une priorité).
+    // 3 priorités numérotées 1..3. Le chemin ne se termine plus par une carte
+    // « Réévaluation » : elle était rendue en dur, ne venait d'aucun champ du
+    // DTO et annonçait une action qui n'existait pas.
     for (final number in ['1', '2', '3']) {
       expect(find.text(number), findsWidgets, reason: 'étape $number');
     }
     expect(find.text('EN COURS'), findsOneWidget);
     expect(find.text('À VENIR'), findsNWidgets(2));
-    expect(find.text('Réévaluation'), findsOneWidget);
+    expect(find.text('Réévaluation'), findsNothing);
 
-    // Ordre : l'étape en cours vient avant les deux suivantes, puis la
-    // réévaluation ferme le chemin.
+    // Ordre : l'étape en cours vient avant les deux suivantes.
     final current = tester.getTopLeft(find.text('EN COURS')).dy;
     final upcoming = tester
         .getTopLeft(find.text('Relier ses idées'))
         .dy;
-    final reassessment = tester.getTopLeft(find.text('Réévaluation')).dy;
     expect(current, lessThan(upcoming));
-    expect(upcoming, lessThan(reassessment));
   });
 
   testWidgets('les anneaux du parcours lisent les compteurs réels du serveur',
       (tester) async {
     await pumpPlan(tester);
 
+    // Jusqu'à la dernière étape : une liste ne construit que ses enfants
+    // visibles, s'arrêter au titre de section laisserait les anneaux hors de
+    // l'arbre.
     await tester.scrollUntilVisible(
-      find.text('Votre parcours'),
+      find.text('Relier ses idées'),
       250,
       scrollable: find.byType(Scrollable).first,
     );

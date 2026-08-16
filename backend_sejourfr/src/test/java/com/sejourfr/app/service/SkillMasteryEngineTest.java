@@ -147,6 +147,37 @@ class SkillMasteryEngineTest {
         assertThat(mastery.readyForReassessment()).isFalse();
     }
 
+    /**
+     * Le filtre des reussites ciblees est <b>propre au signal de reevaluation</b> :
+     * deux echecs sur deux sujets differents n'ouvrent rien, meme si le candidat
+     * a « couvert » les deux sujets.
+     */
+    @Test
+    @DisplayName("Deux echecs cibles sur deux sujets differents n'ouvrent pas la verification")
+    void deuxEchecsCiblesNouvrentPasLaVerification() {
+        SkillMasteryEngine.SkillMastery mastery = engine.evaluate(List.of(
+                observation(LearningPlanSourceType.SKILL_TRAINING, LearningPlanSkillStatus.PRIORITY,
+                        ObservationConfidence.MEDIUM, UUID.randomUUID(), jours(2)),
+                observation(LearningPlanSourceType.SKILL_TRAINING, LearningPlanSkillStatus.PRIORITY,
+                        ObservationConfidence.MEDIUM, UUID.randomUUID(), jours(1))), now);
+
+        assertThat(mastery.readyForReassessment()).isFalse();
+        assertThat(mastery.state()).isEqualTo(SkillMasteryState.PRIORITY);
+    }
+
+    /**
+     * Garde-fou de calibration, pas de comportement : la voie ciblee n'ecrit
+     * jamais {@code SOLID}, donc la performance ciblee ne depasse jamais
+     * {@code 0.5}. Un seuil au-dela eteindrait le signal au lieu de le durcir —
+     * et avec lui {@code SOLID}, qui reclame la preuve contextualisee que seule
+     * la verification apporte a un candidat en micro-entrainement.
+     */
+    @Test
+    @DisplayName("Le seuil de performance ciblee reste sous le plafond reellement atteignable")
+    void leSeuilCibleResteAtteignable() {
+        assertThat(properties.getMastery().getReadinessTargetedScore()).isLessThan(0.5);
+    }
+
     @Test
     @DisplayName("Le meme sujet repete n'ouvre pas la verification : on cherche le transfert")
     void leMemeSujetRepeteNouvrePasLaVerification() {
@@ -161,8 +192,30 @@ class SkillMasteryEngineTest {
     }
 
     @Test
-    @DisplayName("Une preuve de transfert recente ferme le signal de verification")
+    @DisplayName("Une REUSSITE en situation recente ferme le signal de verification")
     void unePreuveDeTransfertRecenteFermeLaVerification() {
+        SkillMasteryEngine.SkillMastery mastery = engine.evaluate(List.of(
+                microReussi(UUID.randomUUID(), jours(10)),
+                microReussi(UUID.randomUUID(), jours(12)),
+                observation(LearningPlanSourceType.PRODUCTION_EO,
+                        LearningPlanSkillStatus.SOLID, ObservationConfidence.MEDIUM,
+                        UUID.randomUUID(), jours(2))), now);
+
+        assertThat(mastery.readyForReassessment()).isFalse();
+        assertThat(mastery.transferProven()).isTrue();
+    }
+
+    /**
+     * <b>Une fragilite constatee n'est pas une preuve.</b> Une production
+     * contextualisee {@code TO_REINFORCE} dit « fragile en situation » : la
+     * compter comme preuve de transfert eteignait le signal de verification au
+     * moment precis ou il devenait utile. Elle reste une observation
+     * <b>positive</b> ({@code contextualPositiveCount}) — les deux ensembles ne
+     * repondent pas a la meme question.
+     */
+    @Test
+    @DisplayName("Une production contextualisee seulement A RENFORCER n'eteint pas le signal")
+    void uneContextualiseeFragileNeFermePasLaVerification() {
         SkillMasteryEngine.SkillMastery mastery = engine.evaluate(List.of(
                 microReussi(UUID.randomUUID(), jours(10)),
                 microReussi(UUID.randomUUID(), jours(12)),
@@ -170,7 +223,103 @@ class SkillMasteryEngineTest {
                         LearningPlanSkillStatus.TO_REINFORCE, ObservationConfidence.MEDIUM,
                         UUID.randomUUID(), jours(2))), now);
 
-        assertThat(mastery.readyForReassessment()).isFalse();
+        assertThat(mastery.readyForReassessment()).isTrue();
+        assertThat(mastery.contextualPositiveCount()).isEqualTo(1);
+        assertThat(mastery.transferProven()).isFalse();
+    }
+
+    // ------------------------------------------------------------------------
+    // « Le transfert est-il prouve ? » — la SEULE definition
+    // ------------------------------------------------------------------------
+
+    /**
+     * Le cas mesure sur le compte {@code user@sejourfr.fr}, competence
+     * {@code EE1-C8} : trois preuves en situation, puis une production moins
+     * bonne. Le transfert reste prouve — une observation {@code TO_REINFORCE}
+     * n'est meme pas une fragilite pour le moteur.
+     */
+    @Test
+    @DisplayName("Une production moins bonne ne revoque pas trois preuves en situation")
+    void uneProductionMoinsBonneNeRevoquePasLesPreuvesAnterieures() {
+        SkillMasteryEngine.SkillMastery mastery = engine.evaluate(List.of(
+                observation(LearningPlanSourceType.PRODUCTION_EE, LearningPlanSkillStatus.SOLID,
+                        ObservationConfidence.HIGH, UUID.randomUUID(), jours(6)),
+                observation(LearningPlanSourceType.PRODUCTION_EE, LearningPlanSkillStatus.SOLID,
+                        ObservationConfidence.HIGH, UUID.randomUUID(), jours(6)),
+                observation(LearningPlanSourceType.PRODUCTION_EE, LearningPlanSkillStatus.SOLID,
+                        ObservationConfidence.HIGH, UUID.randomUUID(), jours(5)),
+                observation(LearningPlanSourceType.PRODUCTION_EE,
+                        LearningPlanSkillStatus.TO_REINFORCE, ObservationConfidence.MEDIUM,
+                        UUID.randomUUID(), jours(4))), now);
+
+        assertThat(mastery.transferProven()).isTrue();
+    }
+
+    /**
+     * La <b>meme</b> tolerance que le filet de stabilite : une production ratee
+     * est toleree, deux revoquent le transfert. Ce que l'ancienne regle du
+     * resolveur de priorites ne faisait pas — elle avait une tolerance nulle.
+     */
+    @Test
+    @DisplayName("Deux echecs en situation revoquent le transfert, un seul non")
+    void deuxEchecsEnSituationRevoquentLeTransfert() {
+        List<LearningPlanObservation> unEchec = new java.util.ArrayList<>(parcoursConfirme());
+        unEchec.add(fragiliteContextualisee(jours(1)));
+        assertThat(engine.evaluate(unEchec, now).transferProven()).isTrue();
+
+        List<LearningPlanObservation> deuxEchecs = new java.util.ArrayList<>(unEchec);
+        deuxEchecs.add(fragiliteContextualisee(jours(3)));
+        assertThat(engine.evaluate(deuxEchecs, now).transferProven()).isFalse();
+    }
+
+    /**
+     * <b>« Une reussite suffit »</b>, et sans passer par {@code SOLID} : cinq
+     * micro-entrainements valent {@code 0.5} chacun et diluent la moyenne
+     * ponderee sous {@code solid-score}. Aligner « transfert prouve » sur le seul
+     * etat agrege aurait donc redemande une SECONDE preuve en situation.
+     */
+    @Test
+    @DisplayName("Cinq sujets valides puis UNE verification reussie prouvent le transfert")
+    void cinqSujetsPuisUneVerificationProuventLeTransfert() {
+        List<LearningPlanObservation> historique = new java.util.ArrayList<>();
+        historique.add(observation(LearningPlanSourceType.DIAGNOSTIC_EE,
+                LearningPlanSkillStatus.PRIORITY, ObservationConfidence.HIGH,
+                UUID.randomUUID(), jours(30)));
+        for (int sujet = 0; sujet < 5; sujet++) {
+            historique.add(microReussi(UUID.randomUUID(), jours(10 - sujet)));
+        }
+        historique.add(observation(LearningPlanSourceType.PRODUCTION_EE,
+                LearningPlanSkillStatus.SOLID, ObservationConfidence.HIGH,
+                UUID.randomUUID(), jours(1)));
+
+        SkillMasteryEngine.SkillMastery mastery = engine.evaluate(historique, now);
+
+        assertThat(mastery.transferProven()).isTrue();
+        assertThat(mastery.state()).isNotEqualTo(SkillMasteryState.SOLID);
+    }
+
+    /** Un {@code SOLID} de micro-entrainement ou de diagnostic ne prouve aucun transfert. */
+    @Test
+    @DisplayName("Ni le micro-entrainement ni le diagnostic ne prouvent un transfert")
+    void seuleUnePreuveEnSituationProuveLeTransfert() {
+        assertThat(engine.evaluate(List.of(
+                observation(LearningPlanSourceType.SKILL_TRAINING, LearningPlanSkillStatus.SOLID,
+                        ObservationConfidence.HIGH, UUID.randomUUID(), jours(1)),
+                observation(LearningPlanSourceType.DIAGNOSTIC_EE, LearningPlanSkillStatus.SOLID,
+                        ObservationConfidence.HIGH, UUID.randomUUID(), jours(3))), now)
+                .transferProven()).isFalse();
+    }
+
+    /** Hors fenetre de validite, une preuve ne prouve plus rien. */
+    @Test
+    @DisplayName("Une preuve en situation trop ancienne ne prouve plus le transfert")
+    void unePreuveTropAncienneNeProuvePlusLeTransfert() {
+        SkillMasteryEngine.SkillMastery mastery = engine.evaluate(List.of(
+                observation(LearningPlanSourceType.PRODUCTION_EE, LearningPlanSkillStatus.SOLID,
+                        ObservationConfidence.HIGH, UUID.randomUUID(),
+                        jours(properties.getMastery().getTransferProofDays() + 5))), now);
+
+        assertThat(mastery.transferProven()).isFalse();
     }
 
     // ------------------------------------------------------------------------

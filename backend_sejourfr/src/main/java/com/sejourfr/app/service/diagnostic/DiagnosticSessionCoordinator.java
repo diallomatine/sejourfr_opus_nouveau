@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -37,6 +36,7 @@ public class DiagnosticSessionCoordinator {
     private final DiagnosticSessionManager sessionManager;
     private final AttemptManager attemptManager;
     private final DiagnosticTaskSkillManager taskSkillManager;
+    private final DiagnosticReconciliationMetrics metrics;
 
     /**
      * Réserve atomiquement une relance. Le verrou de l'agrégat empêche deux
@@ -181,37 +181,53 @@ public class DiagnosticSessionCoordinator {
     }
 
     /**
-     * Ordonne les priorités d'UNE production : confiance décroissante, puis rang
-     * de la compétence dans l'allowlist du sujet
+     * Les priorités d'UNE production, ordonnées par la règle partagée
+     * {@link DiagnosticPriorityRanking} : confiance décroissante, puis rang de
+     * la compétence dans l'allowlist du sujet
      * ({@code diagnostic_task_skills.display_order}).
      *
      * <p>Ce rang n'est pas décoratif : c'est l'ordre éditorial d'importance des
      * huit compétences observables par ce sujet. Une compétence absente de
      * l'allowlist — cas qui ne devrait pas exister, le validateur la refuse —
      * passe en dernier, puis on retombe sur le code pour rester déterministe.
+     *
+     * <p><b>Une priorité se DÉRIVE quand le correcteur n'en désigne aucune.</b>
+     * Le filtre était strict sur {@code priority == true} ; or le modèle range
+     * ses faiblesses en {@code TO_REINFORCE} sans jamais poser {@code PRIORITY},
+     * et deux diagnostics réels sont sortis avec {@code priority_skill_codes: []}
+     * — Plan {@code ACTIVE}, rien à faire. On complète donc les priorités
+     * désignées par les <b>faiblesses observées</b>, les mieux classées d'abord,
+     * jusqu'au plafond par production. <b>Une priorité désignée l'emporte
+     * toujours</b> : on complète, on ne remplace jamais.
      */
-    private List<RankedPriority> ranked(Map<String, Object> analysis, UUID taskId) {
-        Map<String, Short> order = new LinkedHashMap<>();
+    private List<DiagnosticPriorityRanking.Ranked> ranked(
+            Map<String, Object> analysis, UUID taskId) {
+        Map<String, Integer> order = new LinkedHashMap<>();
         for (DiagnosticTaskSkill allowed : taskSkillManager.findActiveByTaskId(taskId)) {
-            order.put(allowed.getSkill().getCode(), allowed.getDisplayOrder());
+            order.put(allowed.getSkill().getCode(), (int) allowed.getDisplayOrder());
         }
-        List<RankedPriority> priorities = new ArrayList<>();
-        for (Map<String, Object> item : prioritySkills(analysis)) {
-            String code = String.valueOf(item.get("skill_code"));
-            priorities.add(new RankedPriority(
-                    item, code, confidenceRank(item.get("confidence")),
-                    order.getOrDefault(code, Short.MAX_VALUE)));
+        List<Map<String, Object>> skills = skills(analysis);
+        int plafond = DiagnosticAnalysisValidator.MAX_PRIORITIES_PER_PRODUCTION;
+        List<DiagnosticPriorityRanking.Ranked> selected = new ArrayList<>(plafond);
+        LinkedHashSet<String> retenues = new LinkedHashSet<>();
+        for (DiagnosticPriorityRanking.Ranked designee : DiagnosticPriorityRanking.ranked(
+                skills.stream().filter(DiagnosticPriorityRanking::designee).toList(), order)) {
+            if (selected.size() >= plafond) break;
+            if (retenues.add(designee.skillCode())) selected.add(designee);
         }
-        priorities.sort(Comparator
-                .comparingInt(RankedPriority::confidence).reversed()
-                .thenComparingInt(RankedPriority::order)
-                .thenComparing(RankedPriority::skillCode));
-        return priorities;
-    }
+        if (selected.size() >= plafond) return selected;
 
-    /** Une priorité et ses deux clés de tri, résolues une seule fois. */
-    private record RankedPriority(
-            Map<String, Object> item, String skillCode, int confidence, int order) {}
+        for (DiagnosticPriorityRanking.Ranked derivee : DiagnosticPriorityRanking.ranked(
+                skills.stream().filter(DiagnosticPriorityRanking::faiblesseObservee).toList(),
+                order)) {
+            if (selected.size() >= plafond) break;
+            if (!retenues.add(derivee.skillCode())) continue;
+            selected.add(derivee);
+            metrics.enregistrer(
+                    DiagnosticReconciliationMetrics.Motif.PRIORITE_DERIVEE_DE_FAIBLESSE);
+        }
+        return selected;
+    }
 
     /**
      * Fusionne les priorités des deux productions, au plus trois.
@@ -230,7 +246,8 @@ public class DiagnosticSessionCoordinator {
      * parcours. Entièrement déterministe.
      */
     private static List<Map<String, Object>> mergePriorities(
-            List<RankedPriority> written, List<RankedPriority> oral) {
+            List<DiagnosticPriorityRanking.Ranked> written,
+            List<DiagnosticPriorityRanking.Ranked> oral) {
         List<Map<String, Object>> merged = new ArrayList<>(3);
         int w = 0;
         int o = 0;
@@ -252,32 +269,25 @@ public class DiagnosticSessionCoordinator {
     }
 
     /** Négatif = la priorité écrite passe devant ; zéro = égalité résiduelle. */
-    private static int comparePriority(RankedPriority written, RankedPriority oral) {
+    private static int comparePriority(
+            DiagnosticPriorityRanking.Ranked written, DiagnosticPriorityRanking.Ranked oral) {
         int byConfidence = Integer.compare(oral.confidence(), written.confidence());
         return byConfidence != 0 ? byConfidence : Integer.compare(written.order(), oral.order());
     }
 
+    /** Les compétences de la production, sans aucun filtre : le tri vient après. */
     @SuppressWarnings("unchecked")
-    private static List<Map<String, Object>> prioritySkills(Map<String, Object> analysis) {
+    private static List<Map<String, Object>> skills(Map<String, Object> analysis) {
         if (!(analysis.get("skills") instanceof List<?> raw)) return List.of();
         return raw.stream()
                 .filter(Map.class::isInstance)
                 .map(item -> (Map<String, Object>) item)
-                .filter(item -> Boolean.TRUE.equals(item.get("priority")))
                 .toList();
     }
 
     private static List<String> strings(Object raw) {
         if (!(raw instanceof List<?> list)) return List.of();
         return list.stream().filter(String.class::isInstance).map(String.class::cast).toList();
-    }
-
-    private static int confidenceRank(Object raw) {
-        return switch (String.valueOf(raw)) {
-            case "HIGH" -> 3;
-            case "MEDIUM" -> 2;
-            default -> 1;
-        };
     }
 
     private void finishAttempt(com.sejourfr.app.entity.Attempt attempt) {

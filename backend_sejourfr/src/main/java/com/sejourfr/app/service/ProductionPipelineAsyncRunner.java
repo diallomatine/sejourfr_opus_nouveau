@@ -11,6 +11,7 @@ import com.sejourfr.app.service.versionciblee.ProductionVersionCibleeService;
 import com.sejourfr.app.service.diagnostic.DiagnosticProductionAnalysisService;
 import com.sejourfr.app.service.diagnostic.DiagnosticSessionCoordinator;
 import com.sejourfr.app.service.diagnostic.DiagnosticSessionFailureRecorder;
+import com.sejourfr.app.service.diagnostic.exemplecible.DiagnosticExempleCibleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -20,15 +21,21 @@ import java.util.concurrent.CompletableFuture;
 import java.util.UUID;
 
 /**
- * Exécute le pipeline IA (Whisper + Claude) en arrière-plan après la
- * persistance d'une {@link ProductionSubmission}. Le caller
+ * Exécute la correction IA en arrière-plan après la persistance d'une
+ * {@link ProductionSubmission}.
+ *
+ * <p><b>Plus aucune transcription ici</b> : depuis que l'audio d'un candidat
+ * n'est plus conservé, elle se fait pendant la requête de soumission — seul
+ * moment où les octets existent. Ce runner part donc toujours d'une production
+ * écrite : le texte du candidat en EE, sa transcription en EO (upload ou temps
+ * réel). Le caller
  * ({@link ProductionEvaluationService#submitAndEvaluate}) déclenche cet
  * appel via le proxy Spring, ce qui garantit que {@code @Async} prend
  * effet (impossible si on s'appelait soi-même dans la même classe).
  *
  * <p>Conséquence pour le mobile : POST /api/production-submissions
- * répond en ~500 ms (persistance + upload R2 pour EO), et l'évaluation
- * Claude tourne en parallèle pendant que l'utilisateur enchaîne sur la
+ * répond dès la production persistée (en EO, après la transcription, seule
+ * attente réellement ajoutée), et la correction tourne en parallèle pendant que l'utilisateur enchaîne sur la
  * tâche suivante. Le mobile poll ensuite {@code GET /api/full-tcf-exams/{id}}
  * pour récupérer l'état des submissions au fur et à mesure (SUBMITTED →
  * EVALUATING → EVALUATED ou FAILED).
@@ -46,13 +53,13 @@ public class ProductionPipelineAsyncRunner {
 
     private final ProductionSubmissionManager submissionManager;
     private final TranscriptionManager transcriptionManager;
-    private final WhisperTranscriptionService whisperService;
     private final AiEvaluationService aiEvaluationService;
     private final ProductionPipelineFailureRecorder failureRecorder;
     private final ProductionVersionCibleeService versionCibleeService;
     private final DiagnosticProductionAnalysisService diagnosticAnalysisService;
     private final DiagnosticSessionCoordinator diagnosticSessionCoordinator;
     private final DiagnosticSessionFailureRecorder diagnosticFailureRecorder;
+    private final DiagnosticExempleCibleService diagnosticExempleCibleService;
 
     /**
      * Lance le pipeline d'évaluation IA en arrière-plan. Re-fetch la
@@ -82,19 +89,19 @@ public class ProductionPipelineAsyncRunner {
                 // seconde production, avant les appels externes potentiellement longs.
                 diagnosticSessionCoordinator.onAnalysisCompleted(submission.getId());
             }
-            if (estOral) {
-                boolean hasTranscription = transcriptionManager
-                        .existsBySubmissionId(submission.getId());
-                if (!hasTranscription) {
-                    whisperService.transcribe(submission.getId());
-                } else {
-                    submission.setStatut(SubmissionStatut.EVALUATING);
-                    submissionManager.save(submission);
-                }
-            } else {
-                submission.setStatut(SubmissionStatut.EVALUATING);
-                submissionManager.save(submission);
+            if (estOral && !transcriptionManager.existsBySubmissionId(submission.getId())) {
+                // Etat impossible depuis que l'audio n'est plus conserve : la
+                // transcription est ecrite dans la requete de soumission, avant
+                // meme que la submission existe. On ne peut donc plus la
+                // rattraper ici — il n'y a plus d'octets a relire. Reste le cas
+                // d'une ligne ANTERIEURE au changement, relancee via /retry :
+                // on echoue clairement plutot que de noter du vide.
+                throw new AiEvaluationException(
+                        "Cet enregistrement n'a pas ete retranscrit et n'a pas ete conserve : "
+                                + "refaites l'enregistrement.");
             }
+            submission.setStatut(SubmissionStatut.EVALUATING);
+            submissionManager.save(submission);
             // Bifurcation sur un purpose PERSISTÉ. Un sujet diagnostic ne doit
             // jamais atteindre AiEvaluationService, ai_evaluations, la version
             // ciblée, le profil de niveau ou la calibration /20.
@@ -103,6 +110,19 @@ public class ProductionPipelineAsyncRunner {
                 diagnosticSessionCoordinator.onAnalysisCompleted(submission.getId());
                 log.info("Pipeline diagnostic OK pour submission {} (epreuve={})",
                         submissionId, epreuve);
+                // SECOND APPEL LLM, totalement separe de l'analyse : la phrase du
+                // candidat reecrite au niveau qu'il VISE (ECRIT seulement — la
+                // production orale n'est jamais reecrite). Lance APRES que
+                // l'analyse est persistee et la session assemblee, et hors de
+                // toute transaction — comme le reste de ce runner.
+                //
+                // /!\ INVARIANT : il ne doit JAMAIS faire echouer un diagnostic
+                // deja obtenu, ni retrograder une session COMPLETED. Le service
+                // avale toutes ses exceptions ; le catch ci-dessous, qui poserait
+                // FAILED, est un filet supplementaire dont on ne veut pas
+                // dependre — d'ou l'appel deliberement place apres le log de
+                // succes, sur une analyse deja commitee.
+                diagnosticExempleCibleService.enrichir(submissionId);
                 return CompletableFuture.completedFuture(null);
             }
             AiEvaluation eval = aiEvaluationService.evaluate(submission.getId());

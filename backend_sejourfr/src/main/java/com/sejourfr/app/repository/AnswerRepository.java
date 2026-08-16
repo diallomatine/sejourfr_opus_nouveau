@@ -128,4 +128,18 @@ public interface AnswerRepository extends JpaRepository<Answer, UUID> {
             @Param("questionId") UUID questionId,
             org.springframework.data.domain.Pageable pageable
     );
+
+    /**
+     * Cette session QCM porte-t-elle au moins une réponse enregistrée ?
+     * Même définition que le {@code EXISTS} de
+     * {@code AttemptRepository.findQcmEpreuvesPassees} : « zéro réponse » =
+     * rien n'a été rendu. Sert à distinguer, sur une sous-épreuve d'examen
+     * complet, une épreuve <b>jamais ouverte</b> d'une épreuve ouverte puis
+     * écourtée — la première n'a pas de niveau, la seconde en a un.
+     */
+    @Query("""
+        SELECT COUNT(a) > 0 FROM Answer a
+        WHERE a.attemptQuestion.attempt.id = :attemptId
+        """)
+    boolean existsByAttemptId(@Param("attemptId") UUID attemptId);
 }

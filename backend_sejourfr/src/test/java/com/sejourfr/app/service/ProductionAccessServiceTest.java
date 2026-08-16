@@ -4,6 +4,7 @@ import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.AttemptManager;
@@ -103,16 +104,65 @@ class ProductionAccessServiceTest {
 
     @Test
     void chrono_ecoule_refuse_mais_la_grace_de_60s_passe() {
-        Attempt expired = attempt(EpreuveType.TCF_EO);
-        expired.setTimeLimitSeconds(900);
-        expired.setStartedAt(Instant.now().minusSeconds(900 + 120));
-        assertThatThrownBy(() -> service.assertCanSubmit(userId, expired, task(EpreuveType.TCF_EO, (short) 1)))
+        // Le chrono d'épreuve ne concerne plus que l'expression ÉCRITE : 30 min
+        // pour les 3 tâches. L'oral se compte tâche par tâche.
+        Attempt expired = attempt(EpreuveType.TCF_EE);
+        expired.setTimeLimitSeconds(1800);
+        expired.setStartedAt(Instant.now().minusSeconds(1800 + 120));
+        assertThatThrownBy(() -> service.assertCanSubmit(userId, expired, task(EpreuveType.TCF_EE, (short) 1)))
                 .isInstanceOf(BusinessException.class);
 
-        Attempt inGrace = attempt(EpreuveType.TCF_EO);
-        inGrace.setTimeLimitSeconds(900);
-        inGrace.setStartedAt(Instant.now().minusSeconds(900 + 10));
-        assertThatCode(() -> service.assertCanSubmit(userId, inGrace, task(EpreuveType.TCF_EO, (short) 1)))
+        Attempt inGrace = attempt(EpreuveType.TCF_EE);
+        inGrace.setTimeLimitSeconds(1800);
+        inGrace.setStartedAt(Instant.now().minusSeconds(1800 + 10));
+        assertThatCode(() -> service.assertCanSubmit(userId, inGrace, task(EpreuveType.TCF_EE, (short) 1)))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void session_orale_sans_chrono_depreuve_reste_ouverte_longtemps() {
+        // L'oral n'a AUCUN compte à rebours d'épreuve : une session ouverte
+        // depuis une heure accepte encore la tâche suivante — le candidat vient
+        // peut-être de lire sa consigne.
+        Attempt orale = attempt(EpreuveType.TCF_EO);
+        orale.setStartedAt(Instant.now().minusSeconds(3600));
+
+        assertThatCode(() -> service.assertCanSubmit(userId, orale, task(EpreuveType.TCF_EO, (short) 2)))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void session_orale_eternelle_refusee_par_le_garde_fou() {
+        // Garde-fou anti-abus, pas un chrono d'examen : sans lui, une session
+        // orale restait ouverte indéfiniment et un compte gratuit pouvait y
+        // accumuler des évaluations IA payantes.
+        Attempt eternelle = attempt(EpreuveType.TCF_EO);
+        eternelle.setStartedAt(Instant.now()
+                .minusSeconds(DureeEpreuve.EO_GARDE_SESSION_SECONDS + 60));
+
+        assertThatThrownBy(() -> service.assertCanSubmit(
+                userId, eternelle, task(EpreuveType.TCF_EO, (short) 1)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("trop longtemps");
+    }
+
+    @Test
+    void sous_epreuve_orale_dun_examen_complet_echappe_au_garde_fou() {
+        // Son started_at date de la CRÉATION de l'examen, des dizaines de
+        // minutes avant que l'oral ne s'ouvre : l'y opposer fermerait une
+        // épreuve légitime. Son coût IA est déjà borné par « une soumission par
+        // tâche ».
+        Attempt parent = new Attempt();
+        parent.setId(UUID.randomUUID());
+        parent.setEpreuve(EpreuveType.TCF_COMPLET);
+        Attempt sousEpreuve = attempt(EpreuveType.TCF_EO);
+        sousEpreuve.setParentAttempt(parent);
+        sousEpreuve.setStartedAt(Instant.now()
+                .minusSeconds(DureeEpreuve.EO_GARDE_SESSION_SECONDS + 3600));
+        when(submissionManager.countByAttemptAndTache(any(), anyShort())).thenReturn(0L);
+
+        assertThatCode(() -> service.assertCanSubmit(
+                userId, sousEpreuve, task(EpreuveType.TCF_EO, (short) 1)))
                 .doesNotThrowAnyException();
     }
 

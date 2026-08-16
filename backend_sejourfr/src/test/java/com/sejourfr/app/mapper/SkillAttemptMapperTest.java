@@ -16,7 +16,6 @@ import com.sejourfr.app.enums.SkillSelfEvaluation;
 import com.sejourfr.app.enums.SkillTaskCode;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
-import com.sejourfr.app.service.ProductionAudioStorageService;
 import com.sejourfr.app.service.competence.CompetenceAnalysisFields;
 import com.sejourfr.app.service.competence.niveauvise.CompetenceNiveauViseFields;
 import org.junit.jupiter.api.Test;
@@ -40,13 +39,10 @@ import static org.mockito.Mockito.when;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class SkillAttemptMapperTest {
 
-    @Mock
-    private ProductionAudioStorageService audioStorage;
-
     private SkillAttemptMapper mapper;
 
     private SkillAttemptMapper mapper() {
-        if (mapper == null) mapper = new SkillAttemptMapper(audioStorage);
+        if (mapper == null) mapper = new SkillAttemptMapper();
         return mapper;
     }
 
@@ -67,33 +63,25 @@ class SkillAttemptMapperTest {
         assertThat(dto.skillPromptCode()).isEqualTo("EE1-C1-S1");
     }
 
+    /**
+     * L'audio d'un candidat n'est pas conserve : le DTO ne porte AUCUNE URL, pas
+     * meme sur une ligne LEGACY qui garde encore sa cle R2. Ce qui est rendu
+     * d'une production orale, c'est sa transcription.
+     */
     @Test
-    void theRawObjectKeyIsNeverExposed() {
+    void aLegacyObjectKeyIsNeverTurnedIntoAnUrl() {
         UserSkillAttempt attempt = attempt();
         attempt.setAudioObjectKey("submissions/secret.webm");
+        attempt.setAudioDurationSec(42);
+        attempt.setTranscript("je voudrais reserver une salle");
 
-        // toDto ne signe pas : la cle brute ne doit jamais sortir du backend.
-        assertThat(mapper().toDto(attempt).audioUrl()).isNull();
-        verify(audioStorage, never()).presignGet("submissions/secret.webm");
-    }
+        SkillAttemptDto dto = mapper().toDto(attempt);
 
-    @Test
-    void signedVariantExposesAPresignedUrl() {
-        UserSkillAttempt attempt = attempt();
-        attempt.setAudioObjectKey("submissions/abc.webm");
-        when(audioStorage.presignGet("submissions/abc.webm")).thenReturn("https://r2/signed?x=1");
-
-        assertThat(mapper().toDtoWithSignedAudio(attempt).audioUrl())
-                .isEqualTo("https://r2/signed?x=1");
-    }
-
-    @Test
-    void signedVariantOnAWrittenAttemptDoesNotCallStorage() {
-        UserSkillAttempt attempt = attempt();
-        attempt.setWrittenProduction("Bonjour.");
-
-        assertThat(mapper().toDtoWithSignedAudio(attempt).audioUrl()).isNull();
-        verify(audioStorage, never()).presignGet(org.mockito.ArgumentMatchers.anyString());
+        assertThat(dto.transcript()).isEqualTo("je voudrais reserver une salle");
+        assertThat(dto.audioDurationSec()).isEqualTo(42);
+        // Aucun accesseur audioUrl n'existe : le contrat lui-meme l'interdit.
+        assertThat(SkillAttemptDto.class.getRecordComponents())
+                .noneMatch(c -> c.getName().toLowerCase().contains("audiourl"));
     }
 
     /**

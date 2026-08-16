@@ -13,6 +13,15 @@ import {
 } from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import type {AuthenticatedUser, BillingCycle, PlanPublicResponse} from "@/lib/types";
+import {
+    formatPassPrice,
+    isOneTimeCatalog,
+    oneTimePassesOf,
+    passDurationLabel,
+    passMonthlyLabel,
+    passSessionsLabel,
+    POPULAR_PASS_CODE,
+} from "@/lib/passes";
 
 // ============================================================================
 // CONSTANTES DE PRÉSENTATION
@@ -106,48 +115,14 @@ function formatEndDate(iso: string): string {
     });
 }
 
-function formatPrice(n: number): string {
-    if (Number.isInteger(n)) return String(n);
-    return n.toFixed(2).replace(".", ",");
-}
-
-/** Libellé de durée d'un pass one-time (« 6 semaines », « 3 mois », « 1 an »). */
-function durationLabel(days: number): string {
-    if (days <= 0) return "";
-    if (days % 365 === 0) {
-        const y = days / 365;
-        return y === 1 ? "1 an" : `${y} ans`;
-    }
-    if (days >= 30 && days % 30 === 0) return `${days / 30} mois`;
-    if (days % 7 === 0) return `${days / 7} semaines`;
-    return `${days} jours`;
-}
+/** Alias local : les passes et les abonnements partagent le même formateur. */
+const formatPrice = formatPassPrice;
 
 /** Calcule l'équivalent mensuel d'un plan trimestriel/annuel. */
 function monthlyEquivalent(price: number, cycle: BillingCycle): number | null {
     if (cycle === "THREE_MONTHS") return price / 3;
     if (cycle === "YEARLY") return price / 12;
     return null;
-}
-
-/**
- * Équivalent mensuel d'un pass one-time, dérivé de sa durée (1 an → /12,
- * 3 mois → /3, 6 semaines → /1,5 en comptant un mois = 4 semaines). Null pour
- * un pass ≤ 1 mois (le prix affiché est déjà mensuel).
- *
- * C'est le **prix réellement débité** qui s'affiche en gros — un pass se paie
- * une fois, annoncer un « /mois » en principal laisse croire à un abonnement.
- * L'équivalent mensuel reste en sous-texte, pour la comparaison entre durées.
- */
-function passMonthlyEquivalent(price: number, days: number): number | null {
-    const months =
-        days <= 0 ? 0
-            : days % 365 === 0 ? (days / 365) * 12
-                : days % 30 === 0 ? days / 30
-                    : days % 7 === 0 ? (days / 7) / 4
-                        : days / 30;
-    if (months <= 1) return null;
-    return price / months;
 }
 
 /**
@@ -236,14 +211,8 @@ function PaiementInner() {
     const index = useMemo(() => indexPlans(plans), [plans]);
 
     // Mode passes one-time (lot 5) : pas de toggle de périodicité, grille de
-    // passes par module. On ignore les plans non payables (FREE) dans la
-    // détection — sinon le FREE (SUBSCRIPTION) casserait le `every`.
-    const payablePlans = plans.filter(
-        (p) => p.moduleAccess !== "NONE" && p.price > 0,
-    );
-    const oneTime =
-        payablePlans.length > 0 &&
-        payablePlans.every((p) => p.purchaseType === "ONE_TIME");
+    // passes par module.
+    const oneTime = isOneTimeCatalog(plans);
 
     /** Modules visibles : INTEGRAL seul si déjà INTEGRAL ; les 2 sinon ; focus si demandé. */
     const visibleModules = useMemo<PlanModuleTarget[]>(() => {
@@ -420,9 +389,6 @@ function PaiementInner() {
 // PASSES ONE-TIME (lot 5) — grille de passes par module
 // ============================================================================
 
-/** Pass mis en avant comme « le plus populaire » (cohérent web + mobile). */
-const POPULAR_PASS_CODE = "INTEGRAL_PASS_3M";
-
 function OneTimePasses({
                            plans,
                            modules,
@@ -447,9 +413,7 @@ function OneTimePasses({
     return (
         <section className={`pay-cards ${modules.length === 1 ? "is-single" : ""}`}>
             {modules.map((module) => {
-                const passes = plans
-                    .filter((p) => p.purchaseType === "ONE_TIME" && p.moduleAccess === module)
-                    .sort((a, b) => a.durationDays - b.durationDays);
+                const passes = oneTimePassesOf(plans, module);
                 if (passes.length === 0) return null;
                 const pres = PRESENTATION[module];
                 return (
@@ -468,7 +432,10 @@ function OneTimePasses({
                             {passes.map((p) => {
                                 const popular = p.code === POPULAR_PASS_CODE;
                                 const targeted = p.code === targetPlanCode;
-                                const monthly = passMonthlyEquivalent(p.price, p.durationDays);
+                                const monthly = passMonthlyLabel(p);
+                                // Ce qui distingue vraiment deux passes Intégral, à part la
+                                // durée : le nombre de simulations orales en direct.
+                                const sessions = passSessionsLabel(p);
                                 return (
                                     <button
                                         key={p.code}
@@ -479,13 +446,16 @@ function OneTimePasses({
                                         onClick={() => onSubscribe(p.code)}
                                     >
                                         {popular && <span className="otp-pop">Le plus populaire</span>}
-                                        <span className="otp-pass-dur">{durationLabel(p.durationDays)}</span>
+                                        <span className="otp-pass-left">
+                                            <span className="otp-pass-dur">{passDurationLabel(p.durationDays)}</span>
+                                            {sessions !== null && (
+                                                <span className="otp-pass-sessions">{sessions}</span>
+                                            )}
+                                        </span>
                                         <span className="otp-pass-prices">
                                             <span className="otp-pass-main">{formatPrice(p.price)} €</span>
                                             {monthly !== null && (
-                                                <span className="otp-pass-sub">
-                                                    soit {formatPrice(Number(monthly.toFixed(2)))} €/mois
-                                                </span>
+                                                <span className="otp-pass-sub">{monthly}</span>
                                             )}
                                         </span>
                                         <span className="otp-pass-cta">
@@ -524,7 +494,9 @@ const otpStyles = `
 .otp-pass.is-popular { border-color:var(--color-red); background:var(--color-red-light); }
 .otp-pass.is-targeted { border-color:var(--color-blue); box-shadow:0 0 0 3px rgba(30,58,140,.16); }
 .otp-pop { position:absolute; top:-9px; left:14px; background:var(--color-red); color:#fff; font-family:var(--font-mono); font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:2px 8px; border-radius:100px; }
-.otp-pass-dur { font-weight:700; font-size:15px; color:var(--color-ink); flex:1; min-width:0; }
+.otp-pass-left { display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
+.otp-pass-dur { font-weight:700; font-size:15px; color:var(--color-ink); }
+.otp-pass-sessions { font-size:11.5px; color:var(--color-muted); line-height:1.3; }
 .otp-pass-prices { display:flex; flex-direction:column; align-items:flex-end; gap:1px; min-width:0; }
 .otp-pass-main { font-family:var(--font-display); font-size:21px; font-weight:700; color:var(--color-ink); line-height:1.05; white-space:nowrap; }
 .otp-pass-sub { font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em; color:var(--color-muted); white-space:nowrap; }

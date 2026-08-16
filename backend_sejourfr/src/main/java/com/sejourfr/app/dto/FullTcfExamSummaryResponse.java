@@ -1,5 +1,6 @@
 package com.sejourfr.app.dto;
 
+import com.sejourfr.app.enums.ContinuiteSimulation;
 import com.sejourfr.app.enums.NiveauCecrl;
 
 import java.time.Instant;
@@ -31,6 +32,14 @@ public record FullTcfExamSummaryResponse(
          * Détail du périmètre via {@code GET /api/full-tcf-exams/{id}}
          * ({@code epreuvesCountedInFinalLevel}).
          */
-        boolean finalLevelPartial
+        boolean finalLevelPartial,
+        /**
+         * Examen enchaîné d'une traite, ou repris entre plusieurs épreuves ?
+         * Dérivé serveur, jamais persisté (cf. {@code ContinuiteSimulation}).
+         * NULL tant que l'examen n'est pas terminé. Sert à qualifier une ligne
+         * d'historique : deux examens au même niveau ne se valent pas si l'un
+         * a été passé en conditions d'examen et l'autre étalé sur trois jours.
+         */
+        ContinuiteSimulation continuite
 ) {
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import {useParams, useRouter} from "next/navigation";
+import {useParams, useRouter, useSearchParams} from "next/navigation";
 import {useCallback, useEffect, useId, useState} from "react";
 import {
   ArrowRight,
@@ -13,6 +13,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import {ApiException, skillApi} from "@/lib/api";
+import {isPlanStep, withPlanStep} from "@/lib/plan-step";
 import {useAuth} from "@/lib/auth-context";
 import {
   referencesOpenByDefault,
@@ -114,10 +115,16 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
   const skillId = params?.skillId ?? "";
   const promptId = params?.promptId ?? "";
   const attemptId = params?.attemptId ?? "";
+  const searchParams = useSearchParams();
   const router = useRouter();
   const {user, status} = useAuth();
 
   const base = `${config.base}/tache/${n}/competences`;
+  /* Le marqueur d'étape se propage jusqu'ici : remonter d'un résultat doit
+     ramener à l'étape (« 2/5 ») quand on est venu du Plan, pas à la fiche des
+     15 sujets. Absent, tout se comporte exactement comme avant. */
+  const step = isPlanStep(searchParams);
+  const skillHref = withPlanStep(`${base}/${skillId}`, step);
 
   const [attempt, setAttempt] = useState<SkillAttemptDto | null>(null);
   const [prompt, setPrompt] = useState<SkillPromptDto | null>(null);
@@ -258,9 +265,15 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
 
   return (
     <DualChromeShell>
+      {/* En-tête de sujet, miroir de `ScreenHeader` côté mobile : le **titre du
+          sujet** et « compétence · épreuve ». Sans lui, l'écran ne disait pas
+          quel sujet venait d'être traité — on arrivait sur un verdict orphelin.
+          Sujet pas encore chargé ⇒ « Résultat », jamais un titre inventé. */}
       <SkillShell
-        backHref={`${base}/${skillId}`}
+        backHref={skillHref}
         backLabel={prompt?.skillTitle ?? "Petits sujets"}
+        title={prompt?.title ?? "Résultat"}
+        meta={prompt ? `${prompt.skillTitle} · ${config.label}` : config.label}
       >
         {error && <div className={s.error}>{error}</div>}
 
@@ -270,7 +283,13 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
             <p className={s.pendingText}>Chargement…</p>
           </div>
         ) : (
-          <section className={`${s.card} ${s.panel} ${s.result}`}>
+          /* ⚠️ **Pas de carte englobante.** Chaque bloc porte déjà sa propre
+             surface (carte de niveau teintée, leviers en liste blanche, exemple,
+             mémo ambre, dépliants, boîte de production) : les empiler dans une
+             grande carte blanche écrasait la hiérarchie et faisait lire l'écran
+             comme un seul pavé. Structure à plat, exactement comme la `ListView`
+             du mobile. Ne pas y remettre `s.card` / `s.panel`. */
+          <section className={s.result}>
             {/* Bandeau de confirmation : ce qui vient de se passer, puis la
                 conséquence sur la progression.
 
@@ -284,9 +303,12 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                 <Check size={20} strokeWidth={3} />
               </span>
               <div>
-                <h1 className={s.resultHeading}>
+                {/* `h2` et non `h1` : depuis que l'en-tête porte le titre du
+                    sujet, c'est lui le titre de la page — deux `h1` mettraient
+                    le lecteur d'écran devant deux titres concurrents. */}
+                <h2 className={s.resultHeading}>
                   {analysis ? "Production analysée" : "Sujet marqué comme traité"}
-                </h1>
+                </h2>
                 <p className={s.resultSub}>
                   {analysis
                     ? "Progression mise à jour"
@@ -313,7 +335,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                 busy={retrying}
                 onRetry={() => void retry()}
                 onUnlock={() => setPaywallOpen(true)}
-                onRequest={() => router.push(`${base}/${skillId}/${promptId}`)}
+                onRequest={() => router.push(withPlanStep(`${base}/${skillId}/${promptId}`, step))}
               />
             )}
 
@@ -344,14 +366,26 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
 
               {prodOpen && (
                 <div id={prodPanelId} className={s.answerBox}>
-                  {/* Même lecteur que l'enregistreur (`EoRecordingForm`) — l'URL
-                      R2 est présignée 15 min, `preload="metadata"` évite de la
-                      consommer pour rien. */}
-                  {attempt.audioUrl && (
-                    <div className={s.player}>
-                      <audio src={attempt.audioUrl} controls preload="metadata" />
-                    </div>
-                  )}
+                  {/* Intitulé + mesure en tête de carte, comme `_ProductionCard`
+                      côté mobile : la durée ou le nombre de mots se lisent avec
+                      la production, pas relégués sous elle. */}
+                  <div className={s.prodHead}>
+                    <span className={s.prodEyebrow}>TA PRODUCTION</span>
+                    {attempt.audioDurationSec != null ? (
+                      <span className={s.chip}>
+                        <Clock size={11} strokeWidth={2.4} aria-hidden />
+                        {formatDurationSec(attempt.audioDurationSec)}
+                      </span>
+                    ) : attempt.wordsCount != null ? (
+                      <span className={s.chip}>
+                        {attempt.wordsCount} mot{attempt.wordsCount > 1 ? "s" : ""}
+                      </span>
+                    ) : null}
+                  </div>
+                  {/* Pas de lecteur : l'enregistrement n'est pas conservé (il
+                      sert à produire la transcription, puis il disparaît). Ce
+                      qu'on rend d'une production orale, c'est son texte — la
+                      réécoute existe avant l'envoi, dans `EoRecordingForm`. */}
                   {attempt.writtenProduction && (
                     <p className={s.prodText}>{attempt.writtenProduction}</p>
                   )}
@@ -361,23 +395,17 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                       <p className={s.prodText}>{attempt.transcript}</p>
                     </>
                   )}
-                  {!attempt.writtenProduction && !attempt.audioUrl && (
-                    <p className={s.prodText}>Production indisponible.</p>
-                  )}
-                  {(attempt.audioDurationSec != null || attempt.wordsCount != null) && (
-                    <div className={s.chips}>
-                      {attempt.audioDurationSec != null && (
-                        <span className={s.chip}>
-                          <Clock size={11} strokeWidth={2.4} aria-hidden />
-                          {formatDurationSec(attempt.audioDurationSec)}
-                        </span>
-                      )}
-                      {attempt.audioDurationSec == null && attempt.wordsCount != null && (
-                        <span className={s.chip}>
-                          {attempt.wordsCount} mot{attempt.wordsCount > 1 ? "s" : ""}
-                        </span>
-                      )}
-                    </div>
+                  {/* À l'oral sans transcription, ce n'est pas une production
+                      « indisponible » : elle est bien enregistrée, c'est la
+                      transcription qui n'est produite qu'avec une analyse (on ne
+                      paie pas Whisper pour rien). Phrase reprise mot pour mot du
+                      mobile — l'ancienne laissait croire à une perte. */}
+                  {!attempt.writtenProduction && !attempt.transcript && (
+                    <p className={s.prodEmpty}>
+                      {config.mode === "audio"
+                        ? "Ta réponse orale est enregistrée. La transcription n'est produite que lorsqu'une analyse IA est demandée."
+                        : "Aucune réponse enregistrée."}
+                    </p>
                   )}
                 </div>
               )}
@@ -394,7 +422,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                 className={`btn btn-ghost ${s.actionWide}`}
                 disabled={!nextId}
                 title={nextId ? undefined : "Tous les sujets de cette compétence ont été traités."}
-                onClick={() => nextId && router.push(`${base}/${skillId}/${nextId}`)}
+                onClick={() => nextId && router.push(withPlanStep(`${base}/${skillId}/${nextId}`, step))}
               >
                 Sujet suivant
                 <ArrowRight size={16} strokeWidth={2.2} aria-hidden />
@@ -402,7 +430,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
               <button
                 type="button"
                 className={`btn ${s.actionWide}`}
-                onClick={() => router.push(`${base}/${skillId}/${promptId}`)}
+                onClick={() => router.push(withPlanStep(`${base}/${skillId}/${promptId}`, step))}
               >
                 <RefreshCw size={15} strokeWidth={2.2} aria-hidden />
                 S&apos;entraîner sur ce point

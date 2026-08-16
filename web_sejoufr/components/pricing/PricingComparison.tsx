@@ -8,33 +8,61 @@ type Cell = boolean | string;
 interface Row {
   feature: string;
   free: Cell;
-  essential: Cell;
-  premium: Cell;
+  civique: Cell;
+  integral: Cell;
 }
 
+/**
+ * Le comparatif oppose les deux **périmètres** (Civique, Intégral), pas des
+ * durées : depuis le passage aux passes, chaque périmètre se vend en plusieurs
+ * durées et la ligne « Durée d'accès » renvoie donc à la grille au-dessus.
+ * L'ancienne version comparait « Essentiel 90 jours » à « Premium 365 jours »,
+ * deux formules qui n'existent plus.
+ */
 const ROWS: Row[] = [
   {
-    feature: "Questions par catégorie",
-    free: "5",
-    essential: "Toutes (350+)",
-    premium: "Toutes (350+)",
+    feature: "Examen civique (5 thèmes du livret)",
+    free: "Série 1 offerte par thème",
+    civique: "Tout le catalogue",
+    integral: "Tout le catalogue",
+  },
+  {
+    feature: "TCF IRN — compréhension orale et écrite",
+    free: "Série 1 offerte par niveau",
+    civique: false,
+    integral: "Tout le catalogue",
+  },
+  {
+    feature: "TCF IRN — expression écrite et orale",
+    free: "1 essai par épreuve",
+    civique: false,
+    integral: true,
   },
   {
     feature: "Examens blancs chronométrés",
-    free: "1 examen blanc",
-    essential: "20 / module",
-    premium: "20 / module",
+    free: "Examen 1 offert",
+    civique: "20 par thème",
+    integral: "20 par épreuve + examen TCF complet",
   },
-  { feature: "Suivi progression par catégorie", free: false, essential: true, premium: true },
-  { feature: "Statistiques avancées", free: false, essential: true, premium: true },
-  { feature: "Mode chronométré", free: false, essential: true, premium: true },
-  { feature: "Explications pédagogiques", free: false, essential: true, premium: true },
-  { feature: "Support email", free: false, essential: true, premium: true },
+  {
+    feature: "Correction IA des productions",
+    free: "Limitée",
+    civique: false,
+    integral: "Illimitée",
+  },
+  {
+    feature: "Simulations orales en direct",
+    free: false,
+    civique: false,
+    integral: "Selon le pass choisi",
+  },
+  { feature: "Plan personnalisé après diagnostic", free: "Lecture seule", civique: true, integral: true },
+  { feature: "Suivi de progression et statistiques", free: true, civique: true, integral: true },
   {
     feature: "Durée d'accès",
     free: "Illimité",
-    essential: "90 jours",
-    premium: "365 jours",
+    civique: "3 mois ou 1 an",
+    integral: "7 jours, 1 mois ou 2 mois",
   },
 ];
 
@@ -55,8 +83,9 @@ export function PricingComparison() {
     <section className="pcomp">
       <h2 className="pcomp-title editorial">Comparatif des fonctionnalités</h2>
       <p className="pcomp-sub">
-        Tout est inclus dans les plans Essentiel et Premium — la seule
-        différence est la durée d&apos;accès.
+        Le pass Civique couvre l&apos;examen civique ; le pass Intégral ajoute
+        les quatre épreuves du TCF IRN. La durée, elle, se choisit dans la
+        grille ci-dessus.
       </p>
 
       {/* Desktop : table */}
@@ -66,10 +95,10 @@ export function PricingComparison() {
             <tr>
               <th className="pcomp-th pcomp-th-feat">Fonctionnalité</th>
               <th className="pcomp-th pcomp-th-center">Gratuit</th>
+              <th className="pcomp-th pcomp-th-center">Civique</th>
               <th className="pcomp-th pcomp-th-center pcomp-th-featured">
-                Essentiel
+                Intégral
               </th>
-              <th className="pcomp-th pcomp-th-center">Premium</th>
             </tr>
           </thead>
           <tbody>
@@ -79,11 +108,11 @@ export function PricingComparison() {
                 <td className="pcomp-td pcomp-td-center">
                   <CellRender value={row.free} />
                 </td>
-                <td className="pcomp-td pcomp-td-center pcomp-td-featured">
-                  <CellRender value={row.essential} />
-                </td>
                 <td className="pcomp-td pcomp-td-center">
-                  <CellRender value={row.premium} />
+                  <CellRender value={row.civique} />
+                </td>
+                <td className="pcomp-td pcomp-td-center pcomp-td-featured">
+                  <CellRender value={row.integral} />
                 </td>
               </tr>
             ))}
@@ -114,16 +143,16 @@ export function PricingComparison() {
                       <CellRender value={row.free} />
                     </dd>
                   </div>
-                  <div className="pcomp-mobile-cell-featured">
-                    <dt>Essentiel</dt>
+                  <div>
+                    <dt>Civique</dt>
                     <dd>
-                      <CellRender value={row.essential} />
+                      <CellRender value={row.civique} />
                     </dd>
                   </div>
-                  <div>
-                    <dt>Premium</dt>
+                  <div className="pcomp-mobile-cell-featured">
+                    <dt>Intégral</dt>
                     <dd>
-                      <CellRender value={row.premium} />
+                      <CellRender value={row.integral} />
                     </dd>
                   </div>
                 </dl>

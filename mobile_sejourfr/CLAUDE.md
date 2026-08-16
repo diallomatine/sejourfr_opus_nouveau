@@ -524,6 +524,20 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   soumission (statut non `IN_PROGRESS`, ou deux `submissionId` déjà posés) : on le dit
   (`noticeMessage`, `DiagnosticAlreadyDoneView`) au lieu de boucler sur une erreur, et la copie
   locale n'est effacée que sur confirmation explicite.
+- **Aucune attente n'est un rond gris muet** (`widgets/diagnostic_wait.dart`, partagé transfert
+  ⇄ analyse) : étapes franchies + compteur de temps écoulé (`Stopwatch`, jamais `DateTime.now()`)
+  + réassurance qui bascule sur « c'est plus long que d'habitude » à 2 min **sans annoncer
+  d'échec** (l'échec, c'est `FAILED`, qui a son propre écran). `DiagnosticSyncStage` n'existe que
+  pour nommer l'étape d'envoi en cours. `_content` fait passer `isSyncing`/`canRetrySync`
+  **avant** le loader générique : un transfert ne doit jamais se rendre en spinner anonyme.
+- **Le marqueur « déjà démarré » vit dans l'état du contrôleur, jamais dans un drapeau qui
+  survit au démontage** — c'est ce qui distingue le mobile du bug web de blocage éternel. Le
+  provider est `autoDispose` : tout chemin d'abandon (`if (!mounted) return`) emporte le
+  marqueur, et l'exactement-une-fois du transfert est tenu par le **serveur**
+  (`POST /api/diagnostics` idempotent + gardes `submissionId == null`), pas par un booléen
+  local. Corollaire à ne pas casser : **toute sortie d'une méthode du contrôleur résout son
+  `isLoading`/`isSubmitting`/`isSyncing`** — sinon le bouton tourne sans fin, `PopScope` refuse
+  le retour et `ScreenHeader` masque sa flèche : le candidat est enfermé.
 - L'écran de demande de compte (`DiagnosticAccountGate`) **n'affiche aucun résultat réel** —
   l'analyse coûte deux appels LLM. Il montre un **exemple** étiqueté comme tel (badge
   « EXEMPLE » + phrase « ce ne sont pas vos réponses ») et ouvre l'inscription **ou** la
@@ -555,6 +569,53 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   décrivent l'**étape** — les **5 premiers** sujets de la compétence : c'est ce couple que
   l'anneau d'une étape du parcours affiche (« 2/5 », jamais « 2/15 »). Tout est dérivé
   serveur, y compris `stepCompleted` : l'écran ne compare plus rien lui-même.
+- **L'étape SUIT le candidat jusque dans la fiche de compétence** (2026-08-15).
+  Une compétence ouverte **depuis le Plan** (`CompetenceDetailScreen.planStep`)
+  n'affiche plus que les **sujets de l'étape** et compte « 2/5 » ; par
+  « Réviser → épreuve → Compétences », la fiche complète (les 15 sujets,
+  « x/15 ») est **strictement inchangée**. Deux vues d'une même compétence selon
+  la porte d'entrée : c'est **assumé** (décision propriétaire, prise sur maquette).
+  - **Le périmètre est servi** : `LearningPlanPriority.stepPromptIds` (jamais
+    `null`, éventuellement vide, `length == stepPromptCount`). On ne rejoue
+    **jamais** la règle « les 5 premiers par rang d'affichage », qui vit côté
+    serveur.
+  - **Aucun identifiant ne voyage dans la route** : un simple marqueur
+    `?etape=1`, posé par `competenceDetailPath(..., planStep: true)` depuis
+    `_openSkill` du Plan (la seule navigation Plan → compétence des deux
+    fronts), lu par le router (`isPlanStepQuery`). Règle + libellés **gelés**
+    dans `screens/plan/plan_step_labels.dart`, **miroir mot pour mot de
+    `web_sejoufr/lib/plan-step.ts`**. Rien à propager plus loin : le retour d'un
+    petit sujet est un `pop`, il ramène naturellement dans l'étape.
+  - **Zéro appel réseau de plus** : `learningPlanProvider` est **déjà vivant**
+    (l'écran Plan reste monté sous celui-ci), on ne fait que le lire.
+  - **Repli silencieux, obligatoire** : Plan pas chargé, `stepPromptIds` vide,
+    ou compétence **sortie des priorités** (cas **normal** — le serveur l'en
+    sort dès qu'une vérification en situation a réussi) ⇒ on retombe sur la
+    fiche complète. Ni message, ni écran vide, ni spinner. Le repli se lit à
+    l'**identité** de la liste rendue par `_prompts`, pas à un compteur.
+  - **Compteurs servis, jamais recomptés** : `_SummaryCard` reçoit
+    `attempted`/`total`/`validated` (les `step*Count` en mode étape). Les
+    filtres (Tous / À faire / Traités) portent sur les **5** et leur somme reste
+    juste, comme sur les 15 ; la `FixedActionBar` vise un sujet **de l'étape**.
+  - 🛑 **Aucun second parcours de vérification ici.** Étape terminée
+    (`stepCompleted`) ⇒ un `ProductionNotice` « Étape terminée » + « Revenir à
+    mon plan ». « Vérifier ma progression » vit **sur le Plan**, qui seul
+    connaît la deuxième condition (moteur de maîtrise prêt) : une étape peut
+    donc afficher « 5/5 » sans que la vérification s'ouvre — **c'est voulu**, ne
+    pas l'expliquer par un message ni contourner la règle.
+  - **La `FixedActionBar` vise le sujet DÉSIGNÉ PAR LE SERVEUR** (2026-08-15).
+    En mode étape, `_primaryAction` lit `recommendedExercise.skillPromptId` via
+    `planStepRecommendedPrompt` (`screens/plan/plan_step_labels.dart`) : la
+    règle de choix vit dans `RecommendedExerciseSelector`, son périmètre est
+    **déjà borné aux 5 sujets de l'étape**, et un « premier sujet non validé »
+    recodé ici désignerait un autre sujet que le Plan. Libellés gelés, miroir du
+    web : **`kPlanStepStartCta`** (« Commencer le prochain sujet », sujet
+    `TODO`) et **`kPlanStepRetryCta`** (« Retravailler ce sujet ») — le bouton
+    dit ce qui va se passer, et c'est le **statut servi** du sujet qui tranche.
+    Verrouillé, le sujet reste **désigné** : `kPremiumLockCta` →
+    `showTcfLockPaywall`, jamais un autre sujet. Sans désignation exploitable —
+    fiche complète, pas d'exercice, vérification — on retombe sur
+    `_fallbackAction`, l'action historique, **inchangée**.
 - **Une étape peut être TERMINÉE, et elle reste affichée** : badge `EN COURS` →
   `TERMINÉE`, plus la ligne « Réévaluée à ta prochaine production. » sous le titre
   (`_StepDoneLines`, miroir mot pour mot de `LearningPlanView` côté web). Les priorités ne
@@ -590,6 +651,78 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   `productionSessionPath` (`…/t/0`) — exactement le chemin du mode « Sujets », **le
   `productionTaskId` ne voyage jamais dans l'URL**. `locked` ⇒ paywall, l'exercice
   reste désigné.
+- **La carte d'une ÉTAPE ne nomme plus l'exercice** (décision propriétaire,
+  2026-08-15). `_CurrentStepCard` garde son numéro, son badge d'état, le titre de
+  la compétence, l'anneau « x/5 », `_StepDoneLines` et le méta code · épreuve ;
+  la `_ExerciseRow` qui nommait le micro-sujet **en est retirée** (le widget
+  vit toujours, `_NowCard` l'utilise), et **« Continuer cette étape » ouvre
+  l'écran d'étape** — `onOpenSkill` → `competenceDetailPath(..., planStep: true)`,
+  le même chemin que les cartes de compétences observées. Motif : un seul endroit
+  nomme l'exercice — « À faire maintenant » (`_NowCard`, **inchangée**, qui garde
+  `_ExerciseRow` + le lancement direct) — et le candidat voit enfin *lesquels*
+  sont ses 5 sujets avant de s'y remettre.
+  🛑 **Exception, la VÉRIFICATION** : `kind == reassessment` ⇒ la carte garde
+  **exactement** son comportement d'origine (badge `VÉRIFICATION`, bouton
+  « Vérifier ma progression », `openRecommendedExercise`). Le candidat vient de
+  terminer ces 5 sujets : l'y renvoyer serait un cul-de-sac. `locked` ⇒
+  « Débloquer cette étape », inchangé.
+- **Une étape FRANCHIE ne disparaît plus du parcours : elle se coche**
+  (2026-08-16). `LearningPlan.completedSteps` (`LearningPlanCompletedStep`,
+  **jamais `null`**, vide tant que rien n'est franchi — cas normal) ouvre
+  « Votre parcours », avant l'étape en cours et les suivantes, dans le **même
+  parcours numéroté**. Avant, une compétence dont le transfert était prouvé
+  sortait des priorités et son étape s'évaporait.
+  - **À la place du numéro, une coche, et la pastille passe au vert**
+    (`_PathStep(icon: LucideIcons.check, tone: AppColors.green)`) — demande du
+    propriétaire, au mot près. `_CompletedStepCard` est sobre : `AppTag`
+    « TERMINÉE », anneau « 5/5 », titre, `code · épreuve`, chevron. **Aucun
+    bouton d'action** — le DTO ne porte **ni exercice recommandé ni `locked`**.
+    Ne pas en inventer.
+  - ⚠️ **`masteryState` n'est PAS toujours `solid`** (mesuré : 1 `solid`,
+    4 `consolidating`). **L'appartenance à `completedSteps` EST la coche.**
+  - **Numérotation continue** : `_PlanPath` incrémente un seul compteur sur les
+    trois familles (franchies → courante → à venir) et calcule `isLast` sur le
+    **total**, jamais par famille.
+  - **Ordre et borne viennent du serveur** (plus ancienne → plus récente, 5 max).
+    Aucun appel réseau de plus : le Plan est déjà chargé.
+  - **Une étape franchie s'ouvre** sur l'écran d'étape (`onOpenSkill` →
+    `competenceDetailPath(..., planStep: true)`) : `planStepFor`
+    (`plan_step_labels.dart`) cherche désormais **dans les priorités PUIS dans
+    `completedSteps`** et rend un **`PlanStepScope`** — le seul contrat dont
+    `CompetenceDetailScreen` a besoin. Sur une étape franchie, `stepCompleted`
+    vaut **`false`** et `recommendedExercise` **`null`** : le serveur ne publie ce
+    dérivé que sur une priorité, le recalculer serait réimplémenter une règle
+    serveur. La `FixedActionBar` retombe donc sur **`_fallbackAction`**, son
+    comportement historique — c'est voulu, ne pas lui fabriquer autre chose.
+- 🛑 **Le faux élément de fin de parcours est SUPPRIMÉ.** `_ReassessmentStepCard`
+  (« Réévaluation » / « Après quelques entraînements… ») était rendu en dur, ne
+  venait d'aucun champ du DTO, ne portait aucune action et **annonçait quelque
+  chose qui n'existait pas**. La vérification, quand elle est réellement
+  disponible, est portée par l'étape courante
+  (`PlanExerciseKind.reassessment`). **Ne pas le réintroduire.**
+- **Le Plan porte un JALON, à côté des étapes** — `LearningPlan.milestone`
+  (`PlanMilestone`) → `PlanMilestoneCard` (`screens/plan/plan_milestone_card.dart`),
+  **sous** « Votre parcours » et au-dessus des compétences observées. Un jalon
+  n'est pas une étape : il désigne un **examen blanc déjà existant** par son
+  `epreuve` + `slotNumber`, et `PlanExerciseKind` gagne pour cela
+  `epreuveMockExam` / `fullTcfMockExam`. **`milestone == null` est le cas
+  NORMAL** (même sursis que `PlanChange`) : rien ne s'affiche, aucun indicateur.
+  ⚠️ **Un jalon n'a ni titre, ni compétence, ni section** — d'où une **classe à
+  part** (`PlanMilestone`), jamais un `PlanRecommendedExercise` aux champs
+  rendus nullables : aucun écran ne peut lire ici un titre qui n'existe pas.
+  `recommendedExercise` reste une **étape**, et
+  `recommended_exercise_launcher.dart` n'a donc rien à connaître des jalons.
+  **Le serveur ne fournit AUCUN libellé** (il expose des faits) : les phrases
+  vivent dans `screens/plan/plan_milestone_labels.dart` (`kPlanMilestone*`,
+  extension `PlanMilestoneLabels`), **miroir mot pour mot** de
+  `web_sejoufr/lib/diagnostic.ts` (section « jalons »). La durée vient
+  d'`estimatedMinutes`, jamais d'un nombre écrit ici.
+  **Aucune route ni aucun appel n'est créé** : `epreuveMockExam` réutilise
+  `Ee/EoSessionNotifier.startExam(slotNumber:)` puis `productionSessionPath`
+  (le chemin de l'onglet « Examens »), `fullTcfMockExam` réutilise
+  `FullTcfExamRepository.start(slotNumber:)` puis `AppRoutes.tcfFullExamProgress`
+  (celui de `TcfFullExamsView`), 403 → `showPaywallOrError`. `locked` :
+  `PremiumLockTag` + `showTcfLockPaywall`, **sans rien masquer**.
 - **« Ce que ça change dans le Plan » sur le rapport d'une tâche** :
   `ProductionSubmissionDto.planChange` → `PlanChangeLine`
   (`tcf_production/widgets/`), **une ligne** en fin de `EvaluationReport`
@@ -627,6 +760,23 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   le parcours. La route étant publique (`skipAuth`), **le funnel reste mesurable en invité** ;
   `DIAGNOSTIC_ACCOUNT_REQUIRED` (émis une fois, à l'affichage de l'écran de demande de compte)
   est la mesure de conversion du parcours.
+
+- **Écran de présentation (2026-08-14) — « 5 minutes », pas un examen.**
+  `DiagnosticIntro` annonce le budget **en tête** (pilule dans le hero, avant le titre)
+  puis les **deux exercices séparément**, chacun avec sa mesure — « Écrit · 100 à 120
+  mots · environ 3 min », « Oral · environ 2 minutes ». 🛑 **Aucun chiffre en dur** :
+  tout se dérive des sujets servis (`wordsMin/Max`, `durationMin/MaxSeconds`) par les
+  règles **pures** de `diagnostic_intro_labels.dart` (`diagnosticBudgetLabel`,
+  `diagnosticWrittenMeasureLabel`, `diagnosticOralMeasureLabel`,
+  `kDiagnosticWritingWordsPerMinute = 40`, valable **pour cet écran seulement**) —
+  miroir mot pour mot de `web_sejoufr/lib/diagnostic.ts`. Le budget est la **somme**
+  des deux : raccourcir un sujet en base raccourcit la promesse. Sans borne
+  exploitable, on annonce « Diagnostic express · 2 exercices » et « un court texte » /
+  « un court enregistrement » — jamais un chiffre inventé, et « ~5 min » reste un
+  **ordre de grandeur**, jamais un chrono. ⚠️ Un compte **sans session** ne reçoit
+  aucun sujet (le serveur ne les attache qu'à `POST /api/diagnostics`) :
+  `DiagnosticController._loadSubjectsForPresentation` relit alors `publicCurrent()`
+  en best-effort — sans lui, l'invité voyait ses mesures et le compte connecté non.
 
 **Les anciens hubs sont supprimés** : `screens/tcf/`, `screens/hub/`, `civique_screen.dart`
 et leurs widgets n'existent plus. `/civique` et `/tcf` sont des **redirects** vers `/reviser`
@@ -701,6 +851,20 @@ backend publie le périmètre : `epreuvesCountedInFinalLevel` / `epreuvesExpecte
 mobile, à ne pas défaire : le bilan **ne dit jamais « tes 4 épreuves » en dur** (phrase
 dérivée du décompte, et sans chiffre si le champ manque), et un examen partiel n'alimente
 pas « meilleur niveau » / « dernier examen » — il est annoté « partiel ».
+
+**Score d'une sous-épreuve QCM : TOUJOURS sur 499, jamais le pondéré.**
+`FullTcfExamSubAttempt.calibratedScore` (100-499, dérivé serveur par
+`TcfLevelEstimatorService`) est ce qu'affichent le hub de progression et le bilan —
+`score`/`maxScore` reste servi mais c'est le score **pondéré interne** (A2=1, B1=2,
+B2=3) et « 23/50 » ne correspond à rien sur le relevé d'un candidat. La règle vit à
+**un seul endroit**, `FullTcfExamSubAttempt.qcmScoreLabel` (`core/models/full_tcf_exam.dart`,
+miroir de `qcmScoreLabel` dans `web_sejoufr/lib/exam-levels.ts`) : calibré présent ⇒
+`x/499`, sinon repli sur `x/maxScore`, `null` quand il n'y a rien (EE/EO, épreuve
+verrouillée, pas encore notée). **Ne jamais dériver un /499 d'un pondéré côté app**, et
+ne pas remplacer par un tiret une donnée qu'on possède. Mêmes barèmes que les examens
+**module** CO/CE (`tcf_qcm_exams_screen`, `qcm_history_section`), qui étaient déjà en
+/499 — c'est cette cohérence-là qu'on rétablit. Le **civique** n'est pas concerné (/40
+ou /20 selon l'examen).
 
 **Modules affichés :**
 - **Civique** = les 5 thèmes officiels chargés via `/api/themes?module=CIVIQUE` (Principes &
@@ -848,7 +1012,53 @@ garder runner et rapport cohérents.
 
 **Reprise d'un attempt** : si l'utilisateur quitte le runner avant de finir, l'attempt reste en cours côté
 backend. À la reprise, `RunnerController._load()` recalcule l'index de départ : première question non
-répondue, sinon dernière.
+répondue, sinon dernière. ⚠️ **Cela ne vaut plus pour un examen blanc** — cf. juste en dessous.
+
+### 🛑 Quitter un examen blanc QCM joué seul (2026-08-15)
+
+> **Quitter un examen, c'est le terminer.** La croix — et le retour système —
+> n'est pas un « je reviendrai » : l'attempt est finalisé, donc définitif et non
+> reprenable, et le candidat arrive **directement sur son résultat**.
+
+Périmètre : civique global (40 Q), civique **par thème** (20 Q), examens TCF par
+épreuve (CO / CE / STRUCTURE) et examens issus d'un `ExamTemplate`. **Hors
+périmètre** : les séries (`AttemptType.training`), où quitter n'a jamais rien
+coûté (comportement inchangé : entraînement infini → on finalise le batch,
+sinon on pop et la session se reprend), et les sous-épreuves d'un examen complet
+(`from=fullTcf`), qui gardent les libellés de
+`screens/tcf_full_exam/full_exam_exit_labels.dart` : là, quitter **clôt
+l'épreuve sans ouvrir de bilan**.
+
+- **C'était le vrai écart avec le web** : `_confirmQuit` ne finalisait que
+  l'entraînement infini — en examen module il **poppait sans finaliser**, donc
+  l'examen restait reprenable, alors que le web le clôturait déjà.
+  `_RunnerView._confirmQuit` appelle désormais `finish()` puis
+  `_navigateToResult` (qui pousse `AppRoutes.examResult` en `pushReplacement` et
+  invalide les 4 historiques). Une finalisation en échec (réseau) **laisse le
+  candidat sur sa question**, avec le message d'erreur : on ne sort jamais en
+  lui faisant croire que c'est fait.
+- **Le back système et le geste de retour iOS suivent EXACTEMENT la croix** :
+  `PopScope(canPop: !isExam)` (c'était `!isFullExamEpreuve`) → `_confirmQuit`.
+  Sans ça on sortait par le bas sans rien clore. Le runner est **hors
+  `ShellRoute`** : aucune bottom nav par laquelle s'échapper.
+- **Libellés déclarés une seule fois** dans
+  `screens/question_runner/mock_exam_exit_labels.dart` (`kMockExamQuitTitle` /
+  `…Message` / `…Confirm` / `…Cancel`), **miroir mot pour mot** de
+  `web_sejoufr/lib/mock-exam-exit.ts`. Le message dit les **trois**
+  conséquences avant l'action : plus de reprise ; un résultat sur ce qui a été
+  répondu ; les questions restantes comptées **non répondues**. Le bouton de
+  confirmation **nomme l'issue** — « Quitter et voir mon résultat », jamais un
+  « Confirmer » neutre : la croix devient destructrice sur un simple appui, la
+  confirmation est la seule protection.
+- **Annuler ne coûte rien… sauf le temps** : on revient à la question, aucune
+  réponse n'est perdue, mais le chrono a continué de courir.
+- **Ce qui ne finalise RIEN** : mettre l'app en arrière-plan, la tuer. Un examen
+  n'est **jamais** finalisé sans confirmation — ne pas ajouter de `finish` dans
+  un `dispose` ou un `AppLifecycleState.paused`.
+- **Ce qui finalise sans confirmation, et c'est normal** : l'expiration du
+  chrono (`ExamTimer.onElapsed` → `_autoFinish`) et le **422** « hors délai »
+  sur une réponse (`_handleTimeExpired`). Ce ne sont pas des gestes de sortie :
+  c'est la règle de l'examen.
 
 **Médias** : le `QuestionDto.media` est un `MediaDto` optionnel avec un `type` (AUDIO/IMAGE/VIDEO) + une
 `url`. Le `QuestionMediaView` dispatche vers le bon widget. Pour l'instant, les questions du seed ne
@@ -1916,22 +2126,56 @@ lui-même** : le fil d'Ariane « Sujet i/N », le palier et l'encart n'entraîne
 appel à `GET /api/skills/{id}`. ⚠ Supprimer un appel réseau ne doit jamais coûter un
 affichage : le palier est exigé sur l'écran d'un petit sujet (spec §3 niveau 5).
 
-**Réécoute de l'oral** (spec §15 : « l'oral conserve l'audio ») : l'écran de résultat d'une
-tentative EO monte `SejourAudioPlayer` (`core/widgets/audio_player.dart`, déplacé là depuis
-`question_runner/` le jour où un 3ᵉ domaine en a eu besoin) sur `attempt.audioUrl` — URL R2
-présignée 15 min. Le lecteur s'habille via `label`/`icon`/`accent`/`background` ; on ne le
-forke pas. La durée seule ne suffit pas : se réécouter en lisant l'analyse fait la moitié de
-la valeur pédagogique de l'oral. **Le même lecteur sert la réécoute d'avant validation** sur
-l'écran de saisie, monté sur le fichier local — deux lecteurs pour un même geste finiraient
-par diverger.
+**Réécoute de l'oral — AVANT l'envoi seulement** (2026-08-16). ⚠️ **Révoque** la règle
+précédente (« l'oral conserve l'audio », `SejourAudioPlayer` sur `attempt.audioUrl` dans
+l'écran de résultat) et la spec §15 qu'elle citait : l'enregistrement d'un candidat **n'est
+plus conservé** — il sert à produire la transcription, puis il disparaît (cf. CLAUDE.md
+racine, § « L'audio d'une production de candidat n'est pas conservé »). `SkillAttemptDto`
+ne porte plus d'`audioUrl`, `ProductionSubmissionDto` plus de `mediaUrl`, et
+`competence_result_screen` n'a plus de lecteur : ce qu'il rend, c'est `productionText`
+(la transcription, désormais écrite systématiquement). ✅ **Ce qui reste** :
+`SejourAudioPlayer` (`core/widgets/audio_player.dart`) monté sur le **fichier local**, sur
+l'écran de saisie (`skill_recorder_panel`, `diagnostic_oral`) — le fichier est encore sur
+l'appareil, rien n'est stocké, et se réécouter avant de valider protège d'une prise ratée.
+Ne pas reforker de lecteur : celui-là suffit.
 
 **Libellés du bandeau « Sujet déjà traité »** (identiques au web, mot pour mot) : EE →
 **« Reprendre ma réponse »** (recharge la dernière production dans la zone d'écriture via
-`lastAttemptId`) ; EO → **« Écouter ma dernière réponse »** (ouvre l'écran de résultat de
-`lastAttemptId`). **Une seule action par section**, jamais deux. Le bandeau est
+`lastAttemptId`) ; EO → **« Relire ma dernière réponse »** (ouvre l'écran de résultat de
+`lastAttemptId`). ⚠️ Ce libellé disait **« Écouter »** jusqu'au 2026-08-16 : il promettait une
+réécoute que l'écran n'offre plus, l'enregistrement n'étant plus conservé — c'est la
+transcription qu'on relit. **Une seule action par section**, jamais deux. Le bandeau est
 **tenu sur une ligne** (toute la carte est tappable) : en pavé — pastille, deux
 lignes de méta, bouton pleine largeur — il suffisait à repousser la zone de
 production sous la ligne de flottaison dès la deuxième visite d'un sujet.
+
+**Un sujet déjà traité se RELIT, il ne se refait pas d'office** (2026-08-16).
+Taper une carte de la liste (`CompetenceDetailScreen`, y compris sa **vue scopée à
+l'étape** ouverte depuis le Plan) ouvrait systématiquement l'écran de production : le
+candidat ne pouvait pas relire l'analyse qu'il venait de payer avec un de ses essais
+sans reproduire. Un sujet dont `status != TODO` **et** qui porte un `lastAttemptId`
+ouvre désormais une **`showAppSheet`** à deux actions — même geste et même composant
+que sur un examen déjà passé, jamais une seconde feuille pour la même intention.
+- **`SkillPromptSummary.lastAttemptId`** est **servi avec la liste**
+  (`SkillPromptSummaryDto`, backend) : il vient de la **même** tentative que `status`
+  et `lastAttemptAt`, donc **aucun appel réseau de plus** — ni côté serveur (verrouillé
+  par `SkillServiceIT`), ni côté app.
+- **Destination = l'écran de résultat d'une tentative de COMPÉTENCE**
+  (`competenceResultPath` → `CompetenceResultScreen`), jamais le rapport d'une
+  production TCF complète.
+- **Libellés gelés**, déclarés une fois en tête de `competence_detail_screen.dart`,
+  miroirs mot pour mot de `SKILL_PROMPT_*_CTA` (`web/app/_components/skill-ui/SkillLayout.tsx`) :
+  **« Voir mon dernier rapport »** (statut `VALIDATED` / `TO_REINFORCE`),
+  **« Voir ma dernière réponse »** (statut `TREATED`) et **« Refaire ce sujet »**.
+  ⚠️ Le premier libellé **suit le statut servi** : une tentative `TREATED` n'a **pas**
+  d'analyse IA, et son écran de résultat le dit lui-même (« Sujet marqué comme
+  traité ») — lui promettre un « rapport » serait faux.
+- **Trois replis, aucun bouton mort** : sujet jamais traité ⇒ production directe, sans
+  feuille ; sujet marqué traité **sans** `lastAttemptId` (ligne héritée) ⇒ production
+  directe ; sujet verrouillé ⇒ cadenas + `showTcfLockPaywall`, inchangé.
+- 🛑 **La `FixedActionBar` ne passe pas par la feuille** : son libellé annonce déjà ce
+  qui va se passer (« Commencer le prochain sujet » / « Retravailler ce sujet »), une
+  confirmation par-dessus ne confirmerait rien. Idem du CTA d'étape côté web.
 
 **Règles UX à ne pas défaire** (spec §13) : la consigne est traduite en gestes **avant** la
 production ; les références n'apparaissent **jamais** avant qu'une tentative existe (garde
@@ -1968,14 +2212,16 @@ l'arbitre final.
   « **Débloquer cet exercice** » (À faire maintenant) et « **Débloquer cette étape** »
   (étape 1), plus la note « Cet exercice fait partie de l'abonnement Intégral. Votre plan,
   lui, reste entier. »
-- **Les compteurs ne mentent pas** (`CompetenceDetailScreen`) : un sujet verrouillé sort du
-  filtre « À faire » (il n'est pas à faire, il n'est pas ouvert), reste dans « Tous » et
-  dans « Traités » s'il a déjà été produit — un abonnement échu ne réécrit pas l'historique.
-  Un **4ᵉ filtre « Verrouillés · N »** apparaît quand il y en a, et c'est lui qui rend la
-  somme juste (`Tous = À faire + Traités + Verrouillés`) ; il disparaît avec le dernier
-  sujet verrouillé et l'écran retombe alors sur « Tous ». L'action de la `FixedActionBar`
-  vise toujours un sujet **ouvert**, et devient « Voir l'abonnement Intégral » quand il n'en
-  reste aucun.
+- **Les compteurs ne mentent pas** (`CompetenceDetailScreen`) : **DEUX** filtres seulement,
+  `Tous = À faire + Traités`. « Traités » décrit l'historique (un sujet produit y reste, même
+  si le verrou est retombé dessus depuis) ; « À faire » contient tout le reste, **verrouillés
+  compris**. ⚠️ Le **4ᵉ filtre « Verrouillés · N » a été RETIRÉ** le 2026-08-16 à la demande
+  du propriétaire : sans lui, continuer d'exclure les verrouillés de « À faire » aurait
+  affiché « Tous · 5 = 0 + 2 », et un compteur qui ne totalise pas est pire que le défaut
+  qu'on corrigeait. Le verrou reste dit **sur la carte** (cadenas + « Premium ») et **au
+  tap** (l'offre) — il n'est pas masqué, il n'est plus un filtre. L'action de la
+  `FixedActionBar` vise toujours un sujet **ouvert**, et devient « Voir l'abonnement
+  Intégral » quand il n'en reste aucun.
 - **Lien profond sur un sujet verrouillé** : `CompetencePromptScreen` rend
   `_LockedPromptView` — on garde le repère « Sujet i/N » + palier et **rien d'autre** : ni
   consigne, ni situation, ni zone de production, ni barre de validation. Le contenu du sujet
@@ -1991,9 +2237,12 @@ jamais s'afficher tel quel. Un 403 à la soumission passe quand même par
 **Oral** : la capture réutilise `AudioRecorderService` / `recordingControllerProvider`
 (panneau `SkillRecorderPanel`). Le plafond de capture est **180 s**, aligné sur la borne
 serveur — la durée conseillée du sujet reste indicative et ne coupe jamais la parole. La
-**transcription n'est produite que si une analyse IA est demandée** (on ne paie pas Whisper
-pour rien) : une tentative EO `RECORDED` n'a donc pas de texte à relire, et l'écran de
-résultat le dit au lieu d'afficher un vide.
+**transcription est SYSTÉMATIQUE**, analyse demandée ou non (2026-08-16) : ⚠️ cela
+**révoque** « on ne paie pas Whisper pour rien » — l'enregistrement n'étant plus conservé,
+ne pas transcrire ne laisserait **rien** de la production. Une tentative EO `RECORDED` a
+donc bien son texte à relire. Corollaire visible : l'envoi prend quelques secondes de plus
+(la transcription se fait pendant la requête), et un échec rend **503** sans rien
+enregistrer — le fichier local n'est pas effacé, le candidat renvoie.
 
 **Polling du résultat** : 3 s, arrêt sur `statut.isFinal` ou au bout de **120 s**.
 `RECORDED` et `FAILED` sont des statuts **finaux** : on saute le bloc IA et on va droit aux
@@ -2012,6 +2261,97 @@ avec le mode « Sujets » TCF, qui est un tout autre écran (spec §4).
 
 Backend : cf. `CLAUDE.md` racine section « Examen blanc TCF complet ». Côté mobile, l'orchestration vit
 dans `screens/tcf_full_exam/` :
+
+### 🛑 Le temps d'un examen TCF — refonte 2026-08-15
+
+- **Le chrono global de 90 min est SUPPRIMÉ.** Le temps d'une épreuve ne se transfère jamais à la
+  suivante et la reprise **entre** épreuves est officiellement supportée (cf. § *Suspendre un
+  examen* : on reprend aux épreuves **jamais commencées**, jamais celle qui est en cours) : un
+  décompte global n'a plus de sens. Les 4 durées font **~95 min**, annoncé comme **indicatif**. Ne pas réintroduire
+  `_fullExamTotal` ni un timer ancré sur `FullTcfExamResponse.timerStartedAt` (qui n'est plus qu'une
+  trace du début, servant au statut de continuité).
+- **Chaque épreuve a son chrono propre, servi par le DTO** :
+  `FullTcfExamSubAttempt.timeLimitSeconds` (CO 1200, CE 2100, EE 1800, **null pour l'EO**) +
+  `deadlineAt`, **l'unique source du compte à rebours**. On ne recompose jamais une échéance côté app,
+  et le tick se lit sur `DateTime.now()` face à une échéance **absolue** — donc juste au retour
+  d'arrière-plan, où le temps a couru.
+- **CE = 35 min PARTOUT**, y compris dans l'examen complet (elle y était raccourcie à 30 min pour tenir
+  dans les 90 min, qui n'existent plus). C'est exactement là que web et mobile avaient divergé.
+- **`core/utils/epreuve_duration.dart` est la SEULE table de durées de l'app** (miroir de `DureeEpreuve`
+  côté backend). Elle ne sert **que** aux écrans de catalogue et de briefing, qui annoncent une durée
+  **avant** qu'aucune session n'existe : dès que la donnée serveur est là (`timeLimitSeconds`), c'est
+  elle qui fait foi. `TcfQcmModule` et `TcfProductionModule` y lisent leur `durationLabel` via leur
+  `epreuve` — aucun « 20 min » / « 35 min » recopié dans un écran.
+- **L'expression orale se chronomètre PAR TÂCHE, et seulement quand la tâche est lancée** — calqué sur
+  le vrai TCF : la consigne s'affiche **sans aucun décompte**, le candidat presse « Je suis prêt ·
+  Commencer la tâche », et c'est **à cet instant** que part le chrono sur `dureeMaxSec`
+  (180 / 210 / 210 s). Auto-stop à zéro, puis tâche suivante. **L'épreuve EO n'a plus de chrono global
+  de 15 min** (`AttemptResponse.timeLimitSeconds` est désormais `null` pour une session EO — il valait
+  900). L'auto-stop passe par le **flux d'état du service** d'enregistrement, jamais par un `stop()`
+  posé dans `start()` : c'est ce câblage qui évite une fuite du wake lock écran. Vaut pour l'EO d'un
+  examen complet **comme** pour l'épreuve EO jouée seule.
+- **EE : temps conseillé par tâche, indicatif et JAMAIS bloquant** (≈ 7 / 10 / 13 min,
+  `eeTempsConseilleMinutes`) — affiché sous la consigne, **à côté** du chrono réel de 30 min, qui porte
+  sur les **3 tâches ensemble**. Rien ne se ferme quand ce repère est dépassé. Ces 3 valeurs sont
+  éditoriales : elles ne se dérivent d'aucune donnée serveur et aucun endpoint ne les publie.
+- **Quitter ne suspend rien** (sauf à l'oral, où le temps ne court que pendant une tâche lancée) : le
+  chrono continue pendant l'absence, on reprend avec le temps réellement restant, et une épreuve dont
+  l'échéance est passée est **clôturée automatiquement par le serveur** (`GET /api/attempts/{id}` et
+  `GET /api/full-tcf-exams/{id}` le font avant de répondre). Il n'existe **aucun** flux « recommencer
+  une épreuve interrompue » — n'en construis pas. Le progress screen relit l'état à l'expiration et au
+  retour au premier plan ; il ne finalise **pas** l'examen entier.
+- **`POST /api/attempts/{id}/answers` renvoie 422 après l'échéance + 60 s.** Le refus porte sur **une**
+  réponse, pas sur la session : `RunnerState.timeExpired` le porte, `RunnerScreen` affiche le message du
+  serveur puis bascule sur l'écran de fin. Le runner ne plante pas et ne perd rien.
+- **Statut de simulation** : `FullTcfExamResponse.continuite` (`ContinuiteSimulation`, **nullable** —
+  `null` tant que l'examen n'est pas terminé, cas normal). Libellés **gelés** et miroirs du backend :
+  « Simulation complète — conditions examen » / « Simulation complétée en plusieurs sessions », portés
+  par le `label` de l'enum, jamais par une chaîne d'écran. Affiché sous le hero du bilan.
+  ⚠️ **Ne pas y ajouter un 3ᵉ cas** « pas de résultat global définitif » : il existe déjà, c'est
+  `finalLevelPartial` / `epreuvesCountedInFinalLevel`, qui répondent à une autre question (sur combien
+  d'épreuves porte le niveau).
+
+### 🛑 Suspendre un examen — la règle de sortie (2026-08-15)
+
+> **Une épreuve COMMENCÉE ne se reprend jamais. Une épreuve JAMAIS COMMENCÉE
+> attend le candidat aussi longtemps qu'il faut.**
+
+Arbitrage propriétaire, appliqué à l'identique sur le web. Il **révoque** « quitter =
+abandonner » et **revient en partie** sur le correctif de la veille (`markSubDone` retiré du
+« quitter » des épreuves EE/EO) : la règle produit a changé, c'est voulu.
+
+- 🛑 **Aucun résultat tant que les 4 épreuves ne sont pas terminées.** Le hub
+  (`TcfFullExamProgressScreen`) n'a plus d'action menant au bilan depuis sa feuille de sortie :
+  le bouton du bas est **« Suspendre l'examen »**, et la feuille ne propose que **« Suspendre et
+  reprendre plus tard »** / **« Continuer l'examen »**. Plus aucun `finish` du parent depuis cet
+  écran.
+- **Suspendre clôture l'épreuve commencée, épargne les autres**, puis **sort de l'écran**. Un
+  examen suspendu **reste « en cours » indéfiniment**, sans résultat, reprenable, et **garde son
+  slot** dans la grille : c'est **voulu**, ne pas le clôturer automatiquement pour libérer la
+  place.
+- **« Commencée » = `FullTcfExamSubAttempt.commencee`** (`timerStartedAt != null`, l'ancre posée
+  par `POST /begin`) — le discriminant dont `jamaisOuverte` est la lecture « close sans avoir été
+  ouverte ». **Ne pas en inventer un second.**
+- **Règle et libellés déclarés une seule fois** :
+  `screens/tcf_full_exam/full_exam_exit_labels.dart` (`epreuvesAClore`, `fullExamSuspendMessage`,
+  `epreuveExitMessage`, `kFullExamSuspend*`, `kEpreuveExit*`), **miroir mot pour mot** de
+  `web_sejoufr/lib/full-exam-exit.ts`. La feuille **nomme l'épreuve** qui va être close ;
+  **sans** épreuve commencée elle dit simplement que la progression est conservée — on ne fait
+  pas peur pour rien.
+- **Quitter une épreuve la clôture aussi**, sur les trois écrans d'épreuve :
+  `runner_screen` (CO/CE lancé avec `from=fullTcf` → `finish()` puis retour au hub),
+  `ee_briefing_writing_screen` et `eo_briefing_screen` (→ `markSubDone`). Le `PopScope`/back
+  système passe par le même chemin : back = quitter = clôturer.
+- **Ce qui ne clôture RIEN** : la **flèche retour du hub** (elle sort de l'écran, point), la mise
+  en arrière-plan, la fermeture de l'app. Et **aucune** épreuve jamais commencée n'est fermée par
+  un geste de sortie.
+- **La grille dit déjà « En cours · Reprendre »** (`tcf_full_exams_screen`) et ouvre le hub, pas
+  le bilan — c'est le web qui s'est aligné dessus.
+- **Un examen dont les 4 épreuves sont closes reste finissable** : le hub réaffiche « Voir mon
+  résultat », et c'est l'écran de bilan qui appelle `finish`.
+- **Backend inchangé** : `finish` refuse tant qu'un sous-attempt n'est pas terminé, `beginEpreuve`
+  ne ré-ancre jamais une épreuve terminée, et un attempt fini refuse toute réponse comme toute
+  soumission.
 
 **Freemium (parité web/backend)** : l'examen complet n'est plus 100 % premium.
 `TcfFullExamsView` ouvre le **slot 1 aux comptes gratuits** (examen offert,
@@ -2033,8 +2373,13 @@ niveau ni check vert ni lien). Miroir `locked` dans `core/models/full_tcf_exam.d
   - **EE/EO** → briefing existant `/tcf/expression-X/t/0?fullExamId=$parentId&subAttemptId=$subId`. Le
     briefing détecte la query et appelle `EeSessionController.startInFullExam(subAttemptId:)` /
     `EoSessionController.startInFullExam(subAttemptId:)` — ces variantes REPRENNENT l'attempt existant
-    côté backend (sans `niveau`) et chargent ses 3 tâches via `getExamTasks`. L'EE complet a un chrono
-    30:00 front-side ; l'EO complet enchaîne tâche par tâche comme le module.
+    côté backend (sans `niveau`), le **relisent** via `GET /api/attempts/{id}` (jamais un `Attempt`
+    fabriqué : c'est lui qui porte `startedAt` recalé et `timeLimitSeconds`) et chargent ses 3 tâches
+    via `getExamTasks`.
+  - **`POST /begin?epreuve=…` est appelé pour les 4 épreuves**, juste avant d'ouvrir leur écran :
+    tant qu'il ne l'est pas, l'épreuve **n'a pas d'échéance** (les 4 sous-attempts sont créés d'un bloc
+    au lancement de l'examen, leur `startedAt` ne dit rien du moment où le candidat les ouvre). Il est
+    **obligatoire pour l'EE**.
 - **`TcfFullExamBilanScreen`** (route `/tcf/examen-blanc/:parentId/bilan`) — bilan agrégé. À l'init,
   appelle `POST /api/full-tcf-exams/{id}/finish` (idempotent) puis poll toutes les 4 s jusqu'à
   `status == COMPLETED`. Affiche le niveau CECRL plancher en gros + 4 cards par épreuve avec leur niveau
@@ -2240,15 +2585,11 @@ Backend : anonymisation (cf. CLAUDE.md racine + `docs/api-endpoints.md`).
 
 ## Roadmap (ce qui n'est pas encore fait)
 
-- ~~**Chrono global examen blanc**~~ ✅ fait. Le chrono global 90 min est affiché en haut du
-  progress screen (`_GlobalTimer`), ancré sur `FullTcfExamResponse.timerStartedAt` (lancement réel de
-  la CO), pas sur `startedAt` (création) — figé à 90:00 tant qu'aucune épreuve n'a démarré. Chaque
-  épreuve garde **en plus** son chrono propre (CO 20 / CE 30 via `time_limit_seconds` du sous-attempt) :
-  `_startStep` appelle `POST /api/full-tcf-exams/{id}/begin?epreuve=…` (`beginEpreuve`) AVANT d'ouvrir le
-  runner, ce qui recale `started_at` du sous-attempt sur le lancement réel. Sans ce recalage, la CE —
-  créée en même temps que la CO — héritait du temps déjà écoulé et démarrait amputée (bug « la CE
-  n'avait que 10 min »). Les deux chronos coexistent : le premier à 0 force la suite (auto-finish
-  sous-attempt côté runner / auto-finalisation de l'examen côté hub).
+- ~~**Chrono d'examen blanc**~~ ✅ fait, puis **refondu le 2026-08-15** : le chrono global de 90 min a
+  été **supprimé**, chaque épreuve porte le sien (`FullTcfExamSubAttempt.timeLimitSeconds` +
+  `deadlineAt`) et l'oral se chronomètre par tâche. Détail complet et invariants : § « Le temps d'un
+  examen TCF » de la section *Examen blanc TCF complet*. ⚠️ Ne pas se fier à la description qui vivait
+  ici (`_GlobalTimer`, 90:00 figé, double chrono) : elle est **révoquée**.
 - **Offline-first** : pas de SQLite/Drift pour l'instant, tout passe par le réseau. À ajouter dans
   `core/storage/` quand on aura besoin (questions civiques stables, peuvent être cachées).
 - **Notifications push** (rappels d'entraînement) : à ajouter via `firebase_messaging` ou OneSignal.

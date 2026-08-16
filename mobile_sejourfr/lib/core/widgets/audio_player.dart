@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 
 import '../theme/app_theme.dart';
 import 'app_card.dart';
+import 'keep_screen_awake.dart';
 
 /// Player audio d'une source **distante ou locale**. Servait d'abord la
 /// compréhension orale (TCF), il est aussi le lecteur des productions orales du
@@ -61,6 +62,8 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
   bool _started = false;
   Timer? _autoStartTimer;
   StreamSubscription<PlayerState>? _stateSub;
+  // Lecture en cours : pilote le maintien de l'écran allumé (cf. build).
+  bool _playing = false;
 
   @override
   void initState() {
@@ -70,6 +73,9 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
     // barre pleine. On remet le lecteur au repos dès la fin de lecture.
     _stateSub = _player.playerStateStream.listen((state) {
       if (!mounted) return;
+      final playing =
+          state.playing && state.processingState != ProcessingState.completed;
+      if (playing != _playing) setState(() => _playing = playing);
       if (state.processingState == ProcessingState.completed) {
         _onPlaybackComplete();
       }
@@ -192,12 +198,21 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
         ? null
         : (widget.maxPlays! - _playCount).clamp(0, widget.maxPlays!);
 
-    return AppCard(
-      padding: const EdgeInsets.all(16),
-      color: widget.background,
-      border: Border.all(color: widget.accent.withValues(alpha: 0.15)),
-      boxShadow: const [],
-      child: Column(
+    // Écran allumé pendant la lecture : l'auditeur ne touche pas l'écran (un
+    // document de compréhension orale, la réécoute d'une production), et une
+    // mise en veille couperait le son. Posé DANS le lecteur partagé plutôt que
+    // sur chaque appelant — c'est la même règle partout, elle ne doit exister
+    // qu'à un endroit. Raison distincte de 'eo-recording' : le compteur de
+    // références additionne les détenteurs.
+    return KeepScreenAwake(
+      reason: 'audio-playback',
+      enabled: _playing,
+      child: AppCard(
+        padding: const EdgeInsets.all(16),
+        color: widget.background,
+        border: Border.all(color: widget.accent.withValues(alpha: 0.15)),
+        boxShadow: const [],
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -316,7 +331,8 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
                 ),
               ],
             ),
-        ],
+          ],
+        ),
       ),
     );
   }

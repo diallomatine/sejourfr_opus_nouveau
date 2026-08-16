@@ -11,6 +11,7 @@ import '../../core/api/repositories.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/query_propagation.dart';
 import '../../core/widgets/app_button.dart';
+import '../../core/widgets/keep_screen_awake.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'audio_recorder_service.dart';
 import 'eo_session_controller.dart';
@@ -427,15 +428,22 @@ class _PlaybackBarState extends State<_PlaybackBar> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(10, 10, 14, 10),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Row(
+    // Écran allumé pendant la réécoute : le candidat écoute sa production sans
+    // toucher l'écran, une veille couperait le son. Même raison que le lecteur
+    // partagé (`SejourAudioPlayer`) — c'est le même besoin, le compteur de
+    // références additionne les détenteurs.
+    return KeepScreenAwake(
+      reason: 'audio-playback',
+      enabled: _playing,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(10, 10, 14, 10),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.line),
+        ),
+        child: Row(
         children: [
           GestureDetector(
             onTap: _ready ? _togglePlay : null,
@@ -481,10 +489,11 @@ class _PlaybackBarState extends State<_PlaybackBar> {
                     letterSpacing: 0.5,
                   ),
                 ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

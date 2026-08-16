@@ -37,7 +37,12 @@ mobile. Web : 1 examen blanc + 10 QCM d'entraînement par module pour convertir.
   `users.target_level` est **posé par le serveur** au choix de la démarche
   (`MeService.updateTargetProcedure`, seul point d'écriture) et **re-dérivé à la lecture**
   (`AuthenticatedUser.targetLevel`) : aucun front ne peut recevoir un couple contradictoire,
-  même sur une ligne héritée.
+  même sur une ligne héritée. **L'inscription y passe aussi** : `RegisterRequest.targetProcedure`
+  est **facultatif** (le web l'envoie depuis l'écran de compte du diagnostic, le mobile a son
+  écran `/target-path` dédié) et `AuthService.register` **appelle** `updateTargetProcedure` au
+  lieu d'écrire les colonnes — le champ était absent du DTO serveur, donc jeté en silence, et
+  les comptes créés en fin de diagnostic sortaient sans démarche ni palier. Une démarche
+  inconnue est refusée en **400 nommé** (champ, valeur reçue, valeurs acceptées).
 - **TargetLevel** (TCF) : `A2` / `B1` / `B2`
 - **AttemptType** : `TRAINING` (correction immédiate) / `MOCK_EXAM` (examen blanc, chrono,
   pas de correction live) / `REVIEW`
@@ -113,10 +118,29 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
   `user NULL` + `clientIp` — sert d'analytics « combien se testent »). Tirages
   guests déterministes. Série 2+/examen 2+ → inscription. `GET /api/public/lots`
   + `POST /api/public/attempts/demo` (TRAINING lotNumero=1 ou MOCK_EXAM
-  template free). **Examens ciblés** (thème civique / épreuve TCF) et EE/EO :
-  compte obligatoire — le backend renvoie 403 sur un MOCK_EXAM guest avec
-  themeId ou moduleExamQuestionType ; côté web les pages `*/examens` restent
-  des vitrines (grille visible, tout verrouillé → GuestGateSheet).
+  template free). **Examen blanc de MODULE TCF : slot 1 offert aux visiteurs**
+  (2026-08-16, `AttemptService.startGuestModuleExam`) — CO / CE / STRUCTURE, un
+  seul examen par épreuve, tirage **déterministe** (rejouer redonne le même : on
+  n'ouvre pas la banque de questions sans compte). Slots 2-20 → inscription.
+  ⚠️ Cette règle **révoque** la précédente (« pages `*/examens` = vitrines,
+  tout verrouillé ») **pour ce seul cas**. Restent fermés aux visiteurs, et le
+  backend le double d'un 403 : les examens de **thème civique** (`themeId`) et
+  **EE/EO**. Ne pas déverrouiller le reste « par symétrie ».
+  ⚠️ **Le mobile n'a AUCUN mode invité** (le redirect global renvoie tout
+  non-authentifié vers `/login`, allowlist limitée à l'aide, `/about` et le
+  diagnostic) : il ne vérifie que l'**abonnement**. L'asymétrie web ouvert /
+  mobile compte requis est un **choix**, pas un trou.
+- **Purge des attempts invités : écrite, livrée ÉTEINTE**
+  (`GuestAttemptPurgeJob` + `sejourfr.guest-attempt-purge.enabled=false`, POJO
+  et YAML à la même valeur ; rétention 2 h, lots de 500, cron configurables).
+  🛑 **Prérequis avant de l'activer** : ces lignes **sont** la mesure « combien
+  de visiteurs se testent ». Les purger sans avoir d'abord un **compteur
+  agrégé** (une ligne par jour, patron `page_views` V020) détruit cette donnée
+  — le propriétaire a explicitement demandé de la conserver. `user IS NULL` est
+  vérifié **deux fois** (sélection puis DELETE), les tables filles partent en
+  cascade DB, l'index partiel `idx_attempts_demo_quota` (V006) couvre le
+  filtre. Un test vérifie qu'à `false` **rien** n'est supprimé, un autre qu'un
+  attempt de compte vieux d'un an est épargné.
 - **Compte gratuit, EE/EO** : 1 essai d'entraînement par épreuve à vie + 1
   examen blanc production offert. L'examen est marqué `attempts.slot_number=1`
   au start (`ProductionAttemptStartRequest.exam`) ; ses soumissions bypassent
@@ -124,9 +148,10 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
   les essais d'entraînement restants ; une session ne compte que si ≥ 1 tâche
   soumise. Règles dans `ProductionAccessService` (quota, partagé avec la voie
   temps réel) / `AttemptService.startProductionAttempt`. Une **session d'examen
-  production est bornée** : chrono d'épreuve (EE 30 min, EO 15 min = 600 s de
-  parole + 50 % de marge) et **une seule soumission par (attempt, tacheNumero)**
-  — un examen, c'est 3 tâches, une fois chacune. QCM entraînement : série 1
+  production est bornée** : chrono d'épreuve **EE 30 min** (l'**EO n'en a plus**,
+  elle se chronomètre par tâche — cf. § *Temps des examens blancs*) et **une
+  seule soumission par (attempt, tacheNumero)** — un examen, c'est 3 tâches, une
+  fois chacune. QCM entraînement : série 1
   gratuite, 2+ premium. **Tous les examens blancs QCM** (`MOCK_EXAM`) :
   **slot 1 offert ET rejouable à volonté** pour tout compte inscrit, slots 2+
   réservés aux abonnés **du module** (Civique → `hasCivique`, TCF → `hasTcf`).
@@ -159,7 +184,12 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
   jouable, c'est ce qui garde le Plan utilisable sans abonnement ») : ce qui
   reste gratuit, c'est **lire** son Plan et **commencer** son étape, pas la
   finir. Ne pas « corriger » `FREE_PROMPTS_PER_SKILL` à 5 pour rétablir
-  l'ancienne phrase.
+  l'ancienne phrase. **Conséquence en cascade, arbitrée le 2026-08-14** : la
+  bascule d'une étape en **vérification de progression** exige l'étape
+  *terminée*, donc un compte gratuit ne la voit **jamais**, aucune de ses
+  compétences n'atteint `SOLID`, et il ne reçoit aucun **jalon** d'examen blanc.
+  La vérification est **premium** — c'est un choix produit, détaillé dans la
+  section Plan.
 - **Compte gratuit, examen blanc TCF complet** (`/api/full-tcf-exams`,
   orchestré CO→CE→EE→EO) : **examen 1 offert** (slot 1, même grille que les
   abonnés) avec **EE + EO évaluées une seule fois à vie**. Au-delà, l'examen 1
@@ -278,6 +308,95 @@ cliquent son CTA, découpé par réseau de provenance.
   bot peut gonfler un compteur — donnée fausse, mais ni fuite ni inflation de
   stockage.
 
+## Temps des examens blancs — un chrono PAR ÉPREUVE (2026-08-15)
+
+🛑 **Le chrono global de 90 min n'existe plus.** Le temps restant d'une épreuve
+**ne se transfère jamais** à la suivante, et l'abandon / reprise entre épreuves
+est officiellement supporté : un décompte global devenait absurde (reprendre le
+lendemain aurait trouvé l'examen expiré). `FULL_EXAM_TOTAL_SECONDS` est
+supprimée, `parent.timer_started_at` survit comme **trace du début réel**, plus
+comme ancre d'un décompte. Ne pas la réintroduire.
+
+- **`DureeEpreuve` est la seule autorité** (enum, pas de config : c'est une
+  donnée d'examen, pas un réglage) : CO 20 min · **CE 35 min** · EE 30 min ·
+  STRUCTURE 20 min. Aucune constante de durée ailleurs.
+  `ExamTemplate.durationSeconds` reste prioritaire quand un template pilote
+  l'examen. ⚠️ **`FULL_EXAM_CE_SECONDS` est supprimée** : la CE était raccourcie
+  à 30 min dans l'examen complet pour tenir dans les 90 min — **une épreuve a la
+  même durée où qu'elle soit jouée**, c'est la règle « les conditions
+  s'appliquent au module ». Total indicatif ≈ **95 min**, jamais opposable.
+- **`FullTcfExamResponse.SubAttempt` porte son temps** : `timeLimitSeconds`,
+  `timerStartedAt`, `deadlineAt`. **`deadlineAt` est l'unique base du compte à
+  rebours** des 3 fronts — aucun ne recalcule d'échéance, sinon le temps
+  cesserait de courir pendant une absence. C'est l'absence de ces champs qui
+  avait forcé les durées en dur, et fait diverger web et mobile (CE annoncée
+  30 min ici, 35 min là).
+- **Un score QCM TCF s'affiche TOUJOURS sur 100-499**, jamais sur le pondéré
+  interne. `SubAttempt` porte `calibratedScore` (nullable), rempli par
+  `FullTcfExamResponseBuilder` **en déléguant à `TcfLevelEstimatorService`** —
+  la formule (correction du hasard 25 %, bornes 100-499) ne se recopie jamais.
+  `null` pour EE/EO, pour une épreuve `locked`, et quand le pondéré manque : le
+  service rendrait sinon sa borne basse et l'écran afficherait « 100/499 » là où
+  on ne sait rien. Repli déclaré une fois par front (`qcmScoreLabel`, miroirs
+  `web/lib/exam-levels.ts` ⇄ `mobile/core/models/full_tcf_exam.dart`) : calibré
+  ⇒ `x/499`, sinon le brut `x/maxScore`, **jamais un `/499` fabriqué à partir
+  d'un pondéré**. `score`/`maxScore` restent servis. ⚠️ Ne vaut que pour le
+  **TCF** — le civique se lit sur `/40` ou `/20`.
+- **`POST /begin?epreuve=…` est appelé sur les 4 épreuves** (obligatoire pour
+  l'EE, qui n'avait **aucune** échéance avant). Idempotent par ancre : reprendre
+  une épreuve ne remet pas son chrono à zéro.
+- **L'ORAL n'a pas de chrono d'épreuve** (`timeLimitSeconds` = `null`), calqué
+  sur le vrai TCF : la consigne s'affiche **sans aucun décompte**, et le temps ne
+  part qu'au **lancement de la tâche** (« Je suis prêt · Commencer la tâche »),
+  sur `production_tasks.duree_max_sec` (180 / 210 / 210 s). Auto-stop, puis tâche
+  suivante. Reste un **garde-fou de session de 2 h**
+  (`DureeEpreuve.EO_GARDE_SESSION_SECONDS`), **invisible des fronts et jamais
+  présenté comme un chrono** : sans lui une session EO reste ouverte
+  indéfiniment et un compte gratuit y accumule des évaluations IA payantes. Il
+  ne s'applique pas aux sous-épreuves d'un examen complet.
+- **Le chrono QCM est enfin opposable serveur** : `POST /api/attempts/{id}/answers`
+  (et sa jumelle publique) rend **422** après échéance + `SUBMIT_GRACE_SECONDS`
+  (60 s, réutilisée). Il n'était lu que par les fronts — le respecter était une
+  politesse du client. Le refus porte sur **une réponse**, jamais sur la session.
+- **Clôture automatique paresseuse à la lecture** (`GET /attempts/{id}`,
+  `GET /full-tcf-exams/{id}`), sans job planifié — même mécanique que
+  l'expiration des abonnements (`SubscriptionService.isCovering`) : un attempt
+  hors délai est terminé + scoré sur les réponses existantes. Un retour dans
+  l'app peut donc rendre une épreuve déjà `finishedAt` : **c'est normal**.
+- **Abandon / reprise — le temps est la seule autorité, quitter ne suspend
+  rien.** Une épreuve terminée est conservée. Revenir **avant** l'échéance rend
+  le temps réellement restant ; **après**, l'épreuve est clôturée avec ce qui
+  était enregistré. 🛑 **Il n'existe AUCUN flux « recommencer une épreuve
+  interrompue » — ne pas en construire** : le chrono qui continue de tourner
+  suffit à garantir la fiabilité de la simulation, et faire tout refaire à qui a
+  reçu un appel téléphonique serait une punition sans contrepartie.
+  **Exception EO** : le temps ne courant que pendant une tâche lancée, quitter
+  sur l'écran de consigne ne coûte rien et les tâches rendues sont conservées.
+- ⚠️ **Trou connu et assumé : une EE abandonnée se clôture VIDE.** Aucune
+  persistance de brouillon n'existe (`production_submissions.texte_soumis` n'est
+  écrit qu'à l'envoi final, aucun autosave, aucune table) — « clôturée avec ce
+  qui était enregistré » signifie donc *rien* à l'écrit : 3 tâches à 0, bilan
+  `A1_NON_ATTEINT`. **Ne pas construire de système de brouillon sans arbitrage
+  produit explicite** (colonne + endpoint d'autosave + décision sur ce qu'on
+  évalue d'un texte non envoyé).
+- **`ContinuiteSimulation`, dérivé serveur et jamais persisté** (philosophie
+  `SkillStatusResolver` / `SituationDansNiveau`) : `SESSION_UNIQUE`
+  (« Simulation complète — conditions examen ») / `PLUSIEURS_SESSIONS`
+  (« Simulation complétée en plusieurs sessions »), **null tant que l'examen
+  n'est pas terminé**. Bascule au-delà de `PAUSE_MAX_ENTRE_EPREUVES` = **15 min**
+  entre la fin d'une épreuve et le lancement de la suivante. Libellés gelés par
+  `ContinuiteSimulationTest`, miroirs manuels web (`FULL_TCF_EXAM_CONTINUITE_LABEL`,
+  `lib/types.ts`) et mobile (`label` de l'enum). Le 3ᵉ cas de la spec (« pas de
+  résultat global définitif ») **existe déjà** : `finalLevelPartial` /
+  `epreuvesCountedInFinalLevel` — **ne pas créer de notion parallèle**.
+- **Miroir de durée côté fronts** : `web_sejoufr/lib/exam-durations.ts` et
+  `mobile_sejourfr/lib/core/utils/epreuve_duration.dart`, **une seule table
+  chacun**, réservée aux écrans **antérieurs à l'examen** (briefings, vitrines —
+  aucun DTO n'existe encore à ce moment). Dès qu'un objet serveur existe, c'est
+  `timeLimitSeconds` qui fait foi. Le total annoncé est **recalculé**, jamais
+  écrit. Le temps conseillé EE (7 / 10 / 13 min) est **éditorial**, purement
+  indicatif, et sa somme vaut exactement les 30 min réelles.
+
 ## Diagnostic initial TCF et Plan personnalisé
 
 Le diagnostic est un **parcours distinct** des examens blancs et de la notation
@@ -326,10 +445,20 @@ de rubriques et files de calibration doivent garder le filtre
   `diagnostic-analysis-tool-schema-v1.json`, configurés sous
   `sejourfr.diagnostic.analysis`, ne produisent **aucune note /20**. Le schéma
   impose l'allowlist exacte des compétences de la tâche, codes uniques, preuve
-  par segment réel, confiance et cohérence statut/observation/priorité, avec au
-  plus deux priorités par production. Une réponse vide/illisible est transitoire
-  et une seule réparation de format est tentée. **On versionne ces deux fichiers,
-  on ne réécrit jamais une version livrée.**
+  par segment réel, confiance et cohérence statut/observation. Une réponse
+  vide/illisible est transitoire et une seule réparation de format est tentée.
+  **On versionne ces deux fichiers, on ne réécrit jamais une version livrée.**
+- **`priority` est DÉRIVÉ de `status`, il n'est plus un motif de refus**
+  (`DiagnosticAnalysisReconciler`, qui passe **avant** le validateur) : une
+  divergence est réconciliée puis comptée, et le plafond de **2 priorités par
+  production** est une **troncature déterministe** (les 2 meilleures par
+  confiance puis rang d'allowlist — règle partagée `DiagnosticPriorityRanking`,
+  **jamais l'alphabet** ; le surplus est abaissé d'un cran en `TO_REINFORCE`),
+  jamais un refus. Motif : ce couple d'invariants n'était **écrit nulle part
+  dans le prompt** et portait sur un champ **redondant** (`status` fait foi, il
+  est seul persisté et contraint en base) — il a détruit un diagnostic réel,
+  donc les **deux productions** du candidat. Contrat v1 inchangé ; compteurs
+  `DiagnosticReconciliationMetrics`, famille distincte.
 - **Bifurcation persistée** : `production_submissions.is_diagnostic` décide du
   pipeline async. Une submission diagnostique réutilise Whisper si nécessaire,
   puis `DiagnosticProductionAnalysisService` ; elle ne passe jamais dans
@@ -340,6 +469,38 @@ de rubriques et files de calibration doivent garder le filtre
   fiable. La relance agrégée réserve `FAILED → ANALYZING` sous verrou pessimiste
   puis déclenche l'async après commit ; une session `COMPLETED` n'est jamais
   rétrogradée par un recorder tardif.
+- ⚠️ **Corollaire de cette bifurcation : le diagnostic ne traverse AUCUN filet de
+  `AiEvaluationService`.** Il rendait donc des reproches bâtis sur un artefact de
+  transcription — cas réel : `EO2-C3` reprochait « « horreurs » pour « horaires »
+  est une erreur lexicale », alors que le candidat avait dit « horaires ».
+  **`DiagnosticOralArtifactFilter`** (livré **ACTIF** le 2026-08-14, EO **seulement**)
+  applique la règle du volet FORME au diagnostic oral : une remarque qui
+  **reproche**, **cite un passage réel** de la transcription et dont la citation
+  ne nomme **qu'1 ou 2 mots pleins** est purgée ; **0 mot porteur** (structure
+  pure) et **≥ 3** sont conservés ; transcription **dégradée**
+  (`TranscriptionQualityAudit`) ⇒ tout reproche ancré tombe. **Rien n'est extrait
+  du néant** : la règle entière vit dans **`EvaluationOralForme`**
+  (`reprocheAncreSurUneForme`, 3ᵉ occurrence ⇒ les patterns `CITATION`/`REPROCHE`
+  y ont été **déplacés** depuis `EvaluationOralArtifactFilter`, qui délègue
+  désormais), le découpage en phrases dans `EvaluationTexte` (rendue publique).
+  ⚠️ **Le diagnostic n'a PAS d'axe de critères** (ses observations sont des
+  compétences, pas `morphosyntaxe`/`lexique`) : la restriction « jamais `lexique` »
+  des productions **ne s'y transpose pas**, et le propriétaire a arbitré qu'on
+  purge quand même un reproche dit « lexical » — les deux lectures (machine qui a
+  mal entendu / candidat qui a mal prononcé) mènent au même endroit, et la grille
+  interdit déjà de noter la prononciation. **Champs purgés** :
+  `skills[].explanation` (l'observation **survit sans son explication**),
+  `weaknesses[]` (entrée vidée ⇒ retirée), `summary` (remplacé par un texte qui dit
+  pourquoi). **Jamais touchés** : l'ÉCRIT, `strengths`, `evidence`, `status`,
+  `priority`, `confidence`, `level_estimate`, `task_completion`,
+  `communication_status`, l'ordre des priorités. 🛑 **Une purge ne peut pas rendre
+  une session `FAILED`** : le filtre tourne **après** `DiagnosticAnalysisValidator`
+  sur la sortie déjà normalisée (rien ne revalide derrière), et `purge` **avale
+  toute exception**. Compté `EvaluationPurgeMetrics.ARTEFACT_ORAL_FORME_DIAGNOSTIC`
+  — même **nature** (une purge retire une phrase) donc même famille que les 4
+  surfaces `MARQUEUR_PALIER*`, dont une est déjà diagnostique ; constante à part
+  pour distinguer les deux voies. **Contrats IA inchangés** (`diagnostic-analysis-*-v1`) :
+  c'est un contrôle serveur, pas une consigne. Legacy non migré.
 - **Départage des priorités : allowlist puis alternance, jamais l'alphabet**
   (`DiagnosticSessionCoordinator`). À confiance égale (`HIGH>MEDIUM>LOW`), c'est
   le rang de la compétence dans l'allowlist de son sujet
@@ -349,6 +510,26 @@ de rubriques et files de calibration doivent garder le filtre
   L'ancien départage se faisait sur l'ordre **alphabétique du code**, ce qui
   faisait mécaniquement passer toutes les priorités `EE…` devant les `EO…` et les
   compétences C1/C2 devant les autres. Déterministe, aucun appel LLM.
+- **Une priorité se DÉRIVE des faiblesses quand le correcteur n'en désigne
+  aucune** (`DiagnosticPriorityRanking.faiblesseObservee`, appliqué par
+  `DiagnosticSessionCoordinator`). Mesuré sur deux diagnostics réels joués de
+  bout en bout — dont un sur une production A1/A2 volontairement fautive : le
+  modèle range tout en `TO_REINFORCE` et ne pose jamais `status=PRIORITY`, donc
+  `priority_skill_codes` sortait **vide** et le Plan restait `ACTIVE` sans rien à
+  faire. Rien dans les rubriques ne l'y oblige (« **au plus** deux » est satisfait
+  par zéro) et une consigne ne serait qu'un vœu : la dérivation est déterministe
+  et serveur. Une priorité **désignée l'emporte toujours** (on complète, on ne
+  remplace pas) ; `SOLID` et `NOT_OBSERVED` n'en deviennent **jamais** une — zéro
+  faiblesse observée ⇒ zéro priorité, état légitime. Bornes inchangées (2 par
+  production, 3 après fusion, alternance écrit/oral), comptage
+  `DiagnosticReconciliationMetrics.PRIORITE_DERIVEE_DE_FAIBLESSE`.
+  **Le Plan applique la même règle** : `LearningPlanPriorityResolver.actionable`
+  traite une observation `TO_REINFORCE` comme une priorité dérivée et départage
+  par **confiance** avant la récence, miroir de `DiagnosticPriorityRanking` — les
+  deux productions du diagnostic sont observées au même instant, la récence n'y
+  trie rien. `/api/me/plan` et `GET /api/diagnostics/{id}` ne peuvent donc plus
+  désigner deux étapes n°1 différentes, et le freemium suit
+  (`SkillAccessService` ouvre la compétence de la priorité, dérivée comprise).
 - **Une étape du Plan = les 5 premiers sujets actifs de sa compétence**, par
   `display_order` croissant (`LearningPlanStep.PROMPTS_PAR_ETAPE`, arbitré le
   2026-08-11). **Dérivé, jamais persisté** : aucune table, aucune migration, le
@@ -370,6 +551,73 @@ de rubriques et files de calibration doivent garder le filtre
   porte que les compteurs de compétence. Un seul calcul dans
   `SkillProgressCounter` (+ `SkillProgressTally`, `SkillStatusResolver`), **2
   requêtes** quel que soit le nombre de compétences.
+- **Le PÉRIMÈTRE de l'étape est publié, pas redécoupé par les fronts** :
+  `LearningPlanPriorityDto.stepPromptIds` (liste ordonnée d'UUID, **jamais
+  `null`**, éventuellement vide, `display_order` croissant sur les sujets
+  actifs), dérivée de `LearningPlanStep.scope`. Invariant garanti :
+  `stepPromptIds.size() == stepPromptCount` — le compteur en est **dérivé**, ils
+  ne peuvent plus diverger. **Zéro requête ajoutée** : les sujets étaient déjà
+  chargés pour les compteurs. Motif : ouvrir une compétence **depuis le Plan**
+  affichait « 1/15 » (la fiche générique), l'étape se perdait à la navigation.
+  Les fronts servent désormais un écran **scopé aux 5 sujets** quand on vient du
+  Plan, et la fiche complète (« x/15 ») par le chemin Réviser → Compétences —
+  deux vues assumées pour une même compétence. Ils **ne réimplémentent pas**
+  « les 5 premiers par ordre d'affichage » : deux copies désigneraient deux
+  étapes différentes.
+- **UNE SEULE définition de « transfert prouvé », et elle vit chez le moteur**
+  (2026-08-16, `SkillMastery.transferProven()`) : l'état agrégé vaut `SOLID`,
+  **ou** une réussite en situation (`SOLID` issu de `PRODUCTION_EE/EO` ou
+  `MOCK_EXAM_EE/EO` — jamais un micro-entraînement, jamais le diagnostic qui est
+  la baseline) est encore dans `transfer-proof-days` **et** les fragilités
+  contextualisées récentes restent sous `fragility-tolerance`. Une compétence
+  dont le transfert est prouvé cesse d'être *actionable* : elle sort des
+  priorités et la suivante devient l'étape n°1.
+  `LearningPlanPriorityResolver.transfertProuve` ne fait que **lire** ce
+  booléen — il ne relit plus l'historique.
+  ⚠️ **Cette règle RÉVOQUE celle du 2026-08-15** (« la **dernière** observation
+  contextualisée fait foi »), qui avait une tolérance **nulle** et enfermait le
+  candidat : une seule production moins bonne révoquait trois `SOLID`
+  antérieurs, la compétence restait priorité **à vie**, et le moteur — qui la
+  jugeait déjà `SOLID` — refusait en même temps d'ouvrir la vérification
+  (`readyForReassessment` court-circuite sur `state == SOLID`). Impasse mesurée
+  en base sur `user@sejourfr.fr`/`EE1-C8`, plus 4 autres compétences du même
+  compte. Ne pas la réintroduire.
+  ⚠️ **Aligner sur le seul `state == SOLID` NE MARCHE PAS non plus** — piège
+  arithmétique, vérifié : dans le parcours normal (5 micro-sujets validés + 1
+  vérification réussie) le score plafonne à **0,679** pour un `solid-score` de
+  **0,75**, les 5 `TO_REINFORCE` ciblés à 0,5 diluant la moyenne. Les 5
+  conditions structurelles de `SOLID` sont pourtant réunies : c'est le **seuil de
+  score** qui manque. Exiger `SOLID` déplacerait donc l'impasse d'un cran et
+  imposerait une **seconde** preuve en situation, contre la décision « une
+  réussite suffit ». D'où la seconde branche. Verrou :
+  `SkillMasteryEngineTest.cinqSujetsPuisUneVerificationProuventLeTransfert`
+  (assert `transferProven()` **et** `state != SOLID`).
+  **Corollaire** : une étape franchie n'est **pas** forcément `SOLID` — sur le
+  compte réel, 1 l'est et 4 sont `CONSOLIDATING`. `PlanMilestoneSelector`
+  (≥ 2 compétences `SOLID`) est donc **inchangé**, et les fronts ne doivent
+  **jamais** conditionner la coche verte à `masteryState == SOLID` :
+  l'appartenance à `completedSteps` **est** la coche.
+  🛑 **`recentContextualProof` ne se pose que sur une contextualisée `SOLID`**
+  (corrigé le 2026-08-16) : il l'était sur tout `valeur >= 0.5`, donc une
+  production jugée **fragile** comptait comme preuve de transfert et **éteignait**
+  le signal de vérification. Ne change rien au cas ci-dessus (de vrais `SOLID`
+  existaient) ; débloque les candidats dont la seule trace en situation était une
+  fragilité.
+  ⚠️ **Le déclencheur de la vérification est INCHANGÉ** : toujours
+  `readyForReassessment` **et** `step.completed()`.
+  Conséquence sur le freemium : `SkillAccessService` ouvrant la compétence de la
+  priorité n°1, celle-ci **se déplace** avec l'enchaînement. Sans effet réel pour
+  un compte gratuit, qui plafonne à 2 sujets sur 5, ne termine jamais une étape
+  et n'obtient donc jamais cette preuve par cette voie.
+- **Une étape franchie RESTE dans le parcours, cochée** —
+  `LearningPlanDto.completedSteps` (`LearningPlanCompletedStepDto`, **jamais
+  `null`**, vide = cas normal, **bornée à 5** les plus récentes, ordre du plus
+  ancien au plus récent). Elle se lit **avant** `currentPriority` puis
+  `nextPriorities`, dans le **même parcours numéroté**. Sans elle, une compétence
+  prouvée **disparaissait** et le candidat perdait la trace de ce qu'il avait
+  franchi. Elle ne porte **ni `recommendedExercise` ni `locked`** : il n'y a rien
+  à y faire, et ce n'est pas une porte commerciale. L'historique complet reste
+  l'affaire de l'écran Progression.
 - **Achèvement d'une étape, dérivé serveur** (`LearningPlanStep.Progress
   .completed()`, jamais persisté, jamais recalculé par un front — philosophie
   `SkillStatusResolver` / `SituationDansNiveau`) : terminée quand ses 5 sujets
@@ -450,6 +698,80 @@ de rubriques et files de calibration doivent garder le filtre
   refuse). Une réévaluation est une **production standard** : elle produit ses
   observations `PRODUCTION_EE/EO` par le pipeline existant, aucun type de source
   dédié.
+- **La bascule vers la vérification exige DEUX conditions, pas une** (2026-08-14) :
+  le signal du moteur (`SkillMastery.readyForReassessment`) **et**
+  `LearningPlanStep.Progress.completed()` — l'**étape terminée**, ses **5** sujets
+  traités. `LearningPlanService` combine les deux **une seule fois** et sert ce
+  booléen à la fois à `LearningPlanPriorityDto.readyForReassessment` et au choix
+  de l'exercice : le DTO ne peut pas dire « prêt » pendant que la carte propose
+  un micro-sujet. Motif mesuré en base : un candidat ayant validé 2 des 5 sujets
+  se voyait proposer « Vérifier ma progression » sous un anneau à **2/5** — le
+  moteur avait raison sur le fond, l'étape n'était pas finie.
+  🛑 **Le périmètre est l'étape ENTIÈRE, pas ce que l'accès du candidat lui
+  ouvre — c'est un ARBITRAGE PRODUIT du propriétaire, pas une propriété du
+  moteur de maîtrise : la vérification de progression est PREMIUM.** Un compte
+  gratuit plafonne à 2 sujets sur 5 (`FREE_PROMPTS_PER_SKILL`), donc il ne
+  bascule **jamais** ; aucune de ses compétences n'atteint `SOLID` (qui réclame
+  la preuve contextualisée que seule cette vérification apporte) ; et il ne voit
+  donc pas non plus les **jalons** de `PlanMilestoneSelector`, dont le
+  déclencheur d'épreuve exige ≥ 2 compétences `SOLID`. **Ces trois conséquences
+  sont voulues** : ne pas les « réparer » en comptant les sujets ouverts. Une
+  première version (livrée puis révoquée le jour même) le faisait, via un
+  `exhausted()` / `openCount` dérivé de `SkillAccess` — supprimés, ne pas les
+  réintroduire. Le seuil `readiness-targeted-subjects: 2` n'y change rien : il
+  n'a jamais gardé cette porte.
+  ⚠️ **Le seuil `readiness-targeted-score` ne se monte pas.** Une observation
+  ciblée vaut **au mieux 0,5** — `recordSkillAttempt` écrit `TO_REINFORCE` quand
+  le critère est **VALIDATED**, et **jamais `SOLID`**. Donc : `0.30` est le seul
+  réglage qui sépare « un échec ancien puis deux réussites » (0,351, à laisser
+  passer) de « deux réussites noyées dans trois échecs récents » (0,20, à
+  refuser) ; `0.50` interdit d'échouer une première fois ; au-delà le signal
+  s'**éteint** — et avec lui `SOLID`, qui réclame la preuve contextualisée que
+  seule cette vérification apporte. Même piège pour les **réussites ciblées**
+  (`SkillMasteryEngine.estReussiteCiblee`, désormais découplé du `valeur >= 0.5`
+  du score) : **ne pas la restreindre à `SOLID`**, aucune ligne ne le produit.
+  Verrou : `SkillMasteryEngineTest.leSeuilCibleResteAtteignable`.
+- **JALONS — on ESCALADE, on ne reporte pas** (`PlanMilestoneSelector`, 3ᵉ et
+  dernier sélecteur d'exercice, jumeau de `RecommendedExerciseSelector` /
+  `ReassessmentExerciseSelector` — **autorité unique**, deux copies auraient fini
+  par désigner deux jalons). Échelle : étape (5 sujets) → **vérification ciblée**
+  (débloque `SOLID`) → **examen blanc d'épreuve** (EE ou EO, 3 tâches) → **examen
+  blanc TCF complet**. Attendre « les 3 étapes finies » était inatteignable (un
+  gratuit plafonne à 2/5) et aurait figé tout le monde en `CONSOLIDATING`.
+  L'échelle est déjà **tarifée** par les poids du moteur (0,45 / 0,80 / 1,00 /
+  1,20) ; il ne manquait que le déclencheur.
+  - **Déclencheurs, dérivés serveur et jamais persistés** : jalon d'épreuve quand
+    les compétences **observées** de l'épreuve sont majoritairement **`SOLID`**
+    (`epreuve-min-solid-skills: 2` **et** `epreuve-solid-ratio: 0.5`, les deux
+    ensemble) et qu'aucun examen blanc de cette épreuve n'a été observé depuis
+    `proof-days: 45` ; jalon complet quand **les deux** épreuves ont franchi le
+    leur **et l'ont prouvé**, sauf si un `TCF_COMPLET` a démarré dans la fenêtre.
+    `SOLID` et pas le score : c'est le seul état qui exige une preuve **en
+    situation**. Tous les nombres vivent sous
+    `sejourfr.learning-plan.milestone` (+ POJO `LearningPlanProperties.Milestone`
+    aux mêmes défauts). À égalité, l'**écrit** passe devant l'oral.
+  - **Aucun contenu créé, aucune route nouvelle** : un jalon désigne un examen
+    blanc **déjà existant** par `epreuve` + `slotNumber` (le premier slot non
+    joué, plafonné à la grille). `PlanExerciseKind` gagne `EPREUVE_MOCK_EXAM` et
+    `FULL_TCF_MOCK_EXAM` ; `PlanRecommendedExerciseDto` gagne `epreuve` +
+    `slotNumber`, **mutuellement exclusifs** avec `skillPromptId` et avec
+    `productionTaskId`+`tacheNumero`. Un jalon ne porte **ni titre ni
+    compétence** : le serveur expose des faits, la phrase appartient aux fronts.
+    Servi sur `LearningPlanDto.milestone`, **à côté** des priorités (chaque étape
+    garde son propre exercice) ; `null` est le **cas normal**.
+  - **Verrou reporté, jamais appliqué à la désignation** : un jalon verrouillé
+    est **désigné quand même** avec son `locked`, lu chez l'autorité que le
+    serveur oppose au démarrage — `ProductionAccessService.isProductionExamLocked`
+    (jumelle en lecture de `assertCanStartProductionExam`, que
+    `AttemptService.startProductionAttempt` appelle désormais) et
+    `.isFullExamProductionLocked` (jumelle du calcul que `FullTcfExamService
+    .start` faisait en propre). **Jamais une copie de la règle.**
+  - **Coût** : **zéro requête** tant qu'aucun jalon n'est atteint — tout se
+    décide sur l'historique déjà chargé et les états de maîtrise déjà calculés
+    (`fromObservations` porte désormais sur **toutes** les compétences observées,
+    pas seulement celles des cartes : une compétence `SOLID` n'est jamais une
+    priorité). Quand un jalon est atteint : 2 à 3 requêtes bornées, jamais une
+    par compétence.
 - **« Le Plan a changé » après une production** : `ProductionSubmissionDto
   .planChange` (`PlanChangeDto` = `confirmedSkill` + `newPriority`, deux
   `PlanSkillRefDto` **indépendamment nullables**, bloc entier `null` si rien n'a
@@ -541,9 +863,12 @@ de rubriques et files de calibration doivent garder le filtre
   - **Exposition** : `masteryState` sur `SkillDto` (**c'est ce que la carte de
     compétence affiche à la place de « 2/15 traités »** — les compteurs restent,
     ils servent l'anneau d'étape), `LearningPlanSkillDto` et
-    `LearningPlanPriorityDto` ; `trajectory` (liste `SkillObservationPointDto`,
-    de la plus ancienne à la plus récente, `NOT_OBSERVED` exclus) sur
-    `SkillDetailDto` — l'endpoint de détail existant, pas une route de plus.
+    `LearningPlanPriorityDto`. ⚠️ **La `trajectory` de `SkillDetailDto` a été
+    SUPPRIMÉE** le 2026-08-16 (DTO, `SkillObservationPointDto`,
+    `SkillMasteryResolver.trajectory` et les deux miroirs front) : la section
+    « Ton parcours sur cette compétence » n'apportait rien au candidat, et la
+    servir coûtait **une requête à chaque ouverture** d'une compétence. Ne pas
+    la réintroduire sans un écran qui la lise vraiment.
   - **`LearningPlanPriorityResolver` reste l'unique autorité sur l'ordre des
     priorités** : le moteur ne le réordonne pas, `SkillAccessService` continue
     d'en dépendre pour ouvrir la compétence de la priorité n°1.
@@ -557,6 +882,56 @@ de rubriques et files de calibration doivent garder le filtre
   /api/admin/diagnostics/{code}/versions/{version}/instruction-audio` inspecte
   son état ; `POST` le génère ou répare idempotemment son URL sous la clé stable
   dérivée de l'UUID de tâche. Rien n'est généré au boot ni au démarrage candidat.
+  **`POST …?force=true` refait la synthèse même si l'objet existe** — seul moyen
+  de corriger un audio devenu faux quand la consigne change (cas V756 : trois
+  étapes à l'écran, quatre dans la voix), le retour anticipé idempotent ne sachant
+  que réparer l'URL. **Opt-in strict** : sans le paramètre, le comportement est
+  inchangé et aucun appel payant ne part, même sur une route rejouée. L'écrasement
+  se fait **sous la même clé** (`putObject`, last-write-wins — jamais de delete,
+  qui ouvrirait un 404 transitoire), donc l'URL en base et côté fronts ne bouge
+  pas, et `generatedNow` dit la vérité : `true` seulement si une synthèse a eu
+  lieu.
+  **V756 raccourcit les deux consignes EN PLACE dans la version 1** (EE 100-120
+  mots, EO 90-150 s) : les sujets de V755 se lisaient comme un examen complet dès
+  le premier contact, alors que le diagnostic doit se lire « 5 minutes et je
+  découvre mon niveau ». Aucun UUID ne bouge (clé de `diagnostic_sessions` **et**
+  de l'audio R2), aucune allowlist n'est touchée — les incises « et ce que vous en
+  avez pensé », « dites ce que vous cherchez » et « (activités, horaires, tarif,
+  inscription) » sont conservées exprès, sans elles `EE2-C7`, `EO1-C3` et `EO2-C4`
+  reviendraient `NOT_OBSERVED`. ⚠️ **L'audio de consigne de l'oral est donc faux
+  tant qu'il n'est pas régénéré** par le `POST` ci-dessus. V756 retire au passage
+  les bornes du diagnostic écrites en dur dans `chk_prod_task_tcf_irn_ee_word_bounds`
+  (piège de V723/V724) : un sujet diagnostique est exempté de la table officielle,
+  ses bornes vivent dans `production_tasks.mots_min/mots_max`.
+- **« Avant / après » de l'écran de résultat — SECOND APPEL LLM SÉPARÉ, ÉCRIT
+  SEULEMENT** (`service/diagnostic/exemplecible/`, livré **ACTIF**). Rend la
+  phrase du candidat **et la même phrase réécrite au palier qu'il vise** : on ne
+  lui dit pas qu'il a un problème, on lui montre à quoi ressemblerait sa propre
+  phrase un cran plus haut. Jumeau de `service/versionciblee/`, mêmes invariants :
+  **best-effort**, lancé par `ProductionPipelineAsyncRunner` **après** que
+  l'analyse est persistée et la session assemblée, **hors transaction**, toute
+  exception avalée, **aucun rejeu** — un échec laisse le diagnostic complet et la
+  session `COMPLETED`. **Le contrat d'analyse (`diagnostic-analysis-*-v1`) ne
+  bouge pas d'un octet** : le correcteur du diagnostic n'apprend jamais qu'on va
+  réécrire quoi que ce soit (v10/v11 ont mesuré qu'un bloc ajouté à une grille qui
+  juge fait tomber l'accord exact de 81,8 % à 75,6 %) ; verrou
+  `DiagnosticExempleCibleContractTest`. **La production ORALE n'est jamais
+  réécrite** — aucun appel n'est émis, aucun bloc produit. Le modèle **désigne la
+  phrase par son NUMÉRO** (`EvaluationProductionSegments`, technique v12), le
+  serveur la **résout en texte avant persistance** : aucun miroir DTO ne
+  transporte d'entier. DTO `DiagnosticResultDto.exempleCible` **nullable**
+  (`original` = sous-chaîne exacte de la production, `texte`, `segments[{extrait,
+  apport}]`, `niveauVise`) — **son absence est un cas NORMAL**. Persisté dans
+  `diagnostic_production_analyses.analysis_json.exemple_cible` (**aucune
+  migration**, legacy intact) et **pas** dans `summary_json`, que le coordinateur
+  remet à null puis reconstruit à chaque assemblage. Segments = **confort**
+  (`util/SegmentsSurlignage`) ; bornes du texte = `util/ProductionTextBounds`,
+  **plafond seul** (la borne basse décrit une production de 100 mots, on réécrit
+  une phrase) ; filet marqueurs A2 sur les `apport`, **4ᵉ surface**
+  (`EvaluationMarqueursA2`, compté `MARQUEUR_PALIER_APPORT_DIAGNOSTIC`). **Une
+  seule réparation par bloc**, et seulement sur du mécanique (numéro hors bornes,
+  texte trop long) ; compteurs dédiés `DiagnosticExempleCibleMetrics`. Retour
+  arrière : `DIAGNOSTIC_EXEMPLE_CIBLE_ENABLED=false`.
 
 Les migrations structurantes sont V029 (agrégats/observations et séparation des
 tâches), V030 (événements du funnel), V031 (sources d'examen blanc +
@@ -1245,6 +1620,90 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   « Sujet N » + consigne, déclaré une seule fois par front
   (`productionSubjectTitle`, `lib/types.ts` ⇄ `widgets/production_common.dart`,
   libellé gelé par test des deux côtés). Aucun écran ne suppose le titre présent.
+- **Fluidité de la session vocale temps réel** (chantier du 2026-08-12, les 3
+  surfaces). Le ressenti « l'examinateur met trop longtemps à répondre » avait une
+  cause unique et symétrique : **le gate qui coupe le micro pendant que
+  l'examinateur parle se levait sur une estimation arithmétique** (durée théorique
+  de l'audio reçu + 900 ms), aveugle au retard réel de la file. Trop tôt, le micro
+  rouvrait pendant la parole et l'écho repartait à Gemini en **faux tour
+  candidat** ; trop tard, les **premiers mots du candidat étaient jetés** et tout
+  le tour glissait. Le gate suit désormais la **position de lecture réelle** —
+  `playHead` côté web, `remainingFrames` du moteur natif + file côté mobile, sur
+  **horloge monotone** (`Stopwatch`, jamais `DateTime.now()`). Marge 900 → 100 ms,
+  tenue micro 300 → 120 ms : ces deux valeurs ne compensaient que l'imprécision
+  supprimée. **Ne pas les regonfler** sans remettre une estimation à la place.
+  - **Le micro reste coupé pendant que l'examinateur parle** (half-duplex,
+    anti-écho) — arbitrage du propriétaire, 2026-08-12. L'AEC mobile n'a pas le
+    signal joué par `flutter_pcm_sound` comme référence, donc un full-duplex
+    ferait s'auto-interrompre l'examinateur. Le code de flush `interrupted` reste
+    en place, **inatteignable mais intact** : ne pas le supprimer.
+  - **Chunk micro 20–40 ms des deux côtés** (recommandation Google). Le worklet
+    web postait un render quantum brut = **un message WS toutes les 8 ms**
+    (~125/s, 256 o utiles pour ~344 car. de base64) ; il accumule maintenant
+    40 ms. Mobile : `streamBufferSize` explicite — ⚠️ **l'unité diffère**,
+    Android compte des **octets**, iOS/macOS des **frames**.
+  - **Pré-roll de lecture** (120 ms web / 150 ms mobile) : sans lui, un hoquet
+    réseau donne un trou puis un clic. Amorçage forcé en fin de tour pour ne pas
+    coincer une réponse courte.
+  - 🛑 **VAD de fin de tour : `END_SENSITIVITY_MEDIUM` N'EXISTE PAS.** L'enum du
+    fournisseur n'a que `..._UNSPECIFIED`, `..._LOW` et `..._HIGH` — sur chacune
+    des deux sensibilités. Posée le 2026-08-12 (« répondre plus vite en fin de
+    tour »), cette valeur a fait répondre `auth_tokens` en **400
+    INVALID_ARGUMENT à CHAQUE émission de token** : `GeminiTokenBroker.mint`
+    levait, `RealtimeSessionService.start` retombait en `ASYNC_FALLBACK`, et
+    **plus une seule session temps réel n'a eu lieu du 2026-08-12 au 2026-08-16**
+    (dernière ligne `realtime_sessions` : 2026-08-11 21:33) — sur les **deux**
+    fronts, **en silence** : le candidat choisissait « Avec un examinateur » et
+    atterrissait sur l'enregistreur solo, sans un mot. **La valeur retenue est
+    donc `LOW`** : c'est le réglage le plus lent, mais `HIGH` couperait un
+    apprenant A2 en pleine hésitation et il n'y a pas de troisième choix — le
+    vrai levier de réactivité est `silence-duration-ms`, pas cette enum.
+    Deux verrous posés le 2026-08-16 : allowlists
+    `RealtimeProperties.Vad.{START,END}_SENSITIVITES` **opposées au BOOT**
+    (`GeminiTokenBroker.assertVadSupportee` → une valeur inconnue fait échouer le
+    démarrage, jamais de repli muet — philosophie des contrats de prompts), et un
+    **message au candidat** quand son choix de temps réel n'aboutit pas
+    (`kRealtimeUnavailableMessage` ⇄ `REALTIME_UNAVAILABLE_MESSAGE`, miroirs mot
+    pour mot) : on continue de ne **jamais** le bloquer, mais on ne le dépose
+    plus sur l'enregistreur solo comme s'il l'avait choisi.
+    `silence-duration-ms` reste à **500** (plancher Google, en dessous les pauses
+    naturelles fragmentent l'énoncé) et `prefix-padding-ms` à **300** (sinon la
+    première syllabe est rognée). Les 5 valeurs sont surchargeables par env.
+  - **Reprise de session** (`sessionResumption` + `contextWindowCompression`,
+    V032 additive, `POST /api/realtime/eo/sessions/{id}/resume`). Le token vise
+    l'endpoint **contraint** : le client ne peut poser **aucun** champ de setup,
+    donc il **relaie son handle au serveur**, qui le verrouille dans le setup d'un
+    nouveau token. Seul montage possible — ne pas tenter de reconnecter en
+    réutilisant l'ancien token. `uses` 1 → 3 et `newSessionExpireTime` 120 → 600 s
+    (120 s ne couvrent pas un tunnel de métro : le token mourait avant le retour
+    du réseau, la reprise aurait été illusoire). ⚠️ **Non vérifié contre l'API
+    réelle** que Gemini accepte `sessionResumption` dans un setup verrouillé —
+    repli `REALTIME_SESSION_RESUMPTION_ENABLED=false`.
+  - **Quota jamais débité deux fois** : `appendTranscript` lisait la session
+    **sans verrou**, deux transactions concurrentes pouvaient toutes deux voir
+    `PENDING` et décrémenter (`decrementRealtimeSessions` est atomique mais
+    conditionné à `> 0` : il ne protège pas contre deux débits **légitimes**).
+    Verrou pessimiste de ligne, `finish` restant volontairement non transactionnel.
+    `turnIndex` rend `appendTranscript` **idempotent** : un réessai doit repartir
+    avec le **même** index, attribué à la construction du lot et non à l'envoi.
+    C'est l'invariant qui protège le quota — **aucun front ne rappelle
+    `POST /sessions` après une coupure**, ce serait un second slot.
+- **Écran allumé — primitives partagées, un seul point de câblage par front.**
+  Mobile `core/utils/screen_wake_lock.dart` (`ScreenWakeLock`, **refcount par
+  raison**, exceptions plateforme avalées, ré-application au retour au premier
+  plan car Android relâche en arrière-plan) + widget déclaratif
+  `core/widgets/keep_screen_awake.dart` ; web `lib/use-screen-wake-lock.ts`
+  (`useScreenWakeLock(active)`, détection de capacité — absente sur Safari iOS
+  < 16.4 et Firefox — et **ré-acquisition sur `visibilitychange`**, le navigateur
+  relâchant le verrou dès que l'onglet passe en arrière-plan). Câblé dans
+  `RecordingController` (mobile) et `EoRecordingForm` (web), qui servent **à eux
+  seuls** production EO + compétences EO + diagnostic ; plus `SejourAudioPlayer`
+  pour la réécoute et l'écran temps réel. ⚠️ Le câblage mobile passe par le **flux
+  d'état** du service, pas par `start()/stop()` : l'auto-stop de `maxDuration`
+  appelle `stop()` sur le **service**, pas sur le controller — un acquire posé
+  dans `start()` fuirait à chaque enregistrement arrivé au bout. **Aucune
+  permission `WAKE_LOCK`** : `wakelock_plus` pose `FLAG_KEEP_SCREEN_ON` sur la
+  fenêtre, qui n'en exige pas ; la déclarer ne ferait que salir la fiche Play Store.
 - **Recollage des tours EO temps réel** (`util/TranscriptTurnStitcher`, drapeau
   `sejourfr.production-evaluation.recollage-tours.enabled`, livré **ACTIF** —
   c'est une correction, pas une expérimentation). La transcription temps réel
@@ -1446,8 +1905,28 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   été passée, la compter `A1_NON_ATTEINT` revenait à dire à un compte gratuit
   qu'il n'atteint pas le A1 parce qu'il n'a pas payé) et une épreuve à
   `cecrlLevel` null (évals FAILED ou en vol) : **null = inconnu, jamais mauvais**.
-  Une épreuve **abandonnée sans verrou** (chrono écoulé, rien rendu) reste,
-  elle, comptée `A1_NON_ATTEINT` — elle a été passée et ratée. Partialité
+  Une épreuve **ouverte puis abandonnée** (`timer_started_at` posé, chrono
+  écoulé, rien rendu) reste, elle, comptée `A1_NON_ATTEINT` — elle a été passée
+  et ratée. ⚠️ **Une épreuve JAMAIS OUVERTE en sort** (2026-08-15) :
+  `timer_started_at` NULL **et** rien de rendu (aucune réponse en CO/CE, aucune
+  soumission en EE/EO) ⇒ `cecrlLevel` **null**, hors plancher, donc
+  `finalLevelPartial` vrai. Les **deux** critères, jamais l'un seul : tous les
+  sous-attempts antérieurs au chrono par épreuve portent `timer_started_at`
+  null, et s'en contenter effacerait le niveau d'épreuves réellement passées.
+  Motif mesuré : un candidat ayant joué CO (A2) + CE (A1) puis quitté voyait ses
+  EE/EO closes par le front, notées `A1_NON_ATTEINT`, son A2 écrasé, et un bilan
+  annoncé **complet sur 4 épreuves**. Même raisonnement que la branche `locked`
+  vingt lignes plus haut — une porte jamais franchie n'a pas été passée, et
+  `null = inconnu, jamais mauvais`. ⚠️ **Le serveur ne refuse PAS
+  `markSubAttemptDone` sur une épreuve jamais lancée** (pas de 422) : le flux
+  d'abandon volontaire des fronts l'appelle avant `finish`, qui exige tous les
+  sous-attempts terminés — un refus casserait le bouton « Abandonner ».
+  Abandonner sans ouvrir l'EE est un geste **valide** ; c'est le **verdict**
+  qu'on en tirait qui était faux. Conséquence côté fronts : une sous-épreuve
+  terminée, non verrouillée, sans échec et **sans niveau** est désormais un cas
+  normal, à lire « non passée » et **jamais** « évaluation en cours » (web :
+  état `not_taken` de `subAttemptView` ; mobile : `SubAttempt.jamaisOuverte` —
+  sans quoi un spinner tourne sans issue). Partialité
   exposée aux fronts par `epreuvesCountedInFinalLevel` / `epreuvesExpected` /
   `finalLevelPartial` (+ `finalLevelPartial` sur le résumé) : aucun front ne doit
   plus écrire « le plus bas de tes 4 épreuves » en dur, ni agréger un examen
@@ -1483,6 +1962,67 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   plancher où une épreuve abandonnée compte `A1_NON_ATTEINT`. L'arbitrage
   ci-dessus ne vaut que pour le **niveau d'un candidat dans le temps** — ne pas
   le propager à ces deux calculs sans une décision explicite.
+
+## L'audio d'une production de candidat n'est pas conservé (2026-08-16)
+
+Décision du propriétaire, **motif consentement** : « on ne stocke pas les
+enregistrements audio des gens ; l'audio sert **uniquement** à produire la
+transcription, et après la transcription on ne le stocke pas ». Ce qui reste
+d'une production orale, c'est **son texte**.
+
+- **Aucune production de candidat n'est écrite sur R2.** `ProductionAudioStorageService`
+  (préfixe `submissions/`) et `SkillTranscriptionService` sont **supprimés** — pas
+  désactivés : il n'existe plus de code capable d'écrire ou de relire un audio de
+  candidat. Les trois voies concernées étaient les **productions EE/EO**
+  (`production_submissions.media_url`), les **micro-exercices de compétence EO**
+  (`user_skill_attempts.audio_object_key`) et l'**oral du diagnostic** (qui passe
+  par la même route de production). La session vocale **temps réel** n'a jamais
+  rien persisté (flux client ⇄ Gemini, production = transcript).
+- 🛑 **Ne touche PAS aux audios ÉDITORIAUX** : consignes du diagnostic, exemples
+  EO, audios de compréhension orale, médias de questions. Ils passent par
+  `CloudflareR2Client` / `MediaStorageService` et sont du **contenu**, pas de la
+  donnée personnelle.
+- 🛑 **Rien n'est supprimé rétroactivement** : les objets déjà sur R2 restent, les
+  clés déjà en base restent. `media_url` et `audio_object_key` deviennent des
+  colonnes **LEGACY, plus jamais écrites**. **Ne jamais écrire de migration de
+  purge, de job de suppression ni de `delete` rétroactif.**
+- **La transcription est SYNCHRONE**, dans la requête de soumission — seul moment
+  où les octets existent. Ordre volontaire : **transcrire PUIS insérer**. Un échec
+  Whisper ne laisse alors **aucune ligne**, **aucun quota consommé**, et le
+  candidat renvoie depuis son appareil (les 4 fronts gardent le fichier local
+  après un envoi raté). L'ordre inverse fabriquerait des productions `FAILED`
+  définitivement irrécupérables. Coût mesuré sur la base : audio médian 90 s,
+  p90 175 s ⇒ quelques secondes d'attente ajoutées à l'envoi, contre ~0 avant.
+- **`AudioEphemere.avecOctets` est le seul endroit qui tient la promesse** : le
+  tampon est remis à zéro dans un `finally`, donc **aussi quand la transcription
+  échoue**. À utiliser dès qu'on manipule les octets d'une production.
+- **`spring.servlet.multipart.file-size-threshold: 26MB`** : au défaut (`0B`)
+  Spring écrivait **tout** upload multipart dans un fichier temporaire — l'audio
+  touchait le disque à chaque soumission. Ne pas rabaisser.
+- **Les runners ne transcrivent plus.** `ProductionPipelineAsyncRunner` et
+  `SkillAnalysisAsyncRunner` partent toujours d'une production **écrite** ; une
+  production orale sans transcription est un état impossible (sauf ligne
+  antérieure) et échoue clairement au lieu de noter du vide.
+- **Retries** : le retry d'une **évaluation** repart de la transcription (il ne
+  relisait déjà que le texte). Le retry d'une **transcription** n'existe plus —
+  un échec est une **réponse HTTP 503** (`GlobalExceptionHandler.handleTranscription`)
+  qui dit au candidat de **renvoyer**, pas d'attendre. Le retry **agrégé du
+  diagnostic** et `POST /api/skill-attempts/{id}/analyse` sont inchangés, mais
+  `analyse` refuse **avant** de consommer le quota une tentative orale LEGACY
+  sans transcription.
+- **Aucun DTO ne porte plus d'URL audio** : `ProductionSubmissionDto.mediaUrl` et
+  `SkillAttemptDto.audioUrl` sont **retirés** du backend et des **trois miroirs**
+  (`admin/src/types/api.ts`, `web/lib/types.ts`, `mobile/core/models/*.dart`).
+  `mediaDurationSec` / `audioDurationSec` restent : la durée n'est pas l'audio.
+- **Écrans** : aucun ne propose plus de réécouter une production **soumise** (web
+  `CompetenceResult`, mobile `competence_result_screen`, admin
+  `calibration/ProductionView` — les seuls qui le faisaient). ✅ **La réécoute
+  LOCALE, avant validation, reste** : le fichier est encore sur l'appareil, rien
+  n'est stocké, et elle protège le candidat d'envoyer une prise ratée.
+- Contraintes desserrées par **V033** : `chk_prod_sub_audio_or_text` (une
+  soumission orale n'a plus ni média ni texte, sa production vit dans
+  `transcriptions`, comme le temps réel depuis V017) et
+  `chk_user_skill_attempts_has_production` (qui accepte désormais `transcript`).
 
 ## Module « Compétences TCF » (micro-entraînement EE/EO)
 
@@ -1792,10 +2332,14 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
 - **`POST .../retry`** ne re-consomme pas le quota (l'échec n'est pas du fait du
   candidat) : c'est ce qui **impose** le plafond persisté `retry_count` ≤ 3,
   appliqué dans le service (422) **et** en base.
-- **Transcription Whisper seulement si une analyse est demandée** (on ne paie pas
-  pour un audio que personne ne corrigera) ; l'**audio est conservé dans tous les
-  cas** — les deux fronts doivent permettre de se réécouter sur l'écran de
-  résultat EO. Pipeline async **sans transaction englobante**, même invariant que
+- **Transcription SYSTÉMATIQUE, audio JAMAIS conservé** (cf. la section
+  transverse « L'audio d'une production de candidat n'est pas conservé »).
+  ⚠️ **Révoque** l'ancienne règle « Whisper seulement si une analyse est
+  demandée » et « l'audio est conservé dans tous les cas, les deux fronts
+  permettent de se réécouter » : sans audio gardé, ne pas transcrire ne
+  laisserait **rien** de la production. Elle est donc écrite dès la soumission,
+  analyse demandée ou non, et l'écran de résultat n'a plus de lecteur. Pipeline
+  async **sans transaction englobante**, même invariant que
   `ProductionPipelineAsyncRunner` (+ `SkillAnalysisFailureRecorder` en
   `REQUIRES_NEW` pour rendre `FAILED` durable).
 - **Garde-fou EO, identique à celui des productions complètes** : la **durée n'est
@@ -1811,8 +2355,10 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
   400 mots en EE, 180 s en EO, taille audio max partagée avec
   `production-evaluation`.
 - **Libellés gelés du bandeau « Sujet déjà traité »**, une seule action par
-  section : EE « Reprendre ma réponse » (préremplit), EO « Écouter ma dernière
-  réponse » (ouvre le résultat).
+  section : EE « Reprendre ma réponse » (préremplit), EO « **Relire** ma dernière
+  réponse » (ouvre le résultat). ⚠️ L'EO disait « Écouter » jusqu'au 2026-08-16 :
+  il n'y a plus rien à réécouter, l'enregistrement n'étant pas conservé — c'est
+  la transcription qu'on relit.
 - `SkillPromptDto` porte `skillPromptCount` / `skillDescription` /
   `skillGeneralCriterion` / `skillTargetLevel` **exprès** : l'écran de production
   affiche le fil d'Ariane « Sujet i/5 », l'encart d'explication et le palier
@@ -2127,12 +2673,21 @@ fin la plus tardive. Exposée via `GET /api/billing/subscription-status`.
 masque le bouton d'achat IAP. Pareil dans l'autre sens.
 
 **`GET /api/billing/plans`** expose `realtimeEoSessions` (colonne
-`plans.realtime_eo_sessions`, V018/V113) : le nombre de simulations orales en
-temps réel ouvertes par le pass — 25 (sprint 6 sem) / 60 (3 mois) / 120 (1 an)
-sur Intégral, **0** sur Civique et Free. Les fronts l'affichent tel quel sur les
-cartes de tarifs (0 = « sans simulation orale ») au lieu de coder le quota en
-dur — il reste éditable côté admin. Miroirs : `web_sejoufr/lib/types.ts`,
-`mobile_sejourfr/lib/core/models/billing_models.dart`.
+`plans.realtime_eo_sessions`, V018/V113/V114) : le nombre de simulations orales
+en temps réel ouvertes par le pass — **5 (7 j) / 15 (1 mois) / 25 (2 mois)** sur
+Intégral, **0** sur Civique et Free. Les fronts l'affichent tel quel au lieu de
+coder le quota en dur — il reste éditable côté admin. **C'est la seule ressource
+qui distingue deux passes Intégral** (même catalogue, mêmes examens blancs,
+mêmes corrections IA : seules la durée et ce quota progressent), donc il est
+annoncé **sur chaque ligne de pass** — `/paiement`, `/tarifs`, `/reussir` et le
+paywall mobile — par un libellé unique par front, `realtimeSessionsLabel`
+(`web_sejoufr/lib/types.ts` ⇄ `PlanPublicResponse.realtimeSessionsLabel` dans
+`mobile_sejourfr/lib/core/models/billing_models.dart`), miroirs mot pour mot.
+⚠️ Il ne dit **jamais** « sans simulation orale » sur un pass **Intégral** : un
+backend antérieur au champ le renvoie à 0, et ce serait faux sur l'argument
+principal du produit — il rend alors « incluses », sans chiffre. Seul le module
+(source sûre) autorise le « sans », et seule `/reussir` l'écrit, parce que sa
+puce de liste doit exister même vide.
 
 **Endpoints** :
 - `GET /api/billing/subscription-status` — authentifié, statut agrégé.
@@ -2242,8 +2797,19 @@ ce que le lot 4b mette à jour l'appel en `?planCode=<string>`.
 
 - **Lot 5 (bascule achat unique — feature-flaggée)** : le produit vend des
   **passes d'accès à durée fixe** (paiement unique, sans reconduction), au lieu
-  d'abonnements. Catalogue : Civique 3 mois (9,99) / 1 an (29,99) ; Intégral
-  sprint 6 sem (19,99) / 3 mois (35,99) / 1 an (79,99). Modèle : paiement →
+  d'abonnements. Catalogue **en vigueur (V114, 2026-08-14)** : Civique 3 mois
+  (9,99) / 1 an (29,99) — **inchangé** ; Intégral **7 jours (9,99) / 1 mois
+  (19,99) / 2 mois (29,99)**, codes `INTEGRAL_PASS_{7J,1M,2M}`, product IDs
+  `integral_pass_{7j,1m,2m}`. Les 3 anciens passes Intégral (sprint 6 sem 19,99 /
+  3 mois 34,99 / 1 an 79,99) sont **désactivés, jamais supprimés** : les
+  souscriptions vendues les référencent par FK et les stores doivent encore
+  résoudre leurs product IDs. **Une durée de plan ne se réécrit pas** — `ends_at`
+  est figé à l'achat, mais changer `duration_days` d'un plan encore vendu
+  falsifierait les achats suivants et le product ID du store, d'où des **codes
+  neufs** plutôt qu'une mise à jour en place. Le pass **mis en avant** (« le plus
+  populaire ») est `INTEGRAL_PASS_2M`, déclaré une fois par front
+  (`POPULAR_PASS_CODE` ⇄ `_popularPassCode`). Ce qu'il reste à faire côté stores
+  vit dans `docs/bascule-prix-integral.md`. Modèle : paiement →
   `user_subscriptions` `ACTIVE`, `auto_renew=false`, `ends_at = paiement +
   plans.duration_days` (durée posée par le **backend**, pas le store) ;
   expiration **lazy** à la lecture (`SubscriptionService.isCovering`), pas de
@@ -2268,8 +2834,10 @@ ce que le lot 4b mette à jour l'appel en `?planCode=<string>`.
     (`OneTimePasses`), `/tarifs` (`PassModuleCard`) et le paywall mobile
     (`_PassRow`). Ne pas réinverser sur une seule surface.
   - Stores : produits **Consommables** (Apple) / **managed in-app** (Google),
-    product IDs = `Plan.code` (Apple MAJ, Google minuscules). Guide pas-à-pas →
-    `docs/setup-paiement-one-time.md`.
+    product IDs **lus en base** (`plans.apple_product_id` / `google_product_id`,
+    identiques et en minuscules), **plus dérivés de `Plan.code`** — un ID Apple
+    supprimé n'étant jamais réutilisable, une recréation impose un ID neuf.
+    Guide pas-à-pas → `docs/setup-paiement-one-time.md`.
 
 > **⚠️ RÉVERSIBILITÉ — ne JAMAIS supprimer le code abonnement (lots 2/3/4).** La
 > bascule est pilotée par le flag `sejourfr.billing.mode` (`SUBSCRIPTION |
@@ -2431,6 +2999,8 @@ Référence à consulter quand le contexte le demande — pas chargé par défau
 - `docs/exams-tcf.md` — examens module (CO/CE) et examen blanc TCF complet
 - `docs/auth-social.md` — Google/Apple sign-in (backend + front, config env)
 - `docs/setup-paiement-one-time.md` — passes achat unique (lot 5) : setup Stripe/Apple/Google pas-à-pas + SKU
+- `docs/bascule-prix-integral.md` — nouvelle grille Intégral (7 j / 1 mois / 2 mois) : ce qui est fait
+  en base et dans les fronts, et ce qui reste à créer côté stores
 - `docs/pipeline-audio-co.md` — génération audio TCF CO (Claude → Azure Speech → R2)
 - `docs/pipeline-evaluation-eo-ee.md` — éval EO/EE (audio/transcription → correcteur configuré → R2 privé)
 - `docs/notation-ia-eo-ee.md` — **explication grand public** (non technique) de la notation

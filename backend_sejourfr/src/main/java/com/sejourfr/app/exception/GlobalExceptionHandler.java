@@ -24,6 +24,9 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.exc.InvalidFormatException;
+import tools.jackson.databind.exc.MismatchedInputException;
 
 import java.time.Instant;
 import java.util.List;
@@ -87,6 +90,25 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, Object>> handleMaxUpload(MaxUploadSizeExceededException e, WebRequest req) {
         return build(HttpStatus.PAYLOAD_TOO_LARGE, "Fichier trop volumineux", req, null, e);
+    }
+
+    /**
+     * La transcription echoue PENDANT la soumission d'une production orale —
+     * c'est le seul moment ou elle peut avoir lieu, l'audio n'etant pas
+     * conserve. Rien n'a donc ete enregistre, et il n'y a rien a relancer : le
+     * candidat doit RENVOYER, depuis l'enregistrement encore present sur son
+     * appareil. Le message le dit, parce qu'un 500 opaque le laisserait attendre
+     * une correction qui n'arrivera jamais.
+     *
+     * <p>503 et non 4xx : l'echec vient de nous (fournisseur indisponible), pas
+     * de ce qu'il a envoye.
+     */
+    @ExceptionHandler(TranscriptionException.class)
+    public ResponseEntity<Map<String, Object>> handleTranscription(TranscriptionException e, WebRequest req) {
+        return build(HttpStatus.SERVICE_UNAVAILABLE,
+                "Nous n'avons pas pu retranscrire votre enregistrement. Il n'a pas été "
+                        + "conservé : renvoyez-le, ou refaites-le si vous avez quitté l'écran.",
+                req, null, e);
     }
 
     /**
@@ -188,12 +210,62 @@ public class GlobalExceptionHandler {
      * Corps de requête illisible : JSON tronqué / invalide, body absent, ou
      * valeur non désérialisable. Message volontairement générique — les
      * messages Jackson exposent des noms de classes internes.
+     *
+     * <p><b>Exception : une valeur d'enum inconnue est nommée</b> (champ, valeur
+     * reçue, valeurs acceptées), comme le fait déjà
+     * {@link #handleTypeMismatch} pour les paramètres de requête. Un
+     * {@code targetProcedure} fautif doit dire au front <i>lequel</i> et
+     * <i>pourquoi</i> : c'est le silence sur ce champ qui a créé des comptes
+     * sans démarche ni palier.
      */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Map<String, Object>> handleUnreadableBody(
             HttpMessageNotReadableException e, WebRequest req) {
+        MismatchedInputException enumMismatch = findEnumMismatch(e);
+        if (enumMismatch != null) {
+            String field = lastPropertyName(enumMismatch);
+            String message = "Valeur invalide pour « " + field + " »";
+            if (enumMismatch instanceof InvalidFormatException ife && ife.getValue() != null) {
+                message += " : « " + ife.getValue() + " »";
+            }
+            message += ". Valeurs acceptées : " + enumConstants(enumMismatch.getTargetType()) + ".";
+            return build(HttpStatus.BAD_REQUEST, message, req,
+                    List.of(Map.of("field", field, "message", message)), e);
+        }
         return build(HttpStatus.BAD_REQUEST,
                 "Corps de requête absent ou mal formé (JSON attendu).", req, null, e);
+    }
+
+    /**
+     * Première cause de type « valeur non convertible vers un enum » dans la
+     * chaîne. {@code null} si l'échec de lecture vient d'autre chose (JSON
+     * tronqué, UUID malformé…), auquel cas on garde le message générique.
+     */
+    private MismatchedInputException findEnumMismatch(Throwable e) {
+        for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+            if (cause instanceof MismatchedInputException mie) {
+                Class<?> target = mie.getTargetType();
+                if (target != null && target.isEnum()) return mie;
+            }
+            if (cause.getCause() == cause) break;
+        }
+        return null;
+    }
+
+    /** Dernier segment nommé du chemin Jackson, ou un repli neutre. */
+    private String lastPropertyName(MismatchedInputException e) {
+        String name = null;
+        for (JacksonException.Reference ref : e.getPath()) {
+            if (ref.getPropertyName() != null) name = ref.getPropertyName();
+        }
+        return name != null ? name : "un champ du corps de requête";
+    }
+
+    private String enumConstants(Class<?> enumType) {
+        Object[] constants = enumType.getEnumConstants();
+        return constants == null ? "" : java.util.Arrays.stream(constants)
+                .map(Object::toString)
+                .collect(Collectors.joining(", "));
     }
 
     /** Chemin inexistant : 404, pas 500 (et pas de fuite sur le routage interne). */

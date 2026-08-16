@@ -79,7 +79,10 @@ public class MeService {
      * <p><b>Le serveur pose LUI-MÊME le palier de français exigé</b>
      * ({@link TargetProcedure#getRequiredTcfLevel()}) : c'est le seul point
      * d'écriture de {@code users.target_procedure}, donc le seul endroit où les
-     * deux colonnes peuvent se désynchroniser. Elles l'ont fait — le compte de
+     * deux colonnes peuvent se désynchroniser. <b>L'inscription y passe aussi</b>
+     * ({@code AuthService.register}, quand le candidat choisit sa démarche sur
+     * l'écran de compte du diagnostic) : elle appelle cette méthode au lieu de
+     * poser les colonnes elle-même. Elles se sont désynchronisées — le compte de
      * démonstration a longtemps porté {@code NAT} + {@code B1} parce que ce
      * service ne touchait que la procédure, et le candidat visant la
      * naturalisation était tiré vers le B1.

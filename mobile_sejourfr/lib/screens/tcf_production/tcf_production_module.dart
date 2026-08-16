@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/models/enums.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/epreuve_duration.dart';
 
 /// Module TCF productif (Expression écrite ou orale). Porte les libellés et
 /// l'icône partagés par les écrans du parcours (Compétences, Sujets, Examens)
@@ -33,7 +34,6 @@ enum TcfProductionModule {
     description:
         'Rédige tes réponses puis reçois un niveau CECRL, des corrections et des conseils personnalisés.',
     icon: LucideIcons.penLine,
-    durationLabel: '30',
     historyTabLabel: 'Corrections',
     actionVerb: 'Rédiger',
   ),
@@ -45,7 +45,6 @@ enum TcfProductionModule {
     headline: 'Parle comme au vrai examen',
     description: 'Enregistre tes réponses et reçois une analyse IA avec transcription et niveau CECRL.',
     icon: LucideIcons.mic,
-    durationLabel: '15',
     historyTabLabel: 'Analyses',
     actionVerb: 'Enregistrer',
   );
@@ -58,7 +57,6 @@ enum TcfProductionModule {
     required this.headline,
     required this.description,
     required this.icon,
-    required this.durationLabel,
     required this.historyTabLabel,
     required this.actionVerb,
   });
@@ -74,10 +72,16 @@ enum TcfProductionModule {
   /// code couleur rouge/bleu.
   final IconData icon;
 
-  /// Durée de l'épreuve en examen blanc, en minutes, telle qu'appliquée par le
-  /// backend (`AttemptService.PRODUCTION_E{E,O}_EXAM_SECONDS`).
-  final String durationLabel;
   final String historyTabLabel;
+
+  /// Durée de l'épreuve en examen blanc, lue dans [kEpreuveDurationSeconds]
+  /// (miroir de `DureeEpreuve` côté backend) — **jamais écrite ici**.
+  ///
+  /// ⚠️ L'expression orale **n'a pas de durée d'épreuve** : elle rend
+  /// « Chrono par tâche ». Elle a longtemps annoncé « 15 min », un chrono global
+  /// qui n'existe plus — au TCF le temps se compte par tâche et ne part qu'au
+  /// lancement de la tâche.
+  String get durationLabel => epreuveDurationLabelFor(epreuve);
 
   /// Verbe de production, l'autre repère écrit/oral (« Rédiger » /
   /// « Enregistrer »).
@@ -86,8 +90,9 @@ enum TcfProductionModule {
   bool get isEo => epreuve == EpreuveType.tcfEo;
 
   /// Sous-titre d'épreuve de l'en-tête du parcours : « TCF IRN · 3 tâches ·
-  /// 30 min ». Écrit ici et nulle part ailleurs — trois écrans le composaient.
-  String get epreuveMeta => 'TCF IRN · 3 tâches · $durationLabel min';
+  /// 30 min » à l'écrit, « TCF IRN · 3 tâches · Chrono par tâche » à l'oral.
+  /// Écrit ici et nulle part ailleurs — trois écrans le composaient.
+  String get epreuveMeta => 'TCF IRN · 3 tâches · $durationLabel';
 
   /// Accent du module : **bleu pour les deux épreuves**. Conservé comme
   /// propriété (et non inliné) parce que toutes les briques du parcours le

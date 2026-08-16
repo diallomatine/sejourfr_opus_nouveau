@@ -11,6 +11,9 @@ const COOKIE_NAME = "sejourfr.accessToken";
 // /entrainement, /examens-blancs et /sessions sont publics (mode démo guest).
 // /diagnostic aussi : le visiteur fait ses deux productions AVANT qu'on lui
 // demande un compte (le Plan, lui, reste derrière le login).
+// Le test est un préfixe : "/paiement" couvre donc aussi "/paiement/recapitulatif"
+// (l'écran de choix d'un pass) — inutile de l'y ajouter, et surtout ne pas
+// remplacer le startsWith par une égalité.
 const PROTECTED_PREFIXES = ["/dashboard", "/paiement", "/plan"];
 
 export function middleware(req: NextRequest) {

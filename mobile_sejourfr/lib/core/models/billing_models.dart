@@ -41,8 +41,12 @@ extension PlanPurchaseTypeParse on PlanPurchaseType {
   }
 }
 
-/// Libellé court de la durée d'un pass one-time (durationDays → « 6 semaines »,
-/// « 3 mois », « 1 an »). Tolérant aux valeurs proches.
+/// Libellé court de la durée d'un pass one-time (durationDays → « 7 jours »,
+/// « 1 mois », « 2 mois », « 1 an »). Tolérant aux valeurs proches.
+///
+/// Une semaine seule s'annonce **en jours** : c'est ainsi que le pass d'essai
+/// est vendu, et la règle plurielle rendait « 1 semaines ». Miroir mot pour mot
+/// de `durationLabel` / `passDurationLabel` côté web.
 String passDurationLabel(int days) {
   if (days <= 0) return '';
   if (days % 365 == 0) {
@@ -53,7 +57,7 @@ String passDurationLabel(int days) {
     return '${days ~/ 30} mois';
   }
   if (days % 7 == 0) {
-    return '${days ~/ 7} semaines';
+    return days == 7 ? '7 jours' : '${days ~/ 7} semaines';
   }
   return '$days jours';
 }
@@ -244,6 +248,32 @@ class PlanPublicResponse {
   }
 
   bool get isOneTime => purchaseType == PlanPurchaseType.oneTime;
+
+  /// Ce que ce pass ouvre en **simulations orales en direct** (examinateur
+  /// vocal), la seule ressource dont le volume change d'un pass Intégral à
+  /// l'autre : catalogue, examens blancs et corrections IA sont identiques
+  /// partout, seules la durée et ce quota progressent. Sans cette ligne, deux
+  /// passes ne se distinguaient que par leur prix.
+  ///
+  /// `null` = rien à annoncer (Civique, plan gratuit) — l'appelant décide s'il
+  /// affiche autre chose à la place.
+  ///
+  /// ⚠️ On ne dit **jamais** « sans simulation orale » pour un pass Intégral :
+  /// un backend antérieur à `realtimeEoSessions` renvoie le champ absent (donc
+  /// 0), et l'affirmation serait fausse sur l'argument principal du produit.
+  ///
+  /// Miroir mot pour mot de `realtimeSessionsLabel` côté web (`lib/types.ts`).
+  String? get realtimeSessionsLabel {
+    if (realtimeEoSessions > 0) {
+      return realtimeEoSessions == 1
+          ? '1 simulation orale en direct'
+          : '$realtimeEoSessions simulations orales en direct';
+    }
+    if (moduleAccess == ModuleAccess.integral) {
+      return 'Simulations orales en direct incluses';
+    }
+    return null;
+  }
 
   /// Libellé de durée pour un pass one-time (« 6 semaines », « 3 mois »…).
   String get durationLabel => passDurationLabel(durationDays);

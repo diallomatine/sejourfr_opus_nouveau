@@ -243,6 +243,14 @@ class _BilanView extends StatelessWidget {
         _TopBar(onBack: () => _backToExams(context)),
         const SizedBox(height: 20),
         _Hero(exam: exam),
+        // Statut de simulation, dérivé serveur — null tant que l'examen n'est
+        // pas terminé, et c'est le cas normal pendant l'évaluation IA. Il ne
+        // remplace pas `finalLevelPartial` (le hero), qui dit tout autre chose :
+        // sur combien d'épreuves porte le niveau.
+        if (exam.continuite != null) ...[
+          const SizedBox(height: 12),
+          _ContinuiteLine(continuite: exam.continuite!),
+        ],
         const SizedBox(height: 18),
         if (pollExhausted && exam.status != FullTcfExamStatus.completed) ...[
           _PollExhaustedBanner(onRefresh: onManualRefresh),
@@ -272,6 +280,49 @@ class _BilanView extends StatelessWidget {
     } else {
       context.go(AppRoutes.tcfFullExams);
     }
+  }
+}
+
+/// Ligne « Simulation complète — conditions examen » / « Simulation complétée en
+/// plusieurs sessions ». Le libellé vient de l'enum
+/// ([ContinuiteSimulation.label], miroir gelé du backend) : aucune phrase n'est
+/// recomposée ici, et rien n'est recalculé — reprendre l'examen le lendemain
+/// reste légitime, on le dit simplement au lieu de le taire.
+class _ContinuiteLine extends StatelessWidget {
+  const _ContinuiteLine({required this.continuite});
+
+  final ContinuiteSimulation continuite;
+
+  @override
+  Widget build(BuildContext context) {
+    final unique = continuite == ContinuiteSimulation.sessionUnique;
+    final tint = unique ? AppColors.blue : AppColors.muted;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+      decoration: BoxDecoration(
+        color: unique ? AppColors.blueSoft : AppColors.surface2,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Row(
+        children: [
+          Icon(unique ? LucideIcons.shieldCheck : LucideIcons.history,
+              size: 17, color: tint),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              continuite.label,
+              style: AppFonts.ui(
+                size: 12.5,
+                weight: FontWeight.w700,
+                color: AppColors.ink,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -658,10 +709,15 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
     // épreuve non passée, réservée à l'abonnement — pas de niveau, pas de lien.
     final lockedProd = sub?.locked == true;
     final level = lockedProd ? null : sub?.cecrlLevel;
+    // `jamaisOuverte` exclu : une épreuve close sans avoir été ouverte n'aura
+    // JAMAIS de niveau (le serveur le lui refuse exprès), donc l'annoncer « en
+    // attente » faisait tourner un spinner sans issue. Elle retombe sur le
+    // tiret, comme une donnée qu'on n'a pas.
     final pending = !lockedProd &&
         sub != null &&
         level == null &&
         sub.isFinished &&
+        !sub.jamaisOuverte &&
         (sub.failedSubmissionIds.isEmpty);
     final hasFailures =
         !lockedProd && sub != null && sub.failedSubmissionIds.isNotEmpty;
@@ -786,8 +842,15 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
 
   String _subtitle(FullTcfExamSubAttempt? sub, bool pending) {
     if (sub == null) return 'Non passée';
-    if (sub.score != null && sub.maxScore != null) {
-      return 'Score ${sub.score}/${sub.maxScore}';
+    // Avant le score : une épreuve close sans jamais avoir été ouverte n'a rien
+    // produit, et un « Score … » ou un décompte d'évaluations y serait un
+    // contresens. Miroir web : l'état `not_taken`.
+    if (sub.jamaisOuverte) return 'Non passée';
+    // Échelle du relevé TCF (100-499) dès que le backend a calibré ; le score
+    // pondéré interne ne reste qu'en repli.
+    final scoreLabel = sub.qcmScoreLabel;
+    if (scoreLabel != null) {
+      return 'Score $scoreLabel';
     }
     // EE/EO : `submissionsCount` = nb EVALUATED. `failedSubmissionIds.length`
     // = nb FAILED. Le total attendu est 3 par épreuve productive.

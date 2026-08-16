@@ -75,8 +75,11 @@ export function CompetenceReferences({
             Trois productions du même sujet : insuffisante, attendue, très réussie.
           </span>
         </span>
+        {/* L'invite à ouvrir nomme le geste que la section propose — « Comparer »,
+            pas « Afficher ». Miroir du `collapsedLabel` de `_SectionToggle` côté
+            mobile ; le repli, lui, se dit « Masquer » des deux côtés. */}
         <span className={s.refToggleAction}>
-          {open ? "Masquer" : "Afficher"}
+          {open ? "Masquer" : "Comparer"}
           <ChevronDown
             size={15}
             strokeWidth={2.4}

@@ -10,13 +10,15 @@ interface QA {
 
 const ITEMS: QA[] = [
   {
-    question: "Quelle formule choisir ?",
+    question: "Quel pass choisir ?",
     answer: (
       <>
-        Si votre examen est dans <strong>2 ou 3 mois</strong>, l&apos;Essentiel
-        suffit largement. Si vous préparez la naturalisation ou si vous voulez
-        de la marge (révisions, multiples passages), le Premium est plus
-        économique au mois (≈ 2,49 € / mois contre ≈ 4,97 € pour l&apos;Essentiel).
+        Cela dépend de la date de votre examen. S&apos;il est{" "}
+        <strong>dans quelques jours</strong>, le pass 7 jours suffit pour réviser
+        à fond. Si vous préparez le TCF sur plusieurs semaines, le pass 2 mois
+        vous laisse le temps d&apos;enchaîner les examens blancs et revient moins
+        cher au mois. Le pass Civique, lui, ne couvre que l&apos;examen civique —
+        pour le TCF IRN, il faut un pass Intégral.
       </>
     ),
   },
@@ -52,14 +54,14 @@ const ITEMS: QA[] = [
     ),
   },
   {
-    question: "Puis-je changer de formule ?",
+    question: "Puis-je changer de pass ?",
     answer: (
       <>
-        Si vous avez pris l&apos;Essentiel et souhaitez passer au Premium,
-        vous pouvez souscrire le Premium à n&apos;importe quel moment — la
-        nouvelle période démarre dès l&apos;achat. Pas de remboursement de
-        l&apos;Essentiel non utilisé pour autant : c&apos;est un paiement
-        unique.
+        Oui, à n&apos;importe quel moment. Un nouveau pass acheté avant la fin du
+        précédent <strong>prolonge</strong> votre accès : les durées se cumulent.
+        Passer du Civique à l&apos;Intégral ouvre le TCF immédiatement. En
+        revanche, un pass entamé n&apos;est pas remboursé — c&apos;est un
+        paiement unique.
       </>
     ),
   },

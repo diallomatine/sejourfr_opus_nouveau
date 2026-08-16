@@ -18,7 +18,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Garde-fou serveur : allowlist exhaustive, preuves réelles et max de priorités. */
+/**
+ * Garde-fou serveur : allowlist exhaustive, preuves réelles, contrat exact.
+ *
+ * <p><b>{@code priority} n'est plus un motif de refus.</b> C'est un champ
+ * dérivé de {@code status} par {@link DiagnosticAnalysisReconciler}, qui passe
+ * avant ce validateur : une divergence est réconciliée et comptée, et le
+ * plafond de {@link #MAX_PRIORITIES_PER_PRODUCTION} priorités par production
+ * est appliqué par troncature déterministe. Refuser sur ces deux motifs a
+ * détruit un diagnostic réel — donc les deux productions du candidat — pour un
+ * invariant absent du prompt, portant sur un champ redondant.
+ */
 @Component
 public class DiagnosticAnalysisValidator {
 
@@ -66,7 +76,6 @@ public class DiagnosticAnalysisValidator {
             return violations;
         }
         Set<String> seen = new HashSet<>();
-        int priorities = 0;
         for (int index = 0; index < skills.size(); index++) {
             Object raw = skills.get(index);
             if (!(raw instanceof Map<?, ?> skill)) {
@@ -94,21 +103,12 @@ public class DiagnosticAnalysisValidator {
             if (confidence == null) violations.add(code + " : confidence invalide");
             boundedString(skill.get("explanation"), code + ".explanation",
                     MAX_EXPLANATION_LENGTH, violations);
-            boolean priority = skill.get("priority") instanceof Boolean value && value;
-            if (!(skill.get("priority") instanceof Boolean)) {
-                violations.add(code + " : priority doit être booléen");
-            }
-            if (priority) priorities++;
-            if (priority != (status == LearningPlanSkillStatus.PRIORITY)) {
-                violations.add(code + " : priority et status PRIORITY divergent");
-            }
             Object evidence = skill.get("evidence_segment");
             if (!observed) {
                 if (status != LearningPlanSkillStatus.NOT_OBSERVED) {
                     violations.add(code + " : non observée doit être NOT_OBSERVED");
                 }
                 if (evidence != null) violations.add(code + " : preuve interdite si non observée");
-                if (priority) violations.add(code + " : une compétence non observée ne peut être prioritaire");
                 if (confidence != null && confidence != ObservationConfidence.LOW) {
                     violations.add(code + " : une compétence non observée doit avoir une confiance LOW");
                 }
@@ -126,10 +126,6 @@ public class DiagnosticAnalysisValidator {
             Set<String> missing = new HashSet<>(allowed);
             missing.removeAll(seen);
             if (!missing.isEmpty()) violations.add("compétences manquantes : " + missing);
-        }
-        if (priorities > MAX_PRIORITIES_PER_PRODUCTION) {
-            violations.add("maximum " + MAX_PRIORITIES_PER_PRODUCTION
-                    + " priorités par production (reçu " + priorities + ")");
         }
         return violations;
     }

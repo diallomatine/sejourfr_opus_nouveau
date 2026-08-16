@@ -38,4 +38,43 @@ class RealtimeSessionManagerIT extends AbstractIntegrationTest {
 
         assertThat(manager.findById(UUID.randomUUID())).isEmpty();
     }
+
+    /**
+     * Lecture verrouillée (SELECT … FOR UPDATE) : c'est elle qui sérialise deux
+     * connexions concurrentes du même candidat (celle qui tombe et celle qui
+     * reprend) et garantit qu'un slot de simulation n'est débité qu'une fois.
+     * Ce test l'exerce contre le vrai Postgres — la requête et son verrou
+     * doivent être valides, sinon l'invariant tombe en silence.
+     */
+    @Test
+    void findByIdForUpdateLocksTheRow() {
+        RealtimeSession saved = testData.realtimeSession();
+
+        assertThat(manager.findByIdForUpdate(saved.getId()))
+                .get()
+                .extracting(RealtimeSession::getId)
+                .isEqualTo(saved.getId());
+
+        assertThat(manager.findByIdForUpdate(UUID.randomUUID())).isEmpty();
+    }
+
+    /** Les colonnes de reprise (V032) sont bien persistées et relues. */
+    @Test
+    void persistsResumptionState() {
+        RealtimeSession saved = testData.realtimeSession();
+        assertThat(saved.getResumptionCount()).isZero();
+        assertThat(saved.getResumptionHandle()).isNull();
+        assertThat(saved.getLastTurnIndex()).isNull();
+
+        saved.setResumptionHandle("handle-xyz");
+        saved.setResumptionCount(2);
+        saved.setLastTurnIndex(7);
+        manager.save(saved);
+
+        assertThat(manager.findById(saved.getId())).get().satisfies(s -> {
+            assertThat(s.getResumptionHandle()).isEqualTo("handle-xyz");
+            assertThat(s.getResumptionCount()).isEqualTo(2);
+            assertThat(s.getLastTurnIndex()).isEqualTo(7);
+        });
+    }
 }

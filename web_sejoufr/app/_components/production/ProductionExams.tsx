@@ -222,7 +222,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
                 <div className={s.packTop}>
                   <div>
                     <h3 className={s.packTitle}>Examen {slot}</h3>
-                    <p className={s.packText}>3 tâches · {config.examMinutes}</p>
+                    <p className={s.packText}>3 tâches · {config.examTiming.short}</p>
                   </div>
                   <SkillBadge tone="level">{band.niveau}</SkillBadge>
                 </div>
@@ -284,13 +284,16 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
           subtitle="Avant de commencer, voici comment se déroule l'examen."
           facts={[
             { label: "tâches enchaînées", value: "3" },
-            { label: slotBand(pendingSlot).label, value: config.examMinutes },
+            { label: config.examTiming.factLabel, value: config.examTiming.factValue },
             { label: "note + niveau CECRL", value: "/20" },
           ]}
           tips={[
             config.mode === "audio"
               ? "Autorisez le micro : chaque tâche s'enregistre, comme le jour J."
               : "Vous rédigez directement les 3 productions, un brouillon est sauvegardé.",
+            config.mode === "audio"
+              ? "Lisez la consigne sans pression : le chrono d'une tâche ne part que lorsque vous la lancez."
+              : "Le chrono porte sur les 3 tâches ensemble ; le temps conseillé par tâche n'est qu'un repère.",
             "Les 3 tâches sont évaluées par l'IA après l'examen.",
             "Le niveau final est le plancher de vos 3 tâches (règle TCF IRN).",
           ]}

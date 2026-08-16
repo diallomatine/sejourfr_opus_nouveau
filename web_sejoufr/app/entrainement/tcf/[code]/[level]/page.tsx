@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Headphones, SpellCheck, Target } from "lucide-react";
-import { ApiException, attemptApi, lotApi, publicAttemptApi, publicLotApi } from "@/lib/api";
+import { attemptApi, lotApi, publicAttemptApi, publicLotApi } from "@/lib/api";
 import { handleStartFailure } from "@/lib/start-failure";
+import { loadFailureMessage } from "@/lib/load-failure";
 import { useAuth } from "@/lib/auth-context";
 import { canAccessModule, type Difficulty, type LotDto, type QuestionType } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
@@ -84,11 +85,13 @@ export default function TcfLevelSeriesPage() {
         : publicLotApi.listTcf(config.questionType, level.difficulty);
     fetchLots
       .then((l) => {
-        if (!cancelled) setLots(l);
+        if (!cancelled) {
+          setLots(l);
+          setError(null);
+        }
       })
       .catch((e) => {
-        if (!cancelled)
-          setError(e instanceof ApiException ? e.message : "Impossible de charger les séries.");
+        if (!cancelled) setError(loadFailureMessage(e, "Impossible de charger les séries."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -174,10 +177,14 @@ export default function TcfLevelSeriesPage() {
         {loading ? (
           <div className={detail.loading}>Chargement des séries…</div>
         ) : lots.length === 0 ? (
-          <p className={detail.empty}>
-            Aucune série disponible à ce niveau pour l&apos;instant — le pool est en cours de
-            constitution.
-          </p>
+          // Le catalogue n'est déclaré vide que si le chargement a réussi :
+          // sinon on a déjà dit, au-dessus, que le serveur n'a pas répondu.
+          error ? null : (
+            <p className={detail.empty}>
+              Aucune série disponible à ce niveau pour l&apos;instant — le pool est en cours de
+              constitution.
+            </p>
+          )
         ) : (
           <>
             <SeriesProgressCard done={doneCount} total={lots.length} />
