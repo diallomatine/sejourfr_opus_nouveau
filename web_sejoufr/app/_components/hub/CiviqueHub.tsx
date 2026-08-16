@@ -4,6 +4,7 @@ import Link from "next/link";
 import {useEffect, useMemo, useState} from "react";
 import {Gavel, Globe, Landmark, LayoutGrid, Lightbulb, Scale, Target, Users,} from "lucide-react";
 import {dashboardApi, publicThemeApi} from "@/lib/api";
+import {loadFailureMessage} from "@/lib/load-failure";
 import {masteryHint, moduleAverage} from "@/lib/dashboard";
 import {themeSlug} from "@/lib/themes";
 import {
@@ -82,30 +83,34 @@ export function CiviqueHub({user}: { user: AuthenticatedUser | null }) {
 
     const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
     const [guestThemes, setGuestThemes] = useState<ThemeUserResponse[]>([]);
+    // Les 5 cards viennent du serveur (le libellé des thèmes est éditorial et
+    // vit en base). Un chargement raté laissait donc la grille vide, sans un
+    // mot : le hub paraissait n'afficher « rien ». On nomme la panne et on
+    // offre de refaire l'appel.
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [reloadKey, setReloadKey] = useState(0);
 
     useEffect(() => {
         let cancelled = false;
-        if (isGuest) {
-            publicThemeApi
-                .list("CIVIQUE")
-                .then((t) => {
-                    if (!cancelled) setGuestThemes(t);
-                })
-                .catch(() => {
-                });
-        } else {
-            dashboardApi
-                .summaryCached()
-                .then((d) => {
-                    if (!cancelled) setSummary(d);
-                })
-                .catch(() => {
-                });
-        }
+        const load = isGuest
+            ? publicThemeApi.list("CIVIQUE").then((t) => {
+                if (!cancelled) setGuestThemes(t);
+            })
+            : dashboardApi.summaryCached().then((d) => {
+                if (!cancelled) setSummary(d);
+            });
+        load
+            .then(() => {
+                if (!cancelled) setLoadError(null);
+            })
+            .catch((e) => {
+                if (!cancelled)
+                    setLoadError(loadFailureMessage(e, "Impossible de charger les thèmes civiques."));
+            });
         return () => {
             cancelled = true;
         };
-    }, [isGuest]);
+    }, [isGuest, reloadKey]);
 
     const cards: CiviqueCardModel[] = useMemo(() => {
         if (summary) {
@@ -194,6 +199,19 @@ export function CiviqueHub({user}: { user: AuthenticatedUser | null }) {
                     },
                 ]}
             />
+
+            {cards.length === 0 && loadError !== null && (
+                <div className={moduleStyles.loadError} role="alert">
+                    <p>{loadError}</p>
+                    <button
+                        type="button"
+                        className={moduleStyles.loadErrorBtn}
+                        onClick={() => setReloadKey((k) => k + 1)}
+                    >
+                        Réessayer
+                    </button>
+                </div>
+            )}
 
             <div className={moduleStyles.grid}>
                 {cards.map((card) => {

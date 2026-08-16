@@ -319,6 +319,23 @@ une panne, il ne doit jamais s'afficher en erreur technique. **Ne pas réécrire
 une page** : la règle vit à un seul endroit (miroir de `core/utils/start_failure.dart` côté mobile). Les
 écrans duals guest/connecté routent le 403 vers `GuestGateSheet` en guest, `PaywallSheet` sinon.
 
+**Échec de LECTURE d'un catalogue** (thèmes, séries, examens) : `lib/load-failure.ts` —
+`loadFailureMessage(e, fallback)`, pendant de `start-failure.ts`. Il n'y a rien à débloquer, donc rien à
+router : on nomme la panne, c'est tout. Deux règles qui ne se devinent pas :
+
+- **`fetch` lève un `TypeError`, pas une `ApiException`**, quand le backend n'a pas répondu du tout (serveur
+  éteint, `NEXT_PUBLIC_API_BASE_URL` périmée — ex. une IP LAN qui a bougé). Les écrans ne testaient que
+  `instanceof ApiException` ou avalaient le `catch` : la panne sortait en **écran vide** ou en « aucune série
+  disponible », c'est-à-dire un mensonge sur le catalogue. **Un catalogue ne se déclare vide que sur un
+  chargement réussi** — quand `error` est posé, on n'affiche pas l'état « rien à afficher ».
+- **Un 401/403 en lecture ne se montre jamais au visiteur** : il signale que le front a appelé le client
+  authentifié là où le mode invité attend `publicLotApi`/`publicThemeApi`. On affiche le repli, jamais
+  « Authentification requise ».
+
+Corollaire pour le mode guest : le hub civique tire ses 5 cards du serveur (les libellés de thèmes sont
+éditoriaux, ils vivent en base) — contrairement à `TcfHub`, dont les cards sont statiques. Un chargement raté
+y laissait donc une grille vide sans un mot ; `CiviqueHub` affiche désormais le message + « Réessayer ».
+
 ## Examen blanc — flux
 
 La page `examen-blanc/page.tsx` est la plus complexe. Quatre stages dans la même page sans routing :
@@ -668,9 +685,10 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
     sort dès qu'une vérification en situation a réussi) ⇒ on retombe sur la
     fiche complète. Ni message, ni écran vide, ni spinner.
   - **Compteurs servis, jamais recomptés** : la barre lit
-    `stepAttemptedCount`/`stepPromptCount`. Les filtres (À faire / Traités /
-    Verrouillés) portent sur les **5** et leur somme reste juste, comme sur les
-    15.
+    `stepAttemptedCount`/`stepPromptCount`. Les filtres (À faire / Traités)
+    portent sur les **5** et leur somme reste juste, comme sur les 15. ⚠️ Le 4ᵉ
+    filtre « Verrouillés » a été retiré le 2026-08-16 : les sujets verrouillés
+    sont comptés dans « À faire », sans quoi la somme ne tomberait plus juste.
   - 🛑 **Aucun second parcours de vérification ici.** Étape terminée
     (`stepCompleted`) ⇒ un encart « Étape terminée » + « Revenir à mon plan ».
     « Vérifier ma progression » vit **sur le Plan**, qui seul connaît la
@@ -2028,6 +2046,37 @@ retraits**, la parité web ⇄ mobile n'étant pas négociable. À ne pas rétab
   (préremplit la zone de saisie depuis `lastAttemptId`) et
   `Écouter ma dernière réponse` en EO (ouvre l'écran de résultat de
   `lastAttemptId`). Un enregistrement ne se « reprend » pas — il se réécoute.
+- **Un sujet déjà traité se RELIT, il ne se refait pas d'office** (2026-08-16).
+  Cliquer une carte de `CompetenceDetail` (y compris sa **vue scopée à l'étape**,
+  `?etape=1`) ouvrait systématiquement l'écran de production : le candidat ne
+  pouvait pas relire l'analyse qu'il venait de payer avec un de ses essais sans
+  reproduire. Un sujet dont `status !== "TODO"` **et** qui porte un
+  `lastAttemptId` ouvre désormais l'**`ExamDoneSheet`** — le composant du geste
+  « déjà fait » qui existait déjà, à qui on a seulement ajouté des libellés et
+  une teinte **facultatifs** (défauts inchangés). Jamais une seconde feuille
+  pour la même intention.
+  - **`SkillPromptSummaryDto.lastAttemptId` est servi avec la liste** : il vient
+    de la **même** tentative que `status` et `lastAttemptAt`, donc **aucun appel
+    réseau de plus** — ni côté serveur (verrouillé par `SkillServiceIT`), ni ici.
+  - **Destination = l'écran de résultat d'une tentative de COMPÉTENCE**
+    (`…/competences/[skillId]/[promptId]/resultat/[attemptId]`, `CompetenceResult`),
+    jamais `ProductionResults`. Le marqueur d'étape est propagé (`withPlanStep`)
+    pour que le retour ramène dans l'étape et non dans les 15.
+  - **Libellés gelés**, déclarés une fois dans `skill-ui/SkillLayout.tsx`
+    (`SKILL_PROMPT_REPORT_CTA` / `SKILL_PROMPT_ANSWER_CTA` /
+    `SKILL_PROMPT_REDO_CTA` + `skillPromptLastAttemptCta`), miroirs mot pour mot
+    du mobile : **« Voir mon dernier rapport »** (`VALIDATED` / `TO_REINFORCE`),
+    **« Voir ma dernière réponse »** (`TREATED`), **« Refaire ce sujet »**.
+    ⚠️ Le premier **suit le statut servi** : une tentative `TREATED` n'a **pas**
+    d'analyse IA, et `CompetenceResult` le dit lui-même (« Sujet marqué comme
+    traité ») — lui promettre un « rapport » serait faux.
+  - **Trois replis, aucun bouton mort** : jamais traité ⇒ production directe,
+    sans feuille ; traité **sans** `lastAttemptId` (ligne héritée) ⇒ production
+    directe ; verrouillé ⇒ `PaywallSheet`, inchangé.
+  - 🛑 **Le CTA d'étape ne passe pas par la feuille** : son libellé annonce déjà
+    ce qui va se passer (`PLAN_STEP_START_CTA` / `PLAN_STEP_RETRY_CTA`), une
+    confirmation par-dessus ne confirmerait rien. Idem de la `FixedActionBar`
+    côté mobile.
 - **Freemium (§14) — l'analyse IA n'est PAS une option.** **Aucun sujet n'est
   verrouillé** : produire et lire les 3 références sont gratuits partout. Seule
   **l'analyse IA** est premium, avec **3 analyses offertes à vie**. Il n'y a
