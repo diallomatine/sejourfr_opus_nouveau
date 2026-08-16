@@ -33,6 +33,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.security.access.AccessDeniedException;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -157,6 +158,36 @@ class SkillServiceTest {
         assertThat(detail.skill().attemptedCount()).isEqualTo(3);
         assertThat(detail.skill().validatedCount()).isEqualTo(1);
         assertThat(detail.skill().toReinforceCount()).isEqualTo(1);
+    }
+
+    /**
+     * Sans cet identifiant, la liste d'une competence ne pouvait pointer que
+     * vers l'ecran de production : relire le rapport d'un sujet deja traite
+     * imposait de le refaire. Il vient de la <b>meme</b> tentative que le statut
+     * et la date — aucune requete de plus (cf. {@code SkillServiceIT}).
+     */
+    @Test
+    void detailExposesTheLastAttemptOfEachTreatedPrompt() {
+        Skill skill = skill(SkillTaskCode.EE1);
+        SkillPrompt treated = prompt(skill, 1);
+        SkillPrompt neverTried = prompt(skill, 2);
+        UserSkillAttempt latest = analysed(treated, SkillCriterionStatus.VALIDATED);
+        latest.setCreatedAt(Instant.parse("2026-08-14T09:30:00Z"));
+
+        when(skillManager.findActiveById(skill.getId())).thenReturn(Optional.of(skill));
+        when(promptManager.findActiveBySkillId(skill.getId()))
+                .thenReturn(List.of(treated, neverTried));
+        when(attemptManager.findLatestPerPromptBySkill(userId, skill.getId()))
+                .thenReturn(Map.of(treated.getId(), latest));
+        when(attemptManager.countPerPromptBySkill(userId, skill.getId()))
+                .thenReturn(Map.of(treated.getId(), 1L));
+
+        SkillDetailDto detail = service.detail(skill.getId());
+
+        assertThat(detail.prompts().get(0).lastAttemptId()).isEqualTo(latest.getId());
+        assertThat(detail.prompts().get(0).lastAttemptAt()).isEqualTo(latest.getCreatedAt());
+        // Jamais tente : rien a relire, les fronts entrent directement en production.
+        assertThat(detail.prompts().get(1).lastAttemptId()).isNull();
     }
 
     @Test

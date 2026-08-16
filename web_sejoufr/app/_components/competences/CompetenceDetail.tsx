@@ -36,21 +36,23 @@ import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
 import {type ProductionConfig} from "@/app/_components/production/config";
 import {ConfirmSheet} from "@/app/_components/hub/ConfirmSheet";
+import {ExamDoneSheet} from "@/app/_components/hub/ExamDoneSheet";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {CompetenceStatusBadge, promptCardToneClass} from "./CompetenceStatusBadge";
-import {SkillTrajectory} from "./SkillTrajectory";
 import {
   MiniBar,
   RowChevron,
   SectionHead,
   SKILL_PREMIUM_CTA,
+  SKILL_PROMPT_REDO_CTA,
+  skillPromptLastAttemptCta,
   SkillLockBadge,
   SkillNotice,
   SkillShell,
 } from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
 
-type Filter = "all" | "todo" | "done" | "locked";
+type Filter = "all" | "todo" | "done";
 
 /** Date courte d'une dernière tentative (« 4 août »). */
 function shortDate(iso: string): string {
@@ -94,6 +96,12 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   const [filter, setFilter] = useState<Filter>("all");
   const [infoOpen, setInfoOpen] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  /* Le sujet déjà traité sur lequel on vient de taper : on lui propose de
+     relire son dernier retour **ou** de refaire le sujet, au lieu de le
+     renvoyer d'office en production. `null` = aucune feuille ouverte, et c'est
+     le cas de tout sujet jamais traité — on n'ajoute pas d'étape là où il n'y a
+     rien à choisir. */
+  const [donePrompt, setDonePrompt] = useState<SkillPromptSummaryDto | null>(null);
   const infoButtonRef = useRef<HTMLButtonElement>(null);
 
   // Mémorisé pour la session : aller sur un petit sujet puis revenir à la liste
@@ -122,35 +130,52 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   const prompts = scoped ? stepPrompts : allPrompts;
   const promptHref = (promptId: string) =>
     withPlanStep(`${base}/${skillId}/${promptId}`, scoped);
-  /* Trois seaux **disjoints**, dont la somme fait exactement « Tous » — un
-     compteur qui ne totalise pas est un compteur qui ment.
+  /* L'écran de résultat d'une tentative de **compétence** — celui qui rend le
+     verdict du critère, la carte de niveau et le plan d'action. Ce n'est ni le
+     rapport d'une production TCF complète, ni une liste : on ouvre directement
+     le dernier retour. */
+  const resultHref = (promptId: string, attemptId: string) =>
+    withPlanStep(`${base}/${skillId}/${promptId}/resultat/${attemptId}`, scoped);
+  /* Taper un sujet : verrouillé ⇒ l'offre ; déjà traité et relisible ⇒ le
+     choix ; sinon ⇒ production directe, exactement comme avant. Un sujet marqué
+     traité mais **sans** `lastAttemptId` (ligne héritée) suit ce dernier chemin :
+     jamais de bouton qui n'ouvrirait rien. */
+  const openPrompt = (p: SkillPromptSummaryDto) => {
+    if (p.locked) {
+      setPaywallOpen(true);
+      return;
+    }
+    if (p.status !== "TODO" && p.lastAttemptId) {
+      setDonePrompt(p);
+      return;
+    }
+    router.push(promptHref(p.id));
+  };
+  /* DEUX seaux disjoints, dont la somme fait exactement « Tous » — un compteur
+     qui ne totalise pas est un compteur qui ment.
      - « Traités » décrit l'HISTORIQUE : un sujet produit y reste, même si le
        verrou est retombé dessus depuis (pass expiré) ;
-     - « À faire » décrit ce qui est RÉELLEMENT ouvrable maintenant, donc jamais
-       un sujet verrouillé — l'y compter enverrait le candidat sur le paiement
-       en croyant ouvrir un exercice ;
-     - « Verrouillés » n'existe que s'il y en a. Le verrou vient du serveur, on
-       ne le recalcule pas.
-     La barre de progression, elle, garde `prompts.length` au dénominateur : la
+     - « À faire » contient tout le reste, **verrouillés compris**. Ils sont
+       bien à faire ; le verrou est commercial, il se dit sur la carte (cadenas
+       + « Premium ») et au tap (l'offre). Le 4ᵉ filtre « Verrouillés » a été
+       retiré le 2026-08-16 à la demande du propriétaire : sans lui, les
+       exclure de « À faire » aurait affiché « Tous · 5 = 0 + 2 ».
+     La barre de progression garde `prompts.length` au dénominateur : la
      compétence a bien N sujets, l'abonnement ne change pas ce qu'elle contient. */
   const treated = prompts.filter((p) => p.status !== "TODO");
-  const openTodo = prompts.filter((p) => p.status === "TODO" && !p.locked);
-  const lockedTodo = prompts.filter((p) => p.status === "TODO" && p.locked);
+  const openTodo = prompts.filter((p) => p.status === "TODO");
   const shown =
-    filter === "all"
-      ? prompts
-      : filter === "done"
-        ? treated
-        : filter === "locked"
-          ? lockedTodo
-          : openTodo;
+    filter === "all" ? prompts : filter === "done" ? treated : openTodo;
   /* En mode étape, la progression affichée est **celle du serveur**
      (`stepAttemptedCount` / `stepPromptCount`) : on ne la recompte pas depuis la
      liste — seule la largeur de la barre se dérive de ces deux nombres. */
   const attempted = scoped ? step.stepAttemptedCount : treated.length;
   const total = scoped ? step.stepPromptCount : prompts.length;
   const pct = progressPercent(attempted, total);
-  const firstTodo = openTodo[0];
+  /* Le lien d'appoint de l'intertitre vise le premier sujet **ouvrable** :
+     « À faire » compte désormais les verrouillés, mais proposer d'en commencer
+     un mènerait à l'offre, pas à un exercice. */
+  const firstTodo = openTodo.find((p) => !p.locked);
   const stepDone = scoped && step.stepCompleted;
   /* Le sujet que l'étape propose de faire : **celui que le serveur a désigné**
      (`recommendedExercise.skillPromptId`), jamais un « premier sujet non
@@ -169,9 +194,6 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
     ["all", "Tous", prompts.length],
     ["todo", SKILL_PROMPT_STATUS_LABEL.TODO, openTodo.length],
     ["done", "Traités", treated.length],
-    ...(lockedTodo.length > 0
-      ? ([["locked", "Verrouillés", lockedTodo.length]] as [Filter, string, number][])
-      : []),
   ];
 
   return (
@@ -304,29 +326,15 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
               <p className={s.empty}>
                 {filter === "done"
                   ? "Aucun sujet traité pour l'instant."
-                  : filter === "locked"
-                    ? "Aucun sujet verrouillé."
-                    : "Tous les sujets ouverts ont été traités."}
+                  : "Tous les sujets ont été traités."}
               </p>
             ) : (
               <div className={s.list}>
                 {shown.map((p) => (
-                  <PromptCard
-                    key={p.id}
-                    prompt={p}
-                    onOpen={
-                      p.locked
-                        ? () => setPaywallOpen(true)
-                        : () => router.push(promptHref(p.id))
-                    }
-                  />
+                  <PromptCard key={p.id} prompt={p} onOpen={() => openPrompt(p)} />
                 ))}
               </div>
             )}
-
-            {/* La frise arrive APRÈS les sujets : elle raconte le chemin déjà
-                parcouru, l'écran sert d'abord à en produire un de plus. */}
-            <SkillTrajectory points={data?.trajectory ?? []} />
 
             {scoped ? (
               <Link href="/plan" className={s.footLink}>
@@ -337,6 +345,39 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                 ← Revenir aux sujets TCF complets
               </Link>
             )}
+
+            {/* Même geste que sur un examen déjà passé, même composant : sur un
+                sujet fait, on relit ou on refait. Le premier libellé suit le
+                statut servi — une tentative « Fait » n'a pas d'analyse IA, et
+                son écran de résultat ne montre que la production et les
+                références. */}
+            <ExamDoneSheet
+              open={donePrompt !== null}
+              title={donePrompt?.title ?? ""}
+              subtitle={
+                donePrompt
+                  ? `${SKILL_PROMPT_STATUS_LABEL[donePrompt.status]}${
+                      donePrompt.lastAttemptAt ? ` · ${shortDate(donePrompt.lastAttemptAt)}` : ""
+                    }`
+                  : null
+              }
+              detailLabel={donePrompt ? skillPromptLastAttemptCta(donePrompt.status) : ""}
+              resumeLabel={SKILL_PROMPT_REDO_CTA}
+              resumeTone="blue"
+              onViewDetail={() => {
+                if (!donePrompt?.lastAttemptId) return;
+                const href = resultHref(donePrompt.id, donePrompt.lastAttemptId);
+                setDonePrompt(null);
+                router.push(href);
+              }}
+              onResume={() => {
+                if (!donePrompt) return;
+                const href = promptHref(donePrompt.id);
+                setDonePrompt(null);
+                router.push(href);
+              }}
+              onClose={() => setDonePrompt(null)}
+            />
 
             <PaywallSheet
               open={paywallOpen}

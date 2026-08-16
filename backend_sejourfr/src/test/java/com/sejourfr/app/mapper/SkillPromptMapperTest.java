@@ -34,15 +34,19 @@ class SkillPromptMapperTest {
     void summaryCarriesTheCriterionAndTheProgress() {
         SkillPrompt prompt = writtenPrompt();
         Instant lastAttemptAt = Instant.parse("2026-08-01T10:15:30Z");
+        UUID lastAttemptId = UUID.randomUUID();
 
         SkillPromptSummaryDto dto = promptMapper.toSummaryDto(
-                prompt, SkillPromptStatus.TO_REINFORCE, 3, lastAttemptAt, false);
+                prompt, SkillPromptStatus.TO_REINFORCE, 3, lastAttemptAt, lastAttemptId, false);
 
         assertThat(dto.uniqueCriterion()).isEqualTo("Adapter le ton au destinataire.");
         assertThat(dto.difficultyLevel()).isEqualTo(SkillDifficulty.MEDIUM);
         assertThat(dto.status()).isEqualTo(SkillPromptStatus.TO_REINFORCE);
         assertThat(dto.attemptCount()).isEqualTo(3);
         assertThat(dto.lastAttemptAt()).isEqualTo(lastAttemptAt);
+        // C'est lui qui permet a la liste d'ouvrir le dernier rapport au lieu de
+        // renvoyer systematiquement sur l'ecran de production.
+        assertThat(dto.lastAttemptId()).isEqualTo(lastAttemptId);
         assertThat(dto.recommendedMinWords()).isEqualTo(15);
         assertThat(dto.recommendedDurationSeconds()).isNull();
     }
@@ -132,7 +136,7 @@ class SkillPromptMapperTest {
         SkillPromptDto dto = promptMapper.toDto(prompt, prompt.getSkill(), 5,
                 SkillPromptStatus.TODO, 0, null, null, null, false);
         SkillPromptSummaryDto summary = promptMapper.toSummaryDto(
-                prompt, SkillPromptStatus.TODO, 0, null, false);
+                prompt, SkillPromptStatus.TODO, 0, null, null, false);
 
         assertThat(dto.checklist()).isNull();
         assertThat(dto.constraintTags()).isNull();
@@ -152,12 +156,14 @@ class SkillPromptMapperTest {
         prompt.setRecommendedDurationSeconds(45);
 
         SkillPromptSummaryDto dto = promptMapper.toSummaryDto(
-                prompt, SkillPromptStatus.TODO, 0, null, false);
+                prompt, SkillPromptStatus.TODO, 0, null, null, false);
 
         assertThat(dto.recommendedDurationSeconds()).isEqualTo(45);
         assertThat(dto.recommendedMinWords()).isNull();
         assertThat(dto.recommendedMaxWords()).isNull();
         assertThat(dto.lastAttemptAt()).isNull();
+        // Jamais tente : pas de rapport a ouvrir, donc pas de choix a proposer.
+        assertThat(dto.lastAttemptId()).isNull();
     }
 
     @Test

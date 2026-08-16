@@ -595,9 +595,8 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
     l'**identité** de la liste rendue par `_prompts`, pas à un compteur.
   - **Compteurs servis, jamais recomptés** : `_SummaryCard` reçoit
     `attempted`/`total`/`validated` (les `step*Count` en mode étape). Les
-    filtres (Tous / À faire / Traités / Verrouillés) portent sur les **5** et
-    leur somme reste juste, comme sur les 15 ; la `FixedActionBar` vise un sujet
-    **de l'étape**.
+    filtres (Tous / À faire / Traités) portent sur les **5** et leur somme reste
+    juste, comme sur les 15 ; la `FixedActionBar` vise un sujet **de l'étape**.
   - 🛑 **Aucun second parcours de vérification ici.** Étape terminée
     (`stepCompleted`) ⇒ un `ProductionNotice` « Étape terminée » + « Revenir à
     mon plan ». « Vérifier ma progression » vit **sur le Plan**, qui seul
@@ -2144,6 +2143,34 @@ par diverger.
 lignes de méta, bouton pleine largeur — il suffisait à repousser la zone de
 production sous la ligne de flottaison dès la deuxième visite d'un sujet.
 
+**Un sujet déjà traité se RELIT, il ne se refait pas d'office** (2026-08-16).
+Taper une carte de la liste (`CompetenceDetailScreen`, y compris sa **vue scopée à
+l'étape** ouverte depuis le Plan) ouvrait systématiquement l'écran de production : le
+candidat ne pouvait pas relire l'analyse qu'il venait de payer avec un de ses essais
+sans reproduire. Un sujet dont `status != TODO` **et** qui porte un `lastAttemptId`
+ouvre désormais une **`showAppSheet`** à deux actions — même geste et même composant
+que sur un examen déjà passé, jamais une seconde feuille pour la même intention.
+- **`SkillPromptSummary.lastAttemptId`** est **servi avec la liste**
+  (`SkillPromptSummaryDto`, backend) : il vient de la **même** tentative que `status`
+  et `lastAttemptAt`, donc **aucun appel réseau de plus** — ni côté serveur (verrouillé
+  par `SkillServiceIT`), ni côté app.
+- **Destination = l'écran de résultat d'une tentative de COMPÉTENCE**
+  (`competenceResultPath` → `CompetenceResultScreen`), jamais le rapport d'une
+  production TCF complète.
+- **Libellés gelés**, déclarés une fois en tête de `competence_detail_screen.dart`,
+  miroirs mot pour mot de `SKILL_PROMPT_*_CTA` (`web/app/_components/skill-ui/SkillLayout.tsx`) :
+  **« Voir mon dernier rapport »** (statut `VALIDATED` / `TO_REINFORCE`),
+  **« Voir ma dernière réponse »** (statut `TREATED`) et **« Refaire ce sujet »**.
+  ⚠️ Le premier libellé **suit le statut servi** : une tentative `TREATED` n'a **pas**
+  d'analyse IA, et son écran de résultat le dit lui-même (« Sujet marqué comme
+  traité ») — lui promettre un « rapport » serait faux.
+- **Trois replis, aucun bouton mort** : sujet jamais traité ⇒ production directe, sans
+  feuille ; sujet marqué traité **sans** `lastAttemptId` (ligne héritée) ⇒ production
+  directe ; sujet verrouillé ⇒ cadenas + `showTcfLockPaywall`, inchangé.
+- 🛑 **La `FixedActionBar` ne passe pas par la feuille** : son libellé annonce déjà ce
+  qui va se passer (« Commencer le prochain sujet » / « Retravailler ce sujet »), une
+  confirmation par-dessus ne confirmerait rien. Idem du CTA d'étape côté web.
+
 **Règles UX à ne pas défaire** (spec §13) : la consigne est traduite en gestes **avant** la
 production ; les références n'apparaissent **jamais** avant qu'une tentative existe (garde
 serveur : 403) ; le statut se met à jour immédiatement au retour (`RouteAware.didPopNext` →
@@ -2179,14 +2206,16 @@ l'arbitre final.
   « **Débloquer cet exercice** » (À faire maintenant) et « **Débloquer cette étape** »
   (étape 1), plus la note « Cet exercice fait partie de l'abonnement Intégral. Votre plan,
   lui, reste entier. »
-- **Les compteurs ne mentent pas** (`CompetenceDetailScreen`) : un sujet verrouillé sort du
-  filtre « À faire » (il n'est pas à faire, il n'est pas ouvert), reste dans « Tous » et
-  dans « Traités » s'il a déjà été produit — un abonnement échu ne réécrit pas l'historique.
-  Un **4ᵉ filtre « Verrouillés · N »** apparaît quand il y en a, et c'est lui qui rend la
-  somme juste (`Tous = À faire + Traités + Verrouillés`) ; il disparaît avec le dernier
-  sujet verrouillé et l'écran retombe alors sur « Tous ». L'action de la `FixedActionBar`
-  vise toujours un sujet **ouvert**, et devient « Voir l'abonnement Intégral » quand il n'en
-  reste aucun.
+- **Les compteurs ne mentent pas** (`CompetenceDetailScreen`) : **DEUX** filtres seulement,
+  `Tous = À faire + Traités`. « Traités » décrit l'historique (un sujet produit y reste, même
+  si le verrou est retombé dessus depuis) ; « À faire » contient tout le reste, **verrouillés
+  compris**. ⚠️ Le **4ᵉ filtre « Verrouillés · N » a été RETIRÉ** le 2026-08-16 à la demande
+  du propriétaire : sans lui, continuer d'exclure les verrouillés de « À faire » aurait
+  affiché « Tous · 5 = 0 + 2 », et un compteur qui ne totalise pas est pire que le défaut
+  qu'on corrigeait. Le verrou reste dit **sur la carte** (cadenas + « Premium ») et **au
+  tap** (l'offre) — il n'est pas masqué, il n'est plus un filtre. L'action de la
+  `FixedActionBar` vise toujours un sujet **ouvert**, et devient « Voir l'abonnement
+  Intégral » quand il n'en reste aucun.
 - **Lien profond sur un sujet verrouillé** : `CompetencePromptScreen` rend
   `_LockedPromptView` — on garde le repère « Sujet i/N » + palier et **rien d'autre** : ni
   consigne, ni situation, ni zone de production, ni barre de validation. Le contenu du sujet

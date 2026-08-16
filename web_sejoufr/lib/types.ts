@@ -1244,6 +1244,17 @@ export interface SkillPromptSummaryDto extends SkillLockable {
     status: SkillPromptStatus;
     attemptCount: number;
     lastAttemptAt: string | null;
+    /**
+     * Dernière production du candidat sur ce sujet — l'identifiant qui ouvre son
+     * écran de résultat. Même source que `SkillPromptDto.lastAttemptId` : la
+     * tentative dont le serveur a déjà dérivé `status`, donc **aucun appel
+     * réseau de plus**.
+     *
+     * `null` quand le sujet n'a jamais été traité — et parfois sur un sujet
+     * pourtant marqué traité (ligne héritée) : on retombe alors sur l'entrée
+     * directe en production, jamais sur un bouton mort.
+     */
+    lastAttemptId: string | null;
 }
 
 /** Familles d'icônes des étiquettes de contrainte. **Liste fermée**, partagée
@@ -1275,28 +1286,6 @@ export interface SkillConstraintTagDto {
 export interface SkillDetailDto {
     skill: SkillDto;
     prompts: SkillPromptSummaryDto[];
-    /** Les observations probantes de la compétence, **de la plus ancienne à la
-     *  plus récente** — le sens dans lequel une frise se lit. Jamais `null`,
-     *  souvent vide : la section n'est alors pas affichée du tout. */
-    trajectory: SkillObservationPointDto[];
-}
-
-/**
- * Un point de la frise d'une compétence : ce qui a été constaté, quand, et dans
- * quoi. `status` est le verdict de **cette production-là**, à ne pas confondre
- * avec `SkillDto.masteryState`, qui agrège tout l'historique.
- *
- * `confidence` n'est **pas** affichée au candidat : c'est la certitude du
- * correcteur, pas une information sur son niveau.
- */
-export interface SkillObservationPointDto {
-    observedAt: string;
-    source: LearningPlanSourceType;
-    status: LearningPlanSkillStatus;
-    explanation: string | null;
-    confidence: ObservationConfidence;
-    /** `true` pour les deux productions du diagnostic initial : le point de départ. */
-    baseline: boolean;
 }
 
 /** GET /api/skill-prompts/{promptId} — écran de production. Ne porte JAMAIS

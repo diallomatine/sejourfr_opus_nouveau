@@ -9,6 +9,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/models/skill_models.dart';
 import '../../../core/router/route_observer.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/format_date.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/fixed_action_bar.dart';
@@ -24,7 +25,27 @@ import 'competences_providers.dart';
 import '../widgets/production_blocks.dart';
 import '../widgets/production_state_views.dart';
 import 'widgets/skill_prompt_card.dart';
-import 'widgets/skill_trajectory.dart';
+
+/// Les deux actions proposées sur un petit sujet **déjà traité** : relire son
+/// dernier retour, ou le refaire. Libellés gelés, **miroirs mot pour mot** de
+/// `SKILL_PROMPT_REPORT_CTA` / `SKILL_PROMPT_ANSWER_CTA` /
+/// `SKILL_PROMPT_REDO_CTA` (`web_sejoufr/app/_components/skill-ui/SkillLayout.tsx`).
+///
+/// ⚠️ Le premier libellé **suit le statut servi**, et c'est volontaire : une
+/// tentative `TREATED` a été produite **sans analyse IA** (quota épuisé, ou
+/// production rendue sans la demander). Son écran de résultat le dit lui-même
+/// (« Sujet marqué comme traité ») et ne montre que la production et les
+/// références — lui promettre un « rapport » serait faux.
+const String kSkillPromptReportCta = 'Voir mon dernier rapport';
+const String kSkillPromptAnswerCta = 'Voir ma dernière réponse';
+const String kSkillPromptRedoCta = 'Refaire ce sujet';
+
+/// Le libellé exact du premier choix, selon qu'un verdict existe ou non.
+String skillPromptLastAttemptCta(SkillPromptStatus status) =>
+    status == SkillPromptStatus.validated ||
+            status == SkillPromptStatus.toReinforce
+        ? kSkillPromptReportCta
+        : kSkillPromptAnswerCta;
 
 /// Détail d'une compétence : carte de résumé, progression en sujets traités,
 /// filtres, puis la liste des petits sujets avec leur statut.
@@ -103,6 +124,70 @@ class _CompetenceDetailScreenState
     }
     context.push(
       competencePromptPath(widget.module, widget.skillId, prompt.id),
+    );
+  }
+
+  /// Taper une **carte** de la liste. Un sujet déjà traité dont le dernier
+  /// retour est relisible propose un choix ; tout le reste entre directement en
+  /// production, comme avant — on n'ajoute pas d'étape là où il n'y a rien à
+  /// choisir.
+  ///
+  /// ⚠️ La [FixedActionBar] ne passe **pas** par ici : son libellé annonce déjà
+  /// ce qui va se passer (« Commencer le prochain sujet » / « Retravailler ce
+  /// sujet »), une feuille par-dessus serait une confirmation de rien.
+  void _onPromptTap(SkillPromptSummary prompt) {
+    if (!prompt.locked &&
+        prompt.status.isTreated &&
+        prompt.lastAttemptId != null) {
+      _openDoneSheet(prompt);
+      return;
+    }
+    _openPrompt(prompt);
+  }
+
+  /// Feuille « sujet déjà traité » : relire le dernier retour, ou refaire le
+  /// sujet. Même geste et même composant que sur un examen déjà passé
+  /// (`showAppSheet`) — deux façons de faire le même geste dans le même produit,
+  /// c'est ce que le dépôt interdit.
+  void _openDoneSheet(SkillPromptSummary prompt) {
+    final attemptId = prompt.lastAttemptId;
+    if (attemptId == null) return;
+    final meta = <String>[
+      prompt.status.label,
+      if (prompt.lastAttemptAt != null) formatShortDate(prompt.lastAttemptAt!),
+    ].join(' · ');
+
+    showAppSheet<void>(
+      context,
+      icon: LucideIcons.fileText,
+      iconBg: _accent.withValues(alpha: 0.10),
+      iconColor: _accent,
+      title: prompt.title,
+      sub: meta,
+      children: [
+        AppButton(
+          label: skillPromptLastAttemptCta(prompt.status),
+          icon: LucideIcons.fileText,
+          variant: AppButtonVariant.ghost,
+          height: 46,
+          onPressed: () {
+            Navigator.of(context).pop();
+            context.push(competenceResultPath(widget.module, attemptId));
+          },
+        ),
+        AppButton(
+          label: kSkillPromptRedoCta,
+          icon: LucideIcons.refreshCw,
+          variant: widget.module.isEo
+              ? AppButtonVariant.accent
+              : AppButtonVariant.primary,
+          height: 46,
+          onPressed: () {
+            Navigator.of(context).pop();
+            _openPrompt(prompt);
+          },
+        ),
+      ],
     );
   }
 
@@ -265,25 +350,22 @@ class _CompetenceDetailScreenState
       );
     }
 
-    // Les compteurs ne doivent pas mentir. Un sujet verrouillé n'est pas « à
-    // faire » : il n'est pas ouvert. Il reste compté dans « Tous » (il est bien
-    // affiché) et dans « Traités » s'il a déjà été produit — un abonnement échu
-    // ne réécrit pas l'historique du candidat. Le 4ᵉ filet « Verrouillés »
-    // n'apparaît que s'il y en a, et c'est lui qui rend la somme juste :
-    // `Tous = À faire + Traités + Verrouillés` (miroir du web).
+    // DEUX seaux disjoints, dont la somme fait exactement « Tous » — un
+    // compteur qui ne totalise pas est un compteur qui ment. « Traités » décrit
+    // l'historique (un sujet produit y reste, même si le verrou est retombé
+    // dessus depuis) ; « À faire » contient tout le reste, **verrouillés
+    // compris**. Ils sont bien à faire ; le verrou est commercial, il se dit
+    // sur la carte (cadenas + « Premium ») et au tap (l'offre). Le 4ᵉ filtre
+    // « Verrouillés » a été retiré le 2026-08-16 à la demande du propriétaire :
+    // sans lui, les exclure de « À faire » afficherait « Tous · 5 = 0 + 2 ».
     final treated = prompts.where((p) => p.status.isTreated).length;
-    final todo =
-        prompts.where((p) => !p.status.isTreated && !p.locked).length;
+    final todo = prompts.where((p) => !p.status.isTreated).length;
     final lockedTodo =
         prompts.where((p) => !p.status.isTreated && p.locked).length;
-    // Le 4ᵉ filtre disparaît avec le dernier sujet verrouillé (abonnement pris
-    // pendant la session) : on retombe sur « Tous » plutôt que de laisser un
-    // filtre actif qui ne correspond plus à aucune pastille.
-    final filter = _filter == 3 && lockedTodo == 0 ? 0 : _filter;
+    final filter = _filter;
     final visible = prompts.where((p) {
-      if (filter == 1) return !p.status.isTreated && !p.locked;
+      if (filter == 1) return !p.status.isTreated;
       if (filter == 2) return p.status.isTreated;
-      if (filter == 3) return !p.status.isTreated && p.locked;
       return true;
     }).toList();
 
@@ -345,7 +427,6 @@ class _CompetenceDetailScreenState
               'Tous · ${prompts.length}',
               'À faire · $todo',
               'Traités · $treated',
-              if (lockedTodo > 0) 'Verrouillés · $lockedTodo',
             ],
             onChanged: (i) => setState(() => _filter = i),
           ),
@@ -364,17 +445,10 @@ class _CompetenceDetailScreenState
               SkillPromptCard(
                 prompt: prompt,
                 accent: _accent,
-                onTap: () => _openPrompt(prompt),
+                onTap: () => _onPromptTap(prompt),
               ),
               const SizedBox(height: 11),
             ],
-          // La frise arrive APRÈS les sujets : elle raconte le chemin déjà
-          // parcouru, l'écran sert d'abord à en produire un de plus. Vide,
-          // elle ne prend pas un pixel.
-          if (detail.trajectory.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            SkillTrajectorySection(points: detail.trajectory),
-          ],
         ],
       ),
     );
@@ -384,7 +458,6 @@ class _CompetenceDetailScreenState
   /// qu'il ne reste que du verrouillé.
   String _emptyMessage({required int filter, required int lockedTodo}) {
     if (filter == 2) return 'Aucun sujet traité pour le moment.';
-    if (filter == 3) return 'Aucun sujet verrouillé sur cette compétence.';
     if (filter == 1 && lockedTodo > 0) {
       return 'Les sujets restants sont réservés à l\'abonnement Intégral.';
     }

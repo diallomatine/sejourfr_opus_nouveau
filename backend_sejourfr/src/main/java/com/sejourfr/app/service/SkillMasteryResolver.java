@@ -79,18 +79,6 @@ public class SkillMasteryResolver {
         return evaluate(observations, ids, Instant.now());
     }
 
-    /**
-     * La suite datee des observations probantes d'une competence, <b>de la plus
-     * ancienne a la plus recente</b> : c'est le sens dans lequel une frise se
-     * lit.
-     */
-    @Transactional(readOnly = true)
-    public List<LearningPlanObservation> trajectory(UUID userId, UUID skillId) {
-        List<LearningPlanObservation> recentFirst =
-                new ArrayList<>(observationManager.findTrajectory(userId, skillId, TRAJECTORY_LIMIT));
-        return recentFirst.reversed();
-    }
-
     private Map<UUID, SkillMasteryEngine.SkillMastery> evaluate(
             Collection<LearningPlanObservation> observations, Set<UUID> skillIds, Instant now) {
         Map<UUID, List<LearningPlanObservation>> bySkill = new HashMap<>();

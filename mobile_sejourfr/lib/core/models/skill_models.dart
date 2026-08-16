@@ -11,7 +11,6 @@
 library;
 
 import 'action_plan.dart';
-import 'diagnostic_models.dart';
 import 'enums.dart';
 
 /// Épreuve productive d'une compétence. Miroir de `SkillSection` (backend).
@@ -383,6 +382,7 @@ class SkillPromptSummary {
     this.recommendedMaxWords,
     this.recommendedDurationSeconds,
     this.lastAttemptAt,
+    this.lastAttemptId,
     this.locked = false,
   });
 
@@ -398,6 +398,16 @@ class SkillPromptSummary {
   final int? recommendedMaxWords;
   final int? recommendedDurationSeconds;
   final DateTime? lastAttemptAt;
+
+  /// Dernière production du candidat sur ce sujet — l'identifiant qui ouvre son
+  /// écran de résultat (`CompetenceResultScreen`). Même source que
+  /// [SkillPromptDto.lastAttemptId] : la tentative dont le serveur a déjà
+  /// dérivé [status], donc **aucun appel réseau de plus**.
+  ///
+  /// `null` sur un sujet jamais traité — et parfois sur un sujet pourtant
+  /// marqué traité (ligne héritée) : on retombe alors sur l'entrée directe en
+  /// production, jamais sur un bouton mort.
+  final String? lastAttemptId;
 
   /// Cf. [SkillDto.locked] — verrou freemium servi par le serveur, jamais
   /// déduit du rang du sujet dans sa compétence.
@@ -421,62 +431,15 @@ class SkillPromptSummary {
         lastAttemptAt: json['lastAttemptAt'] == null
             ? null
             : DateTime.tryParse(json['lastAttemptAt'] as String)?.toLocal(),
+        lastAttemptId: json['lastAttemptId'] as String?,
         locked: json['locked'] as bool? ?? false,
       );
 }
 
-/// Un point de la **frise** d'une compétence : ce qui a été constaté, quand, et
-/// dans quoi.
-///
-/// [status] est le verdict de **cette production-là**, à ne pas confondre avec
-/// l'état agrégé de la compétence ([SkillDto.masteryState]). [confidence] est la
-/// certitude du correcteur : elle n'est **jamais** montrée au candidat, elle ne
-/// dit rien de son niveau.
-class SkillObservationPoint {
-  const SkillObservationPoint({
-    required this.observedAt,
-    required this.source,
-    required this.status,
-    required this.confidence,
-    required this.baseline,
-    this.explanation,
-  });
-
-  final DateTime observedAt;
-  final LearningPlanSourceType source;
-  final LearningPlanSkillStatus status;
-
-  /// L'explication courte du correcteur, telle qu'enregistrée.
-  final String? explanation;
-  final ObservationConfidence confidence;
-
-  /// `true` pour les deux productions du diagnostic initial : le point de départ.
-  final bool baseline;
-
-  factory SkillObservationPoint.fromJson(Map<String, dynamic> json) =>
-      SkillObservationPoint(
-        observedAt:
-            DateTime.tryParse(json['observedAt'] as String? ?? '')?.toLocal() ??
-                DateTime.now(),
-        source: LearningPlanSourceType.fromWire(json['source'] as String?),
-        status: LearningPlanSkillStatus.fromWire(
-          json['status'] as String? ?? 'NOT_OBSERVED',
-        ),
-        explanation: json['explanation'] as String?,
-        confidence: ObservationConfidence.fromWire(
-          json['confidence'] as String? ?? 'LOW',
-        ),
-        baseline: json['baseline'] as bool? ?? false,
-      );
-}
-
-/// Détail d'une compétence : la compétence, ses 15 petits sujets et sa
-/// **trajectoire**.
 class SkillDetail {
   const SkillDetail({
     required this.skill,
     required this.prompts,
-    this.trajectory = const [],
   });
 
   final SkillDto skill;
@@ -485,7 +448,6 @@ class SkillDetail {
   /// Les observations probantes de la compétence, **de la plus ancienne à la
   /// plus récente** — le sens dans lequel une frise se lit. Jamais nulle,
   /// souvent vide : l'écran n'affiche alors aucune section.
-  final List<SkillObservationPoint> trajectory;
 
   /// Premier sujet jamais traité, sinon `null` (tout a été vu au moins une fois).
   SkillPromptSummary? get firstTodo {
@@ -499,10 +461,6 @@ class SkillDetail {
         skill: SkillDto.fromJson(json['skill'] as Map<String, dynamic>),
         prompts: ((json['prompts'] as List<dynamic>?) ?? const [])
             .map((e) => SkillPromptSummary.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        trajectory: ((json['trajectory'] as List<dynamic>?) ?? const [])
-            .map((e) =>
-                SkillObservationPoint.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
 }
