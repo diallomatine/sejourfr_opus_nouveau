@@ -86,14 +86,21 @@ public class DiagnosticOralArtifactFilter {
     /**
      * Remplace un {@code summary} entierement purge. Ce champ pilote le haut de
      * l'ecran de resultat et ne peut pas rester vide : on ne le supprime pas, on
-     * dit franchement pourquoi il a change — meme pratique que les commentaires
-     * de remplacement du filet des productions.
+     * le remplace — meme pratique que les commentaires de remplacement du filet
+     * des productions.
+     *
+     * <p><b>Il RASSURE, il n'explique plus.</b> C'est le premier ecran de
+     * quelqu'un qui decouvre son niveau : la premiere phrase lui dit que son
+     * travail a bien ete traite, la seconde lui dit ce qui le concerne — des
+     * remarques ont ete ecartees, et ce n'etait pas de sa faute. Notre mecanique
+     * de filtrage n'y figure plus : elle ne lui apprend rien et sa trace vit dans
+     * {@link EvaluationPurgeMetrics.Filtre#ARTEFACT_ORAL_FORME_DIAGNOSTIC}.
+     * Meme mouvement que les trois avertissements de l'ecran de resultat d'une
+     * production orale, ramenes a un seul.
      */
     static final String SUMMARY_PURGE =
-            "Votre production a bien été analysée. Les remarques proposées ne portaient que sur "
-                    + "la forme d'un ou deux mots de la transcription automatique : elles ont été "
-                    + "retirées. À l'oral, nous ne vous reprochons jamais un mot que la machine a "
-                    + "pu déformer.";
+            "Votre production a bien été analysée. Certaines remarques portaient sur la "
+                    + "transcription, pas sur vous : elles n'ont pas été retenues.";
 
     private final EvaluationPurgeMetrics purgeMetrics;
 

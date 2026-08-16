@@ -214,15 +214,54 @@ class DiagnosticOralArtifactFilterTest {
         assertThat(observation(analysis).get("status")).isEqualTo("TO_REINFORCE");
     }
 
-    /** Un résumé entièrement purgé ne reste jamais vide : il dit ce qui s'est passé. */
+    /**
+     * Un résumé entièrement purgé ne reste jamais vide, et le texte de
+     * remplacement est GELÉ ici : il pilote le haut du tout premier écran de
+     * résultat, il rassure et n'explique plus notre mécanique de filtrage.
+     */
     @Test
-    void remplace_un_resume_entierement_purge_au_lieu_de_le_vider() {
+    void remplace_un_resume_entierement_purge_par_un_texte_qui_rassure() {
         Map<String, Object> analysis = analyse("Réponse claire.");
         analysis.put("summary", FAIBLESSE_REELLE);
 
         filtre.purge(analysis, EpreuveType.TCF_EO, TRANSCRIPTION);
 
         assertThat(analysis.get("summary")).isEqualTo(DiagnosticOralArtifactFilter.SUMMARY_PURGE);
+        assertThat(DiagnosticOralArtifactFilter.SUMMARY_PURGE).isEqualTo(
+                "Votre production a bien été analysée. Certaines remarques portaient sur la "
+                        + "transcription, pas sur vous : elles n'ont pas été retenues.");
+        // La purge a bien EU LIEU : le texte change à l'écran, la trace reste
+        // côté serveur. C'est elle qui remplace l'explication qu'on ne donne plus.
+        assertThat(metrics.compteurs())
+                .containsEntry("ARTEFACT_ORAL_FORME_DIAGNOSTIC/remarques", 1L);
+    }
+
+    /**
+     * Le remplacement ne vaut QUE pour un résumé vidé de bout en bout : un résumé
+     * dont une seule phrase tombe garde les siennes. La condition de purge n'a
+     * pas bougé, seul le texte de remplacement a changé.
+     */
+    @Test
+    void conserve_le_reste_d_un_resume_partiellement_purge() {
+        Map<String, Object> analysis = analyse("Réponse claire.");
+        analysis.put("summary",
+                "Le candidat se présente et pose ses questions. " + FAIBLESSE_REELLE);
+
+        filtre.purge(analysis, EpreuveType.TCF_EO, TRANSCRIPTION);
+
+        assertThat(analysis.get("summary"))
+                .isEqualTo("Le candidat se présente et pose ses questions.");
+    }
+
+    /** Aucune purge : le résumé du correcteur est servi tel quel, jamais remplacé. */
+    @Test
+    void ne_remplace_jamais_un_resume_qui_n_a_rien_a_purger() {
+        Map<String, Object> analysis = analyse("Réponse claire.");
+
+        filtre.purge(analysis, EpreuveType.TCF_EO, TRANSCRIPTION);
+
+        assertThat(analysis.get("summary")).isEqualTo("Le candidat se présente et pose ses questions.");
+        assertThat(metrics.compteurs()).isEmpty();
     }
 
     // ------------------------------------------------------ transcription abîmée

@@ -2641,6 +2641,25 @@ de juger la prononciation** (section 9). Dans les deux cas, la remarque n'a pas 
   simplement sans explication. **Un nettoyage ne fait jamais échouer un diagnostic** — le
   candidat ne perd jamais ses deux productions pour cette raison.
 
+### Et si tout le résumé disparaît ? (mis à jour le 17 août 2026)
+
+Le résumé en haut de l'écran de résultat est le premier texte que lit le candidat. Il peut
+arriver, rarement, qu'il soit **entièrement** composé de remarques retirées. Il ne reste alors
+jamais vide : il est remplacé par
+
+> « Votre production a bien été analysée. Certaines remarques portaient sur la transcription,
+> pas sur vous : elles n'ont pas été retenues. »
+
+Ce texte a changé le 17 août 2026. L'ancien détaillait notre mécanique de nettoyage sur quatre
+lignes — combien de mots, quel type de remarque, pourquoi. C'est **le premier écran de
+quelqu'un qui découvre son niveau** : il a d'abord besoin de savoir que son travail a bien été
+traité, puis que des remarques ont été écartées et que ce n'était pas de sa faute. Le reste est
+notre affaire, et reste comptabilisé de notre côté.
+
+Même mouvement que sur les productions complètes, où les trois avertissements de l'écran de
+résultat oral ont été ramenés à un seul (section 9). Les diagnostics passés avant cette date
+gardent l'ancien texte : nous ne réécrivons rien a posteriori.
+
 ### Ce qu'on en mesure
 
 Chaque phrase retirée est comptée à part de celles des productions complètes. Sur les

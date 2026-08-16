@@ -490,8 +490,15 @@ de rubriques et files de calibration doivent garder le filtre
   mal entendu / candidat qui a mal prononcé) mènent au même endroit, et la grille
   interdit déjà de noter la prononciation. **Champs purgés** :
   `skills[].explanation` (l'observation **survit sans son explication**),
-  `weaknesses[]` (entrée vidée ⇒ retirée), `summary` (remplacé par un texte qui dit
-  pourquoi). **Jamais touchés** : l'ÉCRIT, `strengths`, `evidence`, `status`,
+  `weaknesses[]` (entrée vidée ⇒ retirée), `summary` (**champ obligatoire**, donc
+  remplacé, jamais vidé — par un texte qui **rassure** : « Votre production a bien
+  été analysée. Certaines remarques portaient sur la transcription, pas sur vous :
+  elles n'ont pas été retenues. » Il n'explique **plus** notre mécanique de
+  filtrage — c'est le premier écran de quelqu'un qui découvre son niveau, et la
+  trace de la purge vit dans le compteur, pas à l'écran. Même mouvement que les
+  trois avertissements oraux ramenés à un seul le 2026-08-16 ; texte gelé par
+  `DiagnosticOralArtifactFilterTest`, posé **uniquement** par le serveur, aucun
+  front ne le recopie, legacy non migré). **Jamais touchés** : l'ÉCRIT, `strengths`, `evidence`, `status`,
   `priority`, `confidence`, `level_estimate`, `task_completion`,
   `communication_status`, l'ordre des priorités. 🛑 **Une purge ne peut pas rendre
   une session `FAILED`** : le filtre tourne **après** `DiagnosticAnalysisValidator`
@@ -1970,8 +1977,9 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   liste reçue quel qu'en soit le nombre. Les **commentaires de critère de remplacement**
   (`COMMENTAIRE_CRITERE_PURGE*`, `OBJECTIF_RESUME_PURGE_LANGUE`) sont **inchangés** : ce sont
   des champs obligatoires qui ne peuvent pas rester vides, pas des avertissements. Le
-  **diagnostic** n'est pas concerné (`DiagnosticOralArtifactFilter` remplace le `summary`, il
-  ne pose aucun avertissement).
+  **diagnostic** n'a pas d'avertissement à retirer (`DiagnosticOralArtifactFilter` remplace le
+  `summary`, il n'en pose aucun) — mais son texte de remplacement a suivi le **même** arbitrage
+  le 2026-08-17 : il rassure au lieu d'expliquer la purge (cf. § Diagnostic).
 - **Indicateur de qualité de transcription** (`TranscriptionQualityAudit`, migration
   `V027`). Whisper renvoie `segments[].avg_logprob/no_speech_prob/compression_ratio` dans
   `verbose_json` — **payés depuis toujours, jamais lus** ; le temps réel n'expose rien.
