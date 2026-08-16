@@ -604,6 +604,19 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
     connaît la deuxième condition (moteur de maîtrise prêt) : une étape peut
     donc afficher « 5/5 » sans que la vérification s'ouvre — **c'est voulu**, ne
     pas l'expliquer par un message ni contourner la règle.
+  - **La `FixedActionBar` vise le sujet DÉSIGNÉ PAR LE SERVEUR** (2026-08-15).
+    En mode étape, `_primaryAction` lit `recommendedExercise.skillPromptId` via
+    `planStepRecommendedPrompt` (`screens/plan/plan_step_labels.dart`) : la
+    règle de choix vit dans `RecommendedExerciseSelector`, son périmètre est
+    **déjà borné aux 5 sujets de l'étape**, et un « premier sujet non validé »
+    recodé ici désignerait un autre sujet que le Plan. Libellés gelés, miroir du
+    web : **`kPlanStepStartCta`** (« Commencer le prochain sujet », sujet
+    `TODO`) et **`kPlanStepRetryCta`** (« Retravailler ce sujet ») — le bouton
+    dit ce qui va se passer, et c'est le **statut servi** du sujet qui tranche.
+    Verrouillé, le sujet reste **désigné** : `kPremiumLockCta` →
+    `showTcfLockPaywall`, jamais un autre sujet. Sans désignation exploitable —
+    fiche complète, pas d'exercice, vérification — on retombe sur
+    `_fallbackAction`, l'action historique, **inchangée**.
 - **Une étape peut être TERMINÉE, et elle reste affichée** : badge `EN COURS` →
   `TERMINÉE`, plus la ligne « Réévaluée à ta prochaine production. » sous le titre
   (`_StepDoneLines`, miroir mot pour mot de `LearningPlanView` côté web). Les priorités ne
@@ -639,6 +652,55 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   `productionSessionPath` (`…/t/0`) — exactement le chemin du mode « Sujets », **le
   `productionTaskId` ne voyage jamais dans l'URL**. `locked` ⇒ paywall, l'exercice
   reste désigné.
+- **La carte d'une ÉTAPE ne nomme plus l'exercice** (décision propriétaire,
+  2026-08-15). `_CurrentStepCard` garde son numéro, son badge d'état, le titre de
+  la compétence, l'anneau « x/5 », `_StepDoneLines` et le méta code · épreuve ;
+  la `_ExerciseRow` qui nommait le micro-sujet **en est retirée** (le widget
+  vit toujours, `_NowCard` l'utilise), et **« Continuer cette étape » ouvre
+  l'écran d'étape** — `onOpenSkill` → `competenceDetailPath(..., planStep: true)`,
+  le même chemin que les cartes de compétences observées. Motif : un seul endroit
+  nomme l'exercice — « À faire maintenant » (`_NowCard`, **inchangée**, qui garde
+  `_ExerciseRow` + le lancement direct) — et le candidat voit enfin *lesquels*
+  sont ses 5 sujets avant de s'y remettre.
+  🛑 **Exception, la VÉRIFICATION** : `kind == reassessment` ⇒ la carte garde
+  **exactement** son comportement d'origine (badge `VÉRIFICATION`, bouton
+  « Vérifier ma progression », `openRecommendedExercise`). Le candidat vient de
+  terminer ces 5 sujets : l'y renvoyer serait un cul-de-sac. `locked` ⇒
+  « Débloquer cette étape », inchangé.
+- **Une étape FRANCHIE ne disparaît plus du parcours : elle se coche**
+  (2026-08-16). `LearningPlan.completedSteps` (`LearningPlanCompletedStep`,
+  **jamais `null`**, vide tant que rien n'est franchi — cas normal) ouvre
+  « Votre parcours », avant l'étape en cours et les suivantes, dans le **même
+  parcours numéroté**. Avant, une compétence dont le transfert était prouvé
+  sortait des priorités et son étape s'évaporait.
+  - **À la place du numéro, une coche, et la pastille passe au vert**
+    (`_PathStep(icon: LucideIcons.check, tone: AppColors.green)`) — demande du
+    propriétaire, au mot près. `_CompletedStepCard` est sobre : `AppTag`
+    « TERMINÉE », anneau « 5/5 », titre, `code · épreuve`, chevron. **Aucun
+    bouton d'action** — le DTO ne porte **ni exercice recommandé ni `locked`**.
+    Ne pas en inventer.
+  - ⚠️ **`masteryState` n'est PAS toujours `solid`** (mesuré : 1 `solid`,
+    4 `consolidating`). **L'appartenance à `completedSteps` EST la coche.**
+  - **Numérotation continue** : `_PlanPath` incrémente un seul compteur sur les
+    trois familles (franchies → courante → à venir) et calcule `isLast` sur le
+    **total**, jamais par famille.
+  - **Ordre et borne viennent du serveur** (plus ancienne → plus récente, 5 max).
+    Aucun appel réseau de plus : le Plan est déjà chargé.
+  - **Une étape franchie s'ouvre** sur l'écran d'étape (`onOpenSkill` →
+    `competenceDetailPath(..., planStep: true)`) : `planStepFor`
+    (`plan_step_labels.dart`) cherche désormais **dans les priorités PUIS dans
+    `completedSteps`** et rend un **`PlanStepScope`** — le seul contrat dont
+    `CompetenceDetailScreen` a besoin. Sur une étape franchie, `stepCompleted`
+    vaut **`false`** et `recommendedExercise` **`null`** : le serveur ne publie ce
+    dérivé que sur une priorité, le recalculer serait réimplémenter une règle
+    serveur. La `FixedActionBar` retombe donc sur **`_fallbackAction`**, son
+    comportement historique — c'est voulu, ne pas lui fabriquer autre chose.
+- 🛑 **Le faux élément de fin de parcours est SUPPRIMÉ.** `_ReassessmentStepCard`
+  (« Réévaluation » / « Après quelques entraînements… ») était rendu en dur, ne
+  venait d'aucun champ du DTO, ne portait aucune action et **annonçait quelque
+  chose qui n'existait pas**. La vérification, quand elle est réellement
+  disponible, est portée par l'étape courante
+  (`PlanExerciseKind.reassessment`). **Ne pas le réintroduire.**
 - **Le Plan porte un JALON, à côté des étapes** — `LearningPlan.milestone`
   (`PlanMilestone`) → `PlanMilestoneCard` (`screens/plan/plan_milestone_card.dart`),
   **sous** « Votre parcours » et au-dessus des compétences observées. Un jalon

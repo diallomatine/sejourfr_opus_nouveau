@@ -31,13 +31,15 @@ import '../tcf_production/tcf_production_module.dart';
 import 'learning_plan_provider.dart';
 import 'plan_milestone_card.dart';
 import 'plan_milestone_labels.dart';
+import 'plan_step_labels.dart';
 
 /// Plan adaptatif calculé par le serveur à partir du diagnostic et des
 /// activités productives récentes. L'écran ne recalcule ni priorité ni statut.
 ///
 /// Colonne vertébrale : **le chemin en étapes numérotées** (« Votre
 /// parcours »). Une priorité n'est pas une carte de plus dans une pile, c'est
-/// une étape qui vient après la précédente et avant la réévaluation.
+/// une étape qui vient après celles déjà **franchies** — lesquelles restent
+/// affichées, cochées, au lieu de disparaître.
 class PlanScreen extends ConsumerStatefulWidget {
   const PlanScreen({super.key});
 
@@ -232,6 +234,10 @@ class _ActivePlan extends StatelessWidget {
   Widget build(BuildContext context) {
     final current = plan.currentPriority;
     final next = plan.nextPriorities.take(2).toList(growable: false);
+    // Les étapes FRANCHIES ouvrent le parcours, dans l'ordre servi (le serveur
+    // les trie et les borne — on ne retrie ni ne reborne rien ici).
+    final completed = plan.completedSteps;
+    final activeCount = (current == null ? 0 : 1) + next.length;
     final observed = plan.observedSkills
         .where((skill) => skill.status != LearningPlanSkillStatus.notObserved)
         .take(8)
@@ -264,23 +270,30 @@ class _ActivePlan extends StatelessWidget {
           _NowCard(
             priority: current,
             onOpenRecommended: onOpenRecommended,
+            onOpenSkill: onOpenSkill,
             onOpenFallback: () => context.push(
               current.section == SkillSection.eo
                   ? AppRoutes.tcfEoEntry
                   : AppRoutes.tcfEeEntry,
             ),
           ),
-        const SizedBox(height: 24),
-        const _PlanSectionHead(
-          title: 'Votre parcours',
-          description: 'Vos étapes dans l’ordre, jusqu’à la réévaluation.',
-        ),
-        const SizedBox(height: 12),
-        _PlanPath(
-          current: current,
-          next: next,
-          onOpenRecommended: onOpenRecommended,
-        ),
+        // Sans aucune étape — ni franchie, ni active — un « chemin » ne
+        // raconterait rien : on ne l'affiche pas.
+        if (completed.isNotEmpty || activeCount > 0) ...[
+          const SizedBox(height: 24),
+          _PlanSectionHead(
+            title: 'Votre parcours',
+            description: planPathSubtitle(activeCount),
+          ),
+          const SizedBox(height: 12),
+          _PlanPath(
+            completed: completed,
+            current: current,
+            next: next,
+            onOpenRecommended: onOpenRecommended,
+            onOpenSkill: onOpenSkill,
+          ),
+        ],
         // Le jalon vit SOUS les priorités, jamais à leur place : c'est un cran
         // au-dessus des étapes, pas un remplaçant. `milestone == null` est le
         // cas NORMAL (rien à mesurer, ou examen blanc tout juste passé) — rien
@@ -505,11 +518,13 @@ class _NowCard extends StatelessWidget {
   const _NowCard({
     required this.priority,
     required this.onOpenRecommended,
+    required this.onOpenSkill,
     required this.onOpenFallback,
   });
 
   final LearningPlanPriority priority;
   final ValueChanged<PlanRecommendedExercise> onOpenRecommended;
+  final SkillOpener onOpenSkill;
   final VoidCallback onOpenFallback;
 
   @override
@@ -548,9 +563,12 @@ class _NowCard extends StatelessWidget {
           const SizedBox(height: 13),
           Text(priority.title, style: AppFonts.display(size: 20)),
           if (exercise != null) ...[
+            // Le Plan ne nomme QUE des compétences, jamais un sujet : le titre
+            // de l'exercice vit sur l'écran d'étape, où le candidat voit les 5
+            // et choisit. « Commencer » l'y emmène. Seule la vérification lance
+            // encore une production directement — c'est une tâche d'examen, pas
+            // un micro-sujet, et elle n'a pas de liste où atterrir.
             const SizedBox(height: 15),
-            _ExerciseRow(exercise: exercise),
-            const SizedBox(height: 13),
             if (locked) ...[
               AppButton(
                 label: 'Débloquer cet exercice',
@@ -572,12 +590,14 @@ class _NowCard extends StatelessWidget {
               Semantics(
                 label: check
                     ? 'Vérifier ma progression sur ${exercise.title}'
-                    : 'Commencer l’exercice recommandé ${exercise.title}',
+                    : 'Commencer l’étape ${priority.title}',
                 button: true,
                 child: AppButton(
                   label: check ? 'Vérifier ma progression' : 'Commencer',
                   iconRight: LucideIcons.arrowRight,
-                  onPressed: () => onOpenRecommended(exercise),
+                  onPressed: () => check
+                      ? onOpenRecommended(exercise)
+                      : onOpenSkill(priority.skillId, priority.section),
                 ),
               ),
           ] else ...[
@@ -594,117 +614,108 @@ class _NowCard extends StatelessWidget {
   }
 }
 
-/// L'exercice recommandé, annoncé **à l'identique qu'il soit verrouillé ou
-/// non** (miroir du web) : le candidat doit savoir ce que son plan lui
-/// recommande. Le verrou se dit dans l'en-tête et dans le bouton, pas en
-/// effaçant l'information.
-class _ExerciseRow extends StatelessWidget {
-  const _ExerciseRow({required this.exercise});
-
-  final PlanRecommendedExercise exercise;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          color: AppColors.surface2,
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.blueLight,
-                borderRadius: BorderRadius.circular(AppRadii.md),
-              ),
-              child: const Icon(
-                LucideIcons.dumbbell,
-                size: 18,
-                color: AppColors.blue,
-              ),
-            ),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    exercise.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppFonts.ui(size: 13.5, weight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${exercise.section.wire} · ${exercise.estimatedMinutes} min',
-                    style: AppFonts.ui(
-                      size: 11.5,
-                      weight: FontWeight.w600,
-                      color: AppColors.inkFaint,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-}
-
 /// Le chemin : des étapes **numérotées, verticales et reliées**. C'est ce qui
-/// distingue un plan d'une pile de cartes — on voit où on en est, ce qui suit,
-/// et que ça se termine par une réévaluation.
-class _PlanPath extends StatelessWidget {
+/// distingue un plan d'une pile de cartes — on voit ce qu'on a franchi, où on en
+/// est, et ce qui suit.
+///
+/// 🛑 **Aucun élément décoratif de fin.** Une carte « Réévaluation / Prochaine
+/// vérification » était rendue en dur ici : elle ne venait d'aucun champ du DTO,
+/// ne portait aucune action et annonçait quelque chose qui n'existait pas. La
+/// vérification, quand elle est réellement disponible, est portée par l'étape
+/// courante elle-même (`PlanExerciseKind.reassessment`).
+///
+/// La numérotation est **continue sur toute la liste** : les étapes franchies
+/// occupent les premiers rangs (leur numéro laissant place à une coche), l'étape
+/// en cours et les suivantes continuent la série.
+class _PlanPath extends StatefulWidget {
   const _PlanPath({
+    required this.completed,
     required this.current,
     required this.next,
     required this.onOpenRecommended,
+    required this.onOpenSkill,
   });
 
+  final List<LearningPlanCompletedStep> completed;
   final LearningPlanPriority? current;
   final List<LearningPlanPriority> next;
   final ValueChanged<PlanRecommendedExercise> onOpenRecommended;
+  final SkillOpener onOpenSkill;
+
+  @override
+  State<_PlanPath> createState() => _PlanPathState();
+}
+
+class _PlanPathState extends State<_PlanPath> {
+  bool _showDone = false;
 
   @override
   Widget build(BuildContext context) {
     final steps = <Widget>[];
     var number = 1;
+    // La numérotation part de 1 sur les priorités ACTIVES : elles ouvrent le
+    // parcours. Les franchies s'accumulent (5 servies) et, mises en tête,
+    // repoussaient la priorité en 6ᵉ position, hors écran.
+    final activeTotal = (widget.current == null ? 0 : 1) + widget.next.length;
 
-    if (current != null) {
+    if (widget.current != null) {
       steps.add(
         _PathStep(
           number: number++,
           tone: AppColors.blue,
+          isLast: number > activeTotal,
           child: _CurrentStepCard(
-            priority: current!,
-            onOpenRecommended: onOpenRecommended,
+            priority: widget.current!,
+            onOpenRecommended: widget.onOpenRecommended,
+            onOpenSkill: widget.onOpenSkill,
           ),
         ),
       );
     }
-    for (final priority in next) {
+    for (final priority in widget.next) {
       steps.add(
         _PathStep(
           number: number++,
           tone: AppColors.inkFaint,
+          isLast: number > activeTotal,
           child: _NextStepCard(priority: priority),
         ),
       );
     }
-    steps.add(
-      _PathStep(
-        number: number,
-        tone: AppColors.green,
-        icon: LucideIcons.refreshCw,
-        isLast: true,
-        child: const _ReassessmentStepCard(),
-      ),
-    );
 
-    return Column(children: steps);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ...steps,
+        if (widget.completed.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          AppButton(
+            label: planDoneSectionCta(widget.completed.length, _showDone),
+            icon: LucideIcons.check,
+            variant: AppButtonVariant.outline,
+            onPressed: () => setState(() => _showDone = !_showDone),
+          ),
+          if (_showDone) ...[
+            const SizedBox(height: 12),
+            for (var i = 0; i < widget.completed.length; i++)
+              _PathStep(
+                number: i + 1,
+                tone: AppColors.green,
+                icon: LucideIcons.check,
+                iconSemanticsLabel: kPlanStepDoneMarkLabel,
+                isLast: i == widget.completed.length - 1,
+                child: _CompletedStepCard(
+                  step: widget.completed[i],
+                  onOpen: () => widget.onOpenSkill(
+                    widget.completed[i].skillId,
+                    widget.completed[i].section,
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ],
+    );
   }
 }
 
@@ -714,13 +725,17 @@ class _PathStep extends StatelessWidget {
     required this.tone,
     required this.child,
     this.icon,
+    this.iconSemanticsLabel,
     this.isLast = false,
   });
 
   final int number;
   final Color tone;
   final Widget child;
+
+  /// Une icône **à la place** du numéro — la coche d'une étape franchie.
   final IconData? icon;
+  final String? iconSemanticsLabel;
   final bool isLast;
 
   @override
@@ -743,7 +758,14 @@ class _PathStep extends StatelessWidget {
                     border: Border.all(color: tone.withValues(alpha: 0.35)),
                   ),
                   child: icon != null
-                      ? Icon(icon, size: 16, color: tone)
+                      ? Icon(
+                          icon,
+                          size: 16,
+                          color: tone,
+                          semanticLabel: iconSemanticsLabel == null
+                              ? null
+                              : '$iconSemanticsLabel $number',
+                        )
                       : Text(
                           '$number',
                           style: AppFonts.display(size: 14, color: tone),
@@ -776,10 +798,12 @@ class _CurrentStepCard extends StatelessWidget {
   const _CurrentStepCard({
     required this.priority,
     required this.onOpenRecommended,
+    required this.onOpenSkill,
   });
 
   final LearningPlanPriority priority;
   final ValueChanged<PlanRecommendedExercise> onOpenRecommended;
+  final SkillOpener onOpenSkill;
 
   @override
   Widget build(BuildContext context) {
@@ -791,8 +815,8 @@ class _CurrentStepCard extends StatelessWidget {
     // L'étape change de NATURE quand le serveur juge la compétence assez
     // travaillée en ciblé sans preuve de transfert : même carte, même place,
     // mais on ne propose plus un micro-sujet — on va vérifier en situation.
-    // La teinte est celle de la réévaluation qui clôt déjà le parcours : le
-    // même mot ne doit pas porter deux couleurs sur le même écran.
+    // La teinte est le vert des étapes franchies : le vert dit « ce qui est
+    // passé », le même mot ne doit pas porter deux couleurs sur le même écran.
     final check = exercise?.kind == PlanExerciseKind.reassessment;
     return AppCard(
       border: Border.all(color: AppColors.blue.withValues(alpha: 0.22)),
@@ -853,11 +877,20 @@ class _CurrentStepCard extends StatelessWidget {
           ),
           // Pas de citation de la production ici : le Plan répond à « que
           // travailler maintenant ? ». Relire ce qu'on a rendu a déjà son
-          // endroit — le sujet lui-même, atteint par l'exercice ci-dessous.
+          // endroit — le sujet lui-même.
+          //
+          // ⚠️ La carte d'étape NE NOMME PLUS l'exercice (décision
+          // propriétaire) : un seul endroit nomme ce qu'il y a à faire — « À
+          // faire maintenant » pour l'action immédiate, l'écran d'étape pour la
+          // liste des sujets. « Continuer cette étape » ouvre donc les 5 sujets
+          // de l'étape, et le candidat voit enfin LESQUELS sont les siens avant
+          // de s'y remettre.
+          // 🛑 **Sauf pour une vérification** : là, le candidat vient
+          // précisément de terminer ces 5 sujets — l'y renvoyer serait un
+          // cul-de-sac. La carte garde alors son comportement d'origine et
+          // lance la vraie production par le lanceur partagé.
           if (exercise != null) ...[
             const SizedBox(height: 12),
-            _ExerciseRow(exercise: exercise),
-            const SizedBox(height: 11),
             if (locked)
               AppButton(
                 label: 'Débloquer cette étape',
@@ -866,14 +899,22 @@ class _CurrentStepCard extends StatelessWidget {
                 height: 46,
                 onPressed: () => unawaited(showTcfLockPaywall(context)),
               )
-            else
+            else if (check)
               AppButton(
-                label:
-                    check ? 'Vérifier ma progression' : 'Continuer cette étape',
+                label: 'Vérifier ma progression',
                 variant: AppButtonVariant.soft,
                 iconRight: LucideIcons.arrowRight,
                 height: 46,
                 onPressed: () => onOpenRecommended(exercise),
+              )
+            else
+              AppButton(
+                label: 'Continuer cette étape',
+                variant: AppButtonVariant.soft,
+                iconRight: LucideIcons.arrowRight,
+                height: 46,
+                onPressed: () =>
+                    onOpenSkill(priority.skillId, priority.section),
               ),
           ],
         ],
@@ -998,30 +1039,77 @@ class _StepDoneLines extends StatelessWidget {
   }
 }
 
-class _ReassessmentStepCard extends StatelessWidget {
-  const _ReassessmentStepCard();
+/// Une étape **franchie** : à la place de son numéro, une **coche**, et la
+/// pastille passe au vert (cf. `_PathStep`).
+///
+/// Sobre par construction — titre, code · épreuve, compteurs d'étape — et
+/// **sans aucun bouton d'action** : il n'y a plus rien à y faire, et ce n'est pas
+/// une porte commerciale (le DTO ne porte d'ailleurs ni exercice ni `locked`).
+/// Elle reste **tappable** et ouvre l'écran d'étape, pour se relire.
+///
+/// ⚠️ La coche ne dépend **pas** de `masteryState` : sur un compte réel une seule
+/// compétence franchie est `solid`, les autres sont `consolidating`.
+/// L'appartenance à `completedSteps` **est** la coche.
+class _CompletedStepCard extends StatelessWidget {
+  const _CompletedStepCard({required this.step, required this.onOpen});
+
+  final LearningPlanCompletedStep step;
+  final VoidCallback onOpen;
 
   @override
-  Widget build(BuildContext context) => AppCard(
-        color: AppColors.greenLight,
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Réévaluation',
-              style: AppFonts.ui(size: 14, weight: FontWeight.w800),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Après quelques entraînements, une nouvelle production permettra de vérifier si cette faiblesse est réellement corrigée.',
-              style: AppFonts.ui(
-                size: 12.5,
-                color: AppColors.inkSoft,
-                height: 1.35,
+  Widget build(BuildContext context) => PressableCard(
+        onTap: onOpen,
+        radius: AppRadii.lg,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const AppTag(
+                label: kPlanStepBadgeDone,
+                tone: TagTone.success,
+                compact: true,
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              // Pas d'anneau de sujets sur une étape franchie : c'est
+              // l'ÉTAPE qui est cochée, pas ses micro-sujets. Une compétence
+              // prouvée par de vraies productions n'en a souvent traité aucun,
+              // et l'anneau affichait alors « 0/5 » à côté de « Terminée » —
+              // exact, et illisible. La coche dit tout ce qu'il y a à dire.
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          step.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppFonts.ui(
+                            size: 13.5,
+                            weight: FontWeight.w700,
+                            height: 1.25,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          _skillMeta(step.skillCode, step.section),
+                          style: AppFonts.ui(
+                            size: 11,
+                            weight: FontWeight.w600,
+                            color: AppColors.inkFaint,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const CardChevron(),
+                ],
+              ),
+            ],
+          ),
         ),
       );
 }

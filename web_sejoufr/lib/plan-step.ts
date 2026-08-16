@@ -1,4 +1,10 @@
-import type {LearningPlanDto, LearningPlanPriorityDto, SkillPromptSummaryDto} from "./types";
+import type {
+  LearningPlanCompletedStepDto,
+  LearningPlanDto,
+  LearningPlanPriorityDto,
+  PlanStepExerciseDto,
+  SkillPromptSummaryDto,
+} from "./types";
 
 /**
  * **Une compétence ouverte depuis le Plan reste dans son étape.**
@@ -43,22 +49,76 @@ export function isPlanStep(params: {get(name: string): string | null} | null): b
 }
 
 /**
- * L'étape du Plan qui porte cette compétence — priorité n°1 comprise.
+ * Le **périmètre** d'une étape, quelle que soit sa nature — priorité en cours,
+ * priorité à venir ou étape **franchie**. C'est le seul contrat dont l'écran
+ * d'étape a besoin : les identifiants de ses sujets et ses compteurs servis.
+ *
+ * ⚠️ Une étape **franchie** n'a **ni exercice recommandé ni cadenas** (le
+ * serveur n'en sert aucun), et son `stepCompleted` vaut `false` : le serveur ne
+ * publie ce dérivé que sur une priorité, et le recalculer ici serait
+ * réimplémenter une règle serveur. L'écran retombe alors sur son comportement
+ * historique — c'est le repli voulu, pas un manque.
+ */
+export interface PlanStepScope {
+  skillId: string;
+  stepPromptCount: number;
+  stepAttemptedCount: number;
+  stepValidatedCount: number;
+  stepPromptIds: string[];
+  stepCompleted: boolean;
+  recommendedExercise: PlanStepExerciseDto | null;
+}
+
+function scopeOfPriority(priority: LearningPlanPriorityDto): PlanStepScope {
+  return {
+    skillId: priority.skillId,
+    stepPromptCount: priority.stepPromptCount,
+    stepAttemptedCount: priority.stepAttemptedCount,
+    stepValidatedCount: priority.stepValidatedCount,
+    stepPromptIds: priority.stepPromptIds,
+    stepCompleted: priority.stepCompleted,
+    recommendedExercise: priority.recommendedExercise,
+  };
+}
+
+function scopeOfCompleted(step: LearningPlanCompletedStepDto): PlanStepScope {
+  return {
+    skillId: step.skillId,
+    stepPromptCount: step.stepPromptCount,
+    stepAttemptedCount: step.stepAttemptedCount,
+    stepValidatedCount: step.stepValidatedCount,
+    stepPromptIds: step.stepPromptIds,
+    stepCompleted: false,
+    recommendedExercise: null,
+  };
+}
+
+/**
+ * L'étape du Plan qui porte cette compétence — priorité n°1 et **étape
+ * franchie** comprises. Une étape franchie garde son périmètre : ouvrir une
+ * carte cochée doit mener aux mêmes 5 sujets, pas à la fiche des 15.
  *
  * `null` est un cas **normal et fréquent** : le Plan n'est pas chargé, ou la
- * compétence **n'est plus une priorité** (le serveur l'en sort dès qu'une
- * vérification en situation a réussi). L'appelant retombe alors silencieusement
- * sur la fiche complète.
+ * compétence n'apparaît plus dans le parcours (une étape franchie sort du Plan
+ * quand la borne serveur est atteinte). L'appelant retombe alors
+ * silencieusement sur la fiche complète.
  */
 export function planStepFor(
   plan: LearningPlanDto | null | undefined,
   skillId: string,
-): LearningPlanPriorityDto | null {
+): PlanStepScope | null {
   if (!plan || !skillId) return null;
-  const priorities = [plan.currentPriority, ...plan.nextPriorities];
-  const match = priorities.find((p) => p && p.skillId === skillId);
-  if (!match || match.stepPromptIds.length === 0) return null;
-  return match;
+  const priority = [plan.currentPriority, ...plan.nextPriorities].find(
+    (p) => p && p.skillId === skillId,
+  );
+  const scope = priority
+    ? scopeOfPriority(priority)
+    : (() => {
+        const done = (plan.completedSteps ?? []).find((s) => s.skillId === skillId);
+        return done ? scopeOfCompleted(done) : null;
+      })();
+  if (!scope || scope.stepPromptIds.length === 0) return null;
+  return scope;
 }
 
 /**
@@ -74,6 +134,33 @@ export function planStepPrompts<T extends Pick<SkillPromptSummaryDto, "id">>(
   return stepPromptIds
     .map((id) => byId.get(id))
     .filter((p): p is T => p !== undefined);
+}
+
+/**
+ * **Le sujet que l'écran d'étape propose de faire — désigné par le SERVEUR.**
+ *
+ * 🛑 Aucune règle de choix n'est écrite ici. `RecommendedExerciseSelector`
+ * (premier sujet jamais tenté, sinon le `TO_REINFORCE` le plus ancien, sinon le
+ * plus anciennement tenté) tourne côté serveur, son périmètre est **déjà borné
+ * aux sujets de l'étape**, et son résultat est servi sur la priorité. On ne fait
+ * que retrouver le sujet correspondant : un « premier sujet non validé » recodé
+ * ici désignerait un autre sujet que le Plan, et les deux écrans se
+ * contrediraient.
+ *
+ * `null` est un cas **normal** : pas d'exercice recommandé, exercice qui n'est
+ * pas un micro-sujet (une **vérification** se lance depuis le Plan, jamais
+ * d'ici), ou sujet absent du périmètre servi. L'appelant garde alors son
+ * comportement habituel.
+ */
+export function planStepRecommendedPrompt<T extends Pick<SkillPromptSummaryDto, "id">>(
+  step: PlanStepScope | null,
+  prompts: readonly T[],
+): T | null {
+  const exercise = step?.recommendedExercise;
+  if (!exercise || exercise.kind !== "MICRO_TRAINING" || !exercise.skillPromptId) {
+    return null;
+  }
+  return prompts.find((p) => p.id === exercise.skillPromptId) ?? null;
 }
 
 /* ------------------------------------------------------------------ libellés
@@ -93,6 +180,13 @@ export const PLAN_STEP_LINK = "Voir mon plan";
 export const PLAN_STEP_DONE_TITLE = "Étape terminée";
 export const PLAN_STEP_DONE_CTA = "Revenir à mon plan";
 
+/** Les deux libellés du bouton d'action de l'écran d'étape. Commencer un sujet
+ *  neuf et revenir sur un sujet déjà rendu ne se disent pas pareil : c'est le
+ *  **statut servi** du sujet désigné qui tranche (`TODO` ou non), jamais une
+ *  règle de choix recodée côté front. */
+export const PLAN_STEP_START_CTA = "Commencer le prochain sujet";
+export const PLAN_STEP_RETRY_CTA = "Retravailler ce sujet";
+
 /** « Cette étape, ce sont les 5 premiers sujets de cette compétence. » — le
  *  nombre vient du serveur, il n'est jamais écrit en dur (une compétence qui
  *  publie moins de sujets a une étape plus courte). */
@@ -108,4 +202,41 @@ export function planStepDoneText(total: number): string {
   return total > 1
     ? `Tu as traité les ${total} sujets de cette étape. La suite se décide dans ton plan.`
     : "Tu as traité le sujet de cette étape. La suite se décide dans ton plan.";
+}
+
+/* ------------------------------------------- étapes franchies (écran « Plan »)
+ *
+ * ⚠️ **Vouvoiement** : ces chaînes-ci vivent sur le Plan, qui vouvoie — à la
+ * différence des libellés ci-dessus, qui appartiennent au module « Compétences ».
+ * Miroir mot pour mot de `mobile_sejourfr/lib/screens/plan/plan_step_labels.dart`.
+ */
+
+/** Badge d'état d'une étape **franchie**, dans la même famille que « En cours »
+ *  et « À venir » de l'étape courante et des suivantes. */
+export const PLAN_STEP_BADGE_DONE = "Terminée";
+
+/** Libellé de la coche qui remplace le numéro d'une étape franchie — lu par les
+ *  lecteurs d'écran, jamais affiché. */
+export const PLAN_STEP_DONE_MARK_LABEL = "Étape terminée";
+
+/**
+ * Le sous-titre de « Votre parcours ». Il ne décrit que les **priorités
+ * actives** : ce sont elles qui ouvrent la liste, numérotées à partir de 1.
+ *
+ * ⚠️ Les étapes **franchies** n'y figurent plus. Elles s'accumulent (5 servies
+ * par le serveur), et les mettre en tête repoussait la priorité en 6ᵉ position,
+ * hors écran — l'inverse de ce que le Plan doit faire. Elles vivent sous la
+ * liste, repliées derrière {@link planDoneSectionCta}.
+ */
+export function planPathSubtitle(active: number): string {
+  const s = active > 1 ? "s" : "";
+  return `${active} priorité${s} active${s}, dans l'ordre.`;
+}
+
+/** Le bouton qui déplie les étapes franchies, sous le parcours. */
+export function planDoneSectionCta(count: number, open: boolean): string {
+  const s = count > 1 ? "s" : "";
+  return open
+    ? `Masquer les étapes franchies`
+    : `Voir les ${count} étape${s} franchie${s}`;
 }

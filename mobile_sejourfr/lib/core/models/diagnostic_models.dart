@@ -860,6 +860,76 @@ class LearningPlanPriority {
       );
 }
 
+/// Une **étape franchie** du parcours : une compétence dont le transfert est
+/// prouvé, donc qui n'est plus une priorité.
+///
+/// Jusqu'ici une compétence réussie sortait simplement des priorités et son
+/// étape **disparaissait** du Plan — le candidat perdait la trace de ce qu'il
+/// avait passé. Elles sont désormais servies pour être affichées **avant**
+/// l'étape courante et les suivantes, dans le même parcours numéroté, et
+/// **cochées**.
+///
+/// ⚠️ **Ni exercice recommandé, ni `locked`** : il n'y a plus rien à y faire, et
+/// une étape franchie n'est pas une porte commerciale. Ne pas en inventer.
+///
+/// ⚠️ **[masteryState] n'est PAS toujours `solid`** : une preuve de transfert
+/// récente suffit à franchir l'étape. **L'appartenance à cette liste EST la
+/// coche** — ne jamais conditionner l'affichage à un état de maîtrise.
+class LearningPlanCompletedStep {
+  const LearningPlanCompletedStep({
+    required this.skillId,
+    required this.skillCode,
+    required this.title,
+    required this.section,
+    required this.observedAt,
+    this.stepPromptCount = 0,
+    this.stepAttemptedCount = 0,
+    this.stepValidatedCount = 0,
+    this.stepPromptIds = const <String>[],
+    this.masteryState,
+  });
+
+  final String skillId;
+  final String skillCode;
+  final String title;
+  final SkillSection section;
+
+  /// Dernière observation probante : c'est elle qui ordonne les étapes
+  /// franchies entre elles (ordre déjà appliqué par le serveur).
+  final DateTime observedAt;
+
+  /// Compteurs de l'**étape** — les 5 premiers sujets actifs de la compétence.
+  /// Une étape franchie n'est pas forcément à 5/5.
+  final int stepPromptCount;
+  final int stepAttemptedCount;
+  final int stepValidatedCount;
+
+  /// Périmètre de l'étape, dans l'ordre. **Jamais `null`**, éventuellement vide.
+  /// Même sémantique que [LearningPlanPriority.stepPromptIds] : rouvrir une
+  /// étape franchie doit mener aux mêmes sujets.
+  final List<String> stepPromptIds;
+
+  final SkillMasteryState? masteryState;
+
+  factory LearningPlanCompletedStep.fromJson(Map<String, dynamic> json) =>
+      LearningPlanCompletedStep(
+        skillId: json['skillId'] as String,
+        skillCode: json['skillCode'] as String? ?? '',
+        title: json['title'] as String? ?? '',
+        section: SkillSection.fromWire(json['section'] as String),
+        observedAt: _date(json['observedAt']) ??
+            DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        stepPromptCount: (json['stepPromptCount'] as num? ?? 0).toInt(),
+        stepAttemptedCount: (json['stepAttemptedCount'] as num? ?? 0).toInt(),
+        stepValidatedCount: (json['stepValidatedCount'] as num? ?? 0).toInt(),
+        stepPromptIds: (json['stepPromptIds'] as List<dynamic>? ?? const [])
+            .map((id) => id.toString())
+            .toList(growable: false),
+        masteryState:
+            SkillMasteryState.fromWireNullable(json['masteryState'] as String?),
+      );
+}
+
 class LearningPlanSkill {
   const LearningPlanSkill({
     required this.skillId,
@@ -924,6 +994,7 @@ class LearningPlan {
     required this.observedSkillCount,
     required this.activitiesThisWeek,
     required this.progressionAvailable,
+    this.completedSteps = const <LearningPlanCompletedStep>[],
     this.diagnosticSessionId,
     this.diagnosticCompletedAt,
     this.currentPriority,
@@ -933,6 +1004,16 @@ class LearningPlan {
   final LearningPlanState state;
   final String? diagnosticSessionId;
   final DateTime? diagnosticCompletedAt;
+
+  /// Les étapes **déjà franchies**, de la plus ancienne à la plus récente :
+  /// elles se lisent **avant** [currentPriority] et [nextPriorities], dans le
+  /// même parcours numéroté.
+  ///
+  /// **Jamais `null`** ; **vide** tant qu'aucune compétence n'a prouvé son
+  /// transfert — cas normal, y compris avant le diagnostic. Déjà **bornée par
+  /// le serveur** aux plus récentes : ne rien reborner ici.
+  final List<LearningPlanCompletedStep> completedSteps;
+
   final LearningPlanPriority? currentPriority;
   final List<LearningPlanPriority> nextPriorities;
   final List<LearningPlanSkill> observedSkills;
@@ -956,6 +1037,9 @@ class LearningPlan {
         ),
         diagnosticSessionId: json['diagnosticSessionId'] as String?,
         diagnosticCompletedAt: _date(json['diagnosticCompletedAt']),
+        completedSteps: _objectList(json['completedSteps'])
+            .map(LearningPlanCompletedStep.fromJson)
+            .toList(growable: false),
         currentPriority: json['currentPriority'] == null
             ? null
             : LearningPlanPriority.fromJson(

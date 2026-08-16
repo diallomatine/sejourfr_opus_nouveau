@@ -1,4 +1,5 @@
 import '../../core/models/diagnostic_models.dart';
+import '../../core/models/skill_models.dart';
 
 /// **Une compétence ouverte depuis le Plan reste dans son étape.**
 ///
@@ -29,13 +30,62 @@ const String kPlanStepValue = '1';
 bool isPlanStepQuery(Map<String, String> query) =>
     query[kPlanStepParam] == kPlanStepValue;
 
-/// L'étape du Plan qui porte cette compétence — priorité n°1 comprise.
+/// Le **périmètre** d'une étape, quelle que soit sa nature — priorité en cours,
+/// priorité à venir ou étape **franchie**. C'est le seul contrat dont l'écran
+/// d'étape a besoin : les identifiants de ses sujets et ses compteurs servis.
+///
+/// ⚠️ Une étape **franchie** n'a **ni exercice recommandé ni cadenas** (le
+/// serveur n'en sert aucun), et son [stepCompleted] vaut `false` : le serveur ne
+/// publie ce dérivé que sur une priorité, et le recalculer ici serait
+/// réimplémenter une règle serveur. L'écran retombe alors sur son comportement
+/// historique — c'est le repli voulu, pas un manque.
+class PlanStepScope {
+  const PlanStepScope({
+    required this.skillId,
+    required this.stepPromptCount,
+    required this.stepAttemptedCount,
+    required this.stepValidatedCount,
+    required this.stepPromptIds,
+    required this.stepCompleted,
+    required this.recommendedExercise,
+  });
+
+  PlanStepScope.ofPriority(LearningPlanPriority priority)
+      : skillId = priority.skillId,
+        stepPromptCount = priority.stepPromptCount,
+        stepAttemptedCount = priority.stepAttemptedCount,
+        stepValidatedCount = priority.stepValidatedCount,
+        stepPromptIds = priority.stepPromptIds,
+        stepCompleted = priority.stepCompleted,
+        recommendedExercise = priority.recommendedExercise;
+
+  PlanStepScope.ofCompleted(LearningPlanCompletedStep step)
+      : skillId = step.skillId,
+        stepPromptCount = step.stepPromptCount,
+        stepAttemptedCount = step.stepAttemptedCount,
+        stepValidatedCount = step.stepValidatedCount,
+        stepPromptIds = step.stepPromptIds,
+        stepCompleted = false,
+        recommendedExercise = null;
+
+  final String skillId;
+  final int stepPromptCount;
+  final int stepAttemptedCount;
+  final int stepValidatedCount;
+  final List<String> stepPromptIds;
+  final bool stepCompleted;
+  final PlanRecommendedExercise? recommendedExercise;
+}
+
+/// L'étape du Plan qui porte cette compétence — priorité n°1 et **étape
+/// franchie** comprises. Une étape franchie garde son périmètre : ouvrir une
+/// carte cochée doit mener aux mêmes 5 sujets, pas à la fiche des 15.
 ///
 /// `null` est un cas **normal et fréquent** : le Plan n'est pas chargé, ou la
-/// compétence **n'est plus une priorité** (le serveur l'en sort dès qu'une
-/// vérification en situation a réussi). L'appelant retombe alors silencieusement
-/// sur la fiche complète.
-LearningPlanPriority? planStepFor(LearningPlan? plan, String skillId) {
+/// compétence n'apparaît plus dans le parcours (une étape franchie en sort quand
+/// la borne serveur est atteinte). L'appelant retombe alors silencieusement sur
+/// la fiche complète.
+PlanStepScope? planStepFor(LearningPlan? plan, String skillId) {
   if (plan == null || skillId.isEmpty) return null;
   final priorities = <LearningPlanPriority>[
     if (plan.currentPriority != null) plan.currentPriority!,
@@ -43,8 +93,48 @@ LearningPlanPriority? planStepFor(LearningPlan? plan, String skillId) {
   ];
   for (final priority in priorities) {
     if (priority.skillId == skillId) {
-      return priority.stepPromptIds.isEmpty ? null : priority;
+      return priority.stepPromptIds.isEmpty
+          ? null
+          : PlanStepScope.ofPriority(priority);
     }
+  }
+  for (final step in plan.completedSteps) {
+    if (step.skillId == skillId) {
+      return step.stepPromptIds.isEmpty
+          ? null
+          : PlanStepScope.ofCompleted(step);
+    }
+  }
+  return null;
+}
+
+/// **Le sujet que l'écran d'étape propose de faire — désigné par le SERVEUR.**
+///
+/// 🛑 Aucune règle de choix n'est écrite ici. `RecommendedExerciseSelector`
+/// (premier sujet jamais tenté, sinon le `TO_REINFORCE` le plus ancien, sinon
+/// le plus anciennement tenté) tourne côté serveur, son périmètre est **déjà
+/// borné aux sujets de l'étape**, et son résultat est servi sur la priorité. On
+/// ne fait que retrouver le sujet correspondant : un « premier sujet non
+/// validé » recodé ici désignerait un autre sujet que le Plan, et les deux
+/// écrans se contrediraient.
+///
+/// `null` est un cas **normal** : pas d'exercice recommandé, exercice qui n'est
+/// pas un micro-sujet (une **vérification** se lance depuis le Plan, jamais
+/// d'ici), ou sujet absent du périmètre servi. L'appelant garde alors son
+/// comportement habituel.
+SkillPromptSummary? planStepRecommendedPrompt(
+  PlanStepScope? step,
+  List<SkillPromptSummary> prompts,
+) {
+  final exercise = step?.recommendedExercise;
+  final promptId = exercise?.skillPromptId;
+  if (exercise == null ||
+      exercise.kind != PlanExerciseKind.microTraining ||
+      promptId == null) {
+    return null;
+  }
+  for (final prompt in prompts) {
+    if (prompt.id == promptId) return prompt;
   }
   return null;
 }
@@ -65,6 +155,13 @@ const String kPlanStepLink = 'Voir mon plan';
 const String kPlanStepDoneTitle = 'Étape terminée';
 const String kPlanStepDoneCta = 'Revenir à mon plan';
 
+/// Les deux libellés du bouton d'action de l'écran d'étape. Commencer un sujet
+/// neuf et revenir sur un sujet déjà rendu ne se disent pas pareil : c'est le
+/// **statut servi** du sujet désigné qui tranche (`TODO` ou non), jamais une
+/// règle de choix recodée côté front.
+const String kPlanStepStartCta = 'Commencer le prochain sujet';
+const String kPlanStepRetryCta = 'Retravailler ce sujet';
+
 /// « Cette étape, ce sont les 5 premiers sujets de cette compétence. » — le
 /// nombre vient du serveur, il n'est jamais écrit en dur (une compétence qui
 /// publie moins de sujets a une étape plus courte).
@@ -78,3 +175,39 @@ String planStepDoneText(int total) => total > 1
     ? 'Tu as traité les $total sujets de cette étape. La suite se décide dans '
         'ton plan.'
     : 'Tu as traité le sujet de cette étape. La suite se décide dans ton plan.';
+
+/* ------------------------------------------- étapes franchies (écran « Plan »)
+ *
+ * ⚠️ **Vouvoiement** : ces chaînes-ci vivent sur le Plan, qui vouvoie — à la
+ * différence des libellés ci-dessus, qui appartiennent au module « Compétences ».
+ * Miroir mot pour mot de `web_sejoufr/lib/plan-step.ts`.
+ */
+
+/// Badge d'état d'une étape **franchie**, dans la même famille que « EN COURS »
+/// et « À VENIR » de l'étape courante et des suivantes (les tags de cet écran
+/// sont en capitales : c'est l'idiome de `AppTag`, pas un libellé différent).
+const String kPlanStepBadgeDone = 'TERMINÉE';
+
+/// Libellé de la coche qui remplace le numéro d'une étape franchie — lu par les
+/// lecteurs d'écran, jamais affiché.
+const String kPlanStepDoneMarkLabel = 'Étape terminée';
+
+/// Le sous-titre de « Votre parcours ». Il ne décrit que les **priorités
+/// actives** : ce sont elles qui ouvrent la liste, numérotées à partir de 1.
+///
+/// ⚠️ Les étapes **franchies** n'y figurent plus. Elles s'accumulent (5 servies
+/// par le serveur), et les mettre en tête repoussait la priorité en 6ᵉ
+/// position, hors écran — l'inverse de ce que le Plan doit faire. Elles vivent
+/// sous la liste, repliées derrière [planDoneSectionCta].
+String planPathSubtitle(int active) {
+  final s = active > 1 ? 's' : '';
+  return '$active priorité$s active$s, dans l\'ordre.';
+}
+
+/// Le bouton qui déplie les étapes franchies, sous le parcours.
+String planDoneSectionCta(int count, bool open) {
+  final s = count > 1 ? 's' : '';
+  return open
+      ? 'Masquer les étapes franchies'
+      : 'Voir les $count étape$s franchie$s';
+}

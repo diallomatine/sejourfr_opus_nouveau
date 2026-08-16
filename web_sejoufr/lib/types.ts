@@ -966,6 +966,41 @@ export interface LearningPlanPriorityDto extends LearningPlanSkillCounters, Skil
     readyForReassessment: boolean;
 }
 
+/**
+ * Une **étape franchie** du parcours : une compétence dont le transfert est
+ * prouvé, donc qui n'est plus une priorité.
+ *
+ * Jusqu'ici une compétence réussie sortait simplement des priorités et son
+ * étape **disparaissait** du Plan — le candidat perdait la trace de ce qu'il
+ * avait passé. Elles sont désormais servies pour être affichées **avant**
+ * l'étape courante et les suivantes, dans le même parcours numéroté, et
+ * **cochées**.
+ *
+ * ⚠️ **Ni `recommendedExercise`, ni `locked`** : il n'y a plus rien à y faire,
+ * et une étape franchie n'est pas une porte commerciale. Ne pas en inventer.
+ *
+ * ⚠️ **`masteryState` n'est PAS toujours `SOLID`** : une preuve de transfert
+ * récente suffit à franchir l'étape. **L'appartenance à cette liste EST la
+ * coche** — ne jamais conditionner l'affichage à un état de maîtrise.
+ */
+export interface LearningPlanCompletedStepDto {
+    skillId: string;
+    skillCode: string;
+    title: string;
+    section: SkillSection;
+    /** Dernière observation probante : c'est elle qui ordonne les étapes franchies. */
+    observedAt: string;
+    /** Sujets de l'étape : au plus les 5 premiers actifs, moins si la compétence en publie moins. */
+    stepPromptCount: number;
+    /** Sujets de l'étape déjà traités. Une étape franchie n'est pas forcément à 5/5. */
+    stepAttemptedCount: number;
+    /** Sujets de l'étape dont le critère a été validé. Toujours ≤ `stepAttemptedCount`. */
+    stepValidatedCount: number;
+    /** Périmètre de l'étape, dans l'ordre. **Jamais `null`**, éventuellement vide. */
+    stepPromptIds: string[];
+    masteryState: SkillMasteryState | null;
+}
+
 export interface LearningPlanSkillDto extends LearningPlanSkillCounters, SkillLockable {
     skillId: string;
     skillCode: string;
@@ -982,6 +1017,17 @@ export interface LearningPlanDto {
     state: LearningPlanState;
     diagnosticSessionId: string | null;
     diagnosticCompletedAt: string | null;
+    /**
+     * Les étapes **déjà franchies**, de la plus ancienne à la plus récente :
+     * elles se lisent **avant** `currentPriority` et `nextPriorities`, dans le
+     * même parcours numéroté.
+     *
+     * **Jamais `null`** ; **vide** tant qu'aucune compétence n'a prouvé son
+     * transfert — cas normal, y compris dans les états `NEEDS_DIAGNOSTIC` et
+     * `DIAGNOSTIC_IN_PROGRESS`. Déjà **bornée par le serveur** aux plus
+     * récentes : ne rien reborner ici.
+     */
+    completedSteps: LearningPlanCompletedStepDto[];
     currentPriority: LearningPlanPriorityDto | null;
     nextPriorities: LearningPlanPriorityDto[];
     observedSkills: LearningPlanSkillDto[];

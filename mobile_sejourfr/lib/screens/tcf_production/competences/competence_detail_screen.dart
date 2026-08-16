@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/api/api_client.dart';
-import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/skill_models.dart';
 import '../../../core/router/route_observer.dart';
 import '../../../core/theme/app_theme.dart';
@@ -112,7 +111,7 @@ class _CompetenceDetailScreenState
   /// Le Plan est **déjà chargé** : on n'arrive ici avec le marqueur qu'en
   /// venant de l'écran Plan, qui reste monté sous celui-ci — le provider est
   /// donc vivant et rend sa valeur **sans aucun appel réseau**.
-  LearningPlanPriority? _step() {
+  PlanStepScope? _step() {
     if (!widget.planStep) return null;
     return planStepFor(
       ref.watch(learningPlanProvider).valueOrNull,
@@ -125,7 +124,7 @@ class _CompetenceDetailScreenState
   /// identifiants servis. Vide ⇒ l'appelant se replie sur la fiche complète.
   List<SkillPromptSummary> _stepPrompts(
     List<SkillPromptSummary> prompts,
-    LearningPlanPriority step,
+    PlanStepScope step,
   ) {
     final byId = {for (final p in prompts) p.id: p};
     return [
@@ -168,7 +167,7 @@ class _CompetenceDetailScreenState
             ),
             if (detail != null && _prompts(detail, step).isNotEmpty)
               FixedActionBar(
-                child: _primaryAction(_prompts(detail, step)),
+                child: _primaryAction(detail, step),
               ),
           ],
         ),
@@ -176,11 +175,52 @@ class _CompetenceDetailScreenState
     );
   }
 
-  /// L'action principale vise toujours un sujet **ouvert** : proposer
+  /// L'action principale de l'écran.
+  ///
+  /// **En mode étape**, elle vise le sujet **désigné par le serveur**
+  /// (`recommendedExercise.skillPromptId`, périmètre déjà borné aux 5 sujets de
+  /// l'étape) : le Plan et cet écran ne peuvent donc pas désigner deux sujets
+  /// différents. Le libellé dit ce qui va se passer — commencer un sujet neuf
+  /// et revenir sur un sujet déjà rendu ne se disent pas pareil —, et c'est le
+  /// **statut servi** du sujet qui tranche. Un sujet verrouillé reste
+  /// **désigné**, jamais détourné : le bouton ouvre l'offre.
+  ///
+  /// Sans désignation exploitable (fiche complète, pas d'exercice recommandé,
+  /// vérification), on garde le comportement historique décrit ci-dessous.
+  Widget _primaryAction(SkillDetail detail, PlanStepScope? step) {
+    final prompts = _prompts(detail, step);
+    final scoped = !identical(prompts, detail.prompts);
+    final target =
+        scoped ? planStepRecommendedPrompt(step, prompts) : null;
+    if (target != null) {
+      final locked =
+          target.locked || step?.recommendedExercise?.locked == true;
+      if (locked) {
+        return AppButton(
+          label: kPremiumLockCta,
+          icon: LucideIcons.lock,
+          variant: AppButtonVariant.soft,
+          onPressed: () => unawaited(showTcfLockPaywall(context)),
+        );
+      }
+      final fresh = !target.status.isTreated;
+      return AppButton(
+        label: fresh ? kPlanStepStartCta : kPlanStepRetryCta,
+        icon: fresh ? LucideIcons.play : LucideIcons.refreshCw,
+        variant: widget.module.isEo
+            ? AppButtonVariant.accent
+            : AppButtonVariant.primary,
+        onPressed: () => _openPrompt(target),
+      );
+    }
+    return _fallbackAction(prompts);
+  }
+
+  /// L'action historique : elle vise toujours un sujet **ouvert** — proposer
   /// « Commencer » sur un sujet verrouillé mènerait droit au paywall alors que
   /// d'autres sujets sont disponibles. Quand plus rien n'est ouvert, le bouton
   /// dit la seule chose vraie qui reste.
-  Widget _primaryAction(List<SkillPromptSummary> prompts) {
+  Widget _fallbackAction(List<SkillPromptSummary> prompts) {
     final open = prompts.where((p) => !p.locked);
     if (open.isEmpty) {
       return AppButton(
@@ -207,14 +247,14 @@ class _CompetenceDetailScreenState
   /// exploitable, la compétence entière sinon.
   List<SkillPromptSummary> _prompts(
     SkillDetail detail,
-    LearningPlanPriority? step,
+    PlanStepScope? step,
   ) {
     if (step == null) return detail.prompts;
     final scoped = _stepPrompts(detail.prompts, step);
     return scoped.isEmpty ? detail.prompts : scoped;
   }
 
-  Widget _list(SkillDetail detail, LearningPlanPriority? step) {
+  Widget _list(SkillDetail detail, PlanStepScope? step) {
     final prompts = _prompts(detail, step);
     // `_prompts` rend **l'instance** de la fiche complète quand il se replie :
     // c'est ce qui distingue les deux vues sans recompter quoi que ce soit.

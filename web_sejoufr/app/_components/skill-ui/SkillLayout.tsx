@@ -740,6 +740,11 @@ export function SkillRowCard({
  */
 export const SKILL_PREMIUM_HREF = "/paiement?module=INTEGRAL";
 
+/** Le libellé du bouton qui ouvre l'offre depuis le module. Wording neutre
+ *  (guidelines Apple 3.1.1), **miroir mot pour mot** de `kPremiumLockCta`
+ *  (`mobile_sejourfr/lib/core/widgets/premium_lock.dart`). */
+export const SKILL_PREMIUM_CTA = "Voir l'abonnement Intégral";
+
 /** Pastille « Premium » d'une carte verrouillée — une seule formulation dans
  *  tout le module, cadenas compris. */
 export function SkillLockBadge() {
@@ -762,7 +767,7 @@ export function SkillLockBadge() {
 export function SkillLockedCard({
   title,
   text,
-  ctaLabel = "Voir l'abonnement Intégral",
+  ctaLabel = SKILL_PREMIUM_CTA,
 }: {
   title: string;
   text: string;

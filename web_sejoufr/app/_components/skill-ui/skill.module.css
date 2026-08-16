@@ -656,6 +656,19 @@
   font-weight: 700;
 }
 
+/* Bouton d'action d'une étape ouverte depuis le Plan : il démarre le sujet
+   désigné par le serveur, juste sous la progression et au-dessus de la liste
+   des 5 sujets. Pendant de la `FixedActionBar` du mobile — le web n'a pas de
+   barre fixe, l'action vit donc dans le flux, à l'endroit où on la cherche. */
+.stepCta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 14px;
+}
+
 /* Colonne centrale du résumé : min-width 0 pour que le titre passe à la ligne
    au lieu de repousser le bouton d'information hors de la carte à 360 px. */
 .summaryBody {

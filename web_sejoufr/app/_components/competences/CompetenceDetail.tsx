@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {useParams, useRouter, useSearchParams} from "next/navigation";
 import {useRef, useState} from "react";
-import {Check, Info, Lock, Sparkles} from "lucide-react";
+import {ArrowRight, Check, Info, Lock, Sparkles} from "lucide-react";
 import {learningPlanApi, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {cached} from "@/lib/data-cache";
@@ -14,10 +14,13 @@ import {
   PLAN_STEP_DONE_TITLE,
   PLAN_STEP_LINK,
   PLAN_STEP_PILL,
+  PLAN_STEP_RETRY_CTA,
   PLAN_STEP_SECTION_TITLE,
+  PLAN_STEP_START_CTA,
   planStepDoneText,
   planStepFor,
   planStepPrompts,
+  planStepRecommendedPrompt,
   planStepSectionText,
   withPlanStep,
 } from "@/lib/plan-step";
@@ -40,6 +43,7 @@ import {
   MiniBar,
   RowChevron,
   SectionHead,
+  SKILL_PREMIUM_CTA,
   SkillLockBadge,
   SkillNotice,
   SkillShell,
@@ -148,6 +152,18 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   const pct = progressPercent(attempted, total);
   const firstTodo = openTodo[0];
   const stepDone = scoped && step.stepCompleted;
+  /* Le sujet que l'étape propose de faire : **celui que le serveur a désigné**
+     (`recommendedExercise.skillPromptId`), jamais un « premier sujet non
+     validé » recalculé ici — le Plan désignerait alors un autre sujet que cet
+     écran. `null` est un cas normal (pas d'exercice, vérification, fiche
+     complète) : l'écran garde son comportement d'origine, avec son lien
+     « Commencer le sujet N » dans l'intertitre. */
+  const target = scoped ? planStepRecommendedPrompt(step, stepPrompts) : null;
+  /* Un exercice verrouillé reste **désigné**, jamais détourné vers un autre
+     sujet : c'est le traitement freemium de l'écran (cadenas + paywall), pas un
+     changement de cible. */
+  const targetLocked =
+    target !== null && (target.locked || step?.recommendedExercise?.locked === true);
 
   const chips: [Filter, string, number][] = [
     ["all", "Tous", prompts.length],
@@ -222,6 +238,33 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
               </SkillNotice>
             )}
 
+            {/* L'action de l'étape : on démarre le sujet **désigné par le
+                serveur**. Le libellé dit ce qui va se passer — commencer un
+                sujet neuf et revenir sur un sujet déjà rendu ne se disent pas
+                pareil —, et c'est le statut servi du sujet qui tranche. */}
+            {target && (
+              <button
+                type="button"
+                className={`${s.primary} ${s.stepCta}`}
+                onClick={
+                  targetLocked
+                    ? () => setPaywallOpen(true)
+                    : () => router.push(promptHref(target.id))
+                }
+              >
+                {targetLocked ? (
+                  <>
+                    <Lock size={16} aria-hidden /> {SKILL_PREMIUM_CTA}
+                  </>
+                ) : (
+                  <>
+                    {target.status === "TODO" ? PLAN_STEP_START_CTA : PLAN_STEP_RETRY_CTA}{" "}
+                    <ArrowRight size={16} aria-hidden />
+                  </>
+                )}
+              </button>
+            )}
+
             <SectionHead
               title={scoped ? PLAN_STEP_SECTION_TITLE : "Petits sujets"}
               text={
@@ -230,7 +273,7 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                   : "Les sujets déjà réalisés restent clairement identifiables."
               }
               action={
-                firstTodo && (
+                !target && firstTodo && (
                   <button
                     type="button"
                     className={s.headLink}

@@ -677,6 +677,22 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
     deuxième condition (moteur de maîtrise prêt) : une étape peut donc afficher
     « 5/5 » sans que la vérification s'ouvre — **c'est voulu**, ne pas
     l'expliquer par un message ni contourner la règle.
+  - **L'écran d'étape porte le bouton d'action** (2026-08-15) : un `s.primary`
+    plein, sous la progression et au-dessus de la liste — pendant de la
+    `FixedActionBar` du mobile, que le web n'a pas. 🛑 **Il vise le sujet
+    DÉSIGNÉ PAR LE SERVEUR**, `recommendedExercise.skillPromptId`, retrouvé par
+    `planStepRecommendedPrompt` (`lib/plan-step.ts`) : la règle de choix vit
+    dans `RecommendedExerciseSelector`, son périmètre est **déjà borné aux 5
+    sujets de l'étape**, et un « premier sujet non validé » recodé ici
+    désignerait un autre sujet que le Plan. Libellés gelés, miroir du mobile :
+    **`PLAN_STEP_START_CTA`** (« Commencer le prochain sujet », sujet `TODO`)
+    et **`PLAN_STEP_RETRY_CTA`** (« Retravailler ce sujet ») — le bouton dit ce
+    qui va se passer, et c'est le **statut servi** du sujet qui tranche.
+    Verrouillé, le sujet reste **désigné** : cadenas + `SKILL_PREMIUM_CTA`
+    (« Voir l'abonnement Intégral », miroir de `kPremiumLockCta`) → la
+    `PaywallSheet` de l'écran, jamais un autre sujet. Sans désignation
+    exploitable — fiche complète, pas d'exercice, vérification — l'écran garde
+    **son** comportement : le lien « Commencer le sujet N » de l'intertitre.
 - **Une étape peut être TERMINÉE, et elle reste affichée** : le badge passe de
   « En cours » à « Terminée » (état `done`, vert), et une ligne apparaît sous le
   titre — « Réévaluée à ta prochaine production. ». Les priorités ne changent
@@ -716,6 +732,66 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   segment déclaré une seule fois dans `lib/production-catalog.ts` et lu par
   `ProductionConfig.inputSegment`). `locked` : cadenas + paywall, l'exercice
   reste **désigné**.
+- **La carte d'une ÉTAPE ne nomme plus l'exercice** (décision propriétaire,
+  2026-08-15). `PathStep` garde son numéro, son badge d'état, le titre de la
+  compétence, l'anneau « x/5 », les lignes d'état (« Réévaluée à ta prochaine
+  production. », « N validés sur M ») et le code de compétence ; l'encart
+  `.stepTask` qui nommait le micro-sujet est **supprimé** (styles compris), et
+  **« Continuer cette étape » ouvre l'écran d'étape** —
+  `competenceHref(priority, {planStep: true})`, donc les 5 sujets. Motif : un
+  seul endroit nomme l'exercice — « À faire maintenant » (`TodayCard`,
+  **inchangée**, qui garde titre + lancement direct) — et le candidat voit enfin
+  *lesquels* sont ses 5 sujets avant de s'y remettre.
+  🛑 **Exception, la VÉRIFICATION** : `recommendedExercise.kind ===
+  "REASSESSMENT"` ⇒ la carte garde **exactement** son comportement d'origine
+  (badge « Vérification », CTA « Vérifier ma progression »,
+  `recommendedExerciseHref`). Le candidat vient de terminer ces 5 sujets : l'y
+  renvoyer serait un cul-de-sac. `locked` ⇒ « Débloquer cette étape »,
+  inchangé.
+  ⚠️ Le CTA « Continuer cette étape » **n'émet plus**
+  `PLAN_RECOMMENDED_EXERCISE_STARTED` : il ne démarre plus aucun exercice, il
+  ouvre une liste. La mesure du funnel reste portée par « À faire maintenant »
+  et par la vérification, qui lancent bien une production.
+- **Une étape FRANCHIE ne disparaît plus du parcours : elle se coche**
+  (2026-08-16). `LearningPlanDto.completedSteps` (`LearningPlanCompletedStepDto[]`,
+  **jamais `null`**, vide tant que rien n'est franchi — cas normal, y compris en
+  `NEEDS_DIAGNOSTIC`) est rendu **en tête** de « Votre parcours », avant l'étape
+  en cours et les suivantes, dans le **même parcours numéroté**. Avant, une
+  compétence dont le transfert était prouvé sortait des priorités et son étape
+  s'évaporait : le candidat perdait la trace de ce qu'il avait passé.
+  - **À la place du numéro, une coche, et la pastille passe au vert**
+    (`.stepMarkDone` / `.stepCardDone`, tokens `--color-green` uniquement) —
+    c'est la demande du propriétaire, au mot près. Carte sobre : badge
+    « Terminée », titre, `code · épreuve`, anneau « 5/5 ». **Aucun bouton
+    d'action** — le DTO ne porte **ni `recommendedExercise` ni `locked`**, il n'y
+    a plus rien à y faire et ce n'est pas une porte commerciale. Ne pas en
+    inventer.
+  - ⚠️ **`masteryState` n'est PAS toujours `SOLID`** (mesuré : 1 `SOLID`,
+    4 `CONSOLIDATING`). **L'appartenance à `completedSteps` EST la coche** — ne
+    jamais la conditionner à un état de maîtrise.
+  - **Numérotation continue** : le rang vient de l'index dans la liste **unique**
+    (`PathEntry[]`, union discriminée franchie ⇄ active), jamais d'un compteur
+    par famille — aucun numéro dupliqué ni sauté quand le nombre de franchies
+    change. Le héros, lui, garde `activeSteps.length` pour « priorités actives ».
+  - **Ordre et borne viennent du serveur** (plus ancienne → plus récente, 5 max) :
+    on ne trie ni ne reborne rien. Aucun appel réseau de plus.
+  - **Une étape franchie s'ouvre** sur l'écran d'étape (`competenceHref(step,
+    {planStep: true})`, donc ses 5 sujets) : `planStepFor` (`lib/plan-step.ts`)
+    cherche désormais **dans les priorités PUIS dans `completedSteps`** et rend un
+    **`PlanStepScope`** — le seul contrat dont l'écran d'étape a besoin. Sur une
+    étape franchie, `stepCompleted` vaut **`false`** et `recommendedExercise`
+    **`null`** : le serveur ne publie ce dérivé que sur une priorité, et le
+    recalculer serait réimplémenter une règle serveur. L'écran retombe donc sur
+    **son repli historique** (lien « Commencer le sujet N » de l'intertitre) —
+    c'est voulu, ne pas lui fabriquer un bouton.
+- 🛑 **Le faux élément de fin de parcours est SUPPRIMÉ.** `LearningPlanView`
+  rendait un `<li>` **codé en dur** (icône `CalendarCheck`, « Réévaluation » /
+  « Prochaine vérification ») qui ne venait d'aucun champ du DTO, ne portait
+  aucun lien et **annonçait une action qui n'existait pas**. Ses styles morts
+  partent avec (`.stepCardFinal`, `.stepText`, le sélecteur
+  `[data-state="later"]`). La vérification, quand elle est réellement
+  disponible, est portée par l'étape courante
+  (`recommendedExercise.kind === "REASSESSMENT"`). **Ne pas le réintroduire.**
 - **Le Plan porte un JALON, à côté des étapes** — `LearningPlanDto.milestone`
   (`PlanMilestoneExerciseDto`) → `PlanMilestoneCard`, **sous** les priorités et
   au-dessus des compétences observées. Un jalon n'est pas une étape : il désigne
