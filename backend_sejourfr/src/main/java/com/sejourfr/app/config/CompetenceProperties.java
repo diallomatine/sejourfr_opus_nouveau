@@ -50,27 +50,28 @@ public class CompetenceProperties {
          * Version du fichier de consignes charge par le fournisseur de
          * rubriques : {@code prompts/competence-analysis-rubrics-<v>.json}.
          *
-         * <p>v5 = v4 au bit pres pour tout ce qui JUGE (role, les trois
-         * verdicts et leur regle de decision, la table des cinq paliers, la
-         * preuve du niveau par numero, la brievete, le garde-fou oral,
-         * l'accentuation, les plafonds). Elle ne corrige que des BIAIS lisibles
-         * dans le prompt : trois ancres ajoutees (2 B2, 1 A1_NON_ATTEINT — ces
-         * deux paliers n'etaient jamais montres au correcteur) et le retrait
-         * d'une consigne de repartition (« c'est meme le cas le plus frequent »).
-         * <b>Son contrat de sortie reste v4</b>, aucun champ ne bouge.
-         * Retour arriere : v4 + v4, v3 + v3, v2 + v2, ou v1 + v1.
+         * <p>v6 = v5 au bit pres pour tout ce qui JUGE (role, les trois verdicts
+         * et leur regle de decision, la table des cinq paliers, la brievete, le
+         * garde-fou oral, l'accentuation, les plafonds, les dix ancres dans leur
+         * substance). Elle corrige une asymetrie du MECANISME, pas une consigne :
+         * annoncer un B1/B2 coutait un numero de segment et risquait un
+         * abaissement, annoncer un A2 ne coutait rien. La preuve est desormais
+         * exigee <b>a tous les paliers</b> — l'effort devient symetrique, la
+         * sanction reste reservee au B1/B2.
+         * Retour arriere : v5 + v4, v4 + v4, v3 + v3, v2 + v2, ou v1 + v1.
          */
-        private String rubricsVersion = "v5";
+        private String rubricsVersion = "v6";
 
         /**
          * Version du contrat de sortie :
          * {@code prompts/competence-analysis-tool-schema-<v>.json}. Versionnee
          * separement des consignes, comme cote productions : deux analyses
          * produites avec le meme schema mais des consignes differentes ne sont
-         * pas comparables. C'est exactement le cas de v5, qui rend le meme JSON
-         * que v4 en lisant des consignes differentes.
+         * pas comparables — c'est le cas de v5 des consignes, qui rendait le meme
+         * JSON que v4. Le tool-schema v5, lui, est celui de v4 avec
+         * {@code level_evidence} dans son {@code required}.
          */
-        private String toolSchemaVersion = "v4";
+        private String toolSchemaVersion = "v5";
 
         /**
          * Plafond de tokens de SORTIE. 600 suffit largement : la reponse tient

@@ -70,11 +70,20 @@ public class CompetenceRubricsProvider {
      * frequent »), c'est-a-dire une consigne de repartition. <b>Son contrat de
      * sortie reste v4</b> : aucun champ n'est ajoute ni retire.
      *
-     * <p>v1/v1, v2/v2, v3/v3 et v4/v4 restent chargeables : c'est le retour
-     * arriere, et on versionne sans jamais reecrire une version livree.
+     * <p>v6 = v5 au bit pres pour tout ce qui JUGE (role, perimetre, les trois
+     * verdicts et leur regle de decision, la table des cinq paliers, la brievete,
+     * le garde-fou oral, les plafonds, et les dix ancres dans leur substance).
+     * Ce qu'elle change tient en une idee : la preuve du niveau est desormais
+     * exigee <b>a tous les paliers</b>, et son contrat de sortie v5 la met dans
+     * son {@code required}. Sous v5/v4, nommer un A2 ne coutait <b>rien</b> quand
+     * nommer un B2 coutait un numero de segment et risquait un abaissement — le
+     * mecanisme lui-meme rendait le palier bas confortable.
+     *
+     * <p>v1/v1, v2/v2, v3/v3, v4/v4 et v5/v4 restent chargeables : c'est le
+     * retour arriere, et on versionne sans jamais reecrire une version livree.
      */
     private static final Map<String, String> TOOL_SCHEMA_BY_RUBRICS_VERSION =
-        Map.of("v1", "v1", "v2", "v2", "v3", "v3", "v4", "v4", "v5", "v4");
+        Map.of("v1", "v1", "v2", "v2", "v3", "v3", "v4", "v4", "v5", "v4", "v6", "v5");
 
     /**
      * Versions de consignes qui recevaient le <b>niveau cible de la COMPETENCE</b>
@@ -89,6 +98,8 @@ public class CompetenceRubricsProvider {
      * versions anterieures</b> plutot qu'un test sur v5 : un retour arriere
      * {@code COMPETENCE_RUBRICS_VERSION=v4} doit reproduire le prompt d'avant au
      * bit pres, et une version future ne doit pas heriter du defaut par accident.
+     * v6 n'y figure donc pas non plus — c'est precisement ce que l'allowlist
+     * garantit sans qu'on ait a y penser.
      */
     private static final java.util.Set<String> VERSIONS_AVEC_NIVEAU_CIBLE =
         java.util.Set.of("v1", "v2", "v3", "v4");

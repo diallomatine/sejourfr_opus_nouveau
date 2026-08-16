@@ -232,4 +232,46 @@ class CompetenceAnalysisValidatorTest {
             .as("une sortie v3 n'a rien a faire sous un contrat v2")
             .isNotEmpty();
     }
+
+    /**
+     * LE PIEGE DE {@code EvaluationOutputValidator.CHAMPS_V4}, evite ici.
+     *
+     * <p>Le tool-schema v5 met {@code level_evidence} dans son {@code required} :
+     * c'est le fournisseur qui l'exige. Recopier ce {@code required} dans le jeu
+     * de cles verifie ICI aurait fait <b>rejeter 100 % des analyses</b> qui
+     * l'omettent — or ce validateur a le pouvoir de rendre {@code FAILED}, et une
+     * analyse perdue coute au candidat sa production et son quota. Le champ reste
+     * donc hors de sa portee, quel que soit le rang : l'invariant du depot
+     * (« une preuve manquante ne fait JAMAIS echouer l'analyse ») est ici.
+     */
+    @Test
+    void laPreuveDuNiveauNeFaitJamaisEchouerLAnalyseMemeRequiseParLeSchema() {
+        assertThat(CompetenceAnalysisFields.cles("v5"))
+            .as("elle est bien DANS le contrat : sinon elle serait comptee « cle hors contrat »")
+            .contains(CompetenceAnalysisFields.LEVEL_EVIDENCE);
+        assertThat(CompetenceAnalysisFields.exigeLaPreuveSurTousLesPaliers("v5")).isTrue();
+
+        assertThat(validator.violations(sortieValide()))
+            .as("un A2 sans preuve reste une sortie servable")
+            .isEmpty();
+
+        Map<String, Object> b2 = sortieValide();
+        b2.put(CompetenceAnalysisFields.LEVEL_REACHED, "B2");
+        assertThat(validator.violations(b2))
+            .as("un B2 sans preuve non plus : c'est le garde-fou qui abaisse, pas nous")
+            .isEmpty();
+    }
+
+    /**
+     * Et quand elle EST la, elle n'est pas comptee « cle hors contrat » : le
+     * validateur la reconnait sans la verifier. Un entier n'est d'ailleurs pas
+     * une chaine — s'il tombait dans la boucle generique, il serait refuse.
+     */
+    @Test
+    void laPreuveDuNiveauPresenteNEstNiRefuseeNiComptteeHorsContrat() {
+        Map<String, Object> sortie = sortieValide();
+        sortie.put(CompetenceAnalysisFields.LEVEL_EVIDENCE, 2);
+
+        assertThat(validator.violations(sortie)).isEmpty();
+    }
 }

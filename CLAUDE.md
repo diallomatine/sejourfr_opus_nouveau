@@ -2069,6 +2069,93 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
   versions v1..v4 (un retour arrière doit reproduire le prompt d'avant, une
   version future ne doit pas hériter du défaut). Verrous :
   `CompetenceAnalysisServiceTest`, `CompetenceRubricsProviderTest`.
+- **v6 = LE COÛT DE NOMMER UN PALIER DEVIENT LE MÊME PARTOUT** (2026-08-16,
+  rubriques v6 / tool-schema **v5**). v6 est **v5 au bit près pour tout ce qui
+  JUGE** (rôle, périmètre, les 3 verdicts et leur règle de décision,
+  `commun.statuts`, `commun.niveaux`, `commun.contraintes_longueur`, la brièveté
+  qui n'est pas un défaut, le garde-fou oral, et **les 10 ancres dans leur
+  substance**) — verrou `CompetenceAnalysisContractTest`, qui **reconstruit v5
+  depuis v6** par une liste **énumérée** de 6 éditions et exige l'égalité. Le
+  tool-schema v5 est **v4 avec `level_evidence` dans son `required`**, verrou :
+  **égalité stricte** de tout le reste (types, bornes,
+  `additionalProperties:false`, les 5 autres propriétés au caractère près) ; les
+  2 descriptions éditées se **reconstruisent** elles aussi en celles de v4.
+  - **Le défaut corrigé est dans le MÉCANISME, pas dans une consigne.** Sous v4,
+    annoncer un B1/B2 obligeait à fournir un numéro de segment, et un numéro
+    absent/faux faisait **abaisser le verdict d'un palier** ; annoncer un A2 ne
+    coûtait **rien** et ne risquait **rien**. Le mécanisme lui-même rendait le
+    palier bas confortable et le haut risqué — et **aucune ancre ne pouvait le
+    corriger**, d'où les 3 ancres de v5 restées sans effet sur la cause. Mesure
+    en base : **0 B2 sur 18 tentatives**.
+  - **L'EFFORT devient symétrique, la SANCTION reste où elle protège.** Le
+    correcteur désigne **toujours** le segment sur lequel il fonde son verdict,
+    `A1_NON_ATTEINT` compris. Mais `CompetenceLevelEvidenceGuard` **n'abaisse que
+    sur un B1/B2 mal étayé** : abaisser un A2 punirait la prudence, exactement
+    l'inverse du but. Un défaut sous le B1 est **compté**
+    (`CompetenceLevelDowngradeMetrics.enregistrerSansSanction`, clés
+    `MOTIF/SANS_SANCTION/<palier>`, **même famille** — c'est la seule façon de
+    comparer les deux moitiés de l'échelle) et **ne vaut aucune réparation
+    payée** : le correcteur ne l'anticipe pas au moment de produire, donc l'appel
+    n'achèterait rien. Coût d'exploitation **inchangé**.
+  - 🛑 **Une preuve manquante ne fait toujours JAMAIS échouer l'analyse.**
+    `level_evidence` reste **hors de `CompetenceAnalysisValidator`**, seul
+    habilité à rendre `FAILED`, **y compris sous v5 où le schéma la rend
+    requise** : c'est le fournisseur qui l'exige, jamais nous. La méthode
+    s'appelle désormais **`estExclueDuValidateur`** (et non plus
+    `estOptionnelle`) parce que le nom invitait à recopier le `required` du JSON
+    dans le jeu de clés vérifié — ce qui aurait fait **rejeter 100 % des
+    sorties** qui l'omettent : le piège exact de
+    `EvaluationOutputValidator.CHAMPS_V4`.
+  - **Le numéro reste résolu en TEXTE avant persistance**, aux paliers bas comme
+    aux hauts : `analysis_json.level_evidence` porte le passage, jamais l'entier
+    — **aucun miroir DTO à propager sur les 3 fronts**, aucun écran modifié.
+  - **Les 6 ancres qui n'avaient pas de preuve en portent une**, dont celle
+    d'`A1_NON_ATTEINT` : elle désigne le passage qui **MONTRE** que le palier
+    n'est pas atteint (la phrase en langue étrangère). Une ancre qui omettrait la
+    preuve apprendrait au correcteur à s'en passer, précisément là où v6 veut
+    qu'il ne s'en passe plus.
+  - **Rang lu par ALLOWLIST explicite** (`CompetenceAnalysisFields
+    .exigeLaPreuveSurTousLesPaliers`), jamais un `!= v6` — patron
+    `CompetenceRubricsProvider.envoieLeNiveauCibleDeLaCompetence` : une version
+    future ne doit pas hériter du comportement par accident. Retour arrière :
+    `COMPETENCE_RUBRICS_VERSION=v5` + `COMPETENCE_TOOL_SCHEMA_VERSION=v4`
+    reproduit le comportement d'avant **au bit près** (champ facultatif, aucune
+    anomalie comptée sous le B1, rappel du prompt reformulé à l'identique).
+    Aucune migration, `analysis_json` legacy intact.
+  - ✅ **MESURÉ le 2026-08-16** — trois campagnes de 90 cas sur
+    `golden-set-competences-v1.json`, le **même jour**, `retries=1`, même
+    provider/modèle (`deepseek-v4-flash`), rapports dans `target/calibration/` :
+
+    | | **v4/v4** | **v5/v4** | **v6/v5** |
+    |---|---|---|---|
+    | accord exact niveau | 71,1 % | 82,2 % | **85,6 %** |
+    | accord statut critère | 88,9 % | 87,8 % | **90,0 %** |
+    | B2 · A2 · B1 justes (/18) | 8 · 13 · 13 | 13 · 16 · 15 | **14 · 17 · 16** |
+    | écart de palier moyen | 0,0 | +0,02 | −0,01 |
+    | échec de production | 0 % | 0 % | 0 % |
+    | paires confondues (tâche, /540) | 74 | 43 | **39** |
+
+    **+14,5 points** d'accord exact, 0 échec sur 270 appels, **0,33 $** au total
+    (tarifs alors configurés). 🛑 **Les deux moitiés de l'échelle montent
+    ENSEMBLE** — c'était la condition de réfutation : les A2 justes passent de 13
+    à 17 *pendant que* les B2 passent de 8 à 14, et l'écart moyen reste à zéro.
+    Le correcteur ne note pas plus haut, il note plus juste.
+  - ⚠️ **Le diagnostic initial était PLUS GROSSIER que la réalité, et la campagne
+    l'a corrigé.** On croyait à un **plafonnement au A2** (« 0 B2 sur 18 » en
+    base). Faux : v4 rend déjà 10 B2 sur 90 cas. Le vrai défaut est une
+    **compression vers le MILIEU** — v4 rendait 27 B1 là où le corpus en attend
+    18, en absorbant par le bas les B2 (9 des 18 attendus B2 sortaient B1) et par
+    le haut les A2 (5 des 18 attendus A2 sortaient B1). v5+v6 décompressent les
+    deux extrêmes. Corollaire : le « 0 B2 » de la base ne prouvait pas que le
+    correcteur en soit incapable — il disait peut-être seulement que ces 18
+    productions réelles n'étaient pas B2. **Ne pas rejouer ce raisonnement sur un
+    échantillon de production sans référence.**
+  - ⚠️ **Un point de la prédiction reste INVÉRIFIÉ** :
+    `PREUVE_ABSENTE/SANS_SANCTION/*` vit en mémoire (`LongAdder`) et n'est pas
+    exporté dans le rapport de banc, donc rien ne prouve encore que l'effort est
+    devenu symétrique **dans les faits** (le modèle pourrait omettre le champ en
+    bas d'échelle malgré le `required`). À exporter avant d'en tirer une
+    conclusion sur le mécanisme lui-même.
 - **v5 = LE NIVEAU CESSE D'ÊTRE PLAFONNÉ AU A2** (2026-08-16). Mesuré par SQL sur
   la base locale : **0 B2 sur 18 tentatives**, jamais ; une production fautive et
   une production propre avec subordonnée et conditionnel recevaient **le même
@@ -2168,11 +2255,12 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
     `avant->après`), **distinct** de `EvaluationRefusalMetrics` (un refus coûte la
     tâche) et de `EvaluationPurgeMetrics` (une purge retire une phrase) : les
     mélanger rendrait la mesure illisible.
-  - ⚠️ **AUCUNE campagne ne l'appuie, et il faut le dire** : le corpus de
-    calibration (48 cas) est celui des **productions complètes**, il n'existe
-    **aucun corpus pour la voie Compétences**. Ce qui tient la règle, c'est la
+  - ⚠️ **AUCUNE campagne ne l'appuie**, et ce qui tient la règle reste la
     contrainte dure (schéma `integer`/`minimum:1` + contrôle serveur), pas une
-    mesure a posteriori.
+    mesure a posteriori. ⚠️ En revanche, la phrase « il n'existe aucun corpus
+    pour la voie Compétences » est **révoquée** : il en existe un depuis le
+    2026-08-16 (cf. le banc ci-dessous). L'instrument existe, la mesure reste à
+    payer.
   - Retour arrière : `COMPETENCE_RUBRICS_VERSION=v3` +
     `COMPETENCE_TOOL_SCHEMA_VERSION=v3` — sous v3 le découpage n'est même pas
     calculé et le prompt repart **inchangé d'un octet**
@@ -2365,9 +2453,53 @@ qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
   antérieurs par `COMPETENCE_NIVEAU_VISE_{RUBRICS,TOOL_SCHEMA}_VERSION=v2`, ou
   `=v1`).
   ⚠️ **Bascules v3, v4 et v5 de l'analyse, et v2/v3 du plan d'action, NON
-  mesurées au banc** : il n'existe aucun corpus de micro-productions avec un
-  niveau attendu (cf. `docs/notation-ia-eo-ee.md` §11 bis, qui le dit franchement
-  au lecteur).
+  mesurées au banc** (cf. `docs/notation-ia-eo-ee.md` §11 bis, qui le dit
+  franchement au lecteur). Le motif — « il n'existe aucun corpus » — a **cessé
+  d'être vrai le 2026-08-16**, cf. le banc ci-dessous : elles restent non
+  mesurées, mais plus faute d'instrument.
+- **Banc de mesure du module — `CompetenceCalibrationBenchTest`** (2026-08-16),
+  **jumeau** de `CalibrationBenchTest` et **jamais son remplaçant** : corpus
+  séparé `src/test/resources/calibration/golden-set-competences-v1.json`
+  (**90 micro-productions annotées**, 6 tâches × 5 paliers × 3, plus 33
+  productions **réelles hors score**), grandeurs séparées (**palier** +
+  **verdict de critère**, jamais une note /20 — le contrat n'a aucun champ où la
+  loger). Mêmes garde-fous que l'autre banc : **opt-in strict** (jamais dans
+  `./mvnw verify`), provider et modèle **non surchargeables**,
+  `calibration.retries` figé dans le rapport, `sorties_refusees_pct` et
+  `echec_production_pct` **distincts**. Détail d'usage :
+  `docs/plan-tests-backend.md`.
+  - **La vérité terrain se déduit de traits STRUCTURELS**, listés par cas dans
+    `traits_structurels` et lus dans `commun.niveaux` de la grille active — pas
+    d'un jugement esthétique. C'est la parade à la circularité : une IA écrit les
+    productions, une IA les note. Un cas se conteste en montrant que le trait
+    annoncé n'est pas dans la production.
+  - **Le verdict de critère est INDÉPENDANT du palier**, et le corpus le teste :
+    les cas `HORS_SUJET_RICHE` sont en langue B2 avec un critère `NOT_VALIDATED`.
+    Un correcteur qui aligne l'un sur l'autre y échoue.
+  - **Métrique de SENSIBILITÉ**, propre à ce banc : 6 **échelles** de 5
+    productions du **même sujet** à des paliers différents, et le rapport compte
+    les paires *ordonnées / inversées / confondues*. C'est la question du
+    dossier — mesuré en base : **0 B2 sur 18 tentatives**, deux productions
+    manifestement inégales notées toutes deux A2. Le rapport publie aussi la
+    **répartition des paliers rendus** et `paliers_jamais_rendus` : un bon taux
+    d'accord peut coexister avec un palier entier jamais produit.
+  - **Pilote du 2026-08-16, 10 cas, consignes v6 / contrat v5, `retries=1`** :
+    0 sortie refusée, 0 cas perdu, accord exact **60 %** — **100 % sur
+    A1_NON_ATTEINT, A1 et A2, 0 % sur B1 et B2**, tous les cas hauts retombant en
+    A2 (un seul B1 rendu, **aucun B2**). Coût réel **0,0129 $** (88 980 tokens
+    d'entrée, 1 562 de sortie). Le défaut mesuré en base est donc **reproduit par
+    l'instrument**, sur un échantillon trop petit pour conclure.
+  - ⚠️ **Le coût persisté ment sur ce module** : chaque appel est arrondi au cent
+    **supérieur** (`Math.ceil`), donc une campagne de micro-analyses s'affiche
+    ~10× trop cher. Le rapport publie `cout_reel_usd`, recalculé depuis les tokens
+    et les tarifs du provider actif — c'est ce chiffre qu'on cite.
+  - **Les 33 productions réelles sont HORS SCORE** : tableau `temoins_reels`
+    séparé, `hors_score: true`, exclues de tous les agrégats par
+    `CompetenceCaseRun.exploitable()`. Elles n'ont aucune vérité terrain et ne
+    servent qu'à vérifier le réalisme des cas synthétiques. **Ne jamais les faire
+    entrer dans un taux d'accord.**
+  - `CompetenceGoldenSetTest` fige le corpus (couverture, pièges, échelles,
+    séparation des témoins) **sans aucun appel LLM** : lui tourne dans `verify`.
 - **Volume figé** : 6 tâches (`EE1..EE3`, `EO1..EO3`) × **8 compétences** × **15
   sujets** × **3 références** (`INSUFFICIENT`/`EXPECTED`/`EXCELLENT`) = 48 / 720 /
   2160. Les 6 tâches sont un référentiel officiel (**enum `SkillTaskCode`, pas de

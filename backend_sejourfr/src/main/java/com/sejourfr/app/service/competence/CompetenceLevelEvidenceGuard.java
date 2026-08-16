@@ -45,12 +45,30 @@ import java.util.Set;
  *       candidat sa production et son quota ; un niveau prudent ne lui coute
  *       qu'un palier d'affichage. C'est la doctrine constante du depot (cf.
  *       {@code EvaluationAccentAudit}, qui mesure sans jamais refuser) ;</li>
- *   <li>il n'exige rien en dessous du B1 : A2, A1 et {@code A1_NON_ATTEINT} se
- *       lisent sur l'ensemble de la production, pas sur un passage ;</li>
+ *   <li>il <b>ne sanctionne rien en dessous du B1</b> — voir ci-dessous ;</li>
  *   <li>il n'exige rien quand la production ne produit <b>aucun segment
  *       citable</b> (texte sans le moindre mot) : on ne reproche pas au
  *       correcteur de n'avoir pas designe ce qui n'existe pas.</li>
  * </ul>
+ *
+ * <h2>L'EFFORT est symetrique, la SANCTION ne l'est pas (contrat v5)</h2>
+ * Sous v4, annoncer un B1 ou un B2 coutait un numero de segment, et un numero
+ * absent coutait un palier ; annoncer un A2 ne coutait <b>rien</b> et ne risquait
+ * <b>rien</b>. Le mecanisme rendait donc le A2 confortable et le B2 risque,
+ * quelles que soient les ancres du prompt — mesure en base : zero B2 sur 18
+ * tentatives. Depuis v5, le tool-schema exige la preuve <b>a tous les paliers</b>
+ * : l'effort de production est le meme partout, et c'est la que vit l'incitation.
+ *
+ * <p><b>La sanction, elle, reste ou elle protege.</b> Une preuve manquante sur un
+ * A2 ne peut pas raisonnablement faire tomber a A1 : ce serait punir la prudence,
+ * exactement l'inverse du but. Elle est donc <b>comptee</b>
+ * ({@code CompetenceLevelDowngradeMetrics.enregistrerSansSanction}) et jamais
+ * appliquee. Elle ne vaut pas non plus de reparation payee : le correcteur ne
+ * l'anticipe pas au moment de produire, et payer un appel pour un champ sans
+ * consequence serait de l'argent jete.
+ *
+ * <p>Sous v4 et anterieurs, tout ce paragraphe est <b>inerte</b> : la preuve
+ * n'est attendue que sur B1/B2, exactement comme avant.
  *
  * <p><b>Le numero est resolu en texte avant persistance</b> (comme
  * {@code AiEvaluationService.resolvePreuveSegments}) : {@code analysis_json} ne
@@ -71,12 +89,15 @@ import java.util.Set;
 public class CompetenceLevelEvidenceGuard {
 
     /**
-     * Les seuls paliers qui se demontrent. En dessous, il n'y a rien a prouver :
-     * un A2 est ce qui reste quand aucun marqueur superieur n'apparait.
+     * Les seuls paliers dont un defaut de preuve est <b>SANCTIONNE</b>. Depuis
+     * v5 la preuve est attendue partout, mais seule une revendication de B1/B2
+     * peut couter un palier : c'est elle qui, non etayee, ferait afficher au
+     * candidat un niveau que sa production ne montre pas.
      */
     static final Set<NiveauCecrl> NIVEAUX_A_DEMONTRER = Set.of(NiveauCecrl.B1, NiveauCecrl.B2);
 
     private final CompetenceLevelDowngradeMetrics metrics;
+    private final CompetenceRubricsProvider rubrics;
 
     /** Ce que le serveur reproche a la preuve, ou {@code null} si elle tient. */
     enum Defaut {
@@ -101,6 +122,10 @@ public class CompetenceLevelEvidenceGuard {
      */
     public List<String> violations(Map<String, Object> sortie,
                                    EvaluationProductionSegments segments) {
+        // SEULS les paliers sanctionnes valent une reparation. Sous le B1 le
+        // defaut ne coute rien au candidat : payer un appel pour le corriger
+        // serait de l'argent depense sans contrepartie.
+        if (!estSanctionnable(sortie)) return List.of();
         Defaut defaut = defaut(sortie, segments);
         if (defaut == null) return List.of();
         return List.of(libelle(defaut, sortie, segments));
@@ -133,6 +158,16 @@ public class CompetenceLevelEvidenceGuard {
         if (defaut == null) return false;
 
         NiveauCecrl avant = niveau(analyse);
+        if (!aDemontrer(avant)) {
+            // Sous le B1 : on MESURE, on ne sanctionne pas. Faire tomber un A2
+            // a A1 faute de preuve punirait la prudence, c'est-a-dire
+            // exactement le comportement qu'on cherche a rendre confortable.
+            metrics.enregistrerSansSanction(defaut.motif, avant);
+            log.info("Preuve du niveau refusee sans consequence : palier {} conserve ({}). "
+                    + "La sanction reste reservee au B1/B2.", avant, defaut);
+            return false;
+        }
+
         NiveauCecrl apres = unPalierEnDessous(avant);
         analyse.put(CompetenceAnalysisFields.LEVEL_REACHED, apres.name());
         metrics.enregistrer(defaut.motif, avant, apres);
@@ -145,14 +180,43 @@ public class CompetenceLevelEvidenceGuard {
     // ------------------------------------------------------------------ regle
 
     /**
+     * Le palier annonce est-il de ceux dont un defaut de preuve coute un cran ?
+     * Independant de la version du contrat : c'est une question de risque pour
+     * le candidat, pas de rang.
+     */
+    private static boolean estSanctionnable(Map<String, Object> sortie) {
+        // `Set.of` est hostile au null : un palier illisible n'est pas
+        // sanctionnable, et surtout ne doit pas faire lever ce garde-fou.
+        return sortie != null && aDemontrer(niveau(sortie));
+    }
+
+    private static boolean aDemontrer(NiveauCecrl niveau) {
+        return niveau != null && NIVEAUX_A_DEMONTRER.contains(niveau);
+    }
+
+    /**
+     * La preuve est-elle attendue pour ce palier ? Sous v5, oui pour les cinq ;
+     * sous v4, seulement pour B1 et B2 — c'est ce qui garde le retour arriere
+     * reel, un {@code COMPETENCE_TOOL_SCHEMA_VERSION=v4} devant se comporter
+     * exactement comme avant.
+     */
+    private boolean preuveAttendue(NiveauCecrl niveau) {
+        if (CompetenceAnalysisFields.exigeLaPreuveSurTousLesPaliers(
+                rubrics.getToolSchemaVersion())) {
+            return true;
+        }
+        return aDemontrer(niveau);
+    }
+
+    /**
      * @return le defaut a reprocher, ou {@code null} quand il n'y a rien a
-     *         exiger (palier sous le B1, production sans segment citable) ou
-     *         quand la preuve tient.
+     *         exiger (palier dispense par le contrat, production sans segment
+     *         citable) ou quand la preuve tient.
      */
     private Defaut defaut(Map<String, Object> sortie, EvaluationProductionSegments segments) {
         if (sortie == null) return null;
         NiveauCecrl niveau = niveau(sortie);
-        if (niveau == null || !NIVEAUX_A_DEMONTRER.contains(niveau)) return null;
+        if (niveau == null || !preuveAttendue(niveau)) return null;
         if (segments == null || segments.taille() < 1) return null;
 
         Object brut = sortie.get(CompetenceAnalysisFields.LEVEL_EVIDENCE);

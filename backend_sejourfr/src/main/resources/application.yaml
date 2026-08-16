@@ -973,32 +973,44 @@ sejourfr:
   competences:
     analysis:
       # Consignes d'analyse : prompts/competence-analysis-rubrics-<v>.json.
-      # v5 = v4 au bit pres pour tout ce qui JUGE (verdicts, regle de decision,
-      # table des cinq paliers, preuve du niveau par numero, brievete, garde-fou
-      # oral, accentuation, plafonds). Elle corrige des BIAIS lisibles dans le
-      # prompt lui-meme, mesures en base sur 18 tentatives reelles : zero B2
-      # jamais rendu, aucun sujet rejoue n'ayant jamais donne deux niveaux
-      # differents. Trois editions, et rien d'autre :
-      #  (a) trois ancres ajoutees (2 B2, 1 A1_NON_ATTEINT) — v4 n'en avait
-      #      AUCUNE sur ces deux paliers, le correcteur ne les avait jamais vus ;
-      #  (b) retrait de « c'est meme le cas le plus frequent, et c'est normal »,
-      #      qui etait une consigne de repartition deguisee en repere ;
-      #  (c) le niveau cible de la COMPETENCE (`targetLevel`) n'est plus envoye
-      #      dans le prompt utilisateur — etiquette de palier non expliquee,
-      #      posee a cote du texte a niveler.
-      # /!\ Aucune campagne de mesure n'appuie cette bascule, et c'est assume :
-      # il n'existe aucun corpus de micro-productions avec niveau attendu (le
-      # golden-set des 48 cas est celui des productions completes). Ce qui la
-      # justifie, c'est qu'on retire des biais VISIBLES dans le prompt, pas
-      # qu'on ajuste un reglage fin.
+      # v6 = v5 au bit pres pour tout ce qui JUGE (verdicts, regle de decision,
+      # table des cinq paliers, brievete, garde-fou oral, accentuation, plafonds,
+      # et les dix ancres dans leur substance). Elle corrige la DERNIERE cause du
+      # « tout le monde a A2 » mesure en base (0 B2 sur 18 tentatives), et c'est
+      # la seule qu'aucune ancre ne pouvait corriger : le COUT DE NOMMER UN
+      # PALIER etait asymetrique. Pour dire B1/B2 il fallait fournir un numero de
+      # segment, et un numero absent ou faux faisait abaisser le verdict d'un
+      # cran ; pour dire A2, rien a fournir, rien a risquer. Le mecanisme
+      # lui-meme rendait le palier bas confortable.
+      #  (a) `level_evidence` devient REQUIS a tous les paliers (tool-schema v5)
+      #      — l'effort de production est le meme partout, et c'est la que vit
+      #      l'incitation ;
+      #  (b) la sanction, elle, NE BOUGE PAS : le serveur n'abaisse toujours que
+      #      sur un B1/B2 mal etaye. Punir un A2 sans preuve, ce serait punir la
+      #      prudence, exactement l'inverse du but. Un defaut sous le B1 est
+      #      COMPTE (CompetenceLevelDowngradeMetrics, cle /SANS_SANCTION/) et ne
+      #      vaut aucune reparation payee ;
+      #  (c) les six ancres qui n'avaient pas de preuve en portent une, dont
+      #      celle d'A1_NON_ATTEINT : elle designe le passage qui MONTRE que le
+      #      palier n'est pas atteint.
+      # /!\ Une preuve manquante ne fait toujours JAMAIS echouer l'analyse : le
+      # champ reste hors de CompetenceAnalysisValidator, seul habilite a rendre
+      # FAILED. Une analyse perdue coute au candidat sa production et son quota.
+      # /!\ Aucune campagne de mesure n'appuie cette bascule a ce jour — mais,
+      # contrairement aux precedentes, elle le deviendra : un corpus de
+      # micro-productions et son banc sont en construction, et l'hypothese « le
+      # cout asymetrique tirait vers le A2 » se testera en comparant v5 et v6 sur
+      # le meme corpus, le meme jour.
       # La note /20 reste interdite : aucun champ ne peut la loger.
-      # Retour arriere : v4 + v4 (ou v3 + v3, v2 + v2, v1 + v1).
-      rubrics-version: ${COMPETENCE_RUBRICS_VERSION:v5}
+      # Retour arriere : v5 + v4 (ou v4 + v4, v3 + v3, v2 + v2, v1 + v1).
+      rubrics-version: ${COMPETENCE_RUBRICS_VERSION:v6}
       # Contrat de sortie : prompts/competence-analysis-tool-schema-<v>.json.
       # Versionne separement des consignes — deux analyses produites avec le
       # meme schema mais des consignes differentes ne sont pas comparables.
-      # v5 ne change AUCUN champ de sortie : elle reste sur le tool-schema v4.
-      tool-schema-version: ${COMPETENCE_TOOL_SCHEMA_VERSION:v4}
+      # Le tool-schema v5 est celui de v4 avec `level_evidence` dans son
+      # `required`, et RIEN d'autre : c'est la contrainte dure qui tient la
+      # regle, pas la consigne de la grille.
+      tool-schema-version: ${COMPETENCE_TOOL_SCHEMA_VERSION:v5}
       # Plafond de tokens de SORTIE. 600 suffit largement : la reponse tient en
       # cinq champs courts (verdict, niveau, deux etiquettes de trois mots).
       # C'est un plafond, pas une consommation.

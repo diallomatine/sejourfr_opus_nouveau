@@ -117,3 +117,55 @@ tels quels, et couverts par des tests donc découpables sans risque si la logiqu
     tomber.
 - Données : `TestData.user()/admin()/theme()` (séquence unique). Rollback auto (`@Transactional`
   sur la base) → pas de pollution inter-tests.
+
+## Bancs de mesure IA — opt-in strict, JAMAIS dans `./mvnw verify`
+
+Deux bancs, deux corpus, **jamais mélangés** : ils ne mesurent pas la même chose et
+leurs chiffres ne se comparent pas.
+
+| | productions complètes EE/EO | micro-sujets « Compétences TCF » |
+|---|---|---|
+| test | `CalibrationBenchTest` | `CompetenceCalibrationBenchTest` |
+| corpus | `calibration/golden-set-v1.json` (48 cas) | `calibration/golden-set-competences-v1.json` (90 cas + 33 témoins réels) |
+| mesure | note /20 + niveau CECRL | **palier** (`level_reached`) + **verdict de critère** (`status`) — aucune note |
+| versions | `-Dcalibration.rubrics` + `-Dcalibration.prompt` | `-Dcalibration.rubrics` + `-Dcalibration.schema`, **ensemble** |
+
+Communs aux deux : `@EnabledIfSystemProperty(calibration.enabled)` **plus** un
+`assumeTrue` dans la méthode ; provider et modèle lus dans la configuration du
+runtime, jamais surchargeables ; `calibration.retries` figé dans le rapport et
+`-Dcalibration.temoin=<rapport.json>` qui **fait échouer** une campagne dont le
+témoin n'a pas tourné au même nombre de réessais ; rapport JSON sous
+`target/calibration/`, avec `sorties_refusees_pct` (÷ appels) et
+`echec_production_pct` (÷ tentatives) **distincts**.
+
+🛑 **Aucune campagne sans demande explicite du propriétaire** (règle du CLAUDE.md
+racine) : ces bancs appellent un LLM payant.
+
+Spécifique au banc Compétences :
+
+- **Le corpus se déduit de traits structurels, pas d'un jugement.** Chaque cas
+  porte `traits_structurels`, lus dans `commun.niveaux` du fichier de consignes
+  actif. Un cas se conteste en montrant que le trait annoncé n'est pas dans la
+  production — pas en trouvant qu'elle « fait plutôt B1 ».
+- **6 échelles** : 5 productions du **même sujet**, une par palier. C'est le
+  matériau de la métrique de **sensibilité** (le correcteur rend-il des paliers
+  différents pour des productions inégales ?), qui n'existe pas côté productions
+  complètes et qui est la question du dossier — mesuré en base : 0 B2 sur 18
+  tentatives, et deux productions manifestement inégales notées toutes deux A2.
+- **Répartition des paliers rendus** publiée à côté du taux d'accord : un
+  correcteur peut afficher un accord honorable tout en ne produisant **jamais**
+  un palier entier. `paliers_jamais_rendus` le dit en clair.
+- **Témoins réels hors score** : les productions relevées en base vivent dans un
+  tableau `temoins_reels` séparé, portent `hors_score: true`, et
+  `CompetenceCaseRun.exploitable()` les exclut de tous les agrégats. Elles n'ont
+  aucune vérité terrain ; elles ne servent qu'à vérifier le réalisme des cas
+  synthétiques. Servies seulement avec `-Dcalibration.temoins=true`.
+- **Échantillons** pour ne pas payer les 90 cas : `-Dcalibration.echantillon=`
+  `paliers` (2 par palier, dans des tâches différentes) · `echelles` · `pieges`.
+- **Coût réel vs coût persisté** : le client arrondit chaque appel au cent
+  **supérieur**, ce qui multiplie par dix la facture affichée d'une campagne de
+  micro-analyses. Le rapport publie donc aussi `cout_reel_usd`, recalculé depuis
+  les tokens et les tarifs du provider actif — c'est ce chiffre-là qu'on cite.
+- `CompetenceGoldenSetTest` verrouille le corpus (couverture 6 tâches × 5 paliers
+  × 3, pièges structurants, échelles, séparation des témoins) **sans aucun appel
+  LLM** : celui-là tourne dans `./mvnw verify`.

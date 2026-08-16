@@ -3203,14 +3203,84 @@ paliers, l'obligation de montrer un B1 ou un B2, l'interdiction de la note, les 
 l'oral, les longueurs maximales : tout est repris **mot pour mot**. Le format de réponse
 demandé à l'IA est rigoureusement le même qu'avant — aucune case n'est ajoutée ni retirée.
 
-⚠️ **Aucune campagne de mesure n'appuie ce changement, et il faut le dire franchement.** Le jeu
-de copies de référence (§12) a été écrit pour les **tâches complètes** ; il n'existe toujours
-aucun équivalent pour les micro-exercices, donc rien ne permet de chiffrer un « avant / après »
-ici. Ce qui justifie de livrer quand même : on ne règle pas un curseur, on **retire des biais
-qu'on peut lire directement dans le texte envoyé à l'IA** — deux paliers jamais montrés, une
-fréquence attendue écrite en toutes lettres, une étiquette de niveau posée à côté de la copie.
-Ce qu'on ne peut pas affirmer, en revanche, c'est de combien le résultat s'améliore : ça reste à
-observer sur les prochaines analyses.
+Ce changement a été **livré sans mesure** — le jeu de copies de référence (§12) avait été écrit
+pour les **tâches complètes**, et il n'existait aucun équivalent pour les micro-exercices. Ce qui
+justifiait de livrer quand même : on ne réglait pas un curseur, on **retirait des biais lisibles
+directement dans le texte envoyé à l'IA** — deux paliers jamais montrés, une fréquence attendue
+écrite en toutes lettres, une étiquette de niveau posée à côté de la copie.
+
+✅ **Il a été mesuré le jour même**, une fois le jeu de 90 copies de référence écrit : la justesse
+du niveau passe de **71,1 % à 82,2 %**, et le nombre de copies de niveaux différents auxquelles
+l'IA donnait le même niveau tombe de 74 à 43. Le détail, ainsi que la correction que cette mesure
+a apportée à notre propre diagnostic, est plus bas.
+
+### Pourquoi presque tout le monde recevait « A2 », et ce qu'on a changé
+
+En regardant les analyses réellement produites, on a constaté que le module Compétences ne
+rendait pour ainsi dire jamais un niveau élevé : sur 18 micro-productions, **pas une seule n'a
+été jugée B2**, y compris des productions visiblement meilleures que d'autres qui recevaient
+pourtant la même étiquette.
+
+La dernière cause, et la plus tenace, ne tenait pas à ce qu'on demandait au correcteur, mais à ce
+que ça lui **coûtait**. Pour annoncer un niveau B1 ou B2, il devait montrer sa preuve : désigner
+la phrase précise de la production qui le démontre — et s'il n'y arrivait pas, notre serveur
+redescendait son verdict d'un cran. Pour annoncer un A2, il n'avait **rien à montrer** et ne
+risquait **rien**. Autrement dit : le niveau bas était la réponse confortable, le niveau élevé la
+réponse risquée. Face à ce choix, n'importe quel correcteur — humain ou machine — finit par jouer
+la sécurité.
+
+Désormais, **le correcteur désigne toujours la phrase sur laquelle il fonde son verdict**, quel
+que soit le niveau : pour dire « A2 », il montre la phrase simple qui fait passer le message,
+exactement comme il devait déjà montrer la phrase construite qui démontre un B2. Répondre coûte
+donc le même effort en haut et en bas de l'échelle, et il n'y a plus de réponse « gratuite ».
+
+**Ce qui n'a pas changé, et qui compte autant.** La protection contre un niveau élevé annoncé
+sans preuve reste **entière** : un B1 ou un B2 non démontré est toujours redescendu d'un cran. En
+revanche, un niveau bas mal justifié n'est **jamais** sanctionné — abaisser un « A2 » à « A1 »
+parce que le correcteur n'a pas désigné sa phrase reviendrait à punir la prudence, c'est-à-dire à
+recréer le problème qu'on vient de corriger. Ces manquements-là sont simplement **comptés**, pour
+qu'on sache si la règle est réellement suivie.
+
+Et surtout : **aucune analyse n'est perdue à cause de ça**. Une preuve manquante n'a jamais fait,
+et ne fera jamais, échouer une analyse — perdre une analyse coûte au candidat sa production et
+son essai gratuit, alors qu'un niveau prudent ne lui coûte qu'une ligne d'affichage. Rien n'a été
+retiré de ce que l'écran montre, et la **note sur 20 reste interdite** dans ce module : elle n'y
+a toujours aucun champ où se loger.
+
+### Ce que la mesure a donné — et ce qu'elle a corrigé dans notre propre diagnostic
+
+Un jeu de 90 copies de référence propre aux micro-exercices a été écrit le 16 août 2026, puis les
+trois versions ont été passées **sur les mêmes copies, le même jour, avec la même IA**. Résultat :
+
+| | avant | étape 1 | **aujourd'hui** |
+|---|---|---|---|
+| niveau exactement juste | 71,1 % | 82,2 % | **85,6 %** |
+| verdict de critère juste | 88,9 % | 87,8 % | **90,0 %** |
+| copies B2 reconnues (sur 18) | 8 | 13 | **14** |
+| copies A2 reconnues (sur 18) | 13 | 16 | **17** |
+| copies confondues entre elles | 74 | 43 | **39** |
+
+Soit **14,5 points de justesse gagnés**, et aucune analyse perdue sur 270 corrections. Le nombre
+de copies de niveaux différents auxquelles l'IA donnait le **même** niveau a été divisé par
+deux — c'était la plainte d'origine.
+
+Le point important n'est pas que les niveaux montent : c'est qu'ils montent **des deux côtés à la
+fois**. Si seules les copies fortes avaient été revalorisées, on aurait simplement rendu l'IA plus
+généreuse. Or les copies A2 sont mieux reconnues **en même temps** que les copies B2, et la
+moyenne des écarts reste à zéro. L'IA ne note pas plus haut, elle note plus juste.
+
+**La mesure a aussi corrigé notre propre diagnostic, et il faut le dire.** On croyait que l'IA
+« plafonnait au A2 », parce que sur 18 productions réelles aucune n'avait jamais été jugée B2.
+C'était faux : sur un jeu de copies dont on connaît le niveau, l'ancienne version reconnaissait
+déjà des B2. Son vrai défaut était de **tout tasser vers le milieu** — elle distribuait des B1 en
+excès, en tirant vers le bas les copies B2 et vers le haut les copies A2. Ce que les 18
+productions réelles disaient, ce n'est peut-être pas que l'IA en était incapable, mais simplement
+qu'aucune de ces copies n'était B2.
+
+**Ce qui reste à vérifier.** Un compteur interne devait confirmer que le correcteur fournit bien
+sa preuve aussi en bas de l'échelle, et non seulement en haut ; il n'est pas encore publié dans le
+rapport de mesure. Tant qu'il ne l'est pas, on sait que le résultat s'est amélioré, mais pas avec
+certitude que c'est **par le mécanisme** qu'on a voulu corriger.
 
 ### Ce que l'IA renvoie : un niveau, un verdict, deux étiquettes
 

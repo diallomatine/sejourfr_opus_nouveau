@@ -38,6 +38,12 @@ import java.util.Set;
  * quota. Elle est donc traitee par {@link CompetenceLevelEvidenceGuard}, qui
  * abaisse le niveau d'un palier au lieu de rejeter.
  *
+ * <p>⚠️ <b>Cet invariant survit au contrat v5</b>, qui met pourtant
+ * {@code level_evidence} dans le {@code required} du tool-schema : c'est le
+ * fournisseur qui l'exige, jamais nous. Recopier ce {@code required} dans le jeu
+ * de cles verifie ici aurait fait rejeter des analyses parfaitement servables —
+ * le piege exact de {@code EvaluationOutputValidator.CHAMPS_V4}.
+ *
  * <p>Toutes les violations sont collectees, jamais la premiere seulement : le
  * message de reessai doit etre complet, sinon on paie un appel par violation.
  */
@@ -87,8 +93,10 @@ public class CompetenceAnalysisValidator {
             // son analyse au candidat — elle abaisse le niveau d'un palier
             // (cf. CompetenceLevelEvidenceGuard). Le champ est seulement
             // reconnu comme etant DANS le contrat, pour ne pas etre compte
-            // « cle hors contrat ».
-            if (CompetenceAnalysisFields.estOptionnelle(contrat, cle)) continue;
+            // « cle hors contrat ». Vaut aussi sous v5, ou le tool-schema la
+            // rend pourtant REQUISE : ce qu'on refuse ici fait echouer, et une
+            // preuve manquante ne doit jamais couter une analyse.
+            if (CompetenceAnalysisFields.estExclueDuValidateur(contrat, cle)) continue;
             if (!sortie.containsKey(cle)) {
                 violations.add(cle + " est absent");
                 continue;

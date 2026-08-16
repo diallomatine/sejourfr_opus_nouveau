@@ -27,8 +27,16 @@ final class CompetenceEvidenceRepairPrompt {
     private CompetenceEvidenceRepairPrompt() {
     }
 
+    /**
+     * @param preuvePartout contrat v5 : la preuve est attendue a TOUS les
+     *                      paliers, donc la sortie sure « annonce plus bas »
+     *                      s'accompagne elle aussi d'un numero. Sous v4 elle
+     *                      s'accompagne d'une omission — le message doit dire
+     *                      la verite du contrat charge, sinon il enseigne une
+     *                      violation.
+     */
     static void append(StringBuilder sb, List<String> violationsDePreuve,
-                       EvaluationProductionSegments segments) {
+                       EvaluationProductionSegments segments, boolean preuvePartout) {
         if (violationsDePreuve == null || violationsDePreuve.isEmpty()) return;
         int taille = segments == null ? 0 : segments.taille();
 
@@ -49,8 +57,12 @@ final class CompetenceEvidenceRepairPrompt {
             .append("traitee, pour le B1 une subordonnee et un enchainement.")
             .append("\n\nDEUX SORTIES SURES, choisis celle qui est vraie :")
             .append("\n1. un segment porte ce marqueur -> garde ton niveau et donne SON numero ;")
-            .append("\n2. aucun segment ne le porte -> annonce le palier INFERIEUR et OMETS ")
-            .append("`level_evidence` (A2, A1 et A1_NON_ATTEINT n'ont rien a demontrer).")
+            .append(preuvePartout
+                ? "\n2. aucun segment ne le porte -> annonce le palier INFERIEUR et donne le "
+                    + "numero du segment qui fonde CE palier-la (aucun palier n'est dispense "
+                    + "de designation, pas meme A1_NON_ATTEINT)."
+                : "\n2. aucun segment ne le porte -> annonce le palier INFERIEUR et OMETS "
+                    + "`level_evidence` (A2, A1 et A1_NON_ATTEINT n'ont rien a demontrer).")
             .append("\nReprends tes autres champs a l'identique : ne change QUE ce qui est signale.");
     }
 }

@@ -82,15 +82,76 @@ class CompetenceRubricsProviderTest {
             .hasSize(10);
     }
 
+    /**
+     * v6 est la version ACTIVE, et la premiere a exiger la preuve du niveau <b>a
+     * tous les paliers</b> : son contrat de sortie est le tool-schema v5, qui met
+     * {@code level_evidence} dans son {@code required}. Tout ce qui juge est
+     * celui de v5 des consignes.
+     */
     @Test
-    void lesCinqVersionsRestentChargeables() {
+    void chargeV6SurLeContratDeSortieV5() {
+        CompetenceRubricsProvider provider = load("v6", "v5");
+
+        assertThat(provider.getVersion()).isEqualTo("v6");
+        assertThat(provider.getToolSchemaVersion()).isEqualTo("v5");
+        assertThat(provider.contraintesLongueur())
+            .containsEntry("verdict", 20)
+            .containsEntry("strength_tag", 3)
+            .containsEntry("focus_tag", 3);
+        assertThat((Map<?, ?>) provider.getCommun().get("niveaux")).hasSize(5);
+        assertThat((List<?>) provider.getCommun().get("few_shot"))
+            .as("les dix ancres de v5 sont reprises, aucune n'est ajoutee ni retiree")
+            .hasSize(10);
+        assertThat(CompetenceAnalysisFields.exigeLaPreuveSurTousLesPaliers(
+            provider.getToolSchemaVersion())).isTrue();
+    }
+
+    @Test
+    void lesSixVersionsRestentChargeables() {
         // On versionne, on ne reecrit jamais : v1 a v4 doivent continuer de
-        // demarrer, c'est ce qui rend le retour arriere reel. v5 est la seule
-        // dont le contrat de sortie ne porte pas son propre numero.
+        // demarrer, c'est ce qui rend le retour arriere reel. v5 et v6 sont les
+        // seules dont le contrat de sortie ne porte pas leur propre numero.
         for (String version : List.of("v1", "v2", "v3", "v4")) {
             assertThat(load(version, version).getVersion()).isEqualTo(version);
         }
         assertThat(load("v5", "v4").getVersion()).isEqualTo("v5");
+        assertThat(load("v6", "v5").getVersion()).isEqualTo("v6");
+    }
+
+    /**
+     * La paire est validee au BOOT : demander a v6 le tool-schema de v5 des
+     * consignes (v4) fait echouer le demarrage. Une bascule faite a moitie ne
+     * doit jamais se decouvrir a la premiere sortie rejetee en production, et il
+     * n'existe aucun repli muet.
+     */
+    @Test
+    void v6AvecUnToolSchemaV4EchoueAuDemarrage() {
+        CompetenceRubricsProvider provider =
+            new CompetenceRubricsProvider(props("v6", "v4"), new ObjectMapper());
+
+        assertThatThrownBy(provider::load)
+            .isInstanceOf(IllegalStateException.class)
+            .hasStackTraceContaining("contrat consignes/tool-schema incompatible");
+    }
+
+    /**
+     * L'EXIGENCE EST UN RANG, PAS UN {@code != v5}. Une allowlist explicite,
+     * comme pour {@code envoieLeNiveauCibleDeLaCompetence} : sans elle, une
+     * version future heriterait du comportement par accident, et un retour
+     * arriere cesserait de reproduire l'ancien au bit pres.
+     */
+    @Test
+    void lExigenceSurTousLesPaliersEstUneAllowlistDeContrats() {
+        assertThat(CompetenceAnalysisFields.exigeLaPreuveSurTousLesPaliers("v5")).isTrue();
+        for (String contrat : List.of("v1", "v2", "v3", "v4", "v6", "v99", "")) {
+            assertThat(CompetenceAnalysisFields.exigeLaPreuveSurTousLesPaliers(contrat))
+                .as("contrat de sortie %s", contrat)
+                .isFalse();
+        }
+        // Le champ existe, lui, des v4 : les deux rangs ne se confondent pas.
+        assertThat(CompetenceAnalysisFields.porteLaPreuveDuNiveau("v4")).isTrue();
+        assertThat(CompetenceAnalysisFields.porteLaPreuveDuNiveau("v5")).isTrue();
+        assertThat(CompetenceAnalysisFields.porteLaPreuveDuNiveau("v3")).isFalse();
     }
 
     /**
@@ -118,6 +179,7 @@ class CompetenceRubricsProviderTest {
     @Test
     void leNiveauCibleDeLaCompetenceNestPlusEnvoyeAPartirDeV5() {
         assertThat(load("v5", "v4").envoieLeNiveauCibleDeLaCompetence()).isFalse();
+        assertThat(load("v6", "v5").envoieLeNiveauCibleDeLaCompetence()).isFalse();
         for (String version : List.of("v1", "v2", "v3", "v4")) {
             assertThat(load(version, version).envoieLeNiveauCibleDeLaCompetence())
                 .as("retour arriere %s : le prompt d'avant, au bit pres", version)

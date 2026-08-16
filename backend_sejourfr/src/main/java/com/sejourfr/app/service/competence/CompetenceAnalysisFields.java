@@ -2,6 +2,7 @@ package com.sejourfr.app.service.competence;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Cles du JSON d'analyse ciblee, telles qu'elles sont demandees au correcteur
@@ -20,7 +21,10 @@ import java.util.Map;
  * {@code SkillAttemptMapper}.
  *
  * <h2>Trois jeux de cles, parce qu'on versionne sans jamais migrer</h2>
- * Le contrat <b>v4</b> rend ceux de v3 plus {@link #LEVEL_EVIDENCE}. Le contrat
+ * Le contrat <b>v5</b> rend exactement les memes cles que v4 ; ce qui change,
+ * c'est que {@link #LEVEL_EVIDENCE} y est <b>requis a tous les paliers</b> et
+ * plus seulement sur un B1/B2. Le contrat
+ * <b>v4</b> rend ceux de v3 plus {@link #LEVEL_EVIDENCE}. Le contrat
  * <b>v3</b> rend {@code status}, {@code level_reached},
  * {@code verdict}, {@code strength_tag} et {@code focus_tag}. Le contrat
  * <b>v1/v2</b> rendait {@code status}, {@code verdict}, {@code success_point},
@@ -66,8 +70,10 @@ public final class CompetenceAnalysisFields {
      * cle porte donc le passage lui-meme, jamais l'entier — exactement comme
      * {@code preuve_segment} devient {@code preuve} cote productions completes.
      *
-     * <p><b>Cle OPTIONNELLE</b> : seuls B1 et B2 ont quelque chose a demontrer.
-     * En dessous, elle est absente, et c'est un cas nominal.
+     * <p><b>Sous v4</b> : cle optionnelle, seuls B1 et B2 ayant quelque chose a
+     * demontrer. <b>Sous v5</b> : cle <b>requise a tous les paliers</b> — le
+     * cout de nommer un palier cesse d'etre asymetrique (cf.
+     * {@link #exigeLaPreuveSurTousLesPaliers(String)}).
      */
     public static final String LEVEL_EVIDENCE = "level_evidence";
 
@@ -95,9 +101,27 @@ public final class CompetenceAnalysisFields {
     /** Reformulation qui conserve l'idee DU CANDIDAT, pas un modele de substitution. */
     public static final String IMPROVED_VERSION = "improved_version";
 
-    /** Contrat v4 : celles de v3, plus la preuve du niveau, dans l'ordre du tool-schema. */
+    /**
+     * Contrat v4 et v5 : celles de v3, plus la preuve du niveau, dans l'ordre du
+     * tool-schema. Les deux rangs demandent les <b>memes six cles</b> ; seule
+     * l'obligation de {@link #LEVEL_EVIDENCE} change.
+     */
     static final List<String> CLES_V4 =
         List.of(STATUS, LEVEL_REACHED, LEVEL_EVIDENCE, VERDICT, STRENGTH_TAG, FOCUS_TAG);
+
+    /**
+     * Contrats qui portent {@link #LEVEL_EVIDENCE}. <b>Allowlist explicite</b>,
+     * jamais un {@code != v3} : une version future ne doit pas heriter d'un
+     * comportement par accident, et un retour arriere doit reproduire l'ancien
+     * au bit pres.
+     */
+    private static final Set<String> CONTRATS_AVEC_PREUVE = Set.of("v4", "v5");
+
+    /**
+     * Contrats qui exigent la preuve <b>a TOUS les paliers</b>. Meme patron
+     * d'allowlist, pour la meme raison.
+     */
+    private static final Set<String> CONTRATS_AVEC_PREUVE_PARTOUT = Set.of("v5");
 
     /** Contrat v3 : cinq cles, dans l'ordre du tool-schema. */
     static final List<String> CLES_V3 =
@@ -116,28 +140,59 @@ public final class CompetenceAnalysisFields {
      * chargeables, et le validateur leur demande alors leurs propres champs.
      */
     public static List<String> cles(String toolSchemaVersion) {
-        if ("v4".equals(toolSchemaVersion)) return CLES_V4;
+        if (CONTRATS_AVEC_PREUVE.contains(toolSchemaVersion)) return CLES_V4;
         return "v3".equals(toolSchemaVersion) ? CLES_V3 : CLES_LEGACY;
     }
 
     /**
-     * Le contrat donne exige-t-il que le niveau annonce soit <b>demontre</b> par
-     * un numero de segment ? Vrai a partir de v4 seulement : sous v1..v3 le
-     * champ n'existe pas, et tout ce qui l'entoure (decoupage numerote du prompt,
-     * reparation dediee, abaissement d'un palier) doit rester <b>inerte</b> —
-     * c'est ce qui garde le retour arriere reel.
+     * Le contrat donne porte-t-il {@link #LEVEL_EVIDENCE} ? Vrai a partir de v4 :
+     * sous v1..v3 le champ n'existe pas, et tout ce qui l'entoure (decoupage
+     * numerote du prompt, reparation dediee, abaissement d'un palier) doit
+     * rester <b>inerte</b> — c'est ce qui garde le retour arriere reel.
      */
     public static boolean porteLaPreuveDuNiveau(String toolSchemaVersion) {
-        return "v4".equals(toolSchemaVersion);
+        return CONTRATS_AVEC_PREUVE.contains(toolSchemaVersion);
     }
 
     /**
-     * Cles que le correcteur peut legitimement omettre. Seule
-     * {@link #LEVEL_EVIDENCE} l'est : A2 et en dessous n'ont rien a demontrer,
-     * et exiger le champ partout obligerait le correcteur a designer un segment
-     * « par defaut » — exactement ce que la grille lui interdit.
+     * LE COUT DE NOMMER UN PALIER EST-IL LE MEME PARTOUT ? Vrai a partir de v5.
+     *
+     * <p><b>Le defaut que ce rang corrige.</b> Sous v4, annoncer un B1 ou un B2
+     * coutait quelque chose — il fallait produire un numero de segment, et un
+     * numero absent ou faux faisait abaisser le verdict d'un palier ; annoncer un
+     * A2 ne coutait <b>rien</b> et ne risquait <b>rien</b>. Le mecanisme lui-meme
+     * rendait le A2 confortable et le B2 risque, quelles que soient les ancres du
+     * prompt. Mesure en base : <b>zero B2 sur 18 tentatives</b>.
+     *
+     * <p>A partir de v5, le correcteur designe <b>toujours</b> le segment sur
+     * lequel il fonde son verdict, palier bas compris : l'<b>effort</b> devient
+     * symetrique, c'est-a-dire la ou vit l'incitation. La <b>sanction</b>, elle,
+     * ne bouge pas — {@code CompetenceLevelEvidenceGuard} n'abaisse toujours que
+     * sur un B1/B2 mal etaye : punir la prudence serait exactement l'inverse du
+     * but recherche.
      */
-    public static boolean estOptionnelle(String toolSchemaVersion, String cle) {
+    public static boolean exigeLaPreuveSurTousLesPaliers(String toolSchemaVersion) {
+        return CONTRATS_AVEC_PREUVE_PARTOUT.contains(toolSchemaVersion);
+    }
+
+    /**
+     * Cles que {@code CompetenceAnalysisValidator} ne verifie <b>jamais</b>.
+     *
+     * <p>⚠️ CE N'EST PAS « facultatif dans le tool-schema ». Depuis v5,
+     * {@link #LEVEL_EVIDENCE} est bel et bien dans le {@code required} du JSON
+     * Schema — le fournisseur l'exige. Mais le validateur, lui, a le pouvoir de
+     * faire echouer l'analyse (seconde sortie encore mauvaise ⇒ {@code FAILED}),
+     * et <b>une preuve manquante ne doit JAMAIS couter au candidat sa production
+     * et son quota</b> : elle est traitee par
+     * {@code CompetenceLevelEvidenceGuard}, qui abaisse au lieu de rejeter.
+     *
+     * <p>C'est exactement le piege documente de {@code
+     * EvaluationOutputValidator.CHAMPS_V4} — une redeclaration en dur des champs
+     * requis, en doublon du {@code required} du JSON. Recopier ici le
+     * {@code required} du schema aurait fait rejeter des analyses valides pour un
+     * champ qui, par decision, ne peut pas en faire echouer une.
+     */
+    public static boolean estExclueDuValidateur(String toolSchemaVersion, String cle) {
         return porteLaPreuveDuNiveau(toolSchemaVersion) && LEVEL_EVIDENCE.equals(cle);
     }
 

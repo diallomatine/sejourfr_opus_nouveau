@@ -77,6 +77,32 @@ public final class EvaluationConfigFixture {
     }
 
     /**
+     * Meme resolution (processus + {@code .env} + {@code application.yaml}) sur
+     * un AUTRE prefixe de configuration.
+     *
+     * <p>Extrait a la deuxieme occurrence : le banc du module « Competences »
+     * lit {@code sejourfr.competences}, mais il choisit son fournisseur dans
+     * {@code sejourfr.production-evaluation} (regle « un seul correcteur
+     * configurable »). Les deux blocs doivent donc etre resolus par la MEME
+     * mecanique — deux chemins de lecture differents, et le banc finirait par
+     * mesurer un correcteur qui n'est pas celui du runtime.
+     *
+     * @param cible instance a remplir, rendue telle quelle apres liaison.
+     */
+    public static <T> T resolue(String prefixe, T cible, Map<String, Object> surcharges) {
+        MutablePropertySources sources = new MutablePropertySources();
+        sources.addFirst(new MapPropertySource("surcharges", new LinkedHashMap<>(surcharges)));
+        sources.addLast(new SystemEnvironmentPropertySource(
+            "system-environment", new LinkedHashMap<>(System.getenv())));
+        sources.addLast(new MapPropertySource("dotenv", new LinkedHashMap<>(dotenv())));
+        ajouteYaml(sources);
+        new Binder(ConfigurationPropertySources.from(sources),
+            new PropertySourcesPlaceholdersResolver(sources))
+            .bind(prefixe, Bindable.ofInstance(cible));
+        return cible;
+    }
+
+    /**
      * Les DEFAUTS LIVRES : {@code application.yaml} seul, sans aucune surcharge
      * locale. Sert de reference pour repondre a « ce modele vient-il du yaml ou
      * d'ailleurs ? ».

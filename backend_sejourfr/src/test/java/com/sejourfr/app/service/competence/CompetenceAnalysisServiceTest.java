@@ -68,7 +68,7 @@ class CompetenceAnalysisServiceTest {
 
         return new CompetenceAnalysisServiceImpl(
             attemptManager, promptBuilder, client, validator, rubrics,
-            new CompetenceLevelEvidenceGuard(downgradeMetrics));
+            new CompetenceLevelEvidenceGuard(downgradeMetrics, rubrics));
     }
 
     private static CompetenceProperties proprietes(String rubriques, String schema) {
@@ -166,10 +166,10 @@ class CompetenceAnalysisServiceTest {
         assertThat(attempt.getStatut()).isEqualTo(SkillAttemptStatut.EVALUATED);
         assertThat(attempt.getCriterionStatus()).isEqualTo(SkillCriterionStatus.PARTIAL);
         assertThat(attempt.getAiModel()).isEqualTo("deepseek-v4-flash");
-        // Les deux versions ne coincident plus : v5 lit d'autres consignes en
-        // rendant exactement le meme JSON, donc le meme contrat de sortie.
-        assertThat(attempt.getPromptVersion()).isEqualTo("v4");
-        assertThat(attempt.getRubricsVersion()).isEqualTo("v5");
+        // Les deux versions ne coincident plus depuis v5 : les consignes et le
+        // contrat de sortie sont versionnes separement, et v6 se lit sur v5.
+        assertThat(attempt.getPromptVersion()).isEqualTo("v5");
+        assertThat(attempt.getRubricsVersion()).isEqualTo("v6");
         assertThat(attempt.getTokensInput()).isEqualTo(1200);
         assertThat(attempt.getTokensOutput()).isEqualTo(180);
         assertThat(attempt.getCoutEstimeCentimes()).isEqualTo(3);
@@ -178,9 +178,11 @@ class CompetenceAnalysisServiceTest {
     }
 
     /**
-     * Sur un A2, {@code level_evidence} est legitimement absent : rien n'est a
-     * demontrer en dessous du B1. La cle ne doit alors pas etre persistee du
-     * tout — un « trou nomme » en base ferait croire a une preuve perdue.
+     * Quand le correcteur n'a pas rendu {@code level_evidence}, la cle ne doit
+     * pas etre persistee du tout — un « trou nomme » en base ferait croire a une
+     * preuve perdue. Depuis le contrat v5 le champ est pourtant requis a tous
+     * les paliers : son absence est une anomalie, elle est comptee, mais elle ne
+     * fabrique jamais une cle vide et ne coute rien au candidat sous le B1.
      */
     @Test
     void nePersisteQueLesClesRenseigneesDuContratEtLesTrime() {
@@ -540,9 +542,67 @@ class CompetenceAnalysisServiceTest {
         assertThat(downgradeMetrics.compteurs()).isEmpty();
     }
 
-    /** A2 et en dessous n'ont rien a demontrer : aucune reparation, aucun abaissement. */
+    /**
+     * L'EFFORT est symetrique, la SANCTION ne l'est pas. Sous v5, le A2 doit
+     * lui aussi designer son segment — mais un manquement ne coute <b>rien</b> :
+     * ni reparation payee (le correcteur ne l'anticipe pas, l'appel serait de
+     * l'argent jete), ni palier retire (abaisser un A2 punirait la prudence,
+     * exactement l'inverse du but). Il est seulement COMPTE.
+     */
     @Test
-    void unA2SansPreuveEstAccepteSansReparationNiAbaissement() {
+    void unA2SansPreuveNeCoutteNiReparationNiPalierMaisEstCompte() {
+        UserSkillAttempt attempt = attempt(SkillSection.EE);
+        when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
+        when(client.analyse(anyString(), anyString()))
+            .thenReturn(outcome(sortieNiveau("A2", null), 10, 10, 1));
+
+        service.analyse(ATTEMPT_ID);
+
+        verify(client, times(1)).analyse(anyString(), anyString());
+        assertThat(attempt.getStatut()).isEqualTo(SkillAttemptStatut.EVALUATED);
+        assertThat(attempt.getAnalysisJson())
+            .containsEntry(CompetenceAnalysisFields.LEVEL_REACHED, "A2")
+            .doesNotContainKey(CompetenceAnalysisFields.LEVEL_EVIDENCE);
+        assertThat(downgradeMetrics.compteurs())
+            .as("sans ce comptage, un correcteur qui omet toujours la preuve en bas "
+                + "de l'echelle serait invisible, et le cout resterait asymetrique")
+            .containsEntry("PREUVE_ABSENTE", 1L)
+            .containsEntry("PREUVE_ABSENTE/SANS_SANCTION/A2", 1L);
+    }
+
+    /**
+     * Le pendant de la regle : un A2 QUI designe voit son numero resolu en texte,
+     * exactement comme un B2. La preuve d'un palier bas est persistee au meme
+     * titre — c'est elle qui permettra de repondre en SQL a « sur quoi ce A2
+     * etait-il fonde ? », et de mesurer plus tard si l'exigence a servi.
+     */
+    @Test
+    void unA2QuiDesigneVoitSaPreuveResolueEnTexteCommeUnB2() {
+        UserSkillAttempt attempt = attempt(SkillSection.EE);
+        when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
+        when(client.analyse(anyString(), anyString()))
+            .thenReturn(outcome(sortieNiveau("A2", 1), 10, 10, 1));
+
+        service.analyse(ATTEMPT_ID);
+
+        verify(client, times(1)).analyse(anyString(), anyString());
+        assertThat(attempt.getAnalysisJson())
+            .containsEntry(CompetenceAnalysisFields.LEVEL_REACHED, "A2")
+            .containsEntry(CompetenceAnalysisFields.LEVEL_EVIDENCE,
+                "La semaine derniere, je suis alle au restaurant.")
+            .as("aucune ligne de base ne porte l'entier : aucun miroir DTO a propager")
+            .doesNotContainValue(1);
+        assertThat(downgradeMetrics.compteurs()).isEmpty();
+    }
+
+    /**
+     * RETOUR ARRIERE sur le contrat v4 : le A2 redevient dispense de preuve, et
+     * son absence n'est meme plus une anomalie. Une bascule qui ne se defait pas
+     * n'est pas un retour arriere.
+     */
+    @Test
+    void sousLeContratV4UnA2SansPreuveNEstPasMemeUneAnomalie() {
+        service = service(proprietes("v5", "v4"));
         UserSkillAttempt attempt = attempt(SkillSection.EE);
         when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
         when(client.analyse(anyString(), anyString()))
@@ -554,6 +614,33 @@ class CompetenceAnalysisServiceTest {
         assertThat(attempt.getAnalysisJson())
             .containsEntry(CompetenceAnalysisFields.LEVEL_REACHED, "A2");
         assertThat(downgradeMetrics.compteurs()).isEmpty();
+
+        ArgumentCaptor<String> user = ArgumentCaptor.forClass(String.class);
+        verify(client).analyse(anyString(), user.capture());
+        assertThat(user.getValue())
+            .as("le rappel place sous la production dit la verite du contrat charge")
+            .contains("Si tu annonces B1 ou B2, `level_evidence` est ce NUMERO");
+    }
+
+    /**
+     * Sous v5, le meme rappel cesse de reserver la preuve au haut de l'echelle :
+     * lui faire annoncer autre chose que le tool-schema enseignerait au
+     * correcteur a le violer.
+     */
+    @Test
+    void sousLeContratV5LeRappelExigeLaPreuveAToutLesPaliers() {
+        UserSkillAttempt attempt = attempt(SkillSection.EE);
+        when(attemptManager.findByIdWithPrompt(ATTEMPT_ID)).thenReturn(Optional.of(attempt));
+        when(client.analyse(anyString(), anyString()))
+            .thenReturn(outcome(sortieNiveau("A2", 1), 10, 10, 1));
+
+        service.analyse(ATTEMPT_ID);
+
+        ArgumentCaptor<String> user = ArgumentCaptor.forClass(String.class);
+        verify(client).analyse(anyString(), user.capture());
+        assertThat(user.getValue())
+            .contains("Quel que soit le palier que tu annonces, `level_evidence` est ce NUMERO")
+            .doesNotContain("Si tu annonces B1 ou B2");
     }
 
     /**

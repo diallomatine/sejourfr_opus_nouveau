@@ -1,9 +1,11 @@
 package com.sejourfr.app.service.competence;
 
+import com.sejourfr.app.config.CompetenceProperties;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.service.EvaluationProductionSegments;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -31,12 +33,29 @@ class CompetenceLevelEvidenceGuardTest {
         """;
 
     private CompetenceLevelDowngradeMetrics metrics;
+    /** Contrat v5 : la preuve est exigee a TOUS les paliers. */
     private CompetenceLevelEvidenceGuard guard;
 
     @BeforeEach
     void setUp() {
         metrics = new CompetenceLevelDowngradeMetrics();
-        guard = new CompetenceLevelEvidenceGuard(metrics);
+        guard = guard("v6", "v5");
+    }
+
+    /**
+     * Le garde-fou lit le rang du CONTRAT charge : c'est lui qui decide si la
+     * preuve est attendue partout (v5) ou seulement sur un B1/B2 (v4). On charge
+     * donc un vrai fournisseur de consignes — un booleen mocke laisserait passer
+     * une matrice de versions incoherente.
+     */
+    private CompetenceLevelEvidenceGuard guard(String rubriques, String schema) {
+        CompetenceProperties props = new CompetenceProperties();
+        props.getAnalysis().setRubricsVersion(rubriques);
+        props.getAnalysis().setToolSchemaVersion(schema);
+        CompetenceRubricsProvider rubrics =
+            new CompetenceRubricsProvider(props, new ObjectMapper());
+        rubrics.load();
+        return new CompetenceLevelEvidenceGuard(metrics, rubrics);
     }
 
     private static EvaluationProductionSegments ecrit() {
@@ -145,25 +164,99 @@ class CompetenceLevelEvidenceGuardTest {
         assertThat(analyse).containsEntry(CompetenceAnalysisFields.LEVEL_REACHED, "B1");
     }
 
-    // ------------------------------------------------------ ce qui n'exige rien
+    // ------------------------------- sous le B1 : on mesure, on ne sanctionne pas
 
+    /**
+     * LE CŒUR DU CONTRAT v5. La preuve est desormais attendue sur un A2 comme sur
+     * un B2 — l'EFFORT est symetrique, c'est la que vivait l'incitation qui
+     * tirait tout le monde vers le A2. Mais la SANCTION reste ou elle protege :
+     * abaisser un A2 a A1 faute de preuve punirait la prudence, exactement
+     * l'inverse du but. On compte, et on n'y touche pas.
+     */
     @Test
-    void unA2SansPreuveNeDeclencheNiViolationNiAbaissement() {
+    void unA2SansPreuveEstCompteMaisJamaisAbaisse() {
         Map<String, Object> analyse = sortie("A2", null);
 
-        assertThat(guard.violations(analyse, ecrit())).isEmpty();
         assertThat(guard.applique(analyse, ecrit())).isFalse();
+
+        assertThat(analyse)
+            .containsEntry(CompetenceAnalysisFields.LEVEL_REACHED, "A2")
+            .doesNotContainKey(CompetenceAnalysisFields.LEVEL_EVIDENCE);
+        assertThat(metrics.compteurs())
+            .containsEntry("PREUVE_ABSENTE", 1L)
+            .containsEntry("PREUVE_ABSENTE/SANS_SANCTION/A2", 1L);
+    }
+
+    /**
+     * Et il ne vaut AUCUNE reparation payee : le correcteur ne l'anticipe pas au
+     * moment de produire, donc l'appel n'achete rien. C'est ce qui garde le cout
+     * d'exploitation identique a celui de v4.
+     */
+    @Test
+    void unA2SansPreuveNeDeclencheAucuneReparation() {
+        assertThat(guard.violations(sortie("A2", null), ecrit())).isEmpty();
+        assertThat(guard.violations(sortie("A1", 42), ecrit())).isEmpty();
+        assertThat(guard.violations(sortie("A1_NON_ATTEINT", "le premier"), ecrit())).isEmpty();
+    }
+
+    @Test
+    void unA1NonAtteintSansPreuveEstCompteEtConserve() {
+        Map<String, Object> analyse = sortie("A1_NON_ATTEINT", null);
+
+        assertThat(guard.applique(analyse, ecrit())).isFalse();
+
+        assertThat(analyse).containsEntry(
+            CompetenceAnalysisFields.LEVEL_REACHED, "A1_NON_ATTEINT");
+        assertThat(metrics.compteurs())
+            .containsEntry("PREUVE_ABSENTE/SANS_SANCTION/A1_NON_ATTEINT", 1L);
+    }
+
+    /**
+     * Un palier bas QUI designe est traite comme un palier haut : le numero
+     * devient le passage exact. C'est la moitie utile de la symetrie — sans elle,
+     * l'exigence serait un cout sans contrepartie.
+     */
+    @Test
+    void unA2QuiDesigneVoitSonNumeroResoluEnTexte() {
+        Map<String, Object> analyse = sortie("A2", 1);
+
+        assertThat(guard.applique(analyse, ecrit())).isFalse();
+
+        assertThat(analyse)
+            .containsEntry(CompetenceAnalysisFields.LEVEL_REACHED, "A2")
+            .containsEntry(CompetenceAnalysisFields.LEVEL_EVIDENCE, "Je prefere le train.");
+        assertThat(metrics.compteurs()).isEmpty();
+    }
+
+    // ------------------------------------------- retour arriere sur le contrat v4
+
+    /**
+     * RETOUR ARRIERE REEL : sous v4 la preuve n'est attendue que sur un B1/B2, et
+     * un A2 sans preuve n'est meme pas une anomalie. Le rang est lu par une
+     * ALLOWLIST, jamais par un {@code != v5} : une version future ne doit pas
+     * heriter du comportement par accident.
+     */
+    @Test
+    void sousLeContratV4UnA2SansPreuveNEstPasUneAnomalie() {
+        CompetenceLevelEvidenceGuard v4 = guard("v5", "v4");
+        Map<String, Object> analyse = sortie("A2", null);
+
+        assertThat(v4.violations(analyse, ecrit())).isEmpty();
+        assertThat(v4.applique(analyse, ecrit())).isFalse();
         assertThat(analyse).containsEntry(CompetenceAnalysisFields.LEVEL_REACHED, "A2");
         assertThat(metrics.compteurs()).isEmpty();
     }
 
+    /** Sous v4, la sanction du B1/B2, elle, est exactement celle d'avant. */
     @Test
-    void unA1NonAtteintSansPreuveNeDeclencheRien() {
-        Map<String, Object> analyse = sortie("A1_NON_ATTEINT", null);
+    void sousLeContratV4LaSanctionDuB2ResteInchangee() {
+        CompetenceLevelEvidenceGuard v4 = guard("v5", "v4");
+        Map<String, Object> analyse = sortie("B2", null);
 
-        assertThat(guard.applique(analyse, ecrit())).isFalse();
-        assertThat(analyse).containsEntry(
-            CompetenceAnalysisFields.LEVEL_REACHED, "A1_NON_ATTEINT");
+        assertThat(v4.violations(analyse, ecrit())).isNotEmpty();
+        assertThat(v4.applique(analyse, ecrit())).isTrue();
+        assertThat(analyse).containsEntry(CompetenceAnalysisFields.LEVEL_REACHED, "B1");
+        assertThat(metrics.compteurs()).containsEntry("PREUVE_ABSENTE/B2->B1", 1L);
     }
 
     /**

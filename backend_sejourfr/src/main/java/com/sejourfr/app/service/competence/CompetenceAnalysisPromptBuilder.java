@@ -121,8 +121,12 @@ public class CompetenceAnalysisPromptBuilder {
             sb.append("\nLa production ci-dessus est DECOUPEE EN SEGMENTS NUMEROTES : chaque ")
                 .append("segment est precede de son numero entre crochets, de [1] a [")
                 .append(segments.taille())
-                .append("]. Si tu annonces B1 ou B2, `level_evidence` est ce NUMERO — un ")
-                .append("entier de cette liste, jamais du texte, jamais 0.");
+                .append("]. ")
+                .append(preuvePartout()
+                    ? "Quel que soit le palier que tu annonces, `level_evidence` est ce "
+                        + "NUMERO — un entier de cette liste, jamais du texte, jamais 0."
+                    : "Si tu annonces B1 ou B2, `level_evidence` est ce NUMERO — un "
+                        + "entier de cette liste, jamais du texte, jamais 0.");
             if (estOral) {
                 sb.append(" Seuls les tours « Candidat : » portent un numero : ceux de ")
                     .append("l'examinateur ne sont pas designables.");
@@ -157,12 +161,23 @@ public class CompetenceAnalysisPromptBuilder {
         if (refusee != null && !refusee.isEmpty()) {
             sb.append("\n\nSORTIE REFUSEE :\n").append(serialize(refusee));
         }
-        CompetenceEvidenceRepairPrompt.append(sb, violationsDePreuve, segments);
+        CompetenceEvidenceRepairPrompt.append(sb, violationsDePreuve, segments, preuvePartout());
         sb.append("\n\nRAPPELS : aucun champ en trop, aucun champ vide. ")
             .append("`status` vaut exactement VALIDATED, PARTIAL ou NOT_VALIDATED. ")
             .append("Si un champ depassait la longueur autorisee, RECRIS-LE PLUS COURT ")
             .append("sans changer ton verdict ni ton niveau.");
         return sb.toString();
+    }
+
+    /**
+     * Le contrat charge exige-t-il la preuve du niveau a TOUS les paliers (v5) ou
+     * seulement sur un B1/B2 (v4) ? Le rappel place sous la production doit dire
+     * la verite du contrat : lui faire annoncer autre chose que le tool-schema
+     * enseignerait au correcteur a le violer.
+     */
+    private boolean preuvePartout() {
+        return CompetenceAnalysisFields.exigeLaPreuveSurTousLesPaliers(
+            rubrics.getToolSchemaVersion());
     }
 
     /** Concatene les {@code sections} (# titre / contenu), les plafonds, les verdicts et les ancres. */

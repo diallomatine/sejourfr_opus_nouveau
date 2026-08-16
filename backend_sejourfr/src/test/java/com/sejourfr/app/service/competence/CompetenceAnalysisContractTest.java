@@ -66,6 +66,90 @@ class CompetenceAnalysisContractTest {
             + "candidat a fait, le niveau dit avec quels moyens. Aucun palier n'est plus "
             + "« attendu » qu'un autre et tu n'as aucune répartition à respecter — tu "
             + "décris cette production-ci, pas une moyenne.";
+    /** Section ajoutee par v4, editee par v6. */
+    private static final String TITRE_PREUVE = "La preuve du niveau : `level_evidence`";
+
+    /**
+     * LES QUATRE SEULES EDITIONS de v6 dans la section de la preuve, {v6 → v5}.
+     * Les inverser doit rendre v5 caractere par caractere : c'est la technique de
+     * {@code ProductionEvaluationContractTest}, et c'est ce qui interdit qu'une
+     * reformulation se glisse derriere le pretexte d'une regle etendue.
+     */
+    private static final List<String[]> EDITIONS_PREUVE_V6 = List.of(
+        new String[]{
+            "Quel que soit le palier que tu annonces — B2 comme A1_NON_ATTEINT —, tu "
+                + "désignes le passage de la production sur lequel tu le fondes.",
+            "Quand tu annonces B1 ou B2, tu désignes le passage de la production qui le "
+                + "démontre."},
+        new String[]{
+            "\n- A2 : une phrase simple, juxtaposée ou reliée par « et », « mais », "
+                + "« parce que », qui fait passer le message dans une situation familière."
+                + "\n- A1 : des mots juxtaposés, une formule apprise, une phrase sans verbe "
+                + "conjugué."
+                + "\n- A1_NON_ATTEINT : le passage qui montre qu'il n'y a rien d'exploitable "
+                + "en français, ou qu'on ne comprend pas ce qui est dit.",
+            ""},
+        new String[]{
+            "annonce le palier inférieur, et désigne le segment qui fonde CE palier-là.",
+            "annonce le palier inférieur."},
+        new String[]{
+            "CE CHAMP EST TOUJOURS ATTENDU. Aucun palier n'est dispensé de désignation, pas "
+                + "même A1_NON_ATTEINT. Désigner un A2 te coûte exactement ce que te coûte de "
+                + "désigner un B2, et c'est voulu : le confort d'un palier ne doit jamais venir "
+                + "de ce qu'il est moins exigeant à justifier. Un palier bas se fonde sur un "
+                + "passage comme un palier haut — celui qui montre le mieux ce que cette "
+                + "production sait faire, ou ne sait pas faire.",
+            "QUAND CE CHAMP N'EST PAS ATTENDU. Pour A2, A1 et A1_NON_ATTEINT, tu n'as rien à "
+                + "démontrer : omets `level_evidence`. Ces paliers se lisent sur l'ensemble de "
+                + "la production, pas sur un passage."});
+
+    /** Les deux seules editions de v6 dans la section qui enumere les champs. */
+    private static final List<String[]> EDITIONS_CHAMPS_V6 = List.of(
+        new String[]{
+            "Obligatoire à CHAQUE analyse, quel que soit le palier annoncé.",
+            "Obligatoire dès que `level_reached` vaut B1 ou B2, à omettre en dessous."},
+        new String[]{
+            "s'il ne désigne rien sur un B1 ou un B2, il abaisse le niveau d'un palier",
+            "s'il ne désigne rien, il abaisse le niveau d'un palier"});
+
+    /** Phrase ajoutee au « pourquoi » de la seule ancre A1_NON_ATTEINT. */
+    private static final String PHRASE_ANCRE_V6 =
+        " La preuve, elle, se donne comme partout ailleurs : le segment désigné est celui qui "
+            + "MONTRE que le palier n'est pas atteint — ici la phrase entière, qui n'est pas "
+            + "en français.";
+
+    /** Les deux editions de la description de {@code level_evidence}, {v5 → v4}. */
+    private static final List<String[]> EDITIONS_DESCRIPTION_PREUVE_V5 = List.of(
+        new String[]{
+            "OBLIGATOIRE À CHAQUE ANALYSE, quel que soit le palier annoncé : désigner coûte le "
+                + "même effort en haut et en bas de l'échelle, et aucun palier n'est plus "
+                + "confortable qu'un autre.",
+            "OBLIGATOIRE dès que `level_reached` vaut B1 ou B2 ; à OMETTRE pour A2, A1 et "
+                + "A1_NON_ATTEINT, qui n'ont rien à démontrer."},
+        new String[]{
+            "une subordination et un enchaînement, pour le A2 une phrase simple qui fait passer "
+                + "le message, pour le A1 des mots juxtaposés sans verbe tenu, pour "
+                + "A1_NON_ATTEINT le passage qui montre que rien n'est exploitable en français.",
+            "une subordination et un enchaînement."});
+
+    /** Les quatre editions de la description RACINE du contrat, {v5 → v4}. */
+    private static final List<String[]> EDITIONS_DESCRIPTION_RACINE_V5 = List.of(
+        new String[]{
+            "d'une micro-compétence : six champs, et AUCUN champ",
+            "d'une micro-compétence : cinq champs, et AUCUN champ"},
+        new String[]{
+            "quel que soit le palier, il se DÉSIGNE",
+            "dès qu'il vaut B1 ou B2, il se DÉSIGNE"},
+        new String[]{
+            "Désigner coûte donc le même effort à tous les paliers — annoncer un A2 n'est pas "
+                + "plus confortable qu'annoncer un B2. Faute de désignation exploitable sur un "
+                + "B1 ou un B2, le serveur",
+            "Faute de désignation exploitable, le serveur"},
+        new String[]{
+            "il ne le relève jamais, il ne sanctionne rien en dessous du B1, et il ne perd "
+                + "jamais l'analyse pour autant.",
+            "il ne le relève jamais, et il ne perd jamais l'analyse pour autant."});
+
     private static final List<String> STATUTS = List.of("VALIDATED", "PARTIAL", "NOT_VALIDATED");
     /** Profil TCF IRN : plafonne au B2, jamais C1 ni C2. */
     private static final List<String> NIVEAUX =
@@ -220,14 +304,15 @@ class CompetenceAnalysisContractTest {
         CompetenceProperties.Analysis analysis = new CompetenceProperties().getAnalysis();
         Properties yaml = applicationYaml();
 
-        assertThat(analysis.getRubricsVersion()).isEqualTo("v5");
+        assertThat(analysis.getRubricsVersion()).isEqualTo("v6");
         assertThat(analysis.getToolSchemaVersion())
-            .as("v5 ne change AUCUN champ de sortie : elle reste sur le contrat v4")
-            .isEqualTo("v4");
+            .as("v6 ne change AUCUN champ de sortie ; elle en rend un OBLIGATOIRE, "
+                + "et c'est le tool-schema v5 qui le porte")
+            .isEqualTo("v5");
         assertThat(yaml.getProperty("sejourfr.competences.analysis.rubrics-version"))
-            .isEqualTo("${COMPETENCE_RUBRICS_VERSION:v5}");
+            .isEqualTo("${COMPETENCE_RUBRICS_VERSION:v6}");
         assertThat(yaml.getProperty("sejourfr.competences.analysis.tool-schema-version"))
-            .isEqualTo("${COMPETENCE_TOOL_SCHEMA_VERSION:v4}");
+            .isEqualTo("${COMPETENCE_TOOL_SCHEMA_VERSION:v5}");
     }
 
     /**
@@ -942,6 +1027,320 @@ class CompetenceAnalysisContractTest {
     @Test
     void lesConsignesV5NeParlentJamaisDuNiveauViseParLeCandidat() {
         String consignes = resourceText("prompts/competence-analysis-rubrics-v5.json");
+
+        assertThat(consignes)
+            .doesNotContain("niveau_vise")
+            .doesNotContain("NIVEAU VISÉ PAR LE CANDIDAT")
+            .doesNotContain("TargetProcedure");
+        assertThat(consignes).contains("Tu ne sais pas quel niveau ce candidat VISE");
+    }
+
+    // ======================================================== contrat v6 ====
+
+    /**
+     * v6 est la premiere version de consignes de ce module a exiger un CHAMP de
+     * plus qu'avant sans en ajouter aucun : {@code level_evidence} existait deja
+     * sous v4, elle le rend obligatoire — d'ou un tool-schema neuf, le v5.
+     */
+    @Test
+    void lesConsignesV6DeclarentLeToolSchemaV5EtLeProfilTcfIrn() {
+        assertThat(resource("prompts/competence-analysis-rubrics-v6.json"))
+            .containsEntry("rubrics-version", "v6")
+            .containsEntry("tool_schema_version", "v5")
+            .containsEntry("profile", "TCF_IRN");
+    }
+
+    /**
+     * LE VERROU CENTRAL DE v6 : elle est v5 <b>au bit pres</b> partout ou l'on
+     * juge. Meme technique de reconstruction inverse que pour v5 depuis v4.
+     *
+     * <p>v6 corrige une asymetrie du MECANISME, pas un critere : nommer un B1/B2
+     * coutait un numero de segment et risquait un abaissement, nommer un A2 ne
+     * coutait rien. Aucun verdict, aucun descripteur de palier, aucun plafond ne
+     * bouge — et le nombre de sections ne bouge pas non plus.
+     */
+    @Test
+    void lesConsignesV6SontV5AuBitPresPourToutCeQuiJuge() {
+        Map<String, Object> communV5 = map(
+            resource("prompts/competence-analysis-rubrics-v5.json").get("commun"));
+        Map<String, Object> communV6 = map(
+            resource("prompts/competence-analysis-rubrics-v6.json").get("commun"));
+
+        for (String bloc : List.of("statuts", "niveaux", "contraintes_longueur")) {
+            assertThat(communV6.get(bloc))
+                .as("v6 ne touche pas a commun.%s : rien de ce qui juge ne bouge", bloc)
+                .isEqualTo(communV5.get(bloc));
+        }
+
+        Map<String, Object> sectionsV5 = sectionsParTitre(communV5);
+        Map<String, Object> sectionsV6 = sectionsParTitre(communV6);
+        assertThat(sectionsV6.keySet())
+            .as("aucune section ajoutee, aucune supprimee, aucune renommee")
+            .containsExactlyElementsOf(sectionsV5.keySet());
+
+        for (Map.Entry<String, Object> attendue : sectionsV5.entrySet()) {
+            String titre = attendue.getKey();
+            if (TITRE_PREUVE.equals(titre) || TITRE_CHAMPS_V4.equals(titre)) continue;
+            assertThat(sectionsV6.get(titre))
+                .as("la section « %s » est reprise telle quelle", titre)
+                .isEqualTo(attendue.getValue());
+        }
+    }
+
+    /**
+     * LES DEUX SEULES SECTIONS EDITEES se reconstruisent exactement en v5, par la
+     * liste ENUMEREE des editions ci-dessous — aucune reformulation ne peut se
+     * glisser derriere le pretexte d'une regle etendue.
+     */
+    @Test
+    void lesDeuxSectionsEditeesParV6SeReconstruisentExactementEnV5() {
+        Map<String, Object> communV5 = map(
+            resource("prompts/competence-analysis-rubrics-v5.json").get("commun"));
+        Map<String, Object> communV6 = map(
+            resource("prompts/competence-analysis-rubrics-v6.json").get("commun"));
+
+        String preuve = contenuSection(communV6, TITRE_PREUVE);
+        for (String[] edition : EDITIONS_PREUVE_V6) {
+            assertThat(preuve).as("fragment attendu dans v6 : %s", edition[0]).contains(edition[0]);
+            preuve = preuve.replace(edition[0], edition[1]);
+        }
+        assertThat(preuve)
+            .as("quatre editions, et elles se defont exactement")
+            .isEqualTo(contenuSection(communV5, TITRE_PREUVE));
+
+        String champs = contenuSection(communV6, TITRE_CHAMPS_V4);
+        for (String[] edition : EDITIONS_CHAMPS_V6) {
+            assertThat(champs).contains(edition[0]);
+            champs = champs.replace(edition[0], edition[1]);
+        }
+        assertThat(champs).isEqualTo(contenuSection(communV5, TITRE_CHAMPS_V4));
+    }
+
+    /**
+     * LE DEFAUT QUE v6 CORRIGE, ecrit noir sur blanc dans la grille : plus aucun
+     * palier n'est dispense de designation, et la raison est nommee — le confort
+     * d'un palier ne doit jamais venir de ce qu'il est moins exigeant a
+     * justifier.
+     */
+    @Test
+    void laSectionDeLaPreuveDeV6NeDispensePlusAucunPalier() {
+        String contenu = contenuSection(
+            map(resource("prompts/competence-analysis-rubrics-v6.json").get("commun")),
+            TITRE_PREUVE);
+
+        assertThat(contenu)
+            .as("l'ancienne dispense a disparu, elle ne peut plus etre lue")
+            .doesNotContain("omets `level_evidence`")
+            .doesNotContain("QUAND CE CHAMP N'EST PAS ATTENDU")
+            .contains("CE CHAMP EST TOUJOURS ATTENDU")
+            .contains("Désigner un A2 te coûte exactement ce que te coûte de désigner un B2");
+        assertThat(contenu)
+            .as("les cinq paliers disent ce qui les demontre, pas seulement B1 et B2")
+            .contains("- B2 : une idée annoncée puis développée")
+            .contains("- B1 : une subordonnée")
+            .contains("- A2 : une phrase simple")
+            .contains("- A1 : des mots juxtaposés")
+            .contains("- A1_NON_ATTEINT : le passage qui montre");
+        assertThat(contenu)
+            .as("ce qui rend l'invention impossible par construction ne bouge pas")
+            .contains("SEGMENTS NUMÉROTÉS")
+            .contains("ce NUMÉRO, un entier")
+            .contains("jamais une citation")
+            .contains("seuls les tours « Candidat : » portent un numéro")
+            .contains("LA BRIÈVETÉ N'EST TOUJOURS PAS UN PLAFOND");
+    }
+
+    /**
+     * Les dix ancres de v5 sont reprises TELLES QUELLES, a la preuve pres : une
+     * ancre reecrite reapprendrait un jugement au correcteur. Les six qui n'en
+     * portaient pas en gagnent une, et celle d'A1_NON_ATTEINT explique en plus ce
+     * qu'on designe quand le palier n'est pas atteint.
+     */
+    @Test
+    void lesAncresDeV6SontCellesDeV5ALaPreuveAjouteePres() {
+        List<?> v5 = list(map(
+            resource("prompts/competence-analysis-rubrics-v5.json").get("commun")).get("few_shot"));
+        List<?> v6 = list(map(
+            resource("prompts/competence-analysis-rubrics-v6.json").get("commun")).get("few_shot"));
+
+        assertThat(v6).as("aucune ancre ajoutee ni retiree").hasSize(v5.size());
+
+        int completees = 0;
+        for (int i = 0; i < v5.size(); i++) {
+            Map<String, Object> attenduV5 = map(map(v5.get(i)).get("attendu"));
+            Map<String, Object> reconstruite = new java.util.LinkedHashMap<>(map(v6.get(i)));
+            if (!attenduV5.containsKey("level_evidence")) {
+                completees++;
+                Map<String, Object> attendu = new java.util.LinkedHashMap<>(
+                    map(reconstruite.get("attendu")));
+                attendu.remove("level_evidence");
+                reconstruite.put("attendu", attendu);
+            }
+            reconstruite.put("pourquoi",
+                String.valueOf(reconstruite.get("pourquoi")).replace(PHRASE_ANCRE_V6, ""));
+            assertThat(reconstruite)
+                .as("ancre %d : on ajoute la preuve, on ne retouche pas le jugement", i + 1)
+                .isEqualTo(v5.get(i));
+        }
+        assertThat(completees)
+            .as("v5 laissait six ancres sans preuve : ce sont exactement les paliers "
+                + "que le correcteur pouvait nommer gratuitement")
+            .isEqualTo(6);
+    }
+
+    /**
+     * L'EXIGENCE EST ANCREE PARTOUT, et chaque preuve DESIGNE UN SEGMENT QUI
+     * EXISTE — decoupe par le serveur ({@link EvaluationProductionSegments}), pas
+     * relue a l'oeil. Une ancre qui omettrait la preuve apprendrait au correcteur
+     * a s'en passer, exactement la ou v6 veut qu'il ne s'en passe plus.
+     */
+    @Test
+    void chaqueAncreV6DesigneUnSegmentReelQuelQueSoitSonPalier() {
+        List<?> fewShot = list(map(
+            resource("prompts/competence-analysis-rubrics-v6.json").get("commun")).get("few_shot"));
+
+        Set<String> paliersCouverts = new java.util.LinkedHashSet<>();
+        Set<String> verdictsCouverts = new java.util.LinkedHashSet<>();
+        for (Object brut : fewShot) {
+            Map<String, Object> ancre = map(brut);
+            Map<String, Object> attendu = map(ancre.get("attendu"));
+            assertThat(attendu.keySet())
+                .as("ancre « %s » : les six cles du contrat, la preuve comprise",
+                    ancre.get("titre"))
+                .containsExactlyInAnyOrderElementsOf(CLES_V4);
+            assertThat(STATUTS).contains(String.valueOf(attendu.get("status")));
+            assertThat(motsDe(attendu.get("strength_tag"))).isLessThanOrEqualTo(3);
+            assertThat(motsDe(attendu.get("focus_tag"))).isLessThanOrEqualTo(3);
+            String niveau = String.valueOf(attendu.get("level_reached"));
+            assertThat(NIVEAUX).contains(niveau);
+            paliersCouverts.add(niveau);
+            verdictsCouverts.add(String.valueOf(attendu.get("status")));
+
+            Object preuve = attendu.get("level_evidence");
+            assertThat(preuve)
+                .as("ancre « %s » : un ENTIER, jamais une citation", ancre.get("titre"))
+                .isInstanceOf(Integer.class);
+            EvaluationProductionSegments segments = EvaluationProductionSegments.of(
+                String.valueOf(ancre.get("production")),
+                "EO".equals(String.valueOf(ancre.get("section")))
+                    ? EpreuveType.TCF_EO : EpreuveType.TCF_EE);
+            assertThat(segments.texte((Integer) preuve))
+                .as("l'ancre « %s » designe le segment %s d'une production qui n'en a que %d",
+                    ancre.get("titre"), preuve, segments.taille())
+                .isPresent();
+        }
+        assertThat(paliersCouverts)
+            .as("les cinq paliers restent ancres, preuve comprise")
+            .containsExactlyInAnyOrderElementsOf(NIVEAUX);
+        assertThat(verdictsCouverts).containsExactlyInAnyOrderElementsOf(STATUTS);
+    }
+
+    /**
+     * LE CONTRAT DE SORTIE v5 : celui de v4, {@code level_evidence} passe dans
+     * {@code required}, et <b>rien d'autre</b>. C'est la contrainte dure qui rend
+     * le cout symetrique — le fournisseur refusera une sortie sans preuve, quel
+     * que soit le palier. Verrou : egalite STRICTE de tout le reste.
+     */
+    @Test
+    void leToolSchemaV5EstCeluiDeV4AvecLaPreuveRENDUEOBLIGATOIRE() {
+        Map<String, Object> v4 = resource("prompts/competence-analysis-tool-schema-v4.json");
+        Map<String, Object> v5 = resource("prompts/competence-analysis-tool-schema-v5.json");
+
+        assertThat(v5.get("type")).isEqualTo(v4.get("type"));
+        assertThat(v5.get("additionalProperties")).isEqualTo(false);
+        assertThat(strings(v5.get("required")))
+            .as("les six cles, dans l'ordre des proprietes")
+            .containsExactlyElementsOf(CLES_V4);
+        assertThat(strings(v4.get("required")))
+            .as("temoin : v4 ne l'exigeait pas, c'est bien LA difference")
+            .doesNotContain("level_evidence");
+        assertThat(v5.keySet())
+            .as("aucune cle racine ajoutee ni retiree")
+            .containsExactlyInAnyOrderElementsOf(v4.keySet());
+
+        Map<String, Object> propsV4 = map(v4.get("properties"));
+        Map<String, Object> propsV5 = map(v5.get("properties"));
+        assertThat(propsV5.keySet()).containsExactlyElementsOf(
+            propsV4.keySet().stream().toList());
+        for (String cle : CLES_V4) {
+            if ("level_evidence".equals(cle)) continue;
+            assertThat(propsV5.get(cle))
+                .as("%s : le contrat de v4 ne bouge pas d'un caractere", cle)
+                .isEqualTo(propsV4.get(cle));
+        }
+
+        Map<String, Object> preuveV4 = map(propsV4.get("level_evidence"));
+        Map<String, Object> preuveV5 = map(propsV5.get("level_evidence"));
+        assertThat(preuveV5.keySet()).containsExactlyElementsOf(preuveV4.keySet().stream().toList());
+        for (String contrainte : List.of("type", "minimum")) {
+            assertThat(preuveV5.get(contrainte))
+                .as("level_evidence.%s : un ENTIER >= 1, inchange", contrainte)
+                .isEqualTo(preuveV4.get(contrainte));
+        }
+        assertThat(v5.get("title")).isEqualTo("Analyse de compétence TCF IRN v5");
+    }
+
+    /**
+     * Les DEUX descriptions editees se reconstruisent exactement en v4, par la
+     * liste enumeree ci-dessous.
+     *
+     * <p>⚠️ On ne peut pas se contenter d'un {@code startsWith} : les deux textes
+     * de v4 contiennent la phrase « dès qu'il vaut B1 ou B2 », qui devient
+     * <b>fausse</b> sous v5. Conserver le prefixe intact reviendrait a livrer une
+     * description qui se contredit — pire qu'une reformulation. La reconstruction
+     * enumeree est de toute facon plus forte : elle prouve que RIEN d'autre n'a
+     * ete reecrit.
+     */
+    @Test
+    void lesDeuxDescriptionsEditeesParLeToolSchemaV5SeReconstruisentEnV4() {
+        Map<String, Object> v4 = resource("prompts/competence-analysis-tool-schema-v4.json");
+        Map<String, Object> v5 = resource("prompts/competence-analysis-tool-schema-v5.json");
+
+        String champ = String.valueOf(map(map(v5.get("properties"))
+            .get("level_evidence")).get("description"));
+        assertThat(champ)
+            .contains("OBLIGATOIRE À CHAQUE ANALYSE")
+            .doesNotContain("à OMETTRE pour A2");
+        for (String[] edition : EDITIONS_DESCRIPTION_PREUVE_V5) {
+            assertThat(champ).contains(edition[0]);
+            champ = champ.replace(edition[0], edition[1]);
+        }
+        assertThat(champ).isEqualTo(String.valueOf(
+            map(map(v4.get("properties")).get("level_evidence")).get("description")));
+
+        String racine = String.valueOf(v5.get("description"));
+        assertThat(racine)
+            .as("la symetrie du cout est ecrite la ou le fournisseur la lit")
+            .contains("annoncer un A2 n'est pas plus confortable qu'annoncer un B2")
+            .contains("il ne sanctionne rien en dessous du B1");
+        for (String[] edition : EDITIONS_DESCRIPTION_RACINE_V5) {
+            assertThat(racine).contains(edition[0]);
+            racine = racine.replace(edition[0], edition[1]);
+        }
+        assertThat(racine).isEqualTo(String.valueOf(v4.get("description")));
+    }
+
+    /** L'interdiction de la NOTE survit a v5 du contrat, comme a toutes les autres. */
+    @Test
+    void leToolSchemaV5NePrevoitToujoursAucunChampDeNote() {
+        String brut = resourceText("prompts/competence-analysis-tool-schema-v5.json")
+            .toLowerCase(Locale.ROOT);
+        assertThat(brut).doesNotContain("note_globale", "niveau_cecrl", "scores_criteres", "/20");
+
+        Map<String, Object> properties = map(resource(
+            "prompts/competence-analysis-tool-schema-v5.json").get("properties"));
+        assertThat(properties.keySet().stream().filter(k -> k.contains("note")))
+            .as("aucun champ de note : un micro-exercice n'en porte pas")
+            .isEmpty();
+        assertThat(strings(map(properties.get("level_reached")).get("enum")))
+            .as("profil TCF IRN : cinq valeurs, jamais C1 ni C2")
+            .containsExactlyElementsOf(NIVEAUX);
+    }
+
+    /** L'invariant du montage a deux appels survit a v6. */
+    @Test
+    void lesConsignesV6NeParlentJamaisDuNiveauViseParLeCandidat() {
+        String consignes = resourceText("prompts/competence-analysis-rubrics-v6.json");
 
         assertThat(consignes)
             .doesNotContain("niveau_vise")
