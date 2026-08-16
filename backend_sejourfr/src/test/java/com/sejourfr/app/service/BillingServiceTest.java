@@ -15,6 +15,7 @@ import com.stripe.model.Event;
 import com.stripe.net.Webhook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -23,6 +24,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -187,6 +189,41 @@ class BillingServiceTest {
             service.handleWebhook("p", "s");
 
             verify(stripeSubscriptionService).dispatch(event);
+        }
+    }
+
+    /**
+     * Un demi-tour sur Stripe ramène le candidat sur le RÉCAPITULATIF de son
+     * pass, pas sur la grille des formules. Le {@code cancel_url} pointait sur
+     * {@code /paiement}, donc sur un écran où il fallait re-choisir — au moment
+     * précis où l'on hésite. L'URL est bâtie côté serveur à partir de
+     * {@code appBaseUrl} et du code de plan déjà validé : aucun chemin de retour
+     * ne vient du client.
+     */
+    @Test
+    void getPaymentLink_demiTourSurStripe_ramenAuRecapitulatifDuPassChoisi() {
+        when(stripeProperties.isConfigured()).thenReturn(true);
+        when(stripeProperties.getAppBaseUrl()).thenReturn("https://sejourfr.fr");
+        when(billingProperties.isOneTime()).thenReturn(true);
+        Plan pass = plan(ModuleAccess.CIVIQUE, null);
+        pass.setDurationDays(90);
+        when(planManager.findByCode("CIVIQUE_3MOIS")).thenReturn(Optional.of(pass));
+
+        try (MockedStatic<com.stripe.model.checkout.Session> sessions =
+                     mockStatic(com.stripe.model.checkout.Session.class)) {
+            com.stripe.model.checkout.Session created =
+                    mock(com.stripe.model.checkout.Session.class);
+            when(created.getUrl()).thenReturn("https://checkout.stripe.com/x");
+            ArgumentCaptor<com.stripe.param.checkout.SessionCreateParams> captor =
+                    ArgumentCaptor.forClass(com.stripe.param.checkout.SessionCreateParams.class);
+            sessions.when(() -> com.stripe.model.checkout.Session.create(captor.capture()))
+                    .thenReturn(created);
+
+            service.getPaymentLink(userId, "CIVIQUE_3MOIS");
+
+            assertThat(captor.getValue().getCancelUrl())
+                    .isEqualTo("https://sejourfr.fr/paiement/recapitulatif"
+                            + "?plan=CIVIQUE_3MOIS&canceled=1");
         }
     }
 }

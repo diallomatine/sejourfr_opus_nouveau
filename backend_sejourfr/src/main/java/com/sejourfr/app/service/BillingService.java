@@ -165,7 +165,7 @@ public class BillingService {
         // Placeholder remplacé par Stripe avant la redirection.
         String successUrl = appBaseUrl + "/paiement/succes"
                 + "?session_id={CHECKOUT_SESSION_ID}&plan=" + planCode;
-        String cancelUrl = appBaseUrl + "/paiement?canceled=1";
+        String cancelUrl = checkoutCancelUrl(planCode);
 
         SessionCreateParams params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
@@ -191,6 +191,26 @@ public class BillingService {
     }
 
     /**
+     * Où revient le candidat quand il fait demi-tour sur Stripe (flèche de
+     * Checkout ou {@code cancel_url}) : sur le <b>récapitulatif du pass qu'il
+     * avait choisi</b>, pas sur la grille des formules.
+     *
+     * <p>Il pointait sur {@code /paiement}, donc sur un écran où il fallait
+     * re-choisir — exactement ce que le parcours « je clique un prix, il me
+     * suit jusqu'au paiement » existe pour éviter. Un demi-tour est le moment
+     * où l'on hésite : lui reprendre son choix à cet instant est le pire
+     * moment.
+     *
+     * <p>L'URL est construite <b>par le serveur</b> à partir de son
+     * {@code appBaseUrl} et du code de plan qu'il a déjà validé : aucun chemin
+     * de retour ne vient du client, donc aucune redirection ouverte possible.
+     */
+    private String checkoutCancelUrl(String planCode) {
+        return stripeProperties.getAppBaseUrl()
+                + "/paiement/recapitulatif?plan=" + planCode + "&canceled=1";
+    }
+
+    /**
      * Checkout one-time (mode PAYMENT) : montant = prix du plan en base, via
      * {@code price_data} dynamique (aucun Stripe Price à créer). Le {@code planCode}
      * voyage en metadata pour que le webhook sache quel pass créditer ; le
@@ -201,7 +221,7 @@ public class BillingService {
         String appBaseUrl = stripeProperties.getAppBaseUrl();
         String successUrl = appBaseUrl + "/paiement/succes"
                 + "?session_id={CHECKOUT_SESSION_ID}&plan=" + plan.getCode();
-        String cancelUrl = appBaseUrl + "/paiement?canceled=1";
+        String cancelUrl = checkoutCancelUrl(plan.getCode());
 
         SessionCreateParams params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)

@@ -179,6 +179,23 @@ function RecapInner() {
 
   const plan = useMemo(() => findOneTimePass(plans, planCode), [plans, planCode]);
   const passModule = plan ? passModuleOf(plan) : null;
+  /* Demi-tour depuis Stripe : `cancel_url` ramène ici avec le pass choisi (le
+     serveur la construit, cf. `BillingService.checkoutCancelUrl`). On le dit
+     sobrement — rien n'a été débité, et son choix est toujours là. */
+  const canceled = searchParams.get("canceled") === "1";
+
+  /* Retour par le bouton « précédent » : le navigateur restaure la page depuis
+     son cache (bfcache) telle qu'on l'a quittée — donc avec `redirecting` à
+     vrai, un bouton figé sur « Redirection… » et plus aucun moyen de payer.
+     `pageshow` est le seul événement émis dans ce cas (aucun effet React ne
+     rejoue), d'où l'écoute directe. */
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setRedirecting(false);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
 
   async function goToPayment() {
     if (!plan) return;
@@ -314,6 +331,15 @@ function RecapInner() {
           Paiement unique — aucun renouvellement automatique.
         </p>
       </section>
+
+      {/* Un demi-tour n'est pas une erreur : ton neutre, pas de rouge, et on
+          redit que le choix est conservé — c'est tout l'objet de ce parcours. */}
+      {canceled && !error && (
+        <p className="rcp-canceled" role="status">
+          Paiement interrompu — vous n&apos;avez rien payé. Votre pass est
+          toujours sélectionné, reprenez quand vous voulez.
+        </p>
+      )}
 
       {error && (
         <div className="form-error rcp-error" role="alert">
@@ -625,6 +651,18 @@ const styles = `
   }
 
   .rcp-error { margin-top: 18px; }
+
+  /* Neutre, jamais rouge : interrompre un paiement n'est pas une faute. */
+  .rcp-canceled {
+    margin: 18px 0 0;
+    padding: 11px 14px;
+    border: 1px solid var(--color-line);
+    border-radius: 12px;
+    background: var(--color-paper-2);
+    color: var(--color-muted);
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
 
   .rcp-foot {
     display: flex;
