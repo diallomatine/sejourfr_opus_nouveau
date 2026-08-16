@@ -319,9 +319,17 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
 
   return (
     <DualChromeShell>
+      {/* L'en-tête nomme LE SUJET, pas la compétence (parité mobile,
+          `competence_prompt_screen`). Le candidat est ici pour produire une
+          réponse à ce sujet-là ; la compétence est déjà annoncée par l'écran
+          d'où il vient, et la répéter en titre lui laissait vingt sujets
+          impossibles à distinguer les uns des autres. Elle reste le libellé du
+          retour et la pastille de la carte de résumé. */}
       <SkillShell
         backHref={skillHref}
         backLabel={prompt?.skillTitle ?? "Petits sujets"}
+        title={prompt?.title}
+        meta={prompt?.taskTitle}
       >
         {loadError && <div className={s.error}>{loadError}</div>}
 
