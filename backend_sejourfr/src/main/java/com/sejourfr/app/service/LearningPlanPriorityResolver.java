@@ -2,7 +2,6 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
-import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import lombok.RequiredArgsConstructor;
@@ -11,11 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -36,6 +33,13 @@ public class LearningPlanPriorityResolver {
     static final int MAX_PRIORITIES = 3;
 
     private final LearningPlanObservationManager observationManager;
+
+    /**
+     * Le moteur de maitrise, <b>seule autorite</b> sur « le transfert est-il
+     * prouve ? ». Il travaille sur l'historique <b>deja charge</b>
+     * ({@code fromObservations}) : cette dependance ne coute pas une requete.
+     */
+    private final SkillMasteryResolver masteryResolver;
 
     /**
      * La derniere observation <b>probante</b> de chaque competence, la plus
@@ -83,9 +87,11 @@ public class LearningPlanPriorityResolver {
      * zero faiblesse observee donne zero priorite, et c'est legitime.
      *
      * <p><b>Une competence dont le transfert est prouve sort des priorites</b>,
-     * quel que soit son statut le plus recent — cf.
-     * {@link #transfertProuve(List)}. « Une fois reussi, on passe a la
-     * competence suivante » : c'est ce qui fait avancer le Plan d'une etape.
+     * quel que soit son statut le plus recent — et « transfert prouve » se lit
+     * chez {@code SkillMasteryEngine}
+     * ({@code SkillMastery.transferProven()}), <b>jamais ici</b>. « Une fois
+     * reussi, on passe a la competence suivante » : c'est ce qui fait avancer le
+     * Plan d'une etape.
      *
      * <p><b>La confiance departage avant la recence</b>, et ce n'est pas un
      * detail : c'est ce qui empeche cette methode et
@@ -102,9 +108,20 @@ public class LearningPlanPriorityResolver {
      *                     ne dit pas si son transfert a deja ete prouve.
      */
     public List<LearningPlanObservation> actionable(List<LearningPlanObservation> observations) {
-        Set<UUID> transfere = transfertProuve(observations);
+        return actionable(observations, mastery(observations));
+    }
+
+    /**
+     * Meme regle, sur des etats de maitrise <b>deja calcules</b> — ce que fait
+     * {@link LearningPlanService}, qui a besoin des memes etats pour ses cartes,
+     * ses jalons et sa bascule de verification. Sans cette surcharge le meme
+     * calcul tournerait deux fois par lecture du Plan.
+     */
+    public List<LearningPlanObservation> actionable(
+            List<LearningPlanObservation> observations,
+            Map<UUID, SkillMasteryEngine.SkillMastery> mastery) {
         return latestObservedBySkill(observations).values().stream()
-                .filter(item -> !transfere.contains(item.getSkill().getId()))
+                .filter(item -> !transfertProuve(mastery, item))
                 .filter(item -> item.getStatus() == LearningPlanSkillStatus.PRIORITY
                         || item.getStatus() == LearningPlanSkillStatus.TO_REINFORCE)
                 .sorted(Comparator
@@ -118,53 +135,64 @@ public class LearningPlanPriorityResolver {
     }
 
     /**
-     * Les competences dont le transfert est <b>prouve</b> : leur derniere
-     * observation issue d'une <b>production contextualisee</b> vaut
-     * {@code SOLID}.
+     * Les <b>etapes franchies</b> : la derniere observation probante de chaque
+     * competence dont le transfert est prouve, <b>de la plus recente a la plus
+     * ancienne</b> et departagee par code pour rester deterministe.
      *
-     * <p><b>Pourquoi cette regle existe.</b> Le proprietaire l'a tranchee ainsi :
-     * « une fois reussi, on passe a la competence suivante ». Sans elle, une
-     * verification en situation reussie ne suffisait pas a faire avancer le Plan
-     * — l'etape restait affichee jusqu'a ce que l'etat agrege du moteur atteigne
-     * {@code SOLID}, qui reclame <b>deux</b> observations positives sur des
-     * sujets differents, et un simple micro-exercice rate ensuite remettait la
-     * competence en tete.
-     *
-     * <p><b>Contextualisee, et rien d'autre</b> ({@code PRODUCTION_EE/EO},
-     * {@code MOCK_EXAM_EE/EO} — cf.
-     * {@link com.sejourfr.app.enums.LearningPlanSourceType#isContextual()}) : un
-     * micro-entrainement est guide vers cette seule competence et ne prouve
-     * aucun transfert ; le diagnostic est la <b>baseline</b>, c'est le point de
-     * depart qu'on cherche justement a depasser. Un {@code SOLID} venu de l'un
-     * ou de l'autre ne sort donc jamais une competence des priorites.
-     *
-     * <p><b>Reversible</b> : c'est la <b>derniere</b> observation contextualisee
-     * qui fait foi, pas « au moins une dans toute l'histoire ». Une production
-     * ulterieure qui fragilise la competence la ramene aussitot parmi les
-     * priorites. A l'inverse un micro-exercice rate ne revoque rien — meme sens
-     * que {@code SkillMasteryEngine}, ou seules les fragilites contextualisees
-     * peuvent defaire une maitrise prouvee en situation.
-     *
-     * <p>⚠️ <b>Sortir des priorites n'est pas etre {@code SOLID} au sens du
-     * moteur.</b> {@code SkillMasteryEngine} et l'etat agrege
-     * {@code SkillMasteryState} ne bougent pas d'un pouce : la competence peut
-     * rester {@code CONSOLIDATING}, et {@code PlanMilestoneSelector} continue de
-     * compter exactement les memes competences {@code SOLID} qu'avant. C'est
-     * voulu et honnete : une preuve n'est pas une maitrise installee.
+     * <p>Exactement le complement de {@link #actionable} : ce que l'une ecarte,
+     * l'autre le rend. Une competence franchie ne <b>disparait</b> donc plus du
+     * parcours — le candidat garde la trace de ce qu'il a passe, et c'est aux
+     * fronts de la cocher. Le bornage a l'affichage appartient a
+     * {@link LearningPlanService}, pas ici : la regle n'est pas une question de
+     * place a l'ecran.
      */
-    private static Set<UUID> transfertProuve(List<LearningPlanObservation> observations) {
-        Map<UUID, LearningPlanObservation> derniereEnSituation = new LinkedHashMap<>();
-        for (LearningPlanObservation observation : observations) {
-            if (!observation.isObserved()) continue;
-            LearningPlanSourceType source = observation.getSourceType();
-            if (source == null || !source.isContextual()) continue;
-            derniereEnSituation.putIfAbsent(observation.getSkill().getId(), observation);
-        }
-        Set<UUID> prouve = new LinkedHashSet<>();
-        derniereEnSituation.forEach((skillId, observation) -> {
-            if (observation.getStatus() == LearningPlanSkillStatus.SOLID) prouve.add(skillId);
-        });
-        return prouve;
+    public List<LearningPlanObservation> franchies(
+            List<LearningPlanObservation> observations,
+            Map<UUID, SkillMasteryEngine.SkillMastery> mastery) {
+        return latestObservedBySkill(observations).values().stream()
+                .filter(item -> transfertProuve(mastery, item))
+                .sorted(Comparator
+                        .comparing(LearningPlanObservation::getObservedAt,
+                                Comparator.reverseOrder())
+                        .thenComparing(item -> item.getSkill().getCode()))
+                .toList();
+    }
+
+    /**
+     * « Le transfert de cette competence est-il prouve ? » — <b>lu</b> chez
+     * {@code SkillMasteryEngine}, jamais recalcule.
+     *
+     * <p><b>Ce qui a change le 2026-08-15, et pourquoi.</b> Cette classe portait
+     * sa propre definition : « la <b>derniere</b> observation issue d'une
+     * production contextualisee vaut {@code SOLID} ». Deux lectures du meme
+     * historique coexistaient donc, et elles se sont contredites en production —
+     * un candidat ayant prouve son transfert <b>trois fois</b> en situation puis
+     * rendu une production moins bonne restait priorite n&deg;1 pour cette regle,
+     * pendant que le moteur le declarait {@code SOLID} et fermait, pour cette
+     * raison meme, le signal de verification. Ni sortie de priorite, ni bouton
+     * de verification : blocage <b>definitif</b>, aucun micro-entrainement ne
+     * pouvant en sortir (la voie ciblee n'ecrit jamais d'observation
+     * contextualisee).
+     *
+     * <p>L'ancienne regle avait de surcroit une tolerance <b>nulle</b> la ou le
+     * moteur en accorde {@code fragility-tolerance}, et comptait comme
+     * revocatrice une observation {@code TO_REINFORCE} que le moteur ne tient
+     * meme pas pour une fragilite. C'est le moteur qui a raison : il lit la
+     * fenetre glissante, les ponderations et la tolerance. Il ne reste donc
+     * qu'une definition, et elle vit chez lui.
+     */
+    private static boolean transfertProuve(
+            Map<UUID, SkillMasteryEngine.SkillMastery> mastery,
+            LearningPlanObservation observation) {
+        SkillMasteryEngine.SkillMastery state = mastery.get(observation.getSkill().getId());
+        return state != null && state.transferProven();
+    }
+
+    /** Le moteur, sur l'historique deja en main : aucune requete de plus. */
+    private Map<UUID, SkillMasteryEngine.SkillMastery> mastery(
+            List<LearningPlanObservation> observations) {
+        return masteryResolver.fromObservations(
+                observations, latestObservedBySkill(observations).keySet());
     }
 
     /**

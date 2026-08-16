@@ -1,6 +1,7 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.config.DiagnosticProperties;
+import com.sejourfr.app.dto.LearningPlanCompletedStepDto;
 import com.sejourfr.app.dto.LearningPlanDto;
 import com.sejourfr.app.dto.LearningPlanPriorityDto;
 import com.sejourfr.app.dto.LearningPlanSkillDto;
@@ -52,10 +53,27 @@ import java.util.UUID;
  * d'étape voyagent <b>à côté</b> de ceux de la compétence, qui gardent la
  * sémantique de {@code SkillDto} et servent les cartes « compétences
  * observées » ({@code LearningPlanSkillDto}), lesquelles ne sont pas des étapes.
+ *
+ * <p><b>Une étape franchie ne disparaît pas du parcours</b> : elle passe de
+ * {@code priorities} à {@code completedSteps} et s'affiche cochée, avant l'étape
+ * courante. Sortir des priorités, c'est avancer, pas effacer.
  */
 @Service
 @RequiredArgsConstructor
 public class LearningPlanService {
+
+    /**
+     * Etapes <b>franchies</b> republiées dans le parcours, les plus récentes.
+     *
+     * <p>Elles s'accumulent sans fin — un candidat assidu en aligne des dizaines
+     * — et un parcours de quarante étapes ne se lit plus. Cinq est le même ordre
+     * de grandeur que ce que le Plan sert déjà par ailleurs
+     * ({@value LearningPlanPriorityResolver#MAX_PRIORITIES} priorités, 8
+     * compétences observées) : de quoi montrer un chemin parcouru sans noyer
+     * l'étape en cours, qui reste ce que le Plan vient dire. L'historique
+     * complet, lui, appartient à l'écran Progression.
+     */
+    public static final int MAX_COMPLETED_STEPS = 5;
 
     private static final ZoneId PARIS = ZoneId.of("Europe/Paris");
 
@@ -80,7 +98,7 @@ public class LearningPlanService {
                     inProgress == null ? LearningPlanState.NEEDS_DIAGNOSTIC
                             : LearningPlanState.DIAGNOSTIC_IN_PROGRESS,
                     inProgress == null ? null : inProgress.getId(), null,
-                    null, List.of(), List.of(), 0, 0, true, null);
+                    List.of(), null, List.of(), List.of(), 0, 0, true, null);
         }
 
         // L'ordre des priorités vit dans LearningPlanPriorityResolver : c'est le
@@ -94,16 +112,38 @@ public class LearningPlanService {
                 observationManager.findAllByUserWithSkill(userId);
         Map<UUID, LearningPlanObservation> latest =
                 priorityResolver.latestObservedBySkill(allObservations);
-        List<LearningPlanObservation> actionable = priorityResolver.actionable(allObservations);
+        // Le moteur de maitrise se branche sur l'historique DEJA charge : le Plan
+        // lit toutes les observations du candidat, il n'a aucune raison de les
+        // relire. Le calcul porte sur TOUTES les competences observees, pas
+        // seulement sur celles des cartes : le jalon d'epreuve compte les
+        // competences transferees, et une competence dont le transfert est prouve
+        // n'est jamais une priorite.
+        //
+        // Il est calcule AVANT les priorites et leur est passe : c'est lui qui
+        // decide desormais qu'une competence sort du parcours, et le recalculer
+        // dans le resolveur ferait tourner deux fois le meme calcul par lecture.
+        Map<UUID, SkillMasteryEngine.SkillMastery> mastery =
+                masteryResolver.fromObservations(allObservations, latest.keySet());
+        List<LearningPlanObservation> actionable =
+                priorityResolver.actionable(allObservations, mastery);
+        // Les etapes FRANCHIES restent dans le parcours, cochees, au lieu de
+        // disparaitre : sans elles le candidat perdait la trace de ce qu'il avait
+        // passe. Bornees aux plus recentes — elles s'accumulent sans fin.
+        List<LearningPlanObservation> franchies =
+                priorityResolver.franchies(allObservations, mastery).stream()
+                        .limit(MAX_COMPLETED_STEPS)
+                        .toList();
         List<LearningPlanObservation> observedItems = latest.values().stream()
                 .sorted(Comparator.comparing(LearningPlanObservation::getObservedAt).reversed())
                 .limit(8)
                 .toList();
 
-        // Priorites et compétences observées se recouvrent largement : on les
-        // compte ENSEMBLE, en une seule passe, plutot qu'une requete par carte.
+        // Priorites, etapes franchies et compétences observées se recouvrent
+        // largement : on les compte ENSEMBLE, en une seule passe (2 requetes quel
+        // que soit le nombre de competences), plutot qu'une requete par carte.
         Set<UUID> skillIds = new LinkedHashSet<>();
         actionable.forEach(item -> skillIds.add(item.getSkill().getId()));
+        franchies.forEach(item -> skillIds.add(item.getSkill().getId()));
         observedItems.forEach(item -> skillIds.add(item.getSkill().getId()));
         // Résolu ici et transmis aux sélecteurs : le Plan pose « locked » sur
         // les priorités, les compétences observées ET l'exercice recommandé.
@@ -111,14 +151,6 @@ public class LearningPlanService {
         SkillAccessService.SkillAccess access = accessService.resolve(userId);
         Map<UUID, SkillProgressCounter.SkillProgress> progress =
                 progressCounter.bySkillIds(userId, skillIds);
-        // Le moteur de maitrise se branche sur l'historique DEJA charge par le
-        // resolveur de priorites : le Plan lit toutes les observations du
-        // candidat, il n'a aucune raison de les relire. Le calcul porte sur
-        // TOUTES les competences observees, pas seulement sur celles des cartes :
-        // le jalon d'epreuve compte les competences transferees, et une
-        // competence SOLID n'est jamais une priorite.
-        Map<UUID, SkillMasteryEngine.SkillMastery> mastery =
-                masteryResolver.fromObservations(allObservations, latest.keySet());
         Map<UUID, PlanRecommendedExerciseDto> exercises = exerciseSelector.selectAll(
                 userId, actionable.stream().map(LearningPlanObservation::getSkill).toList(),
                 access);
@@ -176,6 +208,11 @@ public class LearningPlanService {
                             access.isSkillLocked(item.getSkill().getId()));
                 })
                 .toList();
+        // De la plus ancienne a la plus recente : c'est le sens dans lequel un
+        // parcours se lit, et les etapes franchies precedent l'etape courante.
+        List<LearningPlanCompletedStepDto> completedSteps = franchies.reversed().stream()
+                .map(item -> completedStep(item, progress(progress, item), mastery(mastery, item)))
+                .toList();
         int observedCount = latest.size();
         int activities = Math.toIntExact(observationManager.countSince(userId, startOfWeek()));
         // Le JALON vit a cote des priorites, il ne les remplace pas : les etapes
@@ -185,6 +222,7 @@ public class LearningPlanService {
                 userId, latest.values(), mastery, allObservations, Instant.now()).orElse(null);
         return new LearningPlanDto(
                 LearningPlanState.ACTIVE, completed.getId(), completed.getCompletedAt(),
+                completedSteps,
                 priorities.isEmpty() ? null : priorities.getFirst(),
                 priorities.size() <= 1 ? List.of() : priorities.subList(1, priorities.size()),
                 observed, observedCount, activities, true, milestone);
@@ -295,6 +333,24 @@ public class LearningPlanService {
                 step.promptCount(), step.attemptedCount(), step.validatedCount(),
                 step.completed(), step.promptIds(),
                 mastery.state(), readyForReassessment, locked);
+    }
+
+    /**
+     * Une etape franchie : la meme carte qu'une priorite, sans exercice ni
+     * cadenas — il n'y a plus rien a y faire, et une etape franchie n'est pas
+     * une porte commerciale.
+     */
+    private static LearningPlanCompletedStepDto completedStep(
+            LearningPlanObservation observation,
+            SkillProgressCounter.SkillProgress counts,
+            SkillMasteryEngine.SkillMastery mastery) {
+        LearningPlanStep.Progress step = counts.step();
+        return new LearningPlanCompletedStepDto(
+                observation.getSkill().getId(), observation.getSkill().getCode(),
+                observation.getSkill().getTitle(), observation.getSkill().getSection(),
+                observation.getObservedAt(),
+                step.promptCount(), step.attemptedCount(), step.validatedCount(),
+                step.promptIds(), mastery.state());
     }
 
     private static SkillMasteryEngine.SkillMastery mastery(

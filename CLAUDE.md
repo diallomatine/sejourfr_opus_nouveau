@@ -545,31 +545,60 @@ de rubriques et files de calibration doivent garder le filtre
   deux vues assumées pour une même compétence. Ils **ne réimplémentent pas**
   « les 5 premiers par ordre d'affichage » : deux copies désigneraient deux
   étapes différentes.
-- **Une VÉRIFICATION RÉUSSIE fait sortir la compétence des priorités**
-  (2026-08-15, `LearningPlanPriorityResolver.transfertProuve`) : dès que la
-  **dernière** observation issue d'une source **contextualisée**
-  (`PRODUCTION_EE/EO`, `MOCK_EXAM_EE/EO` — jamais un micro-entraînement, jamais
-  le diagnostic qui est la baseline) porte le statut `SOLID`, la compétence
-  cesse d'être *actionable* et la suivante devient l'étape n°1. « La dernière »
-  et non « au moins une » : c'est ce qui rend la règle **réversible** — une
-  production ultérieure qui fragilise ramène la compétence en priorité, tandis
-  qu'un micro-exercice raté après la preuve ne révoque rien (même sens que
-  `SkillMasteryEngine`, où seule une fragilité contextualisée défait un
-  transfert prouvé).
-  🛑 **L'état agrégé `SOLID` du moteur n'a PAS bougé** (il exige toujours 2
-  observations positives dont une contextualisée, sujets différents) : une
-  compétence sortie des priorités peut donc rester `CONSOLIDATING`, et
-  `PlanMilestoneSelector` voit exactement les mêmes compétences `SOLID` qu'avant.
-  C'est **voulu** — une preuve n'est pas une maîtrise installée. Ne pas
-  « aligner » les deux notions.
-  ⚠️ **Le déclencheur de la vérification est INCHANGÉ** : il faut toujours
-  `readyForReassessment` **et** `step.completed()`. Une étape peut donc afficher
-  « 5/5 » sans que la vérification s'ouvre — arbitrage explicite du propriétaire,
-  qui a refusé d'assouplir la règle *et* de l'expliquer à l'écran.
+- **UNE SEULE définition de « transfert prouvé », et elle vit chez le moteur**
+  (2026-08-16, `SkillMastery.transferProven()`) : l'état agrégé vaut `SOLID`,
+  **ou** une réussite en situation (`SOLID` issu de `PRODUCTION_EE/EO` ou
+  `MOCK_EXAM_EE/EO` — jamais un micro-entraînement, jamais le diagnostic qui est
+  la baseline) est encore dans `transfer-proof-days` **et** les fragilités
+  contextualisées récentes restent sous `fragility-tolerance`. Une compétence
+  dont le transfert est prouvé cesse d'être *actionable* : elle sort des
+  priorités et la suivante devient l'étape n°1.
+  `LearningPlanPriorityResolver.transfertProuve` ne fait que **lire** ce
+  booléen — il ne relit plus l'historique.
+  ⚠️ **Cette règle RÉVOQUE celle du 2026-08-15** (« la **dernière** observation
+  contextualisée fait foi »), qui avait une tolérance **nulle** et enfermait le
+  candidat : une seule production moins bonne révoquait trois `SOLID`
+  antérieurs, la compétence restait priorité **à vie**, et le moteur — qui la
+  jugeait déjà `SOLID` — refusait en même temps d'ouvrir la vérification
+  (`readyForReassessment` court-circuite sur `state == SOLID`). Impasse mesurée
+  en base sur `user@sejourfr.fr`/`EE1-C8`, plus 4 autres compétences du même
+  compte. Ne pas la réintroduire.
+  ⚠️ **Aligner sur le seul `state == SOLID` NE MARCHE PAS non plus** — piège
+  arithmétique, vérifié : dans le parcours normal (5 micro-sujets validés + 1
+  vérification réussie) le score plafonne à **0,679** pour un `solid-score` de
+  **0,75**, les 5 `TO_REINFORCE` ciblés à 0,5 diluant la moyenne. Les 5
+  conditions structurelles de `SOLID` sont pourtant réunies : c'est le **seuil de
+  score** qui manque. Exiger `SOLID` déplacerait donc l'impasse d'un cran et
+  imposerait une **seconde** preuve en situation, contre la décision « une
+  réussite suffit ». D'où la seconde branche. Verrou :
+  `SkillMasteryEngineTest.cinqSujetsPuisUneVerificationProuventLeTransfert`
+  (assert `transferProven()` **et** `state != SOLID`).
+  **Corollaire** : une étape franchie n'est **pas** forcément `SOLID` — sur le
+  compte réel, 1 l'est et 4 sont `CONSOLIDATING`. `PlanMilestoneSelector`
+  (≥ 2 compétences `SOLID`) est donc **inchangé**, et les fronts ne doivent
+  **jamais** conditionner la coche verte à `masteryState == SOLID` :
+  l'appartenance à `completedSteps` **est** la coche.
+  🛑 **`recentContextualProof` ne se pose que sur une contextualisée `SOLID`**
+  (corrigé le 2026-08-16) : il l'était sur tout `valeur >= 0.5`, donc une
+  production jugée **fragile** comptait comme preuve de transfert et **éteignait**
+  le signal de vérification. Ne change rien au cas ci-dessus (de vrais `SOLID`
+  existaient) ; débloque les candidats dont la seule trace en situation était une
+  fragilité.
+  ⚠️ **Le déclencheur de la vérification est INCHANGÉ** : toujours
+  `readyForReassessment` **et** `step.completed()`.
   Conséquence sur le freemium : `SkillAccessService` ouvrant la compétence de la
   priorité n°1, celle-ci **se déplace** avec l'enchaînement. Sans effet réel pour
   un compte gratuit, qui plafonne à 2 sujets sur 5, ne termine jamais une étape
   et n'obtient donc jamais cette preuve par cette voie.
+- **Une étape franchie RESTE dans le parcours, cochée** —
+  `LearningPlanDto.completedSteps` (`LearningPlanCompletedStepDto`, **jamais
+  `null`**, vide = cas normal, **bornée à 5** les plus récentes, ordre du plus
+  ancien au plus récent). Elle se lit **avant** `currentPriority` puis
+  `nextPriorities`, dans le **même parcours numéroté**. Sans elle, une compétence
+  prouvée **disparaissait** et le candidat perdait la trace de ce qu'il avait
+  franchi. Elle ne porte **ni `recommendedExercise` ni `locked`** : il n'y a rien
+  à y faire, et ce n'est pas une porte commerciale. L'historique complet reste
+  l'affaire de l'écran Progression.
 - **Achèvement d'une étape, dérivé serveur** (`LearningPlanStep.Progress
   .completed()`, jamais persisté, jamais recalculé par un front — philosophie
   `SkillStatusResolver` / `SituationDansNiveau`) : terminée quand ses 5 sujets

@@ -34,9 +34,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -75,13 +77,13 @@ class LearningPlanServiceTest {
         milestoneSelector = mock(PlanMilestoneSelector.class);
         when(milestoneSelector.select(eq(userId), anyCollection(), anyMap(), anyCollection(), any()))
                 .thenReturn(Optional.empty());
+        SkillMasteryResolver masteryResolver = new SkillMasteryResolver(observationManager,
+                new SkillMasteryEngine(planProperties), planProperties);
         service = new LearningPlanService(new DiagnosticProperties(), taskManager,
                 sessionManager, observationManager,
-                new LearningPlanPriorityResolver(observationManager),
+                new LearningPlanPriorityResolver(observationManager, masteryResolver),
                 exerciseSelector, reassessmentSelector, milestoneSelector, progressCounter,
-                new SkillMasteryResolver(observationManager,
-                        new SkillMasteryEngine(planProperties), planProperties),
-                accessService);
+                masteryResolver, accessService);
     }
 
     @Test
@@ -691,6 +693,106 @@ class LearningPlanServiceTest {
         assertThat(result.observedSkills())
                 .extracting(item -> item.skillCode())
                 .containsExactlyInAnyOrder("EE1-C1", "EE1-C2");
+        // Et l'etape franchie reste DANS le parcours, cochee, au lieu de
+        // disparaitre : le candidat garde la trace de ce qu'il a passe.
+        assertThat(result.completedSteps()).singleElement()
+                .satisfies(step -> assertThat(step.skillCode()).isEqualTo("EE1-C1"));
+    }
+
+    // ------------------------------------------------------------------------
+    // Les etapes FRANCHIES restent dans le parcours
+    // ------------------------------------------------------------------------
+
+    /**
+     * Elles portent de quoi rendre la <b>meme carte</b> qu'une priorite : identite
+     * de la competence et compteurs d'etape.
+     */
+    @Test
+    void uneEtapeFranchiePorteSonIdentiteEtSesCompteursDetape() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Skill reussie = skill("EE1-C1");
+        LearningPlanObservation preuve = observation(reussie, LearningPlanSkillStatus.SOLID,
+                Instant.now(), LearningPlanSourceType.PRODUCTION_EE, UUID.randomUUID());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(preuve));
+        when(observationManager.countSince(any(), any())).thenReturn(1L);
+        stubExercisesForEverySkill();
+        stubProgress(preuve, new SkillProgressCounter.SkillProgress(
+                15, 5, 4, 1, etape(5, 5, 4)));
+
+        var result = service.get(userId);
+
+        assertThat(result.currentPriority()).isNull();
+        assertThat(result.completedSteps()).singleElement().satisfies(step -> {
+            assertThat(step.skillId()).isEqualTo(reussie.getId());
+            assertThat(step.skillCode()).isEqualTo("EE1-C1");
+            assertThat(step.title()).isEqualTo(reussie.getTitle());
+            assertThat(step.section()).isEqualTo(SkillSection.EE);
+            assertThat(step.observedAt()).isEqualTo(preuve.getObservedAt());
+            assertThat(step.stepPromptCount()).isEqualTo(5);
+            assertThat(step.stepAttemptedCount()).isEqualTo(5);
+            assertThat(step.stepValidatedCount()).isEqualTo(4);
+            assertThat(step.stepPromptIds()).hasSize(5);
+        });
+        // Aucune requete ajoutee : les compteurs des etapes franchies sortent du
+        // MEME appel groupe que ceux des priorites et des competences observees.
+        verify(progressCounter).bySkillIds(eq(userId),
+                argThat(ids -> ids.contains(reussie.getId())));
+        verify(progressCounter, times(1)).bySkillIds(eq(userId), anyCollection());
+        verify(observationManager, times(1)).findAllByUserWithSkill(userId);
+    }
+
+    /**
+     * Elles s'accumulent sans fin : le parcours n'en publie que les plus
+     * recentes, et les rend de la plus ancienne a la plus recente — le sens dans
+     * lequel un parcours se lit.
+     */
+    @Test
+    void lesEtapesFranchiesSontBorneesEtChronologiques() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Instant now = Instant.now();
+        List<LearningPlanObservation> historique = new ArrayList<>();
+        for (int rang = 0; rang < LearningPlanService.MAX_COMPLETED_STEPS + 3; rang++) {
+            historique.add(observation(skill("EE1-C" + rang), LearningPlanSkillStatus.SOLID,
+                    now.minusSeconds(60L * rang), LearningPlanSourceType.PRODUCTION_EE,
+                    UUID.randomUUID()));
+        }
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(historique);
+        when(observationManager.countSince(any(), any())).thenReturn(8L);
+        stubExercisesForEverySkill();
+
+        var completedSteps = service.get(userId).completedSteps();
+
+        assertThat(completedSteps).hasSize(LearningPlanService.MAX_COMPLETED_STEPS);
+        assertThat(completedSteps).extracting(step -> step.skillCode())
+                .containsExactly("EE1-C4", "EE1-C3", "EE1-C2", "EE1-C1", "EE1-C0");
+        assertThat(completedSteps.getFirst().observedAt())
+                .isBefore(completedSteps.getLast().observedAt());
+    }
+
+    @Test
+    void sansAucuneEtapeFranchieLaListeEstVideJamaisNulle() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        LearningPlanObservation priority = observation(
+                "EE1-C4", LearningPlanSkillStatus.PRIORITY, Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(priority));
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+        stubExercisesForEverySkill();
+
+        assertThat(service.get(userId).completedSteps()).isEmpty();
+        // Et avant meme le diagnostic, le champ existe deja vide.
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
+        when(taskManager.findLatestActiveDiagnosticVersion("INITIAL_TCF"))
+                .thenReturn(Optional.empty());
+        assertThat(service.get(userId).completedSteps()).isEmpty();
     }
 
     /**

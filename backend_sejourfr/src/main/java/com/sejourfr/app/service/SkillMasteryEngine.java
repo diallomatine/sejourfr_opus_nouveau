@@ -21,7 +21,14 @@ import java.util.UUID;
 
 /**
  * <b>LE</b> moteur de maitrise : d'un historique d'observations, il tire l'etat
- * d'une competence et le signal interne « prete a etre verifiee en situation ».
+ * d'une competence, le signal interne « prete a etre verifiee en situation » et
+ * la reponse a « son transfert est-il prouve ? »
+ * ({@link SkillMastery#transferProven()}, lue par
+ * {@link LearningPlanPriorityResolver} pour sortir une competence des priorites).
+ * <b>Ces trois conclusions viennent du meme calcul</b> : c'est ce qui empeche le
+ * Plan de dire « encore une etape a faire » pendant que le moteur dit « c'est
+ * acquis » — le defaut corrige le 2026-08-15, ou les deux lectures se
+ * contredisaient et bloquaient un candidat definitivement.
  *
  * <p><b>Fonction pure, aucun acces base.</b> Le chargement en lot vit dans
  * {@link SkillMasteryResolver} ; ici il n'y a que du calcul, testable sans mock
@@ -130,7 +137,51 @@ public class SkillMasteryEngine {
                 full.distinctSubjects.size(),
                 readyForReassessment(state, full, config),
                 vigilance,
+                transferProven(state, full, revocatrices, config),
                 retained.getFirst().getObservedAt());
+    }
+
+    /**
+     * <b>LA</b> definition de « le transfert de cette competence est prouve », et
+     * la seule : c'est elle que {@link LearningPlanPriorityResolver} lit pour
+     * sortir une competence des priorites du Plan — « une fois reussi, on passe a
+     * la competence suivante ».
+     *
+     * <p>Deux voies, jamais recalculees ailleurs :
+     * <ul>
+     *   <li>l'etat agrege vaut {@code SOLID} — la maitrise est installee, il n'y
+     *       a plus rien a demander ;</li>
+     *   <li>ou une <b>reussite en situation</b> ({@code SOLID} issu d'une
+     *       production complete ou d'un examen blanc, jamais d'un
+     *       micro-entrainement ni du diagnostic qui est la baseline) est encore
+     *       dans la fenetre {@code transfer-proof-days}, et les fragilites
+     *       contextualisees recentes restent <b>sous la meme tolerance</b> que
+     *       celle qui protege {@code SOLID}.</li>
+     * </ul>
+     *
+     * <p><b>Pourquoi la seconde voie existe</b> : {@code SOLID} exige un score
+     * pondere superieur a {@code solid-score}, or cinq micro-entrainements
+     * reussis valent {@code 0.5} chacun et diluent mecaniquement la moyenne — le
+     * parcours normal (5 micro-sujets valides puis <b>une</b> verification
+     * reussie) plafonne autour de {@code 0.68} et n'atteint donc pas
+     * {@code SOLID}. S'en tenir a l'etat agrege aurait redemande une seconde
+     * preuve en situation, c'est-a-dire exactement ce que le proprietaire a
+     * tranche de ne pas faire.
+     *
+     * <p><b>Et pourquoi la tolerance est celle du moteur</b> : la regle
+     * precedente ne regardait que la <b>derniere</b> observation contextualisee,
+     * donc une seule production moins bonne revoquait trois {@code SOLID}
+     * anterieurs — tolerance nulle, alors que le filet de stabilite en accorde
+     * {@code fragility-tolerance}. Pire, elle comptait comme revocatrice une
+     * observation {@code TO_REINFORCE}, que le moteur ne tient meme pas pour une
+     * fragilite. Un candidat pouvait s'y retrouver bloque <b>definitivement</b> :
+     * ni sortie de priorite, ni signal de verification.
+     */
+    private static boolean transferProven(
+            SkillMasteryState state, Tally tally, long revocatrices,
+            LearningPlanProperties.Mastery config) {
+        if (state == SkillMasteryState.SOLID) return true;
+        return tally.recentContextualProof && revocatrices < config.getFragilityTolerance();
     }
 
     // ------------------------------------------------------------------------
@@ -223,7 +274,17 @@ public class SkillMasteryEngine {
             if (source == null) continue;
             if (source.isContextual()) {
                 tally.contextualPositiveCount++;
-                if (!item.getObservedAt().isBefore(transferStart)) tally.recentContextualProof = true;
+                // Une PREUVE de transfert, c'est une reussite en situation, donc
+                // SOLID et rien d'autre. Une contextualisee TO_REINFORCE dit
+                // « fragile en situation » : la compter comme preuve eteignait le
+                // signal de verification au moment precis ou il devenait utile.
+                // Elle reste une observation positive (contextualPositiveCount),
+                // ce qu'elle est — les deux ensembles repondent a deux questions
+                // differentes.
+                if (item.getStatus() == LearningPlanSkillStatus.SOLID
+                        && !item.getObservedAt().isBefore(transferStart)) {
+                    tally.recentContextualProof = true;
+                }
             }
         }
         return tally;
@@ -342,10 +403,17 @@ public class SkillMasteryEngine {
             boolean readyForReassessment,
             /** {@code SOLID} conserve malgre une fragilite recente toleree. */
             boolean vigilance,
+            /**
+             * Le transfert de cette competence est <b>prouve</b> : elle sort des
+             * priorites du Plan et son etape est <b>franchie</b>. Signal interne,
+             * lu par {@link LearningPlanPriorityResolver} et par lui seul ; il
+             * n'est expose a aucun front, qui lisent {@code state}.
+             */
+            boolean transferProven,
             Instant lastObservedAt) {
 
         /** Aucune observation exploitable : le moteur ne conclut rien. */
         public static final SkillMastery NONE =
-                new SkillMastery(null, 0, 0, 0, 0, 0, false, false, null);
+                new SkillMastery(null, 0, 0, 0, 0, 0, false, false, false, null);
     }
 }
