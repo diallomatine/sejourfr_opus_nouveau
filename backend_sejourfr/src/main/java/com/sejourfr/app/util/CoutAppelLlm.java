@@ -38,7 +38,8 @@ import java.time.Instant;
  */
 public record CoutAppelLlm(TarifsLlm tarifs, Clock horloge) {
 
-    private static final long MICRO_PAR_DOLLAR = 1_000_000L;
+    /** Les tarifs sont declares « par million de tokens ». */
+    private static final double TOKENS_PAR_TARIF = 1_000_000d;
 
     public CoutAppelLlm(TarifsLlm tarifs) {
         this(tarifs, Clock.systemUTC());
@@ -104,12 +105,13 @@ public record CoutAppelLlm(TarifsLlm tarifs, Clock horloge) {
         int sortie = Tokens.nz(tokens.sortie());
         if (miss == 0 && hit == 0 && sortie == 0) return null;
 
-        double usd = miss * tarifs.getCostPerMillionInputTokens() / MICRO_PAR_DOLLAR
-            + hit * tarifCacheHit() / MICRO_PAR_DOLLAR
-            + sortie * tarifs.getCostPerMillionOutputTokens() / MICRO_PAR_DOLLAR;
+        double usd = miss * tarifs.getCostPerMillionInputTokens() / TOKENS_PAR_TARIF
+            + hit * tarifCacheHit() / TOKENS_PAR_TARIF
+            + sortie * tarifs.getCostPerMillionOutputTokens() / TOKENS_PAR_TARIF;
         usd *= multiplicateurCourant();
-        if (usd <= 0) return null;
-        return (int) Math.min(Math.ceil(usd * MICRO_PAR_DOLLAR), Integer.MAX_VALUE);
+        // Unite et arrondi : decision du depot, partagee avec la transcription
+        // Whisper, qui se facture a la minute et non au token.
+        return MicroDollars.depuisUsd(usd);
     }
 
     /** Raccourci : les trois nombres bruts d'une reponse. */

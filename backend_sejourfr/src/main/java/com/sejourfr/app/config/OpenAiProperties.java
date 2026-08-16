@@ -44,6 +44,22 @@ public class OpenAiProperties {
             "Transcription litterale d'un apprenant de francais langue etrangere. "
             + "Conserver les hesitations, les repetitions, et les eventuelles fautes "
             + "grammaticales telles que prononcees.";
+        /**
+         * Tarif du modele de transcription, en <b>USD par minute d'audio</b>
+         * (whisper-1 : 0,006 $/min, releve le 2026-08-16 sur la page tarifaire
+         * OpenAI). Whisper facture a la duree, jamais au token : ce tarif n'a
+         * donc rien a voir avec ceux de {@code sejourfr.production-evaluation}.
+         *
+         * <p>Meme regle que pour les correcteurs : <b>le tarif voyage avec le
+         * modele</b>, dans la meme source. Changer {@code OPENAI_WHISPER_MODEL}
+         * sans poser {@code OPENAI_WHISPER_COST_PER_MINUTE} a cote laisserait le
+         * prix de l'ancien modele — et le cout est PERSISTE, donc un tarif faux
+         * y reste faux pour toujours.
+         *
+         * <p>0 = aucun tarif configure : rien n'est facture (colonne laissee a
+         * {@code NULL}) plutot qu'un montant invente.
+         */
+        private double costPerMinuteUsd = 0.006;
 
         public String getModel() { return model; }
         public void setModel(String model) { this.model = model; }
@@ -62,5 +78,8 @@ public class OpenAiProperties {
 
         public String getLiteralModePrompt() { return literalModePrompt; }
         public void setLiteralModePrompt(String literalModePrompt) { this.literalModePrompt = literalModePrompt; }
+
+        public double getCostPerMinuteUsd() { return costPerMinuteUsd; }
+        public void setCostPerMinuteUsd(double costPerMinuteUsd) { this.costPerMinuteUsd = costPerMinuteUsd; }
     }
 }

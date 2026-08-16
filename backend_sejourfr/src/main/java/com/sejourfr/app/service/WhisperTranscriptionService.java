@@ -5,6 +5,7 @@ import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.Transcription;
 import com.sejourfr.app.exception.TranscriptionException;
 import com.sejourfr.app.manager.TranscriptionManager;
+import com.sejourfr.app.util.CoutTranscription;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,9 +41,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class WhisperTranscriptionService {
 
-    /** Cout indicatif Whisper : 0.006 USD / minute -> on stocke en centimes de cent, arrondi sup. */
-    private static final double COUT_USD_PAR_SECONDE = 0.006 / 60.0;
-
     private final TranscriptionManager transcriptionManager;
     private final WhisperTranscriptionClient whisperClient;
     private final OpenAiProperties props;
@@ -74,7 +72,7 @@ public class WhisperTranscriptionService {
         t.setModeleUtilise(props.getWhisper().getModel());
         t.setPromptUtilise(props.getWhisper().getLiteralModePrompt());
         t.setAudioDurationSec(result.durationSec());
-        t.setCoutEstimeCentimes(estimerCout(result.durationSec()));
+        t.setCoutMicroUsd(coutMicroUsd(result.durationSec()));
         t.setAvgLogprob(result.quality().avgLogprob());
         t.setNoSpeechProb(result.quality().noSpeechProb());
         t.setCompressionRatio(result.quality().compressionRatio());
@@ -93,9 +91,13 @@ public class WhisperTranscriptionService {
         return (fileName == null || fileName.isBlank()) ? "audio.webm" : fileName;
     }
 
-    private static Integer estimerCout(Integer durationSec) {
-        if (durationSec == null || durationSec <= 0) return null;
-        double centsUsd = durationSec * COUT_USD_PAR_SECONDE * 100.0;
-        return (int) Math.ceil(centsUsd);
+    /**
+     * Whisper facture a la MINUTE d'audio. Le tarif vient de la configuration
+     * (jamais d'une constante Java : il voyage avec le modele), l'unite et
+     * l'arrondi sont ceux de tout le depot — cf. {@link CoutTranscription}.
+     */
+    private Integer coutMicroUsd(Integer durationSec) {
+        return new CoutTranscription(props.getWhisper().getCostPerMinuteUsd())
+            .microDollars(durationSec);
     }
 }

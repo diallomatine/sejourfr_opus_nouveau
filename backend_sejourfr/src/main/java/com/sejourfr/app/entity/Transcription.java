@@ -50,8 +50,15 @@ public class Transcription {
     @Column(name = "audio_duration_sec")
     private Integer audioDurationSec;
 
-    @Column(name = "cout_estime_centimes")
-    private Integer coutEstimeCentimes;
+    /**
+     * Cout de la transcription en <b>micro-dollars</b> (millioniemes de dollar).
+     * Remplace {@code cout_estime_centimes}, laissee LEGACY par V035 : elle
+     * arrondissait au centime SUPERIEUR une facture a la minute d'audio, donc
+     * surestimait de ~5 % l'audio median du depot. Volontairement non mappee —
+     * ses valeurs restent en base, plus rien ne les ecrit.
+     */
+    @Column(name = "cout_micro_usd")
+    private Integer coutMicroUsd;
 
     /**
      * QUALITE RENVOYEE PAR WHISPER (verbose_json), payee depuis toujours et lue
@@ -113,8 +120,8 @@ public class Transcription {
     public Integer getAudioDurationSec() { return audioDurationSec; }
     public void setAudioDurationSec(Integer audioDurationSec) { this.audioDurationSec = audioDurationSec; }
 
-    public Integer getCoutEstimeCentimes() { return coutEstimeCentimes; }
-    public void setCoutEstimeCentimes(Integer coutEstimeCentimes) { this.coutEstimeCentimes = coutEstimeCentimes; }
+    public Integer getCoutMicroUsd() { return coutMicroUsd; }
+    public void setCoutMicroUsd(Integer coutMicroUsd) { this.coutMicroUsd = coutMicroUsd; }
 
     public Double getAvgLogprob() { return avgLogprob; }
     public void setAvgLogprob(Double avgLogprob) { this.avgLogprob = avgLogprob; }

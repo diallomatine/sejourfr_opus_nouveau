@@ -233,6 +233,16 @@ sejourfr:
     api-url: https://api.openai.com/v1/audio/transcriptions
     whisper:
       model: ${OPENAI_WHISPER_MODEL:whisper-1}
+      # Tarif du modèle ci-dessus, en USD par MINUTE d'audio (whisper-1 : 0,006,
+      # relevé le 2026-08-16 sur la page tarifaire OpenAI). Whisper facture à la
+      # durée, jamais au token : ce tarif n'a donc rien à voir avec les
+      # `cost-per-million-*-tokens` de sejourfr.production-evaluation.
+      # ⚠ Même règle que pour les correcteurs : le tarif voyage AVEC le modèle,
+      # dans la même source. Poser OPENAI_WHISPER_MODEL sans
+      # OPENAI_WHISPER_COST_PER_MINUTE laisserait le prix de l'ancien modèle, et
+      # le coût est PERSISTÉ dans transcriptions.cout_micro_usd : un tarif faux y
+      # reste faux pour toujours.
+      cost-per-minute-usd: ${OPENAI_WHISPER_COST_PER_MINUTE:0.006}
       language: fr
       timeout-sec: 60
       max-retries: 2

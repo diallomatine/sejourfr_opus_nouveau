@@ -95,8 +95,47 @@ class WhisperTranscriptionServiceTest {
         assertThat(t.getModeleUtilise()).isEqualTo(props.getWhisper().getModel());
         assertThat(t.getPromptUtilise()).isEqualTo(props.getWhisper().getLiteralModePrompt());
         assertThat(t.getAudioDurationSec()).isEqualTo(120);
-        // 120 s * 0.006/60 USD/s * 100 = 1.2 cents -> arrondi sup = 2.
-        assertThat(t.getCoutEstimeCentimes()).isEqualTo(2);
+        // 2 min x 0,006 $/min = 0,012 $ = 12 000 micro-dollars, exactement.
+        // L'ancien calcul arrondissait au centime SUPERIEUR et persistait « 2 »,
+        // soit 0,02 $ : 67 % de trop sur ce cas.
+        assertThat(t.getCoutMicroUsd()).isEqualTo(12_000);
         assertThat(result).isSameAs(t);
+    }
+
+    @Test
+    void persist_facture_l_audio_median_a_son_prix_et_non_au_centime_superieur() {
+        // 95 s, la mediane du depot : 0,0095 $. L'arrondi au centime superieur
+        // en faisait « 1 centime », ~5 % de trop — c'etait le dernier endroit du
+        // depot a arrondir une facture au centime.
+        service.persist(submission(),
+            new WhisperTranscriptionClient.WhisperResult("texte", "fr", 95));
+
+        ArgumentCaptor<Transcription> saved = ArgumentCaptor.forClass(Transcription.class);
+        verify(transcriptionManager).save(saved.capture());
+        assertThat(saved.getValue().getCoutMicroUsd()).isEqualTo(9_500);
+    }
+
+    @Test
+    void persist_sans_duree_ne_facture_rien_plutot_que_zero() {
+        // null et non 0 : un cout de 0 persiste se lirait « gratuit », ce qui est
+        // une affirmation, alors qu'on n'a rien mesure.
+        service.persist(submission(),
+            new WhisperTranscriptionClient.WhisperResult("texte", "fr", null));
+
+        ArgumentCaptor<Transcription> saved = ArgumentCaptor.forClass(Transcription.class);
+        verify(transcriptionManager).save(saved.capture());
+        assertThat(saved.getValue().getCoutMicroUsd()).isNull();
+    }
+
+    @Test
+    void persist_sans_tarif_configure_n_invente_aucun_montant() {
+        props.getWhisper().setCostPerMinuteUsd(0);
+
+        service.persist(submission(),
+            new WhisperTranscriptionClient.WhisperResult("texte", "fr", 120));
+
+        ArgumentCaptor<Transcription> saved = ArgumentCaptor.forClass(Transcription.class);
+        verify(transcriptionManager).save(saved.capture());
+        assertThat(saved.getValue().getCoutMicroUsd()).isNull();
     }
 }

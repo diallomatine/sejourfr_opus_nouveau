@@ -1458,8 +1458,26 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     déduit. 🛑 `cout_estime_centimes` / `cost_estimate_cents` deviennent **LEGACY,
     plus jamais écrites, plus mappées** — les valeurs restent, **aucun recalcul
     rétroactif** : le prix du jour n'a jamais été stocké à côté des tokens, le
-    recalculer serait une invention. Exception : `transcriptions.cout_estime_centimes`
-    reste **active** (Whisper facture à la minute d'audio, pas au token).
+    recalculer serait une invention.
+  - **V035, additive : la TRANSCRIPTION suit** (2026-08-16). V034 avait laissé
+    `transcriptions.cout_estime_centimes` active au motif que Whisper facture **à la
+    minute d'audio, pas au token** — exact sur la **formule**, faux sur l'**unité** :
+    `Math.ceil` au centime facturait **1 centime** un audio de 95 s (la médiane du
+    dépôt) qui en vaut 0,95, soit **~5 % de trop**, et c'était le dernier endroit du
+    dépôt à arrondir une facture au centime. Nouvelle colonne
+    `transcriptions.cout_micro_usd` ; l'ancienne devient **LEGACY, plus jamais
+    écrite, plus mappée, valeurs intactes** — même doctrine, **aucun recalcul
+    rétroactif**.
+    🛑 **Les deux formules restent distinctes, seule l'unité est partagée** :
+    `util/MicroDollars` (conversion + arrondi au supérieur) est appelé par
+    `CoutAppelLlm` (au token) **comme** par `CoutTranscription` (à la minute). Ne pas
+    tordre `CoutAppelLlm` pour y faire entrer Whisper, ni recopier la règle d'arrondi
+    — c'est le motif qui a fait supprimer les 11 `estimateCostCents`.
+    Le tarif à la minute vit désormais **en configuration**
+    (`sejourfr.openai.whisper.cost-per-minute-usd`, `OPENAI_WHISPER_COST_PER_MINUTE`,
+    défaut YAML **et** POJO `0.006`), jamais en constante Java : il **voyage avec le
+    modèle**, dans la même source, comme les tarifs des correcteurs. `0` ⇒ rien n'est
+    facturé (colonne `NULL`) plutôt qu'un montant inventé.
   - **Le cache PEUT mordre chez nous, et l'ordre des prompts est déjà bon** (vérifié
     le 2026-08-16, aucun réordonnancement nécessaire — en faire un aurait changé ce
     que le correcteur lit, donc la version du contrat). La grille invariante est le

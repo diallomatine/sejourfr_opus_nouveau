@@ -4271,6 +4271,17 @@ dépensés. Le coût est désormais conservé au **millionième de dollar** — 
 plus petite correction du site en vaille encore près de deux mille, et assez précis pour que
 deux appels s'additionnent sans gonfler.
 
+**La mise par écrit d'un oral suivait la même mauvaise habitude.** Transformer un
+enregistrement en texte se paie autrement qu'une correction : **à la minute d'audio**, et non au
+nombre de mots échangés avec le modèle. Son prix était pourtant lui aussi arrondi au centime
+supérieur. Un enregistrement de 95 secondes — la durée médiane sur le site — vaut 0,95 centime
+et se voyait facturé 1 centime : environ **5 % de trop**. C'est sans commune mesure avec le
+facteur huit des corrections, mais c'était le dernier endroit du site où une dépense était
+arrondie au centime, et il ne l'est plus. Le prix à la minute est en outre devenu un **réglage**
+plutôt qu'un nombre écrit dans le programme : changer de service de transcription se fait
+maintenant avec son tarif, au même endroit, comme pour les correcteurs. Là encore, **rien n'a
+été réécrit dans le passé**.
+
 **Ce que ça donne sur une correction réelle**, en moyenne sur les corrections déjà enregistrées
 (EE : 16 200 jetons envoyés, 1 150 produits ; EO : 10 200 et 1 290) :
 
