@@ -37,6 +37,13 @@ import styles from "./reussir.module.css";
  * Le trafic vient de TikTok, Instagram, WhatsApp, Facebook ou d'un partage
  * direct : le titre reste neutre et c'est un badge qui fait le « message
  * match » en nommant la provenance détectée (utm_source, puis referrer).
+ *
+ * ⚠️ RÈGLE DE RÉDACTION (2026-08-17) : cette page se comprend **sans lire**.
+ * Un visiteur arrive d'un réseau social, il scrolle au pouce et ne lit pas de
+ * paragraphe. Toute information nouvelle se pose donc en pictogramme, en
+ * chiffre, en pastille ou en démonstration visuelle — une phrase n'est admise
+ * que si elle est la SEULE forme possible, et alors elle tient sur une ligne.
+ * Ne pas réintroduire de bloc explicatif : c'est exactement ce qui a été retiré.
  */
 
 type Parcours = "tcf" | "civique";
@@ -67,7 +74,6 @@ export function ReussirView({ plans }: { plans: PlanPublicResponse[] }) {
       <EpreuvesSection />
       <MockExamSection />
       <MobileSection />
-      <ProofSection />
       <PricingSection plans={plans} />
       <FinalSection />
       <StickyCta />
@@ -93,7 +99,7 @@ function Hero() {
             <span className={styles.cocarde} aria-hidden />
             Sejour<span className={styles.fr}>FR</span>
           </span>
-          <span className={styles.kicker}>TCF&nbsp;IRN · Examen civique</span>
+          <span className={styles.kicker}>Titre de séjour · Naturalisation</span>
         </div>
 
         <div className={styles.heroGrid}>
@@ -119,23 +125,12 @@ function Hero() {
               Tu prépares le TCF&nbsp;? Découvre d&apos;abord <em>ce qui te bloque</em>.
             </h1>
 
+            {/* La SEULE phrase de la page. Tout le reste se montre. */}
             <p className={styles.lead} data-rv>
-              Fais <strong>1 exercice écrit et 1 oral</strong>. SejourFR analyse tes
-              réponses, estime ton niveau de production et te montre les compétences à
-              travailler en priorité.
+              Un écrit, un oral. L&apos;IA situe ton niveau et nomme tes priorités.
             </p>
 
-            <ul className={styles.levelChips} data-rv>
-              <li className={styles.levelChip}>
-                <b>A2</b> Carte pluriannuelle
-              </li>
-              <li className={styles.levelChip}>
-                <b>B1</b> Carte de résident
-              </li>
-              <li className={styles.levelChip} data-hi>
-                <b>B2</b> Naturalisation
-              </li>
-            </ul>
+            <HeroModules />
 
             <div className={styles.ctaRow} data-rv>
               <DiagnosticCta />
@@ -143,21 +138,104 @@ function Hero() {
 
             <ul className={styles.trust} data-rv>
               <li>
-                <CheckDot /> 2 exercices
+                <CheckDot /> 1 écrit + 1 oral
+              </li>
+              <li>
+                <CheckDot /> ≈ 8 min
               </li>
               <li>
                 <CheckDot /> Sans carte bancaire
-              </li>
-              <li>
-                <CheckDot /> ≈ 8 à 10 min
               </li>
             </ul>
           </div>
 
           <DiagnosticPreviewCard />
         </div>
+
+        <HeroSteps />
       </div>
     </section>
+  );
+}
+
+/**
+ * Le diagnostic en trois temps, pleine largeur au pied du hero. C'est LA
+ * promesse de la page : un visiteur doit comprendre ce qu'on lui propose sans
+ * lire une phrase — deux productions, puis ses priorités nommées. La carte
+ * d'exemple à droite en montre le résultat, cette bande en montre le geste.
+ */
+const DIAGNOSTIC_STEPS: { icon: ReactElement; title: string; meta: string }[] = [
+  { icon: <PenIcon />, title: "Tu écris", meta: "≈ 100 mots" },
+  { icon: <MicIcon />, title: "Tu parles", meta: "≈ 2 minutes" },
+  { icon: <SparkIcon />, title: "Tes 3 priorités", meta: "Ce qui te bloque" },
+];
+
+function HeroSteps() {
+  const last = DIAGNOSTIC_STEPS.length - 1;
+
+  return (
+    <div className={styles.steps3} data-rv>
+      <span className={styles.steps3Head}>Ton diagnostic gratuit · ≈ 8 min</span>
+      <ol className={styles.steps3List}>
+        {DIAGNOSTIC_STEPS.map((step, i) => (
+          <li key={step.title} className={styles.step3}>
+            <span className={styles.step3Ico}>{step.icon}</span>
+            <span className={styles.step3Txt}>
+              <b>{step.title}</b>
+              <small>{step.meta}</small>
+            </span>
+            {i < last && (
+              <span className={styles.step3Arrow} aria-hidden>
+                <ArrowIcon />
+              </span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/**
+ * Les deux examens obligatoires, côte à côte et à poids égal — c'est le seul
+ * endroit de la page où le visiteur apprend qu'il y en a **deux**, et il doit
+ * le comprendre sans lire : quatre pictogrammes d'un côté (les épreuves du
+ * TCF), cinq numéros de l'autre (les thèmes du livret citoyen).
+ */
+function HeroModules() {
+  return (
+    <div className={styles.modules} data-rv>
+      <div className={styles.mod} data-accent="blue">
+        <span className={styles.modName}>TCF IRN</span>
+        <span className={styles.modIcons} aria-hidden>
+          <i>
+            <HeadphonesIcon />
+          </i>
+          <i>
+            <BookIcon />
+          </i>
+          <i>
+            <PenIcon />
+          </i>
+          <i>
+            <MicIcon />
+          </i>
+        </span>
+        <span className={styles.modFoot}>4 épreuves · A2 · B1 · B2</span>
+      </div>
+
+      <div className={styles.mod} data-accent="red">
+        <span className={styles.modName}>Examen civique</span>
+        <span className={styles.modIcons} aria-hidden>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <i key={n} className={styles.modNum}>
+              {n}
+            </i>
+          ))}
+        </span>
+        <span className={styles.modFoot}>5 thèmes · CSP · CR · NAT</span>
+      </div>
+    </div>
   );
 }
 
@@ -214,7 +292,7 @@ function DiagnosticPreviewCard() {
   return (
     <div className={`${styles.cardInk} ${styles.diagnosticPreview}`} data-rv>
       <div className={styles.sessHead}>
-        <span className={styles.live}>Votre diagnostic</span>
+        <span className={styles.live}>Ton diagnostic</span>
         <span className={styles.clock}>Exemple de résultat</span>
       </div>
       <div className={styles.diagnosticLevels}>
@@ -223,14 +301,14 @@ function DiagnosticPreviewCard() {
         <span><small>Objectif</small><b>B2</b></span>
       </div>
       <div className={styles.diagnosticPriorities}>
-        <span className={styles.who}><SparkIcon /> Vos priorités</span>
+        <span className={styles.who}><SparkIcon /> Tes priorités</span>
         <ol>
           <li><i>1</i><span>Développer un argument</span></li>
-          <li><i>2</i><span>Structurer votre prise de parole</span></li>
+          <li><i>2</i><span>Structurer ta prise de parole</span></li>
           <li><i>3</i><span>Stabiliser les temps du récit</span></li>
         </ol>
       </div>
-      <p className={styles.diagnosticPlan}><CheckDot /> Une action concrète dans votre Plan</p>
+      <p className={styles.diagnosticPlan}><CheckDot /> Une action concrète dans ton Plan</p>
     </div>
   );
 }
@@ -249,6 +327,16 @@ const CRITERIA: { label: string; note: string; width: number; amber?: boolean }[
   { label: "Développement des arguments", note: "15,5", width: 79 },
 ];
 
+/**
+ * Ce que le pass ouvre, en trois pastilles. C'était un encart de trois
+ * paragraphes : la même information, mais personne ne la lisait.
+ */
+const AI_FACTS: string[] = [
+  "Corrections écrites et orales illimitées",
+  "Simulations orales incluses, au forfait",
+  "Simulations orales : pass Intégral",
+];
+
 function AiSection() {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const seen = useInView(cardRef);
@@ -261,82 +349,53 @@ function AiSection() {
         <div className={styles.aiGrid}>
           <div className={styles.aiCopy}>
             <span className={styles.eyebrow} data-rv>
-              Ce que personne d&apos;autre ne fait
+              01 · Ce que personne d&apos;autre ne fait
             </span>
             <h2 className={styles.h2} data-rv>
-              Un examinateur <em>IA</em> qui te parle. En vrai.
+              Un examinateur <em>IA</em> qui te parle. Et qui te note.
             </h2>
-            <p className={styles.lead} data-rv>
-              Tu lances une simulation, l&apos;IA te pose ses questions à voix haute,
-              écoute ta réponse, relance&nbsp;— puis te note comme le ferait un
-              examinateur du TCF, critère par critère.
-            </p>
 
-            <div className={styles.limitNote} data-rv>
-              <span className={styles.limitHead}>
-                <InfoIcon />{" "}
-                Ce qui est compté, ce qui ne l&apos;est pas
-              </span>
-              <p>
-                <b>Simulations orales en direct&nbsp;:</b>{" "}
-                au forfait — le nombre inclus
-                est indiqué sur chaque pass ci-dessous. Une simulation, c&apos;est un
-                entretien complet avec l&apos;examinateur.
-              </p>
-              <p>
-                <b>Correction IA de tes écrits et de tes enregistrements&nbsp;:</b>{" "}
-                illimitée pendant toute la durée de ton pass.
-              </p>
-              <p>
-                Les pass <b>Examen civique</b>{" "}
-                ne donnent pas accès aux simulations
-                orales&nbsp;— l&apos;oral, c&apos;est du TCF.
-              </p>
-            </div>
+            <ul className={styles.chipRow} data-rv>
+              {AI_FACTS.map((fact) => (
+                <li key={fact} className={styles.chip}>
+                  <CheckDot />
+                  {fact}
+                </li>
+              ))}
+            </ul>
           </div>
 
-          <div>
-            <div className={`${styles.cardInk} ${styles.eval}`} ref={cardRef} data-rv>
-              <span className={`${styles.who} ${styles.whoBlue}`}>
-                <SparkIcon /> Évaluation IA · Expression orale
+          <div className={`${styles.cardInk} ${styles.eval}`} ref={cardRef} data-rv>
+            <span className={`${styles.who} ${styles.whoBlue}`}>
+              <SparkIcon /> Évaluation IA · Expression orale
+            </span>
+
+            <div className={styles.scoreRow}>
+              <span className={styles.score}>
+                {score.toFixed(1).replace(".", ",")}
+                <small>/20</small>
               </span>
-
-              <div className={styles.scoreRow}>
-                <span className={styles.score}>
-                  {score.toFixed(1).replace(".", ",")}
-                  <small>/20</small>
-                </span>
-                <span className={styles.cecrl}>Niveau&nbsp;B2</span>
-              </div>
-
-              <div className={styles.crit}>
-                {CRITERIA.map((c) => (
-                  <div key={c.label} className={styles.critRow} data-tone={c.amber ? "amber" : undefined}>
-                    <span className={styles.critTop}>
-                      <span>{c.label}</span>
-                      <b>{c.note}</b>
-                    </span>
-                    <span className={styles.bar}>
-                      <i style={{ width: seen ? `${c.width}%` : 0 }} />
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <p className={styles.feedback}>
-                <b>Ce qui marche&nbsp;:</b>{" "}
-                vous argumentez sans hésiter et votre projet
-                est clair, c&apos;est du niveau&nbsp;B2. <b>À travailler&nbsp;:</b>{" "}
-                les
-                temps du passé («&nbsp;j&apos;ai venu&nbsp;» → «&nbsp;je suis
-                venu&nbsp;») et les connecteurs pour lier vos idées.
-              </p>
+              <span className={styles.cecrl}>Niveau&nbsp;B2</span>
             </div>
 
-            <p className={styles.lead} style={{ marginTop: 24 }} data-rv>
-              Tu parles, l&apos;IA te répond, te note sur&nbsp;20 et te dit{" "}
-              <strong>exactement quoi corriger</strong>&nbsp;— sans rendez-vous et sans
-              professeur.
+            <div className={styles.crit}>
+              {CRITERIA.map((c) => (
+                <div key={c.label} className={styles.critRow} data-tone={c.amber ? "amber" : undefined}>
+                  <span className={styles.critTop}>
+                    <span>{c.label}</span>
+                    <b>{c.note}</b>
+                  </span>
+                  <span className={styles.bar}>
+                    <i style={{ width: seen ? `${c.width}%` : 0 }} />
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <p className={styles.feedback}>
+              <b>Ce qui marche&nbsp;:</b> vous argumentez sans hésiter.{" "}
+              <b>À travailler&nbsp;:</b> les temps du passé («&nbsp;j&apos;ai
+              venu&nbsp;» → «&nbsp;je suis venu&nbsp;»).
             </p>
           </div>
         </div>
@@ -352,30 +411,23 @@ function AiSection() {
 const LEVELS: {
   level: string;
   procedure: string;
-  pitch: string;
-  foot: string;
+  mention: string;
   hi?: boolean;
 }[] = [
   {
     level: "A2",
-    procedure: "Carte de séjour pluriannuelle",
-    pitch:
-      "Le premier renouvellement après le visa long séjour. Le palier le plus accessible des trois.",
-    foot: "Examen civique mention CSP · validité 2 à 4 ans",
+    procedure: "Carte pluriannuelle",
+    mention: "Examen civique · mention CSP",
   },
   {
     level: "B1",
     procedure: "Carte de résident",
-    pitch:
-      "Dix ans de validité, travail facilité, démarches allégées. Le palier intermédiaire.",
-    foot: "Examen civique mention CR · validité 10 ans",
+    mention: "Examen civique · mention CR",
   },
   {
     level: "B2",
-    procedure: "Naturalisation française",
-    pitch:
-      "Devenir français. Le niveau de langue le plus haut : à l'oral, il faut argumenter, nuancer, réagir. C'est là que la préparation compte le plus.",
-    foot: "Examen civique mention Naturalisation · nationalité + droits civiques",
+    procedure: "Naturalisation",
+    mention: "Examen civique · mention NAT",
     hi: true,
   },
 ];
@@ -385,21 +437,21 @@ function LevelsSection() {
     <section className={`${styles.sec} ${styles.paper}`}>
       <div className={styles.wrap}>
         <header className={styles.headBlock} data-rv>
-          <span className={styles.eyebrow}>Trouve ton palier</span>
-          <h2 className={styles.h2}>Quel niveau te faut-il, exactement&nbsp;?</h2>
-          <p className={`${styles.lead} ${styles.measure}`}>
-            Ce n&apos;est pas le même examen selon ce que tu demandes à la préfecture.
-            L&apos;app se règle sur ton parcours dès l&apos;inscription.
-          </p>
+          <span className={styles.eyebrow}>02 · Ton palier</span>
+          <h2 className={styles.h2}>Quel niveau te faut-il&nbsp;?</h2>
         </header>
 
         <div className={styles.levels}>
           {LEVELS.map((l) => (
             <article key={l.level} className={styles.level} data-hi={l.hi ? "" : undefined} data-rv>
-              <span className={styles.levelBadge}>{l.level}</span>
+              <span className={styles.levelTop}>
+                <span className={styles.levelBadge}>{l.level}</span>
+                <span className={styles.levelArrow} aria-hidden>
+                  <ArrowIcon />
+                </span>
+              </span>
               <h3 className={styles.levelProc}>{l.procedure}</h3>
-              <p>{l.pitch}</p>
-              <p className={styles.levelFoot}>{l.foot}</p>
+              <p className={styles.levelFoot}>{l.mention}</p>
             </article>
           ))}
         </div>
@@ -415,53 +467,50 @@ function LevelsSection() {
 const EPREUVES: {
   href: string;
   title: string;
-  pitch: string;
-  tag?: string;
+  tag: string;
   icon: ReactElement;
   red?: boolean;
 }[] = [
   {
     href: "/entrainement/tcf/co",
     title: "Compréhension orale",
-    pitch: "Audios en voix professionnelles, écoute unique comme au vrai test.",
+    tag: "Écoute unique",
     icon: <HeadphonesIcon />,
   },
   {
     href: "/entrainement/tcf/ce",
     title: "Compréhension écrite",
-    pitch: "Annonces, mails, articles : les supports réellement utilisés au TCF IRN.",
+    tag: "Supports réels",
     icon: <BookIcon />,
   },
   {
     href: "/entrainement/tcf/ee",
     title: "Expression écrite",
-    pitch: "Tu rédiges, l'IA corrige et note chaque critère.",
-    tag: "Corrigé par IA · illimité",
+    tag: "Corrigée par IA",
     icon: <PenIcon />,
     red: true,
   },
   {
     href: "/entrainement/tcf/eo",
     title: "Expression orale",
-    pitch: "Enregistrements notés en illimité, plus les simulations en direct au forfait.",
     tag: "Examinateur IA",
     icon: <MicIcon />,
     red: true,
   },
 ];
 
+/** Ce que couvre l'examen civique, en pastilles plutôt qu'en phrase. */
+const CIVIQUE_CHIPS = ["5 thèmes", "Mises en situation", "CSP · CR · NAT"];
+
 function EpreuvesSection() {
   return (
     <section className={`${styles.sec} ${styles.paper2}`}>
       <div className={styles.wrap}>
         <header className={styles.headBlock} data-rv>
-          <span className={styles.eyebrow}>Ce qu&apos;il y a dans l&apos;app</span>
+          <span className={styles.eyebrow}>03 · Dans l&apos;app</span>
           <h2 className={styles.h2}>
             Les 4 épreuves du TCF. Et l&apos;<em>examen civique</em>.
           </h2>
-          <p className={`${styles.lead} ${styles.measure}`}>
-            Le même découpage que le jour de l&apos;examen, rien de plus, rien de moins.
-          </p>
         </header>
 
         <div className={styles.eprs}>
@@ -475,8 +524,7 @@ function EpreuvesSection() {
             >
               <span className={styles.eprIco}>{e.icon}</span>
               <h3>{e.title}</h3>
-              <p>{e.pitch}</p>
-              {e.tag && <span className={styles.eprTag}>{e.tag}</span>}
+              <span className={styles.eprTag}>{e.tag}</span>
             </Link>
           ))}
         </div>
@@ -485,10 +533,11 @@ function EpreuvesSection() {
           <span className={`${styles.cocarde} ${styles.cocardeLg}`} aria-hidden />
           <span className={styles.eprWideTxt}>
             <h3>Examen civique</h3>
-            <p>
-              CSP, carte de résident, naturalisation&nbsp;— 5 thèmes du livret citoyen,
-              mises en situation incluses, adaptés à ton parcours.
-            </p>
+            <span className={styles.eprWideChips}>
+              {CIVIQUE_CHIPS.map((chip) => (
+                <span key={chip}>{chip}</span>
+              ))}
+            </span>
           </span>
           <span className={styles.eprWideGo} aria-hidden>
             →
@@ -503,78 +552,68 @@ function EpreuvesSection() {
 // ⑤ EXAMEN BLANC COMPLET
 // ============================================================================
 
-function MockExamSection() {
-  const cardRef = useRef<HTMLDivElement | null>(null);
-  const seen = useInView(cardRef);
-  const calibrated = useCountUp(seen, 448, 0);
+/**
+ * Durées réelles d'épreuve (`DureeEpreuve` côté serveur). Le chrono global de
+ * 90 min n'existe plus depuis le 2026-08-15 : chaque épreuve porte le sien, et
+ * l'oral se chronomètre par tâche. Ne pas réintroduire de total opposable.
+ */
+const MOCK_STEPS: { code: string; time: string }[] = [
+  { code: "CO", time: "20 min" },
+  { code: "CE", time: "35 min" },
+  { code: "EE", time: "30 min" },
+  { code: "EO", time: "≈ 10 min" },
+];
 
+/** La règle du plancher, montrée au lieu d'être expliquée : l'écrit tire tout. */
+const MOCK_RESULTS: { code: string; level: string; floor?: boolean }[] = [
+  { code: "CO", level: "B2" },
+  { code: "CE", level: "B2" },
+  { code: "EE", level: "B1", floor: true },
+  { code: "EO", level: "B2" },
+];
+
+function MockExamSection() {
   return (
     <section className={`${styles.sec} ${styles.paper}`}>
       <div className={styles.wrap}>
         <div className={styles.examGrid}>
-          <div className={styles.mock} ref={cardRef} data-rv>
+          <div className={styles.mock} data-rv>
             <div className={styles.mockHead}>
               <span>Examen blanc complet</span>
-              <span className={styles.mockTimer}>89:47</span>
+              <span className={styles.mockTimer}>≈ 95 min</span>
             </div>
 
             <div className={styles.steps}>
-              {["CO", "CE", "EE", "EO"].map((s) => (
-                <span key={s} className={styles.step}>
-                  <b>{s}</b>
-                  <i>✓</i>
+              {MOCK_STEPS.map((s) => (
+                <span key={s.code} className={styles.step}>
+                  <b>{s.code}</b>
+                  <i>{s.time}</i>
+                </span>
+              ))}
+            </div>
+
+            <div className={styles.perEpr}>
+              {MOCK_RESULTS.map((r) => (
+                <span key={r.code} data-floor={r.floor ? "" : undefined}>
+                  {r.code}&nbsp;<b>{r.level}</b>
                 </span>
               ))}
             </div>
 
             <div className={styles.result}>
-              <div>
-                <span className={styles.resultLbl}>Score calibré</span>
-                <span className={styles.resultBig}>
-                  {Math.round(calibrated)}
-                  <small>&nbsp;/&nbsp;499</small>
-                </span>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <span className={styles.resultLbl}>Niveau obtenu</span>
-                <span className={styles.resultLvl}>B2</span>
-              </div>
+              <span className={styles.resultLbl}>Niveau retenu</span>
+              <span className={styles.resultLvl}>B1</span>
             </div>
-
-            <div className={styles.perEpr}>
-              <span>
-                CO&nbsp;<b>B2</b>
-              </span>
-              <span>
-                CE&nbsp;<b>B2</b>
-              </span>
-              <span data-floor>
-                EE&nbsp;<b>B2</b>
-              </span>
-              <span>
-                EO&nbsp;<b>B2</b>
-              </span>
-            </div>
+            <p className={styles.resultRule}>Le plus faible de tes 4 épreuves.</p>
           </div>
 
           <div>
             <header className={styles.headBlock} style={{ marginBottom: 0 }} data-rv>
-              <span className={styles.eyebrow}>Conditions réelles</span>
+              <span className={styles.eyebrow}>04 · Conditions réelles</span>
               <h2 className={styles.h2}>
-                90&nbsp;minutes. 4&nbsp;épreuves. Un <em>niveau</em>.
+                4 épreuves chronométrées. Un <em>niveau</em>.
               </h2>
-              <p className={styles.lead}>
-                Compréhension orale, compréhension écrite, expression écrite, expression
-                orale&nbsp;— enchaînées et chronométrées comme au centre d&apos;examen.
-              </p>
             </header>
-
-            <p className={styles.rule} data-rv>
-              Ton niveau final, c&apos;est <b>le plus faible de tes quatre épreuves</b>
-              &nbsp;: la règle du TCF&nbsp;IRN. Viser B2 pour la naturalisation, c&apos;est
-              donc l&apos;avoir <b>partout</b>, y compris à l&apos;oral. L&apos;app te
-              montre exactement où ça bloque, avant le jour&nbsp;J.
-            </p>
 
             <Link href="/examens-blancs" className={styles.linkArrow} data-rv>
               Voir les examens blancs
@@ -591,19 +630,10 @@ function MockExamSection() {
 // ⑥ APP MOBILE
 // ============================================================================
 
-const MOBILE_POINTS: { title: string; text: string }[] = [
-  {
-    title: "Le même compte, la même progression",
-    text: "Tu passes un examen blanc sur ordinateur, tu revois tes erreurs dans le métro. Rien à resynchroniser.",
-  },
-  {
-    title: "Tout est là, y compris l'examinateur IA",
-    text: "Les 4 épreuves du TCF, l'examen civique, les examens blancs chronométrés et les simulations orales.",
-  },
-  {
-    title: "Des séries courtes, tous les jours",
-    text: "20 questions, correction expliquée juste après. C'est le format qui fait progresser sans y passer la soirée.",
-  },
+const MOBILE_POINTS: string[] = [
+  "Le même compte, la même progression",
+  "Tout l'entraînement, y compris l'examinateur IA",
+  "Des séries de 20 questions, tous les jours",
 ];
 
 function MobileSection() {
@@ -614,25 +644,17 @@ function MobileSection() {
         <div className={styles.mobileGrid}>
           <div>
             <span className={styles.eyebrow} data-rv>
-              iOS et Android
+              05 · iOS et Android
             </span>
-            <h2 className={styles.h2} data-rv style={{ margin: "15px 0 15px" }}>
-              Ta préparation tient aussi dans ta <em>poche</em>.
+            <h2 className={styles.h2} data-rv style={{ margin: "15px 0 0" }}>
+              Ta préparation tient dans ta <em>poche</em>.
             </h2>
-            <p className={styles.lead} data-rv>
-              L&apos;app SejourFR est disponible sur l&apos;App Store et Google Play. C&apos;est
-              la même préparation que sur le site, avec le même compte&nbsp;— pensée pour
-              t&apos;entraîner un peu chaque jour.
-            </p>
 
             <ul className={styles.mobilePoints} data-rv>
-              {MOBILE_POINTS.map((pt) => (
-                <li key={pt.title}>
+              {MOBILE_POINTS.map((point) => (
+                <li key={point}>
                   <CheckDot />
-                  <span>
-                    <b>{pt.title}</b>
-                    <small>{pt.text}</small>
-                  </span>
+                  {point}
                 </li>
               ))}
             </ul>
@@ -726,46 +748,7 @@ function PhoneMockup() {
 }
 
 // ============================================================================
-// ⑦ PREUVE
-// ============================================================================
-
-function ProofSection() {
-  return (
-    <section className={`${styles.sec} ${styles.paper2}`}>
-      <div className={styles.wrap}>
-        <header className={styles.headBlock} data-rv>
-          <span className={styles.eyebrow}>Pourquoi tu peux y aller</span>
-          <h2 className={styles.h2}>
-            Fait pour l&apos;examen, pas pour «&nbsp;apprendre le français&nbsp;».
-          </h2>
-        </header>
-
-        <div className={styles.facts} data-rv>
-          <div className={styles.fact}>
-            <b>4</b>
-            <span>Épreuves TCF couvertes</span>
-          </div>
-          <div className={styles.fact}>
-            <b>5</b>
-            <span>Thèmes de l&apos;examen civique</span>
-          </div>
-          <div className={styles.fact}>
-            <b>2026</b>
-            <span>Programme à jour</span>
-          </div>
-        </div>
-
-        <p className={styles.proofFoot} data-rv>
-          Besoin d&apos;y voir plus clair sur ta démarche&nbsp;?{" "}
-          <Link href="/blog">30 articles gratuits sur le TCF et la naturalisation</Link>.
-        </p>
-      </div>
-    </section>
-  );
-}
-
-// ============================================================================
-// ⑧ TARIFS
+// ⑦ TARIFS
 // ============================================================================
 
 function PricingSection({ plans }: { plans: PlanPublicResponse[] }) {
@@ -792,14 +775,10 @@ function PricingSection({ plans }: { plans: PlanPublicResponse[] }) {
     <section className={`${styles.sec} ${styles.paper}`} id="tarifs">
       <div className={styles.wrap}>
         <header className={styles.headBlock} data-rv>
-          <span className={styles.eyebrow}>Le prix</span>
+          <span className={styles.eyebrow}>06 · Le prix</span>
           <h2 className={styles.h2}>
             Pas d&apos;abonnement. Tu paies <em>une fois</em>.
           </h2>
-          <p className={`${styles.lead} ${styles.measure}`}>
-            Aucune reconduction automatique, rien à résilier. Si tu rachètes, les durées
-            s&apos;additionnent.
-          </p>
         </header>
 
         <div className={styles.switch} role="group" aria-label="Choisir son parcours" data-rv>
@@ -809,7 +788,7 @@ function PricingSection({ plans }: { plans: PlanPublicResponse[] }) {
             aria-pressed={parcours === "tcf"}
             onClick={() => setParcours("tcf")}
           >
-            Je prépare le TCF IRN
+            TCF IRN
           </button>
           <button
             type="button"
@@ -817,7 +796,7 @@ function PricingSection({ plans }: { plans: PlanPublicResponse[] }) {
             aria-pressed={parcours === "civique"}
             onClick={() => setParcours("civique")}
           >
-            Je prépare l&apos;examen civique seul
+            Examen civique seul
           </button>
         </div>
 
@@ -832,29 +811,26 @@ function PricingSection({ plans }: { plans: PlanPublicResponse[] }) {
           ))}
         </div>
 
-        <p className={styles.plansNote} data-rv>
-          {parcours === "tcf" ? (
-            <>
-              Les pass Intégral contiennent aussi tout l&apos;examen civique&nbsp;— il
-              n&apos;y a rien à ajouter.
-            </>
-          ) : (
-            <>
-              Tu passes aussi le TCF&nbsp;IRN&nbsp;?{" "}
-              <button type="button" onClick={() => setParcours("tcf")}>
-                Voir les pass Intégral
-              </button>
-              , qui contiennent déjà tout l&apos;examen civique.
-            </>
-          )}
-        </p>
-
         <ul className={styles.noabo} data-rv>
           <li>Sans reconduction</li>
           <li>Durées cumulables</li>
           <li>Web &amp; mobile</li>
           <li>Paiement Stripe</li>
         </ul>
+
+        <p className={styles.plansNote} data-rv>
+          {parcours === "tcf" ? (
+            <>Les pass Intégral contiennent aussi tout l&apos;examen civique.</>
+          ) : (
+            <>
+              Tu passes aussi le TCF&nbsp;IRN&nbsp;?{" "}
+              <button type="button" onClick={() => setParcours("tcf")}>
+                Voir les pass Intégral
+              </button>
+              .
+            </>
+          )}
+        </p>
 
         <Link href="/tarifs" className={styles.linkArrow} data-rv>
           Comparer toutes les formules
@@ -916,7 +892,7 @@ function PlanCard({
 }
 
 // ============================================================================
-// ⑨ FINAL + LIENS
+// ⑧ FINAL + LIENS
 // ============================================================================
 
 function FinalSection() {
@@ -930,7 +906,7 @@ function FinalSection() {
         <div className={styles.finalGrid}>
           <div>
             <h2 className={styles.h2} data-rv>
-              Commence par ton <em>diagnostic gratuit</em>. Maintenant.
+              Commence par ton <em>diagnostic gratuit</em>.
             </h2>
             <div className={styles.ctaRow} data-rv>
               <DiagnosticCta />
@@ -1069,7 +1045,7 @@ function StickyCta() {
         <span className={styles.stickyTxt}>
           2 exercices
           <br />
-          ≈ 8 à 10 min
+          ≈ 8 min
         </span>
         <DiagnosticCta compact />
       </div>
@@ -1102,15 +1078,11 @@ function featuresOf(plan: PlanPublicResponse): string[] {
     return [
       "Les 4 épreuves du TCF IRN",
       "Examen civique inclus",
-      "Examens blancs complets chronométrés",
-      "Correction IA illimitée à l'écrit et à l'oral",
+      "Examens blancs chronométrés",
+      "Correction IA illimitée",
     ];
   }
-  return [
-    "Les 5 thèmes du livret citoyen",
-    "Examens blancs illimités",
-    "Adapté à CSP, carte de résident ou naturalisation",
-  ];
+  return ["Les 5 thèmes du livret citoyen", "Examens blancs illimités", "CSP · CR · NAT"];
 }
 
 // ============================================================================
@@ -1331,15 +1303,6 @@ function SparkIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
-    </svg>
-  );
-}
-
-function InfoIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 8v5M12 16.5v.01" />
     </svg>
   );
 }

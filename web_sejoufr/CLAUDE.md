@@ -676,11 +676,47 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   badges stores viennent de `STORE_LINKS` (`lib/site.ts`), partagés avec le
   bloc final.
 - **Acquisition = diagnostic** (2026-08-09) : le hero promet 1 écrit + 1 oral
-  enregistré en ≈ 8 à 10 min, sans carte bancaire. Son visuel est un **exemple
+  enregistré en ≈ 8 min, sans carte bancaire. Son visuel est un **exemple
   de résultat diagnostic** ; la simulation orale temps réel reste dans la
   section IA suivante comme bénéfice avancé. Les trois CTA passent par
   `DiagnosticCta` : compte connecté → `/diagnostic`, visiteur →
   `/inscription?next=%2Fdiagnostic`, diagnostic déjà terminé → `/plan`.
+- 🛑 **CETTE PAGE SE COMPREND SANS LIRE** (refonte 2026-08-17). Le visiteur
+  arrive d'un réseau social et scrolle au pouce : toute information nouvelle se
+  pose en **pictogramme, chiffre, pastille ou démonstration visuelle**. La page
+  ne contient plus qu'**une seule phrase de texte courant** — le sous-titre du
+  hero —, et la classe `.lead` n'a **qu'une occurrence** : un second `.lead`
+  signale qu'un paragraphe est en train de revenir. Ce qui a été retiré, et ne
+  doit pas revenir : l'encart « ce qui est compté » (3 paragraphes), les
+  `pitch` des 3 cartes de palier, les `pitch` des 4 cartes d'épreuve, le
+  paragraphe de la règle du plancher, les 3 points titre + texte de la section
+  mobile, et la **section « Preuve » entière** (3 chiffres + une phrase, que la
+  section « Dans l'app » disait déjà). Les headers de section n'ont plus que
+  eyebrow + `h2`, numérotés `01 ·` … `06 ·` en mono.
+- **Le diagnostic est la promesse du hero, et il se voit DEUX fois** : le `h1`
+  la porte en mots (« Découvre d'abord ce qui te bloque »), la carte
+  `DiagnosticPreviewCard` en montre le **résultat** (niveaux EE/EO, objectif,
+  3 priorités), et la bande `HeroSteps` — pleine largeur, au pied du hero — en
+  montre le **geste** : tu écris ≈ 100 mots → tu parles ≈ 2 min → tes 3
+  priorités. Flèches de liaison dans la gouttière à partir de 760 px, empilé
+  en dessous (l'ordre de lecture suffit). ⚠️ Une refonte a un temps remplacé ce
+  `h1` par un positionnement produit (« Le TCF IRN et l'examen civique. Au même
+  endroit. ») : la page perdait ce qu'elle vend. Le positionnement vit dans les
+  **tuiles**, pas dans le titre.
+- **L'examen civique est dans le HERO, à poids égal avec le TCF** : le bloc
+  `HeroModules` pose deux tuiles côte à côte — quatre pictogrammes (les
+  épreuves du TCF) contre cinq numéros (les thèmes du livret citoyen), et une
+  ligne mono de paliers (`A2 · B1 · B2`) contre les démarches (`CSP · CR ·
+  NAT`). Une seule colonne sous 560 px : cinq pastilles de 34 px ne tiennent
+  pas dans une demi-largeur de téléphone. C'est le seul endroit où le visiteur
+  apprend qu'il y a **deux** examens obligatoires.
+- **La règle du plancher est MONTRÉE, plus expliquée** : la carte d'examen
+  blanc affiche les 4 niveaux (`CO B2 · CE B2 · EE B1 · EO B2`), marque l'écrit
+  en rouge (`[data-floor]`) et conclut « Niveau retenu · B1 ». ⚠️ **Ses durées
+  sont celles de `DureeEpreuve`** (CO 20 · CE 35 · EE 30 · EO ≈ 10, total ≈ 95
+  min indicatif) : la carte affichait un chrono global « 89:47 » et le titre
+  disait « 90 minutes », deux affirmations **fausses depuis le 2026-08-15** (cf.
+  § *Temps des examens blancs TCF*). Ne pas y remettre de décompte global.
 - **Mesure d'audience** : `lib/audience.ts` utilise `sendBeacon` (survit à la
   navigation), sans cookie ni stockage navigateur. `lib/audience-events.ts`
   borne strictement les couples chemin/événement autorisés par le backend.
