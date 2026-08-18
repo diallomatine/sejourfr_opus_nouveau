@@ -58,6 +58,10 @@ sejourfr:
     from: ${MAIL_FROM:no-reply@sejourfr.fr}
   app:
     base-url: ${APP_BASE_URL:https://sejourfr.fr}
+  backend:
+    # URL publique de l'API : le lien de confirmation de changement d'email pointe
+    # vers le backend, pas vers le site.
+    base-url: ${BACKEND_BASE_URL:https://api.sejourfr.fr}
   stripe:
     # Stripe Price IDs vivent en base (plans.stripe_price_id) — cf. lot 4.
     secret-key: ${STRIPE_SECRET_KEY}

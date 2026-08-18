@@ -71,6 +71,17 @@ management:
 sejourfr:
   cors:
     allowed-origins: http://localhost:3000,http://localhost:5173,http://192.168.1.11:3000
+  # URLs publiques qui servent a construire les liens des emails (bienvenue,
+  # reinitialisation de mot de passe, confirmation de changement d'email) et les
+  # success/cancel URLs Stripe. Declarees ICI, dans le fichier de base, et pas
+  # seulement dans application-prod.yaml : sans ca, une instance demarree sans le
+  # profil `prod` ignore APP_BASE_URL / BACKEND_BASE_URL et retombe sur le defaut
+  # Java (localhost), meme quand la variable d'environnement est correctement posee
+  # — c'est ce qui a envoye un mail de bienvenue de production vers localhost:3000.
+  app:
+    base-url: ${APP_BASE_URL:http://localhost:3000}
+  backend:
+    base-url: ${BACKEND_BASE_URL:http://localhost:8080}
   stripe:
     # Abonnements récurrents (Checkout Session mode=SUBSCRIPTION) depuis le
     # lot 4. Les Stripe Price IDs vivent en base sur plans.stripe_price_id —
@@ -78,7 +89,7 @@ sejourfr:
     # renvoie 503 sur les flows payants.
     secret-key: ""
     webhook-secret: ""
-    app-base-url: "http://localhost:3000"
+    app-base-url: ${APP_BASE_URL:http://localhost:3000}
   # --------------------------------------------------------------------------
   # Apple App Store Server (IAP iOS).
   # --------------------------------------------------------------------------
