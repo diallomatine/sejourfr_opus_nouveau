@@ -1,6 +1,11 @@
 package com.sejourfr.app.service.billing;
 
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.http.HttpResponseException;
 import com.google.api.services.androidpublisher.model.AutoRenewingPlan;
+import com.google.api.services.androidpublisher.model.ProductPurchase;
 import com.google.api.services.androidpublisher.model.SubscriptionPurchaseLineItem;
 import com.google.api.services.androidpublisher.model.SubscriptionPurchaseV2;
 import com.sejourfr.app.config.BillingProperties;
@@ -53,6 +58,7 @@ class GoogleSubscriptionServiceTest {
     private ProcessedExternalEventManager processedEventManager;
     private MailService mailService;
     private BillingProperties billingProperties;
+    private OneTimeAccessService oneTimeAccessService;
     private GoogleSubscriptionService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -67,7 +73,7 @@ class GoogleSubscriptionServiceTest {
         userSubscriptionManager = mock(UserSubscriptionManager.class);
         processedEventManager = mock(ProcessedExternalEventManager.class);
         mailService = mock(MailService.class);
-        OneTimeAccessService oneTimeAccessService = mock(OneTimeAccessService.class);
+        oneTimeAccessService = mock(OneTimeAccessService.class);
         billingProperties = mock(BillingProperties.class); // isOneTime() = false par défaut
         service = new GoogleSubscriptionService(
                 googleStoreClient, planManager, userManager, userSubscriptionManager,
@@ -268,5 +274,83 @@ class GoogleSubscriptionServiceTest {
 
         assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
         verify(mailService, never()).sendSubscriptionCanceledEmail(any(), any(), any(), any(), any());
+    }
+
+    // ----- verify-receipt, pass one-time (lot 5) ------------------------------
+
+    private ProductPurchase produitAchete() {
+        return new ProductPurchase().setPurchaseState(0).setOrderId("order_1");
+    }
+
+    private void modeOneTime(ProductPurchase pp) throws Exception {
+        when(billingProperties.isOneTime()).thenReturn(true);
+        when(googleStoreClient.getProduct("integral_pass_2m", "tok")).thenReturn(pp);
+        when(planManager.findByGoogleProductId("integral_pass_2m")).thenReturn(Optional.of(plan));
+        when(oneTimeAccessService.grantOneTimeAccess(
+                any(), any(), any(), anyString(), any()))
+                .thenReturn(localSub(SubscriptionStatus.ACTIVE));
+    }
+
+    /**
+     * Le client consomme le pass lui-même ({@code autoConsume}) et une
+     * consommation acquitte implicitement : réacquitter ne ferait que provoquer
+     * un 400 inutile.
+     */
+    @Test
+    void passOneTimeDejaConsommeCoteClient_nEstPasReacquitte() throws Exception {
+        modeOneTime(produitAchete().setConsumptionState(1));
+
+        service.activateFromReceipt(userId, "integral_pass_2m", "tok");
+
+        verify(googleStoreClient, never()).acknowledgeProduct(anyString(), anyString());
+        verify(oneTimeAccessService).grantOneTimeAccess(
+                any(), any(), org.mockito.ArgumentMatchers.eq(SubscriptionSource.GOOGLE),
+                org.mockito.ArgumentMatchers.eq("tok"), any());
+    }
+
+    @Test
+    void passOneTimePasEncoreAcquitte_estAcquitte() throws Exception {
+        modeOneTime(produitAchete().setAcknowledgementState(0));
+
+        service.activateFromReceipt(userId, "integral_pass_2m", "tok");
+
+        verify(googleStoreClient).acknowledgeProduct("integral_pass_2m", "tok");
+    }
+
+    /**
+     * Course perdue contre la consommation client : Play refuse l'acquittement en
+     * 400 {@code invalidPurchaseState}. L'accès est payé, il doit être accordé.
+     */
+    @Test
+    void acquittementRefuseEnInvalidPurchaseState_nEmpechePasLAcces() throws Exception {
+        modeOneTime(produitAchete());
+        GoogleJsonError.ErrorInfo info = new GoogleJsonError.ErrorInfo();
+        info.setReason("invalidPurchaseState");
+        GoogleJsonError details = new GoogleJsonError();
+        details.setCode(400);
+        details.setErrors(List.of(info));
+        org.mockito.Mockito.doThrow(new GoogleJsonResponseException(
+                        new HttpResponseException.Builder(400, "Bad Request", new HttpHeaders()), details))
+                .when(googleStoreClient).acknowledgeProduct(anyString(), anyString());
+
+        service.activateFromReceipt(userId, "integral_pass_2m", "tok");
+
+        verify(oneTimeAccessService).grantOneTimeAccess(
+                any(), any(), org.mockito.ArgumentMatchers.eq(SubscriptionSource.GOOGLE),
+                org.mockito.ArgumentMatchers.eq("tok"), any());
+    }
+
+    /** Un échec d'acquittement quelconque reste best-effort : l'accès payé passe. */
+    @Test
+    void acquittementEnEchecReseau_nEmpechePasLAcces() throws Exception {
+        modeOneTime(produitAchete());
+        org.mockito.Mockito.doThrow(new IOException("timeout"))
+                .when(googleStoreClient).acknowledgeProduct(anyString(), anyString());
+
+        service.activateFromReceipt(userId, "integral_pass_2m", "tok");
+
+        verify(oneTimeAccessService).grantOneTimeAccess(
+                any(), any(), org.mockito.ArgumentMatchers.eq(SubscriptionSource.GOOGLE),
+                org.mockito.ArgumentMatchers.eq("tok"), any());
     }
 }

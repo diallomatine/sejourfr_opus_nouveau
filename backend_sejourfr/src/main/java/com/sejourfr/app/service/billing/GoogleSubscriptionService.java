@@ -2,7 +2,10 @@ package com.sejourfr.app.service.billing;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.services.androidpublisher.model.AutoRenewingPlan;
+import com.google.api.services.androidpublisher.model.ProductPurchase;
 import com.google.api.services.androidpublisher.model.SubscriptionPurchaseLineItem;
 import com.google.api.services.androidpublisher.model.SubscriptionPurchaseV2;
 import com.sejourfr.app.entity.Plan;
@@ -28,6 +31,7 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.Base64;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -135,7 +139,7 @@ public class GoogleSubscriptionService {
      */
     private UserSubscription activateOneTimeProduct(
             UUID userId, String expectedProductId, String purchaseToken) {
-        com.google.api.services.androidpublisher.model.ProductPurchase pp;
+        ProductPurchase pp;
         try {
             pp = googleStoreClient.getProduct(expectedProductId, purchaseToken);
         } catch (IOException e) {
@@ -154,20 +158,73 @@ public class GoogleSubscriptionService {
         }
         Plan plan = lookupPlanOrThrow(expectedProductId);
 
-        // Acquittement obligatoire sous 3 j (sinon refund auto). Best-effort :
-        // un échec d'ack ne doit pas bloquer l'octroi de l'accès déjà payé.
-        try {
-            googleStoreClient.acknowledgeProduct(expectedProductId, purchaseToken);
-        } catch (IOException e) {
-            log.warn("Google acknowledgeProduct a échoué (productId={}) : {} — accès accordé quand même.",
-                    expectedProductId, e.getMessage());
-        }
+        // Acquittement obligatoire sous 3 j (sinon Play rembourse automatiquement).
+        // Best-effort : un échec d'ack ne doit jamais bloquer l'octroi d'un accès
+        // déjà payé.
+        acquitter(expectedProductId, purchaseToken, pp);
 
         UserSubscription sub = oneTimeAccessService.grantOneTimeAccess(
                 userId, plan, SubscriptionSource.GOOGLE, purchaseToken, pp.getOrderId());
         log.info("Google one-time pass user={} productId={} token={} endsAt={}",
                 userId, expectedProductId, LogMask.token(purchaseToken), sub.getEndsAt());
         return sub;
+    }
+
+    /**
+     * Acquitte un pass one-time, sauf s'il l'est déjà.
+     *
+     * <p>Le plugin {@code in_app_purchase} <b>consomme</b> le pass côté client
+     * ({@code autoConsume: true}, indispensable pour qu'il soit ré-achetable), et
+     * une consommation vaut acquittement implicite côté Play. Cette consommation
+     * court en parallèle de notre verify-receipt : quand elle gagne la course,
+     * l'API refuse l'acquittement en <b>400 {@code invalidPurchaseState}</b>.
+     * Ce n'est pas une anomalie — l'achat EST acquitté, il n'y a aucun risque de
+     * remboursement automatique. On ne réacquitte donc pas ce qui l'est déjà, et
+     * ce refus précis ne remonte plus en {@code WARN} : le laisser au niveau
+     * d'alerte noyait les vrais échecs d'acquittement, ceux qui, eux, exposent à
+     * un refund à 3 jours.
+     */
+    private void acquitter(String productId, String purchaseToken, ProductPurchase pp) {
+        if (dejaAcquitte(pp)) {
+            log.debug("Google acknowledgeProduct ignoré (productId={}) : achat déjà acquitté ou consommé.",
+                    productId);
+            return;
+        }
+        try {
+            googleStoreClient.acknowledgeProduct(productId, purchaseToken);
+        } catch (IOException e) {
+            if (acquittementDejaFaitCoteStore(e)) {
+                log.debug("Google acknowledgeProduct (productId={}) : achat déjà acquitté côté store "
+                        + "(consommation client concurrente).", productId);
+                return;
+            }
+            log.warn("Google acknowledgeProduct a échoué (productId={}) : {} — accès accordé quand même.",
+                    productId, e.getMessage());
+        }
+    }
+
+    /** {@code acknowledgementState=1} = acquitté, {@code consumptionState=1} = consommé (donc acquitté). */
+    private static boolean dejaAcquitte(ProductPurchase pp) {
+        return Objects.equals(pp.getAcknowledgementState(), 1)
+                || Objects.equals(pp.getConsumptionState(), 1);
+    }
+
+    /**
+     * Le 400 {@code invalidPurchaseState} de l'API Play sur un acquittement veut
+     * dire « cet achat n'est plus dans un état où on peut l'acquitter » — en
+     * pratique, chez nous : il vient d'être consommé par le client.
+     */
+    private static boolean acquittementDejaFaitCoteStore(IOException e) {
+        if (!(e instanceof GoogleJsonResponseException google) || google.getStatusCode() != 400) {
+            return false;
+        }
+        GoogleJsonError details = google.getDetails();
+        if (details != null && details.getErrors() != null
+                && details.getErrors().stream()
+                        .anyMatch(err -> "invalidPurchaseState".equals(err.getReason()))) {
+            return true;
+        }
+        return String.valueOf(google.getContent()).contains("invalidPurchaseState");
     }
 
     // ------------------------------------------------------------------------
