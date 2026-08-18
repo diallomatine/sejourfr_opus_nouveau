@@ -7,7 +7,9 @@ import java.util.Map;
  * Audience d'une landing sur une fenêtre glissante, pour la console admin.
  *
  * @param path       page mesurée ("/reussir")
- * @param days       taille de la fenêtre en jours
+ * @param days       nombre de jours réellement couverts par la fenêtre appliquée
+ * @param from       premier jour couvert, inclus (Europe/Paris, {@code yyyy-MM-dd})
+ * @param to         dernier jour couvert, inclus
  * @param views      vues totales sur la fenêtre
  * @param ctaClicks  clics sur le CTA principal sur la fenêtre
  * @param sources    détail par réseau de provenance, vues décroissantes
@@ -17,6 +19,8 @@ import java.util.Map;
 public record PageViewStatsResponse(
         String path,
         int days,
+        String from,
+        String to,
         long views,
         long ctaClicks,
         List<SourceStat> sources,

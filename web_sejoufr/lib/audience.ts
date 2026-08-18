@@ -1,15 +1,15 @@
 import { API_BASE_URL } from "./api";
 import {
+  detectTrafficSource,
   isAudienceEventAllowed,
-  trafficSourceFromRaw,
   type AudienceEvent,
   type AudienceEventFor,
   type AudiencePath,
-  type TrafficSource,
 } from "./audience-events";
 
 export {
   AUDIENCE_EVENTS_BY_PATH,
+  detectTrafficSource,
   isAudienceEventAllowed,
   trafficSourceFromRaw,
   withTrafficSource,
@@ -20,7 +20,13 @@ export {
 } from "./audience-events";
 
 /**
- * Mesure d'audience des landings de campagne (`/reussir`).
+ * Mesure d'audience ANONYME des pages publiques : landing de campagne
+ * (`/reussir`), funnel du diagnostic et du Plan, et pages d'achat
+ * (`/tarifs`, `/paiement`) — là, elle compte les visiteurs qui regardent les
+ * prix sans jamais créer de compte, ce qu'aucune table ne peut dire.
+ *
+ * À ne pas confondre avec `lib/funnel-events.ts`, qui pose des étapes de
+ * funnel **rattachées à un compte** et exige donc une session authentifiée.
  *
  * Ce module n'écrit **rien** dans le navigateur : ni cookie, ni localStorage,
  * ni sessionStorage. Il n'envoie ni identifiant, ni horodatage client, ni
@@ -31,19 +37,6 @@ export {
  *
  * Conséquence assumée : on compte des **vues**, pas des visiteurs uniques.
  */
-
-/**
- * Provenance du visiteur. `?utm_source=` / `?src=` d'abord — c'est nous qui
- * posons le paramètre dans le lien de la bio, donc c'est fiable ; le referrer
- * ensuite, en repli (les apps mobiles ne le transmettent pas toujours).
- * `null` = accès direct ou source non reconnue.
- */
-export function detectTrafficSource(): TrafficSource | null {
-  if (typeof window === "undefined") return null;
-  const params = new URLSearchParams(window.location.search);
-  return trafficSourceFromRaw(params.get("utm_source") || params.get("src")) ??
-    trafficSourceFromRaw(document.referrer);
-}
 
 /** Une vue par chargement de page, quoi qu'il arrive (StrictMode, re-render). */
 const sent = new Set<string>();

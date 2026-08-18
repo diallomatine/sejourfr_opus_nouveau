@@ -10,6 +10,7 @@ import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.RefreshTokenManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.manager.UserFunnelEventManager;
 import com.sejourfr.app.manager.UserQuestionStatusManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
 import com.sejourfr.app.service.billing.StripeSubscriptionService;
@@ -52,6 +53,7 @@ public class AccountDeletionService {
     private final LearningPlanObservationManager learningPlanObservationManager;
     private final UserQuestionStatusManager userQuestionStatusManager;
     private final ConversationManager conversationManager;
+    private final UserFunnelEventManager userFunnelEventManager;
     private final RefreshTokenManager refreshTokenManager;
 
     @Transactional
@@ -90,6 +92,10 @@ public class AccountDeletionService {
         attemptManager.deleteByUserId(userId);
         userQuestionStatusManager.deleteByUserId(userId);
         conversationManager.deleteByUserId(userId);
+        // Les étapes de funnel décrivent ce que CETTE personne a fait : elles
+        // ne survivent pas à son anonymisation. La cascade base ne suffit pas —
+        // la ligne `users` reste, seule la personne disparaît.
+        userFunnelEventManager.deleteByUserId(userId);
 
         // 3. Révocation de toutes les sessions (refresh tokens).
         refreshTokenManager.revokeAllForUser(userId);

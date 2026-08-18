@@ -12,6 +12,7 @@ import com.sejourfr.app.service.AccountDeletionService;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
+import com.sejourfr.app.enums.ClientPlatform;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
 import org.junit.jupiter.api.Test;
@@ -46,8 +47,8 @@ class DiagnosticServiceIT extends AbstractIntegrationTest {
     void startEstIdempotentEtReprendLesMemesDeuxAttempts() {
         User user = data.user();
         try {
-            var first = service.startOrResume(user.getId());
-            var second = service.startOrResume(user.getId());
+            var first = service.startOrResume(user.getId(), ClientPlatform.WEB);
+            var second = service.startOrResume(user.getId(), ClientPlatform.WEB);
             var current = service.current(user.getId());
 
             assertThat(first.sessionId()).isEqualTo(second.sessionId()).isEqualTo(current.sessionId());
@@ -69,7 +70,7 @@ class DiagnosticServiceIT extends AbstractIntegrationTest {
         User owner = data.user();
         User attacker = data.user();
         try {
-            UUID sessionId = service.startOrResume(owner.getId()).sessionId();
+            UUID sessionId = service.startOrResume(owner.getId(), ClientPlatform.WEB).sessionId();
 
             assertThatThrownBy(() -> service.detail(attacker.getId(), sessionId))
                     .isInstanceOf(NotFoundException.class);
@@ -88,12 +89,12 @@ class DiagnosticServiceIT extends AbstractIntegrationTest {
             var first = executor.submit(() -> {
                 ready.countDown();
                 go.await(5, TimeUnit.SECONDS);
-                return service.startOrResume(user.getId());
+                return service.startOrResume(user.getId(), ClientPlatform.WEB);
             });
             var second = executor.submit(() -> {
                 ready.countDown();
                 go.await(5, TimeUnit.SECONDS);
-                return service.startOrResume(user.getId());
+                return service.startOrResume(user.getId(), ClientPlatform.WEB);
             });
             assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
             go.countDown();
@@ -112,7 +113,7 @@ class DiagnosticServiceIT extends AbstractIntegrationTest {
     void unicitePersistanteInterditDeuxSoumissionsSurLeMemeAttemptDiagnostic() {
         User user = data.user();
         try {
-            var diagnostic = service.startOrResume(user.getId());
+            var diagnostic = service.startOrResume(user.getId(), ClientPlatform.WEB);
             var attempt = attemptManager.findById(diagnostic.written().attemptId()).orElseThrow();
             var task = taskManager.findById(
                     diagnostic.written().productionTaskId()).orElseThrow();
@@ -137,7 +138,7 @@ class DiagnosticServiceIT extends AbstractIntegrationTest {
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch go = new CountDownLatch(1);
         try {
-            var diagnostic = service.startOrResume(user.getId());
+            var diagnostic = service.startOrResume(user.getId(), ClientPlatform.WEB);
             var attempt = attemptManager.findById(diagnostic.written().attemptId()).orElseThrow();
             var task = taskManager.findById(
                     diagnostic.written().productionTaskId()).orElseThrow();
@@ -180,7 +181,7 @@ class DiagnosticServiceIT extends AbstractIntegrationTest {
     void attemptsEtSoumissionsDiagnosticSontExclusDesStatsHistoriquesEtQuotaStandard() {
         User user = data.user();
         try {
-            var diagnostic = service.startOrResume(user.getId());
+            var diagnostic = service.startOrResume(user.getId(), ClientPlatform.WEB);
             var attempt = attemptManager.findById(diagnostic.written().attemptId()).orElseThrow();
             var task = taskManager.findById(
                     diagnostic.written().productionTaskId()).orElseThrow();

@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { trackPaywallViewed } from "@/lib/funnel-events";
+import { useTrafficSourceHref } from "@/lib/use-traffic-source";
 
 interface PaywallSheetProps {
   open: boolean;
@@ -28,6 +30,16 @@ export function PaywallSheet({
   message = "Le mode démo offre 20 questions de découverte. Activez l'abonnement pour accéder à tous les thèmes, l'entraînement illimité, et la révision des erreurs.",
   module = "CIVIQUE",
 }: PaywallSheetProps) {
+  // Une feuille de paywall ouverte, c'est un écran Premium vu : l'étape de
+  // funnel est la même que sur `/paiement`. Idempotente côté serveur, et
+  // dédupliquée par onglet côté client — rien n'est écrit sur l'appareil.
+  useEffect(() => {
+    if (open) trackPaywallViewed();
+  }, [open]);
+
+  // La provenance suit le visiteur jusqu'à la page d'achat.
+  const paymentHref = useTrafficSourceHref(`/paiement?module=${module}`);
+
   // Fermeture par ESC
   useEffect(() => {
     if (!open) return;
@@ -93,7 +105,7 @@ export function PaywallSheet({
         </div>
 
         <Link
-          href={`/paiement?module=${module}`}
+          href={paymentHref}
           className="btn btn-red btn-lg pws-cta"
           onClick={onClose}
         >

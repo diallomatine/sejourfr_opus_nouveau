@@ -1,0 +1,85 @@
+.card {
+  border: 1px solid var(--rule-2);
+  border-radius: 12px;
+  padding: 18px 20px 20px;
+  background: var(--paper-2);
+}
+
+.ok {
+  border-color: var(--green);
+}
+
+/* Une alerte d'intégrité est critique : c'est un des rares endroits de l'écran
+   où le rouge est légitime. */
+.alert {
+  border-color: var(--red);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.ok .dot {
+  background: var(--green);
+}
+
+.alert .dot {
+  background: var(--red);
+}
+
+.title {
+  font-family: "Fraunces", serif;
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0;
+  color: var(--ink);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.alert .title {
+  color: var(--red);
+}
+
+.scope {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.figures {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px 18px;
+}
+
+.figures li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule-2);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.figures strong {
+  color: var(--ink);
+  font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}

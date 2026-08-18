@@ -11,6 +11,7 @@
  * Tout est pur : aucune dépendance React, aucun appel réseau.
  */
 
+import { withTrafficSource, type TrafficSource } from "./audience-events";
 import { realtimeSessionsLabel, type PlanPublicResponse } from "./types";
 
 /** Module vendu par un pass. Miroir de `ModuleAccess` côté serveur, restreint
@@ -144,8 +145,11 @@ export function passSessionsLabel(plan: PlanPublicResponse): string | null {
 /** Écran de récapitulatif du pass choisi (authentifié, protégé par le middleware). */
 export const PASS_RECAP_PATH = "/paiement/recapitulatif";
 
-export function passRecapHref(code: string): string {
-  return `${PASS_RECAP_PATH}?plan=${encodeURIComponent(code)}`;
+export function passRecapHref(code: string, source?: TrafficSource | null): string {
+  return withTrafficSource(
+    `${PASS_RECAP_PATH}?plan=${encodeURIComponent(code)}`,
+    source,
+  );
 }
 
 /**
@@ -159,9 +163,21 @@ export function passRecapHref(code: string): string {
  * récapitulatif : le middleware renverra un visiteur sur `/connexion?next=…`,
  * qui propose lui-même la création de compte. Jamais l'inverse — envoyer un
  * compte connecté sur `/inscription` serait un cul-de-sac.
+ *
+ * `source` transporte la provenance jusqu'à la **porte du compte** : sans elle
+ * le `?src=` mourait en quittant la landing, et le serveur ne pouvait plus
+ * rattacher l'inscription au réseau d'origine. Elle est posée sur les DEUX
+ * destinations — l'écran d'inscription (qui portera l'en-tête au moment du
+ * `register`) et le récapitulatif qui le suit.
  */
-export function passCheckoutHref(code: string, authenticated: boolean | null): string {
-  const recap = passRecapHref(code);
-  if (authenticated === false) return `/inscription?next=${encodeURIComponent(recap)}`;
+export function passCheckoutHref(
+  code: string,
+  authenticated: boolean | null,
+  source?: TrafficSource | null,
+): string {
+  const recap = passRecapHref(code, source);
+  if (authenticated === false) {
+    return withTrafficSource(`/inscription?next=${encodeURIComponent(recap)}`, source);
+  }
   return recap;
 }

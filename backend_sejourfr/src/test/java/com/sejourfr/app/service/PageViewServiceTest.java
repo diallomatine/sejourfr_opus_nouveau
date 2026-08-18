@@ -104,6 +104,49 @@ class PageViewServiceTest {
                 .isInstanceOf(BusinessException.class);
     }
 
+    /**
+     * Écrans de prix : ce qu'on y compte, ce sont les visiteurs qui regardent
+     * les tarifs SANS jamais créer de compte — eux n'apparaissent dans aucune
+     * table nominative, et le funnel par compte commence après eux.
+     */
+    @Test
+    void track_acceptsViewAndCtaOnThePricingScreens() {
+        service.track(new PageViewRequest("/tarifs", "tiktok", PageViewEvent.VIEW));
+        service.track(new PageViewRequest("/tarifs", "tiktok", PageViewEvent.CTA));
+        service.track(new PageViewRequest("/paiement", "tiktok", PageViewEvent.VIEW));
+        service.track(new PageViewRequest("/paiement", "tiktok", PageViewEvent.CTA));
+
+        verify(manager).increment(eq("/tarifs"), eq("tiktok"), eq(PageViewEvent.VIEW), any());
+        verify(manager).increment(eq("/tarifs"), eq("tiktok"), eq(PageViewEvent.CTA), any());
+        verify(manager).increment(eq("/paiement"), eq("tiktok"), eq(PageViewEvent.VIEW), any());
+        verify(manager).increment(eq("/paiement"), eq("tiktok"), eq(PageViewEvent.CTA), any());
+    }
+
+    /**
+     * Les écrans de prix ne portent QUE la vue et le clic : le reste du parcours
+     * d'achat (écran Premium, clic abonnement, paiement) se lit par compte, pas
+     * dans l'agrégat anonyme. Les mélanger produirait deux chiffres pour la même
+     * étape.
+     */
+    @Test
+    void track_rejectsFunnelEventsOnThePricingScreens() {
+        assertThatThrownBy(() -> service.track(new PageViewRequest(
+                "/tarifs", "tiktok", PageViewEvent.DIAGNOSTIC_TO_PREMIUM_CLICKED)))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.track(new PageViewRequest(
+                "/paiement", "tiktok", PageViewEvent.PLAN_OPENED)))
+                .isInstanceOf(BusinessException.class);
+
+        verify(manager, never()).increment(anyString(), anyString(), any(), any());
+    }
+
+    @Test
+    void stats_servesThePricingScreensToo() {
+        when(manager.since(eq("/tarifs"), any())).thenReturn(List.of());
+
+        assertThat(service.stats("/tarifs", 30).path()).isEqualTo("/tarifs");
+    }
+
     @Test
     void track_foldsUnknownSourceIntoOther() {
         service.track(new PageViewRequest("/reussir", "reseau-invente-123", PageViewEvent.CTA));
@@ -155,19 +198,101 @@ class PageViewServiceTest {
                 .isNull();
     }
 
+    /**
+     * Série CONTINUE : un point par jour de la fenêtre, même à zéro. Un trou se
+     * lit comme une absence de mesure, pas comme une absence de visite — et une
+     * journée choisie sans aucune vue doit rendre un point à zéro, pas une série
+     * vide. Même règle que le funnel par compte.
+     */
     @Test
-    void stats_dailySeriesIsChronological() {
+    void stats_dailySeriesIsChronologicalAndContinuous() {
         LocalDate day = LocalDate.now();
         when(manager.since(eq("/reussir"), any())).thenReturn(List.of(
                 row("tiktok", PageViewEvent.VIEW, day, 5),
                 row("tiktok", PageViewEvent.VIEW, day.minusDays(2), 1),
                 row("instagram", PageViewEvent.VIEW, day.minusDays(1), 2)));
 
-        PageViewStatsResponse stats = service.stats("/reussir", 30);
+        PageViewStatsResponse stats = service.stats("/reussir", 4);
 
         assertThat(stats.daily()).extracting(PageViewStatsResponse.DailyStat::day)
-                .containsExactly(day.minusDays(2).toString(), day.minusDays(1).toString(),
-                        day.toString());
+                .containsExactly(day.minusDays(3).toString(), day.minusDays(2).toString(),
+                        day.minusDays(1).toString(), day.toString());
+        assertThat(stats.daily().getFirst().views()).isZero();
+        assertThat(stats.daily().getLast().views()).isEqualTo(5);
+    }
+
+    // ------------------------------------------------------------------------
+    // Période explicite (from/to), même contrat que le funnel par compte
+    // ------------------------------------------------------------------------
+
+    @Test
+    void stats_explicitWindowWinsOverDaysAndIsEchoedBack() {
+        when(manager.since(eq("/reussir"), any())).thenReturn(List.of());
+
+        PageViewStatsResponse stats = service.stats("/reussir", "2026-08-01", "2026-08-07", 30);
+
+        assertThat(stats.from()).isEqualTo("2026-08-01");
+        assertThat(stats.to()).isEqualTo("2026-08-07");
+        assertThat(stats.days()).isEqualTo(7);
+        assertThat(stats.daily()).hasSize(7);
+    }
+
+    /** Une seule journée : un seul point, même sans aucune vue ce jour-là. */
+    @Test
+    void stats_singleDayYieldsExactlyOnePoint() {
+        when(manager.since(eq("/reussir"), any())).thenReturn(List.of());
+
+        PageViewStatsResponse stats = service.stats("/reussir", "2026-08-18", "2026-08-18", 30);
+
+        assertThat(stats.days()).isEqualTo(1);
+        assertThat(stats.daily()).singleElement()
+                .extracting(PageViewStatsResponse.DailyStat::day).isEqualTo("2026-08-18");
+    }
+
+    /**
+     * Les buckets postérieurs à la borne de fin sont écartés : sans ça, une
+     * journée choisie dans le passé renverrait tout ce qui l'a suivie.
+     */
+    @Test
+    void stats_ignoresBucketsAfterTheEndBound() {
+        LocalDate cible = LocalDate.parse("2026-08-18");
+        when(manager.since(eq("/reussir"), any())).thenReturn(List.of(
+                row("tiktok", PageViewEvent.VIEW, cible, 5),
+                row("tiktok", PageViewEvent.VIEW, cible.plusDays(1), 99)));
+
+        PageViewStatsResponse stats = service.stats("/reussir", "2026-08-18", "2026-08-18", 30);
+
+        assertThat(stats.views()).isEqualTo(5);
+    }
+
+    @Test
+    void stats_halfIntervalIsRejected_neverASilentFallbackOnDays() {
+        assertThatThrownBy(() -> service.stats("/reussir", "2026-08-18", null, 30))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.stats("/reussir", null, "2026-08-18", 30))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void stats_invertedOrTooWideWindowIsRejected() {
+        assertThatThrownBy(() -> service.stats("/reussir", "2026-08-19", "2026-08-18", 30))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.stats("/reussir",
+                LocalDate.now().minusDays(400).toString(), LocalDate.now().toString(), 30))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /** Non-régression : sans bornes, « days » reste la fenêtre glissante. */
+    @Test
+    void stats_withoutBoundsTheOldContractIsUnchanged() {
+        when(manager.since(eq("/reussir"), any())).thenReturn(List.of());
+        LocalDate today = LocalDate.now();
+
+        PageViewStatsResponse stats = service.stats("/reussir", 7);
+
+        assertThat(stats.days()).isEqualTo(7);
+        assertThat(stats.to()).isEqualTo(today.toString());
+        assertThat(stats.from()).isEqualTo(today.minusDays(6).toString());
     }
 
     @Test

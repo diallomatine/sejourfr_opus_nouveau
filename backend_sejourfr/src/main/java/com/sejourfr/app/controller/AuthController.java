@@ -4,6 +4,7 @@ import com.sejourfr.app.dto.*;
 import com.sejourfr.app.ratelimit.RateLimitGuard;
 import com.sejourfr.app.service.AuthService;
 import com.sejourfr.app.service.UserProfileService;
+import com.sejourfr.app.util.ClientContextResolver;
 import com.sejourfr.app.util.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -25,6 +26,7 @@ public class AuthController {
     private final UserProfileService userProfileService;
     private final RateLimitGuard rateLimitGuard;
     private final ClientIpResolver clientIpResolver;
+    private final ClientContextResolver clientContextResolver;
 
     /**
      * IP de l'appelant. Les en-têtes de proxy ne sont lus que si la connexion
@@ -80,7 +82,8 @@ public class AuthController {
     @PostMapping("/register")
     public TokenResponse register(@Valid @RequestBody RegisterRequest req, HttpServletRequest http) {
         rateLimitGuard.checkRegister(clientIp(http));
-        return authService.register(req, userAgent(http), clientIp(http));
+        return authService.register(req, userAgent(http), clientIp(http),
+                clientContextResolver.resolve(http));
     }
 
     @PostMapping("/forgot-password")

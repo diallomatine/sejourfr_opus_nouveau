@@ -25,6 +25,8 @@ import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.SkillPromptManager;
 import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.TranscriptionManager;
+import com.sejourfr.app.manager.DiagnosticSessionManager;
+import com.sejourfr.app.manager.UserFunnelEventManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserQuestionStatusManager;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
@@ -78,7 +80,9 @@ public class TestSupportConfig {
                              SkillPromptManager skillPromptManager,
                              UserSkillAttemptManager userSkillAttemptManager,
                              AudioQuestionDraftRepository audioQuestionDraftRepository,
-                             AudioQuestionGenerationLogRepository audioQuestionGenerationLogRepository) {
+                             AudioQuestionGenerationLogRepository audioQuestionGenerationLogRepository,
+                             DiagnosticSessionManager diagnosticSessionManager,
+                             UserFunnelEventManager userFunnelEventManager) {
         return new TestData(userManager, themeManager, passwordEncoder,
                 mediaManager, passageManager, questionManager, attemptManager,
                 attemptQuestionManager, answerManager, planManager,
@@ -90,7 +94,8 @@ public class TestSupportConfig {
                 humanCalibrationNoteManager, realtimeSessionManager,
                 learningPlanObservationManager,
                 skillManager, skillRepository, skillPromptManager, userSkillAttemptManager,
-                audioQuestionDraftRepository, audioQuestionGenerationLogRepository);
+                audioQuestionDraftRepository, audioQuestionGenerationLogRepository,
+                diagnosticSessionManager, userFunnelEventManager);
     }
 
     @Bean

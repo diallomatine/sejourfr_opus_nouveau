@@ -1,5 +1,6 @@
 package com.sejourfr.app.entity;
 
+import com.sejourfr.app.enums.ClientPlatform;
 import com.sejourfr.app.enums.DiagnosticSessionStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -74,6 +75,15 @@ public class DiagnosticSession {
     @Column(name = "retry_count", nullable = false)
     private short retryCount;
 
+    /**
+     * Plateforme sur laquelle la session a ete creee. {@code null} sur les
+     * sessions anterieures a la mesure — rendu « UNKNOWN » a la lecture, jamais
+     * devine depuis un user-agent.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private ClientPlatform platform;
+
     @Column(name = "started_at", nullable = false, updatable = false)
     private Instant startedAt;
 
@@ -119,6 +129,9 @@ public class DiagnosticSession {
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
     public short getRetryCount() { return retryCount; }
     public void setRetryCount(short retryCount) { this.retryCount = retryCount; }
+    public ClientPlatform getPlatform() { return platform; }
+    public void setPlatform(ClientPlatform platform) { this.platform = platform; }
+
     public Instant getStartedAt() { return startedAt; }
     public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }
     public Instant getCompletedAt() { return completedAt; }

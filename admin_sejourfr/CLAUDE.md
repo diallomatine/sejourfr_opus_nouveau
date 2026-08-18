@@ -36,10 +36,17 @@ src/
 │   ├── layout/AppLayout.*   Sidebar + main outlet (visible quand connecté)
 │   └── ui/                  Primitives réutilisables (Button, Modal, Tag, etc.)
 ├── features/                Une feature = un dossier (entité + UI + helpers)
-│   ├── audience/            Audience des landings (/reussir, /diagnostic, /plan) :
-│   │                        vues, clics CTA, funnel diagnostic typé, taux par
-│   │                        réseau, série journalière. Lecture seule, compteur
-│   │                        agrégé sans traceur (cf. racine)
+│   ├── audience/            Deux natures de données sur un seul écran :
+│   │                        (1) funnel d'acquisition réel, cohorte des comptes
+│   │                        créés sur la fenêtre, comptage EXACT par compte
+│   │                        (inscription → diagnostic → paywall → paiement),
+│   │                        ventilé par provenance et par plateforme, plus un
+│   │                        contrôle d'intégrité « un diagnostic par compte » ;
+│   │                        (2) audience des landings (/reussir, /diagnostic,
+│   │                        /plan), agrégat ANONYME de vues de pages sans
+│   │                        traceur (cf. racine). Les deux ne se comparent pas,
+│   │                        l'écran le dit. Lecture seule. Détail dans la
+│   │                        section « Funnel & audience » plus bas.
 │   ├── dashboard/
 │   ├── questions/           Le plus complexe : liste + filtres + modal CRUD
 │   ├── themes/
@@ -87,8 +94,21 @@ Endpoints utilisés actuellement :
 - `GET /api/admin/conversations/unread-count`
 - `POST|GET|PATCH|DELETE /api/admin/audio-questions[/{id}[/preview|validate]]` + `GET /api/admin/audio-questions/generation-logs`
 - `POST /api/admin/production/examples/audio/batch-generate?size=10`, `GET …/pending/count`, `GET …/to-review`, `POST …/{id}/publish`, `POST …/{id}/regenerate` (audios exemples EO — feature `exampleAudio/`)
-- `GET /api/admin/page-views?path=…&days=…` + `GET /api/admin/page-views/paths`
-  — audience des landings et compte brut `events` du funnel (feature `audience/`)
+- `GET /api/admin/page-views?path=…` + `GET /api/admin/page-views/paths`
+  — audience des landings et compte brut `events` du funnel (feature `audience/`).
+  La réponse renvoie les bornes appliquées (`from`/`to`) en plus de `days`
+- `GET /api/admin/audience/funnel` — funnel réel de la **cohorte** des comptes
+  créés sur la période : 7 étapes déjà ordonnées (`stages`, à ne jamais
+  réordonner côté front), ventilations `bySource` / `byPlatform`, série `daily`
+  continue et bloc `integrity` (**global, jamais filtré par la période**).
+  `source: "inconnu"` et `platform: "UNKNOWN"` = comptes antérieurs à la mesure :
+  ils s'affichent explicitement, sinon les totaux ne tombent plus juste
+- **Période, commune aux deux** (`AudienceRange` dans `types/api.ts`) : soit
+  `days` (fenêtre glissante), soit `from`/`to` (`yyyy-MM-dd`, Europe/Paris,
+  **bornes incluses**, `from == to` = une journée). Union **exclusive** : une
+  borne seule, `from > to` ou plus de 365 jours sont refusés en 400, donc on
+  n'envoie jamais les deux formes. Les bornes **renvoyées** font foi à
+  l'affichage — jamais celles que le client croit avoir demandées
 - `GET|POST /api/admin/diagnostics/{code}/versions/{version}/instruction-audio`
   — inspection/génération explicite de la consigne EO fixe (seed-only ; pas de
   CRUD des sujets diagnostiques)
@@ -184,6 +204,53 @@ corriger une faute de frappe dans un sujet imposerait une migration Flyway.
   `GET /api/admin/skill-prompts/{id}` au lieu de se fier au payload du détail :
   un seul endroit garantit d'avoir le contexte, la consigne et les 3 références
   complets.
+
+### Funnel & audience (`features/audience/`)
+
+Route `/audience`, lecture seule. L'écran doit répondre **en trois secondes,
+sans lire un tableau** : combien sont arrivés et combien ont payé, **où ça
+fuit**, **quel réseau vaut le coup**. Tout le reste existe encore, mais replié.
+
+- **Un SEUL filtre de période** en haut pilote les deux sections (aujourd'hui /
+  hier / cette semaine / ce mois / 7-30-90 j / une date précise) : un filtre par
+  section ferait comparer deux périodes sans le voir. La période **affichée**
+  vient toujours des bornes **renvoyées** par le serveur, jamais de celles que le
+  client croit avoir demandées.
+- **Ordre d'apparition** : bandeau de chiffres clés + phrase de synthèse
+  (`HeadlineBoard`) → entonnoir des 7 étapes (`FunnelSteps`) → classement des
+  provenances (`SourceRanking`) → second rideau replié (`Collapsible`) :
+  plateformes, série journalière, contrôle d'intégrité, puis toute la section
+  anonyme.
+- 🛑 **Honnêteté statistique — les seuils vivent dans `insights.ts`** et sont
+  commentés là-bas : `MIN_SIGNUPS_POUR_DESIGNER_UNE_FUITE = 10`,
+  `MIN_SIGNUPS_POUR_COMPARER_LES_RESEAUX = 20`, `MIN_SIGNUPS_PAR_RESEAU = 5`.
+  En dessous, la phrase de synthèse **ne conclut pas** : elle énonce les chiffres
+  et dit pourquoi elle s'arrête là. On ne désigne **jamais** un « meilleur
+  réseau » sur 3 inscrits. Ce qui est masqué, c'est une **conclusion**, jamais
+  une donnée — tous les chiffres restent affichés.
+- **`insights.ts` est l'unique calcul dérivé** de l'écran (chiffres de tête,
+  marche qui perd le plus, classement, phrase de synthèse, formatage
+  `count`/`percent`/`barWidth`). Aucun composant ne recalcule un taux dans son
+  JSX. `labels.ts` porte les libellés partagés (étapes, provenances,
+  plateformes, événements) — ils vivaient en double et deux tableaux pouvaient
+  nommer le même réseau différemment.
+- **Classement des provenances : payants d'abord, taux ensuite**
+  (`compareSources`). Trier sur le seul taux hisserait en tête un réseau à
+  1 inscrit et 1 payant. `inconnu` (comptes antérieurs à la mesure) reste
+  toujours en dernier : ce n'est pas un canal sur lequel investir.
+- **Le rouge est réservé au critique** : la marche qui perd le plus de comptes
+  et une alerte d'intégrité. Rien d'autre. Le bloc d'intégrité s'ouvre
+  **automatiquement** quand un compte a plusieurs diagnostics.
+- **Les étiquettes de nature** (`exact · par compte` / `anonyme · par page`) sont
+  un garde-fou de lecture, pas une décoration : elles restent visibles même quand
+  le bloc est replié (prop `nature` de `Collapsible`).
+- **Un état vide explique pourquoi il est vide** (période sans inscription,
+  mesure plus récente que la fenêtre) — jamais un tiret.
+- `components/panels.module.css` porte la coquille commune (bloc, intitulé,
+  note, état, pastille de nature) ; `dates.ts` tient l'unique notion
+  d'« aujourd'hui » (Europe/Paris) et `period.ts` traduit les préréglages en
+  `AudienceRange`. `DailyChart` est le graphe maison partagé — **aucune
+  librairie de graphes dans ce projet**.
 
 ### Titres des sujets EE/EO (`features/productionTasks/`)
 

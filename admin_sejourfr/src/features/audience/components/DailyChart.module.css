@@ -1,0 +1,99 @@
+.wrap {
+  display: block;
+}
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 140px;
+  margin-top: 16px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.col {
+  position: relative;
+  flex: 1 0 6px;
+  min-width: 6px;
+  /* Sur une période d'un ou deux jours, sans plafond la colonne s'étirerait sur
+     toute la largeur du panneau et ne se lirait plus comme une barre. */
+  max-width: 56px;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.bar {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  border-radius: 3px 3px 0 0;
+  display: block;
+}
+
+.soft {
+  background: var(--blue);
+  opacity: 0.22;
+}
+
+.mid {
+  background: var(--blue);
+  opacity: 0.55;
+}
+
+.strong {
+  background: var(--blue);
+}
+
+.success {
+  background: var(--green);
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.legend {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch {
+  position: static;
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.axisSingle {
+  justify-content: flex-start;
+}
+
+.empty {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}

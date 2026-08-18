@@ -41,6 +41,10 @@ import static org.mockito.Mockito.when;
  */
 class AuthServiceTest {
 
+    private static final com.sejourfr.app.util.ClientContext CTX =
+            new com.sejourfr.app.util.ClientContext(
+                    com.sejourfr.app.enums.ClientPlatform.WEB, "tiktok");
+
     private AuthenticationManager authenticationManager;
     private UserManager userManager;
     private PasswordResetTokenManager passwordResetTokenManager;
@@ -94,7 +98,7 @@ class AuthServiceTest {
         when(userManager.existsByEmail("dup@test.fr")).thenReturn(true);
 
         assertThatThrownBy(() -> service.register(
-                new RegisterRequest("dup@test.fr", "password1", "A", "B", null), "ua", "ip"))
+                new RegisterRequest("dup@test.fr", "password1", "A", "B", null), "ua", "ip", CTX))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("existe déjà");
 
@@ -114,7 +118,7 @@ class AuthServiceTest {
 
         TokenResponse resp = service.register(
                 new RegisterRequest("User@Test.fr", "password1", " Alice ", " Martin ", null),
-                "ua", "ip");
+                "ua", "ip", CTX);
 
         assertThat(resp.accessToken()).isEqualTo("acc");
         assertThat(resp.refreshToken()).isEqualTo("ref");
@@ -167,7 +171,7 @@ class AuthServiceTest {
             UUID id = stubSuccessfulRegistration(email);
 
             service.register(new RegisterRequest(email, "password1", "A", "B", procedure),
-                    "ua", "ip");
+                    "ua", "ip", CTX);
 
             verify(meService).updateTargetProcedure(id, procedure);
             org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
@@ -184,13 +188,50 @@ class AuthServiceTest {
         String email = "sans@test.fr";
         stubSuccessfulRegistration(email);
 
-        service.register(new RegisterRequest(email, "password1", "A", "B", null), "ua", "ip");
+        service.register(new RegisterRequest(email, "password1", "A", "B", null), "ua", "ip", CTX);
 
         verify(meService, never()).updateTargetProcedure(any(), any());
         org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
         verify(userManager).save(captor.capture());
         assertThat(captor.getValue().getTargetProcedure()).isNull();
         assertThat(captor.getValue().getTargetLevel()).isNull();
+    }
+
+    /**
+     * La provenance est celle du PREMIER JOUR. C'est le seul endroit qui la
+     * pose : la réécrire à une visite ultérieure attribuerait toutes les
+     * acquisitions au dernier canal utilisé.
+     */
+    @Test
+    void register_stampsTheSignupOrigin() {
+        String email = "venu@test.fr";
+        stubSuccessfulRegistration(email);
+
+        service.register(new RegisterRequest(email, "password1", "A", "B", null), "ua", "ip",
+                new com.sejourfr.app.util.ClientContext(
+                        com.sejourfr.app.enums.ClientPlatform.MOBILE, "tiktok"));
+
+        org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
+        verify(userManager).save(captor.capture());
+        assertThat(captor.getValue().getSignupSource()).isEqualTo("tiktok");
+        assertThat(captor.getValue().getSignupPlatform())
+                .isEqualTo(com.sejourfr.app.enums.ClientPlatform.MOBILE);
+    }
+
+    /** Sans contexte déclaré, on pose un inconnu explicite — jamais null muet. */
+    @Test
+    void register_withoutDeclaredContext_stampsAnExplicitUnknown() {
+        String email = "sans-contexte@test.fr";
+        stubSuccessfulRegistration(email);
+
+        service.register(new RegisterRequest(email, "password1", "A", "B", null),
+                "ua", "ip", null);
+
+        org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
+        verify(userManager).save(captor.capture());
+        assertThat(captor.getValue().getSignupSource()).isEqualTo("direct");
+        assertThat(captor.getValue().getSignupPlatform())
+                .isEqualTo(com.sejourfr.app.enums.ClientPlatform.UNKNOWN);
     }
 
     // ------------------------------------------------------------------ login

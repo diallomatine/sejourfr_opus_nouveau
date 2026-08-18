@@ -307,6 +307,102 @@ cliquent son CTA, découpé par réseau de provenance.
   `POST /api/public/page-views`, même chantier que la démo invitée. Sans lui, un
   bot peut gonfler un compteur — donnée fausse, mais ni fuite ni inflation de
   stockage.
+- **Chemins suivis** : `/reussir`, `/diagnostic`, `/plan`, plus `/tarifs` et
+  `/paiement` (`VIEW` + `CTA`, 2026-08-19) — ces deux derniers mesurent les
+  visiteurs qui regardent les prix **sans jamais créer de compte**, angle mort
+  jusque-là.
+- **Fenêtre de lecture** : les deux endpoints admin acceptent `from`/`to`
+  (ISO `yyyy-MM-dd`, **Europe/Paris**, bornes **incluses**) **ou** `days`
+  (défaut 30, clamp 1..365). `from`/`to` l'emportent ; **une seule borne, `from
+  > to`, ou plus de 365 jours ⇒ 400 nommé** — jamais un repli muet sur `days`,
+  qui rendrait des chiffres qu'on croirait filtrés. Une borne future est
+  ramenée à aujourd'hui (l'admin peut cliquer un jour à venir, ce n'est pas une
+  faute). Autorité unique : **`util/FenetreMesure`**, partagée par les deux
+  endpoints. Les réponses **rendent les bornes appliquées** (`cohortFrom`/
+  `cohortTo`, et `from`/`to` ajoutés à `PageViewStatsResponse`) : l'écran
+  affiche la période d'après le **serveur**, jamais d'après ce que le client
+  croit avoir demandé. `daily` est **continue des deux côtés** (un point par
+  jour, zéros compris) — sans ça, `from == to` sur une journée creuse rendait
+  une série vide.
+
+## Funnel d'acquisition — comptage EXACT par compte (2026-08-19)
+
+Deuxième nature de mesure, **à ne jamais mélanger** avec `page_views` : ici on
+compte des **comptes**, une fois par étape, sur les vraies tables. Le funnel
+suivi est *réseau social → inscription → diagnostic commencé → terminé → écran
+Premium affiché → clic abonnement → paiement*.
+
+- 🛑 **Tout ce qui peut se lire sur les vraies tables se lit sur les vraies
+  tables** (`users`, `diagnostic_sessions`, `user_subscriptions`). Recompter des
+  inscriptions ou des paiements par événements client aurait produit **deux
+  chiffres divergents pour la même chose**. Seules les deux étapes qui n'existent
+  QUE dans le navigateur sont enregistrées.
+- **Cohorte d'inscription** : la population est celle des comptes créés dans la
+  fenêtre (`deleted_at IS NULL`), et **chaque étape est mesurée sur ces mêmes
+  comptes**, quelle que soit la date de l'étape. C'est ce qui rend « 4 payants
+  sur 50 inscrits TikTok » vrai ; comparer des totaux journaliers ne veut rien
+  dire. `integrity`, lui, est **global** et n'est jamais filtré par la période.
+- **La provenance et la plateforme voyagent en EN-TÊTES**, résolues serveur par
+  `util/ClientContextResolver` (patron `ClientIpResolver`) : `X-Sejourfr-Source`
+  (normalisée par **`util/TrafficSource`**, autorité unique dont
+  `PageViewService` est désormais un client — l'allowlist n'existe plus en deux
+  copies) et `X-Sejourfr-Client` (`web` / `mobile`, enum `ClientPlatform`).
+  Un en-tête plutôt qu'un champ de DTO : ça couvre d'un coup l'inscription
+  locale, les sign-in Google/Apple et la création de diagnostic **sans toucher
+  quatre DTO**, et chaque front n'a qu'**un seul point de câblage** (client HTTP
+  web, `BaseOptions` du Dio mobile — y compris sur les requêtes non
+  authentifiées, l'inscription en fait partie).
+- **Capté à la création seulement** : `users.signup_source` / `signup_platform`
+  sont posés à `register` et à la **première** connexion sociale, **jamais
+  réécrits** — la provenance, c'est celle du premier jour (test dédié).
+  `diagnostic_sessions.platform` répond à « qui fait son diagnostic depuis
+  l'app ». **Legacy = NULL, aucun rattrapage** : rendu `"inconnu"` /
+  `"UNKNOWN"` et **affiché en clair**, sinon les totaux ne tombent plus juste.
+- **`user_funnel_events`** (V036) : `UNIQUE (user_id, event)` — **première
+  occurrence seulement**, donc **3 lignes maximum par compte**, la table ne peut
+  pas gonfler et n'a pas besoin de rate-limit. `POST /api/me/funnel-events`
+  (authentifié) rend **204** et est idempotent par `ON CONFLICT DO NOTHING` :
+  aucun rejeu ne lève, y compris en concurrence.
+  🛑 **`CHECKOUT_STARTED` est REFUSÉ au client (422)** et posé **serveur** par
+  `BillingService` après création réelle de la Checkout Stripe : venant d'un
+  client ce serait une **intention**, pas un fait, et la dernière marche du
+  funnel ne voudrait plus rien dire. Best-effort — un échec d'enregistrement ne
+  bloque jamais un paiement.
+- **`PAYWALL_VIEWED` ≠ `SUBSCRIBE_CLICKED`** : le premier se pose à l'affichage
+  d'un écran Premium (page `/paiement` **et** `PaywallSheet`), le second
+  **uniquement sur un CTA qui engage l'achat**. Un lien de navigation vers
+  `/paiement` n'est pas un clic d'abonnement — sinon les deux étapes affichent le
+  même nombre.
+- **`GET /api/admin/audience/funnel`** : `stages` (ordre figé `SIGNUP` →
+  `PURCHASE`, jamais réordonné par un front), `bySource`, `byPlatform`, `daily`,
+  `integrity`. `PURCHASE` = au moins une `user_subscriptions` de statut
+  ≠ `PENDING` (un remboursement a bien été un paiement). **6 requêtes agrégées
+  bornées** (`GROUP BY` en SQL), jamais une par compte ; chaque compte
+  appartient à exactement une cellule (source × plateforme), donc les
+  sous-totaux sont additionnables.
+- **Un seul diagnostic par compte** : l'unicité réelle est
+  `(user_id, diagnostic_code, diagnostic_version)`, **pas `user_id` seul** — une
+  version 2 du diagnostic autoriserait légitimement une seconde session. C'est
+  exactement ce que surveille `integrity.accountsWithMultipleDiagnosticSessions`
+  (doit valoir 0, mesuré sur **toute la base**).
+- **Suppression de compte** : les événements de funnel sont purgés
+  **explicitement** par `AccountDeletionService` — la suppression est une
+  *anonymisation*, la ligne `users` survit, donc la cascade DB ne se déclenche
+  pas (test IT dédié).
+- ⚠️ **Conséquence légale, traitée dans la même passe** : la provenance est
+  désormais **rattachée à un compte**, ce que `/confidentialite` niait
+  implicitement. La page a une sous-section **8.3 « Mesure d'audience sans
+  traceur »** + les lignes correspondantes aux articles 3.2, 4 et 5. L'acquis
+  est intact et doit le rester : **aucun cookie, rien écrit sur le terminal,
+  aucun outil tiers, aucun bandeau de consentement**. Ne rien ajouter qui écrive
+  côté visiteur sans repasser sur cette page.
+- **Admin** : `features/audience/` est scindé en **deux sections étiquetées** —
+  « comptage exact · par compte » (le funnel) puis « agrégat anonyme · par
+  page » (l'existant). Les lire comme comparables produit des conclusions
+  fausses ; l'étiquette est là pour ça. Un **filtre de période unique** en tête
+  pilote les deux (aujourd'hui / hier / cette semaine — lundi / ce mois — le 1er
+  / 7-30-90 j / une date précise), calculé côté client depuis un seul
+  `parisToday()`.
 
 ## Temps des examens blancs — un chrono PAR ÉPREUVE (2026-08-15)
 

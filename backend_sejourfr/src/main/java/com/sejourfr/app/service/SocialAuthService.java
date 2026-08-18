@@ -13,6 +13,7 @@ import com.sejourfr.app.security.JwtService;
 import com.sejourfr.app.service.social.AppleTokenVerifier;
 import com.sejourfr.app.service.social.GoogleTokenVerifier;
 import com.sejourfr.app.service.social.SocialIdentity;
+import com.sejourfr.app.util.ClientContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -61,15 +62,17 @@ public class SocialAuthService {
     private final AppleTokenVerifier appleVerifier;
     private final MailService mailService;
 
-    public TokenResponse loginWithGoogle(GoogleSignInRequest req, String userAgent, String ipAddress) {
+    public TokenResponse loginWithGoogle(GoogleSignInRequest req, String userAgent,
+                                         String ipAddress, ClientContext client) {
         SocialIdentity identity = googleVerifier.verify(req.idToken());
-        User user = findOrCreate(identity, null, null);
+        User user = findOrCreate(identity, null, null, client);
         return buildTokenResponse(user, userAgent, ipAddress);
     }
 
-    public TokenResponse loginWithApple(AppleSignInRequest req, String userAgent, String ipAddress) {
+    public TokenResponse loginWithApple(AppleSignInRequest req, String userAgent,
+                                        String ipAddress, ClientContext client) {
         SocialIdentity identity = appleVerifier.verify(req.identityToken());
-        User user = findOrCreate(identity, trim(req.firstName()), trim(req.lastName()));
+        User user = findOrCreate(identity, trim(req.firstName()), trim(req.lastName()), client);
         return buildTokenResponse(user, userAgent, ipAddress);
     }
 
@@ -85,7 +88,14 @@ public class SocialAuthService {
     // Helpers
     // ------------------------------------------------------------------------
 
-    private User findOrCreate(SocialIdentity identity, String firstNameOverride, String lastNameOverride) {
+    /**
+     * <p><b>La provenance n'est posée que sur la branche de CRÉATION</b> : un
+     * sign-in social est le même flux pour se connecter et pour s'inscrire, et
+     * la stamper sur les deux premières branches réécrirait la provenance de
+     * l'acquisition à chaque reconnexion.
+     */
+    private User findOrCreate(SocialIdentity identity, String firstNameOverride,
+                              String lastNameOverride, ClientContext client) {
         // 1) lookup par (provider, sub) — match exact deja vu
         Optional<User> byProvider = userManager.findByProvider(identity.provider(), identity.providerUserId());
         if (byProvider.isPresent()) {
@@ -122,6 +132,9 @@ public class SocialAuthService {
         user.setAuthProvider(identity.provider());
         user.setProviderUserId(identity.providerUserId());
         user.setLastLoginAt(Instant.now());
+        ClientContext ctx = client == null ? ClientContext.unknown() : client;
+        user.setSignupSource(ctx.source());
+        user.setSignupPlatform(ctx.platform());
         log.info("Creation compte via {} : email={}", identity.provider(), LogMask.email(identity.email()));
         User saved = userManager.save(user);
         mailService.sendWelcomeEmail(saved.getEmail(), saved.getFirstName());

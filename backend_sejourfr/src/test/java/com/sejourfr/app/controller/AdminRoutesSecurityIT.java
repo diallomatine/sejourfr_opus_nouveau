@@ -61,6 +61,13 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/admin/dashboard"),
                 Arguments.of(HttpMethod.GET, "/api/admin/page-views"),
                 Arguments.of(HttpMethod.GET, "/api/admin/page-views/paths"),
+                // Funnel d'acquisition par compte (distinct de l'agrégat anonyme).
+                Arguments.of(HttpMethod.GET, "/api/admin/audience/funnel"),
+                Arguments.of(HttpMethod.GET, "/api/admin/audience/funnel?days=7"),
+                Arguments.of(HttpMethod.GET,
+                        "/api/admin/audience/funnel?from=2026-08-18&to=2026-08-18"),
+                Arguments.of(HttpMethod.GET,
+                        "/api/admin/page-views?path=/reussir&from=2026-08-18&to=2026-08-18"),
                 Arguments.of(HttpMethod.GET, "/api/admin/calibration/stats"),
                 Arguments.of(HttpMethod.GET, "/api/admin/calibration/submissions"),
                 Arguments.of(HttpMethod.GET,

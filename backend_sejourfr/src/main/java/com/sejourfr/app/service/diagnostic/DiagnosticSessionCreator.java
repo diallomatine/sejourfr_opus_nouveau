@@ -4,6 +4,7 @@ import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.ClientPlatform;
 import com.sejourfr.app.enums.DiagnosticSessionStatus;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.exception.NotFoundException;
@@ -29,7 +30,7 @@ public class DiagnosticSessionCreator {
     private final DiagnosticSessionManager sessionManager;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public DiagnosticSession create(UUID userId, String code, int version) {
+    public DiagnosticSession create(UUID userId, String code, int version, ClientPlatform platform) {
         User user = userManager.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
         // Mêmes sujets que ceux servis publiquement au visiteur sans compte
@@ -49,6 +50,10 @@ public class DiagnosticSessionCreator {
         session.setWrittenAttempt(writtenAttempt);
         session.setOralAttempt(oralAttempt);
         session.setStatus(DiagnosticSessionStatus.IN_PROGRESS);
+        // Plateforme du moment : on la pose ici parce que c'est le seul instant
+        // où la requête du candidat est encore là. Une reprise cross-device ne
+        // la réécrit pas — ce qu'on mesure, c'est où le diagnostic a commencé.
+        session.setPlatform(platform == null ? ClientPlatform.UNKNOWN : platform);
         session.setStartedAt(Instant.now());
         return sessionManager.saveAndFlush(session);
     }

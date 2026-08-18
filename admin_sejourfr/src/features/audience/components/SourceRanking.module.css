@@ -1,0 +1,246 @@
+.rows {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 160px;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--paper);
+  border: 1px solid var(--rule-2);
+}
+
+.rowBest {
+  border-color: var(--blue);
+}
+
+.rowUnknown {
+  background: transparent;
+  border-style: dashed;
+}
+
+.rank {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--muted-2);
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.name {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.best {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin-left: 8px;
+}
+
+/* Barre de VOLUME : combien de comptes ce réseau amène, en part du meilleur. */
+.volume {
+  display: block;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--rule-2);
+  overflow: hidden;
+}
+
+.volume i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--blue);
+  opacity: 0.35;
+}
+
+.counts {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Colonne de CONVERSION : la seule qui dise si le réseau vaut le coup. */
+.conversion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.conversionValue {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
+}
+
+.conversionZero {
+  color: var(--muted-2);
+}
+
+.conversionBar {
+  display: block;
+  width: 100%;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--rule-2);
+  overflow: hidden;
+}
+
+.conversionBar i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--green);
+}
+
+.conversionCaption {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.details {
+  margin-top: 18px;
+}
+
+.detailsSummary {
+  list-style: none;
+  cursor: pointer;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 0;
+}
+
+.detailsSummary::-webkit-details-marker {
+  display: none;
+}
+
+.detailsSummary:hover {
+  color: var(--blue);
+}
+
+.detailsBody {
+  margin-top: 10px;
+}
+
+/* ---------- Tableau détaillé (7 étapes) ---------- */
+
+.numCol {
+  text-align: right;
+}
+
+.num {
+  text-align: right;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.rowName {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.tableConversion {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.totalRow td {
+  background: var(--paper-2);
+  border-top: 2px solid var(--rule);
+  font-weight: 700;
+}
+
+/* Le repli carte partagé masque l'intitulé de la dernière colonne (réservée
+   aux actions de ligne). Ici la dernière colonne porte une donnée : on lui
+   redonne son libellé, uniquement en mode carte. */
+.mobileLabel {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .num,
+  .rowName {
+    white-space: normal;
+  }
+
+  .mobileLabel {
+    display: inline;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+}
+
+@media (max-width: 560px) {
+  .row {
+    grid-template-columns: 26px minmax(0, 1fr);
+    grid-template-areas:
+      "rank identity"
+      "conv conv";
+    padding: 12px;
+  }
+
+  .rank {
+    grid-area: rank;
+    align-self: start;
+    padding-top: 3px;
+  }
+
+  .identity {
+    grid-area: identity;
+  }
+
+  .conversion {
+    grid-area: conv;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .conversionBar {
+    flex: 1 1 auto;
+  }
+
+  .conversionValue {
+    font-size: 19px;
+  }
+}

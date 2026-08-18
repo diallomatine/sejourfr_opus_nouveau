@@ -1,0 +1,142 @@
+/* Coquille commune des blocs de l'écran audience. Elle était recopiée dans
+   chaque module de la feature ; un seul fichier garde les rayons, les fonds et
+   les intitulés alignés d'un bloc à l'autre. */
+
+.panel {
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 22px 24px 24px;
+  overflow: hidden;
+}
+
+/* Second rideau : même bloc, densité plus forte et fond plus discret. */
+.quiet {
+  background: transparent;
+  border-color: var(--rule-2);
+  padding: 18px 20px 20px;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-bottom: 4px;
+}
+
+.title {
+  font-family: "Fraunces", serif;
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--ink);
+}
+
+.titleQuiet {
+  font-size: 16px;
+}
+
+.hint {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.note {
+  margin: 16px 0 0;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--muted);
+  max-width: 78ch;
+}
+
+.note strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.note code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+  background: var(--rule-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* État vide ou en erreur : il doit toujours DIRE pourquoi il est vide. */
+.state {
+  margin: 0;
+  padding: 26px 24px;
+  background: var(--paper-2);
+  border: 1px dashed var(--rule);
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.state .stateTitle {
+  display: block;
+  font-family: "Fraunces", serif;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+
+.stateError {
+  border-style: solid;
+  border-color: var(--red);
+  color: var(--ink);
+}
+
+.state strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.state code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+  background: var(--rule-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+@media (max-width: 520px) {
+  .panel {
+    padding: 18px 16px 20px;
+    border-radius: 12px;
+  }
+
+  .quiet {
+    padding: 16px 14px 18px;
+  }
+}
+
+/* Étiquette de NATURE des données. Elle n'est pas décorative : elle empêche de
+   comparer des comptes (exact) à des vues de pages (anonyme). */
+.nature {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 99px;
+  border: 1px solid var(--rule);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.natureExact {
+  color: var(--blue);
+  border-color: var(--blue);
+  background: var(--paper);
+}
+
+.natureAnon {
+  color: var(--muted);
+  background: var(--paper-2);
+}

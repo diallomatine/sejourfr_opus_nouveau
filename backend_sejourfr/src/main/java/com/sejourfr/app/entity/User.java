@@ -1,6 +1,7 @@
 package com.sejourfr.app.entity;
 
 import com.sejourfr.app.enums.AuthProvider;
+import com.sejourfr.app.enums.ClientPlatform;
 import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
@@ -62,6 +63,23 @@ public class User {
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
+
+    /**
+     * Provenance du PREMIER JOUR : le reseau par lequel ce compte est arrive.
+     * Posee a la creation (inscription locale ou premier sign-in social) et
+     * <strong>jamais reecrite ensuite</strong> — la provenance d'une acquisition
+     * est celle du jour ou elle a eu lieu, la reecrire a chaque visite
+     * attribuerait toutes les acquisitions au dernier canal utilise.
+     * {@code null} sur les comptes anterieurs a la mesure : rendu « inconnu »
+     * a la lecture, jamais devine.
+     */
+    @Column(name = "signup_source", length = 40)
+    private String signupSource;
+
+    /** Plateforme d'inscription, meme regle que {@link #signupSource}. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "signup_platform", length = 16)
+    private ClientPlatform signupPlatform;
 
     @PrePersist
     void prePersist() {
@@ -132,4 +150,10 @@ public class User {
 
     public String getProviderUserId() { return providerUserId; }
     public void setProviderUserId(String providerUserId) { this.providerUserId = providerUserId; }
+
+    public String getSignupSource() { return signupSource; }
+    public void setSignupSource(String signupSource) { this.signupSource = signupSource; }
+
+    public ClientPlatform getSignupPlatform() { return signupPlatform; }
+    public void setSignupPlatform(ClientPlatform signupPlatform) { this.signupPlatform = signupPlatform; }
 }

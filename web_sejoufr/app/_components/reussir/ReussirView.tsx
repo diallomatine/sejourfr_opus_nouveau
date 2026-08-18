@@ -755,6 +755,9 @@ function PricingSection({ plans }: { plans: PlanPublicResponse[] }) {
   const [parcours, setParcours] = useState<Parcours>("tcf");
   const { status, user } = useAuth();
   const isAuth = status === "authenticated" && user !== null;
+  // La provenance suit le visiteur jusqu'à la porte du compte : sans elle, une
+  // inscription venue de TikTok devient indistinguable d'un accès direct.
+  const origin = useOrigin();
 
   const byParcours = useMemo(() => {
     const passes = plans.filter((p) => p.purchaseType === "ONE_TIME" && p.price > 0);
@@ -807,6 +810,7 @@ function PricingSection({ plans }: { plans: PlanPublicResponse[] }) {
               plan={plan}
               popular={plan.code === popular}
               isAuth={isAuth}
+              origin={origin}
             />
           ))}
         </div>
@@ -832,7 +836,7 @@ function PricingSection({ plans }: { plans: PlanPublicResponse[] }) {
           )}
         </p>
 
-        <Link href="/tarifs" className={styles.linkArrow} data-rv>
+        <Link href={withTrafficSource("/tarifs", origin)} className={styles.linkArrow} data-rv>
           Comparer toutes les formules
           <ArrowIcon />
         </Link>
@@ -845,10 +849,12 @@ function PlanCard({
   plan,
   popular,
   isAuth,
+  origin,
 }: {
   plan: PlanPublicResponse;
   popular: boolean;
   isAuth: boolean;
+  origin: TrafficSource | null;
 }) {
   const hasOral = plan.moduleAccess === "INTEGRAL";
   const monthly = passMonthlyLabel(plan);
@@ -856,7 +862,7 @@ function PlanCard({
   // destination que sur /tarifs (`lib/passes.ts`). Non connecté : on passe par
   // l'inscription en gardant la destination, le nouvel inscrit retombe sur le
   // pass qu'il vient de choisir et non au dashboard.
-  const href = passCheckoutHref(plan.code, isAuth);
+  const href = passCheckoutHref(plan.code, isAuth, origin);
 
   return (
     <article className={`${styles.plan} ${popular ? styles.planHi : ""}`} data-rv>

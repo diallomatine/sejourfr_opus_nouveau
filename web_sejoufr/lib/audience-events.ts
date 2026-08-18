@@ -40,6 +40,28 @@ export function trafficSourceFromRaw(raw: string | null | undefined): TrafficSou
   return null;
 }
 
+/**
+ * Provenance du visiteur. `?utm_source=` / `?src=` d'abord — c'est nous qui
+ * posons le paramètre dans le lien de la bio, donc c'est fiable ; le referrer
+ * ensuite, en repli (les apps mobiles ne le transmettent pas toujours).
+ * `null` = accès direct, source non reconnue, ou rendu serveur.
+ *
+ * ⚠️ Vit ici, et pas dans `audience.ts`, parce que `lib/api.ts` en a besoin
+ * pour poser l'en-tête `X-Sejourfr-Source` : ce module n'importe rien, donc
+ * aucun cycle d'import n'est possible. Elle ne lève jamais — un appel HTTP ne
+ * doit pas échouer parce qu'une provenance est illisible.
+ */
+export function detectTrafficSource(): TrafficSource | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return trafficSourceFromRaw(params.get("utm_source") || params.get("src")) ??
+      trafficSourceFromRaw(document.referrer);
+  } catch {
+    return null;
+  }
+}
+
 /** Transporte une provenance non personnelle dans un chemin interne. Le garde
  *  local interdit qu'un futur appelant transforme ce helper en open redirect. */
 export function withTrafficSource(
@@ -74,6 +96,12 @@ export const AUDIENCE_EVENTS_BY_PATH = {
     "PLAN_RECOMMENDED_EXERCISE_STARTED",
     "DIAGNOSTIC_TO_PREMIUM_CLICKED",
   ],
+  // Pages d'achat : la mesure est ANONYME et ne dit rien du funnel par compte
+  // (lui vit dans `lib/funnel-events.ts`, authentifié). Elle répond à la seule
+  // question qu'aucune table ne peut trancher : combien de visiteurs regardent
+  // les prix sans jamais créer de compte.
+  "/tarifs": ["VIEW", "CTA"],
+  "/paiement": ["VIEW", "CTA"],
 } as const satisfies Record<string, readonly AudienceEvent[]>;
 
 export type AudiencePath = keyof typeof AUDIENCE_EVENTS_BY_PATH;

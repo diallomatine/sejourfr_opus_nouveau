@@ -46,7 +46,7 @@ import {
   type LearningPlanSkillDto,
   niveauCecrlLabel,
 } from "@/lib/types";
-import {useTrafficSource} from "@/lib/use-traffic-source";
+import {useTrafficSource, useTrafficSourceHref} from "@/lib/use-traffic-source";
 import {
   LearningPlanStatusPill,
   RowChevron,
@@ -71,6 +71,13 @@ const VISIBLE_SKILLS = 6;
  */
 function trackPremiumClick() {
   trackAudienceEvent("/plan", "DIAGNOSTIC_TO_PREMIUM_CLICKED");
+}
+
+/** Le lien vers l'offre, avec la provenance du visiteur — c'est ce qui relie
+ *  une campagne à un paiement. Sans provenance détectée, le chemin est rendu
+ *  inchangé. */
+function usePremiumHref(): string {
+  return useTrafficSourceHref(SKILL_PREMIUM_HREF);
 }
 
 function formatDate(value: string | null): string | null {
@@ -139,7 +146,12 @@ export function LearningPlanView() {
           title="Connectez-vous pour retrouver votre plan"
           text="Vos priorités restent synchronisées avec vos productions."
         >
-          <Link className={styles.primaryButton} href={`/connexion?next=${encodeURIComponent(planHref)}`}>Se connecter</Link>
+          <Link
+            className={styles.primaryButton}
+            href={withTrafficSource(`/connexion?next=${encodeURIComponent(planHref)}`, trafficSource)}
+          >
+            Se connecter
+          </Link>
         </EmptyCard>
       </PlanShell>
     );
@@ -402,6 +414,7 @@ function PlanHero({
  * pas le réafficher sur cette carte.
  */
 function TodayCard({priority}: {priority: LearningPlanPriorityDto}) {
+  const premiumHref = usePremiumHref();
   const exercise = priority.recommendedExercise;
   const locked = priority.locked || exercise?.locked === true;
   // Assez travaillée en ciblé, pas encore prouvée en situation : la même carte,
@@ -432,7 +445,7 @@ function TodayCard({priority}: {priority: LearningPlanPriorityDto}) {
         <>
           <Link
             className={`${styles.primaryButton} ${styles.todayCta}`}
-            href={SKILL_PREMIUM_HREF}
+            href={premiumHref}
             onClick={trackPremiumClick}
           >
             <Lock size={16} aria-hidden /> Débloquer cet exercice
@@ -622,6 +635,7 @@ function PathStep({
   current: boolean;
   last: boolean;
 }) {
+  const premiumHref = usePremiumHref();
   const exercise = priority.recommendedExercise;
   // Une étape, ce sont les 5 premiers sujets de la compétence — jamais ses 15.
   // L'état « terminée » est **servi** (`stepCompleted`), plus déduit d'une
@@ -696,7 +710,7 @@ function PathStep({
           locked ? (
             <Link
               className={styles.stepCtaStrong}
-              href={SKILL_PREMIUM_HREF}
+              href={premiumHref}
               aria-label={`Débloquer cette étape : ${priority.title}`}
               onClick={trackPremiumClick}
             >
@@ -780,11 +794,12 @@ function ObservedSkills({skills, total}: {skills: LearningPlanSkillDto[]; total:
  *  plus une — le serveur l'en sort dès qu'une vérification a réussi —, l'écran
  *  retombe **silencieusement** sur la fiche complète. */
 function SkillCard({skill}: {skill: LearningPlanSkillDto}) {
+  const premiumHref = usePremiumHref();
   const done = skill.promptCount > 0 && skill.attemptedCount >= skill.promptCount;
   const locked = skill.locked;
   return (
     <Link
-      href={locked ? SKILL_PREMIUM_HREF : competenceHref(skill, {planStep: true})}
+      href={locked ? premiumHref : competenceHref(skill, {planStep: true})}
       onClick={locked ? trackPremiumClick : undefined}
       className={`${s.card} ${s.rowCard} ${s.ringRow}`}
     >

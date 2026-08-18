@@ -11,6 +11,8 @@ import com.sejourfr.app.service.ReceiptVerificationService;
 import com.sejourfr.app.service.SubscriptionService;
 import com.sejourfr.app.service.billing.SubscriptionCancellationService;
 import com.sejourfr.app.service.realtime.RealtimeQuotaService;
+import com.sejourfr.app.util.ClientContextResolver;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -36,6 +38,7 @@ public class BillingController {
     private final ReceiptVerificationService receiptVerificationService;
     private final SubscriptionCancellationService subscriptionCancellationService;
     private final RealtimeQuotaService realtimeQuotaService;
+    private final ClientContextResolver clientContextResolver;
     private final CurrentUser currentUser;
 
     /**
@@ -59,8 +62,10 @@ public class BillingController {
      * V106 et n'apparaissent plus.
      */
     @GetMapping("/payment-link")
-    public BillingCheckoutResponse getPaymentLink(@RequestParam("planCode") String planCode) {
-        return billingService.getPaymentLink(currentUser.getId(), planCode);
+    public BillingCheckoutResponse getPaymentLink(@RequestParam("planCode") String planCode,
+                                                  HttpServletRequest http) {
+        return billingService.getPaymentLink(currentUser.getId(), planCode,
+                clientContextResolver.resolve(http));
     }
 
     /**
