@@ -2235,6 +2235,88 @@ le niveau rendu est au minimum **A1**. Décision produit du propriétaire.
   score ou un nombre de bonnes réponses (vérifié). Le niveau est **calculé
   serveur** et lu tel quel.
 
+## Ordre des propositions QCM et lettres citées dans les explications (2026-08-19)
+
+Les propositions d'une question sont **mélangées** à l'affichage (shuffle
+déterministe, graine dérivée de l'`AttemptQuestion`, `QuestionMapper.ordreAffiche`)
+pour supprimer le biais de position. Mais les explications sont rédigées sur
+l'ordre `display_order` de la base et **citent des lettres** (« Seule B… », « A
+indique une durée »). Les deux n'étaient jamais réconciliés : l'explication
+désignait des lettres qui ne correspondaient plus à l'écran, sur **439 questions
+actives** (CE 395, CO 20, STRUCTURE 24 — le civique n'utilise aucune lettre).
+
+- **Le contenu en base est JUSTE, c'est l'affichage qui décalait.** Ne jamais
+  « corriger » une explication ni réordonner un `display_order` pour rattraper ce
+  bug : mesuré sur les 20 CO, les 20/20 explications et les 80/80 choix sont
+  cohérents avec l'ordre stocké.
+- **Autorité unique : `util/ReferenceChoixLettre`.** Elle remappe les lettres
+  citées avec **exactement** la permutation appliquée aux propositions
+  (`QuestionMapper.permutation`), remplacement **simultané** jamais séquentiel.
+  Tout point qui sert une explication à côté de propositions mélangées passe par
+  elle — `toPublic`, `toReview`, et `AttemptInteractionService` (correction
+  immédiate TRAINING, qui couvre aussi la démo invitée). Une seconde copie
+  désignerait deux lettres différentes pour le même choix.
+- **Repérage : tout ou rien.** Une seule occurrence indécidable ⇒ le texte entier
+  est rendu **intact** (un remappage partiel ferait désigner deux propositions par
+  la même lettre). Validé sur les 2 339 explications réelles : 0 abstention, 0 faux
+  positif. Sont **ignorés** exprès — paliers CECRL `A1/A2/B1/B2` (l'explication
+  type contient « Piège **B1** »), verbe *avoir* capitalisé entre guillemets
+  (« A été », 33 cas STRUCTURE), noms de lieu (`bâtiment B`, `permis B`,
+  `escalier C`, 24 cas), `C'est` / `D-Day` / `J.-C.`. Une rédaction future
+  inattendue tombe en abstention, donc au pire dans l'état d'avant.
+- **`toReview` est aligné sur l'ordre du runner** (même graine que
+  `toPublic(q, false, q.getId())`). Avant, le même attempt s'affichait dans deux
+  ordres différents entre l'entraînement et la revue. `ChoiceReviewResponse
+  .displayOrder` porte l'index **d'affichage** : exposer celui de la base
+  permettrait de défaire le mélange.
+- 🛑 **Une question dont l'AUDIO ÉNONCE les propositions n'est JAMAIS mélangée.**
+  `AudioMode.WRITTEN_QUESTION_SPOKEN_CHOICES` (V037 + backfill **V590**) qualifie
+  les 20 CO dont la bande dit « A. … B. … » pendant que l'écran affiche aussi le
+  texte : elles échappaient à `choicesAreReadAloud` (qui ne détectait que les
+  labels réduits à une lettre), donc l'audio annonçait d'autres lettres que
+  l'écran — un candidat qui retenait « c'est B » et cliquait B **se trompait
+  alors qu'il avait compris**. Ce mode **constate un défaut, il ne se génère
+  pas** : `AudioQuestionGenerationService.refuseModeNonGenerable` le refuse avant
+  tout appel payant.
+  ⚠️ **Dette de contenu assumée** : sur ces 20, la bonne réponse est en A dans
+  **13 cas sur 20** (65 %), contre 27 % sur les 610 autres CO, qui restent
+  équilibrées. Le mélange avait été ajouté (`ae785f5`) pour ce biais et l'avait
+  payé en désynchronisant l'audio. Débiaiser suppose de **régénérer l'audio sans
+  les lettres** — bloqué faute d'abonnement Azure Speech. Ne pas « réparer » en
+  remélangeant.
+- ⚠️ **Piège Flyway** : un backfill de contenu **seedé** se numérote **après ses
+  lots**, jamais dans `00_schema`. Flyway ordonne par **numéro**, pas par dossier :
+  un `UPDATE` en V0xx passe avant les `INSERT` des questions CO (V500/V530/V560) et
+  touche **zéro ligne**.
+- **L'ordre servi fait foi — les fronts ne retrient plus rien** (2026-08-19).
+  `QuestionMapper.ordreReference` garantit qu'une question à **repères
+  alphabétiques** (libellés tous réduits à `A`..`D` / `Réponse A`.., sur un type
+  CO ou CO_IMAGE — le contenu vit alors dans l'audio) est servie **dans l'ordre de
+  ses lettres**, quel que soit le `display_order` saisi en console, et n'est
+  **jamais mélangée** : brasser des lettres ne supprime aucun biais de position et
+  ne ferait que décorréler la pastille du libellé. L'explication n'y est donc
+  **pas remappée** — l'ordre de référence étant déjà celui des lettres, la
+  permutation est identité **par construction**, pas par cas particulier. Le
+  garde-fou de **type** est celui que le mobile appliquait déjà : sans lui, une
+  STRUCTURE dont les réponses seraient « a »/« d » cesserait d'être mélangée.
+- Les fronts dérivent la pastille A/B/C/D de **l'index dans la liste reçue** (web
+  `QuestionRunner.tsx`, mobile `choice_tile.dart`) et **plus aucun ne trie** :
+  `orderedChoices` (web `lib/types.ts`, qui s'appliquait à **tout** type de
+  question) et `orderedDisplayChoices` (mobile, aux seules CO/CO_IMAGE) sont
+  **supprimés**, appelants compris — runner, rapport d'examen, modale de détail,
+  feuille de détail. Deux rustines d'affichage aux règles **divergentes** pouvaient
+  défaire l'ordre servi ; la divergence est maintenant structurellement impossible
+  au lieu d'être surveillée. `audioMode`, déclaré sur `QuestionPublicResponse` /
+  `QuestionReviewResponse` du miroir **web** alors que le backend ne le sert pas,
+  est retiré — avec le type `AudioMode` du web, qui n'avait plus de lecteur. Celui
+  de l'admin sert la console des drafts audio et **reste**.
+- ⚠️ **La garantie est un FILET, pas une correction de données** : mesuré sur la
+  base locale, les **610** questions à repères alphabétiques (540 CO + 70
+  CO_IMAGE, seuls types concernés) ont déjà un `display_order` alphabétique,
+  1-based et consécutif — **0 question réordonnée**. D'où **aucune migration** de
+  normalisation : elle toucherait zéro ligne, et le dépôt interdit par ailleurs de
+  réordonner un `display_order` pour rattraper un défaut d'affichage.
+
 ## L'audio d'une production de candidat n'est pas conservé (2026-08-16)
 
 Décision du propriétaire, **motif consentement** : « on ne stocke pas les

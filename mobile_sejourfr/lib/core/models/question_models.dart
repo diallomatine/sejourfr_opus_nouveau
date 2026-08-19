@@ -88,20 +88,6 @@ class ChoiceDto {
 
 final _singleLetterChoice = RegExp(r'^[A-Za-z]$');
 
-/// Ordre d'affichage des choix, partagé entre le runner et le rapport pour
-/// qu'un même attempt présente les choix dans le même ordre des deux côtés.
-///
-/// Pour les questions TCF CO en mode FULL_AUDIO ([QuestionDto.usesLetterKeyChoices]),
-/// on trie par label pour un affichage A→D — la lettre étant la clé de réponse
-/// citée par l'audio et l'explication. Les autres questions gardent leur ordre
-/// d'origine (shuffle backend, seedé par AttemptQuestion.id).
-List<ChoiceDto> orderedDisplayChoices(QuestionDto question) {
-  final choices = question.choices;
-  if (!question.usesLetterKeyChoices) return choices;
-  return [...choices]..sort((a, b) =>
-      a.label.trim().toUpperCase().compareTo(b.label.trim().toUpperCase()));
-}
-
 class QuestionDto {
   QuestionDto({
     required this.id,

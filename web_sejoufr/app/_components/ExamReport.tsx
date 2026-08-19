@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { MediaView } from "./MediaView";
 import { epreuveLevelTone, floorMarks } from "@/lib/exam-levels";
-import { niveauCecrlLabel, orderedChoices } from "@/lib/types";
+import { niveauCecrlLabel } from "@/lib/types";
 import type {
   AttemptQuestionResponse,
   AttemptResponse,
@@ -499,10 +499,11 @@ function ReportRow({
           )}
 
           <div className="rpt-choices">
-            {orderedChoices(q.choices).map((c, i) => {
+            {q.choices.map((c, i) => {
               // FULL_AUDIO : label réduit à une lettre (clé citée par
               // l'explication) → on l'affiche dans la pastille, on masque le
-              // texte redondant ; les choix sont déjà triés A→D.
+              // texte redondant ; l'ordre reçu suit déjà les lettres (garanti
+              // serveur par QuestionMapper.ordreReference).
               const letterOnly = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
               const letter = letterOnly
                 ? letterOnly[1].toUpperCase()

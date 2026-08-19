@@ -45,9 +45,20 @@ export const AUDIO_MODE_OPTIONS: ReadonlyArray<{ value: AudioMode; label: string
   },
 ];
 
+/**
+ * Libelle de TOUS les modes, y compris celui qui n'est pas generable :
+ * `AUDIO_MODE_OPTIONS` ne liste que ce qu'on peut demander, ce Record couvre ce
+ * qu'on peut lire sur une question existante.
+ */
+const AUDIO_MODE_LABELS: Record<AudioMode, string> = {
+  WRITTEN_QUESTION: "Question et choix écrits (défaut)",
+  FULL_AUDIO: "Tout lu dans l'audio",
+  WRITTEN_QUESTION_SPOKEN_CHOICES: "Propositions lues dans l'audio ET écrites",
+};
+
 export function audioModeLabel(mode: AudioMode | null | undefined): string {
   if (!mode) return "—";
-  return AUDIO_MODE_OPTIONS.find((o) => o.value === mode)?.label ?? mode;
+  return AUDIO_MODE_LABELS[mode] ?? mode;
 }
 
 export const COMPETENCE_OPTIONS: ReadonlyArray<{ value: CompetenceCo; label: string }> = [

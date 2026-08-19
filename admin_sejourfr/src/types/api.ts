@@ -379,7 +379,18 @@ export type GenerationStatus =
   | "FAILED_TIMEOUT"
   | "REJECTED_BY_ADMIN";
 
-export type AudioMode = "WRITTEN_QUESTION" | "FULL_AUDIO";
+/**
+ * Miroir de `com.sejourfr.app.audioquestion.domain.AudioMode`.
+ *
+ * `WRITTEN_QUESTION_SPOKEN_CHOICES` constate un defaut de contenu existant
+ * (l'audio enonce les propositions avec leurs lettres alors que l'ecran
+ * affiche leur texte) : il s'AFFICHE, il ne se DEMANDE pas — cf.
+ * `AUDIO_MODE_OPTIONS`, qui ne propose que les deux modes generables.
+ */
+export type AudioMode =
+  | "WRITTEN_QUESTION"
+  | "FULL_AUDIO"
+  | "WRITTEN_QUESTION_SPOKEN_CHOICES";
 
 export interface GenerateAudioQuestionRequest {
   niveau: AudioLevel;

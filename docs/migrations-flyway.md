@@ -134,8 +134,12 @@ db/migration-dev/                    V900+       seeds dev uniquement (comptes s
 
 ## Ajouter une migration
 
-- **Évolution de schéma** → `00_schema/`, prochain `V0xx` libre. **Max actuel : `V031`**
-  (moteur de maîtrise) → le prochain est `V032`.
+- **Évolution de schéma** → `00_schema/`, prochain `V0xx` libre. **Max actuel : `V037`**
+  (3ᵉ valeur d'`audio_mode`) → le prochain est `V038`.
+  ⚠️ **Un backfill de CONTENU seedé ne peut pas vivre en `00_schema`** : l'ordre suit le
+  numéro, donc un `UPDATE` en `V0xx` s'exécute **avant** les `INSERT` des plages 200/300 et
+  ne trouve aucune ligne. On garde la DDL en `00_schema` et on pose l'`UPDATE` dans la plage
+  du contenu visé, **après** ses lots (patron `V037` + `V590`, cf. ci-dessous).
 - **Nouvelle donnée de référence** → `100_reference/`, prochain `V1xx`. Max actuel : `V113`.
 - **Nouveau lot de contenu** → sous-dossier du domaine/niveau concerné, prochain numéro
   libre dans la plage. Vérifier les slots restants de la sous-plage visée avant de choisir.
@@ -146,7 +150,7 @@ db/migration-dev/                    V900+       seeds dev uniquement (comptes s
   | `200_civique/` (par sous-thème)         | V285       | ~15 slots par sous-thème |
   | `300_tcf/competences/`                  | V305       | V306-V399 (94)      |
   | `300_tcf/ce_comprehension_ecrite/`      | V400       | quasi toute la plage |
-  | `300_tcf/co_comprehension_orale/`       | V500       | quasi toute la plage |
+  | `300_tcf/co_comprehension_orale/`       | V560, + V590 (backfill `audio_mode`) | V501-V529, V531-V559, V561-V589, V591-V599 |
   | `300_tcf/structure_langue/`             | V600       | quasi toute la plage |
   | `300_tcf/production/`                   | V754       | V755-V759           |
   | `300_tcf/expression/`                   | V762       | V763-V799           |
