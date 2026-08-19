@@ -318,19 +318,6 @@ visiteurs uniques. Cf. migration V020.
   ne sont PAS ajoutées à `ProductionSubmissionDto` / `EvaluationResultDto`, que
   le web et le mobile consomment aussi.
 
-### Admin — Mailing des anciens acheteurs
-
-- `POST /api/admin/mailing/anciens-acheteurs?dryRun=true|false` →
-  `LegacyCompensationMailingResponse
-  { total, dejaEnvoyes, aEnvoyer, envoyes, echecs, dryRun }`.
-  Envoie l'annonce des nouveautés aux clients compensés par la migration **V038**
-  (acheteurs de l'ancien catalogue Intégral : pass sprint 6 semaines et pass
-  3 mois). **`dryRun=true` par défaut** : un appel sans paramètre ne fait que
-  compter les destinataires — il faut `?dryRun=false` pour écrire à de vrais
-  clients. Idempotent : `legacy_pass_compensations.mailed_at` n'est posé qu'après
-  un envoi réussi, et la contrainte unique sur `user_id` empêche un compte d'être
-  prévenu deux fois. Rappeler l'endpoint reprend donc exactement les échecs.
-
 ### Admin — Compétences TCF
 
 Console de contenu du module Compétences (cf. la section utilisateur plus haut).

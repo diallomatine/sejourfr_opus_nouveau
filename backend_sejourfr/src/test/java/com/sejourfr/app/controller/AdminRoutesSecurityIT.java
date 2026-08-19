@@ -104,9 +104,6 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.PUT, "/api/admin/themes/" + RANDOM_ID),
                 Arguments.of(HttpMethod.PATCH, "/api/admin/plans/" + RANDOM_ID),
                 Arguments.of(HttpMethod.PATCH, "/api/admin/subscriptions/" + RANDOM_ID + "/realtime-sessions"),
-                // Mailing d'annonce aux anciens acheteurs : dryRun=true par défaut,
-                // donc traverser cette route en test n'écrit à personne.
-                Arguments.of(HttpMethod.POST, "/api/admin/mailing/anciens-acheteurs"),
                 Arguments.of(HttpMethod.DELETE, "/api/admin/questions/" + RANDOM_ID));
     }
 

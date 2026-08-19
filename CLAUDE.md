@@ -3494,9 +3494,14 @@ ce que le lot 4b mette à jour l'appel en `?planCode=<string>`.
   migration** avec une ligne de plus au barème, jamais une réécriture de V038.
   **La table `legacy_pass_compensations` est l'audit, l'anti-doublon et le plan de
   retour arrière** — elle porte l'état d'avant (`ends_at_before`,
-  `sessions_before`). L'annonce part par `POST /api/admin/mailing/anciens-acheteurs`
-  (`dryRun=true` par défaut), jamais par un job : c'est une opération unique, on
-  compte avant d'écrire à de vrais clients. ⚠️ Une migration de données ne peut
+  `sessions_before`). ⚠️ **L'annonce est PARTIE le 2026-08-19 et le code qui
+  l'envoyait a été SUPPRIMÉ dans la foulée** (panneau admin du dashboard, client
+  `mailingApi`, `POST /api/admin/mailing/anciens-acheteurs`, son service, son
+  entité JPA et le gabarit `nouveautes-anciens.html`) : c'était une opération
+  **unique**, elle ne sera pas refaite, et le dépôt ne garde pas de surface
+  dormante « au cas où ». `mailed_at` reste renseignée en base comme trace. Un
+  geste futur est une **nouvelle** migration avec son propre envoi, jamais une
+  résurrection de celui-ci. ⚠️ Une migration de données ne peut
   pas se tester en place (elle tourne avant tout jeu d'essai) :
   `LegacyPassCompensationIT` **relit le fichier de migration**, le coupe sur sa
   sentinelle `@@APPLICATION_DU_GESTE@@` et rejoue le SQL réel — ne pas supprimer

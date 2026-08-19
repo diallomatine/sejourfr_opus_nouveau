@@ -1449,19 +1449,3 @@ export type AdminSkillPromptUpdateRequest = Omit<
 export interface AdminSkillReferencesUpdateRequest {
   references: SkillReferenceDto[];
 }
-
-/**
- * Compte rendu du mailing d'annonce aux acheteurs de l'ancien catalogue
- * Intégral (migration V038). Miroir de `LegacyCompensationMailingResponse`.
- *
- * `envoyes` vaut toujours 0 en `dryRun`. Les `echecs` restent à envoyer : un
- * second appel les reprend, sans jamais réécrire à ceux qui ont reçu.
- */
-export interface LegacyCompensationMailingResponse {
-  total: number;
-  dejaEnvoyes: number;
-  aEnvoyer: number;
-  envoyes: number;
-  echecs: number;
-  dryRun: boolean;
-}

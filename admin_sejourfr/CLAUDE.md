@@ -47,11 +47,7 @@ src/
 │   │                        traceur (cf. racine). Les deux ne se comparent pas,
 │   │                        l'écran le dit. Lecture seule. Détail dans la
 │   │                        section « Funnel & audience » plus bas.
-│   ├── dashboard/           KPI + le panneau d'envoi UNIQUE de l'annonce aux
-│   │                        anciens acheteurs (migration V038). Deux temps
-│   │                        volontaires : « Vérifier » compte (dryRun), un
-│   │                        second bouton envoie. L'anti-doublon est serveur
-│   │                        (mailed_at) — recliquer ne reprend que les échecs.
+│   ├── dashboard/
 │   ├── questions/           Le plus complexe : liste + filtres + modal CRUD
 │   ├── themes/
 │   ├── conversations/       Vue split list/detail style "boîte mail".
