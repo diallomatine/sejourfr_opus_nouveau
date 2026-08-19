@@ -80,6 +80,11 @@ sejourfr:
   # — c'est ce qui a envoye un mail de bienvenue de production vers localhost:3000.
   app:
     base-url: ${APP_BASE_URL:http://localhost:3000}
+  mail:
+    # Où l'on envoie les clients invités à laisser un avis (e-mail d'annonce aux
+    # anciens acheteurs). Vide = repli sur la page de contact du site, qui nous
+    # renvoie le retour directement.
+    review-url: ${MAIL_REVIEW_URL:}
   backend:
     base-url: ${BACKEND_BASE_URL:http://localhost:8080}
   stripe:

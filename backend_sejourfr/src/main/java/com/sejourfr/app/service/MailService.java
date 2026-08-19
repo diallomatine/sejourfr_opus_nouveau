@@ -49,6 +49,7 @@ public class MailService {
     private final String appBaseUrl;
     private final String contactAddress;
     private final String backendBaseUrl;
+    private final String reviewUrl;
 
     public MailService(
             JavaMailSender mailSender,
@@ -56,7 +57,8 @@ public class MailService {
             @Value("${sejourfr.mail.from:no-reply@sejourfr.fr}") String fromAddress,
             @Value("${sejourfr.app.base-url:http://localhost:3000}") String appBaseUrl,
             @Value("${sejourfr.contact.to:support@sejourfr.fr}") String contactAddress,
-            @Value("${sejourfr.backend.base-url:http://localhost:8080}") String backendBaseUrl
+            @Value("${sejourfr.backend.base-url:http://localhost:8080}") String backendBaseUrl,
+            @Value("${sejourfr.mail.review-url:}") String reviewUrl
     ) {
         this.mailSender = mailSender;
         this.templateRenderer = templateRenderer;
@@ -64,6 +66,11 @@ public class MailService {
         this.appBaseUrl = appBaseUrl;
         this.contactAddress = contactAddress;
         this.backendBaseUrl = backendBaseUrl;
+        // Vide tant que la destination de l'avis n'est pas arbitrée : on retombe
+        // sur le formulaire de contact, qui nous renvoie le retour directement.
+        this.reviewUrl = (reviewUrl == null || reviewUrl.isBlank())
+                ? appBaseUrl + "/contact"
+                : reviewUrl;
     }
 
     private static String displayNameOrFallback(String displayName) {
@@ -245,6 +252,38 @@ public class MailService {
     // ------------------------------------------------------------------------
 
     /** Injecte un fragment de contenu dans le layout commun (logo, footer, etc.). */
+    /**
+     * Annonce des nouveautés aux acheteurs de l'ancien catalogue Intégral, avec
+     * le geste qui leur a été crédité (migration V038) et une demande d'avis.
+     *
+     * <p>Volontairement <b>non {@code @Async}</b>, contrairement aux autres mails
+     * clients : c'est un envoi en lot déclenché à la main depuis la console admin,
+     * qui doit savoir qui a réellement reçu son message avant de le marquer
+     * envoyé. Un envoi raté laisse donc la ligne à retenter.
+     *
+     * @param joursOfferts jours d'accès ajoutés (barème du pass acheté).
+     * @param sessions     solde de simulations orales après le geste.
+     * @param endsAt       nouvelle fin d'accès, {@code null} si l'accès est sans terme.
+     * @return {@code true} si le message est parti.
+     */
+    public boolean sendNouveautesAnciensAcheteursEmail(
+            String to, String displayName, int joursOfferts, int sessions, Instant endsAt) {
+        String body = templateRenderer.render("nouveautes-anciens.html", Map.of(
+                "greeting", displayNameOrFallback(displayName),
+                "joursLabel", joursOfferts + (joursOfferts > 1 ? " jours" : " jour"),
+                "sessionsLabel", sessions + (sessions > 1 ? " simulations" : " simulation"),
+                "endsLabel", formatFrenchDate(endsAt),
+                "ctaUrl", appBaseUrl + "/diagnostic",
+                "reviewUrl", reviewUrl
+        ));
+        String html = renderLayout(
+                "SejourFR a beaucoup changé — et c'est pour vous",
+                "Votre accès est prolongé de " + joursOfferts + " jours, avec "
+                        + sessions + " simulations orales.",
+                body);
+        return sendHtmlWithLogo(to, "SejourFR — Vos nouveautés, et un cadeau", html);
+    }
+
     private String renderLayout(String title, String preheader, String bodyHtml) {
         return templateRenderer.render("layout.html", Map.of(
                 "title", title,
@@ -260,11 +299,17 @@ public class MailService {
      * « logo »), lu depuis {@code static/mail/logo.png}. Un échec est loggé en
      * warn sans propager.
      */
-    private void sendHtmlWithLogo(String to, String subject, String html) {
-        sendHtmlWithLogo(to, subject, html, null);
+    private boolean sendHtmlWithLogo(String to, String subject, String html) {
+        return sendHtmlWithLogo(to, subject, html, null);
     }
 
-    private void sendHtmlWithLogo(String to, String subject, String html, String replyTo) {
+    /**
+     * @return {@code true} si le message est parti. Le retour n'existe que pour
+     *         les envois en lot, qui doivent savoir qui n'a pas reçu son mail
+     *         avant de le marquer comme envoyé. Les envois unitaires l'ignorent :
+     *         un mail ne doit jamais faire échouer la transaction métier.
+     */
+    private boolean sendHtmlWithLogo(String to, String subject, String html, String replyTo) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(
@@ -288,8 +333,10 @@ public class MailService {
 
             mailSender.send(message);
             log.info("HTML mail '{}' sent to {}", subject, to);
+            return true;
         } catch (MessagingException | RuntimeException e) {
             log.warn("Failed to send HTML mail '{}' to {} : {}", subject, to, e.getMessage());
+            return false;
         }
     }
 

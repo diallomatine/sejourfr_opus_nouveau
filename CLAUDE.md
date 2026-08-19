@@ -3469,6 +3469,39 @@ ce que le lot 4b mette à jour l'appel en `?planCode=<string>`.
     supprimé n'étant jamais réutilisable, une recréation impose un ID neuf.
     Guide pas-à-pas → `docs/setup-paiement-one-time.md`.
 
+- **Geste envers les acheteurs de l'ANCIEN catalogue (V038, 2026-08-19)** : les
+  clients qui avaient payé avant la grille actuelle — `INTEGRAL_PASS_SPRINT`
+  (6 semaines) et `INTEGRAL_PASS_3M` — ont vu leur accès Intégral prolongé de
+  **14 j / 21 j** et leur solde de simulations orales porté à un **plancher de
+  5 / 15**. Quatre règles à ne pas défaire :
+  1. **Le solde vit sur la souscription, pas sur le plan** (V019 :
+     `user_subscriptions.realtime_eo_sessions_remaining` ;
+     `plans.realtime_eo_sessions` n'est plus qu'un cap d'affichage) — toucher le
+     plan n'aurait rien changé pour un client existant.
+  2. **Le barème est un PLANCHER (`GREATEST`), jamais une valeur imposée** : le
+     backfill V019 avait posé jusqu'à 25 / 60 sur ces lignes, fixer sèchement à
+     5 / 15 en aurait *retiré* — dans un e-mail qui annonce un cadeau.
+  3. **Un seul geste par utilisateur, posé sur la souscription que l'app lira**
+     (`RealtimeQuotaService` → `SubscriptionService.currentSubscription()`, qui
+     ne retient qu'UNE ligne) : créditer une ligne perdante serait invisible.
+  4. **Prolonger un pass expiré, c'est le rouvrir** : `GREATEST(ends_at, now())
+     + N j`, et statut `EXPIRED`/`CANCELED` remis à `ACTIVE` — sinon `isCovering`
+     bloque quelle que soit la date. `REFUNDED`, `PENDING` et comptes supprimés
+     sont exclus.
+  **Hors périmètre volontaire, et ils n'ont RIEN reçu** : `INTEGRAL_PASS_1Y`, les
+  abonnements récurrents Intégral (dormants) et tous les passes Civique (aucun
+  accès TCF, donc aucune simulation utilisable). Élargir = **une nouvelle
+  migration** avec une ligne de plus au barème, jamais une réécriture de V038.
+  **La table `legacy_pass_compensations` est l'audit, l'anti-doublon et le plan de
+  retour arrière** — elle porte l'état d'avant (`ends_at_before`,
+  `sessions_before`). L'annonce part par `POST /api/admin/mailing/anciens-acheteurs`
+  (`dryRun=true` par défaut), jamais par un job : c'est une opération unique, on
+  compte avant d'écrire à de vrais clients. ⚠️ Une migration de données ne peut
+  pas se tester en place (elle tourne avant tout jeu d'essai) :
+  `LegacyPassCompensationIT` **relit le fichier de migration**, le coupe sur sa
+  sentinelle `@@APPLICATION_DU_GESTE@@` et rejoue le SQL réel — ne pas supprimer
+  cette ligne, et ne jamais recopier la requête dans le test.
+
 > **⚠️ RÉVERSIBILITÉ — ne JAMAIS supprimer le code abonnement (lots 2/3/4).** La
 > bascule est pilotée par le flag `sejourfr.billing.mode` (`SUBSCRIPTION |
 > ONE_TIME`, env `BILLING_MODE`) **+** le drapeau `is_active` : les deux jeux de

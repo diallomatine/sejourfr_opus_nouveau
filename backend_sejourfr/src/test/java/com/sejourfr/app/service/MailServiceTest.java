@@ -41,7 +41,9 @@ class MailServiceTest {
     @BeforeEach
     void setUp() {
         mailService = new MailService(
-                mailSender, new MailTemplateRenderer(), FROM, APP_URL, CONTACT, BACKEND_URL);
+                mailSender, new MailTemplateRenderer(), FROM, APP_URL, CONTACT, BACKEND_URL,
+                // vide : repli documenté sur la page de contact du site
+                "");
     }
 
     private MimeMessage stubMimeMessage() {

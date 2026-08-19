@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { dashboardApi } from "../../api/dashboardApi";
+import { AnciensAcheteursPanel } from "./AnciensAcheteursPanel";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Panel } from "../../components/ui/Panel";
 import { Spinner } from "../../components/ui/Spinner";
@@ -59,6 +60,8 @@ export function DashboardPage() {
           </div>
         </>
       )}
+
+      <AnciensAcheteursPanel />
     </>
   );
 }
