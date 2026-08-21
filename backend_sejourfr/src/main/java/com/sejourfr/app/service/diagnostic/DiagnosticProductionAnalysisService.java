@@ -6,7 +6,7 @@ import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.enums.DiagnosticCommunicationStatus;
-import com.sejourfr.app.enums.DiagnosticEvaluabilite;
+import com.sejourfr.app.enums.ProductionEvaluabilite;
 import com.sejourfr.app.enums.DiagnosticTaskCompletion;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
@@ -196,7 +196,7 @@ public class DiagnosticProductionAnalysisService {
         // rapport, elle ne doit pas pouvoir rendre une session FAILED. Le filtre
         // n'agit qu'à l'ORAL et ne lève jamais (cf. DiagnosticOralArtifactFilter).
         oralArtifactFilter.purge(normalized, task.getEpreuve(), production);
-        return new AnalysisRun(normalized, allowed, accepted, DiagnosticEvaluabilite.EVALUABLE);
+        return new AnalysisRun(normalized, allowed, accepted, ProductionEvaluabilite.EVALUABLE);
     }
 
     /**
@@ -237,7 +237,7 @@ public class DiagnosticProductionAnalysisService {
         return new AnalysisRun(
                 json, allowed,
                 new DiagnosticAnalysisLlmClient.Outcome(json, 0, 0, 0, 0),
-                DiagnosticEvaluabilite.NON_EVALUABLE);
+                ProductionEvaluabilite.NON_EVALUABLE);
     }
 
     private List<Skill> standardSkills(ProductionTask task) {
@@ -260,7 +260,7 @@ public class DiagnosticProductionAnalysisService {
         entity.setSubmission(submission);
         entity.setAnalysisJson(output);
         entity.setEvaluabilite(run.evaluabilite());
-        if (run.evaluabilite() == DiagnosticEvaluabilite.EVALUABLE) {
+        if (run.evaluabilite() == ProductionEvaluabilite.EVALUABLE) {
             entity.setLevelEstimate(NiveauCecrl.valueOf(output.get("level_estimate").toString()));
             entity.setTaskCompletion(DiagnosticTaskCompletion.valueOf(
                     output.get("task_completion").toString()));
@@ -294,5 +294,5 @@ public class DiagnosticProductionAnalysisService {
             Map<String, Object> normalized,
             List<Skill> allowedSkills,
             DiagnosticAnalysisLlmClient.Outcome outcome,
-            DiagnosticEvaluabilite evaluabilite) {}
+            ProductionEvaluabilite evaluabilite) {}
 }

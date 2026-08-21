@@ -1,7 +1,7 @@
 package com.sejourfr.app.entity;
 
 import com.sejourfr.app.enums.DiagnosticCommunicationStatus;
-import com.sejourfr.app.enums.DiagnosticEvaluabilite;
+import com.sejourfr.app.enums.ProductionEvaluabilite;
 import com.sejourfr.app.enums.DiagnosticTaskCompletion;
 import com.sejourfr.app.enums.NiveauCecrl;
 import jakarta.persistence.Column;
@@ -51,7 +51,7 @@ public class DiagnosticProductionAnalysis {
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "evaluabilite", nullable = false, length = 16)
-    private DiagnosticEvaluabilite evaluabilite = DiagnosticEvaluabilite.EVALUABLE;
+    private ProductionEvaluabilite evaluabilite = ProductionEvaluabilite.EVALUABLE;
 
     /**
      * {@code null} quand rien n'etait observable — <b>null = inconnu, jamais
@@ -112,8 +112,8 @@ public class DiagnosticProductionAnalysis {
     public void setSubmission(ProductionSubmission submission) { this.submission = submission; }
     public Map<String, Object> getAnalysisJson() { return analysisJson; }
     public void setAnalysisJson(Map<String, Object> analysisJson) { this.analysisJson = new LinkedHashMap<>(analysisJson); }
-    public DiagnosticEvaluabilite getEvaluabilite() { return evaluabilite; }
-    public void setEvaluabilite(DiagnosticEvaluabilite evaluabilite) { this.evaluabilite = evaluabilite; }
+    public ProductionEvaluabilite getEvaluabilite() { return evaluabilite; }
+    public void setEvaluabilite(ProductionEvaluabilite evaluabilite) { this.evaluabilite = evaluabilite; }
     public NiveauCecrl getLevelEstimate() { return levelEstimate; }
     public void setLevelEstimate(NiveauCecrl levelEstimate) { this.levelEstimate = levelEstimate; }
     public DiagnosticTaskCompletion getTaskCompletion() { return taskCompletion; }

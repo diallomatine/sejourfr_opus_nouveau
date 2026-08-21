@@ -1095,16 +1095,57 @@ de rubriques et files de calibration doivent garder le filtre
     une activité, cf. `lastActivityAt`) — c'est aussi ce qui garde
     `DiagnosticService.recommendedAction` capable de désigner un exercice quand les **deux**
     productions sont inexploitables.
-  - ⚠️ **Trou connu, NON corrigé, autre chantier** : sur la voie **standard**,
-    `AiEvaluationService.persistProductionInvalide` persiste toujours `note 0` +
-    `A1_NON_ATTEINT` dans `ai_evaluations` (**4 lignes en base**), que `TcfProfileService` lit
-    en priorité. Même défaut, blast radius bien plus large (bilan d'épreuve, examen complet,
-    règle « une tâche non rendue compte `A1_NON_ATTEINT` ») : à arbitrer séparément.
+  - ✅ **Le trou JUMEAU de la voie standard est bouché** (2026-08-21, V041) — cf. le point
+    suivant.
   - ⚠️ **Pourquoi une soumission de 4 s passe** : `validateAudio` ne contrôle que la **taille
     en octets**, jamais la durée, et `production_tasks.duree_min_sec` (90 s sur le sujet
     diagnostic) n'est opposable **nulle part** — seul l'écrit l'est
     (`validateTextWordCount`). **Ne pas la rendre opposable au rendu** : refuser la soumission
     ferait perdre la production, alors qu'on préfère l'accepter et ne pas en conclure.
+- **LE MÊME, SUR LA VOIE STANDARD** (2026-08-21, **V041**). `AiEvaluationService
+  .persistProductionInvalide` écrivait `note 0` + `A1_NON_ATTEINT` dans `ai_evaluations` —
+  **aucun appel LLM n'ayant eu lieu**. Blast radius plus large que le diagnostic :
+  `ai_evaluations` est la table que `TcfProfileService` lit **en priorité** (le diagnostic n'en
+  est que le **repli**), donc une seule production ratée fixait le domaine EE ou EO, puis le
+  niveau global par le plancher des 4 domaines. La ligne ne porte plus **ni note, ni niveau, ni
+  `niveau_cecrl_ia`** ; `feedback_json` ne porte plus **ni `note_globale` ni `niveau_cecrl`**.
+  - 🛑 **DEUX SITUATIONS QUI SE RESSEMBLENT ET QU'IL NE FAUT JAMAIS CONFONDRE.** (a) *production
+    rendue mais inexploitable* ⇒ **aucun niveau** ; (b) *épreuve d'examen ouverte, chrono
+    écoulé, rien rendu* ⇒ **`A1_NON_ATTEINT`, décision produit inchangée** — « elle a été passée
+    et ratée ». **Elles sont séparables parce qu'elles ne partagent aucun code** : (a) est une
+    **ligne qui existe et ne dit rien**, (b) est **l'absence de ligne**, traitée par
+    `ProductionBilanService.bilanEpreuveTerminee` (« le reste noté 0 »), qui **ne bouge pas**.
+    Ne pas « unifier » les deux.
+  - **Le bilan d'épreuve est INCHANGÉ, par construction** : `latestEvalsByTache` écarte la ligne
+    sans verdict, donc sa tâche retombe à « non rendue », donc elle compte **0** sur une épreuve
+    terminée — exactement ce qu'elle valait quand elle y entrait avec une note 0. Le niveau d'un
+    **examen complet** en hérite sans une ligne de code (`FullTcfExamResponseBuilder`), et ses
+    trois exclusions (`locked`, `cecrlLevel` null, **jamais ouverte**) restent intactes.
+  - **Colonne `evaluabilite`** (`ProductionEvaluabilite{EVALUABLE|NON_EVALUABLE}`, NOT NULL,
+    défaut `EVALUABLE`) + CHECK `NON_EVALUABLE ⇒ note_sur_20 / niveau_cecrl / niveau_cecrl_ia
+    NULL`. **L'enum est PARTAGÉE avec le diagnostic** (`DiagnosticEvaluabilite` renommée à la 2ᵉ
+    occurrence : même fait, même juge `ProductionValidityService`, valeurs sérialisées
+    inchangées). ⚠️ **La contrainte ne va que dans UN sens** : la réciproque (`EVALUABLE ⇒
+    verdicts non nuls`) inventerait un invariant que le code n'a jamais tenu — ces deux colonnes
+    sont nullables depuis V011.
+  - **Exposé aux fronts** sur `EvaluationResultDto.evaluabilite` (miroirs web/mobile/admin :
+    passe dédiée). **Trois états**, pas deux : bloc `evaluation` absent = « pas encore
+    évaluée » ; présent + `NON_EVALUABLE` = « rendue, rien à observer ». Aucun libellé serveur.
+  - **`version_ciblee` n'est plus demandée** sur une production inexploitable : sans ce garde,
+    `aQuelqueChoseAViser(null, visé)` rend `true` et on **payait** un appel pour réécrire du
+    vide. Et **aucun `niveau_vise_atteint`** n'est posé : ce serait annoncer une victoire à qui
+    n'a rien rendu. La voie **Plan** (`observeStandardProduction`) était **déjà** protégée par
+    le même juge depuis V040.
+  - `UserDashboardService` prend le **dernier niveau réellement évalué**, plus la dernière ligne
+    quelle qu'elle soit : une production ratée n'efface plus le niveau déjà obtenu. Idem
+    `TcfProfileService`, où « la plus récente fait foi » se joue désormais sur **toutes** les
+    lignes d'une soumission avant le filtre des nulls.
+  - 🛑 **Aucune donnée migrée, aucun recalcul rétroactif.** **4 lignes** en base
+    (`modele_utilise = 'validation-serveur'`, toutes TCF_EE, toutes sur `admin@sejourfr.fr`)
+    gardent leur 0 + `A1_NON_ATTEINT` : arbitrage du propriétaire.
+  - ⚠️ **Laissé exprès** : `scores_criteres` garde ses `note_sur_20: 0` par critère, avec
+    `bande: NON_EVALUABLE` et son commentaire — c'est la bande qui porte le sens, et y mettre
+    `null` casserait les fronts sans rien apporter. À trancher dans la passe front.
 - **Contenu et audio seed-only** : V755 crée la version `INITIAL_TCF/1`, ses deux
   sujets et leurs allowlists de huit compétences. La console de sujets standard
   refuse de les modifier. V755 ne génère aucun média : elle référence l'objet R2

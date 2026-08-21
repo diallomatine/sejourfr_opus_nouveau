@@ -270,7 +270,15 @@ public class UserDashboardService {
                 .sorted(Comparator.comparing(AiEvaluation::getEvaluatedAt).reversed())
                 .toList();
 
-        final NiveauCecrl level = recents.isEmpty() ? null : recents.get(0).getNiveauCecrl();
+        // « Dernier niveau CECRL EVALUE » : on saute les lignes qui n'en portent
+        // pas — une production inexploitable (evaluabilite NON_EVALUABLE) n'a
+        // rien observe, elle ne doit ni afficher un niveau qu'elle n'a pas, ni
+        // effacer celui d'une production reellement corrigee avant elle.
+        final NiveauCecrl level = recents.stream()
+                .map(AiEvaluation::getNiveauCecrl)
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse(null);
 
         final List<BigDecimal> notes = recents.stream()
                 .map(AiEvaluation::getNoteSur20)

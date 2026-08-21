@@ -329,7 +329,7 @@ class AiEvaluationServiceV5Test {
 
         AiEvaluation eval = service.evaluate(sub.getId());
 
-        assertThat(eval.getNoteSur20()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(eval.getNoteSur20()).isNull();
         assertThat(eval.getFeedbackJson().get("points_a_ameliorer"))
             .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST)
             .isNotEmpty()

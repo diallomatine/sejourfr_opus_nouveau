@@ -7,6 +7,7 @@ import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.ProductionEvaluabilite;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
@@ -67,12 +68,30 @@ class TcfProfileServiceTest {
     }
 
     private static AiEvaluation eval(NiveauCecrl level, Instant at) {
+        return eval(level, at, UUID.randomUUID());
+    }
+
+    private static AiEvaluation eval(NiveauCecrl level, Instant at, UUID submissionId) {
         ProductionSubmission sub = new ProductionSubmission();
-        sub.setId(UUID.randomUUID());
+        sub.setId(submissionId);
         AiEvaluation e = new AiEvaluation();
         e.setSubmission(sub);
         e.setNiveauCecrl(level);
         e.setEvaluatedAt(at);
+        return e;
+    }
+
+    /**
+     * Production RENDUE mais INEXPLOITABLE : la ligne existe, aucun appel LLM
+     * n'a eu lieu, elle ne porte ni note ni niveau.
+     */
+    private static AiEvaluation evalInexploitable(Instant at) {
+        return evalInexploitable(at, UUID.randomUUID());
+    }
+
+    private static AiEvaluation evalInexploitable(Instant at, UUID submissionId) {
+        AiEvaluation e = eval(null, at, submissionId);
+        e.setEvaluabilite(ProductionEvaluabilite.NON_EVALUABLE);
         return e;
     }
 
@@ -169,6 +188,64 @@ class TcfProfileServiceTest {
         stubQcm(EpreuveType.TCF_CO, List.of(legacy));
 
         assertThat(service.levelProfile(userId).co()).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
+    }
+
+    // ------------------------------------------------- production inexploitable
+
+    /**
+     * LE TROU JUMEAU de celui du diagnostic (2026-08-21). Une production rendue
+     * mais inexploitable (vide, quasi vide, langue non française, recopiage de la
+     * consigne) écrivait note 0 + {@code A1_NON_ATTEINT} dans
+     * {@code ai_evaluations} — une ABSENCE DE PREUVE enregistrée comme la PREUVE
+     * DU NIVEAU LE PLUS FAIBLE. Or c'est la table lue EN PRIORITÉ ici, et le
+     * niveau global est le PLANCHER des quatre domaines : un enregistrement raté
+     * tirait tout le profil au fond.
+     *
+     * <p>Elle ne porte plus aucun niveau, donc le domaine reste NON ÉVALUÉ et le
+     * profil PARTIEL — « aucune preuve » n'est pas « mauvaise preuve ».
+     */
+    @Test
+    void productionInexploitable_neRendAucunNiveau_etLaisseLeDomaineNonEvalue() {
+        stubProduction(EpreuveType.TCF_EO, List.of(evalInexploitable(Instant.now())));
+        stubProduction(EpreuveType.TCF_EE, List.of(eval(NiveauCecrl.B1, Instant.now())));
+
+        TcfLevelProfile p = service.levelProfile(userId);
+
+        assertThat(p.eo()).isNull();
+        assertThat(p.ee()).isEqualTo(NiveauCecrl.B1);
+        // Le domaine oral sort du plancher au lieu de le tirer a A1_NON_ATTEINT.
+        assertThat(p.globalLevel()).isEqualTo(NiveauCecrl.B1);
+    }
+
+    /**
+     * Une production inexploitable ne PLOMBE pas les autres : une seule tâche
+     * ratée sur une épreuve qui en compte de vraies laisse le meilleur niveau
+     * intact.
+     */
+    @Test
+    void productionInexploitable_neSupprimePasLeNiveauDesAutresTaches() {
+        Instant now = Instant.now();
+        stubProduction(EpreuveType.TCF_EE, List.of(
+                evalInexploitable(now),
+                eval(NiveauCecrl.B1, now.minus(2, ChronoUnit.DAYS))));
+
+        assertThat(service.levelProfile(userId).ee()).isEqualTo(NiveauCecrl.B1);
+    }
+
+    /**
+     * « La plus récente fait foi » vaut AUSSI quand la plus récente n'a rien
+     * observé : sur une MÊME soumission ré-évaluée, un verdict périmé ne
+     * ressuscite pas derrière une ligne inexploitable.
+     */
+    @Test
+    void memeSoumission_uneReevaluationInexploitableNeRessuscitePasLAncienVerdict() {
+        UUID submissionId = UUID.randomUUID();
+        Instant now = Instant.now();
+        stubProduction(EpreuveType.TCF_EE, List.of(
+                evalInexploitable(now, submissionId),
+                eval(NiveauCecrl.B2, now.minus(1, ChronoUnit.DAYS), submissionId)));
+
+        assertThat(service.levelProfile(userId).ee()).isNull();
     }
 
     // ------------------------------------------------------------------ épreuve non passée

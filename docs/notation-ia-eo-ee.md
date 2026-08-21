@@ -49,11 +49,13 @@ sans note sur 20, avec leurs propres consignes et format **v1 / v1** décrits ju
 > on ne réécrit jamais un résultat déjà rendu.
 
 > 🆕 **21 août 2026 — quatre secondes d'audio ne valent plus un verdict de niveau.** Quand une
-> production du diagnostic est **vide ou quasi vide**, nous ne demandons plus rien à l'IA et
-> nous ne concluons **rien** : le domaine reste *non évalué*, au lieu de recevoir le niveau le
-> plus bas de l'échelle. Une production **courte mais réelle** continue, elle, d'être analysée —
-> un candidat A1 produit peu, c'est son niveau, pas une absence de production. Détail complet
-> au **§8 nonies**.
+> production est **vide ou quasi vide**, nous ne demandons plus rien à l'IA et nous ne concluons
+> **rien** : le domaine reste *non évalué*, au lieu de recevoir le niveau le plus bas de
+> l'échelle. Cela vaut pour le **diagnostic** comme pour les **productions d'entraînement et
+> d'examen blanc**. Une production **courte mais réelle** continue, elle, d'être analysée — un
+> candidat A1 produit peu, c'est son niveau, pas une absence de production. Et une **épreuve
+> d'examen ouverte puis abandonnée** continue, elle, d'être comptée au plus bas : elle a été
+> passée, et ratée. Détail complet au **§8 nonies**.
 
 > 🆕 **9 août 2026 — un diagnostic court initialise un Plan de travail, sans se faire passer
 > pour un examen TCF.** Le candidat réalise deux exercices hybrides fixes et versionnés : un
@@ -2729,6 +2731,46 @@ production rendue mais inexploitable n'est pas la même chose qu'une production 
 
 **Rien n'est corrigé rétroactivement.** Les analyses déjà enregistrées, y compris les deux
 fausses, gardent leur verdict : nous ne réécrivons pas l'historique.
+
+### Le même trou existait sur les productions **normales**, il est bouché aussi
+
+Le diagnostic n'était pas seul concerné. Une production d'entraînement ou d'examen blanc jugée
+inexploitable recevait, elle aussi, **0/20 et « A1 non atteint »** — sans qu'aucune IA n'ait
+jamais rien lu. Et le problème y était **plus large** : ces corrections-là sont la **première**
+source du niveau affiché à un candidat en expression écrite et orale (le diagnostic n'en est
+que le remplaçant, quand il n'y a rien d'autre). Une seule production ratée pouvait donc
+définir son niveau dans ce domaine, puis, de proche en proche, son niveau global.
+
+Le comportement est désormais le même que pour le diagnostic : **ni note, ni niveau**. La
+correction est bien rendue au candidat — elle lui dit en clair pourquoi sa production n'a pas
+pu être exploitée —, mais elle ne conclut rien sur son français. Trois conséquences :
+
+- son **niveau estimé** ignore cette production : le domaine reste non mesuré ;
+- le **second texte modèle** (« pour viser B1 / B2 », §8 quinquies) n'est plus demandé : il n'y
+  a pas de production à réécrire, et cela n'aurait été qu'un appel payé pour rien ;
+- son **tableau de bord** continue d'afficher le dernier niveau qu'il a **réellement** obtenu,
+  au lieu de l'effacer.
+
+### 🛑 Ce qui ne change **pas** : une épreuve d'examen abandonnée reste comptée
+
+Il faut distinguer deux situations qui se ressemblent et qui n'ont rien à voir.
+
+| | Ce qu'on en fait |
+|---|---|
+| **Production rendue, mais rien à observer** (vide, quasi vide, langue étrangère, énoncé recopié) | **Aucun niveau.** Personne n'a rien pu observer. |
+| **Épreuve d'examen ouverte, chronomètre écoulé, rien rendu** | **« A1 non atteint »**, comme avant. Elle a été **passée**, et ratée. |
+
+La seconde règle est **volontaire** et elle est ancienne : dans un examen blanc, ce qui n'est
+pas rendu compte zéro — c'est ce qui fait qu'un examen blanc ressemble à un examen. Elle n'est
+touchée en rien ici, et les deux cas ne partagent aucun mécanisme : le premier est une
+correction **qui existe et ne dit rien**, le second est une correction **qui n'existe pas**.
+
+À ne pas confondre non plus avec une épreuve **jamais ouverte** (le candidat n'a même pas vu le
+sujet) ni avec une épreuve **verrouillée** par l'abonnement : celles-là n'ont jamais eu de
+niveau, et n'en ont toujours pas (§6.6).
+
+**Là non plus, rien n'est corrigé rétroactivement** : les quatre corrections déjà enregistrées
+dans ce cas gardent leur 0/20 et leur « A1 non atteint ».
 
 ---
 

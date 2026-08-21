@@ -1,7 +1,7 @@
 package com.sejourfr.app.dto;
 
 import com.sejourfr.app.enums.DiagnosticCommunicationStatus;
-import com.sejourfr.app.enums.DiagnosticEvaluabilite;
+import com.sejourfr.app.enums.ProductionEvaluabilite;
 import com.sejourfr.app.enums.DiagnosticTaskCompletion;
 import com.sejourfr.app.enums.NiveauCecrl;
 
@@ -28,7 +28,7 @@ import java.util.List;
  * @param communicationStatus {@code null} si {@code NON_EVALUABLE}.
  */
 public record DiagnosticProductionResultDto(
-        DiagnosticEvaluabilite evaluabilite,
+        ProductionEvaluabilite evaluabilite,
         NiveauCecrl levelEstimate,
         DiagnosticTaskCompletion taskCompletion,
         DiagnosticCommunicationStatus communicationStatus,

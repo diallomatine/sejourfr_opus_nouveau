@@ -8,6 +8,7 @@ import com.sejourfr.app.enums.BandeCritere;
 import com.sejourfr.app.enums.ConfianceEvaluation;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.ProductionEvaluabilite;
 import com.sejourfr.app.enums.ObjectifTache;
 import com.sejourfr.app.enums.ProductionSubmissionSource;
 import com.sejourfr.app.enums.SubmissionStatut;
@@ -711,18 +712,39 @@ public class AiEvaluationService {
     }
 
     /**
-     * Production jugee ineexploitable par les controles deterministes : aucun
-     * appel LLM. On persiste quand meme une {@link AiEvaluation} (note 0,
-     * {@code A1_NON_ATTEINT}, confiance {@code FAIBLE}) expliquant au candidat
-     * pourquoi, et la submission passe a {@code EVALUATED} : l'utilisateur voit
-     * un resultat, pas une erreur technique.
+     * Production jugee INEXPLOITABLE par les controles deterministes (vide,
+     * quasi vide, langue non francaise, recopiage de la consigne) : aucun appel
+     * LLM. On persiste quand meme une {@link AiEvaluation} expliquant au
+     * candidat pourquoi, et la submission passe a {@code EVALUATED} —
+     * l'utilisateur voit un resultat, pas une erreur technique.
+     *
+     * <p><b>Mais elle ne porte AUCUN verdict</b> : ni note, ni niveau. Elle en
+     * portait, jusqu'au 2026-08-21 : note 0 et {@code A1_NON_ATTEINT}, c'est-a-dire
+     * une ABSENCE DE PREUVE enregistree comme la PREUVE DU NIVEAU LE PLUS FAIBLE.
+     * Or {@code ai_evaluations} est la table que {@code TcfProfileService} lit EN
+     * PRIORITE pour etablir le niveau EE/EO d'un candidat, et le niveau global est
+     * le PLANCHER des quatre domaines : une seule production ratee tirait tout le
+     * profil au fond. <b>null = inconnu, jamais mauvais</b> — {@link
+     * ProductionEvaluabilite#NON_EVALUABLE} dit POURQUOI il n'y a rien, ce qu'un
+     * trou ne dirait pas.
+     *
+     * <p>🛑 <b>Ce que ce changement ne touche PAS, et c'est delibere.</b> Une
+     * epreuve d'examen OUVERTE PUIS ABANDONNEE (chrono ecoule, rien rendu)
+     * continue de compter {@code A1_NON_ATTEINT} : elle a ete PASSEE et ratee.
+     * Elle ne passe pas par ici — il n'y a justement aucune ligne — et se decide
+     * dans {@code ProductionBilanService.bilanEpreuveTerminee}, ou une tache
+     * absente compte 0. Une ligne {@code NON_EVALUABLE} est d'ailleurs ecartee de
+     * {@code latestEvalsByTache}, donc sa tache y retombe a 0 : sur une epreuve
+     * d'examen terminee, le bilan est <b>inchange</b>.
      */
     private AiEvaluation persistProductionInvalide(ProductionSubmission sub, ProductionTask task,
                                                    ProductionValidityService.Verdict verdict) {
         List<String> raisons = verdict.raisons();
         Map<String, Object> feedback = new LinkedHashMap<>();
-        feedback.put("note_globale", BigDecimal.ZERO);
-        feedback.put("niveau_cecrl", NiveauCecrl.A1_NON_ATTEINT.name());
+        // NI note_globale, NI niveau_cecrl : rien n'a ete observe, donc rien
+        // n'est affirme — y compris dans le JSONB, que la console de calibration
+        // relit brut. La confiance, elle, reste dite : c'est la certitude du
+        // CORRECTEUR, et ici elle est nulle pour une raison d'OBSERVATION.
         feedback.put("confiance", ConfianceEvaluation.FAIBLE.name());
         feedback.put("confiance_raisons", List.copyOf(raisons));
         // Verdict explicite (schema v5) : une production inexploitable ne repond
@@ -756,8 +778,9 @@ public class AiEvaluationService {
         eval.setModeleUtilise(MODELE_VALIDATION_SERVEUR);
         eval.setPromptVersion(llmClient.getPromptVersion());
         eval.setRubricsVersion(props.getRubricsVersion());
-        eval.setNoteSur20(BigDecimal.ZERO);
-        eval.setNiveauCecrl(NiveauCecrl.A1_NON_ATTEINT);
+        eval.setEvaluabilite(ProductionEvaluabilite.NON_EVALUABLE);
+        eval.setNoteSur20(null);
+        eval.setNiveauCecrl(null);
         eval.setNiveauCecrlIa(null);
         eval.setFeedbackJson(feedback);
         eval.setTokensInput(0);
@@ -769,8 +792,8 @@ public class AiEvaluationService {
         sub.setErreurMessage(null);
         submissionManager.save(sub);
 
-        log.info("Production jugee invalide (aucun appel LLM) submission={} raisons={}",
-            sub.getId(), raisons);
+        log.info("Production jugee inexploitable (aucun appel LLM, aucun niveau rendu) "
+            + "submission={} raisons={}", sub.getId(), raisons);
         return eval;
     }
 

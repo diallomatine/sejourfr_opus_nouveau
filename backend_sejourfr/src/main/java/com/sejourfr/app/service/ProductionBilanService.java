@@ -68,6 +68,16 @@ public class ProductionBilanService {
      * {@code tacheNumero} (déduplique les soumissions multiples d'une même
      * tâche : seule la plus récente compte). Les callers doivent être
      * transactionnels (lazy-load submission → production_task).
+     *
+     * <p><b>Une évaluation sans verdict n'entre pas</b> — production
+     * INEXPLOITABLE ({@code evaluabilite = NON_EVALUABLE} : ni note ni niveau,
+     * aucun appel LLM émis), ou ligne sans rien d'exploitable. Sa tâche est donc
+     * traitée comme <b>non rendue</b>, ce qui est exactement le comportement
+     * voulu : sur une épreuve d'examen TERMINÉE, {@link #bilanEpreuveTerminee}
+     * la compte 0 (« le reste noté 0 »), <b>comme avant</b>. Le seul changement
+     * est qu'elle ne fournit plus de niveau CECRL réutilisable ailleurs — c'est
+     * {@code TcfProfileService} qui le lisait, et qui en tirait le niveau d'un
+     * domaine entier du candidat.
      */
     public Map<Integer, AiEvaluation> latestEvalsByTache(List<ProductionSubmission> submissions) {
         Map<Integer, ProductionSubmission> latestSub = new HashMap<>();

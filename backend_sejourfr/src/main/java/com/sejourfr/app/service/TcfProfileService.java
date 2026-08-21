@@ -33,7 +33,12 @@ import java.util.UUID;
  *       {@code AttemptRepository.findQcmEpreuvesPassees} ({@code EXISTS} sur
  *       {@code answers}) : un tel attempt n'est jamais chargé ici.</li>
  *   <li><b>EE / EO</b> : épreuve sans <b>aucune soumission évaluée</b> ni
- *       analyse de diagnostic ⇒ aucun niveau ⇒ épreuve à null.</li>
+ *       analyse de diagnostic ⇒ aucun niveau ⇒ épreuve à null. Une production
+ *       rendue mais <b>inexploitable</b> (vide, quasi vide, langue non
+ *       française, recopiage de la consigne) est du même ordre : sa ligne
+ *       {@code ai_evaluations} existe mais ne porte aucun niveau
+ *       ({@code evaluabilite = NON_EVALUABLE}), donc elle n'entre pas dans le
+ *       calcul — le domaine reste non évalué et le profil partiel.</li>
  * </ul>
  *
  * <h2>Le diagnostic est une BASELINE, pas un résultat</h2>
@@ -144,12 +149,21 @@ public class TcfProfileService {
     private NiveauCecrl bestProduction(UUID userId, EpreuveType epreuve) {
         final Map<UUID, AiEvaluation> latestBySubmission = new HashMap<>();
         for (final AiEvaluation e : aiEvaluationManager.findByUserAndEpreuve(userId, epreuve)) {
-            if (e.getNiveauCecrl() == null || e.getSubmission() == null) continue;
+            if (e.getSubmission() == null) continue;
+            // Le tri « la plus recente fait foi » se fait sur TOUTES les lignes,
+            // y compris celles sans niveau : filtrer avant reviendrait a laisser
+            // un verdict perime l'emporter sur une re-evaluation qui n'a rien
+            // pu observer.
             latestBySubmission.merge(e.getSubmission().getId(), e, TcfProfileService::mostRecent);
         }
 
         NiveauCecrl best = null;
         for (final AiEvaluation e : latestBySubmission.values()) {
+            // Sans niveau, la ligne n'est pas une mauvaise preuve : elle n'est
+            // pas une preuve. C'est le cas d'une production INEXPLOITABLE
+            // (evaluabilite NON_EVALUABLE, aucun appel LLM emis) comme d'une
+            // evaluation sans niveau situable.
+            if (e.getNiveauCecrl() == null) continue;
             best = levelEstimator.max(best, levelEstimator.capB2(e.getNiveauCecrl()));
         }
         return best;

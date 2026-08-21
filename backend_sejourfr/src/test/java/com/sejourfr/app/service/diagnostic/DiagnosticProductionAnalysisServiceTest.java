@@ -15,7 +15,7 @@ import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.config.ProductionEvaluationProperties;
-import com.sejourfr.app.enums.DiagnosticEvaluabilite;
+import com.sejourfr.app.enums.ProductionEvaluabilite;
 import com.sejourfr.app.service.EvaluationPurgeMetrics;
 import com.sejourfr.app.service.LearningPlanObservationService;
 import com.sejourfr.app.service.ProductionValidityService;
@@ -242,7 +242,7 @@ class DiagnosticProductionAnalysisServiceTest {
         DiagnosticProductionAnalysis persistee = f.service.analyseDiagnostic(f.submission.getId());
 
         verify(f.llm, never()).analyse(any(), any());
-        assertThat(persistee.getEvaluabilite()).isEqualTo(DiagnosticEvaluabilite.NON_EVALUABLE);
+        assertThat(persistee.getEvaluabilite()).isEqualTo(ProductionEvaluabilite.NON_EVALUABLE);
         assertThat(persistee.getLevelEstimate()).isNull();
         assertThat(persistee.getTaskCompletion()).isNull();
         assertThat(persistee.getCommunicationStatus()).isNull();
@@ -271,7 +271,7 @@ class DiagnosticProductionAnalysisServiceTest {
         DiagnosticProductionAnalysis persistee = f.service.analyseDiagnostic(f.submission.getId());
 
         verify(f.llm).analyse(any(), any());
-        assertThat(persistee.getEvaluabilite()).isEqualTo(DiagnosticEvaluabilite.EVALUABLE);
+        assertThat(persistee.getEvaluabilite()).isEqualTo(ProductionEvaluabilite.EVALUABLE);
         assertThat(persistee.getLevelEstimate()).isEqualTo(NiveauCecrl.A2);
     }
 
