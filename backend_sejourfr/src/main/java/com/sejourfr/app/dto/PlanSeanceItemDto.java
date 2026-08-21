@@ -3,6 +3,7 @@ package com.sejourfr.app.dto;
 import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -48,6 +49,27 @@ import java.util.UUID;
  * @param locked               ce candidat ne peut pas lancer cette action. Elle
  *                             reste <b>designee et visible</b> : savoir quoi
  *                             travailler est ce que le Plan apporte
+ * @param lastActivityAt       <b>date de la derniere activite sur cette
+ *                             competence</b>, {@code null} quand elle n'a jamais
+ *                             ete observee et sur un jalon (qui ne travaille
+ *                             aucune competence). C'est un <b>fait</b>, pas un
+ *                             verdict : le serveur ne dit pas « fait
+ *                             aujourd'hui » — il n'a pas d'horloge dans cette
+ *                             construction, et un booleen calcule ici serait
+ *                             faux des la minute suivante. Les fronts le
+ *                             comparent a leur journee courante (Europe/Paris)
+ *                             pour cocher la ligne ; la <b>coche vit donc dans
+ *                             le compte</b> et survit a un rechargement comme au
+ *                             passage d'un appareil a l'autre, ce qu'un marqueur
+ *                             local ne faisait pas.
+ *
+ *                             <p>Lu sur {@code learning_plan_observations
+ *                             .observed_at}, <b>toutes observations confondues</b>
+ *                             — {@code NOT_OBSERVED} compris : le correcteur
+ *                             n'a rien pu observer, mais le candidat a bien
+ *                             travaille. A ne pas confondre avec
+ *                             {@code LearningPlanPriorityDto.observedAt}, qui
+ *                             est la derniere observation <b>probante</b>.
  */
 public record PlanSeanceItemDto(
         PlanRecommendedExerciseDto exercise,
@@ -62,5 +84,6 @@ public record PlanSeanceItemDto(
         int stepValidatedCount,
         boolean stepCompleted,
         boolean readyForReassessment,
-        boolean locked
+        boolean locked,
+        Instant lastActivityAt
 ) {}

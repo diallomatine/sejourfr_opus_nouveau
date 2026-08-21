@@ -11,6 +11,7 @@ export type AudienceEvent =
   | "PLAN_OPENED"
   | "PLAN_RECOMMENDED_EXERCISE_STARTED"
   | "SOCIAL_LANDING_DIAGNOSTIC_CLICKED"
+  | "SOCIAL_LANDING_CIVIQUE_CLICKED"
   | "DIAGNOSTIC_TO_PREMIUM_CLICKED";
 
 export const TRAFFIC_SOURCES = [
@@ -78,7 +79,16 @@ export function withTrafficSource(
 /** Miroir fermé de `PageViewService.EVENTS_BY_PATH`. L'endpoint est public :
  *  le client ne doit jamais lui inventer de dimension, même par erreur. */
 export const AUDIENCE_EVENTS_BY_PATH = {
-  "/reussir": ["VIEW", "CTA", "SOCIAL_LANDING_DIAGNOSTIC_CLICKED"],
+  // La landing a DEUX portes d'entrée, comptées séparément : le diagnostic TCF
+  // et l'examen civique découverte. Les confondre aurait gonflé la mesure du
+  // diagnostic avec des clics qui n'y mènent pas — on saurait combien de
+  // visiteurs voient l'offre civique, jamais combien y entrent.
+  "/reussir": [
+    "VIEW",
+    "CTA",
+    "SOCIAL_LANDING_DIAGNOSTIC_CLICKED",
+    "SOCIAL_LANDING_CIVIQUE_CLICKED",
+  ],
   "/diagnostic": [
     "DIAGNOSTIC_VIEWED",
     "DIAGNOSTIC_STARTED",

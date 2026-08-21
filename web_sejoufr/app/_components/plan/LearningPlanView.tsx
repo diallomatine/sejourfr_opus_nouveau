@@ -54,6 +54,7 @@ import {
   planPathStepTitle,
   planPathTitle,
   planProfileCountLabel,
+  planSeanceItemDone,
   planSeanceItemKey,
   planSeanceMeta,
   planSkillHref,
@@ -256,21 +257,6 @@ export function LearningPlanView() {
 
 function ActivePlan({plan}: {plan: LearningPlanDto}) {
   const [whyOpen, setWhyOpen] = useState(false);
-  /**
-   * **Ce que le candidat vient d'ouvrir dans sa séance.**
-   *
-   * 🛑 Ce n'est **pas** une source de vérité, et le serveur n'en connaît rien :
-   * il compose la séance à partir des faits, et **aucune date n'intervient
-   * nulle part** — « Aujourd'hui » est une présentation. Ce marqueur ne sert
-   * qu'à cocher visuellement une ligne, et il disparaît dès que l'écran est
-   * remonté (miroir de `planSeanceDoneProvider` côté mobile, qui disparaît au
-   * redémarrage de l'app). Il ne décide jamais du contenu de la séance, ni d'un
-   * verrou, ni d'un compteur d'étape : ces trois-là restent servis.
-   */
-  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
-  const markOpened = useCallback((key: string) => {
-    setOpened((current) => new Set(current).add(key));
-  }, []);
 
   const observed = useMemo(
     () => plan.observedSkills.filter((skill) => skill.status !== "NOT_OBSERVED"),
@@ -306,12 +292,7 @@ function ActivePlan({plan}: {plan: LearningPlanDto}) {
         <div className={styles.main}>
           <PriorityCard plan={plan} onWhy={() => setWhyOpen(true)} />
 
-          <SeanceCard
-            plan={plan}
-            opened={opened}
-            onOpen={markOpened}
-            onWhy={() => setWhyOpen(true)}
-          />
+          <SeanceCard plan={plan} onWhy={() => setWhyOpen(true)} />
 
           <PrioritiesSection priorities={priorities} completedSteps={completedSteps} plan={plan} />
 
@@ -473,26 +454,17 @@ function priorityReason(priority: LearningPlanPriorityDto): string {
 /**
  * « Aujourd'hui » : la séance servie par le serveur, dans **son** ordre.
  *
- * ⚠️ **Ce qui est coché est ce que le SERVEUR sait terminé** — une étape dont
- * les cinq sujets sont traités (`stepCompleted`). Il n'existe aucune notion de
- * « fait aujourd'hui » côté serveur, et on n'en fabrique pas une côté
- * navigateur : une coche qui disparaîtrait au rechargement mentirait. C'est
- * aussi pour ça qu'aucune date n'intervient — une compétence reste dans la
- * séance tant qu'elle n'est pas réussie.
+ * ⚠️ **Ce qui est coché ne repose que sur des faits SERVIS** — l'étape bouclée
+ * (`stepCompleted`) ou une dernière activité datée d'aujourd'hui
+ * (`lastActivityAt`, comparé en Europe/Paris par `planSeanceItemDone`). Le
+ * marqueur local d'avant disparaissait au rechargement et ne traversait pas
+ * l'appareil : deux candidats — le même — voyaient deux séances différentes.
+ * La séance, elle, continue de ne dépendre d'aucune date : c'est le front qui
+ * compare, jamais le serveur.
  */
-function SeanceCard({
-  plan,
-  opened,
-  onOpen,
-  onWhy,
-}: {
-  plan: LearningPlanDto;
-  opened: ReadonlySet<string>;
-  onOpen: (key: string) => void;
-  onWhy: () => void;
-}) {
+function SeanceCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void}) {
   const items = plan.seance.items;
-  const done = items.filter((item) => isItemDone(item, opened)).length;
+  const done = items.filter((item) => planSeanceItemDone(item)).length;
   const percent = items.length ? Math.round((done / items.length) * 100) : 0;
 
   return (
@@ -520,12 +492,7 @@ function SeanceCard({
       ) : (
         <ul className={styles.seanceList}>
           {items.map((item) => (
-            <SeanceRow
-              key={planSeanceItemKey(item)}
-              item={item}
-              opened={opened.has(planSeanceItemKey(item))}
-              onOpen={onOpen}
-            />
+            <SeanceRow key={planSeanceItemKey(item)} item={item} />
           ))}
         </ul>
       )}
@@ -539,29 +506,10 @@ function SeanceCard({
   );
 }
 
-/**
- * Une ligne est cochée si le **serveur** sait son étape bouclée
- * (`stepCompleted` sur ses 5 sujets) **ou** si le candidat vient de l'ouvrir
- * dans cette session. `stepPromptCount === 0` (compréhension, jalon) ⇒ pas
- * d'étape, donc seule la coche locale peut s'appliquer.
- */
-function isItemDone(item: PlanSeanceItemDto, opened: ReadonlySet<string>): boolean {
-  if (item.stepPromptCount > 0 && item.stepCompleted) return true;
-  return opened.has(planSeanceItemKey(item));
-}
-
-function SeanceRow({
-  item,
-  opened,
-  onOpen,
-}: {
-  item: PlanSeanceItemDto;
-  opened: boolean;
-  onOpen: (key: string) => void;
-}) {
+function SeanceRow({item}: {item: PlanSeanceItemDto}) {
   const premiumHref = usePremiumHref();
   const {start, starting, error, paywallOpen, closePaywall} = usePlanExercise();
-  const done = (item.stepPromptCount > 0 && item.stepCompleted) || opened;
+  const done = planSeanceItemDone(item);
   const epreuve = itemEpreuve(item);
 
   /** Les trois lignes de texte de l'item — le contenu RÉEL, qu'il soit servi
@@ -598,7 +546,6 @@ function SeanceRow({
           disabled={starting}
           onClick={() => {
             trackAudienceEvent("/plan", "PLAN_RECOMMENDED_EXERCISE_STARTED");
-            onOpen(planSeanceItemKey(item));
             void start(item.exercise);
           }}
         >

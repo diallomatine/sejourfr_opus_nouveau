@@ -7,6 +7,7 @@ import com.sejourfr.app.dto.PlanSeanceItemDto;
 import com.sejourfr.app.entity.Skill;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,9 +35,11 @@ import java.util.UUID;
  *       ({@code SkillMastery.transferProven()}), c'est-a-dire lorsqu'elle est
  *       <b>reussie</b> — exactement le critere du brief ;</li>
  *   <li>la seance derive de ces priorites et ne lit <b>jamais</b> l'horloge :
- *       aucune methode de cette classe ne recoit d'{@code Instant}, de
- *       {@code LocalDate} ni de {@code Clock}. Deux lectures a deux dates
- *       differentes, sans action du candidat, rendent la meme seance.</li>
+ *       aucune methode de cette classe ne recoit de {@code Clock} ni de
+ *       {@code LocalDate}, et les {@code Instant} qu'elle recopie sont des
+ *       <b>faits d'historique</b> (« derniere activite le … »), jamais l'heure
+ *       courante. Deux lectures a deux dates differentes, sans action du
+ *       candidat, rendent la meme seance.</li>
  * </ul>
  * Persister des « items du jour » aurait au contraire cree une seconde source de
  * verite a reconcilier avec les priorites a chaque observation — le defaut que
@@ -75,18 +78,28 @@ public class PlanSeanceBuilder {
      * @param skills     competences des priorites, indexees par identifiant :
      *                   elles portent le palier travaille, qui ne vit pas sur le
      *                   DTO de priorite
+     * @param lastActivity derniere activite de chaque competence
+     *                   ({@code LearningPlanPriorityResolver.lastActivityBySkill},
+     *                   autorite unique) : un <b>fait</b> recopie tel quel sur
+     *                   l'item, que les fronts comparent a leur journee courante
+     *                   pour cocher ce qui a ete fait aujourd'hui. Ce n'est
+     *                   <b>pas</b> une horloge : rien ici ne le compare a
+     *                   maintenant, et une competence absente de la carte rend
+     *                   simplement {@code null}
      * @param milestone  le jalon du parcours, ou {@code null} — le cas normal
      */
     public PlanSeanceDto build(
             List<LearningPlanPriorityDto> priorities,
             Map<UUID, Skill> skills,
+            Map<UUID, Instant> lastActivity,
             PlanRecommendedExerciseDto milestone) {
         List<PlanSeanceItemDto> items = new ArrayList<>(MAX_ITEMS);
         if (milestone != null) items.add(jalon(milestone));
         for (LearningPlanPriorityDto priority : priorities) {
             if (items.size() >= MAX_ITEMS) break;
             if (priority.recommendedExercise() == null) continue;
-            items.add(etape(priority, skills.get(priority.skillId())));
+            items.add(etape(priority, skills.get(priority.skillId()),
+                    lastActivity.get(priority.skillId())));
         }
         int minutes = items.stream().mapToInt(item -> item.exercise().estimatedMinutes()).sum();
         return new PlanSeanceDto(items, minutes);
@@ -99,7 +112,7 @@ public class PlanSeanceBuilder {
     private static PlanSeanceItemDto jalon(PlanRecommendedExerciseDto exercise) {
         return new PlanSeanceItemDto(
                 exercise, null, null, null, null, null, null,
-                0, 0, 0, false, false, exercise.locked());
+                0, 0, 0, false, false, exercise.locked(), null);
     }
 
     /**
@@ -107,7 +120,8 @@ public class PlanSeanceBuilder {
      * jamais ceux de la competence (15) — c'est ce couple que l'anneau de
      * progression affiche.
      */
-    private static PlanSeanceItemDto etape(LearningPlanPriorityDto priority, Skill skill) {
+    private static PlanSeanceItemDto etape(
+            LearningPlanPriorityDto priority, Skill skill, Instant lastActivity) {
         return new PlanSeanceItemDto(
                 priority.recommendedExercise(),
                 priority.skillId(), priority.skillCode(), priority.title(), priority.section(),
@@ -115,6 +129,6 @@ public class PlanSeanceBuilder {
                 priority.masteryState(),
                 priority.stepPromptCount(), priority.stepAttemptedCount(),
                 priority.stepValidatedCount(), priority.stepCompleted(),
-                priority.readyForReassessment(), priority.locked());
+                priority.readyForReassessment(), priority.locked(), lastActivity);
     }
 }

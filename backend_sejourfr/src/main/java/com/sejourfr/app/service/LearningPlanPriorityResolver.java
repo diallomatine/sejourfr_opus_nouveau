@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -69,6 +70,35 @@ public class LearningPlanPriorityResolver {
         for (LearningPlanObservation observation : observations) {
             if (!observation.isObserved()) continue;
             latest.putIfAbsent(observation.getSkill().getId(), observation);
+        }
+        return latest;
+    }
+
+    /**
+     * <b>La derniere activite de chaque competence</b>, sur un historique
+     * <b>deja charge</b> : aucune requete, une seule passe.
+     *
+     * <p>Elle repond a « quand ce candidat a-t-il travaille cette competence
+     * pour la derniere fois ? », et c'est ce <b>fait</b> que la seance publie
+     * pour que les fronts cochent ce qui a ete fait aujourd'hui. Le serveur ne
+     * calcule pas ce booleen : il n'a pas d'horloge dans la construction de la
+     * seance, et une reponse « fait aujourd'hui » figee a la lecture serait
+     * fausse des le lendemain sans nouvel appel.
+     *
+     * <p><b>Toutes les observations comptent</b>, {@code NOT_OBSERVED} compris —
+     * c'est la difference avec {@link #latestObservedBySkill}. « Le correcteur
+     * n'a rien pu observer » ne veut pas dire « le candidat n'a rien fait » : la
+     * ligne existe parce qu'une production a ete rendue, et la masquer ferait
+     * disparaitre la coche d'un travail reel.
+     *
+     * @param observations tout l'historique, <b>de la plus recente a la plus
+     *                     ancienne</b> — la premiere ligne de chaque competence
+     *                     fait donc foi.
+     */
+    public Map<UUID, Instant> lastActivityBySkill(List<LearningPlanObservation> observations) {
+        Map<UUID, Instant> latest = new LinkedHashMap<>();
+        for (LearningPlanObservation observation : observations) {
+            latest.putIfAbsent(observation.getSkill().getId(), observation.getObservedAt());
         }
         return latest;
     }

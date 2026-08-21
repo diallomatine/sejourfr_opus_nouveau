@@ -3,6 +3,7 @@ package com.sejourfr.app.service;
 import com.sejourfr.app.dto.LearningPlanPriorityDto;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.dto.PlanSeanceDto;
+import com.sejourfr.app.dto.PlanSeanceItemDto;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +40,7 @@ class PlanSeanceBuilderTest {
                 priorite("EE2-C3", SkillSection.EE, micro(5)),
                 priorite("EO2-C4", SkillSection.EO, micro(7)));
 
-        PlanSeanceDto seance = builder.build(priorites, skills(priorites), null);
+        PlanSeanceDto seance = builder.build(priorites, skills(priorites), Map.of(), null);
 
         assertThat(seance.items()).hasSize(PlanSeanceBuilder.MAX_ITEMS);
         assertThat(seance.items()).extracting("skillCode")
@@ -63,7 +65,7 @@ class PlanSeanceBuilderTest {
                 15, 5, 5, 5, 5, 5, true, List.of(),
                 SkillMasteryState.CONSOLIDATING, true, false);
 
-        PlanSeanceDto seance = builder.build(List.of(prete), skills(List.of(prete)), null);
+        PlanSeanceDto seance = builder.build(List.of(prete), skills(List.of(prete)), Map.of(), null);
 
         assertThat(seance.items()).singleElement().satisfies(item -> {
             assertThat(item.skillCode()).isEqualTo("EE1-C1");
@@ -95,7 +97,7 @@ class PlanSeanceBuilderTest {
         skill.setId(skillId);
         skill.setTargetLevel("B1");
 
-        PlanSeanceDto seance = builder.build(List.of(co), Map.of(skillId, skill), null);
+        PlanSeanceDto seance = builder.build(List.of(co), Map.of(skillId, skill), Map.of(), null);
 
         assertThat(seance.items()).singleElement().satisfies(item -> {
             assertThat(item.exercise().kind())
@@ -115,7 +117,7 @@ class PlanSeanceBuilderTest {
                 priorite("EE1-C1", SkillSection.EE, micro(4)),
                 priorite("EO1-C2", SkillSection.EO, micro(9)));
 
-        PlanSeanceDto seance = builder.build(priorites, skills(priorites), null);
+        PlanSeanceDto seance = builder.build(priorites, skills(priorites), Map.of(), null);
 
         assertThat(seance.estimatedMinutes()).isEqualTo(13);
         assertThat(seance.items()).extracting(item -> item.exercise().estimatedMinutes())
@@ -136,9 +138,13 @@ class PlanSeanceBuilderTest {
                 priorite("EE1-C1", SkillSection.EE, micro(4)),
                 priorite("EO1-C2", SkillSection.EO, micro(6)));
         Map<UUID, Skill> skills = skills(priorites);
+        // La derniere activite est fournie : c'est un FAIT d'historique, pas une
+        // horloge. La seance le recopie et ne le compare a rien.
+        Map<UUID, Instant> activites = Map.of(
+                priorites.getFirst().skillId(), Instant.now().minus(40, ChronoUnit.DAYS));
 
-        PlanSeanceDto premiere = builder.build(priorites, skills, null);
-        PlanSeanceDto seconde = builder.build(priorites, skills, null);
+        PlanSeanceDto premiere = builder.build(priorites, skills, activites, null);
+        PlanSeanceDto seconde = builder.build(priorites, skills, activites, null);
 
         assertThat(seconde).isEqualTo(premiere);
         assertThat(seconde.items()).extracting("skillCode")
@@ -156,7 +162,7 @@ class PlanSeanceBuilderTest {
                 priorite("EE1-C1", SkillSection.EE, null),
                 priorite("EO1-C2", SkillSection.EO, micro(6)));
 
-        PlanSeanceDto seance = builder.build(priorites, skills(priorites), null);
+        PlanSeanceDto seance = builder.build(priorites, skills(priorites), Map.of(), null);
 
         assertThat(seance.items()).singleElement()
                 .extracting("skillCode").isEqualTo("EO1-C2");
@@ -178,7 +184,7 @@ class PlanSeanceBuilderTest {
         PlanRecommendedExerciseDto jalon =
                 PlanRecommendedExerciseDto.epreuveMockExam(EpreuveType.TCF_EE, 1, 30, false);
 
-        PlanSeanceDto seance = builder.build(priorites, skills(priorites), jalon);
+        PlanSeanceDto seance = builder.build(priorites, skills(priorites), Map.of(), jalon);
 
         assertThat(seance.items()).hasSize(PlanSeanceBuilder.MAX_ITEMS);
         assertThat(seance.items().getFirst()).satisfies(item -> {
@@ -192,10 +198,49 @@ class PlanSeanceBuilderTest {
         assertThat(seance.estimatedMinutes()).isEqualTo(40);
     }
 
+    /**
+     * La <b>derniere activite</b> est recopiee telle quelle : c'est elle qui
+     * permet aux fronts de cocher ce qui a ete fait aujourd'hui, sans que le
+     * serveur ait a decider quel jour on est.
+     */
+    @Test
+    @DisplayName("Chaque item porte la derniere activite de sa competence")
+    void chaqueItemPorteLaDerniereActiviteDeSaCompetence() {
+        LearningPlanPriorityDto travaillee = priorite("EE1-C1", SkillSection.EE, micro(4));
+        LearningPlanPriorityDto jamaisTravaillee = priorite("EO1-C2", SkillSection.EO, micro(6));
+        Instant hier = Instant.now().minus(1, ChronoUnit.DAYS);
+        List<LearningPlanPriorityDto> priorites = List.of(travaillee, jamaisTravaillee);
+
+        PlanSeanceDto seance = builder.build(priorites, skills(priorites),
+                Map.of(travaillee.skillId(), hier), null);
+
+        assertThat(seance.items()).extracting(PlanSeanceItemDto::lastActivityAt)
+                .as("une competence absente de la carte n'invente pas de date")
+                .containsExactly(hier, null);
+    }
+
+    /**
+     * Un jalon ne travaille aucune competence : il n'a pas d'activite a dater,
+     * et on ne lui en fabrique pas une.
+     */
+    @Test
+    @DisplayName("Un jalon n'a pas de derniere activite")
+    void leJalonNaPasDeDerniereActivite() {
+        LearningPlanPriorityDto priorite = priorite("EE1-C1", SkillSection.EE, micro(4));
+        PlanRecommendedExerciseDto jalon =
+                PlanRecommendedExerciseDto.epreuveMockExam(EpreuveType.TCF_EE, 1, 30, false);
+
+        PlanSeanceDto seance = builder.build(List.of(priorite), skills(List.of(priorite)),
+                Map.of(priorite.skillId(), Instant.now()), jalon);
+
+        assertThat(seance.items().getFirst().lastActivityAt()).isNull();
+        assertThat(seance.items().getLast().lastActivityAt()).isNotNull();
+    }
+
     @Test
     @DisplayName("Aucune priorite : une seance vide, jamais un item invente")
     void sansPrioriteLaSeanceEstVide() {
-        PlanSeanceDto seance = builder.build(List.of(), Map.of(), null);
+        PlanSeanceDto seance = builder.build(List.of(), Map.of(), Map.of(), null);
 
         assertThat(seance.items()).isEmpty();
         assertThat(seance.estimatedMinutes()).isZero();

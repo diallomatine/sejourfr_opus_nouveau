@@ -71,6 +71,7 @@ export const EVENT_LABELS: Record<PageViewEvent, string> = {
   PLAN_OPENED: "Plan ouvert",
   PLAN_RECOMMENDED_EXERCISE_STARTED: "Exercice recommandé démarré",
   SOCIAL_LANDING_DIAGNOSTIC_CLICKED: "CTA diagnostic social cliqué",
+  SOCIAL_LANDING_CIVIQUE_CLICKED: "CTA civique social cliqué",
   DIAGNOSTIC_ACCOUNT_REQUIRED: "Compte demandé (fin des productions)",
   DIAGNOSTIC_TO_PREMIUM_CLICKED: "CTA Premium depuis diagnostic",
 };

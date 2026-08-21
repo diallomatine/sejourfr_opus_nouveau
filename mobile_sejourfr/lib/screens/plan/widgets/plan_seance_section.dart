@@ -8,7 +8,6 @@ import '../../../core/widgets/blurred_content.dart';
 import '../../../core/widgets/premium_lock.dart';
 import '../plan_actions.dart';
 import '../plan_labels.dart';
-import '../plan_milestone_launcher.dart';
 import '../plan_milestone_labels.dart';
 import '../plan_seance_state.dart';
 import 'plan_tokens.dart';
@@ -26,7 +25,9 @@ import 'plan_tokens.dart';
 /// icône de domaine, elle, reste nette : elle situe la ligne sans rien livrer.
 ///
 /// ⚠ Le verrou est **lu** (`planSeanceItemLocked`), jamais déduit du rang de la
-/// ligne.
+/// ligne — et la **coche** l'est aussi (`planSeanceItemDone` : étape bouclée,
+/// ou dernière activité datée d'aujourd'hui à Paris). Le marqueur local d'avant
+/// disparaissait au redémarrage et ne traversait pas l'appareil.
 class PlanSeanceSection extends ConsumerWidget {
   const PlanSeanceSection({
     super.key,
@@ -40,10 +41,8 @@ class PlanSeanceSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final seance = plan.seance;
-    final done = ref.watch(planSeanceDoneProvider);
     final items = seance.items;
-    final doneCount =
-        items.where((i) => done.contains(planSeanceItemKey(i))).length;
+    final doneCount = items.where(planSeanceItemDone).length;
 
     return Container(
       clipBehavior: Clip.antiAlias,
@@ -113,10 +112,7 @@ class PlanSeanceSection extends ConsumerWidget {
               ),
             ),
             for (final item in items)
-              _SeanceRow(
-                item: item,
-                done: done.contains(planSeanceItemKey(item)),
-              ),
+              _SeanceRow(item: item, done: planSeanceItemDone(item)),
             _SeanceWhyRow(onTap: onWhy),
           ],
         ],
@@ -151,33 +147,6 @@ class _SeanceRow extends ConsumerWidget {
   final bool done;
 
   bool get _locked => planSeanceItemLocked(item);
-
-  Future<void> _open(BuildContext context, WidgetRef ref) async {
-    if (_locked) {
-      await showTcfLockPaywall(context);
-      return;
-    }
-    final exercise = item.exercise;
-    final milestone = item.milestone;
-    if (exercise != null) {
-      await openPlanExercise(
-        context,
-        ref,
-        exercise,
-        masteryBefore: item.masteryState,
-      );
-    } else if (milestone != null) {
-      await startPlanMilestone(context, ref, milestone);
-    } else {
-      return;
-    }
-    // Marqueur local et éphémère : il coche la ligne qu'on vient d'ouvrir. Il
-    // ne décide de rien — ni du contenu de la séance, ni d'un verrou, ni d'un
-    // compteur d'étape, qui restent servis.
-    ref.read(planSeanceDoneProvider.notifier).update(
-          (current) => <String>{...current, planSeanceItemKey(item)},
-        );
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -226,7 +195,7 @@ class _SeanceRow extends ConsumerWidget {
     return Material(
       color: AppColors.white,
       child: InkWell(
-        onTap: () => _open(context, ref),
+        onTap: () => openPlanSeanceItem(context, ref, item),
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
           decoration: const BoxDecoration(

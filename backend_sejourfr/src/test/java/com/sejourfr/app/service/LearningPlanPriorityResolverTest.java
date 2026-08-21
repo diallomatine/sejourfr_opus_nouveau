@@ -359,6 +359,43 @@ class LearningPlanPriorityResolverTest {
     // ------------------------------------------------------------------------
 
     /** L'historique tel que le rend la base : de la plus recente a la plus ancienne. */
+    // ------------------------------------------------------------------------
+    // Derniere activite : le fait que la seance publie pour les coches du jour
+    // ------------------------------------------------------------------------
+
+    /**
+     * 🛑 Le point du contrat : « le candidat a travaille cette competence » n'est
+     * pas « le correcteur a pu l'observer ». Une production rendue aujourd'hui
+     * qui ne prouve rien reste une activite d'aujourd'hui — sinon la coche
+     * disparaitrait pour un travail reel.
+     */
+    @Test
+    void laDerniereActiviteCompteAussiUneObservationNonProbante() {
+        Skill competence = skill("EE1-C1");
+        LearningPlanObservation nonProbanteAujourdhui = observation(
+                competence, LearningPlanSkillStatus.NOT_OBSERVED,
+                LearningPlanSourceType.PRODUCTION_EE, ObservationConfidence.LOW, jours(0));
+        nonProbanteAujourdhui.setObserved(false);
+        List<LearningPlanObservation> historique = historique(
+                nonProbanteAujourdhui,
+                observation(competence, LearningPlanSkillStatus.TO_REINFORCE,
+                        LearningPlanSourceType.PRODUCTION_EE, ObservationConfidence.HIGH,
+                        jours(3)));
+
+        Map<UUID, Instant> activites = resolver.lastActivityBySkill(historique);
+
+        assertThat(activites).containsEntry(competence.getId(), jours(0));
+        assertThat(resolver.latestObservedBySkill(historique)
+                .get(competence.getId()).getObservedAt())
+                .as("la derniere observation PROBANTE reste plus ancienne : deux questions distinctes")
+                .isEqualTo(jours(3));
+    }
+
+    @Test
+    void laDerniereActiviteEstVideSansHistorique() {
+        assertThat(resolver.lastActivityBySkill(List.of())).isEmpty();
+    }
+
     private static List<LearningPlanObservation> historique(LearningPlanObservation... items) {
         List<LearningPlanObservation> observations = new ArrayList<>(List.of(items));
         observations.sort(Comparator.comparing(LearningPlanObservation::getObservedAt).reversed());

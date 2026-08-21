@@ -295,7 +295,14 @@ public class LearningPlanService {
         Map<UUID, Skill> skillsDesPriorites = new LinkedHashMap<>();
         actionable.forEach(item -> skillsDesPriorites.put(
                 item.getSkill().getId(), item.getSkill()));
-        PlanSeanceDto seance = seanceBuilder.build(priorities, skillsDesPriorites, milestone);
+        // La DERNIERE ACTIVITE de chaque competence, tiree de l'historique DEJA
+        // charge : une passe, zero requete. C'est un FAIT servi aux fronts, qui
+        // le comparent a leur journee courante (Europe/Paris) pour cocher ce qui
+        // a ete fait aujourd'hui — la coche vit donc dans le compte au lieu de
+        // disparaitre au rechargement. Le serveur, lui, ne calcule aucun « fait
+        // aujourd'hui » : la seance continue de ne dependre d'aucune date.
+        PlanSeanceDto seance = seanceBuilder.build(priorities, skillsDesPriorites,
+                priorityResolver.lastActivityBySkill(allObservations), milestone);
         // CE QUI A CHANGE : le meme moteur, joue deux fois sur l'historique deja
         // charge — aucune requete, aucune regle recopiee. La priorite n°1 lui est
         // passee telle que le resolveur l'a designee : ce bloc ne peut donc pas

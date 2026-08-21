@@ -247,13 +247,14 @@ class _ActivePlan extends ConsumerWidget {
   final LearningPlan plan;
   final TargetLevel? objective;
 
-  /// Ce que fait le bouton principal, dérivé de la séance **servie** et du
-  /// marqueur local des lignes déjà ouvertes.
-  _SeanceCta _cta(BuildContext context, WidgetRef ref, Set<String> done) {
+  /// Ce que fait le bouton principal, dérivé de la séance **servie** — et
+  /// d'elle seule : ce qui est fait se lit sur `lastActivityAt` et
+  /// `stepCompleted`, plus sur un marqueur local qui s'évaporait au
+  /// redémarrage.
+  _SeanceCta _cta(BuildContext context, WidgetRef ref) {
     final items = plan.seance.items;
-    final pending = items
-        .where((item) => !done.contains(planSeanceItemKey(item)))
-        .toList(growable: false);
+    final pending =
+        items.where((item) => !planSeanceItemDone(item)).toList(growable: false);
 
     if (pending.isNotEmpty) {
       final next = pending.first;
@@ -275,33 +276,21 @@ class _ActivePlan extends ConsumerWidget {
       return _SeanceCta(
         label: label,
         locked: locked,
-        onTap: () async {
-          if (locked) {
-            await showTcfLockPaywall(context);
-            return;
-          }
-          final exercise = next.exercise;
-          if (exercise != null) {
-            await openPlanExercise(
-              context,
-              ref,
-              exercise,
-              masteryBefore: next.masteryState,
-            );
-          }
-          ref.read(planSeanceDoneProvider.notifier).update(
-                (current) =>
-                    <String>{...current, planSeanceItemKey(next)},
-              );
-        },
+        onTap: () => openPlanSeanceItem(context, ref, next),
       );
     }
 
+    // Tout est fait aujourd'hui. « Refaire ma séance » RELANCE réellement le
+    // premier entraînement : il n'y a plus de marqueur local à effacer, et un
+    // bouton qui décochait des lignes sans rien faire d'autre n'avait plus
+    // d'objet. Rien n'est réinventé — c'est la même action que la ligne.
     if (items.isNotEmpty) {
+      final first = items.first;
+      final locked = planSeanceItemLocked(first);
       return _SeanceCta(
-        label: kPlanSeanceRestart,
-        onTap: () =>
-            ref.read(planSeanceDoneProvider.notifier).state = const <String>{},
+        label: locked ? 'Débloquer cet entraînement' : kPlanSeanceRestart,
+        locked: locked,
+        onTap: () => openPlanSeanceItem(context, ref, first),
       );
     }
 
@@ -322,8 +311,7 @@ class _ActivePlan extends ConsumerWidget {
     final hasTcf = auth is AuthAuthenticated && auth.user.hasTcf;
     final estimated =
         ref.watch(dashboardProvider).valueOrNull?.estimatedTcfLevel;
-    final done = ref.watch(planSeanceDoneProvider);
-    final cta = _cta(context, ref, done);
+    final cta = _cta(context, ref);
     final changes = plan.recentChanges;
     final current = plan.currentPriority;
     final milestone = plan.milestone;

@@ -1502,6 +1502,7 @@ class PlanSeanceItem {
     required this.locked,
     this.exercise,
     this.milestone,
+    this.lastActivityAt,
     this.skillId,
     this.skillCode,
     this.title,
@@ -1553,6 +1554,20 @@ class PlanSeanceItem {
   /// visible** : savoir quoi travailler est ce que le Plan apporte.
   final bool locked;
 
+  /// **Date de la dernière activité sur cette compétence.** `null` quand elle
+  /// n'a jamais été observée, et sur un jalon.
+  ///
+  /// C'est un **fait**, pas un verdict : le serveur ne dit jamais « fait
+  /// aujourd'hui » — il n'a pas d'horloge dans la construction de la séance.
+  /// C'est le front qui compare cette date à sa journée courante
+  /// (**Europe/Paris**, `planSeanceItemDone`). La coche vit donc dans le
+  /// compte : elle survit au redémarrage de l'app, et elle est la même sur le
+  /// web.
+  ///
+  /// ⚠ Lue sur **toutes** les observations, `NOT_OBSERVED` comprise — le
+  /// correcteur n'a rien pu observer, mais le candidat a bien travaillé.
+  final DateTime? lastActivityAt;
+
   static PlanSeanceItem? fromJsonOrNull(Map<String, dynamic> json) {
     final raw = json['exercise'];
     if (raw is! Map<String, dynamic>) return null;
@@ -1575,6 +1590,7 @@ class PlanSeanceItem {
       stepCompleted: json['stepCompleted'] as bool? ?? false,
       readyForReassessment: json['readyForReassessment'] as bool? ?? false,
       locked: json['locked'] as bool? ?? false,
+      lastActivityAt: _date(json['lastActivityAt']),
     );
   }
 }

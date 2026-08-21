@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 /**
  * La <b>seance du jour</b> d'un candidat reel, servie de bout en bout contre la
@@ -94,6 +95,16 @@ class LearningPlanSeanceIT extends AbstractIntegrationTest {
         // Une competence = un item : trois competences, trois lignes, jamais six.
         assertThat(plan.seance().items()).extracting(PlanSeanceItemDto::skillId)
                 .doesNotHaveDuplicates();
+
+        // Chaque entrainement porte la DATE de sa derniere activite : c'est ce
+        // fait — et non un booleen calcule serveur — qui permet aux fronts de
+        // cocher ce qui a ete fait aujourd'hui, sur le compte plutot que dans un
+        // marqueur local perdu au rechargement.
+        assertThat(plan.seance().items()).allSatisfy(item ->
+                assertThat(item.lastActivityAt()).isNotNull());
+        assertThat(serie.lastActivityAt())
+                .as("la serie ciblee date de l'observation de comprehension, il y a un jour")
+                .isCloseTo(jours(1), within(1, ChronoUnit.MINUTES));
     }
 
     /**

@@ -73,10 +73,13 @@ import styles from "./reussir.module.css";
  *  · durées d'épreuve TCF → `DureeEpreuve` côté serveur
  *  · une étape du Plan = 5 petits sujets → `LearningPlanStep.PROMPTS_PAR_ETAPE`
  *
- * ⚠️ MESURE D'AUDIENCE : `/reussir` n'admet que `VIEW`, `CTA` et
- * `SOCIAL_LANDING_DIAGNOSTIC_CLICKED` (`AUDIENCE_EVENTS_BY_PATH`, doublée côté
- * serveur par `PageViewService.EVENTS_BY_PATH`). Un événement inventé ici
- * serait rejeté en silence : ne rien ajouter sans toucher les deux listes.
+ * ⚠️ MESURE D'AUDIENCE : `/reussir` n'admet que `VIEW`, `CTA`,
+ * `SOCIAL_LANDING_DIAGNOSTIC_CLICKED` et `SOCIAL_LANDING_CIVIQUE_CLICKED`
+ * (`AUDIENCE_EVENTS_BY_PATH`, doublée côté serveur par
+ * `PageViewService.EVENTS_BY_PATH`). Un événement inventé ici serait rejeté en
+ * silence : ne rien ajouter sans toucher les deux listes. Les deux portes
+ * d'entrée se comptent **séparément** — le civique n'a ni production, ni niveau
+ * CECRL, ni diagnostic.
  */
 
 type Parcours = "tcf" | "civique";
@@ -400,10 +403,14 @@ function DiagnosticSection() {
                 Le format réel de l&apos;épreuve, tous parcours confondus. Tu vois
                 immédiatement ton score et les thèmes qui te coûtent des points.
               </p>
+              {/* L'entrée CIVIQUE se compte à part de l'entrée diagnostic :
+                  sans elle on savait combien de visiteurs voient cette offre,
+                  jamais combien y entrent. */}
               <Link
                 href={withTrafficSource("/examens-blancs/civique-decouverte", origin)}
                 className={`${styles.btn} ${styles.btnO} ${styles.btnFull}`}
                 style={{ marginTop: 18 }}
+                onClick={() => trackAudienceEvent(TRACKED_PATH, "SOCIAL_LANDING_CIVIQUE_CLICKED")}
               >
                 Passer l&apos;examen découverte
                 <ArrowRight aria-hidden />

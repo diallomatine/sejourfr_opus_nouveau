@@ -140,6 +140,60 @@ class PageViewServiceTest {
         verify(manager, never()).increment(anyString(), anyString(), any(), any());
     }
 
+    /**
+     * La landing a DEUX portes d'entrée, et elles se comptent séparément : le
+     * civique n'a ni production, ni niveau CECRL, ni diagnostic. Réutiliser
+     * l'événement du diagnostic aurait gonflé sa mesure avec des clics qui n'y
+     * mènent pas.
+     */
+    @Test
+    void track_countsTheCiviqueEntryApartFromTheDiagnosticOne() {
+        service.track(new PageViewRequest(
+                "/reussir", "tiktok", PageViewEvent.SOCIAL_LANDING_CIVIQUE_CLICKED));
+        service.track(new PageViewRequest(
+                "/reussir", "tiktok", PageViewEvent.SOCIAL_LANDING_DIAGNOSTIC_CLICKED));
+
+        verify(manager).increment(eq("/reussir"), eq("tiktok"),
+                eq(PageViewEvent.SOCIAL_LANDING_CIVIQUE_CLICKED), any());
+        verify(manager).increment(eq("/reussir"), eq("tiktok"),
+                eq(PageViewEvent.SOCIAL_LANDING_DIAGNOSTIC_CLICKED), any());
+    }
+
+    /** L'entrée civique n'existe que sur la landing : ailleurs, elle est refusée. */
+    @Test
+    void track_rejectsTheCiviqueEntryOutsideTheLanding() {
+        assertThatThrownBy(() -> service.track(new PageViewRequest(
+                "/diagnostic", "tiktok", PageViewEvent.SOCIAL_LANDING_CIVIQUE_CLICKED)))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.track(new PageViewRequest(
+                "/plan", "tiktok", PageViewEvent.SOCIAL_LANDING_CIVIQUE_CLICKED)))
+                .isInstanceOf(BusinessException.class);
+
+        verify(manager, never()).increment(anyString(), anyString(), any(), any());
+    }
+
+    /**
+     * Les deux entrées comptent comme des clics dans l'agrégat, et restent
+     * <b>distinctes</b> dans {@code events} : c'est là qu'on lit combien de
+     * visiteurs sont partis vers le civique plutôt que vers le diagnostic.
+     */
+    @Test
+    void stats_keepsBothLandingEntriesApartWhileCountingThemAsClicks() {
+        LocalDate day = LocalDate.now();
+        when(manager.since(eq("/reussir"), any())).thenReturn(List.of(
+                row("tiktok", PageViewEvent.VIEW, day, 100),
+                row("tiktok", PageViewEvent.SOCIAL_LANDING_DIAGNOSTIC_CLICKED, day, 30),
+                row("tiktok", PageViewEvent.SOCIAL_LANDING_CIVIQUE_CLICKED, day, 12)));
+
+        PageViewStatsResponse stats = service.stats("/reussir", 30);
+
+        assertThat(stats.views()).isEqualTo(100);
+        assertThat(stats.ctaClicks()).isEqualTo(42);
+        assertThat(stats.events())
+                .containsEntry("SOCIAL_LANDING_DIAGNOSTIC_CLICKED", 30L)
+                .containsEntry("SOCIAL_LANDING_CIVIQUE_CLICKED", 12L);
+    }
+
     @Test
     void stats_servesThePricingScreensToo() {
         when(manager.since(eq("/tarifs"), any())).thenReturn(List.of());

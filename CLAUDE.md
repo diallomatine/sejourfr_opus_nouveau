@@ -311,6 +311,13 @@ cliquent son CTA, découpé par réseau de provenance.
   `/paiement` (`VIEW` + `CTA`, 2026-08-19) — ces deux derniers mesurent les
   visiteurs qui regardent les prix **sans jamais créer de compte**, angle mort
   jusque-là.
+- **`/reussir` a DEUX portes d'entrée, comptées séparément** (2026-08-21) :
+  `SOCIAL_LANDING_DIAGNOSTIC_CLICKED` (diagnostic TCF) et
+  **`SOCIAL_LANDING_CIVIQUE_CLICKED`** (« Passer l'examen découverte »). Réutiliser le premier
+  aurait gonflé la mesure du diagnostic avec des clics qui n'y mènent pas — le civique n'a ni
+  production, ni niveau CECRL, ni diagnostic. Les deux comptent comme des **clics** dans
+  l'agrégat et restent **distincts** dans `events`. Aucune migration :
+  `page_views.event` est en `varchar(64)` depuis V030.
 - **Fenêtre de lecture** : les deux endpoints admin acceptent `from`/`to`
   (ISO `yyyy-MM-dd`, **Europe/Paris**, bornes **incluses**) **ou** `days`
   (défaut 30, clamp 1..365). `from`/`to` l'emportent ; **une seule borne, `from
@@ -1208,6 +1215,23 @@ Quatre blocs ajoutés en fin de `LearningPlanDto`, plus un cinquième :
   `PlanSeanceBuilder` ne reçoit ni `Clock` ni `LocalDate`. Ne pas créer de table « items du
   jour » : elle serait une seconde source de vérité à réconcilier à chaque observation. Un
   test **vieillit l'historique de 40 jours en base** et exige la même séance.
+  **Ce qui est COCHÉ vient pourtant du compte** (2026-08-21) : chaque item porte
+  `lastActivityAt` (`Instant` nullable, dernière ligne de
+  `learning_plan_observations` de la compétence — **`NOT_OBSERVED` comprise**, une production
+  rendue est une activité même quand le correcteur n'a rien pu observer ; autorité
+  `LearningPlanPriorityResolver.lastActivityBySkill`, **zéro requête**, l'historique est déjà
+  chargé). 🛑 **Le serveur sert un FAIT, jamais un booléen « fait aujourd'hui »** — il n'a pas
+  d'horloge ici, et un booléen figé à la lecture serait faux le lendemain : ce sont les fronts
+  qui comparent à leur journée courante en **Europe/Paris** (`planSeanceItemDone`, miroirs web
+  `lib/plan-domain.ts` ⇄ mobile `plan_seance_state.dart` — étape bouclée **ou** activité du
+  jour). Cela **révoque** les deux marqueurs locaux et éphémères (`planSeanceDoneProvider`
+  mobile, état de composant web), **supprimés** : ils s'évaporaient au rechargement et le même
+  candidat voyait deux séances différentes selon l'appareil. Ne pas les réintroduire, et ne pas
+  faire entrer de `Clock` dans `PlanSeanceBuilder` pour « finir le travail ».
+  ⚠️ **« Refaire ma séance » n'efface plus rien** : quand tout est fait, le bouton mobile
+  **relance réellement** le premier entraînement (`openPlanSeanceItem`, extrait à la 2ᵉ
+  occurrence — l'ancien chemin du bouton oubliait les **jalons** et ne faisait rien du tout
+  dessus).
 - **`recentChanges`** : transitions **réelles** de l'état agrégé, mesurées en rejouant
   `SkillMasteryEngine` sur l'historique arrêté au début de la fenêtre. **`null` = cas
   normal.** Une **première mesure n'est jamais une transition** (sinon le bloc serait plein le

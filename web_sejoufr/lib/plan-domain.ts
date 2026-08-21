@@ -375,18 +375,15 @@ export function levelLabel(level: NiveauCecrl | null): string | null {
     return level ? niveauCecrlLabel(level) : null;
 }
 
-/* ------------------------------------------------- coche locale de séance */
+/* ------------------------------------------------------- coches de séance */
 
 /**
- * **La clé d'un item de séance, stable à travers un recalcul du Plan.**
+ * **La clé de liste d'un item de séance, stable à travers un recalcul du Plan.**
  *
  * On prend la **compétence**, pas le sujet : quand le candidat termine un petit
  * sujet, le serveur désigne le suivant dans la même compétence — la clé du
- * sujet changerait et la coche disparaîtrait juste après avoir été posée. Un
- * jalon n'a pas de compétence : il s'identifie par son épreuve et son slot.
- *
- * ⚠️ **Miroir de `planSeanceItemKey` côté mobile** — même règle, même ordre de
- * repli.
+ * sujet changerait et React remonterait la ligne pour rien. Un jalon n'a pas de
+ * compétence : il s'identifie par son épreuve et son slot.
  */
 export function planSeanceItemKey(item: PlanSeanceItemDto): string {
     const skillId = item.skillId ?? ("skillId" in item.exercise ? item.exercise.skillId : null);
@@ -395,4 +392,37 @@ export function planSeanceItemKey(item: PlanSeanceItemDto): string {
         return `exam:${item.exercise.epreuve}:${item.exercise.slotNumber}`;
     }
     return `kind:${item.exercise.kind}`;
+}
+
+/**
+ * **Le jour civil d'une date, à Paris.** `"2026-08-21"`.
+ *
+ * L'`Intl` du navigateur porte la base de fuseaux : aucune règle d'heure d'été
+ * n'est écrite ici, et un candidat qui consulte son Plan depuis un autre fuseau
+ * lit la même journée que le serveur — qui compte, lui aussi, en Europe/Paris
+ * (`FenetreMesure.PARIS`).
+ */
+function parisDay(date: Date): string {
+    return date.toLocaleDateString("en-CA", {timeZone: "Europe/Paris"});
+}
+
+/**
+ * **Cette ligne de la séance est-elle faite ?**
+ *
+ * Deux faits **servis**, aucun marqueur local : l'étape est bouclée
+ * (`stepCompleted` sur ses cinq sujets), **ou** la dernière activité sur la
+ * compétence tombe aujourd'hui (**Europe/Paris**).
+ *
+ * 🛑 C'est le front qui compare, jamais le serveur : la séance ne dépend
+ * d'aucune date, et un booléen figé à la lecture serait faux le lendemain. Mais
+ * la **donnée**, elle, vient du compte — la coche survit donc à un
+ * rechargement et se retrouve à l'identique sur mobile
+ * (`planSeanceItemDone`, même règle, même ordre).
+ */
+export function planSeanceItemDone(item: PlanSeanceItemDto, now: Date = new Date()): boolean {
+    if (item.stepPromptCount > 0 && item.stepCompleted) return true;
+    if (!item.lastActivityAt) return false;
+    const activity = new Date(item.lastActivityAt);
+    if (Number.isNaN(activity.getTime())) return false;
+    return parisDay(activity) === parisDay(now);
 }

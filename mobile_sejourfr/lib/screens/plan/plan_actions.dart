@@ -10,12 +10,15 @@ import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/skill_models.dart';
 import '../../core/router/app_router.dart';
+import '../../core/widgets/premium_lock.dart';
 import '../module_detail/tcf_module_exam_briefing_screen.dart';
 import '../module_detail/tcf_qcm_detail_screen.dart' show TcfQcmModule;
 import '../tcf_production/competences/competences_nav.dart';
 import '../tcf_production/recommended_exercise_launcher.dart';
 import '../tcf_production/tcf_production_module.dart';
 import 'plan_labels.dart';
+import 'plan_milestone_launcher.dart';
+import 'plan_seance_state.dart';
 
 /// **Où mènent les gestes du Plan**, en un seul endroit.
 ///
@@ -54,6 +57,38 @@ Future<void> openPlanExercise(
     exercise,
     masteryBefore: masteryBefore,
   );
+}
+
+/// **Lance une ligne de la séance**, quelle que soit sa nature.
+///
+/// Extrait à la deuxième occurrence : la carte de séance et le bouton
+/// principal de l'écran ouvraient le même item par deux chemins, et l'un des
+/// deux avait oublié les **jalons** — taper le bouton principal sur un examen
+/// blanc ne faisait alors rien du tout.
+///
+/// ⚠ Le verrou est **lu** ([planSeanceItemLocked]), jamais déduit du rang de la
+/// ligne : une action verrouillée ouvre l'offre au lieu d'être masquée.
+Future<void> openPlanSeanceItem(
+  BuildContext context,
+  WidgetRef ref,
+  PlanSeanceItem item,
+) async {
+  if (planSeanceItemLocked(item)) {
+    await showTcfLockPaywall(context);
+    return;
+  }
+  final exercise = item.exercise;
+  final milestone = item.milestone;
+  if (exercise != null) {
+    await openPlanExercise(
+      context,
+      ref,
+      exercise,
+      masteryBefore: item.masteryState,
+    );
+  } else if (milestone != null) {
+    await startPlanMilestone(context, ref, milestone);
+  }
 }
 
 /// Ouvre une compétence.

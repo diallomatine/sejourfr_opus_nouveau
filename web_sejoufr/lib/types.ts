@@ -1358,6 +1358,23 @@ export interface PlanSeanceItemDto {
     /** Ce candidat ne peut pas lancer cette action. Elle reste **désignée et
      *  visible** : savoir quoi travailler est ce que le Plan apporte. */
     locked: boolean;
+    /**
+     * **Date de la dernière activité sur cette compétence** (ISO), `null`
+     * quand elle n'a jamais été observée et sur un jalon.
+     *
+     * C'est un **fait**, pas un verdict : le serveur ne dit jamais « fait
+     * aujourd'hui » — il n'a pas d'horloge dans la construction de la séance.
+     * C'est le front qui compare cette date à sa journée courante
+     * (**Europe/Paris**, `planSeanceItemDone`). La coche vit donc dans le
+     * compte : elle survit à un rechargement, et elle est la même sur le web et
+     * sur le mobile.
+     *
+     * ⚠️ Lue sur **toutes** les observations, `NOT_OBSERVED` comprise — le
+     * correcteur n'a rien pu observer, mais le candidat a bien travaillé. À ne
+     * pas confondre avec `LearningPlanPriorityDto.observedAt`, qui est la
+     * dernière observation **probante**.
+     */
+    lastActivityAt: string | null;
 }
 
 /**
