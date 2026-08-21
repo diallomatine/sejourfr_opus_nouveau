@@ -12,6 +12,11 @@ import java.util.UUID;
  * Payload pour POST /api/attempts.
  *
  * Modes de démarrage (ordre de priorité) :
+ *   0. skillId fourni → SÉRIE CIBLÉE d'une compétence de COMPRÉHENSION (CO / CE) :
+ *      20 questions du domaine et du niveau de la compétence. Le client n'envoie
+ *      QUE la compétence — questionType, difficulty et size sont dérivés côté
+ *      serveur et tout autre filtre est ignoré. Le verrou freemium est opposable
+ *      (SkillAccessService.assertCanTrain).
  *   1. examTemplateId fourni → MOCK_EXAM piloté par un ExamTemplate.
  *      Les autres filtres (themeId, difficulty, questionType, size, lotNumero,
  *      moduleExamQuestionType) sont ignorés au profit des ExamTemplateRule.
@@ -46,5 +51,20 @@ public record StartAttemptRequest(
          * l'UI prend le plus récent par slot — au lieu de l'ancien LIFO qui
          * faisait glisser les essais d'un cran. Cf. migration V110.
          */
-        Integer slotNumber
+        Integer slotNumber,
+        /**
+         * Compétence de COMPRÉHENSION (CO / CE) à travailler. Fournie, elle
+         * l'emporte sur tous les autres filtres : la série de 20 questions est
+         * composée à partir du domaine ({@code skills.section}) et du niveau
+         * ({@code skills.target_level}) de la compétence.
+         *
+         * <p>Une seule valeur plutôt qu'un couple (questionType, difficulty) :
+         * les résultats QCM alimentant le Plan par le niveau RÉEL des questions,
+         * un couple reçu du client aurait pu contredire la compétence affichée
+         * et faire progresser une autre compétence que celle travaillée.
+         *
+         * <p>Refusée (422) sur une compétence d'expression, qui s'entraîne sur
+         * ses petits sujets et non sur des questions.
+         */
+        UUID skillId
 ) {}

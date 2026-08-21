@@ -44,7 +44,7 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
     private StartAttemptRequest mock(Module module, UUID themeId, UUID templateId,
                                      QuestionType moduleExamType, Integer slot) {
         return new StartAttemptRequest(AttemptType.MOCK_EXAM, module, templateId, themeId,
-                null, null, null, null, moduleExamType, slot);
+                null, null, null, null, moduleExamType, slot, null);
     }
 
     private ExamTemplate template(Module module, boolean free, boolean published) {
@@ -284,7 +284,7 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
         User user = data.user();
         AttemptResponse ce = service.start(user.getId(),
                 new StartAttemptRequest(AttemptType.TRAINING, Module.TCF, null, null,
-                        Difficulty.A2, QuestionType.CE, null, 1, null, null));
+                        Difficulty.A2, QuestionType.CE, null, 1, null, null, null));
 
         assertThat(epreuveOf(ce.id())).isEqualTo(EpreuveType.TCF_CE);
     }

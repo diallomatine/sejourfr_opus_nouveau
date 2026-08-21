@@ -21,6 +21,7 @@ import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.mapper.AttemptMapper;
 import com.sejourfr.app.mapper.QuestionMapper;
+import com.sejourfr.app.service.ComprehensionObservationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -61,7 +62,8 @@ class AttemptInteractionServiceExplicationTest {
         AnswerManager answerManager = mock(AnswerManager.class);
         service = new AttemptInteractionService(
                 mock(AttemptManager.class), attemptQuestionManager, answerManager,
-                mock(AttemptScoringService.class), mock(AttemptMapper.class), questionMapper);
+                mock(AttemptScoringService.class), mock(AttemptMapper.class), questionMapper,
+                mock(ComprehensionObservationService.class));
         when(answerManager.save(any(Answer.class))).thenAnswer(inv -> inv.getArgument(0));
     }
 

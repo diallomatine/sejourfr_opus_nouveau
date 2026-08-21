@@ -57,7 +57,7 @@ class AttemptServiceReadIT extends AbstractIntegrationTest {
 
     private StartAttemptRequest training(User ignored, Theme theme, int size) {
         return new StartAttemptRequest(AttemptType.TRAINING, Module.CIVIQUE, null, theme.getId(),
-                null, null, size, null, null, null);
+                null, null, size, null, null, null, null);
     }
 
     private UUID correctChoiceId(AttemptQuestion aq) {
@@ -214,7 +214,7 @@ class AttemptServiceReadIT extends AbstractIntegrationTest {
         data.userSubscription(user, data.plan());
         AttemptResponse started = service.start(user.getId(), new StartAttemptRequest(
                 AttemptType.MOCK_EXAM, Module.TCF, null, null, null, null, null, null,
-                QuestionType.CO, null));
+                QuestionType.CO, null, null));
 
         AttemptResponse finished = service.finish(user.getId(), started.id());
 
@@ -244,7 +244,7 @@ class AttemptServiceReadIT extends AbstractIntegrationTest {
             data.userSubscription(user, data.plan());
             AttemptResponse started = service.start(user.getId(), new StartAttemptRequest(
                     AttemptType.MOCK_EXAM, Module.TCF, null, null, null, null, null, null,
-                    epreuve, null));
+                    epreuve, null, null));
 
             AttemptQuestion first = attemptQuestionManager
                     .findByAttemptOrderedByPosition(started.id()).get(0);

@@ -128,4 +128,18 @@ public interface SkillRepository extends JpaRepository<Skill, UUID>,
 
     /** Meme vue, toutes epreuves confondues. */
     List<Skill> findAllByOrderByTaskCodeAscDisplayOrderAsc();
+
+    /**
+     * Les competences ACTIVES de comprehension, tous domaines confondus : six
+     * lignes au plus sur le contenu publie ({@code CO-A2}..{@code CE-B2}).
+     *
+     * <p>C'est la table de correspondance dont a besoin le producteur
+     * d'observations CO/CE : une question de niveau B1 en comprehension orale
+     * alimente {@code CO-B1} et rien d'autre. La charger d'un coup evite une
+     * requete par niveau observe, et une seule suffit pour tout un attempt.
+     *
+     * <p>{@code taskCode IS NULL} identifie exactement la comprehension, la base
+     * garantissant l'equivalence ({@code chk_skills_task_code_presence}).
+     */
+    List<Skill> findByTaskCodeIsNullAndActiveTrueOrderBySectionAscDisplayOrderAsc();
 }

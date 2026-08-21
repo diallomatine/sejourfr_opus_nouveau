@@ -23,6 +23,8 @@ public class LearningPlanProperties {
 
     private Milestone milestone = new Milestone();
 
+    private Comprehension comprehension = new Comprehension();
+
     public Mastery getMastery() {
         return mastery;
     }
@@ -37,6 +39,99 @@ public class LearningPlanProperties {
 
     public void setMilestone(Milestone milestone) {
         this.milestone = milestone;
+    }
+
+    public Comprehension getComprehension() {
+        return comprehension;
+    }
+
+    public void setComprehension(Comprehension comprehension) {
+        this.comprehension = comprehension;
+    }
+
+    /**
+     * Seuils de la voie <b>COMPREHENSION</b> (CO / CE), ou une observation ne
+     * vient pas d'un correcteur mais d'un taux de bonnes reponses.
+     *
+     * <p>🛑 <b>Ces seuils sont NEUFS et SEPARES de ceux de {@link Mastery}.</b>
+     * Ils repondent a une autre question : {@code Mastery} agrege un historique
+     * deja qualifie, celui-ci <b>qualifie</b> un resultat brut. Les melanger
+     * reviendrait a comparer un taux de reussite a un score pondere, deux
+     * grandeurs qui ne vivent pas sur la meme echelle. En particulier,
+     * {@code solid-ratio} n'a rien a voir avec {@code mastery.solid-score} :
+     * l'un est « 16 bonnes reponses sur 20 », l'autre « 0,75 de moyenne
+     * ponderee ».
+     *
+     * <p>Ce sont des <b>seuils internes SejourFR</b> : ils ne sont jamais
+     * presentes au candidat comme une equivalence de score officiel TCF.
+     */
+    public static class Comprehension {
+
+        /**
+         * Taux de bonnes reponses a partir duquel un niveau est tenu pour
+         * <b>reussi</b> dans cette serie ({@code SOLID}). Sur une serie ciblee
+         * de 20 questions, {@code 0.80} vaut 16/20 — la valeur du brief.
+         */
+        private double solidRatio = 0.80;
+
+        /**
+         * Taux a partir duquel le niveau est <b>en progression</b>
+         * ({@code TO_REINFORCE}). En dessous, c'est une {@code PRIORITY}.
+         */
+        private double reinforceRatio = 0.65;
+
+        /**
+         * Plancher de fiabilite : nombre minimal de questions d'un meme niveau
+         * dans une session avant d'oser en tirer une conclusion. En dessous,
+         * l'observation est ecrite {@code NOT_OBSERVED} — jamais une fausse
+         * fragilite, jamais une fausse reussite.
+         *
+         * <p><b>Pourquoi 6, et pas 2 ou 3.</b> Avec {@code n} questions, le taux
+         * ne peut prendre que {@code n + 1} valeurs, espacees de {@code 1/n}.
+         * La bande intermediaire (« en progression ») est large de
+         * {@code solid-ratio - reinforce-ratio}, soit 15 points par defaut :
+         * il faut donc {@code 1/n} au plus egal a cette largeur pour qu'une
+         * valeur puisse y tomber. A {@code n = 5} le pas vaut 20 points et les
+         * taux possibles sautent de 60 % a 80 % : un tel echantillon ne peut
+         * rendre QUE les deux verdicts les plus tranches, sur la preuve la plus
+         * mince. A {@code n = 6} le pas vaut 16,7 points et 4/6 = 66,7 % tombe
+         * bien dans la bande.
+         *
+         * <p>Consequence voulue : les strates d'un examen blanc d'epreuve
+         * (8 A2 / 9 B1 / 8 B2) alimentent toutes les trois le Plan, alors qu'un
+         * reliquat de 2 ou 3 questions d'un entrainement libre ne conclut rien.
+         */
+        private int minQuestions = 6;
+
+        /**
+         * A partir de ce nombre de questions d'un meme niveau, l'observation est
+         * enregistree en confiance {@code HIGH} ; en dessous (mais au-dessus du
+         * plancher), {@code MEDIUM}.
+         *
+         * <p>La confiance dit la certitude de l'<b>observateur</b>, jamais la
+         * qualite du candidat — meme regle que pour les correcteurs IA. Ici, ce
+         * qui limite l'observation, c'est la taille de l'echantillon : une serie
+         * ciblee de 20 questions du meme niveau est une preuve nettement plus
+         * assuree que les 8 questions A2 noyees dans un examen d'epreuve.
+         * {@code 12} separe exactement ces deux cas.
+         */
+        private int highConfidenceQuestions = 12;
+
+        public double getSolidRatio() { return solidRatio; }
+        public void setSolidRatio(double solidRatio) { this.solidRatio = solidRatio; }
+
+        public double getReinforceRatio() { return reinforceRatio; }
+        public void setReinforceRatio(double reinforceRatio) {
+            this.reinforceRatio = reinforceRatio;
+        }
+
+        public int getMinQuestions() { return minQuestions; }
+        public void setMinQuestions(int minQuestions) { this.minQuestions = minQuestions; }
+
+        public int getHighConfidenceQuestions() { return highConfidenceQuestions; }
+        public void setHighConfidenceQuestions(int highConfidenceQuestions) {
+            this.highConfidenceQuestions = highConfidenceQuestions;
+        }
     }
 
     /**
@@ -125,9 +220,14 @@ public class LearningPlanProperties {
         private double weightMockExam = 1.20;
 
         /**
-         * Poids d'une observation deterministe CO/CE. Reservee : rien ne
-         * l'ecrit encore, la cle existe pour que l'extension future n'ait pas a
-         * toucher au moteur.
+         * Poids d'une observation <b>deterministe</b> CO/CE, ecrite par
+         * {@code ComprehensionObservationService}.
+         *
+         * <p>Meme poids qu'une production complete, et non un poids
+         * intermediaire : un QCM de comprehension <b>est</b> le format reel de
+         * l'epreuve, il n'existe pas de version guidee a laquelle l'opposer. Ce
+         * qui varie d'une session a l'autre, c'est la taille de l'echantillon —
+         * et c'est la <b>confiance</b> qui la porte (cf. {@link Comprehension}).
          */
         private double weightComprehension = 1.00;
 

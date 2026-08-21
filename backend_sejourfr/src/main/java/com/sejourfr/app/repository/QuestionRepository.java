@@ -190,6 +190,59 @@ public interface QuestionRepository
         return findOrderedExcludingInternal(module, themeId, difficulty, questionType, excludeIds, pageable);
     }
 
+    /**
+     * Tirage d'une <b>serie ciblee</b> : les questions du bon domaine et du bon
+     * niveau que ce candidat a vues <b>le moins recemment</b>, jamais vues
+     * d'abord.
+     *
+     * <p>C'est la reponse aux quatre exigences du brief §14 en une seule
+     * clause : <i>privilegier les questions jamais vues</i> (elles n'ont pas de
+     * derniere vue, donc {@code NULLS FIRST} les met en tete), <i>eviter de
+     * remettre immediatement la meme</i> et <i>permettre la repetition apres
+     * epuisement de la banque, avec une distance temporelle raisonnable</i>
+     * (une fois le stock neuf epuise, ce sont les plus anciennes qui
+     * reviennent, jamais celles de la serie precedente). Il n'y a donc <b>pas de
+     * fenetre de refroidissement a regler</b> : l'ordre s'en charge, et aucune
+     * valeur arbitraire n'a a etre choisie.
+     *
+     * <p>{@code random()} n'est que le departage <b>a l'interieur</b> d'un meme
+     * rang de fraicheur : deux series successives ne redonnent pas les memes
+     * vingt questions jamais vues, mais aucune question deja vue ne peut passer
+     * devant une question neuve.
+     *
+     * <p>Requete native : la sous-requete de derniere vue et le
+     * {@code NULLS FIRST} n'ont pas d'equivalent portable en JPQL. La jointure
+     * est bornee par l'historique du seul candidat.
+     *
+     * <p>{@code CO} inclut {@code CO_IMAGE}, comme partout ailleurs dans le
+     * depot : c'est un format de question de comprehension orale, pas un
+     * domaine a part.
+     */
+    @Query(value = """
+            SELECT q.* FROM questions q
+            LEFT JOIN (
+                SELECT aq.question_id AS question_id, MAX(a.started_at) AS last_seen
+                FROM attempt_questions aq
+                JOIN attempts a ON a.id = aq.attempt_id
+                WHERE a.user_id = :userId
+                GROUP BY aq.question_id
+            ) vu ON vu.question_id = q.id
+            WHERE q.is_active = true
+              AND q.module = :module
+              AND q.difficulty = :difficulty
+              AND (q.question_type = :questionType
+                   OR (:questionType = 'CO' AND q.question_type = 'CO_IMAGE'))
+            ORDER BY vu.last_seen ASC NULLS FIRST, random()
+            LIMIT :size
+            """, nativeQuery = true)
+    List<Question> findLeastRecentlySeen(
+            @Param("userId") UUID userId,
+            @Param("module") String module,
+            @Param("difficulty") String difficulty,
+            @Param("questionType") String questionType,
+            @Param("size") int size
+    );
+
     // ------------------------------------------------------------------------
     // Stats / agrégations
     // ------------------------------------------------------------------------

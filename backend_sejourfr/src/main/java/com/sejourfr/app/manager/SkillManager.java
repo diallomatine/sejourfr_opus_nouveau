@@ -126,6 +126,15 @@ public class SkillManager {
     }
 
     /**
+     * Les competences ACTIVES de comprehension, tous domaines confondus (six au
+     * plus sur le contenu publie), en UNE requete : la table de correspondance
+     * « (domaine, niveau) -> competence » du producteur d'observations CO/CE.
+     */
+    public List<Skill> findActiveComprehension() {
+        return repository.findByTaskCodeIsNullAndActiveTrueOrderBySectionAscDisplayOrderAsc();
+    }
+
+    /**
      * Toutes les competences SANS tache d'un domaine, <b>desactivees
      * comprises</b>. Pendant de {@link #findAllByTaskCode} pour la
      * comprehension : l'admin y verifie qu'un rang d'affichage est libre.

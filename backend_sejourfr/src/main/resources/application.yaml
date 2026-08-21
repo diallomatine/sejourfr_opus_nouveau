@@ -1145,8 +1145,12 @@ sejourfr:
       weight-diagnostic: 0.80
       weight-production: 1.00
       weight-mock-exam: 1.20
-      # Reserve : rien n'ecrit encore d'observation CO/CE deterministe, la cle
-      # existe pour que l'extension future ne touche pas au moteur.
+      # Observation DETERMINISTE de comprehension (CO / CE), ecrite par
+      # ComprehensionObservationService. Meme poids qu'une production complete :
+      # un QCM de comprehension EST le format reel de l'epreuve, il n'y a ni
+      # assistance ni filet dont l'absence rendrait l'examen plus probant. Ce
+      # qui varie d'une session a l'autre, c'est la taille de l'echantillon, et
+      # c'est la CONFIANCE qui la porte (cf. learning-plan.comprehension).
       weight-comprehension: 1.00
       # Confiance DU CORRECTEUR sur son observation (jamais la qualite du
       # candidat) : une observation incertaine pese moins sans disparaitre.
@@ -1216,6 +1220,30 @@ sejourfr:
       # Duree de validite d'un jalon franchi : un jalon est une etape, pas une
       # boucle — on ne represente pas un examen blanc qu'on vient de passer.
       proof-days: 45
+    # COMPREHENSION (CO / CE) : la seule voie ou une observation ne vient pas
+    # d'un correcteur mais d'un taux de bonnes reponses. Ces seuils sont NEUFS
+    # et SEPARES de ceux de `mastery`, qui agrege un historique deja qualifie —
+    # « 16 bonnes reponses sur 20 » et « 0,75 de moyenne ponderee » ne vivent
+    # pas sur la meme echelle. Seuils INTERNES SejourFR : jamais presentes au
+    # candidat comme une equivalence de score officiel TCF.
+    comprehension:
+      # >= 80 % (16/20 sur une serie ciblee) : niveau reussi dans cette session.
+      solid-ratio: 0.80
+      # 65-79 % : en progression. En dessous : priorite.
+      reinforce-ratio: 0.65
+      # Plancher de fiabilite. Avec n questions le taux ne prend que n+1
+      # valeurs espacees de 1/n : sous 6, le pas (20 points a n=5) depasse la
+      # largeur de la bande intermediaire (15 points) et un tel echantillon ne
+      # peut rendre QUE les deux verdicts les plus tranches, sur la preuve la
+      # plus mince. Sous ce plancher, l'observation est NOT_OBSERVED — jamais
+      # une fausse fragilite. Les strates d'un examen d'epreuve (8/9/8) passent
+      # toutes les trois ; un reliquat de 3 questions, non.
+      min-questions: 6
+      # Confiance de l'OBSERVATEUR, jamais qualite du candidat : ce qui la
+      # limite ici, c'est la taille de l'echantillon. Une serie ciblee de 20
+      # questions du meme niveau est plus assuree que les 8 questions A2 noyees
+      # dans un examen d'epreuve — 12 separe exactement ces deux cas.
+      high-confidence-questions: 12
 
   # Diagnostic initial : même fournisseur/modèle que production-evaluation,
   # mais contrat et consignes séparés (aucune note /20, aucune tâche officielle).

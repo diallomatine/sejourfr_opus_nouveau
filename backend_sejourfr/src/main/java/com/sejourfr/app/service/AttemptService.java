@@ -10,6 +10,7 @@ import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.AttemptQuestion;
 import com.sejourfr.app.entity.ExamTemplate;
 import com.sejourfr.app.entity.Question;
+import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
@@ -17,6 +18,7 @@ import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
@@ -24,12 +26,14 @@ import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.manager.ExamTemplateManager;
 import com.sejourfr.app.manager.QuestionManager;
+import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.mapper.AttemptMapper;
 import com.sejourfr.app.service.attempt.AttemptCompositionService;
 import com.sejourfr.app.service.attempt.AttemptInteractionService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -47,6 +52,7 @@ import java.util.UUID;
  * {@link AttemptInteractionService}.
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AttemptService {
 
@@ -77,6 +83,14 @@ public class AttemptService {
     private static final int PREMIUM_TRAINING_MAX_SIZE = 50;
     private static final int DEFAULT_TRAINING_SIZE = 10;
 
+    /**
+     * Taille d'une <b>serie ciblee</b> lancee depuis une competence de
+     * comprehension (brief §13 : « 20 questions »). Constante et non reglable :
+     * c'est le denominateur du seuil de reussite (16/20), et le laisser choisir
+     * au client ferait varier ce que « reussi » veut dire.
+     */
+    static final int COMPREHENSION_SERIES_SIZE = 20;
+
     // Les durées d'épreuve vivent TOUTES dans DureeEpreuve (CO 20 min, CE
     // 35 min partout — y compris en examen complet, STRUCTURE 20 min, EE
     // 30 min, EO chronométrée tâche par tâche). Ne pas en redéclarer ici.
@@ -91,6 +105,8 @@ public class AttemptService {
     private final AttemptCompositionService compositionService;
     private final AttemptInteractionService interactionService;
     private final ProductionAccessService productionAccessService;
+    private final SkillManager skillManager;
+    private final SkillAccessService skillAccessService;
     private final AttemptMapper mapper;
 
     // ------------------------------------------------------------------------
@@ -101,6 +117,14 @@ public class AttemptService {
     public AttemptResponse start(UUID userId, StartAttemptRequest req) {
         User user = userManager.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User introuvable"));
+
+        // Branche competence : un clic sur une competence de COMPREHENSION du
+        // Plan lance directement sa serie ciblee de 20 questions. C'est la
+        // branche la plus specifique — le domaine, le niveau et la taille sont
+        // DERIVES de la competence, jamais recus du client.
+        if (req.skillId() != null) {
+            return startComprehensionSeries(user, req.skillId());
+        }
 
         // Branche template : si un examTemplateId est fourni, c'est lui qui pilote
         // la config (duree, taille, seuil) et la composition (rules).
@@ -167,9 +191,21 @@ public class AttemptService {
 
         List<Question> questions;
         if (demoMode) {
-            // Pool fixe par module : meme serie a chaque rejouage (cf. retrait
-            // du quota guest 2026-05-17).
-            questions = questionManager.findDemoPool(req.module(), size);
+            // Serie DETERMINISTE — meme serie a chaque rejouage : on n'ouvre pas
+            // la banque de questions a un compte sans abonnement.
+            //
+            // ⚠️ Mais elle porte enfin sur le pool REELLEMENT demande. Avant, un
+            // compte gratuit basculait sur `findDemoPool(module, size)`, qui
+            // ignore `themeId`, `difficulty` ET `questionType` : demander « CO
+            // niveau B2 » rendait un pool quelconque du module. Ce n'etait pas
+            // seulement un confort d'entrainement — depuis que les resultats QCM
+            // alimentent le Plan, une serie hors sujet ecrivait ses observations
+            // vers d'autres competences que celle travaillee. Le verrou freemium
+            // est inchange : c'est l'ordre stable qui le tient, pas l'absence de
+            // filtre.
+            Difficulty demoDifficulty = resolveDifficulty(user, req.module(), req.difficulty());
+            questions = questionManager.findOrderedExcluding(
+                    req.module(), req.themeId(), demoDifficulty, req.questionType(), Set.of(), size);
         } else {
             // Pour un examen civique theme-scopé, on garde le themeId — sinon
             // règle historique : pas de themeId sur MOCK_EXAM (tous thèmes).
@@ -223,6 +259,100 @@ public class AttemptService {
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
         return mapper.toResponse(attempt, aqList, false);
+    }
+
+    /**
+     * <b>Serie ciblee</b> d'une competence de COMPREHENSION : 20 questions du
+     * domaine et du niveau de la competence, tirees dans la banque existante.
+     *
+     * <p>Le brief (§13) est explicite : cliquer sur une competence CO/CE
+     * n'ouvre <b>pas</b> une liste de petits sujets — ces competences n'en ont
+     * aucun — mais lance directement une serie de 20 questions, jouee par le
+     * runner QCM existant. Aucune seconde UX n'est creee : c'est un attempt
+     * {@code TRAINING} ordinaire, avec ses reponses, sa correction immediate et
+     * sa revue.
+     *
+     * <p><b>Le client n'envoie que la competence.</b> Domaine
+     * ({@code section}), niveau ({@code target_level}) et taille sont derives
+     * ici. Un couple (type, difficulte) recu du client aurait pu contredire la
+     * competence affichee, et la session aurait alors alimente une autre
+     * competence que celle travaillee — le producteur d'observations ventilant
+     * par niveau REEL des questions.
+     *
+     * <p><b>Rien a persister sur l'attempt.</b> Une serie ciblee est
+     * homogene : ses 20 questions portent le meme niveau et le meme domaine,
+     * donc {@code ComprehensionObservationService} la rattache a la bonne
+     * competence par le seul contenu des questions. Aucune colonne
+     * « competence visee » n'est necessaire, et n'en pas ajouter evite qu'une
+     * intention declaree puisse un jour diverger des questions reellement
+     * jouees.
+     *
+     * <p><b>Verrou freemium opposable</b> : {@code assertCanTrain} est la meme
+     * autorite que celle qui pose le {@code locked} des ecrans — un compte
+     * gratuit n'a que le niveau le plus bas de chaque domaine, et le refus est
+     * serveur, jamais client.
+     */
+    private AttemptResponse startComprehensionSeries(User user, UUID skillId) {
+        Skill skill = skillManager.findActiveById(skillId)
+                .orElseThrow(() -> new NotFoundException("Compétence introuvable : " + skillId));
+        if (skill.getSection() == null || !skill.getSection().isComprehension()) {
+            throw new BusinessException(
+                    "Seules les compétences de compréhension (CO / CE) se travaillent "
+                            + "par une série ciblée de questions.");
+        }
+        skillAccessService.assertCanTrain(user.getId(), skillId);
+
+        QuestionType questionType =
+                skill.getSection() == SkillSection.CO ? QuestionType.CO : QuestionType.CE;
+        Difficulty difficulty = comprehensionDifficulty(skill);
+
+        List<Question> questions = questionManager.findLeastRecentlySeen(
+                user.getId(), Module.TCF, difficulty, questionType, COMPREHENSION_SERIES_SIZE);
+        if (questions.isEmpty()) {
+            throw new IllegalStateException(
+                    "Aucune question disponible pour la compétence " + skill.getCode() + ".");
+        }
+        // Manque de contenu : on le DIT au lieu de le masquer (brief §14.5-6).
+        // La serie reste jouable — priver le candidat de son entrainement serait
+        // pire — mais un pool trop mince pour 20 questions est une anomalie de
+        // catalogue, pas un fonctionnement normal, et doit se voir dans les logs.
+        if (questions.size() < COMPREHENSION_SERIES_SIZE) {
+            log.warn("Série ciblée {} : {} questions disponibles sur {} demandées "
+                            + "({} niveau {}) — banque à compléter.",
+                    skill.getCode(), questions.size(), COMPREHENSION_SERIES_SIZE,
+                    questionType, difficulty);
+        }
+
+        Attempt attempt = new Attempt();
+        attempt.setUser(user);
+        attempt.setType(AttemptType.TRAINING);
+        attempt.setModule(Module.TCF);
+        attempt.setTotalQuestions(questions.size());
+        attempt.setStartedAt(Instant.now());
+        attempt = attemptManager.save(attempt);
+
+        List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
+        return mapper.toResponse(attempt, aqList, false);
+    }
+
+    /**
+     * Palier d'une competence de comprehension, en {@link Difficulty}. Le
+     * referentiel des competences descend jusqu'a {@code A1}, que la banque de
+     * questions TCF ne connait pas : une telle competence n'a pas de serie a
+     * proposer, et on le dit plutot que de tirer au hasard.
+     */
+    private static Difficulty comprehensionDifficulty(Skill skill) {
+        try {
+            Difficulty difficulty = Difficulty.valueOf(String.valueOf(skill.getTargetLevel()));
+            if (difficulty == Difficulty.A2 || difficulty == Difficulty.B1
+                    || difficulty == Difficulty.B2) {
+                return difficulty;
+            }
+        } catch (IllegalArgumentException horsBanque) {
+            // Retombe sur le refus nomme ci-dessous.
+        }
+        throw new BusinessException("La compétence " + skill.getCode()
+                + " ne cible aucun niveau A2 / B1 / B2 : aucune série ne peut être tirée.");
     }
 
     /**
