@@ -7,6 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/models/diagnostic_models.dart';
+import '../../../core/models/enums.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
@@ -108,6 +109,11 @@ class _PlanPrioritiesSectionState extends ConsumerState<PlanPrioritiesSection> {
                     rank: i + 1,
                     priority: priorities[i],
                     first: i == 0,
+                    // Le palier travaillé par une compétence de compréhension,
+                    // retrouvé dans les domaines **servis** — jamais dérivé de
+                    // son code. `null` en expression. Miroir de
+                    // `planSkillLevel` côté web.
+                    level: planSkillLevel(plan, priorities[i].skillId),
                   ),
               ],
             ),
@@ -168,11 +174,16 @@ class _PriorityRow extends StatelessWidget {
     required this.rank,
     required this.priority,
     required this.first,
+    this.level,
   });
 
   final int rank;
   final LearningPlanPriority priority;
   final bool first;
+
+  /// Le palier d'une compétence de **compréhension** (`CO-B1`), servi par les
+  /// domaines du Plan. `null` en expression, qui n'en porte pas.
+  final TargetLevel? level;
 
   @override
   Widget build(BuildContext context) {
@@ -194,7 +205,10 @@ class _PriorityRow extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          planSkillMeta(priority.skillCode, priority.section),
+          level == null
+              ? planSkillMeta(priority.skillCode, priority.section)
+              : '${planSkillMeta(priority.skillCode, priority.section)} · '
+                  'palier ${level!.wire}',
           style: AppFonts.ui(size: 12.5, color: AppColors.inkFaint),
         ),
         // Là où une fragilité affiche l'explication du correcteur, une

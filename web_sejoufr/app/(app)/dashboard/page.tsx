@@ -323,7 +323,14 @@ function DashboardPlanCard({
         );
     }
 
-    const priority = plan?.currentPriority ?? null;
+    const live = plan?.currentPriority ?? null;
+    /* 🛑 **Une priorité verrouillée n'est jamais NOMMÉE ici.** Depuis que le
+       Plan sait aussi désigner une compétence *à acquérir*, la priorité n°1
+       peut porter un cadenas — et « Mes priorités » la floute alors. L'écrire
+       en clair sur le tableau de bord démentirait ce rideau. Miroir du mobile
+       (`PlanPriorityHomeCard`, `home_screen.dart`), qui retombe déjà sur son
+       texte générique. */
+    const priority = live && !live.locked ? live : null;
     const exercise = priority?.recommendedExercise ?? null;
     /* 🛑 **Un raccourci verrouillé n'en est pas un.** La priorité du jour peut
        être une compétence **à acquérir** — désignée avec son `locked`, le
@@ -331,7 +338,7 @@ function DashboardPlanCard({
        « Commencer directement » enverrait alors un compte gratuit droit sur un
        403. Le Plan, lui, reste ouvert : on garde « Continuer mon plan », qui
        porte le cadenas et l'offre. */
-    const startable = Boolean(exercise) && !priority?.locked && !exercise?.locked;
+    const startable = Boolean(exercise) && !exercise?.locked;
     return (
         <section className="dash-plan-card dash-plan-card-active" aria-labelledby="dash-plan-title">
             <span className="dash-plan-icon" aria-hidden><Target size={24}/></span>

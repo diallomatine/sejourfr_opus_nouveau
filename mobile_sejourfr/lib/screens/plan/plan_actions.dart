@@ -14,7 +14,6 @@ import '../../core/widgets/premium_lock.dart';
 import '../module_detail/tcf_module_exam_briefing_screen.dart';
 import '../module_detail/tcf_qcm_detail_screen.dart' show TcfQcmModule;
 import '../tcf_production/competences/competences_nav.dart';
-import '../tcf_production/production_nav.dart';
 import '../tcf_production/recommended_exercise_launcher.dart';
 import '../tcf_production/tcf_production_module.dart';
 import 'plan_labels.dart';
@@ -216,14 +215,18 @@ void openPlanAssessment(
         slotNumber: assessment.slotNumber,
       );
     case PlanDomainAssessmentKind.production:
-      // Un jalon de production, c'est un **examen blanc d'épreuve** : on ouvre
-      // sa grille, pas la liste des tâches — il n'y a rien à choisir.
+      // 🛑 **Une production, pas un examen blanc.** `PlanDomainAssessmentKind
+      // .PRODUCTION` désigne « une production EE ou EO du **catalogue
+      // standard** » — le repli d'un domaine d'expression dont le diagnostic
+      // est déjà terminé. On ouvre donc l'épreuve et ses trois tâches, où le
+      // candidat choisit son sujet, exactement comme le web
+      // (`usePlanAssessment` → `config.base`). L'ancien chemin envoyait vers la
+      // **grille des examens blancs**, un parcours plus long, chronométré, et
+      // payant à partir du slot 2.
       context.push(
-        productionExamsPath(
-          assessment.epreuve == EpreuveType.tcfEo
-              ? TcfProductionModule.eo
-              : TcfProductionModule.ee,
-        ),
+        assessment.epreuve == EpreuveType.tcfEo
+            ? AppRoutes.tcfEoEntry
+            : AppRoutes.tcfEeEntry,
       );
   }
 }

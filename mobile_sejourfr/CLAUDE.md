@@ -1138,6 +1138,57 @@ mon profil** → **Mon chemin vers l'objectif** → liens secondaires.
   candidat voyait deux séances selon l'appareil. Ne pas le réintroduire, et ne pas demander
   au serveur un booléen « fait aujourd'hui » — il n'a pas d'horloge dans cette construction.
 
+### Parité mobile ⇄ web du Plan (2026-08-21, passe d'alignement)
+
+Le propriétaire a constaté que les deux écrans Plan ne disaient pas la même
+chose. Ce qui a bougé **côté mobile**, et pourquoi :
+
+- **« Mes compétences observées » existe enfin ici**
+  (`widgets/plan_observed_skills_section.dart`). Le modèle décodait
+  `observedSkills` / `observedSkillCount` **depuis toujours** sans jamais les
+  afficher : le même compte lisait sur le web un historique que son téléphone
+  lui cachait. 6 cartes puis un repli, `NOT_OBSERVED` écartées (une compétence
+  que le correcteur n'a pas pu voir n'est pas une compétence faible).
+  ⚠️ Verrouillée, la compétence garde son **résultat mesuré en clair** : on
+  floute l'action pas encore accessible, jamais le résultat — seul le cadenas
+  s'ajoute et le tap ouvre l'offre.
+- **La ligne de contexte dit d'où l'on part ET dans quelle phase on est**
+  (`planCycleLine` + `planCycleStateText`, miroirs de `planCycleLine` /
+  `PLAN_CYCLE_STATE_TEXT`). Les quatre états du cycle ne se disaient nulle part
+  sur mobile — c'est pourtant ce qui explique pourquoi le Plan demande parfois
+  de **mesurer** plutôt que de s'entraîner. `planContextLine` est **supprimée**
+  et le `dashboardProvider` n'est plus lu ici : `cycle.startingLevel` porte la
+  même valeur, servie par le même appel.
+- **La carte de priorité dit les DEUX choses** (`planPriorityLines`) :
+  l'explication du correcteur — que seul le mobile affichait — puis l'état
+  agrégé et les compteurs d'étape — que seul le web affichait.
+- **Une priorité de compréhension affiche son palier** (`· palier B1`,
+  `planSkillLevel` relu sur les domaines **servis**, jamais dérivé du code).
+- **Les quatre accès secondaires du web**, dans le même ordre : « Toutes mes
+  compétences » (avec son **verrou de navigation**), « Ma progression »,
+  « Mes examens blancs », « Mon diagnostic ». Il n'y en avait que deux.
+- **« Compléter mon profil » nomme son geste** (`planAssessmentCta`) et son
+  état (« Pas encore évaluée · Examen blanc n°1 · ≈ 20 min ») : un chevron seul
+  ne disait pas ce que la ligne allait coûter. `planAssessmentLabel` est scindée
+  en **`planAssessmentNature`** (une description, pour une meta) et
+  **`planAssessmentCta`** (un geste, pour un bouton) — le mobile n'avait qu'une
+  chaîne employée aux deux endroits.
+- 🔴 **Destination corrigée** : `PlanDomainAssessmentKind.production` ouvrait la
+  **grille des examens blancs**. L'enum désigne « une production du **catalogue
+  standard** » — le repli d'un domaine d'expression dont le diagnostic est déjà
+  terminé. On ouvre donc l'épreuve et ses trois tâches
+  (`AppRoutes.tcf{Ee,Eo}Entry`), comme le web. L'ancien chemin envoyait sur un
+  parcours plus long, chronométré, et payant à partir du slot 2.
+- **« Pourquoi cette séance ? » explique chaque ligne** (`planItemReason`,
+  miroir du web) et s'ouvre sur `kPlanSeanceMetaHint`. La feuille ne portait que
+  la nature et le domaine, sans jamais dire *pourquoi*. Le reproche flouté suit
+  le titre sous le même rideau.
+- **Divergences laissées telles quelles**, elles tiennent à la forme de la
+  surface : la pastille d'objectif de l'en-tête (le web met l'objectif dans son
+  `h1` et dans le pied de la carte de priorité), la position du jalon (le web a
+  une colonne latérale), et « Tout voir » ⇄ « Toutes mes compétences » (déjà
+  arbitré).
+
 ### Trois natures d'action, trois lectures différentes (2026-08-21)
 
 `PlanActionNature` (`core/models/diagnostic_models.dart`, miroir de l'enum serveur, libellés

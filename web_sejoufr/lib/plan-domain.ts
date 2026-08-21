@@ -26,6 +26,7 @@ import {
     type PlanDomainAssessmentDto,
     type PlanDomainDto,
     type PlanPathStepDto,
+    type PlanRecentChangesDto,
     type PlanSeanceItemDto,
     type PlanMasteryTransitionDto,
     SKILL_MASTERY_STATE_LABEL,
@@ -253,6 +254,11 @@ export const PLAN_SEANCE_META_HINT =
     "Votre séance reprend, dans l'ordre, les actions que votre plan a déjà désignées : rien n'est tiré au hasard, et rien ne disparaît d'un jour à l'autre.";
 export const PLAN_SEANCE_EMPTY =
     "Rien à faire pour le moment : votre plan se réordonnera à votre prochaine production.";
+/** Les deux états du bouton principal — **miroirs mot pour mot du mobile**
+ *  (`kPlanSeanceStart`, `kPlanSeanceRestart`). « Refaire » ne remet rien à
+ *  zéro : il relance la première ligne de la séance. */
+export const PLAN_SEANCE_START = "Commencer ma séance";
+export const PLAN_SEANCE_RESTART = "Refaire ma séance";
 
 /** La ligne de tête de la séance : combien d'entraînements, combien de temps. */
 export function planSeanceMeta(items: number, minutes: number): string {
@@ -376,6 +382,63 @@ export function itemEpreuve(item: PlanSeanceItemDto): PlanDomainEpreuve {
  * jamais un compteur d'étape à zéro qui se lirait comme un retard. C'est la
  * distinction que cet écran doit rendre lisible.
  */
+/**
+ * **Pourquoi cette séance ?**, composé des **faits servis** : ce que la séance
+ * est, ce qui la fait commencer par une mesure, pourquoi une compétence jamais
+ * travaillée y figure, et ce qui la fera bouger.
+ *
+ * ⚠️ **Miroir mot pour mot du mobile** (`planSeanceRationale`,
+ * `plan_labels.dart`). Le web n'affichait que la phrase de tête et l'état du
+ * cycle : les quatre raisons qui suivent — dont celle qui distingue « acquérir »
+ * de « renforcer » — n'existaient que sur téléphone.
+ *
+ * 🛑 **La priorité n°1 n'est nommée que si elle est accessible** : l'écrire en
+ * clair sous un rideau posé deux blocs plus haut le démentirait.
+ */
+export function planSeanceRationale(plan: LearningPlanDto): string[] {
+    const items = plan.seance.items;
+    if (items.length === 0) return [PLAN_SEANCE_EMPTY];
+
+    const lines: string[] = [PLAN_SEANCE_META_HINT];
+
+    const priority = plan.currentPriority;
+    if (priority && !priority.locked) {
+        lines.push(
+            `Votre priorité n°1 est « ${priority.title} » : c'est elle qui ouvre votre séance, `
+            + "parce que c'est elle qui vous fera progresser le plus vite.",
+        );
+    }
+
+    if (items.some((item) => item.nature === "A_EVALUER")) lines.push(PLAN_REASON_A_EVALUER);
+    if (items.some((item) => item.nature === "A_ACQUERIR")) lines.push(PLAN_SEANCE_ACQUISITION_LINE);
+    if (items.some((item) => item.section !== null && isComprehension(item.section))) {
+        lines.push(
+            "Vos séries de compréhension ne mesurent pas un domaine : elles entraînent la "
+            + "compétence exacte qui bloque votre palier. C'est un examen blanc qui mesure un "
+            + "domaine.",
+        );
+    }
+    if (items.some((item) => item.readyForReassessment)) {
+        lines.push(
+            "Une de vos étapes est terminée : le Plan vous demande maintenant de le prouver sur "
+            + "une vraie tâche, pas sur un exercice ciblé.",
+        );
+    }
+
+    lines.push(
+        "Cette séance est recalculée à chaque nouveau résultat. Rien n'y est périmé par le temps "
+        + "qui passe : c'est ce que vous faites qui la fait avancer.",
+    );
+    return lines;
+}
+
+/** Pourquoi une compétence **jamais travaillée** figure dans la séance — la
+ *  forme « une fois par séance », distincte de `PLAN_REASON_A_ACQUERIR` qui
+ *  qualifie **une** ligne. Miroir de `kPlanSeanceAcquisitionLine`. */
+export const PLAN_SEANCE_ACQUISITION_LINE =
+    "Certaines lignes portent des compétences que vous n'avez encore jamais travaillées : "
+    + "il n'y a rien à y réparer, elles font partie du palier que votre plan construit.";
+
 export function planItemReason(item: PlanSeanceItemDto): string {
     if (item.nature === "A_EVALUER") return PLAN_REASON_A_EVALUER;
     if (item.nature === "A_ACQUERIR") return PLAN_REASON_A_ACQUERIR;
@@ -395,6 +458,17 @@ export function planItemReason(item: PlanSeanceItemDto): string {
 /* --------------------------------------------------------- ce qui a changé */
 
 export const PLAN_RECENT_NEW_PRIORITY = "Nouvelle priorité";
+
+/** Le bandeau de tête, quand quelque chose a bougé — **miroir mot pour mot du
+ *  mobile** (`kPlanBannerLabel`, `planBannerText`). Il dit qu'il s'est passé
+ *  quelque chose ; la section « ce qui a changé » dit quoi. */
+export const PLAN_BANNER_LABEL = "Plan actualisé";
+
+export function planBannerText(changes: PlanRecentChangesDto): string {
+    const moves = changes.transitions.length;
+    if (moves === 0) return "une nouvelle priorité a été désignée";
+    return `${moves} compétence${moves > 1 ? "s" : ""} ${moves > 1 ? "ont" : "a"} changé d'état`;
+}
 
 /** Une transition, dite au candidat. **Le sens de la marche vient du serveur**
  *  (`progress`) : aucun front ne code l'ordre des quatre états. */
@@ -568,6 +642,21 @@ function parisDay(date: Date): string {
  * rechargement et se retrouve à l'identique sur mobile
  * (`planSeanceItemDone`, même règle, même ordre).
  */
+/**
+ * **Le verrou d'une ligne de séance, LU** — jamais déduit de son rang.
+ *
+ * Le serveur le publie à deux endroits : sur l'item et sur l'exercice qu'il
+ * porte. La ligne est fermée dès que l'un des deux le dit — **miroir du mobile**
+ * (`planSeanceItemLocked`, `plan_seance_state.dart`), qui lisait déjà les deux
+ * quand le web ne lisait que le premier.
+ *
+ * 🛑 Ne pas réintroduire un « à partir de la 2ᵉ, cadenas » : la maquette le
+ * dessine ainsi parce que son bouchon n'a pas de serveur.
+ */
+export function planSeanceItemLocked(item: PlanSeanceItemDto): boolean {
+    return item.locked || (item.exercise?.locked ?? false);
+}
+
 export function planSeanceItemDone(item: PlanSeanceItemDto, now: Date = new Date()): boolean {
     if (item.stepPromptCount > 0 && item.stepCompleted) return true;
     if (!item.lastActivityAt) return false;

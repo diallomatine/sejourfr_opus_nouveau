@@ -158,9 +158,27 @@
 
 .freeBarCta {
   flex: none;
+  display: inline-flex;
+  align-items: center;
   color: var(--color-blue);
   font-size: 13px;
   font-weight: 700;
+}
+
+/* « Plan actualisé » : même gabarit que la barre « Version gratuite » — les
+   deux occupent la même place et ne s'affichent jamais ensemble —, mais en
+   bleu : ici on annonce une bonne nouvelle, pas un accès fermé. */
+.updatedBar {
+  border-color: color-mix(in srgb, var(--color-blue) 30%, transparent);
+  background: var(--color-blue-light);
+}
+
+.updatedBar > svg {
+  color: var(--color-blue);
+}
+
+.updatedBar .freeBarText b {
+  color: var(--color-blue-dark);
 }
 
 /* ------------------------------------------------------------------ grille */
@@ -673,6 +691,16 @@
   margin-top: 1px;
   color: var(--color-muted);
   font-size: 13px;
+}
+
+/* Ce qu'est une compétence **à acquérir**, là où une fragilité afficherait ses
+   points d'étape. Une nuance, jamais une alerte. */
+.priorityRowNote {
+  margin-top: 4px;
+  color: var(--color-ink-2);
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-wrap: pretty;
 }
 
 .priorityProgress {

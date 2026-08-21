@@ -59,14 +59,13 @@ class PlanPriorityHero extends StatelessWidget {
     // Le verrou de la **compétence**, distinct de celui du bouton : la séance
     // peut proposer autre chose que la priorité n°1.
     final identityLocked = current?.locked ?? false;
-    // Une acquisition n'a pas d'explication de correcteur : rien n'a été
-    // observé. On dit ce qu'elle est, jamais qu'il y aurait un manque.
-    final String? note = current == null
-        ? null
-        : current.explanation ??
-            (current.nature == PlanActionNature.aAcquerir
-                ? kPlanAcquisitionNote
-                : null);
+    // Pourquoi cette compétence est en tête : ce que le correcteur a observé
+    // (ou, sur une acquisition, ce qu'elle **est** — jamais un manque), puis
+    // l'état agrégé et l'avancement de l'étape. Deux lignes de faits servis,
+    // miroir mot pour mot du web (`priorityLines`) : le mobile n'affichait que
+    // la première, le web que la seconde.
+    final List<String> notes =
+        current == null ? const <String>[] : planPriorityLines(current);
     return GradientHero(
       padding: const EdgeInsets.fromLTRB(18, 17, 18, 16),
       child: Column(
@@ -116,7 +115,7 @@ class PlanPriorityHero extends StatelessWidget {
                         : '${current.skillCode} · ${current.section.label}',
                   ),
                 ],
-                if (note != null) ...[
+                for (final note in notes) ...[
                   const SizedBox(height: 11),
                   Text(
                     note,

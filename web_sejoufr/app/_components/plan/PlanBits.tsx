@@ -4,12 +4,14 @@ import Link from "next/link";
 import {
     BookOpen,
     Check,
+    ChevronRight,
     FilePenLine,
     Gauge,
     GraduationCap,
     Headphones,
     Lock,
     Mic,
+    RefreshCw,
     ShieldCheck,
     Wrench,
 } from "lucide-react";
@@ -24,13 +26,16 @@ import {
     type PlanCycleDto,
     type PlanDomainPriority,
     type PlanDomainTaskDto,
+    type PlanRecentChangesDto,
     type TargetLevel,
 } from "@/lib/types";
 import {
     isComprehension,
+    PLAN_BANNER_LABEL,
     PLAN_DOMAIN_SECTION,
     PLAN_PATH_CURRENT_BADGE,
     type PlanDomainEpreuve,
+    planBannerText,
     planDomainLabel,
     planPathStepMeta,
     planPathStepNote,
@@ -88,6 +93,37 @@ export function PlanFreeBar({onPremiumClick}: {
                 <span> · {PLAN_FREE_BAR_TEXT}</span>
             </span>
             <span className={styles.freeBarCta}>{PLAN_FREE_BAR_CTA}</span>
+        </Link>
+    );
+}
+
+/**
+ * **« Plan actualisé »** — le bandeau de tête quand quelque chose a bougé.
+ *
+ * Il occupe **la place de `PlanFreeBar`**, jamais les deux à la fois : l'un dit
+ * que le plan vient de changer, l'autre que certains accès sont fermés, et
+ * empiler deux bandeaux au-dessus de la priorité repousserait l'action du jour
+ * hors de l'écran.
+ *
+ * 🛑 **Miroir mot pour mot du mobile** (`PlanUpdatedBanner`,
+ * `widgets/plan_banner.dart`) : mêmes mots, même destination
+ * (`/plan/evolution`), même règle d'apparition. Le web n'avait pas ce bandeau —
+ * un candidat dont le plan venait de se réordonner ne l'apprenait nulle part
+ * tant qu'aucune **transition** n'était servie (la section « ce qui a changé »
+ * ne s'affiche, elle, que sur de vraies transitions).
+ *
+ * ⚠️ **Rien n'est fabriqué** : l'appelant ne le rend que sur un `recentChanges`
+ * non vide, et son absence est le cas normal.
+ */
+export function PlanUpdatedBanner({changes}: {changes: PlanRecentChangesDto}) {
+    return (
+        <Link className={`${styles.freeBar} ${styles.updatedBar}`} href="/plan/evolution">
+            <RefreshCw size={15} strokeWidth={2.3} aria-hidden />
+            <span className={styles.freeBarText}>
+                <b>{PLAN_BANNER_LABEL}</b>
+                <span> · {planBannerText(changes)}</span>
+            </span>
+            <span className={styles.freeBarCta} aria-hidden><ChevronRight size={16} /></span>
         </Link>
     );
 }

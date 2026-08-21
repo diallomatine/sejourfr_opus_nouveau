@@ -232,9 +232,15 @@ class _AssessmentRow extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        planAssessmentMeta(assessment),
+                        // « Pas encore mesuré · Examen blanc n°1 · ≈ 20 min » —
+                        // l'état d'abord, le parcours ensuite, comme sur le web.
+                        '$kPlanDomainNotEvaluatedShort · '
+                        '${planAssessmentMeta(assessment)}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: AppFonts.ui(
                           size: 12.5,
+                          height: 1.35,
                           color: AppColors.inkFaint,
                         ),
                       ),
@@ -242,9 +248,27 @@ class _AssessmentRow extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
+                // Le geste, nommé — comme sur le web (`planAssessmentCta`).
+                // Un chevron seul ne disait pas ce que la ligne allait ouvrir :
+                // un diagnostic, une production et un examen blanc ne coûtent
+                // pas le même quart d'heure.
+                Flexible(
+                  child: Text(
+                    planAssessmentCta(assessment),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: AppFonts.ui(
+                      size: 12.5,
+                      weight: FontWeight.w700,
+                      color: AppColors.blue,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 2),
                 const Icon(
                   LucideIcons.chevronRight,
-                  size: 16,
+                  size: 15,
                   color: AppColors.blue,
                 ),
               ],

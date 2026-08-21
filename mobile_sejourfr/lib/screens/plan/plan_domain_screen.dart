@@ -188,9 +188,9 @@ class _DomainBody extends ConsumerWidget {
                 Text(
                   assessment == null
                       ? kPlanNotEvaluatedNote
-                      : 'Un ${planAssessmentMeta(assessment).toLowerCase()} '
-                          'suffit à le mesurer. C\'est un examen blanc qui '
-                          'évalue un domaine — jamais une série d\'entraînement.',
+                      : 'Ce domaine n\'a encore aucun passage réel. '
+                          '${planAssessmentMeta(assessment)} lui donnera un '
+                          'niveau, et votre plan s\'ajustera aussitôt.',
                   style: AppFonts.ui(
                     size: 14,
                     height: 1.6,
@@ -203,7 +203,7 @@ class _DomainBody extends ConsumerWidget {
           if (assessment != null) ...[
             const SizedBox(height: 12),
             AppButton(
-              label: planAssessmentLabel(assessment),
+              label: planAssessmentCta(assessment),
               icon: LucideIcons.play,
               onPressed: () => openPlanAssessment(context, assessment),
             ),

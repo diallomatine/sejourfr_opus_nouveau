@@ -23,7 +23,11 @@ import {
 import {ApiException, learningPlanApi} from "@/lib/api";
 import {trackAudienceEvent, withTrafficSource} from "@/lib/audience";
 import {useAuth} from "@/lib/auth-context";
-import {productionSectionLabel} from "@/lib/diagnostic";
+import {
+  PLAN_MILESTONE_SECTION_TEXT,
+  PLAN_MILESTONE_SECTION_TITLE,
+  productionSectionLabel,
+} from "@/lib/diagnostic";
 import {
   isComprehension,
   masteryLabel,
@@ -34,7 +38,8 @@ import {
   PLAN_DOMAIN_NOT_EVALUATED,
   PLAN_RECENT_NEW_PRIORITY,
   PLAN_SEANCE_EMPTY,
-  PLAN_SEANCE_META_HINT,
+  PLAN_SEANCE_RESTART,
+  PLAN_SEANCE_START,
   PLAN_SEANCE_TITLE,
   PLAN_SEANCE_WHY_CLOSE,
   PLAN_SEANCE_WHY_CTA,
@@ -62,7 +67,9 @@ import {
   planProfileCountLabel,
   planSeanceItemDone,
   planSeanceItemKey,
+  planSeanceItemLocked,
   planSeanceMeta,
+  planSeanceRationale,
   planSkillHref,
   planSkillLevel,
   planSkillMeta,
@@ -81,6 +88,7 @@ import {
   PlanLevelRail,
   PlanNaturePill,
   PlanPathList,
+  PlanUpdatedBanner,
 } from "./PlanBits";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 import {
@@ -270,6 +278,26 @@ function ActivePlan({plan}: {plan: LearningPlanDto}) {
   );
   const priorities = useMemo(() => planActivePriorities(plan), [plan]);
   const completedSteps = plan.completedSteps ?? [];
+  const changes = plan.recentChanges;
+  /* « Quelque chose a bougé » = au moins une transition **ou** une nouvelle
+     priorité (miroir de `PlanRecentChanges.isEmpty` côté mobile). La section
+     « ce qui a changé », elle, reste plus exigeante : elle a besoin d'une vraie
+     transition, son titre étant une période. */
+  const changed = Boolean(changes && (changes.transitions.length > 0 || changes.newPriority));
+  const milestone = plan.milestone;
+  /* Un jalon déjà présent dans la séance ne se répète pas en carte : ce serait
+     le même examen blanc annoncé deux fois sur le même écran. Miroir du mobile
+     (`milestoneInSeance`). */
+  const milestoneInSeance = Boolean(
+    milestone
+    && plan.seance.items.some(
+      (item) =>
+        item.exercise !== null
+        && (item.exercise.kind === "EPREUVE_MOCK_EXAM" || item.exercise.kind === "FULL_TCF_MOCK_EXAM")
+        && item.exercise.epreuve === milestone.epreuve
+        && item.exercise.slotNumber === milestone.slotNumber,
+    ),
+  );
 
   return (
     <PlanShell>
@@ -294,10 +322,16 @@ function ActivePlan({plan}: {plan: LearningPlanDto}) {
         )}
       </header>
 
-      {/* Bandeau de tête : « Plan actualisé » chez un abonné (non construit
-          dans cette passe) ou « Version gratuite » sinon — jamais les deux.
-          `PlanFreeBar` se retire d'elle-même dès que l'accès TCF est là. */}
-      <PlanFreeBar onPremiumClick={trackPremiumClick} />
+      {/* Bandeau de tête : « Plan actualisé » quand quelque chose a bougé,
+          « Version gratuite » sinon — **jamais les deux**, comme sur mobile.
+          `PlanFreeBar` se retire d'elle-même dès que l'accès TCF est là ; un
+          `recentChanges` vide (ni transition, ni nouvelle priorité) est le cas
+          normal et ne fabrique aucun bandeau. */}
+      {changed ? (
+        <PlanUpdatedBanner changes={plan.recentChanges!} />
+      ) : (
+        <PlanFreeBar onPremiumClick={trackPremiumClick} />
+      )}
 
       <div className={styles.layout}>
         <div className={styles.main}>
@@ -319,9 +353,17 @@ function ActivePlan({plan}: {plan: LearningPlanDto}) {
         <aside className={styles.aside}>
           {/* Le jalon est un cran AU-DESSUS des étapes : il ouvre la colonne
               latérale, il ne remplace jamais une priorité.
-              `milestone === null` est le cas NORMAL — rien ne s'affiche. */}
-          {plan.milestone && (
-            <PlanMilestoneCard milestone={plan.milestone} onPremiumClick={trackPremiumClick} />
+              `milestone === null` est le cas NORMAL — rien ne s'affiche, et
+              un jalon déjà servi dans la séance n'est pas répété ici. */}
+          {milestone && !milestoneInSeance && (
+            <section aria-labelledby="milestone-section">
+              <BlockHead
+                title={PLAN_MILESTONE_SECTION_TITLE}
+                text={PLAN_MILESTONE_SECTION_TEXT}
+                titleId="milestone-section"
+              />
+              <PlanMilestoneCard milestone={milestone} onPremiumClick={trackPremiumClick} />
+            </section>
           )}
 
           <ProfileCard plan={plan} />
@@ -349,13 +391,35 @@ function ActivePlan({plan}: {plan: LearningPlanDto}) {
 /**
  * La carte de tête : **une seule action**, celle que le serveur a désignée.
  *
- * Verrouillée, elle reste **entière** — titre, domaine, compteurs, rail : le
- * Plan reste intégralement visible, seul l'accès est fermé (`locked`).
+ * 🛑 **Verrouillée, son IDENTITÉ passe derrière le rideau** — titre, domaine et
+ * motif —, exactement comme la ligne correspondante de « Mes priorités » et
+ * comme le héros du mobile (`PlanPriorityHero`). C'est la même compétence :
+ * l'afficher en clair ici démentirait le flou posé vingt lignes plus bas. Ce
+ * qui reste **net** pour tout le monde ne bouge pas : la nature de l'action, le
+ * cadenas, l'objectif, le rail des paliers et le bouton — savoir quoi
+ * travailler est ce que le Plan apporte, et le Plan reste entièrement visible.
+ *
+ * 🛑 **Le bouton principal LANCE la séance, pas la priorité seule** (miroir du
+ * mobile) : le serveur a ordonné les actions du jour, et une **mesure de
+ * domaine** passe devant tout le reste. Démarrer la priorité par-dessus elle
+ * ferait avancer le candidat à l'aveugle sur un domaine qu'on ne sait pas
+ * encore lire. Sur le cas courant — la priorité **est** la première ligne de la
+ * séance —, rien ne change.
  */
 function PriorityCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void}) {
   const premiumHref = usePremiumHref();
   const {start, starting, error, paywallOpen, closePaywall} = usePlanExercise();
+  const assessments = usePlanAssessment();
   const priority = plan.currentPriority;
+
+  /* Ce que le bouton lance : la première ligne **non faite** de la séance,
+     sinon la première (« Refaire ma séance »), sinon l'exercice de la priorité
+     quand il n'y a pas de séance du tout. */
+  const items = plan.seance.items;
+  const pending = items.filter((item) => !planSeanceItemDone(item));
+  const next = pending[0] ?? items[0] ?? null;
+  const resumed = next !== null && pending.length > 0 && pending.length !== items.length;
+  const replay = next !== null && pending.length === 0;
 
   if (!priority) {
     return (
@@ -370,38 +434,87 @@ function PriorityCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void})
   }
 
   const exercise = priority.recommendedExercise;
-  const locked = priority.locked || exercise?.locked === true;
-  const check = exercise?.kind === "REASSESSMENT";
+  /* Deux verrous distincts, comme sur mobile : celui de la **compétence**
+     (ce qu'on floute) et celui de **l'action du bouton** (la séance peut
+     proposer autre chose que la priorité n°1). */
+  const identityLocked = priority.locked;
+  const actionLocked = next ? planSeanceItemLocked(next) : (priority.locked || exercise?.locked === true);
+  const minutes = next
+    ? planItemMinutes(next)
+    : exercise?.estimatedMinutes ?? null;
   const level = planSkillLevel(plan, priority.skillId);
   const taskLabel = isComprehension(priority.section)
     ? level ? `palier ${level}` : productionSectionLabel(priority.section)
     : priority.skillCode;
 
-  const cta = locked
-    ? "Débloquer cet exercice"
-    : check
-      ? "Vérifier ma progression"
-      : exercise
-        ? `${priority.nature === "A_ACQUERIR" ? "Découvrir" : "Commencer"} · ${exercise.estimatedMinutes} min`
-        : "Ouvrir l'épreuve";
+  const cta = actionLocked
+    ? "Débloquer cet entraînement"
+    : replay
+      ? PLAN_SEANCE_RESTART
+      : next
+        ? `${resumed ? "Reprendre" : PLAN_SEANCE_START}${minutes === null ? "" : ` · ${minutes} min`}`
+        : exercise
+          ? `${priority.nature === "A_ACQUERIR" ? "Découvrir" : "Commencer"}${minutes === null ? "" : ` · ${minutes} min`}`
+          : "Ouvrir l'épreuve";
+
+  const startNext = () => {
+    if (!next) {
+      if (exercise) {
+        trackAudienceEvent("/plan", "PLAN_RECOMMENDED_EXERCISE_STARTED");
+        void start(exercise);
+      }
+      return;
+    }
+    if (next.exercise === null) {
+      /* Une **mesure** n'est pas un entraînement : elle ne compte pas dans
+         `PLAN_RECOMMENDED_EXERCISE_STARTED`, sinon la mesure de conversion des
+         exercices désignés compterait deux choses différentes. */
+      void assessments.start(next.assessment);
+      return;
+    }
+    trackAudienceEvent("/plan", "PLAN_RECOMMENDED_EXERCISE_STARTED");
+    void start(next.exercise);
+  };
+
+  /** L'identité de la priorité — titre, repère de domaine, motif. Floutée
+   *  telle quelle quand l'accès est fermé : jamais un décor fabriqué. */
+  const identity = (
+    <>
+      <div className={styles.priorityTitleRow}>
+        <h2>{priority.title}</h2>
+        <span className={styles.priorityTag}>
+          {priority.section} · {taskLabel}
+        </span>
+      </div>
+      {priorityLines(priority).map((line) => (
+        <p className={styles.priorityText} key={line}>{line}</p>
+      ))}
+    </>
+  );
 
   return (
-    <section className={styles.priority} aria-labelledby="priority-title">
+    <section className={styles.priority} aria-labelledby="priority-eyebrow">
       <div className={styles.priorityHead}>
-        <p className={styles.priorityEyebrow}><Zap size={15} aria-hidden /> Priorité actuelle</p>
-        <div className={styles.priorityTitleRow}>
-          <h2 id="priority-title">{priority.title}</h2>
-          <span className={styles.priorityTag}>
-            {priority.section} · {taskLabel}
-          </span>
-        </div>
-        {/* Ce que le Plan demande de faire ici. Une compétence **à acquérir**
-            n'a rien d'observé : la pastille est la seule chose qui empêche cette
-            carte de se lire comme une fragilité. */}
+        <p className={styles.priorityEyebrow} id="priority-eyebrow">
+          <Zap size={15} aria-hidden /> Priorité actuelle
+        </p>
+        {/* Ce que le Plan demande de faire ici, et si l'accès est ouvert. Deux
+            informations qui restent vraies pour tout le monde : elles vivent
+            donc HORS du bloc flouté. Une compétence **à acquérir** n'a rien
+            d'observé — la pastille est la seule chose qui empêche cette carte de
+            se lire comme une fragilité. */}
         <span className={styles.priorityNature}>
           <PlanNaturePill nature={priority.nature} />
+          {identityLocked && <span className={styles.lockAside}><SkillLockBadge /></span>}
         </span>
-        <p className={styles.priorityText}>{priorityReason(priority)}</p>
+        {identityLocked ? (
+          <>
+            <span className={styles.srOnly}>{PLAN_LOCKED_PRIORITY_LABEL}</span>
+            <PlanBlur>{identity}</PlanBlur>
+          </>
+        ) : (
+          identity
+        )}
         <div className={styles.priorityFoot}>
           <span className={styles.priorityGoal}>
             <Target size={16} aria-hidden />
@@ -416,21 +529,19 @@ function PriorityCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void})
       </div>
 
       <div className={styles.priorityActions}>
-        {locked ? (
+        {actionLocked ? (
           <Link className={styles.primaryButton} href={premiumHref} onClick={trackPremiumClick}>
             <Lock size={16} aria-hidden /> {cta}
           </Link>
-        ) : exercise ? (
+        ) : next || exercise ? (
           <button
             type="button"
             className={styles.primaryButton}
-            disabled={starting}
-            onClick={() => {
-              trackAudienceEvent("/plan", "PLAN_RECOMMENDED_EXERCISE_STARTED");
-              void start(exercise);
-            }}
+            disabled={starting || assessments.starting !== null}
+            onClick={startNext}
           >
-            {starting ? "Démarrage…" : cta} <ArrowRight size={17} aria-hidden />
+            {starting || assessments.starting !== null ? "Démarrage…" : cta}{" "}
+            <ArrowRight size={17} aria-hidden />
           </button>
         ) : (
           <Link className={styles.primaryButton} href={planSkillHref(priority, {planStep: true})}>
@@ -438,42 +549,71 @@ function PriorityCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void})
           </Link>
         )}
         <button type="button" className={styles.linkButton} onClick={onWhy}>Voir pourquoi</button>
-        <Link className={styles.mutedLink} href={planSkillHref(priority, {planStep: true})}>Voir le détail</Link>
+        <Link
+          className={styles.mutedLink}
+          href={identityLocked ? premiumHref : planSkillHref(priority, {planStep: true})}
+          onClick={identityLocked ? trackPremiumClick : undefined}
+        >
+          Voir le détail
+        </Link>
       </div>
 
-      {locked && (
+      {actionLocked && (
         <p className={styles.lockNote}>
           Cet exercice fait partie de l&apos;abonnement Intégral. Votre plan, lui, reste entier.
         </p>
       )}
-      {error && <p className={styles.milestoneError} role="alert">{error}</p>}
-      <PaywallSheet open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
+      {(error ?? assessments.error) && (
+        <p className={styles.milestoneError} role="alert">{error ?? assessments.error}</p>
+      )}
+      <PaywallSheet
+        open={paywallOpen || assessments.paywallOpen}
+        onClose={() => { closePaywall(); assessments.closePaywall(); }}
+        module="INTEGRAL"
+      />
     </section>
   );
 }
 
-/** Pourquoi cette compétence est en tête : **des compteurs servis**, pas un
- *  jugement. L'explication de l'observation (`priority.explanation`) reste
- *  volontairement absente — elle raconte le passé sur une carte qui annonce
- *  l'action.
+/**
+ * Pourquoi cette compétence est en tête — **deux lignes de faits servis**, pas
+ * un jugement.
  *
- *  🛑 **La nature passe avant les compteurs.** Sur une compétence à acquérir,
- *  « 0 sujet sur 5 traité » se lirait comme un retard alors qu'il n'y a rien
- *  eu à traiter : on dit ce qui est vrai — rien n'a été constaté, il reste à
- *  l'apprendre. */
-function priorityReason(priority: LearningPlanPriorityDto): string {
-  const state = masteryLabel(priority.masteryState);
-  if (priority.nature === "A_ACQUERIR") return PLAN_REASON_A_ACQUERIR;
-  if (priority.readyForReassessment) {
-    return PLAN_REASON_A_VERIFIER;
+ * 1. ce que le correcteur a observé (`explanation`), ou — sur une compétence
+ *    jamais travaillée — **ce qu'elle est** ; c'est ce que le mobile affichait
+ *    déjà, le web l'omettait ;
+ * 2. l'état agrégé et l'avancement de l'étape — ce que le web affichait déjà,
+ *    le mobile l'omettait.
+ *
+ * 🛑 **La nature passe avant les compteurs.** Sur une compétence à acquérir,
+ * « 0 sujet sur 5 traité » se lirait comme un retard alors qu'il n'y a rien eu à
+ * traiter : on dit ce qui est vrai — rien n'a été constaté, il reste à
+ * l'apprendre.
+ *
+ * ⚠️ **Miroir mot pour mot du mobile** (`planPriorityLines`, `plan_labels.dart`).
+ */
+function priorityLines(priority: LearningPlanPriorityDto): string[] {
+  const lines: string[] = [];
+  if (priority.nature === "A_ACQUERIR") {
+    lines.push(PLAN_REASON_A_ACQUERIR);
+  } else if (priority.explanation) {
+    lines.push(priority.explanation);
+  } else if (priority.readyForReassessment) {
+    lines.push(PLAN_REASON_A_VERIFIER);
   }
+
+  const state = masteryLabel(priority.masteryState);
   if (priority.stepPromptCount > 0) {
     const done = `${priority.stepAttemptedCount} sujet${plural(priority.stepAttemptedCount)} sur ${priority.stepPromptCount} traité${plural(priority.stepAttemptedCount)} dans cette étape`;
-    return state ? `${state} · ${done}.` : `${done}.`;
+    lines.push(state ? `${state} · ${done}.` : `${done}.`);
+  } else if (lines.length === 0 || state) {
+    lines.push(
+      state
+        ? `${state} · c'est cette compétence qui fait le plus avancer votre palier.`
+        : "C'est cette compétence qui fait le plus avancer votre palier.",
+    );
   }
-  return state
-    ? `${state} · c'est cette compétence qui fait le plus avancer votre palier.`
-    : "C'est cette compétence qui fait le plus avancer votre palier.";
+  return lines;
 }
 
 /* ------------------------------------------------------------- la séance */
@@ -545,22 +685,33 @@ function SeanceRow({item}: {item: PlanSeanceItemDto}) {
 }
 
 /**
- * Les trois lignes de texte d'un item — le contenu **RÉEL**, qu'il soit servi
- * net ou flouté. Rien n'est fabriqué pour remplir le flou.
+ * **Ce qui reste vrai pour tout le monde**, verrou ou pas : de quelle épreuve
+ * relève la ligne (et quel palier elle travaille en compréhension), et **quelle
+ * sorte d'action** le Plan demande — mesurer, réparer, vérifier, apprendre.
  *
- * La **nature** y figure : c'est elle qui distingue « à acquérir » (rien n'a été
- * constaté, il reste à apprendre) de « à renforcer » (une fragilité observée).
- * Elle vit **dans** le bloc floutable, comme le titre et la meta : elle décrit
- * l'action fermée, et l'information qui reste vraie pour tout le monde (le
- * domaine, le cadenas) vit à côté.
+ * 🛑 **Hors du bloc floutable, comme sur mobile** (`_SeanceRow`). Ni l'un ni
+ * l'autre ne dit *ce qu'il y a à faire* : le domaine est déjà lisible sur
+ * l'icône restée nette juste à côté, et la nature est précisément ce qui
+ * empêche « à acquérir » de se lire « à renforcer » — la retirer sous le flou
+ * rendait les lignes fermées indistinctes entre elles.
+ */
+function SeanceEyebrow({item}: {item: PlanSeanceItemDto}) {
+  return (
+    <span className={styles.seanceEyebrow}>
+      {planItemEyebrow(item)}
+      <PlanNaturePill nature={item.nature} />
+    </span>
+  );
+}
+
+/**
+ * **Ce que le verrou ferme** : le titre de l'action et son détail. Le contenu
+ * **RÉEL**, qu'il soit servi net ou flouté — rien n'est fabriqué pour remplir
+ * le flou, et l'abonnement le révèle tel quel.
  */
 function SeanceText({item, done}: {item: PlanSeanceItemDto; done: boolean}) {
   return (
     <>
-      <span className={styles.seanceEyebrow}>
-        {planItemEyebrow(item)}
-        <PlanNaturePill nature={item.nature} />
-      </span>
       <span className={styles.seanceTitle} data-done={done ? "1" : "0"}>
         {planItemTitle(item)}
       </span>
@@ -573,18 +724,20 @@ function SeanceExerciseRow({item}: {item: PlanSeanceExerciseItemDto}) {
   const premiumHref = usePremiumHref();
   const {startItem, starting, error, paywallOpen, closePaywall} = usePlanExercise();
   const done = planSeanceItemDone(item);
+  const locked = planSeanceItemLocked(item);
   const epreuve = itemEpreuve(item);
 
   /* L'icône de domaine reste NETTE même verrouillée, comme dans la maquette :
      elle dit de quelle épreuve relève la ligne, pas ce qu'il y a à y faire. */
-  const icon = <PlanDomainIcon epreuve={epreuve} active={!done && !item.locked} />;
+  const icon = <PlanDomainIcon epreuve={epreuve} active={!done && !locked} />;
 
   return (
     <li className={styles.seanceItem} data-done={done ? "1" : "0"}>
-      {item.locked ? (
+      {locked ? (
         <Link className={styles.seanceRow} href={premiumHref} onClick={trackPremiumClick}>
           {icon}
           <span className={styles.seanceBody}>
+            <SeanceEyebrow item={item} />
             <span className={styles.srOnly}>{PLAN_LOCKED_SEANCE_LABEL}</span>
             <PlanBlur><SeanceText item={item} done={done} /></PlanBlur>
           </span>
@@ -601,7 +754,10 @@ function SeanceExerciseRow({item}: {item: PlanSeanceExerciseItemDto}) {
           }}
         >
           {icon}
-          <span className={styles.seanceBody}><SeanceText item={item} done={done} /></span>
+          <span className={styles.seanceBody}>
+            <SeanceEyebrow item={item} />
+            <SeanceText item={item} done={done} />
+          </span>
           {done ? (
             <span className={styles.seanceDone} aria-label="Étape terminée"><Check size={15} strokeWidth={3} aria-hidden /></span>
           ) : (
@@ -637,7 +793,10 @@ function SeanceAssessmentRow({item}: {item: PlanSeanceAssessmentItemDto}) {
         onClick={() => void start(item.assessment)}
       >
         <PlanDomainIcon epreuve={itemEpreuve(item)} active />
-        <span className={styles.seanceBody}><SeanceText item={item} done={false} /></span>
+        <span className={styles.seanceBody}>
+          <SeanceEyebrow item={item} />
+          <SeanceText item={item} done={false} />
+        </span>
         {busy ? <span className={styles.seanceMeta}>Démarrage…</span> : <RowChevron />}
       </button>
       {error && <p className={styles.milestoneError} role="alert">{error}</p>}
@@ -691,7 +850,11 @@ function PriorityRow({
   const level = planSkillLevel(plan, priority.skillId);
   const locked = priority.locked;
 
-  /** Le titre et la meta — le contenu RÉEL, net ou flouté selon l'accès. */
+  /** Le titre et la meta — le contenu RÉEL, net ou flouté selon l'accès.
+   *
+   *  ⚠️ Là où une fragilité affiche ses points d'étape, une compétence **à
+   *  acquérir** dit ce qu'elle est : rien n'a été observé, donc rien n'a
+   *  échoué. Miroir du mobile (`_PriorityRow`). */
   const text = (
     <>
       <span className={styles.priorityRowTitle}>{priority.title}</span>
@@ -699,6 +862,9 @@ function PriorityRow({
         {planSkillMeta(priority)}
         {level ? ` · palier ${level}` : ""}
       </span>
+      {priority.nature === "A_ACQUERIR" && (
+        <span className={styles.priorityRowNote}>{PLAN_REASON_A_ACQUERIR}</span>
+      )}
     </>
   );
 
@@ -1068,8 +1234,12 @@ function WhyModal({plan, onClose}: {plan: LearningPlanDto; onClose: () => void})
           </div>
         </div>
 
-        <p className={styles.modalCopy}>{PLAN_SEANCE_META_HINT}</p>
-        <p className={styles.modalCopy}>{PLAN_CYCLE_STATE_TEXT[plan.cycle.state]}</p>
+        {/* Les raisons de la séance, composées de faits servis — miroir mot pour
+            mot du mobile. L'état du cycle, lui, est déjà dans l'en-tête de
+            l'écran : le redire ici ferait deux fois la même phrase. */}
+        {planSeanceRationale(plan).map((line) => (
+          <p className={styles.modalCopy} key={line}>{line}</p>
+        ))}
 
         {items.length > 0 && (
           <ul className={styles.modalList}>
@@ -1089,7 +1259,7 @@ function WhyModal({plan, onClose}: {plan: LearningPlanDto; onClose: () => void})
                         flouté dix lignes plus haut démentirait le verrou. Le
                         « pourquoi » de la séance reste dicible sans nommer ce
                         qu'on ne peut pas encore ouvrir. */}
-                    {item.locked ? (
+                    {planSeanceItemLocked(item) ? (
                       <>
                         <span className={styles.srOnly}>{PLAN_LOCKED_SEANCE_LABEL}</span>
                         <PlanBlur>{text}</PlanBlur>
@@ -1101,7 +1271,7 @@ function WhyModal({plan, onClose}: {plan: LearningPlanDto; onClose: () => void})
                   {/* 🛑 Rien de net sur une ligne floutée : la durée d'un
                       entraînement verrouillé est une information de plus sur ce
                       qu'on ne peut pas encore ouvrir. */}
-                  {!item.locked && minutes !== null && (
+                  {!planSeanceItemLocked(item) && minutes !== null && (
                     <span className={styles.modalMinutes}>{minutes} min</span>
                   )}
                 </li>

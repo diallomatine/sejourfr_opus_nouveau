@@ -89,11 +89,19 @@ EpreuveType? planDomainFromKey(String key) => switch (key) {
 /// mesurer, on ne lui prête aucun niveau.
 String planDomainSubtitle(PlanDomain domain) {
   if (!domain.evaluated || domain.niveau == null) {
-    return kPlanDomainNotEvaluated;
+    return kPlanDomainNotEvaluatedShort;
   }
   return 'Niveau estimé ${domain.niveau!.displayName}';
 }
 
+/// L'état d'un domaine jamais mesuré, **en trois mots** — miroir mot pour mot du
+/// web (`PLAN_DOMAIN_NOT_EVALUATED`). C'est ce que porte une **ligne de liste** :
+/// le *comment le mesurer* vit juste en dessous, dans « Compléter mon profil »,
+/// des deux côtés.
+const String kPlanDomainNotEvaluatedShort = 'Pas encore évaluée';
+
+/// La forme longue, réservée aux surfaces qui ont la place d'**expliquer** : la
+/// fiche d'un domaine et son résumé. Jamais sur une ligne de liste.
 const String kPlanDomainNotEvaluated =
     'Pas encore mesuré — votre profil se précisera à votre prochain examen '
     'blanc de cette épreuve.';
@@ -146,6 +154,20 @@ String planTaskTitle(PlanDomainTask task) => 'Tâche ${task.tacheNumero}';
 String planSkillMeta(String skillCode, SkillSection section) =>
     skillCode.isEmpty ? section.label : '$skillCode · ${section.label}';
 
+/// Le palier travaillé par une compétence de **compréhension**, retrouvé dans
+/// les domaines **servis** — jamais dérivé de son code. `null` en expression, ou
+/// quand la compétence n'est pas dans les paliers publiés.
+///
+/// ⚠️ Miroir mot pour mot du web (`planSkillLevel`, `lib/plan-domain.ts`).
+TargetLevel? planSkillLevel(LearningPlan plan, String skillId) {
+  for (final domain in plan.domaines) {
+    for (final palier in domain.paliers) {
+      if (palier.skillId == skillId) return palier.niveau;
+    }
+  }
+  return null;
+}
+
 const String kPlanComprehensionNote =
     'En compréhension, une compétence se mesure sur une série complète : c\'est '
     'ce qui permet de savoir si la difficulté est vraiment récurrente.';
@@ -180,6 +202,16 @@ const String kPlanSeanceEmpty =
 const String kPlanSeanceRestart = 'Refaire ma séance';
 const String kPlanSeanceStart = 'Commencer ma séance';
 
+/// La phrase de tête du « pourquoi » : ce que la séance **est**, et ce qu'elle
+/// n'est pas. Aucune date n'intervient nulle part — une compétence entrée dans
+/// la séance y reste tant qu'elle n'est pas réussie.
+///
+/// ⚠️ Miroir mot pour mot du web (`PLAN_SEANCE_META_HINT`).
+const String kPlanSeanceMetaHint =
+    'Votre séance reprend, dans l\'ordre, les actions que votre plan a déjà '
+    'désignées : rien n\'est tiré au hasard, et rien ne disparaît d\'un jour à '
+    'l\'autre.';
+
 /// Pourquoi une **mesure** passe devant tout le reste.
 const String kPlanSeanceAssessmentLine =
     'Une de vos productions n\'a pas pu être analysée : votre séance commence '
@@ -206,10 +238,10 @@ String planSeanceMeta(PlanSeance seance) {
 /// l'action, jamais un jugement sur le candidat.
 ///
 /// Une **mesure de domaine** n'est pas un entraînement : elle annonce le
-/// parcours qu'elle ouvre (`planAssessmentLabel`), pas un exercice.
+/// parcours qu'elle ouvre (`planAssessmentNature`), pas un exercice.
 String planItemKindLabel(PlanSeanceItem item) {
   final assessment = item.assessment;
-  if (assessment != null) return planAssessmentLabel(assessment);
+  if (assessment != null) return planAssessmentNature(assessment);
   return switch (item.kind) {
     PlanExerciseKind.microTraining => 'Petit sujet ciblé',
     PlanExerciseKind.reassessment => 'Vérification en situation',
@@ -263,6 +295,55 @@ const String kPlanAcquisitionNote =
     'Nouvelle compétence de votre palier : vous ne l\'avez encore jamais '
     'travaillée.';
 
+/// Ce que le Plan demande d'une compétence **assez travaillée en ciblé** : il
+/// reste à le prouver en situation. Miroir mot pour mot du web
+/// (`PLAN_REASON_A_VERIFIER`).
+const String kPlanVerificationNote =
+    'Assez travaillée en exercice ciblé : il reste à le prouver sur une vraie '
+    'tâche, en situation.';
+
+/// **Pourquoi cette compétence est en tête**, en deux lignes de faits servis.
+///
+/// 1. ce que le correcteur a observé (`explanation`), ou — sur une compétence
+///    jamais travaillée — **ce qu'elle est** ;
+/// 2. l'état agrégé et l'avancement de l'**étape** (les 5 sujets).
+///
+/// 🛑 **La nature passe avant les compteurs** : sur une compétence à acquérir,
+/// « 0 sujet sur 5 traité » se lirait comme un retard alors qu'il n'y avait rien
+/// à traiter.
+///
+/// ⚠️ **Miroir mot pour mot du web** (`priorityLines`, `LearningPlanView.tsx`).
+/// Le mobile n'affichait que la ligne 1, le web que la ligne 2 : la même carte
+/// racontait deux histoires selon l'appareil.
+List<String> planPriorityLines(LearningPlanPriority priority) {
+  final lines = <String>[];
+  if (priority.nature == PlanActionNature.aAcquerir) {
+    lines.add(kPlanAcquisitionNote);
+  } else if (priority.explanation != null &&
+      priority.explanation!.trim().isNotEmpty) {
+    lines.add(priority.explanation!);
+  } else if (priority.readyForReassessment) {
+    lines.add(kPlanVerificationNote);
+  }
+
+  final state = priority.masteryState?.label;
+  if (priority.stepPromptCount > 0) {
+    final done = priority.stepAttemptedCount;
+    final total = priority.stepPromptCount;
+    final compteur = '$done sujet${done > 1 ? 's' : ''} sur $total '
+        'traité${done > 1 ? 's' : ''} dans cette étape';
+    lines.add(state == null ? '$compteur.' : '$state · $compteur.');
+  } else if (lines.isEmpty || state != null) {
+    lines.add(
+      state == null
+          ? 'C\'est cette compétence qui fait le plus avancer votre palier.'
+          : '$state · c\'est cette compétence qui fait le plus avancer votre '
+              'palier.',
+    );
+  }
+  return lines;
+}
+
 /// « Série de 20 questions » — la taille est **décidée serveur**. Sans elle, on
 /// ne l'invente pas.
 String planSeriesLabel(int? questionCount) => questionCount == null
@@ -284,6 +365,42 @@ String planItemEyebrow(PlanSeanceItem item) {
   return level == null ? section : '$section · $level';
 }
 
+/// **Pourquoi CETTE ligne est là** — des faits servis, jamais un jugement.
+///
+/// 🛑 **L'ordre des branches est celui des trois natures**, pas celui des
+/// champs : une compétence *à acquérir* se dit « rien n'a été constaté ici »,
+/// jamais un compteur d'étape à zéro qui se lirait comme un retard.
+///
+/// ⚠️ **Miroir mot pour mot du web** (`planItemReason`). La feuille « Pourquoi
+/// cette séance ? » du mobile ne portait que la nature et le domaine, là où le
+/// web expliquait chaque ligne.
+String planItemReason(PlanSeanceItem item) {
+  if (item.nature == PlanActionNature.aEvaluer) {
+    return kPlanSeanceAssessmentLine;
+  }
+  if (item.nature == PlanActionNature.aAcquerir) return kPlanAcquisitionNote;
+  if (item.kind == PlanExerciseKind.epreuveMockExam ||
+      item.kind == PlanExerciseKind.fullTcfMockExam) {
+    return kPlanMilestoneSectionText;
+  }
+  if (item.readyForReassessment) return kPlanVerificationNote;
+
+  final state = item.masteryState?.label;
+  if (item.stepPromptCount > 0) {
+    final done = item.stepAttemptedCount;
+    final compteur = '$done sujet${done > 1 ? 's' : ''} sur '
+        '${item.stepPromptCount} traité${done > 1 ? 's' : ''}';
+    return state == null ? compteur : '$state · $compteur';
+  }
+  final level = item.level;
+  final palier = level == null
+      ? (item.section == null
+          ? kPlanItemFallbackTitle
+          : item.section!.label)
+      : 'Palier $level';
+  return state == null ? palier : '$palier · $state';
+}
+
 /// « Pourquoi cette séance ? », composé **des faits servis** : ce que chaque
 /// item travaille, où en est son étape, et si le serveur attend une
 /// vérification. Aucune phrase ne vient du serveur.
@@ -295,9 +412,11 @@ List<String> planSeanceRationale(LearningPlan plan) {
     return lines;
   }
 
-  // 🛑 La priorité n°1 n'est nommée que si elle est **accessible**. Une
-  // compétence « à acquérir » n'est pas déverrouillée par sa place n°1 : elle
-  // peut donc être floutée dans « Mes priorités », et l'écrire en clair ici
+  lines.add(kPlanSeanceMetaHint);
+
+  // 🛑 La priorité n°1 n'est nommée que si elle est **accessible**. Le serveur
+  // ouvre normalement la première place quelle que soit sa nature, mais il
+  // reste des cas où la carte n°1 est verrouillée — et l'écrire en clair ici
   // démentirait le rideau posé deux blocs plus haut.
   final priority = plan.currentPriority;
   if (priority != null && !priority.locked) {
@@ -397,12 +516,45 @@ const String kPlanGateReady =
     'Vous y êtes : un examen blanc complet peut maintenant confirmer ce '
     'palier.';
 
-/// La ligne de contexte sous l'en-tête. Elle ne promet rien : elle dit d'où
-/// vient ce qui est affiché.
-String planContextLine(NiveauCecrl? estimated) => estimated == null
-    ? 'Mis à jour selon vos derniers résultats'
-    : 'Mis à jour selon vos derniers résultats · niveau estimé '
-        '${estimated.displayName}';
+/// La ligne de contexte sous l'en-tête : **d'où l'on part, ce que le cycle
+/// construit**. Composée de faits servis, sans aucun chiffre écrit ici.
+///
+/// ⚠️ **Miroir mot pour mot du web** (`planCycleLine`, `lib/plan-domain.ts`).
+/// Elle lit `cycle.startingLevel` — le plancher des domaines mesurés, servi
+/// avec le Plan — et non plus le niveau estimé du tableau de bord : c'est la
+/// **même** valeur (`TcfProfileService`), servie par le même appel, et deux
+/// sources pour un même chiffre finissent toujours par se contredire.
+String planCycleLine(PlanCycle? cycle) {
+  if (cycle == null) return 'Votre plan suit vos derniers résultats.';
+  final from = cycle.startingLevel?.displayName;
+  if (from == null) {
+    return 'Votre plan construit d\'abord votre ${cycle.targetLevel.wire}.';
+  }
+  return 'Niveau estimé $from · votre plan construit d\'abord votre '
+      '${cycle.targetLevel.wire}.';
+}
+
+/// Ce qu'annonce l'**état du cycle**, en une phrase. Les quatre états sont
+/// servis par le serveur et se disent au candidat, pas en jargon.
+///
+/// ⚠️ **Miroir mot pour mot du web** (`PLAN_CYCLE_STATE_TEXT`). Le mobile ne
+/// disait nulle part dans quelle phase le candidat se trouve — c'est pourtant
+/// ce qui explique pourquoi le Plan lui demande de **mesurer** plutôt que de
+/// s'entraîner.
+String planCycleStateText(PlanCycleState state) => switch (state) {
+      PlanCycleState.buildingBaseline =>
+        'Il manque des mesures : complétez votre profil pour que le plan cible '
+            'les bons paliers.',
+      PlanCycleState.training =>
+        'Votre entraînement cible les compétences qui bloquent le palier en '
+            'cours.',
+      PlanCycleState.readyForGateMock =>
+        'Le travail de ce palier est fait : il reste à le confirmer par un '
+            'examen blanc TCF complet.',
+      PlanCycleState.targetStabilization =>
+        'Votre objectif est atteint sur les domaines mesurés : on entretient '
+            'et on remesure.',
+    };
 
 /// « 2 domaines sur 4 évalués ».
 String planProfileCoverage(PlanCycle? cycle, int fallbackTotal) {
@@ -419,6 +571,16 @@ const String kPlanCompleteProfileText =
     'orale. Les domaines ci-dessous n\'ont encore jamais été mesurés — voici '
     'par quoi les mesurer.';
 const String kPlanPrioritiesTitle = 'Mes priorités';
+
+/* ------------------------------------------- mes compétences observées ---- */
+
+/// Le bloc qui dit **ce qui a été constaté**, là où tout le reste du Plan dit ce
+/// qu'il reste à faire. Miroirs mot pour mot du web (`ObservedSkills`).
+const String kPlanObservedTitle = 'Mes compétences observées';
+const String kPlanObservedText =
+    'Uniquement ce qui a été réellement observé dans vos productions.';
+const String kPlanObservedMore = 'Voir toutes mes compétences observées';
+const String kPlanObservedLess = 'Replier mes compétences observées';
 
 /// ⚠️ **Divergence VOULUE avec le web, arbitrée le 2026-08-21 : ne pas
 /// « aligner ».** L'action s'appelle « Tout voir » ici et « Toutes mes
@@ -441,21 +603,39 @@ const String kPlanAllSkillsEmpty =
     'Votre plan ne suit encore aucun domaine : il se remplit à votre premier '
     'résultat.';
 
-/// Ce qu'il faut lancer pour mesurer un domaine — **jamais** une série ciblée,
-/// qui est un entraînement.
-String planAssessmentLabel(PlanDomainAssessment assessment) =>
+/// **Le parcours réel** qu'ouvre une mesure, nommé tel quel — une *description*,
+/// jamais un geste. Aucun contenu n'est créé : chacune de ces trois natures
+/// existe déjà.
+///
+/// ⚠️ **Miroir mot pour mot du web** (`planAssessmentNature`). Le mobile ne
+/// connaissait qu'une seule chaîne, employée à la fois comme repère de ligne et
+/// comme libellé de bouton : « Rendre une production » se lisait donc dans une
+/// meta, là où le web décrivait « Production complète ».
+String planAssessmentNature(PlanDomainAssessment assessment) =>
     switch (assessment.kind) {
-      PlanDomainAssessmentKind.diagnostic => 'Passer le diagnostic',
+      PlanDomainAssessmentKind.diagnostic => 'Diagnostic',
       PlanDomainAssessmentKind.moduleMockExam => assessment.slotNumber == null
-          ? 'Passer un examen blanc'
+          ? 'Examen blanc'
           : 'Examen blanc n°${assessment.slotNumber}',
-      PlanDomainAssessmentKind.production => 'Rendre une production',
+      PlanDomainAssessmentKind.production => 'Production complète',
     };
 
+/// **Le geste** qui mesure ce domaine — le libellé d'un bouton, jamais d'une
+/// meta. Miroir mot pour mot du web (`planAssessmentCta`).
+String planAssessmentCta(PlanDomainAssessment assessment) =>
+    switch (assessment.kind) {
+      PlanDomainAssessmentKind.diagnostic => 'Faire mon diagnostic',
+      PlanDomainAssessmentKind.production => 'Faire une production',
+      PlanDomainAssessmentKind.moduleMockExam => 'Passer l\'examen blanc',
+    };
+
+/// Le repère factuel d'une ligne de mesure : sa nature et sa durée quand elle en
+/// a une (ni le diagnostic ni une production ne sont chronométrés par épreuve —
+/// on n'écrit alors aucune minute plutôt qu'un chiffre inventé).
 String planAssessmentMeta(PlanDomainAssessment assessment) {
   final minutes = assessment.estimatedMinutes;
-  final label = planAssessmentLabel(assessment);
-  return minutes == null ? label : '$label · ≈ $minutes min';
+  final nature = planAssessmentNature(assessment);
+  return minutes == null ? nature : '$nature · ≈ $minutes min';
 }
 
 /* ------------------------------------------------------- ce qui a changé    */

@@ -10,7 +10,6 @@ import '../../core/api/audience_repository.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
-import '../../core/providers/dashboard_provider.dart';
 import '../../core/providers/target_level_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/route_observer.dart';
@@ -30,6 +29,7 @@ import 'plan_milestone_labels.dart';
 import 'plan_seance_state.dart';
 import 'widgets/plan_banner.dart';
 import 'widgets/plan_changes_section.dart';
+import 'widgets/plan_observed_skills_section.dart';
 import 'widgets/plan_path_section.dart';
 import 'widgets/plan_paywall_card.dart';
 import 'widgets/plan_priorities_section.dart';
@@ -315,12 +315,17 @@ class _ActivePlan extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
     final hasTcf = auth is AuthAuthenticated && auth.user.hasTcf;
-    final estimated =
-        ref.watch(dashboardProvider).valueOrNull?.estimatedTcfLevel;
     final cta = _cta(context, ref);
     final changes = plan.recentChanges;
     final current = plan.currentPriority;
+    final cycle = plan.cycle;
     final milestone = plan.milestone;
+    // 🛑 **Uniquement ce qui a été observé.** Une compétence `NOT_OBSERVED`
+    // n'est pas une compétence faible : l'inscrire dans « Mes compétences
+    // observées » la ferait lire comme telle. Même filtre que le web.
+    final observed = plan.observedSkills
+        .where((skill) => skill.status != LearningPlanSkillStatus.notObserved)
+        .toList(growable: false);
     // Un jalon déjà présent dans la séance ne se répète pas en carte : ce
     // serait le même examen blanc annoncé deux fois sur le même écran.
     final milestoneInSeance = milestone != null &&
@@ -333,10 +338,17 @@ class _ActivePlan extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
       children: [
+        // D'où l'on part, ce que le cycle construit, et dans quelle phase il
+        // est — les deux phrases du web (`planCycleLine` +
+        // `PLAN_CYCLE_STATE_TEXT`), qui manquaient ici. La seconde est ce qui
+        // explique pourquoi le Plan demande parfois de **mesurer** plutôt que
+        // de s'entraîner.
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 2),
           child: Text(
-            planContextLine(estimated),
+            cycle == null
+                ? planCycleLine(null)
+                : '${planCycleLine(cycle)} ${planCycleStateText(cycle.state)}',
             style: AppFonts.ui(
               size: 13.5,
               height: 1.4,
@@ -421,13 +433,38 @@ class _ActivePlan extends ConsumerWidget {
           const SizedBox(height: 22),
           PlanCompleteProfileSection(assessments: plan.domainesAEvaluer),
         ],
-        if (plan.cycle != null) ...[
+        if (cycle != null) ...[
           const SizedBox(height: 22),
-          PlanPathSection(cycle: plan.cycle!),
+          PlanPathSection(cycle: cycle),
+        ],
+        // Ce que les productions ont réellement montré. Le mobile décodait ces
+        // compétences sans jamais les afficher : le même compte lisait sur le
+        // web un historique que son téléphone lui cachait.
+        if (observed.isNotEmpty) ...[
+          const SizedBox(height: 22),
+          PlanObservedSkillsSection(
+            skills: observed,
+            total: plan.observedSkillCount,
+          ),
         ],
         const SizedBox(height: 22),
+        // Les mêmes quatre accès que le web, dans le même ordre. « Toutes mes
+        // compétences » et « Mes examens blancs » n'existaient pas ici.
         ListGroup(
           children: [
+            ListRow(
+              icon: LucideIcons.layoutGrid,
+              iconBg: AppColors.surface2,
+              iconColor: AppColors.inkSoft,
+              title: kPlanAllSkillsTitle,
+              sub: '6 tâches · 3 paliers par domaine',
+              // ⚠️ **Verrou de NAVIGATION**, comme depuis « Mes priorités » :
+              // le Plan reste entier, seul le catalogue complet est un accès.
+              right: hasTcf ? null : const PremiumLockPill(size: 22),
+              onTap: () => hasTcf
+                  ? context.push(AppRoutes.planSkills)
+                  : unawaited(showTcfLockPaywall(context)),
+            ),
             ListRow(
               icon: LucideIcons.trendingUp,
               iconBg: AppColors.surface2,
@@ -435,6 +472,14 @@ class _ActivePlan extends ConsumerWidget {
               title: 'Ma progression',
               sub: 'Domaine par domaine, niveau par niveau',
               onTap: () => context.push(AppRoutes.progress),
+            ),
+            ListRow(
+              icon: LucideIcons.graduationCap,
+              iconBg: AppColors.surface2,
+              iconColor: AppColors.inkSoft,
+              title: 'Mes examens blancs',
+              sub: 'TCF et civique',
+              onTap: () => context.go(AppRoutes.examens),
             ),
             ListRow(
               icon: LucideIcons.clipboardCheck,
@@ -542,12 +587,14 @@ class _WhyRow extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 2),
+        // Pourquoi cette ligne est là — la même phrase que le web affiche dans
+        // sa modale « Pourquoi cette séance ? ». Le mobile ne portait que la
+        // nature et le domaine, sans jamais dire *pourquoi*.
         Text(
-          '${item.nature.label} · ${planItemEyebrow(item)} · '
-          '${planItemKindLabel(item)}',
-          maxLines: 1,
+          planItemReason(item),
+          maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: AppFonts.ui(size: 12, color: AppColors.inkFaint),
+          style: AppFonts.ui(size: 12, height: 1.35, color: AppColors.inkFaint),
         ),
       ],
     );

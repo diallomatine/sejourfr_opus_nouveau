@@ -918,6 +918,56 @@ Le backend distingue **ce qu'il demande de faire** sur chaque entrée
   provenances dans `DIAGNOSTIC_TO_PREMIUM_CLICKED` rendrait le compteur
   illisible).
 
+### Parité web ⇄ mobile du Plan (2026-08-21, passe d'alignement)
+
+Le propriétaire a constaté que les deux écrans Plan ne disaient pas la même
+chose. Ce qui a bougé **côté web**, et pourquoi :
+
+- 🔴 **Fuite de floutage réparée, 8ᵉ occurrence.** `PriorityCard` affichait en
+  clair le titre, le repère et le motif d'une priorité **verrouillée**, que la
+  ligne n°1 de « Mes priorités » floutait vingt lignes plus bas — la même
+  compétence, deux lectures. Son **identité** passe désormais sous `PlanBlur`
+  avec le libellé accessible et `SkillLockBadge`, comme sur mobile
+  (`PlanPriorityHero`). Restent **nets** : la nature, le cadenas, l'objectif, le
+  rail et le bouton. « Voir le détail » suit le verrou.
+- 🔴 **9ᵉ occurrence, hors du Plan** : `/dashboard` nommait la priorité du jour
+  même verrouillée. Il retombe sur son texte générique, miroir de
+  `PlanPriorityHomeCard`.
+- **Sur une ligne de séance verrouillée, le domaine et la nature restent NETS**
+  (`SeanceEyebrow`, sorti du bloc floutable). Ils ne disent pas *quoi faire*, le
+  domaine est déjà lisible sur l'icône restée nette, et sans la nature les
+  lignes fermées devenaient indistinctes. C'est la règle du mobile ; le web
+  floutait l'eyebrow entier.
+- **Le bouton principal LANCE la séance, plus la seule priorité.** Il prend la
+  première ligne **non faite** (`Reprendre` / `Commencer ma séance · N min`),
+  la première quand tout est fait (`Refaire ma séance`), et l'exercice de la
+  priorité quand il n'y a pas de séance. Motif : une **mesure de domaine**
+  passe devant tout le reste côté serveur, et démarrer la priorité par-dessus
+  elle faisait avancer à l'aveugle. Une mesure part chez `usePlanAssessment` et
+  **n'émet pas** `PLAN_RECOMMENDED_EXERCISE_STARTED` — ce n'est pas un exercice.
+- **`planSeanceItemLocked`** (`lib/plan-domain.ts`) lit `item.locked` **et**
+  `exercise.locked`, comme le mobile ; le web ne lisait que le premier.
+- **Bandeau « Plan actualisé »** (`PlanUpdatedBanner`) : il n'existait que sur
+  mobile. Il occupe la place de `PlanFreeBar`, **jamais les deux**, et mène à
+  `/plan/evolution`. Le web n'annonçait donc rien tant qu'aucune *transition*
+  n'était servie.
+- **Le jalon porte son intertitre** (`PLAN_MILESTONE_SECTION_TITLE` / `_TEXT`,
+  déclarés depuis toujours et jamais rendus) et **n'est plus répété** quand il
+  est déjà dans la séance (`milestoneInSeance`, miroir mobile).
+- **La carte de priorité dit les DEUX choses** (`priorityLines`) : l'explication
+  du correcteur — que seul le mobile affichait — puis l'état agrégé et les
+  compteurs d'étape — que seul le web affichait. Une compétence *à acquérir*
+  garde `PLAN_REASON_A_ACQUERIR` en tête, jamais un « 0 sur 5 » qui se lirait
+  comme un retard. La même phrase s'ajoute sur la **ligne** de priorité.
+- **« Pourquoi cette séance ? » sert les mêmes raisons des deux côtés**
+  (`planSeanceRationale`, miroir de `planSeanceRationale` mobile) : les quatre
+  motifs — dont celui qui distingue *acquérir* de *renforcer* — n'existaient que
+  sur téléphone. L'état du cycle n'y est plus répété (il est dans l'en-tête).
+- **Divergences laissées telles quelles**, elles tiennent à la forme de la
+  surface : la colonne latérale (le web a deux colonnes, le jalon y ouvre
+  l'aside), le titre `planTitle(cycle)` contre la pastille d'objectif du mobile,
+  et « Toutes mes compétences » ⇄ « Tout voir » (déjà arbitré).
+
 ## Diagnostic TCF initial + Plan (2026-08-09)
 
 - **Le backend décide du parcours** : `DiagnosticResponse.status` et
