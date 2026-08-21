@@ -39,14 +39,102 @@
   box-shadow: 0 24px 60px color-mix(in srgb, var(--color-ink) 9%, transparent);
 }
 
+/* ============================================================================
+   Fil du parcours (barre numérotée de la maquette)
+   ============================================================================ */
+
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 22px;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.steps::-webkit-scrollbar {
+  display: none;
+}
+
+.steps li {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Le trait de liaison est porté par la puce suivante : pas d'élément vide dans
+   la liste, donc rien à masquer pour un lecteur d'écran. */
+.steps li + li::before {
+  content: "";
+  width: clamp(14px, 5vw, 46px);
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-line);
+}
+
+.steps li[data-state="done"] + li::before,
+.steps li[data-state="current"] + li::before {
+  background: color-mix(in srgb, var(--color-blue) 55%, var(--color-line));
+}
+
+.stepMark {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  place-items: center;
+}
+
+.steps li[data-state="done"] .stepMark,
+.steps li[data-state="current"] .stepMark {
+  background: var(--color-blue);
+  color: var(--color-paper);
+}
+
+.stepLabel {
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.steps li[data-state="done"] .stepLabel,
+.steps li[data-state="current"] .stepLabel {
+  color: var(--color-ink);
+}
+
+/* Sur un petit écran, cinq libellés ne tiennent pas sur une ligne et la barre
+   partait en défilement muet — un fil de parcours qu'il faut faire glisser
+   n'informe plus. Seule l'étape en cours garde son nom : les autres restent
+   comptées par leur pastille, ce qui suffit à situer le candidat. */
+@media (max-width: 560px) {
+  .steps li:not([data-state="current"]) .stepLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
 .intro {
-  max-width: 760px;
-  margin: 5vh auto 0;
-  padding: clamp(28px, 6vw, 54px);
+  max-width: 940px;
+  margin: 4vh auto 0;
+  padding: clamp(26px, 5vw, 46px);
   text-align: center;
 }
 
-.heroIcon,
 .stateIcon {
   display: inline-flex;
   align-items: center;
@@ -54,12 +142,6 @@
   color: var(--color-blue);
   background: var(--color-blue-light);
   border-radius: 16px;
-}
-
-.heroIcon {
-  width: 62px;
-  height: 62px;
-  margin-bottom: 20px;
 }
 
 .eyebrow {
@@ -92,30 +174,165 @@
   font-size: 17px;
 }
 
-/* Le budget de temps est annoncé AVANT le titre : c'est la première chose que
-   le candidat doit lire, celle qui dit que ce n'est pas un examen. */
-.duration {
-  display: inline-flex;
+/* ============================================================================
+   Entrée du diagnostic — les deux parcours
+   ----------------------------------------------------------------------------
+   Deux cartes, jamais deux tunnels : elles ouvrent le MÊME écrit puis le même
+   oral. Seule la promesse diffère, et ce que le rapport enchaînera ensuite.
+   ============================================================================ */
+
+.choice {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 16px;
+  margin: 26px 0 0;
+  text-align: left;
+}
+
+.choiceCard {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  padding: clamp(18px, 3vw, 24px);
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  background: var(--color-paper);
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--color-ink) 6%, transparent);
+}
+
+/* La carte recommandée porte le bleu de marque en filigrane, comme la maquette.
+   Aucune couleur nouvelle : le dégradé part du token bleu clair. */
+.choiceCardReco {
+  border-color: color-mix(in srgb, var(--color-blue) 45%, var(--color-line));
+  background: linear-gradient(180deg, var(--color-blue-light) 0%, var(--color-paper) 62%);
+  box-shadow: 0 20px 44px color-mix(in srgb, var(--color-blue) 14%, transparent);
+}
+
+.choiceHead {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 16px;
-  padding: 7px 14px;
+  gap: 10px;
+}
+
+.choiceHead h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: clamp(20px, 2.6vw, 24px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.choiceBadge {
+  padding: 4px 11px;
+  border: 1px solid color-mix(in srgb, var(--color-blue) 30%, transparent);
   border-radius: 999px;
-  background: var(--color-blue-light);
+  background: color-mix(in srgb, var(--color-paper) 82%, white);
   color: var(--color-blue);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
+}
+
+.choiceMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin: -4px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.choiceMeta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.choiceList {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.choiceList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--color-ink-2);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.choiceList svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--color-blue);
+}
+
+/* Le rappel « la compréhension se joue après le compte » : une contrainte de
+   parcours, pas un avertissement — ton neutre, sans pastille d'alerte. */
+.choiceNote {
+  margin: 0;
+  padding: 11px 13px;
+  border: 1px dashed var(--color-line);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--color-paper-2) 60%, white);
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.choiceCard .primaryButton,
+.choiceCard .secondaryButton {
+  width: 100%;
+  margin-top: auto;
+}
+
+.introBandTitle {
+  margin: 30px 0 0;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/* Les deux épreuves de compréhension : présentes dans la liste, mais montrées
+   pour ce qu'elles sont — une suite possible, pas une étape de cet écran. */
+.introListLater {
+  opacity: 0.72;
+}
+
+@media (max-width: 780px) {
+  .choice {
+    grid-template-columns: 1fr;
+  }
 }
 
 .introList {
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin: 24px 0 0;
+  margin: 12px 0 0;
   padding: 0;
   list-style: none;
   text-align: left;
+}
+
+@media (max-width: 620px) {
+  .introList {
+    grid-template-columns: 1fr;
+  }
 }
 
 .introList li {
@@ -1378,6 +1595,219 @@
   flex: none;
   margin-top: 1px;
   color: var(--color-blue);
+}
+
+/* ============================================================================
+   Votre profil TCF — les 4 domaines, et par quoi compléter les manquants
+   ----------------------------------------------------------------------------
+   🛑 Aucun ton de reproche ici : un domaine sans mesure affiche « — » et
+   « Pas encore évaluée ». Il manque des données, ce n'est pas une faiblesse.
+   ============================================================================ */
+
+.profileCard {
+  display: grid;
+  gap: 18px;
+  padding: clamp(18px, 3vw, 26px);
+  border: 1px solid var(--color-line);
+  border-radius: 25px;
+  background: var(--color-paper);
+  box-shadow: 0 18px 44px color-mix(in srgb, var(--color-ink) 7%, transparent);
+}
+
+.profileHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 22px;
+}
+
+.profileHead > div {
+  min-width: 0;
+}
+
+.profileHead h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: clamp(19px, 2.4vw, 22px);
+  letter-spacing: -0.02em;
+}
+
+.profileHead p {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.profileGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profileGrid > li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--color-line-2);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--color-paper-2) 45%, white);
+}
+
+/* Un domaine sans mesure reste LISIBLE : on l'estompe, on ne le grise pas au
+   point de le faire passer pour indisponible. */
+.profileGrid > li[data-evaluated="0"] {
+  background: transparent;
+  border-style: dashed;
+}
+
+.profileBody {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.profileBody b {
+  color: var(--color-ink);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.profileGrid > li[data-evaluated="0"] .profileBody b {
+  color: var(--color-muted-2);
+}
+
+.profileBody > span {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.profileComplete {
+  display: grid;
+  gap: 12px;
+  padding-top: 17px;
+  border-top: 1px solid var(--color-line-2);
+}
+
+.profileCompleteHead {
+  margin: 0;
+}
+
+.profileCompleteHead b {
+  display: block;
+  color: var(--color-ink);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.profileCompleteHead > span {
+  display: block;
+  max-width: 66ch;
+  margin-top: 4px;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.profileRows {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profileRow {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--color-paper-2) 45%, white);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profileRow:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-blue) 40%, var(--color-line));
+}
+
+.profileRow:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+.profileRow:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+/* La première marche du parcours complet : c'est elle que le candidat vient
+   chercher, elle porte donc l'action principale. */
+.profileRowLead {
+  border-color: color-mix(in srgb, var(--color-blue) 45%, var(--color-line));
+  background: linear-gradient(180deg, var(--color-blue-light) 0%, var(--color-paper) 70%);
+}
+
+.profileRow .profileBody b {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.profileRowCta {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-blue);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.profileRowLead .profileRowCta {
+  padding: 8px 13px;
+  border-radius: 12px;
+  background: var(--color-blue);
+  color: var(--color-paper);
+}
+
+.profileNote {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+@media (max-width: 860px) {
+  .profileGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .profileRow {
+    flex-wrap: wrap;
+  }
+
+  .profileRowCta {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 /* --------------------------------------------------------- intertitres */

@@ -142,20 +142,6 @@ export function diagnosticOralMeasureLabel(
   return `environ ${minutes} minute${minutes > 1 ? "s" : ""}`;
 }
 
-/**
- * Le budget annoncé en tête de la présentation. Somme des deux exercices, donc
- * il suit les sujets : si la base raccourcit l'écrit, la promesse raccourcit
- * avec lui. Sans mesure exploitable, on annonce le nombre d'exercices plutôt
- * qu'une durée inventée.
- */
-export function diagnosticBudgetLabel(
-  written: DiagnosticExerciseMeasure | null | undefined,
-  oral: DiagnosticExerciseMeasure | null | undefined,
-): string {
-  const total = (diagnosticWrittenMinutes(written) ?? 0) + (diagnosticOralMinutes(oral) ?? 0);
-  return total > 0 ? `Diagnostic express · ~${total} min` : "Diagnostic express · 2 exercices";
-}
-
 /** Adapte le sujet diagnostic au composant de production existant, sans lui
  *  inventer de tâche officielle ni de niveau cible. */
 export function diagnosticExerciseAsProductionTask(

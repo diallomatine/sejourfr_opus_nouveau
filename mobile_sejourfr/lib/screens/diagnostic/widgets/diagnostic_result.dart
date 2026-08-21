@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/diagnostic_models.dart';
@@ -12,7 +13,13 @@ import '../../../core/widgets/app_tag.dart';
 import '../../../core/widgets/fixed_action_bar.dart';
 import '../../../core/widgets/gradient_hero.dart';
 import '../../../core/widgets/premium_lock.dart';
+import '../../plan/learning_plan_provider.dart';
+import '../../plan/plan_actions.dart';
+import '../../plan/plan_labels.dart';
+import '../../plan/widgets/plan_profile_section.dart';
+import '../../plan/widgets/plan_tokens.dart';
 import '../../tcf_production/widgets/action_plan.dart';
+import '../diagnostic_variant.dart';
 
 /// Écran de fin de diagnostic, refondu sur la maquette premium mobile.
 ///
@@ -29,11 +36,12 @@ import '../../tcf_production/widgets/action_plan.dart';
 /// - aucun **calendrier** (« Semaine 1 », jours) — le Plan n'a pas de notion de
 ///   temps, une étape est un ensemble de sujets ;
 /// - aucun **emoji en texte brut** — les icônes viennent de `LucideIcons`.
-class DiagnosticResultView extends StatelessWidget {
+class DiagnosticResultView extends ConsumerWidget {
   const DiagnosticResultView({
     super.key,
     required this.result,
     required this.hasTcfAccess,
+    required this.variant,
     required this.onOpenPlan,
     required this.onOpenRecommended,
     required this.onSubscribe,
@@ -42,6 +50,12 @@ class DiagnosticResultView extends StatelessWidget {
 
   final DiagnosticResult result;
   final String? objective;
+
+  /// Ce que le candidat a choisi à l'entrée. **Rien n'est persisté** : la
+  /// variante ne change ni le parcours joué, ni ce que le serveur a mesuré —
+  /// elle décide seulement de ce que ce bilan **enchaîne** (cf.
+  /// `diagnostic_variant.dart`).
+  final DiagnosticVariant variant;
 
   /// Accès TCF réel du compte (`AuthUser.hasTcf`). Il ne sert qu'à **choisir la
   /// pastille** des étapes à venir et à décider si l'offre est présentée :
@@ -54,11 +68,19 @@ class DiagnosticResultView extends StatelessWidget {
   final VoidCallback onSubscribe;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final focus = _focusItems(result);
     final solid = _solidSkills(result);
     final steps = _planSteps(result, hasTcfAccess: hasTcfAccess);
     final exemple = result.exempleCible;
+
+    // Le Plan n'est lu qu'**ici**, sur l'écran de résultat d'un compte
+    // authentifié : c'est la seule source de l'état du profil (quels domaines
+    // sont mesurés) et de ce qui reste à mesurer. Son absence — chargement,
+    // réseau — est un cas NORMAL : les blocs concernés ne sont pas rendus, rien
+    // n'est deviné et rien ne signale d'erreur.
+    final plan = ref.watch(learningPlanProvider).valueOrNull;
+    final pending = _comprehensionToAssess(plan);
 
     return Stack(
       children: [
@@ -89,9 +111,30 @@ class DiagnosticResultView extends StatelessWidget {
               written: result.written?.levelEstimate,
               oral: result.oral?.levelEstimate,
               objective: objective,
+              railLevel: _railLevel(result),
             ),
+            if (plan != null) ...[
+              const SizedBox(height: 10),
+              _ProfileStrip(plan: plan),
+            ],
             const SizedBox(height: 10),
             const _EstimationNote(),
+            // **Diagnostic complet** : la compréhension se mesure maintenant.
+            // Le bloc est hissé juste sous le profil, avant même les priorités
+            // — c'est ce que le candidat est venu chercher en le choisissant.
+            if (variant.isComplet && pending.isNotEmpty) ...[
+              const SizedBox(height: 22),
+              const _SectionHead(
+                kicker: 'IL RESTE DEUX ÉPREUVES À MESURER',
+                title: 'Complétez votre profil TCF.',
+                description:
+                    'Vos deux productions sont analysées. La compréhension se '
+                    'mesure par un examen blanc — elle n’était pas jouable '
+                    'avant que votre compte existe.',
+              ),
+              const SizedBox(height: 13),
+              PlanCompleteProfileSection(assessments: pending),
+            ],
             if (focus.isNotEmpty) ...[
               const SizedBox(height: 14),
               _FocusCard(focus: focus),
@@ -149,6 +192,22 @@ class DiagnosticResultView extends StatelessWidget {
                   child: _AcquisRow(skill: skill),
                 ),
             ],
+            // **Diagnostic rapide** : la même proposition, mais à sa place —
+            // en bas, comme une suite possible. Un domaine non mesuré n'est
+            // jamais présenté comme une faiblesse : il manque des données.
+            if (!variant.isComplet && pending.isNotEmpty) ...[
+              const SizedBox(height: 26),
+              const _SectionHead(
+                kicker: 'QUAND VOUS VOULEZ',
+                title: 'Complétez votre profil TCF.',
+                description:
+                    'La compréhension orale et écrite n’a pas encore été '
+                    'mesurée. Ce n’est pas une faiblesse : il manque des '
+                    'données, et un examen blanc suffit à les produire.',
+              ),
+              const SizedBox(height: 13),
+              PlanCompleteProfileSection(assessments: pending),
+            ],
             if (result.written != null || result.oral != null) ...[
               const SizedBox(height: 22),
               const _SectionHead(
@@ -182,33 +241,12 @@ class DiagnosticResultView extends StatelessWidget {
           left: 0,
           right: 0,
           bottom: 0,
-          child: FixedActionBar(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Semantics(
-                  button: true,
-                  label: 'Voir mon plan personnalisé',
-                  child: AppButton(
-                    label: 'Voir mon plan personnalisé',
-                    iconRight: LucideIcons.arrowRight,
-                    onPressed: onOpenPlan,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  'Basé sur vos réponses · vous pourrez commencer par un '
-                  'exercice',
-                  textAlign: TextAlign.center,
-                  style: AppFonts.ui(
-                    size: 10.5,
-                    weight: FontWeight.w700,
-                    color: AppColors.inkFaint,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
+          child: _ResultActionBar(
+            // Le complet enchaîne sur la première épreuve de compréhension que
+            // le **serveur** désigne ; le rapide renvoie au Plan. Aucun ordre
+            // n'est recalculé ici : `domainesAEvaluer` arrive déjà trié.
+            next: variant.isComplet && pending.isNotEmpty ? pending.first : null,
+            onOpenPlan: onOpenPlan,
           ),
         ),
       ],
@@ -229,6 +267,56 @@ class DiagnosticResultView extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Lecture des données
 // ---------------------------------------------------------------------------
+
+/// Les épreuves de **compréhension** qu'il reste à mesurer, dans l'ordre servi.
+///
+/// 🛑 Rien n'est trié, filtré par urgence ni complété ici : `domainesAEvaluer`
+/// est **la seule** réponse à « comment compléter mon profil », et le serveur
+/// l'a déjà ordonnée. On ne retient que CO et CE parce que le diagnostic vient
+/// précisément de mesurer les deux expressions — une ligne EE/EO ici voudrait
+/// dire que la production n'a pas été observée, ce que le Plan dira mieux.
+///
+/// **Vide = profil complet**, état visé et non anomalie.
+List<PlanDomainAssessment> _comprehensionToAssess(LearningPlan? plan) {
+  final assessments = plan?.domainesAEvaluer;
+  if (assessments == null || assessments.isEmpty) {
+    return const <PlanDomainAssessment>[];
+  }
+  return assessments
+      .where(
+        (assessment) =>
+            assessment.epreuve == EpreuveType.tcfCo ||
+            assessment.epreuve == EpreuveType.tcfCe,
+      )
+      .toList(growable: false);
+}
+
+/// Où placer le candidat sur le rail `A2 → B1 → B2`.
+///
+/// C'est le **plancher** des deux productions — la même règle que le niveau
+/// d'un candidat côté serveur : une seule production réussie ne prouve pas le
+/// palier. Sous le A2, le rail reste **éteint** plutôt que de faire commencer
+/// tout le monde au premier barreau : `null` veut dire « pas encore sur cette
+/// échelle », jamais « A2 ».
+TargetLevel? _railLevel(DiagnosticResult result) {
+  final written = result.written?.levelEstimate;
+  final oral = result.oral?.levelEstimate;
+  final levels = <NiveauCecrl>[
+    if (written != null) written,
+    if (oral != null) oral,
+  ];
+  if (levels.isEmpty) return null;
+  var floor = levels.first;
+  for (final level in levels) {
+    if (level.tcfPalierIndex < floor.tcfPalierIndex) floor = level;
+  }
+  return switch (floor) {
+    NiveauCecrl.a1NonAtteint || NiveauCecrl.a1 => null,
+    NiveauCecrl.a2 => TargetLevel.a2,
+    NiveauCecrl.b1 => TargetLevel.b1,
+    NiveauCecrl.b2 || NiveauCecrl.c1 || NiveauCecrl.c2 => TargetLevel.b2,
+  };
+}
 
 /// Une ligne de la carte « Votre progression se joue surtout ici ».
 ///
@@ -497,11 +585,16 @@ class _LevelsHero extends StatelessWidget {
     required this.written,
     required this.oral,
     required this.objective,
+    required this.railLevel,
   });
 
   final NiveauCecrl? written;
   final NiveauCecrl? oral;
   final String? objective;
+
+  /// Le barreau allumé du rail `A2 → B1 → B2`. `null` = pas encore sur cette
+  /// échelle : aucun point n'est allumé, on ne place personne par défaut.
+  final TargetLevel? railLevel;
 
   @override
   Widget build(BuildContext context) {
@@ -542,6 +635,10 @@ class _LevelsHero extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 15),
+          // Le rail du Plan, repris tel quel : le candidat doit retrouver
+          // **la même** échelle d'un écran à l'autre.
+          PlanLevelRail(current: railLevel, onDark: true),
           const SizedBox(height: 14),
           Container(
             padding: const EdgeInsets.only(top: 13),
@@ -636,6 +733,158 @@ class _LevelBlock extends StatelessWidget {
             style: AppFonts.display(size: 36, color: AppColors.white),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Où en est le profil TCF
+// ---------------------------------------------------------------------------
+
+/// L'état des **quatre domaines** du TCF, juste sous les deux niveaux que le
+/// diagnostic vient d'estimer : « 2 domaines sur 4 évalués », puis une case par
+/// domaine.
+///
+/// 🛑 **Un domaine non mesuré n'est pas une faiblesse : il est inconnu.** Il
+/// garde donc sa case, un tiret à la place du niveau, et **aucun niveau ne lui
+/// est prêté** — pas plus qu'une teinte d'alerte ou une pastille « à évaluer ».
+/// C'est la règle du Plan (`kPlanNotEvaluatedNote`), et c'est ce qui rend la
+/// proposition de compléter le profil lisible comme une suite possible, jamais
+/// comme un reproche.
+///
+/// L'ordre est **celui servi** : le serveur trie les domaines par urgence,
+/// aucun front ne retrie. Le décompte vient de [planProfileCoverage], la
+/// formule déjà employée par « Mon profil TCF » — un même fait se dit de la
+/// même façon des deux côtés.
+class _ProfileStrip extends StatelessWidget {
+  const _ProfileStrip({required this.plan});
+
+  final LearningPlan plan;
+
+  @override
+  Widget build(BuildContext context) {
+    final domains = plan.domaines;
+    // Un plan sans domaine servi n'est pas une anomalie à signaler : la bande
+    // n'existe simplement pas.
+    if (domains.isEmpty) return const SizedBox.shrink();
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        border: Border.all(color: AppColors.line),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        boxShadow: AppShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(15, 12, 15, 11),
+            child: Row(
+              children: [
+                const Icon(
+                  LucideIcons.layoutGrid,
+                  size: 14,
+                  color: AppColors.blue,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    planProfileCoverage(plan.cycle, domains.length),
+                    style: AppFonts.ui(
+                      size: 13,
+                      weight: FontWeight.w700,
+                      color: AppColors.inkSoft,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Les quatre cases ont la même hauteur quel que soit le domaine dont
+          // le nom court passe à la ligne.
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < domains.length; i++)
+                  Expanded(
+                    child: _ProfileCell(domain: domains[i], first: i == 0),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Une case de la bande : l'icône du domaine, son niveau estimé — ou un tiret —
+/// et son abrégé. Elle ouvre la fiche du domaine, où vivent ses paliers et de
+/// quoi le mesurer.
+class _ProfileCell extends StatelessWidget {
+  const _ProfileCell({required this.domain, required this.first});
+
+  final PlanDomain domain;
+  final bool first;
+
+  @override
+  Widget build(BuildContext context) {
+    // `evaluated == false` ⇔ `niveau == null` côté serveur ; on lit les deux
+    // plutôt que d'en déduire l'autre.
+    final measured = domain.evaluated && domain.niveau != null;
+    return Semantics(
+      button: true,
+      label: measured
+          ? '${planDomainLabel(domain.epreuve)} : niveau estimé '
+              '${domain.niveau!.displayName}'
+          : '${planDomainLabel(domain.epreuve)} : $kPlanDomainNotEvaluated',
+      child: Material(
+        color: AppColors.white,
+        child: InkWell(
+          onTap: () => openPlanDomain(context, domain.epreuve),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 11),
+            decoration: BoxDecoration(
+              border: Border(
+                top: const BorderSide(color: AppColors.lineSoft),
+                left: first
+                    ? BorderSide.none
+                    : const BorderSide(color: AppColors.lineSoft),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  planDomainIcon(domain.epreuve),
+                  size: 14,
+                  color: measured ? AppColors.blue : AppColors.inkFaint,
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  measured ? domain.niveau!.shortName : '—',
+                  style: AppFonts.display(
+                    size: 17,
+                    color: measured ? AppColors.ink : AppColors.inkFaint,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  planDomainShort(domain.epreuve),
+                  textAlign: TextAlign.center,
+                  style: AppFonts.ui(
+                    size: 11,
+                    weight: FontWeight.w600,
+                    color: AppColors.inkFaint,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1743,3 +1992,87 @@ Color _communicationTone(DiagnosticCommunicationStatus status) =>
       DiagnosticCommunicationStatus.partial => AppColors.amberDark,
       DiagnosticCommunicationStatus.ineffective => AppColors.red,
     };
+
+// ---------------------------------------------------------------------------
+// La barre collante
+// ---------------------------------------------------------------------------
+
+const String _kPlanCta = 'Voir mon plan personnalisé';
+
+/// La barre d'action du bilan : **une seule action principale**, et laquelle
+/// dépend de ce qu'il reste à faire.
+///
+/// - Il reste un domaine de **compréhension** à mesurer et le candidat a choisi
+///   le diagnostic complet ⇒ l'action ouvre la fiche de ce domaine, où vit
+///   déjà le geste qui lance son examen blanc. Le plan reste accessible juste
+///   en dessous.
+/// - Sinon ⇒ le plan personnalisé, fin naturelle du diagnostic.
+///
+/// 🛑 **Le choix du parcours à ouvrir n'est pas recopié ici.** Décider quoi
+/// lancer selon `PlanDomainAssessmentKind` est déjà écrit deux fois côté Plan
+/// (la liste « Compléter mon profil » et la fiche d'un domaine) ; une troisième
+/// copie serait de la dette, et deux copies finiraient par lancer deux choses
+/// différentes pour le même domaine. On délègue donc à [openPlanDomain], le
+/// point d'entrée public du Plan, et c'est la fiche du domaine qui nomme
+/// l'examen exact. La légende dit dès ici ce qu'il y a derrière
+/// ([planAssessmentMeta]) : « Examen blanc n°1 · ≈ 20 min », jamais une
+/// promesse plus vague que le geste.
+class _ResultActionBar extends StatelessWidget {
+  const _ResultActionBar({required this.next, required this.onOpenPlan});
+
+  /// Le prochain domaine de compréhension à mesurer, **déjà désigné par le
+  /// serveur**. `null` est le cas courant : profil complet, ou diagnostic
+  /// rapide — ni l'un ni l'autre n'est une anomalie.
+  final PlanDomainAssessment? next;
+
+  final VoidCallback onOpenPlan;
+
+  @override
+  Widget build(BuildContext context) {
+    final assessment = next;
+    final label = assessment == null
+        ? _kPlanCta
+        : 'Mesurer ma ${planDomainLabel(assessment.epreuve).toLowerCase()}';
+    final caption = assessment == null
+        ? 'Basé sur vos réponses · vous pourrez commencer par un exercice'
+        : planAssessmentMeta(assessment);
+    return FixedActionBar(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Semantics(
+            button: true,
+            label: label,
+            child: AppButton(
+              label: label,
+              iconRight: LucideIcons.arrowRight,
+              onPressed: assessment == null
+                  ? onOpenPlan
+                  : () => openPlanDomain(context, assessment.epreuve),
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            caption,
+            textAlign: TextAlign.center,
+            style: AppFonts.ui(
+              size: 10.5,
+              weight: FontWeight.w700,
+              color: AppColors.inkFaint,
+              height: 1.35,
+            ),
+          ),
+          if (assessment != null) ...[
+            const SizedBox(height: 4),
+            AppButton(
+              label: _kPlanCta,
+              variant: AppButtonVariant.ghost,
+              height: 44,
+              onPressed: onOpenPlan,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}

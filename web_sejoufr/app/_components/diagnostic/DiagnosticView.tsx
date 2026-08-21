@@ -16,7 +16,6 @@ import {
   Mic,
   RotateCcw,
   Sparkles,
-  Target,
   TrendingUp,
 } from "lucide-react";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
@@ -36,12 +35,8 @@ import {
   DIAGNOSTIC_TASK_COMPLETION_LABEL,
   DIAGNOSTIC_TASK_COMPLETION_TONE,
   type DiagnosticExerciseContent,
-  type DiagnosticExerciseMeasure,
   type DiagnosticSignalTone,
-  diagnosticBudgetLabel,
   diagnosticExerciseAsProductionTask,
-  diagnosticOralMeasureLabel,
-  diagnosticWrittenMeasureLabel,
   LEARNING_PLAN_SKILL_STATUS_LABEL,
   LEARNING_PLAN_SKILL_STATUS_TONE,
   niveauEstimateLabel,
@@ -71,6 +66,9 @@ import type {
 } from "@/lib/types";
 import {useTrafficSource, useTrafficSourceHref} from "@/lib/use-traffic-source";
 import {DiagnosticAccountGate} from "./DiagnosticAccountGate";
+import {DiagnosticIntro, type DiagnosticParcours} from "./DiagnosticIntro";
+import {DiagnosticProfileCard} from "./DiagnosticProfile";
+import {DiagnosticSteps} from "./DiagnosticSteps";
 import styles from "./diagnostic.module.css";
 
 const POLL_MS = 2_500;
@@ -132,13 +130,24 @@ function retryErrorMessage(cause: unknown): string {
  */
 export function DiagnosticView() {
   const {status} = useAuth();
+  // 🛑 **La variante choisie à l'entrée ne quitte JAMAIS la mémoire.** Elle
+  // vit ici, au-dessus de la bascule invité ⇄ connecté, précisément pour
+  // survivre à l'inscription — qui se fait *en place*, sans quitter la page —
+  // et au sign-in Google, qui s'ouvre en popup. Rien n'est écrit en base, sur
+  // l'appareil ni dans l'URL : le profil réel se lit sur les domaines mesurés
+  // (`LearningPlanDto`), jamais sur une intention. Cf. `DiagnosticIntro`.
+  const [parcours, setParcours] = useState<DiagnosticParcours>("RAPIDE");
   if (status === "loading") return <DiagnosticSkeleton />;
   // `DualChromeShell` porte les deux chromes de la route : sidebar pour un
   // compte, fond applicatif nu pour un visiteur (qui garde le header et le
   // pied de page publics du layout racine).
   return (
     <DualChromeShell>
-      {status === "authenticated" ? <ConnectedDiagnostic /> : <GuestDiagnostic />}
+      {status === "authenticated" ? (
+        <ConnectedDiagnostic parcours={parcours} onChooseParcours={setParcours} />
+      ) : (
+        <GuestDiagnostic parcours={parcours} onChooseParcours={setParcours} />
+      )}
     </DualChromeShell>
   );
 }
@@ -160,7 +169,14 @@ function guestStep(
   return started ? "written" : "presentation";
 }
 
-function GuestDiagnostic() {
+function GuestDiagnostic({
+  parcours,
+  onChooseParcours,
+}: {
+  parcours: DiagnosticParcours;
+  onChooseParcours: (parcours: DiagnosticParcours) => void;
+}) {
+  const complete = parcours === "COMPLET";
   const [subjects, setSubjects] = useState<PublicDiagnosticResponse | null>(null);
   const [local, setLocal] = useState<LocalDiagnosticProductions | null>(null);
   const [loading, setLoading] = useState(true);
@@ -297,6 +313,7 @@ function GuestDiagnostic() {
   if (step === "account") {
     return (
       <DiagnosticShell guest>
+        <DiagnosticSteps current="account" guest complete={complete} />
         <DiagnosticAccountGate
           writtenWords={countEeWords(local?.writtenText ?? "")}
           oralDurationSec={local?.oralDurationSec ?? null}
@@ -309,6 +326,7 @@ function GuestDiagnostic() {
   if (step === "oral") {
     return (
       <DiagnosticShell guest compact>
+        <DiagnosticSteps current="oral" guest complete={complete} />
         <ExerciseHeader
           kind="oral"
           note={
@@ -334,6 +352,7 @@ function GuestDiagnostic() {
   if (step === "written") {
     return (
       <DiagnosticShell guest compact>
+        <DiagnosticSteps current="written" guest complete={complete} />
         <ExerciseHeader kind="written" />
         <EeWritingForm
           task={diagnosticExerciseAsProductionTask(subjects.written)}
@@ -356,7 +375,10 @@ function GuestDiagnostic() {
         guest
         written={subjects.written}
         oral={subjects.oral}
-        onStart={() => {
+        onStart={(chosen) => {
+          // Le choix ne change QUE ce qu'on enchaînera après le rapport : les
+          // deux cartes ouvrent le même écrit, puis le même oral.
+          onChooseParcours(chosen);
           setStarted(true);
           trackAudienceEvent("/diagnostic", "DIAGNOSTIC_STARTED", {once: true});
         }}
@@ -387,7 +409,14 @@ type Handoff =
   /** Une des deux tâches avait déjà une soumission : on n'a envoyé que l'autre. */
   | {kind: "partially-reused"};
 
-function ConnectedDiagnostic() {
+function ConnectedDiagnostic({
+  parcours,
+  onChooseParcours,
+}: {
+  parcours: DiagnosticParcours;
+  onChooseParcours: (parcours: DiagnosticParcours) => void;
+}) {
+  const complete = parcours === "COMPLET";
   const {user} = useAuth();
   const [diagnostic, setDiagnostic] = useState<DiagnosticResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -665,8 +694,9 @@ function ConnectedDiagnostic() {
     };
   }, [diagnostic]);
 
-  async function start() {
+  async function start(chosen: DiagnosticParcours) {
     if (submitting) return;
+    onChooseParcours(chosen);
     setSubmitting(true);
     setError(null);
     try {
@@ -840,7 +870,7 @@ function ConnectedDiagnostic() {
           submitting={submitting}
           written={diagnostic.written}
           oral={diagnostic.oral}
-          onStart={() => void start()}
+          onStart={(chosen) => void start(chosen)}
         />
       </DiagnosticShell>
     );
@@ -900,6 +930,7 @@ function ConnectedDiagnostic() {
     return (
       <DiagnosticResult
         diagnostic={diagnostic}
+        parcours={parcours}
         targetLevel={user.targetLevel ?? null}
         hasTcf={user.hasTcf ?? false}
         planHref={withTrafficSource("/plan", trafficSource)}
@@ -921,6 +952,10 @@ function ConnectedDiagnostic() {
     return (
       <DiagnosticShell>
         {notice}
+        {/* Dernière marche du fil : le rapport est en cours de production. Le
+            parcours complet y voit encore « Compréhension » en attente, ce qui
+            annonce la suite avant même que le rapport ne la propose. */}
+        <DiagnosticSteps current="report" guest={false} complete={complete} />
         <AnalysisWaiting diagnostic={diagnostic} transientMessage={error} />
       </DiagnosticShell>
     );
@@ -953,6 +988,7 @@ function ConnectedDiagnostic() {
     const exercise = diagnostic.written;
     return (
       <DiagnosticShell compact>
+        <DiagnosticSteps current="written" guest={false} complete={complete} />
         <ExerciseHeader kind="written" />
         <EeWritingForm
           task={diagnosticExerciseAsProductionTask(exercise)}
@@ -971,6 +1007,7 @@ function ConnectedDiagnostic() {
     const exercise = diagnostic.oral;
     return (
       <DiagnosticShell compact>
+        <DiagnosticSteps current="oral" guest={false} complete={complete} />
         <ExerciseHeader kind="oral" />
         <EoRecordingForm
           task={diagnosticExerciseAsProductionTask(exercise)}
@@ -992,6 +1029,7 @@ function ConnectedDiagnostic() {
   return (
     <DiagnosticShell>
       {notice}
+      <DiagnosticSteps current="report" guest={false} complete={complete} />
       <AnalysisWaiting diagnostic={diagnostic} transientMessage={error} />
     </DiagnosticShell>
   );
@@ -1024,117 +1062,6 @@ function DiagnosticShell({
       </nav>
       {children}
     </main>
-  );
-}
-
-/**
- * Les deux sujets vus par l'écran de présentation. Un compte qui n'a pas encore
- * de session (`NOT_STARTED`) n'en reçoit aucun : le serveur ne les attache qu'à
- * partir de `POST /api/diagnostics`. On relit alors le **catalogue public**, la
- * seule route qui sert les sujets sans session — sinon le visiteur lirait ses
- * mesures et le compte connecté n'en verrait aucune.
- */
-function useIntroMeasures(
-  written: DiagnosticExerciseContent | null | undefined,
-  oral: DiagnosticExerciseContent | null | undefined,
-): {written: DiagnosticExerciseMeasure | null; oral: DiagnosticExerciseMeasure | null} {
-  const [fallback, setFallback] = useState<PublicDiagnosticResponse | null>(null);
-  const missing = written == null || oral == null;
-
-  useEffect(() => {
-    if (!missing || fallback) return;
-    let alive = true;
-    // Confort d'affichage : un échec laisse simplement la présentation sans
-    // chiffre, il ne doit jamais empêcher de commencer.
-    diagnosticApi
-      .publicCurrent()
-      .then((subjects) => {
-        if (alive) setFallback(subjects);
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [missing, fallback]);
-
-  return {
-    written: written ?? fallback?.written ?? null,
-    oral: oral ?? fallback?.oral ?? null,
-  };
-}
-
-/** Écran de présentation, identique pour un visiteur et pour un compte : c'est
- *  le même parcours, seul le moment où l'on demande le compte change. */
-function DiagnosticIntro({
-  error,
-  submitting,
-  guest = false,
-  written,
-  oral,
-  onStart,
-}: {
-  error: string | null;
-  submitting: boolean;
-  guest?: boolean;
-  written?: DiagnosticExerciseContent | null;
-  oral?: DiagnosticExerciseContent | null;
-  onStart: () => void;
-}) {
-  const measures = useIntroMeasures(written, oral);
-  return (
-    <section className={styles.intro}>
-      <span className={styles.heroIcon} aria-hidden>
-        <Target size={30} />
-      </span>
-      <div className={styles.duration}>
-        <Clock3 size={16} aria-hidden />
-        {diagnosticBudgetLabel(measures.written, measures.oral)}
-      </div>
-      <h1>Découvrez vos priorités TCF</h1>
-      <p className={styles.lead}>Deux exercices courts, pas un examen.</p>
-      <ul className={styles.introList}>
-        <li>
-          <span className={styles.introIcon} aria-hidden>
-            <FilePenLine size={18} />
-          </span>
-          <div>
-            <p className={styles.introHead}>
-              <b>Écrit</b>
-              <span>{diagnosticWrittenMeasureLabel(measures.written) ?? "un court texte"}</span>
-            </p>
-            <p className={styles.introNote}>Vous rédigez un court texte.</p>
-          </div>
-        </li>
-        <li>
-          <span className={styles.introIcon} aria-hidden>
-            <Mic size={18} />
-          </span>
-          <div>
-            <p className={styles.introHead}>
-              <b>Oral</b>
-              <span>{diagnosticOralMeasureLabel(measures.oral) ?? "un court enregistrement"}</span>
-            </p>
-            <p className={styles.introNote}>
-              Vous vous enregistrez, sans conversation en direct.
-            </p>
-          </div>
-        </li>
-      </ul>
-      <p className={styles.introReassurance}>
-        Pas besoin d&apos;être parfait. Répondez naturellement : l&apos;objectif est simplement
-        d&apos;estimer votre niveau et de construire votre plan.
-      </p>
-      {error && <p className={styles.error} role="alert">{error}</p>}
-      <button className={styles.primaryButton} type="button" disabled={submitting} onClick={onStart}>
-        {submitting ? "Préparation…" : "Commencer mon diagnostic gratuit"}
-        {!submitting && <ArrowRight size={17} aria-hidden />}
-      </button>
-      <p className={styles.disclaimer}>
-        {guest
-          ? "Commencez sans compte. Il ne vous sera demandé qu'au moment de l'analyse. Estimation d'entraînement, non officielle."
-          : "Estimation d'entraînement, non officielle."}
-      </p>
-    </section>
   );
 }
 
@@ -1457,12 +1384,18 @@ function PremiumLink({
  */
 function DiagnosticResult({
   diagnostic,
+  parcours,
   targetLevel,
   hasTcf,
   planHref,
   notice,
 }: {
   diagnostic: DiagnosticResponse;
+  /** Ce que le candidat a choisi à l'entrée. **Rien d'autre n'en dépend** : il
+   *  ne décide que de la PLACE de « Votre profil TCF » et du ton de sa phrase —
+   *  la suite immédiate, ou une invitation sans pression. Les données servies
+   *  sont exactement les mêmes dans les deux cas. */
+  parcours: DiagnosticParcours;
   targetLevel: string | null;
   /** Accès TCF du compte : il ne masque **aucune information** du Plan, il ne
    *  décide que de l'affichage des cadenas d'accès et de l'invitation à
@@ -1493,6 +1426,10 @@ function DiagnosticResult({
   const nextAction = result.nextAction;
   const exemple = result.exempleCible;
   const nextSteps = measured ? levers.slice(1) : [];
+  // Parcours complet : la compréhension est la suite immédiate, elle se lit
+  // juste sous le niveau estimé. Parcours rapide : le rapport mène d'abord au
+  // plan, et le profil reste à compléter plus bas, sans pression.
+  const complete = parcours === "COMPLET";
 
   return (
     <DiagnosticShell>
@@ -1578,6 +1515,8 @@ function DiagnosticResult({
           <Info size={15} aria-hidden />
           Cette estimation est pédagogique : elle ne remplace pas un résultat officiel du TCF.
         </p>
+
+        {complete && <DiagnosticProfileCard emphasis="next" />}
 
         {/* ------------------------------------------------ avant / après */}
         {exemple && (
@@ -1735,6 +1674,8 @@ function DiagnosticResult({
             <ProductionSummary kind="oral" production={result.oral} />
           </div>
         </section>
+
+        {!complete && <DiagnosticProfileCard emphasis="later" />}
 
         {/* ------------------------------------------------------ CTA final */}
         <section className={styles.finalCard}>

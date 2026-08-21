@@ -20,6 +20,7 @@ import '../../core/widgets/screen_header.dart';
 import '../tcf_production/audio_recorder_service.dart';
 import '../tcf_production/recommended_exercise_launcher.dart';
 import 'diagnostic_controller.dart';
+import 'diagnostic_variant.dart';
 import 'widgets/diagnostic_account_gate.dart';
 import 'widgets/diagnostic_analysis.dart';
 import 'widgets/diagnostic_common.dart';
@@ -276,6 +277,9 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     final state = ref.watch(diagnosticControllerProvider);
     final recording = ref.watch(recordingControllerProvider);
     final objective = ref.watch(userTargetLevelProvider)?.wire;
+    // Une intention de front, jamais persistée : elle ne change pas le parcours
+    // joué, seulement ce que le bilan enchaîne (cf. `diagnostic_variant.dart`).
+    final variant = ref.watch(diagnosticVariantProvider);
 
     _hydrateWriting(state);
 
@@ -320,7 +324,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
             children: [
               ScreenHeader(
                 title: 'Diagnostic TCF',
-                sub: _headerSub(state),
+                sub: _headerSub(state, variant),
                 onBack:
                     state.isSubmitting || state.isSyncing ? null : _confirmBack,
               ),
@@ -329,6 +333,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
                   state: state,
                   recording: recording,
                   objective: objective,
+                  variant: variant,
                 ),
               ),
             ],
@@ -342,8 +347,15 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     required DiagnosticFlowState state,
     required RecordingState recording,
     required String? objective,
+    required DiagnosticVariant variant,
   }) {
-    if (state.isGuest) return _guestContent(state: state, recording: recording);
+    if (state.isGuest) {
+      return _guestContent(
+        state: state,
+        recording: recording,
+        variant: variant,
+      );
+    }
 
     if (state.isSyncing) return DiagnosticSendingView(stage: state.syncStage);
     if (state.canRetrySync) {
@@ -389,6 +401,8 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           // mesures viennent alors du catalogue public, chargé en repli.
           written: journey.written ?? state.subjects?.written,
           oral: journey.oral ?? state.subjects?.oral,
+          variant: variant,
+          onVariantChanged: _onVariantChanged,
           onStart: () => unawaited(_startAuthenticated()),
         ),
       DiagnosticStep.written when journey.written != null =>
@@ -420,6 +434,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           // déjà résolu sur le compte, jamais une règle « étape 1 ouverte »
           // réécrite côté app.
           hasTcfAccess: _hasTcfAccess,
+          variant: variant,
           onOpenPlan: () => context.go(AppRoutes.plan),
           onOpenRecommended: _openRecommended,
           // Même feuille que le Plan et les Compétences : un seul parcours
@@ -440,6 +455,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   Widget _guestContent({
     required DiagnosticFlowState state,
     required RecordingState recording,
+    required DiagnosticVariant variant,
   }) {
     final subjects = state.subjects;
     if (subjects == null) {
@@ -456,6 +472,8 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           written: subjects.written,
           oral: subjects.oral,
           isGuest: true,
+          variant: variant,
+          onVariantChanged: _onVariantChanged,
           onStart: _startGuest,
         ),
       DiagnosticGuestStep.written => DiagnosticWrittenStep(
@@ -485,6 +503,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
       DiagnosticGuestStep.accountRequired => DiagnosticAccountGate(
           errorMessage: state.errorMessage,
           noticeMessage: state.noticeMessage,
+          variantNote: diagnosticVariantAccountNote(variant),
           onRegister: _openRegister,
           onLogin: _openLogin,
         ),
@@ -501,11 +520,24 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     _track(AudienceEvent.diagnosticStarted);
   }
 
-  String _headerSub(DiagnosticFlowState state) {
+  /// Le choix du candidat, gardé **en mémoire de processus** : aucune ligne en
+  /// base, aucun champ envoyé au serveur, et donc rien à nettoyer si l'app se
+  /// ferme — on retombe alors sur le diagnostic rapide.
+  void _onVariantChanged(DiagnosticVariant variant) =>
+      ref.read(diagnosticVariantProvider.notifier).state = variant;
+
+  String _headerSub(DiagnosticFlowState state, DiagnosticVariant variant) {
     if (state.isSyncing) return 'Envoi de vos réponses';
+    // Le sous-titre de la présentation suit la variante, comme la pilule de
+    // budget de l'écran : deux chiffres différents pour le même écran se
+    // liraient comme une contradiction.
     if (state.isGuest) {
       return switch (state.guestStep) {
-        DiagnosticGuestStep.presentation => '2 exercices · environ 8 à 10 min',
+        DiagnosticGuestStep.presentation => diagnosticVariantHeaderSub(
+            variant,
+            state.subjects?.written,
+            state.subjects?.oral,
+          ),
         DiagnosticGuestStep.written => 'Étape 1 sur 2 · Écrit',
         DiagnosticGuestStep.oral => 'Étape 2 sur 2 · Oral',
         DiagnosticGuestStep.accountRequired => 'Analyser mes réponses',
@@ -513,7 +545,11 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     }
     final journey = state.journey;
     if (journey == null || journey.nextStep == DiagnosticStep.presentation) {
-      return '2 exercices · environ 8 à 10 min';
+      return diagnosticVariantHeaderSub(
+        variant,
+        journey?.written ?? state.subjects?.written,
+        journey?.oral ?? state.subjects?.oral,
+      );
     }
     return _stepLabel(journey.nextStep);
   }

@@ -20,12 +20,19 @@ class DiagnosticAccountGate extends StatelessWidget {
     required this.onLogin,
     this.errorMessage,
     this.noticeMessage,
+    this.variantNote,
   });
 
   final VoidCallback onRegister;
   final VoidCallback onLogin;
   final String? errorMessage;
   final String? noticeMessage;
+
+  /// Ce qui est annoncé pour **après** l'analyse quand le candidat a choisi le
+  /// diagnostic complet : la compréhension ne se joue pas en invité, elle
+  /// l'attend de l'autre côté du compte. `null` en rapide — il n'y a rien de
+  /// plus à dire.
+  final String? variantNote;
 
   @override
   Widget build(BuildContext context) {
@@ -127,6 +134,10 @@ class DiagnosticAccountGate extends StatelessWidget {
                   ],
                 ),
               ),
+              if (variantNote != null) ...[
+                const SizedBox(height: 12),
+                _VariantNoteBanner(message: variantNote!),
+              ],
               if (noticeMessage != null) ...[
                 const SizedBox(height: 12),
                 _NoticeBanner(message: noticeMessage!),
@@ -316,6 +327,43 @@ class _ExampleLevel extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(level, style: AppFonts.display(size: 22)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Ce qui vient après l'analyse, dit en bleu : une information de parcours,
+/// jamais une alerte.
+class _VariantNoteBanner extends StatelessWidget {
+  const _VariantNoteBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(color: AppColors.blueLight),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(LucideIcons.listChecks, size: 18, color: AppColors.blue),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              message,
+              style: AppFonts.ui(
+                size: 13,
+                color: AppColors.inkSoft,
+                height: 1.4,
+              ),
+            ),
+          ),
         ],
       ),
     );
