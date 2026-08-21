@@ -16,6 +16,7 @@ class GradientHero extends StatelessWidget {
     this.from = AppColors.blueDark,
     this.to = AppColors.blue,
     this.padding = const EdgeInsets.all(20),
+    this.borderRadius,
   });
 
   final Widget child;
@@ -23,14 +24,21 @@ class GradientHero extends StatelessWidget {
   final Color to;
   final EdgeInsets padding;
 
+  /// Rayon du bloc. `null` = le grand rayon des maquettes. On le surcharge
+  /// quand le héros est le **bandeau haut d'une carte** qui porte autre chose
+  /// en dessous (bande des domaines du rapport de diagnostic) : ses coins bas
+  /// doivent alors être droits, sinon la carte laisse voir deux échancrures
+  /// blanches sous le dégradé.
+  final BorderRadius? borderRadius;
+
   @override
   Widget build(BuildContext context) {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         gradient: AppGradients.hero(from, to),
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.md,
+        borderRadius: borderRadius ?? BorderRadius.circular(AppRadii.xl),
+        boxShadow: borderRadius == null ? AppShadows.md : null,
       ),
       child: Stack(
         children: [

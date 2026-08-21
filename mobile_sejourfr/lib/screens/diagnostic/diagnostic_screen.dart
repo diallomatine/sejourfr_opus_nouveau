@@ -26,6 +26,7 @@ import 'widgets/diagnostic_analysis.dart';
 import 'widgets/diagnostic_common.dart';
 import 'widgets/diagnostic_intro.dart';
 import 'widgets/diagnostic_oral.dart';
+import 'widgets/diagnostic_report_labels.dart';
 import 'widgets/diagnostic_result.dart';
 import 'widgets/diagnostic_sync.dart';
 import 'widgets/diagnostic_written.dart';
@@ -323,7 +324,14 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           child: Column(
             children: [
               ScreenHeader(
-                title: 'Diagnostic TCF',
+                // Une fois le rapport rendu, l'en-tête EST le titre de la
+                // maquette (« Votre rapport ») : l'écran a cessé d'être un
+                // parcours, il est devenu un document. C'est ce qui permet au
+                // corps de commencer directement par la carte de niveau, sans
+                // badge ni titre-phrase.
+                title: _showsReport(state)
+                    ? kDiagnosticReportTitle
+                    : 'Diagnostic TCF',
                 sub: _headerSub(state, variant),
                 onBack:
                     state.isSubmitting || state.isSyncing ? null : _confirmBack,
@@ -526,8 +534,23 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   void _onVariantChanged(DiagnosticVariant variant) =>
       ref.read(diagnosticVariantProvider.notifier).state = variant;
 
+  /// Le rapport est-il à l'écran ? Il ne l'est qu'une fois le parcours
+  /// authentifié arrivé à son terme — jamais en invité, jamais en cours
+  /// d'analyse.
+  bool _showsReport(DiagnosticFlowState state) =>
+      !state.isGuest &&
+      !state.isSyncing &&
+      state.noticeMessage == null &&
+      state.journey?.nextStep == DiagnosticStep.result &&
+      state.journey?.result != null;
+
   String _headerSub(DiagnosticFlowState state, DiagnosticVariant variant) {
     if (state.isSyncing) return 'Envoi de vos réponses';
+    if (_showsReport(state)) {
+      return _hasTcfAccess
+          ? kDiagnosticReportSubPremium
+          : kDiagnosticReportSubFree;
+    }
     // Le sous-titre de la présentation suit la variante, comme la pilule de
     // budget de l'écran : deux chiffres différents pour le même écran se
     // liraient comme une contradiction.
@@ -567,7 +590,9 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
         DiagnosticStep.written => 'Étape 1 sur 2 · Écrit',
         DiagnosticStep.oral => 'Étape 2 sur 2 · Oral',
         DiagnosticStep.analysis => 'Analyse personnalisée',
-        DiagnosticStep.result => 'Vos priorités',
+        // Le rapport passe par `_headerSub`, qui distingue l'estimation
+        // gratuite du rapport complet ; cette entrée ne sert plus que de repli.
+        DiagnosticStep.result => kDiagnosticReportSubFree,
         DiagnosticStep.presentation => 'Présentation',
       };
 }

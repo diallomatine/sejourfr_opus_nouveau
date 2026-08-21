@@ -1222,14 +1222,15 @@
 /* ============================================================================
    Écran RÉSULTAT du diagnostic.
 
-   Langage visuel repris de `docs/diagnostiques/diagnostique.html` : badge de fin
-   vert, bandeau en dégradé bleu avec anneau décoratif, cartes à grands rayons,
-   pastilles de statut colorées, carte de priorité rosée, encart CTA. Couleurs
-   **exclusivement** issues des tokens (`var(--color-*)`), teintes manquantes
-   dérivées en `color-mix()`.
+   Géométrie de la maquette « rapport » du propriétaire, adaptée au desktop :
+   un titre, UNE carte de niveau (bandeau bleu + pied de quatre domaines), les
+   priorités, les points forts, le plan, le paywall. Couleurs **exclusivement**
+   issues des tokens (`var(--color-*)`), teintes manquantes dérivées en
+   `color-mix()`.
 
    ⚠️ Ce que la maquette contient et qu'on NE reprend PAS : aucune « formule »
-   inventée, aucun pourcentage de progression. Ce qui est affiché vient du DTO.
+   inventée, aucun pourcentage de progression, et **pas son tutoiement** — elle
+   donne la direction visuelle, le registre reste celui de l'application.
    ============================================================================ */
 
 .result {
@@ -1241,32 +1242,17 @@
   max-width: 62ch;
 }
 
-.doneBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 11px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-green) 12%, var(--color-paper));
-  color: var(--color-green);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+/* Titre éditorial : Fraunces (règle d'identité du dépôt). */
+.resultHeader h1 {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 44px);
+  line-height: 1.06;
+  letter-spacing: -0.035em;
 }
 
-.doneBadge i {
-  display: grid;
-  place-items: center;
-  width: 17px;
-  height: 17px;
-  border-radius: 50%;
-  background: var(--color-green);
-  color: var(--color-paper);
-}
-
-.resultEyebrow {
-  margin: 16px 0 0;
+/* Le sous-titre dit d'emblée si le candidat lit tout ou une partie. */
+.reportSub {
+  margin: 10px 0 0;
   color: var(--color-muted);
   font-family: var(--font-mono);
   font-size: 11px;
@@ -1275,196 +1261,40 @@
   text-transform: uppercase;
 }
 
-/* Titre éditorial : Fraunces, `<em>` en rouge (règle d'identité du dépôt). */
-.resultHeader h1 {
-  margin: 10px 0 0;
-  font-size: clamp(28px, 5vw, 44px);
-  line-height: 1.06;
-  letter-spacing: -0.035em;
-}
+/* ============================================================================
+   La carte de NIVEAU — une seule carte pour tout ce qui décrit le niveau
+   ----------------------------------------------------------------------------
+   Bandeau bleu : le palier global estimé, un filet, l'objectif plus discret, une
+   phrase, puis le rail A2 → B1 → B2 en variante sombre. Et, dans le MÊME cadre,
+   un pied de quatre colonnes : le niveau de chaque domaine, ou « — ».
 
-.resultHeader h1 em {
-  color: var(--color-red);
-  font-style: italic;
-}
+   🛑 **C'est ce pied qui a remplacé la section « Votre profil TCF »** — le
+   profil n'a plus de bloc à lui, et c'est ce qui rend l'écran épuré. Ne pas lui
+   en redonner un : les lignes « Compléter mon profil » vivent sur /plan.
+   ============================================================================ */
 
-.resultLead {
-  max-width: 64ch;
-  margin: 12px 0 0;
-  color: var(--color-muted);
-  font-size: 15.5px;
-  line-height: 1.55;
-}
-
-/* ------------------------------- niveaux estimés + carte de décision */
-
-/* Le bandeau porte l'état constaté, la carte porte la décision : côte à côte
-   au-dessus de 860 px, empilés en dessous (l'action passe alors juste sous le
-   niveau, sans défilement intermédiaire). */
-.heroGrid {
-  display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 18px;
-  align-items: stretch;
-}
-
-.heroGrid > * {
-  min-width: 0;
-}
-
-.convCard {
-  display: flex;
-  flex-direction: column;
-  padding: clamp(18px, 3vw, 24px);
+.levelCard {
+  overflow: hidden;
   border: 1px solid var(--color-line);
   border-radius: 25px;
   background: var(--color-paper);
-  box-shadow: 0 18px 44px color-mix(in srgb, var(--color-ink) 7%, transparent);
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--color-blue) 20%, transparent);
 }
 
-.convCard h2 {
-  margin: 0;
-  color: var(--color-ink);
-  font-size: clamp(20px, 2.8vw, 26px);
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-}
-
-.convLead {
-  margin: 9px 0 0;
-  color: var(--color-muted);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.convList {
-  display: grid;
-  gap: 8px;
-  margin: 16px 0 18px;
-  padding: 0;
-  list-style: none;
-}
-
-.convItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  padding: 11px 13px;
-  border: 1px solid var(--color-line-2);
-  border-radius: 16px;
-  background: var(--color-blue-soft);
-}
-
-/* Ambre : dans cette application, c'est la couleur de « à travailler », et c'est
-   déjà celle des priorités ailleurs. L'intensité DÉCROÎT du rang 1 au rang 3,
-   pour que la teinte dise le rang au lieu de décorer — trois pastilles
-   identiques ne hiérarchisaient rien. Les fonds sont dérivés du token par
-   `color-mix`, jamais une teinte nouvelle ; le texte reste `--color-amber-dark`,
-   le seul ambre lisible en lettres (`--color-amber` est un ambre de
-   remplissage). */
-.convRank {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  flex: none;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--color-amber) 16%, white);
-  color: var(--color-amber-dark);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.convRank[data-rank="1"] {
-  background: color-mix(in srgb, var(--color-amber) 28%, white);
-}
-
-.convRank[data-rank="3"] {
-  background: color-mix(in srgb, var(--color-amber) 9%, white);
-}
-
-.convCopy {
-  min-width: 0;
-}
-
-.convCopy b {
-  display: block;
-  color: var(--color-ink);
-  font-size: 13.5px;
-  line-height: 1.3;
-}
-
-.convCopy span {
-  display: block;
-  margin-top: 3px;
-  color: var(--color-muted);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-/* Les deux actions vivent en pied de carte : sur une carte plus courte que le
-   bandeau des niveaux, elles restent alignées sur son bas. */
-.convCard .primaryButton {
-  width: 100%;
-  margin-top: auto;
-  padding-top: 14px;
-  padding-bottom: 14px;
-}
-
-.convCard .secondaryButton {
-  width: 100%;
-  margin-top: 8px;
-}
-
-.convMicro {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin: 12px 0 0;
-  color: var(--color-muted-2);
-  font-size: 11.5px;
-  text-align: center;
-}
-
-.convMicro svg {
-  flex: none;
-  color: var(--color-green);
-}
-
-/* ----------------------------------------------------- bandeau des niveaux */
-
-/* Au-dessus de 860 px, cette carte est étirée par `.heroGrid` sur la hauteur de
-   la carte de décision, qui est bien plus haute (titre + 3 priorités + 2
-   boutons). En flux normal son contenu restait massé en haut et la moitié basse
-   du bleu était vide. Colonne flex : les tuiles absorbent l'étirement, le pied
-   descend au bas de la carte avec son filet. En dessous de 860 px la grille
-   passe en une colonne, plus rien n'étire, et la carte reprend sa hauteur
-   naturelle — ces règles y sont alors sans effet. */
-.levelHero {
+.levelTop {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  overflow: hidden;
-  padding: clamp(20px, 3.5vw, 26px);
-  border-radius: 25px;
+  padding: clamp(19px, 3.4vw, 28px);
   color: var(--color-paper);
   background: linear-gradient(135deg, var(--color-blue-dark), var(--color-blue));
-  box-shadow: 0 18px 38px color-mix(in srgb, var(--color-blue) 22%, transparent);
 }
 
-/* Deux anneaux, comme la maquette : le grand en haut à droite, le petit plein
-   en bas à gauche. Ils donnent sa profondeur au bleu de marque — un aplat seul
-   se confond avec le CTA final, qui porte le même dégradé. Sur la carte étirée
-   ils travaillent aussi : c'est eux qui habitent la bande basse, entre les
-   tuiles et le pied. */
-.levelHero::after {
+/* Un seul anneau, en haut à droite : il donne sa profondeur au bleu de marque,
+   qui sinon se confond avec l'aplat du CTA final. */
+.levelTop::after {
   content: "";
   position: absolute;
-  top: -72px;
-  right: -64px;
+  top: -74px;
+  right: -62px;
   width: 190px;
   height: 190px;
   border: 30px solid color-mix(in srgb, var(--color-paper) 7%, transparent);
@@ -1472,120 +1302,164 @@
   pointer-events: none;
 }
 
-.levelHero::before {
-  content: "";
-  position: absolute;
-  bottom: -58px;
-  left: -50px;
-  width: 148px;
-  height: 148px;
-  border: 1px solid color-mix(in srgb, var(--color-paper) 10%, transparent);
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--color-paper) 4%, transparent);
-  pointer-events: none;
-}
-
-.levelHeroLabel {
+.levelTop > * {
   position: relative;
   z-index: 1;
+}
+
+.levelEyebrow {
   margin: 0;
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  opacity: 0.75;
+  opacity: 0.8;
 }
 
-.levelHeroGrid {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-content: stretch;
-  gap: 12px;
-}
-
-/* `flex: 1` : c'est la grille des paliers qui prend la hauteur en trop, pas un
-   blanc entre les blocs. `max-height` borne l'étirement — au-delà, une tuile de
-   ~220 px de large devient une colonne et le palier flotte au milieu de rien ;
-   le reste de la hauteur revient à la bande basse décorée. Réservé au régime
-   deux colonnes : c'est le seul où la carte est étirée, et le seul où le contenu
-   d'une tuile ne peut pas approcher ce plafond (donc être rogné par
-   l'`overflow: hidden` de la carte). */
-@media (min-width: 861px) {
-  .levelHeroGrid {
-    flex: 1 1 auto;
-    max-height: 300px;
-  }
-}
-
-/* Libellé en haut, palier calé en bas : sur une tuile étirée le chiffre devient
-   l'ancre du bloc au lieu de rester collé à son libellé. Sur une tuile à
-   hauteur naturelle (une colonne, sous 620 px), `gap` reprend la main et le
-   rendu est celui d'avant. */
-.levelHeroGrid > div {
+.levelPair {
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 9px;
-  padding: clamp(15px, 1.8vw, 20px);
-  border-radius: 17px;
-  background: color-mix(in srgb, var(--color-paper) 12%, transparent);
+  align-items: stretch;
+  gap: 16px;
+  margin-top: 12px;
 }
 
-.levelHeroGrid span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
+/* Le palier est le héros de la carte. « A1 non atteint » est un libellé long :
+   il doit passer à la ligne plutôt que déborder à 360 px. */
+.levelValue {
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(36px, 5.6vw, 52px);
   font-weight: 700;
-  opacity: 0.85;
-}
-
-/* Le palier est le héros de la tuile, comme dans la maquette. « A1 non atteint »
-   est un libellé long : il doit pouvoir passer à la ligne plutôt que déborder du
-   bandeau à 360 px, et la pente en `vw` est volontairement douce — c'est entre
-   860 et 1000 px que la colonne est la plus étroite, pas au plus large. */
-.levelHeroGrid b {
-  font-size: clamp(28px, 3.4vw, 44px);
-  font-weight: 800;
   letter-spacing: -0.04em;
-  line-height: 1.05;
+  line-height: 1.04;
   overflow-wrap: anywhere;
 }
 
-/* `margin-top: auto` : le pied — et surtout son filet — descend au bas de la
-   carte quand elle est étirée, au lieu de laisser le vide en dessous de lui. */
-.levelHeroFoot {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px 16px;
-  margin: auto 0 0;
-  padding-top: 14px;
-  border-top: 1px solid color-mix(in srgb, var(--color-paper) 16%, transparent);
-  font-size: 12px;
-  font-weight: 700;
+.levelRule {
+  flex: none;
+  width: 1px;
+  background: color-mix(in srgb, var(--color-paper) 25%, transparent);
 }
 
-.levelHeroFoot > span:last-child {
-  font-weight: 500;
+.levelGoal {
+  min-width: 0;
+}
+
+/* L'objectif est une donnée SECONDAIRE : même famille que le palier estimé,
+   plus petit et estompé. Il ne doit jamais se lire comme un second constat. */
+.levelGoal p:first-child {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   opacity: 0.72;
 }
 
-.levelHeroFoot b {
-  font-size: 14px;
+.levelGoal p:last-child {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(24px, 3.6vw, 34px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.18;
+  opacity: 0.62;
+  overflow-wrap: anywhere;
 }
 
+.levelText {
+  max-width: 58ch;
+  margin: 13px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  opacity: 0.9;
+}
+
+.levelRail {
+  margin-top: 16px;
+}
+
+/* Le pied : les quatre domaines, dans l'ordre SERVI (par urgence). On ne
+   retrie pas, et un domaine sans mesure affiche « — » — il manque des données,
+   ce n'est pas une faiblesse. */
+.levelDomains {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.levelDomains > li {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  padding: 12px 8px;
+  text-align: center;
+}
+
+.levelDomains > li + li {
+  border-left: 1px solid var(--color-line-2);
+}
+
+.levelDomains b {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.levelDomains > li[data-evaluated="0"] b {
+  color: var(--color-muted-2);
+}
+
+.levelDomains abbr {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* La note « il reste la compréhension à mesurer » : discrète, sous la carte —
+   jamais un encart, jamais un reproche. */
+.levelNote {
+  max-width: 68ch;
+  margin: -14px 0 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* Sous 420 px, « A1 non atteint » ne tient plus dans une colonne sur quatre :
+   la bande passe en deux rangées plutôt que de casser un palier en trois
+   lignes. */
+@media (max-width: 420px) {
+  .levelDomains {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .levelDomains > li:nth-child(odd) {
+    border-left: none;
+  }
+
+  .levelDomains > li:nth-child(n + 3) {
+    border-top: 1px solid var(--color-line-2);
+  }
+}
+
+/* La mention d'estimation, en pied de rapport. */
 .note {
   display: flex;
   align-items: flex-start;
   gap: 9px;
-  margin: -14px 0 0;
+  margin: 0;
   color: var(--color-muted);
   font-size: 12.5px;
   line-height: 1.45;
@@ -1595,219 +1469,6 @@
   flex: none;
   margin-top: 1px;
   color: var(--color-blue);
-}
-
-/* ============================================================================
-   Votre profil TCF — les 4 domaines, et par quoi compléter les manquants
-   ----------------------------------------------------------------------------
-   🛑 Aucun ton de reproche ici : un domaine sans mesure affiche « — » et
-   « Pas encore évaluée ». Il manque des données, ce n'est pas une faiblesse.
-   ============================================================================ */
-
-.profileCard {
-  display: grid;
-  gap: 18px;
-  padding: clamp(18px, 3vw, 26px);
-  border: 1px solid var(--color-line);
-  border-radius: 25px;
-  background: var(--color-paper);
-  box-shadow: 0 18px 44px color-mix(in srgb, var(--color-ink) 7%, transparent);
-}
-
-.profileHead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px 22px;
-}
-
-.profileHead > div {
-  min-width: 0;
-}
-
-.profileHead h2 {
-  margin: 0;
-  color: var(--color-ink);
-  font-size: clamp(19px, 2.4vw, 22px);
-  letter-spacing: -0.02em;
-}
-
-.profileHead p {
-  margin: 4px 0 0;
-  color: var(--color-muted);
-  font-size: 13px;
-}
-
-.profileGrid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.profileGrid > li {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  min-width: 0;
-  padding: 13px 14px;
-  border: 1px solid var(--color-line-2);
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--color-paper-2) 45%, white);
-}
-
-/* Un domaine sans mesure reste LISIBLE : on l'estompe, on ne le grise pas au
-   point de le faire passer pour indisponible. */
-.profileGrid > li[data-evaluated="0"] {
-  background: transparent;
-  border-style: dashed;
-}
-
-.profileBody {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-}
-
-.profileBody b {
-  color: var(--color-ink);
-  font-size: 17px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
-}
-
-.profileGrid > li[data-evaluated="0"] .profileBody b {
-  color: var(--color-muted-2);
-}
-
-.profileBody > span {
-  color: var(--color-muted);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.35;
-}
-
-.profileComplete {
-  display: grid;
-  gap: 12px;
-  padding-top: 17px;
-  border-top: 1px solid var(--color-line-2);
-}
-
-.profileCompleteHead {
-  margin: 0;
-}
-
-.profileCompleteHead b {
-  display: block;
-  color: var(--color-ink);
-  font-size: 15px;
-  font-weight: 800;
-}
-
-.profileCompleteHead > span {
-  display: block;
-  max-width: 66ch;
-  margin-top: 4px;
-  color: var(--color-muted);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.profileRows {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.profileRow {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--color-line);
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--color-paper-2) 45%, white);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.profileRow:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--color-blue) 40%, var(--color-line));
-}
-
-.profileRow:disabled {
-  cursor: progress;
-  opacity: 0.65;
-}
-
-.profileRow:focus-visible {
-  outline: 2px solid var(--color-blue);
-  outline-offset: 2px;
-}
-
-/* La première marche du parcours complet : c'est elle que le candidat vient
-   chercher, elle porte donc l'action principale. */
-.profileRowLead {
-  border-color: color-mix(in srgb, var(--color-blue) 45%, var(--color-line));
-  background: linear-gradient(180deg, var(--color-blue-light) 0%, var(--color-paper) 70%);
-}
-
-.profileRow .profileBody b {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0;
-}
-
-.profileRowCta {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: 5px;
-  color: var(--color-blue);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.profileRowLead .profileRowCta {
-  padding: 8px 13px;
-  border-radius: 12px;
-  background: var(--color-blue);
-  color: var(--color-paper);
-}
-
-.profileNote {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 12.5px;
-  line-height: 1.45;
-}
-
-@media (max-width: 860px) {
-  .profileGrid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 520px) {
-  .profileRow {
-    flex-wrap: wrap;
-  }
-
-  .profileRowCta {
-    width: 100%;
-    justify-content: center;
-  }
 }
 
 /* --------------------------------------------------------- intertitres */
@@ -1831,339 +1492,218 @@
   line-height: 1.45;
 }
 
-/* ----------------------------------------- ce que le diagnostic révèle */
+/* ------------------------------------------------------ vos points forts */
 
-.snapshot {
-  padding: 8px 18px;
+/* Une ligne par compétence solide : une coche, le libellé, son domaine. Pas de
+   repli à ouvrir, pas d'explication — ce qui est solide se constate, ce qui est
+   fragile s'explique (et ne s'explique QUE sur la première priorité). */
+.strengthList {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 6px 16px;
   border: 1px solid var(--color-line);
   border-radius: 22px;
   background: var(--color-paper);
+  list-style: none;
   box-shadow: 0 12px 30px color-mix(in srgb, var(--color-ink) 6%, transparent);
 }
 
-.snapshotStrengths {
-  padding: 14px 0;
-  border-bottom: 1px solid var(--color-line-2);
+.strengthList > li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  padding: 12px 0;
 }
 
-.snapshotStrengths b {
-  color: var(--color-green);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.snapshotStrengths ul {
-  display: grid;
-  gap: 5px;
-  margin: 8px 0 0;
-  padding-left: 19px;
-  color: var(--color-ink-2);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-/* Encart rétractable : la ligne porte le verdict, le détail vit derrière un
-   clic. La grille est sur l'en-tête, pas sur la carte — sinon `<details>` ne
-   peut plus empiler son contenu déplié sous le titre. */
-.snapshotRow + .snapshotRow {
+.strengthList > li + li {
   border-top: 1px solid var(--color-line-2);
 }
 
-.snapshotHead {
+.strengthMark {
   display: grid;
-  grid-template-columns: 39px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 13px 0;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-green) 14%, transparent);
+  color: var(--color-green);
 }
 
-details.snapshotRow > .snapshotHead {
-  grid-template-columns: 39px minmax(0, 1fr) auto auto;
+.strengthList b {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.strengthList > li > span:last-child {
+  flex: none;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Sous 520 px, le domaine passe sous le libellé : à droite, il le comprimait à
+   deux mots par ligne. */
+@media (max-width: 520px) {
+  .strengthList > li {
+    flex-wrap: wrap;
+  }
+
+  .strengthList > li > span:last-child {
+    flex: 1 1 100%;
+    padding-left: 33px;
+  }
+}
+/* ------------------------------------------------------- les priorités */
+
+/* Une LISTE, plus trois cartes côte à côte : la densité de la maquette. Chaque
+   ligne porte son rang, son libellé et son domaine ; seule la PREMIÈRE porte le
+   « pourquoi » et la preuve — c'est celle par laquelle le plan commence, et la
+   seule visible sans abonnement. Répéter l'explication sur trois cartes est
+   exactement ce qui avait alourdi l'écran. */
+.leverList {
+  display: grid;
+  margin: 0;
+  padding: 0 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  background: var(--color-paper);
+  list-style: none;
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--color-ink) 6%, transparent);
+}
+
+/* La grille est sur l'EN-TÊTE, pas sur la ligne : sinon `<details>` ne peut
+   plus empiler son contenu déplié sous le titre. */
+.leverList > li + li {
+  border-top: 1px solid var(--color-line-2);
+}
+
+.leverHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  min-width: 0;
+  padding: 15px 0;
+}
+
+details.leverRow > .leverHead {
   cursor: pointer;
   list-style: none;
 }
 
 /* Safari/Chrome posent leur propre triangle : on le retire, on rend le nôtre. */
-details.snapshotRow > .snapshotHead::-webkit-details-marker {
+details.leverRow > .leverHead::-webkit-details-marker {
   display: none;
 }
 
-details.snapshotRow > .snapshotHead:focus-visible {
+details.leverRow > .leverHead:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
   outline-offset: 2px;
   border-radius: 12px;
 }
 
-.snapshotChevron {
+.leverChevron {
   flex: none;
+  margin-top: 6px;
   color: var(--color-muted-2);
   transition: transform 0.18s ease;
 }
 
-details.snapshotRow[open] .snapshotChevron {
+details.leverRow[open] .leverChevron {
   transform: rotate(180deg);
 }
 
-/* Aligné sous le titre, pas sous le pictogramme : 39px + la gouttière. */
-.snapshotDetail {
-  padding: 0 0 13px 51px;
+/* Aligné sous le libellé, pas sous la pastille de rang : 30px + la gouttière. */
+.leverDetail {
+  padding: 0 0 15px 43px;
 }
 
-.snapshotDetail p {
+.leverDetail p {
   margin: 0;
   color: var(--color-muted);
   font-size: 12.5px;
   line-height: 1.5;
 }
 
-.snapshotDetail .snapshotEvidence {
-  margin-top: 7px;
-  color: var(--color-muted-2);
-  font-size: 12px;
-}
-
-.snapshotIcon {
+/* Ambre : dans cette application, c'est la couleur de « à travailler », et c'est
+   déjà celle des priorités ailleurs. L'intensité DÉCROÎT du rang 1 au rang 3,
+   pour que la teinte dise le rang au lieu de décorer. Les fonds sont dérivés du
+   token par `color-mix`, jamais une teinte nouvelle ; le texte reste
+   `--color-amber-dark`, le seul ambre lisible en lettres. */
+.leverRank {
   display: grid;
   place-items: center;
-  width: 39px;
-  height: 39px;
-  border-radius: 13px;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-amber) 16%, white);
+  color: var(--color-amber-dark);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 800;
 }
 
-.snapshotRow b {
+.leverRank[data-rank="1"] {
+  background: color-mix(in srgb, var(--color-amber) 28%, white);
+}
+
+.leverRank[data-rank="3"] {
+  background: color-mix(in srgb, var(--color-amber) 9%, white);
+}
+
+.leverBody {
+  display: block;
+  flex: 1;
+  min-width: 0;
+}
+
+.leverBody b {
   display: block;
   color: var(--color-ink);
-  font-size: 13.5px;
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.35;
   overflow-wrap: anywhere;
-}
-
-.snapshotStatus {
-  flex: none;
-  padding: 6px 9px;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-/* Une seule échelle de teintes, partagée avec les signaux de production. */
-.snapshotRow[data-tone="good"] .snapshotIcon,
-.snapshotRow[data-tone="good"] .snapshotStatus {
-  background: color-mix(in srgb, var(--color-green) 12%, transparent);
-  color: var(--color-green);
-}
-
-.snapshotRow[data-tone="mid"] .snapshotIcon,
-.snapshotRow[data-tone="mid"] .snapshotStatus {
-  background: color-mix(in srgb, var(--color-amber) 16%, transparent);
-  color: var(--color-amber-dark);
-}
-
-/* Formule reprise telle quelle de `.badgePriority` du module Compétences : les
-   trois échelles de teintes doivent être les MÊMES d'un écran à l'autre. */
-.snapshotRow[data-tone="weak"] .snapshotIcon,
-.snapshotRow[data-tone="weak"] .snapshotStatus {
-  background: color-mix(in srgb, var(--color-red) 10%, transparent);
-  color: var(--color-red-dark);
-}
-
-.snapshotRow[data-tone="none"] .snapshotIcon,
-.snapshotRow[data-tone="none"] .snapshotStatus {
-  background: var(--color-paper-2);
-  color: var(--color-muted);
-}
-
-/* ---------------------------------------------------------- avant / après */
-
-.revealCard {
-  padding: clamp(18px, 3vw, 24px);
-  border: 1px solid var(--color-line);
-  border-radius: 25px;
-  background: var(--color-paper);
-  box-shadow: 0 14px 34px color-mix(in srgb, var(--color-ink) 6%, transparent);
-}
-
-.revealTop {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--color-line-2);
-}
-
-.revealTop h3 {
-  min-width: 0;
-  margin: 0;
-  color: var(--color-ink);
-  font-size: clamp(16px, 2.4vw, 20px);
-  letter-spacing: -0.02em;
-  line-height: 1.25;
-}
-
-/* Vert, comme `.impact` de la maquette : cette pilule annonce une PROGRESSION
-   (« vers B1 »), pas un niveau constaté. En bleu, elle se lisait comme une
-   étiquette de palier de plus et le bloc avant/après perdait son seul signal
-   positif. Le bleu reste la couleur de la marque et du niveau. */
-.revealImpact {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex: none;
-  padding: 8px 11px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-green) 12%, var(--color-paper));
-  color: var(--color-green);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-}
-
-.beforeAfter {
-  display: grid;
-  grid-template-columns: 1fr 52px 1fr;
-  align-items: center;
-  gap: 14px;
-  margin-top: 18px;
-}
-
-.beforeAfter > * {
-  min-width: 0;
-}
-
-.phrase,
-.phraseAfter {
-  align-self: stretch;
-  min-width: 0;
-}
-
-.phrase {
-  padding: 16px;
-  border: 1px solid var(--color-line);
-  border-radius: 19px;
-  background: var(--color-paper-2);
-}
-
-.phraseLabel {
-  margin: 0 0 9px;
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-.phrase blockquote {
-  margin: 0;
-  color: var(--color-ink-2);
-  font-size: 14px;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-
-.arrowBox {
-  display: grid;
-  place-items: center;
-}
-
-.arrowBox > span {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: var(--color-blue-light);
-  color: var(--color-blue);
-}
-
-/* ------------------------------------------------------- les priorités */
-
-.leverGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 13px;
-}
-
-.leverCard {
-  position: relative;
-  overflow: hidden;
-  padding: 18px;
-  border: 1px solid var(--color-line);
-  border-radius: 21px;
-  background: var(--color-paper);
-}
-
-/* Ambre, comme la maquette : le bleu est la couleur de la marque et du niveau,
-   l'ambre celle de « à travailler ». Les peindre en bleu les faisait se
-   confondre avec le hero et le plan, et retirait au bloc son seul signal. */
-.leverCard::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  height: 4px;
-  background: linear-gradient(
-    90deg,
-    var(--color-amber),
-    color-mix(in srgb, var(--color-amber) 35%, white)
-  );
-}
-
-.leverNum {
-  margin: 4px 0 0;
-  color: var(--color-amber-dark);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-.leverCard h3 {
-  margin: 8px 0 0;
-  color: var(--color-ink);
-  font-size: 16px;
-  letter-spacing: -0.015em;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
-}
-
-.leverText {
-  margin: 7px 0 0;
-  color: var(--color-muted);
-  font-size: 12.5px;
-  line-height: 1.5;
 }
 
 .leverMeta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 13px;
+  display: block;
+  margin-top: 3px;
+  color: var(--color-muted);
+  font-size: 12.5px;
+}
+
+.leverQuote {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 13px;
+  background: var(--color-blue-soft);
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 /* Pas de barre chiffrée : le score de maîtrise n'est exposé à aucun front. On
    rend l'état d'observation, aux teintes partagées avec les compétences. */
-.leverStatus,
-.leverSection {
+.leverStatus {
+  flex: none;
+  margin-top: 2px;
   padding: 6px 10px;
   border-radius: 999px;
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 800;
   white-space: nowrap;
-}
-
-.leverSection {
-  background: var(--color-paper-2);
-  color: var(--color-muted);
 }
 
 .leverStatus[data-tone="good"] {
@@ -2186,89 +1726,119 @@ details.snapshotRow[open] .snapshotChevron {
   color: var(--color-muted);
 }
 
-.leverQuote {
-  margin: 12px 0 0;
-  padding: 10px 12px;
-  border-radius: 13px;
-  background: var(--color-blue-soft);
-  color: var(--color-muted);
-  font-size: 12px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
+/* Sous 560 px, l'état passe sous le libellé plutôt que de comprimer la colonne
+   du milieu à deux mots par ligne. */
+@media (max-width: 560px) {
+  .leverHead {
+    flex-wrap: wrap;
+  }
 
+  /* `flex-basis: 100%` : sans lui, `.leverBody` se comprime au lieu de laisser
+     l'état passer à la ligne — c'est le libellé qui casserait, pas la ligne. */
+  .leverStatus {
+    order: 3;
+    flex: 1 1 100%;
+    margin: 9px 0 0 43px;
+  }
+}
 /* ------------------------------------------------------------ votre plan */
 
+/* Une seule carte : la priorité actuelle en tête, puis l'aperçu de la séance,
+   puis l'action. Trois cartes d'« étapes » empilées disaient la même chose que
+   la liste des priorités, dix lignes plus haut. */
 .planShell {
-  display: grid;
-  gap: 12px;
-  padding: clamp(16px, 3vw, 22px);
-  border: 1px solid color-mix(in srgb, var(--color-blue) 14%, var(--color-line));
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-blue) 22%, var(--color-line));
   border-radius: 26px;
-  background: linear-gradient(180deg, var(--color-paper), var(--color-blue-soft));
-}
-
-.planStep {
-  padding: 16px 17px;
-  border: 1px solid var(--color-line);
-  border-radius: 19px;
   background: var(--color-paper);
 }
 
-/* L'étape ouverte se distingue, comme `.day.free` de la maquette : bordure
-   bleutée + liseré intérieur. C'est la seule carte du plan sur laquelle on peut
-   cliquer tout de suite — au milieu d'étapes au trait neutre, rien ne le
-   disait. Sélecteur positionnel : la première carte du plan EST l'exercice
-   recommandé, les suivantes n'ont pas de CTA. */
-.planShell > .planStep:first-child {
-  border-color: color-mix(in srgb, var(--color-blue) 30%, var(--color-line));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-blue) 11%, white);
+.planHead {
+  padding: clamp(15px, 2.6vw, 20px) clamp(16px, 3vw, 22px) 15px;
+  background: linear-gradient(180deg, var(--color-blue-soft) 0%, transparent 84%);
 }
 
-.planStepNum {
+.planHeadEyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
   color: var(--color-blue);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 800;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.planStep h3 {
+.planHead h3 {
   margin: 8px 0 0;
   color: var(--color-ink);
-  font-size: 16px;
-  letter-spacing: -0.015em;
-  line-height: 1.3;
+  font-size: clamp(17px, 2.4vw, 20px);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
-.planStepText {
-  margin: 7px 0 0;
+.planHeadMeta {
+  margin: 4px 0 0;
   color: var(--color-muted);
-  font-size: 12.5px;
-  line-height: 1.5;
+  font-size: 13px;
 }
 
-.planStepMeta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 9px 0 0;
+/* La bascule « ce qui est à faire aujourd'hui » : un filet, pas une carte. */
+.planTodayLabel {
+  margin: 0;
+  padding: 12px clamp(16px, 3vw, 22px) 2px;
+  border-top: 1px solid var(--color-line-2);
   color: var(--color-muted);
   font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.planSteps {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 8px clamp(16px, 3vw, 22px) 0;
+  list-style: none;
+}
+
+.planSteps > li {
+  min-width: 0;
+  padding: 7px 0;
+}
+
+.planSteps b {
+  display: block;
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.planSteps span {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.planShell .planMore {
+  margin: 12px clamp(16px, 3vw, 22px) 0;
 }
 
 .planStepCta {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
-  margin-top: 13px;
+  min-height: 46px;
+  margin: 14px clamp(16px, 3vw, 22px) clamp(16px, 3vw, 20px);
   padding: 11px 18px;
   border-radius: 14px;
   background: var(--color-blue);
@@ -2284,32 +1854,12 @@ details.snapshotRow[open] .snapshotChevron {
 /* ============================================================================
    Freemium du rapport — ce qui reste À FAIRE se tease, ce qui est ÉTABLI reste
    ----------------------------------------------------------------------------
-   Restent entiers pour tout le monde : niveaux estimés, objectif, rail,
-   résumé, « avant / après », détail des deux productions, profil TCF. Ce sont
-   ses productions et ses mesures.
+   Restent entiers pour tout le monde : le palier global estimé, l'objectif,
+   le rail, les quatre domaines du profil et la première priorité avec son
+   explication. Ce sont ses productions et ses mesures.
    ⚠️ Ne vaut que pour CE rapport, écran de conversion — la règle « le Plan
    reste intégralement visible sans abonnement » est intacte sur /plan.
    ============================================================================ */
-
-/* Le CTA de tête, sous le chapeau : aligné à gauche comme le reste de
-   l'en-tête, jamais en colonne flottante qui casserait à 360 px. */
-.headUnlock {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 46px;
-  margin-top: 20px;
-  padding: 12px 20px;
-  border-radius: 14px;
-  background: var(--color-red);
-  color: var(--color-paper);
-  font-size: 14.5px;
-  font-weight: 700;
-}
-
-.headUnlock:hover {
-  background: var(--color-red-dark);
-}
 
 /* --------------------------------------------- le bloc « il y en a d'autres »
 
@@ -2487,169 +2037,6 @@ details.snapshotRow[open] .snapshotChevron {
   }
 }
 
-/* ------------------------------------------------------ les 2 productions */
-
-.productions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.production {
-  display: grid;
-  align-content: start;
-  gap: 12px;
-  padding: 17px;
-  border: 1px solid var(--color-line);
-  border-radius: 20px;
-  background: var(--color-paper);
-  box-shadow: 0 12px 30px color-mix(in srgb, var(--color-ink) 5%, transparent);
-}
-
-.productionHead {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-}
-
-/* Encart rétractable : l'épreuve et son niveau restent lisibles, le bilan
-   s'ouvre à la demande. `<details>` natif — accessible au clavier, sans état
-   React à gérer. */
-details.production > .productionHead {
-  cursor: pointer;
-  list-style: none;
-}
-
-details.production > .productionHead::-webkit-details-marker {
-  display: none;
-}
-
-details.production > .productionHead:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
-  outline-offset: 3px;
-  border-radius: 12px;
-}
-
-.productionChevron {
-  flex: none;
-  margin-left: auto;
-  color: var(--color-muted-2);
-  transition: transform 0.18s ease;
-}
-
-details.production[open] .productionChevron {
-  transform: rotate(180deg);
-}
-
-/* La carte est une grille : le détail se replie dans une seule cellule, donc il
-   porte lui-même l'espacement de ses blocs. */
-.productionDetail {
-  display: grid;
-  gap: 12px;
-}
-
-.productionIcon {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  flex: none;
-  border-radius: 13px;
-  background: var(--color-blue-light);
-  color: var(--color-blue);
-}
-
-.productionHead > div {
-  display: grid;
-  min-width: 0;
-}
-
-.productionHead b {
-  color: var(--color-ink);
-  font-size: 14px;
-}
-
-.productionHead span {
-  margin-top: 2px;
-  color: var(--color-blue);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.productionSummary {
-  margin: 0;
-  color: var(--color-ink-2);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.productionSignals {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.productionSignals li {
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.productionSignals li[data-tone="good"] {
-  background: color-mix(in srgb, var(--color-green) 12%, transparent);
-  color: var(--color-green);
-}
-
-.productionSignals li[data-tone="mid"] {
-  background: color-mix(in srgb, var(--color-amber) 16%, transparent);
-  color: var(--color-amber-dark);
-}
-
-.productionSignals li[data-tone="weak"] {
-  background: color-mix(in srgb, var(--color-red) 10%, transparent);
-  color: var(--color-red-dark);
-}
-
-.productionSignals li[data-tone="none"] {
-  background: var(--color-paper-2);
-  color: var(--color-muted);
-}
-
-.productionWeak {
-  padding-top: 12px;
-  border-top: 1px solid var(--color-line-2);
-}
-
-.productionWeak b {
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.productionWeak ul {
-  display: grid;
-  gap: 5px;
-  margin: 8px 0 0;
-  padding-left: 19px;
-  color: var(--color-ink-2);
-  font-size: 12.5px;
-  line-height: 1.45;
-}
-
-.emptyText {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 13px;
-}
-
 /* --------------------------------------------------------------- CTA final */
 
 .finalCard,
@@ -2766,8 +2153,8 @@ details.production[open] .productionChevron {
 
 /* -------------------------------------------- barre collante (mobile seul) */
 
-/* Rendue seulement sous 720 px : au-dessus, le CTA de la carte de décision est
-   encore à l'écran et une barre fixe ferait doublon. */
+/* Rendue seulement sous 720 px : au-dessus, le CTA de la carte de plan reste
+   atteignable sans effort et une barre fixe ferait doublon. */
 .stickyCta {
   display: none;
 }
@@ -2824,27 +2211,7 @@ details.production[open] .productionChevron {
   }
 }
 
-/* Sous cette largeur, la colonne ne tient plus trois cartes de priorité de
-   front, et l'avant/après passe en pile avec sa flèche pivotée. */
-@media (max-width: 860px) {
-  .heroGrid,
-  .leverGrid,
-  .beforeAfter {
-    grid-template-columns: 1fr;
-  }
-
-  .beforeAfter {
-    gap: 10px;
-  }
-
-  .arrowBox {
-    height: 42px;
-    transform: rotate(90deg);
-  }
-
-}
-
-/* La carte de décision reste visible jusque-là ; en dessous, la barre collante
+/* La carte de plan reste atteignable jusque-là ; en dessous, la barre collante
    prend le relais. */
 @media (max-width: 720px) {
   .stickyCta {
@@ -2870,13 +2237,6 @@ details.production[open] .productionChevron {
 }
 
 @media (max-width: 620px) {
-  /* Deux niveaux côte à côte tiennent jusqu'ici ; en dessous ils s'empilent
-     plutôt que de casser le chiffre sur deux lignes. */
-  .levelHeroGrid,
-  .productions {
-    grid-template-columns: 1fr;
-  }
-
   .finalPrimary,
   .finalGhost {
     width: 100%;
@@ -2892,16 +2252,6 @@ details.production[open] .productionChevron {
   .intro,
   .stateCard {
     border-radius: 18px;
-  }
-
-  .snapshotRow {
-    grid-template-columns: 39px minmax(0, 1fr);
-    row-gap: 8px;
-  }
-
-  .snapshotStatus {
-    grid-column: 2;
-    justify-self: start;
   }
 
   .primaryButton,

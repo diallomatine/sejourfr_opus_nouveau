@@ -545,6 +545,31 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   l'analyse coûte deux appels LLM. Il montre un **exemple** étiqueté comme tel (badge
   « EXEMPLE » + phrase « ce ne sont pas vos réponses ») et ouvre l'inscription **ou** la
   connexion avec `redirect=/diagnostic`.
+- **Écran de RÉSULTAT — refonte du 2026-08-21, d'après la maquette `MRapportGratuit`**
+  (`widgets/diagnostic_result.dart`, phrases dans `widgets/diagnostic_report_labels.dart`).
+  Ordre figé : **carte de niveau (bande des 4 domaines à son pied)** → note discrète →
+  *Vos principales priorités* → *Vos points forts* → *Votre plan personnalisé est prêt* →
+  carte d'offre → note d'estimation ; l'en-tête d'écran devient « Votre rapport » +
+  « Estimation d'entraînement Séjour » / « Rapport complet ».
+  🛑 **Trois blocs ont été RETIRÉS de cet écran et ne doivent pas y revenir** : le
+  « avant / après » (`exempleCible` — `ActionPlanExempleCard` reste intacte, elle sert les
+  rapports EE/EO et le résultat de compétence), le **détail des deux productions**, et la
+  section **« Compléter mon profil »**. La substance de la troisième vit dans la **bande des
+  quatre domaines** (le « — » dit ce qui manque) ; **le Plan continue de la servir chez lui**,
+  avec ses boutons de mesure.
+  🛑 **Le niveau global et le palier du rail viennent du serveur** (`cycle.startingLevel` /
+  `cycle.targetLevel`) : le plancher des quatre domaines est une règle serveur
+  (`TcfProfileService`), aucun front ne la rejoue à partir des deux estimations de production.
+  ⚠️ **Vouvoiement** : la maquette tutoie, mais elle ne donne que la direction **visuelle**.
+  Toutes les phrases sont des **miroirs mot pour mot du web** (`DiagnosticView.tsx` /
+  `DiagnosticLevelCard.tsx`) et vivent en constantes — les capitales sont posées à
+  l'affichage (`toUpperCase()`), le CSS s'en chargeant côté web.
+  Freemium **inchangé** : 1 priorité + 1 point fort + 1 entraînement en clair, le reste
+  flouté (`_LockedPreview` / `BlurredContent`) avec un compteur qui vient **du serveur**
+  (`fragileSkillCount` / `solidSkillCount`), jamais recalculé. Corollaire à ne jamais casser :
+  **aucune surface de cet écran ne nomme en clair ce que le rideau prétend cacher** — c'est
+  précisément pourquoi le détail des productions (qui listait « À travailler ») n'y a plus sa
+  place.
 - Les réponses utilisent le pipeline de production existant : EE en JSON et EO en multipart via
   `ProductionRepository`. La zone écrite réutilise `WritingZone` avec les bornes du DTO ; l'oral
   réutilise `AudioRecorderService`, `RecordingWaveform` et `SejourAudioPlayer`. Les permissions

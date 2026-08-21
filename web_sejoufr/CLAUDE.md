@@ -1259,6 +1259,70 @@ détour par `/inscription`.
   `lib/audience-events.ts`, miroir backend) émis à l'affichage de l'écran de
   compte — c'est LA mesure de conversion du parcours.
 
+### Écran de RÉSULTAT du diagnostic — épuré (2026-08-21)
+
+Refonte d'après la maquette « rapport » du propriétaire
+(`_MRapportGratuit.jsx`), qui donne la **direction visuelle** : structure, ordre
+des blocs, densité, et ce qu'on retire. Les **règles du produit** (registre,
+freemium, libellés gelés, doctrine du dépôt) restent les nôtres et priment.
+
+**Ordre des blocs, figé** : titre « Votre rapport » + sous-titre → **carte de
+niveau** (+ note discrète si la compréhension n'est pas mesurée) → **Vos
+principales priorités** → **Vos points forts** → **Votre plan personnalisé est
+prêt** → **Débloquez votre plan complet** (compte gratuit) ou carte de fin
+(abonné) → **note d'estimation**, en pied et pour tout le monde.
+
+- 🛑 **UNE seule carte de niveau, et le profil TCF tient dedans**
+  (`DiagnosticLevelCard.tsx`). Bandeau bleu — eyebrow, palier global estimé en
+  très gros, filet, « Objectif » plus discret, une phrase, le rail A2 → B1 → B2
+  (`PlanLevelRail dark`, **réutilisé**, jamais recopié) — puis, **dans le même
+  cadre**, un pied de **quatre colonnes** : le niveau de chaque domaine ou
+  « — », avec son abrégé CO/CE/EO/EE. **C'est ça qui rend l'écran épuré : le
+  profil n'a plus de section à lui.** Ne pas lui en redonner une.
+- **Le palier global vient du serveur** (`cycle.startingLevel`, lecture fraîche
+  de `GET /api/me/plan`) : le plancher des quatre domaines est une règle serveur
+  (`TcfProfileService`), aucun front ne la rejoue à partir des deux estimations
+  de production. Plan indisponible ⇒ « — », **jamais un niveau inventé** ; le
+  reste du rapport est entier. L'ordre des quatre domaines est **celui du
+  serveur**, on ne retrie pas.
+- **Note discrète** sous la carte, et **seulement quand elle est vraie** : elle
+  n'est rendue que si **aucun** des deux domaines de compréhension n'est évalué.
+  Un seul des deux manquant, la bande dit déjà « — ».
+- 🛑 **Trois blocs RETIRÉS de cet écran, à ne pas réintroduire** : le
+  **« avant / après »** (`exempleCible`), le **détail des deux productions**
+  (`ProductionSummary`) et la section **« Compléter mon profil »**
+  (`DiagnosticProfile.tsx`, **supprimé**). `skill-ui/ActionPlan` reste intact —
+  c'est son **usage ici** qui part, pas le composant ; et le **Plan continue de
+  servir « Compléter mon profil » chez lui**, avec ses boutons de mesure.
+- **Priorités** : une **liste**, plus trois cartes. Chaque ligne porte son rang,
+  son libellé, son domaine et son état ; le « pourquoi »
+  (`mainPriorityExplanation` sur le rang 1) et la preuve vivent derrière un
+  `<details>` — rien n'est retiré, tout est à un clic, et une ligne sans rien à
+  déplier reste inerte. La preuve n'est **plus tronquée** (`lib/evidence-excerpt.ts`
+  **supprimé**, comme son miroir mobile) : dans un dépliant, la longueur ne gêne
+  plus. **Points forts** : une ligne par compétence solide, sans repli.
+- **Carte de plan** : « Priorité actuelle » (le rang 1, sans son explication —
+  elle se lit dans le dépliant, la redire ici l'aurait tronquée), puis
+  « Aujourd'hui · N min » et l'aperçu de séance, puis le compteur verrouillé,
+  puis l'action. Le CTA lit `nextAction.locked` — **le verrou du serveur**, pas
+  l'accès du compte : un exercice fermé ouvre l'offre au lieu de mener à une page
+  qui refusera.
+- **Vouvoiement**, comme tout le rapport et tout le Plan — la maquette tutoie,
+  c'est le seul point qu'on ne reprend pas d'elle (arbitrage du propriétaire).
+  Libellés déclarés une fois (`REPORT_TITLE`, `REPORT_SUB_*`, `ESTIMATION_NOTE`,
+  `PRIORITIES_*`, `STRENGTHS_*`, `PLAN_READY_*`, `CTA_PLAN`, `CTA_FULL_REPORT`,
+  `DIAGNOSTIC_LEVEL_*`, `DIAGNOSTIC_PROFILE_INCOMPLETE_NOTE`), **miroirs mot pour
+  mot du mobile**.
+- **Freemium inchangé** : 1 priorité visible + les suivantes floutées avec
+  « + N autres », idem points forts, 1 entraînement de plan visible. Le compteur
+  vient du **serveur** (`fragileSkillCount` / `solidSkillCount`), jamais
+  recalculé. ⚠️ Après chaque passe sur cet écran, **revérifier qu'aucune surface
+  restante ne montre en clair ce qui est flouté** — c'est le piège rencontré six
+  fois sur ce chantier, et c'est ce qui avait fait retirer le détail des deux
+  productions.
+- **Aucun événement d'audience touché** : `DIAGNOSTIC_TO_PREMIUM_CLICKED` reste
+  émis par le seul `PremiumLink`, l'unique chemin instrumenté vers l'offre.
+
 ## Stratégie produit — parité fonctionnelle avec le mobile
 
 Décision **2026-05-16** : le web n'est plus une simple vitrine, c'est désormais une
