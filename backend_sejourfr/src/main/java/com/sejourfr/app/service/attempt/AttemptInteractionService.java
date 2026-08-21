@@ -21,6 +21,7 @@ import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.mapper.AttemptMapper;
+import com.sejourfr.app.mapper.QuestionMapper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -53,6 +54,7 @@ public class AttemptInteractionService {
     private final AnswerManager answerManager;
     private final AttemptScoringService scoringService;
     private final AttemptMapper mapper;
+    private final QuestionMapper questionMapper;
 
     // ------------------------------------------------------------------------
     // Lecture
@@ -191,7 +193,11 @@ public class AttemptInteractionService {
         // En entrainement : on renvoie la correction. En examen blanc : on
         // confirme juste l'enregistrement.
         if (attempt.getType() == AttemptType.TRAINING) {
-            return new AnswerResultResponse(true, correct, new ArrayList<>(correctIds), question.getExplanation());
+            // Les lettres citées par l'explication suivent l'ordre AFFICHÉ, pas le
+            // display_order de la base : même graine que le runner (AttemptQuestion.id),
+            // donc mêmes lettres que les propositions sous les yeux du candidat.
+            return new AnswerResultResponse(true, correct, new ArrayList<>(correctIds),
+                    questionMapper.explication(question, aq.getId()));
         }
         return new AnswerResultResponse(true, null, null, null);
     }

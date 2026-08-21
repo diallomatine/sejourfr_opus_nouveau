@@ -69,7 +69,7 @@ import type {
   PublicDiagnosticResponse,
   SkillSection,
 } from "@/lib/types";
-import {useTrafficSource} from "@/lib/use-traffic-source";
+import {useTrafficSource, useTrafficSourceHref} from "@/lib/use-traffic-source";
 import {DiagnosticAccountGate} from "./DiagnosticAccountGate";
 import styles from "./diagnostic.module.css";
 
@@ -1418,7 +1418,9 @@ function resultLevers(result: DiagnosticResultDto): {
 
 /** Lien vers l'offre, avec sa mesure de conversion. Deux emplacements l'ouvrent
  *  (paywall du plan, CTA final) : l'événement est émis au même endroit pour les
- *  deux, jamais recopié dans un `onClick` de composant. */
+ *  deux, jamais recopié dans un `onClick` de composant. La provenance suit le
+ *  candidat jusqu'à la page d'achat — c'est ce qui relie une campagne à un
+ *  paiement. */
 function PremiumLink({
   className,
   children,
@@ -1426,10 +1428,11 @@ function PremiumLink({
   className: string;
   children: ReactNode;
 }) {
+  const href = useTrafficSourceHref("/paiement?module=INTEGRAL");
   return (
     <Link
       className={className}
-      href="/paiement?module=INTEGRAL"
+      href={href}
       onClick={() => trackAudienceEvent("/diagnostic", "DIAGNOSTIC_TO_PREMIUM_CLICKED")}
     >
       {children}

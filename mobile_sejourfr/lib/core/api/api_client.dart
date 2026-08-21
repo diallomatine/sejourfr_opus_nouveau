@@ -16,7 +16,13 @@ class ApiClient {
       baseUrl: ApiConfig.baseUrl,
       connectTimeout: ApiConfig.connectTimeout,
       receiveTimeout: ApiConfig.receiveTimeout,
-      headers: {'Accept': 'application/json'},
+      headers: {
+        'Accept': 'application/json',
+        // Identifie la plateforme d'origine (compte, session de diagnostic) pour
+        // le funnel d'audience — envoyé sur TOUTES les requêtes, y compris
+        // `skipAuth` (l'inscription en fait partie). Un seul point de câblage.
+        'X-Sejourfr-Client': 'mobile',
+      },
       validateStatus: (status) => status != null && status < 500,
     ));
 
@@ -132,7 +138,10 @@ class ApiClient {
     final refresh = await _tokenStorage.readRefresh();
     if (refresh == null) return false;
     try {
-      final res = await Dio(BaseOptions(baseUrl: ApiConfig.baseUrl)).post(
+      final res = await Dio(BaseOptions(
+        baseUrl: ApiConfig.baseUrl,
+        headers: {'X-Sejourfr-Client': 'mobile'},
+      )).post(
         '/api/auth/refresh',
         data: {'refreshToken': refresh},
       );

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ApiException, userContentApi } from "@/lib/api";
-import { orderedChoices, type QuestionReviewResponse, questionTypeLabel } from "@/lib/types";
+import { type QuestionReviewResponse, questionTypeLabel } from "@/lib/types";
 import { MediaView } from "@/app/_components/MediaView";
 
 /**
@@ -140,10 +140,11 @@ export function QuestionDetailModal({
         </h2>
 
         <div className="rvd-choices">
-          {orderedChoices(question.choices).map((c, i) => {
+          {question.choices.map((c, i) => {
             // FULL_AUDIO / CO_IMAGE : le texte du choix vit dans l'audio → on
             // affiche la lettre dans la pastille et on masque le label redondant ;
-            // les choix sont déjà triés A→D.
+            // l'ordre reçu suit déjà les lettres (garanti serveur par
+            // QuestionMapper.ordreReference).
             const letterMatch = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
             const letterOnly = question.questionType === "CO_IMAGE" || letterMatch !== null;
             const letter = letterMatch

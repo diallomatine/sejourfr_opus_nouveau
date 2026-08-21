@@ -2,6 +2,7 @@ package com.sejourfr.app.audioquestion.service;
 
 import com.sejourfr.app.audioquestion.config.AnthropicProperties;
 import com.sejourfr.app.audioquestion.domain.AudioMode;
+import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.audioquestion.dto.AnthropicGenerationResponse;
 import com.sejourfr.app.audioquestion.dto.GenerateAudioQuestionRequest;
 import com.sejourfr.app.audioquestion.dto.QuestionPreviewDto;
@@ -71,6 +72,10 @@ public class AudioQuestionGenerationService {
     }
 
     public QuestionPreviewDto generate(GenerateAudioQuestionRequest request, UUID adminUserId) {
+        // Refuse avant toute trace d'audit et tout appel payant : cette demande
+        // ne demarre pas une generation, elle n'en est pas une.
+        refuseModeNonGenerable(request.audioModeOrDefault());
+
         Instant startTime = Instant.now();
         AudioQuestionGenerationLog audit = newAuditLog(request, adminUserId);
 
@@ -192,6 +197,27 @@ public class AudioQuestionGenerationService {
      *  3. En FULL_AUDIO : les `choices.label` sont strictement "Reponse A/B/C/D".
      *  4. En FULL_AUDIO : le SSML lit explicitement chaque "Reponse A/B/C/D".
      */
+    /**
+     * {@link AudioMode#WRITTEN_QUESTION_SPOKEN_CHOICES} <b>constate un defaut de
+     * contenu, il ne se genere pas</b> : un audio qui enonce les propositions avec
+     * leurs lettres alors que l'ecran affiche leur texte fige la correspondance
+     * lettre <-> reponse, donc interdit tout melange et laisse le biais de
+     * position en place. On ne produit pas volontairement de nouvelles questions
+     * dans ce format ; la dette existante se solde en regenerant l'audio
+     * <em>sans</em> les lettres.
+     *
+     * <p>Refuse AVANT tout appel payant (Claude, Azure).
+     */
+    private void refuseModeNonGenerable(AudioMode requestedMode) {
+        if (requestedMode == AudioMode.WRITTEN_QUESTION_SPOKEN_CHOICES) {
+            throw new BusinessException(
+                "Le mode " + AudioMode.WRITTEN_QUESTION_SPOKEN_CHOICES
+                    + " constate un defaut de contenu existant : il ne se genere pas. "
+                    + "Modes generables : " + AudioMode.WRITTEN_QUESTION + ", " + AudioMode.FULL_AUDIO + "."
+            );
+        }
+    }
+
     private void validateAudioMode(AnthropicGenerationResponse response, AudioMode requestedMode) {
         AudioMode returnedMode = response.audio().audioMode();
 

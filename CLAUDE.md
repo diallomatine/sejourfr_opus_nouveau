@@ -307,6 +307,102 @@ cliquent son CTA, découpé par réseau de provenance.
   `POST /api/public/page-views`, même chantier que la démo invitée. Sans lui, un
   bot peut gonfler un compteur — donnée fausse, mais ni fuite ni inflation de
   stockage.
+- **Chemins suivis** : `/reussir`, `/diagnostic`, `/plan`, plus `/tarifs` et
+  `/paiement` (`VIEW` + `CTA`, 2026-08-19) — ces deux derniers mesurent les
+  visiteurs qui regardent les prix **sans jamais créer de compte**, angle mort
+  jusque-là.
+- **Fenêtre de lecture** : les deux endpoints admin acceptent `from`/`to`
+  (ISO `yyyy-MM-dd`, **Europe/Paris**, bornes **incluses**) **ou** `days`
+  (défaut 30, clamp 1..365). `from`/`to` l'emportent ; **une seule borne, `from
+  > to`, ou plus de 365 jours ⇒ 400 nommé** — jamais un repli muet sur `days`,
+  qui rendrait des chiffres qu'on croirait filtrés. Une borne future est
+  ramenée à aujourd'hui (l'admin peut cliquer un jour à venir, ce n'est pas une
+  faute). Autorité unique : **`util/FenetreMesure`**, partagée par les deux
+  endpoints. Les réponses **rendent les bornes appliquées** (`cohortFrom`/
+  `cohortTo`, et `from`/`to` ajoutés à `PageViewStatsResponse`) : l'écran
+  affiche la période d'après le **serveur**, jamais d'après ce que le client
+  croit avoir demandé. `daily` est **continue des deux côtés** (un point par
+  jour, zéros compris) — sans ça, `from == to` sur une journée creuse rendait
+  une série vide.
+
+## Funnel d'acquisition — comptage EXACT par compte (2026-08-19)
+
+Deuxième nature de mesure, **à ne jamais mélanger** avec `page_views` : ici on
+compte des **comptes**, une fois par étape, sur les vraies tables. Le funnel
+suivi est *réseau social → inscription → diagnostic commencé → terminé → écran
+Premium affiché → clic abonnement → paiement*.
+
+- 🛑 **Tout ce qui peut se lire sur les vraies tables se lit sur les vraies
+  tables** (`users`, `diagnostic_sessions`, `user_subscriptions`). Recompter des
+  inscriptions ou des paiements par événements client aurait produit **deux
+  chiffres divergents pour la même chose**. Seules les deux étapes qui n'existent
+  QUE dans le navigateur sont enregistrées.
+- **Cohorte d'inscription** : la population est celle des comptes créés dans la
+  fenêtre (`deleted_at IS NULL`), et **chaque étape est mesurée sur ces mêmes
+  comptes**, quelle que soit la date de l'étape. C'est ce qui rend « 4 payants
+  sur 50 inscrits TikTok » vrai ; comparer des totaux journaliers ne veut rien
+  dire. `integrity`, lui, est **global** et n'est jamais filtré par la période.
+- **La provenance et la plateforme voyagent en EN-TÊTES**, résolues serveur par
+  `util/ClientContextResolver` (patron `ClientIpResolver`) : `X-Sejourfr-Source`
+  (normalisée par **`util/TrafficSource`**, autorité unique dont
+  `PageViewService` est désormais un client — l'allowlist n'existe plus en deux
+  copies) et `X-Sejourfr-Client` (`web` / `mobile`, enum `ClientPlatform`).
+  Un en-tête plutôt qu'un champ de DTO : ça couvre d'un coup l'inscription
+  locale, les sign-in Google/Apple et la création de diagnostic **sans toucher
+  quatre DTO**, et chaque front n'a qu'**un seul point de câblage** (client HTTP
+  web, `BaseOptions` du Dio mobile — y compris sur les requêtes non
+  authentifiées, l'inscription en fait partie).
+- **Capté à la création seulement** : `users.signup_source` / `signup_platform`
+  sont posés à `register` et à la **première** connexion sociale, **jamais
+  réécrits** — la provenance, c'est celle du premier jour (test dédié).
+  `diagnostic_sessions.platform` répond à « qui fait son diagnostic depuis
+  l'app ». **Legacy = NULL, aucun rattrapage** : rendu `"inconnu"` /
+  `"UNKNOWN"` et **affiché en clair**, sinon les totaux ne tombent plus juste.
+- **`user_funnel_events`** (V036) : `UNIQUE (user_id, event)` — **première
+  occurrence seulement**, donc **3 lignes maximum par compte**, la table ne peut
+  pas gonfler et n'a pas besoin de rate-limit. `POST /api/me/funnel-events`
+  (authentifié) rend **204** et est idempotent par `ON CONFLICT DO NOTHING` :
+  aucun rejeu ne lève, y compris en concurrence.
+  🛑 **`CHECKOUT_STARTED` est REFUSÉ au client (422)** et posé **serveur** par
+  `BillingService` après création réelle de la Checkout Stripe : venant d'un
+  client ce serait une **intention**, pas un fait, et la dernière marche du
+  funnel ne voudrait plus rien dire. Best-effort — un échec d'enregistrement ne
+  bloque jamais un paiement.
+- **`PAYWALL_VIEWED` ≠ `SUBSCRIBE_CLICKED`** : le premier se pose à l'affichage
+  d'un écran Premium (page `/paiement` **et** `PaywallSheet`), le second
+  **uniquement sur un CTA qui engage l'achat**. Un lien de navigation vers
+  `/paiement` n'est pas un clic d'abonnement — sinon les deux étapes affichent le
+  même nombre.
+- **`GET /api/admin/audience/funnel`** : `stages` (ordre figé `SIGNUP` →
+  `PURCHASE`, jamais réordonné par un front), `bySource`, `byPlatform`, `daily`,
+  `integrity`. `PURCHASE` = au moins une `user_subscriptions` de statut
+  ≠ `PENDING` (un remboursement a bien été un paiement). **6 requêtes agrégées
+  bornées** (`GROUP BY` en SQL), jamais une par compte ; chaque compte
+  appartient à exactement une cellule (source × plateforme), donc les
+  sous-totaux sont additionnables.
+- **Un seul diagnostic par compte** : l'unicité réelle est
+  `(user_id, diagnostic_code, diagnostic_version)`, **pas `user_id` seul** — une
+  version 2 du diagnostic autoriserait légitimement une seconde session. C'est
+  exactement ce que surveille `integrity.accountsWithMultipleDiagnosticSessions`
+  (doit valoir 0, mesuré sur **toute la base**).
+- **Suppression de compte** : les événements de funnel sont purgés
+  **explicitement** par `AccountDeletionService` — la suppression est une
+  *anonymisation*, la ligne `users` survit, donc la cascade DB ne se déclenche
+  pas (test IT dédié).
+- ⚠️ **Conséquence légale, traitée dans la même passe** : la provenance est
+  désormais **rattachée à un compte**, ce que `/confidentialite` niait
+  implicitement. La page a une sous-section **8.3 « Mesure d'audience sans
+  traceur »** + les lignes correspondantes aux articles 3.2, 4 et 5. L'acquis
+  est intact et doit le rester : **aucun cookie, rien écrit sur le terminal,
+  aucun outil tiers, aucun bandeau de consentement**. Ne rien ajouter qui écrive
+  côté visiteur sans repasser sur cette page.
+- **Admin** : `features/audience/` est scindé en **deux sections étiquetées** —
+  « comptage exact · par compte » (le funnel) puis « agrégat anonyme · par
+  page » (l'existant). Les lire comme comparables produit des conclusions
+  fausses ; l'étiquette est là pour ça. Un **filtre de période unique** en tête
+  pilote les deux (aujourd'hui / hier / cette semaine — lundi / ce mois — le 1er
+  / 7-30-90 j / une date précise), calculé côté client depuis un seul
+  `parisToday()`.
 
 ## Temps des examens blancs — un chrono PAR ÉPREUVE (2026-08-15)
 
@@ -2139,6 +2235,88 @@ le niveau rendu est au minimum **A1**. Décision produit du propriétaire.
   score ou un nombre de bonnes réponses (vérifié). Le niveau est **calculé
   serveur** et lu tel quel.
 
+## Ordre des propositions QCM et lettres citées dans les explications (2026-08-19)
+
+Les propositions d'une question sont **mélangées** à l'affichage (shuffle
+déterministe, graine dérivée de l'`AttemptQuestion`, `QuestionMapper.ordreAffiche`)
+pour supprimer le biais de position. Mais les explications sont rédigées sur
+l'ordre `display_order` de la base et **citent des lettres** (« Seule B… », « A
+indique une durée »). Les deux n'étaient jamais réconciliés : l'explication
+désignait des lettres qui ne correspondaient plus à l'écran, sur **439 questions
+actives** (CE 395, CO 20, STRUCTURE 24 — le civique n'utilise aucune lettre).
+
+- **Le contenu en base est JUSTE, c'est l'affichage qui décalait.** Ne jamais
+  « corriger » une explication ni réordonner un `display_order` pour rattraper ce
+  bug : mesuré sur les 20 CO, les 20/20 explications et les 80/80 choix sont
+  cohérents avec l'ordre stocké.
+- **Autorité unique : `util/ReferenceChoixLettre`.** Elle remappe les lettres
+  citées avec **exactement** la permutation appliquée aux propositions
+  (`QuestionMapper.permutation`), remplacement **simultané** jamais séquentiel.
+  Tout point qui sert une explication à côté de propositions mélangées passe par
+  elle — `toPublic`, `toReview`, et `AttemptInteractionService` (correction
+  immédiate TRAINING, qui couvre aussi la démo invitée). Une seconde copie
+  désignerait deux lettres différentes pour le même choix.
+- **Repérage : tout ou rien.** Une seule occurrence indécidable ⇒ le texte entier
+  est rendu **intact** (un remappage partiel ferait désigner deux propositions par
+  la même lettre). Validé sur les 2 339 explications réelles : 0 abstention, 0 faux
+  positif. Sont **ignorés** exprès — paliers CECRL `A1/A2/B1/B2` (l'explication
+  type contient « Piège **B1** »), verbe *avoir* capitalisé entre guillemets
+  (« A été », 33 cas STRUCTURE), noms de lieu (`bâtiment B`, `permis B`,
+  `escalier C`, 24 cas), `C'est` / `D-Day` / `J.-C.`. Une rédaction future
+  inattendue tombe en abstention, donc au pire dans l'état d'avant.
+- **`toReview` est aligné sur l'ordre du runner** (même graine que
+  `toPublic(q, false, q.getId())`). Avant, le même attempt s'affichait dans deux
+  ordres différents entre l'entraînement et la revue. `ChoiceReviewResponse
+  .displayOrder` porte l'index **d'affichage** : exposer celui de la base
+  permettrait de défaire le mélange.
+- 🛑 **Une question dont l'AUDIO ÉNONCE les propositions n'est JAMAIS mélangée.**
+  `AudioMode.WRITTEN_QUESTION_SPOKEN_CHOICES` (V037 + backfill **V590**) qualifie
+  les 20 CO dont la bande dit « A. … B. … » pendant que l'écran affiche aussi le
+  texte : elles échappaient à `choicesAreReadAloud` (qui ne détectait que les
+  labels réduits à une lettre), donc l'audio annonçait d'autres lettres que
+  l'écran — un candidat qui retenait « c'est B » et cliquait B **se trompait
+  alors qu'il avait compris**. Ce mode **constate un défaut, il ne se génère
+  pas** : `AudioQuestionGenerationService.refuseModeNonGenerable` le refuse avant
+  tout appel payant.
+  ⚠️ **Dette de contenu assumée** : sur ces 20, la bonne réponse est en A dans
+  **13 cas sur 20** (65 %), contre 27 % sur les 610 autres CO, qui restent
+  équilibrées. Le mélange avait été ajouté (`ae785f5`) pour ce biais et l'avait
+  payé en désynchronisant l'audio. Débiaiser suppose de **régénérer l'audio sans
+  les lettres** — bloqué faute d'abonnement Azure Speech. Ne pas « réparer » en
+  remélangeant.
+- ⚠️ **Piège Flyway** : un backfill de contenu **seedé** se numérote **après ses
+  lots**, jamais dans `00_schema`. Flyway ordonne par **numéro**, pas par dossier :
+  un `UPDATE` en V0xx passe avant les `INSERT` des questions CO (V500/V530/V560) et
+  touche **zéro ligne**.
+- **L'ordre servi fait foi — les fronts ne retrient plus rien** (2026-08-19).
+  `QuestionMapper.ordreReference` garantit qu'une question à **repères
+  alphabétiques** (libellés tous réduits à `A`..`D` / `Réponse A`.., sur un type
+  CO ou CO_IMAGE — le contenu vit alors dans l'audio) est servie **dans l'ordre de
+  ses lettres**, quel que soit le `display_order` saisi en console, et n'est
+  **jamais mélangée** : brasser des lettres ne supprime aucun biais de position et
+  ne ferait que décorréler la pastille du libellé. L'explication n'y est donc
+  **pas remappée** — l'ordre de référence étant déjà celui des lettres, la
+  permutation est identité **par construction**, pas par cas particulier. Le
+  garde-fou de **type** est celui que le mobile appliquait déjà : sans lui, une
+  STRUCTURE dont les réponses seraient « a »/« d » cesserait d'être mélangée.
+- Les fronts dérivent la pastille A/B/C/D de **l'index dans la liste reçue** (web
+  `QuestionRunner.tsx`, mobile `choice_tile.dart`) et **plus aucun ne trie** :
+  `orderedChoices` (web `lib/types.ts`, qui s'appliquait à **tout** type de
+  question) et `orderedDisplayChoices` (mobile, aux seules CO/CO_IMAGE) sont
+  **supprimés**, appelants compris — runner, rapport d'examen, modale de détail,
+  feuille de détail. Deux rustines d'affichage aux règles **divergentes** pouvaient
+  défaire l'ordre servi ; la divergence est maintenant structurellement impossible
+  au lieu d'être surveillée. `audioMode`, déclaré sur `QuestionPublicResponse` /
+  `QuestionReviewResponse` du miroir **web** alors que le backend ne le sert pas,
+  est retiré — avec le type `AudioMode` du web, qui n'avait plus de lecteur. Celui
+  de l'admin sert la console des drafts audio et **reste**.
+- ⚠️ **La garantie est un FILET, pas une correction de données** : mesuré sur la
+  base locale, les **610** questions à repères alphabétiques (540 CO + 70
+  CO_IMAGE, seuls types concernés) ont déjà un `display_order` alphabétique,
+  1-based et consécutif — **0 question réordonnée**. D'où **aucune migration** de
+  normalisation : elle toucherait zéro ligne, et le dépôt interdit par ailleurs de
+  réordonner un `display_order` pour rattraper un défaut d'affichage.
+
 ## L'audio d'une production de candidat n'est pas conservé (2026-08-16)
 
 Décision du propriétaire, **motif consentement** : « on ne stocke pas les
@@ -3290,6 +3468,44 @@ ce que le lot 4b mette à jour l'appel en `?planCode=<string>`.
     identiques et en minuscules), **plus dérivés de `Plan.code`** — un ID Apple
     supprimé n'étant jamais réutilisable, une recréation impose un ID neuf.
     Guide pas-à-pas → `docs/setup-paiement-one-time.md`.
+
+- **Geste envers les acheteurs de l'ANCIEN catalogue (V038, 2026-08-19)** : les
+  clients qui avaient payé avant la grille actuelle — `INTEGRAL_PASS_SPRINT`
+  (6 semaines) et `INTEGRAL_PASS_3M` — ont vu leur accès Intégral prolongé de
+  **14 j / 21 j** et leur solde de simulations orales porté à un **plancher de
+  5 / 15**. Quatre règles à ne pas défaire :
+  1. **Le solde vit sur la souscription, pas sur le plan** (V019 :
+     `user_subscriptions.realtime_eo_sessions_remaining` ;
+     `plans.realtime_eo_sessions` n'est plus qu'un cap d'affichage) — toucher le
+     plan n'aurait rien changé pour un client existant.
+  2. **Le barème est un PLANCHER (`GREATEST`), jamais une valeur imposée** : le
+     backfill V019 avait posé jusqu'à 25 / 60 sur ces lignes, fixer sèchement à
+     5 / 15 en aurait *retiré* — dans un e-mail qui annonce un cadeau.
+  3. **Un seul geste par utilisateur, posé sur la souscription que l'app lira**
+     (`RealtimeQuotaService` → `SubscriptionService.currentSubscription()`, qui
+     ne retient qu'UNE ligne) : créditer une ligne perdante serait invisible.
+  4. **Prolonger un pass expiré, c'est le rouvrir** : `GREATEST(ends_at, now())
+     + N j`, et statut `EXPIRED`/`CANCELED` remis à `ACTIVE` — sinon `isCovering`
+     bloque quelle que soit la date. `REFUNDED`, `PENDING` et comptes supprimés
+     sont exclus.
+  **Hors périmètre volontaire, et ils n'ont RIEN reçu** : `INTEGRAL_PASS_1Y`, les
+  abonnements récurrents Intégral (dormants) et tous les passes Civique (aucun
+  accès TCF, donc aucune simulation utilisable). Élargir = **une nouvelle
+  migration** avec une ligne de plus au barème, jamais une réécriture de V038.
+  **La table `legacy_pass_compensations` est l'audit, l'anti-doublon et le plan de
+  retour arrière** — elle porte l'état d'avant (`ends_at_before`,
+  `sessions_before`). ⚠️ **L'annonce est PARTIE le 2026-08-19 et le code qui
+  l'envoyait a été SUPPRIMÉ dans la foulée** (panneau admin du dashboard, client
+  `mailingApi`, `POST /api/admin/mailing/anciens-acheteurs`, son service, son
+  entité JPA et le gabarit `nouveautes-anciens.html`) : c'était une opération
+  **unique**, elle ne sera pas refaite, et le dépôt ne garde pas de surface
+  dormante « au cas où ». `mailed_at` reste renseignée en base comme trace. Un
+  geste futur est une **nouvelle** migration avec son propre envoi, jamais une
+  résurrection de celui-ci. ⚠️ Une migration de données ne peut
+  pas se tester en place (elle tourne avant tout jeu d'essai) :
+  `LegacyPassCompensationIT` **relit le fichier de migration**, le coupe sur sa
+  sentinelle `@@APPLICATION_DU_GESTE@@` et rejoue le SQL réel — ne pas supprimer
+  cette ligne, et ne jamais recopier la requête dans le test.
 
 > **⚠️ RÉVERSIBILITÉ — ne JAMAIS supprimer le code abonnement (lots 2/3/4).** La
 > bascule est pilotée par le flag `sejourfr.billing.mode` (`SUBSCRIPTION |

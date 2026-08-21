@@ -97,6 +97,23 @@ class AudioQuestionGenerationServiceTest {
     }
 
     @Test
+    void generate_modeQuiConstateUnDefaut_refuseAvantToutAppelPayant() {
+        // WRITTEN_QUESTION_SPOKEN_CHOICES qualifie un audio existant qui enonce
+        // les propositions avec leurs lettres : on ne produit pas de nouveau
+        // contenu dans ce format, la dette se solde en regenerant l'audio SANS
+        // les lettres. Refus avant Claude, Azure, rate-limit et audit.
+        assertThatThrownBy(() -> service.generate(
+                request(AudioMode.WRITTEN_QUESTION_SPOKEN_CHOICES), adminId))
+            .isInstanceOf(com.sejourfr.app.exception.BusinessException.class)
+            .hasMessageContaining("WRITTEN_QUESTION_SPOKEN_CHOICES");
+
+        verify(rateLimiter, never()).checkAllowed(any());
+        verify(anthropicClient, never()).generate(any());
+        verify(azureSpeechClient, never()).synthesize(anyString());
+        verify(logRepository, never()).save(any());
+    }
+
+    @Test
     void generate_happy_path_renvoie_le_preview_et_loggue_success() {
         String ssml = "<speak>" + INTRO + "</speak>";
         String transcript = INTRO + " Bonjour";

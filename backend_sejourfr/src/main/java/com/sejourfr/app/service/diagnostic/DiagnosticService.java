@@ -13,6 +13,7 @@ import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.enums.ClientPlatform;
 import com.sejourfr.app.enums.DiagnosticJourneyStatus;
 import com.sejourfr.app.enums.DiagnosticSessionStatus;
 import com.sejourfr.app.enums.DiagnosticStep;
@@ -65,14 +66,14 @@ public class DiagnosticService {
                 .orElseGet(() -> notStarted(code, version));
     }
 
-    public DiagnosticResponse startOrResume(UUID userId) {
+    public DiagnosticResponse startOrResume(UUID userId, ClientPlatform platform) {
         String code = content.activeCode();
         int version = content.activeVersion(code);
         DiagnosticSession existing = sessionManager
                 .findByUserAndVersionWithContent(userId, code, version).orElse(null);
         if (existing != null) return toResponse(userId, existing);
         try {
-            sessionCreator.create(userId, code, version);
+            sessionCreator.create(userId, code, version, platform);
         } catch (DataIntegrityViolationException concurrentStart) {
             // La transaction concurrente gagnante porte l'unique session ; la
             // transaction de ce caller a rollbacké ses deux attempts.

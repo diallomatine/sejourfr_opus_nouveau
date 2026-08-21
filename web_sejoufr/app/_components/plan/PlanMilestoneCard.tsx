@@ -18,6 +18,7 @@ import {handleStartFailure} from "@/lib/start-failure";
 import type {PlanMilestoneExerciseDto} from "@/lib/types";
 import {EE_CONFIG, EO_CONFIG} from "@/app/_components/production/config";
 import {SKILL_PREMIUM_HREF, SkillLockBadge} from "@/app/_components/skill-ui/SkillLayout";
+import {useTrafficSourceHref} from "@/lib/use-traffic-source";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import styles from "./plan.module.css";
 
@@ -50,6 +51,8 @@ export function PlanMilestoneCard({
   onPremiumClick: () => void;
 }) {
   const router = useRouter();
+  // La provenance suit le candidat jusqu'à la page d'achat.
+  const premiumHref = useTrafficSourceHref(SKILL_PREMIUM_HREF);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
@@ -116,7 +119,7 @@ export function PlanMilestoneCard({
         <>
           <Link
             className={`${styles.primaryButton} ${styles.todayCta}`}
-            href={SKILL_PREMIUM_HREF}
+            href={premiumHref}
             onClick={onPremiumClick}
           >
             <Lock size={16} aria-hidden /> {PLAN_MILESTONE_LOCKED_CTA}

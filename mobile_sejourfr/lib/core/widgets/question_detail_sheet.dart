@@ -121,7 +121,7 @@ class QuestionDetailSheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                for (final choice in orderedDisplayChoices(question))
+                for (final choice in question.choices)
                   QuestionChoiceRow(
                     label: choice.label,
                     correct: choice.correct,

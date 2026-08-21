@@ -4,6 +4,7 @@ import com.sejourfr.app.dto.AppleSignInRequest;
 import com.sejourfr.app.dto.GoogleSignInRequest;
 import com.sejourfr.app.dto.TokenResponse;
 import com.sejourfr.app.service.SocialAuthService;
+import com.sejourfr.app.util.ClientContextResolver;
 import com.sejourfr.app.util.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -30,6 +31,7 @@ public class SocialAuthController {
 
     private final SocialAuthService socialAuthService;
     private final ClientIpResolver clientIpResolver;
+    private final ClientContextResolver clientContextResolver;
 
     @PostMapping("/google")
     public TokenResponse google(@Valid @RequestBody GoogleSignInRequest req, HttpServletRequest http) {
@@ -37,8 +39,8 @@ public class SocialAuthController {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Google sign-in non configure cote backend");
         }
-        return socialAuthService.loginWithGoogle(req,
-                AuthController.userAgent(http), clientIpResolver.resolve(http));
+        return socialAuthService.loginWithGoogle(req, AuthController.userAgent(http),
+                clientIpResolver.resolve(http), clientContextResolver.resolve(http));
     }
 
     @PostMapping("/apple")
@@ -47,7 +49,7 @@ public class SocialAuthController {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Apple sign-in non configure cote backend");
         }
-        return socialAuthService.loginWithApple(req,
-                AuthController.userAgent(http), clientIpResolver.resolve(http));
+        return socialAuthService.loginWithApple(req, AuthController.userAgent(http),
+                clientIpResolver.resolve(http), clientContextResolver.resolve(http));
     }
 }

@@ -36,6 +36,7 @@ import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.entity.SkillReference;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.Transcription;
+import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserQuestionStatus;
 import com.sejourfr.app.entity.UserSkillAttempt;
@@ -60,6 +61,9 @@ import com.sejourfr.app.enums.PlanPurchaseType;
 import com.sejourfr.app.enums.ProductionSubmissionSource;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.RealtimeSessionStatus;
+import com.sejourfr.app.enums.ClientPlatform;
+import com.sejourfr.app.enums.DiagnosticSessionStatus;
+import com.sejourfr.app.enums.FunnelEvent;
 import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.enums.SkillAttemptStatut;
 import com.sejourfr.app.enums.SkillDifficulty;
@@ -93,6 +97,8 @@ import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.SkillPromptManager;
 import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.TranscriptionManager;
+import com.sejourfr.app.manager.DiagnosticSessionManager;
+import com.sejourfr.app.manager.UserFunnelEventManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserQuestionStatusManager;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
@@ -167,6 +173,8 @@ public class TestData {
     private final UserSkillAttemptManager userSkillAttemptManager;
     private final AudioQuestionDraftRepository audioQuestionDraftRepository;
     private final AudioQuestionGenerationLogRepository audioQuestionGenerationLogRepository;
+    private final DiagnosticSessionManager diagnosticSessionManager;
+    private final UserFunnelEventManager userFunnelEventManager;
 
     private static long next() {
         return SEQ.incrementAndGet();
@@ -853,6 +861,62 @@ public class TestData {
                 || source == LearningPlanSourceType.DIAGNOSTIC_EO);
         o.setObservedAt(observedAt);
         return learningPlanObservationManager.save(o);
+    }
+
+    // ------------------------------------------------------------------------
+    // Funnel d'acquisition : cohorte, diagnostic, étapes navigateur
+    // ------------------------------------------------------------------------
+
+    /** Réécrit un compte modifié par le test (anonymisation, etc.). */
+    public User saveUser(User user) {
+        return userManager.save(user);
+    }
+
+    /** Compte avec sa provenance d'inscription (colonnes V036). */
+    public User userFrom(String signupSource, ClientPlatform signupPlatform) {
+        User u = user();
+        u.setSignupSource(signupSource);
+        u.setSignupPlatform(signupPlatform);
+        return userManager.save(u);
+    }
+
+    /**
+     * Session de diagnostic minimale. Les deux tâches ne portent pas de
+     * {@code diagnostic_code} : la FK ne l'exige pas, et ce qui est testé ici
+     * c'est l'agrégat, pas le contenu servi.
+     */
+    public DiagnosticSession diagnosticSession(User user, DiagnosticSessionStatus status) {
+        long n = next();
+        DiagnosticSession session = new DiagnosticSession();
+        session.setUser(user);
+        session.setDiagnosticCode("TEST_DIAG_" + n);
+        session.setDiagnosticVersion(1);
+        session.setWrittenTask(productionTask(EpreuveType.TCF_EE));
+        session.setOralTask(productionTask(EpreuveType.TCF_EO));
+        session.setWrittenAttempt(attempt(user));
+        session.setOralAttempt(attempt(user));
+        session.setStatus(status);
+        session.setStartedAt(Instant.now());
+        if (status == DiagnosticSessionStatus.COMPLETED) {
+            // chk_diagnostic_session_completed exige les deux : une session
+            // terminée porte sa date ET son résumé.
+            session.setCompletedAt(Instant.now());
+            session.setSummaryJson(Map.of("test", true));
+        }
+        return diagnosticSessionManager.saveAndFlush(session);
+    }
+
+    public DiagnosticSession diagnosticSession(User user) {
+        return diagnosticSession(user, DiagnosticSessionStatus.IN_PROGRESS);
+    }
+
+    /** Étape de funnel : première occurrence, comme en production. */
+    public void funnelEvent(User user, FunnelEvent event, ClientPlatform platform, String source) {
+        userFunnelEventManager.recordFirstOccurrence(user.getId(), event, platform, source);
+    }
+
+    public void funnelEvent(User user, FunnelEvent event) {
+        funnelEvent(user, event, ClientPlatform.WEB, "tiktok");
     }
 
     // ------------------------------------------------------------------------

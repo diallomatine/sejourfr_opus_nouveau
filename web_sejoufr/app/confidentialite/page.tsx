@@ -199,7 +199,23 @@ export default function ConfidentialitePage() {
               réponses données, score, durée), progression par thématique pour
               chaque module (civique et TCF), historique des tentatives,
               questions marquées en favori et questions échouées consultées en
-              révision.
+              révision ;
+            </li>
+            <li>
+              <strong>Données d'acquisition et de parcours</strong> : lors de la
+              création de votre compte, la <strong>provenance</strong> (le
+              réseau social ou le lien depuis lequel vous êtes arrivé sur la
+              Plateforme, parmi une liste fermée : TikTok, Instagram, WhatsApp,
+              Facebook, YouTube ou accès direct) et le{" "}
+              <strong>type d'appareil</strong> utilisé (site web ou application
+              mobile). Pour un compte connecté, nous enregistrons également le{" "}
+              <strong>premier</strong> affichage de l'écran d'abonnement et le{" "}
+              <strong>premier</strong> clic sur un bouton d'abonnement. Ces
+              informations servent à mesurer l'efficacité de nos campagnes et à
+              améliorer la Plateforme ; elles sont rattachées à votre compte et{" "}
+              <strong>supprimées avec lui</strong>. Elles ne reposent sur{" "}
+              <strong>aucun cookie</strong> ni sur aucun autre stockage sur
+              votre terminal (voir Article 8).
             </li>
           </ul>
         </LegalSubsection>
@@ -207,7 +223,8 @@ export default function ConfidentialitePage() {
         <LegalSubsection number="3.3" title="Cookies">
           <p>
             Nous utilisons des cookies dans les conditions décrites à
-            l'Article 8 ci-dessous.
+            l'Article 8 ci-dessous. Notre mesure d'audience et nos données
+            d'acquisition n'en utilisent aucun.
           </p>
         </LegalSubsection>
       </LegalSection>
@@ -239,6 +256,10 @@ export default function ConfidentialitePage() {
             ],
             ["Envoi de newsletters et actualités", "Consentement (art. 6.1.a)"],
             [
+              "Mesure de l'efficacité de nos campagnes et amélioration de la Plateforme (provenance à l'inscription, type d'appareil, premières étapes du parcours d'abonnement)",
+              "Intérêt légitime (art. 6.1.f)",
+            ],
+            [
               "Réponse à vos demandes (formulaire de contact)",
               "Intérêt légitime (art. 6.1.f)",
             ],
@@ -267,6 +288,10 @@ export default function ConfidentialitePage() {
             [
               "Données de facturation",
               "10 ans (obligation comptable et fiscale)",
+            ],
+            [
+              "Données d'acquisition et de parcours (provenance, type d'appareil, étapes du parcours d'abonnement)",
+              "Durée de vie du compte : supprimées avec lui",
             ],
             ["Logs de connexion", "12 mois"],
             ["Cookies", "Selon catégorie (voir Article 8)"],
@@ -378,7 +403,45 @@ export default function ConfidentialitePage() {
           </p>
         </LegalSubsection>
 
-        <LegalSubsection number="8.3" title="Gestion de vos préférences">
+        <LegalSubsection number="8.3" title="Mesure d'audience sans traceur">
+          <p>
+            Nous mesurons la fréquentation de nos pages{" "}
+            <strong>sans déposer aucun traceur</strong> : la mesure est réalisée
+            par nos propres serveurs, et{" "}
+            <strong>
+              rien n'est écrit sur votre terminal — ni cookie, ni stockage local,
+              ni identifiant de session de mesure
+            </strong>
+            . Nous ne recourons à aucun outil d'analyse tiers.
+          </p>
+          <p>
+            Sur nos pages publiques (page de campagne, tarifs, page
+            d'abonnement), cette mesure est <strong>anonyme</strong> : nous
+            comptons uniquement des <em>vues</em> et des <em>clics</em> par jour
+            et par provenance, sans conserver votre adresse IP, votre navigateur
+            ni aucun identifiant. Nous comptons donc des consultations, pas des
+            visiteurs uniques, et ces compteurs ne peuvent pas être rattachés à
+            une personne.
+          </p>
+          <p>
+            Deux informations sont en revanche{" "}
+            <strong>rattachées à votre compte</strong>, dans les conditions
+            décrites à l'article 3.2 : la <strong>provenance</strong> et le{" "}
+            <strong>type d'appareil</strong> enregistrés à la création du compte,
+            ainsi que le premier affichage de l'écran d'abonnement et le premier
+            clic sur un bouton d'abonnement. Elles reposent sur des informations
+            transmises par votre navigateur au moment de la requête, jamais sur
+            un traceur, et sont <strong>supprimées avec votre compte</strong>.
+            Vous disposez à leur égard des droits décrits à l'Article 9,
+            notamment le droit d'opposition.
+          </p>
+          <p>
+            Ce périmètre restant limité aux cookies strictement nécessaires,{" "}
+            <strong>aucun bandeau de consentement n'est requis</strong>.
+          </p>
+        </LegalSubsection>
+
+        <LegalSubsection number="8.4" title="Gestion de vos préférences">
           <p>
             Le cookie de session étant strictement nécessaire à
             l'authentification, son dépôt n'est pas soumis à votre
@@ -397,9 +460,10 @@ export default function ConfidentialitePage() {
           </ul>
           <p>
             Si, à l'avenir, SejourFR venait à intégrer des cookies non
-            essentiels (mesure d'audience, par exemple), un bandeau de
-            consentement serait alors mis en place et la présente section
-            mise à jour en conséquence.
+            essentiels (un outil de mesure d'audience tiers ou un cookie
+            publicitaire, par exemple), un bandeau de consentement serait alors
+            mis en place et la présente section mise à jour en conséquence. La
+            mesure décrite à l'article 8.3 n'en dépose aucun.
           </p>
         </LegalSubsection>
       </LegalSection>

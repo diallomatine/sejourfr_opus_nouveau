@@ -2,9 +2,11 @@ package com.sejourfr.app.mapper;
 
 import com.sejourfr.app.dto.ChoiceDto;
 import com.sejourfr.app.dto.ChoicePublicResponse;
+import com.sejourfr.app.dto.ChoiceReviewResponse;
 import com.sejourfr.app.dto.QuestionDto;
 import com.sejourfr.app.dto.QuestionPublicResponse;
 import com.sejourfr.app.dto.QuestionReviewResponse;
+import com.sejourfr.app.audioquestion.domain.AudioMode;
 import com.sejourfr.app.entity.Choice;
 import com.sejourfr.app.entity.Media;
 import com.sejourfr.app.entity.Passage;
@@ -349,8 +351,113 @@ class QuestionMapperTest {
                 .containsExactly("Réponse A", "Réponse B", "Réponse C", "Réponse D");
     }
 
+    /**
+     * CO dont l'audio ENONCE les propositions (« A. … B. … C. … D. … ») alors que
+     * l'ecran affiche leur TEXTE : de vrais libelles, mais jamais melangeables.
+     */
+    private Question coPropositionsEnonceesDansLAudio() {
+        Question q = coQuestion(
+                "Pendant deux heures environ.",
+                "En suivant la notice etape par etape.",
+                "Parce que j'en avais vraiment besoin.",
+                "Dans le salon, contre le mur.");
+        q.setAudioMode(AudioMode.WRITTEN_QUESTION_SPOKEN_CHOICES);
+        return q;
+    }
+
     @Test
-    void toReview_sortsByDisplayOrderExposesCorrectAndSelection() {
+    void toPublic_propositionsEnonceesDansLAudio_gardeLOrdreDisplayOrder() {
+        // L'audio dit « B. En suivant la notice… » : melanger ferait cliquer B a
+        // un candidat qui avait compris, sur une autre proposition.
+        Question q = coPropositionsEnonceesDansLAudio();
+
+        for (long i = 1; i <= 60; i++) {
+            QuestionPublicResponse r = mapper.toPublic(q, true, new UUID(i, 0L));
+            assertThat(r.choices()).extracting(ChoicePublicResponse::label)
+                    .containsExactly(
+                            "Pendant deux heures environ.",
+                            "En suivant la notice etape par etape.",
+                            "Parce que j'en avais vraiment besoin.",
+                            "Dans le salon, contre le mur.");
+            assertThat(r.choices()).extracting(ChoicePublicResponse::displayOrder)
+                    .containsExactly(0, 1, 2, 3);
+        }
+    }
+
+    @Test
+    void toPublic_propositionsEnonceesDansLAudio_expliquationServieIntacte() {
+        // Pas de melange => ReferenceChoixLettre doit etre un no-op : les lettres
+        // de l'explication sont deja celles de l'ecran (et de l'audio).
+        Question q = coPropositionsEnonceesDansLAudio();
+        String texte = "Seule B « en suivant la notice etape par etape » y repond. "
+                + "A indique une duree. C indique une cause. D indique un lieu.";
+        q.setExplanation(texte);
+
+        for (long i = 1; i <= 40; i++) {
+            assertThat(mapper.toPublic(q, true, new UUID(i, 0L)).explanation()).isEqualTo(texte);
+            assertThat(mapper.explication(q, new UUID(i, 0L))).isEqualTo(texte);
+        }
+    }
+
+    @Test
+    void toReview_propositionsEnonceesDansLAudio_memeOrdreEtMemeExplicationQueLeRunner() {
+        Question q = coPropositionsEnonceesDansLAudio();
+        q.setExplanation("Seule B repond. A indique une duree.");
+
+        QuestionPublicResponse runner = mapper.toPublic(q, true, q.getId());
+        QuestionReviewResponse revue = mapper.toReview(q, List.of());
+
+        assertThat(revue.choices()).extracting("id")
+                .containsExactlyElementsOf(runner.choices().stream().map(ChoicePublicResponse::id).toList());
+        assertThat(revue.choices()).extracting("label")
+                .containsExactly(
+                        "Pendant deux heures environ.",
+                        "En suivant la notice etape par etape.",
+                        "Parce que j'en avais vraiment besoin.",
+                        "Dans le salon, contre le mur.");
+        assertThat(revue.explanation()).isEqualTo("Seule B repond. A indique une duree.");
+        assertThat(revue.explanation()).isEqualTo(runner.explanation());
+    }
+
+    @Test
+    void toPublic_ceEtStructure_restentMelangeesEtRemappees() {
+        // Non-regression : le melange (et le remappage des lettres) ne vaut que
+        // pour les questions dont l'audio ne nomme pas les propositions.
+        for (QuestionType type : List.of(QuestionType.CE, QuestionType.STRUCTURE)) {
+            Question q = baseQuestion(type);
+            q.setModule(Module.TCF);
+            q.setChoices(new ArrayList<>(List.of(
+                    choice("Premiere proposition", true, 0),
+                    choice("Deuxieme proposition", false, 1),
+                    choice("Troisieme proposition", false, 2),
+                    choice("Quatrieme proposition", false, 3))));
+            q.setExplanation("Seule A convient. B est hors sujet. C est un lieu. D est une duree.");
+
+            java.util.Set<Integer> positions = new java.util.HashSet<>();
+            for (long i = 1; i <= 60; i++) {
+                UUID seed = new UUID(i, 0L);
+                QuestionPublicResponse r = mapper.toPublic(q, true, seed);
+                positions.add(correctIndex(q, seed));
+
+                char bonne = lettreAffichee(r, "Premiere proposition");
+                char hors = lettreAffichee(r, "Deuxieme proposition");
+                char lieu = lettreAffichee(r, "Troisieme proposition");
+                char duree = lettreAffichee(r, "Quatrieme proposition");
+                assertThat(r.explanation())
+                        .isEqualTo("Seule " + bonne + " convient. " + hors + " est hors sujet. "
+                                + lieu + " est un lieu. " + duree + " est une duree.");
+            }
+            assertThat(positions).hasSizeGreaterThan(1);
+            assertThat(positions).anyMatch(p -> p != 0);
+        }
+    }
+
+    @Test
+    void toReview_suitLOrdreAfficheDuRunnerHorsSession() {
+        // La revue s'ouvre depuis les listes favoris / erreurs, servies par
+        // toPublic(q, false, q.getId()). Les deux vues doivent donner le MÊME
+        // ordre : avant, les propositions se réordonnaient sous les yeux du
+        // candidat au moment où le détail se chargeait.
         Question q = baseQuestion(QuestionType.CONNAISSANCE);
         Choice a = choice("A", false, 1);
         Choice b = choice("B", true, 0);
@@ -365,6 +472,7 @@ class QuestionMapperTest {
         List<UUID> selected = List.of(a.getId());
 
         QuestionReviewResponse r = mapper.toReview(q, selected);
+        QuestionPublicResponse liste = mapper.toPublic(q, false, q.getId());
 
         assertThat(r.id()).isEqualTo(q.getId());
         assertThat(r.themeId()).isEqualTo(q.getTheme().getId());
@@ -374,12 +482,112 @@ class QuestionMapperTest {
         assertThat(r.statement()).isEqualTo("Quelle est la devise ?");
         assertThat(r.passageText()).isEqualTo("Un texte complet de passage.");
         assertThat(r.explanation()).isEqualTo("Liberté, Égalité, Fraternité");
-        // Sorted by displayOrder ascending: B (0) then A (1).
-        assertThat(r.choices()).extracting("label").containsExactly("B", "A");
-        assertThat(r.choices().get(0).correct()).isTrue();
-        assertThat(r.choices().get(0).displayOrder()).isZero();
-        assertThat(r.choices().get(1).correct()).isFalse();
+        assertThat(r.choices()).extracting("id")
+                .containsExactlyElementsOf(liste.choices().stream().map(ChoicePublicResponse::id).toList());
+        // displayOrder = index d'affichage, jamais le display_order de la base
+        // (qui permettrait de défaire le mélange).
+        assertThat(r.choices()).extracting("displayOrder").containsExactly(0, 1);
+        assertThat(r.choices()).filteredOn("correct", true).extracting("label").containsExactly("B");
         assertThat(r.userSelectedChoiceIds()).containsExactly(a.getId());
+    }
+
+    // ------------------------------------------------------------------------
+    // Les lettres citées par l'explication suivent l'ordre AFFICHÉ
+    //
+    // Les explications sont rédigées sur le display_order de la base (« Seule B
+    // … A indique une durée ») : dès que les propositions sont mélangées, ces
+    // lettres désignent la mauvaise ligne. Le mélange est voulu (sans lui la
+    // bonne réponse restait collée en A), c'est donc le texte qui suit.
+    // ------------------------------------------------------------------------
+
+    private Question coAvecExplicationLettree() {
+        Question q = coQuestion(
+                "Pendant deux heures environ.",
+                "En suivant la notice étape par étape.",
+                "Parce que j'en avais vraiment besoin.",
+                "Dans le salon, contre le mur.");
+        // La bonne réponse est en position 0 dans coQuestion : on la déplace en
+        // position 1 pour coller à la question réelle (« Seule B »).
+        q.getChoices().get(0).setCorrect(false);
+        q.getChoices().get(1).setCorrect(true);
+        q.setExplanation("Seule B « en suivant la notice étape par étape » y répond. "
+                + "A indique une durée. C indique une cause. D indique un lieu. "
+                + "Piège B1 : les quatre réponses parlent du montage.");
+        return q;
+    }
+
+    /** Lettre d'affichage (A..D) du choix dont le label est donné. */
+    private char lettreAffichee(QuestionPublicResponse r, String label) {
+        for (int i = 0; i < r.choices().size(); i++) {
+            if (r.choices().get(i).label().equals(label)) return (char) ('A' + i);
+        }
+        throw new IllegalStateException("label absent : " + label);
+    }
+
+    @Test
+    void toPublic_coMelangee_lExplicationCiteLaLettreReellementAffichee() {
+        Question q = coAvecExplicationLettree();
+
+        for (long i = 1; i <= 40; i++) {
+            QuestionPublicResponse r = mapper.toPublic(q, true, new UUID(i, 0L));
+
+            char bonne = lettreAffichee(r, "En suivant la notice étape par étape.");
+            char duree = lettreAffichee(r, "Pendant deux heures environ.");
+            char cause = lettreAffichee(r, "Parce que j'en avais vraiment besoin.");
+            char lieu = lettreAffichee(r, "Dans le salon, contre le mur.");
+
+            assertThat(r.explanation())
+                    .startsWith("Seule " + bonne + " «")
+                    .contains(duree + " indique une durée.")
+                    .contains(cause + " indique une cause.")
+                    .contains(lieu + " indique un lieu.")
+                    // le palier CECRL n'est jamais un choix
+                    .contains("Piège B1 :");
+        }
+    }
+
+    @Test
+    void toPublic_propositionsLuesDansLAudio_expliationInchangee() {
+        // FULL_AUDIO : pas de mélange, donc pas de remappage — l'audio énonce
+        // « A… B… C… D… » dans l'ordre display_order et fige la correspondance.
+        Question q = coQuestion("Réponse A", "Réponse B", "Réponse C", "Réponse D");
+        q.setAudioMode(com.sejourfr.app.audioquestion.domain.AudioMode.FULL_AUDIO);
+        q.setExplanation("Seule A répond à la question. B indique une durée.");
+
+        for (long i = 1; i <= 20; i++) {
+            QuestionPublicResponse r = mapper.toPublic(q, true, new UUID(i, 0L));
+            assertThat(r.explanation()).isEqualTo("Seule A répond à la question. B indique une durée.");
+        }
+    }
+
+    @Test
+    void toPublic_revealFalse_neSertAucuneExplication() {
+        Question q = coAvecExplicationLettree();
+
+        assertThat(mapper.toPublic(q, false, new UUID(5L, 0L)).explanation()).isNull();
+    }
+
+    @Test
+    void explication_memeGraine_memeTexteQueLEcran() {
+        // Correction immédiate en TRAINING : AttemptInteractionService sert
+        // l'explication hors mapper, avec la graine du runner.
+        Question q = coAvecExplicationLettree();
+        UUID graine = new UUID(11L, 0L);
+
+        assertThat(mapper.explication(q, graine))
+                .isEqualTo(mapper.toPublic(q, true, graine).explanation());
+    }
+
+    @Test
+    void toReview_etRunnerHorsSession_memeOrdreEtMemeExplication() {
+        Question q = coAvecExplicationLettree();
+
+        QuestionPublicResponse runner = mapper.toPublic(q, true, q.getId());
+        QuestionReviewResponse revue = mapper.toReview(q, List.of());
+
+        assertThat(revue.choices()).extracting("id")
+                .containsExactlyElementsOf(runner.choices().stream().map(ChoicePublicResponse::id).toList());
+        assertThat(revue.explanation()).isEqualTo(runner.explanation());
     }
 
     // ------------------------------------------------------------------------
@@ -452,5 +660,98 @@ class QuestionMapperTest {
 
         assertThat(r.userSelectedChoiceIds()).isEmpty();
         assertThat(r.passageText()).isNull();
+    }
+
+    // ------------------------------------------------------------------------
+    // Reperes alphabetiques : l'ordre servi suit les LETTRES, jamais la colonne
+    // display_order. Garantie serveur qui remplace les tris locaux des fronts.
+    // ------------------------------------------------------------------------
+
+    @Test
+    void toPublic_repereAlphabetique_ordreSuitLesLettresPasLeDisplayOrder() {
+        // display_order saisi en desordre : D(0), B(1), A(2), C(3).
+        Question q = coQuestion("D", "B", "A", "C");
+
+        for (long i = 1; i <= 20; i++) {
+            QuestionPublicResponse r = mapper.toPublic(q, false, new UUID(i, 0L));
+            assertThat(r.choices()).extracting(ChoicePublicResponse::label)
+                    .containsExactly("A", "B", "C", "D");
+            // La pastille des fronts est derivee de l'index : elle colle donc
+            // toujours au libelle de la meme lettre.
+            assertThat(r.choices()).extracting(ChoicePublicResponse::displayOrder)
+                    .containsExactly(0, 1, 2, 3);
+        }
+    }
+
+    @Test
+    void toPublic_repereAlphabetique_formeReponseX_suitAussiLesLettres() {
+        Question q = coQuestion("Réponse C", "Réponse A", "Réponse D", "Réponse B");
+        q.setAudioMode(AudioMode.FULL_AUDIO);
+
+        QuestionPublicResponse r = mapper.toPublic(q, false, new UUID(11L, 0L));
+
+        assertThat(r.choices()).extracting(ChoicePublicResponse::label)
+                .containsExactly("Réponse A", "Réponse B", "Réponse C", "Réponse D");
+    }
+
+    @Test
+    void toPublic_repereAlphabetique_expliquationServieIntacte() {
+        // L'explication cite la LETTRE du libelle : l'ordre servi etant celui des
+        // lettres, il n'y a rien a remapper (permutation identite).
+        Question q = coQuestion("D", "B", "A", "C");
+        q.setExplanation("Seule B convient : A indique une durée.");
+
+        QuestionPublicResponse r = mapper.toPublic(q, true, new UUID(5L, 0L));
+
+        assertThat(r.explanation()).isEqualTo("Seule B convient : A indique une durée.");
+    }
+
+    @Test
+    void toPublic_repereAlphabetique_meMeAvecAudioModeWrittenQuestion_nEstPasMelangee() {
+        // audio_mode dit « question ecrite », mais les libelles sont des lettres :
+        // les melanger decorrelerait la pastille du libelle.
+        Question q = coQuestion("D", "B", "A", "C");
+        q.setAudioMode(AudioMode.WRITTEN_QUESTION);
+
+        for (long i = 1; i <= 20; i++) {
+            assertThat(mapper.toPublic(q, false, new UUID(i, 0L)).choices())
+                    .extracting(ChoicePublicResponse::label)
+                    .containsExactly("A", "B", "C", "D");
+        }
+    }
+
+    @Test
+    void toReview_repereAlphabetique_memeOrdreQueLeRunner() {
+        Question q = coQuestion("D", "B", "A", "C");
+        q.setExplanation("La réponse B est la seule correcte.");
+
+        QuestionPublicResponse runner = mapper.toPublic(q, true, q.getId());
+        QuestionReviewResponse revue = mapper.toReview(q, List.of());
+
+        assertThat(revue.choices()).extracting(ChoiceReviewResponse::id)
+                .containsExactlyElementsOf(
+                        runner.choices().stream().map(ChoicePublicResponse::id).toList());
+        assertThat(revue.choices()).extracting(ChoiceReviewResponse::label)
+                .containsExactly("A", "B", "C", "D");
+        assertThat(revue.explanation()).isEqualTo(runner.explanation());
+    }
+
+    @Test
+    void toPublic_structureAuxReponsesDUneLettre_resteMelangee() {
+        // Garde-fou de type : une STRUCTURE dont les reponses sont « a »/« d »
+        // n'est PAS un repere alphabetique — elle doit continuer d'etre melangee.
+        Question q = baseQuestion(QuestionType.STRUCTURE);
+        q.setModule(Module.TCF);
+        q.setChoices(new ArrayList<>(List.of(
+                choice("a", true, 0),
+                choice("b", false, 1),
+                choice("c", false, 2),
+                choice("d", false, 3))));
+
+        java.util.Set<Integer> positions = new java.util.HashSet<>();
+        for (long i = 1; i <= 60; i++) {
+            positions.add(correctIndex(q, new UUID(i, 0L)));
+        }
+        assertThat(positions).hasSizeGreaterThan(1);
     }
 }

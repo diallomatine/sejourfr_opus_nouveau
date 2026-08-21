@@ -8,11 +8,13 @@ import {
 } from "./audience-events.ts";
 import {safeInternalPath} from "./security.ts";
 
-test("la liste blanche web reflète les trois chemins suivis par le backend", () => {
+test("la liste blanche web reflète les chemins suivis par le backend", () => {
   assert.deepEqual(Object.keys(AUDIENCE_EVENTS_BY_PATH).sort(), [
     "/diagnostic",
+    "/paiement",
     "/plan",
     "/reussir",
+    "/tarifs",
   ]);
 });
 

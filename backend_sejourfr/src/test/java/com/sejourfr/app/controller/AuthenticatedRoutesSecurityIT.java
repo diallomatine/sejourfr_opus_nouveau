@@ -59,6 +59,8 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/me/progression"),
                 Arguments.of(HttpMethod.GET, "/api/me/plan"),
                 Arguments.of(HttpMethod.GET, "/api/me/questions/favorites"),
+                // Étapes de funnel déclarées par le candidat (paywall vu, clic abonnement).
+                Arguments.of(HttpMethod.POST, "/api/me/funnel-events"),
                 // Diagnostic initial : agrégat nominatif et reprenable.
                 Arguments.of(HttpMethod.GET, "/api/diagnostics/current"),
                 Arguments.of(HttpMethod.POST, "/api/diagnostics"),

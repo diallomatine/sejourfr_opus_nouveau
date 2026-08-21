@@ -13,7 +13,9 @@ import com.sejourfr.app.manager.PlanManager;
 import com.sejourfr.app.manager.ProcessedExternalEventManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.mapper.PlanMapper;
+import com.sejourfr.app.enums.FunnelEvent;
 import com.sejourfr.app.service.billing.StripeSubscriptionService;
+import com.sejourfr.app.util.ClientContext;
 import com.stripe.Stripe;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
@@ -80,6 +82,7 @@ public class BillingService {
     private final PlanMapper planMapper;
     private final StripeSubscriptionService stripeSubscriptionService;
     private final SubscriptionService subscriptionService;
+    private final FunnelEventService funnelEventService;
 
     /**
      * Initialise la clé API Stripe globale au démarrage si elle est configurée.
@@ -129,7 +132,8 @@ public class BillingService {
      *         404 si planCode introuvable / inactif / sans stripe_price_id ;
      *         502 si l'API Stripe échoue.
      */
-    public BillingCheckoutResponse getPaymentLink(UUID userId, String planCode) {
+    public BillingCheckoutResponse getPaymentLink(UUID userId, String planCode,
+                                                  ClientContext client) {
         if (!stripeProperties.isConfigured()) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
@@ -150,7 +154,7 @@ public class BillingService {
         // (price_data depuis plan.price) — pas besoin de Stripe Price. Proration
         // appliquée si upgrade Civique→Intégral.
         if (billingProperties.isOneTime()) {
-            return createOneTimeCheckout(user, plan);
+            return createOneTimeCheckout(user, plan, client);
         }
 
         String priceId = plan.getStripePriceId();
@@ -180,6 +184,7 @@ public class BillingService {
                 .build();
         try {
             Session session = Session.create(params);
+            recordCheckoutStarted(userId, client);
             return new BillingCheckoutResponse(session.getUrl());
         } catch (StripeException e) {
             log.error("Échec création Checkout Session (plan={}) : {}", planCode, e.getMessage());
@@ -188,6 +193,21 @@ public class BillingService {
                     "Impossible de créer la session Stripe. Réessayez dans un instant."
             );
         }
+    }
+
+    /**
+     * Dernière marche verifiable du funnel : une session de paiement a
+     * REELLEMENT ete creee chez le fournisseur. Posee par le serveur, jamais
+     * par un client — un clic declare est une intention, pas un depart de
+     * paiement.
+     *
+     * <p><b>Best-effort absolu</b> : perdre une ligne de statistique est sans
+     * commune mesure avec empêcher quelqu'un de payer. L'écriture est un
+     * {@code ON CONFLICT DO NOTHING} qui ne lève pas, et l'appel est de toute
+     * façon protégé.
+     */
+    private void recordCheckoutStarted(UUID userId, ClientContext client) {
+        funnelEventService.recordQuietly(userId, FunnelEvent.CHECKOUT_STARTED, client);
     }
 
     /**
@@ -216,7 +236,8 @@ public class BillingService {
      * voyage en metadata pour que le webhook sache quel pass créditer ; le
      * {@code payment_intent} servira de clé d'unicité côté grant.
      */
-    private BillingCheckoutResponse createOneTimeCheckout(User user, Plan plan) {
+    private BillingCheckoutResponse createOneTimeCheckout(User user, Plan plan,
+                                                          ClientContext client) {
         long amountCents = computeOneTimeAmountCents(user.getId(), plan);
         String appBaseUrl = stripeProperties.getAppBaseUrl();
         String successUrl = appBaseUrl + "/paiement/succes"
@@ -251,6 +272,7 @@ public class BillingService {
                 .build();
         try {
             Session session = Session.create(params);
+            recordCheckoutStarted(user.getId(), client);
             return new BillingCheckoutResponse(session.getUrl());
         } catch (StripeException e) {
             log.error("Échec création Checkout one-time (plan={}) : {}", plan.getCode(), e.getMessage());

@@ -24,11 +24,20 @@ public class AdminPageViewController {
         return PageViewService.TRACKED_PATHS.stream().sorted().toList();
     }
 
+    /**
+     * {@code from}/{@code to} sont des dates ISO {@code yyyy-MM-dd}, bornes
+     * <b>incluses</b>, en Europe/Paris. Fournies, elles l'emportent sur
+     * {@code days} ; absentes, on retombe sur la fenêtre glissante. Une seule
+     * des deux bornes est une erreur nommée (400) et jamais un repli muet — cf.
+     * {@code FenetreMesure}.
+     */
     @GetMapping
     public PageViewStatsResponse stats(
             @RequestParam(defaultValue = "/reussir") String path,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
             @RequestParam(defaultValue = "30") int days
     ) {
-        return pageViewService.stats(path, days);
+        return pageViewService.stats(path, from, to, days);
     }
 }

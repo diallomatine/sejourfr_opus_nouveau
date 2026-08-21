@@ -6,16 +6,18 @@ import com.sejourfr.app.entity.PageView;
 import com.sejourfr.app.enums.PageViewEvent;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.PageViewManager;
+import com.sejourfr.app.util.FenetreMesure;
+import com.sejourfr.app.util.TrafficSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -66,18 +68,29 @@ public class PageViewService {
             "/plan", EnumSet.of(
                     PageViewEvent.PLAN_OPENED,
                     PageViewEvent.PLAN_RECOMMENDED_EXERCISE_STARTED,
-                    PageViewEvent.DIAGNOSTIC_TO_PREMIUM_CLICKED));
+                    PageViewEvent.DIAGNOSTIC_TO_PREMIUM_CLICKED),
+            // Ecrans de prix. Ce qu'on y compte, ce sont les VISITEURS qui
+            // regardent les tarifs sans jamais creer de compte : eux
+            // n'apparaissent dans aucune table nominative, et le funnel par
+            // compte commence apres eux. VIEW/CTA suffisent — la suite du
+            // parcours (ecran Premium, clic abonnement, paiement) est lue par
+            // compte, jamais ici.
+            "/tarifs", EnumSet.of(PageViewEvent.VIEW, PageViewEvent.CTA),
+            "/paiement", EnumSet.of(PageViewEvent.VIEW, PageViewEvent.CTA));
 
     /** Pages exposées à la console admin, conservé pour compatibilité. */
     public static final Set<String> TRACKED_PATHS = EVENTS_BY_PATH.keySet();
 
-    /** Provenances normalisées. Une valeur inconnue est rangée dans « autre ». */
-    public static final Set<String> KNOWN_SOURCES =
-            Set.of("tiktok", "instagram", "whatsapp", "facebook", "youtube", "direct");
+    /**
+     * Provenances normalisées. Une valeur inconnue est rangée dans « autre ».
+     *
+     * <p>Alias de lecture de {@link TrafficSource#KNOWN}, qui est l'autorité :
+     * la liste est partagée avec le funnel par compte, et deux copies auraient
+     * fini par ranger « tiktok » dans deux dimensions différentes.
+     */
+    public static final Set<String> KNOWN_SOURCES = TrafficSource.KNOWN;
 
-    private static final String OTHER_SOURCE = "autre";
-    private static final ZoneId PARIS = ZoneId.of("Europe/Paris");
-    private static final int MAX_WINDOW_DAYS = 365;
+    private static final ZoneId PARIS = FenetreMesure.PARIS;
 
     private final PageViewManager manager;
 
@@ -97,12 +110,31 @@ public class PageViewService {
 
     /** Agrégat sur une fenêtre glissante de {@code days} jours, aujourd'hui inclus. */
     public PageViewStatsResponse stats(String path, int days) {
+        return stats(path, null, null, days);
+    }
+
+    /**
+     * Agrégat sur une fenêtre explicite {@code from}..{@code to} (bornes
+     * incluses, Europe/Paris), ou repli sur {@code days} si aucune borne n'est
+     * fournie — même contrat que le funnel par compte, même résolveur
+     * ({@link FenetreMesure}). Les libellés de période vivent côté admin.
+     *
+     * <p>La réponse rend les bornes RÉELLEMENT appliquées : sans elles, l'écran
+     * ne peut pas prouver ce qu'il affiche.
+     */
+    public PageViewStatsResponse stats(String path, String rawFrom, String rawTo, int days) {
         if (!TRACKED_PATHS.contains(path)) {
             throw new BusinessException("Page non suivie : " + path);
         }
-        int window = Math.clamp(days, 1, MAX_WINDOW_DAYS);
-        LocalDate from = LocalDate.now(PARIS).minusDays(window - 1L);
-        List<PageView> rows = manager.since(path, from);
+        FenetreMesure fenetre = FenetreMesure.resolve(rawFrom, rawTo, days);
+        int window = fenetre.days();
+        LocalDate from = fenetre.from();
+        LocalDate to = fenetre.to();
+        // Les buckets sont journaliers : on borne aussi la fin, sinon une
+        // journée choisie dans le passé renverrait tout ce qui l'a suivie.
+        List<PageView> rows = manager.since(path, from).stream()
+                .filter(row -> !row.getDay().isAfter(to))
+                .toList();
 
         Map<String, long[]> bySource = new TreeMap<>();
         Map<LocalDate, long[]> byDay = new TreeMap<>();
@@ -120,14 +152,21 @@ public class PageViewService {
                 .sorted(Comparator.comparingLong(PageViewStatsResponse.SourceStat::views).reversed())
                 .toList();
 
-        List<PageViewStatsResponse.DailyStat> daily = byDay.entrySet().stream()
-                .map(e -> new PageViewStatsResponse.DailyStat(
-                        e.getKey().toString(), e.getValue()[0], e.getValue()[1]))
-                .toList();
+        // Série CONTINUE : un point par jour de la fenêtre, même à zéro. Un trou
+        // dans une courbe se lit comme une absence de mesure, pas comme une
+        // absence de visite — et une journée choisie sans aucune vue doit rendre
+        // un point à zéro, pas une série vide. Même règle que le funnel.
+        List<PageViewStatsResponse.DailyStat> daily = new ArrayList<>();
+        for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
+            long[] bucket = byDay.getOrDefault(day, new long[2]);
+            daily.add(new PageViewStatsResponse.DailyStat(
+                    day.toString(), bucket[0], bucket[1]));
+        }
 
         long views = sources.stream().mapToLong(PageViewStatsResponse.SourceStat::views).sum();
         long cta = sources.stream().mapToLong(PageViewStatsResponse.SourceStat::ctaClicks).sum();
-        return new PageViewStatsResponse(path, window, views, cta, sources, daily, events);
+        return new PageViewStatsResponse(path, window, from.toString(), to.toString(),
+                views, cta, sources, daily, events);
     }
 
     private static void accumulate(long[] bucket, PageView row) {
@@ -151,8 +190,6 @@ public class PageViewService {
     }
 
     private static String normalizeSource(String raw) {
-        if (raw == null || raw.isBlank()) return "direct";
-        String normalized = raw.trim().toLowerCase(Locale.ROOT);
-        return KNOWN_SOURCES.contains(normalized) ? normalized : OTHER_SOURCE;
+        return TrafficSource.normalize(raw);
     }
 }

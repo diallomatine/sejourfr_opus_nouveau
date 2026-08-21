@@ -276,8 +276,11 @@ class _RunnerView extends ConsumerWidget {
                         : question.statement,
                   ),
                   const SizedBox(height: 20),
+                  // L'ordre reçu fait foi : le serveur garantit qu'une question
+                  // à repères alphabétiques est servie dans l'ordre de ses
+                  // lettres (QuestionMapper.ordreReference). Aucun tri local.
                   ...() {
-                    final choices = orderedDisplayChoices(question);
+                    final choices = question.choices;
                     return List.generate(choices.length, (i) {
                       final c = choices[i];
                       final isSelected = selected.contains(c.id);

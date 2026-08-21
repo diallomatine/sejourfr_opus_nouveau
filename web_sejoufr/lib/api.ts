@@ -48,6 +48,7 @@ import type {
   TokenResponse,
   UserStatsResponse,
 } from "./types";
+import {detectTrafficSource} from "./audience-events";
 import {cached, clearDataCache, invalidateCache, peekCached, primeCached} from "./data-cache";
 import {requiresDiagnosticRevalidation} from "./diagnostic";
 import {PRODUCTION_PROGRESS_PREFIXES} from "./production-catalog";
@@ -221,11 +222,33 @@ async function refreshAccessToken(): Promise<string | null> {
     return refreshPromise;
 }
 
+/**
+ * En-têtes d'identification du client, posés sur **toutes** les requêtes — un
+ * seul point de câblage, jamais un ajout appel par appel.
+ *
+ * - `X-Sejourfr-Client: web` distingue le site des applications mobiles ;
+ * - `X-Sejourfr-Source` transporte la provenance (TikTok, Instagram…) quand
+ *   elle est connue. Le serveur ne la lit qu'à la création du compte et d'une
+ *   session de diagnostic ; l'envoyer partout coûte quelques octets et évite de
+ *   devoir la câbler sur chaque appel qui pourrait un jour compter.
+ *
+ * Rien n'est stocké côté navigateur : la provenance est relue de l'URL (ou du
+ * referrer) à chaque requête. En rendu serveur, `detectTrafficSource` rend
+ * `null` sans lever — l'en-tête est simplement absent.
+ */
+function clientHeaders(): Record<string, string> {
+    const source = detectTrafficSource();
+    return source
+        ? {"X-Sejourfr-Client": "web", "X-Sejourfr-Source": source}
+        : {"X-Sejourfr-Client": "web"};
+}
+
 async function rawFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
     const {auth, json, headers, skipRefresh: _skip, cache, next, ...rest} = opts;
 
     const finalHeaders: Record<string, string> = {
         Accept: "application/json",
+        ...clientHeaders(),
         ...((headers as Record<string, string>) || {}),
     };
 
@@ -851,6 +874,26 @@ export const learningPlanApi = {
      *  jamais déclencher une requête pour un simple confort d'affichage. */
     peekCached(): LearningPlanDto | undefined {
         return peekCached<LearningPlanDto>(LEARNING_PLAN_CACHE_KEY);
+    },
+};
+
+// ============================================================================
+// Endpoints Funnel (étapes purement navigateur)
+// ============================================================================
+
+/** Étapes du funnel que seul le navigateur peut constater. Le reste (compte
+ *  créé, diagnostic commencé/terminé, paiement) est déduit serveur des vraies
+ *  tables : ne rien émettre pour ces étapes-là. */
+export type FunnelEvent = "PAYWALL_VIEWED" | "SUBSCRIBE_CLICKED";
+
+export const funnelApi = {
+    /** 204. Idempotent côté serveur (première occurrence par compte). */
+    record(event: FunnelEvent): Promise<void> {
+        return apiFetch<void>("/api/me/funnel-events", {
+            method: "POST",
+            json: {event},
+            auth: true,
+        });
     },
 };
 

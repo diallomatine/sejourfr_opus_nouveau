@@ -32,8 +32,6 @@ export type EpreuveType =
     | "TCF_COMPLET";
 export type MediaType = "AUDIO" | "IMAGE" | "VIDEO";
 export type Role = "USER" | "ADMIN";
-export type AudioMode = "WRITTEN_QUESTION" | "FULL_AUDIO";
-
 /**
  * Libelle francais d'un type de question, miroir du `displayLabel` cote mobile
  * (`mobile_sejourfr/lib/core/models/enums.dart`).
@@ -163,7 +161,6 @@ export interface QuestionPublicResponse {
      * porte alors l'image, `audioMedia` l'audio.
      */
     audioMedia?: MediaResponse;
-    audioMode?: AudioMode | null;
     choices: ChoicePublicResponse[];
 }
 
@@ -177,24 +174,6 @@ export interface ChoiceFullResponse {
     correct: boolean;
 }
 
-const SINGLE_LETTER = /^[A-Za-z]$/;
-
-/**
- * Questions TCF CO FULL_AUDIO : tous les labels se réduisent à une seule lettre
- * (A/B/C/D), qui est la clé de réponse citée par l'audio et l'explication. On
- * trie alors les choix par label pour qu'ils s'affichent dans l'ordre A→D (et
- * que la pastille colle à l'explication). Les questions normales gardent leur
- * ordre d'origine. Générique sur `{ label }` pour couvrir les Choice*Response.
- */
-export function orderedChoices<T extends { label: string }>(choices: T[]): T[] {
-    const allLetters =
-        choices.length > 0 && choices.every((c) => SINGLE_LETTER.test(c.label.trim()));
-    if (!allLetters) return choices;
-    return [...choices].sort((a, b) =>
-        a.label.trim().toUpperCase().localeCompare(b.label.trim().toUpperCase()),
-    );
-}
-
 export interface QuestionReviewResponse {
     id: string;
     module: Module;
@@ -206,7 +185,6 @@ export interface QuestionReviewResponse {
     passageText?: string;
     media?: MediaResponse;
     audioMedia?: MediaResponse;
-    audioMode?: AudioMode | null;
     explanation?: string | null;
     choices: ChoiceFullResponse[];
 }

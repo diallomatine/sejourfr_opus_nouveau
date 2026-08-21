@@ -379,7 +379,18 @@ export type GenerationStatus =
   | "FAILED_TIMEOUT"
   | "REJECTED_BY_ADMIN";
 
-export type AudioMode = "WRITTEN_QUESTION" | "FULL_AUDIO";
+/**
+ * Miroir de `com.sejourfr.app.audioquestion.domain.AudioMode`.
+ *
+ * `WRITTEN_QUESTION_SPOKEN_CHOICES` constate un defaut de contenu existant
+ * (l'audio enonce les propositions avec leurs lettres alors que l'ecran
+ * affiche leur texte) : il s'AFFICHE, il ne se DEMANDE pas — cf.
+ * `AUDIO_MODE_OPTIONS`, qui ne propose que les deux modes generables.
+ */
+export type AudioMode =
+  | "WRITTEN_QUESTION"
+  | "FULL_AUDIO"
+  | "WRITTEN_QUESTION_SPOKEN_CHOICES";
 
 export interface GenerateAudioQuestionRequest {
   niveau: AudioLevel;
@@ -1097,6 +1108,7 @@ export type PageViewEvent =
   | "PLAN_OPENED"
   | "PLAN_RECOMMENDED_EXERCISE_STARTED"
   | "SOCIAL_LANDING_DIAGNOSTIC_CLICKED"
+  | "DIAGNOSTIC_ACCOUNT_REQUIRED"
   | "DIAGNOSTIC_TO_PREMIUM_CLICKED";
 
 /**
@@ -1106,12 +1118,96 @@ export type PageViewEvent =
 export interface PageViewStatsResponse {
   path: string;
   days: number;
+  /** Bornes réellement appliquées (yyyy-MM-dd, Europe/Paris, incluses). */
+  from: string;
+  to: string;
   views: number;
   ctaClicks: number;
   sources: PageViewSourceStat[];
   daily: PageViewDailyStat[];
   /** Compteurs bruts du funnel, toujours agrégés et anonymes. */
   events: Partial<Record<PageViewEvent, number>>;
+}
+
+/**
+ * Période demandée aux deux endpoints d'audience. `from`/`to` (bornes incluses,
+ * Europe/Paris) l'emportent sur `days` ; une seule borne, `from > to` ou plus de
+ * 365 jours d'amplitude sont refusés en 400, d'où l'union exclusive.
+ */
+export type AudienceRange =
+  | { days: number }
+  | { from: string; to: string };
+
+// ============ FUNNEL D'ACQUISITION (cohorte d'inscription) ============
+// Nature différente des `page_views` ci-dessus : ici on compte des COMPTES,
+// une seule fois par étape, sur la cohorte des inscrits de la fenêtre.
+
+export type FunnelStage =
+  | "SIGNUP"
+  | "DIAGNOSTIC_STARTED"
+  | "DIAGNOSTIC_COMPLETED"
+  | "PAYWALL_VIEWED"
+  | "SUBSCRIBE_CLICKED"
+  | "CHECKOUT_STARTED"
+  | "PURCHASE";
+
+/** Une étape et le nombre de comptes de la cohorte qui l'ont franchie. */
+export interface FunnelStageStat {
+  stage: FunnelStage;
+  count: number;
+}
+
+/** Les 7 étapes en colonnes, pour une ventilation (provenance ou plateforme). */
+export interface FunnelBreakdownCounts {
+  signups: number;
+  diagnosticsStarted: number;
+  diagnosticsCompleted: number;
+  paywallViewed: number;
+  subscribeClicked: number;
+  checkoutStarted: number;
+  purchases: number;
+}
+
+/** `inconnu` = comptes antérieurs à la mesure de provenance. */
+export interface FunnelSourceStat extends FunnelBreakdownCounts {
+  source: string;
+}
+
+/** `UNKNOWN` = comptes antérieurs à la mesure de plateforme. */
+export type FunnelPlatform = "WEB" | "MOBILE" | "UNKNOWN";
+
+export interface FunnelPlatformStat extends FunnelBreakdownCounts {
+  platform: FunnelPlatform;
+}
+
+export interface FunnelDailyStat {
+  /** Jour ISO (yyyy-MM-dd), Europe/Paris. */
+  day: string;
+  signups: number;
+  diagnosticsStarted: number;
+  diagnosticsCompleted: number;
+  purchases: number;
+}
+
+/** Contrôle : un compte ne doit avoir qu'une session de diagnostic. */
+export interface FunnelIntegrity {
+  accountsWithDiagnostic: number;
+  diagnosticSessionsTotal: number;
+  accountsWithMultipleDiagnosticSessions: number;
+}
+
+export interface FunnelStatsResponse {
+  days: number;
+  /** Bornes de la cohorte (yyyy-MM-dd), incluses. */
+  cohortFrom: string;
+  cohortTo: string;
+  /** Déjà ordonné SIGNUP → PURCHASE : ne pas réordonner côté front. */
+  stages: FunnelStageStat[];
+  bySource: FunnelSourceStat[];
+  byPlatform: FunnelPlatformStat[];
+  /** Série continue (zéros compris), du plus ancien au plus récent. */
+  daily: FunnelDailyStat[];
+  integrity: FunnelIntegrity;
 }
 
 // ============ COMPÉTENCES TCF (EE/EO) — surface admin ============

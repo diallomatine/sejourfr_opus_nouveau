@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CalendarOff, Check, Sparkles } from "lucide-react";
 import { periodicityFromCycle, type PlanModuleTarget, type PlanPeriodicity } from "@/lib/api";
+import { trackCtaClick, trackPageView, withTrafficSource, type TrafficSource } from "@/lib/audience";
 import { useAuth } from "@/lib/auth-context";
+import { useTrafficSource } from "@/lib/use-traffic-source";
 import {
   formatPassPrice,
   isOneTimeCatalog,
@@ -23,6 +25,12 @@ interface Props {
   variant?: "full" | "compact";
   /** Pré-sélection de la périodicité (par défaut : trimestriel). */
   defaultPeriodicity?: PlanPeriodicity;
+  /**
+   * Chemin mesuré en audience ANONYME. Renseigné **seulement** par `/tarifs` :
+   * ce composant sert aussi la section tarifs de la landing, qui n'est pas
+   * `/tarifs` et ne doit pas gonfler son compteur. Absent ⇒ aucune mesure.
+   */
+  audiencePath?: "/tarifs";
 }
 
 interface Preset {
@@ -114,11 +122,29 @@ function indexPaidPlans(
   return map;
 }
 
-export function PricingPlans({ plans, variant = "full", defaultPeriodicity = "quarterly" }: Props) {
+export function PricingPlans({
+  plans,
+  variant = "full",
+  defaultPeriodicity = "quarterly",
+  audiencePath,
+}: Props) {
   const [periodicity, setPeriodicity] = useState<PlanPeriodicity>(defaultPeriodicity);
   const { status } = useAuth();
+  // La provenance suit le visiteur jusqu'aux portes du compte et du paiement.
+  const source = useTrafficSource();
   const index = useMemo(() => indexPaidPlans(plans), [plans]);
   const freePlan = plans.find((p) => p.code === "FREE") ?? null;
+
+  // Vue ANONYME de la page des prix : elle répond à la seule question qu'aucune
+  // table ne peut trancher — combien de visiteurs regardent les tarifs sans
+  // jamais créer de compte. Rien n'est écrit sur l'appareil du visiteur.
+  useEffect(() => {
+    if (audiencePath) trackPageView(audiencePath);
+  }, [audiencePath]);
+
+  const onCta = () => {
+    if (audiencePath) trackCtaClick(audiencePath);
+  };
 
   // Mode passes one-time (lot 5) : une carte par module, chaque durée étant une
   // ligne cliquable qui emmène droit au récapitulatif du pass choisi.
@@ -139,6 +165,8 @@ export function PricingPlans({ plans, variant = "full", defaultPeriodicity = "qu
             passes={oneTimePassesOf(plans, "CIVIQUE")}
             featured={false}
             authenticated={authenticated}
+            source={source}
+            onCta={onCta}
           />
           <PassModuleCard
             preset={PRESENTATIONS.INTEGRAL}
@@ -146,6 +174,8 @@ export function PricingPlans({ plans, variant = "full", defaultPeriodicity = "qu
             passes={oneTimePassesOf(plans, "INTEGRAL")}
             featured
             authenticated={authenticated}
+            source={source}
+            onCta={onCta}
           />
           {freePlan && (
             <PricingCard
@@ -155,7 +185,7 @@ export function PricingPlans({ plans, variant = "full", defaultPeriodicity = "qu
               originalPrice={null}
               periodicity={periodicity}
               durationNote="Sans limite de durée"
-              href="/inscription"
+              href={withTrafficSource("/inscription", source)}
             />
           )}
         </div>
@@ -197,7 +227,7 @@ export function PricingPlans({ plans, variant = "full", defaultPeriodicity = "qu
             originalPrice={null}
             periodicity={periodicity}
             durationNote="Sans limite de durée"
-            href="/inscription"
+            href={withTrafficSource("/inscription", source)}
           />
         )}
         {civique && (
@@ -207,7 +237,8 @@ export function PricingPlans({ plans, variant = "full", defaultPeriodicity = "qu
             price={civique.price}
             originalPrice={civique.originalPrice}
             periodicity={periodicity}
-            href={`/paiement?module=CIVIQUE&period=${periodicity}`}
+            href={withTrafficSource(`/paiement?module=CIVIQUE&period=${periodicity}`, source)}
+            onCta={onCta}
           />
         )}
         {integral && (
@@ -217,7 +248,8 @@ export function PricingPlans({ plans, variant = "full", defaultPeriodicity = "qu
             price={integral.price}
             originalPrice={integral.originalPrice}
             periodicity={periodicity}
-            href={`/paiement?module=INTEGRAL&period=${periodicity}`}
+            href={withTrafficSource(`/paiement?module=INTEGRAL&period=${periodicity}`, source)}
+            onCta={onCta}
           />
         )}
       </div>
@@ -235,6 +267,7 @@ function PricingCard({
   periodicity,
   href,
   durationNote,
+  onCta,
 }: {
   preset: Preset;
   name: string;
@@ -243,6 +276,7 @@ function PricingCard({
   periodicity: PlanPeriodicity;
   href: string;
   durationNote?: string;
+  onCta?: () => void;
 }) {
   const isFree = price === null || price === 0;
   // On met en avant le prix /mois ; le total réellement débité passe en
@@ -301,7 +335,7 @@ function PricingCard({
       </ul>
 
       <div className="pp-foot">
-        <Link href={href} className={ctaClass}>
+        <Link href={href} className={ctaClass} onClick={onCta}>
           {preset.cta.label}
         </Link>
       </div>
@@ -324,12 +358,16 @@ function PassModuleCard({
   passes,
   featured,
   authenticated,
+  source,
+  onCta,
 }: {
   preset: Preset;
   name: string;
   passes: PlanPublicResponse[];
   featured: boolean;
   authenticated: boolean | null;
+  source: TrafficSource | null;
+  onCta?: () => void;
 }) {
   if (passes.length === 0) return null;
   return (
@@ -348,8 +386,9 @@ function PassModuleCard({
           return (
             <li key={p.code}>
               <Link
-                href={passCheckoutHref(p.code, authenticated)}
+                href={passCheckoutHref(p.code, authenticated, source)}
                 className={`pp-pass ${popular ? "is-popular" : ""}`}
+                onClick={onCta}
               >
                 {popular && (
                   <span className="pp-pop">

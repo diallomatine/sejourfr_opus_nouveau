@@ -10,7 +10,6 @@ import {
   userContentApi,
 } from "@/lib/api";
 import {
-  orderedChoices,
   questionTypeLabel,
   type AnswerResultResponse,
   type AttemptQuestionResponse,
@@ -485,7 +484,7 @@ export function QuestionRunner({
 
       if (["1", "2", "3", "4"].includes(e.key)) {
         const idx = Number(e.key) - 1;
-        const choice = orderedChoices(current.question.choices)[idx];
+        const choice = current.question.choices[idx];
         if (choice && !hasFeedback) {
           e.preventDefault();
           toggleChoice(choice.id);
@@ -703,12 +702,13 @@ export function QuestionRunner({
 
         {/* CHOICES */}
         <div className="qr-options" role="radiogroup">
-          {orderedChoices(q.choices).map((c, i) => {
+          {q.choices.map((c, i) => {
             // TCF CO en mode FULL_AUDIO : le contenu de la réponse est dans
             // l'audio, le label se réduit à une lettre ("A" ou "Réponse A") qui
             // est la clé de réponse citée par l'explication. On affiche cette
-            // lettre dans la pastille et on masque le texte redondant ; les choix
-            // sont déjà triés A→D par orderedChoices.
+            // lettre dans la pastille et on masque le texte redondant. L'ordre
+            // reçu suit déjà les lettres : le serveur le garantit (QuestionMapper
+            // .ordreReference), aucun tri local ne doit le défaire.
             const letterMatch = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
             // En CO_IMAGE le texte des choix vit dans l'audio : on masque le
             // label dans tous les cas et on pose la lettre par position.

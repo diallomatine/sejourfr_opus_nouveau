@@ -12,6 +12,8 @@ import com.sejourfr.app.security.JwtService;
 import com.sejourfr.app.service.social.AppleTokenVerifier;
 import com.sejourfr.app.service.social.GoogleTokenVerifier;
 import com.sejourfr.app.service.social.SocialIdentity;
+import com.sejourfr.app.enums.ClientPlatform;
+import com.sejourfr.app.util.ClientContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -31,6 +33,8 @@ import static org.mockito.Mockito.when;
  * sinon création. Aucun appel réseau (verifiers mockés).
  */
 class SocialAuthServiceTest {
+
+    private static final ClientContext CTX = new ClientContext(ClientPlatform.MOBILE, "tiktok");
 
     private UserManager userManager;
     private SessionService sessionService;
@@ -82,7 +86,7 @@ class SocialAuthServiceTest {
         User user = existing("known@test.fr", AuthProvider.GOOGLE);
         when(userManager.findByProvider(AuthProvider.GOOGLE, "sub-1")).thenReturn(Optional.of(user));
 
-        TokenResponse resp = service.loginWithGoogle(new GoogleSignInRequest("tok"), "ua", "ip");
+        TokenResponse resp = service.loginWithGoogle(new GoogleSignInRequest("tok"), "ua", "ip", CTX);
 
         assertThat(resp.accessToken()).isEqualTo("acc");
         assertThat(user.getLastLoginAt()).isNotNull();
@@ -98,7 +102,7 @@ class SocialAuthServiceTest {
         User local = existing("local@test.fr", AuthProvider.LOCAL);
         when(userManager.findByEmail("local@test.fr")).thenReturn(Optional.of(local));
 
-        service.loginWithGoogle(new GoogleSignInRequest("tok"), "ua", "ip");
+        service.loginWithGoogle(new GoogleSignInRequest("tok"), "ua", "ip", CTX);
 
         // auth_provider reste celui de la création initiale (immutable ici).
         assertThat(local.getAuthProvider()).isEqualTo(AuthProvider.LOCAL);
@@ -113,7 +117,7 @@ class SocialAuthServiceTest {
         when(userManager.findByProvider(AuthProvider.GOOGLE, "sub-3")).thenReturn(Optional.empty());
         when(userManager.findByEmail("new@test.fr")).thenReturn(Optional.empty());
 
-        service.loginWithGoogle(new GoogleSignInRequest("tok"), "ua", "ip");
+        service.loginWithGoogle(new GoogleSignInRequest("tok"), "ua", "ip", CTX);
 
         org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
         verify(userManager).save(captor.capture());
@@ -123,7 +127,34 @@ class SocialAuthServiceTest {
         assertThat(created.getProviderUserId()).isEqualTo("sub-3");
         assertThat(created.getPasswordHash()).isNull();
         assertThat(created.getRole()).isEqualTo(Role.USER);
+        // Provenance du premier jour, posée sur la branche de CRÉATION seulement.
+        assertThat(created.getSignupSource()).isEqualTo("tiktok");
+        assertThat(created.getSignupPlatform()).isEqualTo(ClientPlatform.MOBILE);
         verify(mailService).sendWelcomeEmail("new@test.fr", created.getFirstName());
+    }
+
+    /**
+     * Un sign-in social est le même flux pour se connecter et pour s'inscrire :
+     * stamper la provenance sur la branche de connexion réécrirait l'acquisition
+     * à chaque reconnexion, et attribuerait tout au dernier canal utilisé.
+     */
+    @Test
+    void loginWithGoogle_existingUser_neverRewritesTheSignupOrigin() {
+        User existing = new User();
+        existing.setId(UUID.randomUUID());
+        existing.setEmail("deja@test.fr");
+        existing.setAuthProvider(AuthProvider.GOOGLE);
+        existing.setSignupSource("instagram");
+        existing.setSignupPlatform(ClientPlatform.WEB);
+        SocialIdentity id = google("deja@test.fr", "sub-9");
+        when(googleVerifier.verify("tok")).thenReturn(id);
+        when(userManager.findByProvider(AuthProvider.GOOGLE, "sub-9"))
+                .thenReturn(Optional.of(existing));
+
+        service.loginWithGoogle(new GoogleSignInRequest("tok"), "ua", "ip", CTX);
+
+        assertThat(existing.getSignupSource()).isEqualTo("instagram");
+        assertThat(existing.getSignupPlatform()).isEqualTo(ClientPlatform.WEB);
     }
 
     @Test
@@ -133,7 +164,7 @@ class SocialAuthServiceTest {
         when(userManager.findByProvider(AuthProvider.APPLE, "apple-sub")).thenReturn(Optional.empty());
         when(userManager.findByEmail("apple@test.fr")).thenReturn(Optional.empty());
 
-        service.loginWithApple(new AppleSignInRequest("idtok", " Jean ", " Dupont "), "ua", "ip");
+        service.loginWithApple(new AppleSignInRequest("idtok", " Jean ", " Dupont "), "ua", "ip", CTX);
 
         org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
         verify(userManager).save(captor.capture());

@@ -52,6 +52,10 @@ class BillingServiceTest {
     private StripeSubscriptionService stripeSubscriptionService;
     private BillingService service;
 
+    private static final com.sejourfr.app.util.ClientContext CTX =
+            new com.sejourfr.app.util.ClientContext(
+                    com.sejourfr.app.enums.ClientPlatform.WEB, "direct");
+
     private final UUID userId = UUID.randomUUID();
 
     @BeforeEach
@@ -64,9 +68,11 @@ class BillingServiceTest {
         PlanMapper planMapper = mock(PlanMapper.class);
         stripeSubscriptionService = mock(StripeSubscriptionService.class);
         SubscriptionService subscriptionService = mock(SubscriptionService.class);
+        FunnelEventService funnelEventService = mock(FunnelEventService.class);
         service = new BillingService(
                 stripeProperties, billingProperties, userManager, planManager,
-                processedEventManager, planMapper, stripeSubscriptionService, subscriptionService);
+                processedEventManager, planMapper, stripeSubscriptionService, subscriptionService,
+                funnelEventService);
 
         User user = new User();
         user.setId(userId);
@@ -88,7 +94,7 @@ class BillingServiceTest {
     @Test
     void getPaymentLink_stripeNonConfigure_renvoie503() {
         when(stripeProperties.isConfigured()).thenReturn(false);
-        assertThatThrownBy(() -> service.getPaymentLink(userId, "CIVIQUE_3MOIS"))
+        assertThatThrownBy(() -> service.getPaymentLink(userId, "CIVIQUE_3MOIS", CTX))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(503);
@@ -100,7 +106,7 @@ class BillingServiceTest {
         when(billingProperties.isOneTime()).thenReturn(false);
         when(planManager.findByCode("CIVIQUE_3MOIS")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.getPaymentLink(userId, "CIVIQUE_3MOIS"))
+        assertThatThrownBy(() -> service.getPaymentLink(userId, "CIVIQUE_3MOIS", CTX))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(404);
@@ -113,7 +119,7 @@ class BillingServiceTest {
         when(planManager.findByCode("CIVIQUE_3MOIS"))
                 .thenReturn(Optional.of(plan(ModuleAccess.CIVIQUE, null)));
 
-        assertThatThrownBy(() -> service.getPaymentLink(userId, "CIVIQUE_3MOIS"))
+        assertThatThrownBy(() -> service.getPaymentLink(userId, "CIVIQUE_3MOIS", CTX))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(503);
@@ -219,7 +225,7 @@ class BillingServiceTest {
             sessions.when(() -> com.stripe.model.checkout.Session.create(captor.capture()))
                     .thenReturn(created);
 
-            service.getPaymentLink(userId, "CIVIQUE_3MOIS");
+            service.getPaymentLink(userId, "CIVIQUE_3MOIS", CTX);
 
             assertThat(captor.getValue().getCancelUrl())
                     .isEqualTo("https://sejourfr.fr/paiement/recapitulatif"

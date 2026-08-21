@@ -260,11 +260,17 @@ public class MailService {
      * « logo »), lu depuis {@code static/mail/logo.png}. Un échec est loggé en
      * warn sans propager.
      */
-    private void sendHtmlWithLogo(String to, String subject, String html) {
-        sendHtmlWithLogo(to, subject, html, null);
+    private boolean sendHtmlWithLogo(String to, String subject, String html) {
+        return sendHtmlWithLogo(to, subject, html, null);
     }
 
-    private void sendHtmlWithLogo(String to, String subject, String html, String replyTo) {
+    /**
+     * @return {@code true} si le message est parti. Le retour n'existe que pour
+     *         les envois en lot, qui doivent savoir qui n'a pas reçu son mail
+     *         avant de le marquer comme envoyé. Les envois unitaires l'ignorent :
+     *         un mail ne doit jamais faire échouer la transaction métier.
+     */
+    private boolean sendHtmlWithLogo(String to, String subject, String html, String replyTo) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(
@@ -288,8 +294,10 @@ public class MailService {
 
             mailSender.send(message);
             log.info("HTML mail '{}' sent to {}", subject, to);
+            return true;
         } catch (MessagingException | RuntimeException e) {
             log.warn("Failed to send HTML mail '{}' to {} : {}", subject, to, e.getMessage());
+            return false;
         }
     }
 

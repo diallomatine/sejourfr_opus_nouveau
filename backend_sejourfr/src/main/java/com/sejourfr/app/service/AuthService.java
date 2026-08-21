@@ -12,6 +12,7 @@ import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.PasswordResetTokenManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.security.JwtService;
+import com.sejourfr.app.util.ClientContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -112,8 +113,14 @@ public class AuthService {
      * défaut qui a tiré un candidat visant la naturalisation vers le B1. Sans
      * démarche, on ne touche à rien (le mobile n'en envoie pas : il a son écran
      * de parcours dédié).
+     *
+     * <p><b>La provenance est posée ici et jamais ailleurs</b>
+     * ({@code users.signup_source} / {@code signup_platform}) : c'est le seul
+     * instant où « d'où vient ce compte » a un sens. La réécrire à une visite
+     * ultérieure attribuerait toutes les acquisitions au dernier canal utilisé.
      */
-    public TokenResponse register(RegisterRequest req, String userAgent, String ipAddress) {
+    public TokenResponse register(RegisterRequest req, String userAgent, String ipAddress,
+                                  ClientContext client) {
         String email = req.email().toLowerCase().trim();
         if (userManager.existsByEmail(email)) {
             throw new IllegalArgumentException("Un compte existe déjà avec cet email");
@@ -126,6 +133,9 @@ public class AuthService {
         user.setLastName(req.lastName().trim());
         user.setRole(Role.USER);
         user.setCreatedAt(Instant.now());
+        ClientContext ctx = client == null ? ClientContext.unknown() : client;
+        user.setSignupSource(ctx.source());
+        user.setSignupPlatform(ctx.platform());
         userManager.save(user);
 
         if (req.targetProcedure() != null) {
