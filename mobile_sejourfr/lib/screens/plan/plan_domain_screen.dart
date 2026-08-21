@@ -7,7 +7,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/models/diagnostic_models.dart';
-import '../../core/models/enums.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
@@ -15,13 +14,12 @@ import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/list_group.dart';
 import '../../core/widgets/screen_header.dart';
 import '../../core/widgets/skill_mastery_tag.dart';
-import '../tcf_production/production_nav.dart';
-import '../tcf_production/tcf_production_module.dart';
 import '../../core/router/app_router.dart';
 import 'learning_plan_provider.dart';
 import 'plan_actions.dart';
 import 'plan_labels.dart';
 import 'plan_series_launcher.dart';
+import 'widgets/plan_task_row.dart';
 import 'widgets/plan_tokens.dart';
 
 /// **La fiche d'un des quatre domaines du TCF, vue par le Plan.**
@@ -248,7 +246,7 @@ class _DomainBody extends ConsumerWidget {
             child: Column(
               children: [
                 for (var i = 0; i < domain.taches.length; i++)
-                  _TaskRow(
+                  PlanTaskRow(
                     task: domain.taches[i],
                     epreuve: domain.epreuve,
                     first: i == 0,
@@ -341,79 +339,6 @@ class _LevelRow extends ConsumerWidget {
           ),
         ),
       );
-}
-
-/// Une tâche d'expression. Le tap ouvre ses **compétences** — l'écran existant
-/// du parcours, jamais une seconde liste.
-class _TaskRow extends StatelessWidget {
-  const _TaskRow({
-    required this.task,
-    required this.epreuve,
-    required this.first,
-  });
-
-  final PlanDomainTask task;
-  final EpreuveType epreuve;
-  final bool first;
-
-  @override
-  Widget build(BuildContext context) {
-    final module = epreuve == EpreuveType.tcfEo
-        ? TcfProductionModule.eo
-        : TcfProductionModule.ee;
-    return Material(
-      color: AppColors.white,
-      child: InkWell(
-        onTap: () => context.push(
-          productionCompetencesPath(module, task.tacheNumero),
-        ),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
-          decoration: BoxDecoration(
-            border: first
-                ? null
-                : const Border(top: BorderSide(color: AppColors.lineSoft)),
-          ),
-          child: Row(
-            children: [
-              PlanRankBadge(rank: task.tacheNumero, tone: AppColors.blue),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      planTaskTitle(task),
-                      style: AppFonts.ui(size: 14.5, weight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      planTaskObservedLabel(task),
-                      style: AppFonts.ui(
-                        size: 12.5,
-                        color: AppColors.inkFaint,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                task.taskCode,
-                style: AppFonts.label(size: 11.5),
-              ),
-              const SizedBox(width: 8),
-              const Icon(
-                LucideIcons.chevronRight,
-                size: 15,
-                color: AppColors.inkFaint,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _Message extends StatelessWidget {

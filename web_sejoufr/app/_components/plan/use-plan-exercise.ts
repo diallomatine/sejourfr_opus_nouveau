@@ -5,7 +5,12 @@ import {useCallback, useState} from "react";
 import {attemptApi, fullTcfExamApi, productionApi} from "@/lib/api";
 import {recommendedExerciseHref} from "@/lib/diagnostic";
 import {handleStartFailure} from "@/lib/start-failure";
-import type {PlanDomainAssessmentDto, PlanRecommendedExerciseDto} from "@/lib/types";
+import {planSkillHref} from "@/lib/plan-domain";
+import type {
+    PlanDomainAssessmentDto,
+    PlanRecommendedExerciseDto,
+    PlanSeanceItemDto,
+} from "@/lib/types";
 import {EE_CONFIG, EO_CONFIG} from "@/app/_components/production/config";
 
 /**
@@ -18,6 +23,9 @@ import {EE_CONFIG, EO_CONFIG} from "@/app/_components/production/config";
  * |---|---|
  * | `MICRO_TRAINING` | on **navigue** vers le petit sujet du module Compétences |
  * | `REASSESSMENT` | on **navigue** vers la tâche de production désignée |
+ *
+ * ⚠️ Depuis une ligne de **séance**, ces deux natures ouvrent la **fiche de la
+ * compétence** et non le sujet : cf. `startItem` plus bas.
  * | `TARGETED_QCM_SERIES` | on **démarre** un `TRAINING` (`skillId` seul) puis le runner QCM existant |
  * | `EPREUVE_MOCK_EXAM` | on **démarre** la session de production d'examen (chemin de `ProductionExams`) |
  * | `FULL_TCF_MOCK_EXAM` | on **démarre** l'examen complet (chemin de `TcfFullExamBriefingSheet`) |
@@ -118,12 +126,39 @@ export function usePlanExercise() {
         [router],
     );
 
+    /**
+     * Ouvrir une ligne de la **séance**.
+     *
+     * 🛑 Un item de **nature production** (un petit sujet ciblé, une
+     * vérification en situation) ouvre la **fiche de sa compétence**, pas le
+     * sujet : le candidat y voit ses cinq sujets et lesquels sont faits, et il
+     * choisit. C'est exactement ce que font déjà les lignes de « Mes
+     * priorités » — la séance s'aligne dessus au lieu de le court-circuiter.
+     *
+     * Les autres natures ne changent pas : une **série ciblée** démarre son
+     * `TRAINING`, un **jalon** ouvre son examen blanc. Elles n'ont pas de fiche
+     * à ouvrir — une compétence de compréhension n'a aucun petit sujet, et un
+     * examen blanc ne travaille aucune compétence en particulier.
+     */
+    const startItem = useCallback(
+        async (item: PlanSeanceItemDto) => {
+            const exercise = item.exercise;
+            if (exercise.kind === "MICRO_TRAINING" || exercise.kind === "REASSESSMENT") {
+                setError(null);
+                router.push(planSkillHref(exercise, {planStep: true}));
+                return;
+            }
+            await start(exercise);
+        },
+        [router, start],
+    );
+
     const closePaywall = useCallback(() => {
         setPaywallOpen(false);
         setStarting(false);
     }, []);
 
-    return {start, startSeries, starting, error, paywallOpen, closePaywall} as const;
+    return {start, startItem, startSeries, starting, error, paywallOpen, closePaywall} as const;
 }
 
 /**

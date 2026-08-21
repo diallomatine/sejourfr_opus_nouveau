@@ -204,6 +204,22 @@
   font-weight: 700;
 }
 
+/* Sur un petit écran, l'action passe SOUS l'intertitre plutôt que d'écraser sa
+   phrase : « Toutes mes compétences » ne tient pas à côté de « Mes priorités »
+   à 360 px. */
+@media (max-width: 560px) {
+  .blockHead {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .blockHead > div {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}
+
 /* -------------------------------------------------------- priorité actuelle */
 
 .priority {
@@ -967,6 +983,28 @@
   font-weight: 700;
 }
 
+/* Ce qui ferme une étape de palier : elle ne se termine pas sur un compteur
+   d'exercices, elle se confirme par un examen blanc complet. Posée sur l'étape
+   concernée — jamais sur celles qui ne sont pas des paliers. */
+.pathNote {
+  display: block;
+  justify-self: start;
+  margin-top: 5px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  background: var(--plan-surface-2);
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.pathList li[data-status="CURRENT"] .pathNote {
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
+  font-weight: 600;
+}
+
 .pathMeta {
   margin-top: 1px;
   color: var(--color-muted);
@@ -994,6 +1032,21 @@
 
 .domainIconActive {
   background: var(--color-blue);
+  color: var(--color-paper);
+}
+
+/* La teinte suit la FAMILLE du domaine, comme la maquette : compréhension en
+   bleu (CO, CE), expression en rouge (EO, EE). Le jeton `data-tone` est posé
+   par `PlanDomainIcon`, qui le dérive de `PLAN_DOMAIN_SECTION` — aucune couleur
+   n'est écrite en dur, aucune seconde table de domaines n'est tenue à jour.
+   ⚠️ Rien à voir avec `--skill-accent`, l'accent du module Compétences. */
+.domainIcon[data-tone="expression"] {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
+.domainIconActive[data-tone="expression"] {
+  background: var(--color-red);
   color: var(--color-paper);
 }
 

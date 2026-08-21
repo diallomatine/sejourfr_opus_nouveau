@@ -13,7 +13,6 @@ import {
   PLAN_COMPLETE_PROFILE_NOTE,
   PLAN_DOMAIN_SECTION,
   PLAN_DOMAIN_NOT_EVALUATED,
-  type PlanDomainEpreuve,
   planActivePriorities,
   planAssessmentCta,
   planAssessmentMeta,
@@ -22,14 +21,13 @@ import {
   planSkillHref,
   planSkillMeta,
 } from "@/lib/plan-domain";
-import {PlanDomainIcon, PlanDomainPriorityPill} from "./PlanBits";
+import {PlanDomainIcon, PlanDomainPriorityPill, PlanTaskRow} from "./PlanBits";
 import {BlockHead, EmptyCard, PlanShell} from "./LearningPlanView";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 import {
   type LearningPlanDto,
   type PlanDomainDto,
   type PlanDomainLevelDto,
-  type PlanDomainTaskDto,
 } from "@/lib/types";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {RowChevron, SkillMasteryPill} from "@/app/_components/skill-ui/SkillLayout";
@@ -236,7 +234,7 @@ function DomainDetail({plan, domain}: {plan: LearningPlanDto; domain: PlanDomain
               </div>
               <ul className={styles.panelList}>
                 {domain.taches.map((tache) => (
-                  <TaskRow key={tache.taskCode} tache={tache} epreuve={domain.epreuve} />
+                  <PlanTaskRow key={tache.taskCode} tache={tache} epreuve={domain.epreuve} />
                 ))}
               </ul>
             </section>
@@ -321,26 +319,3 @@ function LevelRow({palier}: {palier: PlanDomainLevelDto}) {
   );
 }
 
-/** Une tâche d'expression : elle ouvre la liste des compétences de la tâche,
- *  écran qui existe déjà (« Réviser → épreuve → Compétences »). */
-function TaskRow({tache, epreuve}: {tache: PlanDomainTaskDto; epreuve: PlanDomainEpreuve}) {
-  const section = epreuve === "TCF_EO" ? "eo" : "ee";
-  return (
-    <li>
-      <Link
-        className={styles.panelRow}
-        href={`/entrainement/tcf/${section}/tache/${tache.tacheNumero}/competences`}
-      >
-        <span className={styles.levelBadge}>{tache.tacheNumero}</span>
-        <span className={styles.panelBody}>
-          <span className={styles.panelTitle}>Tâche {tache.tacheNumero}</span>
-          <span className={styles.panelMeta}>
-            {tache.observedSkills} / {tache.totalSkills} compétences observées
-          </span>
-        </span>
-        <span className={styles.taskCount}>{tache.taskCode}</span>
-        <RowChevron />
-      </Link>
-    </li>
-  );
-}

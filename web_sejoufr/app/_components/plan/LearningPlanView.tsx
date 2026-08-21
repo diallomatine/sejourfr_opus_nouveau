@@ -12,6 +12,7 @@ import {
   FilePenLine,
   GraduationCap,
   Headphones,
+  LayoutGrid,
   ListChecks,
   Lock,
   RotateCcw,
@@ -31,7 +32,6 @@ import {
   PLAN_COMPLETE_PROFILE_TITLE,
   PLAN_CYCLE_STATE_TEXT,
   PLAN_DOMAIN_NOT_EVALUATED,
-  PLAN_PATH_CURRENT_BADGE,
   PLAN_RECENT_NEW_PRIORITY,
   PLAN_SEANCE_EMPTY,
   PLAN_SEANCE_META_HINT,
@@ -39,6 +39,9 @@ import {
   PLAN_SEANCE_WHY_CLOSE,
   PLAN_SEANCE_WHY_CTA,
   PLAN_SEANCE_WHY_TITLE,
+  PLAN_SKILLS_HREF,
+  PLAN_SKILLS_LOCKED_LABEL,
+  PLAN_SKILLS_TITLE,
   planActivePriorities,
   planAssessmentCta,
   planAssessmentMeta,
@@ -50,8 +53,6 @@ import {
   planItemNature,
   planItemReason,
   planItemTitle,
-  planPathStepMeta,
-  planPathStepTitle,
   planPathTitle,
   planProfileCountLabel,
   planSeanceItemDone,
@@ -65,7 +66,14 @@ import {
   itemEpreuve,
 } from "@/lib/plan-domain";
 import {PlanMilestoneCard} from "./PlanMilestoneCard";
-import {PlanBlur, PlanDomainIcon, PlanDomainPriorityPill, PlanDots, PlanLevelRail} from "./PlanBits";
+import {
+  PlanBlur,
+  PlanDomainIcon,
+  PlanDomainPriorityPill,
+  PlanDots,
+  PlanLevelRail,
+  PlanPathList,
+} from "./PlanBits";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 import {
   planDoneSectionCta,
@@ -74,6 +82,7 @@ import {
 } from "@/lib/plan-step";
 import {competenceProgressLabel} from "@/lib/skill-progress";
 import {
+  canAccessModule,
   type LearningPlanCompletedStepDto,
   type LearningPlanDto,
   type LearningPlanPriorityDto,
@@ -508,7 +517,7 @@ function SeanceCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void}) {
 
 function SeanceRow({item}: {item: PlanSeanceItemDto}) {
   const premiumHref = usePremiumHref();
-  const {start, starting, error, paywallOpen, closePaywall} = usePlanExercise();
+  const {startItem, starting, error, paywallOpen, closePaywall} = usePlanExercise();
   const done = planSeanceItemDone(item);
   const epreuve = itemEpreuve(item);
 
@@ -546,7 +555,7 @@ function SeanceRow({item}: {item: PlanSeanceItemDto}) {
           disabled={starting}
           onClick={() => {
             trackAudienceEvent("/plan", "PLAN_RECOMMENDED_EXERCISE_STARTED");
-            void start(item.exercise);
+            void startItem(item);
           }}
         >
           {icon}
@@ -582,6 +591,7 @@ function PrioritiesSection({
         title="Mes priorités"
         text="Dans l'ordre décidé par votre plan : la première d'abord."
         titleId="priorities-title"
+        action={<AllSkillsLink />}
       />
       {priorities.length > 0 && (
         <ol className={styles.priorityList}>
@@ -710,7 +720,13 @@ function CompletedStepsBlock({steps}: {steps: LearningPlanCompletedStepDto[]}) {
 function RecentChanges({plan}: {plan: LearningPlanDto}) {
   const changes = plan.recentChanges;
   if (!changes) return null;
-  if (changes.transitions.length === 0 && !changes.newPriority) return null;
+  /* 🛑 **Pas de transition réelle ⇒ pas de section du tout.** Le serveur sert
+     aussi ce bloc pour une simple « nouvelle priorité », et une PREMIÈRE mesure
+     n'est jamais une transition : au sortir du diagnostic, la période
+     s'affichait au-dessus d'une seule ligne qui ne racontait aucun changement.
+     Le titre de la section EST la période — l'écrire sans rien qui ait bougé
+     dans cette période serait faux. */
+  if (changes.transitions.length === 0) return null;
   return (
     <section aria-labelledby="changes-title">
       <BlockHead
@@ -849,32 +865,16 @@ function AssessmentRow({
 
 /* ---------------------------------------------------------------- chemin */
 
+/** Le chemin de palier. La liste et la règle du gate vivent dans `PlanPathList`
+ *  — « Votre programme évolue » sert exactement la même. */
 function PathCard({plan}: {plan: LearningPlanDto}) {
-  const path = plan.cycle.path;
-  if (path.length === 0) return null;
+  if (plan.cycle.path.length === 0) return null;
   return (
     <section className={styles.panel} aria-labelledby="path-title">
       <div className={styles.panelHead}>
         <div><h2 id="path-title">{planPathTitle(plan.cycle)}</h2></div>
       </div>
-      <ol className={styles.pathList}>
-        {path.map((step, index) => (
-          <li key={`${step.kind}-${step.level ?? index}`} data-status={step.status}>
-            <span className={styles.pathMark} aria-hidden>
-              {step.status === "DONE" ? <Check size={13} strokeWidth={3} /> : index + 1}
-            </span>
-            <span className={styles.pathBody}>
-              <span className={styles.pathTitle}>
-                {planPathStepTitle(step)}
-                {step.status === "CURRENT" && (
-                  <span className={styles.pathBadge}>{PLAN_PATH_CURRENT_BADGE}</span>
-                )}
-              </span>
-              <span className={styles.pathMeta}>{planPathStepMeta(step, plan.cycle)}</span>
-            </span>
-          </li>
-        ))}
-      </ol>
+      <PlanPathList cycle={plan.cycle} titleId="path-title" />
     </section>
   );
 }
@@ -882,7 +882,21 @@ function PathCard({plan}: {plan: LearningPlanDto}) {
 /* -------------------------------------------------------- accès secondaires */
 
 function SecondaryLinks() {
-  const rows: Array<{icon: ReactNode; title: string; text: string; href: string}> = [
+  const {href: skillsHref, locked: skillsLocked} = useAllSkillsTarget();
+  const rows: Array<{
+    icon: ReactNode;
+    title: string;
+    text: string;
+    href: string;
+    locked?: boolean;
+  }> = [
+    {
+      icon: <LayoutGrid size={18} />,
+      title: PLAN_SKILLS_TITLE,
+      text: "6 tâches · 3 paliers par domaine",
+      href: skillsHref,
+      locked: skillsLocked,
+    },
     {icon: <BarChart3 size={18} />, title: "Ma progression", text: "Domaine par domaine", href: "/statistiques"},
     {icon: <GraduationCap size={18} />, title: "Mes examens blancs", text: "TCF et civique", href: "/examens-blancs"},
     {icon: <Sparkles size={18} />, title: "Mon diagnostic", text: "Résultat de départ", href: "/diagnostic"},
@@ -891,19 +905,56 @@ function SecondaryLinks() {
     <section className={styles.panel} aria-label="Accès secondaires">
       <ul className={styles.panelList}>
         {rows.map((row) => (
-          <li key={row.href}>
-            <Link className={styles.panelRow} href={row.href}>
+          <li key={row.title}>
+            <Link
+              className={styles.panelRow}
+              href={row.href}
+              onClick={row.locked ? trackPremiumClick : undefined}
+            >
               <span className={styles.panelIcon} aria-hidden>{row.icon}</span>
               <span className={styles.panelBody}>
                 <span className={styles.panelTitle}>{row.title}</span>
                 <span className={styles.panelMeta}>{row.text}</span>
               </span>
-              <RowChevron />
+              {row.locked ? <SkillLockBadge /> : <RowChevron />}
             </Link>
           </li>
         ))}
       </ul>
     </section>
+  );
+}
+
+/**
+ * **Où mène « Toutes mes compétences »**, et si l'accès est ouvert.
+ *
+ * ⚠️ C'est un **verrou de navigation**, pas un contenu masqué : le Plan reste
+ * intégralement visible — priorités, compteurs, exercice désigné —, seul le
+ * référentiel complet demande l'abonnement, exactement comme un exercice
+ * `locked`. L'autorité est `canAccessModule(user, "TCF")`, la même que partout
+ * ailleurs sur le web ; le serveur, lui, retranche déjà ce qu'il faut sur
+ * chaque ligne.
+ */
+function useAllSkillsTarget(): {href: string; locked: boolean} {
+  const {user} = useAuth();
+  const premiumHref = usePremiumHref();
+  const locked = !canAccessModule(user, "TCF");
+  return {href: locked ? premiumHref : PLAN_SKILLS_HREF, locked};
+}
+
+/** Le « tout voir » de « Mes priorités » — même destination, même verrou. */
+function AllSkillsLink() {
+  const {href, locked} = useAllSkillsTarget();
+  return (
+    <Link
+      className={styles.blockAction}
+      href={href}
+      onClick={locked ? trackPremiumClick : undefined}
+      aria-label={locked ? PLAN_SKILLS_LOCKED_LABEL : undefined}
+    >
+      {locked && <Lock size={14} aria-hidden />}
+      {PLAN_SKILLS_TITLE} <ChevronRight size={15} aria-hidden />
+    </Link>
   );
 }
 

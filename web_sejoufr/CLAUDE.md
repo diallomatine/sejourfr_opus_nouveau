@@ -97,6 +97,8 @@ app/
 │   ├── plan/page.tsx             # ★ Plan ADAPTATIF : priorité actuelle, séance du jour,
 │   │                              #   mes priorités, ce qui a changé, profil TCF (4 domaines),
 │   │                              #   compléter mon profil, chemin vers l'objectif
+│   ├── plan/competences/page.tsx # ★ « Toutes mes compétences » : les 4 domaines, leurs
+│   │                              #   tâches (expression) et leurs paliers (compréhension)
 │   ├── plan/domaine/[domaine]/   # ★ fiche d'un domaine (co|ce|ee|eo) : paliers ou tâches
 │   ├── plan/evolution/page.tsx   # ★ « Votre programme évolue » (transitions + chemin)
 │   ├── recommandations/page.tsx  # ★ liste complète des catégories triées faibles d'abord
@@ -783,11 +785,47 @@ jalon → *Mon profil TCF* → *Compléter mon profil* → *Mon chemin vers l'ob
 - **`planSkillHref`** remplace `competenceHref` sur le Plan : une compétence de
   **compréhension** (`CO-B1`) n'a pas de numéro de tâche, `competenceHref` lui
   fabriquerait une URL de tâche inexistante — elle ouvre sa **fiche de domaine**.
-- **La coche de séance est ÉPHÉMÈRE et locale** (`planSeanceItemKey`, clé sur la
-  **compétence** pour survivre à un recalcul du Plan) : le serveur ne connaît
-  aucune notion de « fait aujourd'hui », et rien n'est écrit côté navigateur.
-  Elle se cumule à la seule vérité serveur, `stepCompleted`. Miroir de
-  `planSeanceDoneProvider` côté mobile.
+- 🛑 **Une ligne de séance de nature PRODUCTION ouvre la FICHE de la compétence,
+  pas le sujet** (`usePlanExercise.startItem`, 2026-08-21) : `MICRO_TRAINING` et
+  `REASSESSMENT` poussent vers `planSkillHref(exercise, {planStep: true})`, où le
+  candidat voit ses cinq sujets et lesquels sont faits — exactement ce que font
+  déjà les lignes de « Mes priorités ». Les autres natures sont **inchangées** :
+  une série ciblée démarre son `TRAINING`, un jalon ouvre son examen blanc, et le
+  bouton principal de la carte de priorité continue d'appeler `start`.
+- **« Toutes mes compétences » est une PAGE** (`/plan/competences`,
+  `PlanSkillsView`), ouverte depuis l'intertitre « Mes priorités » et depuis les
+  accès secondaires. Elle **ne crée aucune UX concurrente** : chaque ligne renvoie
+  vers un écran déjà livré — les 8 compétences d'une tâche
+  (`/entrainement/tcf/{ee,eo}/tache/[n]/competences`) en expression, la fiche de
+  domaine en compréhension — et le Plan est lu **en cache**. L'ordre des domaines
+  reste celui du serveur : **on ne regroupe pas par famille**. ⚠️ **Verrou de
+  NAVIGATION** (`canAccessModule(user, "TCF")`) : un compte gratuit part sur
+  l'offre, mais son Plan reste entier. Le lien du Plan **ne déplie plus rien en
+  ligne**.
+- 🛑 **« Ce qui a changé » n'apparaît QUE s'il y a de vraies transitions**
+  (`changes.transitions.length === 0 ⇒ null`). Le serveur sert aussi ce bloc pour
+  une simple `newPriority`, et **une première mesure n'est jamais une
+  transition** : au sortir du diagnostic, le titre — qui **est** la période —
+  s'affichait au-dessus d'une ligne qui ne racontait aucun changement. Même
+  prudence sur `/plan/evolution`, qui ne rend plus de liste vide.
+- **La teinte d'un domaine suit sa FAMILLE** : compréhension en bleu (CO, CE),
+  expression en rouge (EO, EE). `PlanDomainIcon` pose `data-tone`, dérivé de
+  `PLAN_DOMAIN_SECTION` via `isComprehension` — aucune couleur en dur, aucune
+  seconde table. ⚠️ **Rien à voir avec `--skill-accent`** (bleu pour EE comme
+  pour EO) : c'est l'accent du module Compétences, pas les pastilles du Plan.
+- **Le chemin dit COMMENT un palier se confirme** : `planPathStepNote(step,
+  cycle)` rend `PLAN_GATE_RULE` sur une étape `BUILD_LEVEL` non terminée, et
+  `PLAN_GATE_READY` quand le serveur annonce `READY_FOR_GATE_MOCK`. **Miroir mot
+  pour mot de `planPathStepNote` côté mobile.** Aucune donnée nouvelle n'est
+  demandée au serveur — la règle était déjà dans `cycle.state`, elle n'était pas
+  écrite à l'écran. La liste elle-même vit dans **`PlanPathList`** (`PlanBits`),
+  partagée par `/plan` et `/plan/evolution` — elle en portait deux copies.
+- **`PlanTaskRow`** (`PlanBits`) est la ligne « Tâche n · x/8 observées »,
+  partagée par la fiche de domaine et « Toutes mes compétences ».
+- **La coche de séance vient du COMPTE** (`planSeanceItemDone`) : étape bouclée
+  (`stepCompleted`) **ou** `lastActivityAt` tombant aujourd'hui en Europe/Paris.
+  Aucun marqueur local, rien d'écrit côté navigateur. Miroir mobile
+  `plan_seance_state.dart`.
 - **Audience** : aucun événement nouveau (l'allowlist est doublée serveur).
   `/plan` émet `PLAN_OPENED`, `PLAN_RECOMMENDED_EXERCISE_STARTED` (priorité et
   séance seulement — **pas** un palier choisi à la main sur une fiche de

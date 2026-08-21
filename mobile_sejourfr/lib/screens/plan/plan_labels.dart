@@ -291,6 +291,31 @@ String planPathStepStatusLabel(PlanPathStepStatus status) => switch (status) {
       PlanPathStepStatus.upcoming => 'À venir',
     };
 
+/// **Comment un palier se confirme.** C'est le cœur du parcours : on ne change
+/// pas de niveau parce qu'on a fini des exercices, mais parce qu'un **examen
+/// blanc complet** l'a confirmé en conditions réelles.
+///
+/// 🛑 **Rien n'est déduit ici** : la phrase ne s'affiche que sur une étape de
+/// palier (`BUILD_LEVEL`) **pas encore terminée**, et sa variante « maintenant »
+/// se lit sur l'état servi ([PlanCycleState.readyForGateMock]) — jamais sur un
+/// calcul du front. Une étape déjà franchie ne dit rien : le serveur ne publie
+/// pas *comment* elle l'a été, et l'inventer serait faux.
+String? planPathStepNote(PlanPathStep step, PlanCycle cycle) {
+  if (step.kind != PlanPathStepKind.buildLevel) return null;
+  if (step.status == PlanPathStepStatus.done) return null;
+  if (step.status == PlanPathStepStatus.current &&
+      cycle.state == PlanCycleState.readyForGateMock) {
+    return kPlanGateReady;
+  }
+  return kPlanGateRule;
+}
+
+const String kPlanGateRule =
+    'Ce palier se confirme par un examen blanc complet.';
+const String kPlanGateReady =
+    'Vous y êtes : un examen blanc complet peut maintenant confirmer ce '
+    'palier.';
+
 /// La ligne de contexte sous l'en-tête. Elle ne promet rien : elle dit d'où
 /// vient ce qui est affiché.
 String planContextLine(NiveauCecrl? estimated) => estimated == null
@@ -314,8 +339,17 @@ const String kPlanCompleteProfileText =
     'par quoi les mesurer.';
 const String kPlanPrioritiesTitle = 'Mes priorités';
 const String kPlanPrioritiesAll = 'Tout voir';
-const String kPlanPrioritiesLess = 'Réduire';
 const String kPlanObservedTitle = 'Mes compétences observées';
+
+/* ------------------------------------------- toutes mes compétences (page) */
+
+const String kPlanAllSkillsTitle = 'Toutes mes compétences';
+const String kPlanAllSkillsSub = 'Expression et compréhension';
+const String kPlanAllSkillsLockTitle = 'Toutes vos compétences';
+const String kPlanComprehensionTitle = 'Compréhension';
+const String kPlanAllSkillsEmpty =
+    'Votre plan ne suit encore aucun domaine : il se remplit à votre premier '
+    'résultat.';
 
 /// Ce qu'il faut lancer pour mesurer un domaine — **jamais** une série ciblée,
 /// qui est un entraînement.

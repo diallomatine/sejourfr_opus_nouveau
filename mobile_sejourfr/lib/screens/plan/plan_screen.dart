@@ -276,21 +276,22 @@ class _ActivePlan extends ConsumerWidget {
       return _SeanceCta(
         label: label,
         locked: locked,
-        onTap: () => openPlanSeanceItem(context, ref, next),
+        onTap: () => startPlanSeanceItem(context, ref, next),
       );
     }
 
     // Tout est fait aujourd'hui. « Refaire ma séance » RELANCE réellement le
     // premier entraînement : il n'y a plus de marqueur local à effacer, et un
     // bouton qui décochait des lignes sans rien faire d'autre n'avait plus
-    // d'objet. Rien n'est réinventé — c'est la même action que la ligne.
+    // d'objet. Rien n'est réinventé — c'est le premier entraînement de la
+    // séance, lancé directement (la ligne, elle, ouvre la fiche).
     if (items.isNotEmpty) {
       final first = items.first;
       final locked = planSeanceItemLocked(first);
       return _SeanceCta(
         label: locked ? 'Débloquer cet entraînement' : kPlanSeanceRestart,
         locked: locked,
-        onTap: () => openPlanSeanceItem(context, ref, first),
+        onTap: () => startPlanSeanceItem(context, ref, first),
       );
     }
 
@@ -386,7 +387,13 @@ class _ActivePlan extends ConsumerWidget {
           const SizedBox(height: 10),
           PlanMilestoneCard(milestone: milestone),
         ],
-        if (changes != null && !changes.isEmpty) ...[
+        // 🛑 **Pas de transition réelle, pas de section.** Le titre de ce bloc
+        // est une période (« Cette semaine ») : l'afficher pour une seule
+        // nouvelle priorité — la compétence déjà nommée par la carte du haut —
+        // annonçait un bilan de la semaine là où rien n'avait encore bougé.
+        // Une première mesure n'est jamais une transition ; le bandeau du haut,
+        // lui, continue de signaler la nouvelle priorité en une ligne.
+        if (changes != null && changes.transitions.isNotEmpty) ...[
           const SizedBox(height: 22),
           PlanChangesSection(
             changes: changes,

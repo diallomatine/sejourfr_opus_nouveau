@@ -43,6 +43,7 @@ import '../../screens/plan/plan_domain_screen.dart';
 import '../../screens/plan/plan_evolution_screen.dart';
 import '../../screens/plan/plan_screen.dart';
 import '../../screens/plan/plan_serie_result_screen.dart';
+import '../../screens/plan/plan_skills_screen.dart';
 import '../../screens/plan/plan_step_labels.dart';
 import '../../screens/question_runner/runner_screen.dart';
 import '../../screens/review/review_screen.dart';
@@ -164,6 +165,11 @@ class AppRoutes {
 
   /// « Votre programme évolue » — le détail de ce qui a bougé dans le Plan.
   static const planEvolution = '/plan/evolution';
+
+  /// « Toutes mes compétences » — l'index des six tâches d'expression et des
+  /// deux domaines de compréhension. Aucun identifiant n'y voyage : la page
+  /// relit le Plan déjà chargé et n'aiguille que vers des écrans existants.
+  static const planSkills = '/plan/competences';
 
   /// Bilan d'une **série ciblée de compréhension**, poussé par le runner quand
   /// la route porte `from=planSerie` (même montage que `tcfLotResult`).
@@ -549,6 +555,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.planEvolution,
         builder: (_, __) => const PlanEvolutionScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.planSkills,
+        builder: (_, __) => const PlanSkillsScreen(),
       ),
       GoRoute(
         path: AppRoutes.planSerieResult,

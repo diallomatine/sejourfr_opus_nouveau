@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/skill_progress.dart';
 import '../../../core/widgets/app_tag.dart';
-import '../../../core/widgets/progress_ring.dart';
 import '../plan_labels.dart';
 
 /// Les **primitives du Plan** : la pastille d'un domaine, la pilule de sa
@@ -13,12 +11,18 @@ import '../plan_labels.dart';
 ///
 /// ⚠️ **Aucune teinte nouvelle.** Tout se peint avec `AppColors` / `TagTone`
 /// existants : un même état ne doit pas changer de couleur d'un écran à
-/// l'autre. Les deux épreuves d'expression sont **bleues** comme le reste du
-/// TCF (décision client) — le rouge reste réservé à l'urgence.
+/// l'autre.
+///
+/// 🛑 **Les deux familles de domaines n'ont pas la même teinte** : la
+/// **compréhension** (CO, CE) est bleue, l'**expression** (EO, EE) est rouge —
+/// c'est la maquette du Plan, et c'est ce qui permet de distinguer d'un coup
+/// d'œil « j'écoute / je lis » de « je parle / j'écris ». À ne pas confondre
+/// avec l'accent du module « Compétences » (`TcfProductionModule.accent`), qui
+/// est une autre surface et garde sa propre décision.
 
-/// La pastille carrée d'un domaine : son icône, sur fond bleu clair. [filled]
-/// la remplit — réservé au domaine que le Plan traite en priorité forte, pour
-/// qu'un seul élément de la liste attire l'œil.
+/// La pastille carrée d'un domaine : son icône, sur le fond clair de sa
+/// famille. [filled] la remplit — réservé au domaine que le Plan traite en
+/// priorité forte, pour qu'un seul élément de la liste attire l'œil.
 class PlanDomainTile extends StatelessWidget {
   const PlanDomainTile({
     super.key,
@@ -35,20 +39,32 @@ class PlanDomainTile extends StatelessWidget {
   final bool filled;
 
   @override
-  Widget build(BuildContext context) => Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: filled ? AppColors.blue : AppColors.blueLight,
-          borderRadius: BorderRadius.circular(AppRadii.md),
-        ),
-        child: Icon(
-          planDomainIcon(epreuve),
-          size: size * 0.52,
-          color: filled ? AppColors.white : AppColors.blueDark,
-        ),
-      );
+  Widget build(BuildContext context) {
+    // Une ligne sans domaine (un jalon d'examen complet) reste bleue : elle ne
+    // relève d'aucune des deux familles, on ne lui prête pas le rouge de
+    // l'expression.
+    final domain = epreuve;
+    final expression =
+        domain == null ? false : planDomainSection(domain)?.isProduction ?? false;
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: filled
+            ? (expression ? AppColors.red : AppColors.blue)
+            : (expression ? AppColors.redLight : AppColors.blueLight),
+        borderRadius: BorderRadius.circular(AppRadii.md),
+      ),
+      child: Icon(
+        planDomainIcon(epreuve),
+        size: size * 0.52,
+        color: filled
+            ? AppColors.white
+            : (expression ? AppColors.redDark : AppColors.blueDark),
+      ),
+    );
+  }
 }
 
 /// Ton de pilule d'une priorité de domaine. **Dérivé, jamais une table de
@@ -285,44 +301,4 @@ class PlanRankBadge extends StatelessWidget {
                 style: AppFonts.display(size: size * 0.5, color: tone),
               ),
       );
-}
-
-/// L'anneau d'une compétence : sujets **traités** sur sujets publiés, tels que
-/// le serveur les compte.
-///
-/// ⚠️ Sur une **étape**, ce sont les compteurs d'étape (5 sujets) qu'on lui
-/// passe, jamais ceux de la compétence entière (15) — les deux jeux existent
-/// côte à côte sur le DTO exprès.
-class PlanSkillRing extends StatelessWidget {
-  const PlanSkillRing({
-    super.key,
-    required this.promptCount,
-    required this.attemptedCount,
-    required this.color,
-    this.size = 46,
-  });
-
-  final int promptCount;
-  final int attemptedCount;
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final attempted = attemptedCount.clamp(0, promptCount);
-    return ProgressRing(
-      value: skillProgressValue(
-            promptCount: promptCount,
-            attemptedCount: attemptedCount,
-          ) *
-          100,
-      size: size,
-      stroke: 5,
-      color: color,
-      label: promptCount == 0 ? '—' : '$attempted',
-      sub: promptCount == 0 ? null : '/$promptCount',
-      textColor: color,
-      subColor: AppColors.inkFaint,
-    );
-  }
 }

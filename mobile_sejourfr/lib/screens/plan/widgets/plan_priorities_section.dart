@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/auth/auth_controller.dart';
 import '../../../core/models/diagnostic_models.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/skill_progress.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_tag.dart';
 import '../../../core/widgets/blurred_content.dart';
@@ -27,8 +29,14 @@ import 'plan_tokens.dart';
 /// priorité n°1 hors écran ; c'est le seul écart assumé avec « elles se lisent
 /// avant ».
 ///
-/// « Tout voir » déplie les **compétences observées** — les mêmes compétences,
-/// avec le même signal de maîtrise que « Réviser → Compétences ».
+/// « Tout voir » ouvre la page **Toutes mes compétences** — l'index des six
+/// tâches d'expression et des deux domaines de compréhension. Elle **déplia**
+/// un temps les compétences observées ici même : un écran de plan n'est pas un
+/// catalogue, et la liste dépliée poussait le reste du Plan hors de vue.
+///
+/// ⚠️ **C'est un verrou de NAVIGATION** pour un compte gratuit : le Plan reste
+/// intégralement visible (aucune priorité, aucun compteur n'est masqué), mais
+/// le catalogue complet est un accès, et les accès sont fermés.
 class PlanPrioritiesSection extends ConsumerStatefulWidget {
   const PlanPrioritiesSection({super.key, required this.plan});
 
@@ -40,8 +48,18 @@ class PlanPrioritiesSection extends ConsumerStatefulWidget {
 }
 
 class _PlanPrioritiesSectionState extends ConsumerState<PlanPrioritiesSection> {
-  bool _showObserved = false;
   bool _showDone = false;
+
+  /// « Tout voir ». Un compte sans accès TCF n'y entre pas : le catalogue
+  /// complet est un accès, et le verrou s'oppose ici comme partout ailleurs.
+  void _openAll() {
+    final auth = ref.read(authControllerProvider);
+    if (auth is! AuthAuthenticated || !auth.user.hasTcf) {
+      unawaited(showTcfLockPaywall(context));
+      return;
+    }
+    context.push(AppRoutes.planSkills);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,12 +68,9 @@ class _PlanPrioritiesSectionState extends ConsumerState<PlanPrioritiesSection> {
       if (plan.currentPriority != null) plan.currentPriority!,
       ...plan.nextPriorities,
     ];
-    final observed = plan.observedSkills
-        .where((skill) => skill.status != LearningPlanSkillStatus.notObserved)
-        .toList(growable: false);
     final completed = plan.completedSteps;
 
-    if (priorities.isEmpty && observed.isEmpty && completed.isEmpty) {
+    if (priorities.isEmpty && completed.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -64,21 +79,18 @@ class _PlanPrioritiesSectionState extends ConsumerState<PlanPrioritiesSection> {
       children: [
         SectionTitle(
           title: kPlanPrioritiesTitle,
-          action: observed.isEmpty
-              ? null
-              : TextButton(
-                  onPressed: () =>
-                      setState(() => _showObserved = !_showObserved),
-                  style: _linkStyle,
-                  child: Text(
-                    _showObserved ? kPlanPrioritiesLess : kPlanPrioritiesAll,
-                    style: AppFonts.ui(
-                      size: 13,
-                      weight: FontWeight.w700,
-                      color: AppColors.blue,
-                    ),
-                  ),
-                ),
+          action: TextButton(
+            onPressed: _openAll,
+            style: _linkStyle,
+            child: Text(
+              kPlanPrioritiesAll,
+              style: AppFonts.ui(
+                size: 13,
+                weight: FontWeight.w700,
+                color: AppColors.blue,
+              ),
+            ),
+          ),
         ),
         if (priorities.isNotEmpty) ...[
           const SizedBox(height: 10),
@@ -101,16 +113,6 @@ class _PlanPrioritiesSectionState extends ConsumerState<PlanPrioritiesSection> {
               ],
             ),
           ),
-        ],
-        if (_showObserved && observed.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          SectionTitle(title: kPlanObservedTitle),
-          const SizedBox(height: 10),
-          for (final skill in observed)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _ObservedSkillCard(skill: skill),
-            ),
         ],
         if (completed.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -267,105 +269,6 @@ class _PriorityRow extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Mêmes briques que « Réviser → Compétences » : anneau, titre, état en clair,
-/// chevron. Les deux écrans parlent des mêmes compétences de la même façon.
-class _ObservedSkillCard extends StatelessWidget {
-  const _ObservedSkillCard({required this.skill});
-
-  final LearningPlanSkill skill;
-
-  @override
-  Widget build(BuildContext context) {
-    // L'état de maîtrise (tout l'historique) dès que le serveur en a un ;
-    // sinon le verdict de la dernière production. **Jamais les deux**.
-    final mastery = skill.masteryState;
-    final tone = mastery == null ? skill.status.color : mastery.color;
-    return PressableCard(
-      onTap: () {
-        // Verrouillée, la carte reste lisible et tappable : le tap ouvre
-        // l'offre au lieu d'une liste de sujets qu'on ne pourrait pas produire.
-        if (skill.locked) {
-          unawaited(showTcfLockPaywall(context));
-          return;
-        }
-        openPlanSkill(context, skill.skillId, skill.section);
-      },
-      radius: AppRadii.lg,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            PlanSkillRing(
-              promptCount: skill.promptCount,
-              attemptedCount: skill.attemptedCount,
-              color: tone,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          skill.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppFonts.ui(
-                            size: 14.5,
-                            weight: FontWeight.w700,
-                            height: 1.25,
-                          ),
-                        ),
-                      ),
-                      if (skill.locked) ...[
-                        const SizedBox(width: 8),
-                        const PremiumLockTag(),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: mastery?.label ?? skill.status.label,
-                          style: AppFonts.ui(
-                            size: 11.5,
-                            weight: FontWeight.w800,
-                            color: tone,
-                          ),
-                        ),
-                        TextSpan(
-                          text: ' · ${skillProgressLabel(
-                            promptCount: skill.promptCount,
-                            attemptedCount: skill.attemptedCount,
-                            validatedCount: skill.validatedCount,
-                          )}',
-                          style: AppFonts.ui(
-                            size: 11.5,
-                            weight: FontWeight.w600,
-                            color: AppColors.inkSoft,
-                          ),
-                        ),
-                      ],
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            const CardChevron(),
-          ],
         ),
       ),
     );

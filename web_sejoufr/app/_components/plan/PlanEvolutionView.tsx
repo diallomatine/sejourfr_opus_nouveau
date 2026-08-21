@@ -2,21 +2,19 @@
 
 import Link from "next/link";
 import {useEffect, useState} from "react";
-import {ArrowLeft, ArrowRight, Check, RotateCcw, Sparkles} from "lucide-react";
+import {ArrowLeft, ArrowRight, RotateCcw, Sparkles} from "lucide-react";
 import {ApiException, learningPlanApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
   PLAN_CYCLE_STATE_TEXT,
-  PLAN_PATH_CURRENT_BADGE,
   PLAN_RECENT_NEW_PRIORITY,
   planCycleLine,
-  planPathStepMeta,
-  planPathStepTitle,
   planPathTitle,
   planSkillMeta,
   planTransitionLine,
 } from "@/lib/plan-domain";
 import {BlockHead, EmptyCard, PlanShell} from "./LearningPlanView";
+import {PlanPathList} from "./PlanBits";
 import {
   type LearningPlanDto,
   PLAN_RECENT_CHANGES_WINDOW_LABEL,
@@ -105,7 +103,10 @@ export function PlanEvolutionView() {
                 text="Mesuré en rejouant votre historique : ce sont de vraies transitions, pas un résumé."
               />
               <div className={styles.changesCard}>
-                <ul className={styles.changesList}>
+                {/* Une liste vide n'est jamais rendue : le serveur sert aussi ce
+                    bloc pour une simple « nouvelle priorité », et une première
+                    mesure n'est pas une transition. */}
+                <ul className={styles.changesList} hidden={changes.transitions.length === 0}>
                   {[...gains, ...pertes].map((transition) => (
                     <li key={transition.skillId}>
                       <span
@@ -145,24 +146,7 @@ export function PlanEvolutionView() {
               <div className={styles.panelHead}>
                 <div><h2 id="evolution-path">{planPathTitle(plan.cycle)}</h2></div>
               </div>
-              <ol className={styles.pathList}>
-                {plan.cycle.path.map((step, index) => (
-                  <li key={`${step.kind}-${step.level ?? index}`} data-status={step.status}>
-                    <span className={styles.pathMark} aria-hidden>
-                      {step.status === "DONE" ? <Check size={13} strokeWidth={3} /> : index + 1}
-                    </span>
-                    <span className={styles.pathBody}>
-                      <span className={styles.pathTitle}>
-                        {planPathStepTitle(step)}
-                        {step.status === "CURRENT" && (
-                          <span className={styles.pathBadge}>{PLAN_PATH_CURRENT_BADGE}</span>
-                        )}
-                      </span>
-                      <span className={styles.pathMeta}>{planPathStepMeta(step, plan.cycle)}</span>
-                    </span>
-                  </li>
-                ))}
-              </ol>
+              <PlanPathList cycle={plan.cycle} titleId="evolution-path" />
             </section>
           )}
 

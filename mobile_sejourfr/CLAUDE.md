@@ -1003,8 +1003,7 @@ mon profil** → **Mon chemin vers l'objectif** → liens secondaires.
   jamais le RÉSULTAT mesuré** — ce sont ses productions.
   - **Restent nets, pour tout le monde** : la carte de **priorité actuelle**, « Mon profil
     TCF » et ses 4 domaines, « Compléter mon profil », le chemin vers l'objectif, « ce qui a
-    changé », les **compétences observées** et les **étapes franchies**. Ne pas étendre le
-    flou « par symétrie ».
+    changé » et les **étapes franchies**. Ne pas étendre le flou « par symétrie ».
   - **Le contenu flouté est le VRAI** — jamais un décor fabriqué. Le rideau est
     **`BlurredContent`** (`core/widgets/blurred_content.dart`, partagé) :
     `ExcludeSemantics` **et** `IgnorePointer`, donc illisible à l'œil **et** au lecteur
@@ -1022,9 +1021,40 @@ mon profil** → **Mon chemin vers l'objectif** → liens secondaires.
     floute les mêmes. Ce n'est pas une extension du verrou, c'est la même ligne vue deux
     fois. `planSeanceRationale` ne nomme que la priorité n°1 (jamais floutée), et un jalon
     présent dans la séance n'est pas répété en carte (`milestoneInSeance`) : rien à y faire.
-  - **Les compétences observées restent en clair même quand la priorité correspondante est
+  - **Un résultat déjà mesuré reste en clair même quand l'action correspondante est
     floutée** — et ce n'est **pas** une contradiction : ce sont les deux faces de la règle,
     le résultat mesuré d'un côté, l'action verrouillée de l'autre.
+- **Une ligne de « Aujourd'hui » OUVRE, le bouton principal LANCE** (2026-08-21).
+  `openPlanSeanceItem` (le tap de la ligne) envoie un **petit sujet ciblé** vers la
+  **fiche de sa compétence** — ses 5 sujets et ce qui est fait —, exactement comme la ligne
+  correspondante de « Mes priorités » : la même compétence ne peut pas mener à deux écrans
+  selon l'endroit où on la touche. `startPlanSeanceItem` (le CTA du héros) **démarre**
+  l'entraînement, comme avant. 🛑 **Trois natures gardent le lancement direct** : la
+  **série ciblée** (runner QCM), le **jalon** (examen blanc) et la **vérification en
+  situation** — son sujet est une tâche de production qui ne fait *pas* partie des cinq de
+  la fiche, l'y envoyer laisserait le candidat sans moyen de la faire.
+- **« Tout voir » de « Mes priorités » OUVRE UNE PAGE** (`/plan/competences`), il ne déplie
+  plus les compétences observées sous la liste — un écran de plan n'est pas un catalogue, et
+  le dépliage repoussait le reste du Plan hors de vue. ⚠️ C'est un **verrou de navigation**
+  pour un compte gratuit (`showTcfLockPaywall`) : le Plan reste intégralement **visible**,
+  mais le catalogue complet est un **accès**.
+- **« Ce qui a changé » n'existe QUE s'il y a des transitions réelles**
+  (`changes.transitions.isNotEmpty`, jamais `!changes.isEmpty`). Son titre est une
+  **période** (« Cette semaine ») : l'afficher pour une seule `newPriority` — la compétence
+  déjà nommée par la carte du haut — annonçait un bilan de la semaine le jour du
+  diagnostic. Une première mesure n'est jamais une transition. Le **bandeau** du haut, lui,
+  continue de la signaler en une ligne.
+- **Les pastilles de domaine ont DEUX teintes** (`PlanDomainTile`) : compréhension (CO, CE)
+  **bleue**, expression (EO, EE) **rouge**, d'après la maquette (`ton: "bleu" | "rouge"`).
+  Une ligne sans domaine (jalon d'examen complet) reste bleue. ⚠️ **À ne pas confondre avec
+  l'accent du module « Compétences »** (`TcfProductionModule.accent`), autre surface, autre
+  décision : la remarque « EE et EO en bleu » ne vaut pas ici.
+- **Le chemin dit COMMENT un palier se confirme** : chaque étape `BUILD_LEVEL` non terminée
+  porte « Ce palier se confirme par un examen blanc complet », qui devient « Vous y êtes :
+  … » quand `cycle.state == READY_FOR_GATE_MOCK` (`planPathStepNote`). 🛑 **Aucune nature
+  d'étape n'a été ajoutée côté serveur** : `cycle.state` + `cycle.path` suffisent, c'est un
+  libellé. Une étape **déjà franchie** ne dit rien — le serveur ne publie pas *comment* elle
+  l'a été, et l'inventer serait faux.
 - 🛑 **`objectiveLevel` est NULLABLE.** La maquette code `"B2"` en dur : c'est un artefact.
   Sans démarche déclarée, l'en-tête propose « Mon objectif » (→ `/target-path`), le titre du
   chemin ne nomme aucun palier et la ligne « Objectif » du héros disparaît. `recentChanges`
@@ -1047,6 +1077,7 @@ mon profil** → **Mon chemin vers l'objectif** → liens secondaires.
 | `/plan/domaine/:domainKey` (`co\|ce\|ee\|eo`) | `PlanDomainScreen` | relit le Plan **déjà chargé**, aucun appel de plus. Compréhension ⇒ ses 3 paliers (tap = série ciblée) ; expression ⇒ ses 3 tâches (tap = `productionCompetencesPath`) |
 | `/plan/evolution` | `PlanEvolutionScreen` | `cycle` + `recentChanges` ; « rien n'a bougé » est un état affiché, pas une erreur |
 | `/plan/serie/:attemptId` | `PlanSerieResultScreen` | bilan d'une série ciblée, poussé par le runner |
+| `/plan/competences` | `PlanSkillsScreen` | « Tout voir ». **Aucune seconde liste de compétences** : un simple index qui relit le Plan déjà chargé et aiguille vers l'existant — tâche d'expression ⇒ `productionCompetencesPath` (les 8 compétences), domaine de compréhension ⇒ `PlanDomainScreen`. La ligne de tâche est `PlanTaskRow` (`widgets/plan_task_row.dart`), **extraite à la 2ᵉ occurrence** de `PlanDomainScreen` |
 
 **Série ciblée de compréhension** — `startTargetedSeries` (`plan_series_launcher.dart`) est
 le seul point de départ : `AttemptsRepository.startComprehensionSeries(skillId)` puis le

@@ -59,6 +59,44 @@ Future<void> openPlanExercise(
   );
 }
 
+/// **Ouvre une ligne de la séance** — le geste de la *liste*.
+///
+/// 🛑 **Un petit sujet ciblé ouvre la FICHE DE SA COMPÉTENCE**, jamais le sujet
+/// directement : c'est là que le candidat voit ses cinq sujets et lesquels sont
+/// faits. C'est exactement ce que fait déjà la ligne correspondante de « Mes
+/// priorités » — la même compétence ne peut pas mener à deux écrans selon
+/// l'endroit où on la touche.
+///
+/// Les deux autres natures gardent leur lancement direct, parce qu'elles n'ont
+/// pas de fiche à ouvrir : une **série ciblée** de compréhension part dans le
+/// runner QCM, un **jalon** ouvre son examen blanc. Une **vérification en
+/// situation** aussi : son sujet est une tâche de production qui ne fait pas
+/// partie des cinq de la fiche — l'y envoyer laisserait le candidat sans aucun
+/// moyen de la faire.
+///
+/// ⚠ Le verrou est **lu** ([planSeanceItemLocked]), jamais déduit du rang de la
+/// ligne : une action verrouillée ouvre l'offre au lieu d'être masquée.
+Future<void> openPlanSeanceItem(
+  BuildContext context,
+  WidgetRef ref,
+  PlanSeanceItem item,
+) async {
+  if (planSeanceItemLocked(item)) {
+    await showTcfLockPaywall(context);
+    return;
+  }
+  final skillId = item.skillId;
+  final section = item.section;
+  if (item.kind == PlanExerciseKind.microTraining &&
+      skillId != null &&
+      section != null &&
+      section.isProduction) {
+    openPlanSkill(context, skillId, section);
+    return;
+  }
+  await startPlanSeanceItem(context, ref, item);
+}
+
 /// **Lance une ligne de la séance**, quelle que soit sa nature.
 ///
 /// Extrait à la deuxième occurrence : la carte de séance et le bouton
@@ -66,9 +104,9 @@ Future<void> openPlanExercise(
 /// deux avait oublié les **jalons** — taper le bouton principal sur un examen
 /// blanc ne faisait alors rien du tout.
 ///
-/// ⚠ Le verrou est **lu** ([planSeanceItemLocked]), jamais déduit du rang de la
-/// ligne : une action verrouillée ouvre l'offre au lieu d'être masquée.
-Future<void> openPlanSeanceItem(
+/// C'est **le geste du bouton principal** : « Commencer ma séance » démarre
+/// l'entraînement, il n'ouvre pas une fiche.
+Future<void> startPlanSeanceItem(
   BuildContext context,
   WidgetRef ref,
   PlanSeanceItem item,

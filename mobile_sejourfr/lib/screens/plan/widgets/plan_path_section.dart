@@ -16,6 +16,12 @@ import '../plan_labels.dart';
 /// stabiliser) et **où en est le candidat** ; le titre est d'ici. L'objectif
 /// est **nullable** — sans démarche déclarée, le titre de la section ne nomme
 /// aucun palier plutôt que d'en inventer un.
+///
+/// 🛑 **Chaque palier se confirme par un examen blanc complet** : c'est la
+/// règle du produit, et le chemin est le seul endroit qui la rende lisible.
+/// Elle s'écrit sur les étapes de palier via [planPathStepNote] — un libellé,
+/// pas une nouvelle nature d'étape : le serveur sert déjà tout ce qu'il faut
+/// (`cycle.state`, `cycle.path`), rien n'est à ajouter côté DTO.
 class PlanPathSection extends StatelessWidget {
   const PlanPathSection({super.key, required this.cycle});
 
@@ -40,6 +46,7 @@ class PlanPathSection extends StatelessWidget {
                 _PathRow(
                   index: i,
                   step: steps[i],
+                  cycle: cycle,
                   objective: objective,
                   isLast: i == steps.length - 1,
                 ),
@@ -55,12 +62,14 @@ class _PathRow extends StatelessWidget {
   const _PathRow({
     required this.index,
     required this.step,
+    required this.cycle,
     required this.objective,
     required this.isLast,
   });
 
   final int index;
   final PlanPathStep step;
+  final PlanCycle cycle;
   final TargetLevel? objective;
   final bool isLast;
 
@@ -68,6 +77,11 @@ class _PathRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final done = step.status == PlanPathStepStatus.done;
     final current = step.status == PlanPathStepStatus.current;
+    // Comment ce palier se confirme. `null` partout ailleurs que sur une étape
+    // de palier non terminée : on ne raconte pas la règle là où elle ne
+    // s'applique pas.
+    final note = planPathStepNote(step, cycle);
+    final gateReady = current && cycle.state == PlanCycleState.readyForGateMock;
     final Color dotBg;
     final Color dotFg;
     if (current) {
@@ -152,6 +166,35 @@ class _PathRow extends StatelessWidget {
                       color: AppColors.inkFaint,
                     ),
                   ),
+                  if (note != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          LucideIcons.badgeCheck,
+                          size: 14,
+                          color: gateReady ? AppColors.blue : AppColors.inkFaint,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            note,
+                            style: AppFonts.ui(
+                              size: 12.5,
+                              height: 1.4,
+                              weight: gateReady
+                                  ? FontWeight.w700
+                                  : FontWeight.w400,
+                              color: gateReady
+                                  ? AppColors.blue
+                                  : AppColors.inkSoft,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

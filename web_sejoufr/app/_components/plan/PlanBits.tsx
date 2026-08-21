@@ -1,13 +1,26 @@
 "use client";
 
-import {BookOpen, FilePenLine, Headphones, Mic} from "lucide-react";
+import Link from "next/link";
+import {BookOpen, Check, FilePenLine, Headphones, Mic} from "lucide-react";
 import type {ReactNode} from "react";
 import {
     PLAN_DOMAIN_PRIORITY_LABEL,
+    type PlanCycleDto,
     type PlanDomainPriority,
+    type PlanDomainTaskDto,
     type TargetLevel,
 } from "@/lib/types";
-import {type PlanDomainEpreuve, planDomainLabel} from "@/lib/plan-domain";
+import {
+    isComprehension,
+    PLAN_DOMAIN_SECTION,
+    PLAN_PATH_CURRENT_BADGE,
+    type PlanDomainEpreuve,
+    planDomainLabel,
+    planPathStepMeta,
+    planPathStepNote,
+    planPathStepTitle,
+} from "@/lib/plan-domain";
+import {RowChevron} from "@/app/_components/skill-ui/SkillLayout";
 import styles from "./plan.module.css";
 
 /**
@@ -26,8 +39,20 @@ const DOMAIN_ICONS: Record<PlanDomainEpreuve, ReactNode> = {
     TCF_EE: <FilePenLine size={19} strokeWidth={1.9} />,
 };
 
-/** Le carré coloré d'un domaine. `active` le remplit — réservé au domaine dont
- *  le Plan a fait sa priorité forte, jamais décoratif. */
+/**
+ * Le carré coloré d'un domaine. `active` le remplit — réservé au domaine dont
+ * le Plan a fait sa priorité forte, jamais décoratif.
+ *
+ * **La teinte suit la FAMILLE du domaine** : compréhension en bleu (CO, CE),
+ * expression en rouge (EO, EE), comme la maquette. Elle se dérive de
+ * `PLAN_DOMAIN_SECTION` via `isComprehension` — l'autorité qui sépare déjà les
+ * deux familles partout ailleurs — et **jamais** d'une seconde table de
+ * couleurs à tenir à jour.
+ *
+ * ⚠️ À ne pas confondre avec `--skill-accent`, l'accent du **module
+ * Compétences**, qui est bleu pour EE comme pour EO : c'est un autre écran et
+ * une autre décision.
+ */
 export function PlanDomainIcon({
     epreuve,
     active,
@@ -40,12 +65,19 @@ export function PlanDomainIcon({
     return (
         <span
             className={`${styles.domainIcon} ${active ? styles.domainIconActive : ""} ${small ? styles.domainIconSmall : ""}`}
+            data-tone={planDomainTone(epreuve)}
             role="img"
             aria-label={planDomainLabel(epreuve)}
         >
             {DOMAIN_ICONS[epreuve]}
         </span>
     );
+}
+
+/** Bleu pour la compréhension, rouge pour l'expression. Aucune couleur n'est
+ *  écrite ici : le CSS lit ce jeton et va chercher les tokens de la charte. */
+function planDomainTone(epreuve: PlanDomainEpreuve): "comprehension" | "expression" {
+    return isComprehension(PLAN_DOMAIN_SECTION[epreuve]) ? "comprehension" : "expression";
 }
 
 /**
@@ -129,5 +161,87 @@ export function PlanBlur({children}: {children: ReactNode}) {
         <span className={styles.blur} aria-hidden inert>
             {children}
         </span>
+    );
+}
+
+/* --------------------------------------------------------------- le chemin */
+
+/**
+ * **Le chemin de palier**, servi par `cycle.path` — la même liste sur le Plan
+ * et sur « Votre programme évolue ». Extraite à la **2ᵉ occurrence** : les deux
+ * écrans en portaient une copie, et la note du gate n'en aurait alors touché
+ * qu'un seul.
+ *
+ * 🛑 **Rien n'est décidé ici** : l'ordre, le statut de chaque étape et le palier
+ * concerné viennent du serveur. Le front n'apporte que la phrase — dont celle
+ * qui manquait au candidat : **un palier se confirme par un examen blanc TCF
+ * complet** (`planPathStepNote`). C'est ce que réclame
+ * `cycle.state === "READY_FOR_GATE_MOCK"`, et le jalon correspondant est servi
+ * à côté (`LearningPlanDto.milestone`).
+ */
+export function PlanPathList({cycle, titleId}: {cycle: PlanCycleDto; titleId?: string}) {
+    if (cycle.path.length === 0) return null;
+    return (
+        <ol className={styles.pathList} aria-labelledby={titleId}>
+            {cycle.path.map((step, index) => {
+                const note = planPathStepNote(step, cycle);
+                return (
+                    <li key={`${step.kind}-${step.level ?? index}`} data-status={step.status}>
+                        <span className={styles.pathMark} aria-hidden>
+                            {step.status === "DONE" ? <Check size={13} strokeWidth={3} /> : index + 1}
+                        </span>
+                        <span className={styles.pathBody}>
+                            <span className={styles.pathTitle}>
+                                {planPathStepTitle(step)}
+                                {step.status === "CURRENT" && (
+                                    <span className={styles.pathBadge}>{PLAN_PATH_CURRENT_BADGE}</span>
+                                )}
+                            </span>
+                            <span className={styles.pathMeta}>{planPathStepMeta(step, cycle)}</span>
+                            {note && <span className={styles.pathNote}>{note}</span>}
+                        </span>
+                    </li>
+                );
+            })}
+        </ol>
+    );
+}
+
+/* ------------------------------------------------------ tâche d'expression */
+
+/**
+ * Une **tâche d'expression** et sa couverture en compétences observées. Elle
+ * ouvre la liste des huit compétences de la tâche — l'écran qui existe déjà
+ * (« Réviser → épreuve → Compétences ») : aucune seconde UX n'est créée.
+ *
+ * « 3 / 8 observées » **n'est pas une note** : une compétence non observée est
+ * une compétence que le candidat n'a pas encore eu l'occasion de montrer, et le
+ * dénominateur vient de la base.
+ */
+export function PlanTaskRow({
+    tache,
+    epreuve,
+}: {
+    tache: PlanDomainTaskDto;
+    epreuve: PlanDomainEpreuve;
+}) {
+    const section = epreuve === "TCF_EO" ? "eo" : "ee";
+    return (
+        <li>
+            <Link
+                className={styles.panelRow}
+                href={`/entrainement/tcf/${section}/tache/${tache.tacheNumero}/competences`}
+            >
+                <span className={styles.levelBadge}>{tache.tacheNumero}</span>
+                <span className={styles.panelBody}>
+                    <span className={styles.panelTitle}>Tâche {tache.tacheNumero}</span>
+                    <span className={styles.panelMeta}>
+                        {tache.observedSkills} / {tache.totalSkills} compétences observées
+                    </span>
+                </span>
+                <span className={styles.taskCount}>{tache.taskCode}</span>
+                <RowChevron />
+            </Link>
+        </li>
     );
 }

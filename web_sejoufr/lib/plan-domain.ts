@@ -132,7 +132,7 @@ export const PLAN_CYCLE_STATE_TEXT: Record<PlanCycleDto["state"], string> = {
         "Il manque des mesures : complétez votre profil pour que le plan cible les bons paliers.",
     TRAINING: "Votre entraînement cible les compétences qui bloquent le palier en cours.",
     READY_FOR_GATE_MOCK:
-        "Le travail de ce palier est fait : il reste à le prouver en conditions d'examen.",
+        "Le travail de ce palier est fait : il reste à le confirmer par un examen blanc TCF complet.",
     TARGET_STABILIZATION:
         "Votre objectif est atteint sur les domaines mesurés : on entretient et on remesure.",
 };
@@ -161,6 +161,32 @@ export function planPathStepMeta(step: PlanPathStepDto, cycle: PlanCycleDto): st
 }
 
 export const PLAN_PATH_CURRENT_BADGE = "En cours";
+
+/**
+ * **Comment un palier se confirme.** C'est le cœur du parcours : on ne change
+ * pas de niveau parce qu'on a fini des exercices, mais parce qu'un **examen
+ * blanc complet** l'a confirmé en conditions réelles.
+ *
+ * 🛑 **Rien n'est déduit ici** : la phrase ne s'affiche que sur une étape de
+ * palier (`BUILD_LEVEL`) **pas encore terminée**, et sa variante « maintenant »
+ * se lit sur l'état servi (`READY_FOR_GATE_MOCK`) — jamais sur un calcul du
+ * front. Une étape déjà franchie ne dit rien : le serveur ne publie pas
+ * *comment* elle l'a été, et l'inventer serait faux.
+ *
+ * Miroir mot pour mot de `planPathStepNote` côté mobile.
+ */
+export function planPathStepNote(step: PlanPathStepDto, cycle: PlanCycleDto): string | null {
+    if (step.kind !== "BUILD_LEVEL") return null;
+    if (step.status === "DONE") return null;
+    if (step.status === "CURRENT" && cycle.state === "READY_FOR_GATE_MOCK") {
+        return PLAN_GATE_READY;
+    }
+    return PLAN_GATE_RULE;
+}
+
+export const PLAN_GATE_RULE = "Ce palier se confirme par un examen blanc complet.";
+export const PLAN_GATE_READY =
+    "Vous y êtes : un examen blanc complet peut maintenant confirmer ce palier.";
 
 /* ------------------------------------------------------ compléter le profil */
 
@@ -313,6 +339,24 @@ export function planSkillHref(
     }
     return competenceHref(skill, options);
 }
+
+/**
+ * **« Toutes mes compétences »** — l'index du référentiel, ouvert depuis
+ * « Mes priorités ».
+ *
+ * Il ne crée aucun écran concurrent : chaque ligne y renvoie vers un parcours
+ * **déjà livré** — les huit compétences d'une tâche (« Réviser → épreuve →
+ * Compétences ») en expression, la fiche du domaine en compréhension.
+ */
+export const PLAN_SKILLS_HREF = "/plan/competences";
+export const PLAN_SKILLS_TITLE = "Toutes mes compétences";
+export const PLAN_SKILLS_TEXT =
+    "Expression : 6 tâches, 8 compétences chacune, observées à partir de vos productions. "
+    + "Compréhension : trois paliers par domaine, mesurés sur vos séries de questions.";
+/** Ce que le lien annonce quand l'accès n'est pas ouvert — un **verrou de
+ *  navigation**, pas un contenu masqué : le Plan lui-même reste entier. */
+export const PLAN_SKILLS_LOCKED_LABEL =
+    "Référentiel réservé à l'abonnement. Ouvrir l'offre pour le débloquer.";
 
 /** Le repère d'une compétence : son code et son domaine, plus le numéro de
  *  tâche quand elle en a un. */
