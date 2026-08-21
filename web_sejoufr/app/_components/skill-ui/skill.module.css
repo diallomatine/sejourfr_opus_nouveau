@@ -996,6 +996,27 @@
   color: var(--color-ink);
 }
 
+/* « Situation » — le contexte du sujet, en PANNEAU et non en carte : c'est le
+   texte à traiter, pas un encart de conseil de plus, et il coûte une ligne de
+   moins au-dessus de la zone de production. Miroir de `SkillSituationCard`
+   côté mobile. */
+.situationPanel {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px 13px;
+  border-radius: 8px 18px 18px 8px;
+  border-left: 3px solid var(--skill-accent);
+  background: color-mix(in srgb, var(--skill-accent) 7%, transparent);
+}
+
+.situationLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: var(--skill-accent);
+}
+
 /* La check-list : des gestes, pas un critère abstrait. */
 .checklist {
   list-style: none;
@@ -1944,6 +1965,16 @@
   text-align: center;
   font-size: 13px;
   color: var(--color-muted);
+}
+
+/* Le rappel de pied de liste : traité ≠ acquis. Texte discret, pas un encart —
+   il ne doit pas se disputer la lecture avec les sujets eux-mêmes. */
+.seriesNote {
+  margin: 14px 2px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-muted-2);
+  text-wrap: pretty;
 }
 
 .footLink {
@@ -3477,6 +3508,25 @@
   .analysisHeroTop {
     padding: 26px 28px 24px;
   }
+}
+
+/* La rangée de tête du bandeau : le surtitre, et à droite la pastille
+   « Objectif atteint » quand la production a rejoint le palier visé. */
+.analysisEyebrowRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.analysisReached {
+  flex: none;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, white 18%, transparent);
+  font-size: 10.5px;
+  font-weight: 800;
+  color: white;
 }
 
 .analysisEyebrow {

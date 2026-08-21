@@ -50,6 +50,19 @@ export function constraintIcon(icon: string): LucideIcon {
   return CONSTRAINT_ICON[icon as SkillConstraintIcon] ?? FALLBACK_ICON;
 }
 
+/**
+ * Intitulé du contexte du sujet.
+ *
+ * **Un label, pas un titre de carte** : c'est le **texte à traiter**, il ne doit
+ * pas se lire comme un encart de conseil de plus, et il coûte une ligne de moins
+ * au-dessus de la zone de production — le seul chiffre qui compte sur cet écran
+ * (la carte « Ta réponse » commence à ~468 px sur un 360).
+ *
+ * Miroir mot pour mot de `kSkillSituationLabel` côté mobile
+ * (`competences/widgets/prompt_guidance.dart`).
+ */
+const SITUATION_LABEL = "SITUATION";
+
 /** En-tête d'une carte de guidage : pastille d'icône + titre. */
 function GuideHead({icon, title}: {icon: LucideIcon; title: string}) {
   const Icon = icon;
@@ -108,9 +121,11 @@ export function PromptGuidance({prompt, oral}: {prompt: SkillPromptDto; oral: bo
         )}
       </section>
 
+      {/* Panneau, pas carte : fond teinté de l'accent et liseré de 3 px à
+          gauche, comme `SkillSituationCard` côté mobile. */}
       {situation && (
-        <section className={s.guideCard}>
-          <GuideHead icon={MapPin} title="Situation" />
+        <section className={s.situationPanel}>
+          <span className={s.situationLabel}>{SITUATION_LABEL}</span>
           <p className={s.guideText}>{situation}</p>
         </section>
       )}

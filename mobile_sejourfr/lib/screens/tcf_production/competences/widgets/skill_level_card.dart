@@ -30,8 +30,16 @@ const String kSkillLevelCardReachedBadge = 'Objectif atteint';
 /// Le rappel de pied. Notre palier est une **estimation d'entraînement** :
 /// le vrai TCF est corrigé par plusieurs examinateurs humains, et le dépôt
 /// interdit de laisser croire qu'on reproduit leur verdict.
+///
+/// ⚠️ Il dit aussi **« sur cette seule réponse »**, et ce n'est pas un détail :
+/// c'est la portée du palier, l'argument même de [kSkillLevelCardEyebrow]. La
+/// forme courte (« Estimation d'entraînement, non officielle. ») reste celle du
+/// diagnostic, qui porte sur deux productions entières. Miroir mot pour mot de
+/// `ESTIMATION_NOTE` côté web
+/// (`app/_components/competences/CompetenceLevelCard.tsx`).
 const String kSkillLevelCardEstimationNote =
-    'Estimation d\'entraînement, non officielle.';
+    'Estimation d\'entraînement SejourFR, sur cette seule réponse. '
+    'Ce n\'est pas une note officielle.';
 
 /// Le hero du résultat d'un micro-exercice : **niveau démontré** face au
 /// **niveau visé**, la phrase de situation, la jauge à trois crans, puis — sur

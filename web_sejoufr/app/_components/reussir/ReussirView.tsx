@@ -36,6 +36,7 @@ import {
 } from "@/lib/audience";
 import { diagnosticApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { EPREUVE_PLANNED_SEC, minutesLabel } from "@/lib/exam-durations";
 import {
   formatPassPrice,
   passCheckoutHref,
@@ -354,6 +355,23 @@ function MethodeSection() {
 // ③ PAR OÙ COMMENCER — c'est ici que les deux examens se séparent
 // ============================================================================
 
+/**
+ * Le temps de la **compréhension** annoncé par la carte « Diagnostic complet ».
+ *
+ * ⚠️ Recalculé depuis `lib/exam-durations.ts` — la seule table de durées du web,
+ * miroir de `DureeEpreuve` — et **jamais écrit en dur** : raccourcir une épreuve
+ * raccourcit la promesse. La maquette annonçait « ≈ 22 min » pour le parcours
+ * complet ; la CO et la CE valent à elles seules 20 + 35 min.
+ *
+ * Aucun **total** n'est annoncé : les deux productions se mesurent sur les
+ * bornes des sujets servis (`diagnosticWrittenMinutes` / `diagnosticOralMinutes`,
+ * écran `DiagnosticIntro`), et aucun DTO n'est disponible sur une landing —
+ * additionner ici reviendrait à fabriquer un chiffre.
+ */
+const DIAGNOSTIC_COMPREHENSION_LABEL = minutesLabel(
+  EPREUVE_PLANNED_SEC.TCF_CO + EPREUVE_PLANNED_SEC.TCF_CE,
+);
+
 function DiagnosticSection() {
   const origin = useOrigin();
 
@@ -366,8 +384,8 @@ function DiagnosticSection() {
             Commence par savoir où tu en es.
           </h2>
           <p className={styles.lead} style={{ marginTop: 14 }}>
-            Deux examens, deux points de départ&nbsp;: pour le TCF tu produis du français,
-            pour le civique tu passes un examen blanc complet. Les deux sont gratuits.
+            Pas un QCM de plus&nbsp;: tu produis du français, et l&apos;analyse porte sur
+            ce que tu sais réellement faire. Deux formats, gratuits tous les deux.
           </p>
         </div>
 
@@ -376,7 +394,7 @@ function DiagnosticSection() {
             <div className={`${styles.pad} ${styles.shotWash}`}>
               <div className={styles.rowI} style={{ flexWrap: "wrap", gap: 10 }}>
                 <h3 className={styles.h3} style={{ fontSize: 21 }}>
-                  Diagnostic TCF
+                  Diagnostic rapide
                 </h3>
                 <span className={`${styles.pill} ${styles.pReco}`}>Recommandé</span>
               </div>
@@ -394,35 +412,51 @@ function DiagnosticSection() {
           <div className={styles.card} data-rv>
             <div className={styles.pad}>
               <h3 className={styles.h3} style={{ fontSize: 21 }}>
-                Examen civique blanc
+                Diagnostic complet
               </h3>
               <p className={styles.label} style={{ marginTop: 7 }}>
-                40 questions · 45 min · les 5 thèmes
+                EE + EO, puis CO + CE · {DIAGNOSTIC_COMPREHENSION_LABEL} de compréhension
               </p>
               <p className={styles.leadSm} style={{ marginTop: 14 }}>
-                Le format réel de l&apos;épreuve, tous parcours confondus. Tu vois
-                immédiatement ton score et les thèmes qui te coûtent des points.
+                Ton profil sur les quatre épreuves du TCF. Tu commences par les mêmes
+                exercices&nbsp;; la compréhension se joue juste après la création de ton
+                compte, pour que ses résultats te restent.
               </p>
-              {/* L'entrée CIVIQUE se compte à part de l'entrée diagnostic :
-                  sans elle on savait combien de visiteurs voient cette offre,
-                  jamais combien y entrent. */}
-              <Link
-                href={withTrafficSource("/examens-blancs/civique-decouverte", origin)}
-                className={`${styles.btn} ${styles.btnO} ${styles.btnFull}`}
-                style={{ marginTop: 18 }}
-                onClick={() => trackAudienceEvent(TRACKED_PATH, "SOCIAL_LANDING_CIVIQUE_CLICKED")}
-              >
-                Passer l&apos;examen découverte
-                <ArrowRight aria-hidden />
-              </Link>
+              <DiagnosticCta variant="cardAlt" />
             </div>
           </div>
         </div>
 
         <p className={styles.mini} style={{ textAlign: "center", marginTop: 16 }}>
-          Tu peux commencer par l&apos;un ou par l&apos;autre&nbsp;: les deux parcours
-          avancent en parallèle dans le même compte.
+          Tu peux commencer par l&apos;écrit et l&apos;oral, puis compléter la
+          compréhension quand tu veux.
         </p>
+
+        {/* L'examen civique n'est PAS un diagnostic : il n'a ni production, ni
+            palier CECRL, ni compétences. Il a donc sa propre entrée, séparée des
+            deux cartes ci-dessus — et sa propre mesure d'audience, sans quoi on
+            savait combien de visiteurs voient cette offre, jamais combien y
+            entrent. */}
+        <div className={`${styles.card} ${styles.band}`} style={{ marginTop: 28 }} data-rv>
+          <div className={`${styles.pad} ${styles.bandInner}`}>
+            <span className={styles.bandBody}>
+              <span className={styles.label}>Tu prépares aussi l&apos;examen civique&nbsp;?</span>
+              <b className={styles.bandTitle}>Examen civique blanc</b>
+              <span className={styles.mini}>
+                40 questions · 45 min · les 5 thèmes. Le format réel de l&apos;épreuve, avec
+                ton score et les thèmes qui te coûtent des points.
+              </span>
+            </span>
+            <Link
+              href={withTrafficSource("/examens-blancs/civique-decouverte", origin)}
+              className={`${styles.btn} ${styles.btnO}`}
+              onClick={() => trackAudienceEvent(TRACKED_PATH, "SOCIAL_LANDING_CIVIQUE_CLICKED")}
+            >
+              Passer l&apos;examen découverte
+              <ArrowRight aria-hidden />
+            </Link>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -1522,7 +1556,12 @@ function PageFooter() {
 function DiagnosticCta({
   variant = "hero",
 }: {
-  variant?: "hero" | "nav" | "card" | "sticky" | "onBrand";
+  /** `cardAlt` = la seconde carte de `#diagnostic` (« Diagnostic complet ») :
+   *  même destination et **même événement** que `card`, bouton secondaire.
+   *  ⚠️ La variante choisie à l'entrée du diagnostic n'est **persistée nulle
+   *  part** (le candidat y est encore invité) : il n'existe aucun paramètre
+   *  d'URL à passer, c'est `DiagnosticIntro` qui porte le choix. */
+  variant?: "hero" | "nav" | "card" | "cardAlt" | "sticky" | "onBrand";
 }) {
   const { status, user } = useAuth();
   const origin = useOrigin();
@@ -1551,18 +1590,24 @@ function DiagnosticCta({
   const destination = withTrafficSource(completed ? "/plan" : "/diagnostic", origin);
 
   const label = completed
-    ? "Voir mon plan"
+    ? // Un diagnostic terminé ne se refait pas : la carte « complet » renvoie
+      // vers le Plan, qui porte justement l'invitation à compléter le profil.
+      variant === "cardAlt"
+      ? "Compléter mon profil"
+      : "Voir mon plan"
     : variant === "nav" || variant === "sticky"
       ? "Diagnostic gratuit"
       : variant === "card"
         ? "Commencer gratuitement"
-        : "Faire mon diagnostic gratuit";
+        : variant === "cardAlt"
+          ? "Faire le diagnostic complet"
+          : "Faire mon diagnostic gratuit";
 
   const className = [
     styles.btn,
-    styles.btnP,
+    variant === "cardAlt" ? styles.btnO : styles.btnP,
     variant === "nav" || variant === "sticky" ? styles.btnSm : "",
-    variant === "card" || variant === "onBrand" ? styles.btnFull : "",
+    variant === "card" || variant === "cardAlt" || variant === "onBrand" ? styles.btnFull : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -1571,7 +1616,7 @@ function DiagnosticCta({
     <Link
       href={destination}
       className={className}
-      style={variant === "card" ? { marginTop: 18 } : undefined}
+      style={variant === "card" || variant === "cardAlt" ? { marginTop: 18 } : undefined}
       onClick={() => trackAudienceEvent(TRACKED_PATH, "SOCIAL_LANDING_DIAGNOSTIC_CLICKED")}
     >
       {label}

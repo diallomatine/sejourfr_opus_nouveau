@@ -34,6 +34,20 @@ const CRITERION_STATUS_TONE: Record<SkillCriterionStatus, string> = {
  */
 const LEVEL_EYEBROW = "NIVEAU DE TA RÉPONSE";
 
+/** Surtitre du bandeau : ce que l'écran vient de faire. Miroir mot pour mot de
+ *  `kSkillLevelCardHeroEyebrow` côté mobile. */
+const HERO_EYEBROW = "ANALYSE DE TA PRODUCTION";
+
+/** L'autre colonne du vis-à-vis : le palier que la démarche du candidat exige.
+ *  Miroir mot pour mot de `kSkillLevelCardTargetEyebrow` côté mobile.
+ *  ⚠️ Disait « Objectif » ici et « NIVEAU VISÉ » là-bas — le second nomme la
+ *  chose, le premier pouvait se lire comme le verdict de la production. */
+const TARGET_EYEBROW = "NIVEAU VISÉ";
+
+/** Ce qu'on écrit quand la production atteint déjà l'objectif. Miroir mot pour
+ *  mot de `kSkillLevelCardReachedBadge` côté mobile. */
+const REACHED_BADGE = "Objectif atteint";
+
 /**
  * Mention d'estimation, en pied du bandeau.
  *
@@ -42,6 +56,13 @@ const LEVEL_EYEBROW = "NIVEAU DE TA RÉPONSE";
  * (« votre note officielle serait », « notre grille est celle du vrai examen »).
  * Le bandeau affiche un palier en très grand ; il doit dire dans la même carte
  * ce que ce palier est — une estimation d'entraînement.
+ *
+ * ⚠️ Il dit aussi **« sur cette seule réponse »**, et ce n'est pas un détail :
+ * c'est la portée du palier, l'argument même de `LEVEL_EYEBROW`. La forme courte
+ * (« Estimation d'entraînement, non officielle. ») reste celle du diagnostic,
+ * qui porte sur deux productions entières.
+ *
+ * Miroir mot pour mot de `kSkillLevelCardEstimationNote` côté mobile.
  */
 const ESTIMATION_NOTE =
   "Estimation d'entraînement SejourFR, sur cette seule réponse. Ce n'est pas une note officielle.";
@@ -92,19 +113,25 @@ export function CompetenceLevelCard({
   return (
     <section className={s.analysisHero}>
       <div className={s.analysisHeroTop}>
-        <span className={s.analysisEyebrow}>
-          <Sparkles size={13} strokeWidth={2.4} aria-hidden />
-          {LEVEL_EYEBROW}
-        </span>
+        <div className={s.analysisEyebrowRow}>
+          <span className={s.analysisEyebrow}>
+            <Sparkles size={13} strokeWidth={2.4} aria-hidden />
+            {HERO_EYEBROW}
+          </span>
+          {atteint && <span className={s.analysisReached}>{REACHED_BADGE}</span>}
+        </div>
 
         <div className={s.analysisFigures}>
           <div className={s.analysisFigure}>
+            {/* Le palier est nommé sur la colonne elle-même : c'est là qu'est le
+                chiffre, donc là que la confusion « mon niveau » se joue. */}
+            <span className={s.analysisFigureLabel}>{LEVEL_EYEBROW}</span>
             <strong className={s.analysisFigureValue}>
               {niveauCecrlShort(progress.levelReached)}
             </strong>
           </div>
           <div className={`${s.analysisFigure} ${s.analysisFigureGoal}`}>
-            <span className={s.analysisFigureLabel}>Objectif</span>
+            <span className={s.analysisFigureLabel}>{TARGET_EYEBROW}</span>
             <strong className={s.analysisFigureValue}>{progress.targetLevel}</strong>
           </div>
           <span

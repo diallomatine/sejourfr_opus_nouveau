@@ -212,6 +212,10 @@ class SkillChecklistCard extends StatelessWidget {
   }
 }
 
+/// Intitulé du contexte du sujet. Miroir mot pour mot de `SITUATION_LABEL`
+/// côté web (`app/_components/competences/PromptGuidance.tsx`).
+const String kSkillSituationLabel = 'SITUATION';
+
 /// « Situation » — le contexte du sujet, resserré.
 ///
 /// **Panneau, pas carte** : fond teinté de l'accent et liseré de 3 px à gauche,
@@ -245,7 +249,10 @@ class SkillSituationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('SITUATION', style: AppFonts.label(size: 10, color: accent)),
+          Text(
+            kSkillSituationLabel,
+            style: AppFonts.label(size: 10, color: accent),
+          ),
           const SizedBox(height: 6),
           Text(
             context,

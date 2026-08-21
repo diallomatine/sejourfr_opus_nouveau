@@ -51,10 +51,12 @@ String skillPromptLastAttemptCta(SkillPromptStatus status) =>
 const String kNextPromptEyebrow = 'Prochain sujet recommandé';
 
 /// Ce qu'on dit d'un sujet qu'on **repropose**. Formulation positive, règle
-/// gelée du dépôt : on nomme ce que la reprise apporte, jamais un manque.
+/// gelée du dépôt : on nomme ce que la reprise apporte, jamais un manque — et
+/// on n'affirme aucun nombre de passages, un sujet pouvant être repris
+/// plusieurs fois. Miroir mot pour mot de `NEXT_PROMPT_REINFORCE_REASON` côté
+/// web (`app/_components/competences/CompetenceDetail.tsx`).
 const String kNextPromptReinforceReason =
-    'Déjà travaillé une fois : le reprendre permet de consolider ce qui '
-    'restait fragile.';
+    'Déjà traité : le reprendre consolide ce qui restait fragile.';
 
 /// Le rappel de pied de liste. « Tout traité » n'est pas « acquis » : la preuve
 /// se fait en situation, sur une production complète, et c'est le Plan qui la

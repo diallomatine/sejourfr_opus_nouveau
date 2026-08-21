@@ -53,6 +53,10 @@ import {
 import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
 
+/** Intertitre du rappel de fin d'écran : quelle compétence ce sujet
+ *  travaillait. Miroir mot pour mot de `kSkillWorkedTitle` côté mobile. */
+const SKILL_WORKED_TITLE = "Compétence travaillée";
+
 const POLL_MS = 3000;
 /**
  * Plafond de polling **partagé mot pour mot avec le mobile : 3 s de cadence,
@@ -456,7 +460,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
               {prompt && (
                 <aside className={s.resultAside}>
                   <div className={s.asideCard}>
-                    <span className={s.asideEyebrow}>Compétence travaillée</span>
+                    <span className={s.asideEyebrow}>{SKILL_WORKED_TITLE}</span>
                     <p className={s.asideTitle}>{prompt.skillTitle}</p>
                     <p className={s.asideMeta}>{prompt.taskTitle ?? config.label}</p>
                     <Link href={skillHref} className={s.asideLink}>

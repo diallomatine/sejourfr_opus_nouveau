@@ -405,6 +405,50 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+/* Bande horizontale : une entrée secondaire, volontairement distincte des
+   cartes au-dessus (l'examen civique n'est pas un diagnostic). Elle s'empile
+   sous 620 px, où le bouton passe pleine largeur. */
+.band {
+  background: var(--surface-3);
+  box-shadow: none;
+}
+.bandInner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+.bandBody {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.bandTitle {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+.bandInner .btn {
+  width: 100%;
+  justify-content: center;
+}
+@media (min-width: 620px) {
+  .bandInner {
+    flex-direction: row;
+    align-items: center;
+    gap: 24px;
+  }
+  .bandBody {
+    flex: 1;
+  }
+  .bandInner .btn {
+    width: auto;
+    flex: none;
+  }
+}
+
 .stack {
   display: grid;
   gap: 14px;

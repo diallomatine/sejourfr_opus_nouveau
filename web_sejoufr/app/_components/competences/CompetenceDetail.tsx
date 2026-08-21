@@ -53,6 +53,26 @@ import s from "@/app/_components/skill-ui/skill.module.css";
 
 type Filter = "all" | "todo" | "done";
 
+/** Surtitre de la carte qui met en avant le sujet à faire maintenant. Miroir
+ *  mot pour mot de `kNextPromptEyebrow` côté mobile. */
+const NEXT_PROMPT_EYEBROW = "Prochain sujet recommandé";
+
+/** Ce qu'on dit d'un sujet qu'on **repropose**. Formulation positive, règle
+ *  gelée du dépôt : on nomme ce que la reprise apporte, jamais un manque — et
+ *  on n'affirme aucun nombre de passages, un sujet pouvant être repris
+ *  plusieurs fois. Miroir mot pour mot de `kNextPromptReinforceReason`. */
+const NEXT_PROMPT_REINFORCE_REASON =
+  "Déjà traité : le reprendre consolide ce qui restait fragile.";
+
+/** Le rappel de pied de liste. « Tout traité » n'est pas « acquis » : la preuve
+ *  se fait en situation, sur une production complète, et c'est le Plan qui la
+ *  déclenche. Sans cette ligne, une série au complet se lit comme une
+ *  compétence maîtrisée. Miroir mot pour mot de `kSkillSeriesNote`. */
+const SKILL_SERIES_NOTE =
+  "Avoir traité tous les sujets ne veut pas dire que la compétence est " +
+  "acquise : elle se confirme sur une production complète, que ton plan te " +
+  "proposera.";
+
 /** Date courte d'une dernière tentative (« 4 août »). */
 function shortDate(iso: string): string {
   const d = new Date(iso);
@@ -310,7 +330,7 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                 <div className={s.recoInner}>
                   <span className={s.recoEyebrow}>
                     <Zap size={13} strokeWidth={2.4} aria-hidden />
-                    Prochain sujet recommandé
+                    {NEXT_PROMPT_EYEBROW}
                   </span>
                   <h2 className={s.recoTitle}>{target.title}</h2>
                   <p className={s.recoText}>
@@ -318,7 +338,7 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                       ? "Ce sujet fait partie de l'abonnement Intégral. Il reste celui que ton plan a désigné."
                       : target.status === "TODO"
                         ? "Nouveau sujet sur cette compétence."
-                        : "Déjà traité : le reprendre consolide ce qui restait fragile."}
+                        : NEXT_PROMPT_REINFORCE_REASON}
                   </p>
                   <button
                     type="button"
@@ -400,6 +420,11 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                 ))}
               </div>
             )}
+
+            {/* Traité ≠ acquis : sans cette ligne, une série au complet se lit
+                comme une compétence maîtrisée. La preuve se fait en situation,
+                sur une production complète, et c'est le Plan qui la déclenche. */}
+            <p className={s.seriesNote}>{SKILL_SERIES_NOTE}</p>
 
             {scoped ? (
               <Link href="/plan" className={s.footLink}>
