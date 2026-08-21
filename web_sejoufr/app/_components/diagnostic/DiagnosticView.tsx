@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  ChevronDown,
   Clock3,
   FilePenLine,
   Headphones,
@@ -14,7 +13,6 @@ import {
   Lock,
   RotateCcw,
   Sparkles,
-  Zap,
 } from "lucide-react";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {EeWritingForm, clearEeDraft} from "@/app/_components/production/EeWritingForm";
@@ -52,10 +50,17 @@ import type {
   PublicDiagnosticResponse,
   SkillSection,
 } from "@/lib/types";
+import {planSkillHref} from "@/lib/plan-domain";
+import {RowChevron} from "@/app/_components/skill-ui/SkillLayout";
 import {useTrafficSource, useTrafficSourceHref} from "@/lib/use-traffic-source";
 import {DiagnosticAccountGate} from "./DiagnosticAccountGate";
 import {DiagnosticIntro, type DiagnosticParcours} from "./DiagnosticIntro";
-import {DiagnosticLevelCard} from "./DiagnosticLevelCard";
+import {
+  DiagnosticCompleteProfileCard,
+  DiagnosticLevelCard,
+  DiagnosticProfileCard,
+  useDiagnosticPlan,
+} from "./DiagnosticProfile";
 import {DiagnosticSteps} from "./DiagnosticSteps";
 import styles from "./diagnostic.module.css";
 
@@ -1427,15 +1432,17 @@ function PremiumLink({
 
 /**
  * Combien de lignes un compte SANS accès TCF voit en clair avant le rideau :
- * **une seule**, de chaque côté. Deux lignes réelles sont ensuite floutées, puis
- * le compteur annonce **tout** ce qui reste.
+ * **une** priorité, **deux** points forts. Deux lignes réelles sont ensuite
+ * floutées, puis le compteur annonce **tout** ce qui reste.
  *
  * 🛑 **Ces deux nombres bornent l'AFFICHAGE, jamais la donnée.** Le compte
  * annoncé, lui, vient du serveur (`fragileSkillCount` / `solidSkillCount`) — cf.
  * `LockedTease`. Miroirs mobile : `_kFreeFocusVisible` / `_kFreeSolidVisible`.
  */
 const FREE_PRIORITIES = 1;
-const FREE_STRENGTHS = 1;
+/** ⚠️ **Deux, pas une** (2026-08-21) : la maquette in-app ouvre le rapport sur
+ *  ce qui est acquis, et une seule ligne n'a jamais l'air d'un point fort. */
+const FREE_STRENGTHS = 2;
 
 /**
  * Combien de lignes **réelles** le rideau laisse deviner. C'est un échantillon,
@@ -1472,17 +1479,30 @@ function teaseFrom<T>(
  * retire. Le registre reste celui de l'application : le rapport et le Plan
  * vouvoient, seul le module Compétences tutoie.
  */
-const REPORT_TITLE = "Votre rapport";
-const REPORT_SUB_PREMIUM = "Rapport complet";
-const REPORT_SUB_FREE = "Estimation d'entraînement Séjour";
+const REPORT_TITLE = "Diagnostic";
 /** La seule phrase de l'écran qui dise ce que vaut l'estimation. Elle est
- *  gardée sous la carte de niveau, là où le palier est annoncé. */
+ *  gardée en pied de rapport, pour tout le monde. */
 const ESTIMATION_NOTE =
   "Estimation d'entraînement Séjour, non officielle. Elle ne remplace pas le résultat du TCF.";
 
-const PRIORITIES_TITLE = "Vos principales priorités";
-const PRIORITIES_TEXT =
-  "Le diagnostic ne liste pas vos erreurs : il désigne les compétences qui feront bouger votre niveau.";
+/** ⚠️ **Les points forts passent AVANT les priorités** (2026-08-21) : on ouvre
+ *  sur ce qui est acquis, pas sur ce qui manque. */
+const STRENGTHS_TITLE = "Vos points forts";
+/** 🛑 Le compte du sous-titre vient du SERVEUR (`solidSkillCount`), jamais d'un
+ *  comptage local — cf. `resultStrengths`. */
+const STRENGTHS_SUB = "Compétences observées et déjà solides";
+
+function strengthsSub(total: number): string {
+  return `${STRENGTHS_SUB} · ${total}`;
+}
+
+const PRIORITIES_TITLE = "Vos priorités";
+/** Le sous-titre d'un compte SANS accès : ce qu'il voit, sur ce qui a été
+ *  détecté. 🛑 `total` vient du serveur (`fragileSkillCount`). Rendu seulement
+ *  au-delà de 1 — « sur 1 détectées » ne veut rien dire. */
+function freePrioritiesSub(total: number): string {
+  return `Votre priorité actuelle sur ${total} détectées`;
+}
 /** Repli : le serveur n'a désigné aucune priorité classée. On ne promeut pas des
  *  points relevés en priorités mesurées. */
 const PRIORITIES_TITLE_UNRANKED = "Ce qu'il y a à travailler";
@@ -1491,9 +1511,6 @@ const PRIORITIES_TEXT_UNRANKED =
 /** Le repère d'une ligne qui ne porte aucun domaine (repli sans compétence). */
 const PRIORITY_RANK_LABEL = "Priorité détectée";
 const POINT_LABEL = "Point à travailler";
-
-const STRENGTHS_TITLE = "Vos points forts";
-const STRENGTHS_TEXT = "Ce que vos deux productions ont déjà montré de solide.";
 
 const PLAN_READY_TITLE = "Votre plan personnalisé est prêt";
 const PLAN_READY_TEXT =
@@ -1627,6 +1644,12 @@ function DiagnosticResult({
   planHref: string;
   notice?: ReactNode;
 }) {
+  // 🛑 **Une seule lecture du Plan pour tout le haut du rapport** : le héros de
+  // niveau, le profil TCF et la carte « il reste des domaines à mesurer » en
+  // vivent. Deux `useState` chacun auraient fait deux appels réseau pour la
+  // même réponse. Le hook est appelé AVANT le repli sans résultat : l'ordre des
+  // hooks ne dépend jamais d'une branche.
+  const plan = useDiagnosticPlan();
   const result = diagnostic.result;
 
   if (!result) {
@@ -1688,11 +1711,57 @@ function DiagnosticResult({
 
         <header className={styles.resultHeader}>
           <h1>{REPORT_TITLE}</h1>
-          <p className={styles.reportSub}>{hasTcf ? REPORT_SUB_PREMIUM : REPORT_SUB_FREE}</p>
         </header>
 
-        {/* --------------- une seule carte : niveau, objectif, 4 domaines */}
-        <DiagnosticLevelCard targetLevel={targetLevel} />
+        {/* ------------------------ héros : niveau actuel, objectif, rail */}
+        <DiagnosticLevelCard plan={plan} targetLevel={targetLevel} />
+
+        {/* ------------------- le profil TCF, quatre lignes cliquables */}
+        <DiagnosticProfileCard plan={plan} />
+
+        {/* -------------- ce qu'il reste à mesurer, et par quoi le faire */}
+        <DiagnosticCompleteProfileCard plan={plan} />
+
+        {/* ------------------------------------------------- vos points forts */}
+        {/* ⚠️ **Avant les priorités** : le rapport ouvre sur ce qui est acquis. */}
+        {(visibleSolid.length > 0 || visibleTexts.length > 0) && (
+          <section aria-labelledby="strengths-title">
+            <ResultBlockHead
+              id="strengths-title"
+              title={STRENGTHS_TITLE}
+              text={strengthsSub(strengths.total)}
+            />
+            <ul className={styles.strengthList}>
+              {visibleSolid.map((skill) => (
+                <li key={skill.skillId}>
+                  <span className={styles.strengthMark} aria-hidden>
+                    <Check size={13} strokeWidth={3} />
+                  </span>
+                  <b>{skill.skillTitle}</b>
+                  <span>{skillMetaLine(skill.section, skill.skillCode)}</span>
+                </li>
+              ))}
+              {visibleTexts.map((item) => (
+                <li key={item}>
+                  <span className={styles.strengthMark} aria-hidden>
+                    <Check size={13} strokeWidth={3} />
+                  </span>
+                  <b>{item}</b>
+                </li>
+              ))}
+            </ul>
+            {strengthTease.hidden > 0 && (
+              <LockedTease
+                rows={strengthTease.sample}
+                label={moreLabel(
+                  strengthTease.hidden,
+                  "autre compétence déjà solide",
+                  "autres compétences déjà solides",
+                )}
+              />
+            )}
+          </section>
+        )}
 
         {/* ----------------------------------------------- les priorités */}
         {levers.length > 0 && (
@@ -1700,7 +1769,15 @@ function DiagnosticResult({
             <ResultBlockHead
               id="levers-title"
               title={measured ? PRIORITIES_TITLE : PRIORITIES_TITLE_UNRANKED}
-              text={measured ? PRIORITIES_TEXT : PRIORITIES_TEXT_UNRANKED}
+              /* Un abonné voit tout : la section n'a alors rien à annoncer, et
+                 « sur 1 détectées » ne veut rien dire. */
+              text={
+                !measured
+                  ? PRIORITIES_TEXT_UNRANKED
+                  : !hasTcf && leverTotal > 1
+                    ? freePrioritiesSub(leverTotal)
+                    : null
+              }
             />
             <ol className={styles.leverList}>
               {visibleLevers.map((lever, index) => (
@@ -1737,46 +1814,6 @@ function DiagnosticResult({
           </section>
         )}
 
-        {/* ------------------------------------------------- vos points forts */}
-        {(visibleSolid.length > 0 || visibleTexts.length > 0) && (
-          <section aria-labelledby="strengths-title">
-            <ResultBlockHead
-              id="strengths-title"
-              title={STRENGTHS_TITLE}
-              text={STRENGTHS_TEXT}
-            />
-            <ul className={styles.strengthList}>
-              {visibleSolid.map((skill) => (
-                <li key={skill.skillId}>
-                  <span className={styles.strengthMark} aria-hidden>
-                    <Check size={13} strokeWidth={3} />
-                  </span>
-                  <b>{skill.skillTitle}</b>
-                  <span>{skillMetaLine(skill.section, skill.skillCode)}</span>
-                </li>
-              ))}
-              {visibleTexts.map((item) => (
-                <li key={item}>
-                  <span className={styles.strengthMark} aria-hidden>
-                    <Check size={13} strokeWidth={3} />
-                  </span>
-                  <b>{item}</b>
-                </li>
-              ))}
-            </ul>
-            {strengthTease.hidden > 0 && (
-              <LockedTease
-                rows={strengthTease.sample}
-                label={moreLabel(
-                  strengthTease.hidden,
-                  "autre compétence déjà solide",
-                  "autres compétences déjà solides",
-                )}
-              />
-            )}
-          </section>
-        )}
-
         {/* ---------------------------------------------------- votre plan */}
         {nextAction && (
           <section aria-labelledby="plan-title">
@@ -1784,8 +1821,8 @@ function DiagnosticResult({
             <div className={styles.planShell}>
               {/* Le bandeau « Priorité actuelle » a été retiré le 2026-08-21 :
                   cette même priorité est déjà la première ligne de « Vos
-                  principales priorités », une section plus haut. La redire ici
-                  n'ajoutait rien et allongeait la carte. Ne pas la réintroduire. */}
+                  priorités », une section plus haut. La redire ici n'ajoutait
+                  rien et allongeait la carte. Ne pas la réintroduire. */}
 
               <p className={styles.planTodayLabel}>
                 {PLAN_TODAY_LABEL} · {nextAction.estimatedMinutes} min
@@ -1920,21 +1957,25 @@ function DiagnosticResult({
 }
 
 /**
- * Une ligne de « Vos principales priorités », **repliée par défaut**.
+ * Une ligne de « Vos priorités ».
+ *
+ * 🛑 **La ligne entière ouvre la fiche de la compétence** — `planSkillHref`,
+ * l'autorité que le Plan emprunte déjà pour ses propres lignes. Aucun second
+ * chemin : deux copies finiraient par envoyer sur deux écrans différents pour
+ * la même compétence. Une ligne du **repli** (un point relevé, sans compétence)
+ * n'a rien à ouvrir : elle reste inerte, sans chevron.
  *
  * Elle porte tout ce que le serveur publie sur une priorité et que le candidat
  * a le droit de lire : son explication (`mainPriorityExplanation` sur le rang 1)
  * et sa preuve — la phrase de sa propre production. `confidence` en est
  * volontairement absente : elle n'est **jamais** montrée au candidat.
  *
- * Repliée, la ligne porte le verdict (rang, libellé, domaine, état) ; le détail
- * vit derrière un clic. Dépliées, une douzaine d'explications de trois lignes se
- * lisaient comme un mur et le candidat n'en lisait aucune — rien n'est retiré,
- * tout est à un clic.
- *
- * `<details>` plutôt qu'un état React : le repli natif est accessible au clavier
- * et survit à un rendu. Miroir de `_FocusRow` côté mobile ; une ligne sans rien
- * à déplier reste **inerte**, sans chevron.
+ * ⚠️ **Seul le rang 1 déplie son détail**, et il est servi ouvert. C'est la
+ * priorité par laquelle le plan commence, la seule visible sans abonnement, et
+ * la seule dont le serveur désigne l'explication. Empiler une douzaine
+ * d'explications de trois lignes se lisait comme un mur, et le candidat n'en
+ * lisait aucune ; pour les autres rangs, le détail vit sur la fiche que la
+ * ligne ouvre. Miroir de `_FocusRow` côté mobile.
  */
 function LeverRow({
   lever,
@@ -1947,6 +1988,23 @@ function LeverRow({
 }) {
   const meta = skillMetaLine(lever.section, lever.skillCode)
     ?? (measured ? PRIORITY_RANK_LABEL : POINT_LABEL);
+  const href =
+    lever.skillCode && lever.section
+      ? planSkillHref(
+          {
+            skillId: lever.key,
+            skillCode: lever.skillCode,
+            section: lever.section,
+          },
+          /* On arrive du parcours : la fiche s'ouvre SCOPÉE aux 5 sujets de
+             l'étape, comme depuis « Mes priorités ». Rien n'est recalculé — le
+             marqueur relit le Plan déjà en cache, et une compétence absente du
+             parcours retombe silencieusement sur la fiche complète. */
+          {planStep: true},
+        )
+      : null;
+  const detail = rank === 1 && (lever.detail || lever.evidence);
+
   const head = (
     <>
       <span className={styles.leverRank} data-rank={rank} aria-hidden>
@@ -1967,34 +2025,46 @@ function LeverRow({
     </>
   );
 
-  if (!lever.detail && !lever.evidence) {
-    return <div className={styles.leverHead}>{head}</div>;
-  }
-
   return (
-    <details className={styles.leverRow}>
-      <summary className={styles.leverHead}>
-        {head}
-        <ChevronDown className={styles.leverChevron} size={16} aria-hidden />
-      </summary>
-      <div className={styles.leverDetail}>
-        {lever.detail && <p>{lever.detail}</p>}
-        {lever.evidence && (
-          <blockquote className={styles.leverQuote}>
-            «&nbsp;{lever.evidence}&nbsp;»
-          </blockquote>
-        )}
-      </div>
-    </details>
+    <>
+      {href ? (
+        <Link className={styles.leverHead} href={href}>
+          {head}
+          <RowChevron />
+        </Link>
+      ) : (
+        <div className={styles.leverHead}>{head}</div>
+      )}
+      {detail && (
+        <div className={styles.leverDetail}>
+          {lever.detail && <p>{lever.detail}</p>}
+          {lever.evidence && (
+            <blockquote className={styles.leverQuote}>
+              «&nbsp;{lever.evidence}&nbsp;»
+            </blockquote>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 
-/** Intertitre + phrase d'un bloc du résultat. */
-function ResultBlockHead({id, title, text}: {id: string; title: string; text: string}) {
+/** Intertitre + phrase d'un bloc du résultat. `text` est **facultatif** : un
+ *  abonné n'a rien à lire sous « Vos priorités », et un intertitre seul vaut
+ *  mieux qu'une phrase de remplissage. */
+function ResultBlockHead({
+  id,
+  title,
+  text,
+}: {
+  id: string;
+  title: string;
+  text?: string | null;
+}) {
   return (
     <div className={styles.blockHead}>
       <h2 id={id}>{title}</h2>
-      <p>{text}</p>
+      {text && <p>{text}</p>}
     </div>
   );
 }

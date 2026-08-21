@@ -18,11 +18,17 @@
 /// s'en charge, et deux casses différentes ne seraient plus des miroirs.
 library;
 
+import '../../../core/models/diagnostic_models.dart';
+
 /* ------------------------------------------------------------- l'en-tête */
 
-/// Titre de l'en-tête d'écran une fois le rapport rendu : l'écran a cessé
-/// d'être un parcours, il est devenu un document.
-const String kDiagnosticReportTitle = 'Votre rapport';
+/// Titre de l'en-tête d'écran une fois le rapport rendu.
+///
+/// ⚠️ C'est **« Diagnostic »**, pas « Votre rapport » : la référence de cet
+/// écran est `MDiag` étape `result` (le bilan **in-app** d'un candidat
+/// connecté), et non `MRapportGratuit`, qui est celui du **visiteur**. La
+/// confusion entre les deux maquettes est ce qui avait fait dériver l'écran.
+const String kDiagnosticReportTitle = 'Diagnostic';
 const String kDiagnosticReportSubPremium = 'Rapport complet';
 const String kDiagnosticReportSubFree = 'Estimation d\'entraînement Séjour';
 
@@ -35,18 +41,41 @@ const String kDiagnosticLevelText =
     'Estimation établie sur vos deux productions. Les compétences à rendre '
     'plus stables sont listées ci-dessous.';
 
-/// La note discrète sous la carte.
+/* ---------------------------------------------------- mon profil TCF */
+
+/// La ligne sous le nom d'un domaine, **sur le bilan du diagnostic**.
 ///
-/// 🛑 **Elle ne s'affiche que si elle est VRAIE** : le diagnostic mesure les
+/// ⚠️ **Volontairement différente de `planDomainSubtitle`** : le Plan explique
+/// par quoi mesurer un domaine (c'est son rôle), le bilan dit seulement où en
+/// est le profil au sortir des deux productions. Deux écrans, deux phrases —
+/// ce n'est pas une copie qui a dérivé.
+///
+/// Un domaine jamais mesuré reste **inconnu, jamais mauvais** : aucun niveau ne
+/// lui est prêté.
+String diagnosticDomainSubtitle(PlanDomain domain) {
+  final level = domain.niveau;
+  if (!domain.evaluated || level == null) return kDiagnosticDomainNotEvaluated;
+  return '${level.displayName} — quelques compétences observées';
+}
+
+const String kDiagnosticDomainNotEvaluated =
+    'Votre profil se complétera avec une première série';
+
+/// La carte qui ouvre la mesure des domaines encore inconnus.
+///
+/// 🛑 **Elle n'est rendue que si elle est VRAIE** : le diagnostic mesure les
 /// deux domaines d'**expression**, jamais la compréhension — mais un candidat a
-/// pu passer un examen blanc CO ou CE avant. On ne rend donc la phrase que
-/// quand **aucun** des deux domaines de compréhension n'est évalué ; profil
-/// complet, ou un seul des deux manquant, la bande de quatre colonnes dit déjà
-/// « — » et suffit. Une seconde formulation « partielle » ferait un libellé de
-/// plus à tenir des deux côtés pour un cas rare.
-const String kDiagnosticProfileIncompleteNote =
-    'La compréhension orale et écrite n\'a pas encore été évaluée : vous '
-    'pourrez compléter votre profil quand vous voulez.';
+/// pu passer un examen blanc CO ou CE avant. Sans domaine de compréhension à
+/// mesurer, la carte n'existe pas.
+const String kDiagnosticCompleteProfileText =
+    'Votre diagnostic n\'a pas encore évalué la compréhension. Deux épreuves '
+    'suffisent — maintenant ou plus tard depuis votre plan.';
+
+/// ⚠️ La durée qui suit ce libellé est **calculée**, jamais écrite : elle vient
+/// des `estimatedMinutes` que le serveur pose sur chaque mesure, eux-mêmes lus
+/// chez `DureeEpreuve`. La maquette affiche « 14 min », qui n'est la durée
+/// d'aucune de nos épreuves.
+const String kDiagnosticCompleteProfileCta = 'Compléter maintenant';
 
 /// La seule phrase de l'écran qui dise ce que vaut l'estimation.
 const String kDiagnosticEstimationNote =
@@ -55,10 +84,13 @@ const String kDiagnosticEstimationNote =
 
 /* ----------------------------------------------------------- les sections */
 
-const String kDiagnosticPrioritiesTitle = 'Vos principales priorités';
-const String kDiagnosticPrioritiesText =
-    'Le diagnostic ne liste pas vos erreurs : il désigne les compétences qui '
-    'feront bouger votre niveau.';
+const String kDiagnosticPrioritiesTitle = 'Vos priorités';
+
+/// Le sous-titre des priorités, **pour un compte sans accès seulement** : il
+/// dit ce que le rideau cache, donc il n'a rien à dire à un abonné, qui les
+/// voit toutes.
+String diagnosticPrioritiesSub(int total) =>
+    'Votre priorité actuelle sur $total détectées';
 
 /// Repli : le serveur n'a désigné aucune priorité classée. On ne promeut pas
 /// des points relevés en priorités mesurées.
@@ -68,8 +100,11 @@ const String kDiagnosticPrioritiesTextUnranked =
     'classés en priorités.';
 
 const String kDiagnosticStrengthsTitle = 'Vos points forts';
-const String kDiagnosticStrengthsText =
-    'Ce que vos deux productions ont déjà montré de solide.';
+
+/// ⚠️ Le compte vient du serveur (`solidSkillCount`), jamais de la longueur de
+/// ce qui est affiché : un compte gratuit n'en voit que deux.
+String diagnosticStrengthsSub(int total) =>
+    'Compétences observées et déjà solides · $total';
 
 const String kDiagnosticPlanReadyTitle = 'Votre plan personnalisé est prêt';
 const String kDiagnosticPlanReadyText =

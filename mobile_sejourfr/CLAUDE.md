@@ -545,31 +545,57 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   l'analyse coûte deux appels LLM. Il montre un **exemple** étiqueté comme tel (badge
   « EXEMPLE » + phrase « ce ne sont pas vos réponses ») et ouvre l'inscription **ou** la
   connexion avec `redirect=/diagnostic`.
-- **Écran de RÉSULTAT — refonte du 2026-08-21, d'après la maquette `MRapportGratuit`**
+- **Écran de RÉSULTAT — la maquette de référence est `MDiag`, étape `result`**
   (`widgets/diagnostic_result.dart`, phrases dans `widgets/diagnostic_report_labels.dart`).
-  Ordre figé : **carte de niveau (bande des 4 domaines à son pied)** → note discrète →
-  *Vos principales priorités* → *Vos points forts* → *Votre plan personnalisé est prêt* →
-  carte d'offre → note d'estimation ; l'en-tête d'écran devient « Votre rapport » +
-  « Estimation d'entraînement Séjour » / « Rapport complet ».
-  🛑 **Trois blocs ont été RETIRÉS de cet écran et ne doivent pas y revenir** : le
-  « avant / après » (`exempleCible` — `ActionPlanExempleCard` reste intacte, elle sert les
-  rapports EE/EO et le résultat de compétence), le **détail des deux productions**, et la
-  section **« Compléter mon profil »**. La substance de la troisième vit dans la **bande des
-  quatre domaines** (le « — » dit ce qui manque) ; **le Plan continue de la servir chez lui**,
-  avec ses boutons de mesure.
-  🛑 **Le niveau global et le palier du rail viennent du serveur** (`cycle.startingLevel` /
-  `cycle.targetLevel`) : le plancher des quatre domaines est une règle serveur
-  (`TcfProfileService`), aucun front ne la rejoue à partir des deux estimations de production.
-  ⚠️ **Vouvoiement** : la maquette tutoie, mais elle ne donne que la direction **visuelle**.
-  Toutes les phrases sont des **miroirs mot pour mot du web** (`DiagnosticView.tsx` /
-  `DiagnosticLevelCard.tsx`) et vivent en constantes — les capitales sont posées à
-  l'affichage (`toUpperCase()`), le CSS s'en chargeant côté web.
-  Freemium **inchangé** : 1 priorité + 1 point fort + 1 entraînement en clair, le reste
-  flouté (`_LockedPreview` / `BlurredContent`) avec un compteur qui vient **du serveur**
-  (`fragileSkillCount` / `solidSkillCount`), jamais recalculé. Corollaire à ne jamais casser :
-  **aucune surface de cet écran ne nomme en clair ce que le rideau prétend cacher** — c'est
-  précisément pourquoi le détail des productions (qui listait « À travailler ») n'y a plus sa
-  place.
+  🛑 **Ce n'est PAS `MRapportGratuit`**, qui est le rapport du **visiteur non connecté**. Une
+  passe du 2026-08-21 a refondu cet écran sur la mauvaise des deux : « Mon profil TCF » y avait
+  disparu au profit d'une **bande de quatre colonnes** qui n'appartient qu'au rapport visiteur.
+  Rectifié le même jour — vérifier la maquette avant de toucher à l'ordre des blocs.
+  Ordre figé : **héros** (niveau estimé, « Objectif X » **sur la même ligne**, phrase, rail) →
+  **« Mon profil TCF »** → **compléter mon profil** → **« Vos points forts »** →
+  **« Vos priorités »** → *Votre plan personnalisé est prêt* → carte d'offre → note
+  d'estimation. En-tête d'écran : **« Diagnostic »** + « Estimation d'entraînement Séjour » /
+  « Rapport complet ». ⚠️ Les points forts passent **avant** les priorités, et le héros n'a
+  **aucune bande de quatre colonnes**.
+  - **« Mon profil TCF »** est une vraie section : une ligne d'en-tête « N domaine(s) sur 4
+    évalué(s) » (`planProfileCoverage`, partagé avec le Plan) + 4 pastilles pleines/vides, puis
+    **une ligne par domaine** dans l'**ordre servi** (le serveur trie par urgence, aucun front
+    ne retrie), avec l'icône du domaine, son libellé, `diagnosticDomainSubtitle` et la pilule
+    `PlanDomainPriorityTag` (« À évaluer » quand il n'est pas mesuré). 🛑 **Chaque ligne ouvre
+    la fiche de son domaine** (`openPlanDomain`, le lanceur partagé — `nav.push("compdetail")`
+    de la maquette).
+    ⚠️ Volontairement **distincte de `PlanProfileSection`** : même structure, mais les
+    sous-titres diffèrent (le Plan dit *par quoi mesurer*, le bilan dit *où en est le profil*).
+    Ce n'est pas une copie qui a dérivé.
+  - **« Compléter maintenant · N min »** : carte rendue **seulement** s'il reste un domaine de
+    **compréhension** à mesurer (`domainesAEvaluer` filtré CO/CE) ; elle repart par
+    `openPlanAssessment`, l'autorité unique. ⚠️ **La durée est la somme des `estimatedMinutes`
+    servis** (lus serveur chez `DureeEpreuve`), jamais le « 14 min » de la maquette, qui n'est
+    la durée d'aucune de nos épreuves. Aucune durée servie ⇒ le bouton n'annonce pas de chiffre.
+  - 🛑 **Chaque ligne de « Vos priorités » ouvre la fiche de sa compétence** (`openPlanSkill`,
+    `nav.push("skill")` de la maquette). Elle ne déplie donc **plus** le rapport du correcteur
+    en place : `explanation` / `evidence` vivent sur la fiche et sur le rapport de production.
+    Une ligne de repli tirée des `weaknesses` n'a pas de compétence : elle reste **inerte**,
+    sans chevron.
+  - 🛑 **Restent hors de cet écran** : le « avant / après » (`exempleCible` —
+    `ActionPlanExempleCard` reste intacte, elle sert les rapports EE/EO et le résultat de
+    compétence) et le **détail des deux productions**.
+  - 🛑 **Le niveau global et le palier du rail viennent du serveur** (`cycle.startingLevel` /
+    `cycle.targetLevel`) : le plancher des quatre domaines est une règle serveur
+    (`TcfProfileService`), aucun front ne la rejoue à partir des deux estimations de production.
+  - ⚠️ **Vouvoiement** : la maquette tutoie, mais elle ne donne que la direction **visuelle**.
+    Toutes les phrases sont des **miroirs mot pour mot du web** et vivent en constantes — les
+    capitales sont posées à l'affichage (`toUpperCase()`), le CSS s'en chargeant côté web.
+  - **Freemium** : **2 points forts** + **1 priorité** + 1 entraînement en clair (seuils de la
+    maquette : `forces.slice(0, 2)`, `priorites.slice(0, 1)`), le reste flouté
+    (`_LockedPreview` / `BlurredContent`, `ExcludeSemantics` + `IgnorePointer`) avec un
+    compteur qui vient **du serveur** (`fragileSkillCount` / `solidSkillCount`), jamais
+    recalculé — `0` ⇒ aucun bloc. Le sous-titre des priorités ne compte que pour un compte
+    gratuit (un abonné les voit toutes, il n'y a rien à lui compter). Corollaire à ne jamais
+    casser : **aucune surface de cet écran ne nomme en clair ce que le rideau prétend cacher**
+    — c'est précisément pourquoi le détail des productions (qui listait « À travailler ») n'y
+    a plus sa place. **Le profil TCF, lui, reste entier** : ce sont ses mesures, pas une
+    action verrouillée.
 - Les réponses utilisent le pipeline de production existant : EE en JSON et EO en multipart via
   `ProductionRepository`. La zone écrite réutilise `WritingZone` avec les bornes du DTO ; l'oral
   réutilise `AudioRecorderService`, `RecordingWaveform` et `SejourAudioPlayer`. Les permissions
