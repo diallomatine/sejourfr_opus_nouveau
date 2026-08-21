@@ -2,6 +2,7 @@ package com.sejourfr.app.dto;
 
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.ObservationConfidence;
+import com.sejourfr.app.enums.PlanActionNature;
 import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
 
@@ -35,6 +36,21 @@ public record LearningPlanPriorityDto(
         String skillCode,
         String title,
         SkillSection section,
+        /**
+         * <b>Ce que le Plan demande de faire</b> sur cette etape :
+         * {@code A_RENFORCER} (fragilite observee), {@code A_VERIFIER} (etape
+         * terminee, verification en situation) ou {@code A_ACQUERIR}
+         * (competence du palier en construction, <b>jamais travaillee</b>).
+         *
+         * <p>🛑 Une entree {@code A_ACQUERIR} n'a rien d'observe : son
+         * {@link #status()}, son {@link #explanation()}, son {@link #evidence()},
+         * sa {@link #confidence()} et son {@link #observedAt()} valent
+         * {@code null}, et son {@link #masteryState()} aussi. Ce n'est pas un
+         * trou de donnees, c'est le fait meme : rien n'a ete constate, donc rien
+         * n'a echoue. Les fronts lisent cette nature, jamais la nullite d'un
+         * champ.
+         */
+        PlanActionNature nature,
         LearningPlanSkillStatus status,
         String explanation,
         String evidence,

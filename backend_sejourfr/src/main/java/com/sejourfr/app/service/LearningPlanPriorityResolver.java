@@ -30,8 +30,23 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class LearningPlanPriorityResolver {
 
-    /** Le Plan ne montre jamais plus de 3 priorites : une courante, deux suivantes. */
-    static final int MAX_PRIORITIES = 3;
+    /**
+     * Le Plan ne montre jamais plus de {@value} entrees dans « Mes priorites » :
+     * une courante, quatre suivantes.
+     *
+     * <p>Trois jusqu'au 2026-08-21 — un plafond calibre pour un Plan qui ne
+     * savait que <b>reparer</b>. Depuis qu'il sait aussi <b>enseigner</b>
+     * ({@code PlanActionNature.A_ACQUERIR}), un candidat sans fragilite mais
+     * loin de son objectif a un palier entier a couvrir, et trois lignes le
+     * privaient de l'essentiel de son programme.
+     *
+     * <p>🛑 <b>C'est un PLAFOND, jamais un quota.</b> Il borne ce que cette
+     * methode rend ; il n'oblige a rien produire. Une competence <b>solide</b> ou
+     * <b>non observee</b> ne devient jamais une fragilite pour remplir l'ecran —
+     * le remplissage se fait uniquement avec de vraies actions pedagogiques, et
+     * un candidat qui n'a que deux fragilites en garde deux.
+     */
+    static final int MAX_PRIORITIES = 5;
 
     private final LearningPlanObservationManager observationManager;
 
