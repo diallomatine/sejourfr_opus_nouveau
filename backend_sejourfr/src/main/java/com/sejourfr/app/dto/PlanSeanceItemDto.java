@@ -1,5 +1,6 @@
 package com.sejourfr.app.dto;
 
+import com.sejourfr.app.enums.PlanActionNature;
 import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
 
@@ -26,14 +27,35 @@ import java.util.UUID;
  * en comprehension — a rapprocher de {@code PlanDomainDto.blockingLevel()} pour
  * dire « c'est ce palier qui bloque votre comprehension orale ».
  *
+ * <p><b>Une seule action par item</b> : soit un {@code exercise}, soit un
+ * {@code assessment}, jamais les deux. Un item {@code A_EVALUER} est le seul a
+ * porter le second — c'est ce qui permet a la seance de commencer par « votre
+ * oral n'a pas pu etre analyse, refaites-en un » au lieu d'empiler des
+ * micro-exercices sur le domaine qu'on sait deja mesurer.
+ *
  * <p><b>Le bloc competence est vide sur un jalon</b> ({@code skillId},
  * {@code skillCode}, {@code title}, {@code section} a {@code null}) : un examen
  * blanc ne travaille pas une competence, il les verifie toutes. Les fronts
  * lisent {@code exercise.kind()}, jamais la nullite d'un champ.
  *
- * @param exercise             l'action, <b>jamais {@code null}</b> : un item
- *                             sans exercice n'est pas un entrainement et n'entre
- *                             pas dans la seance
+ * @param nature               <b>ce que le Plan demande de faire</b> ici :
+ *                             mesurer ({@code A_EVALUER}), reparer
+ *                             ({@code A_RENFORCER}), verifier
+ *                             ({@code A_VERIFIER}) ou apprendre
+ *                             ({@code A_ACQUERIR}). Jamais {@code null} : c'est
+ *                             ce champ que les fronts lisent, jamais la nullite
+ *                             d'un autre
+ * @param exercise             l'entrainement a lancer. {@code null} sur le
+ *                             <b>seul</b> cas {@code A_EVALUER}, ou l'action
+ *                             n'est pas un exercice mais une mesure : les deux
+ *                             champs sont <b>mutuellement exclusifs</b>,
+ *                             exactement comme les identifiants de
+ *                             {@code PlanRecommendedExerciseDto}
+ * @param assessment           la mesure a lancer, <b>renseignee sur le seul</b>
+ *                             {@code A_EVALUER} : le candidat a rendu une
+ *                             production sur ce domaine et le correcteur n'a
+ *                             rien pu y observer. On ne lui propose pas un
+ *                             exercice de plus, on va le mesurer
  * @param level                palier travaille ({@code "A1"}..{@code "B2"}),
  *                             renseigne en comprehension ; {@code null} en
  *                             expression et sur un jalon. Chaine et non
@@ -72,7 +94,9 @@ import java.util.UUID;
  *                             est la derniere observation <b>probante</b>.
  */
 public record PlanSeanceItemDto(
+        PlanActionNature nature,
         PlanRecommendedExerciseDto exercise,
+        PlanDomainAssessmentDto assessment,
         UUID skillId,
         String skillCode,
         String title,

@@ -1294,9 +1294,96 @@ Quatre blocs ajoutés en fin de `LearningPlanDto`, plus un cinquième :
 - 🔴 **Trou corrigé** : une priorité de compréhension ressortait avec
   `recommendedExercise == null`, donc **une carte sans action**. `RecommendedExerciseSelector`
   (autorité existante, **pas** un 4ᵉ sélecteur) désigne désormais la série ciblée.
-- **Coût** : le Plan complet fait **19 requêtes, constantes** avec 2 ou 20 compétences
+- **Coût** : le Plan complet fait **20 requêtes, constantes** avec 2 ou 20 compétences
   observées — verrouillé par deux tests qui comptent les statements. La passe séance +
-  changements a ajouté **zéro** requête.
+  changements a ajouté **zéro** requête ; la passe « à acquérir » en a ajouté **une** (le
+  référentiel du palier, chargé en un lot — cf. la section suivante).
+
+### Trois catégories, pas une : le Plan sait enfin ENSEIGNER (2026-08-21)
+
+Constat mesuré sur `billodiallo@gmail.com` : 6 compétences EE solides, 2 à renforcer,
+8 EO jamais observées, un oral inexploitable — et un Plan qui affichait **2 actions** à
+un candidat A2 qui vise le B2, donc à qui il reste **un palier entier**. Le Plan savait
+**réparer**, il ne savait pas **enseigner**.
+
+> *`NON OBSERVÉ ≠ FAIBLE`, mais aussi `NON FRAGILE ≠ PLUS RIEN À APPRENDRE`.*
+
+- **`PlanActionNature`** (enum, **dérivé, jamais persisté**, libellés FR gelés par
+  `SkillLabelsTest`, **à mirrorer sur les 3 fronts**) : `A_EVALUER` « À évaluer » ·
+  `A_RENFORCER` « À renforcer » · `A_VERIFIER` « À vérifier » · `A_ACQUERIR`
+  « À acquérir ». **L'ordre de déclaration EST l'ordre de choix** d'une séance — mesurer
+  ce qui manque, réparer ce qui est fragile, vérifier ce qui est prêt, apprendre ce qui
+  vient. Servi sur `LearningPlanPriorityDto.nature` et `PlanSeanceItemDto.nature` ; les
+  fronts lisent **cette nature**, jamais la nullité d'un autre champ.
+  🛑 **`A_ACQUERIR` ne se dit JAMAIS « à renforcer »** : renforcer suppose un constat
+  négatif, et sur une compétence jamais travaillée il n'y en a aucun.
+- **Réconciliation des vocabulaires — trois enums, trois grains, ils ne se remplacent
+  pas.** `LearningPlanSkillStatus` = le verdict d'**une production** (persisté, sans
+  libellé) · `SkillMasteryState` = l'état **agrégé** d'une compétence (dérivé, affiché sur
+  sa fiche) · `PlanActionNature` = **l'action à faire maintenant** (dérivée, affichée sur
+  la carte du Plan). `PlanActionNature.A_RENFORCER` et `SkillMasteryState.TO_REINFORCE`
+  portent **volontairement le même libellé** — quand les deux s'appliquent ils disent la
+  même chose, ils ne s'affichent simplement pas au même endroit ; idem pour « À évaluer »
+  partagé avec `PlanDomainPriority.A_EVALUER`. Ce n'est **pas** une collision à corriger,
+  et `SkillLabelsTest` fige l'égalité pour que personne ne « répare » l'un des deux.
+  `PlanDomainPriority` qualifie un **domaine**, jamais une action : « À travailler » et
+  « Entretien » restent là-bas.
+- **`PlanAcquisitionSelector`, autorité unique** de « que reste-t-il à APPRENDRE ? ».
+  Source : **`skills.target_level`, qui existait déjà** (EE 8 A2 / 11 B1 / 5 B2 · EO 8/8/8 ·
+  CO et CE 1 par palier) — **aucune migration, aucun contenu créé, aucun appel LLM**, la
+  sélection est **déterministe**. Trois conditions : (1) la compétence appartient au
+  **palier que le cycle construit** en expression, ou au **palier bloquant de son domaine**
+  en compréhension (⚠️ **les deux ne sont pas le même palier, et c'est voulu** : la
+  compréhension a une chaîne de prérequis, A2 solide avant B1, que le palier global du
+  cycle peut dépasser) ; (2) son domaine a **déjà été mesuré** — un domaine jamais mesuré
+  se mesure d'abord, et cette porte existe déjà (`domainesAEvaluer`) ; (3) le candidat n'a
+  **aucune ligne d'historique** dessus, `NOT_OBSERVED` comprise. Ordre : urgence du domaine
+  (celle que `PlanCycleResolver` a **déjà** décidée, jamais recalculée), puis ordre des
+  épreuves, tâche, `display_order`.
+- **Les deux sens de `NOT_OBSERVED`, enfin distingués** — c'est ce qui débloque le compte
+  de référence. « La production était **inutilisable** » ⇒ il faut **réévaluer** :
+  `PlanDomainAssessmentResolver.indispensable` (grain du **domaine** — une production ratée
+  emporte toute son épreuve), servi **en tête de séance** en `A_EVALUER`, **zéro requête**.
+  « Ce palier n'a **pas encore été abordé** » ⇒ il faut **acquérir** (grain de la
+  compétence). Sans cette distinction, le Plan proposait de l'écrit à l'infini à un candidat
+  dont c'est l'oral qui manquait.
+- 🛑 **`SkillMasteryEngine` n'a pas bougé d'un octet.** Une compétence à acquérir n'est
+  **pas une observation** : aucune ligne dans `learning_plan_observations`, donc ni score,
+  ni moyenne, ni fragilité. Sa carte a `status`, `explanation`, `evidence`, `confidence`,
+  `observedAt` et `masteryState` à **`null`** — *null = inconnu, jamais mauvais* — et
+  `readyForReassessment` à `false`. `NOT_OBSERVED` ne devient toujours **jamais** une
+  fragilité.
+- **Plafonds : 3 dans « Aujourd'hui », 5 dans « Mes priorités »** (`MAX_PRIORITIES` 3 → 5,
+  calibré pour un Plan qui ne savait que réparer). 🛑 **Ce sont des PLAFONDS, pas des
+  quotas** : rien n'est fabriqué pour remplir l'écran, une compétence **solide** ou **non
+  observée hors du palier visé** ne devient jamais une action, et deux actions vraies
+  rendent deux cartes. Les acquisitions arrivent **après** les fragilités — on répare ce
+  qui bloque avant d'apprendre ce qui vient — et n'en reçoivent que les places restantes.
+- **Le jalon FERME la séance**, il ne l'ouvre plus. Un examen blanc de 30 à 60 min n'a rien
+  à prouver tant qu'une mesure manque ou qu'une fragilité bloque, et à trois slots le mettre
+  en tête chassait le vrai travail de la journée. Conséquence assumée : **une journée déjà
+  pleine ne lui laisse pas de place** — il reste servi sur `LearningPlanDto.milestone`, il
+  n'est pas perdu, il n'est simplement plus prioritaire.
+- **`PlanSeanceItemDto` : `exercise` XOR `assessment`.** Un item `A_EVALUER` est le seul à
+  porter le second, et il ne porte aucune compétence. Les minutes d'une mesure sans durée
+  (production, diagnostic) comptent **zéro**, jamais un chiffre inventé.
+- **Coût : +1 requête, constante.** Le référentiel du palier se charge en **un lot**.
+  🛑 **Cette requête est INCONDITIONNELLE dès qu'un palier se construit**, y compris quand
+  les fragilités remplissent déjà les 5 places : le nombre de places restantes dépend des
+  **données du candidat**, et rendre un aller-retour en base conditionnel à cela ferait
+  varier le coût du Plan d'un compte à l'autre — donc invérifiable. C'est ce qui permet aux
+  tests de coût d'exiger une **égalité** et d'attraper vraiment un N+1. Ne pas « optimiser »
+  en remettant un retour anticipé.
+- ⚠️ **Freemium — une compétence « à acquérir » n'est PAS déverrouillée par sa place n°1.**
+  `SkillAccessService` ouvre `LearningPlanPriorityResolver.currentPrioritySkillId`, qui est
+  la première **fragilité observée** et se lit sur l'historique : une compétence jamais
+  travaillée n'y figure pas, par construction. Elle est donc **désignée avec son `locked`**
+  (le Plan reste intégralement visible, seuls les accès sont fermés) et n'est ouverte que si
+  elle l'est déjà par ailleurs — rang 1 de sa tâche, ou `CO-A2`/`CE-A2`. **État constaté, pas
+  décidé** : l'étendre supposerait de faire tourner le cycle et le sélecteur dans
+  `SkillAccessService`, appelé sur presque tous les écrans, avec un risque de cycle de
+  dépendances — c'est un arbitrage produit, pas une correction technique. Verrouillé par test
+  pour que ce soit explicite et non accidentel.
 
 ### Diagnostic progressif — 0/4 → 4/4
 Le socle existait aux trois quarts. Deux trous seulement ont été comblés :

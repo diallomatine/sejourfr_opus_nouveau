@@ -3,14 +3,20 @@ package com.sejourfr.app.service;
 import com.sejourfr.app.dto.PlanDomainAssessmentDto;
 import com.sejourfr.app.dto.PlanDomainDto;
 import com.sejourfr.app.dto.TcfDomainProfileDto;
+import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.enums.SkillSection;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * « <b>Completer mon profil</b> » (brief §3, §6 et §7) : quels domaines du TCF
@@ -106,6 +112,85 @@ public class PlanDomainAssessmentResolver {
         restants.sort(Comparator.comparingInt(
                 item -> TcfDomainProfileDto.ORDRE.indexOf(item.epreuve())));
         return List.copyOf(restants);
+    }
+
+    /**
+     * <b>La mesure manquante indispensable</b>, ou rien.
+     *
+     * <p>Elle repond a un cas precis, mesure sur un compte reel : un candidat
+     * dont la production <b>orale a bien ete rendue</b> mais dont le correcteur
+     * n'a rien pu observer — huit competences {@code NOT_OBSERVED}, aucune
+     * probante. Le Plan lui proposait alors des micro-exercices d'ecrit a
+     * l'infini sans jamais revenir mesurer son oral, alors que c'est exactement
+     * ce qui lui manquait.
+     *
+     * <p>🛑 <b>C'est la distinction que le brief exige entre les deux sens de
+     * {@code NOT_OBSERVED}</b> : « la production etait inutilisable » &rarr; il
+     * faut <b>reevaluer</b> (c'est ici) ; « ce palier / cette tache n'a pas
+     * encore ete aborde » &rarr; il faut <b>acquerir</b>
+     * ({@link PlanAcquisitionSelector}). Le premier sens se lit au grain du
+     * <b>domaine</b> — une production ratee emporte toutes les competences de
+     * son epreuve —, le second au grain de la competence.
+     *
+     * <p>A ne pas confondre avec {@link #resolve} : celui-la liste les domaines
+     * <b>jamais mesures</b> et alimente « Completer mon profil », un bloc a part.
+     * Ici on repond a « qu'est-ce que la seance doit faire en premier ? », et un
+     * domaine sans la moindre observation n'y entre pas — le candidat n'a encore
+     * rien tente dessus, donc rien n'a echoue.
+     *
+     * <p><b>Une seule</b>, la premiere dans l'ordre des epreuves du TCF : une
+     * seance ne se remplit pas de mesures. <b>Zero requete</b> — tout se lit sur
+     * l'historique deja charge par le Plan et sur les domaines deja resolus. La
+     * resolution « par quoi mesurer ce domaine » n'est pas dupliquee : c'est le
+     * meme {@link #pour} que « Completer mon profil ».
+     *
+     * @param domaines          les quatre domaines, tels que
+     *                          {@link PlanCycleResolver} les a resolus.
+     * @param observations      tout l'historique du candidat, deja charge.
+     * @param diagnosticTermine ce candidat a une session de diagnostic
+     *                          {@code COMPLETED} — elle ne se rejoue pas.
+     */
+    public Optional<PlanDomainAssessmentDto> indispensable(
+            List<PlanDomainDto> domaines,
+            List<LearningPlanObservation> observations,
+            boolean diagnosticTermine) {
+        if (domaines == null || domaines.isEmpty()) return Optional.empty();
+        if (observations == null || observations.isEmpty()) return Optional.empty();
+
+        Set<SkillSection> tentees = EnumSet.noneOf(SkillSection.class);
+        Set<SkillSection> observees = EnumSet.noneOf(SkillSection.class);
+        for (LearningPlanObservation observation : observations) {
+            if (observation == null || observation.getSkill() == null) continue;
+            SkillSection section = observation.getSkill().getSection();
+            if (section == null) continue;
+            tentees.add(section);
+            if (observation.isObserved()) observees.add(section);
+        }
+
+        return domaines.stream()
+                .filter(domaine -> domaine != null && domaine.epreuve() != null)
+                .filter(domaine -> {
+                    SkillSection section = section(domaine.epreuve());
+                    return section != null
+                            && tentees.contains(section)
+                            && !observees.contains(section);
+                })
+                .sorted(Comparator.comparingInt(
+                        item -> TcfDomainProfileDto.ORDRE.indexOf(item.epreuve())))
+                .map(domaine -> pour(domaine.epreuve(), diagnosticTermine))
+                .filter(Objects::nonNull)
+                .findFirst();
+    }
+
+    /** Le domaine d'une epreuve du profil, dans le vocabulaire des competences. */
+    private static SkillSection section(EpreuveType epreuve) {
+        return switch (epreuve) {
+            case TCF_CO -> SkillSection.CO;
+            case TCF_CE -> SkillSection.CE;
+            case TCF_EO -> SkillSection.EO;
+            case TCF_EE -> SkillSection.EE;
+            default -> null;
+        };
     }
 
     /**

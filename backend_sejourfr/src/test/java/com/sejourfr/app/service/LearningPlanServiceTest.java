@@ -1,5 +1,9 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.dto.LearningPlanPriorityDto;
+import com.sejourfr.app.dto.PlanSeanceItemDto;
+import com.sejourfr.app.enums.PlanActionNature;
+import org.mockito.ArgumentCaptor;
 import com.sejourfr.app.config.DiagnosticProperties;
 import com.sejourfr.app.config.LearningPlanProperties;
 import com.sejourfr.app.entity.DiagnosticSession;
@@ -42,6 +46,9 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -61,6 +68,7 @@ class LearningPlanServiceTest {
     private RecommendedExerciseSelector exerciseSelector;
     private ReassessmentExerciseSelector reassessmentSelector;
     private PlanMilestoneSelector milestoneSelector;
+    private PlanAcquisitionSelector acquisitionSelector;
     private SkillProgressCounter progressCounter;
     private SkillAccessService accessService;
     private TcfProfileService profileService;
@@ -89,6 +97,12 @@ class LearningPlanServiceTest {
         reassessmentSelector = mock(ReassessmentExerciseSelector.class);
         when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of());
         milestoneSelector = mock(PlanMilestoneSelector.class);
+        acquisitionSelector = mock(PlanAcquisitionSelector.class);
+        // Par defaut, RIEN a acquerir : la tres grande majorite de ces tests
+        // decrivent la remediation, et un selecteur qui rendrait du contenu
+        // ferait passer des competences supplementaires dans chaque assertion.
+        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+                .thenReturn(List.of());
         when(milestoneSelector.select(eq(userId), anyCollection(), anyMap(), anyCollection(),
                 anyBoolean(), any()))
                 .thenReturn(Optional.empty());
@@ -119,6 +133,7 @@ class LearningPlanServiceTest {
                 // lire les domaines que le cycle vient de resoudre, le doubler
                 // reviendrait a tester le mock.
                 new PlanDomainAssessmentResolver(),
+                acquisitionSelector,
                 // La seance et le bloc « ce qui a change » tournent POUR DE VRAI :
                 // ce sont des vues de ce que le service vient de decider, les
                 // doubler reviendrait a tester le mock.
@@ -169,7 +184,7 @@ class LearningPlanServiceTest {
     }
 
     @Test
-    void planActifGardeTroisPrioritesMaximumEtPreferePriorityAToReinforce() {
+    void planActifPrefereLesPrioritesAuxFaiblessesEtEcarteLeSolide() {
         DiagnosticSession completed = new DiagnosticSession();
         completed.setId(UUID.randomUUID());
         completed.setCompletedAt(Instant.now().minusSeconds(60));
@@ -195,7 +210,9 @@ class LearningPlanServiceTest {
 
         assertThat(result.state()).isEqualTo(LearningPlanState.ACTIVE);
         assertThat(result.currentPriority().skillCode()).isEqualTo("EE1-C8");
-        assertThat(result.nextPriorities()).hasSize(2);
+        // Quatre fragilites, un SOLID ecarte : le plafond de 5 ne coupe rien
+        // ici, et rien n'est fabrique pour atteindre 5.
+        assertThat(result.nextPriorities()).hasSize(3);
         assertThat(result.currentPriority().recommendedExercise()).isNotNull();
         assertThat(result.observedSkillCount()).isEqualTo(5);
         assertThat(result.activitiesThisWeek()).isEqualTo(2);
@@ -1331,11 +1348,12 @@ class LearningPlanServiceTest {
     }
 
     /**
-     * Le jalon prend l'action principale : il ouvre la seance et occupe un slot,
-     * les priorites suivent.
+     * Le jalon <b>ferme</b> la seance depuis le 2026-08-21 : un examen blanc n'a
+     * rien a prouver tant qu'une fragilite bloque, et a trois slots le mettre en
+     * tete chassait le vrai travail de la journee.
      */
     @Test
-    void leJalonOuvreLaSeance() {
+    void leJalonFermeLaSeance() {
         DiagnosticSession completed = new DiagnosticSession();
         completed.setId(UUID.randomUUID());
         completed.setCompletedAt(Instant.now());
@@ -1352,8 +1370,9 @@ class LearningPlanServiceTest {
         var result = service.get(userId);
 
         assertThat(result.seance().items()).hasSize(2);
-        assertThat(result.seance().items().getFirst().exercise()).isEqualTo(jalon);
-        assertThat(result.seance().items().getFirst().skillId()).isNull();
+        assertThat(result.seance().items().getLast().exercise()).isEqualTo(jalon);
+        assertThat(result.seance().items().getLast().skillId()).isNull();
+        assertThat(result.seance().items().getFirst().skillCode()).isEqualTo("EE1-C1");
         assertThat(result.seance().estimatedMinutes()).isEqualTo(33);
     }
 
@@ -1460,6 +1479,178 @@ class LearningPlanServiceTest {
             }
             return exercises;
         });
+    }
+
+    // ------------------------------------------------------------------------
+    // Ce qu'il reste a APPRENDRE — la troisieme categorie du Plan
+    // ------------------------------------------------------------------------
+
+    /**
+     * Le cas qui a ouvert le chantier, mesure sur un compte reel : six
+     * competences ecrites solides, deux fragiles, l'oral jamais observe. Le Plan
+     * ne montrait que <b>deux</b> actions a un candidat A2 visant le B2, a qui il
+     * reste un palier entier a acquerir.
+     *
+     * <p>🛑 Les competences a acquerir arrivent <b>apres</b> les fragilites : on
+     * repare ce qui bloque avant d'apprendre ce qui vient.
+     */
+    @Test
+    void lesCompetencesAAcquerirCompletentLesFragilitesSansLesDevancer() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+
+        Instant now = Instant.now();
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
+                observation("EE1-C1", LearningPlanSkillStatus.TO_REINFORCE, now),
+                observation("EE2-C3", LearningPlanSkillStatus.TO_REINFORCE,
+                        now.minusSeconds(60))));
+        Skill aAcquerir = skill("EO1-C9");
+        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+                .thenReturn(List.of(aAcquerir));
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        assertThat(result.currentPriority().skillCode()).isEqualTo("EE1-C1");
+        assertThat(result.nextPriorities()).extracting(LearningPlanPriorityDto::skillCode)
+                .containsExactly("EE2-C3", "EO1-C9");
+        assertThat(result.nextPriorities()).extracting(LearningPlanPriorityDto::nature)
+                .containsExactly(PlanActionNature.A_RENFORCER, PlanActionNature.A_ACQUERIR);
+    }
+
+    /**
+     * 🛑 Une competence a acquerir n'a <b>rien d'observe</b>, et le serveur
+     * n'invente pas de verdict pour remplir un champ : <i>null = inconnu, jamais
+     * mauvais</i>. Elle ne se dit <b>jamais</b> « a renforcer » — c'est la nature
+     * qui la designe, jamais la nullite d'un champ.
+     */
+    @Test
+    void uneCompetenceAAcquerirNaNiVerdictNiEtatDeMaitrise() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
+                observation("EE1-C1", LearningPlanSkillStatus.TO_REINFORCE, Instant.now())));
+        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+                .thenReturn(List.of(skill("EO1-C9")));
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        assertThat(result.nextPriorities()).singleElement().satisfies(carte -> {
+            assertThat(carte.nature()).isEqualTo(PlanActionNature.A_ACQUERIR);
+            assertThat(carte.status()).isNull();
+            assertThat(carte.explanation()).isNull();
+            assertThat(carte.evidence()).isNull();
+            assertThat(carte.confidence()).isNull();
+            assertThat(carte.observedAt()).isNull();
+            assertThat(carte.masteryState()).isNull();
+            assertThat(carte.readyForReassessment()).isFalse();
+            assertThat(carte.recommendedExercise()).isNotNull();
+        });
+        // La fragilite, elle, garde son verdict : les deux vocabulaires coexistent.
+        assertThat(result.currentPriority().nature())
+                .isEqualTo(PlanActionNature.A_RENFORCER);
+        assertThat(result.currentPriority().status())
+                .isEqualTo(LearningPlanSkillStatus.TO_REINFORCE);
+    }
+
+    /**
+     * 🛑 <b>Le plafond n'est pas un quota</b> : le selecteur ne recoit que les
+     * places qui restent, et rien n'est fabrique pour les remplir. Une seule
+     * competence vraiment a acquerir en rend une, pas cinq.
+     */
+    @Test
+    void lesPlacesRestantesSontCellesQueLesFragilitesLaissent() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        Instant now = Instant.now();
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
+                observation("EE1-C1", LearningPlanSkillStatus.TO_REINFORCE, now),
+                observation("EE2-C3", LearningPlanSkillStatus.TO_REINFORCE,
+                        now.minusSeconds(60)),
+                observation("EE3-C2", LearningPlanSkillStatus.TO_REINFORCE,
+                        now.minusSeconds(120))));
+        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+                .thenReturn(List.of());
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        ArgumentCaptor<Integer> limite = ArgumentCaptor.forClass(Integer.class);
+        verify(acquisitionSelector).select(any(), anyList(), anySet(), limite.capture());
+        assertThat(limite.getValue())
+                .as("cinq places au total, trois fragilites : il en reste deux")
+                .isEqualTo(LearningPlanPriorityResolver.MAX_PRIORITIES - 3);
+        assertThat(result.nextPriorities()).hasSize(2);
+    }
+
+    /**
+     * Une competence a acquerir dont <b>aucun sujet n'est publie</b> n'a rien a
+     * proposer : elle n'entre pas dans le parcours. Jamais une carte sans action.
+     */
+    @Test
+    void uneCompetenceAAcquerirSansExerciceNentrePasDansLePlan() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        LearningPlanObservation fragile =
+                observation("EE1-C1", LearningPlanSkillStatus.TO_REINFORCE, Instant.now());
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(fragile));
+        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+                .thenReturn(List.of(skill("EO1-C9")));
+        // Seule la fragilite a un sujet publie.
+        when(exerciseSelector.selectAll(eq(userId), anyCollection(), any()))
+                .thenReturn(Map.of(fragile.getSkill().getId(),
+                        PlanRecommendedExerciseDto.microTraining(
+                                UUID.randomUUID(), fragile.getSkill().getId(), "EE1-C1",
+                                "Petit sujet", SkillSection.EE, 4, false)));
+
+        var result = service.get(userId);
+
+        assertThat(result.nextPriorities()).isEmpty();
+        assertThat(result.seance().items()).singleElement()
+                .extracting(PlanSeanceItemDto::skillCode).isEqualTo("EE1-C1");
+    }
+
+    /**
+     * 🛑 Le verrou freemium est <b>reporte, jamais applique a la designation</b> :
+     * une competence a acquerir verrouillee est designee quand meme, avec son
+     * cadenas. Savoir quoi travailler est ce que le Plan apporte.
+     *
+     * <p>⚠️ Et elle n'est <b>pas</b> deverrouillee par le fait d'occuper la
+     * premiere place : {@code SkillAccessService} ouvre la premiere
+     * <b>fragilite observee</b> ({@code currentPrioritySkillId}), qui se lit sur
+     * l'historique — une competence jamais travaillee n'y figure pas.
+     */
+    @Test
+    void uneCompetenceAAcquerirVerrouilleeEstDesigneeAvecSonCadenas() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of());
+        Skill aAcquerir = skill("EO1-C9");
+        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+                .thenReturn(List.of(aAcquerir));
+        when(accessService.resolve(userId)).thenReturn(
+                new SkillAccessService.SkillAccess(false, Set.of(), Set.of()));
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        assertThat(result.currentPriority().skillCode()).isEqualTo("EO1-C9");
+        assertThat(result.currentPriority().nature())
+                .isEqualTo(PlanActionNature.A_ACQUERIR);
+        assertThat(result.currentPriority().locked())
+                .as("designee quand meme, mais fermee : le Plan se lit, il ne s'ouvre pas")
+                .isTrue();
     }
 
     private static LearningPlanObservation observation(

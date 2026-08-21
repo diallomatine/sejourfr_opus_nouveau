@@ -142,4 +142,20 @@ public interface SkillRepository extends JpaRepository<Skill, UUID>,
      * garantissant l'equivalence ({@code chk_skills_task_code_presence}).
      */
     List<Skill> findByTaskCodeIsNullAndActiveTrueOrderBySectionAscDisplayOrderAsc();
+
+    /**
+     * Les competences ACTIVES d'un ou plusieurs <b>paliers</b>, tous domaines
+     * confondus, dans l'ordre pedagogique (domaine, tache, rang d'affichage).
+     *
+     * <p>C'est le referentiel dont a besoin le Plan pour repondre a « que reste-t-il
+     * a APPRENDRE au palier que je construis ? » — une question qui ne se lit pas
+     * dans l'historique du candidat, puisque par definition il n'y a rien observe.
+     * Une seule requete quel que soit le nombre de paliers demandes.
+     *
+     * <p>{@code target_level} est une chaine ({@code "A1"}..{@code "B2"}) : le
+     * referentiel des competences descend plus bas que {@code TargetLevel}, et la
+     * colonne fait foi.
+     */
+    List<Skill> findByTargetLevelInAndActiveTrueOrderBySectionAscTaskCodeAscDisplayOrderAsc(
+            Collection<String> targetLevels);
 }

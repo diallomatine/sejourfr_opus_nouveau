@@ -114,6 +114,42 @@ class SkillLabelsTest {
                         Map.entry("A_EVALUER", "À évaluer"));
     }
 
+    /**
+     * <b>Ce que le Plan demande de faire</b> sur une carte. Son <b>ordre de
+     * declaration est l'ordre de choix</b> d'une seance — mesurer ce qui manque,
+     * reparer ce qui est fragile, verifier ce qui est pret, apprendre ce qui
+     * vient : le reordonner changerait la seance sans qu'aucun front ne bouge.
+     *
+     * <p>🛑 « À acquérir » ne se dit <b>jamais</b> « à renforcer » : renforcer
+     * suppose un constat negatif, et sur une competence jamais travaillee il n'y
+     * en a aucun. C'est la distinction de fond du chantier.
+     *
+     * <p>Deux libelles sont volontairement <b>partages avec d'autres enums</b>, et
+     * ce n'est pas une collision a corriger : « À renforcer » dit la meme chose
+     * que {@link SkillMasteryState#TO_REINFORCE} et « À évaluer » que
+     * {@link PlanDomainPriority#A_EVALUER}. Ils ne s'affichent simplement pas au
+     * meme endroit — l'etat sur la fiche d'une competence, l'urgence sur la ligne
+     * d'un domaine, la nature sur la carte du Plan.
+     */
+    @Test
+    @DisplayName("Nature d'une action du Plan : les quatre libelles et l'ORDRE de choix sont geles")
+    void naturesDActionDuPlan() {
+        assertThat(labels(PlanActionNature.class, PlanActionNature::getLabel))
+                .containsExactly(
+                        Map.entry("A_EVALUER", "À évaluer"),
+                        Map.entry("A_RENFORCER", "À renforcer"),
+                        Map.entry("A_VERIFIER", "À vérifier"),
+                        Map.entry("A_ACQUERIR", "À acquérir"));
+        // Le vocabulaire partage est VOULU, et dit la meme chose des deux cotes.
+        assertThat(PlanActionNature.A_RENFORCER.getLabel())
+                .isEqualTo(SkillMasteryState.TO_REINFORCE.getLabel());
+        assertThat(PlanActionNature.A_EVALUER.getLabel())
+                .isEqualTo(PlanDomainPriority.A_EVALUER.getLabel());
+        // ... mais « a acquerir » n'est jamais « a renforcer ».
+        assertThat(PlanActionNature.A_ACQUERIR.getLabel())
+                .isNotEqualTo(PlanActionNature.A_RENFORCER.getLabel());
+    }
+
     @Test
     @DisplayName("Fenetre de « ce qui a change » : de la plus courte a la plus longue")
     void fenetreDesChangementsRecents() {
@@ -226,6 +262,9 @@ class SkillLabelsTest {
                 .allSatisfy(l -> assertThat(l).isNotBlank());
         assertThat(labels(PlanRecentChangesWindow.class, PlanRecentChangesWindow::getLabel)
                 .values())
+                .doesNotHaveDuplicates()
+                .allSatisfy(l -> assertThat(l).isNotBlank());
+        assertThat(labels(PlanActionNature.class, PlanActionNature::getLabel).values())
                 .doesNotHaveDuplicates()
                 .allSatisfy(l -> assertThat(l).isNotBlank());
     }
