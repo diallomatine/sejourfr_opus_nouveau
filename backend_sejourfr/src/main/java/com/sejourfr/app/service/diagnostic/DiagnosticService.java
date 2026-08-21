@@ -290,6 +290,7 @@ public class DiagnosticService {
             }
         }
         return new DiagnosticProductionResultDto(
+                analysis.getEvaluabilite(),
                 analysis.getLevelEstimate(), analysis.getTaskCompletion(),
                 analysis.getCommunicationStatus(), nullableText(json.get("summary")),
                 strings(json.get("strengths")), strings(json.get("weaknesses")), skills);

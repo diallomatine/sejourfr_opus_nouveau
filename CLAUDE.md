@@ -1022,6 +1022,59 @@ de rubriques et files de calibration doivent garder le filtre
   - **Aucun rattrapage** : le suivi démarre à la mise en service, le diagnostic
     reste la baseline. V031 ne renseigne `subject_id` que par jointure SQL
     déterministe sur des lignes existantes — aucun rejeu, aucun appel LLM.
+- **UNE PRODUCTION INEXPLOITABLE NE PRODUIT AUCUN NIVEAU** (2026-08-21, V040). Mesuré en
+  base : **4 s d'audio, 7 caractères transcrits, verdict `A1_NON_ATTEINT`** — une *absence de
+  preuve* enregistrée comme la *preuve du niveau le plus faible*. Et depuis que le diagnostic
+  sert de **repli** EE/EO à `TcfProfileService`, ce faux verdict devenait le niveau du domaine
+  puis, par le **plancher des 4 domaines**, le niveau global du candidat. C'est la confusion
+  que tout le dépôt combat sous *null = inconnu, jamais mauvais* — le diagnostic était le seul
+  endroit qui ne la tenait pas, faute de pouvoir dire « pas de niveau ».
+  - 🛑 **Rien n'est demandé au correcteur quand il n'y a rien à observer** — patron
+    `AiEvaluationService.evaluate` (verdict `INVALIDE` ⇒ aucun appel) et
+    `TranscriptionQualityAudit.degradee` (version ciblée). À qui on demande un palier, on
+    obtient un palier : un modèle sollicité sur un mot en nommera un. **Les contrats IA du
+    diagnostic ne bougent pas d'un octet** (`diagnostic-analysis-*-v1`) : c'est un contrôle
+    serveur, pas une consigne.
+  - **Juge unique** : `ProductionValidityService`, **appelé** et non recopié.
+    `evaluerDiagnostic` est le même contrôle avec un **plancher paramétré**
+    (`sejourfr.production-evaluation.validite.min-mots-diagnostic: 20`, POJO à la même
+    valeur). Plus haut que le plancher générique (5) parce que la **conséquence** l'est : une
+    production de diagnostic fixe le niveau d'un **domaine**, pas seulement son propre retour.
+    20 mots ≈ 2-3 phrases complètes, soit **un cinquième** de ce que le sujet demande.
+    🛑 **La frontière n'est pas « c'est mauvais », c'est « il n'y a rien à observer »** : un A1
+    authentique produit peu. Mesure : les 2 lignes fautives font **1 et 3 mots**, les 16
+    autres **≥ 104** — aucun cas réel n'approche la ligne.
+  - **Schéma (V040)** : les **trois** verdicts (`level_estimate`, `task_completion`,
+    `communication_status`) deviennent **nullables** — écrire `NOT_COMPLETED`/`INEFFECTIVE`
+    sur 4 secondes remplacerait un faux verdict par deux autres —, plus une colonne
+    `evaluabilite` (`DiagnosticEvaluabilite{EVALUABLE|NON_EVALUABLE}`, NOT NULL, défaut
+    `EVALUABLE`) et **deux CHECK** dont un qui interdit de mélanger les deux états. Le champ
+    existe parce que **absence de ligne = « pas encore analysée »** ≠ **ligne `NON_EVALUABLE`
+    = « rendue, rien à observer »** : deux phrases différentes côté front, et un front ne doit
+    pas déduire un fait de la nullité de trois colonnes. **Aucun libellé serveur.**
+  - 🛑 **Aucune donnée migrée, aucun recalcul rétroactif.** Les 2 lignes fausses restent —
+    c'est l'historique, et le rattrapage est un **arbitrage du propriétaire**.
+  - **Le reste a marché sans une ligne de code neuf**, et c'est vérifié de bout en bout :
+    `findCompletedLevelsByUser` filtrait **déjà** `levelEstimate IS NOT NULL` ;
+    `PlanCycleResolver` pose `evaluated = (niveau != null)`, donc le domaine retombe seul dans
+    `domainesAEvaluer` (kind `PRODUCTION`, le diagnostic étant terminé) ;
+    `DiagnosticExempleCibleService` sortait déjà sur `constate == null`.
+  - **La session ne devient JAMAIS `FAILED`** : une production inexploitable sur deux laisse
+    un diagnostic utile, le candidat garde son résultat écrit. L'`analysis_json` porte une
+    observation **`NOT_OBSERVED` par compétence de l'allowlist** (une production rendue est
+    une activité, cf. `lastActivityAt`) — c'est aussi ce qui garde
+    `DiagnosticService.recommendedAction` capable de désigner un exercice quand les **deux**
+    productions sont inexploitables.
+  - ⚠️ **Trou connu, NON corrigé, autre chantier** : sur la voie **standard**,
+    `AiEvaluationService.persistProductionInvalide` persiste toujours `note 0` +
+    `A1_NON_ATTEINT` dans `ai_evaluations` (**4 lignes en base**), que `TcfProfileService` lit
+    en priorité. Même défaut, blast radius bien plus large (bilan d'épreuve, examen complet,
+    règle « une tâche non rendue compte `A1_NON_ATTEINT` ») : à arbitrer séparément.
+  - ⚠️ **Pourquoi une soumission de 4 s passe** : `validateAudio` ne contrôle que la **taille
+    en octets**, jamais la durée, et `production_tasks.duree_min_sec` (90 s sur le sujet
+    diagnostic) n'est opposable **nulle part** — seul l'écrit l'est
+    (`validateTextWordCount`). **Ne pas la rendre opposable au rendu** : refuser la soumission
+    ferait perdre la production, alors qu'on préfère l'accepter et ne pas en conclure.
 - **Contenu et audio seed-only** : V755 crée la version `INITIAL_TCF/1`, ses deux
   sujets et leurs allowlists de huit compétences. La console de sujets standard
   refuse de les modifier. V755 ne génère aucun média : elle référence l'objet R2

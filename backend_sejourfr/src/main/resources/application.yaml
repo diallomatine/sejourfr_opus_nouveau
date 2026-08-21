@@ -586,6 +586,11 @@ sejourfr:
     # ajustables sans redeploiement.
     validite:
       min-mots-exploitables: 5
+      # Plancher du DIAGNOSTIC INITIAL seulement : sa production fixe le niveau
+      # d'un domaine entier (repli de TcfProfileService, plancher des 4 domaines).
+      # 20 mots = deux ou trois phrases completes, soit un cinquieme de ce que le
+      # sujet demande. Raisonnement complet dans ProductionEvaluationProperties.Validite.
+      min-mots-diagnostic: 20
       mots-min-analyse-langue: 12
       ratio-mots-outils-invalide: 0.10
       ratio-mots-outils-avertissement: 0.18

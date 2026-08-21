@@ -182,8 +182,27 @@ public class ProductionValidityService {
      *
      * @param task       la tache (fournit la consigne pour le controle de recopiage)
      * @param production texte EE rendu, ou transcription EO (dialoguee ou non)
+     * @see #evaluerDiagnostic(ProductionTask, String) meme controle, plancher du diagnostic
      */
     public Verdict evaluer(ProductionTask task, String production) {
+        return evaluer(task, production, props.getValidite().getMinMotsExploitables());
+    }
+
+    /**
+     * Le MEME juge, avec le plancher du DIAGNOSTIC INITIAL. Un seul controle,
+     * un seul parametre : deux juges auraient fini par refuser des productions
+     * differentes pour la meme raison.
+     *
+     * <p>Le plancher y est plus haut parce que la consequence l'est aussi — une
+     * production de diagnostic fixe le niveau d'un DOMAINE, pas seulement son
+     * propre retour. Le raisonnement complet et la valeur retenue vivent dans
+     * {@code ProductionEvaluationProperties.Validite#minMotsDiagnostic}.
+     */
+    public Verdict evaluerDiagnostic(ProductionTask task, String production) {
+        return evaluer(task, production, props.getValidite().getMinMotsDiagnostic());
+    }
+
+    private Verdict evaluer(ProductionTask task, String production, int minMotsExploitables) {
         ProductionEvaluationProperties.Validite cfg = props.getValidite();
         List<String> raisons = new ArrayList<>();
         Set<DouteValidite> doutes = EnumSet.noneOf(DouteValidite.class);
@@ -195,7 +214,7 @@ public class ProductionValidityService {
 
         // 1. Production vide / quasi vide.
         List<String> mots = motsNormalises(aAnalyser);
-        if (aAnalyser.isBlank() || mots.size() < cfg.getMinMotsExploitables()) {
+        if (aAnalyser.isBlank() || mots.size() < minMotsExploitables) {
             raisons.add(dialogue
                 ? "Nous n'avons trouvé aucune prise de parole exploitable de votre part dans cet échange."
                 : "Votre production est vide ou trop courte pour être évaluée.");

@@ -81,7 +81,13 @@ public class AiEvaluationService {
         "Votre production n'a pas pu être exploitée : la consigne n'a pas été traitée.";
 
     /** Trace du modele quand aucun LLM n'a ete appele (production jugee inevaluable). */
-    static final String MODELE_VALIDATION_SERVEUR = "validation-serveur";
+    /**
+     * Marqueur de LA ligne produite SANS aucun appel LLM : le serveur a juge la
+     * production inexploitable et a decide seul. Partage avec la voie diagnostic
+     * ({@code DiagnosticProductionAnalysisService}) pour qu'une seule valeur
+     * reponde partout a « cette ligne a-t-elle coute un appel ? ».
+     */
+    public static final String MODELE_VALIDATION_SERVEUR = "validation-serveur";
 
     private record ValidatedOutcome(
         EvaluationLlmClient.Outcome outcome,

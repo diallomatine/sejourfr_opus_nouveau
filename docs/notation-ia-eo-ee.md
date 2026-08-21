@@ -48,6 +48,13 @@ sans note sur 20, avec leurs propres consignes et format **v1 / v1** décrits ju
 > **Les corrections déjà rendues gardent leurs deux blocs**, intacts et lisibles : on versionne,
 > on ne réécrit jamais un résultat déjà rendu.
 
+> 🆕 **21 août 2026 — quatre secondes d'audio ne valent plus un verdict de niveau.** Quand une
+> production du diagnostic est **vide ou quasi vide**, nous ne demandons plus rien à l'IA et
+> nous ne concluons **rien** : le domaine reste *non évalué*, au lieu de recevoir le niveau le
+> plus bas de l'échelle. Une production **courte mais réelle** continue, elle, d'être analysée —
+> un candidat A1 produit peu, c'est son niveau, pas une absence de production. Détail complet
+> au **§8 nonies**.
+
 > 🆕 **9 août 2026 — un diagnostic court initialise un Plan de travail, sans se faire passer
 > pour un examen TCF.** Le candidat réalise deux exercices hybrides fixes et versionnés : un
 > écrit de **100 à 130 mots**, puis un oral enregistré de **2 à 3 minutes** précédé d'une
@@ -2665,6 +2672,63 @@ gardent l'ancien texte : nous ne réécrivons rien a posteriori.
 Chaque phrase retirée est comptée à part de celles des productions complètes. Sur les
 **8 analyses orales de diagnostic** existantes, **une** portait ce défaut — la même proportion,
 environ une sur huit, que celle mesurée sur les productions complètes.
+
+---
+
+## 8 nonies. Une production **vide** ne donne aucun niveau (nouveau, 21 août 2026)
+
+**Le problème, mesuré sur un vrai compte.** Un candidat a rendu **4 secondes** d'audio au
+diagnostic. La transcription tenait en **un mot**. L'analyse a rendu un verdict : *« A1 non
+atteint »* — le niveau le plus bas de l'échelle. Autrement dit, une **absence de preuve** avait
+été enregistrée comme la **preuve du niveau le plus faible**.
+
+Et ce verdict ne restait pas dans son coin. Le niveau estimé d'un candidat est le **plus bas de
+ses quatre domaines** (compréhension orale, compréhension écrite, expression écrite, expression
+orale). Un faux « A1 non atteint » sur l'oral tirait donc **tout son profil** vers le bas, à
+cause d'un enregistrement qu'il n'avait jamais vraiment fait.
+
+### Ce qui change
+
+**Quand il n'y a rien à observer, nous ne demandons plus rien à l'IA — et nous ne concluons
+rien.** Le domaine reste simplement **non évalué**.
+
+Concrètement, avant tout appel à l'IA, le serveur vérifie que la production contient de la
+matière : qu'elle n'est pas vide ou quasi vide, qu'elle est bien en français, et qu'elle ne
+recopie pas l'énoncé. C'est **exactement le même contrôle** que celui appliqué depuis toujours
+aux productions complètes (§4) — il n'était simplement pas branché sur le diagnostic. Si la
+production ne passe pas, **aucune demande n'est envoyée au correcteur**. La raison n'est pas
+seulement l'économie : à qui on demande un palier, on obtient un palier. Un modèle sollicité
+sur un mot en nommera un quand même.
+
+Il ne reste alors ni niveau, ni verdict d'accomplissement, ni verdict de communication : **rien
+du tout**, plutôt qu'un jugement fabriqué. C'est le principe qui gouverne déjà tout le reste de
+la plateforme : *« pas de donnée » n'est pas « mauvaise donnée »*.
+
+### Une production courte n'est pas une production vide
+
+C'est la précaution la plus importante de ce changement, et elle va dans un seul sens :
+**mieux vaut analyser une production faible que refuser une production courte mais réelle.**
+Un candidat de niveau A1 produit peu — c'est même ce que décrit son niveau. Lui refuser une
+analyse parce qu'il a écrit trois phrases au lieu de dix serait lui retirer précisément ce
+qu'il vient chercher.
+
+La frontière n'est donc pas « c'est mauvais », c'est **« il n'y a rien à observer »**. Le
+seuil retenu au diagnostic est de **20 mots** : deux ou trois phrases complètes, soit le
+minimum sur lequel on peut voir un temps verbal, un accord, un déterminant et un lien entre
+deux idées. C'est **un cinquième** de ce que le sujet demande (100 à 120 mots à l'écrit) : on
+analyse donc largement en dessous de la consigne. Sur les 18 analyses de diagnostic existantes,
+les deux fautives comptaient **1 et 3 mots**, et toutes les autres **104 mots ou plus** — aucun
+cas réel ne se trouve près de cette limite.
+
+### Le diagnostic reste utile même si une moitié est perdue
+
+Une production inexploitable sur deux **ne fait pas échouer le diagnostic**. Le candidat garde
+son résultat écrit, ses priorités et son Plan. Ce qui change, c'est que son Plan lui propose de
+lui-même de **mesurer le domaine manquant** — et il le distingue de « pas encore fait » : une
+production rendue mais inexploitable n'est pas la même chose qu'une production jamais rendue.
+
+**Rien n'est corrigé rétroactivement.** Les analyses déjà enregistrées, y compris les deux
+fausses, gardent leur verdict : nous ne réécrivons pas l'historique.
 
 ---
 

@@ -1,6 +1,7 @@
 package com.sejourfr.app.entity;
 
 import com.sejourfr.app.enums.DiagnosticCommunicationStatus;
+import com.sejourfr.app.enums.DiagnosticEvaluabilite;
 import com.sejourfr.app.enums.DiagnosticTaskCompletion;
 import com.sejourfr.app.enums.NiveauCecrl;
 import jakarta.persistence.Column;
@@ -40,16 +41,34 @@ public class DiagnosticProductionAnalysis {
     @Column(name = "analysis_json", nullable = false, columnDefinition = "jsonb")
     private Map<String, Object> analysisJson = new LinkedHashMap<>();
 
+    /**
+     * Ce qui a pu etre observe de cette production. {@code NON_EVALUABLE} =
+     * production rendue mais sans matiere (vide/quasi vide, langue non
+     * francaise, recopiage de la consigne) : aucun appel au correcteur n'a ete
+     * emis et les trois verdicts ci-dessous valent {@code null}. Contrainte
+     * {@code chk_diagnostic_analysis_verdicts_si_evaluable} : les deux etats ne
+     * peuvent pas se melanger.
+     */
     @Enumerated(EnumType.STRING)
-    @Column(name = "level_estimate", nullable = false, length = 20)
+    @Column(name = "evaluabilite", nullable = false, length = 16)
+    private DiagnosticEvaluabilite evaluabilite = DiagnosticEvaluabilite.EVALUABLE;
+
+    /**
+     * {@code null} quand rien n'etait observable — <b>null = inconnu, jamais
+     * mauvais</b>. Ecrire {@code A1_NON_ATTEINT} ici enregistrerait une absence
+     * de preuve comme la preuve du niveau le plus faible, et le repli du profil
+     * TCF tirerait tout le candidat au fond (cf. V040).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "level_estimate", length = 20)
     private NiveauCecrl levelEstimate;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "task_completion", nullable = false, length = 24)
+    @Column(name = "task_completion", length = 24)
     private DiagnosticTaskCompletion taskCompletion;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "communication_status", nullable = false, length = 24)
+    @Column(name = "communication_status", length = 24)
     private DiagnosticCommunicationStatus communicationStatus;
 
     @Column(name = "model_used", nullable = false, length = 80)
@@ -93,6 +112,8 @@ public class DiagnosticProductionAnalysis {
     public void setSubmission(ProductionSubmission submission) { this.submission = submission; }
     public Map<String, Object> getAnalysisJson() { return analysisJson; }
     public void setAnalysisJson(Map<String, Object> analysisJson) { this.analysisJson = new LinkedHashMap<>(analysisJson); }
+    public DiagnosticEvaluabilite getEvaluabilite() { return evaluabilite; }
+    public void setEvaluabilite(DiagnosticEvaluabilite evaluabilite) { this.evaluabilite = evaluabilite; }
     public NiveauCecrl getLevelEstimate() { return levelEstimate; }
     public void setLevelEstimate(NiveauCecrl levelEstimate) { this.levelEstimate = levelEstimate; }
     public DiagnosticTaskCompletion getTaskCompletion() { return taskCompletion; }
