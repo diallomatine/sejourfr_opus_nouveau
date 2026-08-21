@@ -42,6 +42,9 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -61,6 +64,7 @@ class LearningPlanServiceTest {
     private RecommendedExerciseSelector exerciseSelector;
     private ReassessmentExerciseSelector reassessmentSelector;
     private PlanMilestoneSelector milestoneSelector;
+    private PlanAcquisitionSelector acquisitionSelector;
     private SkillProgressCounter progressCounter;
     private SkillAccessService accessService;
     private TcfProfileService profileService;
@@ -89,6 +93,12 @@ class LearningPlanServiceTest {
         reassessmentSelector = mock(ReassessmentExerciseSelector.class);
         when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of());
         milestoneSelector = mock(PlanMilestoneSelector.class);
+        acquisitionSelector = mock(PlanAcquisitionSelector.class);
+        // Par defaut, RIEN a acquerir : la tres grande majorite de ces tests
+        // decrivent la remediation, et un selecteur qui rendrait du contenu
+        // ferait passer des competences supplementaires dans chaque assertion.
+        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+                .thenReturn(List.of());
         when(milestoneSelector.select(eq(userId), anyCollection(), anyMap(), anyCollection(),
                 anyBoolean(), any()))
                 .thenReturn(Optional.empty());
@@ -119,6 +129,7 @@ class LearningPlanServiceTest {
                 // lire les domaines que le cycle vient de resoudre, le doubler
                 // reviendrait a tester le mock.
                 new PlanDomainAssessmentResolver(),
+                acquisitionSelector,
                 // La seance et le bloc « ce qui a change » tournent POUR DE VRAI :
                 // ce sont des vues de ce que le service vient de decider, les
                 // doubler reviendrait a tester le mock.
@@ -169,7 +180,7 @@ class LearningPlanServiceTest {
     }
 
     @Test
-    void planActifGardeTroisPrioritesMaximumEtPreferePriorityAToReinforce() {
+    void planActifPrefereLesPrioritesAuxFaiblessesEtEcarteLeSolide() {
         DiagnosticSession completed = new DiagnosticSession();
         completed.setId(UUID.randomUUID());
         completed.setCompletedAt(Instant.now().minusSeconds(60));
@@ -195,7 +206,9 @@ class LearningPlanServiceTest {
 
         assertThat(result.state()).isEqualTo(LearningPlanState.ACTIVE);
         assertThat(result.currentPriority().skillCode()).isEqualTo("EE1-C8");
-        assertThat(result.nextPriorities()).hasSize(2);
+        // Quatre fragilites, un SOLID ecarte : le plafond de 5 ne coupe rien
+        // ici, et rien n'est fabrique pour atteindre 5.
+        assertThat(result.nextPriorities()).hasSize(3);
         assertThat(result.currentPriority().recommendedExercise()).isNotNull();
         assertThat(result.observedSkillCount()).isEqualTo(5);
         assertThat(result.activitiesThisWeek()).isEqualTo(2);
@@ -1331,11 +1344,12 @@ class LearningPlanServiceTest {
     }
 
     /**
-     * Le jalon prend l'action principale : il ouvre la seance et occupe un slot,
-     * les priorites suivent.
+     * Le jalon <b>ferme</b> la seance depuis le 2026-08-21 : un examen blanc n'a
+     * rien a prouver tant qu'une fragilite bloque, et a trois slots le mettre en
+     * tete chassait le vrai travail de la journee.
      */
     @Test
-    void leJalonOuvreLaSeance() {
+    void leJalonFermeLaSeance() {
         DiagnosticSession completed = new DiagnosticSession();
         completed.setId(UUID.randomUUID());
         completed.setCompletedAt(Instant.now());
@@ -1352,8 +1366,9 @@ class LearningPlanServiceTest {
         var result = service.get(userId);
 
         assertThat(result.seance().items()).hasSize(2);
-        assertThat(result.seance().items().getFirst().exercise()).isEqualTo(jalon);
-        assertThat(result.seance().items().getFirst().skillId()).isNull();
+        assertThat(result.seance().items().getLast().exercise()).isEqualTo(jalon);
+        assertThat(result.seance().items().getLast().skillId()).isNull();
+        assertThat(result.seance().items().getFirst().skillCode()).isEqualTo("EE1-C1");
         assertThat(result.seance().estimatedMinutes()).isEqualTo(33);
     }
 

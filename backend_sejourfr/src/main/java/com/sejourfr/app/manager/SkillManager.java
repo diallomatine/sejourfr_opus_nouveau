@@ -135,6 +135,22 @@ public class SkillManager {
     }
 
     /**
+     * Les competences ACTIVES d'un ou plusieurs <b>paliers</b>, dans l'ordre
+     * pedagogique. C'est le referentiel du palier en construction, celui dont
+     * {@code PlanAcquisitionSelector} tire les competences qui restent a
+     * <b>apprendre</b> — ce que l'historique du candidat ne peut pas dire,
+     * puisqu'elles n'y figurent pas.
+     *
+     * <p>Une seule requete ; une demande vide n'interroge pas la base.
+     */
+    public List<Skill> findActiveByTargetLevels(Collection<String> targetLevels) {
+        if (targetLevels == null || targetLevels.isEmpty()) return List.of();
+        return repository
+                .findByTargetLevelInAndActiveTrueOrderBySectionAscTaskCodeAscDisplayOrderAsc(
+                        targetLevels);
+    }
+
+    /**
      * Toutes les competences SANS tache d'un domaine, <b>desactivees
      * comprises</b>. Pendant de {@link #findAllByTaskCode} pour la
      * comprehension : l'admin y verifie qu'un rang d'affichage est libre.
