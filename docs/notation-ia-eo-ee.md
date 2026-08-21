@@ -2729,8 +2729,29 @@ son résultat écrit, ses priorités et son Plan. Ce qui change, c'est que son P
 lui-même de **mesurer le domaine manquant** — et il le distingue de « pas encore fait » : une
 production rendue mais inexploitable n'est pas la même chose qu'une production jamais rendue.
 
-**Rien n'est corrigé rétroactivement.** Les analyses déjà enregistrées, y compris les deux
-fausses, gardent leur verdict : nous ne réécrivons pas l'historique.
+### Les six corrections déjà enregistrées ont, elles, été **rejugées**
+
+Le correctif ci-dessus ne valait d'abord que pour l'avenir : les six lignes déjà en base — deux
+analyses de diagnostic, quatre corrections de production — gardaient leur « A1 non atteint ».
+Le propriétaire a tranché le 21 août 2026 : **on les corrige**.
+
+Ce n'est pas réécrire l'histoire, et la nuance compte. L'histoire d'un candidat, c'est **ce
+qu'il a produit** : quatre secondes d'audio, un mot transcrit, un texte en anglais. Cela n'a
+pas bougé d'un octet — les productions, les transcriptions et les analyses rendues sont
+toujours là, telles quelles. Ce qu'on a retiré, c'est notre **conclusion**, qui n'est pas son
+histoire mais la sortie d'un défaut désormais corrigé. Et on l'a retirée **sans rien inventer**
+: le texte est toujours disponible et le juge est **déterministe** — aucune IA n'a été
+sollicitée pour savoir qu'il n'y avait rien à observer.
+
+Le ciblage est **strict**, jamais une correction en masse : une production que le contrôle
+d'aujourd'hui accepterait n'a **pas** été touchée, même quand son verdict était le plus bas.
+Un « A1 non atteint » obtenu sur une vraie production reste un résultat.
+
+Effet mesuré sur les trois comptes concernés : deux d'entre eux voient leur **domaine oral
+redevenir « à mesurer »** au lieu d'être au plancher, ce qui **remonte leur niveau global**
+(de « A1 non atteint » à A2) ; le troisième ne bouge pas, parce que ses autres productions
+écrites portaient déjà un niveau plus élevé et que c'est le **meilleur** résultat d'une épreuve
+qui fait foi.
 
 ### Le même trou existait sur les productions **normales**, il est bouché aussi
 
@@ -2769,8 +2790,24 @@ correction **qui existe et ne dit rien**, le second est une correction **qui n'e
 sujet) ni avec une épreuve **verrouillée** par l'abonnement : celles-là n'ont jamais eu de
 niveau, et n'en ont toujours pas (§6.6).
 
-**Là non plus, rien n'est corrigé rétroactivement** : les quatre corrections déjà enregistrées
-dans ce cas gardent leur 0/20 et leur « A1 non atteint ».
+**Ces quatre corrections-là ont été rejugées** en même temps que les deux analyses de
+diagnostic (voir plus haut) : elles ne portent plus ni note ni niveau. Elles restent affichées
+au candidat, avec l'explication de ce qui n'a pas pu être exploité.
+
+### Une correction non exploitable n'affiche plus **aucune note par critère**
+
+Elle en affichait quatre, toutes à **0/20**, avec une mention « non évaluable » à côté. C'était
+la même confusion, un cran plus bas : une **absence de preuve** écrite comme la **preuve du
+niveau le plus faible**. Le sens vivait dans la mention, la note disait le contraire, et rien
+n'empêchait un écran — ou un futur calcul — de prendre ces zéros au mot.
+
+Le bloc des critères a donc été **retiré** de ce cas, plutôt que neutralisé. C'est une règle
+constante ici : quand un contenu ne doit pas exister, on fait en sorte qu'il **ne puisse pas**
+être produit, au lieu de compter sur chaque écran pour ne pas l'afficher. Ce qui reste sur une
+production non exploitable, ce sont des **faits** : l'objectif n'est pas atteint, la confiance
+est faible, et pourquoi.
+
+**Les corrections déjà enregistrées gardent leurs quatre zéros** : elles ne sont pas migrées.
 
 ---
 

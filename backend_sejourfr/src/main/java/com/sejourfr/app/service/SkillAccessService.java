@@ -24,7 +24,9 @@ import java.util.UUID;
  *   <li>une seule competence ouverte par tache — la premiere de sa
  *       {@code SkillTaskCode} — soit 6 competences pour les 6 taches ;</li>
  *   <li><b>plus la competence de la priorite n&deg;1 de son Plan</b>, si elle
- *       n'est pas deja dans ce lot ;</li>
+ *       n'est pas deja dans ce lot — <b>quelle que soit sa nature</b>, y compris
+ *       une competence « a acquerir » que le candidat n'a jamais travaillee
+ *       ({@link PlanFocusResolver}) ;</li>
  *   <li>dans une competence ouverte, seuls les {@value #FREE_PROMPTS_PER_SKILL}
  *       premiers sujets actifs sont ouverts ;</li>
  *   <li><b>plus, pour la COMPREHENSION, la premiere competence de chaque
@@ -58,6 +60,16 @@ import java.util.UUID;
  * c'est la colonne vertebrale du produit. On ouvre donc la competence que le
  * serveur lui-meme designe comme « a faire maintenant ».
  *
+ * <p>⚠️ <b>Cette regle vaut pour les TROIS natures d'action</b> depuis le
+ * 2026-08-21 (arbitrage du proprietaire : « un candidat non abonne pourra
+ * travailler sa priorite 1, vu qu'elle est visible »). Elle s'appuyait jusque-la
+ * sur {@code LearningPlanPriorityResolver.currentPrioritySkillId}, qui ne connait
+ * que les <b>fragilites observees</b> : une competence « a acquerir » — jamais
+ * travaillee, donc absente de l'historique — pouvait etre premiere du Plan et
+ * rester verrouillee. {@link PlanFocusResolver} repond desormais pour les deux
+ * natures, <b>sans rien couter de plus dans le cas courant</b> : une acquisition
+ * ne passe premiere que si le candidat n'a aucune fragilite.
+ *
  * <p><b>Cette regle ne vit qu'ici.</b> Ni un mapper, ni un controller, ni un
  * front ne la reimplemente : les DTO portent un simple {@code locked} calcule a
  * partir de {@link SkillAccess}, et la production est <b>refusee serveur</b> par
@@ -67,10 +79,16 @@ import java.util.UUID;
  *
  * <p><b>Cout constant, quel que soit l'ecran.</b> Un ecran de catalogue affiche
  * 24 competences x 15 sujets ; resoudre le verrou ligne par ligne serait un N+1
- * pur. {@link #resolve} coute donc <b>4 requetes au maximum</b> — abonnement,
- * premiere competence de chaque tache (6 lignes), priorite du Plan, sujets
- * actifs des 7 competences ouvertes au plus — et <b>une seule</b> pour un
- * abonne, qui court-circuite tout le reste.
+ * pur. {@link #resolve(UUID)} coute donc <b>4 requetes</b> dans le cas courant —
+ * abonnement, premiere competence de chaque tache (6 lignes), priorite du Plan,
+ * sujets actifs des 7 competences ouvertes au plus — et <b>une seule</b> pour un
+ * abonne, qui court-circuite tout le reste. Seul le candidat <b>sans aucune
+ * fragilite</b> paie en plus le cycle de palier, borne, jamais par competence
+ * (cf. {@link PlanFocusResolver}).
+ *
+ * <p><b>Un appelant qui connait deja la premiere place la passe</b> :
+ * {@link #resolve(UUID, UUID)}. C'est le cas du Plan, qui vient de la calculer —
+ * il ne la fait donc pas recalculer, et son cout est <b>inchange</b>.
  */
 @Service
 @RequiredArgsConstructor
@@ -113,7 +131,7 @@ public class SkillAccessService {
     private final SubscriptionService subscriptionService;
     private final SkillManager skillManager;
     private final SkillPromptManager promptManager;
-    private final LearningPlanPriorityResolver priorityResolver;
+    private final PlanFocusResolver focusResolver;
 
     /**
      * L'ensemble de ce qui est ouvert a ce candidat, a resoudre <b>une fois par
@@ -124,12 +142,39 @@ public class SkillAccessService {
         if (subscriptionService.hasTcf(userId)) {
             return SkillAccess.UNLIMITED;
         }
+        return ouvert(focusResolver.currentFocusSkillId(userId).orElse(null));
+    }
+
+    /**
+     * Meme regle, avec la <b>premiere place du Plan deja connue</b> de
+     * l'appelant.
+     *
+     * <p>Reservee a {@link LearningPlanService}, qui vient de l'etablir a partir
+     * de ses priorites et de ses acquisitions ({@link PlanFocusResolver#focus}) :
+     * la lui faire recalculer ferait tourner le cycle de palier une seconde fois
+     * dans la meme lecture, et rendrait le cout du Plan dependant du nombre de
+     * fragilites du candidat — exactement ce que ses deux tests de cout
+     * interdisent.
+     *
+     * @param focusSkillId competence de la premiere place, ou {@code null} quand
+     *                     le Plan n'en designe aucune.
+     */
+    @Transactional(readOnly = true)
+    public SkillAccess resolve(UUID userId, UUID focusSkillId) {
+        if (subscriptionService.hasTcf(userId)) {
+            return SkillAccess.UNLIMITED;
+        }
+        return ouvert(focusSkillId);
+    }
+
+    /** Le lot ouvert a un compte gratuit, l'abonnement etant deja tranche. */
+    private SkillAccess ouvert(UUID focusSkillId) {
         Set<UUID> openSkillIds =
                 new LinkedHashSet<>(skillManager.findFirstActiveIdPerTaskCode().values());
         // La comprehension n'a pas de tache : son entree de gamme est le rang
         // actif le plus bas de chaque domaine (CO-A2 / CE-A2 sur le publie).
         openSkillIds.addAll(skillManager.findFirstActiveIdPerComprehensionSection().values());
-        priorityResolver.currentPrioritySkillId(userId).ifPresent(openSkillIds::add);
+        if (focusSkillId != null) openSkillIds.add(focusSkillId);
 
         Set<UUID> openPromptIds = new LinkedHashSet<>();
         Map<UUID, List<SkillPrompt>> promptsBySkill =

@@ -167,8 +167,10 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
   fronts) et ne pilote pas la composition (questions tirées du même pool).
 - **Compte gratuit, module Compétences TCF** (micro-entraînement EE/EO) : **une
   seule compétence ouverte par tâche** (la première de sa `SkillTaskCode`, soit
-  6 pour les 6 tâches) **+ la compétence de la priorité n°1 du Plan**, et **2
-  sujets** par compétence ouverte. Le reste est verrouillé — cadenas côté
+  6 pour les 6 tâches) **+ la compétence de la première place du Plan** — celle
+  que désigne `PlanFocusResolver`, **quelle que soit sa nature**, fragilité
+  observée comme compétence « à acquérir » (2026-08-21, cf. la section *Plan
+  adaptatif*) —, et **2 sujets** par compétence ouverte. Le reste est verrouillé — cadenas côté
   fronts, **403 côté serveur** (`SkillAccessService.assertCanProduce`). Les **3
   analyses IA offertes à vie** sont un verrou distinct, inchangé, qui se cumule.
   Règle posée le **2026-08-10**, elle **révoque** l'ancienne (« aucun sujet n'est
@@ -1082,8 +1084,8 @@ de rubriques et files de calibration doivent garder le filtre
     existe parce que **absence de ligne = « pas encore analysée »** ≠ **ligne `NON_EVALUABLE`
     = « rendue, rien à observer »** : deux phrases différentes côté front, et un front ne doit
     pas déduire un fait de la nullité de trois colonnes. **Aucun libellé serveur.**
-  - 🛑 **Aucune donnée migrée, aucun recalcul rétroactif.** Les 2 lignes fausses restent —
-    c'est l'historique, et le rattrapage est un **arbitrage du propriétaire**.
+  - ✅ **Les 2 lignes fausses ont été REJUGÉES** (V042, cf. le point dédié plus bas) :
+    l'arbitrage du propriétaire est rendu. V040 elle-même ne migre toujours rien.
   - **Le reste a marché sans une ligne de code neuf**, et c'est vérifié de bout en bout :
     `findCompletedLevelsByUser` filtrait **déjà** `levelEstimate IS NOT NULL` ;
     `PlanCycleResolver` pose `evaluated = (niveau != null)`, donc le domaine retombe seul dans
@@ -1140,12 +1142,64 @@ de rubriques et files de calibration doivent garder le filtre
     quelle qu'elle soit : une production ratée n'efface plus le niveau déjà obtenu. Idem
     `TcfProfileService`, où « la plus récente fait foi » se joue désormais sur **toutes** les
     lignes d'une soumission avant le filtre des nulls.
-  - 🛑 **Aucune donnée migrée, aucun recalcul rétroactif.** **4 lignes** en base
-    (`modele_utilise = 'validation-serveur'`, toutes TCF_EE, toutes sur `admin@sejourfr.fr`)
-    gardent leur 0 + `A1_NON_ATTEINT` : arbitrage du propriétaire.
-  - ⚠️ **Laissé exprès** : `scores_criteres` garde ses `note_sur_20: 0` par critère, avec
-    `bande: NON_EVALUABLE` et son commentaire — c'est la bande qui porte le sens, et y mettre
-    `null` casserait les fronts sans rien apporter. À trancher dans la passe front.
+  - ✅ **Les 4 lignes ont été REJUGÉES** (V042, ci-dessous). V041 elle-même ne migre rien.
+  - ✅ **`scores_criteres` est RETIRÉ de ce chemin** (2026-08-21). ⚠️ **Révoque** le
+    « laissé exprès » du jour même. Il portait les 4 critères à `note_sur_20: 0` avec
+    `bande: NON_EVALUABLE` : le sens vivait dans la **bande**, la note disait le contraire, et
+    rien n'empêchait un lecteur (front, export, futur calcul) de sommer des zéros — la même
+    confusion que le niveau qu'on venait de retirer, un cran plus bas. **Doctrine du dépôt** :
+    un champ **absent du contrat ne peut pas être produit par erreur**, ce qui vaut mieux que
+    quatre zéros qu'on compte sur trois fronts pour ne pas afficher. Ce qui reste sont des
+    **faits** : `accomplissement.objectif = NON_ATTEINT`, `confiance = FAIBLE` et ses raisons.
+    **Aucun lecteur serveur ne le supposait présent sur ce chemin** (vérifié) :
+    `latestEvalsByTache` écarte déjà une ligne sans note ni niveau, donc `ProductionBilanService
+    .competenceOf` ne la lit jamais ; validateur, filtres et `capListe` ne tournent que sur une
+    sortie de correcteur, et il n'y en a pas ici ; `BandeCritere.NON_EVALUABLE` reste produite
+    par `BandeCritere.of(0)` sur la voie LLM, l'enum ne bouge pas. 🛑 **Legacy intact, aucune
+    migration** : les `feedback_json` déjà persistés gardent leurs quatre zéros — les fronts
+    doivent traiter l'**absence** du champ (aucun ne plante : web `lib/types.ts`, mobile
+    `production_models.dart` et admin `EvaluationReport` replient déjà sur une liste vide ; il
+    reste à ne pas afficher un bloc « critères » vide, en lisant `evaluabilite`).
+- **ON REJUGE LES 6 LIGNES QUI PORTAIENT UN FAUX NIVEAU** (2026-08-21, **V042**).
+  V040 et V041 avaient écrit noir sur blanc qu'elles ne migraient rien et que le rattrapage
+  était un **arbitrage du propriétaire**. Il est rendu : *on corrige*.
+  - **Ce n'est pas réécrire l'historique.** L'historique, c'est **ce que le candidat a
+    produit** — 4 s d'audio, 1 à 3 mots, un texte en anglais : rien n'y touche. Ce qu'on
+    retire, c'est notre **conclusion** (`A1_NON_ATTEINT`), qui est la sortie d'un bug corrigé
+    en `7a6739b`/`919fdd8`. Et on la retire **sans rien inventer** : le texte est toujours là,
+    le juge est **déterministe**, **aucun appel LLM**.
+  - **DEUX MARQUEURS, jamais un `UPDATE` en masse.** (1) `diagnostic_production_analyses` : la
+    voie du diagnostic **sautait** le juge, rien dans la ligne ne dit qu'elle aurait été
+    refusée ⇒ on **rejoue le critère**, et **seulement le compte de mots réel** (< `min-mots-
+    diagnostic` = 20, valeur **figée** dans la migration : un geste décrit une date, pas un
+    réglage courant), miroir SQL de `motsNormalises`, sur le **même texte** que le juge lit
+    (transcription la plus récente en EO, `texte_soumis` à l'écrit). 🛑 Les deux autres
+    familles de refus (langue, recopiage) ne sont **volontairement pas** reproduites en SQL :
+    ce serait une **seconde copie** de la règle — en cas de doute, on ne touche pas ; idem pour
+    une ligne portant un marqueur de tour. (2) `ai_evaluations` : **aucun critère à rejouer**,
+    `modele_utilise = 'validation-serveur'` **est** le marqueur que `persistProductionInvalide`
+    pose et lui seul, le juge avait déjà refusé — et ses règles n'ont pas bougé (`7a6739b` n'a
+    fait qu'**ajouter** `evaluerDiagnostic`). ⚠️ Y appliquer le compte de mots toucherait
+    **zéro** ligne (45 à 73 mots) : ces 4-là sont refusées pour langue étrangère et recopiage.
+  - **Volume exact : 2 + 4 = 6 lignes, 3 comptes.** Effet mesuré : les 2 comptes du diagnostic
+    voient leur domaine **oral** redevenir *non mesuré* (`null = inconnu, jamais mauvais`), donc
+    leur niveau global remonte **`A1_NON_ATTEINT` → A2** et leur profil passe de 2/4 à **1/4**
+    domaines mesurés. Le 3ᵉ (`admin@`) **ne bouge pas** : `bestProduction` retient le
+    **meilleur** niveau par épreuve et ses autres productions écrites valent déjà B2 — ce qui
+    change, c'est que ces 4 lignes cessent d'**affirmer** un niveau.
+  - **Ce qui n'est PAS touché** : `analysis_json` / `feedback_json` (l'**archive**, et elle dit
+    vrai : « la production ne contient qu'un simple Bonjour »), `model_used` / les tokens / le
+    coût (sur les 2 lignes de diagnostic le correcteur a **réellement** été appelé et payé —
+    l'écrire « validation-serveur » effacerait une dépense réelle ; les commentaires de colonne
+    le disent), et la règle « épreuve **abandonnée** compte `A1_NON_ATTEINT` » (aucune ligne :
+    c'est l'**absence** de ligne).
+  - **Idempotente et bornée** : les deux ordres exigent `evaluabilite = 'EVALUABLE'`.
+  - ⚠️ **Une migration de données ne se teste pas en place** :
+    `RejugementProductionsInexploitablesIT` **relit le fichier**, le coupe sur sa sentinelle
+    `@@REJUGEMENT_DES_PRODUCTIONS@@` et rejoue le SQL réel (patron
+    `LegacyPassCompensationIT`). Ne pas supprimer cette ligne, ne jamais recopier la requête
+    dans le test. Un test dédié vérifie qu'une production **que le juge accepterait** ne bouge
+    pas, même avec le verdict le plus bas.
 - **Contenu et audio seed-only** : V755 crée la version `INITIAL_TCF/1`, ses deux
   sujets et leurs allowlists de huit compétences. La console de sujets standard
   refuse de les modifier. V755 ne génère aucun média : elle référence l'objet R2
@@ -1445,16 +1499,43 @@ un candidat A2 qui vise le B2, donc à qui il reste **un palier entier**. Le Pla
   varier le coût du Plan d'un compte à l'autre — donc invérifiable. C'est ce qui permet aux
   tests de coût d'exiger une **égalité** et d'attraper vraiment un N+1. Ne pas « optimiser »
   en remettant un retour anticipé.
-- ⚠️ **Freemium — une compétence « à acquérir » n'est PAS déverrouillée par sa place n°1.**
-  `SkillAccessService` ouvre `LearningPlanPriorityResolver.currentPrioritySkillId`, qui est
-  la première **fragilité observée** et se lit sur l'historique : une compétence jamais
-  travaillée n'y figure pas, par construction. Elle est donc **désignée avec son `locked`**
-  (le Plan reste intégralement visible, seuls les accès sont fermés) et n'est ouverte que si
-  elle l'est déjà par ailleurs — rang 1 de sa tâche, ou `CO-A2`/`CE-A2`. **État constaté, pas
-  décidé** : l'étendre supposerait de faire tourner le cycle et le sélecteur dans
-  `SkillAccessService`, appelé sur presque tous les écrans, avec un risque de cycle de
-  dépendances — c'est un arbitrage produit, pas une correction technique. Verrouillé par test
-  pour que ce soit explicite et non accidentel.
+- **Freemium — LA PREMIÈRE PLACE DU PLAN EST TOUJOURS OUVERTE, quelle que soit sa
+  nature** (2026-08-21). ⚠️ **Révoque** la règle inverse livrée le jour même (« une
+  compétence à acquérir n'est pas déverrouillée par sa place n°1 »), qui était un
+  **état constaté**, pas une décision : arbitrage du propriétaire — *« un candidat non
+  abonné pourra travailler sa priorité 1, vu qu'elle est visible »*. Le Plan promettait
+  une action que le candidat ne pouvait pas commencer.
+  - **Autorité unique : `PlanFocusResolver`** (3ᵉ résolveur du trio, à côté de
+    `LearningPlanPriorityResolver` — l'ordre des priorités — et de
+    `PlanAcquisitionSelector`). Règle : **la première fragilité actionnable ; à défaut,
+    la première acquisition** — exactement l'ordre dans lequel `LearningPlanService`
+    empile ses cartes. `LearningPlanPriorityResolver.currentPrioritySkillId` est
+    **supprimée** : « priorité n°1 » ne veut plus dire « première fragilité ».
+  - **Deux formes, une seule règle** (patron `actionable(list)` ⇄ `actionable(list,
+    mastery)`) : `focus(actionable, acquisitions)` **en mémoire** pour le Plan, qui a
+    déjà ses deux listes, et `currentFocusSkillId(userId)` **autonome** pour
+    `SkillAccessService`. `LearningPlanService` **passe** la première place à
+    `accessService.resolve(userId, focusSkillId)` : le cycle ne tourne donc **pas deux
+    fois** dans une lecture du Plan, dont le coût est **inchangé** (ses deux tests de
+    cout exigent une égalité).
+  - 🛑 **Le coût du verrou reste au plus bas grâce à un RETOUR ANTICIPÉ** : une
+    acquisition ne peut occuper la première place que si le candidat n'a **aucune**
+    fragilité (elles passent toutes devant). Cas courant : **1 requête**, comme avant.
+    Sans fragilité et sans diagnostic terminé : +1, puis sortie. Sans fragilité avec
+    diagnostic terminé : le cycle de palier, borné, jamais une requête par compétence.
+    ⚠️ **C'est l'inverse de la règle du Plan** (`PlanAcquisitionSelector` charge
+    *inconditionnellement*) et les deux se défendent : le Plan est **un** écran dont on
+    veut vérifier le coût par une égalité, `SkillAccessService` est appelé par **tous**
+    les écrans de compétences. Ne pas uniformiser.
+  - **Rien d'autre ne s'ouvre** : c'est **une place**, pas une catégorie. Les
+    acquisitions suivantes gardent leur `locked`, les 2 sujets par compétence ouverte et
+    les 3 analyses IA à vie ne bougent pas, et le verrou reste **opposable serveur**
+    (403). Limite assumée, sans conséquence : le Plan écarte de ses cartes une
+    acquisition **sans exercice publié**, ce que la forme en mémoire ne peut pas savoir
+    (l'exercice se choisit après, et `RecommendedExerciseSelector` lit l'accès — le
+    calculer avant créerait un cycle). Une compétence d'expression sans aucun sujet actif
+    serait donc ouverte sans être affichée : elle n'a rien à produire. Le catalogue
+    publié n'en compte aucune.
 
 ### Diagnostic progressif — 0/4 → 4/4
 Le socle existait aux trois quarts. Deux trous seulement ont été comblés :

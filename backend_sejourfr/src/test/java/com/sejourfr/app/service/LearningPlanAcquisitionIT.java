@@ -56,6 +56,7 @@ class LearningPlanAcquisitionIT extends AbstractIntegrationTest {
     @Autowired private TestData data;
     @Autowired private LearningPlanService service;
     @Autowired private SkillManager skillManager;
+    @Autowired private SkillAccessService accessService;
     @Autowired private EntityManager entityManager;
 
     /**
@@ -160,6 +161,57 @@ class LearningPlanAcquisitionIT extends AbstractIntegrationTest {
                 .orElseThrow()
                 .blockingLevel()
                 .name();
+    }
+
+    /**
+     * 🛑 <b>Le defaut corrige le 2026-08-21</b>, de bout en bout et sur le vrai
+     * referentiel : la premiere place d'un compte <b>gratuit</b> est ouverte,
+     * <b>meme quand c'est une competence a acquerir</b>.
+     *
+     * <p>Elle n'a aucune ligne d'historique — c'est ce qui la definit — donc
+     * l'ancienne regle (« la premiere fragilite observee ») ne pouvait pas la
+     * voir : le Plan la designait, l'affichait, et le serveur refusait de la
+     * travailler. Le proprietaire : « un candidat non abonne pourra travailler sa
+     * priorite 1, vu qu'elle est visible ».
+     *
+     * <p>🛑 Et rien d'autre ne s'ouvre : les acquisitions suivantes gardent leur
+     * cadenas. C'est <b>une</b> place qui ouvre, pas une nature.
+     */
+    @Test
+    @DisplayName("Compte gratuit : la premiere place est travaillable, meme a acquerir")
+    void laPremierePlaceAAcquerirEstOuverteAUnCompteGratuit() {
+        User user = profilComplet();
+        flush();
+
+        LearningPlanDto plan = service.get(user.getId());
+
+        assertThat(plan.currentPriority().nature()).isEqualTo(PlanActionNature.A_ACQUERIR);
+        assertThat(plan.currentPriority().locked())
+                .as("designee, visible… et desormais commencable")
+                .isFalse();
+        assertThat(plan.currentPriority().recommendedExercise().locked())
+                .as("son exercice suit : le cadenas ne se rattrape pas au niveau du sujet")
+                .isFalse();
+        // Le verrou serveur dit la meme chose que le DTO — c'est lui qui fait foi.
+        accessService.assertCanTrain(user.getId(), plan.currentPriority().skillId());
+
+        // Les acquisitions suivantes restent fermees, sauf celles qui l'etaient
+        // deja par ailleurs (rang 1 de leur tache, A2 d'un domaine de
+        // comprehension) : on ouvre une place, pas une categorie.
+        SkillAccessService.SkillAccess acces = accessService.resolve(user.getId());
+        assertThat(plan.nextPriorities())
+                .filteredOn(carte -> !dejaOuverteParAilleurs(carte.skillId()))
+                .isNotEmpty()
+                .allSatisfy(carte -> assertThat(carte.locked()).isTrue());
+        assertThat(acces.unlimited())
+                .as("le compte de reference est bien gratuit, sinon ce test ne prouve rien")
+                .isFalse();
+    }
+
+    /** Ouverte independamment du Plan : rang 1 de sa tache, ou A2 d'un domaine. */
+    private boolean dejaOuverteParAilleurs(UUID skillId) {
+        return skillManager.findFirstActiveIdPerTaskCode().containsValue(skillId)
+                || skillManager.findFirstActiveIdPerComprehensionSection().containsValue(skillId);
     }
 
     /**

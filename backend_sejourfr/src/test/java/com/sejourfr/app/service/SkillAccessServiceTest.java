@@ -35,8 +35,12 @@ import static org.mockito.Mockito.when;
 /**
  * La regle d'acces du module Competences, telle qu'elle vaut depuis le
  * 2026-08-10 : la premiere competence de chaque tache et ses 2 premiers sujets,
- * plus la competence de la priorite n&deg;1 du Plan — et rien d'autre — pour un
- * compte sans acces TCF.
+ * plus la competence de la <b>premiere place du Plan</b> — et rien d'autre — pour
+ * un compte sans acces TCF.
+ *
+ * <p>Depuis le 2026-08-21, cette premiere place peut etre une competence a
+ * <b>acquerir</b> (jamais travaillee) : c'est {@link PlanFocusResolver} qui la
+ * designe, et ce service l'ouvre <b>sans regarder sa nature</b>.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -45,7 +49,7 @@ class SkillAccessServiceTest {
     @Mock private SubscriptionService subscriptionService;
     @Mock private SkillManager skillManager;
     @Mock private SkillPromptManager promptManager;
-    @Mock private LearningPlanPriorityResolver priorityResolver;
+    @Mock private PlanFocusResolver focusResolver;
 
     private SkillAccessService service;
 
@@ -63,7 +67,7 @@ class SkillAccessServiceTest {
     @BeforeEach
     void setUp() {
         service = new SkillAccessService(
-                subscriptionService, skillManager, promptManager, priorityResolver);
+                subscriptionService, skillManager, promptManager, focusResolver);
         for (int rank = 1; rank <= 8; rank++) {
             Skill skill = skill(SkillTaskCode.EE1, rank);
             ee1.add(skill);
@@ -78,7 +82,7 @@ class SkillAccessServiceTest {
             co.add(comprehensionSkill(SkillSection.CO, rank, niveaux[rank - 1]));
             ce.add(comprehensionSkill(SkillSection.CE, rank, niveaux[rank - 1]));
         }
-        when(priorityResolver.currentPrioritySkillId(userId)).thenReturn(Optional.empty());
+        when(focusResolver.currentFocusSkillId(userId)).thenReturn(Optional.empty());
         when(skillManager.findFirstActiveIdPerTaskCode()).thenReturn(firstOfEachTask());
         when(skillManager.findFirstActiveIdPerComprehensionSection())
                 .thenReturn(firstOfEachComprehensionDomain());
@@ -114,7 +118,7 @@ class SkillAccessServiceTest {
         verify(skillManager, never()).findFirstActiveIdPerTaskCode();
         verify(skillManager, never()).findFirstActiveIdPerComprehensionSection();
         verify(promptManager, never()).findActiveBySkillIds(any());
-        verify(priorityResolver, never()).currentPrioritySkillId(any());
+        verify(focusResolver, never()).currentFocusSkillId(any());
     }
 
     // ------------------------------------------------------------------------
@@ -169,7 +173,7 @@ class SkillAccessServiceTest {
     void laCompetenceDeLaPrioriteNumeroUnEstOuverteMemeAuRangCinq() {
         Skill priorite = ee1.get(4);
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
-        when(priorityResolver.currentPrioritySkillId(userId))
+        when(focusResolver.currentFocusSkillId(userId))
                 .thenReturn(Optional.of(priorite.getId()));
 
         SkillAccessService.SkillAccess access = service.resolve(userId);
@@ -184,10 +188,69 @@ class SkillAccessServiceTest {
         assertThat(access.openSkillIds()).hasSize(SkillTaskCode.values().length + 2 + 1);
     }
 
+    /**
+     * 🛑 <b>Le defaut corrige le 2026-08-21.</b> La premiere place du Plan peut
+     * etre une competence « a acquerir » : jamais travaillee, donc <b>sans
+     * aucune ligne d'historique</b>, donc invisible pour l'ancien
+     * {@code currentPrioritySkillId}. Elle etait designee, visible… et
+     * verrouillee.
+     *
+     * <p>Ce service n'a pas a savoir de quelle nature elle est : il ouvre
+     * <b>la competence que {@link PlanFocusResolver} designe</b>, point. C'est
+     * ce que le proprietaire a arbitre : « un candidat non abonne pourra
+     * travailler sa priorite 1, vu qu'elle est visible ».
+     */
+    @Test
+    void laCompetenceAAcquerirEnPremierePlaceEstOuverteCommeUneAutre() {
+        Skill aAcquerir = ee1.get(6);
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(focusResolver.currentFocusSkillId(userId))
+                .thenReturn(Optional.of(aAcquerir.getId()));
+
+        SkillAccessService.SkillAccess access = service.resolve(userId);
+
+        assertThat(access.isSkillLocked(aAcquerir.getId())).isFalse();
+        // Elle s'ouvre comme les autres : 2 sujets, et rien de plus alentour.
+        List<SkillPrompt> prompts = promptsBySkill.get(aAcquerir.getId());
+        assertThat(access.isPromptLocked(prompts.get(1).getId())).isFalse();
+        assertThat(access.isPromptLocked(prompts.get(2).getId())).isTrue();
+        assertThat(access.isSkillLocked(ee1.get(5).getId())).isTrue();
+        // Et le verrou serveur suit, c'est tout l'interet.
+        service.assertCanProduce(userId, prompts.get(0));
+        service.assertCanTrain(userId, aAcquerir.getId());
+    }
+
+    /**
+     * L'appelant qui vient d'etablir la premiere place la passe : le Plan, qui la
+     * connait deja. Elle est ouverte a l'identique, et le resolveur n'est
+     * <b>pas</b> reinterroge — sinon le cycle de palier tournerait deux fois par
+     * lecture du Plan.
+     */
+    @Test
+    void lorsqueLAppelantConnaitDejaLaPremierePlaceElleNEstPasRecalculee() {
+        Skill focus = ee1.get(4);
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+
+        SkillAccessService.SkillAccess access = service.resolve(userId, focus.getId());
+
+        assertThat(access.isSkillLocked(focus.getId())).isFalse();
+        assertThat(access.isSkillLocked(ee1.get(1).getId())).isTrue();
+        verify(focusResolver, never()).currentFocusSkillId(any());
+    }
+
+    /** Aucune premiere place : le lot ouvert est celui des rangs 1, rien de plus. */
+    @Test
+    void sansPremierePlaceLeLotOuvertResteCeluiDesRangsUn() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+
+        assertThat(service.resolve(userId, null).openSkillIds())
+                .hasSize(SkillTaskCode.values().length + 2);
+    }
+
     @Test
     void unePrioriteDejaDansLeLotOuvertNAjouteRien() {
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
-        when(priorityResolver.currentPrioritySkillId(userId))
+        when(focusResolver.currentFocusSkillId(userId))
                 .thenReturn(Optional.of(ee1.get(0).getId()));
 
         assertThat(service.resolve(userId).openSkillIds())
@@ -260,7 +323,7 @@ class SkillAccessServiceTest {
     void laPrioriteDuPlanOuvreAussiUneCompetenceDeComprehension() {
         Skill priorite = co.get(2);
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
-        when(priorityResolver.currentPrioritySkillId(userId))
+        when(focusResolver.currentFocusSkillId(userId))
                 .thenReturn(Optional.of(priorite.getId()));
 
         SkillAccessService.SkillAccess access = service.resolve(userId);

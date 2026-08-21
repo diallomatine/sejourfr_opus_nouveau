@@ -42,6 +42,14 @@ import java.util.Map;
  * {@code points_a_ameliorer[]} (2 max), {@code avertissements[]}. Tous ces champs
  * sont facultatifs cote front : une evaluation v3 en base n'en porte qu'une partie.
  *
+ * <p><b>Absent d'une production NON EVALUABLE</b> : {@code scores_criteres[]}.
+ * Une production jugee inexploitable par les controles deterministes
+ * ({@link #evaluabilite} = {@code NON_EVALUABLE}) n'a rien fait observer, donc
+ * n'affirme rien — elle en portait quatre a {@code note_sur_20: 0} jusqu'au
+ * 2026-08-21. Un front lit {@code evaluabilite} pour savoir quoi dire, et ne
+ * suppose jamais le champ present. <b>Les evaluations anterieures le
+ * conservent</b> : rien n'est migre.
+ *
  * <p><b>Champs RETIRES par le contrat v9</b> (rubriques v15) : {@code suggestions[]}
  * et {@code exemples_corriges[]}. Ils n'etaient affiches que dans le bloc replie
  * « Voir l'analyse complete », supprime de l'ecran de resultat. Le correcteur ne

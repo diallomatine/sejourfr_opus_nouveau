@@ -87,7 +87,7 @@ class LearningPlanServiceTest {
         accessService = mock(SkillAccessService.class);
         // Le resolveur de priorites est utilise POUR DE VRAI : c'est le meme
         // ordre que consomme SkillAccessService, on ne le double pas.
-        when(accessService.resolve(userId))
+        when(accessService.resolve(eq(userId), any()))
                 .thenReturn(SkillAccessService.SkillAccess.UNLIMITED);
         // Le moteur de maitrise tourne POUR DE VRAI, sur les memes observations
         // que le resolveur de priorites : c'est ce qui garantit qu'un candidat
@@ -473,7 +473,7 @@ class LearningPlanServiceTest {
         when(observationManager.countSince(any(), any())).thenReturn(0L);
         stubExercisesForEverySkill();
         // Rien d'ouvert : la competence de la priorite est verrouillee.
-        when(accessService.resolve(userId)).thenReturn(
+        when(accessService.resolve(eq(userId), any())).thenReturn(
                 new SkillAccessService.SkillAccess(false, Set.of(), Set.of()));
 
         var result = service.get(userId);
@@ -1624,13 +1624,54 @@ class LearningPlanServiceTest {
      * une competence a acquerir verrouillee est designee quand meme, avec son
      * cadenas. Savoir quoi travailler est ce que le Plan apporte.
      *
-     * <p>⚠️ Et elle n'est <b>pas</b> deverrouillee par le fait d'occuper la
-     * premiere place : {@code SkillAccessService} ouvre la premiere
-     * <b>fragilite observee</b> ({@code currentPrioritySkillId}), qui se lit sur
-     * l'historique — une competence jamais travaillee n'y figure pas.
+     * <p>Ici, elle occupe la 2&deg; place — la premiere revient a la fragilite.
+     * C'est la place, pas la nature, qui ouvre.
      */
     @Test
     void uneCompetenceAAcquerirVerrouilleeEstDesigneeAvecSonCadenas() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        LearningPlanObservation fragile =
+                observation("EE1-C1", LearningPlanSkillStatus.TO_REINFORCE, Instant.now());
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(fragile));
+        Skill aAcquerir = skill("EO1-C9");
+        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+                .thenReturn(List.of(aAcquerir));
+        // Seule la premiere place est ouverte : c'est la fragilite.
+        when(accessService.resolve(eq(userId), any())).thenReturn(
+                new SkillAccessService.SkillAccess(
+                        false, Set.of(fragile.getSkill().getId()), Set.of()));
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        assertThat(result.nextPriorities()).singleElement().satisfies(carte -> {
+            assertThat(carte.skillCode()).isEqualTo("EO1-C9");
+            assertThat(carte.nature()).isEqualTo(PlanActionNature.A_ACQUERIR);
+            assertThat(carte.locked())
+                    .as("designee quand meme, mais fermee : le Plan se lit, il ne s'ouvre pas")
+                    .isTrue();
+        });
+    }
+
+    /**
+     * 🛑 <b>Le defaut corrige le 2026-08-21.</b> Sans aucune fragilite, la
+     * premiere carte du Plan est une competence <b>a acquerir</b> — jamais
+     * travaillee, donc absente de l'historique, donc invisible pour l'ancien
+     * {@code currentPrioritySkillId}. Elle etait designee, visible… et
+     * verrouillee : le Plan promettait une action qu'un compte gratuit ne
+     * pouvait pas commencer.
+     *
+     * <p>Ce que ce test verifie ici, c'est le <b>cablage</b> : le Plan transmet
+     * au service d'acces la competence de sa premiere place, quelle que soit sa
+     * nature. Que cette competence soit alors ouverte est verifie chez
+     * {@code SkillAccessServiceTest}, et de bout en bout par
+     * {@code LearningPlanAcquisitionIT}.
+     */
+    @Test
+    void laPremierePlaceEstTransmiseAuVerrouMemeQuandCEstUneAcquisition() {
         DiagnosticSession completed = new DiagnosticSession();
         completed.setId(UUID.randomUUID());
         completed.setCompletedAt(Instant.now());
@@ -1639,18 +1680,20 @@ class LearningPlanServiceTest {
         Skill aAcquerir = skill("EO1-C9");
         when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
                 .thenReturn(List.of(aAcquerir));
-        when(accessService.resolve(userId)).thenReturn(
-                new SkillAccessService.SkillAccess(false, Set.of(), Set.of()));
+        when(accessService.resolve(eq(userId), any())).thenReturn(
+                new SkillAccessService.SkillAccess(
+                        false, Set.of(aAcquerir.getId()), Set.of()));
         stubExercisesForEverySkill();
 
         var result = service.get(userId);
 
+        verify(accessService).resolve(userId, aAcquerir.getId());
         assertThat(result.currentPriority().skillCode()).isEqualTo("EO1-C9");
         assertThat(result.currentPriority().nature())
                 .isEqualTo(PlanActionNature.A_ACQUERIR);
         assertThat(result.currentPriority().locked())
-                .as("designee quand meme, mais fermee : le Plan se lit, il ne s'ouvre pas")
-                .isTrue();
+                .as("la premiere place se travaille toujours, quelle que soit sa nature")
+                .isFalse();
     }
 
     private static LearningPlanObservation observation(

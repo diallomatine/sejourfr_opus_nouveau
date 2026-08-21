@@ -217,7 +217,15 @@ public class LearningPlanService {
         // Résolu ici et transmis aux sélecteurs : le Plan pose « locked » sur
         // les priorités, les compétences observées ET l'exercice recommandé.
         // Ça ne se calcule qu'une fois par appel.
-        SkillAccessService.SkillAccess access = accessService.resolve(userId);
+        //
+        // La PREMIERE PLACE lui est passee, pas redemandee : le Plan vient de
+        // l'etablir (premiere fragilite, a defaut premiere acquisition), et
+        // c'est elle que le freemium ouvre. La faire recalculer par le service
+        // d'acces ferait tourner le cycle de palier une seconde fois dans la
+        // meme lecture — et rendrait le cout du Plan dependant du nombre de
+        // fragilites du candidat, ce que ses deux tests de cout interdisent.
+        SkillAccessService.SkillAccess access = accessService.resolve(
+                userId, PlanFocusResolver.focus(actionable, acquisitions).orElse(null));
         Map<UUID, SkillProgressCounter.SkillProgress> progress =
                 progressCounter.bySkillIds(userId, skillIds);
         // Un seul lot pour les deux natures : une competence a acquerir se

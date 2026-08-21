@@ -204,9 +204,14 @@ class AiEvaluationServiceV4Test {
         assertThat(eval.getModeleUtilise()).isEqualTo(AiEvaluationService.MODELE_VALIDATION_SERVEUR);
         assertThat(eval.getFeedbackJson().get("confiance")).isEqualTo("FAIBLE");
         assertThat(avertissements(eval)).anyMatch(a -> a.contains("n'est pas rédigé en français"));
-        // Tous les criteres de la rubrique sont presents, a 0 / NON_EVALUABLE.
-        assertThat(scores(eval)).hasSize(5)
-            .allSatisfy(s -> assertThat(s.get("bande")).isEqualTo("NON_EVALUABLE"));
+        // 🛑 AUCUN `scores_criteres` : il portait quatre criteres a `note 0`,
+        // dont seule la bande disait le sens. Un champ absent du contrat ne peut
+        // pas etre produit par erreur — c'est plus sur que quatre zeros qu'on
+        // compte sur les fronts pour ne pas afficher ni sommer.
+        assertThat(eval.getFeedbackJson()).doesNotContainKey("scores_criteres");
+        // Ce qui reste sont des faits, pas des verdicts.
+        assertThat(eval.getFeedbackJson()).containsKeys(
+            "confiance", "confiance_raisons", "accomplissement", "avertissements");
         // La submission passe quand meme a EVALUATED : l'utilisateur voit un resultat.
         assertThat(sub.getStatut()).isEqualTo(SubmissionStatut.EVALUATED);
         verify(submissionManager).save(sub);

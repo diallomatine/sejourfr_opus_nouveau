@@ -13,7 +13,6 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -21,10 +20,16 @@ import java.util.UUID;
  *
  * <p>Il a deux lecteurs qui doivent dire exactement la meme chose :
  * {@link LearningPlanService}, qui rend les priorites au candidat, et
- * {@link SkillAccessService}, qui ouvre la competence de la priorite n&deg;1 a un
- * compte sans acces TCF. Deux implementations auraient fini par diverger, et le
- * candidat aurait vu son etape n&deg;1 cadenassee — exactement ce que
- * l'ouverture de cette competence cherche a eviter.
+ * {@link PlanFocusResolver}, dont {@link SkillAccessService} tire la competence
+ * ouverte d'office a un compte sans acces TCF. Deux implementations auraient fini
+ * par diverger, et le candidat aurait vu son etape n&deg;1 cadenassee —
+ * exactement ce que l'ouverture de cette competence cherche a eviter.
+ *
+ * <p>⚠️ <b>« Priorite n&deg;1 » ne veut plus dire « premiere fragilite »</b>
+ * depuis que le Plan sait aussi <b>enseigner</b> : la premiere carte peut etre
+ * une competence a <b>acquerir</b>, que ce resolveur ne voit pas — elle n'a
+ * aucune ligne d'historique. C'est {@link PlanFocusResolver} qui repond a
+ * « quelle competence occupe la premiere place », et lui seul.
  */
 @Component
 @RequiredArgsConstructor
@@ -252,28 +257,5 @@ public class LearningPlanPriorityResolver {
             case MEDIUM -> 2;
             case LOW -> 1;
         };
-    }
-
-    /**
-     * La competence de la priorite n&deg;1 de ce candidat, vide s'il n'en a
-     * aucune.
-     *
-     * <p><b>Elle se deplace quand une competence est reussie</b> : des que le
-     * transfert d'une competence est prouve, elle sort des priorites et c'est la
-     * suivante que ce verrou ouvre a un compte gratuit. Coherent avec ce que le
-     * Plan affiche — le candidat lit « a faire maintenant » et trouve ce
-     * sujet-la ouvert.
-     *
-     * <p><b>On n'exige pas ici de diagnostic termine</b>, alors que le Plan ne
-     * rend ses priorites qu'une fois le diagnostic {@code COMPLETED} : une
-     * observation probante venue d'une correction de production suffit. Le pire
-     * cas est une competence ouverte de plus, jamais une competence fermee a
-     * tort — et c'est le bon sens de l'erreur pour un verrou commercial.
-     */
-    @Transactional(readOnly = true)
-    public Optional<UUID> currentPrioritySkillId(UUID userId) {
-        return actionable(observationManager.findAllByUserWithSkill(userId)).stream()
-                .findFirst()
-                .map(observation -> observation.getSkill().getId());
     }
 }

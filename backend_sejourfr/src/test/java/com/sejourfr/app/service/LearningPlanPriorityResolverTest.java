@@ -37,7 +37,6 @@ class LearningPlanPriorityResolverTest {
     private SkillMasteryResolver masteryResolver;
     private LearningPlanPriorityResolver resolver;
 
-    private final UUID userId = UUID.randomUUID();
     private final Instant maintenant = Instant.now();
 
     @BeforeEach
@@ -104,10 +103,8 @@ class LearningPlanPriorityResolverTest {
                         LearningPlanSourceType.DIAGNOSTIC_EE, ObservationConfidence.HIGH, jours(30)),
                 observation(suivante, LearningPlanSkillStatus.TO_REINFORCE,
                         LearningPlanSourceType.DIAGNOSTIC_EE, ObservationConfidence.HIGH, jours(30)));
-        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(historique);
-
         assertThat(codes(resolver.actionable(historique))).containsExactly("EE1-C2");
-        assertThat(resolver.currentPrioritySkillId(userId))
+        assertThat(PlanFocusResolver.focus(resolver.actionable(historique), List.of()))
                 .contains(suivante.getId());
     }
 
@@ -354,10 +351,8 @@ class LearningPlanPriorityResolverTest {
 
     @Test
     void sansAucuneObservationIlNyAAucunePriorite() {
-        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of());
-
         assertThat(resolver.actionable(List.of())).isEmpty();
-        assertThat(resolver.currentPrioritySkillId(userId)).isEmpty();
+        assertThat(PlanFocusResolver.focus(List.of(), List.of())).isEmpty();
     }
 
     // ------------------------------------------------------------------------
