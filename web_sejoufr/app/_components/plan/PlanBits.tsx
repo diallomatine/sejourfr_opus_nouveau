@@ -41,6 +41,7 @@ import {
     planPathStepNote,
     planPathStepTitle,
 } from "@/lib/plan-domain";
+import {withPlanStep} from "@/lib/plan-step";
 import {RowChevron, SKILL_PREMIUM_HREF} from "@/app/_components/skill-ui/SkillLayout";
 import styles from "./plan.module.css";
 
@@ -356,11 +357,17 @@ export function PlanTaskRow({
     epreuve: PlanDomainEpreuve;
 }) {
     const section = epreuve === "TCF_EO" ? "eo" : "ee";
+    /* Le même marqueur que les étapes : sa seule présence dit « on arrive du
+       Plan ». Sans lui, la liste des 8 compétences de la tâche affichait son
+       retour hiérarchique (« ← Expression orale » → `/entrainement/tcf/eo`) et
+       éjectait du Plan un candidat qui venait d'y cliquer. */
     return (
         <li>
             <Link
                 className={styles.panelRow}
-                href={`/entrainement/tcf/${section}/tache/${tache.tacheNumero}/competences`}
+                href={withPlanStep(
+                    `/entrainement/tcf/${section}/tache/${tache.tacheNumero}/competences`,
+                )}
             >
                 <span className={styles.levelBadge}>{tache.tacheNumero}</span>
                 <span className={styles.panelBody}>

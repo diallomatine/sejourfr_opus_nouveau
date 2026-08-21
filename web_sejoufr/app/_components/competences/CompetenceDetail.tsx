@@ -106,11 +106,25 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   const {user, status} = useAuth();
 
   const base = `${config.base}/tache/${n}/competences`;
-  // Le Plan est relu **en cache** : venir de lui, c'est l'avoir déjà chargé.
-  // Rien n'est demandé au serveur pour afficher une compétence.
-  const step = isPlanStep(searchParams)
-    ? planStepFor(learningPlanApi.peekCached(), skillId)
-    : null;
+  /* Le marqueur d'URL dit « on arrive du Plan » — et il survit à tout, y
+     compris à un rechargement. Le Plan, lui, vit en mémoire : le lire au
+     `peek` seul faisait retomber l'écran sur la fiche des 15 sujets au premier
+     F5, sans pilule d'étape, avec un retour qui renvoyait dans
+     `/entrainement`. On le branche donc sur le cache : déjà chargé ⇒ peint
+     tout de suite, sans un appel ; cache froid ⇒ **un** appel, et seulement
+     dans ce cas. */
+  const fromPlan = isPlanStep(searchParams);
+  const planQuery = useCachedData(
+    fromPlan && status === "authenticated" ? learningPlanApi.cacheKey : null,
+    () => learningPlanApi.getCached(),
+    {errorMessage: "Impossible de charger votre plan."},
+  );
+  const step = fromPlan ? planStepFor(planQuery.data, skillId) : null;
+  /* Tant que le Plan n'est pas revenu, on ne sait pas encore si l'écran est
+     celui d'une étape : afficher la fiche complète en attendant la ferait
+     passer de 15 sujets à 5 sous les yeux du candidat. On garde le
+     squelette — il est déjà là pour la compétence elle-même. */
+  const planPending = fromPlan && planQuery.data === undefined && planQuery.error === null;
 
   const [filter, setFilter] = useState<Filter>("all");
   const [infoOpen, setInfoOpen] = useState(false);
@@ -132,7 +146,7 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
     {errorMessage: "Impossible de charger cette compétence."},
   );
   const data = detailQuery.data;
-  const loading = detailQuery.loading;
+  const loading = detailQuery.loading || planPending;
   const error = detailQuery.error;
 
   if (status === "loading") return <div className={ds.gate} />;
@@ -217,8 +231,15 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   return (
     <DualChromeShell>
       <SkillShell
-        backHref={scoped ? "/plan" : base}
-        backLabel={scoped ? PLAN_STEP_BACK_LABEL : "Compétences"}
+        /* 🛑 Le retour suit la PROVENANCE, la liste suit la PORTÉE — deux
+           questions distinctes qu'un seul booléen confondait. Une compétence
+           simplement **observée** (ni priorité, ni étape franchie) n'a pas
+           d'étape : `scoped` est faux, et le retour partait alors dans
+           `/entrainement` alors que le candidat venait de cliquer dessus dans
+           son Plan. La portée, elle, reste honnête : sans étape, on montre bien
+           les 15 sujets. */
+        backHref={fromPlan ? "/plan" : base}
+        backLabel={fromPlan ? PLAN_STEP_BACK_LABEL : "Compétences"}
       >
         {error && <div className={s.error}>{error}</div>}
 
@@ -426,7 +447,7 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                 sur une production complète, et c'est le Plan qui la déclenche. */}
             <p className={s.seriesNote}>{SKILL_SERIES_NOTE}</p>
 
-            {scoped ? (
+            {fromPlan ? (
               <Link href="/plan" className={s.footLink}>
                 ← {PLAN_STEP_LINK}
               </Link>

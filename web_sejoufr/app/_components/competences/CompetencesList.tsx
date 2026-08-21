@@ -1,10 +1,11 @@
 "use client";
 
-import {useParams, useRouter} from "next/navigation";
+import {useParams, useRouter, useSearchParams} from "next/navigation";
 import {useState} from "react";
 import {Lock} from "lucide-react";
 import {skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
+import {isPlanStep, PLAN_STEP_BACK_LABEL} from "@/lib/plan-step";
 import {loadSectionSkills, skillsOfTask, skillsSectionKey} from "@/lib/skill-catalog";
 import {competenceProgressLabel} from "@/lib/skill-progress";
 import {useCachedData} from "@/lib/use-cached-data";
@@ -46,7 +47,18 @@ import s from "@/app/_components/skill-ui/skill.module.css";
 export function CompetencesList({config}: {config: ProductionConfig}) {
   const params = useParams<{n: string}>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {user, status} = useAuth();
+
+  /* D'où vient-on ? Le marqueur d'URL le dit, et lui seul : le Plan route ses
+     tâches vers cet écran, or son retour hiérarchique (« ← Expression orale »)
+     déposait le candidat dans `/entrainement`, loin du Plan qu'il venait de
+     quitter. Le retour suit donc la **provenance**, et son libellé avec — un
+     lien qui annonce une destination et en sert une autre serait pire que le
+     défaut qu'on corrige. Sans marqueur : comportement d'avant, au pixel près. */
+  const fromPlan = isPlanStep(searchParams);
+  const backHref = fromPlan ? "/plan" : config.base;
+  const backLabel = fromPlan ? PLAN_STEP_BACK_LABEL : config.label;
 
   const section = skillSectionOf(config.epreuve);
 
@@ -79,7 +91,7 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
   if (!valid) {
     return (
       <DualChromeShell>
-        <SkillShell backHref={config.base} backLabel={config.label}>
+        <SkillShell backHref={backHref} backLabel={backLabel}>
           <p className={s.empty}>Tâche inconnue.</p>
         </SkillShell>
       </DualChromeShell>
@@ -88,7 +100,7 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
 
   return (
     <DualChromeShell>
-      <SkillShell backHref={config.base} backLabel={config.label}>
+      <SkillShell backHref={backHref} backLabel={backLabel}>
         <TaskChrome config={config} taskNumero={n} tab="competences" level={level} />
 
         <SectionHead

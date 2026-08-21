@@ -1023,15 +1023,39 @@ chose. Ce qui a bougé **côté web**, et pourquoi :
     — puis **propagé** par `CompetencePrompt` et `CompetenceResult` (backHref et
     poussées), pour que remonter d'un sujet ramène à l'étape et non aux 15. Sur
     mobile ce même effet vient du `pop` : c'est la parité, pas un ajout.
-  - **Zéro appel réseau de plus** : le Plan se relit **en cache**
-    (`learningPlanApi.peekCached()`). Toute lecture de `/api/me/plan` **range**
-    désormais son résultat sous la clé de cache (`primeCached`, `lib/data-cache
-    .ts`), y compris celle de `/plan`, qui continue par ailleurs d'appeler le
-    serveur à chaque montage.
-  - **Repli silencieux, obligatoire** : Plan pas chargé, `stepPromptIds` vide,
-    ou compétence **sortie des priorités** (cas **normal** — le serveur l'en
-    sort dès qu'une vérification en situation a réussi) ⇒ on retombe sur la
-    fiche complète. Ni message, ni écran vide, ni spinner.
+  - **Zéro appel quand on vient du Plan, UN appel à froid** (règle corrigée le
+    2026-08-21). ⚠️ **Révoque le « zéro appel réseau de plus, le Plan se relit
+    au `peekCached()` »** : le marqueur d'URL survit à un rechargement, le cache
+    mémoire non. Un simple **F5** (ou un lien profond) faisait donc retomber
+    l'écran sur la fiche des 15 sujets, sans pilule d'étape, avec « 1/15 » à la
+    place de « 2/5 » — et son retour partait dans `/entrainement/tcf/…` alors
+    que le candidat venait du Plan. `CompetenceDetail` branche le Plan sur
+    `useCachedData(learningPlanApi.cacheKey, () => learningPlanApi.getCached())` :
+    cache chaud ⇒ peint sans un appel, cache froid ⇒ **un** appel, et le
+    squelette reste affiché en attendant (sinon l'écran passerait de 15 sujets à
+    5 sous les yeux du candidat). Ne pas revenir à `peekCached()` ici — il reste
+    l'outil des **conforts d'affichage** qu'on accepte de perdre. Toute lecture
+    de `/api/me/plan` **range** son résultat sous la clé de cache (`primeCached`,
+    `lib/data-cache.ts`).
+  - 🛑 **Le retour suit la PROVENANCE, la liste suit la PORTÉE** — deux
+    questions qu'un seul booléen (`scoped`) confondait. Une compétence
+    simplement **observée** n'a pas d'étape : la portée retombe honnêtement sur
+    les 15 sujets, mais le **retour** doit ramener au Plan, puisque c'est de là
+    qu'on a cliqué. `backHref`/`backLabel` et le lien de pied de page lisent donc
+    `isPlanStep(searchParams)`, jamais `scoped`. C'est la règle que le mobile
+    tient déjà par construction (`competence_detail_screen.dart` : `pop()`, et à
+    défaut « venu du Plan, on y retourne ») — le web était le seul à diverger.
+  - **Le marqueur vaut aussi pour la liste des 8 compétences d'une tâche** :
+    `PlanTaskRow` (`PlanBits.tsx`) le pose sur ses liens, et `CompetencesList`
+    en tire son retour (« ← Mon plan » au lieu de « ← Expression orale »).
+    Sans lui, `/plan` → « Toutes mes compétences » → une tâche → retour
+    déposait le candidat dans `/entrainement`. Sans marqueur, l'écran de
+    Réviser ne bouge pas d'un pixel.
+  - **Repli silencieux, obligatoire** : `stepPromptIds` vide, ou compétence
+    **sortie des priorités** (cas **normal** — le serveur l'en sort dès qu'une
+    vérification en situation a réussi) ⇒ on retombe sur la fiche complète. Ni
+    message, ni écran vide, ni spinner — mais **jamais** sur un retour vers
+    `/entrainement` : cf. la règle provenance/portée ci-dessus.
   - **Compteurs servis, jamais recomptés** : la barre lit
     `stepAttemptedCount`/`stepPromptCount`. Les filtres (À faire / Traités)
     portent sur les **5** et leur somme reste juste, comme sur les 15. ⚠️ Le 4ᵉ

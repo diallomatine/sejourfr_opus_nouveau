@@ -869,9 +869,19 @@ export const learningPlanApi = {
         return cached(LEARNING_PLAN_CACHE_KEY, fetchLearningPlan);
     },
 
+    /** La clé sous laquelle le Plan est rangé, pour un écran qui veut le
+     *  brancher sur `useCachedData` : peint ce qui est déjà connu, et ne
+     *  déclenche l'appel que si le cache est **froid**. */
+    cacheKey: LEARNING_PLAN_CACHE_KEY,
+
     /** Le Plan **déjà chargé**, sans aucun appel. `undefined` quand rien n'a
-     *  encore été lu (lien profond direct) : l'appelant doit alors se replier,
-     *  jamais déclencher une requête pour un simple confort d'affichage. */
+     *  encore été lu (lien profond, rechargement de page).
+     *
+     *  ⚠️ À réserver aux **conforts d'affichage** qu'on accepte de perdre. Dès
+     *  que l'absence du Plan change la **nature** de l'écran — c'était le cas
+     *  de l'étape (`?etape=1`), qui retombait sur la fiche des 15 sujets et
+     *  renvoyait le candidat dans `/entrainement` après un simple F5 —, on passe
+     *  par `cacheKey` + `getCached()` : l'appel n'a lieu qu'à froid. */
     peekCached(): LearningPlanDto | undefined {
         return peekCached<LearningPlanDto>(LEARNING_PLAN_CACHE_KEY);
     },

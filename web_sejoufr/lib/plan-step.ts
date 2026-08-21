@@ -25,8 +25,18 @@ import type {
  * `stepPromptCount`), ce module ne fait que les retrouver.
  *
  * ⚠️ **Aucun identifiant ne voyage dans l'URL** : on passe un simple marqueur
- * (`?etape=1`) et on relit le Plan **déjà en cache** (`learningPlanApi
- * .peekCached()`). Rien à charger, donc aucun appel réseau supplémentaire.
+ * (`?etape=1`) et on retrouve l'étape dans le Plan.
+ *
+ * ⚠️ **Le Plan se relit sur le CACHE, pas sur un `peek` seul** (règle corrigée
+ * le 2026-08-21). La formulation précédente — « on relit le Plan déjà en cache,
+ * rien à charger, donc aucun appel réseau supplémentaire » — tenait tant que le
+ * candidat ne rechargeait pas : le marqueur survit à un F5, le cache mémoire
+ * non. L'écran retombait alors sur la fiche des 15 sujets, perdait sa pilule
+ * d'étape, affichait « 1/15 » à la place de « 2/5 », et son retour partait dans
+ * `/entrainement/tcf/…` alors que le candidat venait du Plan. `CompetenceDetail`
+ * branche donc le Plan sur `useCachedData(learningPlanApi.cacheKey, …)` :
+ * **zéro appel** quand on arrive du Plan (le cache est chaud), **un** appel sur
+ * un rechargement à froid. Ne pas revenir à `peekCached()` ici.
  */
 
 /** Marqueur d'URL. Sa valeur ne porte aucune information : seule sa présence
