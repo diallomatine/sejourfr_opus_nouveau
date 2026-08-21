@@ -1285,6 +1285,13 @@ function AnalysisWaiting({
  * ⚠️ `priorities` peut être **vide** : c'est un état normal, pas une panne. Le
  * repli ne prétend jamais que ces points sont des priorités classées, et le
  * drapeau `measured` est ce qui fait changer les libellés de l'écran.
+ *
+ * 🛑 **Cette fonction ne tronque RIEN — elle rend tout ce que le serveur a
+ * envoyé, et c'est l'appelant qui décide de l'affichage.** Elle coupait à 3 des
+ * deux côtés : un compteur « + N autres » calculé là-dessus aurait été **faux
+ * par construction**, et un abonné perdait en silence ce qui dépassait. Le
+ * plafond d'affichage d'un compte gratuit vit désormais au seul endroit qui le
+ * regarde (`FREE_PRIORITIES`), et il est le seul.
  */
 interface ResultLever {
   key: string;
@@ -1302,7 +1309,7 @@ function resultLevers(result: DiagnosticResultDto): {
   if (result.priorities.length > 0) {
     return {
       measured: true,
-      levers: result.priorities.slice(0, 3).map((priority, index) => ({
+      levers: result.priorities.map((priority, index) => ({
         key: priority.skillId,
         title: priority.skillTitle,
         detail: (index === 0 ? result.mainPriorityExplanation : null) ?? priority.explanation,
@@ -1340,7 +1347,7 @@ function resultLevers(result: DiagnosticResultDto): {
       });
     }
   }
-  return {measured: false, levers: fallback.slice(0, 3)};
+  return {measured: false, levers: fallback};
 }
 
 /** Lien vers l'offre, avec sa mesure de conversion. Deux emplacements l'ouvrent
@@ -1378,6 +1385,18 @@ function PremiumLink({
  */
 const FREE_PRIORITIES = 2;
 const FREE_STRENGTHS = 2;
+
+/**
+ * Le chapeau du rapport, qui dit d'emblée si le candidat lit tout ou une partie.
+ *
+ * ⚠️ **Vouvoiement, comme tout le rapport et tout le Plan** — le tutoiement est
+ * réservé au module Compétences. La maquette tutoie parce que ses écrans
+ * décrivent un visiteur d'AVANT l'inscription ; ce rapport-ci n'existe qu'une
+ * fois le compte créé, et le sous-titre de la même carte dit déjà « vos
+ * erreurs ». Nommées ici pour qu'un aller-retour coûte une ligne.
+ */
+const REPORT_EYEBROW_PREMIUM = "Rapport complet";
+const REPORT_EYEBROW_FREE = "Votre rapport de diagnostic";
 
 /**
  * Ce que l'abonnement ouvre, dit du point de vue du candidat qui vient de lire
@@ -1426,7 +1445,12 @@ function LockedTease({
 }) {
   return (
     <PremiumLink className={styles.tease}>
-      <span className={styles.teaseBlur} aria-hidden>
+      {/* Illisible à l'œil ET au lecteur d'écran : `aria-hidden` le sort de
+          l'arbre d'accessibilité, `inert` le rend en plus non focusable et
+          non atteignable au clavier. Sans les deux, le contenu verrouillé
+          resterait lisible en synthèse vocale — un contournement, et un
+          mensonge d'accessibilité. */}
+      <span className={styles.teaseBlur} aria-hidden inert>
         {rows.map((row) => (
           <span key={row.key} className={styles.teaseRow}>
             <span className={styles.teaseDot} />
@@ -1544,7 +1568,7 @@ function DiagnosticResult({
             <i aria-hidden><Check size={11} strokeWidth={3.4} /></i> Diagnostic terminé
           </span>
           <p className={styles.resultEyebrow}>
-            {hasTcf ? "Rapport complet" : "Votre rapport de diagnostic"} · 2 productions
+            {hasTcf ? REPORT_EYEBROW_PREMIUM : REPORT_EYEBROW_FREE} · 2 productions
             analysées
           </p>
           <h1>
@@ -1692,11 +1716,22 @@ function DiagnosticResult({
                   title: lever.title,
                   meta: lever.section ? productionSectionLabel(lever.section) : null,
                 }))}
-                label={moreLabel(
-                  hiddenLevers.length,
-                  "autre priorité détectée",
-                  "autres priorités détectées",
-                )}
+                /* Le teaser parle la même langue que sa section : sans
+                   priorités mesurées, ce ne sont pas des « priorités » mais des
+                   points relevés — le repli ne doit pas les promouvoir. */
+                label={
+                  measured
+                    ? moreLabel(
+                        hiddenLevers.length,
+                        "autre priorité détectée",
+                        "autres priorités détectées",
+                      )
+                    : moreLabel(
+                        hiddenLevers.length,
+                        "autre point à travailler",
+                        "autres points à travailler",
+                      )
+                }
               />
             )}
           </section>
