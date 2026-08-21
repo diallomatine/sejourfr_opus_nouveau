@@ -108,9 +108,9 @@ export function ParcoursTop({
         <ParcoursNextCard
           config={config}
           title="Prochain entraînement"
-          subtitle={`${tacheLabel(next.taskCode)} · ${next.title}`}
+          subtitle={`${tacheLabel(next.taskCode ?? "")} · ${next.title}`}
           actionLabel="Continuer"
-          href={`${config.base}/tache/${tacheOf(next.taskCode)}/competences/${next.id}`}
+          href={`${config.base}/tache/${tacheOf(next.taskCode ?? "")}/competences/${next.id}`}
         />
       )}
 

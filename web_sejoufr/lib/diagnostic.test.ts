@@ -74,6 +74,7 @@ test("la recommandation ouvre le micro-exercice exact à partir du code canoniqu
     locked: false,
     epreuve: null,
     slotNumber: null,
+    questionCount: null,
   };
   assert.equal(
     recommendedExerciseHref(exercise),
@@ -96,6 +97,7 @@ test("une vérification en situation ouvre l'écran de production du sujet", () 
     locked: false,
     epreuve: null,
     slotNumber: null,
+    questionCount: null,
   };
   assert.equal(recommendedExerciseHref(exercise), "/entrainement/tcf/ee/redaction/task-9");
   // Sujet manquant : la liste des sujets de la tâche, jamais une adresse

@@ -13,31 +13,53 @@ library;
 import 'action_plan.dart';
 import 'enums.dart';
 
-/// Épreuve productive d'une compétence. Miroir de `SkillSection` (backend).
+/// Le **domaine** d'une compétence. Miroir de `SkillSection` (backend).
+///
+/// ⚠️ Ce n'est plus seulement l'expression : depuis l'ouverture des
+/// compétences de compréhension, l'enum porte les **quatre** domaines du TCF.
+/// Une compétence de compréhension ([co] / [ce]) n'a **aucun petit sujet** —
+/// son entraînement est une **série ciblée de QCM** — et n'a donc **pas de
+/// tâche** : son palier se lit sur `targetLevel`, jamais déduit d'un `taskCode`
+/// qui vaut `null`.
 enum SkillSection {
-  ee('EE'),
-  eo('EO');
+  ee('EE', 'Expression écrite'),
+  eo('EO', 'Expression orale'),
+  co('CO', 'Compréhension orale'),
+  ce('CE', 'Compréhension écrite');
 
-  const SkillSection(this.wire);
+  const SkillSection(this.wire, this.label);
 
   final String wire;
+
+  /// Le domaine en toutes lettres. Miroir mot pour mot de
+  /// `SkillSection.getLabel()` (backend).
+  final String label;
 
   static SkillSection fromWire(String value) =>
       SkillSection.values.firstWhere((e) => e.wire == value);
 
+  static SkillSection? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final section in SkillSection.values) {
+      if (section.wire == value) return section;
+    }
+    return null;
+  }
+
   bool get isEo => this == SkillSection.eo;
 
-  /// `EE1`, `EO3`… le code de tâche attendu par `GET /api/skills`.
-  String taskCode(int tacheNumero) => '$wire$tacheNumero';
+  /// Expression (EE/EO) : la voie des productions et des petits sujets.
+  bool get isProduction => this == SkillSection.ee || this == SkillSection.eo;
 
-  /// L'épreuve dont vient l'observation, en toutes lettres.
+  /// Compréhension (CO/CE) : la voie des séries ciblées de QCM.
+  bool get isComprehension => this == SkillSection.co || this == SkillSection.ce;
+
+  /// `EE1`, `EO3`… le code de tâche attendu par `GET /api/skills`.
   ///
-  /// Miroir de `productionSectionLabel` (`web_sejoufr/lib/diagnostic.ts`) :
-  /// « Expression écrite » / « Expression orale ». Extrait ici à la 2ᵉ
-  /// occurrence (Plan, puis résultat du diagnostic) pour que les deux écrans
-  /// ne puissent pas nommer la même épreuve différemment.
-  String get productionLabel =>
-      this == SkillSection.eo ? 'Expression orale' : 'Expression écrite';
+  /// ⚠️ **Expression seulement** : les six tâches officielles sont EE1..EE3 et
+  /// EO1..EO3. Une compétence de compréhension n'a pas de tâche, et
+  /// `GET /api/skills/progress?section=CO|CE` répond **422** exprès.
+  String taskCode(int tacheNumero) => '$wire$tacheNumero';
 }
 
 /// Palier de difficulté d'un petit sujet (backend `Difficulty`).
@@ -309,7 +331,11 @@ class SkillDto {
 
   final String id;
   final SkillSection section;
-  final String taskCode;
+
+  /// La tâche d'expression (`EE1`..`EO3`), **`null` sur une compétence de
+  /// compréhension** : le domaine se lit alors sur [section] et le palier sur
+  /// [targetLevel], jamais déduits d'une tâche qui n'existe pas.
+  final String? taskCode;
   final String code;
   final String title;
 
@@ -350,7 +376,7 @@ class SkillDto {
   factory SkillDto.fromJson(Map<String, dynamic> json) => SkillDto(
         id: json['id'] as String,
         section: SkillSection.fromWire(json['section'] as String),
-        taskCode: json['taskCode'] as String,
+        taskCode: json['taskCode'] as String?,
         code: json['code'] as String,
         title: json['title'] as String,
         description: json['description'] as String,

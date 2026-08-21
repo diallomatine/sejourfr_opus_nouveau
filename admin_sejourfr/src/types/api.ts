@@ -1215,7 +1215,15 @@ export interface FunnelStatsResponse {
 // Le contenu (48 compétences, 240 sujets, 720 références) est éditorial :
 // il vit en base et s'édite ici, pas en migration Flyway.
 
-export type SkillSection = "EE" | "EO";
+/**
+ * Deux familles, un seul référentiel (enum backend `SkillSection`). `EE`/`EO`
+ * sont l'EXPRESSION : une compétence y appartient à une des 6 tâches
+ * officielles (`SkillTaskCode`) et s'entraîne sur des petits sujets. `CO`/`CE`
+ * sont la COMPRÉHENSION : une compétence par palier (`CO-A2`, `CO-B1`, `CO-B2`
+ * et leurs jumelles CE), **sans aucune tâche et sans aucun petit sujet** —
+ * l'entraînement y est une série ciblée de QCM, pas une page de 5 sujets.
+ */
+export type SkillSection = "EE" | "EO" | "CO" | "CE";
 
 export type SkillTaskCode = "EE1" | "EE2" | "EE3" | "EO1" | "EO2" | "EO3";
 
@@ -1281,7 +1289,13 @@ export interface SkillConstraintTagInput {
 export interface AdminSkillDto {
   id: string;
   section: SkillSection;
-  taskCode: SkillTaskCode;
+  /**
+   * Tâche d'appartenance, `null` pour une compétence de COMPRÉHENSION
+   * (section `CO` / `CE`) : celles-ci n'appartiennent à aucune des 6 tâches
+   * officielles. Le domaine se lit sur `section`, le palier sur
+   * `targetLevel` — jamais déduits de la tâche.
+   */
+  taskCode: SkillTaskCode | null;
   /** Immuable après création : les seeds et les codes de sujets s'appuient dessus. */
   code: string;
   title: string;
@@ -1351,7 +1365,8 @@ export interface AdminSkillStatsDto {
   code: string;
   title: string;
   section: SkillSection;
-  taskCode: SkillTaskCode;
+  /** `null` pour une compétence de COMPRÉHENSION (section `CO` / `CE`) — cf. `AdminSkillDto.taskCode`. */
+  taskCode: SkillTaskCode | null;
   promptCount: number;
   attemptCount: number;
   analysedCount: number;
@@ -1370,13 +1385,19 @@ export interface AdminSkillFilters {
 
 /**
  * POST : `generalCriterion` est **obligatoire** (colonne NOT NULL). L'omettre
- * fait échouer la création en 400. `section` est déduite du `taskCode` côté
- * serveur ; une valeur contradictoire est refusée en 422, d'où l'envoi
- * systématique de la section calculée depuis le `taskCode`.
+ * fait échouer la création en 400.
+ *
+ * `section` et `taskCode` sont facultatifs **individuellement, jamais
+ * ensemble** — le couple est arbitré par le serveur (422 sinon) : pour une
+ * compétence d'EXPRESSION, la tâche suffit (la section s'en déduit, et
+ * fournie elle doit concorder) ; pour une compétence de COMPRÉHENSION
+ * (`CO`/`CE`), il n'existe aucune tâche, c'est la section seule qui est
+ * envoyée. La console envoie donc soit `taskCode` (+ la section qui s'en
+ * déduit), soit `section` seule sans `taskCode`.
  */
 export interface AdminSkillCreateRequest {
-  section: SkillSection;
-  taskCode: SkillTaskCode;
+  section?: SkillSection;
+  taskCode?: SkillTaskCode;
   code: string;
   title: string;
   description: string;

@@ -17,13 +17,15 @@ import {
   SECTION_LABEL,
   TARGET_LEVELS,
   TASK_TITLE,
-  sectionOfTaskCode,
+  isComprehensionSection,
   taskCodesForSection,
 } from "./skillHelpers";
 import styles from "./SkillFormModal.module.css";
 
 interface SkillFormValues {
-  taskCode: SkillTaskCode;
+  section: SkillSection;
+  /** Vide pour une compétence de compréhension (`section` CO/CE). */
+  taskCode: SkillTaskCode | "";
   code: string;
   title: string;
   description: string;
@@ -34,6 +36,7 @@ interface SkillFormValues {
 }
 
 const DEFAULTS: SkillFormValues = {
+  section: "EE",
   taskCode: "EE1",
   code: "",
   title: "",
@@ -43,6 +46,9 @@ const DEFAULTS: SkillFormValues = {
   displayOrder: 1,
   active: true,
 };
+
+/** `EE1-C1` (expression) ou `CO-A2` (compréhension). */
+const CODE_PATTERN = /^(?:(?:EE|EO)[1-3]-C[1-8]|(?:CO|CE)-(?:A1|A2|B1|B2))$/;
 
 export function SkillFormModal({
   open,
@@ -74,7 +80,8 @@ export function SkillFormModal({
     reset(
       skill
         ? {
-            taskCode: skill.taskCode,
+            section: skill.section,
+            taskCode: skill.taskCode ?? "",
             code: skill.code,
             title: skill.title,
             description: skill.description,
@@ -87,8 +94,9 @@ export function SkillFormModal({
     );
   }, [open, skill, reset]);
 
+  const section = watch("section") ?? "EE";
   const taskCode = watch("taskCode");
-  const section: SkillSection = sectionOfTaskCode(taskCode ?? "EE1");
+  const comprehension = isComprehensionSection(section);
 
   const mutation = useMutation({
     mutationFn: (values: SkillFormValues) => {
@@ -102,9 +110,10 @@ export function SkillFormModal({
           active: values.active,
         });
       }
+      const forComprehension = isComprehensionSection(values.section);
       return skillsApi.create({
-        section: sectionOfTaskCode(values.taskCode),
-        taskCode: values.taskCode,
+        section: values.section,
+        taskCode: forComprehension ? undefined : (values.taskCode || undefined),
         code: values.code.trim().toUpperCase(),
         title: values.title.trim(),
         description: values.description.trim(),
@@ -160,7 +169,11 @@ export function SkillFormModal({
                 value={section}
                 onChange={(e) => {
                   const next = e.target.value as SkillSection;
-                  setValue("taskCode", taskCodesForSection(next)[0]);
+                  setValue("section", next);
+                  setValue(
+                    "taskCode",
+                    isComprehensionSection(next) ? "" : taskCodesForSection(next)[0],
+                  );
                 }}
               >
                 {SECTIONS.map((s) => (
@@ -179,13 +192,26 @@ export function SkillFormModal({
           >
             {isEdit ? (
               <div className={styles.frozen}>
-                {skill.taskCode} · {TASK_TITLE[skill.taskCode]}
+                {skill.taskCode ? (
+                  <>
+                    {skill.taskCode} · {TASK_TITLE[skill.taskCode]}
+                  </>
+                ) : (
+                  "Aucune — compétence de compréhension"
+                )}
                 <span className={styles.frozenHint}>non modifiable</span>
+              </div>
+            ) : comprehension ? (
+              <div className={styles.frozen}>
+                Aucune tâche : une compétence de compréhension s&apos;entraîne
+                par une série de QCM, pas par des petits sujets.
               </div>
             ) : (
               <Select
                 id="skill-form-task"
-                {...register("taskCode", { required: "Tâche requise" })}
+                {...register("taskCode", {
+                  validate: (v) => comprehension || !!v || "Tâche requise",
+                })}
               >
                 {taskCodesForSection(section).map((code) => (
                   <option key={code} value={code}>
@@ -213,13 +239,14 @@ export function SkillFormModal({
             <>
               <Input
                 id="skill-form-code"
-                placeholder={`${taskCode ?? "EE1"}-C1`}
+                placeholder={comprehension ? "CO-A2" : `${taskCode || "EE1"}-C1`}
                 {...register("code", {
                   required: "Code requis",
                   maxLength: { value: 16, message: "16 caractères maximum" },
                   pattern: {
-                    value: /^(EE|EO)[1-3]-C[1-8]$/,
-                    message: "Format attendu : EE1-C1 (tâche + numéro de compétence)",
+                    value: CODE_PATTERN,
+                    message:
+                      "Format attendu : EE1-C1 (expression) ou CO-A2 (compréhension)",
                   },
                 })}
               />
@@ -272,10 +299,22 @@ export function SkillFormModal({
             })}
           />
           <p className={styles.help}>
-            Ce qui sera <strong>observé</strong> dans les 15 petits sujets de cette
-            compétence, en une à deux phrases. À distinguer de la description
-            ci-dessus, qui explique l&apos;intérêt de l&apos;exercice, et du critère
-            unique de chaque sujet, qui ne vaut que pour lui.
+            {comprehension ? (
+              <>
+                Ce qui sera <strong>observé</strong> à travers la série de QCM
+                de cette compétence — elle n&apos;a aucun petit sujet, à
+                distinguer de la description ci-dessus qui explique
+                l&apos;intérêt de l&apos;exercice.
+              </>
+            ) : (
+              <>
+                Ce qui sera <strong>observé</strong> dans les 15 petits sujets
+                de cette compétence, en une à deux phrases. À distinguer de la
+                description ci-dessus, qui explique l&apos;intérêt de
+                l&apos;exercice, et du critère unique de chaque sujet, qui ne
+                vaut que pour lui.
+              </>
+            )}
           </p>
         </FormRow>
 

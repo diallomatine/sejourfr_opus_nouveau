@@ -1,5 +1,6 @@
 import 'action_plan.dart';
 import 'enums.dart';
+import 'production_models.dart';
 import 'skill_models.dart';
 
 enum DiagnosticJourneyStatus {
@@ -92,9 +93,11 @@ enum LearningPlanSkillStatus {
 /// même mot : sur la frise d'une compétence, la section est déjà celle de la
 /// compétence.
 ///
-/// [tcfCo] / [tcfCe] sont **réservés** — le serveur ne les sert pas encore ;
-/// ils sont prévus pour qu'aucune ligne n'arrive sans libellé le jour où la
-/// compréhension entrera dans le Plan.
+/// [tcfCo] / [tcfCe] sont **servis depuis le 2026-08-21** : une session QCM de
+/// compréhension alimente le Plan, son résultat étant ventilé par niveau de
+/// question. Ce sont des observations **contextualisées** — un QCM de CO ou de
+/// CE *est* le format réel de l'épreuve, il n'existe pas de version « guidée » à
+/// laquelle l'opposer.
 enum LearningPlanSourceType {
   diagnosticEe('DIAGNOSTIC_EE', 'Diagnostic'),
   diagnosticEo('DIAGNOSTIC_EO', 'Diagnostic'),
@@ -139,6 +142,17 @@ enum PlanExerciseKind {
   /// Une vraie tâche TCF à produire (`productionTaskId`), pour vérifier que le
   /// moyen travaillé en ciblé se retrouve **en situation**.
   reassessment('REASSESSMENT'),
+
+  /// Une **série ciblée de QCM** de compréhension : `skillId` seul (aucun sujet,
+  /// aucune tâche) + `questionCount`. Se démarre par
+  /// `POST /api/attempts { type: TRAINING, module: TCF, skillId }` — épreuve,
+  /// palier et taille sont **dérivés serveur**.
+  ///
+  /// 🛑 **Une série ciblée ne rend JAMAIS un domaine « évalué »** : c'est un
+  /// `TRAINING`, et seul un **examen blanc de module** mesure un domaine. Ce
+  /// qu'il faut lancer pour mesurer un domaine manquant est dit par
+  /// [LearningPlan.domainesAEvaluer], jamais par un exercice de séance.
+  targetedQcmSeries('TARGETED_QCM_SERIES'),
 
   /// Jalon : un examen blanc d'**épreuve** — 3 tâches d'expression écrite ou
   /// orale d'affilée (`epreuve` + `slotNumber`).
@@ -461,6 +475,7 @@ class PlanRecommendedExercise {
     this.skillPromptId,
     this.productionTaskId,
     this.tacheNumero,
+    this.questionCount,
     this.locked = false,
   });
 
@@ -481,6 +496,11 @@ class PlanRecommendedExercise {
   final SkillSection section;
   final int estimatedMinutes;
 
+  /// Nombre de questions de la série — **série ciblée uniquement**
+  /// ([PlanExerciseKind.targetedQcmSeries]), `null` partout ailleurs. On
+  /// l'affiche tel quel : la taille est décidée serveur, jamais choisie ici.
+  final int? questionCount;
+
   /// Verrou freemium **calculé par le serveur** : ce candidat ne peut pas
   /// produire sur ce micro-exercice. Le Plan reste affiché en entier — seul le
   /// bouton devient une invitation à s'abonner. Aucune règle n'est recalculée
@@ -498,6 +518,7 @@ class PlanRecommendedExercise {
         title: json['title'] as String? ?? '',
         section: SkillSection.fromWire(json['section'] as String),
         estimatedMinutes: (json['estimatedMinutes'] as num? ?? 0).toInt(),
+        questionCount: (json['questionCount'] as num?)?.toInt(),
         locked: json['locked'] as bool? ?? false,
       );
 }
@@ -986,6 +1007,676 @@ class LearningPlanSkill {
       );
 }
 
+/// Ce que le Plan fait d'un domaine du TCF. Miroir de `PlanDomainPriority`.
+///
+/// 🛑 **L'ordre de déclaration est l'ordre d'URGENCE** — et le serveur trie
+/// déjà `LearningPlan.domaines` avec : aucun front ne retrie.
+///
+/// [aEvaluer] n'est pas une faiblesse : un domaine jamais mesuré est
+/// **inconnu**, jamais mauvais.
+enum PlanDomainPriority {
+  forte('FORTE', 'Priorité forte'),
+  aTravailler('A_TRAVAILLER', 'À travailler'),
+  entretien('ENTRETIEN', 'Entretien'),
+  pasEncorePrioritaire('PAS_ENCORE_PRIORITAIRE', 'Pas encore prioritaire'),
+  aEvaluer('A_EVALUER', 'À évaluer');
+
+  const PlanDomainPriority(this.wire, this.label);
+
+  final String wire;
+
+  /// Libellé **gelé côté serveur** (`PlanDomainPriority.getLabel()`), recopié
+  /// mot pour mot. Jamais une chaîne écrite dans un widget.
+  final String label;
+
+  static PlanDomainPriority? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final priority in PlanDomainPriority.values) {
+      if (priority.wire == value) return priority;
+    }
+    return null;
+  }
+}
+
+/// La fenêtre **réellement appliquée** par le serveur à « ce qui a changé
+/// récemment ». Miroir de `PlanRecentChangesWindow`.
+///
+/// L'écran affiche la période d'après le **serveur**, jamais d'après ce que le
+/// client croit avoir demandé.
+enum PlanRecentChangesWindow {
+  cetteSemaine('CETTE_SEMAINE', 'Cette semaine'),
+  deuxSemaines('DEUX_SEMAINES', 'Ces deux dernières semaines'),
+  ceMois('CE_MOIS', 'Ce mois-ci');
+
+  const PlanRecentChangesWindow(this.wire, this.label);
+
+  final String wire;
+
+  /// Libellé **gelé côté serveur** (`PlanRecentChangesWindow.getLabel()`),
+  /// recopié mot pour mot.
+  final String label;
+
+  static PlanRecentChangesWindow? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final window in PlanRecentChangesWindow.values) {
+      if (window.wire == value) return window;
+    }
+    return null;
+  }
+}
+
+/// Où en est le **cycle de palier** en cours. Miroir de `PlanCycleState`.
+///
+/// Aucun libellé serveur : cet état pilote une mise en page, la phrase
+/// appartient au front.
+enum PlanCycleState {
+  /// Le profil n'est pas complet : on mesure avant de construire.
+  buildingBaseline('BUILDING_BASELINE'),
+
+  /// Le cycle construit son palier.
+  training('TRAINING'),
+
+  /// Assez de compétences tiennent : un examen blanc peut trancher.
+  readyForGateMock('READY_FOR_GATE_MOCK'),
+
+  /// Le palier visé est atteint : on le stabilise.
+  targetStabilization('TARGET_STABILIZATION');
+
+  const PlanCycleState(this.wire);
+
+  final String wire;
+
+  static PlanCycleState? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final state in PlanCycleState.values) {
+      if (state.wire == value) return state;
+    }
+    return null;
+  }
+}
+
+/// Nature d'une étape du chemin vers l'objectif. Miroir de `PlanPathStepKind`.
+///
+/// Aucun libellé serveur : « Construire votre B1 » appartient au front.
+enum PlanPathStepKind {
+  completeProfile('COMPLETE_PROFILE'),
+  buildLevel('BUILD_LEVEL'),
+  stabilize('STABILIZE');
+
+  const PlanPathStepKind(this.wire);
+
+  final String wire;
+
+  static PlanPathStepKind? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final kind in PlanPathStepKind.values) {
+      if (kind.wire == value) return kind;
+    }
+    return null;
+  }
+}
+
+/// Où en est une étape du chemin. Miroir de `PlanPathStepStatus`.
+enum PlanPathStepStatus {
+  done('DONE'),
+  current('CURRENT'),
+  upcoming('UPCOMING');
+
+  const PlanPathStepStatus(this.wire);
+
+  final String wire;
+
+  static PlanPathStepStatus? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final status in PlanPathStepStatus.values) {
+      if (status.wire == value) return status;
+    }
+    return null;
+  }
+}
+
+/// Le parcours **déjà existant** par lequel se mesure un domaine jamais évalué.
+/// Miroir de `PlanDomainAssessmentKind`.
+enum PlanDomainAssessmentKind {
+  /// Le diagnostic initial (EE + EO). Ni slot, ni durée.
+  diagnostic('DIAGNOSTIC'),
+
+  /// Un examen blanc de module QCM : `moduleExamQuestionType` + `slotNumber`
+  /// + `estimatedMinutes` sont alors renseignés.
+  moduleMockExam('MODULE_MOCK_EXAM'),
+
+  /// Une production EE/EO. Ni slot, ni durée d'épreuve.
+  production('PRODUCTION');
+
+  const PlanDomainAssessmentKind(this.wire);
+
+  final String wire;
+
+  static PlanDomainAssessmentKind? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final kind in PlanDomainAssessmentKind.values) {
+      if (kind.wire == value) return kind;
+    }
+    return null;
+  }
+}
+
+/// Un des quatre domaines du TCF **vu par le Plan** : son niveau, ce que le
+/// Plan en fait, et de quoi ouvrir sa fiche. Miroir de `PlanDomainDto`.
+///
+/// ⚠️ À ne pas confondre avec `TcfDomain` (dashboard) : celui-là répond à
+/// « quel est mon niveau ? », celui-ci à « qu'est-ce que j'en fais
+/// maintenant ? ». **Le niveau est le même**, calculé par la même autorité
+/// serveur — aucun front n'en dérive un second.
+///
+/// **Les deux blocs de détail s'excluent** : compréhension ⇒ [paliers] +
+/// [blockingLevel] ; expression ⇒ [taches]. Les deux listes sont **toujours
+/// présentes**, jamais `null`.
+class PlanDomain {
+  const PlanDomain({
+    required this.epreuve,
+    required this.evaluated,
+    required this.priority,
+    this.niveau,
+    this.consolidatedLevel,
+    this.blockingLevel,
+    this.paliers = const <PlanDomainLevel>[],
+    this.taches = const <PlanDomainTask>[],
+  });
+
+  /// `TCF_CO` | `TCF_CE` | `TCF_EO` | `TCF_EE`.
+  final EpreuveType epreuve;
+
+  /// `evaluated == false` ⇔ [niveau] `== null` : inconnu, **jamais mauvais**.
+  final bool evaluated;
+  final NiveauCecrl? niveau;
+
+  /// Ce que le Plan décide d'en faire — dérivé serveur, jamais recalculé.
+  final PlanDomainPriority priority;
+
+  /// Compréhension : plus haut palier consolidé (prérequis compris), `null` si
+  /// aucun ne l'est. Toujours `null` en expression.
+  final TargetLevel? consolidatedLevel;
+
+  /// Compréhension : **premier** palier non consolidé — celui qui bloque.
+  /// `null` quand les trois le sont, et toujours `null` en expression.
+  final TargetLevel? blockingLevel;
+
+  /// Compréhension : A2, B1, B2 dans cet ordre. Vide en expression.
+  final List<PlanDomainLevel> paliers;
+
+  /// Expression : tâches 1, 2, 3 dans cet ordre. Vide en compréhension.
+  final List<PlanDomainTask> taches;
+
+  factory PlanDomain.fromJson(Map<String, dynamic> json) => PlanDomain(
+        epreuve: EpreuveType.fromWire(json['epreuve'] as String),
+        evaluated: json['evaluated'] as bool? ?? false,
+        niveau: NiveauCecrl.fromWireNullable(json['niveau'] as String?),
+        priority:
+            PlanDomainPriority.fromWireNullable(json['priority'] as String?) ??
+                PlanDomainPriority.aEvaluer,
+        consolidatedLevel:
+            TargetLevel.fromWireNullable(json['consolidatedLevel'] as String?),
+        blockingLevel:
+            TargetLevel.fromWireNullable(json['blockingLevel'] as String?),
+        paliers: _objectList(json['paliers'])
+            .map(PlanDomainLevel.fromJson)
+            .toList(growable: false),
+        taches: _objectList(json['taches'])
+            .map(PlanDomainTask.fromJson)
+            .toList(growable: false),
+      );
+}
+
+/// Un palier d'un domaine de **compréhension** (`CO-A2`, `CE-B1`…). Miroir de
+/// `PlanDomainLevelDto`.
+///
+/// C'est un **état de maîtrise**, jamais un pourcentage : le score interne du
+/// moteur n'est exposé à aucun front. `masteryState == null` veut dire « jamais
+/// observé » — on n'invente pas un état pour un palier que personne n'a mesuré.
+class PlanDomainLevel {
+  const PlanDomainLevel({
+    required this.niveau,
+    required this.skillId,
+    required this.skillCode,
+    required this.blocking,
+    this.masteryState,
+  });
+
+  /// `A2` | `B1` | `B2`.
+  final TargetLevel niveau;
+
+  /// La compétence du palier — c'est **elle** qu'ouvre la série ciblée.
+  final String skillId;
+  final String skillCode;
+  final SkillMasteryState? masteryState;
+
+  /// Ce palier est le **premier** non consolidé du domaine : c'est lui qui
+  /// empêche de compter les paliers supérieurs. Règle serveur, jamais recopiée.
+  final bool blocking;
+
+  factory PlanDomainLevel.fromJson(Map<String, dynamic> json) =>
+      PlanDomainLevel(
+        niveau: TargetLevel.fromWireNullable(json['niveau'] as String?) ??
+            TargetLevel.a2,
+        skillId: json['skillId'] as String,
+        skillCode: json['skillCode'] as String? ?? '',
+        masteryState:
+            SkillMasteryState.fromWireNullable(json['masteryState'] as String?),
+        blocking: json['blocking'] as bool? ?? false,
+      );
+}
+
+/// Une tâche d'un domaine d'**expression** (EE1..EO3) vue depuis le Plan.
+/// Miroir de `PlanDomainTaskDto`.
+///
+/// « 3 / 8 observées » **n'est pas une note** : une compétence non observée
+/// n'est pas une compétence ratée, c'est une compétence que le candidat n'a pas
+/// encore eu l'occasion de montrer. Le dénominateur est **lu en base**, jamais
+/// la constante 8.
+class PlanDomainTask {
+  const PlanDomainTask({
+    required this.taskCode,
+    required this.tacheNumero,
+    required this.observedSkills,
+    required this.totalSkills,
+  });
+
+  /// `EE1`..`EO3`.
+  final String taskCode;
+
+  /// 1, 2 ou 3 — ce que les écrans de production attendent.
+  final int tacheNumero;
+  final int observedSkills;
+  final int totalSkills;
+
+  factory PlanDomainTask.fromJson(Map<String, dynamic> json) => PlanDomainTask(
+        taskCode: json['taskCode'] as String? ?? '',
+        tacheNumero: (json['tacheNumero'] as num? ?? 0).toInt(),
+        observedSkills: (json['observedSkills'] as num? ?? 0).toInt(),
+        totalSkills: (json['totalSkills'] as num? ?? 0).toInt(),
+      );
+}
+
+/// Le **cycle de palier** en cours : d'où part le candidat, quel palier le Plan
+/// construit maintenant, quel est son objectif, et où il en est sur le chemin.
+/// Miroir de `PlanCycleDto`.
+///
+/// ⚠️ [targetLevel] est le cran **au-dessus** de [startingLevel], jamais
+/// l'objectif directement : un A2 qui vise le B2 travaille d'abord le B1.
+///
+/// 🛑 [objectiveLevel] n'est pas « B2 » en dur — c'est le plancher de la
+/// démarche (CSP→A2, CR→B1, NAT→B2), calculé serveur. `null` quand le candidat
+/// n'a déclaré ni démarche ni palier : on ne devine jamais à sa place.
+class PlanCycle {
+  const PlanCycle({
+    required this.targetLevel,
+    required this.state,
+    required this.domainsEvaluated,
+    required this.domainsExpected,
+    required this.profileComplete,
+    this.startingLevel,
+    this.objectiveLevel,
+    this.path = const <PlanPathStep>[],
+  });
+
+  /// Niveau global mesuré d'où part le cycle. `null` tant que rien n'est
+  /// mesuré. Exprimé en [NiveauCecrl] parce qu'il peut valoir `A1` ou moins,
+  /// ce que [TargetLevel] ne sait pas dire.
+  final NiveauCecrl? startingLevel;
+
+  /// Le palier que ce cycle construit, dans `A2..B2`.
+  final TargetLevel targetLevel;
+
+  /// Le palier visé par le candidat. `null` si inconnu.
+  final TargetLevel? objectiveLevel;
+
+  final PlanCycleState state;
+
+  /// Domaines réellement mesurés (0..4) sur [domainsExpected] (4, toujours).
+  final int domainsEvaluated;
+  final int domainsExpected;
+  final bool profileComplete;
+
+  /// Le chemin, de la première étape à la dernière. Jamais `null` ; une seule
+  /// étape y est [PlanPathStepStatus.current].
+  final List<PlanPathStep> path;
+
+  factory PlanCycle.fromJson(Map<String, dynamic> json) => PlanCycle(
+        startingLevel:
+            NiveauCecrl.fromWireNullable(json['startingLevel'] as String?),
+        targetLevel:
+            TargetLevel.fromWireNullable(json['targetLevel'] as String?) ??
+                TargetLevel.a2,
+        objectiveLevel:
+            TargetLevel.fromWireNullable(json['objectiveLevel'] as String?),
+        state: PlanCycleState.fromWireNullable(json['state'] as String?) ??
+            PlanCycleState.buildingBaseline,
+        domainsEvaluated: (json['domainsEvaluated'] as num? ?? 0).toInt(),
+        domainsExpected: (json['domainsExpected'] as num? ?? 0).toInt(),
+        profileComplete: json['profileComplete'] as bool? ?? false,
+        path: _objectList(json['path'])
+            .map(PlanPathStep.fromJson)
+            .toList(growable: false),
+      );
+
+  static PlanCycle? fromJsonOrNull(Object? value) =>
+      value is Map<String, dynamic> ? PlanCycle.fromJson(value) : null;
+}
+
+/// Une étape du chemin vers l'objectif. Miroir de `PlanPathStepDto`.
+///
+/// Le serveur dit **quoi** et **où en est le candidat** ; le titre
+/// (« Construire votre B1 ») appartient au front.
+class PlanPathStep {
+  const PlanPathStep({
+    required this.kind,
+    required this.status,
+    this.level,
+  });
+
+  final PlanPathStepKind kind;
+
+  /// Palier concerné — renseigné **uniquement** sur
+  /// [PlanPathStepKind.buildLevel], `null` ailleurs.
+  final TargetLevel? level;
+
+  final PlanPathStepStatus status;
+
+  factory PlanPathStep.fromJson(Map<String, dynamic> json) => PlanPathStep(
+        kind: PlanPathStepKind.fromWireNullable(json['kind'] as String?) ??
+            PlanPathStepKind.buildLevel,
+        level: TargetLevel.fromWireNullable(json['level'] as String?),
+        status:
+            PlanPathStepStatus.fromWireNullable(json['status'] as String?) ??
+                PlanPathStepStatus.upcoming,
+      );
+}
+
+/// Ce qu'il faut lancer pour mesurer un domaine du TCF qui ne l'a **jamais**
+/// été. Miroir de `PlanDomainAssessmentDto`.
+///
+/// **Des faits, jamais une phrase** : le serveur dit quelle épreuve et quoi
+/// démarrer, le titre appartient au front.
+///
+/// 🛑 C'est **ce bloc** qui dit par quoi mesurer un domaine manquant — jamais
+/// une série ciblée, qui est un `TRAINING` et ne rend aucun domaine « évalué ».
+class PlanDomainAssessment {
+  const PlanDomainAssessment({
+    required this.epreuve,
+    required this.kind,
+    this.moduleExamQuestionType,
+    this.slotNumber,
+    this.estimatedMinutes,
+  });
+
+  /// Le domaine mesuré : `TCF_CO`, `TCF_CE`, `TCF_EO` ou `TCF_EE`.
+  final EpreuveType epreuve;
+
+  /// Le parcours **existant** à ouvrir.
+  final PlanDomainAssessmentKind kind;
+
+  /// Ce que `StartAttemptRequest` attend pour composer l'examen d'épreuve :
+  /// `CO` ou `CE`, jamais `CO_IMAGE`. Renseigné sur
+  /// [PlanDomainAssessmentKind.moduleMockExam] seulement.
+  final QuestionType? moduleExamQuestionType;
+
+  /// Slot de la grille d'examens blancs à démarrer — examen de module
+  /// seulement.
+  final int? slotNumber;
+
+  /// Durée de l'épreuve, **lue serveur** chez `DureeEpreuve`. `null` quand la
+  /// durée n'est pas une donnée d'examen (diagnostic, production).
+  final int? estimatedMinutes;
+
+  factory PlanDomainAssessment.fromJson(Map<String, dynamic> json) =>
+      PlanDomainAssessment(
+        epreuve: EpreuveType.fromWire(json['epreuve'] as String),
+        kind: PlanDomainAssessmentKind.fromWireNullable(
+              json['kind'] as String?,
+            ) ??
+            PlanDomainAssessmentKind.diagnostic,
+        moduleExamQuestionType: _questionType(json['moduleExamQuestionType']),
+        slotNumber: (json['slotNumber'] as num?)?.toInt(),
+        estimatedMinutes: (json['estimatedMinutes'] as num?)?.toInt(),
+      );
+}
+
+/// **La séance du jour** : ce que le candidat fait maintenant, et rien de plus.
+/// Miroir de `PlanSeanceDto`.
+///
+/// C'est une **vue** du Plan, pas une seconde source de vérité : chaque item
+/// reprend un exercice déjà désigné par le serveur.
+///
+/// 🛑 **Aucune date n'intervient nulle part** : « aujourd'hui » est une
+/// présentation, la progression dépend des actions du candidat. Ne jamais
+/// filtrer, retrier ni périmer la séance sur l'horloge.
+class PlanSeance {
+  const PlanSeance({
+    required this.items,
+    required this.estimatedMinutes,
+  });
+
+  /// Dans l'**ordre d'exécution** décidé par le serveur. Jamais `null`, vide
+  /// quand le Plan n'a rien à proposer — cas normal.
+  final List<PlanSeanceItem> items;
+
+  /// Somme **recalculée serveur** des durées des items ; `0` sur une séance
+  /// vide.
+  final int estimatedMinutes;
+
+  bool get isEmpty => items.isEmpty;
+
+  factory PlanSeance.fromJson(Map<String, dynamic> json) => PlanSeance(
+        items: _objectList(json['items'])
+            .map(PlanSeanceItem.fromJsonOrNull)
+            .whereType<PlanSeanceItem>()
+            .toList(growable: false),
+        estimatedMinutes: (json['estimatedMinutes'] as num? ?? 0).toInt(),
+      );
+
+  static PlanSeance fromJsonOrEmpty(Object? value) =>
+      value is Map<String, dynamic>
+          ? PlanSeance.fromJson(value)
+          : const PlanSeance(items: <PlanSeanceItem>[], estimatedMinutes: 0);
+}
+
+/// Un **entraînement** de la séance : l'action à faire, et les faits qui
+/// expliquent pourquoi elle est là. Miroir de `PlanSeanceItemDto`.
+///
+/// 🛑 **Aucune phrase ne vient du serveur.** Il expose des faits — avancement
+/// de l'étape, attente d'une vérification, palier travaillé, état de maîtrise —
+/// et c'est le front qui compose « Pourquoi cette séance ? ».
+///
+/// **Le bloc compétence est vide sur un jalon** : un examen blanc ne travaille
+/// pas une compétence, il les vérifie toutes. On lit [kind], jamais la nullité
+/// d'un champ.
+class PlanSeanceItem {
+  const PlanSeanceItem({
+    required this.kind,
+    required this.stepPromptCount,
+    required this.stepAttemptedCount,
+    required this.stepValidatedCount,
+    required this.stepCompleted,
+    required this.readyForReassessment,
+    required this.locked,
+    this.exercise,
+    this.milestone,
+    this.skillId,
+    this.skillCode,
+    this.title,
+    this.section,
+    this.level,
+    this.masteryState,
+  });
+
+  /// La nature de l'action. **C'est ce champ qu'on lit** pour router et pour
+  /// composer le « pourquoi ».
+  final PlanExerciseKind kind;
+
+  /// L'action quand ce n'en est **pas** un jalon (micro-exercice, vérification
+  /// en situation, série ciblée). `null` sur un jalon.
+  final PlanRecommendedExercise? exercise;
+
+  /// L'action quand c'en **est** un jalon (examen blanc d'épreuve ou complet).
+  /// `null` sinon. Deux classes plutôt qu'une parce qu'un jalon ne porte ni
+  /// titre ni compétence — cf. [PlanMilestone].
+  final PlanMilestone? milestone;
+
+  /// Bloc compétence — `null` sur un jalon.
+  final String? skillId;
+  final String? skillCode;
+  final String? title;
+  final SkillSection? section;
+
+  /// Palier travaillé (`"A1"`..`"B2"`), renseigné en **compréhension** ; `null`
+  /// en expression et sur un jalon. Chaîne et non [TargetLevel] : le
+  /// référentiel des compétences descend jusqu'à `A1`.
+  final String? level;
+
+  /// État agrégé de la compétence. `null` sur un jalon comme sur une
+  /// compétence jamais observée.
+  final SkillMasteryState? masteryState;
+
+  /// Avancement de l'étape (« 3 sujets sur 5 »). [stepPromptCount] vaut `0` en
+  /// compréhension, qui n'a pas d'étape à cinq sujets.
+  final int stepPromptCount;
+  final int stepAttemptedCount;
+  final int stepValidatedCount;
+  final bool stepCompleted;
+
+  /// Le moteur juge la compétence prête à être vérifiée **et** l'étape est
+  /// terminée.
+  final bool readyForReassessment;
+
+  /// Ce candidat ne peut pas lancer cette action. Elle reste **désignée et
+  /// visible** : savoir quoi travailler est ce que le Plan apporte.
+  final bool locked;
+
+  static PlanSeanceItem? fromJsonOrNull(Map<String, dynamic> json) {
+    final raw = json['exercise'];
+    if (raw is! Map<String, dynamic>) return null;
+    final kind = PlanExerciseKind.fromWire(raw['kind'] as String?);
+    return PlanSeanceItem(
+      kind: kind,
+      exercise:
+          kind.isMilestone ? null : PlanRecommendedExercise.fromJson(raw),
+      milestone: kind.isMilestone ? PlanMilestone.fromJsonOrNull(raw) : null,
+      skillId: json['skillId'] as String?,
+      skillCode: json['skillCode'] as String?,
+      title: json['title'] as String?,
+      section: SkillSection.fromWireNullable(json['section'] as String?),
+      level: _trimmedOrNull(json['level']),
+      masteryState:
+          SkillMasteryState.fromWireNullable(json['masteryState'] as String?),
+      stepPromptCount: (json['stepPromptCount'] as num? ?? 0).toInt(),
+      stepAttemptedCount: (json['stepAttemptedCount'] as num? ?? 0).toInt(),
+      stepValidatedCount: (json['stepValidatedCount'] as num? ?? 0).toInt(),
+      stepCompleted: json['stepCompleted'] as bool? ?? false,
+      readyForReassessment: json['readyForReassessment'] as bool? ?? false,
+      locked: json['locked'] as bool? ?? false,
+    );
+  }
+}
+
+/// **Ce qui a changé récemment** dans le Plan. Miroir de
+/// `PlanRecentChangesDto`.
+///
+/// 🛑 **Son absence est le cas NORMAL** : quand rien n'a bougé le bloc vaut
+/// `null` et l'écran n'affiche **rien**. Aucune ligne n'est jamais fabriquée
+/// pour remplir.
+///
+/// ⚠️ À ne pas confondre avec `PlanChange` (`production_models.dart`), qui
+/// répond à « qu'a changé **cette soumission** ? » sur le détail d'une
+/// production. Ici c'est l'**état agrégé** d'une compétence qui bouge, là c'est
+/// le verdict d'une observation.
+class PlanRecentChanges {
+  const PlanRecentChanges({
+    required this.window,
+    required this.transitions,
+    this.since,
+    this.newPriority,
+  });
+
+  /// La fenêtre **réellement appliquée**, choisie par le serveur.
+  final PlanRecentChangesWindow window;
+
+  /// Borne basse de cette fenêtre.
+  final DateTime? since;
+
+  /// De la plus récente à la plus ancienne, déjà bornée serveur. Jamais
+  /// `null` ; éventuellement vide quand seule une nouvelle priorité a été
+  /// désignée.
+  final List<PlanMasteryTransition> transitions;
+
+  /// La compétence devenue priorité n°1 **dans cette fenêtre**, ou `null` —
+  /// cas fréquent, l'étape n°1 ne change pas à chaque production.
+  final PlanSkillRef? newPriority;
+
+  bool get isEmpty => transitions.isEmpty && newPriority == null;
+
+  static PlanRecentChanges? fromJsonOrNull(Object? value) {
+    if (value is! Map<String, dynamic>) return null;
+    final window =
+        PlanRecentChangesWindow.fromWireNullable(value['window'] as String?);
+    if (window == null) return null;
+    final newPriority = value['newPriority'];
+    return PlanRecentChanges(
+      window: window,
+      since: _date(value['since']),
+      transitions: _objectList(value['transitions'])
+          .map(PlanMasteryTransition.fromJson)
+          .toList(growable: false),
+      newPriority: newPriority is Map<String, dynamic>
+          ? PlanSkillRef.fromJson(newPriority)
+          : null,
+    );
+  }
+}
+
+/// Une transition d'état de maîtrise **réellement mesurée**. Miroir de
+/// `PlanMasteryTransitionDto`.
+class PlanMasteryTransition {
+  const PlanMasteryTransition({
+    required this.skillId,
+    required this.skillCode,
+    required this.title,
+    required this.section,
+    required this.after,
+    required this.progress,
+    this.before,
+    this.observedAt,
+  });
+
+  final String skillId;
+  final String skillCode;
+  final String title;
+  final SkillSection section;
+
+  /// L'état d'avant. `null` quand la compétence n'avait jamais été observée.
+  final SkillMasteryState? before;
+  final SkillMasteryState after;
+
+  /// La transition va dans le bon sens. **Dérivé serveur** : ne pas comparer
+  /// deux états à la main, l'ordre des paliers n'appartient pas au front.
+  final bool progress;
+
+  final DateTime? observedAt;
+
+  factory PlanMasteryTransition.fromJson(Map<String, dynamic> json) =>
+      PlanMasteryTransition(
+        skillId: json['skillId'] as String,
+        skillCode: json['skillCode'] as String? ?? '',
+        title: json['title'] as String? ?? '',
+        section: SkillSection.fromWire(json['section'] as String),
+        before: SkillMasteryState.fromWireNullable(json['before'] as String?),
+        after: SkillMasteryState.fromWireNullable(json['after'] as String?) ??
+            SkillMasteryState.toReinforce,
+        progress: json['progress'] as bool? ?? false,
+        observedAt: _date(json['observedAt']),
+      );
+}
+
 class LearningPlan {
   const LearningPlan({
     required this.state,
@@ -999,6 +1690,11 @@ class LearningPlan {
     this.diagnosticCompletedAt,
     this.currentPriority,
     this.milestone,
+    this.domaines = const <PlanDomain>[],
+    this.cycle,
+    this.domainesAEvaluer = const <PlanDomainAssessment>[],
+    this.seance = const PlanSeance(items: <PlanSeanceItem>[], estimatedMinutes: 0),
+    this.recentChanges,
   });
 
   final LearningPlanState state;
@@ -1031,6 +1727,31 @@ class LearningPlan {
   /// indicateur, ni message d'erreur.
   final PlanMilestone? milestone;
 
+  /// Les **quatre domaines** du TCF vus par le Plan — jamais `null`.
+  ///
+  /// 🛑 **Le serveur les trie déjà par urgence. Aucun front ne retrie.**
+  final List<PlanDomain> domaines;
+
+  /// Le cycle de palier en cours. `null` seulement face à un backend antérieur
+  /// au champ.
+  final PlanCycle? cycle;
+
+  /// Par quoi mesurer les domaines **jamais évalués** — jamais `null`, vide
+  /// quand le profil est complet.
+  ///
+  /// 🛑 C'est **la seule** réponse à « comment compléter mon profil ». Une
+  /// série ciblée ([PlanExerciseKind.targetedQcmSeries]) est un `TRAINING` :
+  /// elle **ne rend jamais un domaine « évalué »**, seul un examen blanc de
+  /// module le fait.
+  final List<PlanDomainAssessment> domainesAEvaluer;
+
+  /// La séance du jour — jamais `null`, éventuellement vide.
+  final PlanSeance seance;
+
+  /// Ce qui a bougé récemment. **`null` est le cas NORMAL** (rien n'a bougé) :
+  /// on n'affiche alors rien, ni indicateur, ni message.
+  final PlanRecentChanges? recentChanges;
+
   factory LearningPlan.fromJson(Map<String, dynamic> json) => LearningPlan(
         state: LearningPlanState.fromWire(
           json['state'] as String? ?? 'NEEDS_DIAGNOSTIC',
@@ -1055,6 +1776,15 @@ class LearningPlan {
         activitiesThisWeek: (json['activitiesThisWeek'] as num? ?? 0).toInt(),
         progressionAvailable: json['progressionAvailable'] as bool? ?? false,
         milestone: PlanMilestone.fromJsonOrNull(json['milestone']),
+        domaines: _objectList(json['domaines'])
+            .map(PlanDomain.fromJson)
+            .toList(growable: false),
+        cycle: PlanCycle.fromJsonOrNull(json['cycle']),
+        domainesAEvaluer: _objectList(json['domainesAEvaluer'])
+            .map(PlanDomainAssessment.fromJson)
+            .toList(growable: false),
+        seance: PlanSeance.fromJsonOrEmpty(json['seance']),
+        recentChanges: PlanRecentChanges.fromJsonOrNull(json['recentChanges']),
       );
 }
 
@@ -1062,6 +1792,16 @@ String? _trimmedOrNull(Object? raw) {
   if (raw is! String) return null;
   final value = raw.trim();
   return value.isEmpty ? null : value;
+}
+
+/// Type de question tolérant : une valeur inconnue vaut `null` plutôt qu'une
+/// exception — un paramètre de démarrage absent vaut mieux qu'un Plan illisible.
+QuestionType? _questionType(Object? raw) {
+  if (raw is! String) return null;
+  for (final type in QuestionType.values) {
+    if (type.wire == raw) return type;
+  }
+  return null;
 }
 
 DateTime? _date(Object? raw) => raw is String ? DateTime.tryParse(raw) : null;

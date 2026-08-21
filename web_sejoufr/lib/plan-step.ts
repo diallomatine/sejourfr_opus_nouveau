@@ -2,7 +2,7 @@ import type {
   LearningPlanCompletedStepDto,
   LearningPlanDto,
   LearningPlanPriorityDto,
-  PlanStepExerciseDto,
+  PlanSkillExerciseDto,
   SkillPromptSummaryDto,
 } from "./types";
 
@@ -66,7 +66,7 @@ export interface PlanStepScope {
   stepValidatedCount: number;
   stepPromptIds: string[];
   stepCompleted: boolean;
-  recommendedExercise: PlanStepExerciseDto | null;
+  recommendedExercise: PlanSkillExerciseDto | null;
 }
 
 function scopeOfPriority(priority: LearningPlanPriorityDto): PlanStepScope {

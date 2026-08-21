@@ -912,6 +912,30 @@ export const attemptApi = {
         });
     },
 
+    /**
+     * Démarre une **série ciblée** sur une compétence de COMPRÉHENSION (CO/CE) —
+     * l'exercice que le Plan désigne sous `PlanExerciseKind.TARGETED_QCM_SERIES`.
+     *
+     * 🛑 **Seul le `skillId` part.** L'épreuve, le palier et le nombre de
+     * questions se dérivent du référentiel côté serveur : un couple
+     * (`questionType`, `difficulty`) envoyé d'ici aurait pu contredire la
+     * compétence affichée et faire progresser une **autre** compétence.
+     *
+     * Erreurs : `403` compétence verrouillée (freemium, opposable serveur) ·
+     * `422` compétence d'expression · `404` compétence inconnue.
+     *
+     * ⚠️ Ne **jamais** appeler `GET /api/skills/progress?section=CO|CE` pour
+     * préparer cet écran : le serveur répond **422** volontairement — il n'y a
+     * pas de choix de tâche en compréhension.
+     */
+    startTargetedSeries(skillId: string): Promise<AttemptResponse> {
+        return apiFetch<AttemptResponse>("/api/attempts", {
+            method: "POST",
+            json: {type: "TRAINING", module: "TCF", skillId} satisfies StartAttemptRequest,
+            auth: true,
+        });
+    },
+
     get(id: string): Promise<AttemptResponse> {
         return apiFetch<AttemptResponse>(`/api/attempts/${id}`, {auth: true});
     },

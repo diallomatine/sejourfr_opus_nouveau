@@ -1454,7 +1454,7 @@ bool _isLocked(
     priority.locked || (exercise?.locked ?? false);
 
 String _skillMeta(String skillCode, SkillSection section) {
-  final label = section.productionLabel;
+  final label = section.label;
   return skillCode.isEmpty ? label : '$skillCode · $label';
 }
 

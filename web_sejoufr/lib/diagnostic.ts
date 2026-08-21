@@ -9,10 +9,11 @@ import type {
   LearningPlanSourceType,
   NiveauCecrl,
   PlanMilestoneExerciseDto,
-  PlanStepExerciseDto,
+  PlanSkillExerciseDto,
   ProductionTaskDto,
   SkillSection,
 } from "./types";
+import {SKILL_SECTION_LABEL} from "./types";
 
 export type DiagnosticDashboardState = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
 
@@ -195,9 +196,16 @@ export function skillTaskNumber(skillCode: string): number | null {
  * route, jamais une décision pédagogique.
  */
 export function recommendedExerciseHref(
-  exercise: PlanStepExerciseDto | null | undefined,
+  exercise: PlanSkillExerciseDto | null | undefined,
 ): string {
   if (!exercise) return "/entrainement?module=TCF";
+  if (exercise.kind === "TARGETED_QCM_SERIES") {
+    // Une série ciblée se **démarre** (`attemptApi.startTargetedSeries`, le seul
+    // `skillId` suffit) : la compréhension n'a ni tâche ni petit sujet, donc
+    // aucune page de sujets à ouvrir. Tant qu'aucun écran ne la lance, on renvoie
+    // sur l'entrée d'entraînement TCF plutôt que sur une adresse fabriquée.
+    return "/entrainement?module=TCF";
+  }
   const base = `/entrainement/tcf/${exercise.section.toLowerCase()}`;
   if (exercise.kind === "REASSESSMENT") {
     if (exercise.productionTaskId) {
@@ -236,10 +244,12 @@ export function competenceHref(
   );
 }
 
-/** Nom complet d'une épreuve de production, écrit une seule fois pour le
- *  diagnostic et pour le Plan. */
+/** Nom complet d'un domaine, écrit une seule fois pour le diagnostic et pour le
+ *  Plan. Délègue à `SKILL_SECTION_LABEL` (miroir de l'enum serveur) : depuis que
+ *  `SkillSection` porte aussi la compréhension, un `else` sur `"EE"` aurait
+ *  affiché « Expression orale » sur un domaine CO/CE. */
 export function productionSectionLabel(section: SkillSection): string {
-  return section === "EE" ? "Expression écrite" : "Expression orale";
+  return SKILL_SECTION_LABEL[section];
 }
 
 /* ------------------------------------------------------------------ jalons */

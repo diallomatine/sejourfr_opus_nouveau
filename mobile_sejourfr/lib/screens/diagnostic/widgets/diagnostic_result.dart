@@ -827,7 +827,7 @@ class _FocusRowState extends State<_FocusRow> {
     // L'épreuve d'où vient l'observation, et le verdict porté sur elle : deux
     // faits courts, qui remplacent au repos la phrase tronquée d'avant.
     final meta = <String>[
-      if (item.section != null) item.section!.productionLabel,
+      if (item.section != null) item.section!.label,
       if (item.status != null) item.status!.label,
     ].join(' · ');
 

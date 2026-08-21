@@ -275,7 +275,7 @@ class _ProductionParcoursScreenState
   SkillDto? _nextSkill(List<SkillDto> skills) {
     if (skills.isEmpty) return null;
     final sorted = [...skills]..sort((a, b) {
-        final byTask = a.taskCode.compareTo(b.taskCode);
+        final byTask = (a.taskCode ?? '').compareTo(b.taskCode ?? '');
         return byTask != 0 ? byTask : a.displayOrder.compareTo(b.displayOrder);
       });
     for (final skill in sorted) {
@@ -287,7 +287,8 @@ class _ProductionParcoursScreenState
   /// « Tâche 2 » depuis un `taskCode` (`EE2` / `EO2`). Le référentiel garantit
   /// le format ; un code inattendu retombe sur le code brut plutôt que sur un
   /// numéro inventé.
-  String _tacheLabel(String taskCode) {
+  String _tacheLabel(String? taskCode) {
+    if (taskCode == null || taskCode.isEmpty) return 'Tâche';
     final numero = int.tryParse(taskCode.substring(taskCode.length - 1));
     return numero == null ? taskCode : 'Tâche $numero';
   }

@@ -33,13 +33,17 @@ const PAGE_SIZE = 25;
 type ActiveFilter = "" | "true" | "false";
 
 /**
- * Ordre promis à l'utilisateur : tâche puis rang. Le backend trie déjà, ce tri
- * local ne réordonne que la page affichée — il ne change ni le total ni la
- * pagination, et garantit l'ordre si le serveur renvoie autre chose.
+ * Ordre promis à l'utilisateur : section puis tâche puis rang. Le backend
+ * trie déjà, ce tri local ne réordonne que la page affichée — il ne change ni
+ * le total ni la pagination, et garantit l'ordre si le serveur renvoie autre
+ * chose. Une compétence de compréhension n'a pas de `taskCode` : elle se
+ * classe sur sa section seule.
  */
 function sortSkills(skills: AdminSkillDto[]): AdminSkillDto[] {
   return [...skills].sort((a, b) => {
-    if (a.taskCode !== b.taskCode) return a.taskCode.localeCompare(b.taskCode);
+    if (a.section !== b.section) return a.section.localeCompare(b.section);
+    const taskCompare = (a.taskCode ?? "").localeCompare(b.taskCode ?? "");
+    if (taskCompare !== 0) return taskCompare;
     return a.displayOrder - b.displayOrder;
   });
 }
@@ -231,10 +235,25 @@ export function SkillsPage() {
                           </div>
                         </td>
                         <td data-label="Tâche">
-                          <Tag tone={SECTION_TONE[skill.section]}>{skill.taskCode}</Tag>
-                          <div className={styles.rowMeta}>
-                            {TASK_TITLE[skill.taskCode]}
-                          </div>
+                          {skill.taskCode ? (
+                            <>
+                              <Tag tone={SECTION_TONE[skill.section]}>
+                                {skill.taskCode}
+                              </Tag>
+                              <div className={styles.rowMeta}>
+                                {TASK_TITLE[skill.taskCode]}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <Tag tone={SECTION_TONE[skill.section]}>
+                                {skill.section}
+                              </Tag>
+                              <div className={styles.rowMeta}>
+                                Compréhension — aucune tâche
+                              </div>
+                            </>
+                          )}
                         </td>
                         <td data-label="Niveau">
                           <Tag tone={targetLevelTone(skill.targetLevel)}>
