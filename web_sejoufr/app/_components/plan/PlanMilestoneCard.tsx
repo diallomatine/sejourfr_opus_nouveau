@@ -1,10 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {useRouter} from "next/navigation";
-import {useState} from "react";
 import {ArrowRight, Clock3, FilePenLine, Lock, Mic, Trophy} from "lucide-react";
-import {fullTcfExamApi, productionApi} from "@/lib/api";
 import {
   PLAN_MILESTONE_CTA,
   PLAN_MILESTONE_LOCK_NOTE,
@@ -14,12 +11,11 @@ import {
   planMilestoneText,
   planMilestoneTitle,
 } from "@/lib/diagnostic";
-import {handleStartFailure} from "@/lib/start-failure";
 import type {PlanMilestoneExerciseDto} from "@/lib/types";
-import {EE_CONFIG, EO_CONFIG} from "@/app/_components/production/config";
 import {SKILL_PREMIUM_HREF, SkillLockBadge} from "@/app/_components/skill-ui/SkillLayout";
 import {useTrafficSourceHref} from "@/lib/use-traffic-source";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import {usePlanExercise} from "./use-plan-exercise";
 import styles from "./plan.module.css";
 
 /**
@@ -50,45 +46,14 @@ export function PlanMilestoneCard({
   /** Mesure de conversion du verrou, partagée avec les autres cadenas du Plan. */
   onPremiumClick: () => void;
 }) {
-  const router = useRouter();
   // La provenance suit le candidat jusqu'à la page d'achat.
   const premiumHref = useTrafficSourceHref(SKILL_PREMIUM_HREF);
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [paywallOpen, setPaywallOpen] = useState(false);
+  // Le démarrage vit dans le lanceur PARTAGÉ du Plan : deux copies auraient
+  // fini par ouvrir deux slots différents pour le même jalon.
+  const {start, starting, error, paywallOpen, closePaywall} = usePlanExercise();
 
   const full = milestone.kind === "FULL_TCF_MOCK_EXAM";
   const oral = milestone.epreuve === "TCF_EO";
-
-  async function launch() {
-    if (starting) return;
-    setError(null);
-    setStarting(true);
-    try {
-      if (full) {
-        const exam = await fullTcfExamApi.start(milestone.slotNumber);
-        router.push(`/examens-blancs/tcf/${exam.id}`);
-        return;
-      }
-      const config = oral ? EO_CONFIG : EE_CONFIG;
-      const attempt = await productionApi.startAttempt({
-        module: "TCF",
-        epreuve: config.epreuve,
-        exam: true,
-        slotNumber: milestone.slotNumber,
-      });
-      router.push(`${config.base}/session/${attempt.id}`);
-    } catch (cause) {
-      // Le 403 est un refus attendu (verrou périmé côté client), pas une panne :
-      // il ouvre l'offre, comme partout ailleurs sur les démarrages d'examen.
-      handleStartFailure(cause, {
-        onPaywall: () => setPaywallOpen(true),
-        onMessage: setError,
-        fallbackMessage: "Impossible de démarrer l'examen blanc.",
-      });
-      setStarting(false);
-    }
-  }
 
   return (
     <section className={styles.today} aria-labelledby="milestone-title">
@@ -130,7 +95,7 @@ export function PlanMilestoneCard({
         <button
           type="button"
           className={`${styles.primaryButton} ${styles.todayCta}`}
-          onClick={() => void launch()}
+          onClick={() => void start(milestone)}
           disabled={starting}
         >
           {starting ? "Démarrage…" : PLAN_MILESTONE_CTA} <ArrowRight size={17} aria-hidden />
@@ -139,14 +104,7 @@ export function PlanMilestoneCard({
 
       {error && <p className={styles.milestoneError} role="alert">{error}</p>}
 
-      <PaywallSheet
-        open={paywallOpen}
-        onClose={() => {
-          setPaywallOpen(false);
-          setStarting(false);
-        }}
-        module="INTEGRAL"
-      />
+      <PaywallSheet open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
     </section>
   );
 }

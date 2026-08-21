@@ -94,8 +94,11 @@ app/
 │   │                              #   examens blancs, streak, niveau TCF estimé), 2 cards
 │   │                              #   catégories TCF/Civique, "À renforcer en priorité" (top 3),
 │   │                              #   bandeaux reprendre/onboarding
-│   ├── plan/page.tsx             # ★ action prioritaire, suivantes, compétences observées,
-│   │                              #   accès secondaire à l'ancienne Progression
+│   ├── plan/page.tsx             # ★ Plan ADAPTATIF : priorité actuelle, séance du jour,
+│   │                              #   mes priorités, ce qui a changé, profil TCF (4 domaines),
+│   │                              #   compléter mon profil, chemin vers l'objectif
+│   ├── plan/domaine/[domaine]/   # ★ fiche d'un domaine (co|ce|ee|eo) : paliers ou tâches
+│   ├── plan/evolution/page.tsx   # ★ « Votre programme évolue » (transitions + chemin)
 │   ├── recommandations/page.tsx  # ★ liste complète des catégories triées faibles d'abord
 │   │                              #   (tag module, CTA Réviser) + raccourcis erreurs/favoris
 │   │                              #   vers /revision (qui n'a plus d'entrée sidebar)
@@ -741,6 +744,58 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   depuis le 2026-08-16 (le clic sur un prix va au récapitulatif) : le mécanisme
   reste en place pour les URLs déjà partagées et pour `/paiement` en mode
   prolongation, il n'est simplement plus le chemin nominal.
+
+## Plan adaptatif — `/plan` refondu (2026-08-21)
+
+`GET /api/me/plan` sert désormais, en plus des priorités, **quatre blocs
+adaptatifs** : `domaines` (les 4 épreuves), `cycle` (palier construit + chemin),
+`domainesAEvaluer` (par quoi mesurer un domaine jamais passé), `seance` (la
+séance du jour) et `recentChanges`. L'écran est en **2 colonnes**
+(`minmax(0,1fr) 336px`, aside sticky, empilé sous 1180 px de fenêtre).
+
+**Ordre des blocs** — colonne principale : priorité actuelle (carte à en-tête
+bleu plein) → *Aujourd'hui* (la séance) → *Mes priorités* (+ étapes franchies
+repliées) → *ce qui a changé* → *mes compétences observées*. Colonne latérale :
+jalon → *Mon profil TCF* → *Compléter mon profil* → *Mon chemin vers l'objectif*
+→ accès secondaires.
+
+- 🛑 **Le serveur trie `domaines`, le web ne retrie JAMAIS** — même doctrine que
+  l'ordre des priorités.
+- 🛑 **Une série ciblée (`TARGETED_QCM_SERIES`) est un `TRAINING`** : elle ne
+  rend jamais un domaine « évalué ». C'est `domainesAEvaluer` qui dit par quoi
+  le mesurer, et la note de bas de panneau le redit au candidat.
+- 🛑 **`cycle.objectiveLevel` peut être `null`** : le titre devient « Mon plan »
+  (jamais « vers le B2 »), et un lien propose de déclarer sa démarche.
+  `recentChanges === null` est le cas normal : rien ne s'affiche.
+- **Libellés et helpers : `lib/plan-domain.ts`**, déclarés une seule fois pour
+  tout le web (le serveur n'expose que des faits). Les deux tables gelées
+  (`PLAN_DOMAIN_PRIORITY_LABEL`, `PLAN_RECENT_CHANGES_WINDOW_LABEL`) restent
+  dans `lib/types.ts`, recopiées du backend.
+- **Un seul lanceur : `app/_components/plan/use-plan-exercise.ts`**
+  (`usePlanExercise` / `usePlanAssessment`). Les 5 natures d'exercice et les 3
+  natures de mesure ouvrent des parcours **déjà existants** — aucun runner ni
+  écran concurrent n'est créé : une série ciblée est un attempt `TRAINING`
+  ordinaire qui atterrit sur `/sessions/{id}`, une vérification passe par
+  `recommendedExerciseHref`, un jalon reprend les chemins de `ProductionExams` /
+  `TcfFullExamBriefingSheet`. `PlanMilestoneCard` en est un client.
+  ⚠️ Les natures s'y testent par `switch (exercise.kind)` : `PlanStepExerciseDto`
+  porte **deux** littéraux, une exclusion en `||` ne l'élimine pas de l'union.
+- **`planSkillHref`** remplace `competenceHref` sur le Plan : une compétence de
+  **compréhension** (`CO-B1`) n'a pas de numéro de tâche, `competenceHref` lui
+  fabriquerait une URL de tâche inexistante — elle ouvre sa **fiche de domaine**.
+- **La coche de séance est ÉPHÉMÈRE et locale** (`planSeanceItemKey`, clé sur la
+  **compétence** pour survivre à un recalcul du Plan) : le serveur ne connaît
+  aucune notion de « fait aujourd'hui », et rien n'est écrit côté navigateur.
+  Elle se cumule à la seule vérité serveur, `stepCompleted`. Miroir de
+  `planSeanceDoneProvider` côté mobile.
+- **Audience** : aucun événement nouveau (l'allowlist est doublée serveur).
+  `/plan` émet `PLAN_OPENED`, `PLAN_RECOMMENDED_EXERCISE_STARTED` (priorité et
+  séance seulement — **pas** un palier choisi à la main sur une fiche de
+  domaine) et `DIAGNOSTIC_TO_PREMIUM_CLICKED`.
+- **Freemium inchangé** : tout reste visible, seuls les accès portent `locked` ;
+  un exercice verrouillé reste **désigné**, avec son cadenas.
+- `/statistiques` ouvre sur les 4 domaines (`PlanDomainsSummary`, Plan lu **en
+  cache**, échec silencieux).
 
 ## Diagnostic TCF initial + Plan (2026-08-09)
 
