@@ -775,10 +775,19 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   Prioritaire / À renforcer / Solide », `web_sejoufr/lib/diagnostic.ts`), verrouillés par
   `test/diagnostic_models_test.dart`. Leur **teinte** vit à un seul endroit :
   `LearningPlanSkillStatus.color` (`core/theme/app_theme.dart`), partagée Plan ⇄ Diagnostic.
-- **Le résultat du diagnostic affiche enfin `summary`, `taskCompletion`, `communicationStatus`
-  et `weaknesses`** (deux cartes « Vos productions »), en plus des compétences observées et de
-  la priorité n°1. **Aucun pourcentage de progression vers un palier**, ni sur le Plan ni sur
-  le diagnostic : le brief l'interdit et le serveur n'en publie aucun.
+- **Aucun pourcentage de progression vers un palier**, ni sur le Plan ni sur le diagnostic :
+  le brief l'interdit et le serveur n'en publie aucun.
+- 🛑 **`DiagnosticProductionResult` : les trois verdicts sont NULLABLES, et on n'en fabrique
+  aucun** (2026-08-21). `levelEstimate` / `taskCompletion` / `communicationStatus` étaient
+  déclarés non-null et parsés en `as String` ; le serveur les rend `null` sur une production
+  **inexploitable** (cf. `ProductionEvaluabilite`, le **même** enum que celui de la voie
+  standard, mirroré une seule fois), et la désérialisation du résultat **levait** — l'écran ne
+  se construisait jamais sur un compte réel. Replier sur `NOT_COMPLETED` / `INEFFECTIVE`
+  aurait remplacé un plantage par un reproche : *null = inconnu, jamais mauvais*. Le bloc
+  entier `null` reste « pas encore rendue », un bloc `NON_EVALUABLE` dit « rendue, rien à
+  observer » (`estNonEvaluable`). Aucun écran ne lit ces trois champs depuis la refonte du
+  rapport de diagnostic — la bande des 4 domaines et la carte de niveau se lisent sur le
+  **Plan**, qui gère déjà l'absence de mesure.
 - L'Accueil suit trois états serveur : invitation dismissible avant diagnostic, reprise de la
   session interrompue, puis priorité du jour après résultat. Il ne réaffiche jamais l'invitation
   générique une fois le diagnostic terminé.
@@ -827,8 +836,10 @@ et leurs widgets n'existent plus. `/civique` et `/tcf` sont des **redirects** ve
 - Les cartes de slot d'examen partagées (`tcf_production/widgets/exam_slot/`) sont au
   style maquette : numéro Bricolage, pill « Fait » teinté accent, boutons pill.
 
-Le quota démo (`kDemoBatchSize = 20`) et premium (`kInitialBatchSize = 30`)
-vivent dans `core/widgets/paywall_sheet.dart` avec le bottom sheet `PaywallSheet` réutilisable.
+`core/widgets/paywall_sheet.dart` porte le bottom sheet `PaywallSheet` réutilisable.
+⚠️ Les deux constantes de taille de série (`kDemoBatchSize` / `kInitialBatchSize`) y ont
+été **supprimées le 2026-08-21** : plus aucun écran ne les lisait — la taille d'une série
+est décidée par le serveur (lots, séries ciblées du Plan). Ne pas les recréer côté front.
 
 Les 2 hubs (`screens/civique/civique_screen.dart` et `screens/tcf/tcf_screen.dart`) partagent une
 structure visuelle identique implémentée dans `screens/hub/widgets/hub_home_widgets.dart`. Chaque hub
@@ -1629,6 +1640,25 @@ résultats (EE + EO) est le widget partagé `widgets/evaluation_report.dart` : u
 décide de l'ordre et de la forme de la correction, **y compris la note**. Le rapport prend un
 `isOral` (et plus un titre de corrections) : c'est lui qui en déduit le wording des exemples
 **et** la limite de l'évaluation orale.
+
+**Production NON ÉVALUABLE — le rapport entier est remplacé (2026-08-21).**
+`EvaluationResultDto.evaluabilite` (`EVALUABLE` | `NON_EVALUABLE`, **jamais null**) est
+mirroré par `ProductionEvaluabilite` (`core/models/enums.dart`, **une seule définition**
+pour la voie standard ET le diagnostic, comme côté serveur) et lu par
+`EvaluationResult.estNonEvaluable`. Une production vide, en langue étrangère ou qui recopie
+la consigne n'appelle **aucun correcteur** : le serveur ne persiste plus ni note, ni niveau,
+ni `scores_criteres` (legacy intact — les anciennes lignes gardent leurs quatre zéros et
+restent `EVALUABLE`). `EvaluationReport` sort alors **avant ses quatre sections** et rend
+`production_non_evaluable_card.dart` + la production du candidat : ni note, ni niveau, ni
+critères, ni plan d'action — et **aucun reproche**, une absence de preuve n'est pas la preuve
+d'un niveau (ambre, jamais rouge). Les raisons affichées viennent du serveur
+(`feedback.confiance_raisons`), on n'en réécrit aucune. Libellés dans
+`production_result_labels.dart`.
+⚠️ **Trois états, jamais deux** : `submission.evaluation == null` = « pas encore évaluée ».
+Les listes le disent aussi — `kTacheNonEvaluableLabel` (« Non analysée ») remplace
+« Évaluée » sur la ligne de bilan, la carte d'historique et la feuille d'un sujet traité.
+`ProductionResultPollGuard` cesse d'attendre un plan d'action qui ne viendra jamais (le
+serveur n'émet aucun second appel sur ce chemin).
 
 **Passe « rapport express » (2026-08-08)** — verdict client : *« le contenu est bon, mais trop
 verbeux, un candidat ne lira pas tout ça »*. **Aucune information n'a été retirée** : ce qui

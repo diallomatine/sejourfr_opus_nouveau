@@ -419,14 +419,23 @@ const String kPlanCompleteProfileText =
     'orale. Les domaines ci-dessous n\'ont encore jamais été mesurés — voici '
     'par quoi les mesurer.';
 const String kPlanPrioritiesTitle = 'Mes priorités';
+
+/// ⚠️ **Divergence VOULUE avec le web, arbitrée le 2026-08-21 : ne pas
+/// « aligner ».** L'action s'appelle « Tout voir » ici et « Toutes mes
+/// compétences » côté web (`plan.ts`). Ce n'est pas une copie qui a dérivé : les
+/// deux maquettes diffèrent réellement, et la place à l'écran n'est pas la même
+/// — un lien de fin de section sur une largeur de téléphone n'encaisse pas la
+/// forme longue sans se tronquer ou pousser le compteur hors du bandeau.
+///
+/// Ce qui **doit** rester identique des deux côtés, et l'est : le titre de la
+/// page d'arrivée ([kPlanAllSkillsTitle] = « Toutes mes compétences »). Le
+/// contrat, c'est la destination ; ceci n'est qu'un libellé d'action.
 const String kPlanPrioritiesAll = 'Tout voir';
-const String kPlanObservedTitle = 'Mes compétences observées';
 
 /* ------------------------------------------- toutes mes compétences (page) */
 
 const String kPlanAllSkillsTitle = 'Toutes mes compétences';
 const String kPlanAllSkillsSub = 'Expression et compréhension';
-const String kPlanAllSkillsLockTitle = 'Toutes vos compétences';
 const String kPlanComprehensionTitle = 'Compréhension';
 const String kPlanAllSkillsEmpty =
     'Votre plan ne suit encore aucun domaine : il se remplit à votre premier '
@@ -501,7 +510,6 @@ const String kPlanSerieBack = 'Revenir à mon plan';
 const String kPlanSerieAgain = 'Faire une nouvelle série';
 const String kPlanSerieNext = 'À travailler ensuite';
 const String kPlanSerieConfirmed = 'Statut confirmé';
-const String kPlanSerieUnchanged = 'Inchangé';
 const String kPlanSeriePending =
     'Votre maîtrise se met à jour dès que ce résultat est pris en compte : '
     'elle apparaîtra sur votre plan.';

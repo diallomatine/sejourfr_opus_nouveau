@@ -3,13 +3,6 @@ import 'package:flutter/material.dart';
 import '../models/billing_models.dart';
 import '../../screens/paywall/paywall_screen.dart';
 
-/// Nombre de questions en mode démo (sans abonnement) — partagé entre les
-/// différents écrans qui démarrent un attempt d'entraînement.
-const int kDemoBatchSize = 20;
-
-/// Nombre de questions par session premium.
-const int kInitialBatchSize = 30;
-
 /// Pousse l'écran paywall plein écran (IAP natif Apple/Google).
 ///
 /// Avant le lot 4d, ce helper ouvrait un bottom sheet qui redirigeait vers

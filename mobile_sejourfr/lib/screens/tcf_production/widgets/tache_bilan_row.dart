@@ -29,6 +29,7 @@ class TacheBilanRow extends StatelessWidget {
     this.pending = false,
     this.notRendered = false,
     this.failed = false,
+    this.nonEvaluable = false,
   });
 
   final String name;
@@ -50,6 +51,13 @@ class TacheBilanRow extends StatelessWidget {
   /// Quand `true`, la tâche n'a jamais été rendue (examen terminé / abandonné) :
   /// elle est comptée 0 au bilan et affichée « Non rendue ».
   final bool notRendered;
+
+  /// Quand `true`, la production a été rendue mais **rien n'a pu y être
+  /// observé** (`ProductionEvaluabilite.nonEvaluable`) : la ligne dit « Non
+  /// analysée » au lieu de « Évaluée », qui annoncerait un verdict inexistant —
+  /// aucun correcteur n'a été appelé. Elle reste tappable : le rapport explique
+  /// pourquoi, sans reproche.
+  final bool nonEvaluable;
 
   /// Quand `true`, la production a bien été rendue mais son évaluation IA a
   /// échoué (submission `FAILED`). C'est le seul cas où le candidat a une
@@ -97,6 +105,7 @@ class TacheBilanRow extends StatelessWidget {
                   notRendered: notRendered,
                   failed: failed,
                   evaluated: evaluated,
+                  nonEvaluable: nonEvaluable,
                   niveau: niveau,
                 ),
               ],
@@ -135,6 +144,7 @@ class TacheBilanRow extends StatelessWidget {
 
 /// Sous-titre récap sous le nom de la tâche, selon l'état :
 /// - Niveau connu → "Niveau B1"
+/// - Rendue, rien à observer → "Non analysée"
 /// - Évaluée sans niveau (éval antérieure au contrat v4) → "Évaluée"
 /// - Évaluation en cours → "Évaluation IA en cours…"
 /// - Évaluation en échec → "Évaluation échouée — à relancer"
@@ -146,12 +156,14 @@ class _Subtitle extends StatelessWidget {
     required this.niveau,
     this.notRendered = false,
     this.failed = false,
+    this.nonEvaluable = false,
   });
 
   final bool pending;
   final bool notRendered;
   final bool failed;
   final bool evaluated;
+  final bool nonEvaluable;
   final NiveauCecrl? niveau;
 
   @override
@@ -162,6 +174,10 @@ class _Subtitle extends StatelessWidget {
             (true, _, _, _) => ('Évaluation IA en cours…', AppColors.blue),
             (false, true, _, _) =>
               ('Évaluation échouée — à relancer', AppColors.red),
+            // Avant le repli « Évaluée » : rendue, mais rien à observer. Ni
+            // rouge ni reproche — ce n'est pas un échec du candidat.
+            (false, false, _, _) when nonEvaluable =>
+              (kTacheNonEvaluableLabel, AppColors.muted),
             // Encre neutre, pas la teinte du palier : la ligne dit un état, et
             // le web rend exactement le même sous-titre sans couleur.
             (false, false, true, final NiveauCecrl n) =>

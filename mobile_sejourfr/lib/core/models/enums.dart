@@ -281,6 +281,51 @@ const List<NiveauCecrl> kTcfPaliers = [
   NiveauCecrl.b2,
 ];
 
+/// Une production rendue a-t-elle pu être **observée** ? Miroir de
+/// `ProductionEvaluabilite` côté backend.
+///
+/// C'est un **fait sur la production**, jamais un verdict sur le candidat. Une
+/// production [nonEvaluable] (vide ou quasi vide, langue non française,
+/// recopiage de la consigne) n'a fait observer **rien** : aucun appel au
+/// correcteur n'a été émis, et niveau, note et critères valent `null` ou sont
+/// absents — *null = inconnu, jamais mauvais*.
+///
+/// ⚠️ **Trois états, pas deux**, et c'est toute la raison d'être de ce champ :
+/// - bloc d'évaluation **absent** ⇒ « pas encore évaluée » ;
+/// - présent + [nonEvaluable] ⇒ « rendue, mais il n'y avait rien à observer » ;
+/// - présent + [evaluable] ⇒ le rapport normal.
+///
+/// Un écran ne doit **jamais** déduire le deuxième cas de la nullité de
+/// plusieurs champs — ce serait lire un fait dans un trou.
+///
+/// 🛑 **Une seule définition côté mobile** : le backend partage le même enum
+/// entre la correction standard ([EvaluationResult]) et l'analyse du diagnostic
+/// (`DiagnosticProductionResult`). Deux copies auraient fini par nommer
+/// différemment le même état.
+///
+/// Le serveur n'en tire **aucune phrase** : la formulation appartient aux
+/// fronts (cf. `kProductionNonEvaluableTitle` & co.).
+enum ProductionEvaluabilite {
+  evaluable('EVALUABLE'),
+  nonEvaluable('NON_EVALUABLE');
+
+  const ProductionEvaluabilite(this.wire);
+  final String wire;
+
+  /// **Jamais null** : le champ est absent de toutes les évaluations
+  /// antérieures à sa mise en service, et le backend garantit qu'elles restent
+  /// [evaluable] (aucune migration, les quatre zéros déjà persistés ne sont pas
+  /// des productions inexploitables).
+  static ProductionEvaluabilite fromWire(String? value) {
+    if (value == null) return ProductionEvaluabilite.evaluable;
+    final normalized = value.trim().toUpperCase();
+    for (final e in ProductionEvaluabilite.values) {
+      if (e.wire == normalized) return e;
+    }
+    return ProductionEvaluabilite.evaluable;
+  }
+}
+
 /// Degré de certitude d'une évaluation IA (contrat de notation v4). Un niveau
 /// par tâche n'est JAMAIS affiché sans sa confiance à côté.
 enum ConfianceEvaluation {

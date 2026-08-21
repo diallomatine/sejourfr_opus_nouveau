@@ -214,11 +214,16 @@ class _ProductionSubjectsTabViewState
         // correction est là, « Traité » sinon. La ligne disparaissait
         // entièrement, alors que la carte derrière la feuille affichait bien
         // « Traité » : deux surfaces, deux vérités sur le même sujet.
+        // Trois états sans niveau, jamais confondus : rien de rendu au
+        // correcteur (« Traité »), rendu mais rien à observer (« Non
+        // analysée »), corrigé sans niveau affichable (« Évaluée »).
         final etat = niveau != null
             ? tacheNiveauLabel(niveau)
-            : last.evaluation != null
-                ? kTacheEvalueeLabel
-                : kTacheTraiteeLabel;
+            : last.evaluation == null
+                ? kTacheTraiteeLabel
+                : last.evaluation!.estNonEvaluable
+                    ? kTacheNonEvaluableLabel
+                    : kTacheEvalueeLabel;
         return SafeArea(
           top: false,
           child: Container(

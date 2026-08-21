@@ -149,9 +149,7 @@ SkillPromptSummary? planStepRecommendedPrompt(
  */
 
 const String kPlanStepPill = 'Étape de ton plan';
-const String kPlanStepBackLabel = 'Mon plan';
 const String kPlanStepSectionTitle = 'Les sujets de cette étape';
-const String kPlanStepLink = 'Voir mon plan';
 const String kPlanStepDoneTitle = 'Étape terminée';
 const String kPlanStepDoneCta = 'Revenir à mon plan';
 

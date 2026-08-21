@@ -6,7 +6,6 @@ import 'attempts_repository.dart';
 import 'billing_repository.dart';
 import 'contact_repository.dart';
 import 'diagnostic_repository.dart';
-import 'exams_repository.dart';
 import 'full_tcf_exam_repository.dart';
 import 'lots_repository.dart';
 import 'learning_plan_repository.dart';
@@ -27,10 +26,6 @@ final audienceRepositoryProvider = Provider<AudienceRepository>(
 
 final attemptsRepositoryProvider = Provider<AttemptsRepository>(
   (ref) => AttemptsRepository(ref.watch(apiClientProvider)),
-);
-
-final examsRepositoryProvider = Provider<ExamsRepository>(
-  (ref) => ExamsRepository(ref.watch(apiClientProvider)),
 );
 
 final userContentRepositoryProvider = Provider<UserContentRepository>(

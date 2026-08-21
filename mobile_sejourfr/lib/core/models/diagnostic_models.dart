@@ -313,6 +313,13 @@ enum DiagnosticTaskCompletion {
         (completion) => completion.wire == value,
         orElse: () => DiagnosticTaskCompletion.notCompleted,
       );
+
+  /// Le serveur ne rend **aucun verdict** sur une production non évaluable
+  /// (cf. [ProductionEvaluabilite]) : `null` veut dire « rien à observer », pas
+  /// « consigne non accomplie ». Ne jamais replier sur une valeur par défaut —
+  /// le repli de [fromWire] est un garde-fou de valeur inconnue, pas d'absence.
+  static DiagnosticTaskCompletion? fromWireNullable(String? value) =>
+      value == null ? null : fromWire(value);
 }
 
 enum DiagnosticCommunicationStatus {
@@ -333,6 +340,12 @@ enum DiagnosticCommunicationStatus {
         (status) => status.wire == value,
         orElse: () => DiagnosticCommunicationStatus.ineffective,
       );
+
+  /// `null` = production non évaluable, donc **rien à observer** — surtout pas
+  /// « message difficile à suivre ». Même règle que
+  /// [DiagnosticTaskCompletion.fromWireNullable].
+  static DiagnosticCommunicationStatus? fromWireNullable(String? value) =>
+      value == null ? null : fromWire(value);
 }
 
 /// Ce qu'un exercice de diagnostic montre au candidat, quelle que soit sa
@@ -515,33 +528,69 @@ class DiagnosticSkillObservation {
       );
 }
 
+/// Le résultat d'UNE des deux productions du diagnostic.
+///
+/// ⚠️ **Trois états, pas deux.** Le bloc entier `null` (côté
+/// [DiagnosticResult.written] / [DiagnosticResult.oral]) signifie « pas encore
+/// rendue ». Un bloc présent avec [ProductionEvaluabilite.nonEvaluable]
+/// signifie « rendue, mais il n'y avait **rien à observer** » : les trois
+/// verdicts valent alors `null`, [skills] ne porte que des observations non
+/// observées, et [strengths] / [weaknesses] sont vides.
+///
+/// 🛑 **Les trois verdicts sont nullables, et on n'en fabrique aucun.** Ils
+/// étaient déclarés non-null et parsés en `as String` : le serveur les a rendus
+/// nullables (production inexploitable — vide, langue étrangère, consigne
+/// recopiée), et la désérialisation du résultat de diagnostic **levait**, donc
+/// l'écran ne se construisait jamais. *null = inconnu, jamais mauvais* : replier
+/// sur `NOT_COMPLETED` / `INEFFECTIVE` aurait remplacé un plantage par un
+/// reproche.
 class DiagnosticProductionResult {
   const DiagnosticProductionResult({
-    required this.levelEstimate,
-    required this.taskCompletion,
-    required this.communicationStatus,
     required this.strengths,
     required this.weaknesses,
     required this.skills,
+    this.evaluabilite = ProductionEvaluabilite.evaluable,
+    this.levelEstimate,
+    this.taskCompletion,
+    this.communicationStatus,
     this.summary,
   });
 
-  final NiveauCecrl levelEstimate;
-  final DiagnosticTaskCompletion taskCompletion;
-  final DiagnosticCommunicationStatus communicationStatus;
+  /// **Jamais null** — [ProductionEvaluabilite.evaluable] sur toutes les
+  /// analyses antérieures au champ. Le **même** enum que celui de
+  /// [EvaluationResult.evaluabilite] : un seul fait, une seule définition.
+  final ProductionEvaluabilite evaluabilite;
+
+  /// `null` sur une production non évaluable : aucun niveau n'a été observé.
+  final NiveauCecrl? levelEstimate;
+
+  /// `null` sur une production non évaluable.
+  final DiagnosticTaskCompletion? taskCompletion;
+
+  /// `null` sur une production non évaluable.
+  final DiagnosticCommunicationStatus? communicationStatus;
   final String? summary;
   final List<String> strengths;
   final List<String> weaknesses;
   final List<DiagnosticSkillObservation> skills;
 
+  /// La production a été rendue, mais **rien n'a pu y être observé**. Un écran
+  /// n'affiche alors ni niveau, ni verdict de consigne, ni statut de
+  /// communication — et le dit **sans reproche**.
+  bool get estNonEvaluable =>
+      evaluabilite == ProductionEvaluabilite.nonEvaluable;
+
   factory DiagnosticProductionResult.fromJson(Map<String, dynamic> json) =>
       DiagnosticProductionResult(
-        levelEstimate: NiveauCecrl.fromWire(json['levelEstimate'] as String),
-        taskCompletion: DiagnosticTaskCompletion.fromWire(
-          json['taskCompletion'] as String,
+        evaluabilite:
+            ProductionEvaluabilite.fromWire(json['evaluabilite'] as String?),
+        levelEstimate:
+            NiveauCecrl.fromWireNullable(json['levelEstimate'] as String?),
+        taskCompletion: DiagnosticTaskCompletion.fromWireNullable(
+          json['taskCompletion'] as String?,
         ),
-        communicationStatus: DiagnosticCommunicationStatus.fromWire(
-          json['communicationStatus'] as String,
+        communicationStatus: DiagnosticCommunicationStatus.fromWireNullable(
+          json['communicationStatus'] as String?,
         ),
         summary: _trimmedOrNull(json['summary']),
         strengths: _stringList(json['strengths']),
