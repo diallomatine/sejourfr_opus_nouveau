@@ -13,7 +13,7 @@ import type {
   ProductionTaskDto,
   SkillSection,
 } from "./types";
-import {SKILL_SECTION_LABEL} from "./types";
+import {SKILL_SECTION_LABEL} from "./types.ts";
 
 export type DiagnosticDashboardState = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
 

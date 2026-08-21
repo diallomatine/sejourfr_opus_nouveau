@@ -12,10 +12,10 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/format_date.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_sheet.dart';
-import '../../../core/widgets/fixed_action_bar.dart';
 import '../../../core/widgets/premium_lock.dart';
-import '../../../core/widgets/progress_track.dart';
+import '../../../core/widgets/progress_dots.dart';
 import '../../../core/widgets/screen_header.dart';
+import '../../../core/widgets/skill_mastery_tag.dart';
 import '../../plan/learning_plan_provider.dart';
 import '../../plan/plan_step_labels.dart';
 import '../widgets/exam_filter_chips.dart';
@@ -24,7 +24,7 @@ import 'competences_nav.dart';
 import 'competences_providers.dart';
 import '../widgets/production_blocks.dart';
 import '../widgets/production_state_views.dart';
-import 'widgets/skill_prompt_card.dart';
+import 'widgets/skill_prompt_row.dart';
 
 /// Les deux actions proposées sur un petit sujet **déjà traité** : relire son
 /// dernier retour, ou le refaire. Libellés gelés, **miroirs mot pour mot** de
@@ -47,8 +47,26 @@ String skillPromptLastAttemptCta(SkillPromptStatus status) =>
         ? kSkillPromptReportCta
         : kSkillPromptAnswerCta;
 
-/// Détail d'une compétence : carte de résumé, progression en sujets traités,
-/// filtres, puis la liste des petits sujets avec leur statut.
+/// Surtitre de la carte qui met en avant le sujet à faire maintenant.
+const String kNextPromptEyebrow = 'Prochain sujet recommandé';
+
+/// Ce qu'on dit d'un sujet qu'on **repropose**. Formulation positive, règle
+/// gelée du dépôt : on nomme ce que la reprise apporte, jamais un manque.
+const String kNextPromptReinforceReason =
+    'Déjà travaillé une fois : le reprendre permet de consolider ce qui '
+    'restait fragile.';
+
+/// Le rappel de pied de liste. « Tout traité » n'est pas « acquis » : la preuve
+/// se fait en situation, sur une production complète, et c'est le Plan qui la
+/// déclenche. Sans cette ligne, une série au complet se lit comme une
+/// compétence maîtrisée.
+const String kSkillSeriesNote =
+    'Avoir traité tous les sujets ne veut pas dire que la compétence est '
+    'acquise : elle se confirme sur une production complète, que ton plan te '
+    'proposera.';
+
+/// Détail d'une compétence : carte de résumé, sujet recommandé mis en avant,
+/// puis la liste des petits sujets avec leur statut.
 ///
 /// ⚠️ **Deux vues, selon la porte d'entrée** (décision produit, cf.
 /// `screens/plan/plan_step_labels.dart`). Ouvert **depuis le Plan**
@@ -77,8 +95,8 @@ class CompetenceDetailScreen extends ConsumerStatefulWidget {
       _CompetenceDetailScreenState();
 }
 
-class _CompetenceDetailScreenState
-    extends ConsumerState<CompetenceDetailScreen> with RouteAware {
+class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
+    with RouteAware {
   /// 0 = Tous · 1 = À faire · 2 = Traités
   int _filter = 0;
 
@@ -127,14 +145,15 @@ class _CompetenceDetailScreenState
     );
   }
 
-  /// Taper une **carte** de la liste. Un sujet déjà traité dont le dernier
+  /// Taper une **ligne** de la liste. Un sujet déjà traité dont le dernier
   /// retour est relisible propose un choix ; tout le reste entre directement en
   /// production, comme avant — on n'ajoute pas d'étape là où il n'y a rien à
   /// choisir.
   ///
-  /// ⚠️ La [FixedActionBar] ne passe **pas** par ici : son libellé annonce déjà
-  /// ce qui va se passer (« Commencer le prochain sujet » / « Retravailler ce
-  /// sujet »), une feuille par-dessus serait une confirmation de rien.
+  /// ⚠️ La carte « Prochain sujet recommandé » ne passe **pas** par ici : son
+  /// libellé annonce déjà ce qui va se passer (« Commencer le prochain sujet »
+  /// / « Retravailler ce sujet »), une feuille par-dessus serait une
+  /// confirmation de rien.
   void _onPromptTap(SkillPromptSummary prompt) {
     if (!prompt.locked &&
         prompt.status.isTreated &&
@@ -236,7 +255,7 @@ class _CompetenceDetailScreenState
                   ? widget.module.title
                   : '${detail.skill.code} · ${widget.module.title}',
               onBack: _back,
-            ), /// Diallo
+            ),
             Expanded(
               child: async.when(
                 skipLoadingOnReload: true,
@@ -250,81 +269,59 @@ class _CompetenceDetailScreenState
                 data: (detail) => _list(detail, step),
               ),
             ),
-            if (detail != null && _prompts(detail, step).isNotEmpty)
-              FixedActionBar(
-                child: _primaryAction(detail, step),
-              ),
           ],
         ),
       ),
     );
   }
 
-  /// L'action principale de l'écran.
+  /// Ce que l'écran propose de faire **maintenant**.
   ///
-  /// **En mode étape**, elle vise le sujet **désigné par le serveur**
+  /// **En mode étape**, la cible est celle **désignée par le serveur**
   /// (`recommendedExercise.skillPromptId`, périmètre déjà borné aux 5 sujets de
   /// l'étape) : le Plan et cet écran ne peuvent donc pas désigner deux sujets
-  /// différents. Le libellé dit ce qui va se passer — commencer un sujet neuf
-  /// et revenir sur un sujet déjà rendu ne se disent pas pareil —, et c'est le
-  /// **statut servi** du sujet qui tranche. Un sujet verrouillé reste
-  /// **désigné**, jamais détourné : le bouton ouvre l'offre.
+  /// différents. Sans désignation exploitable (fiche complète, pas d'exercice
+  /// recommandé, vérification), on garde le comportement historique : le
+  /// premier sujet **ouvert** encore à faire, sinon le premier sujet ouvert.
   ///
-  /// Sans désignation exploitable (fiche complète, pas d'exercice recommandé,
-  /// vérification), on garde le comportement historique décrit ci-dessous.
-  Widget _primaryAction(SkillDetail detail, PlanStepScope? step) {
+  /// Un sujet verrouillé reste **désigné**, jamais détourné — l'action ouvre
+  /// alors l'offre.
+  _NextStep _next(SkillDetail detail, PlanStepScope? step) {
     final prompts = _prompts(detail, step);
     final scoped = !identical(prompts, detail.prompts);
-    final target =
-        scoped ? planStepRecommendedPrompt(step, prompts) : null;
-    if (target != null) {
+    final designated = scoped ? planStepRecommendedPrompt(step, prompts) : null;
+
+    if (designated != null) {
       final locked =
-          target.locked || step?.recommendedExercise?.locked == true;
-      if (locked) {
-        return AppButton(
-          label: kPremiumLockCta,
-          icon: LucideIcons.lock,
-          variant: AppButtonVariant.soft,
-          onPressed: () => unawaited(showTcfLockPaywall(context)),
-        );
-      }
-      final fresh = !target.status.isTreated;
-      return AppButton(
+          designated.locked || step?.recommendedExercise?.locked == true;
+      final fresh = !designated.status.isTreated;
+      return _NextStep(
+        prompt: designated,
+        locked: locked,
         label: fresh ? kPlanStepStartCta : kPlanStepRetryCta,
         icon: fresh ? LucideIcons.play : LucideIcons.refreshCw,
-        variant: widget.module.isEo
-            ? AppButtonVariant.accent
-            : AppButtonVariant.primary,
-        onPressed: () => _openPrompt(target),
       );
     }
-    return _fallbackAction(prompts);
-  }
 
-  /// L'action historique : elle vise toujours un sujet **ouvert** — proposer
-  /// « Commencer » sur un sujet verrouillé mènerait droit au paywall alors que
-  /// d'autres sujets sont disponibles. Quand plus rien n'est ouvert, le bouton
-  /// dit la seule chose vraie qui reste.
-  Widget _fallbackAction(List<SkillPromptSummary> prompts) {
-    final open = prompts.where((p) => !p.locked);
+    // L'action historique vise toujours un sujet **ouvert** : proposer
+    // « Commencer » sur un sujet verrouillé mènerait droit au paywall alors que
+    // d'autres sujets sont disponibles.
+    final open = prompts.where((p) => !p.locked).toList();
     if (open.isEmpty) {
-      return AppButton(
+      return const _NextStep(
+        prompt: null,
+        locked: true,
         label: kPremiumLockCta,
         icon: LucideIcons.lock,
-        variant: AppButtonVariant.soft,
-        onPressed: () => unawaited(showTcfLockPaywall(context)),
       );
     }
-    final todo = open.where((p) => !p.status.isTreated);
-    final target = todo.isNotEmpty ? todo.first : open.first;
-    final isTodo = todo.isNotEmpty;
-    return AppButton(
-      label: isTodo ? 'Commencer le premier sujet' : 'Refaire un sujet',
-      icon: isTodo ? LucideIcons.play : LucideIcons.refreshCw,
-      variant: widget.module.isEo
-          ? AppButtonVariant.accent
-          : AppButtonVariant.primary,
-      onPressed: () => _openPrompt(target),
+    final todo = open.where((p) => !p.status.isTreated).toList();
+    final fresh = todo.isNotEmpty;
+    return _NextStep(
+      prompt: fresh ? todo.first : open.first,
+      locked: false,
+      label: fresh ? kPlanStepStartCta : kPlanStepRetryCta,
+      icon: fresh ? LucideIcons.play : LucideIcons.refreshCw,
     );
   }
 
@@ -355,9 +352,7 @@ class _CompetenceDetailScreenState
     // l'historique (un sujet produit y reste, même si le verrou est retombé
     // dessus depuis) ; « À faire » contient tout le reste, **verrouillés
     // compris**. Ils sont bien à faire ; le verrou est commercial, il se dit
-    // sur la carte (cadenas + « Premium ») et au tap (l'offre). Le 4ᵉ filtre
-    // « Verrouillés » a été retiré le 2026-08-16 à la demande du propriétaire :
-    // sans lui, les exclure de « À faire » afficherait « Tous · 5 = 0 + 2 ».
+    // sur la ligne (cadenas) et au tap (l'offre).
     final treated = prompts.where((p) => p.status.isTreated).length;
     final todo = prompts.where((p) => !p.status.isTreated).length;
     final lockedTodo =
@@ -369,6 +364,20 @@ class _CompetenceDetailScreenState
       return true;
     }).toList();
 
+    // Étape finie : on ne fabrique **aucun** second parcours de vérification
+    // ici — « Vérifier ma progression » vit sur le Plan, qui seul sait si le
+    // moteur de maîtrise est prêt. On y ramène.
+    final stepDone = scoped && step!.stepCompleted;
+    final next = _next(detail, step);
+
+    // Les compteurs affichés viennent du **serveur** en mode étape
+    // (`step*Count`) et des sujets servis sinon : rien n'est inventé, et ce
+    // sont exactement ceux qui pilotent la barre de segments.
+    final attempted = scoped ? step!.stepAttemptedCount : treated;
+    final total = scoped ? step!.stepPromptCount : detail.skill.promptCount;
+    final validated =
+        scoped ? step!.stepValidatedCount : detail.skill.validatedCount;
+
     return RefreshIndicator(
       color: _accent,
       onRefresh: () async {
@@ -376,41 +385,37 @@ class _CompetenceDetailScreenState
         await ref.read(skillDetailProvider(widget.skillId).future);
       },
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         children: [
           _SummaryCard(
             skill: detail.skill,
             accent: _accent,
-            // En mode étape, la progression affichée est **celle du serveur**
-            // (`stepAttemptedCount` / `stepPromptCount`) : on ne la recompte
-            // pas depuis la liste.
-            attempted: scoped ? step!.stepAttemptedCount : treated,
-            total: scoped ? step!.stepPromptCount : detail.skill.promptCount,
-            validated:
-                scoped ? step!.stepValidatedCount : detail.skill.validatedCount,
+            attempted: attempted,
+            total: total,
+            validated: validated,
             stepPill: scoped,
             icon: widget.module.icon,
           ),
-          // Étape finie : on ne fabrique **aucun** second parcours de
-          // vérification ici — « Vérifier ma progression » vit sur le Plan,
-          // qui seul sait si le moteur de maîtrise est prêt. On y ramène.
-          if (scoped && step!.stepCompleted) ...[
-            const SizedBox(height: 14),
-            ProductionNotice(
-              icon: LucideIcons.circleCheck,
-              tone: AppColors.green,
-              toneSoft: AppColors.greenLight,
-              title: kPlanStepDoneTitle,
-              body: planStepDoneText(step.stepPromptCount),
+          const SizedBox(height: 14),
+          if (stepDone)
+            _StepDoneCard(
+              total: step.stepPromptCount,
+              onOpenPlan: () => context.go('/plan'),
+            )
+          else
+            _NextPromptCard(
+              next: next,
+              accent: _accent,
+              isEo: widget.module.isEo,
+              onAction: () {
+                final target = next.prompt;
+                if (target == null) {
+                  unawaited(showTcfLockPaywall(context));
+                  return;
+                }
+                _openPrompt(target);
+              },
             ),
-            const SizedBox(height: 12),
-            AppButton(
-              label: kPlanStepDoneCta,
-              icon: LucideIcons.arrowRight,
-              variant: AppButtonVariant.soft,
-              onPressed: () => context.go('/plan'),
-            ),
-          ],
           const SizedBox(height: 21),
           ProductionSectionHead(
             title: scoped ? kPlanStepSectionTitle : 'Petits sujets',
@@ -441,14 +446,19 @@ class _CompetenceDetailScreenState
               ),
             )
           else
-            for (final prompt in visible) ...[
-              SkillPromptCard(
-                prompt: prompt,
-                accent: _accent,
-                onTap: () => _onPromptTap(prompt),
-              ),
-              const SizedBox(height: 11),
-            ],
+            SkillPromptGroup(
+              children: [
+                for (final prompt in visible)
+                  SkillPromptRow(
+                    prompt: prompt,
+                    accent: _accent,
+                    highlighted: prompt.id == next.prompt?.id,
+                    onTap: () => _onPromptTap(prompt),
+                  ),
+              ],
+            ),
+          const SizedBox(height: 14),
+          const _SeriesNote(),
         ],
       ),
     );
@@ -465,9 +475,204 @@ class _CompetenceDetailScreenState
   }
 }
 
-/// Carte de résumé de la compétence (`.skill-summary` du prototype) : icône
-/// 48×48 en tête, pilule de palier, titre, puis l'encart « Critère travaillé »
-/// et la progression en sujets traités.
+/// Le sujet que l'écran propose, et comment on le dit. [prompt] `null` = plus
+/// aucun sujet ouvert : la carte devient une porte vers l'offre.
+class _NextStep {
+  const _NextStep({
+    required this.prompt,
+    required this.locked,
+    required this.label,
+    required this.icon,
+  });
+
+  final SkillPromptSummary? prompt;
+  final bool locked;
+  final String label;
+  final IconData icon;
+}
+
+/// La carte qui met en avant **une seule** action : le sujet à faire
+/// maintenant. Elle remplace la barre d'action fixe du bas — l'action et le
+/// sujet qu'elle vise se lisent désormais au même endroit, au lieu d'un bouton
+/// dont on ne savait pas où il menait.
+class _NextPromptCard extends StatelessWidget {
+  const _NextPromptCard({
+    required this.next,
+    required this.accent,
+    required this.isEo,
+    required this.onAction,
+  });
+
+  final _NextStep next;
+  final Color accent;
+  final bool isEo;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final prompt = next.prompt;
+
+    final title = Text(
+      prompt?.title ?? 'Les sujets suivants sont réservés à l\'abonnement',
+      style: AppFonts.display(size: 18, height: 1.2),
+    );
+    final reason = prompt == null
+        ? null
+        : (prompt.status == SkillPromptStatus.toReinforce
+            ? kNextPromptReinforceReason
+            : prompt.uniqueCriterion.trim());
+
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(23),
+        border: Border.all(color: accent.withValues(alpha: 0.45)),
+        boxShadow: AppShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 15, 16, 14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  accent.withValues(alpha: 0.10),
+                  accent.withValues(alpha: 0),
+                ],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      next.locked ? LucideIcons.lock : LucideIcons.zap,
+                      size: 13,
+                      color: accent,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        kNextPromptEyebrow.toUpperCase(),
+                        style: AppFonts.label(size: 10, color: accent),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Verrouillé, le sujet reste **nommé** : la règle du module est
+                // « rien n'est masqué, tout est annoncé ». Seul le bouton
+                // change — il mène à l'offre.
+                title,
+                if (reason != null && reason.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    reason,
+                    style: AppFonts.ui(
+                      size: 13,
+                      height: 1.45,
+                      color: AppColors.inkSoft,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: AppButton(
+              label: next.label,
+              icon: next.icon,
+              variant: next.locked
+                  ? AppButtonVariant.soft
+                  : (isEo ? AppButtonVariant.accent : AppButtonVariant.primary),
+              onPressed: onAction,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// L'étape est allée au bout : on ne propose pas un sujet de plus, on renvoie
+/// là où la suite se décide.
+class _StepDoneCard extends StatelessWidget {
+  const _StepDoneCard({required this.total, required this.onOpenPlan});
+
+  final int total;
+  final VoidCallback onOpenPlan;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.greenLight,
+        borderRadius: BorderRadius.circular(23),
+        border: Border.all(color: AppColors.green.withValues(alpha: 0.30)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                LucideIcons.circleCheck,
+                size: 14,
+                color: AppColors.green,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  kPlanStepDoneTitle.toUpperCase(),
+                  style: AppFonts.label(size: 10, color: AppColors.green),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            planStepDoneText(total),
+            style: AppFonts.ui(size: 13.5, height: 1.5, color: AppColors.ink2),
+          ),
+          const SizedBox(height: 14),
+          AppButton(
+            label: kPlanStepDoneCta,
+            icon: LucideIcons.arrowRight,
+            variant: AppButtonVariant.soft,
+            onPressed: onOpenPlan,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Le rappel de pied de liste, en texte discret : traité ≠ acquis.
+class _SeriesNote extends StatelessWidget {
+  const _SeriesNote();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: Text(
+          kSkillSeriesNote,
+          style: AppFonts.ui(size: 12, height: 1.5, color: AppColors.inkFaint),
+        ),
+      );
+}
+
+/// Carte de résumé de la compétence : icône 48×48, état de maîtrise, titre,
+/// pastille d'information, puis la progression **en segments** et l'encart
+/// « Critère travaillé ».
 ///
 /// L'explication de la compétence (`skill.description`) ne vit **pas** dans le
 /// corps de la carte : six lignes de texte y repoussaient le critère et la
@@ -500,6 +705,7 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final complete = total > 0 && attempted >= total;
     return Container(
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
@@ -537,6 +743,13 @@ class _SummaryCard extends StatelessWidget {
                       skill.title,
                       style: AppFonts.display(size: 19, height: 1.2),
                     ),
+                    // Ce que le candidat *maîtrise*, pas ce qu'il a *fait* —
+                    // le compteur, lui, est juste en dessous. Rien quand le
+                    // serveur n'a rien observé : on n'invente pas un état.
+                    if (skill.masteryState != null) ...[
+                      const SizedBox(height: 7),
+                      SkillMasteryTag(state: skill.masteryState!),
+                    ],
                   ],
                 ),
               ),
@@ -551,42 +764,42 @@ class _SummaryCard extends StatelessWidget {
                 ),
             ],
           ),
-          if (skill.generalCriterion.trim().isNotEmpty) ...[
+          if (total > 0) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1, thickness: 1, color: AppColors.line2),
             const SizedBox(height: 13),
-            _CriterionBox(criterion: skill.generalCriterion),
-          ],
-          const SizedBox(height: 13),
-          Row(
-            children: [
-              Expanded(
-                child: ProgressTrack(
-                  value: total == 0 ? 0 : attempted / total * 100,
-                  color: accent,
-                  height: 5,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '$attempted / $total sujets travaillés',
+                    style: AppFonts.ui(size: 13, weight: FontWeight.w800),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '$attempted/$total traités',
-                style: AppFonts.ui(
-                  size: 11,
-                  weight: FontWeight.w800,
-                  color: AppColors.inkSoft,
-                ),
-              ),
-              if (validated > 0) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Text(
-                  '$validated ✓',
+                  complete
+                      ? 'Série terminée'
+                      : validated > 0
+                          ? '$validated validé${validated > 1 ? 's' : ''}'
+                          : '',
                   style: AppFonts.ui(
-                    size: 11,
-                    weight: FontWeight.w800,
-                    color: AppColors.green,
+                    size: 12,
+                    weight: FontWeight.w700,
+                    color: complete ? AppColors.green : AppColors.inkFaint,
                   ),
                 ),
               ],
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            ProgressDots(done: attempted, total: total, color: accent),
+          ],
+          if (skill.generalCriterion.trim().isNotEmpty) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1, thickness: 1, color: AppColors.line2),
+            const SizedBox(height: 13),
+            _CriterionBox(criterion: skill.generalCriterion),
+          ],
         ],
       ),
     );

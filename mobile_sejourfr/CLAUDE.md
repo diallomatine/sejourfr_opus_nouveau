@@ -596,14 +596,17 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   - **Compteurs servis, jamais recomptés** : `_SummaryCard` reçoit
     `attempted`/`total`/`validated` (les `step*Count` en mode étape). Les
     filtres (Tous / À faire / Traités) portent sur les **5** et leur somme reste
-    juste, comme sur les 15 ; la `FixedActionBar` vise un sujet **de l'étape**.
+    juste, comme sur les 15 ; la carte `_NextPromptCard` vise un sujet **de
+    l'étape**.
   - 🛑 **Aucun second parcours de vérification ici.** Étape terminée
     (`stepCompleted`) ⇒ un `ProductionNotice` « Étape terminée » + « Revenir à
     mon plan ». « Vérifier ma progression » vit **sur le Plan**, qui seul
     connaît la deuxième condition (moteur de maîtrise prêt) : une étape peut
     donc afficher « 5/5 » sans que la vérification s'ouvre — **c'est voulu**, ne
     pas l'expliquer par un message ni contourner la règle.
-  - **La `FixedActionBar` vise le sujet DÉSIGNÉ PAR LE SERVEUR** (2026-08-15).
+  - **L'action principale vise le sujet DÉSIGNÉ PAR LE SERVEUR** (2026-08-15 ;
+    elle vivait dans une `FixedActionBar`, elle vit depuis le 2026-08-21 dans la
+    carte `_NextPromptCard`, même logique au bit près).
     En mode étape, `_primaryAction` lit `recommendedExercise.skillPromptId` via
     `planStepRecommendedPrompt` (`screens/plan/plan_step_labels.dart`) : la
     règle de choix vit dans `RecommendedExerciseSelector`, son périmètre est
@@ -692,7 +695,7 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
     `CompetenceDetailScreen` a besoin. Sur une étape franchie, `stepCompleted`
     vaut **`false`** et `recommendedExercise` **`null`** : le serveur ne publie ce
     dérivé que sur une priorité, le recalculer serait réimplémenter une règle
-    serveur. La `FixedActionBar` retombe donc sur **`_fallbackAction`**, son
+    serveur. L'action principale retombe donc sur son repli historique, son
     comportement historique — c'est voulu, ne pas lui fabriquer autre chose.
 - 🛑 **Le faux élément de fin de parcours est SUPPRIMÉ.** `_ReassessmentStepCard`
   (« Réévaluation » / « Après quelques entraînements… ») était rendu en dur, ne
@@ -1966,6 +1969,69 @@ pastille de numéro **48×48 r16 — une seule forme partout**, chevron 30×30,
 `PressableCard` = ombre douce + enfoncement au toucher, `DashedBox` = la
 bordure pointillée que Flutter n'a pas nativement).
 
+### Passe « coach adaptatif » (2026-08-21) — la fiche et le résultat
+
+Reprise sur les maquettes `MSkill` (fiche d'une compétence) et `WResultat`
+(analyse IA). **Aucune règle produit n'a bougé** : tout ce qui suit est de la
+mise en page, sur des données déjà servies.
+
+**Fiche d'une compétence (`competence_detail_screen.dart`)** — la
+`FixedActionBar` est **supprimée** : l'action vit maintenant dans une carte
+`_NextPromptCard` (« PROCHAIN SUJET RECOMMANDÉ », liseré d'accent, titre du
+sujet, **la raison** — le critère du sujet, ou `kNextPromptReinforceReason`
+quand on le repropose — puis le bouton). Le geste et le sujet qu'il vise se
+lisent enfin au même endroit ; **la logique de désignation est inchangée**
+(`_next` = l'ancien `_primaryAction` + `_fallbackAction`, mêmes libellés
+`kPlanStepStartCta` / `kPlanStepRetryCta`, même déférence au
+`recommendedExercise` du serveur en mode étape, même `kPremiumLockCta` quand
+plus rien n'est ouvert). Étape terminée ⇒ `_StepDoneCard` à la place, qui
+ramène au Plan — toujours **aucun** second parcours de vérification ici.
+- La carte de résumé montre l'**état de maîtrise** (`SkillMasteryTag`) et
+  remplace la barre continue par **`ProgressDots`** (`core/widgets/progress_dots.dart`,
+  la barre à segments `CSujetsDots` : un segment par sujet), avec
+  « X / N sujets travaillés » et « Série terminée ». Les trois compteurs
+  viennent toujours du serveur en mode étape.
+- Les sujets sont **des lignes dans un encart**, plus quinze cartes empilées :
+  `SkillPromptGroup` + `SkillPromptRow` (`widgets/skill_prompt_row.dart`,
+  qui **remplace** `skill_prompt_card.dart`, supprimé — `SkillStatusBadgeRow`
+  avec lui). La **pastille de tête dit l'état par sa forme** (coche / reprise /
+  numéro) : le liseré vertical de 3 px n'existe plus. La ligne du sujet
+  recommandé est légèrement teintée (`highlighted`).
+- `kSkillSeriesNote` ferme la liste : **traité ≠ acquis**, la preuve se fait sur
+  une production complète.
+- 🛑 **Rien n'est flouté dans ce module**, contrairement à la maquette. La règle
+  écrite du freemium Compétences (« rien n'est masqué, tout est annoncé :
+  titre, état, compteurs ») **prime**, et l'arbitrage du 2026-08-21 réserve le
+  flou à **deux** surfaces du Plan en interdisant de l'étendre par symétrie.
+  D'ailleurs la carte « Prochain sujet recommandé » et l'`_ExerciseRow` du Plan
+  nomment déjà ces sujets en clair : flouter ici se ferait démentir un écran
+  plus loin. Le verrou reste dit par **`PremiumLockPill`** en fin de ligne.
+
+**Résultat (`competence_result_screen.dart` + `widgets/skill_level_card.dart`)**
+— `SkillLevelCard` devient le **hero** de `WResultat` : bandeau en dégradé
+(« ANALYSE DE TA PRODUCTION »), **niveau atteint face au niveau visé** en gros,
+badge « Objectif atteint », la phrase de situation, la jauge à trois crans en
+variante claire ; puis une bande blanche portant le verdict du critère et les
+deux étiquettes, et un pied « Estimation d'entraînement, non officielle. ».
+- **Il remplace `_TreatedHeader`** quand une analyse v3 existe : le hero annonce
+  déjà le fait, deux bandeaux pour un seul événement se lisent comme un bug. Le
+  bandeau **reste** sur les autres cas (legacy v1/v2, `RECORDED`, `FAILED`,
+  quota épuisé), où il est la seule annonce.
+- **Rien n'est calculé** : niveau, palier visé, `situationLabel`, échelle et
+  index restent dérivés serveur, l'app ne fait que peindre. **Aucune note /20.**
+- Nouveau bloc de fin, **avant** les deux actions : `kSkillWorkedTitle`
+  « Compétence travaillée » + `_SkillWorkedCard`, qui ramène à la fiche. Tout
+  vient du sujet déjà chargé — **aucun appel de plus**. Un résultat s'ouvre
+  aussi depuis l'historique : sans lui, rien ne disait à quoi il se rattachait.
+- `ActionPlanPending`, le sursis de 15 s, le repli legacy, la production
+  repliée et les références repliables sont **inchangés**.
+
+**Panneau de situation** (`SkillSituationCard`) : il prend la forme du
+mini-sujet de la maquette — fond teinté d'accent, liseré de 3 px à gauche,
+intitulé `SITUATION` en petites capitales. C'est le **texte à traiter**, il ne
+doit pas se lire comme un encart de conseil ; et il coûte une ligne de moins
+au-dessus de la zone de production.
+
 ### L'écran d'un petit sujet — il fait produire, il n'explique pas
 
 Refonte 2026-08-06 (verdict client sur la version précédente : « beaucoup trop
@@ -2089,14 +2155,18 @@ Points de comportement à ne pas défaire :
   façon, c'est elle qui décide si la section existe.
   Verrouillé par `test/competence_result_screen_test.dart` et
   `test/competence_prompt_analysis_test.dart`.
-- **Ordre de l'écran de résultat (contrat v3, commun au web)** : bandeau
-  « Production analysée / Progression mise à jour » → verdict du critère →
-  **carte NIVEAU** → « Pour viser X » → « Une version plus aboutie » → « À retenir »
-  → **`Ta production`, repliée** → références → deux actions (« Sujet suivant »
-  puis « S'entraîner sur ce point », qui refait le sujet courant ; le retour en
-  arrière reste la flèche d'en-tête). La production quitte la vue principale
-  mais **reste à un tap** : à l'oral, se réécouter en lisant le retour fait la
-  moitié de la valeur de l'exercice.
+- **Ordre de l'écran de résultat (contrat v3, commun au web)** : **hero NIVEAU**
+  (`SkillLevelCard` : niveau atteint ⇄ niveau visé, situation, jauge, puis
+  verdict du critère et étiquettes dans sa bande claire) → « Pour passer au
+  niveau X » → « Une version plus aboutie » → « À retenir » →
+  **`Ta production`, repliée** → références → « Compétence travaillée » → deux
+  actions (« Sujet suivant » puis « S'entraîner sur ce point », qui refait le
+  sujet courant ; le retour en arrière reste la flèche d'en-tête). ⚠️ Le bandeau
+  « Production analysée / Progression mise à jour » ne s'affiche **plus** quand
+  le hero est là (il annoncerait deux fois le même fait) — il reste, seul, sur
+  les cas sans analyse v3. La production quitte la vue principale mais **reste à
+  un tap** : la relire à côté du retour fait la moitié de la valeur de
+  l'exercice.
   - **Les trois blocs du plan d'action sont PARTAGÉS** avec le rapport de
     correction EE/EO : ils vivent dans `tcf_production/widgets/action_plan.dart`
     (`ActionPlanLeviers`, `ActionPlanExempleCard`,
@@ -2142,9 +2212,9 @@ Points de comportement à ne pas défaire :
   côté client** depuis `skillDetailProvider` (déjà en cache : l'écran est poussé
   depuis le détail). Aucun endpoint n'a été inventé ; en deep link direct la
   barre disparaît plutôt que d'afficher un chiffre faux.
-- **Le liseré vertical d'une carte de sujet n'existe QUE si le sujet est traité**
-  (3 px, en retrait de 17 px haut et bas) — un liseré gris permanent ne repère
-  plus rien.
+- **Le liseré vertical d'une carte de sujet n'existe plus** : la liste est un
+  encart de lignes, et c'est la **pastille de tête** de `SkillPromptRow` qui
+  repère le statut par sa forme (coche / reprise / numéro).
 - **Couleurs des références** : `Insuffisant` rouge, `Attendu` vert,
   `Très réussi` bleu (`skillReferenceColor`, `skill_references_tabs.dart`).
   Ce n'est **pas** un niveau CECRL : la règle « jamais de rouge sur un niveau »
@@ -2156,8 +2226,10 @@ Points de comportement à ne pas défaire :
   aucune référence ⇒ ni intertitre « Compare avec les niveaux de référence », ni
   widget vide dessous. Il reste pendant le chargement et sur erreur — là, il y a
   bien quelque chose à annoncer.
-- **La validation reste dans un `FixedActionBar`** (§13.10), désormais avec le
-  bouton secondaire « Effacer » à côté.
+- **La validation d'un petit sujet reste dans un `FixedActionBar`** (§13.10),
+  avec le bouton secondaire « Effacer » à côté. ⚠️ **La FICHE d'une compétence,
+  elle, n'en a plus** : son action vit dans `_NextPromptCard` (cf. la passe
+  « coach adaptatif »).
 
 **Routes** (`AppRoutes`, `moduleKey ∈ {ee, eo}`) :
 - `/tcf/:moduleKey/tache/:tacheNumero/competences` → `ProductionParcoursScreen`
@@ -2258,9 +2330,10 @@ que sur un examen déjà passé, jamais une seconde feuille pour la même intent
 - **Trois replis, aucun bouton mort** : sujet jamais traité ⇒ production directe, sans
   feuille ; sujet marqué traité **sans** `lastAttemptId` (ligne héritée) ⇒ production
   directe ; sujet verrouillé ⇒ cadenas + `showTcfLockPaywall`, inchangé.
-- 🛑 **La `FixedActionBar` ne passe pas par la feuille** : son libellé annonce déjà ce
-  qui va se passer (« Commencer le prochain sujet » / « Retravailler ce sujet »), une
-  confirmation par-dessus ne confirmerait rien. Idem du CTA d'étape côté web.
+- 🛑 **La carte « Prochain sujet recommandé » ne passe pas par la feuille** : son
+  libellé annonce déjà ce qui va se passer (« Commencer le prochain sujet » /
+  « Retravailler ce sujet »), une confirmation par-dessus ne confirmerait rien. Idem
+  du CTA d'étape côté web.
 
 **Règles UX à ne pas défaire** (spec §13) : la consigne est traduite en gestes **avant** la
 production ; les références n'apparaissent **jamais** avant qu'une tentative existe (garde
@@ -2305,8 +2378,8 @@ l'arbitre final.
   affiché « Tous · 5 = 0 + 2 », et un compteur qui ne totalise pas est pire que le défaut
   qu'on corrigeait. Le verrou reste dit **sur la carte** (cadenas + « Premium ») et **au
   tap** (l'offre) — il n'est pas masqué, il n'est plus un filtre. L'action de la
-  `FixedActionBar` vise toujours un sujet **ouvert**, et devient « Voir l'abonnement
-  Intégral » quand il n'en reste aucun.
+  carte « Prochain sujet recommandé » vise toujours un sujet **ouvert**, et devient
+  « Voir l'abonnement Intégral » quand il n'en reste aucun.
 - **Lien profond sur un sujet verrouillé** : `CompetencePromptScreen` rend
   `_LockedPromptView` — on garde le repère « Sujet i/N » + palier et **rien d'autre** : ni
   consigne, ni situation, ni zone de production, ni barre de validation. Le contenu du sujet

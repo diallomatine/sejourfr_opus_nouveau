@@ -117,6 +117,7 @@ export function SkillShell({
   title,
   meta,
   level,
+  wide = false,
   children,
 }: {
   backHref: string;
@@ -128,10 +129,22 @@ export function SkillShell({
   /** Palier **visé** par la démarche du candidat. `null` ⇒ pas de badge : on
    *  ne devine jamais une démarche à sa place. */
   level?: string | null;
+  /**
+   * Élargit la colonne au-delà de 1024 px, pour le **seul** écran qui porte
+   * une colonne latérale (le résultat d'un micro-exercice de compétence, où la
+   * compétence travaillée et la mention d'estimation accompagnent la
+   * restitution).
+   *
+   * ⚠️ Modificateur **opt-in** : sans lui, la colonne garde exactement les
+   * 880 px des vingt autres écrans qui montent dans cette coquille. Ne pas
+   * l'activer « par symétrie » — un écran d'une seule colonne posé dans
+   * 1120 px se lit comme une page inachevée.
+   */
+  wide?: boolean;
   children: ReactNode;
 }) {
   return (
-    <main className={s.wrap}>
+    <main className={`${s.wrap} ${wide ? s.wrapWide : ""}`}>
       {title ? (
         <header className={s.pageHead}>
           <Link href={backHref} className={s.backDot} aria-label={backLabel}>

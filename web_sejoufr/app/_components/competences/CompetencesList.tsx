@@ -127,9 +127,12 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
         ) : skills.length === 0 ? (
           <p className={s.empty}>Aucune compétence disponible pour cette tâche.</p>
         ) : (
-          <div className={s.list}>
+          /* Les huit compétences dans un seul cadre, filets entre les lignes —
+             la liste de la maquette (`PlanTacheScreen`). Huit cartes autonomes
+             repoussaient la dernière hors de vue. */
+          <div className={s.groupCard}>
             {skills.map((skill) => (
-              <SkillCard
+              <SkillRow
                 key={skill.id}
                 skill={skill}
                 onOpen={
@@ -161,8 +164,8 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
 }
 
 /**
- * Ligne d'une compétence, structure de la maquette client : **anneau de
- * progression** (« 2/5 »), titre, état, chevron.
+ * Ligne d'une compétence : **anneau de progression** (« 2/5 »), titre, état,
+ * chevron — dans la liste groupée de la maquette.
  *
  * ⚠️ **L'état de maîtrise remplace le compteur de sujets traités** (décision
  * propriétaire) : un compte de sujets dit ce que le candidat a *fait*,
@@ -172,23 +175,19 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
  *
  * Le titre et l'état, rien d'autre : la description vit derrière la pastille
  * d'information de l'écran de détail (parité mobile). Six lignes de texte par
- * carte repoussaient la 8ᵉ compétence hors de vue.
+ * ligne repoussaient la 8ᵉ compétence hors de vue.
  *
- * Verrouillée (`locked`, **décidé par le serveur**), la carte reste entièrement
+ * Verrouillée (`locked`, **décidé par le serveur**), la ligne reste entièrement
  * lisible : seuls l'anneau — qui n'aurait rien à raconter — et la destination
- * changent. Masquer la compétence reviendrait à cacher au candidat ce qu'il y a
- * à travailler ; c'est l'inverse de ce qu'on lui vend.
+ * changent. Masquer ou flouter la compétence reviendrait à cacher au candidat
+ * ce qu'il y a à travailler ; c'est l'inverse de ce qu'on lui vend.
  */
-function SkillCard({skill, onOpen}: {skill: SkillDto; onOpen: () => void}) {
+function SkillRow({skill, onOpen}: {skill: SkillDto; onOpen: () => void}) {
   const done = skill.promptCount > 0 && skill.attemptedCount >= skill.promptCount;
   const locked = skill.locked;
 
   return (
-    <button
-      type="button"
-      className={`${s.card} ${s.rowCard} ${locked ? "" : s.ringRow}`}
-      onClick={onOpen}
-    >
+    <button type="button" className={s.groupRow} onClick={onOpen}>
       {locked ? (
         <span className={`${s.tile} ${s.tileLocked}`} aria-hidden>
           <Lock size={20} />
@@ -196,24 +195,20 @@ function SkillCard({skill, onOpen}: {skill: SkillDto; onOpen: () => void}) {
       ) : (
         <SkillRing attempted={skill.attemptedCount} total={skill.promptCount} done={done} />
       )}
-      <span className={s.rowBody}>
-        <span className={s.rowTitle}>{skill.title}</span>
-        {skill.masteryState ? (
-          <span className={s.rowMeta}>
+      <span className={s.groupBody}>
+        <span className={s.groupTitle}>{skill.title}</span>
+        <span className={s.groupMeta}>
+          {skill.masteryState ? (
             <SkillMasteryPill state={skill.masteryState} />
-          </span>
-        ) : (
-          <span className={s.rowState}>{competenceProgressLabel(skill)}</span>
-        )}
-      </span>
-      {locked ? (
-        <span className={s.rowAside}>
-          <SkillLockBadge />
-          <RowChevron />
+          ) : (
+            <span className={s.metaText}>{competenceProgressLabel(skill)}</span>
+          )}
         </span>
-      ) : (
+      </span>
+      <span className={s.groupAside}>
+        {locked && <SkillLockBadge />}
         <RowChevron />
-      )}
+      </span>
     </button>
   );
 }

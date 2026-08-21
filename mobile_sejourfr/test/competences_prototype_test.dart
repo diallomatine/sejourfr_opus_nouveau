@@ -8,7 +8,7 @@ import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/compe
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_blocks.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_mode_tabs.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_parcours_top.dart';
-import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_prompt_card.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_prompt_row.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_references_tabs.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_status_badge.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/tcf_production_module.dart';
@@ -287,18 +287,20 @@ void main() {
           attemptCount: status.isTreated ? 2 : 0,
         );
 
-    testWidgets('un sujet traité porte le liseré, un sujet à faire non',
-        (tester) async {
+    // Le liseré vertical a disparu avec la carte autonome : la liste est
+    // désormais un groupe de lignes, et c'est la **pastille de tête** qui dit
+    // l'état (coche / reprise / numéro). Seul le statut reste vérifié ici.
+    testWidgets('chaque ligne porte son statut servi', (tester) async {
       await tester.pumpWidget(
         _host(
-          Column(
+          SkillPromptGroup(
             children: [
-              SkillPromptCard(
+              SkillPromptRow(
                 prompt: prompt(SkillPromptStatus.validated),
                 accent: AppColors.blue,
                 onTap: () {},
               ),
-              SkillPromptCard(
+              SkillPromptRow(
                 prompt: prompt(SkillPromptStatus.todo),
                 accent: AppColors.blue,
                 onTap: () {},
@@ -311,11 +313,6 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Validé'), findsOneWidget);
       expect(find.text('À faire'), findsOneWidget);
-      // Le liseré n'existe que sur le sujet traité : une seule barre de 3 px.
-      final rails = find.byWidgetPredicate(
-        (w) => w is Container && w.constraints?.maxWidth == 3,
-      );
-      expect(rails, findsOneWidget);
     });
 
     testWidgets('la carte de compétence se rend sans erreur de contrainte',

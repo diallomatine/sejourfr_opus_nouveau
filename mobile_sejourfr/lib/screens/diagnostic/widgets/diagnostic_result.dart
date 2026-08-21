@@ -1,5 +1,3 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -12,6 +10,7 @@ import '../../../core/utils/evidence_excerpt.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_tag.dart';
+import '../../../core/widgets/blurred_content.dart';
 import '../../../core/widgets/fixed_action_bar.dart';
 import '../../../core/widgets/gradient_hero.dart';
 import '../../../core/widgets/premium_lock.dart';
@@ -2177,63 +2176,57 @@ class _LockedPreview extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ExcludeSemantics(
-            child: IgnorePointer(
-              child: ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                child: Opacity(
-                  opacity: 0.55,
-                  child: Column(
-                    children: [
-                      for (final line in lines)
-                        Padding(
-                          padding:
-                              const EdgeInsets.fromLTRB(15, 12, 15, 12),
-                          child: Row(
+          // Le rideau partagé du produit (`core/widgets/blurred_content.dart`) :
+          // `ExcludeSemantics` + `IgnorePointer` + flou, déclarés à un seul
+          // endroit. Cet écran en tenait une copie manuelle, au même réglage.
+          BlurredContent(
+            sigma: 5,
+            child: Column(
+              children: [
+                for (final line in lines)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(15, 12, 15, 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 22,
+                          height: 22,
+                          decoration: const BoxDecoration(
+                            color: AppColors.surface3,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                width: 22,
-                                height: 22,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.surface3,
-                                  shape: BoxShape.circle,
+                              Text(
+                                line.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppFonts.ui(
+                                  size: 14.5,
+                                  weight: FontWeight.w600,
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      line.title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppFonts.ui(
-                                        size: 14.5,
-                                        weight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    if (line.subtitle != null)
-                                      Text(
-                                        line.subtitle!,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: AppFonts.ui(
-                                          size: 12.5,
-                                          color: AppColors.inkFaint,
-                                        ),
-                                      ),
-                                  ],
+                              if (line.subtitle != null)
+                                Text(
+                                  line.subtitle!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppFonts.ui(
+                                    size: 12.5,
+                                    color: AppColors.inkFaint,
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ),
+              ],
             ),
           ),
           Material(

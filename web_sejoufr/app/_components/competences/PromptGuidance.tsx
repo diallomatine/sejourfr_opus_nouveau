@@ -86,7 +86,11 @@ export function PromptGuidance({prompt, oral}: {prompt: SkillPromptDto; oral: bo
 
   return (
     <>
-      <section className={s.guideCard}>
+      {/* Filet d'accent sur la première carte seulement : c'est la seule chose
+          à lire avant d'écrire. Classe explicite plutôt qu'un `:first-of-type` —
+          ce bloc est injecté dans un formulaire partagé dont on ne contrôle pas
+          la fratrie. */}
+      <section className={`${s.guideCard} ${s.guideCardLead}`}>
         <GuideHead icon={ClipboardList} title="Ce qu'il faut faire" />
         {checklist.length > 0 ? (
           <ul className={s.checklist}>

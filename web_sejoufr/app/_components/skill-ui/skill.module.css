@@ -627,14 +627,12 @@
 
 /* -------------------------------------------- résumé d'une compétence */
 
+/* ⚠️ `.summary` / `.summaryTitle` / `.summaryText` ne servent plus l'écran d'une
+   compétence (passé à `.skillHead`, en bas de ce fichier) : ils portent
+   désormais les **modèles corrigés** (`production/ProductionExamples`) et rien
+   d'autre. Ne pas les faire évoluer en pensant aux compétences. */
 .summary {
   padding: 17px;
-}
-
-.summaryTop {
-  display: flex;
-  gap: 13px;
-  align-items: flex-start;
 }
 
 /* Pastille « Étape de ton plan » : l'écran d'une compétence ouverte DEPUIS le
@@ -667,13 +665,6 @@
   gap: 8px;
   width: 100%;
   margin-top: 14px;
-}
-
-/* Colonne centrale du résumé : min-width 0 pour que le titre passe à la ligne
-   au lieu de repousser le bouton d'information hors de la carte à 360 px. */
-.summaryBody {
-  flex: 1;
-  min-width: 0;
 }
 
 /* Bouton d'information : pastille discrète, mais zone cliquable 44 × 44. */
@@ -2900,87 +2891,17 @@
   min-width: 0;
 }
 
-/* ---------------------------------------------------------- carte de niveau */
+/* ------------------------------------------------------- bandeau de niveau
 
-.levelCard {
-  margin-top: 13px;
-  padding: 15px;
-  border-radius: 21px;
-  background: var(--skill-accent-soft);
-  border: 1px solid color-mix(in srgb, var(--skill-accent) 20%, transparent);
-  min-width: 0;
-}
-
-.levelEyebrow {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: var(--skill-accent);
-}
-
-.levelTop {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-  margin-top: 4px;
-}
-
-/* Le niveau démontré, en très grand : c'est la première chose que le candidat
-   doit lire. `clamp` plutôt qu'une taille fixe — à 360 px la colonne ne fait
-   que 328 px de contenu. */
-.levelBig {
-  font-family: var(--font-display);
-  font-size: clamp(38px, 13vw, 52px);
-  font-weight: 700;
-  line-height: 1;
-  color: var(--color-ink);
-}
-
-.levelGoal {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 11px;
-  border-radius: 999px;
-  background: white;
-  border: 1px solid color-mix(in srgb, var(--skill-accent) 24%, transparent);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-  color: var(--skill-accent);
-  white-space: nowrap;
-}
-
-.levelSituation {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin: 9px 0 0;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.4;
-  color: var(--color-ink-2);
-  overflow-wrap: anywhere;
-}
-
-.levelSituationIcon {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  flex: none;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--skill-accent) 12%, transparent);
-  color: var(--skill-accent);
-}
-
-.levelSituationDone .levelSituationIcon {
-  background: color-mix(in srgb, var(--color-green) 14%, transparent);
-  color: var(--color-green);
-}
+   ⚠️ Les anciennes règles `.levelCard` / `.levelEyebrow` / `.levelTop` /
+   `.levelBig` / `.levelGoal` / `.levelSituation*` ont été **supprimées** : la
+   carte claire qu'elles dessinaient est devenue le bandeau sombre
+   `.analysisHero` (bas de ce fichier), seul lecteur de ces données. Elles
+   n'avaient aucun autre consommateur — les `levelCard` / `levelSituation` qui
+   subsistent ailleurs dans l'application appartiennent à d'autres modules CSS
+   (`landing`, `hub/detail`, `production`). `.levelPill` et `.levelBadge`, eux,
+   sont intacts et toujours utilisés.
+   ------------------------------------------------------------------------- */
 
 /* ------------------------------------------------------------------ jauge */
 
@@ -3391,5 +3312,769 @@
   .secondary:active:not(:disabled),
   .packBtn:active:not(:disabled) {
     transform: none;
+  }
+}
+
+/* ============================================================================
+   Module « Compétences TCF » — passage à l'échelle de la maquette client
+   (`WResultat` / `PlanSkillScreen`).
+
+   ⚠️ **Bloc strictement ADDITIF.** Rien au-dessus n'est déplacé, renommé ni
+   redéfini : les classes partagées par les productions EE/EO, le rapport de
+   correction, l'historique, les modèles corrigés et le Plan (`.card`,
+   `.rowCard`, `.tile`, `.badge`, `.primary`, `.hero`, `.summary*`, `.answerBox`,
+   les blocs `ActionPlan`) gardent leur anatomie d'origine. Ce qui suit ne vaut
+   que sous les porteurs de ce module — `.wrapWide`, `.resultMain`,
+   `.analysisHero`, `.skillHead`, `.groupCard` — et disparaît partout ailleurs.
+
+   Deux différences de fond avec le reste du fichier, toutes deux voulues :
+   - **le module vit désormais en DEUX colonnes** au-delà de 1024 px (la
+     restitution et, à côté, la compétence travaillée + la mention d'estimation),
+     là où tout le reste du parcours tient dans une colonne de 880 px ;
+   - **l'échelle typographique monte au grand écran**, parce que ces écrans se
+     lisent sur un poste de travail : 10-13 px y étaient une échelle d'app
+     mobile transposée telle quelle. La montée est **scopée** — jamais appliquée
+     aux classes partagées hors de ce module.
+   ============================================================================ */
+
+/* Colonne élargie, réservée aux écrans qui portent une colonne latérale.
+   Modificateur : sans lui, `.wrap` garde ses 880 px pour les 20 autres écrans
+   qui l'utilisent. Déclaré ici (donc après `.wrap`) pour l'emporter à
+   spécificité égale sans toucher à la règle d'origine. */
+@media (min-width: 1024px) {
+  .wrapWide {
+    max-width: 1120px;
+  }
+}
+
+/* ------------------------------------------------------- résultat : gabarit */
+
+/* Une colonne jusqu'à 1024 px — l'ordre de lecture y est exactement celui du
+   flux, colonne latérale comprise, qui se retrouve alors en pied d'écran. */
+.resultGrid {
+  display: grid;
+  gap: 18px;
+  align-items: start;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .resultGrid {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 24px;
+  }
+}
+
+.resultMain {
+  min-width: 0;
+}
+
+.resultAside {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .resultAside {
+    position: sticky;
+    top: 24px;
+  }
+}
+
+.asideCard {
+  padding: 16px;
+  border-radius: 21px;
+  background: white;
+  border: 1px solid var(--color-line);
+  min-width: 0;
+}
+
+.asideEyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-muted);
+}
+
+.asideTitle {
+  margin: 9px 0 0;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.3px;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.asideMeta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.asideLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 11px 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--skill-accent) 30%, transparent);
+  background: white;
+  color: var(--skill-accent);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.asideLink:hover {
+  background: var(--skill-accent-soft);
+}
+
+/* La mention qui empêche de lire le palier comme un résultat officiel. Elle
+   n'est pas décorative : le dépôt interdit toute formulation qui laisserait
+   croire que notre estimation reproduit la note du TCF. */
+.asideNote {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+/* ------------------------------------------- résultat : bandeau d'analyse */
+
+/* Le niveau démontré ouvre l'écran, sur fond sombre : c'est la réponse à
+   « où j'en suis », et rien d'autre ne doit la concurrencer du regard.
+   Le dégradé vient du token dédié (`--gradient-ink-blue`, décrit dans
+   `globals.css` comme le bandeau « analyse IA ») — aucune couleur en dur. */
+.analysisHero {
+  margin-top: 13px;
+  border-radius: 24px;
+  overflow: hidden;
+  background: white;
+  border: 1px solid var(--color-line);
+  min-width: 0;
+}
+
+.analysisHeroTop {
+  padding: 20px 20px 22px;
+  background: var(--gradient-ink-blue);
+  color: white;
+}
+
+@media (min-width: 768px) {
+  .analysisHeroTop {
+    padding: 26px 28px 24px;
+  }
+}
+
+.analysisEyebrow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: color-mix(in srgb, white 78%, transparent);
+}
+
+/* Deux chiffres côte à côte — le palier démontré, le palier visé — séparés par
+   un filet. Ils passent l'un sous l'autre à 360 px. */
+.analysisFigures {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 26px;
+  margin-top: 14px;
+}
+
+.analysisFigure {
+  min-width: 0;
+}
+
+.analysisFigureGoal {
+  padding-left: 26px;
+  border-left: 1px solid color-mix(in srgb, white 30%, transparent);
+}
+
+@media (max-width: 419px) {
+  .analysisFigureGoal {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+.analysisFigureLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: color-mix(in srgb, white 72%, transparent);
+}
+
+.analysisFigureValue {
+  display: block;
+  margin-top: 5px;
+  font-family: var(--font-display);
+  font-size: clamp(36px, 11vw, 46px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -1px;
+  color: white;
+}
+
+.analysisFigureGoal .analysisFigureValue {
+  color: color-mix(in srgb, white 76%, transparent);
+}
+
+/* La pastille de verdict du critère s'aligne en bas des deux chiffres. */
+.analysisStatus {
+  align-self: flex-end;
+  margin-bottom: 5px;
+}
+
+/* La phrase de situation — **posée par le serveur**, rendue telle quelle. */
+.analysisPhrase {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  max-width: 620px;
+  margin: 16px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: color-mix(in srgb, white 94%, transparent);
+  overflow-wrap: anywhere;
+}
+
+.analysisPhraseIcon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 8px;
+  background: color-mix(in srgb, white 18%, transparent);
+  color: white;
+}
+
+/* Pied clair : la mention d'estimation, et les étiquettes « ce qui marche » /
+   « à travailler » quand le correcteur en a produit. */
+.analysisFoot {
+  padding: 13px 20px;
+  border-top: 1px solid var(--color-line);
+}
+
+@media (min-width: 768px) {
+  .analysisFoot {
+    padding: 14px 28px;
+  }
+}
+
+.analysisNote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+/* Le pied empile ce que le correcteur a produit — étiquettes, verdict du
+   critère, mention d'estimation —, chaque bloc étant indépendamment absent. */
+.analysisFoot > * + * {
+  margin-top: 11px;
+}
+
+.analysisFoot .criterionVerdict {
+  margin-top: 11px;
+  font-size: 13px;
+}
+
+/* Jauge et étiquettes sur fond sombre : les mêmes éléments, repeints. Le rail,
+   les crans et les libellés viennent tous du serveur — seule leur couleur
+   change ici, jamais leur position. */
+.analysisHero .gauge {
+  margin-top: 18px;
+  padding: 0 7px;
+}
+
+.analysisHero .gaugeRail {
+  background: color-mix(in srgb, white 24%, transparent);
+}
+
+.analysisHero .gaugeFill {
+  background: white;
+}
+
+.analysisHero .gaugeDot {
+  background: color-mix(in srgb, var(--color-ink) 70%, transparent);
+  border-color: color-mix(in srgb, white 34%, transparent);
+}
+
+.analysisHero .gaugeDotOn {
+  border-color: white;
+}
+
+.analysisHero .gaugeDotNow {
+  background: white;
+  border-color: color-mix(in srgb, var(--color-blue) 70%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, white 26%, transparent);
+}
+
+.analysisHero .gaugeLabel {
+  font-size: 11px;
+  color: color-mix(in srgb, white 60%, transparent);
+}
+
+.analysisHero .gaugeLabelOn {
+  color: white;
+}
+
+.analysisHero .tagRow {
+  margin-top: 0;
+}
+
+.analysisHero .tag {
+  font-size: 12px;
+}
+
+/* --------------------------------------- résultat : échelle de lecture web */
+
+/* Les blocs du plan d'action (`skill-ui/ActionPlan.tsx`) sont **partagés** avec
+   le rapport de production et le résultat du diagnostic : on ne touche pas à
+   leurs règles. On les relit seulement plus grand **ici**, sous `.resultMain`,
+   à partir de la tablette — la taille d'origine reste celle du téléphone. */
+@media (min-width: 768px) {
+  .resultMain .resultSectionTitle {
+    margin: 24px 0 11px;
+    font-family: var(--font-display);
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: -0.4px;
+  }
+
+  /* La restitution v1/v2 ouvre son panneau par un intertitre : il ne prend pas
+     de marge haute — la règle d'origine est ré-affirmée ici, la mienne ayant la
+     même spécificité et venant plus loin dans le fichier. */
+  .resultMain .aiPanel > .resultSectionTitle {
+    margin-top: 0;
+  }
+
+  .resultMain .levierRow {
+    padding: 15px 18px;
+  }
+
+  .resultMain .levierAction {
+    font-size: 14.5px;
+  }
+
+  .resultMain .levierExample {
+    font-size: 13px;
+  }
+
+  .resultMain .exempleText,
+  .resultMain .reformNew {
+    font-size: 15px;
+  }
+
+  .resultMain .reformOriginal {
+    font-size: 13.5px;
+  }
+
+  .resultMain .segChip,
+  .resultMain .reformChip {
+    font-size: 11.5px;
+  }
+
+  .resultMain .memoFormule {
+    font-size: 16px;
+  }
+
+  .resultMain .memoText,
+  .resultMain .planPending {
+    font-size: 12.5px;
+  }
+
+  .resultMain .resultHeading {
+    font-size: 19px;
+  }
+
+  .resultMain .resultSub,
+  .resultMain .prodText,
+  .resultMain .refToggleTitle {
+    font-size: 14px;
+  }
+
+  .resultMain .actions {
+    margin-top: 18px;
+  }
+}
+
+/* ------------------------------------- compétence : en-tête de la maquette */
+
+/* Filet d'accent, lavis dégradé, pastille, sur-titre, titre. Il remplace
+   `.summary` **pour ce seul écran** : `.summary` continue de servir les
+   modèles corrigés (`ProductionExamples`) sans changer d'un pixel. */
+.skillHead {
+  margin-bottom: 4px;
+  border-radius: 24px;
+  overflow: hidden;
+  background: white;
+  border: 1px solid var(--color-line);
+  min-width: 0;
+}
+
+.skillHeadRule {
+  display: block;
+  height: 4px;
+  background: var(--skill-accent);
+}
+
+.skillHeadInner {
+  padding: 18px;
+  background: linear-gradient(
+    180deg,
+    var(--skill-accent-light) 0%,
+    transparent 78%
+  );
+}
+
+@media (min-width: 768px) {
+  .skillHeadInner {
+    padding: 24px 26px 22px;
+  }
+}
+
+.skillHeadTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.skillHeadBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.skillHeadEyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.skillHeadTitle {
+  margin: 6px 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(21px, 5.4vw, 28px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.6px;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+/* « 3 / 5 sujets travaillés » + les points d'avancement de la maquette. */
+.skillHeadProgress {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 18px;
+}
+
+.skillHeadCount {
+  flex: none;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+
+/* Un segment par sujet du périmètre affiché — 5 en mode étape, 15 sur la fiche
+   complète. La rangée passe à la ligne avant de comprimer les segments. */
+.dots {
+  display: flex;
+  flex: 1 1 130px;
+  gap: 4px;
+  min-width: 110px;
+}
+
+.dot {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-ink) 10%, transparent);
+}
+
+.dotOn {
+  background: var(--skill-accent);
+}
+
+/* ------------------------------------- compétence : le sujet à faire ensuite */
+
+/* Carte d'appel de la maquette : filet d'accent implicite par la bordure,
+   lavis, sur-titre, titre, motif, action pleine largeur. Elle remplace le
+   bouton nu `.stepCta` sur l'écran d'une compétence ouverte depuis le Plan. */
+.recoCard {
+  margin-top: 14px;
+  border-radius: 22px;
+  overflow: hidden;
+  background: white;
+  border: 1px solid color-mix(in srgb, var(--skill-accent) 42%, transparent);
+  min-width: 0;
+}
+
+.recoInner {
+  padding: 17px 18px 18px;
+  background: linear-gradient(180deg, var(--skill-accent-soft) 0%, transparent 82%);
+}
+
+@media (min-width: 768px) {
+  .recoInner {
+    padding: 20px 24px 22px;
+  }
+}
+
+.recoEyebrow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--skill-accent);
+}
+
+.recoTitle {
+  margin: 9px 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(18px, 4.6vw, 22px);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.4px;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.recoText {
+  margin: 7px 0 0;
+  max-width: 620px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.recoAction {
+  margin-top: 16px;
+}
+
+/* ------------------------------ compétence : liste groupée de petits sujets */
+
+/* Un seul cadre, des filets entre les lignes — la liste de la maquette. Les
+   cartes autonomes (`.rowCard`) restent en place partout ailleurs. */
+.groupCard {
+  border-radius: 23px;
+  overflow: hidden;
+  background: white;
+  border: 1px solid var(--color-line);
+  min-width: 0;
+}
+
+.groupRow {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-top: 1px solid var(--color-line-2);
+  background: transparent;
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+@media (min-width: 768px) {
+  .groupRow {
+    padding: 15px 22px;
+  }
+}
+
+.groupRow:first-child {
+  border-top: 0;
+}
+
+.groupRow:hover {
+  background: var(--color-paper);
+}
+
+/* La ligne que le serveur désigne : elle se distingue par un fond tenu, pas par
+   une couleur de texte — le titre reste lisible à l'identique. */
+.groupRowOn {
+  background: var(--color-paper);
+}
+
+.groupNum {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.groupNumDone {
+  background: color-mix(in srgb, var(--color-green) 13%, transparent);
+  color: var(--color-green);
+}
+
+.groupNumRedo {
+  background: color-mix(in srgb, var(--skill-accent) 13%, transparent);
+  color: var(--skill-accent);
+}
+
+.groupBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.groupTitle {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.groupMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 9px;
+  margin-top: 5px;
+}
+
+.groupAside {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+/* Le libellé de difficulté disparaît sous 520 px : la ligne y a déjà un titre
+   sur deux lignes, une pastille d'état et un chevron. */
+@media (max-width: 519px) {
+  .groupDifficulty {
+    display: none;
+  }
+}
+
+.groupRow:focus-visible {
+  outline: 2px solid var(--skill-accent);
+  outline-offset: -3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .groupRow {
+    transition: none;
+  }
+}
+
+/* ------------------------------------- petit sujet : échelle de lecture web */
+
+/* La carte « Ce qu'il faut faire » prend le filet d'accent de la maquette : sur
+   l'écran de production, c'est la seule chose à lire avant d'écrire, et rien ne
+   la distinguait des deux autres cartes blanches. Classes **exclusives** à
+   `PromptGuidance` — aucune autre surface ne les monte. */
+.guideCardLead {
+  border-left: 3px solid var(--skill-accent);
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+}
+
+@media (min-width: 768px) {
+  .guideCard {
+    padding: 18px 20px;
+  }
+
+  .guideTitle {
+    font-size: 16.5px;
+  }
+
+  .checkItem,
+  .guideText {
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  .chipItem {
+    font-size: 12.5px;
+    padding: 7px 12px;
+  }
+
+  /* `.formStack` n'existe que sur l'écran d'un petit sujet : les formulaires
+     partagés (`EeWritingForm` / `EoRecordingForm`) gardent partout ailleurs —
+     sujets TCF complets, session d'examen blanc, diagnostic — exactement la
+     taille qu'ils ont aujourd'hui. */
+  .formStack .answerTitle {
+    font-size: 16.5px;
+  }
+
+  .formStack .textarea {
+    font-size: 16px;
+    line-height: 1.65;
+  }
+
+  .formStack .answerTip,
+  .formStack .tipline,
+  .formStack .quota {
+    font-size: 12.5px;
+  }
+}
+
+/* Repères de l'écran d'un petit sujet : « Sujet 3/15 » et la barre de
+   progression, à l'échelle d'un écran de bureau. Classes exclusives à
+   `CompetencePrompt`. */
+@media (min-width: 768px) {
+  .compactStep {
+    font-size: 14px;
+  }
+
+  .previousTitle {
+    font-size: 15px;
+  }
+
+  .previousText {
+    font-size: 13px;
   }
 }

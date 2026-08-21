@@ -13,6 +13,7 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_tag.dart';
 import '../../../core/widgets/list_group.dart';
 import '../../../core/widgets/paywall_sheet.dart';
+import '../../../core/widgets/pressable_card.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../tcf_production_module.dart';
 import '../widgets/action_plan.dart';
@@ -156,7 +157,8 @@ class _CompetenceResultScreenState
         timer.cancel();
         return;
       }
-      final value = ref.read(skillAttemptProvider(widget.attemptId)).valueOrNull;
+      final value =
+          ref.read(skillAttemptProvider(widget.attemptId)).valueOrNull;
       if (value != null && !value.statut.isFinal) {
         // Vu en vol : l'analyse s'achève sous les yeux du candidat, donc le
         // second appel, lui, tourne encore.
@@ -282,54 +284,54 @@ class _CompetenceResultScreenState
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
       children: [
-        // L'écran ouvre sur la confirmation, pas sur la production : c'est elle
-        // qui dit que la progression a bougé.
-        _TreatedHeader(analysed: analysis != null),
-        if (analysis != null) ...[
-          if (progress != null) ...[
-            // Le verdict sur le critère unique reste ce que ce module promet,
-            // mais en discret : pastille + ligne de texte dans la carte de
-            // niveau, plus de gros bloc `_VerdictCard` autonome.
-            const SizedBox(height: 13),
-            SkillLevelCard(
-              progress: progress,
-              criterionStatus: analysis.status,
-              verdict: analysis.verdict,
-              strengthTag: analysis.strengthTag,
-              focusTag: analysis.focusTag,
-            ),
-            // Le second appel est best-effort : son absence est un cas NORMAL,
-            // pas une erreur — aucun message, aucun spinner, aucune excuse.
-            if (niveauVise != null) ...[
-              if (niveauVise.leviers.isNotEmpty) ...[
-                const SizedBox(height: 18),
-                // `niveauVise` porte ici le PALIER CIBLE (la marche suivante),
-                // pas l'objectif lointain : le titre nomme donc ce que le texte
-                // modele demontre vraiment. L'objectif, lui, est dit juste
-                // au-dessus par la carte de niveau (`SkillLevelProgress`).
-                SectionTitle(title: pourPasserAuTitle(niveauVise.niveauVise)),
-                const SizedBox(height: 9),
-                ActionPlanLeviers(leviers: niveauVise.leviers),
-              ],
-              if (niveauVise.exempleCible != null) ...[
-                const SizedBox(height: 18),
-                const SectionTitle(title: kActionPlanExempleTitle),
-                const SizedBox(height: 9),
-                ActionPlanExempleCard(exemple: niveauVise.exempleCible!),
-              ],
-              if (niveauVise.aRetenir != null) ...[
-                const SizedBox(height: 14),
-                ActionPlanMemoCard(memo: niveauVise.aRetenir!),
-              ],
+        if (analysis != null && progress != null) ...[
+          // Le hero DIT déjà ce qui vient de se passer (« Analyse de ta
+          // production ») : lui superposer le bandeau « Production analysée »
+          // ferait deux annonces pour un seul fait. Le verdict du critère et
+          // les deux étiquettes vivent dans sa bande claire, en discret.
+          SkillLevelCard(
+            progress: progress,
+            criterionStatus: analysis.status,
+            verdict: analysis.verdict,
+            strengthTag: analysis.strengthTag,
+            focusTag: analysis.focusTag,
+          ),
+          // Le second appel est best-effort : son absence est un cas NORMAL,
+          // pas une erreur — aucun message, aucun spinner, aucune excuse.
+          if (niveauVise != null) ...[
+            if (niveauVise.leviers.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              // `niveauVise` porte ici le PALIER CIBLE (la marche suivante),
+              // pas l'objectif lointain : le titre nomme donc ce que le texte
+              // modele demontre vraiment. L'objectif, lui, est dit juste
+              // au-dessus par le hero (`SkillLevelProgress`).
+              SectionTitle(title: pourPasserAuTitle(niveauVise.niveauVise)),
+              const SizedBox(height: 9),
+              ActionPlanLeviers(leviers: niveauVise.leviers),
             ],
-            // Le second appel tourne encore : une ligne à sa place, le temps du
-            // sursis, sans rien bloquer.
-            if (niveauVise == null && _niveauVisePending)
-              const ActionPlanPending(),
-          ] else ...[
-            // Analyse d'avant le contrat v3 : pas de carte niveau, donc pas de
-            // pastille pour loger le verdict → le gros bloc historique reste
-            // seul responsable de l'afficher.
+            if (niveauVise.exempleCible != null) ...[
+              const SizedBox(height: 18),
+              const SectionTitle(title: kActionPlanExempleTitle),
+              const SizedBox(height: 9),
+              ActionPlanExempleCard(exemple: niveauVise.exempleCible!),
+            ],
+            if (niveauVise.aRetenir != null) ...[
+              const SizedBox(height: 14),
+              ActionPlanMemoCard(memo: niveauVise.aRetenir!),
+            ],
+          ],
+          // Le second appel tourne encore : une ligne à sa place, le temps du
+          // sursis, sans rien bloquer.
+          if (niveauVise == null && _niveauVisePending)
+            const ActionPlanPending(),
+        ] else ...[
+          // Pas de hero : l'écran ouvre sur la confirmation, c'est elle qui dit
+          // que la progression a bougé.
+          _TreatedHeader(analysed: analysis != null),
+          if (analysis != null) ...[
+            // Analyse d'avant le contrat v3 : pas de hero, donc pas de bande
+            // pour loger le verdict → le gros bloc historique reste seul
+            // responsable de l'afficher.
             const SizedBox(height: 13),
             _VerdictCard(analysis: analysis),
             if (analysis.successPoint != null) ...[
@@ -357,33 +359,33 @@ class _CompetenceResultScreenState
               const SizedBox(height: 12),
               _RewriteCard(text: analysis.improvedVersion!),
             ],
-          ],
-        ] else ...[
-          if (!canAnalyse) ...[
+          ] else ...[
+            if (!canAnalyse) ...[
+              const SizedBox(height: 13),
+              _AnalysisBanner(
+                actionLabel: 'Débloquer',
+                onAction: () => showPaywallSheet(context),
+              ),
+            ],
             const SizedBox(height: 13),
-            _AnalysisBanner(
-              actionLabel: 'Débloquer',
-              onAction: () => showPaywallSheet(context),
+            _NoAnalysisCard(
+              attempt: attempt,
+              quota: quota,
+              retrying: _retrying,
+              onRetry: () => unawaited(_retryAnalysis()),
+              onUpgrade: () => showPaywallSheet(context),
+              onRedo: prompt == null
+                  ? null
+                  : () => context.pushReplacement(
+                        competencePromptPath(
+                            widget.module, prompt.skillId, prompt.id),
+                      ),
             ),
           ],
-          const SizedBox(height: 13),
-          _NoAnalysisCard(
-            attempt: attempt,
-            quota: quota,
-            retrying: _retrying,
-            onRetry: () => unawaited(_retryAnalysis()),
-            onUpgrade: () => showPaywallSheet(context),
-            onRedo: prompt == null
-                ? null
-                : () => context.pushReplacement(
-                      competencePromptPath(
-                          widget.module, prompt.skillId, prompt.id),
-                    ),
-          ),
         ],
         const SizedBox(height: 17),
-        // La production quitte la vue principale mais reste à un tap : en EO le
-        // candidat doit pouvoir se réécouter depuis l'écran de résultat.
+        // La production quitte la vue principale mais reste à un tap : c'est
+        // en la relisant à côté du retour que l'exercice porte.
         _SectionToggle(
           title: 'Ta production',
           expanded: _productionExpanded,
@@ -407,11 +409,25 @@ class _CompetenceResultScreenState
           // sont le seul retour disponible.
           expanded: _referencesExpanded ?? analysis == null,
           onToggle: () => setState(
-            () => _referencesExpanded = !(_referencesExpanded ?? analysis == null),
+            () => _referencesExpanded =
+                !(_referencesExpanded ?? analysis == null),
           ),
           onRetry: () =>
               ref.invalidate(skillReferencesProvider(attempt.skillPromptId)),
         ),
+        if (prompt != null) ...[
+          const SizedBox(height: 20),
+          const SectionTitle(title: kSkillWorkedTitle),
+          const SizedBox(height: 9),
+          _SkillWorkedCard(
+            prompt: prompt,
+            accent: _accent,
+            icon: widget.module.icon,
+            onTap: () => context.push(
+              competenceDetailPath(widget.module, prompt.skillId),
+            ),
+          ),
+        ],
         const SizedBox(height: 20),
         _Actions(module: widget.module, prompt: prompt),
       ],
@@ -422,6 +438,84 @@ class _CompetenceResultScreenState
 // ---------------------------------------------------------------------------
 // Blocs
 // ---------------------------------------------------------------------------
+
+/// Intertitre de la carte de rappel : quelle compétence ce sujet travaillait.
+const String kSkillWorkedTitle = 'Compétence travaillée';
+
+/// Le rappel de fin d'écran : la compétence dont ce petit sujet fait partie,
+/// avec son état de maîtrise, et un chemin de retour vers sa fiche.
+///
+/// Le résultat d'un micro-exercice se lit seul (on y arrive par un lien de
+/// l'historique aussi bien qu'en sortant de production) : sans ce rappel, rien
+/// ne dit à quoi il se rattache ni où continuer.
+///
+/// ⚠️ **Aucune donnée nouvelle n'est demandée** : tout vient du sujet déjà
+/// chargé (`skillTitle`, `taskTitle`, `skillId`). On n'appelle jamais
+/// `GET /api/skills/{id}` pour trois lignes.
+class _SkillWorkedCard extends StatelessWidget {
+  const _SkillWorkedCard({
+    required this.prompt,
+    required this.accent,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final SkillPromptDto prompt;
+  final Color accent;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableCard(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(AppRadii.md),
+              ),
+              child: Icon(icon, size: 20, color: accent),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    prompt.skillTitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppFonts.ui(
+                      size: 14.5,
+                      weight: FontWeight.w700,
+                      height: 1.25,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${prompt.skillCode} · ${prompt.taskTitle}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppFonts.ui(size: 12, color: AppColors.inkFaint),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            const CardChevron(),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 /// Les trois références comparatives, **titre compris** — et son titre est
 /// aussi son interrupteur.
@@ -567,7 +661,8 @@ class _TreatedHeader extends StatelessWidget {
             color: AppColors.greenLight,
             borderRadius: BorderRadius.circular(13),
           ),
-          child: const Icon(LucideIcons.check, size: 20, color: AppColors.green),
+          child:
+              const Icon(LucideIcons.check, size: 20, color: AppColors.green),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -800,8 +895,7 @@ class _VerdictCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppColors.white,
                   borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -1079,9 +1173,8 @@ class _Actions extends StatelessWidget {
           // l'analyse vient de nommer.
           label: 'S\'entraîner sur ce point',
           icon: LucideIcons.rotateCcw,
-          variant: module.isEo
-              ? AppButtonVariant.accent
-              : AppButtonVariant.primary,
+          variant:
+              module.isEo ? AppButtonVariant.accent : AppButtonVariant.primary,
           height: 46,
           onPressed: prompt == null
               ? null

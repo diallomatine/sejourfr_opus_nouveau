@@ -7,7 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_tag.dart';
 import 'skill_status_badge.dart';
 
-/// Intitulé de la carte de niveau. **Il nomme la production, pas le candidat** :
+/// Intitulé du niveau démontré. **Il nomme la production, pas le candidat** :
 /// ce palier est celui de la réponse qui vient d'être rendue — quinze à trente
 /// mots —, pas le niveau TCF de la personne, qui se mesure sur des épreuves
 /// entières et vit sur l'accueil. « TON NIVEAU » laissait exactement cette
@@ -18,18 +18,32 @@ import 'skill_status_badge.dart';
 /// (`app/_components/competences/CompetenceLevelCard.tsx`).
 const String kSkillLevelCardEyebrow = 'NIVEAU DE TA RÉPONSE';
 
-/// « Niveau de ta réponse » : le niveau démontré par la micro-production,
-/// l'objectif, la phrase de situation, la jauge à trois crans, le verdict du
-/// critère et les deux étiquettes.
+/// Surtitre du hero : ce que l'écran vient de faire.
+const String kSkillLevelCardHeroEyebrow = 'ANALYSE DE TA PRODUCTION';
+
+/// L'autre colonne du hero : le palier que la démarche du candidat exige.
+const String kSkillLevelCardTargetEyebrow = 'NIVEAU VISÉ';
+
+/// Ce qu'on écrit quand la production atteint déjà l'objectif.
+const String kSkillLevelCardReachedBadge = 'Objectif atteint';
+
+/// Le rappel de pied. Notre palier est une **estimation d'entraînement** :
+/// le vrai TCF est corrigé par plusieurs examinateurs humains, et le dépôt
+/// interdit de laisser croire qu'on reproduit leur verdict.
+const String kSkillLevelCardEstimationNote =
+    'Estimation d\'entraînement, non officielle.';
+
+/// Le hero du résultat d'un micro-exercice : **niveau démontré** face au
+/// **niveau visé**, la phrase de situation, la jauge à trois crans, puis — sur
+/// la bande claire du bas — le verdict du critère et ses deux étiquettes.
 ///
 /// **Rien n'est calculé ici** : le niveau, le palier visé, la phrase, l'échelle
 /// et la position du curseur sont tous dérivés serveur
 /// (`SkillLevelProgressResolver`). L'app ne réordonne pas les crans, ne déduit
 /// aucun palier et ne recompose jamais [SkillLevelProgressDto.situationLabel].
 ///
-/// Le verdict du critère unique est rendu ici, en discret — une pastille sur
-/// la rangée du haut et une ligne de texte sous les puces — plutôt qu'en gros
-/// bloc `_VerdictCard` autonome : c'est le pavé que la refonte a supprimé.
+/// 🛑 **Aucune note /20**, ni ici ni ailleurs sur un micro-exercice : le
+/// tool-schema n'a aucun champ où en loger une.
 class SkillLevelCard extends StatelessWidget {
   const SkillLevelCard({
     super.key,
@@ -46,8 +60,7 @@ class SkillLevelCard extends StatelessWidget {
   /// la carte utilisable même sans analyse v3 complète).
   final SkillCriterionStatus? criterionStatus;
 
-  /// Le verdict IA, en une ligne de texte sous les puces. `null` ou vide →
-  /// rien n'est rendu.
+  /// Le verdict IA, en une ligne de texte. `null` ou vide → rien n'est rendu.
   final String? verdict;
 
   /// Ce qui est réussi, en 3 mots. `null` → la puce disparaît.
@@ -56,132 +69,183 @@ class SkillLevelCard extends StatelessWidget {
   /// L'axe de progrès, en 3 mots. `null` → la puce disparaît.
   final String? focusTag;
 
+  bool get _hasFooter =>
+      criterionStatus != null ||
+      strengthTag != null ||
+      focusTag != null ||
+      (verdict != null && verdict!.isNotEmpty);
+
   @override
   Widget build(BuildContext context) {
-    // `CecrlColor` est la seule table qui décide de la teinte d'un niveau : le
-    // gros chiffre, la jauge et les crans franchis en dérivent tous.
-    final accent = progress.levelReached.color;
     // Aucune teinte d'alerte quand l'objectif n'est pas atteint : « Encore du
     // chemin » décrit une distance, pas un échec.
     final atteint = progress.situation.isObjectifAtteint;
 
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(15),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadii.xl),
         border: Border.all(color: AppColors.line),
-        boxShadow: AppShadows.card,
+        boxShadow: AppShadows.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _Hero(progress: progress, atteint: atteint),
+          if (_hasFooter)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (criterionStatus != null)
+                        SkillCriterionBadge(status: criterionStatus!),
+                      if (strengthTag != null)
+                        AppTag(
+                          label: strengthTag!,
+                          tone: TagTone.success,
+                          icon: LucideIcons.check,
+                          compact: true,
+                        ),
+                      if (focusTag != null)
+                        AppTag(
+                          label: focusTag!,
+                          tone: TagTone.blue,
+                          icon: LucideIcons.target,
+                          compact: true,
+                        ),
+                    ],
+                  ),
+                  if (verdict != null && verdict!.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      verdict!,
+                      style: AppFonts.ui(
+                        size: 12.5,
+                        height: 1.45,
+                        color: AppColors.inkSoft,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          Container(
+            width: double.infinity,
+            color: AppColors.surface2,
+            padding: const EdgeInsets.fromLTRB(15, 9, 15, 10),
+            child: Text(
+              kSkillLevelCardEstimationNote,
+              style: AppFonts.ui(size: 11, color: AppColors.inkFaint),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// La partie foncée : deux paliers en vis-à-vis, la situation, la jauge.
+class _Hero extends StatelessWidget {
+  const _Hero({required this.progress, required this.atteint});
+
+  final SkillLevelProgressDto progress;
+  final bool atteint;
+
+  @override
+  Widget build(BuildContext context) {
+    final onHero = AppColors.white;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 17, 18, 18),
+      decoration: BoxDecoration(
+        gradient: AppGradients.hero(AppColors.blueDark, AppColors.blue),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(kSkillLevelCardEyebrow, style: AppFonts.label(size: 10)),
-          const SizedBox(height: 8),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                progress.levelReached.shortName,
-                style: AppFonts.display(
-                  size: 40,
-                  weight: FontWeight.w800,
-                  color: accent,
+              Icon(
+                LucideIcons.sparkles,
+                size: 13,
+                color: onHero.withValues(alpha: 0.85),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  kSkillLevelCardHeroEyebrow,
+                  style: AppFonts.label(
+                    size: 10,
+                    color: onHero.withValues(alpha: 0.85),
+                  ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  // Wrap plutôt que Row : à 360 px la pastille de critère
-                  // passe à la ligne sous la puce « Objectif » au lieu de
-                  // déborder.
-                  child: Wrap(
-                    alignment: WrapAlignment.end,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      AppTag(
-                        label:
-                            'Objectif ${progress.targetLevel.asNiveau.shortName}',
-                        tone: TagTone.neutral,
-                        icon: LucideIcons.target,
-                        compact: true,
-                      ),
-                      if (criterionStatus != null)
-                        SkillCriterionBadge(status: criterionStatus!),
-                    ],
+              if (atteint)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: onHero.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
                   ),
+                  child: Text(
+                    kSkillLevelCardReachedBadge,
+                    style: AppFonts.ui(
+                      size: 10.5,
+                      weight: FontWeight.w800,
+                      color: onHero,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 15),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _LevelColumn(
+                  eyebrow: kSkillLevelCardEyebrow,
+                  value: progress.levelReached.shortName,
+                  opacity: 1,
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 54,
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                color: onHero.withValues(alpha: 0.28),
+              ),
+              Expanded(
+                child: _LevelColumn(
+                  eyebrow: kSkillLevelCardTargetEyebrow,
+                  value: progress.targetLevel.asNiveau.shortName,
+                  opacity: 0.72,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                atteint ? LucideIcons.circleCheck : LucideIcons.trendingUp,
-                size: 15,
-                color: atteint ? AppColors.green : AppColors.blue,
-              ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Text(
-                  // Libellé posé par le serveur, rendu tel quel.
-                  progress.situationLabel,
-                  style: AppFonts.ui(
-                    size: 12.5,
-                    weight: FontWeight.w700,
-                    height: 1.35,
-                    color: atteint ? AppColors.green : AppColors.blue,
-                  ),
-                ),
-              ),
-            ],
+          const SizedBox(height: 14),
+          Text(
+            // Libellé posé par le serveur, rendu tel quel.
+            progress.situationLabel,
+            style: AppFonts.ui(
+              size: 13.5,
+              weight: FontWeight.w600,
+              height: 1.45,
+              color: onHero.withValues(alpha: 0.94),
+            ),
           ),
           if (progress.scale.length > 1) ...[
             const SizedBox(height: 16),
             _LevelGauge(
               scale: progress.scale,
               cursorIndex: progress.cursorIndex,
-              accent: accent,
-            ),
-          ],
-          if (strengthTag != null || focusTag != null) ...[
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (strengthTag != null)
-                  AppTag(
-                    label: strengthTag!,
-                    tone: TagTone.success,
-                    icon: LucideIcons.check,
-                    compact: true,
-                  ),
-                if (focusTag != null)
-                  AppTag(
-                    label: focusTag!,
-                    tone: TagTone.blue,
-                    icon: LucideIcons.target,
-                    compact: true,
-                  ),
-              ],
-            ),
-          ],
-          if (verdict != null && verdict!.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              verdict!,
-              style: AppFonts.ui(
-                size: 11.5,
-                height: 1.45,
-                color: AppColors.inkSoft,
-              ),
             ),
           ],
         ],
@@ -190,23 +254,66 @@ class SkillLevelCard extends StatelessWidget {
   }
 }
 
-/// La jauge : les crans de l'échelle serveur, étiquetés, le trait rempli
-/// jusqu'au curseur, un point marqué dessus, les crans suivants en gris.
+/// Une colonne du vis-à-vis : le petit label, puis le palier en grand.
+class _LevelColumn extends StatelessWidget {
+  const _LevelColumn({
+    required this.eyebrow,
+    required this.value,
+    required this.opacity,
+  });
+
+  final String eyebrow;
+  final String value;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          eyebrow,
+          maxLines: 2,
+          style: AppFonts.label(
+            size: 9.5,
+            color: AppColors.white.withValues(alpha: 0.72 * opacity + 0.08),
+          ),
+        ),
+        const SizedBox(height: 5),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            style: AppFonts.display(
+              size: 38,
+              weight: FontWeight.w800,
+              color: AppColors.white.withValues(alpha: opacity),
+              height: 1.05,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// La jauge, **sur le fond foncé du hero** : les crans de l'échelle serveur,
+/// étiquetés, le trait rempli jusqu'au curseur, un point marqué dessus.
 ///
 /// **Aucune position n'est recalculée** : [scale] et [cursorIndex] arrivent tels
 /// quels du serveur, l'ordre n'est jamais retouché. Le seul ajustement est un
 /// garde-fou de rendu (index borné) : il protège l'affichage d'une échelle
 /// dégénérée, il ne déduit aucun niveau.
+///
+/// ⚠️ La teinte de `CecrlColor` ne se voit pas sur ce dégradé — même raison que
+/// la barre des cinq paliers du rapport de production : les crans franchis
+/// passent en **blanc plein**, les autres en blanc très atténué.
 class _LevelGauge extends StatelessWidget {
-  const _LevelGauge({
-    required this.scale,
-    required this.cursorIndex,
-    required this.accent,
-  });
+  const _LevelGauge({required this.scale, required this.cursorIndex});
 
   final List<NiveauCecrl> scale;
   final int cursorIndex;
-  final Color accent;
 
   /// Largeur d'un cran. Les deux rangées (points puis étiquettes) partagent la
   /// même géométrie, c'est ce qui les garde alignées sans mesure.
@@ -215,6 +322,8 @@ class _LevelGauge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cursor = cursorIndex.clamp(0, scale.length - 1);
+    final on = AppColors.white.withValues(alpha: 0.95);
+    final off = AppColors.white.withValues(alpha: 0.26);
     return Column(
       children: [
         Row(
@@ -226,7 +335,7 @@ class _LevelGauge extends StatelessWidget {
                     height: 4,
                     margin: const EdgeInsets.only(top: 8),
                     decoration: BoxDecoration(
-                      color: i <= cursor ? accent : AppColors.surface3,
+                      color: i <= cursor ? on : off,
                       borderRadius: BorderRadius.circular(AppRadii.pill),
                     ),
                   ),
@@ -234,7 +343,7 @@ class _LevelGauge extends StatelessWidget {
               SizedBox(
                 width: _slot,
                 height: 20,
-                child: Center(child: _dot(i, cursor)),
+                child: Center(child: _dot(i, cursor, on, off)),
               ),
             ],
           ],
@@ -252,7 +361,9 @@ class _LevelGauge extends StatelessWidget {
                   style: AppFonts.ui(
                     size: 10.5,
                     weight: i == cursor ? FontWeight.w900 : FontWeight.w600,
-                    color: i <= cursor ? AppColors.ink : AppColors.inkFaint,
+                    color: i <= cursor
+                        ? AppColors.white
+                        : AppColors.white.withValues(alpha: 0.55),
                   ),
                 ),
               ),
@@ -263,20 +374,23 @@ class _LevelGauge extends StatelessWidget {
     );
   }
 
-  Widget _dot(int index, int cursorIndex) {
-    if (index == cursorIndex) {
+  Widget _dot(int index, int cursor, Color on, Color off) {
+    if (index == cursor) {
       return Container(
         width: 20,
         height: 20,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: accent.withValues(alpha: 0.22),
+          color: AppColors.white.withValues(alpha: 0.22),
         ),
         child: Container(
           width: 11,
           height: 11,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: accent),
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.white,
+          ),
         ),
       );
     }
@@ -285,7 +399,7 @@ class _LevelGauge extends StatelessWidget {
       height: 10,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: index < cursorIndex ? accent : AppColors.surface3,
+        color: index < cursor ? on : off,
       ),
     );
   }
