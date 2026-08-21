@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blurred_content.dart';
 import '../../../core/widgets/premium_lock.dart';
 import '../plan_actions.dart';
 import '../plan_labels.dart';
@@ -19,9 +20,13 @@ import 'plan_tokens.dart';
 /// on ne retrie pas, et **aucune date n'intervient** — « aujourd'hui » est une
 /// présentation.
 ///
-/// 🛑 **Rien n'est masqué à un compte gratuit** : une ligne verrouillée
-/// s'affiche entière, avec sa compétence et sa durée, et seule son action mène
-/// à l'offre.
+/// 🛑 **Rien n'est fabriqué** pour un compte gratuit : une ligne verrouillée
+/// affiche son **vrai** contenu, simplement passé derrière un rideau de flou
+/// (`BlurredContent`), cadenas en fin de ligne et tap qui mène à l'offre. Son
+/// icône de domaine, elle, reste nette : elle situe la ligne sans rien livrer.
+///
+/// ⚠ Le verrou est **lu** (`planSeanceItemLocked`), jamais déduit du rang de la
+/// ligne.
 class PlanSeanceSection extends ConsumerWidget {
   const PlanSeanceSection({
     super.key,
@@ -145,10 +150,7 @@ class _SeanceRow extends ConsumerWidget {
   final PlanSeanceItem item;
   final bool done;
 
-  bool get _locked =>
-      item.locked ||
-      (item.exercise?.locked ?? false) ||
-      (item.milestone?.locked ?? false);
+  bool get _locked => planSeanceItemLocked(item);
 
   Future<void> _open(BuildContext context, WidgetRef ref) async {
     if (_locked) {
@@ -186,6 +188,41 @@ class _SeanceRow extends ConsumerWidget {
     final epreuve = milestone?.epreuve ??
         (item.section == null ? null : planEpreuveOfSection(item.section!));
 
+    // Le contenu **réel** de la ligne. Verrouillé, il passe derrière le rideau
+    // sans changer d'un mot : on ne fabrique jamais de fausse ligne.
+    final Widget body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          planItemEyebrow(item),
+          style: AppFonts.label(size: 11.5, color: AppColors.inkFaint),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: AppFonts.ui(
+            size: 14.5,
+            weight: FontWeight.w600,
+            height: 1.25,
+          ).copyWith(
+            decoration: done ? TextDecoration.lineThrough : null,
+            decorationColor: AppColors.inkFaint,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          minutes > 0
+              ? '${planItemKindLabel(item)} · $minutes min'
+              : planItemKindLabel(item),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppFonts.ui(size: 12.5, color: AppColors.inkFaint),
+        ),
+      ],
+    );
+
     return Material(
       color: AppColors.white,
       child: InkWell(
@@ -199,52 +236,14 @@ class _SeanceRow extends ConsumerWidget {
             opacity: done ? 0.62 : 1,
             child: Row(
               children: [
+                // L'icône de domaine reste **nette** : elle dit de quelle
+                // épreuve relève la ligne, pas ce qu'on y ferait.
                 PlanDomainTile(epreuve: epreuve, filled: !done),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        planItemEyebrow(item),
-                        style: AppFonts.label(
-                          size: 11.5,
-                          color: AppColors.inkFaint,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppFonts.ui(
-                          size: 14.5,
-                          weight: FontWeight.w600,
-                          height: 1.25,
-                        ).copyWith(
-                          decoration:
-                              done ? TextDecoration.lineThrough : null,
-                          decorationColor: AppColors.inkFaint,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        minutes > 0
-                            ? '${planItemKindLabel(item)} · $minutes min'
-                            : planItemKindLabel(item),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppFonts.ui(
-                          size: 12.5,
-                          color: AppColors.inkFaint,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                Expanded(child: _locked ? BlurredContent(child: body) : body),
                 const SizedBox(width: 8),
                 if (_locked)
-                  const PremiumLockTag()
+                  const PremiumLockPill()
                 else if (done)
                   Container(
                     width: 24,

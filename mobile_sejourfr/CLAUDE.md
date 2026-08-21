@@ -993,10 +993,35 @@ mon profil** → **Mon chemin vers l'objectif** → liens secondaires.
 - **Rien n'est recalculé côté app** : les priorités sont ordonnées serveur, `domaines` est
   **déjà trié par urgence** (aucun front ne retrie), la séance est composée serveur, et
   chaque verrou vient d'un `locked` par élément.
-- 🛑 **La maquette floute les lignes verrouillées ; nous NON.** Le Plan reste
-  **intégralement visible** sans abonnement (règle du CLAUDE.md racine) : une ligne fermée
-  s'affiche entière, avec sa compétence et sa durée, et seule son **action** mène à l'offre
-  (`PremiumLockTag` + `showTcfLockPaywall`). Ne pas réintroduire de `CFlou`.
+- 🛑 **DEUX endroits floutent, et deux seulement** (arbitrage propriétaire, 2026-08-21 —
+  ⚠️ **révoque** « la maquette floute, nous non ») : les **lignes de la séance**
+  verrouillées (`PlanSeanceSection`) et les **lignes de « Mes priorités »** verrouillées
+  (`_PriorityRow`). La règle produit est : **on floute l'ACTION pas encore accessible,
+  jamais le RÉSULTAT mesuré** — ce sont ses productions.
+  - **Restent nets, pour tout le monde** : la carte de **priorité actuelle**, « Mon profil
+    TCF » et ses 4 domaines, « Compléter mon profil », le chemin vers l'objectif, « ce qui a
+    changé », les **compétences observées** et les **étapes franchies**. Ne pas étendre le
+    flou « par symétrie ».
+  - **Le contenu flouté est le VRAI** — jamais un décor fabriqué. Le rideau est
+    **`BlurredContent`** (`core/widgets/blurred_content.dart`, partagé) :
+    `ExcludeSemantics` **et** `IgnorePointer`, donc illisible à l'œil **et** au lecteur
+    d'écran. Ce qui doit rester lisible (rang, icône de domaine, compteur, CTA) vit **hors**
+    du bloc flouté, et l'affordance de fin de ligne devient **`PremiumLockPill`**
+    (`core/widgets/premium_lock.dart`), qui porte la sémantique « Premium » que le flou
+    retire. Le tap de la ligne ouvre `showTcfLockPaywall` — **jamais** un second chemin vers
+    l'abonnement.
+  - ⚠️ **Le verrou est LU, jamais déduit du rang.** La maquette écrit `!abo && i > 0` parce
+    que son bouchon n'a pas de serveur ; nous lisons `locked` par élément
+    (`planSeanceItemLocked` pour la séance, `priority.locked` pour les priorités). Ne pas
+    réintroduire un « à partir de la 2ᵉ, cadenas ».
+  - **Aucune autre surface ne doit démentir le flou** : la feuille « Pourquoi cette
+    séance ? » (`_WhyRow`, `plan_screen.dart`) reprend les **mêmes** lignes, donc elle
+    floute les mêmes. Ce n'est pas une extension du verrou, c'est la même ligne vue deux
+    fois. `planSeanceRationale` ne nomme que la priorité n°1 (jamais floutée), et un jalon
+    présent dans la séance n'est pas répété en carte (`milestoneInSeance`) : rien à y faire.
+  - **Les compétences observées restent en clair même quand la priorité correspondante est
+    floutée** — et ce n'est **pas** une contradiction : ce sont les deux faces de la règle,
+    le résultat mesuré d'un côté, l'action verrouillée de l'autre.
 - 🛑 **`objectiveLevel` est NULLABLE.** La maquette code `"B2"` en dur : c'est un artefact.
   Sans démarche déclarée, l'en-tête propose « Mon objectif » (→ `/target-path`), le titre du
   chemin ne nomme aucun palier et la ligne « Objectif » du héros disparaît. `recentChanges`

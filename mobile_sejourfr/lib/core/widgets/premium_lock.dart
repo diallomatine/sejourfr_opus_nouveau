@@ -44,6 +44,39 @@ class PremiumLockTag extends StatelessWidget {
       );
 }
 
+/// Le cadenas d'une **ligne** verrouillée : il prend la place du chevron ou de
+/// la coche, à la taille d'une affordance de fin de ligne. On l'emploie quand
+/// le contenu de la ligne est **flouté** (`BlurredContent`) — la pilule
+/// `PremiumLockTag` y ajouterait un mot lisible à côté d'un texte qui ne l'est
+/// pas, et surchargerait la ligne.
+///
+/// Il porte la sémantique que le flou retire : le lecteur d'écran entend
+/// « Premium », donc le verrou reste annoncé même quand rien n'est lisible.
+class PremiumLockPill extends StatelessWidget {
+  const PremiumLockPill({super.key, this.size = 24});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: kPremiumLockTagLabel,
+        child: Container(
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: AppColors.surface3,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            LucideIcons.lock,
+            size: size * 0.54,
+            color: AppColors.inkFaint,
+          ),
+        ),
+      );
+}
+
 /// La pastille de tête d'une carte verrouillée : elle remplace l'anneau de
 /// progression ou le numéro de sujet, **à la même taille**, parce qu'un anneau
 /// à zéro n'aurait rien à raconter. Même geste que `SkillCard` / `PromptCard`

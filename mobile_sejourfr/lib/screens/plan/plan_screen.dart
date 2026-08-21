@@ -18,6 +18,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_sheet.dart';
+import '../../core/widgets/blurred_content.dart';
 import '../../core/widgets/list_group.dart';
 import '../../core/widgets/premium_lock.dart';
 import '../../core/widgets/screen_header.dart';
@@ -264,9 +265,7 @@ class _ActivePlan extends ConsumerWidget {
                 item.milestone?.estimatedMinutes ??
                 0),
       );
-      final locked = next.locked ||
-          (next.exercise?.locked ?? false) ||
-          (next.milestone?.locked ?? false);
+      final locked = planSeanceItemLocked(next);
       final started = pending.length != items.length;
       final label = locked
           ? 'Débloquer cet entraînement'
@@ -493,6 +492,14 @@ Future<void> _showWhySheet(BuildContext context, LearningPlan plan) =>
       ],
     );
 
+/// Le récapitulatif d'une ligne de séance dans la feuille « Pourquoi cette
+/// séance ? ».
+///
+/// 🛑 **Il floute exactement ce que la séance floute.** Cette feuille reprend
+/// les mêmes lignes que la carte « Aujourd'hui » : y montrer en clair le titre
+/// d'un entraînement verrouillé démentirait le rideau posé dix lignes plus
+/// haut. Ce n'est pas une extension du verrou — c'est la même ligne, vue deux
+/// fois.
 class _WhyRow extends StatelessWidget {
   const _WhyRow({required this.item});
 
@@ -505,35 +512,40 @@ class _WhyRow extends StatelessWidget {
         item.exercise?.estimatedMinutes ?? milestone?.estimatedMinutes ?? 0;
     final epreuve = milestone?.epreuve ??
         (item.section == null ? null : planEpreuveOfSection(item.section!));
+    final locked = planSeanceItemLocked(item);
+
+    final Widget body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          item.title ?? milestone?.displayTitle ?? 'Entraînement',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: AppFonts.ui(
+            size: 13.5,
+            weight: FontWeight.w600,
+            height: 1.25,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '${planItemEyebrow(item)} · ${planItemKindLabel(item)}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppFonts.ui(size: 12, color: AppColors.inkFaint),
+        ),
+      ],
+    );
+
     return Row(
       children: [
         PlanDomainTile(epreuve: epreuve, size: 32),
         const SizedBox(width: 11),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                item.title ?? milestone?.displayTitle ?? 'Entraînement',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: AppFonts.ui(
-                  size: 13.5,
-                  weight: FontWeight.w600,
-                  height: 1.25,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${planItemEyebrow(item)} · ${planItemKindLabel(item)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppFonts.ui(size: 12, color: AppColors.inkFaint),
-              ),
-            ],
-          ),
-        ),
-        if (minutes > 0) ...[
+        Expanded(child: locked ? BlurredContent(child: body) : body),
+        if (locked) ...[
+          const SizedBox(width: 8),
+          const PremiumLockPill(size: 22),
+        ] else if (minutes > 0) ...[
           const SizedBox(width: 8),
           Text(
             '$minutes min',

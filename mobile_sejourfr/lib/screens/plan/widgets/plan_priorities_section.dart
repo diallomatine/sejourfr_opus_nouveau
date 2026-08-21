@@ -9,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/skill_progress.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_tag.dart';
+import '../../../core/widgets/blurred_content.dart';
 import '../../../core/widgets/list_group.dart';
 import '../../../core/widgets/premium_lock.dart';
 import '../../../core/widgets/pressable_card.dart';
@@ -140,6 +141,15 @@ final ButtonStyle _linkStyle = TextButton.styleFrom(
 
 /// Une priorité : son rang, sa compétence, son état de maîtrise et les points
 /// de son **étape** (les 5 premiers sujets, jamais les 15 de la compétence).
+///
+/// 🛑 **Verrouillée**, la ligne garde son rang net et passe sa compétence
+/// derrière un rideau de flou (`BlurredContent`) — c'est le **vrai** titre qui
+/// est flouté, jamais un décor. Son état de maîtrise et ses points d'étape ne
+/// s'affichent alors pas : situer une compétence dont on cache le nom ne dit
+/// rien à personne. Le tap mène à l'offre, pas à des sujets qu'on ne pourrait
+/// pas produire.
+///
+/// ⚠ Le verrou est **lu** sur le DTO. Jamais « à partir de la 2ᵉ ligne ».
 class _PriorityRow extends StatelessWidget {
   const _PriorityRow({
     required this.rank,
@@ -154,11 +164,35 @@ class _PriorityRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mastery = priority.masteryState;
+    final locked = priority.locked;
+
+    // Le **vrai** titre et la **vraie** compétence. Verrouillés, ils passent
+    // derrière le rideau sans être remplacés par quoi que ce soit.
+    final Widget identity = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          priority.title,
+          style: AppFonts.ui(
+            size: 14.5,
+            weight: FontWeight.w600,
+            height: 1.25,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          planSkillMeta(priority.skillCode, priority.section),
+          style: AppFonts.ui(size: 12.5, color: AppColors.inkFaint),
+        ),
+      ],
+    );
+
     return Material(
       color: AppColors.white,
       child: InkWell(
-        onTap: () =>
-            openPlanSkill(context, priority.skillId, priority.section),
+        onTap: () => locked
+            ? unawaited(showTcfLockPaywall(context))
+            : openPlanSkill(context, priority.skillId, priority.section),
         child: Container(
           padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
           decoration: BoxDecoration(
@@ -169,9 +203,15 @@ class _PriorityRow extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Le rang reste **net** — il dit la place dans le parcours, pas
+              // ce qu'il y a à y faire. Verrouillé, il reprend la teinte
+              // neutre : sa couleur porte l'état de maîtrise, qu'on ne montre
+              // pas ici.
               PlanRankBadge(
                 rank: rank,
-                tone: mastery?.color ?? priority.status.color,
+                tone: locked
+                    ? AppColors.inkFaint
+                    : mastery?.color ?? priority.status.color,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -182,37 +222,14 @@ class _PriorityRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                priority.title,
-                                style: AppFonts.ui(
-                                  size: 14.5,
-                                  weight: FontWeight.w600,
-                                  height: 1.25,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                planSkillMeta(
-                                  priority.skillCode,
-                                  priority.section,
-                                ),
-                                style: AppFonts.ui(
-                                  size: 12.5,
-                                  color: AppColors.inkFaint,
-                                ),
-                              ),
-                            ],
-                          ),
+                          child: locked
+                              ? BlurredContent(child: identity)
+                              : identity,
                         ),
                         const SizedBox(width: 8),
-                        if (priority.locked) ...[
-                          const PremiumLockTag(),
-                          const SizedBox(width: 6),
-                        ],
-                        if (mastery != null)
+                        if (locked)
+                          const PremiumLockPill()
+                        else if (mastery != null)
                           SkillMasteryTag(state: mastery, compact: true)
                         else
                           AppTag(
@@ -222,7 +239,7 @@ class _PriorityRow extends StatelessWidget {
                           ),
                       ],
                     ),
-                    if (priority.stepPromptCount > 0) ...[
+                    if (!locked && priority.stepPromptCount > 0) ...[
                       const SizedBox(height: 9),
                       Row(
                         children: [
