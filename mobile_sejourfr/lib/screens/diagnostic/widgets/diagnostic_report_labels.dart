@@ -75,8 +75,6 @@ const String kDiagnosticPlanReadyTitle = 'Votre plan personnalisé est prêt';
 const String kDiagnosticPlanReadyText =
     'Il commence par votre priorité n°1 et se réordonne à chacune de vos '
     'nouvelles productions.';
-
-const String kDiagnosticPlanCurrentPriority = 'Priorité actuelle';
 const String kDiagnosticPlanTodayLabel = 'Aujourd\'hui';
 
 /* --------------------------------------------------------------- l'offre */

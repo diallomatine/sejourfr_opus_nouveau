@@ -1753,39 +1753,6 @@ details.leverRow[open] .leverChevron {
   background: var(--color-paper);
 }
 
-.planHead {
-  padding: clamp(15px, 2.6vw, 20px) clamp(16px, 3vw, 22px) 15px;
-  background: linear-gradient(180deg, var(--color-blue-soft) 0%, transparent 84%);
-}
-
-.planHeadEyebrow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  color: var(--color-blue);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.planHead h3 {
-  margin: 8px 0 0;
-  color: var(--color-ink);
-  font-size: clamp(17px, 2.4vw, 20px);
-  letter-spacing: -0.02em;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
-
-.planHeadMeta {
-  margin: 4px 0 0;
-  color: var(--color-muted);
-  font-size: 13px;
-}
-
 /* La bascule « ce qui est à faire aujourd'hui » : un filet, pas une carte. */
 .planTodayLabel {
   margin: 0;

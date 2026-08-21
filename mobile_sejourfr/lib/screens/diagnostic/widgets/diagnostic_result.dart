@@ -1131,49 +1131,10 @@ class _PlanPreviewCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (head != null)
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 15, 16, 14),
-              color: AppColors.blueSoft,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        LucideIcons.zap,
-                        size: 13,
-                        color: AppColors.blue,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        kDiagnosticPlanCurrentPriority.toUpperCase(),
-                        style: AppFonts.eyebrow(color: AppColors.blue),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 7),
-                  // Le titre seul : l'explication du correcteur se lit dans le
-                  // dépliant de la même priorité, deux sections plus haut. La
-                  // redire ici l'aurait tronquée pour tenir.
-                  Text(
-                    head.title,
-                    style: AppFonts.display(size: 18, height: 1.15),
-                  ),
-                  if (head.meta.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      head.meta,
-                      style: AppFonts.ui(
-                        size: 12.5,
-                        height: 1.45,
-                        color: AppColors.inkSoft,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+          // Le bandeau « Priorité actuelle » a ete retire le 2026-08-21 :
+          // cette meme priorite est deja la premiere ligne de « Vos
+          // principales priorites », deux sections plus haut. La redire ici
+          // n'ajoutait rien et allongeait la carte. Ne pas la reintroduire.
           if (action != null)
             Container(
               width: double.infinity,

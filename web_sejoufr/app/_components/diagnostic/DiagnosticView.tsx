@@ -1499,7 +1499,6 @@ const PLAN_READY_TITLE = "Votre plan personnalisé est prêt";
 const PLAN_READY_TEXT =
   "Il commence par votre priorité n°1 et se réordonne à chacune de vos nouvelles productions.";
 
-const PLAN_CURRENT_PRIORITY = "Priorité actuelle";
 const PLAN_TODAY_LABEL = "Aujourd'hui";
 /** La nature d'une ligne de l'aperçu de séance, dite en deux mots. */
 const PLAN_STEP_TARGETED = "Exercice ciblé";
@@ -1783,22 +1782,10 @@ function DiagnosticResult({
           <section aria-labelledby="plan-title">
             <ResultBlockHead id="plan-title" title={PLAN_READY_TITLE} text={PLAN_READY_TEXT} />
             <div className={styles.planShell}>
-              {/* La priorité n°1, telle quelle : son explication se lit dans le
-                  dépliant de la même priorité, une section plus haut. La redire
-                  ici l'aurait tronquée pour tenir. */}
-              {visibleLevers.length > 0 && (
-                <div className={styles.planHead}>
-                  <p className={styles.planHeadEyebrow}>
-                    <Zap size={13} aria-hidden /> {PLAN_CURRENT_PRIORITY}
-                  </p>
-                  <h3>{visibleLevers[0].title}</h3>
-                  {skillMetaLine(visibleLevers[0].section, visibleLevers[0].skillCode) && (
-                    <p className={styles.planHeadMeta}>
-                      {skillMetaLine(visibleLevers[0].section, visibleLevers[0].skillCode)}
-                    </p>
-                  )}
-                </div>
-              )}
+              {/* Le bandeau « Priorité actuelle » a été retiré le 2026-08-21 :
+                  cette même priorité est déjà la première ligne de « Vos
+                  principales priorités », une section plus haut. La redire ici
+                  n'ajoutait rien et allongeait la carte. Ne pas la réintroduire. */}
 
               <p className={styles.planTodayLabel}>
                 {PLAN_TODAY_LABEL} · {nextAction.estimatedMinutes} min
