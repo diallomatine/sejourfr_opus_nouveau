@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -20,6 +22,21 @@ import '../../plan/widgets/plan_profile_section.dart';
 import '../../plan/widgets/plan_tokens.dart';
 import '../../tcf_production/widgets/action_plan.dart';
 import '../diagnostic_variant.dart';
+
+/// L'appel à l'action du verrou de ce rapport. **Ce n'est pas un second chemin
+/// d'achat** : il déclenche `onSubscribe`, donc `showTcfLockPaywall`, comme le
+/// Plan et le module Compétences. Wording neutre (guidelines Apple 3.1.1) : ni
+/// prix, ni verbe d'achat.
+const String kUnlockPlanCta = 'Débloquer mon Plan';
+
+/// L'eyebrow du rapport, selon que le compte a l'accès TCF ou non.
+///
+/// ⚠️ **Vouvoiement**, comme tout le diagnostic et tout le Plan (cf. CLAUDE.md
+/// racine : « le Plan vouvoie, contrairement au module Compétences »). La
+/// maquette tutoie parce qu'elle décrit un visiteur d'avant l'inscription ;
+/// cet écran, lui, n'existe qu'une fois le compte créé.
+const String kResultEyebrowFull = 'RAPPORT COMPLET';
+const String kResultEyebrowFree = 'VOTRE RAPPORT DE DIAGNOSTIC';
 
 /// Écran de fin de diagnostic, refondu sur la maquette premium mobile.
 ///
@@ -82,6 +99,22 @@ class DiagnosticResultView extends ConsumerWidget {
     final plan = ref.watch(learningPlanProvider).valueOrNull;
     final pending = _comprehensionToAssess(plan);
 
+    // **Le compteur est calculé sur ce que le serveur a renvoyé**, jamais sur
+    // une constante de maquette : `focus`, `solid` et `steps` sont les listes
+    // entières, on n'en tranche que l'affichage. Moins d'éléments que le seuil
+    // ⇒ `hidden == 0` ⇒ **le bloc verrouillé n'existe pas** et tout est en
+    // clair — un compte gratuit avec deux priorités n'a rien de masqué à lui
+    // vendre.
+    final visibleFocus =
+        hasTcfAccess ? focus : focus.take(_kFreeFocusVisible).toList();
+    final hiddenFocus = focus.length - visibleFocus.length;
+    final visibleSolid =
+        hasTcfAccess ? solid : solid.take(_kFreeSolidVisible).toList();
+    final hiddenSolid = solid.length - visibleSolid.length;
+    final visibleSteps =
+        hasTcfAccess ? steps : steps.take(_kFreeStepsVisible).toList();
+    final hiddenSteps = steps.length - visibleSteps.length;
+
     return Stack(
       children: [
         ListView(
@@ -92,7 +125,7 @@ class DiagnosticResultView extends ConsumerWidget {
             const _DoneBadge(),
             const SizedBox(height: 14),
             Text(
-              'BILAN PERSONNALISÉ · 2 PRODUCTIONS',
+              hasTcfAccess ? kResultEyebrowFull : kResultEyebrowFree,
               style: AppFonts.eyebrow(color: AppColors.blue),
             ),
             const SizedBox(height: 10),
@@ -106,6 +139,22 @@ class DiagnosticResultView extends ConsumerWidget {
                 height: 1.5,
               ),
             ),
+            // Le geste d'abonnement est offert en tête **et** en fin : c'est
+            // le même `onSubscribe`, donc la même feuille, jamais un second
+            // parcours d'achat.
+            if (!hasTcfAccess) ...[
+              const SizedBox(height: 14),
+              Semantics(
+                button: true,
+                label: kUnlockPlanCta,
+                child: AppButton(
+                  label: kUnlockPlanCta,
+                  iconRight: LucideIcons.arrowRight,
+                  height: 48,
+                  onPressed: onSubscribe,
+                ),
+              ),
+            ],
             const SizedBox(height: 18),
             _LevelsHero(
               written: result.written?.levelEstimate,
@@ -135,9 +184,27 @@ class DiagnosticResultView extends ConsumerWidget {
               const SizedBox(height: 13),
               PlanCompleteProfileSection(assessments: pending),
             ],
-            if (focus.isNotEmpty) ...[
+            if (visibleFocus.isNotEmpty) ...[
               const SizedBox(height: 14),
-              _FocusCard(focus: focus),
+              _FocusCard(focus: visibleFocus),
+              if (hiddenFocus > 0) ...[
+                const SizedBox(height: 9),
+                _LockedPreview(
+                  lines: [
+                    for (final item in focus
+                        .skip(visibleFocus.length)
+                        .take(_kBlurredSample))
+                      _LockedLine(
+                        title: item.title,
+                        subtitle: item.section?.label,
+                      ),
+                  ],
+                  label: '+ $hiddenFocus autre${_plural(hiddenFocus)} '
+                      'priorité${_plural(hiddenFocus)} '
+                      'détectée${_plural(hiddenFocus)}',
+                  onSubscribe: onSubscribe,
+                ),
+              ],
             ],
             if (exemple != null) ...[
               const SizedBox(height: 26),
@@ -151,7 +218,7 @@ class DiagnosticResultView extends ConsumerWidget {
               const SizedBox(height: 13),
               _BeforeAfter(exemple: exemple),
             ],
-            if (steps.isNotEmpty) ...[
+            if (visibleSteps.isNotEmpty) ...[
               const SizedBox(height: 26),
               const _SectionHead(
                 kicker: 'VOTRE PLAN PERSONNALISÉ',
@@ -162,17 +229,14 @@ class DiagnosticResultView extends ConsumerWidget {
               ),
               const SizedBox(height: 13),
               _PlanPreviewCard(
-                steps: steps,
+                steps: visibleSteps,
+                hiddenSteps: hiddenSteps,
                 exercise: result.nextAction,
                 onOpenRecommended: onOpenRecommended,
                 onSubscribe: onSubscribe,
               ),
             ],
-            if (!hasTcfAccess) ...[
-              const SizedBox(height: 14),
-              _ValueCard(onSubscribe: onSubscribe),
-            ],
-            if (solid.isNotEmpty || result.strengths.isNotEmpty) ...[
+            if (visibleSolid.isNotEmpty || result.strengths.isNotEmpty) ...[
               const SizedBox(height: 26),
               const _SectionHead(
                 kicker: 'VOS ACQUIS',
@@ -184,12 +248,28 @@ class DiagnosticResultView extends ConsumerWidget {
               const SizedBox(height: 13),
               if (result.strengths.isNotEmpty) ...[
                 _StrengthsCard(strengths: result.strengths.take(3).toList()),
-                if (solid.isNotEmpty) const SizedBox(height: 9),
+                if (visibleSolid.isNotEmpty) const SizedBox(height: 9),
               ],
-              for (final skill in solid)
+              for (final skill in visibleSolid)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: _AcquisRow(skill: skill),
+                ),
+              if (hiddenSolid > 0)
+                _LockedPreview(
+                  lines: [
+                    for (final skill in solid
+                        .skip(visibleSolid.length)
+                        .take(_kBlurredSample))
+                      _LockedLine(
+                        title: skill.skillTitle,
+                        subtitle: skill.section.label,
+                      ),
+                  ],
+                  label: '+ $hiddenSolid autre${_plural(hiddenSolid)} '
+                      'compétence${_plural(hiddenSolid)} déjà '
+                      'solide${_plural(hiddenSolid)}',
+                  onSubscribe: onSubscribe,
                 ),
             ],
             // **Diagnostic rapide** : la même proposition, mais à sa place —
@@ -234,6 +314,12 @@ class DiagnosticResultView extends ConsumerWidget {
                   accentSoft: AppColors.redLight,
                   production: result.oral!,
                 ),
+            ],
+            // L'offre ferme le rapport : le candidat a d'abord lu **ses**
+            // niveaux, **ses** priorités et **ses** deux productions.
+            if (!hasTcfAccess) ...[
+              const SizedBox(height: 26),
+              _ValueCard(onSubscribe: onSubscribe),
             ],
           ],
         ),
@@ -358,10 +444,14 @@ class _FocusItem {
 ///    productions ont montré, **jamais comme des priorités mesurées**.
 ///
 /// Rien de tout ça ⇒ liste vide ⇒ la carte n'est pas rendue.
+///
+/// 🛑 **La liste est rendue ENTIÈRE, jamais tronquée ici.** C'est elle qui
+/// fait le compteur « + N autres priorités détectées » d'un compte sans accès :
+/// une troncature à la source aurait fabriqué un compteur faux, et le dépôt
+/// exige qu'il soit vrai. C'est l'appelant qui tranche ce qu'il affiche.
 List<_FocusItem> _focusItems(DiagnosticResult result) {
   if (result.priorities.isNotEmpty) {
     return result.priorities
-        .take(3)
         .indexed
         .map(
           (entry) => _FocusItem(
@@ -400,7 +490,7 @@ List<_FocusItem> _focusItems(DiagnosticResult result) {
       );
     }
   }
-  if (observed.isNotEmpty) return observed.take(3).toList(growable: false);
+  if (observed.isNotEmpty) return List.unmodifiable(observed);
 
   final weaknesses = <_FocusItem>[];
   for (final production in [result.written, result.oral]) {
@@ -408,11 +498,12 @@ List<_FocusItem> _focusItems(DiagnosticResult result) {
       weaknesses.add(_FocusItem(title: weakness, ranked: false));
     }
   }
-  return weaknesses.take(3).toList(growable: false);
+  return List.unmodifiable(weaknesses);
 }
 
 /// Les compétences que les deux productions ont montrées **solides**,
-/// dédoublonnées par `skillId`.
+/// dédoublonnées par `skillId`. Rendue **entière** pour la même raison que
+/// [_focusItems] : c'est elle qui fait le compteur.
 List<DiagnosticSkillObservation> _solidSkills(DiagnosticResult result) {
   final seen = <String>{};
   final solid = <DiagnosticSkillObservation>[];
@@ -424,7 +515,7 @@ List<DiagnosticSkillObservation> _solidSkills(DiagnosticResult result) {
       solid.add(skill);
     }
   }
-  return solid.take(4).toList(growable: false);
+  return List.unmodifiable(solid);
 }
 
 /// Une étape de l'aperçu du plan.
@@ -1298,12 +1389,19 @@ class _BeforeAfter extends StatelessWidget {
 class _PlanPreviewCard extends StatelessWidget {
   const _PlanPreviewCard({
     required this.steps,
+    required this.hiddenSteps,
     required this.exercise,
     required this.onOpenRecommended,
     required this.onSubscribe,
   });
 
+  /// Ce qui est **affiché**. Un compte sans accès n'en voit qu'un.
   final List<_PlanStep> steps;
+
+  /// Combien d'entraînements de la séance restent derrière le verrou. `0` pour
+  /// un abonné, et **`0` aussi** quand la séance en compte moins que le seuil —
+  /// la barre n'existe alors pas.
+  final int hiddenSteps;
   final PlanRecommendedExercise? exercise;
   final ValueChanged<PlanRecommendedExercise> onOpenRecommended;
   final VoidCallback onSubscribe;
@@ -1337,6 +1435,15 @@ class _PlanPreviewCard extends StatelessWidget {
           for (var index = 0; index < steps.length; index++) ...[
             if (index > 0) const SizedBox(height: 9),
             _PlanStepRow(step: steps[index], number: index + 1),
+          ],
+          if (hiddenSteps > 0) ...[
+            const SizedBox(height: 9),
+            _LockedMoreBar(
+              label: '+ $hiddenSteps autre${_plural(hiddenSteps)} '
+                  'entraînement${_plural(hiddenSteps)} '
+                  'personnalisé${_plural(hiddenSteps)}',
+              onSubscribe: onSubscribe,
+            ),
           ],
           if (action != null) ...[
             const SizedBox(height: 14),
@@ -1473,11 +1580,20 @@ class _ValueCard extends StatelessWidget {
 
   final VoidCallback onSubscribe;
 
+  /// Les cinq avantages de la maquette (`MRapportGratuit`), **distincts** de
+  /// ceux du Plan : ils décrivent ce que le rapport vient de laisser entrevoir,
+  /// dans son ordre — priorités, petits sujets, corrections, plan vivant,
+  /// moment de l'examen blanc.
+  ///
+  /// ⚠️ La maquette les tutoie ; ils sont ici au **vouvoiement**, comme le
+  /// reste de la carte (« vos erreurs »), de l'écran et du Plan. Un seul bloc
+  /// tutoyé au milieu d'un écran qui vouvoie se lit comme une faute.
   static const _arguments = <String>[
-    'Plan personnalisé après votre diagnostic',
-    'Corrections écrites et orales par IA',
-    'Exercices courts sur vos faiblesses',
-    'Réévaluation de vos compétences',
+    'Toutes vos priorités détectées',
+    'Les petits sujets ciblés, compétence par compétence',
+    'Les corrections IA et la version au niveau supérieur',
+    'Votre Plan qui évolue automatiquement',
+    'Le moment où vous êtes prêt pour un examen blanc',
   ];
 
   @override
@@ -1994,6 +2110,276 @@ Color _communicationTone(DiagnosticCommunicationStatus status) =>
     };
 
 // ---------------------------------------------------------------------------
+// Ce qu'un compte sans accès TCF ne lit pas encore
+// ---------------------------------------------------------------------------
+
+/// Ce qu'un compte **sans accès TCF** lit en clair avant le bloc verrouillé.
+///
+/// Ce sont des seuils d'**affichage**, jamais une règle serveur : le backend ne
+/// verrouille pas la lecture d'un diagnostic, et `GET /api/me/plan` sert le Plan
+/// en entier à un compte gratuit. Ils viennent de la maquette
+/// (`MVisiteur.jsx` · `MRapportGratuit`) et ne décident d'aucun accès — le
+/// verrou réel reste `PlanRecommendedExercise.locked`, posé par le serveur.
+///
+/// 🛑 **Ce qui reste entier quel que soit l'abonnement** : les deux niveaux
+/// estimés, l'objectif, le rail, le résumé, le « avant / après », le détail des
+/// deux productions et la bande des quatre domaines. Ce sont **ses**
+/// productions et **ses** mesures — on ne les lui vend pas.
+const int _kFreeFocusVisible = 2;
+const int _kFreeSolidVisible = 2;
+const int _kFreeStepsVisible = 1;
+
+/// Combien de lignes **réelles** le bloc flouté laisse deviner. C'est un
+/// échantillon, jamais le compte : le compte, lui, est exact et porte sur
+/// **tout** ce qui est masqué.
+const int _kBlurredSample = 2;
+
+String _plural(int count) => count > 1 ? 's' : '';
+
+/// Une ligne du bloc verrouillé. Elle porte du **contenu réel** : le titre et
+/// l'épreuve de ce que le serveur a effectivement observé.
+class _LockedLine {
+  const _LockedLine({required this.title, this.subtitle});
+
+  final String title;
+  final String? subtitle;
+}
+
+/// Le bloc « il y en a d'autres » : un échantillon **réel, flouté**, et le
+/// compte exact de ce qui reste.
+///
+/// 🛑 **Rien n'est fabriqué derrière le flou.** Les lignes viennent des
+/// observations du serveur ; on ne compose jamais de fausse priorité pour
+/// remplir. Le flou est un rideau posé sur du vrai, pas un décor.
+///
+/// Il est `ExcludeSemantics` + `IgnorePointer` : ce qui est illisible à l'œil
+/// doit l'être aussi au lecteur d'écran, sinon le verrou ne tient pas.
+class _LockedPreview extends StatelessWidget {
+  const _LockedPreview({
+    required this.lines,
+    required this.label,
+    required this.onSubscribe,
+  });
+
+  final List<_LockedLine> lines;
+  final String label;
+  final VoidCallback onSubscribe;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        border: Border.all(color: AppColors.line),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ExcludeSemantics(
+            child: IgnorePointer(
+              child: ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                child: Opacity(
+                  opacity: 0.55,
+                  child: Column(
+                    children: [
+                      for (final line in lines)
+                        Padding(
+                          padding:
+                              const EdgeInsets.fromLTRB(15, 12, 15, 12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 22,
+                                height: 22,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.surface3,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      line.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppFonts.ui(
+                                        size: 14.5,
+                                        weight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (line.subtitle != null)
+                                      Text(
+                                        line.subtitle!,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppFonts.ui(
+                                          size: 12.5,
+                                          color: AppColors.inkFaint,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Material(
+            color: AppColors.surface2,
+            child: InkWell(
+              // Le même parcours d'achat que partout ailleurs
+              // (`showTcfLockPaywall`) : jamais un second chemin.
+              onTap: onSubscribe,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(15, 12, 15, 12),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: AppColors.lineSoft)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      LucideIcons.lock,
+                      size: 15,
+                      color: AppColors.inkFaint,
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: AppFonts.ui(
+                          size: 13.5,
+                          weight: FontWeight.w700,
+                          color: AppColors.inkSoft,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      kUnlockPlanCta,
+                      style: AppFonts.ui(
+                        size: 13.5,
+                        weight: FontWeight.w700,
+                        color: AppColors.blue,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// La variante **en pointillés** du même verrou, posée à l'intérieur d'une
+/// carte : elle n'a pas de contenu à flouter, seulement un compte. C'est le cas
+/// des entraînements de la séance, dont les titres tiennent déjà dans la carte
+/// au-dessus.
+class _LockedMoreBar extends StatelessWidget {
+  const _LockedMoreBar({required this.label, required this.onSubscribe});
+
+  final String label;
+  final VoidCallback onSubscribe;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: label,
+        child: Material(
+          color: AppColors.surface2,
+          borderRadius: BorderRadius.circular(AppRadii.md),
+          child: InkWell(
+            onTap: onSubscribe,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            child: CustomPaint(
+              painter: const _DashedBorderPainter(),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                child: Row(
+                children: [
+                  const Icon(
+                    LucideIcons.lock,
+                    size: 15,
+                    color: AppColors.inkFaint,
+                  ),
+                  const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: AppFonts.ui(
+                          size: 13.5,
+                          weight: FontWeight.w700,
+                          color: AppColors.inkSoft,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+/// Le liseré **en pointillés** de [_LockedMoreBar]. Flutter n'a pas de
+/// `BorderStyle.dashed` : le trait se peint, il ne se déclare pas. Il dit « il
+/// y a de la place ici, elle n'est pas encore ouverte » — un trait plein aurait
+/// dessiné un contenu, alors qu'il n'y en a pas derrière.
+class _DashedBorderPainter extends CustomPainter {
+  const _DashedBorderPainter();
+
+  static const double _dash = 5;
+  static const double _gap = 4;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.line
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Offset.zero & size,
+          const Radius.circular(AppRadii.md),
+        ),
+      );
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final end = distance + _dash;
+        canvas.drawPath(
+          metric.extractPath(
+            distance,
+            end < metric.length ? end : metric.length,
+          ),
+          paint,
+        );
+        distance = end + _gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) => false;
+}
+
+// ---------------------------------------------------------------------------
 // La barre collante
 // ---------------------------------------------------------------------------
 
@@ -2009,12 +2395,11 @@ const String _kPlanCta = 'Voir mon plan personnalisé';
 /// - Sinon ⇒ le plan personnalisé, fin naturelle du diagnostic.
 ///
 /// 🛑 **Le choix du parcours à ouvrir n'est pas recopié ici.** Décider quoi
-/// lancer selon `PlanDomainAssessmentKind` est déjà écrit deux fois côté Plan
-/// (la liste « Compléter mon profil » et la fiche d'un domaine) ; une troisième
-/// copie serait de la dette, et deux copies finiraient par lancer deux choses
-/// différentes pour le même domaine. On délègue donc à [openPlanDomain], le
-/// point d'entrée public du Plan, et c'est la fiche du domaine qui nomme
-/// l'examen exact. La légende dit dès ici ce qu'il y a derrière
+/// lancer selon `PlanDomainAssessmentKind` vivait en deux copies côté Plan ;
+/// elles ont été fondues dans [openPlanAssessment], le point d'entrée public
+/// que cette barre appelle comme la liste « Compléter mon profil » et la fiche
+/// d'un domaine. Trois copies auraient fini par ouvrir trois écrans différents
+/// pour le même domaine. La légende dit dès ici ce qu'il y a derrière
 /// ([planAssessmentMeta]) : « Examen blanc n°1 · ≈ 20 min », jamais une
 /// promesse plus vague que le geste.
 class _ResultActionBar extends StatelessWidget {
@@ -2048,7 +2433,7 @@ class _ResultActionBar extends StatelessWidget {
               iconRight: LucideIcons.arrowRight,
               onPressed: assessment == null
                   ? onOpenPlan
-                  : () => openPlanDomain(context, assessment.epreuve),
+                  : () => openPlanAssessment(context, assessment),
             ),
           ),
           const SizedBox(height: 7),

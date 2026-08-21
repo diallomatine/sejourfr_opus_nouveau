@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/diagnostic_models.dart';
-import '../../../core/models/enums.dart';
-import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/list_group.dart';
-import '../../module_detail/tcf_module_exam_briefing_screen.dart';
-import '../../module_detail/tcf_qcm_detail_screen.dart' show TcfQcmModule;
 import '../plan_actions.dart';
 import '../plan_labels.dart';
 import 'plan_tokens.dart';
@@ -210,38 +205,11 @@ class _AssessmentRow extends ConsumerWidget {
 
   final PlanDomainAssessment assessment;
 
-  /// On **réutilise les parcours existants**, on n'en crée aucun : le
-  /// diagnostic, le briefing d'examen blanc de module et l'entrée du parcours
-  /// d'expression sont déjà écrits, testés et verrouillés côté backend.
-  void _open(BuildContext context) {
-    switch (assessment.kind) {
-      case PlanDomainAssessmentKind.diagnostic:
-        context.push(AppRoutes.diagnostic);
-      case PlanDomainAssessmentKind.moduleMockExam:
-        final module = switch (assessment.moduleExamQuestionType) {
-          QuestionType.ce => TcfQcmModule.ce,
-          QuestionType.structure => TcfQcmModule.structure,
-          _ => TcfQcmModule.co,
-        };
-        showModuleExamBriefingSheet(
-          context,
-          module,
-          slotNumber: assessment.slotNumber,
-        );
-      case PlanDomainAssessmentKind.production:
-        context.push(
-          assessment.epreuve == EpreuveType.tcfEo
-              ? AppRoutes.tcfEoEntry
-              : AppRoutes.tcfEeEntry,
-        );
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) => Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _open(context),
+          onTap: () => openPlanAssessment(context, assessment),
           child: Container(
             padding: const EdgeInsets.fromLTRB(15, 12, 15, 12),
             decoration: const BoxDecoration(

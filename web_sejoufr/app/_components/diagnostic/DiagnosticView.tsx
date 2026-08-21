@@ -1367,6 +1367,85 @@ function PremiumLink({
   );
 }
 
+/* --------------------------------------------------- rapport et abonnement */
+
+/**
+ * Combien de lignes un compte SANS accès TCF voit en clair avant le teaser.
+ *
+ * 🛑 **Ces deux nombres bornent l'AFFICHAGE, jamais la donnée.** Le serveur
+ * envoie tout, l'écran en montre une partie, et le teaser révèle exactement le
+ * reste — cf. `LockedTease`.
+ */
+const FREE_PRIORITIES = 2;
+const FREE_STRENGTHS = 2;
+
+/**
+ * Ce que l'abonnement ouvre, dit du point de vue du candidat qui vient de lire
+ * son diagnostic.
+ *
+ * ⚠️ **Liste distincte de celle du Plan** et de celle de `/tarifs` : elle ne
+ * vend pas le catalogue, elle nomme la suite de CE rapport. Ne pas la fusionner
+ * avec un argumentaire commercial générique.
+ */
+const PREMIUM_BENEFITS = [
+  "Toutes vos priorités détectées",
+  "Les petits sujets ciblés, compétence par compétence",
+  "Les corrections IA et la version au niveau visé",
+  "Votre plan qui se réordonne à chaque production",
+  "Le moment où vous êtes prêt pour un examen blanc",
+];
+
+/** « + 2 autres priorités détectées », accordé sur un compte RÉEL. */
+function moreLabel(count: number, singular: string, plural: string): string {
+  return `+ ${count} ${count > 1 ? plural : singular}`;
+}
+
+/**
+ * Bloc « il y en a d'autres » : le contenu RÉEL du candidat, flouté.
+ *
+ * 🛑 **Rien n'est fabriqué pour remplir le flou.** Les lignes montrées sont
+ * celles que le serveur a réellement renvoyées, et l'abonnement les révèle
+ * telles quelles — un compteur de teaser n'est honnête que si le
+ * déverrouillage montre vraiment ce nombre-là. C'est aussi pourquoi le bloc
+ * **n'existe pas** quand il n'y a rien de plus à montrer : l'appelant ne le
+ * rend que sur une liste non vide, il ne fabrique jamais de reste.
+ *
+ * Le flou est purement décoratif, donc `aria-hidden` : c'est le pied du bloc —
+ * net, lisible, sélectionnable — qui porte l'information pour tout le monde, y
+ * compris un lecteur d'écran.
+ *
+ * Le clic passe par `PremiumLink`, **le seul chemin instrumenté** de cet écran
+ * vers l'offre : aucun second chemin, aucun événement d'audience nouveau.
+ */
+function LockedTease({
+  rows,
+  label,
+}: {
+  rows: {key: string; title: string; meta: string | null}[];
+  label: string;
+}) {
+  return (
+    <PremiumLink className={styles.tease}>
+      <span className={styles.teaseBlur} aria-hidden>
+        {rows.map((row) => (
+          <span key={row.key} className={styles.teaseRow}>
+            <span className={styles.teaseDot} />
+            <span className={styles.teaseBody}>
+              <b>{row.title}</b>
+              {row.meta && <span>{row.meta}</span>}
+            </span>
+          </span>
+        ))}
+      </span>
+      <span className={styles.teaseFoot}>
+        <Lock size={15} aria-hidden />
+        <span className={styles.teaseCount}>{label}</span>
+        <span className={styles.teaseCta}>Débloquer</span>
+      </span>
+    </PremiumLink>
+  );
+}
+
 /**
  * Écran de RÉSULTAT du diagnostic.
  *
@@ -1431,6 +1510,30 @@ function DiagnosticResult({
   // plan, et le profil reste à compléter plus bas, sans pression.
   const complete = parcours === "COMPLET";
 
+  // ------------------------------------------------------------ freemium
+  // 🛑 **Ce qui est masqué, c'est ce qui RESTE À FAIRE — jamais ce que le
+  // candidat a établi.** Restent entiers pour tout le monde : les niveaux
+  // estimés, l'objectif, le rail, le résumé, le « avant / après », le détail
+  // des deux productions et les quatre domaines du profil. Ce sont **ses**
+  // productions et **ses** mesures ; on tease la suite, on ne lui retire pas
+  // son résultat.
+  //
+  // ⚠️ Cette bascule vaut pour le **rapport de diagnostic**, écran de
+  // conversion, et **pas** pour `/plan` : la règle « le Plan reste
+  // intégralement visible sans abonnement » est intacte chez lui.
+  //
+  // Les trois découpes se lisent toutes de la même façon : ce qui est visible,
+  // puis **exactement le reste**. Aucun compteur n'est écrit en dur, et une
+  // liste plus courte que le seuil ne produit aucun teaser (`slice` rend un
+  // tableau vide, l'appelant ne rend rien).
+  const visibleLevers = hasTcf ? levers : levers.slice(0, FREE_PRIORITIES);
+  const hiddenLevers = levers.slice(visibleLevers.length);
+  // ⚠️ Un abonné voit **tous** ses points forts : le teaser annonce « + N
+  // autres », il faut donc que le déverrouillage en montre réellement N de
+  // plus. L'ancien plafond d'affichage à 3 aurait rendu ce compteur faux.
+  const visibleStrengths = hasTcf ? result.strengths : result.strengths.slice(0, FREE_STRENGTHS);
+  const hiddenStrengths = result.strengths.slice(visibleStrengths.length);
+
   return (
     <DiagnosticShell>
       <div className={styles.result}>
@@ -1441,7 +1544,8 @@ function DiagnosticResult({
             <i aria-hidden><Check size={11} strokeWidth={3.4} /></i> Diagnostic terminé
           </span>
           <p className={styles.resultEyebrow}>
-            Votre bilan personnalisé · 2 productions analysées
+            {hasTcf ? "Rapport complet" : "Votre rapport de diagnostic"} · 2 productions
+            analysées
           </p>
           <h1>
             Vous savez maintenant <em>quoi travailler en priorité</em>.
@@ -1450,6 +1554,11 @@ function DiagnosticResult({
             Vos deux productions ont été analysées ensemble. Inutile de tout revoir : voici
             ce qui vous fera progresser le plus vite, et par quoi commencer.
           </p>
+          {!hasTcf && (
+            <PremiumLink className={styles.headUnlock}>
+              Débloquer mon plan <ArrowRight size={16} aria-hidden />
+            </PremiumLink>
+          )}
         </header>
 
         {/* ------------------------------ niveaux estimés + carte de décision */}
@@ -1479,9 +1588,12 @@ function DiagnosticResult({
                 ? "Votre plan commence par ces priorités, puis se réordonne à chacune de vos nouvelles productions."
                 : "Votre plan part de ces points, puis se réordonne à chacune de vos nouvelles productions."}
             </p>
-            {levers.length > 0 && (
+            {/* Le même découpage que la section « Vos priorités » plus bas :
+                deux surfaces qui montreraient un nombre différent de priorités
+                se contrediraient, et l'une démentirait le teaser de l'autre. */}
+            {visibleLevers.length > 0 && (
               <ol className={styles.convList}>
-                {levers.map((lever, index) => (
+                {visibleLevers.map((lever, index) => (
                   <li key={lever.key} className={styles.convItem}>
                     <span className={styles.convRank} data-rank={index + 1} aria-hidden>
                       {index + 1}
@@ -1543,7 +1655,7 @@ function DiagnosticResult({
               }
             />
             <div className={styles.leverGrid}>
-              {levers.map((lever, index) => (
+              {visibleLevers.map((lever, index) => (
                 <article key={lever.key} className={styles.leverCard}>
                   <p className={styles.leverNum}>
                     {measured ? `Priorité ${index + 1}` : "Point à travailler"}
@@ -1573,6 +1685,20 @@ function DiagnosticResult({
                 </article>
               ))}
             </div>
+            {hiddenLevers.length > 0 && (
+              <LockedTease
+                rows={hiddenLevers.map((lever) => ({
+                  key: lever.key,
+                  title: lever.title,
+                  meta: lever.section ? productionSectionLabel(lever.section) : null,
+                }))}
+                label={moreLabel(
+                  hiddenLevers.length,
+                  "autre priorité détectée",
+                  "autres priorités détectées",
+                )}
+              />
+            )}
           </section>
         )}
 
@@ -1602,35 +1728,31 @@ function DiagnosticResult({
                 </Link>
               </article>
 
-              {nextSteps.map((step, index) => (
-                <article
-                  key={step.key}
-                  className={`${styles.planStep} ${hasTcf ? "" : styles.planStepLocked}`}
-                >
-                  <p className={styles.planStepNum}>Étape {index + 2}</p>
-                  <h3>{step.title}</h3>
-                  {step.detail && <p className={styles.planStepText}>{step.detail}</p>}
-                  {!hasTcf && (
-                    <p className={styles.planLock}>
-                      <Lock size={13} aria-hidden /> Accès inclus dans l&apos;abonnement
-                    </p>
-                  )}
-                </article>
-              ))}
+              {hasTcf &&
+                nextSteps.map((step, index) => (
+                  <article key={step.key} className={styles.planStep}>
+                    <p className={styles.planStepNum}>Étape {index + 2}</p>
+                    <h3>{step.title}</h3>
+                    {step.detail && <p className={styles.planStepText}>{step.detail}</p>}
+                  </article>
+                ))}
 
-              {!hasTcf && (
-                <div className={styles.paywall}>
-                  <div>
-                    <h3>Ne repartez pas avec seulement un diagnostic.</h3>
-                    <p>
-                      Les exercices ciblés, les corrections IA et les vérifications de
-                      progression transforment ce bilan en progression réelle.
-                    </p>
-                  </div>
-                  <PremiumLink className={styles.paywallCta}>
-                    Débloquer mon plan <ArrowRight size={16} aria-hidden />
-                  </PremiumLink>
-                </div>
+              {/* Sans abonnement, un seul entraînement est jouable : les
+                  suivants se comptent au lieu de s'afficher en double. Leurs
+                  compétences sont déjà nommées plus haut, dans les priorités —
+                  ce qui est fermé ici, c'est l'exercice, pas le diagnostic. */}
+              {!hasTcf && nextSteps.length > 0 && (
+                <PremiumLink className={styles.planMore}>
+                  <Lock size={15} aria-hidden />
+                  <span className={styles.planMoreCount}>
+                    {moreLabel(
+                      nextSteps.length,
+                      "autre entraînement personnalisé",
+                      "autres entraînements personnalisés",
+                    )}
+                  </span>
+                  <span className={styles.planMoreCta}>Débloquer</span>
+                </PremiumLink>
               )}
             </div>
           </section>
@@ -1648,8 +1770,22 @@ function DiagnosticResult({
               <div className={styles.snapshotStrengths}>
                 <b>Ce qui fonctionne déjà</b>
                 <ul>
-                  {result.strengths.slice(0, 3).map((item) => <li key={item}>{item}</li>)}
+                  {visibleStrengths.map((item) => <li key={item}>{item}</li>)}
                 </ul>
+                {hiddenStrengths.length > 0 && (
+                  <LockedTease
+                    rows={hiddenStrengths.map((item) => ({
+                      key: item,
+                      title: item,
+                      meta: null,
+                    }))}
+                    label={moreLabel(
+                      hiddenStrengths.length,
+                      "autre compétence déjà solide",
+                      "autres compétences déjà solides",
+                    )}
+                  />
+                )}
               </div>
             )}
             {observations.length === 0 ? (
@@ -1678,24 +1814,52 @@ function DiagnosticResult({
         {!complete && <DiagnosticProfileCard emphasis="later" />}
 
         {/* ------------------------------------------------------ CTA final */}
-        <section className={styles.finalCard}>
-          <span className={styles.finalSpark} aria-hidden><Sparkles size={20} /></span>
-          <h2>
-            Le diagnostic a trouvé <em>quoi</em> travailler. Le plan vous le fait travailler.
-          </h2>
-          <p>
-            Commencez par votre priorité n°1, obtenez une correction IA, puis laissez le plan
-            se réordonner selon vos progrès.
-          </p>
-          <div className={styles.finalActions}>
-            <Link href={planHref} className={styles.finalPrimary}>
-              Découvrir mon plan <ArrowRight size={17} aria-hidden />
-            </Link>
-            {!hasTcf && (
-              <PremiumLink className={styles.finalGhost}>Voir les offres</PremiumLink>
-            )}
-          </div>
-        </section>
+        {/* Un seul bloc de fin, jamais deux empilés : l'abonné est renvoyé vers
+            son plan, le compte gratuit vers ce que l'abonnement ouvre — sans
+            perdre l'accès au plan, qui reste gratuit et entièrement lisible. */}
+        {hasTcf ? (
+          <section className={styles.finalCard}>
+            <span className={styles.finalSpark} aria-hidden><Sparkles size={20} /></span>
+            <h2>
+              Le diagnostic a trouvé <em>quoi</em> travailler. Le plan vous le fait travailler.
+            </h2>
+            <p>
+              Commencez par votre priorité n°1, obtenez une correction IA, puis laissez le plan
+              se réordonner selon vos progrès.
+            </p>
+            <div className={styles.finalActions}>
+              <Link href={planHref} className={styles.finalPrimary}>
+                Découvrir mon plan <ArrowRight size={17} aria-hidden />
+              </Link>
+            </div>
+          </section>
+        ) : (
+          <section className={styles.unlockCard} aria-labelledby="unlock-title">
+            <span className={styles.finalSpark} aria-hidden><Sparkles size={20} /></span>
+            <h2 id="unlock-title">
+              Débloquez <em>votre plan complet</em>.
+            </h2>
+            <p>
+              Le diagnostic a trouvé quoi travailler. Le plan vous le fait travailler.
+            </p>
+            <ul className={styles.unlockList}>
+              {PREMIUM_BENEFITS.map((benefit) => (
+                <li key={benefit}>
+                  <Check size={15} strokeWidth={2.8} aria-hidden />
+                  {benefit}
+                </li>
+              ))}
+            </ul>
+            <div className={styles.finalActions}>
+              <PremiumLink className={styles.finalPrimary}>
+                Débloquer mon plan <ArrowRight size={17} aria-hidden />
+              </PremiumLink>
+              <Link href={planHref} className={styles.finalGhost}>
+                Voir mon plan
+              </Link>
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Barre collante mobile : la réserve de pied de page est posée sur

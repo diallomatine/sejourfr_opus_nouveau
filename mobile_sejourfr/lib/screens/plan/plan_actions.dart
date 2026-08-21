@@ -10,6 +10,8 @@ import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/skill_models.dart';
 import '../../core/router/app_router.dart';
+import '../module_detail/tcf_module_exam_briefing_screen.dart';
+import '../module_detail/tcf_qcm_detail_screen.dart' show TcfQcmModule;
 import '../tcf_production/competences/competences_nav.dart';
 import '../tcf_production/recommended_exercise_launcher.dart';
 import '../tcf_production/tcf_production_module.dart';
@@ -85,6 +87,53 @@ void openPlanDomain(BuildContext context, EpreuveType epreuve) {
   context.push(
     AppRoutes.planDomain.replaceFirst(':domainKey', planDomainKey(epreuve)),
   );
+}
+
+/// **Mesurer un domaine** : la seule traduction de `PlanDomainAssessmentKind`
+/// en écran, pour les trois surfaces qui la demandent — la liste « Compléter
+/// mon profil », la fiche d'un domaine et le bilan du diagnostic.
+///
+/// 🛑 **Aucun parcours n'est créé ici.** Le diagnostic, le briefing d'examen
+/// blanc de module et l'entrée du parcours d'expression existent déjà, sont
+/// verrouillés côté serveur, et c'est vers eux qu'on renvoie. Ce qui est
+/// centralisé, c'est **le choix**, pas le contenu.
+///
+/// Cette fonction a été extraite à la **3ᵉ occurrence** : deux copies vivaient
+/// déjà côté Plan et une troisième s'apprêtait à naître sur le bilan. Trois
+/// copies auraient fini par ouvrir trois écrans différents pour le même
+/// domaine. Ne pas la réinliner.
+///
+/// ⚠️ **Ce n'est jamais une série ciblée** : une série est un `TRAINING`, elle
+/// ne rend jamais un domaine « évalué ». Le lanceur de séries reste
+/// `plan_series_launcher.dart`, il répond à une autre question.
+void openPlanAssessment(
+  BuildContext context,
+  PlanDomainAssessment assessment,
+) {
+  switch (assessment.kind) {
+    case PlanDomainAssessmentKind.diagnostic:
+      context.push(AppRoutes.diagnostic);
+    case PlanDomainAssessmentKind.moduleMockExam:
+      // `moduleExamQuestionType` est ce que `StartAttemptRequest` attend ; le
+      // repli sur CO vaut pour un type absent, jamais pour un type inconnu de
+      // la grille QCM.
+      final module = switch (assessment.moduleExamQuestionType) {
+        QuestionType.ce => TcfQcmModule.ce,
+        QuestionType.structure => TcfQcmModule.structure,
+        _ => TcfQcmModule.co,
+      };
+      showModuleExamBriefingSheet(
+        context,
+        module,
+        slotNumber: assessment.slotNumber,
+      );
+    case PlanDomainAssessmentKind.production:
+      context.push(
+        assessment.epreuve == EpreuveType.tcfEo
+            ? AppRoutes.tcfEoEntry
+            : AppRoutes.tcfEeEntry,
+      );
+  }
 }
 
 /// L'écran « Votre programme évolue » — le détail de ce qui a bougé.

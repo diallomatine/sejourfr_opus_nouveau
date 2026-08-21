@@ -15,12 +15,11 @@ import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/list_group.dart';
 import '../../core/widgets/screen_header.dart';
 import '../../core/widgets/skill_mastery_tag.dart';
-import '../module_detail/tcf_module_exam_briefing_screen.dart';
-import '../module_detail/tcf_qcm_detail_screen.dart' show TcfQcmModule;
 import '../tcf_production/production_nav.dart';
 import '../tcf_production/tcf_production_module.dart';
 import '../../core/router/app_router.dart';
 import 'learning_plan_provider.dart';
+import 'plan_actions.dart';
 import 'plan_labels.dart';
 import 'plan_series_launcher.dart';
 import 'widgets/plan_tokens.dart';
@@ -208,7 +207,7 @@ class _DomainBody extends ConsumerWidget {
             AppButton(
               label: planAssessmentLabel(assessment),
               icon: LucideIcons.play,
-              onPressed: () => _openAssessment(context, assessment),
+              onPressed: () => openPlanAssessment(context, assessment),
             ),
           ],
         ],
@@ -260,33 +259,6 @@ class _DomainBody extends ConsumerWidget {
         ],
       ],
     );
-  }
-
-  void _openAssessment(
-    BuildContext context,
-    PlanDomainAssessment assessment,
-  ) {
-    switch (assessment.kind) {
-      case PlanDomainAssessmentKind.diagnostic:
-        context.push(AppRoutes.diagnostic);
-      case PlanDomainAssessmentKind.moduleMockExam:
-        final module = switch (assessment.moduleExamQuestionType) {
-          QuestionType.ce => TcfQcmModule.ce,
-          QuestionType.structure => TcfQcmModule.structure,
-          _ => TcfQcmModule.co,
-        };
-        showModuleExamBriefingSheet(
-          context,
-          module,
-          slotNumber: assessment.slotNumber,
-        );
-      case PlanDomainAssessmentKind.production:
-        context.push(
-          assessment.epreuve == EpreuveType.tcfEo
-              ? AppRoutes.tcfEoEntry
-              : AppRoutes.tcfEeEntry,
-        );
-    }
   }
 }
 

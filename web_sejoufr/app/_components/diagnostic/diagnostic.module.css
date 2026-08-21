@@ -2225,13 +2225,6 @@ details.snapshotRow[open] .snapshotChevron {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-blue) 11%, white);
 }
 
-/* Étape verrouillée : c'est l'ACCÈS qui est fermé, jamais l'information — le
-   titre et l'explication restent parfaitement lisibles. */
-.planStepLocked {
-  border-style: dashed;
-  background: color-mix(in srgb, var(--color-paper) 70%, transparent);
-}
-
 .planStepNum {
   margin: 0;
   color: var(--color-blue);
@@ -2288,84 +2281,210 @@ details.snapshotRow[open] .snapshotChevron {
   background: var(--color-blue-dark);
 }
 
-.planLock {
+/* ============================================================================
+   Freemium du rapport — ce qui reste À FAIRE se tease, ce qui est ÉTABLI reste
+   ----------------------------------------------------------------------------
+   Restent entiers pour tout le monde : niveaux estimés, objectif, rail,
+   résumé, « avant / après », détail des deux productions, profil TCF. Ce sont
+   ses productions et ses mesures.
+   ⚠️ Ne vaut que pour CE rapport, écran de conversion — la règle « le Plan
+   reste intégralement visible sans abonnement » est intacte sur /plan.
+   ============================================================================ */
+
+/* Le CTA de tête, sous le chapeau : aligné à gauche comme le reste de
+   l'en-tête, jamais en colonne flottante qui casserait à 360 px. */
+.headUnlock {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin: 11px 0 0;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: var(--color-paper-2);
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.paywall {
-  position: relative;
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 18px;
-  padding: clamp(18px, 3vw, 24px);
-  border-radius: 21px;
-  background: var(--gradient-ink-blue);
-  color: var(--color-paper);
-}
-
-/* Halo bleu de la maquette : sur un aplat encre, il rattache l'offre au bleu de
-   marque au lieu d'en faire un bloc noir isolé au milieu du plan. */
-.paywall::after {
-  content: "";
-  position: absolute;
-  top: -110px;
-  right: -70px;
-  width: 200px;
-  height: 200px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--color-blue) 55%, transparent);
-  pointer-events: none;
-}
-
-.paywall h3 {
-  position: relative;
-  margin: 0;
-  font-size: clamp(17px, 2.6vw, 21px);
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
-/* Bleu clair plutôt qu'un blanc atténué : la maquette teinte son texte
-   secondaire au lieu de le rendre translucide. */
-.paywall p {
-  position: relative;
-  max-width: 56ch;
-  margin: 7px 0 0;
-  color: color-mix(in srgb, var(--color-blue-light) 78%, var(--color-blue));
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.paywallCta {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   gap: 8px;
   min-height: 46px;
+  margin-top: 20px;
   padding: 12px 20px;
   border-radius: 14px;
   background: var(--color-red);
   color: var(--color-paper);
   font-size: 14.5px;
   font-weight: 700;
-  white-space: nowrap;
 }
 
-.paywallCta:hover {
+.headUnlock:hover {
   background: var(--color-red-dark);
+}
+
+/* --------------------------------------------- le bloc « il y en a d'autres »
+
+   Le contenu est RÉEL, seulement flouté : rien n'est fabriqué pour remplir.
+   Le flou est décoratif (`aria-hidden` côté TSX) ; l'information vit dans le
+   pied, net et sélectionnable. */
+
+.tease {
+  display: block;
+  overflow: hidden;
+  margin-top: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  background: var(--color-paper);
+}
+
+.tease:hover {
+  border-color: color-mix(in srgb, var(--color-blue) 40%, var(--color-line));
+}
+
+.tease:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+.teaseBlur {
+  display: grid;
+  gap: 2px;
+  padding: 5px 0;
+  opacity: 0.5;
+  filter: blur(5px);
+  /* Le flou n'est pas une protection : le texte ne doit être ni sélectionnable
+     ni cliquable, et il est déjà retiré de l'arbre d'accessibilité. */
+  user-select: none;
+  pointer-events: none;
+}
+
+.teaseRow {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 12px 18px;
+}
+
+.teaseDot {
+  display: block;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-paper-2);
+}
+
+.teaseBody {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.teaseBody b {
+  color: var(--color-ink);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.teaseBody > span {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.teaseFoot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 18px;
+  border-top: 1px solid var(--color-line-2);
+  background: color-mix(in srgb, var(--color-paper-2) 60%, white);
+  color: var(--color-muted);
+}
+
+.teaseCount {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-ink-2);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.teaseCta {
+  flex: none;
+  color: var(--color-blue);
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+/* ------------------------- les entraînements suivants, comptés au lieu d'être
+   affichés en double : leurs compétences sont déjà nommées dans les priorités. */
+
+.planMore {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px dashed var(--color-line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-paper-2) 55%, white);
+  color: var(--color-muted);
+}
+
+.planMore:hover {
+  border-color: color-mix(in srgb, var(--color-blue) 40%, var(--color-line));
+}
+
+.planMore:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+.planMoreCount {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-ink-2);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.planMoreCta {
+  flex: none;
+  color: var(--color-blue);
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+/* ---------------------------------------- ce que l'abonnement ouvre (fin) */
+
+.unlockList {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  max-width: 46ch;
+  margin: 0 auto 22px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.unlockList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: color-mix(in srgb, var(--color-blue-light) 92%, var(--color-paper));
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.unlockList svg {
+  flex: none;
+  margin-top: 3px;
+}
+
+@media (max-width: 520px) {
+  .teaseRow {
+    padding: 11px 14px;
+  }
+
+  .teaseFoot,
+  .planMore {
+    flex-wrap: wrap;
+  }
+
+  .teaseCount,
+  .planMoreCount {
+    flex: 1 1 100%;
+  }
 }
 
 /* ------------------------------------------------------ les 2 productions */
@@ -2533,7 +2652,8 @@ details.production[open] .productionChevron {
 
 /* --------------------------------------------------------------- CTA final */
 
-.finalCard {
+.finalCard,
+.unlockCard {
   position: relative;
   overflow: hidden;
   padding: clamp(26px, 5vw, 42px) clamp(18px, 4vw, 40px);
@@ -2544,7 +2664,8 @@ details.production[open] .productionChevron {
   box-shadow: 0 24px 60px color-mix(in srgb, var(--color-blue) 24%, transparent);
 }
 
-.finalCard::before {
+.finalCard::before,
+.unlockCard::before {
   content: "";
   position: absolute;
   left: -60px;
@@ -2568,7 +2689,8 @@ details.production[open] .productionChevron {
   color: var(--color-paper);
 }
 
-.finalCard h2 {
+.finalCard h2,
+.unlockCard h2 {
   position: relative;
   max-width: 22ch;
   margin: 0 auto;
@@ -2577,7 +2699,8 @@ details.production[open] .productionChevron {
   line-height: 1.12;
 }
 
-.finalCard h2 em {
+.finalCard h2 em,
+.unlockCard h2 em {
   color: var(--color-paper);
   font-style: italic;
   text-decoration: underline;
@@ -2586,8 +2709,9 @@ details.production[open] .productionChevron {
   text-underline-offset: 6px;
 }
 
-/* Même parti que le paywall : un bleu clair, pas un blanc translucide. */
-.finalCard > p {
+/* Un bleu clair, pas un blanc translucide : le texte secondaire reste teinté. */
+.finalCard > p,
+.unlockCard > p {
   position: relative;
   max-width: 52ch;
   margin: 12px auto 22px;
@@ -2635,8 +2759,7 @@ details.production[open] .productionChevron {
 
 .finalPrimary:focus-visible,
 .finalGhost:focus-visible,
-.planStepCta:focus-visible,
-.paywallCta:focus-visible {
+.planStepCta:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--color-paper) 60%, transparent);
   outline-offset: 3px;
 }
@@ -2719,13 +2842,6 @@ details.production[open] .productionChevron {
     transform: rotate(90deg);
   }
 
-  .paywall {
-    grid-template-columns: 1fr;
-  }
-
-  .paywallCta {
-    width: 100%;
-  }
 }
 
 /* La carte de décision reste visible jusque-là ; en dessous, la barre collante
