@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/skill_models.dart';
 import '../../core/providers/target_level_provider.dart';
 import '../../core/router/route_observer.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/widgets/screen_header.dart';
 import '../../core/widgets/segmented_tabs.dart';
 import 'competences/competences_providers.dart';
 import 'competences/competences_tab_view.dart';
@@ -14,7 +14,6 @@ import 'production_subjects_tab_view.dart';
 import 'tcf_production_module.dart';
 import 'widgets/production_blocks.dart';
 import 'widgets/production_common.dart';
-import 'widgets/task_palette.dart';
 
 /// Les deux façons de travailler **une** tâche d'expression.
 ///
@@ -122,41 +121,24 @@ class _ProductionTaskScreenState extends ConsumerState<ProductionTaskScreen>
 
   @override
   Widget build(BuildContext context) {
-    final level = ref.watch(userTargetLevelProvider);
-    final meta = productionTaskMeta(widget.module, widget.tache);
-
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
         bottom: false,
         child: Stack(
           children: [
-            Column(
+            // L'en-tete n'est plus fixe : il vit dans le meme encart que la
+            // consigne, en tete de la liste, et defile avec elle (demande du
+            // proprietaire, 2026-08-21). Le retour reste atteignable par le
+            // geste iOS meme une fois le bandeau remonte.
+            IndexedStack(
+              index: _tab.index,
+              sizing: StackFit.expand,
               children: [
-                ScreenHeader(
-                  // Le numero de tache passe en TITRE : c'est ce que le
-                  // candidat cherche en arrivant, le nom editorial du sujet
-                  // ne le situe pas dans le parcours.
-                  solid: true,
-                  title: 'Tâche ${widget.tache}',
-                  sub: '${meta.title} · ${widget.module.title}',
-                  onBack: () => Navigator.of(context).maybePop(),
-                  right: level == null
-                      ? null
-                      : ProductionLevelBadge(level: level.wire, onDark: true),
-                ),
-                Expanded(
-                  child: IndexedStack(
-                    index: _tab.index,
-                    sizing: StackFit.expand,
-                    children: [
-                      for (final tab in ProductionTaskTab.values)
-                        _mounted.contains(tab)
-                            ? _tabView(tab)
-                            : const SizedBox.shrink(),
-                    ],
-                  ),
-                ),
+                for (final tab in ProductionTaskTab.values)
+                  _mounted.contains(tab)
+                      ? _tabView(tab)
+                      : const SizedBox.shrink(),
               ],
             ),
             if (_busy) const Positioned.fill(child: BusyOverlay()),
@@ -190,6 +172,7 @@ class _ProductionTaskScreenState extends ConsumerState<ProductionTaskScreen>
   /// Elle est rendue quel que soit l'état de la liste — sans elle, une erreur
   /// de chargement enfermerait le candidat dans un onglet.
   List<Widget> _top() {
+    final level = ref.watch(userTargetLevelProvider);
     final skills = ref.watch(skillsListProvider(
       SkillsKey(section: _section, tacheNumero: widget.tache),
     )).valueOrNull;
@@ -197,10 +180,12 @@ class _ProductionTaskScreenState extends ConsumerState<ProductionTaskScreen>
         ref.watch(productionCatalogProvider(widget.module.epreuve)).valueOrNull;
 
     return [
-      _ConsigneCard(
+      _TaskBanner(
         module: widget.module,
         tache: widget.tache,
         constraint: _constraintOf(catalog),
+        level: level?.wire,
+        onBack: () => Navigator.of(context).maybePop(),
       ),
       const SizedBox(height: 12),
       SegmentedTabs<ProductionTaskTab>(
@@ -241,92 +226,124 @@ class _ProductionTaskScreenState extends ConsumerState<ProductionTaskScreen>
   }
 }
 
-/// Carte de consigne de la tâche : filet de teinte, rond numéroté, intention
-/// et contrainte. C'est la **présentation éditoriale de la tâche**, pas la
-/// consigne d'un sujet — celle-ci vit sur l'écran de production.
-class _ConsigneCard extends StatelessWidget {
-  const _ConsigneCard({
+/// L'en-tete d'une tache **et** sa consigne, dans un seul encart bleu qui
+/// defile avec la liste.
+///
+/// Arbitrage du proprietaire (2026-08-21) : les deux blocs disaient la meme
+/// chose a deux endroits, et la teinte par tache — verte sur la tache 1 —
+/// n'appartenait a aucune de nos deux couleurs de marque. Le numero de tache
+/// est le titre : c'est ce que le candidat cherche en arrivant, alors que le
+/// nom editorial du sujet ne le situe pas dans son parcours.
+class _TaskBanner extends StatelessWidget {
+  const _TaskBanner({
     required this.module,
     required this.tache,
     required this.constraint,
+    required this.level,
+    required this.onBack,
   });
 
   final TcfProductionModule module;
   final int tache;
 
   /// « 30-60 mots », « 3 min » — servi par l'API. Absent, l'eyebrow se contente
-  /// du rang de la tâche : aucune borne n'est inventée.
+  /// du rang de la tache : aucune borne n'est inventee.
   final String? constraint;
+  final String? level;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
-    final (toneBg, toneFg) = taskPalette(tache);
     final meta = productionTaskMeta(module, tache);
 
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: AppColors.blue,
         borderRadius: BorderRadius.circular(AppRadii.xl),
-        border: Border.all(color: AppColors.line),
-        boxShadow: AppShadows.card,
+        boxShadow: AppShadows.md,
       ),
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(height: 3, color: toneFg),
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 15, 16, 16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [toneBg, AppColors.white],
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(AppRadii.md),
-                    boxShadow: AppShadows.card,
-                  ),
-                  child: Text(
-                    '$tache',
-                    style: AppFonts.display(size: 19, color: toneFg),
+          Row(
+            children: [
+              Material(
+                color: AppColors.white.withValues(alpha: 0.18),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  onTap: onBack,
+                  customBorder: const CircleBorder(),
+                  child: const SizedBox(
+                    width: 34,
+                    height: 34,
+                    child: Icon(
+                      LucideIcons.arrowLeft,
+                      size: 19,
+                      color: AppColors.white,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 13),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        constraint == null
-                            ? 'CONSIGNE · TÂCHE $tache'
-                            : 'CONSIGNE · ${constraint!.toUpperCase()}',
-                        style: AppFonts.ui(
-                          size: 10.5,
-                          weight: FontWeight.w800,
-                          letterSpacing: 0.6,
-                          color: AppColors.inkFaint,
-                          height: 1.35,
-                        ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tâche $tache',
+                      style: AppFonts.display(size: 21, color: AppColors.white),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${meta.title} · ${module.title}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppFonts.ui(
+                        size: 12.5,
+                        color: AppColors.white.withValues(alpha: 0.82),
                       ),
-                      const SizedBox(height: 5),
-                      Text(
-                        meta.intro,
-                        style: AppFonts.ui(
-                          size: 14,
-                          height: 1.5,
-                          color: AppColors.ink2,
-                        ),
-                      ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+              if (level != null) ...[
+                const SizedBox(width: 10),
+                ProductionLevelBadge(level: level!, onDark: true),
+              ],
+            ],
+          ),
+          const SizedBox(height: 15),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(13, 12, 13, 13),
+            decoration: BoxDecoration(
+              color: AppColors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppRadii.md),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  constraint == null
+                      ? 'CONSIGNE'
+                      : 'CONSIGNE · ${constraint!.toUpperCase()}',
+                  style: AppFonts.ui(
+                    size: 10.5,
+                    weight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                    height: 1.35,
+                    color: AppColors.white.withValues(alpha: 0.72),
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  meta.intro,
+                  style: AppFonts.ui(
+                    size: 14,
+                    height: 1.5,
+                    color: AppColors.white.withValues(alpha: 0.95),
                   ),
                 ),
               ],
@@ -337,3 +354,4 @@ class _ConsigneCard extends StatelessWidget {
     );
   }
 }
+
