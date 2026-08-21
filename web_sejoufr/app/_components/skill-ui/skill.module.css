@@ -4169,65 +4169,6 @@
 
 /* --------------------------------------------- détail d'une tâche : consigne */
 
-.taskBrief {
-  overflow: hidden;
-  margin-bottom: 12px;
-  border: 1px solid var(--color-line);
-  border-radius: 24px;
-  background: white;
-  box-shadow: var(--skill-shadow);
-}
-
-.taskBriefTint {
-  display: block;
-  height: 3px;
-  background: var(--task-tint);
-}
-
-.taskBriefRow {
-  display: flex;
-  gap: 13px;
-  padding: 15px 16px;
-  background: linear-gradient(180deg, var(--task-soft) 0%, transparent 85%);
-}
-
-.taskBriefNum {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  flex: none;
-  border-radius: 14px;
-  background: white;
-  color: var(--task-ink);
-  font-family: var(--font-display);
-  font-size: 19px;
-  font-weight: 700;
-  line-height: 1;
-  box-shadow: var(--skill-shadow);
-}
-
-.taskBriefBody {
-  min-width: 0;
-}
-
-.taskBriefLabel {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-muted-2);
-}
-
-.taskBriefText {
-  margin: 4px 0 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--color-ink-2);
-}
-
 /* ---------------------------------- détail d'une tâche : les deux onglets */
 
 /* Deux colonnes, pas trois : la barre à trois modes qui vivait ici
@@ -4367,5 +4308,106 @@
 
   .taskRow:hover {
     transform: none;
+  }
+}
+
+
+/* ------------------------------------------------------------------ bandeau
+   d'une tâche EE/EO : en-tête ET consigne dans un seul encart bleu.
+   Miroir du `_TaskBanner` mobile (2026-08-21). Remplace l'ancien encart teinté
+   par tâche, dont le vert de la première n'appartenait à aucune de nos deux
+   couleurs de marque. */
+
+.taskBanner {
+  margin-bottom: 16px;
+  padding: 18px 20px 20px;
+  border-radius: 22px;
+  background: var(--color-blue);
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--color-ink) 18%, transparent);
+}
+
+.taskBannerHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.taskBannerBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.taskBannerTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.taskBannerMeta {
+  margin: 3px 0 0;
+  font-size: 13.5px;
+  color: color-mix(in srgb, #fff 82%, transparent);
+  text-wrap: pretty;
+}
+
+.taskBannerLevel {
+  flex-shrink: 0;
+  display: grid;
+  gap: 1px;
+  justify-items: center;
+  padding: 7px 12px;
+  border-radius: 13px;
+  background: color-mix(in srgb, #fff 18%, transparent);
+  color: #fff;
+}
+
+.taskBannerLevelLabel {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, #fff 75%, transparent);
+}
+
+.taskBannerLevel strong {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.taskBannerBrief {
+  margin-top: 16px;
+  padding: 13px 15px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, #fff 12%, transparent);
+}
+
+.taskBannerLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, #fff 72%, transparent);
+}
+
+.taskBannerText {
+  margin: 6px 0 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: color-mix(in srgb, #fff 95%, transparent);
+  text-wrap: pretty;
+}
+
+@media (max-width: 559px) {
+  .taskBanner {
+    padding: 16px 16px 18px;
+  }
+
+  .taskBannerTitle {
+    font-size: 22px;
   }
 }

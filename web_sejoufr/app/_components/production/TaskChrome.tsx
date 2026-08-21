@@ -7,7 +7,7 @@ import {useAuth} from "@/lib/auth-context";
 import {loadEpreuveTasks, productionTasksKey, tasksOfTache} from "@/lib/production-catalog";
 import {loadSectionSkills, skillsOfTask, skillsSectionKey} from "@/lib/skill-catalog";
 import {useCachedData} from "@/lib/use-cached-data";
-import {productionTaskSubtitle, skillSectionOf, skillTaskCodeOf} from "@/lib/types";
+import {productionTaskSubtitle, productionTaskTitle, skillSectionOf, skillTaskCodeOf} from "@/lib/types";
 import s from "@/app/_components/skill-ui/skill.module.css";
 import {type ProductionConfig} from "./config";
 import {constraintOf} from "./parcours";
@@ -43,10 +43,14 @@ export function TaskChrome({
   config,
   taskNumero,
   tab,
+  level,
 }: {
   config: ProductionConfig;
   taskNumero: number;
   tab: TaskTab;
+  /** Palier visé, rendu dans le bandeau. `null` ⇒ pas de pastille : on ne
+   *  devine jamais la démarche du candidat. */
+  level?: string | null;
 }): ReactNode {
   const {status} = useAuth();
   const ready = status === "authenticated";
@@ -70,20 +74,35 @@ export function TaskChrome({
 
   return (
     <>
-      <section className={`${s.taskBrief} ${taskToneClass(taskNumero)}`}>
-        <span className={s.taskBriefTint} aria-hidden />
-        <div className={s.taskBriefRow}>
-          <span className={s.taskBriefNum} aria-hidden>
-            {taskNumero}
-          </span>
-          <div className={s.taskBriefBody}>
-            <span className={s.taskBriefLabel}>
-              Consigne{constraint ? ` · ${constraint}` : ""}
-            </span>
-            <p className={s.taskBriefText}>
-              {productionTaskSubtitle(config.epreuve, taskNumero)}
+      {/* En-tête ET consigne dans un SEUL encart bleu, miroir du mobile
+          (`_TaskBanner`). Arbitrage du propriétaire du 2026-08-21 : les deux
+          blocs se succédaient en disant la même chose, et la teinte par tâche
+          — verte sur la première — n'appartenait à aucune de nos deux couleurs
+          de marque. Le numéro de tâche est le TITRE : c'est ce que le candidat
+          cherche en arrivant, le nom éditorial du sujet ne le situe pas dans
+          son parcours. */}
+      <section className={s.taskBanner}>
+        <div className={s.taskBannerHead}>
+          <div className={s.taskBannerBody}>
+            <h1 className={s.taskBannerTitle}>Tâche {taskNumero}</h1>
+            <p className={s.taskBannerMeta}>
+              {productionTaskTitle(config.epreuve, taskNumero)} · {config.label}
             </p>
           </div>
+          {level && (
+            <span className={s.taskBannerLevel}>
+              <span className={s.taskBannerLevelLabel}>NIVEAU VISÉ</span>
+              <strong>{level}</strong>
+            </span>
+          )}
+        </div>
+        <div className={s.taskBannerBrief}>
+          <span className={s.taskBannerLabel}>
+            Consigne{constraint ? ` · ${constraint}` : ""}
+          </span>
+          <p className={s.taskBannerText}>
+            {productionTaskSubtitle(config.epreuve, taskNumero)}
+          </p>
         </div>
       </section>
 

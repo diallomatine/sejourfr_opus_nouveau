@@ -28,7 +28,6 @@ import {
   canAccessModule,
   productionSubjectTitle,
   productionTaskConstraint,
-  productionTaskTitle,
 } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
@@ -177,14 +176,8 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
 
   return (
     <DualChromeShell>
-      <SkillShell
-        backHref={config.base}
-        backLabel={config.label}
-        title={productionTaskTitle(config.epreuve, n)}
-        meta={`${config.label} · Tâche ${n}`}
-        level={level}
-      >
-        <TaskChrome config={config} taskNumero={n} tab="sujets" />
+      <SkillShell backHref={config.base} backLabel={config.label}>
+        <TaskChrome config={config} taskNumero={n} tab="sujets" level={level} />
 
         {error && <div className={s.error}>{error}</div>}
 

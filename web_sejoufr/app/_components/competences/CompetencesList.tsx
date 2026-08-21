@@ -9,7 +9,6 @@ import {loadSectionSkills, skillsOfTask, skillsSectionKey} from "@/lib/skill-cat
 import {competenceProgressLabel} from "@/lib/skill-progress";
 import {useCachedData} from "@/lib/use-cached-data";
 import {
-  productionTaskTitle,
   skillSectionOf,
   type SkillDto,
   skillTaskCodeOf,
@@ -89,14 +88,8 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
 
   return (
     <DualChromeShell>
-      <SkillShell
-        backHref={config.base}
-        backLabel={config.label}
-        title={productionTaskTitle(config.epreuve, n)}
-        meta={`${config.label} · Tâche ${n}`}
-        level={level}
-      >
-        <TaskChrome config={config} taskNumero={n} tab="competences" />
+      <SkillShell backHref={config.base} backLabel={config.label}>
+        <TaskChrome config={config} taskNumero={n} tab="competences" level={level} />
 
         <SectionHead
           title={`Compétences de la tâche ${n}`}
