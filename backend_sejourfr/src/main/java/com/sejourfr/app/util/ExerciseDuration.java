@@ -52,6 +52,28 @@ public final class ExerciseDuration {
         return atLeastOne(ceilDiv(words, WRITTEN_WORDS_PER_MINUTE));
     }
 
+    /**
+     * Comprehension : la duree <b>officielle</b> de l'epreuve, ramenee au
+     * prorata des questions reellement servies.
+     *
+     * <p>Aucune constante de duree n'est declaree ici — ni « une minute par
+     * question », ni un temps par domaine. Les deux references arrivent de leurs
+     * autorites respectives ({@code DureeEpreuve} pour la duree d'epreuve, la
+     * composition stratifiee pour son nombre de questions) : c'est ce qui evite
+     * qu'une serie ciblee annonce un temps sans rapport avec l'epreuve qu'elle
+     * prepare, et qu'un troisieme chiffre apparaisse dans le depot.
+     *
+     * @param questionCount    questions de la serie proposee
+     * @param epreuveSeconds   duree officielle de l'epreuve correspondante
+     * @param epreuveQuestions questions de cette epreuve
+     */
+    public static int comprehension(int questionCount, int epreuveSeconds, int epreuveQuestions) {
+        if (questionCount <= 0 || epreuveSeconds <= 0 || epreuveQuestions <= 0) {
+            return DEFAULT_MINUTES_WRITTEN;
+        }
+        return atLeastOne(ceilDiv(questionCount * epreuveSeconds / epreuveQuestions, 60));
+    }
+
     private static Integer positiveOrNull(Integer value) {
         return value == null || value <= 0 ? null : value;
     }

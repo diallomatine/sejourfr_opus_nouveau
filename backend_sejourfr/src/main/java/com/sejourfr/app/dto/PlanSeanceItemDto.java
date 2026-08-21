@@ -1,0 +1,66 @@
+package com.sejourfr.app.dto;
+
+import com.sejourfr.app.enums.SkillMasteryState;
+import com.sejourfr.app.enums.SkillSection;
+
+import java.util.UUID;
+
+/**
+ * Un <b>entrainement</b> de la seance : l'action a faire, et les faits qui
+ * expliquent pourquoi elle est la.
+ *
+ * <p>🛑 <b>Aucune phrase.</b> Le serveur expose des faits — combien de sujets
+ * traites sur combien, si la competence attend une verification, quel palier
+ * elle travaille, ou elle en est — et les fronts composent « Pourquoi cette
+ * seance ? ». Meme doctrine que {@code PlanChangeDto} et que les jalons de
+ * {@code PlanRecommendedExerciseDto}, qui ne portent ni titre ni competence.
+ * Un paragraphe ecrit en Java serait a reecrire dans trois langues d'interface
+ * et se contredirait avec les cartes qui l'entourent.
+ *
+ * <p><b>Ce que le front lit pour dire « pourquoi »</b> : {@code exercise.kind()}
+ * donne la nature de l'action, {@link #stepAttemptedCount()} /
+ * {@link #stepPromptCount()} l'avancement de l'etape (« 3 sujets sur 5 »),
+ * {@link #readyForReassessment()} le passage a la verification,
+ * {@link #masteryState()} l'etat agrege, et {@link #level()} le palier travaille
+ * en comprehension — a rapprocher de {@code PlanDomainDto.blockingLevel()} pour
+ * dire « c'est ce palier qui bloque votre comprehension orale ».
+ *
+ * <p><b>Le bloc competence est vide sur un jalon</b> ({@code skillId},
+ * {@code skillCode}, {@code title}, {@code section} a {@code null}) : un examen
+ * blanc ne travaille pas une competence, il les verifie toutes. Les fronts
+ * lisent {@code exercise.kind()}, jamais la nullite d'un champ.
+ *
+ * @param exercise             l'action, <b>jamais {@code null}</b> : un item
+ *                             sans exercice n'est pas un entrainement et n'entre
+ *                             pas dans la seance
+ * @param level                palier travaille ({@code "A1"}..{@code "B2"}),
+ *                             renseigne en comprehension ; {@code null} en
+ *                             expression et sur un jalon. Chaine et non
+ *                             {@code TargetLevel} : le referentiel des
+ *                             competences descend jusqu'a {@code A1}, meme
+ *                             convention que {@code skills.target_level}
+ * @param masteryState         etat agrege de la competence, {@code null} sur un
+ *                             jalon comme sur une competence jamais observee
+ * @param stepPromptCount      sujets de l'etape ; {@code 0} en comprehension,
+ *                             qui n'a pas d'etape a cinq sujets
+ * @param readyForReassessment le moteur juge la competence prete a etre
+ *                             verifiee <b>et</b> l'etape est terminee
+ * @param locked               ce candidat ne peut pas lancer cette action. Elle
+ *                             reste <b>designee et visible</b> : savoir quoi
+ *                             travailler est ce que le Plan apporte
+ */
+public record PlanSeanceItemDto(
+        PlanRecommendedExerciseDto exercise,
+        UUID skillId,
+        String skillCode,
+        String title,
+        SkillSection section,
+        String level,
+        SkillMasteryState masteryState,
+        int stepPromptCount,
+        int stepAttemptedCount,
+        int stepValidatedCount,
+        boolean stepCompleted,
+        boolean readyForReassessment,
+        boolean locked
+) {}

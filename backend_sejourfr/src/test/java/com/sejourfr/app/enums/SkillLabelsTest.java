@@ -115,6 +115,21 @@ class SkillLabelsTest {
     }
 
     @Test
+    @DisplayName("Fenetre de « ce qui a change » : de la plus courte a la plus longue")
+    void fenetreDesChangementsRecents() {
+        assertThat(labels(PlanRecentChangesWindow.class, PlanRecentChangesWindow::getLabel))
+                .containsExactly(
+                        Map.entry("CETTE_SEMAINE", "Cette semaine"),
+                        Map.entry("DEUX_SEMAINES", "Ces deux dernières semaines"),
+                        Map.entry("CE_MOIS", "Ce mois-ci"));
+        // L'ordre de declaration EST l'ordre d'essai : une fenetre plus courte
+        // ne doit jamais venir apres une plus longue.
+        assertThat(PlanRecentChangesWindow.values())
+                .extracting(PlanRecentChangesWindow::getDays)
+                .containsExactly(7, 14, 30);
+    }
+
+    @Test
     @DisplayName("Difficulte : « Accessible » decrit le sujet, il ne juge pas le candidat")
     void difficulte() {
         assertThat(labels(SkillDifficulty.class, SkillDifficulty::getLabel))
@@ -207,6 +222,10 @@ class SkillLabelsTest {
                 .doesNotHaveDuplicates()
                 .allSatisfy(l -> assertThat(l).isNotBlank());
         assertThat(labels(PlanDomainPriority.class, PlanDomainPriority::getLabel).values())
+                .doesNotHaveDuplicates()
+                .allSatisfy(l -> assertThat(l).isNotBlank());
+        assertThat(labels(PlanRecentChangesWindow.class, PlanRecentChangesWindow::getLabel)
+                .values())
                 .doesNotHaveDuplicates()
                 .allSatisfy(l -> assertThat(l).isNotBlank());
     }

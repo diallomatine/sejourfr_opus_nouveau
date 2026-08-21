@@ -35,7 +35,14 @@ public class AttemptCompositionService {
     private static final int MODULE_EXAM_A2 = 8;
     private static final int MODULE_EXAM_B1 = 9;
     private static final int MODULE_EXAM_B2 = 8;
-    private static final int MODULE_EXAM_TOTAL = MODULE_EXAM_A2 + MODULE_EXAM_B1 + MODULE_EXAM_B2;
+    /**
+     * Questions d'un examen blanc d'epreuve QCM. <b>Public</b> parce que le Plan
+     * en a besoin comme denominateur : il ramene la duree officielle d'une
+     * epreuve au prorata des questions d'une serie ciblee
+     * ({@code ExerciseDuration.comprehension}). Le recopier ailleurs ferait
+     * exister un second « 25 » dans le depot.
+     */
+    public static final int MODULE_EXAM_TOTAL = MODULE_EXAM_A2 + MODULE_EXAM_B1 + MODULE_EXAM_B2;
 
     private final QuestionManager questionManager;
     private final ThemeManager themeManager;

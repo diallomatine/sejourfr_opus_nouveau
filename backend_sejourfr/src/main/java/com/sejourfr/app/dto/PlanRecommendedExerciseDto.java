@@ -22,6 +22,10 @@ import java.util.UUID;
  *   <tr><td>{@code REASSESSMENT}</td>
  *       <td>{@link #productionTaskId()} + {@link #tacheNumero()}</td>
  *       <td>{@code skillPromptId}, {@code epreuve}, {@code slotNumber}</td></tr>
+ *   <tr><td>{@code TARGETED_QCM_SERIES}</td>
+ *       <td>{@link #skillId()} seul, + {@link #questionCount()}</td>
+ *       <td>{@code skillPromptId}, {@code productionTaskId}, {@code tacheNumero},
+ *           {@code epreuve}, {@code slotNumber}</td></tr>
  *   <tr><td>{@code EPREUVE_MOCK_EXAM}</td>
  *       <td>{@link #epreuve()} (EE ou EO) + {@link #slotNumber()}</td>
  *       <td>tout le bloc competence : {@code skillId}, {@code skillCode},
@@ -37,10 +41,10 @@ import java.util.UUID;
  * {@code PlanChangeDto} — le serveur expose des faits (quelle epreuve, quel
  * slot, verrouille ou non), jamais un libelle.
  *
- * <p>Les quatre formes se construisent par {@link #microTraining},
- * {@link #reassessment}, {@link #epreuveMockExam} et {@link #fullTcfMockExam},
- * jamais par le constructeur canonique : c'est ce qui garantit qu'un identifiant
- * hors sujet ne peut pas s'y glisser.
+ * <p>Les cinq formes se construisent par {@link #microTraining},
+ * {@link #reassessment}, {@link #targetedQcmSeries}, {@link #epreuveMockExam} et
+ * {@link #fullTcfMockExam}, jamais par le constructeur canonique : c'est ce qui
+ * garantit qu'un identifiant hors sujet ne peut pas s'y glisser.
  */
 public record PlanRecommendedExerciseDto(
         PlanExerciseKind kind,
@@ -80,7 +84,18 @@ public record PlanRecommendedExerciseDto(
          * candidat n'a pas encore joue (plafonne a la taille de la grille) : le
          * front le repasse tel quel au demarrage, il ne le choisit pas.
          */
-        Integer slotNumber
+        Integer slotNumber,
+        /**
+         * Questions de la serie — {@code TARGETED_QCM_SERIES} uniquement,
+         * {@code null} ailleurs. Servi parce que la carte l'annonce (« Serie
+         * ciblee de 20 questions ») et parce que ce nombre est le
+         * <b>denominateur</b> du seuil de reussite : un front qui l'ecrirait en
+         * dur finirait par annoncer autre chose que ce que le serveur compose.
+         *
+         * <p>Il vaut la taille <b>demandee</b> ; une banque trop mince peut en
+         * servir moins, ce que seule la session dira.
+         */
+        Integer questionCount
 ) {
 
     /** Un petit sujet du module Competences. */
@@ -89,7 +104,7 @@ public record PlanRecommendedExerciseDto(
             SkillSection section, int estimatedMinutes, boolean locked) {
         return new PlanRecommendedExerciseDto(
                 PlanExerciseKind.MICRO_TRAINING, skillPromptId, null, skillId, skillCode,
-                title, section, null, estimatedMinutes, locked, null, null);
+                title, section, null, estimatedMinutes, locked, null, null, null);
     }
 
     /** Une vraie tache TCF, pour verifier le transfert en situation. */
@@ -98,7 +113,23 @@ public record PlanRecommendedExerciseDto(
             SkillSection section, Short tacheNumero, int estimatedMinutes, boolean locked) {
         return new PlanRecommendedExerciseDto(
                 PlanExerciseKind.REASSESSMENT, null, productionTaskId, skillId, skillCode,
-                title, section, tacheNumero, estimatedMinutes, locked, null, null);
+                title, section, tacheNumero, estimatedMinutes, locked, null, null, null);
+    }
+
+    /**
+     * Une serie ciblee de questions sur une competence de COMPREHENSION.
+     *
+     * <p>Elle ne porte <b>que</b> la competence : c'est tout ce dont
+     * {@code POST /api/attempts} a besoin, et c'est deliberement tout ce qu'on
+     * lui donne — domaine, palier et taille se derivent du referentiel cote
+     * serveur.
+     */
+    public static PlanRecommendedExerciseDto targetedQcmSeries(
+            UUID skillId, String skillCode, String title, SkillSection section,
+            int questionCount, int estimatedMinutes, boolean locked) {
+        return new PlanRecommendedExerciseDto(
+                PlanExerciseKind.TARGETED_QCM_SERIES, null, null, skillId, skillCode,
+                title, section, null, estimatedMinutes, locked, null, null, questionCount);
     }
 
     /**
@@ -109,7 +140,7 @@ public record PlanRecommendedExerciseDto(
             EpreuveType epreuve, int slotNumber, int estimatedMinutes, boolean locked) {
         return new PlanRecommendedExerciseDto(
                 PlanExerciseKind.EPREUVE_MOCK_EXAM, null, null, null, null,
-                null, null, null, estimatedMinutes, locked, epreuve, slotNumber);
+                null, null, null, estimatedMinutes, locked, epreuve, slotNumber, null);
     }
 
     /** Le jalon final : l'examen blanc TCF complet, les 4 epreuves enchainees. */
@@ -118,6 +149,6 @@ public record PlanRecommendedExerciseDto(
         return new PlanRecommendedExerciseDto(
                 PlanExerciseKind.FULL_TCF_MOCK_EXAM, null, null, null, null,
                 null, null, null, estimatedMinutes, locked,
-                EpreuveType.TCF_COMPLET, slotNumber);
+                EpreuveType.TCF_COMPLET, slotNumber, null);
     }
 }

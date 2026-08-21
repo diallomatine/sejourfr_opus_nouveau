@@ -113,6 +113,11 @@ class LearningPlanServiceTest {
                 masteryResolver, accessService,
                 new PlanCycleResolver(profileService, new ComprehensionLevelResolver(),
                         masteryResolver, skillManager),
+                // La seance et le bloc « ce qui a change » tournent POUR DE VRAI :
+                // ce sont des vues de ce que le service vient de decider, les
+                // doubler reviendrait a tester le mock.
+                new PlanSeanceBuilder(),
+                new PlanRecentChangesResolver(new SkillMasteryEngine(planProperties)),
                 userManager);
     }
 
@@ -1114,6 +1119,161 @@ class LearningPlanServiceTest {
         // produit plus haut).
         stubStep(skill, etape(5, 5, 5));
         stubExercisesForEverySkill();
+    }
+
+    // ------------------------------------------------------------------------
+    // La seance du jour et « ce qui a change »
+    // ------------------------------------------------------------------------
+
+    /**
+     * La seance est une <b>vue</b> des priorites : les memes competences, dans
+     * le meme ordre, avec les exercices deja designes, et un total recalcule.
+     */
+    @Test
+    void laSeanceRepublieLesPrioritesAvecLeurExerciceEtLeurTotal() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Instant now = Instant.now();
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
+                observation("EE1-C1", LearningPlanSkillStatus.PRIORITY, now),
+                observation("EO1-C2", LearningPlanSkillStatus.TO_REINFORCE,
+                        now.minusSeconds(60)),
+                observation("EE2-C3", LearningPlanSkillStatus.TO_REINFORCE,
+                        now.minusSeconds(120)),
+                observation("EO2-C4", LearningPlanSkillStatus.TO_REINFORCE,
+                        now.minusSeconds(180))));
+        when(observationManager.countSince(any(), any())).thenReturn(4L);
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        // Trois priorites visibles, donc trois entrainements — pas quatre.
+        assertThat(result.seance().items()).hasSize(PlanSeanceBuilder.MAX_ITEMS);
+        assertThat(result.seance().items()).extracting("skillCode")
+                .containsExactly("EE1-C1", "EO1-C2", "EE2-C3");
+        // Chaque item porte l'exercice DEJA designe pour sa priorite.
+        assertThat(result.seance().items().getFirst().exercise())
+                .isEqualTo(result.currentPriority().recommendedExercise());
+        // Total recalcule : 3 min par micro-exercice stube.
+        assertThat(result.seance().estimatedMinutes()).isEqualTo(9);
+    }
+
+    /**
+     * 🛑 La regle « sticky », vue du service : sans nouvelle observation, deux
+     * lectures successives rendent <b>exactement</b> la meme seance. Rien ne
+     * depend du jour.
+     */
+    @Test
+    void deuxLecturesSuccessivesRendentLaMemeSeance() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Instant now = Instant.now();
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
+                observation("EE1-C1", LearningPlanSkillStatus.PRIORITY, now),
+                observation("EO1-C2", LearningPlanSkillStatus.TO_REINFORCE,
+                        now.minusSeconds(60))));
+        when(observationManager.countSince(any(), any())).thenReturn(2L);
+        stubExercisesForEverySkill();
+
+        var premiere = service.get(userId).seance();
+        var seconde = service.get(userId).seance();
+
+        assertThat(seconde.items()).extracting("skillCode")
+                .isEqualTo(premiere.items().stream().map(item -> item.skillCode()).toList());
+        assertThat(seconde.estimatedMinutes()).isEqualTo(premiere.estimatedMinutes());
+    }
+
+    /**
+     * Le jalon prend l'action principale : il ouvre la seance et occupe un slot,
+     * les priorites suivent.
+     */
+    @Test
+    void leJalonOuvreLaSeance() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
+                observation("EE1-C1", LearningPlanSkillStatus.PRIORITY, Instant.now())));
+        when(observationManager.countSince(any(), any())).thenReturn(1L);
+        stubExercisesForEverySkill();
+        PlanRecommendedExerciseDto jalon = PlanRecommendedExerciseDto.epreuveMockExam(
+                EpreuveType.TCF_EE, 1, 30, false);
+        when(milestoneSelector.select(eq(userId), anyCollection(), anyMap(), anyCollection(),
+                anyBoolean(), any())).thenReturn(Optional.of(jalon));
+
+        var result = service.get(userId);
+
+        assertThat(result.seance().items()).hasSize(2);
+        assertThat(result.seance().items().getFirst().exercise()).isEqualTo(jalon);
+        assertThat(result.seance().items().getFirst().skillId()).isNull();
+        assertThat(result.seance().estimatedMinutes()).isEqualTo(33);
+    }
+
+    /** Sans diagnostic, il n'y a rien a faire aujourd'hui — et rien n'a change. */
+    @Test
+    void sansDiagnosticLaSeanceEstVideEtRienNaChange() {
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
+        when(taskManager.findLatestActiveDiagnosticVersion("INITIAL_TCF"))
+                .thenReturn(Optional.of(1));
+        when(sessionManager.findByUserAndVersionWithContent(userId, "INITIAL_TCF", 1))
+                .thenReturn(Optional.empty());
+
+        var result = service.get(userId);
+
+        assertThat(result.seance()).isNotNull();
+        assertThat(result.seance().items()).isEmpty();
+        assertThat(result.seance().estimatedMinutes()).isZero();
+        assertThat(result.recentChanges()).isNull();
+    }
+
+    /**
+     * Une seule observation ancienne, jamais rejouee : rien n'a bouge, donc le
+     * bloc est <b>absent</b>. C'est le cas normal, pas une erreur.
+     */
+    @Test
+    void quandRienNaBougeLeBlocDesChangementsEstAbsent() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
+                observation("EE1-C1", LearningPlanSkillStatus.TO_REINFORCE,
+                        Instant.now().minus(60, java.time.temporal.ChronoUnit.DAYS))));
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        assertThat(result.currentPriority()).isNotNull();
+        assertThat(result.recentChanges()).isNull();
+    }
+
+    /**
+     * Le bloc et {@code PlanChangeDto} ne peuvent pas designer deux etapes
+     * n&deg;1 differentes : les deux lisent la meme autorite.
+     */
+    @Test
+    void laNouvellePrioriteDuBlocEstCelleQuAfficheLePlan() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
+                observation("EO2-C4", LearningPlanSkillStatus.PRIORITY, Instant.now())));
+        when(observationManager.countSince(any(), any())).thenReturn(1L);
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        assertThat(result.recentChanges()).isNotNull();
+        assertThat(result.recentChanges().transitions()).isEmpty();
+        assertThat(result.recentChanges().newPriority().skillCode())
+                .isEqualTo(result.currentPriority().skillCode());
     }
 
     /**

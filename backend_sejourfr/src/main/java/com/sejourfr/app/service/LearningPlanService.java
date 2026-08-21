@@ -6,7 +6,9 @@ import com.sejourfr.app.dto.LearningPlanDto;
 import com.sejourfr.app.dto.LearningPlanPriorityDto;
 import com.sejourfr.app.dto.LearningPlanSkillDto;
 import com.sejourfr.app.dto.PlanChangeDto;
+import com.sejourfr.app.dto.PlanRecentChangesDto;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
+import com.sejourfr.app.dto.PlanSeanceDto;
 import com.sejourfr.app.dto.PlanSkillRefDto;
 import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.LearningPlanObservation;
@@ -60,6 +62,16 @@ import java.util.UUID;
  * <p><b>Une étape franchie ne disparaît pas du parcours</b> : elle passe de
  * {@code priorities} à {@code completedSteps} et s'affiche cochée, avant l'étape
  * courante. Sortir des priorités, c'est avancer, pas effacer.
+ *
+ * <p><b>Deux blocs se dérivent de tout ce qui précède, sans une requête de
+ * plus.</b> La <b>séance du jour</b> ({@link PlanSeanceBuilder}) republie les
+ * priorités et le jalon sous forme d'entraînements bornés, et ne lit
+ * <b>aucune date</b> — c'est ce qui rend la règle « sticky » gratuite : sans
+ * nouvelle observation, les priorités ne bougent pas, donc la séance non plus.
+ * « <b>Ce qui a changé</b> » ({@link PlanRecentChangesResolver}) fait rejouer le
+ * moteur de maîtrise sur l'historique déjà chargé, arrêté au début d'une
+ * fenêtre puis complet : la différence des deux états <b>est</b> le changement,
+ * et son absence — le cas normal — se dit par un bloc {@code null}.
  */
 @Service
 @RequiredArgsConstructor
@@ -92,6 +104,8 @@ public class LearningPlanService {
     private final SkillMasteryResolver masteryResolver;
     private final SkillAccessService accessService;
     private final PlanCycleResolver cycleResolver;
+    private final PlanSeanceBuilder seanceBuilder;
+    private final PlanRecentChangesResolver recentChangesResolver;
     private final UserManager userManager;
 
     @Transactional(readOnly = true)
@@ -112,7 +126,10 @@ public class LearningPlanService {
                             : LearningPlanState.DIAGNOSTIC_IN_PROGRESS,
                     inProgress == null ? null : inProgress.getId(), null,
                     List.of(), null, List.of(), List.of(), 0, 0, true, null,
-                    profil.domaines(), profil.cycle());
+                    profil.domaines(), profil.cycle(),
+                    // Aucune priorite, donc aucune seance et rien qui ait bouge :
+                    // le Plan sert le profil, pas une journee de travail.
+                    new PlanSeanceDto(List.of(), 0), null);
         }
 
         // L'ordre des priorités vit dans LearningPlanPriorityResolver : c'est le
@@ -245,13 +262,30 @@ public class LearningPlanService {
                 userId, latest.values(), mastery, allObservations,
                 profil.cycle().state() == PlanCycleState.READY_FOR_GATE_MOCK,
                 Instant.now()).orElse(null);
+        // LA SEANCE est une VUE de ce qui precede : elle ne choisit aucun
+        // exercice, elle ordonne et borne ceux que les trois autorites ont deja
+        // designes, et recalcule le total de minutes. Aucune date n'y entre —
+        // c'est ce qui rend la stickiness gratuite : sans nouvelle observation,
+        // les priorites ne bougent pas, donc la seance non plus.
+        Map<UUID, Skill> skillsDesPriorites = new LinkedHashMap<>();
+        actionable.forEach(item -> skillsDesPriorites.put(
+                item.getSkill().getId(), item.getSkill()));
+        PlanSeanceDto seance = seanceBuilder.build(priorities, skillsDesPriorites, milestone);
+        // CE QUI A CHANGE : le meme moteur, joue deux fois sur l'historique deja
+        // charge — aucune requete, aucune regle recopiee. La priorite n°1 lui est
+        // passee telle que le resolveur l'a designee : ce bloc ne peut donc pas
+        // nommer une autre etape que celle affichee juste au-dessus.
+        PlanRecentChangesDto changes = recentChangesResolver.resolve(
+                allObservations, mastery,
+                actionable.isEmpty() ? null : actionable.getFirst(), Instant.now())
+                .orElse(null);
         return new LearningPlanDto(
                 LearningPlanState.ACTIVE, completed.getId(), completed.getCompletedAt(),
                 completedSteps,
                 priorities.isEmpty() ? null : priorities.getFirst(),
                 priorities.size() <= 1 ? List.of() : priorities.subList(1, priorities.size()),
                 observed, observedCount, activities, true, milestone,
-                profil.domaines(), profil.cycle());
+                profil.domaines(), profil.cycle(), seance, changes);
     }
 
     /**

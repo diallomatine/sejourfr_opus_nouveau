@@ -4,6 +4,7 @@ import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.entity.UserSkillAttempt;
+import com.sejourfr.app.enums.PlanExerciseKind;
 import com.sejourfr.app.enums.SkillAttemptStatut;
 import com.sejourfr.app.enums.SkillCriterionStatus;
 import com.sejourfr.app.enums.SkillSection;
@@ -248,6 +249,55 @@ class RecommendedExerciseSelectorTest {
         attempt.setCriterionStatus(criterion);
         attempt.setCreatedAt(createdAt);
         return attempt;
+    }
+
+    /**
+     * Une competence de COMPREHENSION n'a ni tache ni petit sujet : son
+     * entrainement est une serie ciblee, que le front lance avec la seule
+     * competence. Elle ressortait jusqu'ici <b>sans aucun exercice</b>, donc avec
+     * une carte de priorite sans action.
+     */
+    @Test
+    void uneCompetenceDeComprehensionDonneUneSerieCiblee() {
+        Skill co = skill(SkillSection.CO);
+        co.setCode("CO-B1");
+        co.setTargetLevel("B1");
+
+        PlanRecommendedExerciseDto exercise = selector.select(userId, co).orElseThrow();
+
+        assertThat(exercise.kind()).isEqualTo(PlanExerciseKind.TARGETED_QCM_SERIES);
+        assertThat(exercise.skillId()).isEqualTo(co.getId());
+        assertThat(exercise.questionCount()).isEqualTo(20);
+        assertThat(exercise.estimatedMinutes()).isPositive();
+        // Rien d'autre : le skillId suffit a demarrer la serie.
+        assertThat(exercise.skillPromptId()).isNull();
+        assertThat(exercise.productionTaskId()).isNull();
+        assertThat(exercise.epreuve()).isNull();
+        assertThat(exercise.slotNumber()).isNull();
+        // Et aucune banque de sujets n'est interrogee : elle n'en a pas.
+        verifyNoInteraction();
+    }
+
+    /**
+     * Les deux familles se cotoient dans un meme lot sans se gener : la
+     * comprehension n'entre pas dans les requetes de sujets, l'expression garde
+     * exactement son comportement.
+     */
+    @Test
+    void unLotMelangeExpressionEtComprehension() {
+        Skill ee = skill(SkillSection.EE);
+        SkillPrompt sujet = prompt(ee, (short) 1);
+        Skill ce = skill(SkillSection.CE);
+        ce.setCode("CE-A2");
+        stub(ee, List.of(sujet), Map.of());
+
+        Map<UUID, PlanRecommendedExerciseDto> out =
+                selector.selectAll(userId, List.of(ee, ce));
+
+        assertThat(out.get(ee.getId()).kind()).isEqualTo(PlanExerciseKind.MICRO_TRAINING);
+        assertThat(out.get(ee.getId()).skillPromptId()).isEqualTo(sujet.getId());
+        assertThat(out.get(ce.getId()).kind())
+                .isEqualTo(PlanExerciseKind.TARGETED_QCM_SERIES);
     }
 
     /** Garde-fou : la compétence absente ne doit pas faire échouer la lecture. */

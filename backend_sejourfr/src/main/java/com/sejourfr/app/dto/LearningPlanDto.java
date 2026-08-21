@@ -69,5 +69,30 @@ public record LearningPlanDto(
          * réclame l'examen blanc complet qui confirmera le palier — le jalon
          * correspondant est servi, comme les autres, sur {@link #milestone()}.
          */
-        PlanCycleDto cycle
+        PlanCycleDto cycle,
+        /**
+         * <b>La seance du jour</b> : au plus trois entrainements, dans l'ordre,
+         * et leur duree totale. Jamais {@code null} ; ses items sont vides quand
+         * le Plan n'a rien a proposer.
+         *
+         * <p>C'est une <b>vue</b> des priorites et du jalon ci-dessus, pas une
+         * seconde source de verite : chaque item reprend un exercice deja
+         * designe. Elle ne depend d'<b>aucune date</b> — une competence entree
+         * dans la seance y reste tant qu'elle n'est pas reussie, ce qui est
+         * acquis par construction (les priorites ne changent qu'a l'arrivee
+         * d'une nouvelle observation).
+         */
+        PlanSeanceDto seance,
+        /**
+         * <b>Ce qui a change recemment</b> : les transitions reellement mesurees
+         * par le moteur de maitrise sur une fenetre choisie par le serveur, et
+         * la priorite n&deg;1 si elle vient d'etre designee.
+         *
+         * <p>🛑 <b>{@code null} est le cas NORMAL</b> — rien n'a bouge, l'ecran
+         * n'affiche rien. Aucune ligne n'est fabriquee pour remplir le bloc.
+         * A ne pas confondre avec {@code PlanChangeDto}, servi sur le detail
+         * d'une production : celui-la dit ce qu'une soumission a change,
+         * celui-ci ce qui a bouge recemment (cf. {@link PlanRecentChangesDto}).
+         */
+        PlanRecentChangesDto recentChanges
 ) {}
