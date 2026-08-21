@@ -64,7 +64,7 @@ import {
   itemEpreuve,
 } from "@/lib/plan-domain";
 import {PlanMilestoneCard} from "./PlanMilestoneCard";
-import {PlanDomainIcon, PlanDomainPriorityPill, PlanDots, PlanLevelRail} from "./PlanBits";
+import {PlanBlur, PlanDomainIcon, PlanDomainPriorityPill, PlanDots, PlanLevelRail} from "./PlanBits";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 import {
   planDoneSectionCta,
@@ -114,6 +114,19 @@ function trackPremiumClick() {
 function usePremiumHref(): string {
   return useTrafficSourceHref(SKILL_PREMIUM_HREF);
 }
+
+/**
+ * Ce que porte une ligne verrouillée, dit **net**.
+ *
+ * Le contenu réel part sous `PlanBlur`, donc hors de l'arbre d'accessibilité :
+ * sans ces deux phrases, la ligne n'aurait plus de nom accessible du tout. Elles
+ * ne divulguent rien de ce que le flou cache — elles disent qu'il y a quelque
+ * chose et comment l'ouvrir, ce qui reste vrai pour tout le monde.
+ */
+const PLAN_LOCKED_SEANCE_LABEL =
+  "Entraînement réservé à l'abonnement. Ouvrir l'offre pour le débloquer.";
+const PLAN_LOCKED_PRIORITY_LABEL =
+  "Priorité réservée à l'abonnement. Ouvrir l'offre pour la débloquer.";
 
 function plural(count: number): string {
   return count > 1 ? "s" : "";
@@ -551,24 +564,31 @@ function SeanceRow({
   const done = (item.stepPromptCount > 0 && item.stepCompleted) || opened;
   const epreuve = itemEpreuve(item);
 
-  const body = (
+  /** Les trois lignes de texte de l'item — le contenu RÉEL, qu'il soit servi
+   *  net ou flouté. Rien n'est fabriqué pour remplir le flou. */
+  const text = (
     <>
-      <PlanDomainIcon epreuve={epreuve} active={!done && !item.locked} />
-      <span className={styles.seanceBody}>
-        <span className={styles.seanceEyebrow}>{planItemEyebrow(item)}</span>
-        <span className={styles.seanceTitle} data-done={done ? "1" : "0"}>{planItemTitle(item)}</span>
-        <span className={styles.seanceMeta}>
-          {planItemNature(item)} · {item.exercise.estimatedMinutes} min
-        </span>
+      <span className={styles.seanceEyebrow}>{planItemEyebrow(item)}</span>
+      <span className={styles.seanceTitle} data-done={done ? "1" : "0"}>{planItemTitle(item)}</span>
+      <span className={styles.seanceMeta}>
+        {planItemNature(item)} · {item.exercise.estimatedMinutes} min
       </span>
     </>
   );
+
+  /* L'icône de domaine reste NETTE même verrouillée, comme dans la maquette :
+     elle dit de quelle épreuve relève la ligne, pas ce qu'il y a à y faire. */
+  const icon = <PlanDomainIcon epreuve={epreuve} active={!done && !item.locked} />;
 
   return (
     <li className={styles.seanceItem} data-done={done ? "1" : "0"}>
       {item.locked ? (
         <Link className={styles.seanceRow} href={premiumHref} onClick={trackPremiumClick}>
-          {body}
+          {icon}
+          <span className={styles.seanceBody}>
+            <span className={styles.srOnly}>{PLAN_LOCKED_SEANCE_LABEL}</span>
+            <PlanBlur>{text}</PlanBlur>
+          </span>
           <SkillLockBadge />
         </Link>
       ) : (
@@ -582,7 +602,8 @@ function SeanceRow({
             void start(item.exercise);
           }}
         >
-          {body}
+          {icon}
+          <span className={styles.seanceBody}>{text}</span>
           {done ? (
             <span className={styles.seanceDone} aria-label="Étape terminée"><Check size={15} strokeWidth={3} aria-hidden /></span>
           ) : (
@@ -639,6 +660,18 @@ function PriorityRow({
   const premiumHref = usePremiumHref();
   const level = planSkillLevel(plan, priority.skillId);
   const locked = priority.locked;
+
+  /** Le titre et la meta — le contenu RÉEL, net ou flouté selon l'accès. */
+  const text = (
+    <>
+      <span className={styles.priorityRowTitle}>{priority.title}</span>
+      <span className={styles.priorityRowMeta}>
+        {planSkillMeta(priority)}
+        {level ? ` · palier ${level}` : ""}
+      </span>
+    </>
+  );
+
   return (
     <li className={styles.priorityItem}>
       <Link
@@ -646,15 +679,23 @@ function PriorityRow({
         href={locked ? premiumHref : planSkillHref(priority, {planStep: true})}
         onClick={locked ? trackPremiumClick : undefined}
       >
-        <span className={styles.priorityRank} data-first={rank === 1 ? "1" : "0"}>{rank}</span>
+        {/* Verrouillée, la pastille perd sa teinte d'urgence : la première
+            priorité est celle qu'on peut commencer, la mettre en avant sous un
+            cadenas serait une invitation à un mur. */}
+        <span className={styles.priorityRank} data-first={!locked && rank === 1 ? "1" : "0"}>{rank}</span>
         <span className={styles.priorityBody}>
-          <span className={styles.priorityRowTitle}>{priority.title}</span>
-          <span className={styles.priorityRowMeta}>
-            {planSkillMeta(priority)}
-            {level ? ` · palier ${level}` : ""}
-          </span>
+          {locked ? (
+            <>
+              <span className={styles.srOnly}>{PLAN_LOCKED_PRIORITY_LABEL}</span>
+              <PlanBlur>{text}</PlanBlur>
+            </>
+          ) : (
+            text
+          )}
         </span>
-        {priority.stepPromptCount > 0 && (
+        {/* Les points d'avancement disparaissent sous le verrou : ils
+            compteraient un travail qu'on ne peut pas faire. */}
+        {!locked && priority.stepPromptCount > 0 && (
           <span className={styles.priorityProgress}>
             <PlanDots done={priority.stepAttemptedCount} total={priority.stepPromptCount} />
             <span>{priority.stepAttemptedCount} / {priority.stepPromptCount}</span>
@@ -954,16 +995,34 @@ function WhyModal({plan, onClose}: {plan: LearningPlanDto; onClose: () => void})
 
         {items.length > 0 && (
           <ul className={styles.modalList}>
-            {items.map((item) => (
-              <li key={planSeanceItemKey(item)}>
-                <PlanDomainIcon epreuve={itemEpreuve(item)} small />
-                <span>
+            {items.map((item) => {
+              const text = (
+                <>
                   <b>{planItemTitle(item)}</b>
                   <small>{planItemReason(item)}</small>
-                </span>
-                <span className={styles.modalMinutes}>{item.exercise.estimatedMinutes} min</span>
-              </li>
-            ))}
+                </>
+              );
+              return (
+                <li key={planSeanceItemKey(item)}>
+                  <PlanDomainIcon epreuve={itemEpreuve(item)} small />
+                  <span>
+                    {/* 🛑 C'est la MÊME séance : montrer ici en clair un item
+                        flouté dix lignes plus haut démentirait le verrou. Le
+                        « pourquoi » de la séance reste dicible sans nommer ce
+                        qu'on ne peut pas encore ouvrir. */}
+                    {item.locked ? (
+                      <>
+                        <span className={styles.srOnly}>{PLAN_LOCKED_SEANCE_LABEL}</span>
+                        <PlanBlur>{text}</PlanBlur>
+                      </>
+                    ) : (
+                      text
+                    )}
+                  </span>
+                  <span className={styles.modalMinutes}>{item.exercise.estimatedMinutes} min</span>
+                </li>
+              );
+            })}
           </ul>
         )}
 

@@ -1821,3 +1821,43 @@
 
   margin-bottom: 22px;
 }
+
+/* ============================================================ verrou freemium
+
+   Le flou de la maquette, posé sur DEUX endroits et deux seulement : les items
+   de la séance à partir du deuxième, et les lignes de « Mes priorités » à
+   partir de la deuxième — c'est-à-dire sur ce que le serveur a marqué
+   `locked`. Tout le reste de l'écran (profil, chemin, compteurs, compétences
+   observées, étapes franchies) reste NET : on floute l'action pas encore
+   accessible, jamais le résultat mesuré. Ce sont ses productions.
+
+   ⚠️ Le flou n'est PAS la protection — le blocage vient de `aria-hidden` +
+   `inert` posés par `PlanBlur`, et le serveur refuse l'accès de son côté.
+   ============================================================================ */
+
+.blur {
+  display: grid;
+  min-width: 0;
+  /* 4 px : la valeur de la maquette (`WFlou force={4}`). Assez pour que le mot
+     ne se lise pas, assez peu pour qu'on voie qu'il y a bien du contenu. */
+  filter: blur(4px);
+  opacity: 0.5;
+  /* Ni sélectionnable ni cliquable : un flou qu'on copie-colle ne cache rien. */
+  user-select: none;
+  pointer-events: none;
+}
+
+/* L'information NETTE d'une ligne verrouillée, réservée aux lecteurs d'écran :
+   ce qu'il y a derrière le flou et comment l'ouvrir. Elle vit hors du bloc
+   flouté, sinon elle partirait avec lui. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

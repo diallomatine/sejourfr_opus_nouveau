@@ -105,3 +105,29 @@ export function PlanDots({done, total}: {done: number; total: number}) {
         </span>
     );
 }
+
+/**
+ * Le verrou freemium de la maquette : le contenu **réel** du candidat, rendu
+ * illisible tant que son accès n'est pas ouvert.
+ *
+ * 🛑 **Rien n'est fabriqué pour remplir le flou** — ce sont les lignes que le
+ * serveur a réellement servies, et l'abonnement les révèle telles quelles. Un
+ * décor sous le flou serait un mensonge que le déverrouillage démentirait.
+ *
+ * Illisible à l'œil **et** au lecteur d'écran : `aria-hidden` le sort de
+ * l'arbre d'accessibilité, `inert` le rend en plus non focusable et hors du
+ * parcours clavier. Sans les deux, le contenu verrouillé resterait lisible en
+ * synthèse vocale — à la fois un contournement et un mensonge d'accessibilité.
+ * Le flou n'est donc jamais la protection : il est la mise en scène.
+ *
+ * ⚠️ **L'information nette vit HORS de ce bloc** (le badge de verrou, le
+ * libellé lu par un lecteur d'écran) : ce qui reste vrai pour tout le monde ne
+ * se floute pas.
+ */
+export function PlanBlur({children}: {children: ReactNode}) {
+    return (
+        <span className={styles.blur} aria-hidden inert>
+            {children}
+        </span>
+    );
+}
