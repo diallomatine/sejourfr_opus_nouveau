@@ -4,6 +4,7 @@ import com.sejourfr.app.config.DiagnosticProperties;
 import com.sejourfr.app.config.LearningPlanProperties;
 import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.LearningPlanObservation;
+import com.sejourfr.app.dto.PlanDomainAssessmentDto;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.dto.TcfLevelProfile;
 import com.sejourfr.app.entity.Skill;
@@ -15,6 +16,7 @@ import com.sejourfr.app.enums.LearningPlanState;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.PlanCycleState;
+import com.sejourfr.app.enums.PlanDomainAssessmentKind;
 import com.sejourfr.app.enums.PlanExerciseKind;
 import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
@@ -113,6 +115,10 @@ class LearningPlanServiceTest {
                 masteryResolver, accessService,
                 new PlanCycleResolver(profileService, new ComprehensionLevelResolver(),
                         masteryResolver, skillManager),
+                // « Completer mon profil » tourne POUR DE VRAI : il ne fait que
+                // lire les domaines que le cycle vient de resoudre, le doubler
+                // reviendrait a tester le mock.
+                new PlanDomainAssessmentResolver(),
                 // La seance et le bloc « ce qui a change » tournent POUR DE VRAI :
                 // ce sont des vues de ce que le service vient de decider, les
                 // doubler reviendrait a tester le mock.
@@ -1007,6 +1013,143 @@ class LearningPlanServiceTest {
         assertThat(result.cycle().state()).isEqualTo(PlanCycleState.BUILDING_BASELINE);
         // L'objectif suit la demarche (NAT), il n'est pas une constante.
         assertThat(result.cycle().objectiveLevel()).isEqualTo(TargetLevel.B2);
+    }
+
+    // ------------------------------------------------------------------------
+    // Le diagnostic est PROGRESSIF : « Completer mon profil » (brief §3, §6, §7)
+    // ------------------------------------------------------------------------
+
+    /**
+     * L'ecran d'onboarding du brief §6 : rien n'est mesure, et le Plan sait
+     * pourtant quoi proposer sur les quatre domaines.
+     */
+    @Test
+    void sansAucuneMesureLeProfilEntierResteAEvaluer() {
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
+        when(taskManager.findLatestActiveDiagnosticVersion("INITIAL_TCF"))
+                .thenReturn(Optional.of(1));
+        when(sessionManager.findByUserAndVersionWithContent(userId, "INITIAL_TCF", 1))
+                .thenReturn(Optional.empty());
+
+        var result = service.get(userId);
+
+        assertThat(result.cycle().domainsEvaluated()).isZero();
+        assertThat(result.cycle().profileComplete()).isFalse();
+        assertThat(result.domainesAEvaluer())
+                .extracting(PlanDomainAssessmentDto::epreuve)
+                .containsExactly(EpreuveType.TCF_CO, EpreuveType.TCF_CE,
+                        EpreuveType.TCF_EO, EpreuveType.TCF_EE);
+        // Aucun diagnostic termine : l'expression passe par lui, la comprehension
+        // par un examen blanc DEJA EXISTANT — aucun moteur n'est cree.
+        assertThat(result.domainesAEvaluer())
+                .extracting(PlanDomainAssessmentDto::kind)
+                .containsExactly(
+                        PlanDomainAssessmentKind.MODULE_MOCK_EXAM,
+                        PlanDomainAssessmentKind.MODULE_MOCK_EXAM,
+                        PlanDomainAssessmentKind.DIAGNOSTIC,
+                        PlanDomainAssessmentKind.DIAGNOSTIC);
+    }
+
+    /**
+     * Brief §85-86 : un diagnostic ancien, EE + EO seulement, <b>reste
+     * valide</b>. On ne force personne a le refaire — le Plan est ACTIF, et il
+     * propose simplement de completer la comprehension.
+     */
+    @Test
+    void unAncienDiagnosticEeEoResteValideEtLeProfilSeCompletePlusTard() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(profileService.levelProfile(userId))
+                .thenReturn(profil(null, null, NiveauCecrl.A2, NiveauCecrl.A2));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of());
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+
+        var result = service.get(userId);
+
+        assertThat(result.state()).isEqualTo(LearningPlanState.ACTIVE);
+        assertThat(result.cycle().domainsEvaluated()).isEqualTo(2);
+        assertThat(result.domainesAEvaluer())
+                .extracting(PlanDomainAssessmentDto::epreuve)
+                .containsExactly(EpreuveType.TCF_CO, EpreuveType.TCF_CE);
+        // La session terminee ne se rejoue pas : c'est l'examen blanc de module
+        // qui mesure, avec le slot offert.
+        assertThat(result.domainesAEvaluer())
+                .allSatisfy(item -> assertThat(item.slotNumber()).isEqualTo(1));
+    }
+
+    @Test
+    void profilCompletDoncPlusRienAMesurer() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(profileService.levelProfile(userId)).thenReturn(profil(
+                NiveauCecrl.A2, NiveauCecrl.A2, NiveauCecrl.A2, NiveauCecrl.A2));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of());
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+
+        var result = service.get(userId);
+
+        assertThat(result.cycle().profileComplete()).isTrue();
+        assertThat(result.domainesAEvaluer()).isEmpty();
+    }
+
+    /**
+     * 🛑 BRIEF §77. Le cas nomme par le brief : « EE solide, EO solide, CO non
+     * evaluee, CE non evaluee ». Le selecteur de jalon, qui ne connait que
+     * l'echelle des epreuves, designe l'examen blanc COMPLET ; le Plan le
+     * refuse tant que les quatre domaines ne sont pas mesures — on ne confirme
+     * pas un palier sur deux domaines sur quatre. Ce qui est mis en avant, c'est
+     * « Completer mon profil ».
+     */
+    @Test
+    void unProfilIncompletNePropoAucunExamenDePalier() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(profileService.levelProfile(userId))
+                .thenReturn(profil(null, null, NiveauCecrl.B1, NiveauCecrl.B1));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of());
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+        when(milestoneSelector.select(eq(userId), anyCollection(), anyMap(), anyCollection(),
+                anyBoolean(), any()))
+                .thenReturn(Optional.of(PlanRecommendedExerciseDto.fullTcfMockExam(1, 95, false)));
+
+        var result = service.get(userId);
+
+        assertThat(result.cycle().profileComplete()).isFalse();
+        assertThat(result.cycle().state()).isEqualTo(PlanCycleState.BUILDING_BASELINE);
+        assertThat(result.milestone()).isNull();
+        assertThat(result.seance().items())
+                .noneMatch(item -> item.exercise() != null
+                        && item.exercise().kind() == PlanExerciseKind.FULL_TCF_MOCK_EXAM);
+        assertThat(result.domainesAEvaluer()).hasSize(2);
+    }
+
+    /**
+     * Le jalon d'EPREUVE, lui, n'est pas un controle de palier : il mesure une
+     * seule epreuve et reste servi sur un profil incomplet.
+     */
+    @Test
+    void leJalonDEpreuveSurvitAUnProfilIncomplet() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        PlanRecommendedExerciseDto jalon = PlanRecommendedExerciseDto.epreuveMockExam(
+                EpreuveType.TCF_EE, 1, 30, false);
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(profileService.levelProfile(userId))
+                .thenReturn(profil(null, null, NiveauCecrl.B1, NiveauCecrl.B1));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of());
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+        when(milestoneSelector.select(eq(userId), anyCollection(), anyMap(), anyCollection(),
+                anyBoolean(), any()))
+                .thenReturn(Optional.of(jalon));
+
+        assertThat(service.get(userId).milestone()).isEqualTo(jalon);
     }
 
     // ------------------------------------------------------------------------

@@ -1,6 +1,9 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.AttemptResponse;
+import com.sejourfr.app.dto.LearningPlanDto;
+import com.sejourfr.app.dto.PlanDomainAssessmentDto;
+import com.sejourfr.app.dto.PlanDomainDto;
 import com.sejourfr.app.dto.StartAttemptRequest;
 import com.sejourfr.app.dto.SubmitAnswerRequest;
 import com.sejourfr.app.entity.Choice;
@@ -9,6 +12,8 @@ import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.DiagnosticSessionStatus;
+import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.Module;
@@ -62,6 +67,7 @@ class ComprehensionObservationIT extends AbstractIntegrationTest {
 
     @Autowired AttemptService attemptService;
     @Autowired ComprehensionObservationService observationService;
+    @Autowired LearningPlanService planService;
     @Autowired LearningPlanObservationManager observationManager;
     @Autowired AttemptQuestionManager attemptQuestionManager;
     @Autowired SkillManager skillManager;
@@ -136,6 +142,47 @@ class ComprehensionObservationIT extends AbstractIntegrationTest {
 
         assertThat(ecrites).isZero();
         assertThat(observationsDe(user)).hasSize(apresPremiere);
+    }
+
+    /**
+     * <b>Le branchement complet</b> : un examen d'epreuve CO reellement joue
+     * remonte jusqu'au Plan — le domaine passe a « mesure » ({@code cycle},
+     * {@code domaines}), ses trois paliers portent un etat, et la comprehension
+     * devient une <b>priorite</b> comme n'importe quelle competence.
+     *
+     * <p>C'est le seul endroit ou la chaine entiere est exercee dans les
+     * conditions reelles : le producteur d'observations ecrit dans sa PROPRE
+     * transaction, ce qu'un test transactionnel ne verrait jamais.
+     */
+    @Test
+    @DisplayName("Une epreuve CO jouee remonte jusqu'aux domaines, au cycle et aux priorites du Plan")
+    void uneEpreuveCoRemonteJusquAuPlan() {
+        User user = utilisateur();
+        // Le Plan ne calcule ses priorites qu'apres un diagnostic termine ; le
+        // PROFIL, lui, n'en depend pas — c'est ce que teste le cas voisin.
+        data.diagnosticSession(user, DiagnosticSessionStatus.COMPLETED);
+
+        AttemptResponse started = attemptService.start(user.getId(), examenEpreuve(QuestionType.CO));
+        repondreJuste(user, started.id(), Difficulty.A2);
+        attemptService.finish(user.getId(), started.id());
+
+        LearningPlanDto plan = planService.get(user.getId());
+
+        // Le domaine est desormais mesure : il sort de « completer mon profil ».
+        assertThat(plan.cycle().domainsEvaluated()).isEqualTo(1);
+        assertThat(plan.domainesAEvaluer())
+                .extracting(PlanDomainAssessmentDto::epreuve)
+                .containsExactly(EpreuveType.TCF_CE, EpreuveType.TCF_EO, EpreuveType.TCF_EE);
+        PlanDomainDto co = plan.domaines().stream()
+                .filter(domaine -> domaine.epreuve() == EpreuveType.TCF_CO)
+                .findFirst().orElseThrow();
+        assertThat(co.evaluated()).isTrue();
+        assertThat(co.paliers()).hasSize(3);
+        assertThat(co.paliers().getFirst().masteryState()).isNotNull();
+        // Et la comprehension est traitee comme une competence a part entiere :
+        // les paliers rates deviennent des priorites du Plan.
+        assertThat(plan.currentPriority()).isNotNull();
+        assertThat(plan.currentPriority().skillCode()).startsWith("CO-");
     }
 
     // ------------------------------------------------------------------ serie ciblee

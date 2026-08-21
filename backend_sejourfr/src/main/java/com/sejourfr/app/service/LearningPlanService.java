@@ -18,6 +18,7 @@ import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanState;
 import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.PlanCycleState;
+import com.sejourfr.app.enums.PlanExerciseKind;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
@@ -104,6 +105,7 @@ public class LearningPlanService {
     private final SkillMasteryResolver masteryResolver;
     private final SkillAccessService accessService;
     private final PlanCycleResolver cycleResolver;
+    private final PlanDomainAssessmentResolver assessmentResolver;
     private final PlanSeanceBuilder seanceBuilder;
     private final PlanRecentChangesResolver recentChangesResolver;
     private final UserManager userManager;
@@ -127,6 +129,11 @@ public class LearningPlanService {
                     inProgress == null ? null : inProgress.getId(), null,
                     List.of(), null, List.of(), List.of(), 0, 0, true, null,
                     profil.domaines(), profil.cycle(),
+                    // Aucun diagnostic termine : les deux domaines d'expression
+                    // pointent vers le diagnostic, les deux de comprehension vers
+                    // leur examen blanc de module. C'est exactement l'ecran
+                    // d'onboarding du brief §6 — et il n'est jamais vide.
+                    assessmentResolver.resolve(profil.domaines(), false),
                     // Aucune priorite, donc aucune seance et rien qui ait bouge :
                     // le Plan sert le profil, pas une journee de travail.
                     new PlanSeanceDto(List.of(), 0), null);
@@ -262,6 +269,24 @@ public class LearningPlanService {
                 userId, latest.values(), mastery, allObservations,
                 profil.cycle().state() == PlanCycleState.READY_FOR_GATE_MOCK,
                 Instant.now()).orElse(null);
+        // 🛑 PROFIL INCOMPLET : PAS D'EXAMEN DE PALIER (brief §77). Le gate du
+        // cycle exige deja les 4/4 (PlanCycleResolver), mais l'ECHELLE des
+        // jalons, elle, ne connait pas le profil : un candidat dont l'ecrit et
+        // l'oral ont transfere et fait leurs preuves se voyait proposer l'examen
+        // blanc COMPLET alors que sa comprehension n'avait jamais ete mesuree —
+        // exactement le cas que le brief nomme (« EE solide, EO solide, CO non
+        // evaluee, CE non evaluee »). On ne confirme pas un palier sur deux
+        // domaines sur quatre : le Plan met d'abord en avant « Completer mon
+        // profil » (domainesAEvaluer, juste au-dessus), puis recalcule.
+        //
+        // Le jalon d'EPREUVE (EE ou EO) reste servi : ce n'est pas un controle
+        // de palier, c'est la mesure d'une seule epreuve, et rien n'oblige a
+        // connaitre les quatre domaines pour la passer.
+        if (!profil.cycle().profileComplete()
+                && milestone != null
+                && milestone.kind() == PlanExerciseKind.FULL_TCF_MOCK_EXAM) {
+            milestone = null;
+        }
         // LA SEANCE est une VUE de ce qui precede : elle ne choisit aucun
         // exercice, elle ordonne et borne ceux que les trois autorites ont deja
         // designes, et recalcule le total de minutes. Aucune date n'y entre —
@@ -285,7 +310,13 @@ public class LearningPlanService {
                 priorities.isEmpty() ? null : priorities.getFirst(),
                 priorities.size() <= 1 ? List.of() : priorities.subList(1, priorities.size()),
                 observed, observedCount, activities, true, milestone,
-                profil.domaines(), profil.cycle(), seance, changes);
+                profil.domaines(), profil.cycle(),
+                // « Completer mon profil » survit au diagnostic : un candidat
+                // evalue en EE/EO garde CO et CE a mesurer, et la session
+                // terminee ne se rejoue pas — ces domaines-la, s'ils manquaient
+                // encore, retomberaient sur une production.
+                assessmentResolver.resolve(profil.domaines(), true),
+                seance, changes);
     }
 
     /**

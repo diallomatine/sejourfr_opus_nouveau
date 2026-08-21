@@ -71,6 +71,28 @@ public record LearningPlanDto(
          */
         PlanCycleDto cycle,
         /**
+         * <b>Ce qu'il reste a mesurer</b>, et par quoi : un item par domaine
+         * jamais evalue, avec l'epreuve concernee et les parametres exacts du
+         * parcours <b>deja existant</b> a ouvrir (le diagnostic, un examen blanc
+         * de module CO/CE, une production EE/EO).
+         *
+         * <p>C'est le bloc « Completer mon profil » du brief §7, et c'est ce qui
+         * rend le diagnostic <b>progressif</b> : un profil vit a 0, 1, 2, 3 ou
+         * 4 domaines mesures, et cette liste dit toujours ou en est le candidat.
+         *
+         * <p><b>Jamais {@code null}</b> ; <b>vide</b> quand
+         * {@code cycle.profileComplete()} — c'est l'etat vise, pas une anomalie.
+         * Le <b>compte</b> (2/4, 4/4) ne se lit pas ici mais sur
+         * {@link #cycle()}, et l'etat de chaque domaine sur
+         * {@link #domaines()} : trois surfaces qui compteraient chacune de leur
+         * cote auraient fini par se contredire.
+         *
+         * <p>🛑 <b>Le serveur expose des faits</b> — quelle epreuve, quel
+         * parcours, quels parametres. « Evaluer ma comprehension orale » et
+         * « Pas encore evaluee » appartiennent aux fronts.
+         */
+        List<PlanDomainAssessmentDto> domainesAEvaluer,
+        /**
          * <b>La seance du jour</b> : au plus trois entrainements, dans l'ordre,
          * et leur duree totale. Jamais {@code null} ; ses items sont vides quand
          * le Plan n'a rien a proposer.
