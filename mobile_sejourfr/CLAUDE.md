@@ -981,6 +981,60 @@ de découpage par `QuestionType`. À raffiner quand on aura le besoin.
 feedback → fin de série. L'archi actuelle est délibérément minimale : le tap module redirige vers
 les écrans `/training` et `/tcf/expression-*` existants en attendant.
 
+### Refonte du Plan — coach adaptatif (2026-08-21, `screens/plan/`)
+
+L'écran `/plan` suit la maquette « coach adaptatif ». **Ordre des blocs, du plus immédiat
+au plus lointain** — ne pas le réordonner sans arbitrage : ligne de contexte → bandeau
+(« Plan actualisé » **ou** « Version gratuite », jamais les deux) → **priorité actuelle**
+(`GradientHero`, seul CTA principal de l'écran) → **Aujourd'hui** (la séance) → **Mes
+priorités** → jalon → ce qui a changé → **Mon profil TCF** (les 4 domaines) → **Compléter
+mon profil** → **Mon chemin vers l'objectif** → liens secondaires.
+
+- **Rien n'est recalculé côté app** : les priorités sont ordonnées serveur, `domaines` est
+  **déjà trié par urgence** (aucun front ne retrie), la séance est composée serveur, et
+  chaque verrou vient d'un `locked` par élément.
+- 🛑 **La maquette floute les lignes verrouillées ; nous NON.** Le Plan reste
+  **intégralement visible** sans abonnement (règle du CLAUDE.md racine) : une ligne fermée
+  s'affiche entière, avec sa compétence et sa durée, et seule son **action** mène à l'offre
+  (`PremiumLockTag` + `showTcfLockPaywall`). Ne pas réintroduire de `CFlou`.
+- 🛑 **`objectiveLevel` est NULLABLE.** La maquette code `"B2"` en dur : c'est un artefact.
+  Sans démarche déclarée, l'en-tête propose « Mon objectif » (→ `/target-path`), le titre du
+  chemin ne nomme aucun palier et la ligne « Objectif » du héros disparaît. `recentChanges`
+  est nullable de la même façon : **son absence est le cas normal**, aucun bloc n'est
+  fabriqué pour remplir.
+- **Les phrases vivent dans `plan_labels.dart`**, jamais dans un widget : le serveur
+  n'expose aucun libellé pour les domaines, le cycle, le chemin ni la séance, et un même
+  fait doit se dire pareil sur le Plan, sur la fiche d'un domaine et sur le bilan d'une
+  série. Les libellés **gelés** (mastery, priorité de domaine, fenêtre de changements)
+  restent ceux des enums, recopiés du serveur.
+- **`planSeanceDoneProvider`** (`plan_seance_state.dart`) coche les lignes de la séance :
+  marqueur **local, éphémère, sans persistance**, clé = la **compétence** (le sujet change
+  au recalcul, pas elle). Il ne décide de rien — ni du contenu de la séance, ni d'un verrou,
+  ni d'un compteur d'étape.
+
+**Écrans secondaires** (hors shell, poussés au-dessus de l'onglet) :
+
+| Route | Écran | Ce qu'il réutilise |
+|---|---|---|
+| `/plan/domaine/:domainKey` (`co\|ce\|ee\|eo`) | `PlanDomainScreen` | relit le Plan **déjà chargé**, aucun appel de plus. Compréhension ⇒ ses 3 paliers (tap = série ciblée) ; expression ⇒ ses 3 tâches (tap = `productionCompetencesPath`) |
+| `/plan/evolution` | `PlanEvolutionScreen` | `cycle` + `recentChanges` ; « rien n'a bougé » est un état affiché, pas une erreur |
+| `/plan/serie/:attemptId` | `PlanSerieResultScreen` | bilan d'une série ciblée, poussé par le runner |
+
+**Série ciblée de compréhension** — `startTargetedSeries` (`plan_series_launcher.dart`) est
+le seul point de départ : `AttemptsRepository.startComprehensionSeries(skillId)` puis le
+**runner QCM existant** avec `?from=planSerie&skillId=…&avant=…`, exactement le montage des
+lots TCF (`from=tcfLot`). **Aucun second runner n'a été écrit.** 🛑 Une série est un
+`TRAINING` : elle **ne rend jamais un domaine « évalué »** — seul un examen blanc de module
+le fait, et c'est `domainesAEvaluer` qui dit lequel.
+
+**Trois lanceurs, trois autorités, aucune copie** : `openRecommendedExercise` (micro-sujet /
+vérification en situation / série ciblée — la branche `TARGETED_QCM_SERIES` manquait et
+faisait ouvrir une fiche de compétence d'**expression**), `startPlanMilestone`
+(`plan_milestone_launcher.dart`, extrait de `PlanMilestoneCard` quand la séance a eu besoin
+de lancer le même examen depuis une ligne) et `startTargetedSeries`. `plan_actions.dart` ne
+fait qu'y ajouter la mesure d'audience et le routage d'une compétence — dont le cas
+**compréhension**, qui n'a pas d'écran de compétence et ouvre la fiche de son domaine.
+
 ## Le runner — le cœur de l'app
 
 Le `RunnerScreen` est l'écran le plus complexe. Il gère :

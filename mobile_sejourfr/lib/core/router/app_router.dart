@@ -39,7 +39,10 @@ import '../../screens/profile/mes_historiques_screen.dart';
 import '../../screens/profile/mon_entrainement_screen.dart';
 import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
+import '../../screens/plan/plan_domain_screen.dart';
+import '../../screens/plan/plan_evolution_screen.dart';
 import '../../screens/plan/plan_screen.dart';
+import '../../screens/plan/plan_serie_result_screen.dart';
 import '../../screens/plan/plan_step_labels.dart';
 import '../../screens/question_runner/runner_screen.dart';
 import '../../screens/review/review_screen.dart';
@@ -61,6 +64,7 @@ import '../../screens/tcf_production/realtime/realtime_eo_controller.dart';
 import '../../screens/tcf_production/realtime/realtime_eo_screen.dart';
 import '../auth/auth_controller.dart';
 import '../models/enums.dart';
+import '../models/skill_models.dart';
 
 /// Routes nommées centralisées (utilisées par les écrans).
 class AppRoutes {
@@ -153,6 +157,18 @@ class AppRoutes {
   static const runner = '/runner/:attemptId';
   static const diagnostic = '/diagnostic';
   static const plan = '/plan';
+
+  /// Fiche d'un des quatre domaines du TCF **vu par le Plan** (`co|ce|ee|eo`).
+  /// Aucun identifiant n'y voyage : la fiche relit le Plan déjà chargé.
+  static const planDomain = '/plan/domaine/:domainKey';
+
+  /// « Votre programme évolue » — le détail de ce qui a bougé dans le Plan.
+  static const planEvolution = '/plan/evolution';
+
+  /// Bilan d'une **série ciblée de compréhension**, poussé par le runner quand
+  /// la route porte `from=planSerie` (même montage que `tcfLotResult`).
+  static const planSerieResult = '/plan/serie/:attemptId';
+
   static const progress = '/progress';
 
   // Plan de révision personnalisé (catégories les plus faibles d'abord),
@@ -520,6 +536,29 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const ProfileScreen(),
           ),
         ],
+      ),
+
+      // Écrans secondaires du Plan — hors shell : ils sont poussés au-dessus de
+      // l'onglet, qui reste dessous et se ré-hydrate au retour.
+      GoRoute(
+        path: AppRoutes.planDomain,
+        builder: (_, state) => PlanDomainScreen(
+          domainKey: state.pathParameters['domainKey'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.planEvolution,
+        builder: (_, __) => const PlanEvolutionScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.planSerieResult,
+        builder: (_, state) => PlanSerieResultScreen(
+          attemptId: state.pathParameters['attemptId']!,
+          skillId: state.uri.queryParameters['skillId'],
+          masteryBefore: SkillMasteryState.fromWireNullable(
+            state.uri.queryParameters['avant'],
+          ),
+        ),
       ),
 
       // Progression historique conservée comme écran secondaire depuis Plan.

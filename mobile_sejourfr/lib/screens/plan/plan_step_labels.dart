@@ -192,18 +192,6 @@ const String kPlanStepBadgeDone = 'TERMINÉE';
 /// lecteurs d'écran, jamais affiché.
 const String kPlanStepDoneMarkLabel = 'Étape terminée';
 
-/// Le sous-titre de « Votre parcours ». Il ne décrit que les **priorités
-/// actives** : ce sont elles qui ouvrent la liste, numérotées à partir de 1.
-///
-/// ⚠️ Les étapes **franchies** n'y figurent plus. Elles s'accumulent (5 servies
-/// par le serveur), et les mettre en tête repoussait la priorité en 6ᵉ
-/// position, hors écran — l'inverse de ce que le Plan doit faire. Elles vivent
-/// sous la liste, repliées derrière [planDoneSectionCta].
-String planPathSubtitle(int active) {
-  final s = active > 1 ? 's' : '';
-  return '$active priorité$s active$s, dans l\'ordre.';
-}
-
 /// Le bouton qui déplie les étapes franchies, sous le parcours.
 String planDoneSectionCta(int count, bool open) {
   final s = count > 1 ? 's' : '';
