@@ -29,7 +29,6 @@ import {
   LEARNING_PLAN_SKILL_STATUS_LABEL,
   LEARNING_PLAN_SKILL_STATUS_TONE,
   productionSectionLabel,
-  recommendedExerciseHref,
   skillTaskNumber,
 } from "@/lib/diagnostic";
 import {
@@ -1512,22 +1511,13 @@ const PRIORITIES_TEXT_UNRANKED =
 const PRIORITY_RANK_LABEL = "Priorité détectée";
 const POINT_LABEL = "Point à travailler";
 
-const PLAN_READY_TITLE = "Votre plan personnalisé est prêt";
-const PLAN_READY_TEXT =
-  "Il commence par votre priorité n°1 et se réordonne à chacune de vos nouvelles productions.";
 
-const PLAN_TODAY_LABEL = "Aujourd'hui";
 /** La nature d'une ligne de l'aperçu de séance, dite en deux mots. */
-const PLAN_STEP_TARGETED = "Exercice ciblé";
-const PLAN_STEP_REASSESSMENT = "Vérification en situation";
 
 const UNLOCK_PLAN_CTA = "Débloquer mon plan";
 const CTA_PLAN = "Voir mon plan";
 /** Mêmes libellés que le Plan : un candidat ne doit pas lire deux formulations
  *  pour la même action. */
-const EXERCISE_CTA_LOCKED = "Débloquer cet exercice";
-const EXERCISE_CTA_REASSESSMENT = "Vérifier ma progression";
-const EXERCISE_CTA_START = "Commencer";
 
 /**
  * Le repère d'une compétence : son domaine, et le numéro de tâche quand elle en
@@ -1663,10 +1653,6 @@ function DiagnosticResult({
 
   const {levers, measured, total: leverTotal} = resultLevers(result);
   const strengths = resultStrengths(result);
-  const nextAction = result.nextAction;
-  // Aperçu du plan : deux étapes à venir au plus, comme avant. Le compteur d'un
-  // compte gratuit, lui, porte sur le total réel — pas sur cet aperçu.
-  const nextSteps = measured ? levers.slice(1, 3) : [];
 
   // ------------------------------------------------------------ freemium
   // 🛑 **Ce qui est masqué, c'est ce qui RESTE À FAIRE — jamais ce que le
@@ -1814,81 +1800,10 @@ function DiagnosticResult({
           </section>
         )}
 
-        {/* ---------------------------------------------------- votre plan */}
-        {nextAction && (
-          <section aria-labelledby="plan-title">
-            <ResultBlockHead id="plan-title" title={PLAN_READY_TITLE} text={PLAN_READY_TEXT} />
-            <div className={styles.planShell}>
-              {/* Le bandeau « Priorité actuelle » a été retiré le 2026-08-21 :
-                  cette même priorité est déjà la première ligne de « Vos
-                  priorités », une section plus haut. La redire ici n'ajoutait
-                  rien et allongeait la carte. Ne pas la réintroduire. */}
+        {/* La section « Votre plan personnalisé est prêt » a été retirée le
+            2026-08-21 : le rapport dit ce qui a été mesuré, le Plan dit quoi
+            faire, et le bouton du bas y mène déjà. Ne pas la réintroduire. */}
 
-              <p className={styles.planTodayLabel}>
-                {PLAN_TODAY_LABEL} · {nextAction.estimatedMinutes} min
-              </p>
-
-              <ul className={styles.planSteps}>
-                <li>
-                  <b>{nextAction.title}</b>
-                  <span>
-                    {nextAction.kind === "REASSESSMENT"
-                      ? PLAN_STEP_REASSESSMENT
-                      : PLAN_STEP_TARGETED}{" "}
-                    · {productionSectionLabel(nextAction.section)} ·{" "}
-                    {nextAction.estimatedMinutes} min
-                  </span>
-                </li>
-                {hasTcf &&
-                  nextSteps.map((step) => (
-                    <li key={step.key}>
-                      <b>{step.title}</b>
-                      <span>
-                        {PLAN_STEP_TARGETED}
-                        {skillMetaLine(step.section, step.skillCode)
-                          ? ` · ${skillMetaLine(step.section, step.skillCode)}`
-                          : ""}
-                      </span>
-                    </li>
-                  ))}
-              </ul>
-
-              {/* Sans abonnement, un seul entraînement est jouable : les
-                  suivants se comptent au lieu de s'afficher en double. Leurs
-                  compétences sont déjà nommées plus haut, dans les priorités —
-                  ce qui est fermé ici, c'est l'exercice, pas le diagnostic. */}
-              {!hasTcf && leverTease.hidden > 0 && (
-                <PremiumLink className={styles.planMore}>
-                  <Lock size={15} aria-hidden />
-                  <span className={styles.planMoreCount}>
-                    {moreLabel(
-                      leverTease.hidden,
-                      "autre entraînement personnalisé",
-                      "autres entraînements personnalisés",
-                    )}
-                  </span>
-                  <span className={styles.planMoreCta}>Débloquer</span>
-                </PremiumLink>
-              )}
-
-              {/* Le verrou est celui du SERVEUR (`locked`), jamais l'accès du
-                  compte : un exercice fermé ouvre l'offre au lieu de mener à une
-                  page qui refusera. */}
-              {nextAction.locked ? (
-                <PremiumLink className={styles.planStepCta}>
-                  <Lock size={15} aria-hidden /> {EXERCISE_CTA_LOCKED}
-                </PremiumLink>
-              ) : (
-                <Link className={styles.planStepCta} href={recommendedExerciseHref(nextAction)}>
-                  {nextAction.kind === "REASSESSMENT"
-                    ? EXERCISE_CTA_REASSESSMENT
-                    : EXERCISE_CTA_START}
-                  <ArrowRight size={15} aria-hidden />
-                </Link>
-              )}
-            </div>
-          </section>
-        )}
 
         {/* ------------------------------------------------------ CTA final */}
         {/* Un seul bloc de fin, jamais deux empilés : l'abonné est renvoyé vers

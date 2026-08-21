@@ -84,7 +84,6 @@ class DiagnosticResultView extends ConsumerWidget {
     final focus = _focusItems(result);
     final ranked = focus.isNotEmpty && focus.first.ranked;
     final solid = _solidSkills(result);
-    final steps = _planSteps(result);
 
     // Le Plan n'est lu qu'**ici**, sur l'écran de résultat d'un compte
     // authentifié : c'est la seule source de l'état du profil (quels domaines
@@ -127,11 +126,6 @@ class DiagnosticResultView extends ConsumerWidget {
             visible: solid.isEmpty ? visibleTexts.length : visibleSolid.length,
           );
 
-    final visibleSteps =
-        hasTcfAccess ? steps : steps.take(_kFreeStepsVisible).toList();
-    // Ce que l'abonnement ouvre vraiment : le compte des priorités restantes,
-    // jamais la longueur de l'aperçu (borné à 3 étapes).
-    final hiddenSteps = hasTcfAccess ? 0 : hiddenFocus;
 
     return Stack(
       children: [
@@ -235,23 +229,9 @@ class DiagnosticResultView extends ConsumerWidget {
               ],
             ],
 
-            // 6 — votre plan personnalisé est prêt
-            if (visibleSteps.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              const _SectionTitle(
-                title: kDiagnosticPlanReadyTitle,
-                text: kDiagnosticPlanReadyText,
-              ),
-              const SizedBox(height: 11),
-              _PlanPreviewCard(
-                priority: focus.isEmpty ? null : focus.first,
-                steps: visibleSteps,
-                hiddenSteps: hiddenSteps,
-                exercise: result.nextAction,
-                onOpenRecommended: onOpenRecommended,
-                onSubscribe: onSubscribe,
-              ),
-            ],
+            // La section « Votre plan personnalisé est prêt » a ete retiree le
+            // 2026-08-21 : le rapport dit ce qui a ete mesure, le Plan dit quoi
+            // faire, et le bouton du bas y mene deja. Ne pas la reintroduire.
 
             // 7 — l'offre ferme le rapport : le candidat a d'abord lu **son**
             // niveau, **ses** priorités et **ses** acquis.
@@ -520,67 +500,6 @@ int _focusTotal(DiagnosticResult result, List<_FocusItem> focus) =>
 /// la liste est plafonnée à 3 **à l'écriture** du résumé côté serveur.
 int _strengthTotal(DiagnosticResult result, int shown) =>
     result.solidSkillCount > shown ? result.solidSkillCount : shown;
-
-/// Une ligne de la séance mise en aperçu.
-class _PlanStep {
-  const _PlanStep({
-    required this.title,
-    required this.subtitle,
-    this.epreuve,
-  });
-
-  final String title;
-  final String subtitle;
-  final EpreuveType? epreuve;
-}
-
-/// Les trois lignes de l'aperçu : l'exercice recommandé, puis les priorités
-/// suivantes, puis la vérification en situation si la place reste.
-///
-/// **Aucun titre n'est masqué** : le verrou porte sur l'accès, jamais sur
-/// l'information — et il est reporté par le serveur
-/// (`PlanRecommendedExercise.locked`), jamais recalculé ici.
-List<_PlanStep> _planSteps(DiagnosticResult result) {
-  final exercise = result.nextAction;
-  final steps = <_PlanStep>[];
-
-  if (exercise != null) {
-    steps.add(
-      _PlanStep(
-        title: exercise.title,
-        subtitle: exercise.kind == PlanExerciseKind.reassessment
-            ? 'Vérification en situation · ${exercise.estimatedMinutes} min'
-            : 'Exercice ciblé · ${exercise.estimatedMinutes} min',
-        epreuve: planEpreuveOfSection(exercise.section),
-      ),
-    );
-  } else if (result.priorities.isNotEmpty) {
-    final first = result.priorities.first;
-    steps.add(
-      _PlanStep(
-        title: first.skillTitle,
-        subtitle: 'Exercice ciblé',
-        epreuve: planEpreuveOfSection(first.section),
-      ),
-    );
-  }
-
-  for (final priority in result.priorities.skip(1).take(2)) {
-    if (steps.length >= 3) break;
-    steps.add(
-      _PlanStep(
-        title: priority.skillTitle,
-        subtitle: 'Exercice ciblé',
-        epreuve: planEpreuveOfSection(priority.section),
-      ),
-    );
-  }
-  // Pas de ligne de complement : un apercu de plan n'affiche que des etapes
-  // reelles. En fabriquer une pour atteindre trois lignes montrerait au
-  // candidat un entrainement que son plan ne lui proposera jamais -- et le web
-  // n'en a pas non plus.
-  return steps;
-}
 
 // ---------------------------------------------------------------------------
 // 1 — le héros : niveau estimé, objectif, rail des paliers
@@ -1158,146 +1077,6 @@ class _PriorityRow extends StatelessWidget {
 // 4 — aperçu du plan
 // ---------------------------------------------------------------------------
 
-class _PlanPreviewCard extends StatelessWidget {
-  const _PlanPreviewCard({
-    required this.priority,
-    required this.steps,
-    required this.hiddenSteps,
-    required this.exercise,
-    required this.onOpenRecommended,
-    required this.onSubscribe,
-  });
-
-  /// La priorité n°1 telle que le serveur l'a désignée. `null` sur un repli
-  /// sans priorité : le bandeau de tête n'existe alors pas.
-  final _FocusItem? priority;
-
-  /// Ce qui est **affiché**. Un compte sans accès n'en voit qu'un.
-  final List<_PlanStep> steps;
-
-  /// Combien d'entraînements restent derrière le verrou. `0` pour un abonné, et
-  /// **`0` aussi** quand la séance en compte moins que le seuil — la barre
-  /// n'existe alors pas.
-  final int hiddenSteps;
-  final PlanRecommendedExercise? exercise;
-  final ValueChanged<PlanRecommendedExercise> onOpenRecommended;
-  final VoidCallback onSubscribe;
-
-  @override
-  Widget build(BuildContext context) {
-    final action = exercise;
-    final head = priority;
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.blue),
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        boxShadow: AppShadows.card,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Le bandeau « Priorité actuelle » a ete retire le 2026-08-21 :
-          // cette meme priorite est deja la premiere ligne de « Vos
-          // principales priorites », deux sections plus haut. La redire ici
-          // n'ajoutait rien et allongeait la carte. Ne pas la reintroduire.
-          if (action != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              decoration: BoxDecoration(
-                border: Border(
-                  top: head == null
-                      ? BorderSide.none
-                      : const BorderSide(color: AppColors.lineSoft),
-                ),
-              ),
-              child: Text(
-                '$kDiagnosticPlanTodayLabel · ${action.estimatedMinutes} min',
-                style: AppFonts.eyebrow(color: AppColors.inkFaint),
-              ),
-            ),
-          for (final step in steps)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 11, 16, 0),
-              child: _PlanStepRow(step: step),
-            ),
-          if (hiddenSteps > 0)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-              child: _LockedMoreBar(
-                label: '+ $hiddenSteps autre${_plural(hiddenSteps)} '
-                    'entraînement${_plural(hiddenSteps)} '
-                    'personnalisé${_plural(hiddenSteps)}',
-                onSubscribe: onSubscribe,
-              ),
-            ),
-          if (action != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-              child: AppButton(
-                label: _exerciseCta(action),
-                variant: action.locked
-                    ? AppButtonVariant.outline
-                    : AppButtonVariant.soft,
-                height: 46,
-                icon: action.locked ? LucideIcons.lock : null,
-                onPressed: action.locked
-                    ? onSubscribe
-                    : () => onOpenRecommended(action),
-              ),
-            ),
-          const SizedBox(height: 15),
-        ],
-      ),
-    );
-  }
-
-  /// Mêmes libellés que le Plan (`plan_screen.dart`) : un candidat ne doit pas
-  /// lire deux formulations pour la même action.
-  static String _exerciseCta(PlanRecommendedExercise exercise) {
-    if (exercise.locked) return 'Débloquer cet exercice';
-    return exercise.kind == PlanExerciseKind.reassessment
-        ? 'Vérifier ma progression'
-        : 'Commencer';
-  }
-}
-
-class _PlanStepRow extends StatelessWidget {
-  const _PlanStepRow({required this.step});
-
-  final _PlanStep step;
-
-  @override
-  Widget build(BuildContext context) => Row(
-        children: [
-          PlanDomainTile(epreuve: step.epreuve, size: 34),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  step.title,
-                  style: AppFonts.ui(
-                    size: 13.5,
-                    weight: FontWeight.w600,
-                    height: 1.28,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  step.subtitle,
-                  style: AppFonts.ui(size: 11.5, color: AppColors.inkFaint),
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-}
-
 // ---------------------------------------------------------------------------
 // 5 — l'offre
 // ---------------------------------------------------------------------------
@@ -1388,7 +1167,6 @@ class _UnlockCard extends StatelessWidget {
 /// productions (qui listait « À travailler ») n'y a plus sa place.
 const int _kFreeFocusVisible = 1;
 const int _kFreeSolidVisible = 2;
-const int _kFreeStepsVisible = 1;
 
 /// Combien de lignes **réelles** le bloc flouté laisse deviner. C'est un
 /// échantillon, jamais le compte : le compte, lui, est exact et porte sur
@@ -1539,100 +1317,6 @@ class _LockedPreview extends StatelessWidget {
       ),
     );
   }
-}
-
-/// La variante **en pointillés** du même verrou, posée à l'intérieur d'une
-/// carte : elle n'a pas de contenu à flouter, seulement un compte. C'est le cas
-/// des entraînements de la séance, dont le premier tient déjà dans la carte
-/// au-dessus.
-class _LockedMoreBar extends StatelessWidget {
-  const _LockedMoreBar({required this.label, required this.onSubscribe});
-
-  final String label;
-  final VoidCallback onSubscribe;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-        button: true,
-        label: label,
-        child: Material(
-          color: AppColors.surface2,
-          borderRadius: BorderRadius.circular(AppRadii.md),
-          child: InkWell(
-            onTap: onSubscribe,
-            borderRadius: BorderRadius.circular(AppRadii.md),
-            child: CustomPaint(
-              painter: const _DashedBorderPainter(),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                child: Row(
-                  children: [
-                    const Icon(
-                      LucideIcons.lock,
-                      size: 15,
-                      color: AppColors.inkFaint,
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Text(
-                        label,
-                        style: AppFonts.ui(
-                          size: 13.5,
-                          weight: FontWeight.w700,
-                          color: AppColors.inkSoft,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-}
-
-/// Le liseré **en pointillés** de [_LockedMoreBar]. Flutter n'a pas de
-/// `BorderStyle.dashed` : le trait se peint, il ne se déclare pas. Il dit « il
-/// y a de la place ici, elle n'est pas encore ouverte » — un trait plein aurait
-/// dessiné un contenu, alors qu'il n'y en a pas derrière.
-class _DashedBorderPainter extends CustomPainter {
-  const _DashedBorderPainter();
-
-  static const double _dash = 5;
-  static const double _gap = 4;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.line
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    final path = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(
-          Offset.zero & size,
-          const Radius.circular(AppRadii.md),
-        ),
-      );
-    for (final metric in path.computeMetrics()) {
-      var distance = 0.0;
-      while (distance < metric.length) {
-        final end = distance + _dash;
-        canvas.drawPath(
-          metric.extractPath(
-            distance,
-            end < metric.length ? end : metric.length,
-          ),
-          paint,
-        );
-        distance = end + _gap;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) => false;
 }
 
 // ---------------------------------------------------------------------------

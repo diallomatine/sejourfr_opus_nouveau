@@ -106,10 +106,6 @@ const String kDiagnosticStrengthsTitle = 'Vos points forts';
 String diagnosticStrengthsSub(int total) =>
     'Compétences observées et déjà solides · $total';
 
-const String kDiagnosticPlanReadyTitle = 'Votre plan personnalisé est prêt';
-const String kDiagnosticPlanReadyText =
-    'Il commence par votre priorité n°1 et se réordonne à chacune de vos '
-    'nouvelles productions.';
 const String kDiagnosticPlanTodayLabel = 'Aujourd\'hui';
 
 /* --------------------------------------------------------------- l'offre */
