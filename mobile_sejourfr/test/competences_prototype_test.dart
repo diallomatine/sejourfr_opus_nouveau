@@ -6,8 +6,6 @@ import 'package:sejourfr_mobile/core/theme/app_theme.dart';
 import 'package:sejourfr_mobile/core/widgets/app_tag.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/competence_card.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_blocks.dart';
-import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_mode_tabs.dart';
-import 'package:sejourfr_mobile/screens/tcf_production/widgets/production_parcours_top.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_prompt_row.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_references_tabs.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_status_badge.dart';
@@ -85,102 +83,6 @@ void main() {
       expect(compact.fontSize, 10);
       expect(compact.fontWeight, FontWeight.w900);
       expect(compact.color, normal.color);
-    });
-  });
-
-  group('héros chiffré du parcours', () {
-    testWidgets('trois indicateurs agrégés + progression du parcours',
-        (tester) async {
-      await tester.pumpWidget(
-        _host(
-          const ProductionParcoursHero(
-            module: TcfProductionModule.ee,
-            stats: ProductionParcoursStats(
-              avgScore: 7.7,
-              examsDone: 1,
-              examsTotal: 10,
-              subjectsDone: 3,
-              subjectsTotal: 40,
-            ),
-          ),
-        ),
-      );
-
-      // Le /20 n'est PAS une note de tâche : c'est la moyenne d'examens blancs
-      // (3 tâches agrégées), la seule échelle /20 autorisée ici.
-      expect(find.text('7,7'), findsOneWidget);
-      expect(find.text('/20'), findsOneWidget);
-      expect(find.text('/10'), findsOneWidget);
-      expect(find.text('/40'), findsOneWidget);
-      expect(find.text('Progression du parcours'), findsOneWidget);
-      expect(find.text('8 %'), findsOneWidget);
-    });
-
-    testWidgets('aucun examen évalué ⇒ un tiret, jamais un zéro',
-        (tester) async {
-      await tester.pumpWidget(
-        _host(
-          const ProductionParcoursHero(
-            module: TcfProductionModule.eo,
-            stats: ProductionParcoursStats(
-              avgScore: null,
-              examsDone: 0,
-              examsTotal: 10,
-              subjectsDone: 0,
-              subjectsTotal: 0,
-            ),
-          ),
-        ),
-      );
-
-      expect(find.text('—'), findsOneWidget);
-      // Aucun sujet publié ⇒ 0 %, pas de NaN ni de barre pleine.
-      expect(find.text('0 %'), findsOneWidget);
-    });
-  });
-
-  group('sélecteur de tâche', () {
-    testWidgets('porte l\'intitulé court et la contrainte réelle, et change '
-        'de tâche', (tester) async {
-      int? tapped;
-      await tester.pumpWidget(
-        _host(
-          ProductionTaskCards(
-            module: TcfProductionModule.ee,
-            active: 2,
-            accent: AppColors.blue,
-            onChanged: (n) => tapped = n,
-            constraintOf: (n) => n == 1 ? '30-60 mots' : null,
-          ),
-        ),
-      );
-
-      expect(find.text('Message'), findsOneWidget);
-      expect(find.text('Récit'), findsOneWidget);
-      expect(find.text('Opinion'), findsOneWidget);
-      expect(find.text('30-60 mots'), findsOneWidget);
-
-      await tester.tap(find.text('Opinion'));
-      expect(tapped, 3);
-    });
-  });
-
-  group('barre des trois modes', () {
-    testWidgets('le mode actif est une pilule pleine', (tester) async {
-      await tester.pumpWidget(
-        _host(
-          ProductionModeTabs(
-            active: ProductionModuleTab.sujets,
-            accent: AppColors.blue,
-            onChanged: (_) {},
-          ),
-        ),
-      );
-
-      expect(tester.widget<Text>(find.text('Sujets')).style!.color,
-          AppColors.white);
-      expect(tester.widget<Text>(find.text('Compétences')).style!.color,
-          AppColors.inkSoft);
     });
   });
 

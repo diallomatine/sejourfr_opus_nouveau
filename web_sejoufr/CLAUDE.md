@@ -757,7 +757,8 @@ séance du jour) et `recentChanges`. L'écran est en **2 colonnes**
 
 **Ordre des blocs** — colonne principale : priorité actuelle (carte à en-tête
 bleu plein) → *Aujourd'hui* (la séance) → *Mes priorités* (+ étapes franchies
-repliées) → *ce qui a changé* → *mes compétences observées*. Colonne latérale :
+repliées) → **carte d'abonnement** (compte gratuit seulement) → *ce qui a
+changé* → *mes compétences observées*. Colonne latérale :
 jalon → *Mon profil TCF* → *Compléter mon profil* → *Mon chemin vers l'objectif*
 → accès secondaires.
 
@@ -832,6 +833,20 @@ jalon → *Mon profil TCF* → *Compléter mon profil* → *Mon chemin vers l'ob
   domaine) et `DIAGNOSTIC_TO_PREMIUM_CLICKED`.
 - **Freemium inchangé** : tout reste visible, seuls les accès portent `locked` ;
   un exercice verrouillé reste **désigné**, avec son cadenas.
+- **La carte d'abonnement du Plan** (`PlanPaywallCard`, 2026-08-21) ferme la
+  section « Mes priorités » **pour un compte sans accès TCF**, et c'est
+  **elle-même** qui s'efface dès que `canAccessModule(user, "TCF")` — un abonné
+  ne peut pas la voir par un oubli d'appelant. En-tête bleu plein, cinq
+  avantages cochés, un bouton et un lien discret. 🛑 **Aucun second chemin
+  d'abonnement** : les deux actions mènent à `SKILL_PREMIUM_HREF` avec la
+  provenance et le **même** `DIAGNOSTIC_TO_PREMIUM_CLICKED` que les autres
+  cadenas — aucun événement d'audience n'est ajouté. Elle **ne masque rien** et
+  ne redit pas les cadenas déjà posés au-dessus d'elle.
+  ⚠️ `PLAN_PREMIUM_BENEFITS` est **distincte** de `PREMIUM_BENEFITS` du rapport
+  de diagnostic (`diagnostic/DiagnosticView.tsx`) : celle-ci nomme la suite du
+  **plan**, l'autre la suite d'**un rapport**. Les fusionner rendrait les deux
+  écrans vagues — la consigne existait déjà côté diagnostic. Les cinq lignes, le
+  titre et les deux libellés d'action sont **miroirs mot pour mot du mobile**.
 - `/statistiques` ouvre sur les 4 domaines (`PlanDomainsSummary`, Plan lu **en
   cache**, échec silencieux).
 
@@ -1756,6 +1771,36 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
     l'`AudioContext` + `cancelAnimationFrame` au démontage comme à l'arrêt** —
     `EoRecordingForm` remet `micStream` à `null` dans `onstop`, sinon on fuirait
     un contexte audio par enregistrement.
+  - **« Est-ce que ça enregistre vraiment ? » — chrono vivant** (2026-08-21,
+    `EoRecordingForm` + `production.module.css`). Le défaut n'était pas une panne
+    du chrono : pendant la capture, **le micro disparaissait de l'écran** (le
+    bouton devient un carré d'arrêt) et les chiffres changeaient sans qu'aucun
+    signal ne le rende perceptible. Le chrono devient donc, et **seulement**
+    pendant `phase === "recording"`, une ligne `.timerLive` : **micro rouge** qui
+    respire + chiffres qui **battent une fois par seconde**. Vaut pour les
+    **quatre** parcours du formulaire (production EO, examen blanc `examMode`,
+    micro-exercice de compétence, oral du diagnostic) — le doute est le même
+    partout, et il est plus coûteux en examen, où l'on ne refait pas.
+    ⚠️ **Le partage des rôles est la règle, pas un détail de style** : le micro
+    pulse en **CSS** (affect), le battement est remonté par **React** via
+    `key={shownSec}` (preuve). Une animation CSS tourne sur le compositeur même
+    quand le fil principal est bloqué : elle ne prouve rien. Ne pas « simplifier »
+    le battement en une animation CSS infinie.
+    **`prefers-reduced-motion`** coupe tout ce qui est affectif — halo du bouton
+    (`ee-pulse`, qui n'était **pas** couvert), respiration du micro, pastille,
+    battement — et **rend un anneau fixe** au bouton d'arrêt, dont la seule marque
+    d'état était portée par l'animation. Ce qui prouve reste : les chiffres
+    changent, la forme d'onde suit la voix, son ondulation décorative étant
+    seulement rabaissée (`REDUCED_MOTION_SWING`, via `lib/use-reduced-motion.ts` —
+    seul mouvement calculé en JS, donc hors de portée d'une media query CSS).
+    **Accessibilité** : une **seule** région vivante dans tout l'enregistreur
+    (`role="status"` + `.srOnly` dans `EoRecordingForm`), qui parle aux
+    changements d'état puis pose un repère toutes les `ANNOUNCE_EVERY_SEC` = 30 s.
+    🛑 La pastille « Enregistrement… » a **perdu** son `role="status"` (doublon) et
+    le compteur de durée de la carte « Ta réponse » a **perdu** son
+    `aria-live="polite"` : branché sur un chrono, il se faisait relire **à chaque
+    seconde** par-dessus la voix du candidat. Ne jamais rebrancher un `aria-live`
+    sur une valeur qui change à la seconde.
   - **Gating** (source backend) : entraînement par tâche = **2 essais gratuits à
     vie** par épreuve pour non-abonnés (403 au-delà → `PaywallSheet` Intégral) ;
     examen blanc 3-tâches = **premium-only**. Premium TCF (Intégral) = illimité.
@@ -1776,9 +1821,18 @@ dans `skill-ui/` et **aucun écran ne les recopie**.
   `SkillModeTabs`, `ParcoursHero`, `ParcoursNextCard`, `TaskCards`, `ExamTrail`,
   `SkillRing`, `SectionHead`, `SkillNotice`, `MiniBar`, `RowChevron`,
   `SkillBadge`, `SkillRowCard`, `SkillFilterRow`.
-- `production/ParcoursTop.tsx` (**2026-08-09**) : la **tête commune** aux trois
-  modes (héros chiffré, « Prochain entraînement », barre des modes, sélecteur de
-  tâche), plus `useParcoursLevel` et `PRODUCTION_EXAM_SLOTS`.
+- `production/ProductionTasks.tsx` (**2026-08-21**) : l'**écran d'entrée** d'une
+  épreuve — carte de synthèse, les 3 tâches, l'accès aux examens blancs.
+- `production/TaskChrome.tsx` (**2026-08-21**) : la tête du **détail d'une
+  tâche** — carte de consigne teintée + les 2 onglets « Compétences » /
+  « Sujets d'examen ».
+- `production/parcours.ts` (**2026-08-21**, ex-`ParcoursTop.tsx`) : les calculs
+  partagés seuls — `useParcoursLevel`, `PRODUCTION_EXAM_SLOTS`,
+  `PRODUCTION_TACHES`, `averageExamNote`, `nextSkill`, `constraintOf`.
+  ⚠️ La **tête commune aux trois modes** (`ParcoursTop`, 2026-08-09) est
+  **supprimée** : le parcours se lit en deux niveaux, chaque niveau compose la
+  sienne. `SkillModeTabs` et `TaskCards` restent exportés par `SkillLayout` mais
+  n'ont **plus aucun appelant**.
 - `skill-ui/skill.module.css` : la géométrie de la maquette (rayons, paddings,
   grilles, graisses, survols) avec **les couleurs de l'application**. Un
   `grep -nE "#[0-9a-fA-F]{3,8}"` sur `production/`, `competences/` et
@@ -1806,10 +1860,41 @@ le **titre** (`label`), le sous-titre d'épreuve (`epreuveMeta`), le
 (`actionVerb` : « Rédiger » / « Enregistrer »). `TcfHub` aligne la vignette EO
 sur celle de EE (`iconTone: "slate"`). Miroir mobile : `TcfProductionModule`.
 
-### Structure du parcours — maquettes client (2026-08-09)
+### Structure du parcours — DEUX NIVEAUX (maquette client, 2026-08-21)
 
-Les trois modes partagent une **tête commune**, `ParcoursTop`, reprise des trois
-maquettes fournies par le propriétaire :
+⚠️ **Révoque la structure « trois modes » du 2026-08-09** (barre Compétences ·
+Sujets · Examens + pastilles T1/T2/T3 sur chaque écran). Motif : on entrait dans
+la tâche 1 sans jamais voir les trois tâches, et les examens blancs — qui
+portent sur l'**épreuve entière** — étaient présentés comme un mode de la tâche
+courante, ce qui laissait croire à un « examen de la tâche 2 ». La maquette lit
+le parcours en deux niveaux :
+
+1. **La liste des tâches** (`ProductionTasks`, route `…/tcf/{ee,eo}`) :
+   en-tête « {épreuve} · 3 tâches · 24 compétences · N petits sujets », carte de
+   synthèse (bandeau + pictogramme + 3 compteurs), « Prochain entraînement »,
+   **une carte par tâche** (filet de teinte, rond numéroté, titre, sous-titre,
+   pastille de progression, pied à 3 compteurs), la note pédagogique, puis
+   l'accès **Examens blancs**.
+2. **Le détail d'une tâche** (`TaskChrome` + l'un des deux onglets) : en-tête
+   « {titre de la tâche} · {épreuve} · Tâche N » + badge « NIVEAU VISÉ », carte
+   de consigne teintée, puis **2 onglets** — « Compétences · N »
+   (`…/tache/[n]/competences`, `CompetencesList`) et « Sujets d'examen · N »
+   (`…/tache/[n]`, `ProductionSubjects`). Ce sont **deux routes**, pas deux
+   états d'un écran : chacune reste partageable, et c'est vers la première que
+   le Plan (`/plan/competences`) route ses étapes.
+
+**Où sont passés les examens blancs** : la route `…/{ee,eo}/examens` et
+`ProductionExams` ne changent pas. Seul le **point d'entrée** bouge — carte
+« Examens blancs » en pied de la liste des tâches, au lieu d'un onglet de la
+tâche. Les autres entrées existantes (fin de session, `/examens-blancs/[slug]`,
+`lib/dashboard.ts` `categoryHref`) sont intactes.
+
+**Teintes de tâche** (T1 / T2 / T3) : `.taskTone1/2/3` posent `--task-tint` sur
+la **rampe entre les deux couleurs de marque** (bleu France → rouge France),
+dont le point milieu donne le violet de la maquette. Aucune couleur nouvelle,
+et jamais en remplissage : un filet de 3 px et un fond à 12 %.
+
+Briques héritées de la tête commune, toujours en place :
 
 1. **en-tête de parcours** — `SkillShell` avec `title` / `meta` / `level` :
    flèche de retour, nom de l'épreuve, `epreuveMeta`, et à droite le badge
@@ -1821,24 +1906,20 @@ maquettes fournies par le propriétaire :
    Examens blancs `/10`, Sujets traités `/N`) + « Progression du parcours » ;
 3. **`ParcoursNextCard`** : la prochaine compétence non terminée, « Tâche N ·
    <titre> » + « Continuer ». Rien à faire ⇒ **aucune carte** ;
-4. **`SkillModeTabs`** : barre segmentée **dans le flux**, sous la carte
-   « Prochain entraînement ». L'ancienne `SkillModeBar` flottante en bas est
-   **supprimée** — elle masquait le dernier élément de chaque liste, imposait
-   118 px de réserve en pied de colonne (`.wrapBar`) et faisait doublon avec la
-   barre latérale de l'application au-delà de 900 px ;
-5. **`TaskCards`** : trois cartes « 1 · Message · 30-60 mots », qui remplacent
-   `TaskPills` (**supprimé**). Absentes de la grille d'examens blancs, portée
-   par l'épreuve entière. `onPick` les garde en **filtre local** (URL réécrite
-   en navigation superficielle) ; les clics modifiés restent natifs.
+4. **`.segTabs`** : les 2 onglets du détail d'une tâche, mêmes rayons et même
+   géométrie que `.modeTabs`, en deux colonnes. `.modeTabs` reste en place —
+   elle n'a simplement plus d'appelant.
 
-Sans `taskNumero` (grille d'examens blancs), « Sujets » comme « Compétences »
-retombent sur la **tâche 1** : une destination par défaut, **jamais un chiffre
-affiché** qui serait faux.
+⚠️ **Une pastille d'état de TÂCHE n'existe pas côté serveur** : le moteur situe
+une **compétence** (`masteryState`), jamais une tâche. La carte de tâche affiche
+donc une **progression mesurée** (« 3/40 traités », « Terminé ») dérivée des
+compteurs déjà servis, jamais un palier agrégé qu'il faudrait inventer.
 
-⚠️ **Conséquence assumée sur les appels** : `ParcoursTop` lit les trois sources
-d'épreuve (`productionTasksKey`, `productionMineKey`, `skillsSectionKey`) — mais
-**sous les mêmes clés de cache** que les écrans, donc un aller-retour entre les
-modes ne coûte toujours **aucun appel de plus** (`lib/parcours-tcf-navigation.test.ts`).
+⚠️ **Conséquence assumée sur les appels** : `TaskChrome` et `ProductionTasks`
+lisent les sources d'épreuve (`productionTasksKey`, `skillsSectionKey`,
+`productionMineKey`) — mais **sous les mêmes clés de cache** que les écrans, donc
+passer d'un onglet ou d'une tâche à l'autre ne coûte **aucun appel de plus**
+(`lib/parcours-tcf-navigation.test.ts`).
 
 `SkillStats` est **supprimé** : ses trois cartes redisaient ce que le héros
 affiche déjà. La grille des examens blancs ouvre sur `ExamTrail`
@@ -1893,21 +1974,18 @@ relançait les `fetch`. Trois décisions, dans l'ordre du moins coûteux au plus
    - `loadBilan` → mis en cache **seulement si le bilan est final**
      (`finished` **et** 3 tâches évaluées) : sinon l'IA travaille encore et rien
      n'invaliderait une note figée trop tôt.
-3. **Le sélecteur de tâche est un filtre**, plus une navigation :
-   `TaskCards` accepte `onPick` (le clic simple est intercepté, les clics
-   modifiés gardent « ouvrir dans un nouvel onglet »), l'écran filtre localement
-   et **réécrit l'URL en navigation superficielle** (`replaceUrlShallow`,
-   `lib/shallow-url.ts` → `window.history.replaceState`, API native supportée
-   par l'App Router). Une tâche reste donc une adresse partageable et ouvrable
-   directement ; `replaceState` et non `pushState` parce que **filtrer n'est pas
-   naviguer** — sinon il faudrait trois « précédent » pour sortir de l'épreuve.
-   Les écrans lisent `pickedTask ?? routeTask` : le choix local l'emporte, mais
-   l'URL décide toujours de la tâche d'arrivée.
+3. ⚠️ **Le sélecteur de tâche en filtre local est SUPPRIMÉ** (2026-08-21). Il
+   n'y a plus de pastilles T1/T2/T3 dans une tâche : on change de tâche en
+   remontant à la liste des tâches. Les écrans lisent donc la tâche de **l'URL,
+   et d'elle seule** — plus de `pickedTask ?? routeTask`, et `lib/shallow-url.ts`
+   (`replaceUrlShallow`) est **supprimé**, sans appelant. Les deux premiers
+   points suffisent à la fluidité : le catalogue de l'épreuve est déjà en cache,
+   changer de tâche ne redemande rien.
 
 Les six routes `…/tache/[n]{,/competences,/exemples}` déclarent
 `generateStaticParams` (`PRODUCTION_TASK_PARAMS`) : prérendues, elles sont
-préchargées par les liens de la barre de modes, donc **une bascule de mode ne
-redemande plus rien**, ni au backend ni au serveur Next.
+préchargées par les liens des onglets et des cartes de tâche, donc **une bascule
+ne redemande plus rien**, ni au backend ni au serveur Next.
 
 **Ce qui reste frais — le piège de ce cache.** Le catalogue est éditorial, la
 **progression** ne l'est pas. Toute écriture invalide, **à la source dans
@@ -1925,39 +2003,42 @@ au lieu de 2 par tâche) et le tour des trois modes (**5 appels au premier tour,
 0 au second**, au lieu de 5 par tour) — et vérifie qu'après une soumission
 l'historique, **et lui seul**, est rechargé.
 
-### Entrée dans une épreuve : pas d'écran d'accueil
+### Entrée dans une épreuve : la liste de ses tâches
 
-Demande client : « dès qu'on vient du menu Réviser → EO ou EE, on arrive
-directement sur l'écran comme celui du template ». On ouvre donc l'**espace de
-travail** — le mode « Compétences » de la **tâche 1**,
-`…/tache/1/competences` — et on change de tâche par les pastilles T1/T2/T3, de
-mode par la barre Compétences · Sujets · Examens.
+⚠️ **Révoque « pas d'écran d'accueil » (2026-08-09)**, qui redirigeait
+`…/tcf/{ee,eo}` vers `…/tache/1/competences`. Le candidat tombait dans la
+tâche 1 sans jamais voir les trois, alors que choisir sa tâche est la première
+décision du parcours (leur format, leur volume de compétences et de sujets
+diffèrent). La route sert désormais un **vrai écran**, `ProductionTasks`.
 
-- **Destination déclarée une seule fois** : `PRODUCTION_ENTRY_SUFFIX` /
-  `productionEntryHref(base)` dans `production/config.ts`. `TcfHub` s'en sert
-  pour les cards EE/EO ; les **routes `…/tcf/{ee,eo}` restent servies en
-  `redirect()`**, parce qu'elles sont référencées ailleurs (`lib/dashboard.ts`
-  `categoryHref`, landing `/reussir`, `?back=`, historiques d'URL). Une
-  redirection n'est pas du code mort — c'est ce qui permet de déplacer l'entrée
-  sans repasser sur tous les appelants.
-- **`ProductionHub` est supprimé** (cartes T1/T2/T3 + historique récent +
-  modale de quota). Son écran parent, le hub TCF, est la nouvelle destination de
-  tout retour arrière qui sort de l'épreuve : `TCF_HUB_HREF` / `TCF_HUB_LABEL`
-  (mêmes constantes, même fichier). Ne **jamais** faire pointer un retour sur
-  `config.base` : la redirection ramènerait sur l'espace Compétences, donc en
-  boucle depuis Sujets.
-- **Conséquence non traitée** : `ProductionHistory` (`…/historique`) n'a plus
-  de point d'entrée — le client a demandé d'oublier l'historique « pour
-  l'instant ». La page et sa route existent toujours, joignables seulement par
-  URL directe.
+- **Destination déclarée une seule fois** : `productionEntryHref(base)` dans
+  `production/config.ts` — elle rend maintenant `base` lui-même. `TcfHub` s'en
+  sert pour les cards EE/EO ; `lib/dashboard.ts` `categoryHref`, la landing
+  `/reussir` et les `?back=` visent la même adresse. `PRODUCTION_ENTRY_SUFFIX`
+  est **supprimé**. La fonction reste : elle nomme l'intention chez ses
+  appelants et évite qu'ils recomposent une adresse.
+- **Retours arrière** : la liste des tâches remonte au hub TCF
+  (`TCF_HUB_HREF` / `TCF_HUB_LABEL`) ; un détail de tâche et la grille d'examens
+  blancs remontent à `config.base`, c'est-à-dire à la liste des tâches. Faire
+  pointer un retour de tâche sur le hub sauterait un niveau.
+- **`ProductionHub` reste supprimé** (cartes T1/T2/T3 + historique récent +
+  modale de quota) : `ProductionTasks` en tient lieu, sur la maquette actuelle.
+- **Conséquence non traitée, inchangée** : `ProductionHistory` (`…/historique`)
+  n'a toujours aucun point d'entrée — le client a demandé d'oublier l'historique
+  « pour l'instant ». La page et sa route existent, joignables par URL directe.
 
-### Les « Exemples » ne sont pas un mode
+### Les « Exemples » ne sont pas un onglet
 
-La barre n'a que trois entrées. Les réponses-modèles sont une **ressource
-d'appoint** : lien discret en tête de la liste des sujets → page dédiée
+Le détail d'une tâche n'a que deux onglets. Les réponses-modèles sont une
+**ressource d'appoint** : lien discret en tête de la liste des sujets d'examen
+(« Exemples corrigés → ») → page dédiée
 `…/tache/[n]/exemples` (`ProductionExamples`). En faire un onglet mettait sur le
 même plan « je produis » et « je lis un modèle ». L'appel
 `productionApi.listExamples` est inchangé — c'est le point d'entrée qui bouge.
+
+⚠️ La maquette 2026-08-21 propose en plus un « Voir un exemple » **déplié sous
+chaque sujet d'examen** : le propriétaire l'a explicitement **écarté**. Ne pas
+l'implémenter — la page dédiée reste le seul accès aux modèles.
 
 ### Écrans repris et invariants conservés
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Lock } from "lucide-react";
 import { productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -21,9 +21,13 @@ import {
   tacheNiveauTone,
 } from "@/lib/production-feedback";
 import { prodQuotaInfoKey, shouldAnnounceFreeTrial } from "@/lib/production-quota-info";
-import { replaceUrlShallow } from "@/lib/shallow-url";
 import { useCachedData } from "@/lib/use-cached-data";
-import {canAccessModule, productionSubjectTitle, productionTaskConstraint} from "@/lib/types";
+import {
+  canAccessModule,
+  productionSubjectTitle,
+  productionTaskConstraint,
+  productionTaskTitle,
+} from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
 import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
@@ -38,9 +42,10 @@ import {
   SkillRowCard,
   SkillShell,
 } from "@/app/_components/skill-ui/SkillLayout";
-import {ParcoursTop, useParcoursLevel} from "./ParcoursTop";
+import {useParcoursLevel} from "./parcours";
+import {TaskChrome} from "./TaskChrome";
 import s from "@/app/_components/skill-ui/skill.module.css";
-import { type ProductionConfig, TCF_HUB_HREF, TCF_HUB_LABEL } from "./config";
+import { type ProductionConfig } from "./config";
 
 type SubjectFilter = "all" | "todo" | "done";
 
@@ -62,9 +67,9 @@ const TONE_MARK: Record<ReturnType<typeof tacheNiveauTone>, SkillRowMark> = {
 };
 
 /**
- * Écran d'une tâche productive (T1/T2/T3) — le mode « Sujets TCF » de la
- * maquette client : hero de tâche, pastilles T1/T2/T3, deux espaces (sujets
- * complets · compétences), filtres avec compteurs et cartes de sujet.
+ * Sujets d'examen d'une tâche productive — le **second onglet du détail d'une
+ * tâche**, sous la carte de consigne partagée (`TaskChrome`) : filtres avec
+ * compteurs, puis les cartes de sujet.
  *
  * Les **exemples** ne sont pas un espace de la tâche : c'est une ressource
  * d'appoint, atteinte par un lien discret en tête de la liste et rendue sur sa
@@ -79,30 +84,16 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
   const router = useRouter();
   const { user, status } = useAuth();
 
-  // Les sujets des 3 tâches arrivent en un seul appel : une pastille ne fait
-  // donc que **filtrer** (aucun réseau, aucun remontage). La tâche est le choix
-  // local s'il y en a eu un, sinon celle de l'URL — dans cet ordre, pour que
-  // l'accès direct, le lien partagé et le retour navigateur continuent de
-  // décider de la tâche d'arrivée sans jamais écraser un choix.
-  const routeTask = Number(params?.n ?? "0");
-  const [pickedTask, setPickedTask] = useState<number | null>(null);
-  const n = pickedTask ?? routeTask;
+  // Les sujets des 3 tâches arrivent en un seul appel, mémorisé pour la
+  // session : passer d'un onglet à l'autre, ou d'une tâche à l'autre, ne
+  // redemande rien. La tâche vient de l'URL, et d'elle seule — chaque tâche est
+  // une adresse partageable.
+  const n = Number(params?.n ?? "0");
   const valid = n >= 1 && n <= 3;
 
   const [filter, setFilter] = useState<SubjectFilter>("all");
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [quotaInfoOpen, setQuotaInfoOpen] = useState(false);
-
-  const pickTask = useCallback(
-    (task: number) => {
-      setPickedTask(task);
-      // Les compteurs du filtre portent sur la tâche affichée : garder « Traités »
-      // en changeant de tâche montrerait une liste vide sans dire pourquoi.
-      setFilter("all");
-      replaceUrlShallow(`${config.base}/tache/${task}`);
-    },
-    [config.base],
-  );
 
   const level = useParcoursLevel();
   const ready = status === "authenticated" && valid;
@@ -168,7 +159,7 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
   if (!valid) {
     return (
       <DualChromeShell>
-        <SkillShell backHref={TCF_HUB_HREF} backLabel={TCF_HUB_LABEL}>
+        <SkillShell backHref={config.base} backLabel={config.label}>
           <p className={s.empty}>Tâche inconnue.</p>
         </SkillShell>
       </DualChromeShell>
@@ -185,13 +176,13 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
   return (
     <DualChromeShell>
       <SkillShell
-        backHref={TCF_HUB_HREF}
-        backLabel={TCF_HUB_LABEL}
-        title={config.label}
-        meta={config.epreuveMeta}
+        backHref={config.base}
+        backLabel={config.label}
+        title={productionTaskTitle(config.epreuve, n)}
+        meta={`${config.label} · Tâche ${n}`}
         level={level}
       >
-        <ParcoursTop config={config} mode="sujets" taskNumero={n} onPickTask={pickTask} />
+        <TaskChrome config={config} taskNumero={n} tab="sujets" />
 
         {error && <div className={s.error}>{error}</div>}
 

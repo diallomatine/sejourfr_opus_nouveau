@@ -316,3 +316,162 @@ class _DashedBorderPainter extends CustomPainter {
   bool shouldRepaint(_DashedBorderPainter old) =>
       old.color != color || old.radius != radius;
 }
+
+/// Pied chiffré d'une carte : 2 à 4 colonnes séparées par des filets, chacune
+/// portant un nombre et son libellé.
+///
+/// Le libellé **s'accorde** : un seul élément affiche « 1 compétence », jamais
+/// « 1 compétences ». Extrait à la 2ᵉ occurrence — la carte de synthèse d'une
+/// épreuve et celle d'une tâche portent le même pied.
+///
+/// Un `value` **nul** signifie « pas encore chargé » et s'écrit « — » : un
+/// « 0 compétences » le temps d'un appel se lirait comme un catalogue vide.
+class ProductionCountersRow extends StatelessWidget {
+  const ProductionCountersRow({
+    super.key,
+    required this.counters,
+    this.background,
+    this.valueSize = 17,
+  });
+
+  final List<({int? value, String label, String singular})> counters;
+
+  /// Fond du pied. `null` = transparent (la carte donne le sien).
+  final Color? background;
+
+  final double valueSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: background,
+        border: const Border(top: BorderSide(color: AppColors.lineSoft)),
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < counters.length; i++)
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 11),
+                decoration: BoxDecoration(
+                  border: i == 0
+                      ? null
+                      : const Border(
+                          left: BorderSide(color: AppColors.lineSoft),
+                        ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      counters[i].value?.toString() ?? '—',
+                      style: AppFonts.display(size: valueSize),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      counters[i].value == 1
+                          ? counters[i].singular
+                          : counters[i].label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppFonts.ui(
+                        size: 11.5,
+                        weight: FontWeight.w700,
+                        color: AppColors.inkFaint,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Lien discret vers une ressource d'appoint (les modèles corrigés), posé
+/// au-dessus d'une liste. Il ne doit jamais concurrencer l'action principale de
+/// l'écran — produire.
+class ProductionSideLink extends StatelessWidget {
+  const ProductionSideLink({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadii.sm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: accent),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: AppFonts.ui(
+                size: 12,
+                weight: FontWeight.w800,
+                color: accent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Badge de palier de l'en-tête : « NIVEAU VISÉ » + le palier.
+///
+/// C'est le **palier visé** par la démarche du candidat, pas un niveau obtenu.
+/// L'eyebrow le dit en toutes lettres : le repo interdit d'afficher un niveau
+/// estimé sans le qualifier.
+class ProductionLevelBadge extends StatelessWidget {
+  const ProductionLevelBadge({super.key, required this.level});
+
+  final String level;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppColors.blue,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'NIVEAU VISÉ',
+            style: AppFonts.ui(
+              size: 8,
+              weight: FontWeight.w800,
+              letterSpacing: 0.6,
+              color: AppColors.white.withValues(alpha: 0.75),
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            level,
+            style: AppFonts.display(size: 16, color: AppColors.white),
+          ),
+        ],
+      ),
+    );
+  }
+}

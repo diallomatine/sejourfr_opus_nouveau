@@ -22,12 +22,11 @@ import '../../plan/widgets/plan_tokens.dart';
 import '../../tcf_production/widgets/action_plan.dart';
 import '../diagnostic_variant.dart';
 
-/// L'appel à l'action du verrou de ce rapport. **Ce n'est pas un second chemin
-/// d'achat** : il déclenche `onSubscribe`, donc `showTcfLockPaywall`, comme le
-/// Plan et le module Compétences. Wording neutre (guidelines Apple 3.1.1) : ni
-/// prix, ni verbe d'achat.
-const String kUnlockPlanCta = 'Débloquer mon Plan';
-
+/// L'appel à l'action du verrou de ce rapport — `kUnlockPlanCta`, désormais
+/// déclaré dans `core/widgets/premium_lock.dart` : la carte d'offre du Plan
+/// affiche le même bouton, et deux copies auraient fini par diverger (elles
+/// l'avaient déjà fait d'une majuscule avec le web).
+///
 /// L'eyebrow du rapport, selon que le compte a l'accès TCF ou non.
 ///
 /// ⚠️ **Vouvoiement**, comme tout le diagnostic et tout le Plan (cf. CLAUDE.md
@@ -1625,34 +1624,10 @@ class _ValueCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          for (final argument in _arguments)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.only(top: 2),
-                    child: Icon(
-                      LucideIcons.check,
-                      size: 14,
-                      color: AppColors.greenBright,
-                    ),
-                  ),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: Text(
-                      argument,
-                      style: AppFonts.ui(
-                        size: 12.5,
-                        height: 1.4,
-                        color: AppColors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          const PremiumBenefitList(
+            benefits: _arguments,
+            checkColor: AppColors.greenBright,
+          ),
           const SizedBox(height: 6),
           Semantics(
             button: true,

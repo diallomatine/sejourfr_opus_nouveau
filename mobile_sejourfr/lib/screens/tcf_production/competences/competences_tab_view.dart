@@ -24,11 +24,10 @@ import '../widgets/production_state_views.dart';
 /// travaille ici un critère à la fois sur de petits sujets, pas une production
 /// d'examen entière.
 ///
-/// Corps seul — l'en-tête et la tête commune du parcours (héros, prochain
-/// entraînement, barre des modes, sélecteur de tâche) sont portés par
-/// [ProductionParcoursScreen] et rendus par [top]. Le sélecteur de tâche n'est
-/// plus une navigation : les 24 compétences de l'épreuve arrivent en un appel,
-/// le changement de tâche est un tri local.
+/// Corps seul — l'en-tête, la carte de consigne et la barre des deux onglets
+/// sont portés par [ProductionTaskScreen] et rendus par [top]. Les 24
+/// compétences de l'épreuve arrivent en un appel : filtrer sur la tâche est un
+/// tri local.
 class CompetencesTabView extends ConsumerStatefulWidget {
   const CompetencesTabView({
     super.key,
@@ -40,8 +39,9 @@ class CompetencesTabView extends ConsumerStatefulWidget {
   final TcfProductionModule module;
   final int tache;
 
-  /// Tête commune du parcours, rendue en tête de cette liste.
-  final List<Widget> Function({required bool withTaskPicker}) top;
+  /// Tête commune de la tâche (consigne + onglets), rendue en tête de cette
+  /// liste pour qu'elle défile avec elle.
+  final List<Widget> top;
 
   @override
   ConsumerState<CompetencesTabView> createState() => _CompetencesTabViewState();
@@ -68,9 +68,9 @@ class _CompetencesTabViewState extends ConsumerState<CompetencesTabView> {
 
   @override
   Widget build(BuildContext context) {
-    // La tête du parcours porte la barre des trois modes : elle est rendue
-    // **quel que soit l'état** de la liste. Sans elle, une erreur de chargement
-    // enfermait le candidat dans un mode, sans autre issue que « retour ».
+    // La tête porte la barre des deux onglets : elle est rendue **quel que
+    // soit l'état** de la liste. Sans elle, une erreur de chargement enfermait
+    // le candidat dans un onglet, sans autre issue que « retour ».
     final async = ref.watch(skillsListProvider(_key));
     return _body(
       async.when(
@@ -136,7 +136,7 @@ class _CompetencesTabViewState extends ConsumerState<CompetencesTabView> {
         key: PageStorageKey<int>(widget.tache),
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         children: [
-          ...widget.top(withTaskPicker: true),
+          ...widget.top,
           ...content,
         ],
       ),

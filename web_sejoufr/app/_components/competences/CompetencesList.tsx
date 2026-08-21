@@ -1,23 +1,24 @@
 "use client";
 
 import {useParams, useRouter} from "next/navigation";
-import {useCallback, useState} from "react";
+import {useState} from "react";
 import {Lock} from "lucide-react";
 import {skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {loadSectionSkills, skillsOfTask, skillsSectionKey} from "@/lib/skill-catalog";
 import {competenceProgressLabel} from "@/lib/skill-progress";
-import {replaceUrlShallow} from "@/lib/shallow-url";
 import {useCachedData} from "@/lib/use-cached-data";
-import {skillSectionOf, type SkillDto, skillTaskCodeOf} from "@/lib/types";
+import {
+  productionTaskTitle,
+  skillSectionOf,
+  type SkillDto,
+  skillTaskCodeOf,
+} from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
-import {
-  type ProductionConfig,
-  TCF_HUB_HREF,
-  TCF_HUB_LABEL,
-} from "@/app/_components/production/config";
-import {ParcoursTop, useParcoursLevel} from "@/app/_components/production/ParcoursTop";
+import {type ProductionConfig} from "@/app/_components/production/config";
+import {useParcoursLevel} from "@/app/_components/production/parcours";
+import {TaskChrome} from "@/app/_components/production/TaskChrome";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {
   RowChevron,
@@ -37,9 +38,11 @@ import s from "@/app/_components/skill-ui/skill.module.css";
  * des sujets TCF complets de la même tâche : on n'y produit jamais une copie
  * entière, seulement la brique que la compétence entraîne.
  *
- * L'écran suit la maquette client : hero de parcours avec sa progression
- * globale, pastilles T1/T2/T3 pour changer de tâche sans revenir en arrière,
- * puis les compétences, puis le principe pédagogique du module.
+ * L'écran suit la maquette client : c'est le **premier onglet du détail d'une
+ * tâche**, sous la carte de consigne partagée (`TaskChrome`). Le second onglet
+ * est la liste des sujets d'examen de la même tâche ; on change de tâche en
+ * remontant à la liste des tâches de l'épreuve, plus par des pastilles T1/T2/T3
+ * — le sélecteur mettait trois tâches au même niveau qu'un mode de travail.
  */
 export function CompetencesList({config}: {config: ProductionConfig}) {
   const params = useParams<{n: string}>();
@@ -47,37 +50,22 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
   const {user, status} = useAuth();
 
   const section = skillSectionOf(config.epreuve);
-  const hrefOf = useCallback(
-    (task: number) => `${config.base}/tache/${task}/competences`,
-    [config.base],
-  );
 
-  // Les 24 compétences de l'épreuve arrivent en un appel : une pastille ne fait
-  // donc que **filtrer**, sans remonter l'écran ni redemander quoi que ce soit.
-  // La tâche est le choix local s'il y en a eu un, sinon celle de l'URL — dans
-  // cet ordre, pour que l'accès direct, le lien partagé et le retour navigateur
-  // continuent de décider de la tâche d'arrivée sans jamais écraser un choix.
-  const routeTask = Number(params?.n ?? "0");
-  const [pickedTask, setPickedTask] = useState<number | null>(null);
-  const n = pickedTask ?? routeTask;
+  // Les 24 compétences de l'épreuve arrivent en un appel, mémorisé pour la
+  // session : passer d'un onglet à l'autre, ou d'une tâche à l'autre, ne
+  // redemande rien. La tâche vient de l'URL, et d'elle seule — chaque tâche est
+  // une adresse partageable, et c'est celle où le Plan route ses étapes.
+  const n = Number(params?.n ?? "0");
   const valid = n >= 1 && n <= 3;
   const taskCode = skillTaskCodeOf(section, n);
-  const base = hrefOf(n);
-
-  const pickTask = useCallback(
-    (task: number) => {
-      setPickedTask(task);
-      replaceUrlShallow(hrefOf(task));
-    },
-    [hrefOf],
-  );
+  const base = `${config.base}/tache/${n}/competences`;
 
   const level = useParcoursLevel();
   const ready = status === "authenticated" && valid;
   const [paywallOpen, setPaywallOpen] = useState(false);
 
   // Un seul appel pour toute l'épreuve, mémorisé pour la session : revenir sur
-  // cet écran depuis « Sujets » ou « Examens » ne redemande rien.
+  // cet écran depuis l'onglet « Sujets d'examen » ne redemande rien.
   const skillsQuery = useCachedData(
     ready ? skillsSectionKey(section) : null,
     () => loadSectionSkills(skillApi, section),
@@ -92,7 +80,7 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
   if (!valid) {
     return (
       <DualChromeShell>
-        <SkillShell backHref={TCF_HUB_HREF} backLabel={TCF_HUB_LABEL}>
+        <SkillShell backHref={config.base} backLabel={config.label}>
           <p className={s.empty}>Tâche inconnue.</p>
         </SkillShell>
       </DualChromeShell>
@@ -102,18 +90,13 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
   return (
     <DualChromeShell>
       <SkillShell
-        backHref={TCF_HUB_HREF}
-        backLabel={TCF_HUB_LABEL}
-        title={config.label}
-        meta={config.epreuveMeta}
+        backHref={config.base}
+        backLabel={config.label}
+        title={productionTaskTitle(config.epreuve, n)}
+        meta={`${config.label} · Tâche ${n}`}
         level={level}
       >
-        <ParcoursTop
-          config={config}
-          mode="competences"
-          taskNumero={n}
-          onPickTask={pickTask}
-        />
+        <TaskChrome config={config} taskNumero={n} tab="competences" />
 
         <SectionHead
           title={`Compétences de la tâche ${n}`}

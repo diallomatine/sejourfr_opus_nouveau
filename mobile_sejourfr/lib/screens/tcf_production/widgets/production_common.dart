@@ -8,13 +8,19 @@ import '../tcf_production_module.dart';
 /// Petites briques partagées par le hub d'épreuve et l'écran d'une tâche,
 /// extraites quand les deux écrans ont été séparés en fichiers dédiés.
 
-/// Libellé d'une tâche : titre court, sous-titre de contrainte et phrase de
-/// présentation. Source unique — le hub, l'en-tête de l'écran de tâche et son
-/// hero le lisaient chacun de leur côté.
+/// Libellé éditorial d'une tâche : son intitulé et la phrase qui dit ce qu'on
+/// y fait. Source unique — la carte de tâche, la carte de consigne et l'écran
+/// des exemples corrigés la lisaient chacun de leur côté.
 ///
 /// **Écrit et oral disent la même chose** : mêmes tâches, mêmes intentions,
 /// seule la façon de produire change (rédiger ou parler).
-({String title, String subtitle, String intro}) productionTaskMeta(
+///
+/// ⚠️ Aucune **borne** ici (longueur de copie, durée de parole) : elles vivent
+/// dans `production_tasks.mots_min/mots_max` / `duree_max_sec` et se lisent par
+/// [productionTaskConstraint]. Un sous-titre « 30-60 mots » écrit en dur a
+/// vécu ici sans lecteur — c'est exactement ce que le dépôt interdit de
+/// recopier.
+({String title, String intro}) productionTaskMeta(
   TcfProductionModule module,
   int tache,
 ) {
@@ -22,19 +28,16 @@ import '../tcf_production_module.dart';
     return switch (tache) {
       1 => (
           title: 'Entretien dirigé',
-          subtitle: 'Se présenter · 3 min',
           intro:
               "Tu te présentes et tu réponds aux questions de l'examinateur : ton parcours, tes goûts, tes projets.",
         ),
       2 => (
           title: 'Jeu de rôle',
-          subtitle: 'Poser des questions · 3 min 30',
           intro:
               'Tu joues une situation de la vie courante et tu poses les questions qu\'il faut pour obtenir ce que tu veux.',
         ),
       _ => (
           title: 'Donner son opinion',
-          subtitle: 'Point de vue · 3 min 30',
           intro:
               'Tu donnes ton point de vue sur un sujet et tu le défends avec des arguments et des exemples.',
         ),
@@ -43,46 +46,19 @@ import '../tcf_production_module.dart';
   return switch (tache) {
     1 => (
         title: 'Message',
-        subtitle: 'Répondre à un message · 30-60 mots',
         intro:
             'Tu réponds à un message court — invitation, demande, annonce — en traitant chaque point demandé.',
       ),
     2 => (
         title: 'Récit',
-        subtitle: 'Raconter une expérience · 40-90 mots',
         intro:
             'Tu racontes une expérience personnelle au passé, dans l\'ordre, avec ce que tu en as retenu.',
       ),
     _ => (
         title: 'Opinion',
-        subtitle: 'Avis argumenté · 40-90 mots',
         intro:
             'Tu donnes ton avis sur une question et tu l\'argumentes, en tenant compte de l\'avis opposé.',
       ),
-  };
-}
-
-/// Intitulé **court** d'une tâche — celui du sélecteur de tâche du parcours,
-/// où trois cartes se partagent la largeur d'un téléphone.
-///
-/// ⚠️ **Libellés gelés**, miroir mot pour mot du web
-/// (`productionTaskShortTitle`, `lib/types.ts`). Les deux fronts en tiennent
-/// chacun une copie écrite à la main : un libellé qui bouge, ce sont deux
-/// fichiers à changer dans la même passe, et deux tests.
-String productionTaskShortTitle(TcfProductionModule module, int tache) {
-  if (module.isEo) {
-    return switch (tache) {
-      1 => 'Entretien dirigé',
-      2 => 'Jeu de rôle',
-      3 => 'Opinion',
-      _ => 'Tâche $tache',
-    };
-  }
-  return switch (tache) {
-    1 => 'Message',
-    2 => 'Récit',
-    3 => 'Opinion',
-    _ => 'Tâche $tache',
   };
 }
 

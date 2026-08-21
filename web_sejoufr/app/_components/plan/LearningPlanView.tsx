@@ -66,11 +66,13 @@ import {
   itemEpreuve,
 } from "@/lib/plan-domain";
 import {PlanMilestoneCard} from "./PlanMilestoneCard";
+import {PlanPaywallCard} from "./PlanPaywallCard";
 import {
   PlanBlur,
   PlanDomainIcon,
   PlanDomainPriorityPill,
   PlanDots,
+  PlanFreeBar,
   PlanLevelRail,
   PlanPathList,
 } from "./PlanBits";
@@ -297,6 +299,11 @@ function ActivePlan({plan}: {plan: LearningPlanDto}) {
         )}
       </header>
 
+      {/* Bandeau de tête : « Plan actualisé » chez un abonné (non construit
+          dans cette passe) ou « Version gratuite » sinon — jamais les deux.
+          `PlanFreeBar` se retire d'elle-même dès que l'accès TCF est là. */}
+      <PlanFreeBar onPremiumClick={trackPremiumClick} />
+
       <div className={styles.layout}>
         <div className={styles.main}>
           <PriorityCard plan={plan} onWhy={() => setWhyOpen(true)} />
@@ -304,6 +311,10 @@ function ActivePlan({plan}: {plan: LearningPlanDto}) {
           <SeanceCard plan={plan} onWhy={() => setWhyOpen(true)} />
 
           <PrioritiesSection priorities={priorities} completedSteps={completedSteps} plan={plan} />
+
+          {/* Ce que l'abonnement ouvre, juste après les priorités — la carte se
+              retire d'elle-même dès que l'accès TCF est là. */}
+          <PlanPaywallCard onPremiumClick={trackPremiumClick} />
 
           <RecentChanges plan={plan} />
 

@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import {BookOpen, Check, FilePenLine, Headphones, Mic} from "lucide-react";
+import {BookOpen, Check, FilePenLine, Headphones, Lock, Mic} from "lucide-react";
 import type {ReactNode} from "react";
+import {useAuth} from "@/lib/auth-context";
+import {useTrafficSourceHref} from "@/lib/use-traffic-source";
 import {
+    canAccessModule,
     PLAN_DOMAIN_PRIORITY_LABEL,
     type PlanCycleDto,
     type PlanDomainPriority,
@@ -20,7 +23,7 @@ import {
     planPathStepNote,
     planPathStepTitle,
 } from "@/lib/plan-domain";
-import {RowChevron} from "@/app/_components/skill-ui/SkillLayout";
+import {RowChevron, SKILL_PREMIUM_HREF} from "@/app/_components/skill-ui/SkillLayout";
 import styles from "./plan.module.css";
 
 /**
@@ -31,6 +34,50 @@ import styles from "./plan.module.css";
  * sens hors du Plan — et parce que `skill.module.css` est importé par vingt
  * fichiers : on n'y touche pas pour un écran.
  */
+
+/**
+ * La barre « Version gratuite » en tête de l'écran — à la place qu'occuperait,
+ * chez un abonné, une bannière « Plan actualisé » (non construite dans cette
+ * passe). Elle ne masque rien : le Plan reste entièrement visible, elle ne
+ * fait qu'annoncer que certains accès sont premium.
+ *
+ * 🛑 **Miroir mot pour mot du mobile** (`PlanFreeBar`,
+ * `mobile_sejourfr/lib/screens/plan/widgets/plan_banner.dart`) — pas le texte
+ * de la maquette (« 1 exercice par jour »), qui décrit une règle que ce
+ * produit n'a pas.
+ *
+ * 🛑 **Aucun second chemin d'abonnement** : même destination
+ * (`SKILL_PREMIUM_HREF`, provenance suivie) et même mesure de conversion que
+ * les autres cadenas du Plan — l'appelant passe le même `onPremiumClick`
+ * (`DIAGNOSTIC_TO_PREMIUM_CLICKED`) que `PlanPaywallCard`.
+ *
+ * Se masque elle-même dès que le compte a l'accès TCF — l'appelant n'a pas à
+ * vérifier `canAccessModule` avant de la rendre.
+ */
+export const PLAN_FREE_BAR_TITLE = "Version gratuite";
+export const PLAN_FREE_BAR_TEXT = "certains entraînements demandent l'abonnement";
+export const PLAN_FREE_BAR_CTA = "Débloquer";
+
+export function PlanFreeBar({onPremiumClick}: {
+    /** Mesure de conversion du verrou, partagée avec les autres cadenas du Plan. */
+    onPremiumClick: () => void;
+}) {
+    const {user} = useAuth();
+    const premiumHref = useTrafficSourceHref(SKILL_PREMIUM_HREF);
+
+    if (canAccessModule(user, "TCF")) return null;
+
+    return (
+        <Link className={styles.freeBar} href={premiumHref} onClick={onPremiumClick}>
+            <Lock size={15} strokeWidth={2.3} aria-hidden />
+            <span className={styles.freeBarText}>
+                <b>{PLAN_FREE_BAR_TITLE}</b>
+                <span> · {PLAN_FREE_BAR_TEXT}</span>
+            </span>
+            <span className={styles.freeBarCta}>{PLAN_FREE_BAR_CTA}</span>
+        </Link>
+    );
+}
 
 const DOMAIN_ICONS: Record<PlanDomainEpreuve, ReactNode> = {
     TCF_CO: <Headphones size={19} strokeWidth={1.9} />,

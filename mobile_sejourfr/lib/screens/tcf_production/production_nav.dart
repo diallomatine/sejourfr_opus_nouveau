@@ -6,13 +6,26 @@ import 'tcf_production_module.dart';
 
 /// Chemins du parcours de production, construits en **un seul endroit**.
 ///
-/// Depuis que les trois modes vivent dans un même écran, une bascule ne navigue
-/// plus : il ne reste ici que les chemins réellement empruntés — l'entrée du
-/// parcours (mode Compétences, dont `AppRoutes.tcf{Ee,Eo}Entry` est la forme
-/// littérale) et les modèles corrigés, qui sont un écran à part.
+/// Le parcours a deux niveaux depuis la refonte 2026-08-21 : l'épreuve et ses
+/// trois tâches (`AppRoutes.tcf{Ee,Eo}Entry`, littéral — il n'a pas de
+/// paramètre), puis **une** tâche et ses deux onglets ([productionTaskPath]).
+/// Les examens blancs sont un écran à part ([productionExamsPath]), atteint
+/// par la barre fixe du niveau 1 — leur chemin n'a pas changé.
 
+/// Niveau 2 : une tâche, ouverte sur son onglet « Compétences ».
+String productionTaskPath(TcfProductionModule module, int tache) =>
+    '/tcf/${module.routeKey}/tache/$tache';
+
+/// Niveau 2, forme explicite de l'onglet « Compétences ». Conservée parce que
+/// le Plan y renvoie (`plan_task_row`, `recommended_exercise_launcher`) : elle
+/// dit ce qu'elle ouvre, là où [productionTaskPath] dépend d'un défaut.
 String productionCompetencesPath(TcfProductionModule module, int tache) =>
     '/tcf/${module.routeKey}/tache/$tache/competences';
+
+/// Les 10 examens blancs de l'épreuve. Porté par l'épreuve, jamais par une
+/// tâche — un examen, c'est les 3 tâches enchaînées.
+String productionExamsPath(TcfProductionModule module) =>
+    '/tcf/${module.isEo ? 'expression-orale' : 'expression-ecrite'}/examens';
 
 String productionExamplesPath(TcfProductionModule module, int tache) =>
     '/tcf/${module.routeKey}/tache/$tache/exemples';
@@ -25,15 +38,10 @@ String productionExamplesPath(TcfProductionModule module, int tache) =>
 String productionSessionPath(TcfProductionModule module) =>
     '/tcf/${module.isEo ? 'expression-orale' : 'expression-ecrite'}/t/0';
 
-/// « Retour » depuis l'un des **trois modes** du parcours (Compétences, Sujets,
-/// Examens).
-///
-/// Les trois sont des frères rendus par un même écran, et il n'existe plus
-/// d'écran au-dessus d'eux depuis la suppression du hub d'épreuve. Quitter un
-/// mode, c'est donc quitter le parcours : on dépile si on peut (retour à
-/// l'écran qui a ouvert le parcours), sinon on rejoint Réviser. Surtout pas un
-/// autre mode : « retour » ne doit pas se traduire par un déplacement latéral.
-void leaveProductionParcours(BuildContext context) {
+/// « Retour » depuis le **niveau 1** d'une épreuve, qui n'a aucun écran de
+/// production au-dessus de lui : on dépile si on peut (retour à l'écran qui a
+/// ouvert l'épreuve), sinon on rejoint Réviser.
+void leaveProductionEpreuve(BuildContext context) {
   if (context.canPop()) {
     context.pop();
     return;

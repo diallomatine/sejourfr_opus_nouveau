@@ -427,3 +427,29 @@ const String kPlanSeriePending =
 const String kPlanSerieNote =
     'Une série ciblée entraîne une compétence ; elle ne mesure pas le domaine. '
     'Seul un examen blanc de l\'épreuve le fait.';
+
+/* ------------------------------------------------------- la carte d'offre   */
+
+/// Le titre de la carte d'offre du Plan (`CPaywallCard` de la maquette).
+const String kPlanPaywallTitle = 'Débloquez votre plan complet';
+
+/// Le lien discret sous le bouton. Sur mobile il ouvre **le même** écran que le
+/// bouton — l'app n'a qu'une porte d'abonnement (`showTcfLockPaywall`), qui est
+/// précisément la grille des passes. Deux affordances, une seule destination :
+/// c'est ce que fait la maquette, et on n'ouvre surtout pas un second chemin
+/// d'achat.
+const String kPlanPaywallFormulas = 'Voir les formules';
+
+/// Ce que l'abonnement ouvre, dans l'ordre de la maquette.
+///
+/// ⚠️ **Vouvoiement**, comme tout le Plan — et **distincts** des cinq arguments
+/// du rapport de diagnostic, qui décrivent ce que ce rapport vient de laisser
+/// entrevoir. Deux listes, deux moments ; ne pas les confondre ni les fondre.
+/// Miroirs mot pour mot du web.
+const List<String> kPlanPaywallBenefits = <String>[
+  'Toute votre séance du jour, chaque jour',
+  'Vos priorités et vos petits sujets ciblés',
+  'La correction IA et la version au niveau supérieur',
+  'Votre plan qui évolue automatiquement',
+  'Le moment où vous êtes prêt pour un examen blanc',
+];

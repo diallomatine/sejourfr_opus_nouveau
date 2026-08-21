@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect, useRef, useState, type ReactNode} from "react";
+import {useEffect, useMemo, useRef, useState, type ReactNode} from "react";
 import {Clock, Lightbulb, Mic, RotateCcw, Square, Target} from "lucide-react";
 import {formatDurationSec, type ProductionTaskDto} from "@/lib/types";
 import {useScreenWakeLock} from "@/lib/use-screen-wake-lock";
@@ -97,6 +97,18 @@ function fmtTimer(sec: number): string {
   const s = sec % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
 }
+
+/**
+ * Intervalle entre deux repères de temps annoncés aux lecteurs d'écran, en
+ * secondes.
+ *
+ * L'état d'enregistrement doit être **dit**, pas seulement montré — mais un
+ * chrono branché sur une région `aria-live` se fait relire **à chaque seconde**,
+ * et couvre alors la voix du candidat pendant qu'il produit : le contraire du
+ * service rendu. On annonce donc l'entrée en enregistrement, puis un repère
+ * toutes les 30 s, puis la fin.
+ */
+const ANNOUNCE_EVERY_SEC = 30;
 
 /**
  * Pendant oral d'`AnswerCard` : la zone de production en carte (icône + titre,
@@ -522,6 +534,25 @@ export function EoRecordingForm({
           ? copy.blockDenied
           : null;
 
+  // Palier d'annonce : ne change qu'au franchissement d'un multiple de 30 s, si
+  // bien que la région vivante ci-dessous n'est relue qu'à ce moment-là. C'est
+  // ce qui permet d'annoncer l'état SANS réciter le chrono par-dessus la voix du
+  // candidat.
+  const announceStep = phase === "recording" ? Math.floor(elapsed / ANNOUNCE_EVERY_SEC) : 0;
+  const recordingAnnouncement = useMemo(() => {
+    if (phase === "idle") return "";
+    if (phase === "recorded") return "Enregistrement terminé.";
+    const spent = announceStep * ANNOUNCE_EVERY_SEC;
+    if (spent <= 0) return "Enregistrement en cours.";
+    if (examCountdown) {
+      const left = Math.max(0, (max ?? 0) - spent);
+      return left > 0
+        ? `Enregistrement en cours, il reste ${formatDurationSec(left)}.`
+        : "Enregistrement en cours.";
+    }
+    return `Enregistrement en cours depuis ${formatDurationSec(spent)}.`;
+  }, [phase, announceStep, examCountdown, max]);
+
   // Corps de l'enregistreur, partagé par les deux présentations (panneau
   // historique et carte de réponse) : le dupliquer serait la garantie de voir
   // un correctif n'atterrir que d'un côté.
@@ -530,7 +561,34 @@ export function EoRecordingForm({
       {/* En examen, la consigne se lit SANS aucun décompte : le chrono de la
           tâche n'existe pas encore, il naît du « Je suis prêt ». Afficher
           « 3:00 » figé donnait déjà l'impression d'être chronométré. */}
-      {!examIdle && <div className={`${styles.timerBig} ${timerClass}`}>{fmtTimer(shownSec)}</div>}
+      {!examIdle &&
+        (phase === "recording" ? (
+          /* Ce qu'un candidat stressé doit pouvoir constater d'un coup d'œil :
+             un MICRO — il avait disparu de l'écran le jour où le bouton est
+             devenu un carré d'arrêt — et des chiffres qui BATTENT. Le battement
+             est remonté par React à chaque seconde : si le rendu se fige, il
+             s'arrête avec les chiffres, alors qu'une pulsation purement CSS
+             continuerait de tourner et ne prouverait rien. */
+          <div className={styles.timerLive}>
+            <Mic className={styles.timerMic} size={26} strokeWidth={2.3} aria-hidden />
+            <span
+              key={shownSec}
+              className={`${styles.timerBig} ${styles.timerBeat} ${timerClass}`}
+            >
+              {fmtTimer(shownSec)}
+            </span>
+          </div>
+        ) : (
+          <div className={`${styles.timerBig} ${timerClass}`}>{fmtTimer(shownSec)}</div>
+        ))}
+
+      {/* L'état de la capture est ANNONCÉ, pas seulement montré. Une seule
+          région vivante dans tout l'enregistreur — la pastille rouge et la
+          forme d'onde sont purement visuelles — et elle ne parle qu'aux
+          changements d'état, plus un repère toutes les 30 s. */}
+      <p className={styles.srOnly} role="status" aria-live="polite">
+        {recordingAnnouncement}
+      </p>
 
       {phase === "recording" ? (
         <button
@@ -679,9 +737,10 @@ export function EoRecordingForm({
             ) : (
               <span />
             )}
-            <span className={`${s.answerCount} ${durationClass}`} aria-live="polite">
-              {durationText}
-            </span>
+            {/* Purement visuel : branché en `aria-live`, ce compteur se faisait
+                relire À CHAQUE SECONDE pendant que le candidat parlait. L'état
+                de la capture est annoncé une seule fois, dans l'enregistreur. */}
+            <span className={`${s.answerCount} ${durationClass}`}>{durationText}</span>
           </div>
         </section>
       ) : (

@@ -288,7 +288,7 @@ class _Body extends ConsumerWidget {
                           // Retour à l'écran d'entraînement Expression orale
                           // (onglet Entraînement, carrousel de situations).
                           ref.read(eoSessionProvider.notifier).reset();
-                          context.go(AppRoutes.tcfEoDetail);
+                          context.go(AppRoutes.tcfEoEntry);
                         },
                       )
                     : AppButton(

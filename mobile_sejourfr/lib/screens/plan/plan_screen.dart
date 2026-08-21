@@ -31,6 +31,7 @@ import 'plan_seance_state.dart';
 import 'widgets/plan_banner.dart';
 import 'widgets/plan_changes_section.dart';
 import 'widgets/plan_path_section.dart';
+import 'widgets/plan_paywall_card.dart';
 import 'widgets/plan_priorities_section.dart';
 import 'widgets/plan_priority_hero.dart';
 import 'widgets/plan_profile_section.dart';
@@ -369,6 +370,16 @@ class _ActivePlan extends ConsumerWidget {
         ),
         const SizedBox(height: 22),
         PlanPrioritiesSection(plan: plan),
+        // La carte d'offre suit les priorités, à l'endroit exact où le compte
+        // gratuit vient de voir ce qu'il ne peut pas encore ouvrir. Elle ne
+        // double pas la barre « Version gratuite » du haut : celle-ci explique
+        // les cadenas, celle-là dit ce que l'abonnement ouvre.
+        if (!hasTcf) ...[
+          const SizedBox(height: 18),
+          PlanPaywallCard(
+            onSubscribe: () => unawaited(showTcfLockPaywall(context)),
+          ),
+        ],
         if (milestone != null && !milestoneInSeance) ...[
           const SizedBox(height: 22),
           SectionTitle(title: kPlanMilestoneSectionTitle),

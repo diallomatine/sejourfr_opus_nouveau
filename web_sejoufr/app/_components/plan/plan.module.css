@@ -113,6 +113,56 @@
   font-weight: 700;
 }
 
+/* ------------------------------------------------------- barre de tête ---- */
+
+/* La barre « Version gratuite », entre l'en-tête et la grille. Même famille
+   visuelle que `.headerNudge` (ligne cliquable, fond teinté, pas de carte) —
+   la maquette la peint comme un bandeau discret, pas une alerte. */
+.freeBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 11px 15px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--plan-surface-3);
+  color: var(--color-ink);
+}
+
+.freeBar:hover {
+  border-color: var(--color-blue);
+}
+
+.freeBar > svg {
+  flex: none;
+  color: var(--color-muted);
+}
+
+.freeBarText {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--color-ink);
+  font-size: 13px;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.freeBarText b {
+  font-weight: 700;
+}
+
+.freeBarText span {
+  color: var(--color-muted);
+}
+
+.freeBarCta {
+  flex: none;
+  color: var(--color-blue);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 /* ------------------------------------------------------------------ grille */
 
 .layout {
@@ -1913,4 +1963,91 @@
   border: 0;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* ==================================================== carte d'abonnement ====
+
+   La carte « Débloquez votre plan complet » de la maquette (`WPaywallCard`),
+   sous « Mes priorités ». En-tête bleu plein — la même surface de marque que
+   la carte de priorité —, avantages cochés, puis un pied clair qui porte les
+   deux actions. Elle n'existe que pour un compte sans accès TCF.
+   ============================================================================ */
+
+.paywall {
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--plan-surface);
+  box-shadow: var(--plan-shadow-soft);
+}
+
+.paywallHead {
+  padding: clamp(19px, 3vw, 24px);
+  background: var(--gradient-hero-blue);
+  color: var(--color-paper);
+}
+
+.paywallHead h3 {
+  margin: 0;
+  color: var(--color-paper);
+  font-size: clamp(19px, 2.6vw, 21px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  text-wrap: pretty;
+}
+
+.paywallList {
+  display: grid;
+  gap: 10px;
+  margin: 15px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.paywallList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0.95;
+  text-wrap: pretty;
+}
+
+.paywallList svg {
+  flex: none;
+  margin-top: 3px;
+}
+
+.paywallActions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 18px clamp(19px, 3vw, 24px) 20px;
+}
+
+/* Le lien discret de la maquette : même destination que le bouton, ton
+   secondaire — il ouvre la grille sans promettre un achat. */
+.paywallGhost {
+  color: var(--color-muted);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.paywallGhost:hover {
+  color: var(--color-blue);
+}
+
+/* Sous ~400 px, le bouton prend toute la largeur et le lien passe dessous :
+   côte à côte, ils se coupent en deux lignes bancales. */
+@media (max-width: 400px) {
+  .paywallActions {
+    gap: 12px;
+  }
+
+  .paywallActions .primaryButton {
+    width: 100%;
+  }
 }

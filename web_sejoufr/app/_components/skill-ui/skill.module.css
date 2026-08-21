@@ -4128,3 +4128,490 @@
     font-size: 13px;
   }
 }
+
+/* ============================================================================
+   Parcours EE/EO en DEUX NIVEAUX (2026-08-21) — liste des tâches, puis tâche.
+
+   Bloc **ajouté**, rien n'est réorganisé : les briques historiques (`.card`,
+   `.rowCard`, `.tile`, `.modeTabs`, `.taskCards`, `.parcoursHero`…) gardent
+   exactement la géométrie qu'elles ont, elles sont lues par une vingtaine
+   d'écrans.
+
+   Teintes de tâche : la maquette distingue T1 / T2 / T3 par la teinte. Aucune
+   couleur nouvelle n'est introduite — c'est la **rampe entre les deux couleurs
+   de marque** (bleu France → rouge France), dont le point milieu se lit comme
+   le violet de la maquette. Elles ne servent jamais à remplir un bouton : un
+   filet de 3 px et un fond à 12 %, le rouge restant réservé aux CTA critiques
+   (`docs/identite-visuelle.md`).
+   ============================================================================ */
+
+.taskTone1 {
+  --task-tint: var(--color-blue);
+}
+
+.taskTone2 {
+  --task-tint: color-mix(in srgb, var(--color-blue) 55%, var(--color-red));
+}
+
+.taskTone3 {
+  --task-tint: var(--color-red);
+}
+
+.taskTone1,
+.taskTone2,
+.taskTone3 {
+  --task-soft: color-mix(in srgb, var(--task-tint) 12%, white);
+  --task-ink: color-mix(in srgb, var(--task-tint) 80%, var(--color-ink));
+}
+
+/* ------------------------------------------ carte de synthèse de l'épreuve */
+
+.epreuveCard {
+  overflow: hidden;
+  margin-bottom: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 24px;
+  background: white;
+  box-shadow: var(--skill-shadow);
+}
+
+.epreuveBanner {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 16px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-red) 12%, white) 0%,
+    color-mix(in srgb, color-mix(in srgb, var(--color-blue) 55%, var(--color-red)) 11%, white) 55%,
+    color-mix(in srgb, var(--color-blue) 12%, white) 100%
+  );
+}
+
+.epreuveIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 14px;
+  background: white;
+  color: var(--skill-accent);
+  box-shadow: var(--skill-shadow);
+}
+
+.epreuveBody {
+  min-width: 0;
+}
+
+.epreuveName {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--color-ink);
+}
+
+.epreuveText {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+/* ------------------------------------------------- pied à trois compteurs */
+
+.countRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--color-line-2);
+}
+
+.countCell {
+  display: block;
+  min-width: 0;
+  padding: 11px 12px;
+  border-left: 1px solid var(--color-line-2);
+}
+
+.countCell:first-child {
+  border-left: 0;
+}
+
+.countValue {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--color-ink);
+}
+
+.countLabel {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--color-muted-2);
+  overflow-wrap: anywhere;
+}
+
+.countCellSmall {
+  padding: 10px 12px;
+  background: var(--color-paper);
+}
+
+.countCellSmall .countValue {
+  font-size: 17px;
+}
+
+/* ------------------------------------------------------- carte d'une tâche */
+
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.taskRow {
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 24px;
+  background: white;
+  color: inherit;
+  text-decoration: none;
+  box-shadow: var(--skill-shadow);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.taskRow:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--skill-shadow-lg);
+}
+
+.taskRow:focus-visible {
+  outline: 2px solid var(--skill-accent);
+  outline-offset: 2px;
+}
+
+.taskRowTint {
+  display: block;
+  height: 3px;
+  background: var(--task-tint);
+}
+
+.taskRowTop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px 13px;
+}
+
+.taskRowNum {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border-radius: 15px;
+  background: var(--task-soft);
+  color: var(--task-ink);
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.taskRowBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.taskRowTitle {
+  display: block;
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.taskRowText {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.taskRowAside {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+/* ------------------------------------------- accès aux examens blancs */
+
+/* Les examens blancs ne sont plus un onglet de la tâche : ils portent sur
+   l'épreuve entière, donc ils s'atteignent depuis sa liste de tâches. La route
+   et l'écran, eux, ne changent pas. */
+.examsAccess {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  background: white;
+  color: inherit;
+  text-decoration: none;
+  box-shadow: var(--skill-shadow);
+  transition: border-color 0.15s ease;
+}
+
+.examsAccess:hover {
+  border-color: var(--skill-accent);
+}
+
+.examsAccess:focus-visible {
+  outline: 2px solid var(--skill-accent);
+  outline-offset: 2px;
+}
+
+.examsAccessIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--skill-accent) 10%, transparent);
+  color: var(--skill-accent);
+}
+
+.examsAccessBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.examsAccessBody strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.examsAccessBody span {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+/* --------------------------------------------- détail d'une tâche : consigne */
+
+.taskBrief {
+  overflow: hidden;
+  margin-bottom: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 24px;
+  background: white;
+  box-shadow: var(--skill-shadow);
+}
+
+.taskBriefTint {
+  display: block;
+  height: 3px;
+  background: var(--task-tint);
+}
+
+.taskBriefRow {
+  display: flex;
+  gap: 13px;
+  padding: 15px 16px;
+  background: linear-gradient(180deg, var(--task-soft) 0%, transparent 85%);
+}
+
+.taskBriefNum {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 14px;
+  background: white;
+  color: var(--task-ink);
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: var(--skill-shadow);
+}
+
+.taskBriefBody {
+  min-width: 0;
+}
+
+.taskBriefLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted-2);
+}
+
+.taskBriefText {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+
+/* ---------------------------------- détail d'une tâche : les deux onglets */
+
+/* Deux colonnes, pas trois : la barre à trois modes (`.modeTabs`) reste en
+   place — elle n'a simplement plus d'appelant dans ce parcours. */
+.segTabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  padding: 5px;
+  margin-bottom: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: white;
+  box-shadow: var(--skill-shadow);
+}
+
+.segTab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 11px 8px;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.segTab:focus-visible {
+  outline: 2px solid var(--skill-accent);
+  outline-offset: -3px;
+}
+
+.segTabOn {
+  background: var(--skill-accent);
+  color: white;
+}
+
+/* ------------------------------------------------------ à partir de 768 px */
+
+@media (min-width: 768px) {
+  .epreuveBanner {
+    padding: 20px 22px;
+  }
+
+  .epreuveName {
+    font-size: 22px;
+  }
+
+  .epreuveText {
+    font-size: 13.5px;
+  }
+
+  .countCell {
+    padding: 13px 20px;
+  }
+
+  .countCellSmall {
+    padding: 12px 20px;
+  }
+
+  .countValue {
+    font-size: 20px;
+  }
+
+  .countCellSmall .countValue {
+    font-size: 18px;
+  }
+
+  .countLabel {
+    font-size: 12px;
+  }
+
+  .taskRowTop {
+    padding: 17px 22px 15px;
+  }
+
+  .taskRowTitle {
+    font-size: 17px;
+  }
+
+  .taskRowText {
+    font-size: 13.5px;
+  }
+
+  .taskBriefRow {
+    padding: 18px 22px;
+  }
+
+  .taskBriefText {
+    font-size: 15px;
+  }
+
+  .examsAccess {
+    padding: 16px 22px;
+  }
+
+  .segTab {
+    font-size: 13.5px;
+  }
+}
+
+/* Sous 380 px, « Sujets d'examen · 20 » ne tient plus sur une ligne : on laisse
+   le libellé se réduire plutôt que de le tronquer au milieu d'un mot. */
+@media (max-width: 379px) {
+  .segTab {
+    font-size: 11.5px;
+    padding: 10px 4px;
+  }
+
+  .taskRowNum {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+
+  .countCell,
+  .countCellSmall {
+    padding: 10px 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .taskRow,
+  .examsAccess,
+  .segTab {
+    transition: none;
+  }
+
+  .taskRow:hover {
+    transform: none;
+  }
+}

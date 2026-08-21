@@ -102,3 +102,68 @@ class PremiumLockTile extends StatelessWidget {
         ),
       );
 }
+
+/// L'appel à l'action d'une carte d'offre — **jamais un second chemin
+/// d'achat** : il déclenche [showTcfLockPaywall], comme le Plan, le diagnostic
+/// et le module Compétences. Wording neutre (guidelines Apple 3.1.1) : ni
+/// prix, ni verbe d'achat.
+///
+/// Il vit ici plutôt que dans l'un des deux écrans qui l'affichent : il était
+/// déclaré par le rapport de diagnostic, et la carte du Plan l'aurait recopié.
+/// Miroir mot pour mot du web (`Débloquer mon plan`).
+const String kUnlockPlanCta = 'Débloquer mon plan';
+
+/// La liste « ce que l'abonnement ouvre », cochée ligne à ligne.
+///
+/// Extraite à la **2ᵉ occurrence** : le rapport de diagnostic et la carte
+/// d'offre du Plan présentent la même chose — des phrases courtes précédées
+/// d'une coche, sur un aplat coloré — avec des **textes différents** (le
+/// rapport décrit ce qu'il vient de laisser entrevoir, le Plan décrit le plan
+/// complet). C'est la mise en forme qui est partagée, pas le contenu.
+class PremiumBenefitList extends StatelessWidget {
+  const PremiumBenefitList({
+    super.key,
+    required this.benefits,
+    this.checkColor = AppColors.white,
+    this.textColor = AppColors.white,
+  });
+
+  final List<String> benefits;
+  final Color checkColor;
+  final Color textColor;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final benefit in benefits)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Icon(
+                      LucideIcons.check,
+                      size: 14,
+                      color: checkColor,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      benefit,
+                      style: AppFonts.ui(
+                        size: 12.5,
+                        height: 1.4,
+                        color: textColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+}

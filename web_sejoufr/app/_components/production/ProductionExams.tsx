@@ -5,10 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, Lock } from "lucide-react";
 import { productionApi } from "@/lib/api";
 import {
+  epreuveSubjectProgress,
   examDrafts,
   loadBilan,
+  loadEpreuveTasks,
   loadMySubmissions,
   productionMineKey,
+  productionTasksKey,
 } from "@/lib/production-catalog";
 import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
@@ -27,14 +30,19 @@ import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
 import { ExamIntroSheet } from "@/app/_components/hub/ExamIntroSheet";
 import {
   ExamTrail,
+  ParcoursHero,
   SectionHead,
   SkillBadge,
   SkillNotice,
   SkillShell,
 } from "@/app/_components/skill-ui/SkillLayout";
-import {ParcoursTop, PRODUCTION_EXAM_SLOTS, useParcoursLevel} from "./ParcoursTop";
+import {
+  averageExamNote,
+  PRODUCTION_EXAM_SLOTS,
+  useParcoursLevel,
+} from "./parcours";
 import s from "@/app/_components/skill-ui/skill.module.css";
-import { type ProductionConfig, TCF_HUB_HREF, TCF_HUB_LABEL } from "./config";
+import { type ProductionConfig } from "./config";
 
 const SLOTS = PRODUCTION_EXAM_SLOTS;
 /** Examen 1 offert à tous les comptes (règle backend `ProductionAccessService`). */
@@ -89,6 +97,15 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
   // Une session d'examen = un attempt portant ≥ 2 soumissions (les
   // entraînements par tâche n'en portent qu'une).
   const drafts = useMemo(() => examDrafts(minesQuery.data), [minesQuery.data]);
+
+  // Catalogue de l'épreuve : même entrée de cache que la liste des tâches et
+  // celle des sujets — il n'y a donc pas d'appel de plus pour le héros.
+  const tasksQuery = useCachedData(
+    status === "authenticated" ? productionTasksKey(config.epreuve) : null,
+    () => loadEpreuveTasks(productionApi, config.epreuve),
+  );
+  const subjects = epreuveSubjectProgress(tasksQuery.data, minesQuery.data);
+  const avgNote = averageExamNote(drafts);
 
   useEffect(() => {
     if (drafts.length === 0) return;
@@ -188,13 +205,30 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
   return (
     <DualChromeShell>
       <SkillShell
-        backHref={TCF_HUB_HREF}
-        backLabel={TCF_HUB_LABEL}
-        title={config.label}
-        meta={config.epreuveMeta}
+        backHref={config.base}
+        backLabel={config.label}
+        title="Examens blancs"
+        meta={`${config.label} · 3 tâches · ${config.examTiming.short}`}
         level={level}
       >
-        <ParcoursTop config={config} mode="examens" />
+        {/* Le héros du parcours reste ici — c'est le seul écran de l'épreuve où
+            un score moyen /20 a un sens (une tâche isolée n'a pas de note). */}
+        <ParcoursHero
+          percent={subjects.total > 0 ? (subjects.done / subjects.total) * 100 : 0}
+          stats={[
+            {
+              value: avgNote == null ? "—" : formatNoteSur20(avgNote),
+              label: "Score moyen",
+              unit: "/20",
+            },
+            {value: String(drafts.length), label: "Examens blancs", unit: `/${SLOTS}`},
+            {
+              value: String(subjects.done),
+              label: "Sujets traités",
+              unit: `/${subjects.total}`,
+            },
+          ]}
+        />
 
         {/* Le score moyen et le décompte d'examens vivent désormais dans le
             héros du parcours : les répéter ici en cartes de statistiques disait

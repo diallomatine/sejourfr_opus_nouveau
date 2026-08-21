@@ -14,6 +14,7 @@ import '../../core/widgets/premium_lock.dart';
 import '../module_detail/tcf_module_exam_briefing_screen.dart';
 import '../module_detail/tcf_qcm_detail_screen.dart' show TcfQcmModule;
 import '../tcf_production/competences/competences_nav.dart';
+import '../tcf_production/production_nav.dart';
 import '../tcf_production/recommended_exercise_launcher.dart';
 import '../tcf_production/tcf_production_module.dart';
 import 'plan_labels.dart';
@@ -201,10 +202,14 @@ void openPlanAssessment(
         slotNumber: assessment.slotNumber,
       );
     case PlanDomainAssessmentKind.production:
+      // Un jalon de production, c'est un **examen blanc d'épreuve** : on ouvre
+      // sa grille, pas la liste des tâches — il n'y a rien à choisir.
       context.push(
-        assessment.epreuve == EpreuveType.tcfEo
-            ? AppRoutes.tcfEoEntry
-            : AppRoutes.tcfEeEntry,
+        productionExamsPath(
+          assessment.epreuve == EpreuveType.tcfEo
+              ? TcfProductionModule.eo
+              : TcfProductionModule.ee,
+        ),
       );
   }
 }
