@@ -14,6 +14,13 @@ import java.util.UUID;
 public record SkillDto(
         UUID id,
         SkillSection section,
+        /**
+         * Tache d'appartenance, <b>{@code null} pour une competence de
+         * COMPREHENSION</b> (section {@code CO} / {@code CE}) : celles-ci
+         * n'appartiennent a aucune des 6 taches officielles. Les fronts doivent
+         * lire le domaine sur {@code section} et le niveau sur
+         * {@code targetLevel}, jamais deduire l'un de l'autre depuis la tache.
+         */
         SkillTaskCode taskCode,
         /** Code editorial stable, ex. {@code "EE1-C1"}. */
         String code,

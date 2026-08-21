@@ -77,6 +77,42 @@ public interface SkillRepository extends JpaRepository<Skill, UUID>,
     List<Object[]> findFirstActiveIdPerTaskCode();
 
     /**
+     * La PREMIERE competence active de chaque domaine de COMPREHENSION,
+     * {@code [section, id]}. Jumelle de {@link #findFirstActiveIdPerTaskCode()}
+     * pour les competences sans tache : c'est le lot ouvert aux comptes sans
+     * acces TCF (cf. {@code SkillAccessService}), deux lignes au plus.
+     *
+     * <p>Meme definition de « premiere » que sa jumelle : <b>rang le plus bas
+     * encore ACTIF</b>, et non litteralement {@code display_order = 1}.
+     * Desactiver le rang 1 depuis la console fermerait sinon le domaine entier
+     * aux comptes gratuits. Sur le contenu publie ce rang est le niveau A2,
+     * l'entree de gamme du domaine.
+     *
+     * <p>{@code taskCode IS NULL} identifie exactement les competences de
+     * comprehension : la base garantit l'equivalence
+     * ({@code chk_skills_task_code_presence}), il n'existe pas de troisieme cas.
+     */
+    @Query("""
+            SELECT s.section, s.id
+            FROM Skill s
+            WHERE s.active = true
+              AND s.taskCode IS NULL
+              AND s.displayOrder = (
+                  SELECT MIN(s2.displayOrder) FROM Skill s2
+                  WHERE s2.section = s.section AND s2.taskCode IS NULL AND s2.active = true)
+            """)
+    List<Object[]> findFirstActiveIdPerComprehensionSection();
+
+    /**
+     * Toutes les competences SANS tache d'un domaine, desactivees comprises.
+     * Reserve a l'admin : c'est le pendant de
+     * {@link #findByTaskCodeOrderByDisplayOrderAsc} pour le controle d'unicite
+     * du rang, que {@code uq_skills_section_order_comprehension} verrouille en
+     * base.
+     */
+    List<Skill> findBySectionAndTaskCodeIsNullOrderByDisplayOrderAsc(SkillSection section);
+
+    /**
      * Le code editorial est unique en base : ce test permet a l'admin de
      * refuser un doublon avec un message explicite plutot que de laisser
      * remonter une violation de contrainte en 500.

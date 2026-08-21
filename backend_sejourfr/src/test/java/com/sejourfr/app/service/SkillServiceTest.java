@@ -41,6 +41,9 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -347,6 +350,80 @@ class SkillServiceTest {
     }
 
     // ------------------------------------------------------------------------
+    // Comprehension (CO / CE) — une competence sans tache et sans sujet
+    // ------------------------------------------------------------------------
+
+    /**
+     * Le cas central du referentiel de comprehension : {@code task_code} est
+     * nul, donc la section — et elle seule — porte le domaine. Rien ne doit
+     * chercher a le deriver de la tache, sous peine de NPE.
+     */
+    @Test
+    void listBySectionServesComprehensionSkillsThatCarryNoTaskCode() {
+        Skill coA2 = comprehensionSkill(SkillSection.CO, "A2", 1);
+        Skill coB1 = comprehensionSkill(SkillSection.CO, "B1", 2);
+
+        when(skillManager.findActiveBySection(SkillSection.CO)).thenReturn(List.of(coA2, coB1));
+
+        List<SkillDto> result = service.list(SkillSection.CO, null);
+
+        assertThat(result).extracting(SkillDto::taskCode).containsExactly(null, null);
+        assertThat(result).extracting(SkillDto::section)
+                .containsExactly(SkillSection.CO, SkillSection.CO);
+        assertThat(result).extracting(SkillDto::targetLevel).containsExactly("A2", "B1");
+    }
+
+    /**
+     * <b>Aucun denominateur invente.</b> Une competence de comprehension n'a
+     * aucun petit sujet : ses trois compteurs valent zero, et l'ecran doit
+     * pouvoir s'y fier — c'est la meme regle que « le perimetre vaut ce qui
+     * existe » cote etapes du Plan.
+     */
+    @Test
+    void comprehensionCountersStayAtZeroWithoutInventingAnyDenominator() {
+        Skill coA2 = comprehensionSkill(SkillSection.CO, "A2", 1);
+        when(skillManager.findActiveBySection(SkillSection.CO)).thenReturn(List.of(coA2));
+
+        SkillDto dto = service.list(SkillSection.CO, null).get(0);
+
+        assertThat(dto.promptCount()).isZero();
+        assertThat(dto.attemptedCount()).isZero();
+        assertThat(dto.validatedCount()).isZero();
+        assertThat(dto.toReinforceCount()).isZero();
+    }
+
+    /**
+     * La comprehension n'ayant aucun sujet, les deux chargements en lot seraient
+     * structurellement vides : on ne les emet pas. Ce n'est pas qu'une economie
+     * — c'est ce qui garantit qu'un compteur a zero vient de l'absence de sujet
+     * et non d'un tirage rate.
+     */
+    @Test
+    void listOfAComprehensionDomainReadsNeitherPromptsNorAttempts() {
+        Skill coA2 = comprehensionSkill(SkillSection.CO, "A2", 1);
+        when(skillManager.findActiveBySection(SkillSection.CO)).thenReturn(List.of(coA2));
+
+        service.list(SkillSection.CO, null);
+
+        verify(promptManager, never()).countActiveBySkillForTaskCodes(any());
+        verify(attemptManager, never()).findLatestPerPromptByTaskCodes(any(), any());
+    }
+
+    /**
+     * L'ecran « choix de la tache » n'a pas d'equivalent en comprehension. On
+     * refuse en 422 plutot que de rendre une liste vide, qu'un front lirait
+     * « pas encore de contenu publie ».
+     */
+    @Test
+    void progressIsRefusedForAComprehensionDomainWhichHasNoTasks() {
+        assertThatThrownBy(() -> service.progress(SkillSection.CO))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("section=CO");
+        assertThatThrownBy(() -> service.progress(SkillSection.CE))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    // ------------------------------------------------------------------------
     // Progression par epreuve
     // ------------------------------------------------------------------------
 
@@ -429,6 +506,22 @@ class SkillServiceTest {
         skill.setDescription("Choisir un ton adapté.");
         skill.setTargetLevel(taskCode.getTargetLevel());
         skill.setDisplayOrder((short) 1);
+        skill.setActive(true);
+        return skill;
+    }
+
+    /** Competence de comprehension : ni tache, ni petit sujet. */
+    private static Skill comprehensionSkill(SkillSection section, String level, int rank) {
+        Skill skill = new Skill();
+        skill.setId(UUID.randomUUID());
+        skill.setSection(section);
+        skill.setTaskCode(null);
+        skill.setCode(section + "-" + level);
+        skill.setTitle("Compétence " + section + " " + level);
+        skill.setDescription("Pourquoi cet exercice.");
+        skill.setGeneralCriterion("Critère général.");
+        skill.setTargetLevel(level);
+        skill.setDisplayOrder((short) rank);
         skill.setActive(true);
         return skill;
     }

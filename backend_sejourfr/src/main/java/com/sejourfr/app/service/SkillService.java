@@ -75,9 +75,16 @@ public class SkillService {
      * Resume des 3 taches d'une epreuve, pour l'ecran de choix. Les 3 entrees
      * sont TOUJOURS presentes, meme sans contenu publie : une tache vide
      * s'affiche a zero, elle ne disparait pas de l'ecran.
+     *
+     * <p><b>Reserve a l'EXPRESSION.</b> La comprehension n'a pas de tache : la
+     * question « ou en suis-je sur EE1, EE2, EE3 » n'y a pas d'equivalent, et
+     * ses trois competences se lisent directement par
+     * {@link #list(SkillSection, SkillTaskCode)}. On refuse en 422 plutot que
+     * de rendre une liste vide, qu'un front lirait « pas encore de contenu ».
      */
     @Transactional(readOnly = true)
     public List<SkillTaskProgressDto> progress(SkillSection section) {
+        requireProductionSection(section);
         UUID userId = currentUser.getId();
         List<SkillTaskCode> taskCodes = SkillTaskCode.of(section);
 
@@ -152,14 +159,23 @@ public class SkillService {
         SkillTaskCode task = resolveScopeFilter(section, taskCode);
         UUID userId = currentUser.getId();
 
-        List<SkillTaskCode> scope = task != null ? List.of(task) : SkillTaskCode.of(section);
+        // La comprehension n'a NI tache NI petit sujet (brief §13) : son
+        // perimetre est le domaine entier, et les deux chargements en lot
+        // ci-dessous seraient structurellement vides. On ne les emet pas —
+        // c'est deux requetes economisees, et surtout un compteur a zero qui
+        // dit la verite au lieu de resulter d'un tirage vide.
+        boolean comprehension = task == null && section != null && section.isComprehension();
+
+        List<SkillTaskCode> scope = task != null ? List.of(task)
+                : comprehension ? List.of() : SkillTaskCode.of(section);
         List<Skill> skills = task != null
                 ? skillManager.findActiveByTaskCode(task)
                 : skillManager.findActiveBySection(section);
 
-        Map<UUID, Long> promptCountBySkill = promptManager.countActiveBySkillForTaskCodes(scope);
-        Map<UUID, UserSkillAttempt> latestByPrompt =
-                attemptManager.findLatestPerPromptByTaskCodes(userId, scope);
+        Map<UUID, Long> promptCountBySkill = comprehension ? Map.of()
+                : promptManager.countActiveBySkillForTaskCodes(scope);
+        Map<UUID, UserSkillAttempt> latestByPrompt = comprehension ? Map.of()
+                : attemptManager.findLatestPerPromptByTaskCodes(userId, scope);
 
         Map<UUID, SkillProgressTally> tallyBySkill = new HashMap<>();
         for (UserSkillAttempt attempt : latestByPrompt.values()) {
@@ -310,6 +326,19 @@ public class SkillService {
         }
         // Les deux filtres coherents : la tache l'emporte, c'est la plus precise.
         return taskCode;
+    }
+
+    /**
+     * L'ecran des taches n'existe qu'en expression. Un {@link BusinessException}
+     * (422) et non une liste vide : le front doit savoir qu'il s'est trompe
+     * d'ecran, pas croire que le catalogue est vide.
+     */
+    private static void requireProductionSection(SkillSection section) {
+        if (section != null && section.isComprehension()) {
+            throw new BusinessException("La compréhension (" + section + ") n'est pas découpée en "
+                    + "tâches : ses compétences se lisent par GET /api/skills?section=" + section
+                    + ". Cet écran ne vaut que pour l'expression (EE, EO).");
+        }
     }
 
     /**

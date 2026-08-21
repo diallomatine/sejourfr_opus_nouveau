@@ -26,11 +26,31 @@ import java.util.UUID;
  *   <li><b>plus la competence de la priorite n&deg;1 de son Plan</b>, si elle
  *       n'est pas deja dans ce lot ;</li>
  *   <li>dans une competence ouverte, seuls les {@value #FREE_PROMPTS_PER_SKILL}
- *       premiers sujets actifs sont ouverts.</li>
+ *       premiers sujets actifs sont ouverts ;</li>
+ *   <li><b>plus, pour la COMPREHENSION, la premiere competence de chaque
+ *       domaine</b> — soit {@code CO-A2} et {@code CE-A2} sur le contenu
+ *       publie. Les niveaux B1 et B2 sont verrouilles.</li>
  * </ol>
  * Un abonne TCF n'a aucun verrou. Les <b>3 analyses IA offertes a vie</b> ne
  * changent pas : elles restent gerees par {@link SkillAnalysisAccessService} et
  * s'appliquent, inchangees, aux sujets ouverts.
+ *
+ * <p><b>Pourquoi le A2 de chaque domaine, et pas « une competence par
+ * domaine » au hasard.</b> La compréhension n'a ni tache ni petit sujet : les
+ * deux grains sur lesquels s'appuyait la regle EE/EO n'existent pas. Ce qui la
+ * structure, c'est le NIVEAU, et la progression y est sequentielle (A2 solide
+ * avant de travailler B1). Ouvrir l'entree de gamme de chaque domaine donne
+ * donc au compte gratuit exactement ce que la regle EE/EO lui donne ailleurs :
+ * de quoi commencer, jamais de quoi finir. Techniquement c'est le <b>rang actif
+ * le plus bas</b> de chaque domaine qui est ouvert — meme definition que « la
+ * premiere competence d'une tache », pour la meme raison : desactiver le rang 1
+ * depuis la console ne doit pas fermer le domaine entier. Sur le contenu publie
+ * (V318) ce rang est le A2.
+ *
+ * <p><b>Ce qui n'est PAS une regle d'acces</b> : une competence de comprehension
+ * ouverte ne dispense d'aucun prerequis de progression. Le Plan reste libre de
+ * ne pas la proposer ; ce service dit seulement ce que le candidat a le droit de
+ * travailler.
  *
  * <p><b>Pourquoi la priorite du Plan est ouverte d'office.</b> Le diagnostic
  * peut designer une competence de rang 5 ; sans cette exception l'etape 1 du
@@ -79,6 +99,17 @@ public class SkillAccessService {
                     + "priorité n°1 de votre Plan. L'accès TCF ouvre les 48 compétences et leurs "
                     + "720 sujets.";
 
+    /**
+     * Refus d'une competence entiere, et non d'un sujet : c'est la forme que
+     * prend le verrou en COMPREHENSION, ou il n'existe pas de petit sujet a
+     * nommer. Ecrit pour etre affichable tel quel par un paywall.
+     */
+    public static final String LOCKED_SKILL_MESSAGE =
+            "Cette compétence fait partie du contenu réservé. Votre accès gratuit ouvre le "
+                    + "niveau A2 de la compréhension orale et de la compréhension écrite, ainsi "
+                    + "que la compétence de la priorité n°1 de votre Plan. L'accès TCF ouvre "
+                    + "tous les niveaux.";
+
     private final SubscriptionService subscriptionService;
     private final SkillManager skillManager;
     private final SkillPromptManager promptManager;
@@ -95,6 +126,9 @@ public class SkillAccessService {
         }
         Set<UUID> openSkillIds =
                 new LinkedHashSet<>(skillManager.findFirstActiveIdPerTaskCode().values());
+        // La comprehension n'a pas de tache : son entree de gamme est le rang
+        // actif le plus bas de chaque domaine (CO-A2 / CE-A2 sur le publie).
+        openSkillIds.addAll(skillManager.findFirstActiveIdPerComprehensionSection().values());
         priorityResolver.currentPrioritySkillId(userId).ifPresent(openSkillIds::add);
 
         Set<UUID> openPromptIds = new LinkedHashSet<>();
@@ -122,6 +156,25 @@ public class SkillAccessService {
     public void assertCanProduce(UUID userId, SkillPrompt prompt) {
         if (resolve(userId).isPromptLocked(prompt.getId())) {
             throw new AccessDeniedException(LOCKED_MESSAGE);
+        }
+    }
+
+    /**
+     * Verrou <b>opposable</b> au grain de la COMPETENCE, pour les entrainements
+     * qui n'ont pas de petit sujet a nommer — c'est le cas de la comprehension,
+     * dont l'entrainement est une serie ciblee de QCM.
+     *
+     * <p>Jumelle en lecture de {@link SkillAccess#isSkillLocked(UUID)} : le
+     * client ne decide jamais s'il peut travailler une competence, exactement
+     * comme {@link #assertCanProduce} pour un sujet. Il n'existe donc toujours
+     * qu'<b>une</b> regle d'acces, appliquee a deux grains.
+     *
+     * @throws AccessDeniedException (403) avec {@link #LOCKED_SKILL_MESSAGE}
+     */
+    @Transactional(readOnly = true)
+    public void assertCanTrain(UUID userId, UUID skillId) {
+        if (resolve(userId).isSkillLocked(skillId)) {
+            throw new AccessDeniedException(LOCKED_SKILL_MESSAGE);
         }
     }
 

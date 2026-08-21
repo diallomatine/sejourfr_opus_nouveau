@@ -2,6 +2,7 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.SkillPrompt;
+import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
 import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.SkillPromptManager;
@@ -54,6 +55,11 @@ class SkillAccessServiceTest {
     private final List<Skill> ee1 = new ArrayList<>();
     private final Map<UUID, List<SkillPrompt>> promptsBySkill = new LinkedHashMap<>();
 
+    /** Les 3 niveaux de la comprehension orale : A2 (rang 1), B1, B2. */
+    private final List<Skill> co = new ArrayList<>();
+    /** Les 3 niveaux de la comprehension ecrite. */
+    private final List<Skill> ce = new ArrayList<>();
+
     @BeforeEach
     void setUp() {
         service = new SkillAccessService(
@@ -67,8 +73,15 @@ class SkillAccessServiceTest {
             }
             promptsBySkill.put(skill.getId(), prompts);
         }
+        String[] niveaux = {"A2", "B1", "B2"};
+        for (int rank = 1; rank <= 3; rank++) {
+            co.add(comprehensionSkill(SkillSection.CO, rank, niveaux[rank - 1]));
+            ce.add(comprehensionSkill(SkillSection.CE, rank, niveaux[rank - 1]));
+        }
         when(priorityResolver.currentPrioritySkillId(userId)).thenReturn(Optional.empty());
         when(skillManager.findFirstActiveIdPerTaskCode()).thenReturn(firstOfEachTask());
+        when(skillManager.findFirstActiveIdPerComprehensionSection())
+                .thenReturn(firstOfEachComprehensionDomain());
         when(promptManager.findActiveBySkillIds(anyCollection()))
                 .thenAnswer(invocation -> {
                     Collection<UUID> ids = invocation.getArgument(0);
@@ -99,6 +112,7 @@ class SkillAccessServiceTest {
         }
         // Le court-circuit est la raison d'etre du drapeau : rien d'autre n'est lu.
         verify(skillManager, never()).findFirstActiveIdPerTaskCode();
+        verify(skillManager, never()).findFirstActiveIdPerComprehensionSection();
         verify(promptManager, never()).findActiveBySkillIds(any());
         verify(priorityResolver, never()).currentPrioritySkillId(any());
     }
@@ -117,8 +131,9 @@ class SkillAccessServiceTest {
         assertThat(access.isSkillLocked(ee1.get(0).getId())).isFalse();
         assertThat(access.isSkillLocked(ee1.get(1).getId())).isTrue();
         assertThat(access.isSkillLocked(ee1.get(7).getId())).isTrue();
-        // Une par tache, pas une de plus : 6 taches = 6 competences ouvertes.
-        assertThat(access.openSkillIds()).hasSize(SkillTaskCode.values().length);
+        // Une par tache, pas une de plus : 6 taches = 6 competences ouvertes,
+        // plus le A2 de chacun des 2 domaines de comprehension.
+        assertThat(access.openSkillIds()).hasSize(SkillTaskCode.values().length + 2);
     }
 
     @Test
@@ -166,7 +181,7 @@ class SkillAccessServiceTest {
         List<SkillPrompt> prompts = promptsBySkill.get(priorite.getId());
         assertThat(access.isPromptLocked(prompts.get(1).getId())).isFalse();
         assertThat(access.isPromptLocked(prompts.get(2).getId())).isTrue();
-        assertThat(access.openSkillIds()).hasSize(SkillTaskCode.values().length + 1);
+        assertThat(access.openSkillIds()).hasSize(SkillTaskCode.values().length + 2 + 1);
     }
 
     @Test
@@ -176,7 +191,7 @@ class SkillAccessServiceTest {
                 .thenReturn(Optional.of(ee1.get(0).getId()));
 
         assertThat(service.resolve(userId).openSkillIds())
-                .hasSize(SkillTaskCode.values().length);
+                .hasSize(SkillTaskCode.values().length + 2);
     }
 
     @Test
@@ -188,6 +203,103 @@ class SkillAccessServiceTest {
 
         assertThat(access.isSkillLocked(ee1.get(0).getId())).isFalse();
         assertThat(access.openPromptIds()).isEmpty();
+    }
+
+    // ------------------------------------------------------------------------
+    // Comprehension (CO / CE) — ni tache, ni sujet : le verrou porte le NIVEAU
+    // ------------------------------------------------------------------------
+
+    /**
+     * La regle retenue : l'entree de gamme de chaque domaine est ouverte, B1 et
+     * B2 sont verrouilles. C'est le pendant exact de « la premiere competence de
+     * chaque tache » la ou il n'existe ni tache ni petit sujet.
+     */
+    @Test
+    void sansAccesTcfSeulLeNiveauLePlusBasDeChaqueDomaineDeComprehensionEstOuvert() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+
+        SkillAccessService.SkillAccess access = service.resolve(userId);
+
+        assertThat(access.isSkillLocked(co.get(0).getId())).isFalse();
+        assertThat(access.isSkillLocked(co.get(1).getId())).isTrue();
+        assertThat(access.isSkillLocked(co.get(2).getId())).isTrue();
+        assertThat(access.isSkillLocked(ce.get(0).getId())).isFalse();
+        assertThat(access.isSkillLocked(ce.get(1).getId())).isTrue();
+        assertThat(access.isSkillLocked(ce.get(2).getId())).isTrue();
+    }
+
+    /**
+     * Une competence de comprehension n'a AUCUN petit sujet : ouvrir son niveau
+     * A2 ne doit donc ouvrir aucun sujet, et surtout ne pas faire de requete de
+     * sujets a son propos. Le compteur de sujets ouverts reste celui de
+     * l'expression.
+     */
+    @Test
+    void ouvrirUnDomaineDeComprehensionNOuvreAucunPetitSujet() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+
+        SkillAccessService.SkillAccess access = service.resolve(userId);
+
+        // Seule EE1 porte un catalogue de sujets dans cette fabrique : les
+        // sujets ouverts sont donc ses 2 premiers, et la comprehension — qui
+        // ouvre pourtant 2 competences de plus — n'en ajoute aucun.
+        assertThat(access.openPromptIds())
+                .hasSize(SkillAccessService.FREE_PROMPTS_PER_SKILL)
+                .containsExactlyInAnyOrder(
+                        promptsBySkill.get(ee1.get(0).getId()).get(0).getId(),
+                        promptsBySkill.get(ee1.get(0).getId()).get(1).getId());
+    }
+
+    /**
+     * Le B2 d'un domaine reste inatteignable tant que le compte est gratuit,
+     * <b>sauf</b> si le Plan en fait sa priorite n&deg;1 — meme exception que
+     * pour une competence d'expression de rang 5, et pour la meme raison : un
+     * Plan dont l'etape 1 est cadenassee n'a plus d'usage.
+     */
+    @Test
+    void laPrioriteDuPlanOuvreAussiUneCompetenceDeComprehension() {
+        Skill priorite = co.get(2);
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(priorityResolver.currentPrioritySkillId(userId))
+                .thenReturn(Optional.of(priorite.getId()));
+
+        SkillAccessService.SkillAccess access = service.resolve(userId);
+
+        assertThat(access.isSkillLocked(priorite.getId())).isFalse();
+        assertThat(access.isSkillLocked(co.get(1).getId())).isTrue();
+    }
+
+    @Test
+    void unAbonneTcfNaAucunVerrouSurLaComprehension() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(true);
+
+        SkillAccessService.SkillAccess access = service.resolve(userId);
+
+        assertThat(access.isSkillLocked(co.get(2).getId())).isFalse();
+        assertThat(access.isSkillLocked(ce.get(2).getId())).isFalse();
+    }
+
+    /**
+     * Le verrou est <b>opposable au grain de la competence</b> : la
+     * comprehension n'ayant pas de sujet, {@code assertCanProduce} n'a rien a
+     * mordre et le refus doit exister a ce niveau-la.
+     */
+    @Test
+    void travaillerUneCompetenceDeComprehensionVerrouilleeEstRefuse() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.assertCanTrain(userId, co.get(2).getId()))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage(SkillAccessService.LOCKED_SKILL_MESSAGE)
+                .hasMessageContaining("accès TCF");
+    }
+
+    @Test
+    void travaillerLeNiveauOuvertDUnDomainePasse() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+
+        service.assertCanTrain(userId, co.get(0).getId());
+        service.assertCanTrain(userId, ce.get(0).getId());
     }
 
     // ------------------------------------------------------------------------
@@ -224,6 +336,30 @@ class SkillAccessServiceTest {
                     ? ee1.get(0).getId() : skill(code, 1).getId());
         }
         return first;
+    }
+
+    /** Le rang le plus bas de chaque domaine, tel que le rendrait la requete. */
+    private Map<SkillSection, UUID> firstOfEachComprehensionDomain() {
+        Map<SkillSection, UUID> first = new EnumMap<>(SkillSection.class);
+        first.put(SkillSection.CO, co.get(0).getId());
+        first.put(SkillSection.CE, ce.get(0).getId());
+        return first;
+    }
+
+    /** Competence de comprehension : pas de tache, pas de sujet. */
+    private static Skill comprehensionSkill(SkillSection section, int rank, String level) {
+        Skill skill = new Skill();
+        skill.setId(UUID.randomUUID());
+        skill.setSection(section);
+        skill.setTaskCode(null);
+        skill.setCode(section + "-" + level);
+        skill.setTitle("Compétence " + section + " " + level);
+        skill.setDescription("Pourquoi cet exercice.");
+        skill.setGeneralCriterion("Critère général.");
+        skill.setTargetLevel(level);
+        skill.setDisplayOrder((short) rank);
+        skill.setActive(true);
+        return skill;
     }
 
     private static Skill skill(SkillTaskCode taskCode, int rank) {

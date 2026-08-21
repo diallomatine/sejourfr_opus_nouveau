@@ -41,22 +41,39 @@ class SkillSeedIT extends AbstractIntegrationTest {
     private static final int REFERENCES_PER_PROMPT = 3;
 
     private static final int EXPECTED_SKILLS = SkillTaskCode.values().length * SKILLS_PER_TASK;
+
+    /**
+     * Les competences de COMPREHENSION : une par niveau et par domaine (V318).
+     * Elles n'ont ni tache ni petit sujet — c'est exactement ce que ce fichier
+     * doit figer, car aucune contrainte de base ne peut l'exprimer (un CHECK ne
+     * compte pas les lignes d'une autre table).
+     */
+    private static final int EXPECTED_COMPREHENSION_SKILLS = 6;
     private static final int EXPECTED_PROMPTS = EXPECTED_SKILLS * PROMPTS_PER_SKILL;
     private static final int EXPECTED_REFERENCES = EXPECTED_PROMPTS * REFERENCES_PER_PROMPT;
 
     /** Codes reserves a {@code TestData} : hors perimetre du contenu publie. */
     private static final String NOT_A_FIXTURE = " AND code NOT LIKE 'TST-%'";
 
+    /**
+     * Les regles de ce fichier qui parlent des 6 taches ne valent QUE pour
+     * l'expression. Depuis V039 la table porte aussi les competences de
+     * comprehension, qui n'ont pas de tache : les compter avec les autres
+     * ferait echouer des assertions qui restent pourtant vraies.
+     */
+    private static final String EXPRESSION_ONLY = " AND task_code IS NOT NULL";
+
     @Autowired
     private JdbcTemplate jdbc;
 
     @Test
     void theCatalogPublishesEightActiveSkillsForEachOfTheSixTasks() {
-        assertThat(count("skills", "is_active" + NOT_A_FIXTURE)).isEqualTo(EXPECTED_SKILLS);
+        assertThat(count("skills", "is_active" + NOT_A_FIXTURE + EXPRESSION_ONLY))
+                .isEqualTo(EXPECTED_SKILLS);
 
         List<Map<String, Object>> perTask = jdbc.queryForList("""
                 SELECT task_code, count(*) AS n FROM skills
-                WHERE is_active AND code NOT LIKE 'TST-%'
+                WHERE is_active AND code NOT LIKE 'TST-%' AND task_code IS NOT NULL
                 GROUP BY task_code
                 """);
 
@@ -78,7 +95,7 @@ class SkillSeedIT extends AbstractIntegrationTest {
         assertThat(jdbc.queryForList("""
                 SELECT s.code, count(p.id) AS n
                 FROM skills s LEFT JOIN skill_prompts p ON p.skill_id = s.id AND p.is_active
-                WHERE s.is_active AND s.code NOT LIKE 'TST-%'
+                WHERE s.is_active AND s.code NOT LIKE 'TST-%' AND s.task_code IS NOT NULL
                 GROUP BY s.code HAVING count(p.id) <> ?
                 """, PROMPTS_PER_SKILL))
                 .as("competences dont le nombre de sujets n'est pas %d", PROMPTS_PER_SKILL)
@@ -162,7 +179,8 @@ class SkillSeedIT extends AbstractIntegrationTest {
         assertThat(count("skills",
                 "is_active" + NOT_A_FIXTURE
                         + " AND btrim(general_criterion) <> '' AND general_criterion <> description"))
-                .isEqualTo(EXPECTED_SKILLS);
+                .as("competences publiees portant deux textes distincts, comprehension comprise")
+                .isEqualTo(EXPECTED_SKILLS + EXPECTED_COMPREHENSION_SKILLS);
     }
 
     /** Chaque sujet porte son propre critere unique, distinct de celui des autres. */
@@ -248,6 +266,72 @@ class SkillSeedIT extends AbstractIntegrationTest {
                   AND (btrim(coalesce(tag ->> 'label', '')) = '' OR tag ->> 'label' ~ '[0-9]')
                 """))
                 .as("etiquettes vides, ou portant un chiffre — donc une longueur ou une duree")
+                .isEmpty();
+    }
+
+    // ------------------------------------------------------------------------
+    // Comprehension (V318) — une competence par niveau et par domaine
+    // ------------------------------------------------------------------------
+
+    /**
+     * Les 6 competences de comprehension, leurs codes et leur ordre.
+     *
+     * <p>Le contenu de V318 est ecrit A LA MAIN, hors du generateur
+     * {@code tools/competences/} : celui-ci valide 8 competences par tache x 15
+     * sujets x 3 references et rattache tout a un {@code task_code}, donc il
+     * refuserait ces lignes. Ce test est ce qui remplace sa validation.
+     */
+    @Test
+    void comprehensionPublishesOneSkillPerLevelAndPerDomain() {
+        assertThat(count("skills", "is_active" + NOT_A_FIXTURE + " AND task_code IS NULL"))
+                .isEqualTo(EXPECTED_COMPREHENSION_SKILLS);
+
+        assertThat(jdbc.queryForList("""
+                SELECT code, section, target_level, display_order
+                FROM skills
+                WHERE is_active AND code NOT LIKE 'TST-%' AND task_code IS NULL
+                ORDER BY section, display_order
+                """))
+                .extracting(r -> r.get("code") + "/" + r.get("section") + "/"
+                        + r.get("target_level") + "/" + r.get("display_order"))
+                .containsExactly(
+                        "CE-A2/CE/A2/1", "CE-B1/CE/B1/2", "CE-B2/CE/B2/3",
+                        "CO-A2/CO/A2/1", "CO-B1/CO/B1/2", "CO-B2/CO/B2/3");
+    }
+
+    /**
+     * <b>Aucun petit sujet, jamais.</b> Le brief l'interdit explicitement
+     * (§13, §71) : la comprehension s'entraine par une serie ciblee de QCM, pas
+     * par une page de 5 petits sujets. La FK composite
+     * {@code (skill_id, section)} le rend deja impossible — {@code section} de
+     * {@code skill_prompts} restant borne a EE/EO — et ce test le constate sur
+     * le contenu publie plutot que sur la forme du schema.
+     */
+    @Test
+    void noComprehensionSkillCarriesAnyPrompt() {
+        assertThat(jdbc.queryForList("""
+                SELECT s.code FROM skills s
+                JOIN skill_prompts p ON p.skill_id = s.id
+                WHERE s.task_code IS NULL
+                """))
+                .as("competences de comprehension portant un petit sujet")
+                .isEmpty();
+    }
+
+    /**
+     * L'equivalence « section d'expression &hArr; tache presente » est verrouillee
+     * par {@code chk_skills_task_code_presence}. Ce qui se verifie ici, c'est
+     * que le CONTENU publie la respecte des deux cotes : une compétence CO/CE
+     * qui aurait herite d'un {@code task_code} par copier-coller passerait le
+     * DDL de V025 mais pas cette assertion.
+     */
+    @Test
+    void everySkillIsEitherAttachedToATaskOrToAComprehensionDomain() {
+        assertThat(jdbc.queryForList("""
+                SELECT code, section, task_code FROM skills
+                WHERE (section IN ('EE', 'EO')) <> (task_code IS NOT NULL)
+                """))
+                .as("competences dont la section et la presence de tache se contredisent")
                 .isEmpty();
     }
 

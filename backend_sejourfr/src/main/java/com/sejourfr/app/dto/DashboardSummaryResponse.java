@@ -43,6 +43,13 @@ import java.util.UUID;
  *       comptée, mais pas les quatre : à zéro épreuve le niveau est déjà
  *       {@code null} et il n'y a rien à annoter. Dérivé serveur
  *       ({@code TcfLevelProfile}) — <b>aucun front ne recompte</b>.</li>
+ *   <li>{@code tcfDomainProfile} : le <b>même</b> niveau, publié
+ *       <b>domaine par domaine</b> (CO · CE · EO · EE) pour l'écran « Mon
+ *       profil TCF » et le bloc « Compléter mon profil ». Les trois scalaires
+ *       ci-dessus en sont le résumé : ils ne sont pas une seconde source, et
+ *       restent servis pour les fronts qui ne lisent que le global. Liste
+ *       <b>toujours de 4</b>, <b>ordre figé côté serveur</b> — cf.
+ *       {@code TcfDomainProfileDto}.</li>
  *   <li>{@code civique} / {@code tcf} : une entrée par catégorie, TOUS les
  *       thèmes du module (même jamais travaillés → percent null). Côté TCF,
  *       deux entrées synthétiques {@code TCF_EE} / {@code TCF_EO} sont
@@ -61,6 +68,7 @@ public record DashboardSummaryResponse(
         int estimatedTcfLevelEpreuvesCounted,
         int estimatedTcfLevelEpreuvesExpected,
         boolean estimatedTcfLevelPartial,
+        TcfDomainProfileDto tcfDomainProfile,
         List<CategoryStat> civique,
         List<CategoryStat> tcf
 ) {

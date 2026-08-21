@@ -1,6 +1,7 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.DashboardSummaryResponse;
+import com.sejourfr.app.dto.TcfDomainProfileDto;
 import com.sejourfr.app.dto.TcfLevelProfile;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.Attempt;
@@ -129,6 +130,9 @@ public class UserDashboardService {
                 tcfProfile.epreuvesCounted(),
                 TcfLevelProfile.EPREUVES_EXPECTED,
                 tcfProfile.partial(),
+                // Même profil, publié domaine par domaine : ce n'est pas un
+                // second calcul, c'est la même TcfLevelProfile mise en forme.
+                TcfDomainProfileDto.of(tcfProfile),
                 civique,
                 tcf);
     }

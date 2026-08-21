@@ -110,6 +110,31 @@ public class SkillManager {
     }
 
     /**
+     * La premiere competence active de chaque domaine de COMPREHENSION, indexee
+     * par domaine. Un domaine sans competence active est simplement absent de
+     * la map.
+     *
+     * <p>Une seule requete de deux lignes au plus : c'est le pendant du verrou
+     * freemium pour les competences sans tache.
+     */
+    public Map<SkillSection, UUID> findFirstActiveIdPerComprehensionSection() {
+        Map<SkillSection, UUID> firstIds = new EnumMap<>(SkillSection.class);
+        for (Object[] row : repository.findFirstActiveIdPerComprehensionSection()) {
+            firstIds.put((SkillSection) row[0], (UUID) row[1]);
+        }
+        return firstIds;
+    }
+
+    /**
+     * Toutes les competences SANS tache d'un domaine, <b>desactivees
+     * comprises</b>. Pendant de {@link #findAllByTaskCode} pour la
+     * comprehension : l'admin y verifie qu'un rang d'affichage est libre.
+     */
+    public List<Skill> findAllComprehensionBySection(SkillSection section) {
+        return repository.findBySectionAndTaskCodeIsNullOrderByDisplayOrderAsc(section);
+    }
+
+    /**
      * Toutes les competences d'une epreuve, <b>desactivees comprises</b>, dans
      * l'ordre d'affichage de la console. {@code null} = toutes les epreuves.
      * Reserve a l'admin (statistiques).

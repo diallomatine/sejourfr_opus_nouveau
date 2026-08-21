@@ -1,5 +1,6 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.dto.DiagnosticEpreuveLevel;
 import com.sejourfr.app.dto.TcfLevelProfile;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.Attempt;
@@ -8,6 +9,7 @@ import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -20,6 +22,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -35,6 +39,7 @@ class TcfProfileServiceTest {
 
     private AttemptManager attemptManager;
     private AiEvaluationManager aiEvaluationManager;
+    private DiagnosticProductionAnalysisManager diagnosticAnalysisManager;
     private TcfProfileService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -43,8 +48,10 @@ class TcfProfileServiceTest {
     void setUp() {
         attemptManager = mock(AttemptManager.class);
         aiEvaluationManager = mock(AiEvaluationManager.class);
+        diagnosticAnalysisManager = mock(DiagnosticProductionAnalysisManager.class);
+        when(diagnosticAnalysisManager.findCompletedLevelsByUser(userId)).thenReturn(List.of());
         service = new TcfProfileService(attemptManager, aiEvaluationManager,
-                new TcfLevelEstimatorService());
+                diagnosticAnalysisManager, new TcfLevelEstimatorService());
     }
 
     // ------------------------------------------------------------------ fixtures
@@ -76,6 +83,15 @@ class TcfProfileServiceTest {
 
     private void stubProduction(EpreuveType epreuve, List<AiEvaluation> evals) {
         when(aiEvaluationManager.findByUserAndEpreuve(userId, epreuve)).thenReturn(evals);
+    }
+
+    private void stubDiagnostic(DiagnosticEpreuveLevel... rows) {
+        when(diagnosticAnalysisManager.findCompletedLevelsByUser(userId))
+                .thenReturn(List.of(rows));
+    }
+
+    private static DiagnosticEpreuveLevel diag(EpreuveType epreuve, NiveauCecrl level) {
+        return new DiagnosticEpreuveLevel(epreuve, level);
     }
 
     // ------------------------------------------------------------------ aucune donnée
@@ -254,5 +270,93 @@ class TcfProfileServiceTest {
         stubProduction(EpreuveType.TCF_EO, List.of(perimee, courante));
 
         assertThat(service.levelProfile(userId).eo()).isEqualTo(NiveauCecrl.A2);
+    }
+
+    // ------------------------------------------------------- diagnostic (baseline)
+
+    /**
+     * Le diagnostic est bifurqué avant {@code ai_evaluations} : sans lecture
+     * dédiée, un candidat qui vient d'être évalué sur son écrit ET son oral
+     * affichait « 0 domaine évalué sur 4 ». Mesuré en base au moment du
+     * correctif : 13 domaines perdus sur 7 comptes.
+     */
+    @Test
+    void diagnostic_renseigneEeEtEo_quandAucuneProductionEvaluee() {
+        stubDiagnostic(diag(EpreuveType.TCF_EE, NiveauCecrl.A2),
+                diag(EpreuveType.TCF_EO, NiveauCecrl.B1));
+
+        TcfLevelProfile p = service.levelProfile(userId);
+
+        assertThat(p.ee()).isEqualTo(NiveauCecrl.A2);
+        assertThat(p.eo()).isEqualTo(NiveauCecrl.B1);
+        assertThat(p.epreuvesCounted()).isEqualTo(2);
+        assertThat(p.partial()).isTrue();
+        assertThat(p.globalLevel()).isEqualTo(NiveauCecrl.A2);
+    }
+
+    /** Une production réelle prime sur la baseline, même quand elle est PLUS BASSE. */
+    @Test
+    void diagnostic_neRemonteJamaisUnDomaineQuiAUneProductionEvaluee() {
+        stubProduction(EpreuveType.TCF_EE, List.of(eval(NiveauCecrl.A1, Instant.now())));
+        stubDiagnostic(diag(EpreuveType.TCF_EE, NiveauCecrl.B2));
+
+        assertThat(service.levelProfile(userId).ee()).isEqualTo(NiveauCecrl.A1);
+    }
+
+    /** ...et symétriquement, il ne l'écrase pas non plus quand il est plus bas. */
+    @Test
+    void diagnostic_neRabaisseJamaisUnDomaineQuiAUneProductionEvaluee() {
+        stubProduction(EpreuveType.TCF_EO, List.of(eval(NiveauCecrl.B2, Instant.now())));
+        stubDiagnostic(diag(EpreuveType.TCF_EO, NiveauCecrl.A1_NON_ATTEINT));
+
+        assertThat(service.levelProfile(userId).eo()).isEqualTo(NiveauCecrl.B2);
+    }
+
+    /** Le repli est par DOMAINE : l'EE travaillée garde sa note, l'EO retombe sur la baseline. */
+    @Test
+    void diagnostic_replieDomaineParDomaine() {
+        stubProduction(EpreuveType.TCF_EE, List.of(eval(NiveauCecrl.B2, Instant.now())));
+        stubDiagnostic(diag(EpreuveType.TCF_EE, NiveauCecrl.A2),
+                diag(EpreuveType.TCF_EO, NiveauCecrl.A2));
+
+        TcfLevelProfile p = service.levelProfile(userId);
+
+        assertThat(p.ee()).isEqualTo(NiveauCecrl.B2);
+        assertThat(p.eo()).isEqualTo(NiveauCecrl.A2);
+    }
+
+    /**
+     * Aucune requête de baseline quand les deux domaines de production sont déjà
+     * renseignés : le repli ne se paie que là où il sert.
+     */
+    @Test
+    void diagnostic_nEstMemePasLu_quandLesDeuxProductionsSontEvaluees() {
+        stubProduction(EpreuveType.TCF_EE, List.of(eval(NiveauCecrl.B1, Instant.now())));
+        stubProduction(EpreuveType.TCF_EO, List.of(eval(NiveauCecrl.B1, Instant.now())));
+
+        service.levelProfile(userId);
+
+        verify(diagnosticAnalysisManager, never()).findCompletedLevelsByUser(userId);
+    }
+
+    /** Plusieurs sessions terminées (versions successives) : on retient le meilleur. */
+    @Test
+    void diagnostic_plusieursAnalysesSurUnMemeDomaine_retientLeMeilleur() {
+        stubDiagnostic(diag(EpreuveType.TCF_EE, NiveauCecrl.A1),
+                diag(EpreuveType.TCF_EE, NiveauCecrl.B1));
+
+        assertThat(service.levelProfile(userId).ee()).isEqualTo(NiveauCecrl.B1);
+    }
+
+    /** Le diagnostic ne parle jamais de CO/CE : ces domaines restent inconnus. */
+    @Test
+    void diagnostic_neRenseigneNiCoNiCe() {
+        stubDiagnostic(diag(EpreuveType.TCF_EE, NiveauCecrl.B1),
+                diag(EpreuveType.TCF_EO, NiveauCecrl.B1));
+
+        TcfLevelProfile p = service.levelProfile(userId);
+
+        assertThat(p.co()).isNull();
+        assertThat(p.ce()).isNull();
     }
 }

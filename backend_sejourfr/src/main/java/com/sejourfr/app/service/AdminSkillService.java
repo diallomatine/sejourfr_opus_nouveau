@@ -155,7 +155,7 @@ public class AdminSkillService {
         SkillSection section = resolveSection(req.section(), taskCode);
         String code = req.code().trim();
         requireFreeSkillCode(code);
-        requireFreeSkillOrder(taskCode, req.displayOrder(), null);
+        requireFreeSkillOrder(section, taskCode, req.displayOrder(), null);
 
         Skill skill = new Skill();
         skill.setSection(section);
@@ -191,7 +191,8 @@ public class AdminSkillService {
         if (req.generalCriterion() != null) skill.setGeneralCriterion(req.generalCriterion().trim());
         if (req.targetLevel() != null) skill.setTargetLevel(req.targetLevel());
         if (req.displayOrder() != null) {
-            requireFreeSkillOrder(skill.getTaskCode(), req.displayOrder(), skill.getId());
+            requireFreeSkillOrder(skill.getSection(), skill.getTaskCode(),
+                    req.displayOrder(), skill.getId());
             skill.setDisplayOrder(req.displayOrder().shortValue());
         }
         if (req.active() != null) skill.setActive(req.active());
@@ -416,6 +417,21 @@ public class AdminSkillService {
      * en a range une ecrite.
      */
     private SkillSection resolveSection(SkillSection provided, SkillTaskCode taskCode) {
+        if (taskCode == null) {
+            // Aucune tache : la seule forme legale est une competence de
+            // COMPREHENSION, qui n'en a pas. Refuser ici evite de laisser
+            // remonter chk_skills_task_code_presence en 500.
+            if (provided == null) {
+                throw new BusinessException("Précisez la tâche (EE1 à EO3) pour une compétence "
+                        + "d'expression, ou l'épreuve (section=CO ou CE) pour une compétence de "
+                        + "compréhension.");
+            }
+            if (provided.isProduction()) {
+                throw new BusinessException("Une compétence d'expression (" + provided
+                        + ") appartient toujours à une tâche : précisez taskCode.");
+            }
+            return provided;
+        }
         SkillSection derived = taskCode.getSection();
         if (provided != null && provided != derived) {
             throw new BusinessException("La tâche " + taskCode + " appartient à l'épreuve "
@@ -432,9 +448,10 @@ public class AdminSkillService {
     }
 
     /**
-     * Le rang d'affichage est unique par tache. Le verifier ici sert a rendre le
-     * conflit lisible ; la contrainte {@code uq_skills_task_order} reste le
-     * dernier mot.
+     * Le rang d'affichage est unique par tache (expression) ou par domaine
+     * (comprehension, qui n'a pas de tache). Le verifier ici sert a rendre le
+     * conflit lisible ; les contraintes {@code uq_skills_task_order} et
+     * {@code uq_skills_section_order_comprehension} restent le dernier mot.
      *
      * <p>Ce n'est <b>pas</b> un rang « parking » deguise : la contrainte est
      * {@code DEFERRABLE INITIALLY DEFERRED} precisement pour qu'un echange de
@@ -442,12 +459,22 @@ public class AdminSkillService {
      * refuse seulement de poser, en une operation isolee, un rang deja occupe —
      * ce qui echouerait de toute facon au commit, mais en 500.
      */
-    private void requireFreeSkillOrder(SkillTaskCode taskCode, Integer displayOrder, UUID selfId) {
+    private void requireFreeSkillOrder(SkillSection section, SkillTaskCode taskCode,
+                                       Integer displayOrder, UUID selfId) {
         if (displayOrder == null) return;
-        for (Skill other : skillManager.findAllByTaskCode(taskCode)) {
+        // Le perimetre d'unicite suit celui de la base : par TACHE en
+        // expression (uq_skills_task_order), par DOMAINE en comprehension
+        // (uq_skills_section_order_comprehension, index partiel sur task_code
+        // IS NULL). Interroger par tache avec un nul ne trouverait rien et
+        // laisserait l'index parler en 500.
+        List<Skill> voisines = taskCode != null
+                ? skillManager.findAllByTaskCode(taskCode)
+                : skillManager.findAllComprehensionBySection(section);
+        String perimetre = taskCode != null ? taskCode.name() : section.name();
+        for (Skill other : voisines) {
             if (other.getDisplayOrder() == displayOrder && !other.getId().equals(selfId)) {
                 throw new BusinessException("Le rang " + displayOrder + " est déjà occupé dans "
-                        + taskCode + " par la compétence « " + other.getCode() + " ».");
+                        + perimetre + " par la compétence « " + other.getCode() + " ».");
             }
         }
     }

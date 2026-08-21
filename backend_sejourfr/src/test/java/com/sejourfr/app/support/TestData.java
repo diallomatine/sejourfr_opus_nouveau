@@ -36,6 +36,7 @@ import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.entity.SkillReference;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.Transcription;
+import com.sejourfr.app.entity.DiagnosticProductionAnalysis;
 import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserQuestionStatus;
@@ -62,7 +63,9 @@ import com.sejourfr.app.enums.ProductionSubmissionSource;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.RealtimeSessionStatus;
 import com.sejourfr.app.enums.ClientPlatform;
+import com.sejourfr.app.enums.DiagnosticCommunicationStatus;
 import com.sejourfr.app.enums.DiagnosticSessionStatus;
+import com.sejourfr.app.enums.DiagnosticTaskCompletion;
 import com.sejourfr.app.enums.FunnelEvent;
 import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.enums.SkillAttemptStatut;
@@ -97,6 +100,7 @@ import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.SkillPromptManager;
 import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.TranscriptionManager;
+import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.UserFunnelEventManager;
 import com.sejourfr.app.manager.UserManager;
@@ -174,6 +178,7 @@ public class TestData {
     private final AudioQuestionDraftRepository audioQuestionDraftRepository;
     private final AudioQuestionGenerationLogRepository audioQuestionGenerationLogRepository;
     private final DiagnosticSessionManager diagnosticSessionManager;
+    private final DiagnosticProductionAnalysisManager diagnosticProductionAnalysisManager;
     private final UserFunnelEventManager userFunnelEventManager;
 
     private static long next() {
@@ -735,6 +740,40 @@ public class TestData {
         return skill(SkillTaskCode.EE1);
     }
 
+    /**
+     * Competence de COMPREHENSION : aucune tache, aucun petit sujet.
+     *
+     * <p>Le rang se prend au-dessus du seed (V318 publie les rangs 1 a 3 de
+     * chaque domaine) parce que l'index partiel
+     * {@code uq_skills_section_order_comprehension} impose l'unicite du rang a
+     * l'interieur du domaine — meme raison que {@link #nextSkillDisplayOrder}
+     * cote expression.
+     *
+     * @param section {@code CO} ou {@code CE}
+     */
+    public Skill comprehensionSkill(SkillSection section, String targetLevel) {
+        Skill s = new Skill();
+        s.setSection(section);
+        s.setTaskCode(null);
+        s.setCode("TST-K" + next());
+        s.setTitle("Competence de comprehension de test");
+        s.setDescription("Ce que cette competence apporte au TCF.");
+        s.setGeneralCriterion("Le critere general travaille par cette competence.");
+        s.setTargetLevel(targetLevel);
+        s.setDisplayOrder(nextComprehensionDisplayOrder(section));
+        s.setActive(true);
+        return skillRepository.saveAndFlush(s);
+    }
+
+    private short nextComprehensionDisplayOrder(SkillSection section) {
+        short max = 0;
+        for (Skill existing
+                : skillRepository.findBySectionAndTaskCodeIsNullOrderByDisplayOrderAsc(section)) {
+            if (existing.getDisplayOrder() > max) max = existing.getDisplayOrder();
+        }
+        return (short) (max + 1);
+    }
+
     /** Rang libre le plus bas au-dessus des competences existantes, desactivees comprises. */
     private short nextSkillDisplayOrder(SkillTaskCode taskCode) {
         short max = 0;
@@ -908,6 +947,36 @@ public class TestData {
 
     public DiagnosticSession diagnosticSession(User user) {
         return diagnosticSession(user, DiagnosticSessionStatus.IN_PROGRESS);
+    }
+
+    /**
+     * Soumission diagnostique : même table que les productions standard, mais
+     * {@code is_diagnostic = true} — c'est ce drapeau qui bifurque le pipeline
+     * avant {@code ai_evaluations}.
+     */
+    public ProductionSubmission diagnosticSubmission(
+            Attempt attempt, ProductionTask task, User user) {
+        ProductionSubmission s = productionSubmission(attempt, task, user);
+        s.setDiagnostic(true);
+        s.setStatut(SubmissionStatut.EVALUATED);
+        return productionSubmissionManager.save(s);
+    }
+
+    /**
+     * Analyse structurée du diagnostic (aucune note /20) attachée à une
+     * soumission diagnostique.
+     */
+    public DiagnosticProductionAnalysis diagnosticAnalysis(
+            ProductionSubmission submission, NiveauCecrl level) {
+        DiagnosticProductionAnalysis a = new DiagnosticProductionAnalysis();
+        a.setSubmission(submission);
+        a.setAnalysisJson(Map.of("skills", List.of()));
+        a.setLevelEstimate(level);
+        a.setTaskCompletion(DiagnosticTaskCompletion.COMPLETED);
+        a.setCommunicationStatus(DiagnosticCommunicationStatus.EFFECTIVE);
+        a.setModelUsed("deepseek-test");
+        a.setSchemaVersion("v1");
+        return diagnosticProductionAnalysisManager.save(a);
     }
 
     /** Étape de funnel : première occurrence, comme en production. */

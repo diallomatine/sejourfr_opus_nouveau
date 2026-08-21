@@ -116,11 +116,34 @@ class SkillLabelsTest {
     }
 
     @Test
-    @DisplayName("Epreuves du module : libelles geles")
+    @DisplayName("Domaines du module : libelles geles")
     void sections() {
         assertThat(labels(SkillSection.class, SkillSection::getLabel))
                 .containsExactly(
-                        Map.entry("EE", "Expression écrite"), Map.entry("EO", "Expression orale"));
+                        Map.entry("EE", "Expression écrite"),
+                        Map.entry("EO", "Expression orale"),
+                        Map.entry("CO", "Compréhension orale"),
+                        Map.entry("CE", "Compréhension écrite"));
+    }
+
+    /**
+     * L'axe qui remplace {@code SkillTaskCode} pour la comprehension : une
+     * competence CO/CE n'a pas de tache, et tout ce qui s'en deduisait doit
+     * desormais passer par ces deux predicats.
+     */
+    @Test
+    @DisplayName("Expression et comprehension partagent le meme enum, jamais la meme forme")
+    void expressionEtComprehensionSeDistinguentParDesPredicats() {
+        assertThat(SkillSection.EE.isProduction()).isTrue();
+        assertThat(SkillSection.EO.isProduction()).isTrue();
+        assertThat(SkillSection.CO.isProduction()).isFalse();
+        assertThat(SkillSection.CE.isProduction()).isFalse();
+
+        for (SkillSection section : SkillSection.values()) {
+            assertThat(section.isComprehension())
+                    .as("%s : production et comprehension sont exclusifs", section)
+                    .isNotEqualTo(section.isProduction());
+        }
     }
 
     /**

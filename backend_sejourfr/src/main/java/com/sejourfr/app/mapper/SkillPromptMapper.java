@@ -80,7 +80,12 @@ public class SkillPromptMapper {
                 skill.getTargetLevel(),
                 prompt.getSection(),
                 skill.getTaskCode(),
-                skill.getTaskCode().getTitle(),
+                // Nul impossible en pratique — seule une competence
+                // d'EXPRESSION porte des sujets, et la base exige alors une
+                // tache. On ne deréférence pas pour autant : la colonne est
+                // nullable depuis V039, et un NPE ici couterait l'ecran de
+                // production entier.
+                skill.getTaskCode() == null ? null : skill.getTaskCode().getTitle(),
                 prompt.getCode(),
                 prompt.getTitle(),
                 prompt.getContext(),

@@ -1,6 +1,8 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.DashboardSummaryResponse;
+import com.sejourfr.app.dto.TcfDomainDto;
+import com.sejourfr.app.dto.TcfDomainProfileDto;
 import com.sejourfr.app.dto.TcfLevelProfile;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.Theme;
@@ -216,6 +218,59 @@ class UserDashboardServiceTest {
 
         assertThat(resp.estimatedTcfLevelEpreuvesCounted()).isEqualTo(4);
         assertThat(resp.estimatedTcfLevelPartial()).isFalse();
+    }
+
+    // -------------------------------------------------- profil TCF par domaine
+
+    /**
+     * Le bloc par domaine et les trois scalaires historiques disent la
+     * <b>même</b> chose : ils sortent de la même {@code TcfLevelProfile}, pas
+     * d'un second calcul.
+     */
+    @Test
+    void summary_profilParDomaine_publieLesQuatreDomainesDansUnOrdreFige() {
+        when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
+                NiveauCecrl.B2, null, NiveauCecrl.B1, NiveauCecrl.A2, NiveauCecrl.A2));
+
+        TcfDomainProfileDto profil = service.summary(userId).tcfDomainProfile();
+
+        assertThat(profil.domaines()).extracting(TcfDomainDto::epreuve)
+                .containsExactly(EpreuveType.TCF_CO, EpreuveType.TCF_CE,
+                        EpreuveType.TCF_EO, EpreuveType.TCF_EE);
+        assertThat(profil.domaines()).extracting(TcfDomainDto::niveau)
+                .containsExactly(NiveauCecrl.B2, null, NiveauCecrl.A2, NiveauCecrl.B1);
+        assertThat(profil.globalLevel()).isEqualTo(NiveauCecrl.A2);
+        assertThat(profil.evaluated()).isEqualTo(3);
+        assertThat(profil.expected()).isEqualTo(4);
+        assertThat(profil.partial()).isTrue();
+    }
+
+    /** Un domaine jamais passé est PRÉSENT, non évalué, sans niveau — jamais A1 non atteint. */
+    @Test
+    void summary_profilParDomaine_domaineJamaisPasse_estPresentSansNiveau() {
+        when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
+                null, null, NiveauCecrl.B1, null, NiveauCecrl.B1));
+
+        TcfDomainProfileDto profil = service.summary(userId).tcfDomainProfile();
+
+        assertThat(profil.domaines()).hasSize(4);
+        TcfDomainDto co = profil.domaines().get(0);
+        assertThat(co.epreuve()).isEqualTo(EpreuveType.TCF_CO);
+        assertThat(co.evaluated()).isFalse();
+        assertThat(co.niveau()).isNull();
+        assertThat(profil.evaluated()).isEqualTo(1);
+    }
+
+    /** Aucune donnée : 4 domaines quand même, aucun évalué, pas de « partiel » à annoter. */
+    @Test
+    void summary_profilParDomaine_aucuneDonnee_resteUneListeDeQuatre() {
+        TcfDomainProfileDto profil = service.summary(userId).tcfDomainProfile();
+
+        assertThat(profil.domaines()).hasSize(4)
+                .allMatch(d -> !d.evaluated() && d.niveau() == null);
+        assertThat(profil.globalLevel()).isNull();
+        assertThat(profil.evaluated()).isZero();
+        assertThat(profil.partial()).isFalse();
     }
 
     @Test
