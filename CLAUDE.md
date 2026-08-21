@@ -763,16 +763,53 @@ de rubriques et files de calibration doivent garder le filtre
   `SkillAccessService` ouvre la compétence de la priorité n°1 à un compte
   gratuit. Deux copies auraient fini par désigner deux « étapes n°1 »
   différentes.
-- **Le Plan reste intégralement visible sans abonnement** : aucune priorité,
-  aucune compétence observée, aucun compteur, aucun exercice recommandé n'est
-  masqué à un compte gratuit — masquer priverait le candidat du résultat de sa
-  propre production. Seuls les **accès** sont verrouillés, signalés par
-  `locked` sur `LearningPlanPriorityDto`, `LearningPlanSkillDto` et
-  `PlanRecommendedExerciseDto`. L'exercice recommandé reste **désigné** même
-  verrouillé : savoir quoi travailler est ce que le Plan apporte, on ne le
-  détourne pas vers un sujet ouvert qui ne serait plus la priorité mesurée.
-  **Visible ≠ finissable** : les compteurs d'étape sont servis en entier, mais
-  un compte gratuit plafonne à 2/5 (cf. § Freemium).
+- **On floute l'ACTION pas encore accessible, jamais le RÉSULTAT mesuré**
+  (arbitrage du propriétaire, 2026-08-21). ⚠️ Cette règle **révoque** la
+  formulation précédente — « le Plan reste intégralement visible sans
+  abonnement, aucune priorité, aucune compétence observée, aucun compteur n'est
+  masqué ». Ne pas la réintroduire au motif qu'elle est encore écrite quelque
+  part : ce qui suit fait foi, et trois commits en dépendent.
+  - **Floutés** pour un compte gratuit, sur le Plan : les **items de la séance**
+    et les **lignes de priorité** qui sont verrouillés, plus la liste que
+    reprend la modale « Pourquoi cette séance ? ». Sur le **rapport de
+    diagnostic** : au-delà de 2 priorités, au-delà de 2 points forts, et
+    au-delà du 1er entraînement de l'aperçu de séance.
+  - **Jamais floutés, pour tout le monde** : la carte de priorité actuelle, le
+    profil TCF et ses 4 domaines, « Compléter mon profil », le chemin vers
+    l'objectif, « ce qui a changé », les compétences observées, les étapes
+    franchies ; et sur le diagnostic, les niveaux estimés EE/EO, l'objectif, le
+    rail, le résumé, l'`exempleCible` et le détail des deux productions.
+    **Ce sont ses productions et ses mesures.** Masquer là priverait le
+    candidat du résultat de son propre travail.
+  - 🛑 **Le contenu flouté est le VRAI, jamais un décor fabriqué**, et le bloc
+    est retiré de l'arbre d'accessibilité **et** du parcours clavier/tactile
+    (`aria-hidden` + `inert` côté web, `ExcludeSemantics` + `IgnorePointer`
+    côté mobile). Un flou qu'un lecteur d'écran traverse est un contournement
+    et un mensonge d'accessibilité. L'information nette (compteur, CTA) vit
+    **hors** du bloc flouté.
+  - 🛑 **Les compteurs « + N autres » sont VRAIS**, calculés sur ce que le
+    serveur a réellement renvoyé — jamais une constante recopiée de la
+    maquette. `N == 0` ⇒ **le bloc n'existe pas**. Corollaire découvert en
+    livrant : les listes ne doivent plus être **tronquées à la source**
+    (`slice(0,3)` / `.take(4)`), sinon le compteur est faux par construction
+    *et* un abonné perd en silence ce qui dépasse. Le seul plafond d'affichage
+    vit au point d'appel, à côté du compteur qu'il alimente.
+  - **Le floutage suit le `locked` servi par le serveur, jamais le rang de la
+    ligne.** La maquette bloque « à partir du 2ᵉ » parce que son bouchon n'a pas
+    de serveur ; or une compétence de rang 2 peut être réellement ouverte
+    (celle de la priorité n°1 l'est). Flouter par l'index cacherait du contenu
+    accessible.
+  - ⚠️ **Vérifier qu'aucune AUTRE surface de l'écran ne montre en clair ce qui
+    est flouté.** Piège rencontré trois fois : la carte de tête du rapport
+    listait les priorités en entier, la modale « Pourquoi cette séance ? » et
+    la feuille mobile équivalente réénuméraient les items de séance.
+  - L'exercice recommandé reste **désigné** même verrouillé : savoir quoi
+    travailler est ce que le Plan apporte, on ne le détourne pas vers un sujet
+    ouvert qui ne serait plus la priorité mesurée. `locked` est porté par
+    `LearningPlanPriorityDto`, `LearningPlanSkillDto`, `PlanSeanceItemDto` et
+    `PlanRecommendedExerciseDto`.
+  - **Visible ≠ finissable** : les compteurs d'étape sont servis en entier, mais
+    un compte gratuit plafonne à 2/5 (cf. § Freemium).
 - **Boucle de réévaluation — l'étape CHANGE DE NATURE, elle ne se dédouble pas.**
   Quand la maîtrise pose `readyForReassessment` (moteur inchangé), la carte « À
   faire maintenant » cesse de proposer un micro-sujet et propose une
@@ -1041,6 +1078,180 @@ tâches), V030 (événements du funnel), V031 (sources d'examen blanc +
 `subject_id`, additive) et V755 (contenu initial). La suppression de
 compte purge observations et sessions **avant** les attempts. Le détail grand
 public du jugement et de ses limites est dans `docs/notation-ia-eo-ee.md`.
+
+## Plan adaptatif — profil par domaine, cycle de palier, séance (2026-08-21)
+
+Chantier `feature/plan-adaptatif-ui`, d'après `docs/plan/BRIEF_CLAUDE_CODE_PLAN_ADAPTATIF_TCF_V2.md`
+et ses trois maquettes, versionnées au même endroit. Ce qui suit complète la section
+« Diagnostic initial TCF et Plan personnalisé » ci-dessus, il ne la remplace pas.
+
+### Le niveau par DOMAINE existe enfin côté front
+`TcfProfileService.levelProfile` calculait déjà `TcfLevelProfile{co, ce, ee, eo}` avec la
+bonne règle ; `UserDashboardService` n'en gardait que le **plancher** et **jetait les
+quatre**. `DashboardSummaryResponse.tcfDomainProfile` les publie désormais
+(`TcfDomainProfileDto{domaines[4], globalLevel, evaluated, expected, partial}` +
+`TcfDomainDto{epreuve, evaluated, niveau}`), **ordre figé serveur, aucun front ne retrie**.
+Un domaine non passé est **présent** avec `evaluated:false` / `niveau:null` — *null =
+inconnu, jamais mauvais*. Les 3 scalaires historiques (`estimatedTcfLevel*`) restent servis.
+
+🔴 **Trou corrigé au passage** : la bifurcation `production_submissions.is_diagnostic` écrit
+dans `diagnostic_production_analyses` et **jamais** dans `ai_evaluations`, seule table lue par
+le calcul. Mesuré sur la base : 16 productions de diagnostic, **0** `ai_evaluation`, et
+**8 comptes au diagnostic terminé affichaient « 0 domaine évalué sur 4 »** au sortir d'une
+évaluation portant sur deux d'entre eux. Le diagnostic est désormais un **repli** : il ne
+renseigne un domaine que si **aucune** production réelle ne l'a fait — une vraie production
+prime **toujours**, quelle que soit sa date. Même hiérarchie que les poids du moteur
+(diagnostic 0,80 · production 1,00).
+
+### Compétences de COMPRÉHENSION — 6, une par palier et par domaine
+`SkillSection` vaut maintenant `EE|EO|**CO**|**CE**` ; `skills.task_code` est **nullable**
+(une compétence de compréhension n'appartient à aucune des 6 tâches) et le palier vit sur
+`target_level`. 🛑 **`SkillTaskCode` reste les 6 tâches officielles d'expression — ne jamais y
+ajouter de valeur CO/CE.** Codes : `CO-A2`, `CO-B1`, `CO-B2`, `CE-A2`, `CE-B1`, `CE-B2`
+(V039 schéma + V318 contenu, UUID uuid5 déterministes). Trois contraintes DB rendent
+l'invariant opposable, dont un **index unique partiel** sur (section, display_order) sans
+lequel deux compétences de compréhension partageraient le même rang (Postgres tient deux
+`NULL` pour distincts).
+🛑 **Une compétence CO/CE n'a AUCUN `skill_prompt`** — le brief l'interdit, son entraînement
+est une série de 20 QCM. Les compteurs rendent 0 **sans jamais inventer de dénominateur**, et
+la console admin masque la création de sujet dessus.
+`SkillDto.taskCode` / `AdminSkillDto.taskCode` / `AdminSkillStatsDto.taskCode` sont devenus
+**nullables** ; `SkillPromptDto.taskCode` reste non-null. Le domaine se lit sur `section`, le
+palier sur `targetLevel`, **jamais** déduits de la tâche.
+⚠️ `GET /api/skills/progress?section=CO|CE` répond **422** volontairement (pas d'écran
+« choix de la tâche » en compréhension) ; le typage web l'interdit désormais en amont.
+Freemium : le **palier le plus bas encore actif** de chaque domaine est ouvert (`CO-A2`,
+`CE-A2`), B1/B2 verrouillés, plus l'exception « compétence de la priorité n°1 du Plan ».
+Autorité unique `SkillAccessService`, opposable serveur (`assertCanTrain`, 403).
+
+### Les QCM alimentent le profil — `ComprehensionObservationService`
+`LearningPlanSourceType` **déclarait** `TCF_CO`/`TCF_CE` et `SkillMasteryEngine` savait les
+pondérer, mais **aucun code ne les écrivait jamais**. Le producteur existe : un attempt TCF
+CO/CE terminé ventile ses réponses **par niveau de question** et observe la compétence
+correspondante. `CO_IMAGE` compte avec `CO` ; **STRUCTURE est hors périmètre** (aucune
+compétence, ne pas en inventer).
+Seuils **neufs et séparés** sous `sejourfr.learning-plan.comprehension` (POJO aux mêmes
+défauts que le YAML) : `solid-ratio 0.80`, `reinforce-ratio 0.65`, `min-questions 6`,
+`high-confidence-questions 12`. 🛑 **Aucun seuil de `SkillMasteryEngine` n'a bougé** (cf. le
+piège arithmétique documenté plus haut).
+Le plancher à **6** n'est pas arbitraire : avec `n` questions le taux ne prend que `n+1`
+valeurs espacées de `1/n`, et la bande intermédiaire fait 15 points — à `n=5` le pas vaut 20,
+donc l'échantillon le plus mince ne rendrait **que** les deux verdicts les plus tranchés.
+Sous le plancher : `NOT_OBSERVED`, jamais une fausse fragilité.
+- **`subject_id` = `attemptId`**, et `TCF_CO`/`TCF_CE` sont **`isContextual()`** : en
+  compréhension le QCM **est** le format réel de l'épreuve, il n'existe pas de version guidée
+  à lui opposer. Sans ça aucune compétence CO/CE ne pourrait jamais devenir `SOLID`. Elles ne
+  sont **pas** `isTargeted()` (ce drapeau pilote `readyForReassessment`, dont la sortie est
+  une *production*). Zéro effet sur EE/EO, verrouillé par test.
+- ⚠️ **Une seule série à 16/20 ne rend PAS `SOLID`** — `min-positive-observations = 2` et
+  `min-distinct-subjects = 2` exigent **deux sessions**. Le brief §16 dit littéralement
+  l'inverse ; **arbitrage du propriétaire (2026-08-21) : on garde deux sessions**, une série
+  se réussit par chance, deux non. Verrouillé par `deuxSeriesReussiesRendentSolide` /
+  `uneSeuleSerieNeConclutPas`.
+- **Prérequis de palier** (`ComprehensionLevelResolver`, dérivé, jamais persisté) : le niveau
+  d'un domaine est la longueur du **préfixe ininterrompu de `SOLID` en partant du bas**. Des
+  réussites en B2 ne rachètent **pas** un B1 fragile. Rien de consolidé ⇒ `Optional.empty()`,
+  jamais « A1 ».
+- Best-effort en `REQUIRES_NEW`, exception avalée : une violation d'intégrité dans la
+  transaction de correction du QCM l'aurait marquée rollback-only et fait échouer la
+  correction elle-même.
+
+### Série ciblée de 20 questions — le `skillId` suffit
+`POST /api/attempts {type:"TRAINING", module:"TCF", skillId:"<uuid CO/CE>"}`. **Le client
+n'envoie que la compétence** : `questionType`, `difficulty` et `size` sont dérivés serveur du
+référentiel — un couple reçu du client aurait pu contredire la compétence affichée et faire
+progresser une **autre** compétence. Aucune colonne « compétence visée » n'est persistée : le
+producteur rattache par le **contenu réel** des questions. Refus : 403 verrouillé, 422
+compétence d'expression, 404 inconnue. Tirage `findLeastRecentlySeen` (jamais vues d'abord,
+puis les plus anciennes) ; manque de contenu logué, jamais masqué.
+🔴 **Bug de justesse corrigé** : un compte gratuit **connecté** basculait sur
+`findDemoPool`, qui **ignore `questionType` ET `difficulty`**. Depuis que les QCM nourrissent
+le Plan, cette série hors sujet écrivait ses observations vers **d'autres compétences**. Elle
+reste **déterministe** (on n'ouvre pas la banque sans abonnement) mais porte enfin sur ce qui
+a été demandé. `findDemoPool` reste pour les **invités**, inchangé.
+⚠️ **Une série ciblée est un `TRAINING` : elle ne rend JAMAIS un domaine « évalué ».** Seul un
+**examen blanc de module** le fait. C'est `domainesAEvaluer` qui dit par quoi mesurer.
+
+### Ce que `GET /api/me/plan` sert en plus
+Quatre blocs ajoutés en fin de `LearningPlanDto`, plus un cinquième :
+`domaines` · `cycle` · `domainesAEvaluer` · `seance` · `recentChanges`.
+- **`domaines`** (`PlanDomainDto`) : les 4, **triés serveur par urgence**, avec `priority`
+  (`PlanDomainPriority`, **libellés FR gelés** par `SkillLabelsTest` : « Priorité forte » /
+  « À travailler » / « Entretien » / « Pas encore prioritaire » / « À évaluer », **l'ordre de
+  déclaration EST l'ordre d'urgence**), `consolidatedLevel`, `blockingLevel`, les 3 `paliers`
+  en CO/CE, les `taches` observées/total en EE/EO.
+- **`cycle`** (`PlanCycleDto`) : vise **le cran au-dessus du niveau consolidé**, jamais
+  l'objectif directement. 🛑 **L'objectif vient de `TargetProcedure.niveauVise`, jamais d'une
+  constante** — la maquette l'affiche en dur à `B2`, ce qui retirerait son A2 à un dossier
+  CSP ; `objectiveLevel` est **nullable** et aucun front n'invente « B2 » à sa place.
+  **Rien n'est persisté** : le cycle se relit de l'historique. 4 états retenus
+  (`BUILDING_BASELINE|TRAINING|READY_FOR_GATE_MOCK|TARGET_STABILIZATION`) ; 4 écartés du brief
+  avec motif — `WAITING_REASSESSMENT` doublerait le signal **par compétence** et finirait par
+  le contredire, `GATE_MOCK_IN_PROGRESS` obligerait à persister, et `LEVEL_CONFIRMED` /
+  `NOT_CONFIRMED` sont des **transitions** observables zéro seconde.
+- **Gate de palier** : un **cas de plus** de `PlanMilestoneSelector`, pas une notion
+  parallèle — même examen désigné, même verrou reporté, même garde-fou d'ancienneté. **Aucune
+  clé de configuration ajoutée** : « aucune compétence bloquante » et « toutes les priorités
+  solides » sont la **même phrase** sur notre modèle, celle que rend déjà
+  `LearningPlanPriorityResolver.actionable`. Une compétence de palier **jamais observée** ne
+  bloque **pas** le gate (la refuser enfermerait le candidat ; l'examen est précisément ce qui
+  viendrait l'observer).
+- **`domainesAEvaluer`** (`PlanDomainAssessmentDto`) : par quoi mesurer chaque domaine
+  manquant. **Vide = profil complet**, l'état visé et non une anomalie. `slotNumber` vaut
+  toujours **1** (seul slot offert et rejouable, donc mesurer un domaine ne bute jamais sur le
+  paywall).
+- **`seance`** (`PlanSeanceDto`) : ≤ **3** items, **1 compétence = 1 slot**, minutes
+  **recalculées**. `PlanExerciseKind` gagne `TARGETED_QCM_SERIES` (+ `questionCount` sur
+  `PlanRecommendedExerciseDto`).
+  🛑 **La règle « sticky » n'a demandé AUCUN mécanisme** : les priorités ne trient que sur des
+  faits d'observation, une compétence n'en sort que lorsqu'elle est **réussie**, et
+  `PlanSeanceBuilder` ne reçoit ni `Clock` ni `LocalDate`. Ne pas créer de table « items du
+  jour » : elle serait une seconde source de vérité à réconcilier à chaque observation. Un
+  test **vieillit l'historique de 40 jours en base** et exige la même séance.
+- **`recentChanges`** : transitions **réelles** de l'état agrégé, mesurées en rejouant
+  `SkillMasteryEngine` sur l'historique arrêté au début de la fenêtre. **`null` = cas
+  normal.** Une **première mesure n'est jamais une transition** (sinon le bloc serait plein le
+  jour du diagnostic) ; une compétence sans observation dans la fenêtre n'est **pas examinée**.
+  Ne double pas `PlanChangeDto` (verdict d'**une** soumission vs état **agrégé** récent) :
+  grains différents, et le seul fait commun — la priorité n°1 — vient de la même autorité.
+- 🔴 **Trou corrigé** : une priorité de compréhension ressortait avec
+  `recommendedExercise == null`, donc **une carte sans action**. `RecommendedExerciseSelector`
+  (autorité existante, **pas** un 4ᵉ sélecteur) désigne désormais la série ciblée.
+- **Coût** : le Plan complet fait **19 requêtes, constantes** avec 2 ou 20 compétences
+  observées — verrouillé par deux tests qui comptent les statements. La passe séance +
+  changements a ajouté **zéro** requête.
+
+### Diagnostic progressif — 0/4 → 4/4
+Le socle existait aux trois quarts. Deux trous seulement ont été comblés :
+- `evaluated:false` était un constat **sans porte de sortie** → `domainesAEvaluer` (ci-dessus).
+- 🔴 Un candidat **EE + EO solides, compréhension jamais mesurée** — le cas que le brief §77
+  nomme mot pour mot — se voyait proposer l'**examen blanc complet à 2/4**. Le cycle était
+  irréprochable ; c'est l'échelle des **jalons** qui pouvait désigner cet examen sans regarder
+  le profil. Un `FULL_TCF_MOCK_EXAM` est désormais retiré tant que `profileComplete()` est
+  faux ; le jalon d'**une épreuve** survit (il ne prétend rien du palier).
+- **La variante rapide / complet n'est PAS persistée** : la seule différence est ce que le
+  front enchaîne après l'analyse, et le profil réel se lit sur les **domaines mesurés**. Une
+  colonne aurait affirmé « complet » sur un candidat arrêté après l'oral — et au moment du
+  choix le candidat est encore **invité**, aucune ligne ne pourrait la porter.
+- 🛑 **Le parcours de l'invité ne bouge pas d'une ligne** : productions côté client → compte →
+  analyse, puis **la compréhension seulement une fois connecté**. Un attempt sans compte n'a
+  personne à qui attribuer un progrès (`ComprehensionObservationService` l'ignore déjà, et
+  `TcfProfileService` lit par `user_id`) : un QCM d'invité serait **perdu par construction**.
+  Aucune session anonyme, `diagnostic_sessions.user_id` reste `NOT NULL`, funnel intact.
+
+### Écrans — ce qui n'a PAS été créé, et pourquoi
+La maquette appelle plusieurs écrans secondaires. **Créés** : fiche d'un domaine, « votre
+programme évolue », bilan d'une série ciblée (mobile). **Non créés, l'existant suffisait** :
+- **aucun runner de série ciblée** — c'est un `TRAINING` ordinaire, il part dans le runner QCM
+  existant (le brief interdit une seconde UX concurrente) ;
+- **aucun écran de vérification en situation** — un exercice `REASSESSMENT` porte déjà sa
+  `productionTaskId` + `tacheNumero` et réutilise le démarrage de production ;
+- les jalons ouvrent les examens blancs existants.
+⚠️ **Les écrans de résultat `AIFeedbackCard` / `MAIFeedback` de la maquette sont des
+VESTIGES** : note **/100 par critère**, critères « Prononciation » et « Fluidité ». Les
+reproduire contredirait deux règles écrites (note retirée d'une tâche isolée le 2026-08-08 ;
+interdiction de juger la prononciation depuis une transcription). La bonne référence est
+`WResultat.jsx`.
 
 ## Notation IA des productions EE/EO — repères
 
