@@ -984,6 +984,62 @@ interface LearningPlanSkillCounters {
 }
 
 /**
+ * **Ce que le Plan demande de faire** sur une entrée — la pastille d'une carte
+ * « Aujourd'hui » et d'une ligne de « Mes priorités ».
+ *
+ * Le Plan n'est pas seulement un moteur de **remédiation** : c'est un moteur de
+ * **progression vers le niveau visé**. Il savait réparer ce qui était fragile ;
+ * il ne savait pas **enseigner** ce qui n'avait jamais été travaillé.
+ *
+ * > `NON OBSERVÉ ≠ FAIBLE`, mais aussi `NON FRAGILE ≠ PLUS RIEN À APPRENDRE`.
+ *
+ * 🛑 **`A_ACQUERIR` ne se dit JAMAIS « à renforcer ».** Renforcer suppose un
+ * constat négatif ; sur une compétence jamais travaillée il n'y en a aucun.
+ * C'est une distinction de fond, pas de vocabulaire — et c'est elle que les
+ * écrans doivent rendre lisible.
+ *
+ * **L'ordre de déclaration EST l'ordre de choix** d'une séance : mesurer ce qui
+ * manque, réparer ce qui est fragile, vérifier ce qui est prêt, apprendre ce qui
+ * vient. Ne pas le réordonner.
+ *
+ * ⚠️ **Trois vocabulaires, trois grains — ils ne se remplacent pas.**
+ * `LearningPlanSkillStatus` est le verdict d'**une production** (persisté, sans
+ * libellé) · `SkillMasteryState` l'état **agrégé** d'une compétence (dérivé,
+ * affiché sur sa fiche) · `PlanActionNature` **l'action à faire maintenant**
+ * (dérivée, affichée sur la carte du Plan). `A_RENFORCER` et
+ * `SkillMasteryState.TO_REINFORCE` portent **volontairement** le même libellé —
+ * quand les deux s'appliquent ils disent la même chose, ils ne s'affichent
+ * simplement pas au même endroit. Idem pour « À évaluer », partagé avec
+ * `PlanDomainPriority.A_EVALUER`. Ce n'est **pas** une collision à corriger.
+ */
+export type PlanActionNature =
+    /** Une mesure manque et elle est indispensable : le candidat a produit sur
+     *  ce domaine et le correcteur n'a rien pu y observer. L'action n'est pas un
+     *  exercice mais une **évaluation** (`PlanSeanceItemDto.assessment`). */
+    | "A_EVALUER"
+    /** Une fragilité **réellement observée** : c'est ce qui bloque maintenant. */
+    | "A_RENFORCER"
+    /** L'étape est terminée et assez travaillée en ciblé : le Plan demande une
+     *  **vérification en situation** au lieu d'empiler des micro-sujets. */
+    | "A_VERIFIER"
+    /** **Une compétence du palier en construction, jamais travaillée.** Aucun
+     *  constat négatif ne la désigne : elle est là parce qu'elle appartient au
+     *  palier que le cycle construit. Elle n'est pas une observation — ni score,
+     *  ni moyenne, ni fragilité — d'où `masteryState: null`. */
+    | "A_ACQUERIR";
+
+/** Libellés FR des natures d'action (**contrat gelé** par `SkillLabelsTest`
+ *  côté backend, recopié à la main ici : un libellé qui bouge, ce sont quatre
+ *  fichiers à changer dans la même passe). Ne jamais recopier ces chaînes dans
+ *  un composant — c'est cette recopie qui avait fait diverger le web du mobile. */
+export const PLAN_ACTION_NATURE_LABEL: Record<PlanActionNature, string> = {
+    A_EVALUER: "À évaluer",
+    A_RENFORCER: "À renforcer",
+    A_VERIFIER: "À vérifier",
+    A_ACQUERIR: "À acquérir",
+};
+
+/**
  * Une priorité du Plan, c'est-à-dire une **étape**.
  *
  * ⚠️ **Deux jeux de compteurs, à ne jamais confondre.** Ceux de
@@ -999,11 +1055,30 @@ export interface LearningPlanPriorityDto extends LearningPlanSkillCounters, Skil
     skillCode: string;
     title: string;
     section: SkillSection;
-    status: LearningPlanSkillStatus;
+    /**
+     * **Ce que le Plan demande de faire** ici : `A_RENFORCER` (fragilité
+     * observée), `A_VERIFIER` (étape terminée, vérification en situation) ou
+     * `A_ACQUERIR` (compétence du palier en construction, **jamais
+     * travaillée**). Une priorité ne porte jamais `A_EVALUER` : mesurer un
+     * domaine n'est pas une étape de compétence, cela vit dans la séance et dans
+     * « Compléter mon profil ».
+     *
+     * 🛑 **Les écrans lisent cette nature, jamais la nullité d'un autre champ**
+     * — et une entrée `A_ACQUERIR` ne se présente **jamais** comme « à
+     * renforcer ».
+     */
+    nature: PlanActionNature;
+    /**
+     * Le verdict de la dernière production. **`null` sur une compétence à
+     * acquérir**, comme `explanation`, `evidence`, `confidence`, `observedAt` et
+     * `masteryState` : ce n'est pas un trou de donnée, c'est le fait même — rien
+     * n'a été constaté, donc rien n'a échoué. *null = inconnu, jamais mauvais.*
+     */
+    status: LearningPlanSkillStatus | null;
     explanation: string | null;
     evidence: string | null;
-    confidence: ObservationConfidence;
-    observedAt: string;
+    confidence: ObservationConfidence | null;
+    observedAt: string | null;
     /**
      * L'action courante de l'étape. Micro-sujet ou vérification en expression,
      * **série ciblée** sur une compétence de compréhension : le front lit
@@ -1342,33 +1417,35 @@ export interface PlanDomainAssessmentDto {
 /* ------------------------------------------------------------------ séance */
 
 /**
- * Un **entraînement** de la séance : l'action à faire, et les faits qui
- * expliquent pourquoi elle est là.
+ * Les faits communs à toute ligne de séance — ceux qui décrivent la compétence
+ * travaillée et où le candidat en est.
  *
  * 🛑 **Aucune phrase.** Le serveur expose des faits — combien de sujets traités
  * sur combien, si la compétence attend une vérification, quel palier elle
  * travaille — et les fronts composent « Pourquoi cette séance ? ».
  *
- * **Le bloc compétence est vide sur un jalon** (`skillId`, `skillCode`, `title`,
- * `section` à `null`) : un examen blanc ne travaille pas une compétence, il les
- * vérifie toutes. Les fronts lisent `exercise.kind`, **jamais** la nullité d'un
- * champ.
+ * **Le bloc compétence est vide sur un jalon comme sur une mesure** (`skillId`,
+ * `skillCode`, `title`, `section` à `null`) : un examen blanc ne travaille pas
+ * une compétence, il les vérifie toutes ; une mesure porte sur une **épreuve
+ * entière**. Les écrans lisent `nature`, **jamais** la nullité d'un champ.
  */
-export interface PlanSeanceItemDto {
-    /** L'action, **jamais `null`** : un item sans exercice n'est pas un
-     *  entraînement et n'entre pas dans la séance. */
-    exercise: PlanRecommendedExerciseDto;
+interface PlanSeanceItemBase {
+    /** **Ce que le Plan demande de faire** ici. Jamais `null`, et c'est le seul
+     *  champ à lire pour le savoir. */
+    nature: PlanActionNature;
     skillId: string | null;
     skillCode: string | null;
     title: string | null;
     section: SkillSection | null;
     /** Palier travaillé (`"A1"`..`"B2"`), renseigné en compréhension ; `null` en
-     *  expression et sur un jalon. **Chaîne** et non `TargetLevel` : le
-     *  référentiel des compétences descend jusqu'à `A1`. */
+     *  expression, sur un jalon et sur une mesure. **Chaîne** et non
+     *  `TargetLevel` : le référentiel des compétences descend jusqu'à `A1`. */
     level: string | null;
+    /** État agrégé, `null` sur un jalon, sur une mesure et sur une compétence
+     *  **jamais observée** (à acquérir). */
     masteryState: SkillMasteryState | null;
     /** Sujets de l'étape ; **`0` en compréhension**, qui n'a pas d'étape à cinq
-     *  sujets. */
+     *  sujets, et sur une mesure comme sur un jalon. */
     stepPromptCount: number;
     stepAttemptedCount: number;
     stepValidatedCount: number;
@@ -1379,7 +1456,7 @@ export interface PlanSeanceItemDto {
     locked: boolean;
     /**
      * **Date de la dernière activité sur cette compétence** (ISO), `null`
-     * quand elle n'a jamais été observée et sur un jalon.
+     * quand elle n'a jamais été observée, sur un jalon et sur une mesure.
      *
      * C'est un **fait**, pas un verdict : le serveur ne dit jamais « fait
      * aujourd'hui » — il n'a pas d'horloge dans la construction de la séance.
@@ -1395,6 +1472,47 @@ export interface PlanSeanceItemDto {
      */
     lastActivityAt: string | null;
 }
+
+/**
+ * Un **entraînement** de la séance : petit sujet ciblé, vérification en
+ * situation, série ciblée de compréhension ou jalon d'examen blanc.
+ */
+export interface PlanSeanceExerciseItemDto extends PlanSeanceItemBase {
+    nature: "A_RENFORCER" | "A_VERIFIER" | "A_ACQUERIR";
+    /** L'entraînement à lancer, **jamais `null`** sur cette variante. */
+    exercise: PlanRecommendedExerciseDto;
+    assessment: null;
+}
+
+/**
+ * Une **mesure de domaine** : le seul item de séance qui n'est pas un exercice.
+ *
+ * Le candidat a produit sur ce domaine et le correcteur n'a **rien pu y
+ * observer** ; lui proposer un micro-exercice de plus le ferait avancer à
+ * l'aveugle. La séance commence donc par « votre oral n'a pas pu être analysé,
+ * refaites-en un » — et cette ligne ne porte **aucune compétence** : c'est une
+ * épreuve entière qu'on vient mesurer.
+ *
+ * ⚠️ À distinguer d'un domaine **jamais** mesuré, qui vit dans
+ * `LearningPlanDto.domainesAEvaluer` (« Compléter mon profil »). Les deux
+ * ouvrent le même genre de parcours, mais ne disent pas la même chose : ici le
+ * candidat a déjà travaillé, c'est notre mesure qui a échoué.
+ */
+export interface PlanSeanceAssessmentItemDto extends PlanSeanceItemBase {
+    nature: "A_EVALUER";
+    exercise: null;
+    /** La mesure à lancer — le même contrat que « Compléter mon profil », donc
+     *  le même lanceur côté front (`usePlanAssessment`), jamais un second. */
+    assessment: PlanDomainAssessmentDto;
+}
+
+/**
+ * Une ligne de la séance. **Union discriminée par `nature`** : `exercise` et
+ * `assessment` sont **mutuellement exclusifs**, et c'est le type qui l'impose
+ * plutôt qu'une convention à relire — un écran qui oublierait la mesure ne
+ * compile pas.
+ */
+export type PlanSeanceItemDto = PlanSeanceExerciseItemDto | PlanSeanceAssessmentItemDto;
 
 /**
  * **La séance du jour** : au plus trois entraînements, dans l'ordre, et leur

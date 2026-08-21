@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/enums.dart';
@@ -99,6 +100,76 @@ class PlanDomainPriorityTag extends StatelessWidget {
   Widget build(BuildContext context) => AppTag(
         label: priority.label,
         tone: priority.tone,
+        compact: compact,
+      );
+}
+
+/// **Teinte et icône d'une nature d'action**, déclarées ici et nulle part
+/// ailleurs.
+///
+/// ⚠️ **Aucune teinte nouvelle** : on reprend `TagTone` / `AppColors`
+/// existants. Chaque nature a **sa** couleur, **son** icône et **son** libellé
+/// — les quatre pilules ne peuvent pas se confondre à l'œil :
+///
+/// - « À évaluer » — **neutre**, une loupe : on ne sait pas, et *inconnu n'est
+///   jamais mauvais* ;
+/// - « À renforcer » — **ambre**, une clé à molette : c'est une réparation.
+///   Même ton que `SkillMasteryState.toReinforce`, qui porte le même libellé —
+///   voulu, ils disent la même chose ;
+/// - « À vérifier » — **vert**, un badge coché : le travail est fait, il reste
+///   à le prouver en situation ;
+/// - « À acquérir » — **bleu**, une toque d'études : c'est un apprentissage
+///   neuf.
+///
+/// 🛑 **« À acquérir » ne peut pas se lire « à renforcer »** : autre constante,
+/// autre libellé (gelé serveur), autre teinte, autre icône, et une phrase
+/// dédiée sur la carte (`kPlanAcquisitionNote`). Aucun chemin de code ne
+/// traduit l'une en l'autre.
+extension PlanActionNatureStyle on PlanActionNature {
+  TagTone get tone => switch (this) {
+        PlanActionNature.aEvaluer => TagTone.neutral,
+        PlanActionNature.aRenforcer => TagTone.amber,
+        PlanActionNature.aVerifier => TagTone.success,
+        PlanActionNature.aAcquerir => TagTone.blue,
+      };
+
+  /// Pour les surfaces qui peignent un rang ou une bordure plutôt qu'une
+  /// pilule. L'ambre **de texte** passe par `amberDark` : `amber` est un ambre
+  /// de remplissage.
+  Color get color => switch (this) {
+        PlanActionNature.aEvaluer => AppColors.inkSoft,
+        PlanActionNature.aRenforcer => AppColors.amberDark,
+        PlanActionNature.aVerifier => AppColors.green,
+        PlanActionNature.aAcquerir => AppColors.blue,
+      };
+
+  IconData get icon => switch (this) {
+        PlanActionNature.aEvaluer => LucideIcons.search,
+        PlanActionNature.aRenforcer => LucideIcons.wrench,
+        PlanActionNature.aVerifier => LucideIcons.badgeCheck,
+        PlanActionNature.aAcquerir => LucideIcons.graduationCap,
+      };
+}
+
+/// La pilule de nature d'une entrée du Plan — **la pastille de la carte**.
+///
+/// Le libellé est **gelé côté serveur** (`PlanActionNature.getLabel()`),
+/// recopié dans l'enum : jamais une chaîne écrite ici.
+class PlanActionNatureTag extends StatelessWidget {
+  const PlanActionNatureTag({
+    super.key,
+    required this.nature,
+    this.compact = true,
+  });
+
+  final PlanActionNature nature;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) => AppTag(
+        label: nature.label,
+        tone: nature.tone,
+        icon: nature.icon,
         compact: compact,
       );
 }

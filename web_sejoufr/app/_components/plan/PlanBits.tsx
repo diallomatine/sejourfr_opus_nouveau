@@ -1,13 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import {BookOpen, Check, FilePenLine, Headphones, Lock, Mic} from "lucide-react";
+import {
+    BookOpen,
+    Check,
+    FilePenLine,
+    Gauge,
+    GraduationCap,
+    Headphones,
+    Lock,
+    Mic,
+    ShieldCheck,
+    Wrench,
+} from "lucide-react";
 import type {ReactNode} from "react";
 import {useAuth} from "@/lib/auth-context";
 import {useTrafficSourceHref} from "@/lib/use-traffic-source";
 import {
     canAccessModule,
+    PLAN_ACTION_NATURE_LABEL,
     PLAN_DOMAIN_PRIORITY_LABEL,
+    type PlanActionNature,
     type PlanCycleDto,
     type PlanDomainPriority,
     type PlanDomainTaskDto,
@@ -141,6 +154,40 @@ export function PlanDomainPriorityPill({priority}: {priority: PlanDomainPriority
         <span className={styles.domainPill} data-priority={priority}>
             {priority === "FORTE" && <span className={styles.domainPillDot} aria-hidden />}
             {PLAN_DOMAIN_PRIORITY_LABEL[priority]}
+        </span>
+    );
+}
+
+/**
+ * **Ce que le Plan demande de faire sur cette ligne** — la pastille d'une carte
+ * « Aujourd'hui » et d'une ligne de « Mes priorités ».
+ *
+ * 🛑 **Le libellé vient de `PLAN_ACTION_NATURE_LABEL`** (contrat gelé côté
+ * serveur par `SkillLabelsTest`), jamais d'une chaîne recopiée ici.
+ *
+ * 🛑 **« À acquérir » ne peut pas se lire « à renforcer » :** les deux natures
+ * ont un **libellé** distinct, une **icône** distincte et une **teinte**
+ * distincte. Une compétence à acquérir n'a rien d'observé — la teinte de
+ * fragilité (rouge) lui est donc interdite, et l'icône dit *apprendre*, pas
+ * *réparer*.
+ *
+ * ⚠️ À ne pas confondre avec `PlanDomainPriorityPill`, qui qualifie un
+ * **domaine** (une des quatre lignes du profil TCF) et jamais une action.
+ * `SkillMasteryPill`, lui, dit l'état **agrégé** d'une compétence sur sa fiche.
+ * Trois grains, trois endroits.
+ */
+const NATURE_ICONS: Record<PlanActionNature, ReactNode> = {
+    A_EVALUER: <Gauge size={12} strokeWidth={2.4} />,
+    A_RENFORCER: <Wrench size={12} strokeWidth={2.4} />,
+    A_VERIFIER: <ShieldCheck size={12} strokeWidth={2.4} />,
+    A_ACQUERIR: <GraduationCap size={12} strokeWidth={2.4} />,
+};
+
+export function PlanNaturePill({nature}: {nature: PlanActionNature}) {
+    return (
+        <span className={styles.naturePill} data-nature={nature}>
+            <span className={styles.naturePillIcon} aria-hidden>{NATURE_ICONS[nature]}</span>
+            {PLAN_ACTION_NATURE_LABEL[nature]}
         </span>
     );
 }

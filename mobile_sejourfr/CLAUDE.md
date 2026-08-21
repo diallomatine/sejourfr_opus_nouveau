@@ -1069,10 +1069,64 @@ mon profil** → **Mon chemin vers l'objectif** → liens secondaires.
   fait doit se dire pareil sur le Plan, sur la fiche d'un domaine et sur le bilan d'une
   série. Les libellés **gelés** (mastery, priorité de domaine, fenêtre de changements)
   restent ceux des enums, recopiés du serveur.
-- **`planSeanceDoneProvider`** (`plan_seance_state.dart`) coche les lignes de la séance :
-  marqueur **local, éphémère, sans persistance**, clé = la **compétence** (le sujet change
-  au recalcul, pas elle). Il ne décide de rien — ni du contenu de la séance, ni d'un verrou,
-  ni d'un compteur d'étape.
+- **`planSeanceItemDone`** (`plan_seance_state.dart`) coche les lignes de la séance à
+  partir de **deux faits servis** : l'étape est bouclée (`stepCompleted` sur ses 5 sujets),
+  **ou** `lastActivityAt` tombe aujourd'hui (**Europe/Paris**). 🛑 Le marqueur local
+  `planSeanceDoneProvider` est **supprimé** : il s'évaporait au rechargement et le même
+  candidat voyait deux séances selon l'appareil. Ne pas le réintroduire, et ne pas demander
+  au serveur un booléen « fait aujourd'hui » — il n'a pas d'horloge dans cette construction.
+
+### Trois natures d'action, trois lectures différentes (2026-08-21)
+
+`PlanActionNature` (`core/models/diagnostic_models.dart`, miroir de l'enum serveur, libellés
+**gelés par `SkillLabelsTest` et recopiés mot pour mot**) est servi sur
+`LearningPlanPriorityDto.nature` **et** `PlanSeanceItemDto.nature`. **C'est ce champ que les
+écrans lisent**, jamais la nullité d'un autre.
+
+- **`aEvaluer` « À évaluer »** — une mesure manque et elle est indispensable. Le seul item
+  de séance qui porte un **`assessment`** au lieu d'un `exercise` (les deux sont en **XOR**,
+  d'où `PlanSeanceItem.exercise` et `.kind` devenus **nullables**). Il ne porte **aucune
+  compétence** : c'est une épreuve entière qu'on vient observer. Il se lance par
+  **`openPlanAssessment`** (`plan_actions.dart`), l'autorité unique déjà en place — aucun
+  second chemin n'a été écrit.
+- **`aRenforcer` « À renforcer »** — une fragilité réellement observée. Même libellé que
+  `SkillMasteryState.toReinforce` : **voulu**, ils disent la même chose et ne s'affichent pas
+  au même endroit. Ce n'est pas une collision à corriger.
+- **`aVerifier` « À vérifier »** — l'étape est terminée, le Plan demande une vérification en
+  situation.
+- 🛑 **`aAcquerir` « À acquérir » ne se dit JAMAIS « à renforcer »** — c'est le cœur de la
+  passe. Une compétence du palier en construction, **jamais travaillée** : rien n'a été
+  observé, donc rien n'a échoué. Son `status`, son `explanation`, son `evidence`, sa
+  `confidence`, son `observedAt` et son `masteryState` valent **`null`** (les quatre premiers
+  sont devenus nullables sur `LearningPlanPriority`) — *null = inconnu, jamais mauvais*.
+
+**Ce qui rend la distinction impossible à confondre** (`PlanActionNatureStyle`,
+`widgets/plan_tokens.dart` — **seule** table de teintes, aucune couleur nouvelle) :
+libellé propre + teinte propre (neutre / ambre / vert / bleu) + icône propre (loupe / clé à
+molette / badge coché / toque d'études), et sur une carte `aAcquerir` la phrase
+`kPlanAcquisitionNote` **remplace** l'explication du correcteur, là où une fragilité affiche
+la sienne. Aucun chemin de code ne traduit une nature en une autre.
+
+- 🛑 **La pastille d'une carte du Plan porte la NATURE, plus l'état de maîtrise.**
+  `SkillMasteryState` décrit la compétence et reste sur **sa fiche** (et sur les paliers d'un
+  domaine) ; la nature décrit l'action et vit sur la carte. Sans ça une acquisition — qui
+  n'a **aucun** état de maîtrise — serait indiscernable d'une fragilité. La teinte du rang
+  de `_PriorityRow` suit la nature pour la même raison.
+- **Sur une ligne de séance, la nature et le domaine restent NETS même verrouillés** : ils
+  disent de quelle sorte d'action il s'agit, jamais ce qu'il y a à y faire. Le rideau ne
+  tombe que sur le titre et l'exercice.
+- 🔴 **La priorité n°1 n'est plus forcément accessible, et le héros le dit.**
+  `SkillAccessService` ouvre la première **fragilité observée** ; une compétence à acquérir
+  n'a aucun historique, donc n'y figure pas, et peut pourtant occuper la place n°1 chez un
+  candidat sans fragilité. Trois surfaces montraient alors en clair ce que « Mes priorités »
+  floutait — elles sont alignées : `PlanPriorityHero` passe son identité derrière
+  `BlurredContent` + `PremiumLockPill` quand `priority.locked`, `planSeanceRationale` ne
+  nomme plus une priorité verrouillée, et `PlanPriorityHomeCard` (accueil) retombe sur son
+  texte générique. **Le floutage lui-même n'a pas bougé** : toujours `BlurredContent` /
+  `PremiumLockPill`, toujours deux endroits qui floutent, toujours un `locked` **lu** par
+  élément.
+- Plafonds serveur : **3** items dans « Aujourd'hui », **5** dans « Mes priorités ». Ce sont
+  des plafonds — l'app affiche ce qui est servi et n'en fabrique jamais.
 
 **Écrans secondaires** (hors shell, poussés au-dessus de l'onglet) :
 

@@ -15,7 +15,6 @@ import '../../../core/widgets/blurred_content.dart';
 import '../../../core/widgets/list_group.dart';
 import '../../../core/widgets/premium_lock.dart';
 import '../../../core/widgets/pressable_card.dart';
-import '../../../core/widgets/skill_mastery_tag.dart';
 import '../plan_actions.dart';
 import '../plan_labels.dart';
 import '../plan_step_labels.dart';
@@ -141,8 +140,20 @@ final ButtonStyle _linkStyle = TextButton.styleFrom(
   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
 );
 
-/// Une priorité : son rang, sa compétence, son état de maîtrise et les points
-/// de son **étape** (les 5 premiers sujets, jamais les 15 de la compétence).
+/// Une priorité : son rang, sa compétence, **ce que le Plan demande d'y faire**
+/// et les points de son **étape** (les 5 premiers sujets, jamais les 15 de la
+/// compétence).
+///
+/// 🛑 **La pastille porte la NATURE de l'action, pas l'état de maîtrise.** Ce
+/// sont deux grains : l'état agrégé décrit la compétence et vit sur **sa
+/// fiche** ; la nature décrit ce qu'il y a à faire **maintenant** et vit ici.
+/// C'est ce qui rend visible la troisième catégorie : une compétence
+/// **à acquérir** n'a aucun état de maîtrise (rien n'a été observé), et sans
+/// cette pastille elle serait indiscernable d'une fragilité.
+///
+/// ⚠️ « À acquérir » ne se dit **jamais** « à renforcer » : elle porte son
+/// propre libellé, sa propre teinte, sa propre icône, et une ligne d'explication
+/// dédiée là où une fragilité affiche celle du correcteur.
 ///
 /// 🛑 **Verrouillée**, la ligne garde son rang net et passe sa compétence
 /// derrière un rideau de flou (`BlurredContent`) — c'est le **vrai** titre qui
@@ -165,8 +176,8 @@ class _PriorityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mastery = priority.masteryState;
     final locked = priority.locked;
+    final acquisition = priority.nature == PlanActionNature.aAcquerir;
 
     // Le **vrai** titre et la **vraie** compétence. Verrouillés, ils passent
     // derrière le rideau sans être remplacés par quoi que ce soit.
@@ -186,6 +197,20 @@ class _PriorityRow extends StatelessWidget {
           planSkillMeta(priority.skillCode, priority.section),
           style: AppFonts.ui(size: 12.5, color: AppColors.inkFaint),
         ),
+        // Là où une fragilité affiche l'explication du correcteur, une
+        // acquisition dit **ce qu'elle est** : une compétence jamais
+        // travaillée. Aucun mot de manque.
+        if (acquisition) ...[
+          const SizedBox(height: 4),
+          Text(
+            kPlanAcquisitionNote,
+            style: AppFonts.ui(
+              size: 12,
+              height: 1.35,
+              color: AppColors.inkSoft,
+            ),
+          ),
+        ],
       ],
     );
 
@@ -211,9 +236,10 @@ class _PriorityRow extends StatelessWidget {
               // pas ici.
               PlanRankBadge(
                 rank: rank,
-                tone: locked
-                    ? AppColors.inkFaint
-                    : mastery?.color ?? priority.status.color,
+                // La teinte du rang suit **l'action** : elle ne peut plus
+                // dépendre d'un statut d'observation, qui n'existe pas sur une
+                // compétence à acquérir.
+                tone: locked ? AppColors.inkFaint : priority.nature.color,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -231,14 +257,8 @@ class _PriorityRow extends StatelessWidget {
                         const SizedBox(width: 8),
                         if (locked)
                           const PremiumLockPill()
-                        else if (mastery != null)
-                          SkillMasteryTag(state: mastery, compact: true)
                         else
-                          AppTag(
-                            label: priority.status.label,
-                            tone: TagTone.neutral,
-                            compact: true,
-                          ),
+                          PlanActionNatureTag(nature: priority.nature),
                       ],
                     ),
                     if (!locked && priority.stepPromptCount > 0) ...[

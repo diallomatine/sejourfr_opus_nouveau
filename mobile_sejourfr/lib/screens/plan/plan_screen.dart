@@ -259,12 +259,16 @@ class _ActivePlan extends ConsumerWidget {
 
     if (pending.isNotEmpty) {
       final next = pending.first;
+      // Une **mesure** compte ses minutes comme le reste — et zéro quand elle
+      // n'en a pas (diagnostic, production : rien n'y est chronométré par
+      // épreuve), jamais un chiffre inventé.
       final minutes = pending.fold<int>(
         0,
         (sum, item) =>
             sum +
             (item.exercise?.estimatedMinutes ??
                 item.milestone?.estimatedMinutes ??
+                item.assessment?.estimatedMinutes ??
                 0),
       );
       final locked = planSeanceItemLocked(next);
@@ -514,9 +518,13 @@ class _WhyRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final milestone = item.milestone;
-    final minutes =
-        item.exercise?.estimatedMinutes ?? milestone?.estimatedMinutes ?? 0;
+    final assessment = item.assessment;
+    final minutes = item.exercise?.estimatedMinutes ??
+        milestone?.estimatedMinutes ??
+        assessment?.estimatedMinutes ??
+        0;
     final epreuve = milestone?.epreuve ??
+        assessment?.epreuve ??
         (item.section == null ? null : planEpreuveOfSection(item.section!));
     final locked = planSeanceItemLocked(item);
 
@@ -524,7 +532,7 @@ class _WhyRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          item.title ?? milestone?.displayTitle ?? 'Entraînement',
+          planItemTitle(item),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: AppFonts.ui(
@@ -535,7 +543,8 @@ class _WhyRow extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          '${planItemEyebrow(item)} · ${planItemKindLabel(item)}',
+          '${item.nature.label} · ${planItemEyebrow(item)} · '
+          '${planItemKindLabel(item)}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: AppFonts.ui(size: 12, color: AppColors.inkFaint),

@@ -68,12 +68,15 @@ Future<void> openPlanExercise(
 /// priorités » — la même compétence ne peut pas mener à deux écrans selon
 /// l'endroit où on la touche.
 ///
-/// Les deux autres natures gardent leur lancement direct, parce qu'elles n'ont
-/// pas de fiche à ouvrir : une **série ciblée** de compréhension part dans le
-/// runner QCM, un **jalon** ouvre son examen blanc. Une **vérification en
-/// situation** aussi : son sujet est une tâche de production qui ne fait pas
-/// partie des cinq de la fiche — l'y envoyer laisserait le candidat sans aucun
-/// moyen de la faire.
+/// Les autres natures gardent leur lancement direct, parce qu'elles n'ont pas
+/// de fiche à ouvrir : une **série ciblée** de compréhension part dans le
+/// runner QCM, un **jalon** ouvre son examen blanc, une **mesure de domaine**
+/// ouvre son parcours d'évaluation. Une **vérification en situation** aussi :
+/// son sujet est une tâche de production qui ne fait pas partie des cinq de la
+/// fiche — l'y envoyer laisserait le candidat sans aucun moyen de la faire.
+///
+/// ⚠️ Une compétence **à acquérir** est un micro-sujet comme un autre : elle
+/// ouvre sa fiche. Sa nature change ce que la carte **dit**, pas où elle mène.
 ///
 /// ⚠ Le verrou est **lu** ([planSeanceItemLocked]), jamais déduit du rang de la
 /// ligne : une action verrouillée ouvre l'offre au lieu d'être masquée.
@@ -107,6 +110,12 @@ Future<void> openPlanSeanceItem(
 ///
 /// C'est **le geste du bouton principal** : « Commencer ma séance » démarre
 /// l'entraînement, il n'ouvre pas une fiche.
+///
+/// 🛑 **Une ligne peut ne pas être un entraînement.** Un item
+/// [PlanActionNature.aEvaluer] porte une **mesure de domaine** et aucun
+/// exercice : il repart vers le parcours d'évaluation existant
+/// ([openPlanAssessment], l'autorité unique), jamais vers un second chemin
+/// écrit ici.
 Future<void> startPlanSeanceItem(
   BuildContext context,
   WidgetRef ref,
@@ -114,6 +123,11 @@ Future<void> startPlanSeanceItem(
 ) async {
   if (planSeanceItemLocked(item)) {
     await showTcfLockPaywall(context);
+    return;
+  }
+  final assessment = item.assessment;
+  if (item.nature.isAssessment && assessment != null) {
+    openPlanAssessment(context, assessment);
     return;
   }
   final exercise = item.exercise;

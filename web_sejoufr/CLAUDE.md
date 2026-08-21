@@ -850,6 +850,67 @@ jalon → *Mon profil TCF* → *Compléter mon profil* → *Mon chemin vers l'ob
 - `/statistiques` ouvre sur les 4 domaines (`PlanDomainsSummary`, Plan lu **en
   cache**, échec silencieux).
 
+### Trois natures d'action, pas une (2026-08-21)
+
+Le backend distingue **ce qu'il demande de faire** sur chaque entrée
+(`PlanActionNature`, `LearningPlanPriorityDto.nature` et `PlanSeanceItemDto
+.nature`). Le web le rend visible.
+
+- **Miroirs** : `PlanActionNature` + `PLAN_ACTION_NATURE_LABEL` dans
+  `lib/types.ts` (patron `PLAN_DOMAIN_PRIORITY_LABEL` — **contrat gelé** par
+  `SkillLabelsTest`, recopié à la main, jamais une chaîne dans un composant).
+  `LearningPlanPriorityDto` gagne `nature` et voit `status`, `confidence` et
+  `observedAt` devenir **nullables** : une compétence *à acquérir* n'a rien
+  d'observé, *null = inconnu, jamais mauvais*.
+- 🛑 **`A_ACQUERIR` ne se lit JAMAIS « à renforcer ».** Trois choses l'en
+  empêchent, et aucune ne repose sur la couleur seule : un **libellé** distinct,
+  une **icône** distincte (`GraduationCap`, apprendre — pas `Wrench`, réparer),
+  et une **teinte** distincte (bleu d'apprentissage ; le rouge de fragilité est
+  réservé à ce qui a été *observé* fragile). La phrase de la carte suit :
+  `PLAN_REASON_A_ACQUERIR` passe **avant** les compteurs d'étape, sinon « 0 sujet
+  sur 5 traité » se lirait comme un retard alors qu'il n'y avait rien à traiter.
+- **`PlanNaturePill`** (`PlanBits`) est la brique unique. Sur une **ligne de
+  priorité** elle remplace `SkillMasteryPill` : la ligne annonce une **action**,
+  et une compétence à acquérir n'a aucun état agrégé — elle n'affichait donc
+  rien du tout. L'état agrégé reste sur la **fiche** de la compétence : trois
+  grains (`LearningPlanSkillStatus` / `SkillMasteryState` / `PlanActionNature`),
+  trois endroits, ils ne se remplacent pas.
+- **`PlanSeanceItemDto` est une union discriminée par `nature`** :
+  `exercise` **XOR** `assessment`. Un item `A_EVALUER` n'est pas un entraînement
+  mais une **mesure de domaine** — `SeanceRow` aiguille vers
+  `SeanceAssessmentRow`, qui réutilise **`usePlanAssessment`**, le lanceur de
+  « Compléter mon profil ». 🛑 **Aucun second chemin de démarrage** : `startItem`
+  n'accepte plus que `PlanSeanceExerciseItemDto`, donc un écran qui oublierait la
+  mesure **ne compile pas**.
+  ⚠️ Une mesure n'est **jamais verrouillée** (le serveur ne pose aucun cadenas
+  dessus) : pas de `PlanBlur` sur cette ligne, et ce n'est pas un oubli.
+- **Plafonds serveur : 3 items dans « Aujourd'hui », 5 dans « Mes priorités ».**
+  Ce sont des **plafonds** : moins d'entrées est un cas normal, et le web ne
+  tronque **rien** à la source.
+- **Floutage inchangé** — on floute l'**action** pas encore accessible, jamais le
+  **résultat** mesuré. La nature vit **dans** le bloc floutable (elle décrit
+  l'action fermée) ; le domaine et le cadenas restent nets. Deux surfaces qui
+  pouvaient démentir le rideau ont été fermées dans la même passe :
+  **la fiche d'un domaine** (`/plan/domaine/[domaine]`), qui listait « Vos
+  priorités sur ce domaine » **en clair** — c'est la même liste que « Mes
+  priorités » —, et la **modale « Pourquoi cette séance ? »**, qui laissait la
+  durée d'un entraînement verrouillé en net.
+- **Le raccourci du dashboard suit le verrou** : « Commencer directement »
+  disparaît quand la priorité du jour est verrouillée (fréquent depuis que ce
+  peut être une compétence *à acquérir*, **désignée avec son `locked`** — le
+  serveur a vérifié qu'elle n'est pas ouverte par sa place n°1). « Continuer mon
+  plan » reste, il porte l'offre.
+- **Libellés créés** (miroirs mot pour mot du mobile) :
+  `PLAN_ASSESSMENT_ITEM_TITLE` (les 4 domaines), `PLAN_REASON_A_EVALUER`,
+  `PLAN_REASON_A_ACQUERIR`, `PLAN_REASON_A_VERIFIER`, `PLAN_REASON_MILESTONE`,
+  plus `PLAN_LOCKED_SEANCE_LABEL` / `PLAN_LOCKED_PRIORITY_LABEL` **déplacés**
+  dans `lib/plan-domain.ts` — la fiche d'un domaine ferme ses lignes avec les
+  mêmes mots que le Plan.
+- **Audience : aucun événement ajouté**, y compris sur la fiche de domaine (dont
+  les lignes verrouillées mènent à l'offre sans mesure propre — mélanger deux
+  provenances dans `DIAGNOSTIC_TO_PREMIUM_CLICKED` rendrait le compteur
+  illisible).
+
 ## Diagnostic TCF initial + Plan (2026-08-09)
 
 - **Le backend décide du parcours** : `DiagnosticResponse.status` et

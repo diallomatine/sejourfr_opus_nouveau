@@ -8,7 +8,6 @@ import '../../../core/widgets/blurred_content.dart';
 import '../../../core/widgets/premium_lock.dart';
 import '../plan_actions.dart';
 import '../plan_labels.dart';
-import '../plan_milestone_labels.dart';
 import '../plan_seance_state.dart';
 import 'plan_tokens.dart';
 
@@ -151,10 +150,16 @@ class _SeanceRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final milestone = item.milestone;
-    final minutes =
-        item.exercise?.estimatedMinutes ?? milestone?.estimatedMinutes ?? 0;
-    final title = item.title ?? milestone?.displayTitle ?? 'Entraînement';
+    final assessment = item.assessment;
+    final minutes = item.exercise?.estimatedMinutes ??
+        milestone?.estimatedMinutes ??
+        assessment?.estimatedMinutes ??
+        0;
+    final title = planItemTitle(item);
+    // Une **mesure** porte son épreuve ; un jalon la sienne ; un entraînement
+    // la déduit de la section de sa compétence.
     final epreuve = milestone?.epreuve ??
+        assessment?.epreuve ??
         (item.section == null ? null : planEpreuveOfSection(item.section!));
 
     // Le contenu **réel** de la ligne. Verrouillé, il passe derrière le rideau
@@ -162,11 +167,6 @@ class _SeanceRow extends ConsumerWidget {
     final Widget body = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          planItemEyebrow(item),
-          style: AppFonts.label(size: 11.5, color: AppColors.inkFaint),
-        ),
-        const SizedBox(height: 3),
         Text(
           title,
           maxLines: 2,
@@ -209,7 +209,37 @@ class _SeanceRow extends ConsumerWidget {
                 // épreuve relève la ligne, pas ce qu'on y ferait.
                 PlanDomainTile(epreuve: epreuve, filled: !done),
                 const SizedBox(width: 12),
-                Expanded(child: _locked ? BlurredContent(child: body) : body),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 🛑 **La nature et le domaine restent NETS**, même
+                      // verrouillés : ils disent de quelle sorte d'action il
+                      // s'agit et de quelle épreuve elle relève, jamais ce
+                      // qu'il y a à y faire. Le rideau ne tombe que sur le
+                      // contenu — titre et exercice.
+                      Row(
+                        children: [
+                          PlanActionNatureTag(nature: item.nature),
+                          const SizedBox(width: 7),
+                          Flexible(
+                            child: Text(
+                              planItemEyebrow(item),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppFonts.label(
+                                size: 11.5,
+                                color: AppColors.inkFaint,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      _locked ? BlurredContent(child: body) : body,
+                    ],
+                  ),
+                ),
                 const SizedBox(width: 8),
                 if (_locked)
                   const PremiumLockPill()

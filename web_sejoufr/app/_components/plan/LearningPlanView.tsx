@@ -47,10 +47,15 @@ import {
   planAssessmentMeta,
   planCycleLine,
   planDomainHref,
+  PLAN_LOCKED_PRIORITY_LABEL,
+  PLAN_LOCKED_SEANCE_LABEL,
+  PLAN_REASON_A_ACQUERIR,
+  PLAN_REASON_A_VERIFIER,
   planDomainLabel,
   planDomainLevelLine,
   planItemEyebrow,
-  planItemNature,
+  planItemMeta,
+  planItemMinutes,
   planItemReason,
   planItemTitle,
   planPathTitle,
@@ -74,6 +79,7 @@ import {
   PlanDots,
   PlanFreeBar,
   PlanLevelRail,
+  PlanNaturePill,
   PlanPathList,
 } from "./PlanBits";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
@@ -91,6 +97,8 @@ import {
   type LearningPlanSkillDto,
   type PlanDomainAssessmentDto,
   type PlanDomainDto,
+  type PlanSeanceAssessmentItemDto,
+  type PlanSeanceExerciseItemDto,
   type PlanSeanceItemDto,
   PLAN_RECENT_CHANGES_WINDOW_LABEL,
 } from "@/lib/types";
@@ -126,19 +134,6 @@ function trackPremiumClick() {
 function usePremiumHref(): string {
   return useTrafficSourceHref(SKILL_PREMIUM_HREF);
 }
-
-/**
- * Ce que porte une ligne verrouillée, dit **net**.
- *
- * Le contenu réel part sous `PlanBlur`, donc hors de l'arbre d'accessibilité :
- * sans ces deux phrases, la ligne n'aurait plus de nom accessible du tout. Elles
- * ne divulguent rien de ce que le flou cache — elles disent qu'il y a quelque
- * chose et comment l'ouvrir, ce qui reste vrai pour tout le monde.
- */
-const PLAN_LOCKED_SEANCE_LABEL =
-  "Entraînement réservé à l'abonnement. Ouvrir l'offre pour le débloquer.";
-const PLAN_LOCKED_PRIORITY_LABEL =
-  "Priorité réservée à l'abonnement. Ouvrir l'offre pour la débloquer.";
 
 function plural(count: number): string {
   return count > 1 ? "s" : "";
@@ -387,7 +382,7 @@ function PriorityCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void})
     : check
       ? "Vérifier ma progression"
       : exercise
-        ? `Commencer · ${exercise.estimatedMinutes} min`
+        ? `${priority.nature === "A_ACQUERIR" ? "Découvrir" : "Commencer"} · ${exercise.estimatedMinutes} min`
         : "Ouvrir l'épreuve";
 
   return (
@@ -400,6 +395,12 @@ function PriorityCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void})
             {priority.section} · {taskLabel}
           </span>
         </div>
+        {/* Ce que le Plan demande de faire ici. Une compétence **à acquérir**
+            n'a rien d'observé : la pastille est la seule chose qui empêche cette
+            carte de se lire comme une fragilité. */}
+        <span className={styles.priorityNature}>
+          <PlanNaturePill nature={priority.nature} />
+        </span>
         <p className={styles.priorityText}>{priorityReason(priority)}</p>
         <div className={styles.priorityFoot}>
           <span className={styles.priorityGoal}>
@@ -454,11 +455,17 @@ function PriorityCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void})
 /** Pourquoi cette compétence est en tête : **des compteurs servis**, pas un
  *  jugement. L'explication de l'observation (`priority.explanation`) reste
  *  volontairement absente — elle raconte le passé sur une carte qui annonce
- *  l'action. */
+ *  l'action.
+ *
+ *  🛑 **La nature passe avant les compteurs.** Sur une compétence à acquérir,
+ *  « 0 sujet sur 5 traité » se lirait comme un retard alors qu'il n'y a rien
+ *  eu à traiter : on dit ce qui est vrai — rien n'a été constaté, il reste à
+ *  l'apprendre. */
 function priorityReason(priority: LearningPlanPriorityDto): string {
   const state = masteryLabel(priority.masteryState);
+  if (priority.nature === "A_ACQUERIR") return PLAN_REASON_A_ACQUERIR;
   if (priority.readyForReassessment) {
-    return "Assez travaillée en exercice ciblé : il reste à le prouver sur une vraie tâche, en situation.";
+    return PLAN_REASON_A_VERIFIER;
   }
   if (priority.stepPromptCount > 0) {
     const done = `${priority.stepAttemptedCount} sujet${plural(priority.stepAttemptedCount)} sur ${priority.stepPromptCount} traité${plural(priority.stepAttemptedCount)} dans cette étape`;
@@ -526,23 +533,47 @@ function SeanceCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void}) {
   );
 }
 
+/**
+ * Une ligne de la séance. **Deux natures d'action, deux lanceurs** : un
+ * entraînement part chez `usePlanExercise`, une **mesure de domaine** chez
+ * `usePlanAssessment` — celui qui sert déjà « Compléter mon profil ». On lit
+ * `item.nature`, jamais la nullité d'un champ.
+ */
 function SeanceRow({item}: {item: PlanSeanceItemDto}) {
+  if (item.exercise === null) return <SeanceAssessmentRow item={item} />;
+  return <SeanceExerciseRow item={item} />;
+}
+
+/**
+ * Les trois lignes de texte d'un item — le contenu **RÉEL**, qu'il soit servi
+ * net ou flouté. Rien n'est fabriqué pour remplir le flou.
+ *
+ * La **nature** y figure : c'est elle qui distingue « à acquérir » (rien n'a été
+ * constaté, il reste à apprendre) de « à renforcer » (une fragilité observée).
+ * Elle vit **dans** le bloc floutable, comme le titre et la meta : elle décrit
+ * l'action fermée, et l'information qui reste vraie pour tout le monde (le
+ * domaine, le cadenas) vit à côté.
+ */
+function SeanceText({item, done}: {item: PlanSeanceItemDto; done: boolean}) {
+  return (
+    <>
+      <span className={styles.seanceEyebrow}>
+        {planItemEyebrow(item)}
+        <PlanNaturePill nature={item.nature} />
+      </span>
+      <span className={styles.seanceTitle} data-done={done ? "1" : "0"}>
+        {planItemTitle(item)}
+      </span>
+      <span className={styles.seanceMeta}>{planItemMeta(item)}</span>
+    </>
+  );
+}
+
+function SeanceExerciseRow({item}: {item: PlanSeanceExerciseItemDto}) {
   const premiumHref = usePremiumHref();
   const {startItem, starting, error, paywallOpen, closePaywall} = usePlanExercise();
   const done = planSeanceItemDone(item);
   const epreuve = itemEpreuve(item);
-
-  /** Les trois lignes de texte de l'item — le contenu RÉEL, qu'il soit servi
-   *  net ou flouté. Rien n'est fabriqué pour remplir le flou. */
-  const text = (
-    <>
-      <span className={styles.seanceEyebrow}>{planItemEyebrow(item)}</span>
-      <span className={styles.seanceTitle} data-done={done ? "1" : "0"}>{planItemTitle(item)}</span>
-      <span className={styles.seanceMeta}>
-        {planItemNature(item)} · {item.exercise.estimatedMinutes} min
-      </span>
-    </>
-  );
 
   /* L'icône de domaine reste NETTE même verrouillée, comme dans la maquette :
      elle dit de quelle épreuve relève la ligne, pas ce qu'il y a à y faire. */
@@ -555,7 +586,7 @@ function SeanceRow({item}: {item: PlanSeanceItemDto}) {
           {icon}
           <span className={styles.seanceBody}>
             <span className={styles.srOnly}>{PLAN_LOCKED_SEANCE_LABEL}</span>
-            <PlanBlur>{text}</PlanBlur>
+            <PlanBlur><SeanceText item={item} done={done} /></PlanBlur>
           </span>
           <SkillLockBadge />
         </Link>
@@ -570,7 +601,7 @@ function SeanceRow({item}: {item: PlanSeanceItemDto}) {
           }}
         >
           {icon}
-          <span className={styles.seanceBody}>{text}</span>
+          <span className={styles.seanceBody}><SeanceText item={item} done={done} /></span>
           {done ? (
             <span className={styles.seanceDone} aria-label="Étape terminée"><Check size={15} strokeWidth={3} aria-hidden /></span>
           ) : (
@@ -578,6 +609,37 @@ function SeanceRow({item}: {item: PlanSeanceItemDto}) {
           )}
         </button>
       )}
+      {error && <p className={styles.milestoneError} role="alert">{error}</p>}
+      <PaywallSheet open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
+    </li>
+  );
+}
+
+/**
+ * **Une mesure de domaine, pas un entraînement.** Le candidat a produit sur ce
+ * domaine et le correcteur n'a rien pu y observer : lui empiler un exercice de
+ * plus le ferait avancer à l'aveugle, donc la séance commence par le mesurer.
+ *
+ * ⚠️ **Elle n'est jamais verrouillée** — c'est la porte de sortie d'un profil
+ * incomplet, et le serveur ne pose aucun cadenas dessus. Pas de `PlanBlur` ici,
+ * donc, et ce n'est pas un oubli.
+ */
+function SeanceAssessmentRow({item}: {item: PlanSeanceAssessmentItemDto}) {
+  const {start, starting, error, paywallOpen, closePaywall} = usePlanAssessment();
+  const busy = starting === item.assessment.epreuve;
+
+  return (
+    <li className={styles.seanceItem} data-done="0">
+      <button
+        type="button"
+        className={styles.seanceRow}
+        disabled={busy}
+        onClick={() => void start(item.assessment)}
+      >
+        <PlanDomainIcon epreuve={itemEpreuve(item)} active />
+        <span className={styles.seanceBody}><SeanceText item={item} done={false} /></span>
+        {busy ? <span className={styles.seanceMeta}>Démarrage…</span> : <RowChevron />}
+      </button>
       {error && <p className={styles.milestoneError} role="alert">{error}</p>}
       <PaywallSheet open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
     </li>
@@ -669,7 +731,14 @@ function PriorityRow({
             <span>{priority.stepAttemptedCount} / {priority.stepPromptCount}</span>
           </span>
         )}
-        {locked ? <SkillLockBadge /> : <SkillMasteryPill state={priority.masteryState} />}
+        {/* 🛑 **La nature, pas l'état agrégé.** Une ligne de « Mes priorités »
+            annonce une ACTION : `A_VERIFIER` dit « à vérifier » là où l'état
+            dirait « en consolidation », et une compétence **à acquérir** n'a
+            aucun état (`masteryState` nul) — elle n'affichait donc rien du
+            tout, ce qui la rendait indistinguable d'une fragilité. L'état
+            agrégé reste sur la fiche de la compétence, où il décrit son
+            historique. */}
+        {locked ? <SkillLockBadge /> : <PlanNaturePill nature={priority.nature} />}
         <RowChevron />
       </Link>
     </li>
@@ -1005,6 +1074,7 @@ function WhyModal({plan, onClose}: {plan: LearningPlanDto; onClose: () => void})
         {items.length > 0 && (
           <ul className={styles.modalList}>
             {items.map((item) => {
+              const minutes = planItemMinutes(item);
               const text = (
                 <>
                   <b>{planItemTitle(item)}</b>
@@ -1028,7 +1098,12 @@ function WhyModal({plan, onClose}: {plan: LearningPlanDto; onClose: () => void})
                       text
                     )}
                   </span>
-                  <span className={styles.modalMinutes}>{item.exercise.estimatedMinutes} min</span>
+                  {/* 🛑 Rien de net sur une ligne floutée : la durée d'un
+                      entraînement verrouillé est une information de plus sur ce
+                      qu'on ne peut pas encore ouvrir. */}
+                  {!item.locked && minutes !== null && (
+                    <span className={styles.modalMinutes}>{minutes} min</span>
+                  )}
                 </li>
               );
             })}

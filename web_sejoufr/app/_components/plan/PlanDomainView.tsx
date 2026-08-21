@@ -13,6 +13,7 @@ import {
   PLAN_COMPLETE_PROFILE_NOTE,
   PLAN_DOMAIN_SECTION,
   PLAN_DOMAIN_NOT_EVALUATED,
+  PLAN_LOCKED_PRIORITY_LABEL,
   planActivePriorities,
   planAssessmentCta,
   planAssessmentMeta,
@@ -21,16 +22,23 @@ import {
   planSkillHref,
   planSkillMeta,
 } from "@/lib/plan-domain";
-import {PlanDomainIcon, PlanDomainPriorityPill, PlanTaskRow} from "./PlanBits";
+import {PlanBlur, PlanDomainIcon, PlanDomainPriorityPill, PlanNaturePill, PlanTaskRow} from "./PlanBits";
 import {BlockHead, EmptyCard, PlanShell} from "./LearningPlanView";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 import {
   type LearningPlanDto,
+  type LearningPlanPriorityDto,
   type PlanDomainDto,
   type PlanDomainLevelDto,
 } from "@/lib/types";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
-import {RowChevron, SkillMasteryPill} from "@/app/_components/skill-ui/SkillLayout";
+import {
+  RowChevron,
+  SkillLockBadge,
+  SkillMasteryPill,
+  SKILL_PREMIUM_HREF,
+} from "@/app/_components/skill-ui/SkillLayout";
+import {useTrafficSourceHref} from "@/lib/use-traffic-source";
 import styles from "./plan.module.css";
 
 /**
@@ -249,19 +257,7 @@ function DomainDetail({plan, domain}: {plan: LearningPlanDto; domain: PlanDomain
               />
               <ul className={styles.panelList}>
                 {priorities.map((priority) => (
-                  <li key={priority.skillId}>
-                    <Link
-                      className={styles.panelRow}
-                      href={planSkillHref(priority, {planStep: true})}
-                    >
-                      <span className={styles.panelBody}>
-                        <span className={styles.panelTitle}>{priority.title}</span>
-                        <span className={styles.panelMeta}>{planSkillMeta(priority)}</span>
-                      </span>
-                      <SkillMasteryPill state={priority.masteryState} />
-                      <RowChevron />
-                    </Link>
-                  </li>
+                  <DomainPriorityRow key={priority.skillId} priority={priority} />
                 ))}
               </ul>
             </section>
@@ -271,6 +267,52 @@ function DomainDetail({plan, domain}: {plan: LearningPlanDto; domain: PlanDomain
         <PaywallSheet open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
       </div>
     </PlanShell>
+  );
+}
+
+/**
+ * Une priorité du domaine — **exactement la même ligne que sur le Plan**, verrou
+ * compris.
+ *
+ * 🛑 **C'est la MÊME liste** que « Mes priorités » : la montrer en clair ici
+ * démentirait le flou posé là-bas. Le piège s'est déjà présenté plusieurs fois
+ * dans ce chantier (la carte de tête du rapport de diagnostic, la modale
+ * « Pourquoi cette séance ? » et sa jumelle mobile) — d'où la reprise du même
+ * `PlanBlur`, du même libellé accessible et du même renvoi vers l'offre.
+ *
+ * La **nature** remplace l'état agrégé, comme sur le Plan : une compétence à
+ * acquérir n'a aucun état, et n'affichait donc rien du tout.
+ */
+function DomainPriorityRow({priority}: {priority: LearningPlanPriorityDto}) {
+  const premiumHref = useTrafficSourceHref(SKILL_PREMIUM_HREF);
+  const locked = priority.locked;
+  const text = (
+    <>
+      <span className={styles.panelTitle}>{priority.title}</span>
+      <span className={styles.panelMeta}>{planSkillMeta(priority)}</span>
+    </>
+  );
+
+  return (
+    <li>
+      <Link
+        className={styles.panelRow}
+        href={locked ? premiumHref : planSkillHref(priority, {planStep: true})}
+      >
+        <span className={styles.panelBody}>
+          {locked ? (
+            <>
+              <span className={styles.srOnly}>{PLAN_LOCKED_PRIORITY_LABEL}</span>
+              <PlanBlur>{text}</PlanBlur>
+            </>
+          ) : (
+            text
+          )}
+        </span>
+        {locked ? <SkillLockBadge /> : <PlanNaturePill nature={priority.nature} />}
+        <RowChevron />
+      </Link>
+    </li>
   );
 }
 

@@ -84,6 +84,17 @@ enum LearningPlanSkillStatus {
         (status) => status.wire == value,
         orElse: () => LearningPlanSkillStatus.notObserved,
       );
+
+  /// `null` quand rien n'est servi : une compétence **à acquérir** n'a aucun
+  /// verdict, et lui prêter `NOT_OBSERVED` reviendrait à inventer une
+  /// observation qui n'a jamais eu lieu.
+  static LearningPlanSkillStatus? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final status in LearningPlanSkillStatus.values) {
+      if (status.wire == value) return status;
+    }
+    return null;
+  }
 }
 
 /// D'où vient une observation du Plan.
@@ -178,6 +189,85 @@ enum PlanExerciseKind {
       this == PlanExerciseKind.fullTcfMockExam;
 }
 
+/// **Ce que le Plan demande de faire** sur une entrée — la pastille d'une carte
+/// « Aujourd'hui » et d'une carte « Mes priorités ». Miroir de
+/// `PlanActionNature`.
+///
+/// Le Plan n'est pas seulement un moteur de **remédiation** : c'est un moteur
+/// de **progression vers le niveau visé**. Il savait réparer ce qui était
+/// fragile ; il ne savait pas **enseigner** ce qui n'avait jamais été
+/// travaillé. [aAcquerir] est exactement cette troisième catégorie :
+/// *non observé ≠ faible*, et *non fragile ≠ plus rien à apprendre*.
+///
+/// 🛑 **[aAcquerir] ne se dit JAMAIS « à renforcer ».** Renforcer suppose un
+/// constat négatif ; sur une compétence jamais travaillée il n'y en a aucun.
+/// Les deux natures ont leur propre constante, leur propre libellé, leur propre
+/// teinte et leur propre icône : aucun chemin de code ne peut faire lire l'une
+/// comme l'autre.
+///
+/// **Trois vocabulaires, trois grains — ils ne se remplacent pas.**
+/// [LearningPlanSkillStatus] est le verdict d'**une production** (persisté,
+/// sans surface) ; `SkillMasteryState` est l'état **agrégé** d'une compétence,
+/// affiché sur **sa fiche** ; celui-ci est l'**action à faire maintenant**,
+/// affichée sur **la carte du Plan**. [aRenforcer] et
+/// `SkillMasteryState.toReinforce` portent volontairement le même libellé —
+/// quand les deux s'appliquent ils disent la même chose, ils ne s'affichent
+/// simplement pas au même endroit. Ce n'est pas une collision à corriger.
+///
+/// **L'ordre de déclaration EST l'ordre de choix** d'une séance : mesurer ce
+/// qui manque, réparer ce qui est fragile, vérifier ce qui est prêt, apprendre
+/// ce qui vient. Ne pas le réordonner.
+///
+/// Libellés **gelés côté serveur** (`PlanActionNature.getLabel()`, figés par
+/// `SkillLabelsTest`), recopiés mot pour mot — jamais une chaîne écrite dans un
+/// widget.
+enum PlanActionNature {
+  /// Une mesure manque, et elle est **indispensable** : le candidat a produit
+  /// sur ce domaine et le correcteur n'a rien pu y observer. L'action n'est
+  /// alors **pas un exercice** mais une [PlanDomainAssessment] — c'est la
+  /// seule nature qui porte `assessment` au lieu de `exercise`.
+  aEvaluer('A_EVALUER', 'À évaluer'),
+
+  /// Une fragilité **réellement observée** : c'est ce qui bloque maintenant.
+  aRenforcer('A_RENFORCER', 'À renforcer'),
+
+  /// L'étape est terminée et le moteur juge la compétence prête : le Plan
+  /// demande une **vérification en situation** plutôt qu'un micro-sujet de
+  /// plus.
+  aVerifier('A_VERIFIER', 'À vérifier'),
+
+  /// **Une compétence du palier en construction, jamais travaillée.** Aucun
+  /// constat négatif ne la désigne : elle est là parce qu'elle appartient au
+  /// palier que le cycle construit et que le candidat ne l'a pas encore
+  /// abordée. Rien n'est observé dessus — `status`, `explanation`, `evidence`,
+  /// `confidence`, `observedAt` et `masteryState` valent `null`, et c'est le
+  /// fait même : *null = inconnu, jamais mauvais*.
+  aAcquerir('A_ACQUERIR', 'À acquérir');
+
+  const PlanActionNature(this.wire, this.label);
+
+  final String wire;
+  final String label;
+
+  static PlanActionNature? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final nature in PlanActionNature.values) {
+      if (nature.wire == value) return nature;
+    }
+    return null;
+  }
+
+  /// Valeur absente ou inconnue ⇒ [aRenforcer] : c'est le **comportement
+  /// historique**, avant que cette nature existe toute priorité était une
+  /// fragilité observée. Une acquisition, elle, est toujours nommée par le
+  /// serveur — elle ne peut donc pas tomber dans ce repli.
+  static PlanActionNature fromWire(String? value) =>
+      fromWireNullable(value) ?? PlanActionNature.aRenforcer;
+
+  /// L'action est une **mesure de domaine**, pas un entraînement.
+  bool get isAssessment => this == PlanActionNature.aEvaluer;
+}
+
 enum ObservationConfidence {
   low('LOW'),
   medium('MEDIUM'),
@@ -192,6 +282,16 @@ enum ObservationConfidence {
         (confidence) => confidence.wire == value,
         orElse: () => ObservationConfidence.low,
       );
+
+  /// `null` quand rien n'est servi — une compétence jamais observée n'a pas de
+  /// « confiance basse », elle n'a **pas de confiance du tout**.
+  static ObservationConfidence? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final confidence in ObservationConfidence.values) {
+      if (confidence.wire == value) return confidence;
+    }
+    return null;
+  }
 }
 
 enum DiagnosticTaskCompletion {
@@ -786,9 +886,10 @@ class LearningPlanPriority {
     required this.skillCode,
     required this.title,
     required this.section,
-    required this.status,
-    required this.confidence,
-    required this.observedAt,
+    required this.nature,
+    this.status,
+    this.confidence,
+    this.observedAt,
     this.explanation,
     this.evidence,
     this.recommendedExercise,
@@ -809,11 +910,32 @@ class LearningPlanPriority {
   final String skillCode;
   final String title;
   final SkillSection section;
-  final LearningPlanSkillStatus status;
+
+  /// **Ce que le Plan demande de faire ici** — réparer une fragilité, vérifier
+  /// une étape terminée, ou **acquérir** une compétence du palier en
+  /// construction. C'est **ce champ** que les écrans lisent pour qualifier la
+  /// carte, jamais la nullité d'un autre.
+  ///
+  /// 🛑 Une entrée [PlanActionNature.aAcquerir] n'a **rien d'observé** : ni
+  /// [status], ni [explanation], ni [evidence], ni [confidence], ni
+  /// [observedAt], ni [masteryState]. Ce n'est pas un trou de donnée, c'est le
+  /// fait même — rien n'a été constaté, donc rien n'a échoué.
+  final PlanActionNature nature;
+
+  /// Verdict de la **dernière production** observée. `null` sur une compétence
+  /// jamais travaillée ([PlanActionNature.aAcquerir]) : on n'invente pas un
+  /// verdict pour remplir un champ.
+  final LearningPlanSkillStatus? status;
   final String? explanation;
   final String? evidence;
-  final ObservationConfidence confidence;
-  final DateTime observedAt;
+
+  /// Certitude du correcteur sur cette observation. `null` quand il n'y en a
+  /// aucune.
+  final ObservationConfidence? confidence;
+
+  /// Date de la dernière observation probante. `null` quand la compétence n'a
+  /// jamais été observée.
+  final DateTime? observedAt;
   final PlanRecommendedExercise? recommendedExercise;
 
   /// Compteurs de petits sujets de la compétence, **servis par le serveur** —
@@ -870,16 +992,14 @@ class LearningPlanPriority {
         skillCode: json['skillCode'] as String? ?? '',
         title: json['title'] as String? ?? '',
         section: SkillSection.fromWire(json['section'] as String),
-        status: LearningPlanSkillStatus.fromWire(
-          json['status'] as String? ?? 'NOT_OBSERVED',
-        ),
+        nature: PlanActionNature.fromWire(json['nature'] as String?),
+        status:
+            LearningPlanSkillStatus.fromWireNullable(json['status'] as String?),
         explanation: _trimmedOrNull(json['explanation']),
         evidence: _trimmedOrNull(json['evidence']),
-        confidence: ObservationConfidence.fromWire(
-          json['confidence'] as String? ?? 'LOW',
-        ),
-        observedAt: _date(json['observedAt']) ??
-            DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        confidence:
+            ObservationConfidence.fromWireNullable(json['confidence'] as String?),
+        observedAt: _date(json['observedAt']),
         recommendedExercise: json['recommendedExercise'] == null
             ? null
             : PlanRecommendedExercise.fromJson(
@@ -1509,20 +1629,29 @@ class PlanSeance {
 /// de l'étape, attente d'une vérification, palier travaillé, état de maîtrise —
 /// et c'est le front qui compose « Pourquoi cette séance ? ».
 ///
-/// **Le bloc compétence est vide sur un jalon** : un examen blanc ne travaille
-/// pas une compétence, il les vérifie toutes. On lit [kind], jamais la nullité
+/// **Une seule action par item** : soit un [exercise] (ou son [milestone]),
+/// soit un [assessment], jamais les deux. Un item [PlanActionNature.aEvaluer]
+/// est le seul à porter le second — c'est ce qui permet à la séance de
+/// commencer par « votre oral n'a pas pu être analysé, refaites-en un » au lieu
+/// d'empiler des micro-exercices sur le domaine qu'on sait déjà mesurer.
+///
+/// **Le bloc compétence est vide sur un jalon comme sur une mesure** : un
+/// examen blanc ne travaille pas une compétence, il les vérifie toutes ; une
+/// mesure porte sur une **épreuve entière**. On lit [nature], jamais la nullité
 /// d'un champ.
 class PlanSeanceItem {
   const PlanSeanceItem({
-    required this.kind,
+    required this.nature,
     required this.stepPromptCount,
     required this.stepAttemptedCount,
     required this.stepValidatedCount,
     required this.stepCompleted,
     required this.readyForReassessment,
     required this.locked,
+    this.kind,
     this.exercise,
     this.milestone,
+    this.assessment,
     this.lastActivityAt,
     this.skillId,
     this.skillCode,
@@ -1532,13 +1661,26 @@ class PlanSeanceItem {
     this.masteryState,
   });
 
-  /// La nature de l'action. **C'est ce champ qu'on lit** pour router et pour
-  /// composer le « pourquoi ».
-  final PlanExerciseKind kind;
+  /// **Ce que le Plan demande de faire ici.** C'est ce champ qu'on lit pour
+  /// qualifier la ligne et pour composer le « pourquoi » — jamais la nullité
+  /// d'un autre.
+  final PlanActionNature nature;
+
+  /// La nature de l'**exercice**, quand il y en a un. `null` sur une mesure de
+  /// domaine ([PlanActionNature.aEvaluer]), qui n'est pas un entraînement.
+  final PlanExerciseKind? kind;
 
   /// L'action quand ce n'en est **pas** un jalon (micro-exercice, vérification
-  /// en situation, série ciblée). `null` sur un jalon.
+  /// en situation, série ciblée). `null` sur un jalon et sur une mesure.
   final PlanRecommendedExercise? exercise;
+
+  /// La **mesure** à lancer, renseignée sur le seul
+  /// [PlanActionNature.aEvaluer] : le candidat a rendu une production sur ce
+  /// domaine et le correcteur n'a rien pu y observer. On ne lui propose pas un
+  /// exercice de plus, on va le mesurer.
+  ///
+  /// Exclusif de [exercise] et de [milestone].
+  final PlanDomainAssessment? assessment;
 
   /// L'action quand c'en **est** un jalon (examen blanc d'épreuve ou complet).
   /// `null` sinon. Deux classes plutôt qu'une parce qu'un jalon ne porte ni
@@ -1589,15 +1731,34 @@ class PlanSeanceItem {
   /// correcteur n'a rien pu observer, mais le candidat a bien travaillé.
   final DateTime? lastActivityAt;
 
+  /// `null` quand l'item ne porte **aucune** action — ni exercice, ni mesure.
+  /// Une ligne sans rien à faire n'est pas un entraînement : on l'écarte.
   static PlanSeanceItem? fromJsonOrNull(Map<String, dynamic> json) {
     final raw = json['exercise'];
-    if (raw is! Map<String, dynamic>) return null;
-    final kind = PlanExerciseKind.fromWire(raw['kind'] as String?);
+    final rawAssessment = json['assessment'];
+    final exercise = raw is Map<String, dynamic> ? raw : null;
+    final assessment = rawAssessment is Map<String, dynamic>
+        ? PlanDomainAssessment.fromJson(rawAssessment)
+        : null;
+    if (exercise == null && assessment == null) return null;
+    final kind = exercise == null
+        ? null
+        : PlanExerciseKind.fromWire(exercise['kind'] as String?);
     return PlanSeanceItem(
+      // Une mesure de domaine sur un serveur qui ne nommerait pas encore la
+      // nature reste une mesure : c'est le champ `assessment` qui la porte.
+      nature: PlanActionNature.fromWireNullable(json['nature'] as String?) ??
+          (assessment != null
+              ? PlanActionNature.aEvaluer
+              : PlanActionNature.aRenforcer),
       kind: kind,
-      exercise:
-          kind.isMilestone ? null : PlanRecommendedExercise.fromJson(raw),
-      milestone: kind.isMilestone ? PlanMilestone.fromJsonOrNull(raw) : null,
+      exercise: exercise == null || kind == null || kind.isMilestone
+          ? null
+          : PlanRecommendedExercise.fromJson(exercise),
+      milestone: exercise == null || kind == null || !kind.isMilestone
+          ? null
+          : PlanMilestone.fromJsonOrNull(exercise),
+      assessment: assessment,
       skillId: json['skillId'] as String?,
       skillCode: json['skillCode'] as String?,
       title: json['title'] as String?,

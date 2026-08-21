@@ -321,6 +321,32 @@
   text-wrap: pretty;
 }
 
+/* Sur l'aplat bleu, la pastille de nature s'inverse : fond clair, teinte de la
+   nature en texte. Les quatre restent donc **distinctes** là aussi — la seule
+   chose qu'on ne peut pas se permettre, c'est que « à acquérir » et « à
+   renforcer » se ressemblent. */
+.priorityNature {
+  display: block;
+  margin-top: 12px;
+}
+
+.priorityNature .naturePill {
+  background: var(--plan-surface);
+  color: var(--color-ink-2);
+}
+
+.priorityNature .naturePill[data-nature="A_RENFORCER"] {
+  color: var(--color-red-dark);
+}
+
+.priorityNature .naturePill[data-nature="A_VERIFIER"] {
+  color: var(--color-green);
+}
+
+.priorityNature .naturePill[data-nature="A_ACQUERIR"] {
+  color: var(--color-blue);
+}
+
 .priorityTag {
   display: inline-flex;
   align-items: center;
@@ -496,12 +522,26 @@
 }
 
 .seanceEyebrow {
+  /* Le repère de domaine et la nature de l'action sur la même ligne ; elles
+     passent l'une sous l'autre sous 360 px plutôt que de rogner le titre. */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   color: var(--color-muted);
   font-family: var(--font-mono);
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+/* La pastille de nature garde la fonte d'interface : elle porte un libellé
+   gelé, pas un repère technique. */
+.seanceEyebrow .naturePill {
+  font-family: var(--font-sans);
+  letter-spacing: -0.005em;
+  text-transform: none;
 }
 
 .seanceTitle {
@@ -1129,6 +1169,60 @@
 .domainPill[data-priority="ENTRETIEN"] {
   background: var(--plan-green-tint);
   color: var(--color-green);
+}
+
+/* --------------------------------------------- nature d'une action du Plan
+
+   Quatre natures, quatre lectures — et surtout **« à acquérir » ne doit jamais
+   se lire comme « à renforcer »** : la teinte de fragilité (rouge) est réservée
+   à ce qui a été **observé** fragile. Une compétence jamais travaillée prend la
+   teinte d'apprentissage (bleue), et une mesure manquante reste **neutre** :
+   *null = inconnu, jamais mauvais*.
+
+   La couleur ne porte jamais seule : chaque pastille a aussi son libellé gelé
+   et son icône. */
+
+.naturePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--plan-surface-3);
+  color: var(--color-muted);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+
+.naturePillIcon {
+  display: inline-flex;
+}
+
+/* Mesurer : neutre. Il manque une donnée, ce n'est pas un défaut. */
+.naturePill[data-nature="A_EVALUER"] {
+  background: var(--plan-surface-3);
+  color: var(--color-ink-2);
+}
+
+/* Réparer : la seule teinte de fragilité, et elle suppose un constat. */
+.naturePill[data-nature="A_RENFORCER"] {
+  background: var(--plan-red-tint);
+  color: var(--color-red-dark);
+}
+
+/* Vérifier : le travail est fait, il reste à le prouver. */
+.naturePill[data-nature="A_VERIFIER"] {
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+}
+
+/* Apprendre : rien n'a échoué ici. */
+.naturePill[data-nature="A_ACQUERIR"] {
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
 }
 
 .domainPillDot {

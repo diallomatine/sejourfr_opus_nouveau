@@ -9,7 +9,7 @@ import {planSkillHref} from "@/lib/plan-domain";
 import type {
     PlanDomainAssessmentDto,
     PlanRecommendedExerciseDto,
-    PlanSeanceItemDto,
+    PlanSeanceExerciseItemDto,
 } from "@/lib/types";
 import {EE_CONFIG, EO_CONFIG} from "@/app/_components/production/config";
 
@@ -139,9 +139,14 @@ export function usePlanExercise() {
      * `TRAINING`, un **jalon** ouvre son examen blanc. Elles n'ont pas de fiche
      * à ouvrir — une compétence de compréhension n'a aucun petit sujet, et un
      * examen blanc ne travaille aucune compétence en particulier.
+     *
+     * 🛑 **Un item `A_EVALUER` n'entre pas ici** : ce n'est pas un exercice mais
+     * une **mesure de domaine**, et elle se lance par `usePlanAssessment` — le
+     * lanceur qui sert déjà « Compléter mon profil ». Le type l'impose : un
+     * second chemin de démarrage finirait par diverger de celui-là.
      */
     const startItem = useCallback(
-        async (item: PlanSeanceItemDto) => {
+        async (item: PlanSeanceExerciseItemDto) => {
             const exercise = item.exercise;
             if (exercise.kind === "MICRO_TRAINING" || exercise.kind === "REASSESSMENT") {
                 setError(null);
@@ -162,9 +167,14 @@ export function usePlanExercise() {
 }
 
 /**
- * Démarre l'un des parcours de **mesure** d'un domaine (« Compléter mon
- * profil »). Trois natures, trois parcours existants — et là encore, aucun
- * contenu créé.
+ * Démarre l'un des parcours de **mesure** d'un domaine. Trois natures, trois
+ * parcours existants — et là encore, aucun contenu créé.
+ *
+ * **Deux appelants, un seul lanceur** : « Compléter mon profil » (un domaine
+ * *jamais* mesuré) et la ligne `A_EVALUER` de la **séance** (un domaine
+ * travaillé dont la production n'a rien pu montrer). Les deux ouvrent le même
+ * genre de parcours et portent le même DTO ; en écrire un second aurait fini
+ * par les faire diverger.
  */
 export function usePlanAssessment() {
     const router = useRouter();

@@ -325,6 +325,13 @@ function DashboardPlanCard({
 
     const priority = plan?.currentPriority ?? null;
     const exercise = priority?.recommendedExercise ?? null;
+    /* 🛑 **Un raccourci verrouillé n'en est pas un.** La priorité du jour peut
+       être une compétence **à acquérir** — désignée avec son `locked`, le
+       serveur ayant vérifié qu'elle n'est pas ouverte par sa place n°1 —, et
+       « Commencer directement » enverrait alors un compte gratuit droit sur un
+       403. Le Plan, lui, reste ouvert : on garde « Continuer mon plan », qui
+       porte le cadenas et l'offre. */
+    const startable = Boolean(exercise) && !priority?.locked && !exercise?.locked;
     return (
         <section className="dash-plan-card dash-plan-card-active" aria-labelledby="dash-plan-title">
             <span className="dash-plan-icon" aria-hidden><Target size={24}/></span>
@@ -340,7 +347,9 @@ function DashboardPlanCard({
             </div>
             <div className="dash-plan-actions">
                 <Link href="/plan" className="dash-cta">Continuer mon plan <ArrowRight size={15} aria-hidden/></Link>
-                {exercise && <Link href={recommendedExerciseHref(exercise)}>Commencer directement</Link>}
+                {startable && exercise && (
+                    <Link href={recommendedExerciseHref(exercise)}>Commencer directement</Link>
+                )}
             </div>
         </section>
     );

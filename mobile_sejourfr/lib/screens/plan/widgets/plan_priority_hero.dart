@@ -5,8 +5,10 @@ import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/blurred_content.dart';
 import '../../../core/widgets/gradient_hero.dart';
 import '../../../core/widgets/premium_lock.dart';
+import '../plan_labels.dart';
 import 'plan_tokens.dart';
 
 /// **La priorité actuelle** : ce que le Plan travaille en ce moment, et le seul
@@ -16,6 +18,15 @@ import 'plan_tokens.dart';
 /// paliers lit le cycle. L'objectif est **nullable** — sans démarche déclarée,
 /// la ligne « Objectif » disparaît au lieu d'annoncer un B2 qui n'a été
 /// demandé par personne.
+///
+/// 🛑 **La priorité n°1 n'est plus forcément accessible.** Elle l'était tant
+/// que le Plan ne savait que réparer : `SkillAccessService` ouvre la première
+/// **fragilité observée**. Une compétence **à acquérir** ne l'est pas — elle
+/// n'a aucun historique, donc elle ne peut pas y figurer — et peut pourtant
+/// occuper la place n°1 chez un candidat sans fragilité. Quand elle est
+/// verrouillée, son identité passe **derrière le même rideau** que dans « Mes
+/// priorités » : deux surfaces qui montrent la même compétence ne peuvent pas
+/// dire deux choses différentes.
 class PlanPriorityHero extends StatelessWidget {
   const PlanPriorityHero({
     super.key,
@@ -45,6 +56,17 @@ class PlanPriorityHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final current = priority;
     final white = AppColors.white;
+    // Le verrou de la **compétence**, distinct de celui du bouton : la séance
+    // peut proposer autre chose que la priorité n°1.
+    final identityLocked = current?.locked ?? false;
+    // Une acquisition n'a pas d'explication de correcteur : rien n'a été
+    // observé. On dit ce qu'elle est, jamais qu'il y aurait un manque.
+    final String? note = current == null
+        ? null
+        : current.explanation ??
+            (current.nature == PlanActionNature.aAcquerir
+                ? kPlanAcquisitionNote
+                : null);
     return GradientHero(
       padding: const EdgeInsets.fromLTRB(18, 17, 18, 16),
       child: Column(
@@ -66,33 +88,48 @@ class PlanPriorityHero extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              if (ctaLocked) const PremiumLockTag(),
+              // La **nature** de l'action, à côté du rappel de verrou : deux
+              // informations distinctes — ce qu'il y a à faire, et si on peut
+              // encore le faire.
+              if (current != null) PlanActionNatureTag(nature: current.nature),
+              if (ctaLocked) ...[
+                if (current != null) const SizedBox(width: 6),
+                const PremiumLockTag(),
+              ],
             ],
           ),
           const SizedBox(height: 9),
-          Text(
-            current?.title ?? 'Votre prochaine priorité se prépare',
-            style: AppFonts.display(size: 21, height: 1.15, color: white),
+          _HeroIdentity(
+            locked: identityLocked,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  current?.title ?? 'Votre prochaine priorité se prépare',
+                  style: AppFonts.display(size: 21, height: 1.15, color: white),
+                ),
+                if (current != null) ...[
+                  const SizedBox(height: 9),
+                  _HeroChip(
+                    label: current.skillCode.isEmpty
+                        ? current.section.label
+                        : '${current.skillCode} · ${current.section.label}',
+                  ),
+                ],
+                if (note != null) ...[
+                  const SizedBox(height: 11),
+                  Text(
+                    note,
+                    style: AppFonts.ui(
+                      size: 13.5,
+                      height: 1.5,
+                      color: white.withValues(alpha: 0.92),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
-          if (current != null) ...[
-            const SizedBox(height: 9),
-            _HeroChip(
-              label: current.skillCode.isEmpty
-                  ? current.section.label
-                  : '${current.skillCode} · ${current.section.label}',
-            ),
-          ],
-          if (current?.explanation != null) ...[
-            const SizedBox(height: 11),
-            Text(
-              current!.explanation!,
-              style: AppFonts.ui(
-                size: 13.5,
-                height: 1.5,
-                color: white.withValues(alpha: 0.92),
-              ),
-            ),
-          ],
           if (objective != null) ...[
             const SizedBox(height: 13),
             Container(
@@ -146,6 +183,30 @@ class PlanPriorityHero extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// L'identité de la priorité — titre, compétence, explication. Verrouillée,
+/// elle passe derrière **le même rideau** que la ligne correspondante de « Mes
+/// priorités » : `BlurredContent`, jamais un décor fabriqué, et le cadenas
+/// posé à côté porte la sémantique que le flou retire.
+class _HeroIdentity extends StatelessWidget {
+  const _HeroIdentity({required this.locked, required this.child});
+
+  final bool locked;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!locked) return child;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: BlurredContent(child: child)),
+        const SizedBox(width: 10),
+        const PremiumLockPill(),
+      ],
     );
   }
 }

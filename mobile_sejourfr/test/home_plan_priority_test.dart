@@ -93,6 +93,7 @@ final _livePlan = LearningPlan(
     skillCode: 'EO_LIVE',
     title: 'Priorité mise à jour après entraînement',
     section: SkillSection.eo,
+    nature: PlanActionNature.aRenforcer,
     status: LearningPlanSkillStatus.priority,
     confidence: ObservationConfidence.high,
     observedAt: DateTime.utc(2026, 8, 9),

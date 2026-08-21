@@ -596,8 +596,13 @@ class PlanPriorityHomeCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final livePriority =
-        ref.watch(learningPlanProvider).valueOrNull?.currentPriority;
+    final live = ref.watch(learningPlanProvider).valueOrNull?.currentPriority;
+    // 🛑 Une priorité **verrouillée** n'est jamais nommée ici. Depuis que le
+    // Plan sait aussi désigner une compétence **à acquérir** — que la règle
+    // « la priorité n°1 est ouverte » ne déverrouille pas —, la priorité n°1
+    // peut porter un cadenas ; l'écrire en clair sur l'accueil démentirait le
+    // rideau posé sur la même compétence dans « Mes priorités ».
+    final livePriority = live != null && !live.locked ? live : null;
     final priorities = journey.result?.priorities ?? const [];
     final diagnosticPriority = priorities.isEmpty ? null : priorities.first;
     final title = livePriority?.title ?? diagnosticPriority?.skillTitle;

@@ -211,6 +211,7 @@ LearningPlanPriority _priority({
       skillCode: '${section.wire}1-C1',
       title: title,
       section: section,
+      nature: PlanActionNature.aRenforcer,
       status: LearningPlanSkillStatus.priority,
       confidence: ObservationConfidence.high,
       observedAt: DateTime.utc(2026, 8, 9),

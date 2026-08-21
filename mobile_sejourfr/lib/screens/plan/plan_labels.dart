@@ -21,6 +21,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/skill_models.dart';
+import 'plan_milestone_labels.dart';
 
 /* ------------------------------------------------------------- les domaines */
 
@@ -179,6 +180,20 @@ const String kPlanSeanceEmpty =
 const String kPlanSeanceRestart = 'Refaire ma séance';
 const String kPlanSeanceStart = 'Commencer ma séance';
 
+/// Pourquoi une **mesure** passe devant tout le reste.
+const String kPlanSeanceAssessmentLine =
+    'Une de vos productions n\'a pas pu être analysée : votre séance commence '
+    'par la mesurer, sinon tout ce qui suit avance à l\'aveugle.';
+
+/// Pourquoi une compétence **jamais travaillée** figure dans la séance.
+///
+/// 🛑 Aucun mot de manque, aucun reproche : rien n'a été observé sur elle, donc
+/// rien n'a échoué. Miroir mot pour mot du web.
+const String kPlanSeanceAcquisitionLine =
+    'Certaines lignes portent des compétences que vous n\'avez encore jamais '
+    'travaillées : il n\'y a rien à y réparer, elles font partie du palier que '
+    'votre plan construit.';
+
 /// « 3 entraînements · environ 24 min ». Le total est **recalculé serveur**, on
 /// l'affiche tel quel.
 String planSeanceMeta(PlanSeance seance) {
@@ -189,16 +204,64 @@ String planSeanceMeta(PlanSeance seance) {
 
 /// Ce qu'est un item de la séance, en une formule. C'est la **nature** de
 /// l'action, jamais un jugement sur le candidat.
-String planItemKindLabel(PlanSeanceItem item) => switch (item.kind) {
-      PlanExerciseKind.microTraining => 'Petit sujet ciblé',
-      PlanExerciseKind.reassessment => 'Vérification en situation',
-      PlanExerciseKind.targetedQcmSeries => planSeriesLabel(
-          item.exercise?.questionCount,
-        ),
-      PlanExerciseKind.epreuveMockExam ||
-      PlanExerciseKind.fullTcfMockExam =>
-        'Examen blanc',
+///
+/// Une **mesure de domaine** n'est pas un entraînement : elle annonce le
+/// parcours qu'elle ouvre (`planAssessmentLabel`), pas un exercice.
+String planItemKindLabel(PlanSeanceItem item) {
+  final assessment = item.assessment;
+  if (assessment != null) return planAssessmentLabel(assessment);
+  return switch (item.kind) {
+    PlanExerciseKind.microTraining => 'Petit sujet ciblé',
+    PlanExerciseKind.reassessment => 'Vérification en situation',
+    PlanExerciseKind.targetedQcmSeries => planSeriesLabel(
+        item.exercise?.questionCount,
+      ),
+    PlanExerciseKind.epreuveMockExam ||
+    PlanExerciseKind.fullTcfMockExam =>
+      'Examen blanc',
+    // Une ligne sans exercice ni mesure n'existe pas (elle est écartée au
+    // parsing) : ce repli n'est là que pour garder le `switch` total.
+    null => item.nature.label,
+  };
+}
+
+/// **Le titre d'une ligne de séance**, quelle que soit sa nature — déclaré une
+/// seule fois parce que la carte « Aujourd'hui » et la feuille « Pourquoi cette
+/// séance ? » affichent la **même** ligne. Deux copies auraient fini par
+/// nommer deux choses différentes.
+///
+/// Une compétence porte son titre ; un **jalon** n'en a pas et prend celui de
+/// son examen ; une **mesure de domaine** prend celui de l'épreuve qu'elle vient
+/// observer.
+String planItemTitle(PlanSeanceItem item) {
+  final title = item.title;
+  if (title != null && title.isNotEmpty) return title;
+  final assessment = item.assessment;
+  if (assessment != null) return planAssessmentTitle(assessment.epreuve);
+  return item.milestone?.displayTitle ?? kPlanItemFallbackTitle;
+}
+
+const String kPlanItemFallbackTitle = 'Entraînement';
+
+/// « Compléter mon évaluation d'expression orale » — ce que le candidat vient
+/// **mesurer**, jamais un exercice de plus. Le domaine vient du serveur ; la
+/// phrase est d'ici, comme toutes celles de la séance.
+String planAssessmentTitle(EpreuveType epreuve) => switch (epreuve) {
+      EpreuveType.tcfEe => 'Compléter mon évaluation d\'expression écrite',
+      EpreuveType.tcfEo => 'Compléter mon évaluation d\'expression orale',
+      EpreuveType.tcfCo => 'Compléter mon évaluation de compréhension orale',
+      EpreuveType.tcfCe => 'Compléter mon évaluation de compréhension écrite',
+      _ => 'Compléter mon évaluation',
     };
+
+/// La ligne qui explique une carte **à acquérir**, là où une fragilité aurait
+/// eu l'explication servie par le correcteur.
+///
+/// 🛑 Elle ne dit **jamais** qu'il y a un manque à réparer : rien n'a été
+/// observé, donc rien n'a échoué. Miroir mot pour mot du web.
+const String kPlanAcquisitionNote =
+    'Nouvelle compétence de votre palier : vous ne l\'avez encore jamais '
+    'travaillée.';
 
 /// « Série de 20 questions » — la taille est **décidée serveur**. Sans elle, on
 /// ne l'invente pas.
@@ -214,6 +277,8 @@ String planSeriesLabel(int? questionCount) => questionCount == null
 String planItemEyebrow(PlanSeanceItem item) {
   final milestone = item.milestone;
   if (milestone != null) return planDomainShort(milestone.epreuve);
+  final assessment = item.assessment;
+  if (assessment != null) return planDomainShort(assessment.epreuve);
   final section = item.section?.wire ?? '—';
   final level = item.level;
   return level == null ? section : '$section · $level';
@@ -230,13 +295,29 @@ List<String> planSeanceRationale(LearningPlan plan) {
     return lines;
   }
 
+  // 🛑 La priorité n°1 n'est nommée que si elle est **accessible**. Une
+  // compétence « à acquérir » n'est pas déverrouillée par sa place n°1 : elle
+  // peut donc être floutée dans « Mes priorités », et l'écrire en clair ici
+  // démentirait le rideau posé deux blocs plus haut.
   final priority = plan.currentPriority;
-  if (priority != null) {
+  if (priority != null && !priority.locked) {
     lines.add(
       'Votre priorité n°1 est « ${priority.title} » : c\'est elle qui ouvre '
       'votre séance, parce que c\'est elle qui vous fera progresser le plus '
       'vite.',
     );
+  }
+
+  // Une mesure ouvre la séance : tant qu'un domaine travaillé n'a pas pu être
+  // observé, les exercices qui suivent avancent à l'aveugle.
+  if (seance.items.any((i) => i.nature == PlanActionNature.aEvaluer)) {
+    lines.add(kPlanSeanceAssessmentLine);
+  }
+
+  // 🛑 « À acquérir » ne se dit jamais « à renforcer » : on le redit ici, là où
+  // le candidat demande précisément pourquoi cette ligne est là.
+  if (seance.items.any((i) => i.nature == PlanActionNature.aAcquerir)) {
+    lines.add(kPlanSeanceAcquisitionLine);
   }
 
   final comprehension =

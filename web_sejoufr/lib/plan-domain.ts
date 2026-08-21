@@ -206,19 +206,39 @@ export function planAssessmentCta(assessment: PlanDomainAssessmentDto): string {
     return "Passer l'examen blanc";
 }
 
+/** Le parcours **réel** qu'ouvre une mesure, nommé tel quel. Aucun contenu
+ *  n'est créé : chacune de ces trois natures existe déjà. */
+export function planAssessmentNature(assessment: PlanDomainAssessmentDto): string {
+    if (assessment.kind === "DIAGNOSTIC") return "Diagnostic";
+    if (assessment.kind === "PRODUCTION") return "Production complète";
+    return `Examen blanc n°${assessment.slotNumber ?? 1}`;
+}
+
 /** Le repère factuel de la ligne : la nature du passage et sa durée quand elle
  *  en a une (le diagnostic et une production ne sont pas chronométrés par
  *  épreuve — on n'écrit alors aucune minute). */
 export function planAssessmentMeta(assessment: PlanDomainAssessmentDto): string {
-    const nature = assessment.kind === "DIAGNOSTIC"
-        ? "Diagnostic"
-        : assessment.kind === "PRODUCTION"
-            ? "Production complète"
-            : `Examen blanc n°${assessment.slotNumber ?? 1}`;
+    const nature = planAssessmentNature(assessment);
     return assessment.estimatedMinutes
         ? `${nature} · ≈ ${assessment.estimatedMinutes} min`
         : nature;
 }
+
+/* ------------------------------------------------------------ lignes fermées
+
+   Ce que porte une ligne verrouillée, dit **net**. Le contenu réel part sous
+   `PlanBlur`, donc hors de l'arbre d'accessibilité : sans ces deux phrases, la
+   ligne n'aurait plus de nom accessible du tout. Elles ne divulguent rien de ce
+   que le flou cache — elles disent qu'il y a quelque chose et comment l'ouvrir,
+   ce qui reste vrai pour tout le monde.
+
+   🛑 Déclarées ici, jamais recopiées dans un composant : la fiche d'un domaine
+   liste les mêmes priorités que le Plan et doit les fermer de la même façon. */
+
+export const PLAN_LOCKED_SEANCE_LABEL =
+    "Entraînement réservé à l'abonnement. Ouvrir l'offre pour le débloquer.";
+export const PLAN_LOCKED_PRIORITY_LABEL =
+    "Priorité réservée à l'abonnement. Ouvrir l'offre pour la débloquer.";
 
 /* ------------------------------------------------------------------ séance */
 
@@ -240,9 +260,52 @@ export function planSeanceMeta(items: number, minutes: number): string {
     return `${items} entraînement${items > 1 ? "s" : ""} · environ ${minutes} min`;
 }
 
-/** Ce que fait un item, en trois mots — la **nature** de l'action, lue sur
- *  `exercise.kind` et jamais devinée d'un identifiant nul. */
+/**
+ * **Le titre d'une ligne de mesure.** Elle ne porte aucune compétence : ce
+ * qu'on vient mesurer, c'est une **épreuve entière**, et son nom est donc celui
+ * du domaine.
+ *
+ * ⚠️ **Miroir mot pour mot du mobile** (`planAssessmentTitle`,
+ * `plan_labels.dart`) — ces chaînes ne transitent pas par le réseau, chaque
+ * front en tient sa copie.
+ */
+export const PLAN_ASSESSMENT_ITEM_TITLE: Record<PlanDomainEpreuve, string> = {
+    TCF_EE: "Compléter mon évaluation d'expression écrite",
+    TCF_EO: "Compléter mon évaluation d'expression orale",
+    TCF_CO: "Compléter mon évaluation de compréhension orale",
+    TCF_CE: "Compléter mon évaluation de compréhension écrite",
+};
+
+export function planAssessmentItemTitle(assessment: PlanDomainAssessmentDto): string {
+    return PLAN_ASSESSMENT_ITEM_TITLE[assessment.epreuve];
+}
+
+/* Les quatre « pourquoi » d'une ligne, déclarés une fois.
+
+   🛑 Aucun ne nomme une faute : `A_EVALUER` dit qu'il manque une **mesure**,
+   `A_ACQUERIR` qu'il reste quelque chose à **apprendre** — et surtout **pas**
+   qu'il y aurait quelque chose à réparer.
+
+   ⚠️ Les deux premiers sont des **miroirs mot pour mot du mobile**
+   (`kPlanSeanceAssessmentLine`, `kPlanAcquisitionNote`). Le mobile les rend une
+   fois par séance, dans sa feuille de justification ; le web les rend sur la
+   ligne concernée, dans la modale « Pourquoi cette séance ? ». Mêmes phrases,
+   deux surfaces qui n'ont pas la même forme. */
+export const PLAN_REASON_A_EVALUER =
+    "Une de vos productions n'a pas pu être analysée : votre séance commence par la mesurer, "
+    + "sinon tout ce qui suit avance à l'aveugle.";
+export const PLAN_REASON_A_ACQUERIR =
+    "Nouvelle compétence de votre palier : vous ne l'avez encore jamais travaillée.";
+export const PLAN_REASON_A_VERIFIER =
+    "Assez travaillée en exercice ciblé : il reste à le prouver sur une vraie tâche, en situation.";
+export const PLAN_REASON_MILESTONE =
+    "Un cran au-dessus des étapes : venez prouver ce qui est déjà acquis.";
+
+/** Ce que fait un item, en trois mots — la **nature de l'action**, lue sur
+ *  `exercise.kind` et jamais devinée d'un identifiant nul. Sur une **mesure**,
+ *  c'est le parcours réel qu'on nomme (diagnostic, production, examen blanc). */
 export function planItemNature(item: PlanSeanceItemDto): string {
+    if (item.exercise === null) return planAssessmentNature(item.assessment);
     switch (item.exercise.kind) {
         case "MICRO_TRAINING":
             return "Petit sujet ciblé";
@@ -257,6 +320,21 @@ export function planItemNature(item: PlanSeanceItemDto): string {
     }
 }
 
+/** La ligne meta d'un item : sa nature et sa durée. **Une mesure sans durée**
+ *  (le diagnostic, une production — rien n'y est chronométré par épreuve)
+ *  n'affiche aucune minute plutôt qu'un chiffre inventé. */
+export function planItemMeta(item: PlanSeanceItemDto): string {
+    const minutes = planItemMinutes(item);
+    return minutes === null ? planItemNature(item) : `${planItemNature(item)} · ${minutes} min`;
+}
+
+/** Les minutes d'un item, ou `null` quand la durée n'est pas une donnée
+ *  d'examen. Servies par le serveur, jamais recalculées. */
+export function planItemMinutes(item: PlanSeanceItemDto): number | null {
+    if (item.exercise !== null) return item.exercise.estimatedMinutes;
+    return item.assessment.estimatedMinutes;
+}
+
 /** L'eyebrow d'une ligne de séance : le domaine, et le palier travaillé quand
  *  il y en a un (compréhension seulement — l'expression n'en porte pas). */
 export function planItemEyebrow(item: PlanSeanceItemDto): string {
@@ -264,15 +342,19 @@ export function planItemEyebrow(item: PlanSeanceItemDto): string {
     return item.level ? `${domaine} · ${item.level}` : domaine;
 }
 
-/** Le titre d'une ligne de séance. Un jalon n'a **pas** de titre côté serveur
- *  (le bloc compétence y est nul) : c'est sa nature qui le nomme. */
+/** Le titre d'une ligne de séance. Ni un jalon ni une mesure n'ont de titre
+ *  côté serveur (le bloc compétence y est nul) : le jalon se nomme par sa
+ *  nature, la mesure par son domaine. */
 export function planItemTitle(item: PlanSeanceItemDto): string {
+    if (item.exercise === null) return planAssessmentItemTitle(item.assessment);
     return item.title ?? planItemNature(item);
 }
 
-/** À quelle épreuve rattacher un item — pour son icône et sa couleur. Un jalon
- *  porte son `epreuve`, un exercice de compétence sa `section`. */
+/** À quelle épreuve rattacher un item — pour son icône et sa couleur. Une
+ *  mesure et un jalon portent leur `epreuve`, un exercice de compétence sa
+ *  `section`. */
 export function itemEpreuve(item: PlanSeanceItemDto): PlanDomainEpreuve {
+    if (item.exercise === null) return item.assessment.epreuve;
     if (item.exercise.kind === "EPREUVE_MOCK_EXAM") {
         return item.exercise.epreuve === "TCF_EO" ? "TCF_EO" : "TCF_EE";
     }
@@ -288,16 +370,19 @@ export function itemEpreuve(item: PlanSeanceItemDto): PlanDomainEpreuve {
 
 /**
  * La ligne « pourquoi » d'un item : **des faits servis**, jamais un jugement.
- * Compteurs d'étape en expression, palier et état de maîtrise en compréhension,
- * nature du passage sur un jalon.
+ *
+ * 🛑 **L'ordre des branches est celui des trois natures**, pas celui des
+ * champs : une compétence **à acquérir** se dit « rien n'a été constaté ici »,
+ * jamais un compteur d'étape à zéro qui se lirait comme un retard. C'est la
+ * distinction que cet écran doit rendre lisible.
  */
 export function planItemReason(item: PlanSeanceItemDto): string {
+    if (item.nature === "A_EVALUER") return PLAN_REASON_A_EVALUER;
+    if (item.nature === "A_ACQUERIR") return PLAN_REASON_A_ACQUERIR;
     if (item.exercise.kind === "EPREUVE_MOCK_EXAM" || item.exercise.kind === "FULL_TCF_MOCK_EXAM") {
-        return "Un cran au-dessus des étapes : venez prouver ce qui est déjà acquis.";
+        return PLAN_REASON_MILESTONE;
     }
-    if (item.readyForReassessment) {
-        return "Assez travaillée en exercice ciblé : il reste à le prouver sur une vraie tâche.";
-    }
+    if (item.readyForReassessment) return PLAN_REASON_A_VERIFIER;
     const état = item.masteryState ? SKILL_MASTERY_STATE_LABEL[item.masteryState] : null;
     if (item.stepPromptCount > 0) {
         const compteur = `${item.stepAttemptedCount} sujet${item.stepAttemptedCount > 1 ? "s" : ""} sur ${item.stepPromptCount} traité${item.stepAttemptedCount > 1 ? "s" : ""}`;
@@ -427,9 +512,13 @@ export function levelLabel(level: NiveauCecrl | null): string | null {
  * On prend la **compétence**, pas le sujet : quand le candidat termine un petit
  * sujet, le serveur désigne le suivant dans la même compétence — la clé du
  * sujet changerait et React remonterait la ligne pour rien. Un jalon n'a pas de
- * compétence : il s'identifie par son épreuve et son slot.
+ * compétence : il s'identifie par son épreuve et son slot. Une **mesure** non
+ * plus : elle s'identifie par le domaine qu'elle vient observer.
  */
 export function planSeanceItemKey(item: PlanSeanceItemDto): string {
+    if (item.exercise === null) {
+        return `assess:${item.assessment.epreuve}:${item.assessment.kind}`;
+    }
     const skillId = item.skillId ?? ("skillId" in item.exercise ? item.exercise.skillId : null);
     if (skillId) return `skill:${skillId}`;
     if (item.exercise.kind === "EPREUVE_MOCK_EXAM" || item.exercise.kind === "FULL_TCF_MOCK_EXAM") {
