@@ -434,6 +434,22 @@ export function planSkillHref(
  * Compétences ») en expression, la fiche du domaine en compréhension.
  */
 export const PLAN_SKILLS_HREF = "/plan/competences";
+/**
+ * Le titre de la page — et, ici seulement, **aussi le libellé de l'action** qui
+ * l'ouvre depuis « Mes priorités » (`AllSkillsLink`).
+ *
+ * ⚠️ **Divergence VOULUE avec le mobile, arbitrée le 2026-08-21 : ne pas
+ * « aligner ».** L'action s'appelle « Toutes mes compétences » ici et
+ * « Tout voir » sur mobile (`kPlanPrioritiesAll`, `screens/plan/plan_labels.dart`,
+ * qui porte la même note). Ce n'est pas une copie qui a dérivé : les deux
+ * maquettes diffèrent réellement, et la place à l'écran non plus — la colonne du
+ * web tient la forme longue, un lien de fin de section sur une largeur de
+ * téléphone la tronquerait ou pousserait le compteur hors du bandeau.
+ *
+ * Ce qui **doit** rester identique des deux côtés, et l'est : le **titre de la
+ * page d'arrivée**. Le contrat, c'est la destination ; le reste n'est qu'un
+ * libellé d'action.
+ */
 export const PLAN_SKILLS_TITLE = "Toutes mes compétences";
 export const PLAN_SKILLS_TEXT =
     "Expression : 6 tâches, 8 compétences chacune, observées à partir de vos productions. "

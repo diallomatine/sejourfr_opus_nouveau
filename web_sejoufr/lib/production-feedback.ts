@@ -181,6 +181,26 @@ export function critereBandeFromNote(note: number | null | undefined): BandeCrit
 // ---------------------------------------------------------------------------
 
 /**
+ * La production a-t-elle été jugée **inexploitable** par les contrôles
+ * déterministes du serveur (vide, quasi vide, langue non française, recopiage
+ * de la consigne) ? Aucun correcteur n'a alors été appelé : il n'y a ni note,
+ * ni niveau, ni `scores_criteres` — seulement des **raisons**.
+ *
+ * ⚠️ **Le fait se lit sur `evaluabilite`, jamais sur la nullité d'un autre
+ * champ.** Une évaluation ancienne peut n'avoir ni niveau ni confiance sans
+ * être inexploitable pour autant : déduire ce fait d'un trou reviendrait à
+ * annoncer « rien à observer » sur un rapport parfaitement valide.
+ *
+ * Un backend antérieur au champ ne le sert pas : l'absence vaut donc
+ * `EVALUABLE`, jamais l'inverse.
+ */
+export function productionNonEvaluable(
+    evaluation: Pick<EvaluationResultDto, "evaluabilite"> | null | undefined,
+): boolean {
+    return evaluation?.evaluabilite === "NON_EVALUABLE";
+}
+
+/**
  * Garde-fou produit, porté ici et nulle part ailleurs : **on n'annonce jamais
  * un niveau sans savoir ce qu'il vaut**. Sans confiance, l'écran n'annonce rien.
  */
@@ -240,6 +260,20 @@ export const TACHE_TRAITEE_LABEL = "Traité";
 /** Même famille, pour une ligne de bilan : la tâche est corrigée mais son
  *  niveau n'est pas affichable. Miroir de `kTacheEvalueeLabel`. */
 export const TACHE_EVALUEE_LABEL = "Évaluée";
+
+/**
+ * Même famille encore, mais un état **différent** : la production a été rendue
+ * et il n'y avait **rien à observer** ({@link productionNonEvaluable}).
+ *
+ * ⚠️ Ne pas la confondre avec {@link TACHE_EVALUEE_LABEL}, qui dit « corrigée,
+ * mais trop ancienne pour porter un niveau ». Ici la correction n'a jamais eu
+ * lieu : aucun appel au correcteur n'a été émis. Écrire « Évaluée » sur cette
+ * ligne laissait croire à un verdict, et rendait le détail incompréhensible.
+ *
+ * ⚠️ Contrat gelé, miroir mot pour mot de `kTacheNonEvaluableLabel` côté
+ * mobile.
+ */
+export const TACHE_NON_EVALUABLE_LABEL = "Non analysée";
 
 // ---------------------------------------------------------------------------
 // Situation dans le palier

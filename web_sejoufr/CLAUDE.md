@@ -823,6 +823,13 @@ jalon → *Mon profil TCF* → *Compléter mon profil* → *Mon chemin vers l'ob
   partagée par `/plan` et `/plan/evolution` — elle en portait deux copies.
 - **`PlanTaskRow`** (`PlanBits`) est la ligne « Tâche n · x/8 observées »,
   partagée par la fiche de domaine et « Toutes mes compétences ».
+- ⚠️ **Divergence VOULUE avec le mobile, arbitrée le 2026-08-21 : ne pas
+  « aligner ».** L'action qui ouvre cette page s'appelle « Toutes mes
+  compétences » ici (`PLAN_SKILLS_TITLE`) et « Tout voir » sur mobile
+  (`kPlanPrioritiesAll`) : les deux maquettes diffèrent réellement, et un lien
+  de fin de section sur une largeur de téléphone ne tient pas la forme longue.
+  Ce qui **doit** rester identique, et l'est : le **titre de la page
+  d'arrivée**. Le contrat, c'est la destination.
 - **La coche de séance vient du COMPTE** (`planSeanceItemDone`) : étape bouclée
   (`stepCompleted`) **ou** `lastActivityAt` tombant aujourd'hui en Europe/Paris.
   Aucun marqueur local, rien d'écrit côté navigateur. Miroir mobile
@@ -1943,9 +1950,8 @@ sous-module Compétences. Ce n'est plus un habillage local : les briques vivent
 dans `skill-ui/` et **aucun écran ne les recopie**.
 
 - `skill-ui/SkillLayout.tsx` : `SkillShell`, `SkillAccent`, `SkillHero`,
-  `SkillModeTabs`, `ParcoursHero`, `ParcoursNextCard`, `TaskCards`, `ExamTrail`,
-  `SkillRing`, `SectionHead`, `SkillNotice`, `MiniBar`, `RowChevron`,
-  `SkillBadge`, `SkillRowCard`, `SkillFilterRow`.
+  `ParcoursHero`, `ParcoursNextCard`, `ExamTrail`, `SkillRing`, `SectionHead`,
+  `SkillNotice`, `RowChevron`, `SkillBadge`, `SkillRowCard`, `SkillFilterRow`.
 - `production/ProductionTasks.tsx` (**2026-08-21**) : l'**écran d'entrée** d'une
   épreuve — carte de synthèse, les 3 tâches, l'accès aux examens blancs.
 - `production/TaskChrome.tsx` (**2026-08-21**) : la tête du **détail d'une
@@ -1956,8 +1962,14 @@ dans `skill-ui/` et **aucun écran ne les recopie**.
   `PRODUCTION_TACHES`, `averageExamNote`, `nextSkill`, `constraintOf`.
   ⚠️ La **tête commune aux trois modes** (`ParcoursTop`, 2026-08-09) est
   **supprimée** : le parcours se lit en deux niveaux, chaque niveau compose la
-  sienne. `SkillModeTabs` et `TaskCards` restent exportés par `SkillLayout` mais
-  n'ont **plus aucun appelant**.
+  sienne. **`SkillModeTabs`, `TaskCards` et `MiniBar` sont SUPPRIMÉS**
+  (2026-08-21) — plus aucun appelant depuis cette refonte, et leurs classes CSS
+  (`.modeTab*`, `.taskCard*`, `.mini*`, `.count`) sont parties avec eux, comme
+  la frise `.traj*` orpheline depuis le retrait de `SkillDetailDto.trajectory`.
+  Sont partis dans la même passe `productionTaskShortTitle` (`lib/types.ts`,
+  libellé gelé dont `TaskCards` était le seul lecteur — **le mobile l'a
+  supprimé aussi**) et l'`export` de `progressPercent` (`lib/skill-progress.ts`,
+  la fonction reste, `sumProgress` l'appelle).
 - `skill-ui/skill.module.css` : la géométrie de la maquette (rayons, paddings,
   grilles, graisses, survols) avec **les couleurs de l'application**. Un
   `grep -nE "#[0-9a-fA-F]{3,8}"` sur `production/`, `competences/` et
@@ -2056,11 +2068,13 @@ tâche — le palier a quitté la carte, il est annoncé une fois par le badge d
 l'en-tête.
 
 **Libellés gelés partagés avec le mobile** (chaque front en tient une copie
-écrite à la main, un test par couche sur exactement les mêmes chaînes) :
-`productionTaskShortTitle`, `productionTaskConstraint` et
-`productionSubjectTitle` (`lib/types.ts` ⇄ `widgets/production_common.dart`),
+écrite à la main, sur exactement les mêmes chaînes) : `productionTaskConstraint`
+et `productionSubjectTitle` (`lib/types.ts` ⇄ `widgets/production_common.dart`),
 `competenceProgressLabel` (`lib/skill-progress.ts` ⇄
-`competences/widgets/competence_card.dart`).
+`competences/widgets/competence_card.dart`), `TACHE_TRAITEE_LABEL` /
+`TACHE_EVALUEE_LABEL` / `TACHE_NON_EVALUABLE_LABEL` (`lib/production-feedback.ts`
+⇄ `production_result_labels.dart`). ⚠️ `productionTaskShortTitle` a été
+**supprimé des deux fronts** : son unique écran (`TaskCards`) n'existe plus.
 
 **Le titre d'une carte de sujet vient de la base** : `ProductionTaskDto.titre`
 (colonne `production_tasks.titre`, V028, contenu V754), éditable en console
@@ -2148,9 +2162,17 @@ diffèrent). La route sert désormais un **vrai écran**, `ProductionTasks`.
   pointer un retour de tâche sur le hub sauterait un niveau.
 - **`ProductionHub` reste supprimé** (cartes T1/T2/T3 + historique récent +
   modale de quota) : `ProductionTasks` en tient lieu, sur la maquette actuelle.
-- **Conséquence non traitée, inchangée** : `ProductionHistory` (`…/historique`)
-  n'a toujours aucun point d'entrée — le client a demandé d'oublier l'historique
-  « pour l'instant ». La page et sa route existent, joignables par URL directe.
+- **`ProductionHistory` (`…/historique`) a retrouvé un point d'entrée**
+  (2026-08-21), **hors du parcours** : deux liens « Vos productions » en bas de
+  `/historique` (« Mes résultats »), un par épreuve. Il ne double aucun écran —
+  `/historique` **filtre explicitement** les attempts de production
+  (`!isProductionAttempt`), et `ProductionExams` ne liste que les sessions
+  d'examen blanc : le rapport d'un **entraînement libre** n'avait plus aucun
+  chemin, la carte d'un sujet déjà traité rouvrant la rédaction. Miroir de
+  « Mes historiques » côté mobile, qui range au même endroit examens civiques,
+  examens TCF et sessions IA. ⚠️ **Il n'est PAS revenu dans le hub d'épreuve** :
+  l'arbitrage client du 2026-08-06 (« oublier l'historique pour l'instant »)
+  portait sur cette maquette-là, et on ne la rouvre pas.
 
 ### Les « Exemples » ne sont pas un onglet
 
@@ -2180,6 +2202,23 @@ disparu, cf. « rapport express »), `ProductionExams` (hero, 3 indicateurs, pac
   que les DTO ne portent pas n'est pas affichée : à l'oral, l'écho de la
   production est la **transcription** — `ProductionSubmissionDto` n'expose pas
   d'URL audio (contrairement à `SkillAttemptDto`), donc pas de lecteur inventé.
+- **Une production INEXPLOITABLE remplace le rapport en entier** (2026-08-21) :
+  `EvaluationResultDto.evaluabilite` (`EVALUABLE | NON_EVALUABLE`, **jamais
+  `null`**, miroir de `ProductionEvaluabilite`) est lu par
+  `productionNonEvaluable` (`lib/production-feedback.ts`), et
+  `ProductionFeedbackView` rend alors `NotEvaluableCard` + la production, **rien
+  d'autre** : ni hero de niveau, ni bandeaux, ni profil par critère (le serveur
+  ne persiste plus `scores_criteres` sur ces lignes). 🛑 **Trois états, pas
+  deux** : bloc `evaluation` absent = « pas encore évaluée », présent +
+  `NON_EVALUABLE` = « rendue, rien à observer », présent + `EVALUABLE` = le
+  rapport normal — le fait se lit sur le champ, **jamais** sur la nullité de la
+  note ou du niveau (une évaluation ancienne les laisse nuls sans être
+  inexploitable). Ambre et pas rouge, aucun reproche : une absence de preuve
+  n'est pas la preuve du niveau le plus faible. Textes **gelés, miroirs mot pour
+  mot** de `kProductionNonEvaluable*` (mobile), plus le badge de liste
+  `TACHE_NON_EVALUABLE_LABEL` = « Non analysée » (`SubmissionRow`,
+  `ProductionSession`, `ProductionSubjects`). **Legacy intact** : les
+  évaluations déjà en base sortent `EVALUABLE`, quatre zéros compris.
 - **Les règles de lecture de `ProductionFeedbackView` ne bougent pas** (niveau ⇒
   confiance, confiance haute muette, bande et non note par critère, échelle du
   TCF affichée avec la note) : ce sont des décisions de **notation**. Sa **mise

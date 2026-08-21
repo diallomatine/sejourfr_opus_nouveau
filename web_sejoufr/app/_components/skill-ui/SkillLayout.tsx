@@ -5,9 +5,6 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronRight,
-  ClipboardCheck,
-  Clock,
-  FileText,
   Info,
   Lock,
   Mic,
@@ -26,8 +23,16 @@ import s from "./skill.module.css";
 
 /**
  * Briques de mise en page du parcours TCF EE/EO, reprises de la maquette
- * client : shell, hero en dégradé, pastilles de tâche, intertitres, encart
- * d'information, cartes en ligne, filtres, statistiques.
+ * client : shell, hero en dégradé, intertitres, encart d'information, cartes
+ * en ligne, filtres, statistiques.
+ *
+ * ⚠️ **Trois briques ont été supprimées le 2026-08-21, faute d'appelant** :
+ * `SkillModeTabs` (la barre à trois modes, remplacée par les deux onglets de
+ * `TaskChrome` quand les examens blancs ont quitté la tâche), `TaskCards` (le
+ * sélecteur de tâche à trois cartes, remplacé par la liste de tâches du hub
+ * d'épreuve) et `MiniBar`. Leurs classes CSS sont parties avec elles : une
+ * brique dont plus aucun écran ne se sert n'est pas une réserve, c'est de la
+ * dette.
  *
  * Elles vivent **hors** du module « Compétences » depuis que le parcours entier
  * (hub d'épreuve, sujets TCF, exercice, résultat, examens blancs, historique)
@@ -41,73 +46,13 @@ import s from "./skill.module.css";
  * couleur (cf. `production/config.ts`).
  */
 
-/** Les trois modes du parcours, tels que la maquette les nomme dans sa barre
- *  du bas. « Exemples » n'en fait pas partie : c'est une ressource d'appoint
- *  atteinte depuis la liste des sujets, pas un espace de travail. */
-export type SkillMode = "competences" | "sujets" | "examens";
-
-const MODES: readonly {key: SkillMode; label: string; icon: ReactNode}[] = [
-  {key: "competences", label: "Compétences", icon: <Clock size={15} strokeWidth={2.2} />},
-  {key: "sujets", label: "Sujets", icon: <FileText size={15} strokeWidth={2.2} />},
-  {key: "examens", label: "Examens", icon: <ClipboardCheck size={15} strokeWidth={2.2} />},
-];
-
-/**
- * Barre segmentée des trois modes, **dans le flux** de la colonne, juste sous
- * la carte « Prochain entraînement » (structure de la maquette client).
- *
- * Elle a remplacé la barre flottante en bas d'écran : celle-ci masquait le
- * dernier élément de chaque liste, imposait une réserve de 118 px en pied de
- * colonne et faisait doublon avec la navigation latérale de l'application.
- *
- * `taskNumero` porte le contexte quand l'écran en a un. Sans lui (grille
- * d'examens blancs), « Sujets » comme « Compétences » retombent sur la
- * tâche 1 : une destination par défaut, jamais un chiffre affiché qui serait
- * faux. L'épreuve n'a plus d'écran d'accueil où retomber.
- */
-export function SkillModeTabs({
-  config,
-  current,
-  taskNumero,
-}: {
-  config: ProductionConfig;
-  current: SkillMode;
-  taskNumero?: number;
-}) {
-  const n = taskNumero ?? 1;
-  const hrefOf = (mode: SkillMode): string => {
-    if (mode === "examens") return `${config.base}/examens`;
-    if (mode === "competences") return `${config.base}/tache/${n}/competences`;
-    return `${config.base}/tache/${n}`;
-  };
-
-  return (
-    <nav className={s.modeTabs} aria-label="Espaces de l'épreuve">
-      {MODES.map((m) => {
-        const on = m.key === current;
-        return (
-          <Link
-            key={m.key}
-            href={hrefOf(m.key)}
-            className={`${s.modeTab} ${on ? s.modeTabOn : ""}`}
-            aria-current={on ? "page" : undefined}
-          >
-            <span aria-hidden>{m.icon}</span>
-            {m.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
 /**
  * Colonne unique du parcours — même largeur sur tous les écrans.
  *
  * Deux en-têtes possibles, et un seul par écran :
  * - `title` renseigné ⇒ **en-tête de parcours** de la maquette (flèche de
  *   retour, nom de l'épreuve, sous-titre `TCF IRN · 3 tâches · 30 min`, badge
- *   de palier). C'est celui des trois modes ;
+ *   de palier). C'est celui des écrans du parcours ;
  * - sinon, le lien de retour historique, gardé pour les écrans d'appoint
  *   (modèles corrigés, historique).
  */
@@ -304,70 +249,6 @@ export function ParcoursNextCard({
   );
 }
 
-/** Une tâche du sélecteur : son intitulé court et sa contrainte réelle. */
-export interface TaskCardData {
-  numero: number;
-  title: string;
-  /** `null` quand l'API ne porte pas la contrainte — **aucune borne inventée**
-   *  (les bornes EE vivent dans `production_tasks.mots_min/mots_max`). */
-  constraint: string | null;
-}
-
-/**
- * Sélecteur de tâche : trois cartes « 1 · Message · 30-60 mots », l'active
- * encadrée. Remplace les pastilles T1/T2/T3, qui ne disaient que « Tâche 2 »
- * alors que le format et la contrainte sont précisément ce qui distingue les
- * trois tâches.
- *
- * Ce sont de vrais liens (chaque tâche a son URL, partageable). **`onPick`**
- * les transforme en filtre quand l'écran a déjà les trois tâches en mémoire :
- * le clic simple est intercepté, l'écran filtre, l'URL est réécrite en
- * navigation superficielle. Les clics *modifiés* (Ctrl, ⌘, Maj, clic du
- * milieu) gardent leur comportement natif.
- */
-export function TaskCards({
-  tasks,
-  current,
-  hrefOf,
-  onPick,
-}: {
-  tasks: readonly TaskCardData[];
-  current: number;
-  hrefOf: (n: number) => string;
-  onPick?: (n: number) => void;
-}) {
-  return (
-    <nav className={s.taskCards} aria-label="Tâches de l'épreuve">
-      {tasks.map((t) => {
-        const on = t.numero === current;
-        return (
-          <Link
-            key={t.numero}
-            href={hrefOf(t.numero)}
-            className={`${s.taskCard} ${on ? s.taskCardOn : ""}`}
-            aria-current={on ? "page" : undefined}
-            onClick={
-              onPick
-                ? (e) => {
-                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-                    e.preventDefault();
-                    onPick(t.numero);
-                  }
-                : undefined
-            }
-          >
-            <span className={s.taskCardNum} aria-hidden>
-              {t.numero}
-            </span>
-            <span className={s.taskCardTitle}>{t.title}</span>
-            {t.constraint && <span className={s.taskCardMeta}>{t.constraint}</span>}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
 /**
  * Barre segmentée « Parcours examens blancs · n/N » : un segment par examen,
  * rempli quand l'examen a été passé.
@@ -542,32 +423,6 @@ export function SkillRing({
         /{total}
       </text>
     </svg>
-  );
-}
-
-/** Barre fine « traités / total » sous un titre de carte. */
-export function MiniBar({
-  attempted,
-  total,
-  percent,
-  label,
-}: {
-  attempted: number;
-  total: number;
-  percent: number;
-  /** Remplace « n/N traités » quand l'unité comptée n'est pas un sujet. */
-  label?: string;
-}) {
-  return (
-    <span className={s.rowMeta}>
-      <span className={s.mini}>
-        <span
-          className={`${s.miniFill} ${percent >= 100 ? s.miniFillDone : ""}`}
-          style={{width: `${percent}%`}}
-        />
-      </span>
-      <span className={s.count}>{label ?? `${attempted}/${total} traités`}</span>
-    </span>
   );
 }
 

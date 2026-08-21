@@ -310,6 +310,19 @@ vraies productions, le bandeau mesure l'écart avec l'IA.
   à null, pas de `bande`, `preuve` ni `accomplissement`, code de critère
   `pertinence` disparu en v4. Chaque bloc se masque si absent — l'absence est un
   cas normal. `isLegacyEvaluation()` pose un badge « format v3 ».
+- **Production NON ÉVALUABLE** (`EvaluationResultDto.evaluabilite`, miroir de
+  `ProductionEvaluabilite`, **jamais `null`**, 2026-08-21) : le serveur a écarté
+  la production (vide, quasi vide, langue non française, consigne recopiée)
+  **avant tout appel au correcteur**, donc ni note, ni niveau, ni
+  `scores_criteres`. `isNonEvaluable()` (`calibrationHelpers`) est l'unique
+  lecture du fait ; la fiche remplace alors le résumé et le détail par critère
+  par un bandeau ambre + les raisons du serveur (**il n'y a rien à annoter**),
+  et la liste écrit « Non évaluable » dans la colonne Niveau.
+  🛑 **Le fait se lit sur ce champ, jamais sur la nullité d'un autre** :
+  `isLegacyEvaluation()` répond à une tout autre question, et une évaluation
+  ancienne n'a ni niveau ni bande sans être inexploitable. **Legacy intact** :
+  tout ce qui est déjà en base sort `EVALUABLE`, y compris les lignes qui
+  portent encore quatre critères à `note_sur_20: 0`.
 
 **Authentification** : JWT Bearer dans l'en-tête `Authorization`. Le refresh est automatique côté `http.ts` quand une requête prend un 401 — pas besoin de le gérer dans les composants.
 

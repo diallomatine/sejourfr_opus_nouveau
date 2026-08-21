@@ -7,6 +7,8 @@ import {
 } from "@/lib/types";
 import {
   TACHE_EVALUEE_LABEL,
+  TACHE_NON_EVALUABLE_LABEL,
+  productionNonEvaluable,
   tacheNiveau,
   tacheNiveauLabel,
 } from "@/lib/production-feedback";
@@ -38,6 +40,9 @@ export function SubmissionRow({
 }) {
   const niveau = tacheNiveau(sub.evaluation);
   const evaluated = sub.statut === "EVALUATED";
+  // Rendue, mais rien à observer : la ligne le DIT au lieu d'annoncer
+  // « Évaluée », qui laissait croire à un verdict (miroir `HistorySessionCard`).
+  const nonEvaluable = productionNonEvaluable(sub.evaluation);
   const pending = !evaluated && sub.statut !== "FAILED";
   const text =
     sub.statut === "FAILED"
@@ -62,8 +67,12 @@ export function SubmissionRow({
               dans tous les cas (parité `HistorySessionCard` mobile), le
               retirer donnait une ligne qui ne semblait mener nulle part. */}
           {evaluated && (
-            <SkillBadge tone="treated">
-              {niveau ? tacheNiveauLabel(niveau) : TACHE_EVALUEE_LABEL}
+            <SkillBadge tone={nonEvaluable ? "todo" : "treated"}>
+              {niveau
+                ? tacheNiveauLabel(niveau)
+                : nonEvaluable
+                  ? TACHE_NON_EVALUABLE_LABEL
+                  : TACHE_EVALUEE_LABEL}
             </SkillBadge>
           )}
           <RowChevron />

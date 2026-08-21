@@ -15,7 +15,9 @@ import {
   tasksOfTache,
 } from "@/lib/production-catalog";
 import {
+  TACHE_NON_EVALUABLE_LABEL,
   TACHE_TRAITEE_LABEL,
+  productionNonEvaluable,
   tacheNiveau,
   tacheNiveauLabel,
   tacheNiveauTone,
@@ -257,7 +259,17 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
                               tone={TONE_BADGE[tone]}
                               icon={<Check size={11} strokeWidth={2.6} aria-hidden />}
                             >
-                              {niveau ? tacheNiveauLabel(niveau) : TACHE_TRAITEE_LABEL}
+                              {/* Trois états sans niveau, jamais confondus :
+                                  rien de rendu au correcteur (« Traité »),
+                                  rendu mais rien à observer (« Non analysée »),
+                                  corrigé sans niveau affichable — ce dernier
+                                  retombe aussi sur « Traité » ici, la carte
+                                  d'un sujet ne distinguant pas les deux. */}
+                              {niveau
+                                ? tacheNiveauLabel(niveau)
+                                : productionNonEvaluable(sub?.evaluation)
+                                  ? TACHE_NON_EVALUABLE_LABEL
+                                  : TACHE_TRAITEE_LABEL}
                             </SkillBadge>
                           ) : locked ? (
                             <SkillBadge tone="todo" icon={<Lock size={10} aria-hidden />}>

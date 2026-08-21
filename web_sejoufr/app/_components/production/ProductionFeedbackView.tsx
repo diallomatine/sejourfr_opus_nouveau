@@ -1,6 +1,7 @@
 "use client";
 
-import {situationView} from "@/lib/production-feedback";
+import {CircleAlert} from "lucide-react";
+import {productionNonEvaluable, situationView} from "@/lib/production-feedback";
 import {parseEeFeedback, type EvaluationResultDto, type TargetLevel} from "@/lib/types";
 import {ActionPlanPending} from "@/app/_components/skill-ui/ActionPlan";
 import {CriteriaOverview} from "./CriteriaOverview";
@@ -81,6 +82,12 @@ const TRANSCRIPTION_LIMIT =
  * Une évaluation antérieure n'a ni verdict d'objectif, ni version au niveau
  * visé, ni bandes de critère, et ses priorités sont de simples chaînes : les
  * blocs concernés ne sont pas rendus. C'est un cas normal, jamais une erreur.
+ *
+ * 🛑 **Une production INEXPLOITABLE ne passe par aucune de ces quatre
+ * sections** : `evaluabilite === "NON_EVALUABLE"` rend
+ * {@link NotEvaluableCard} et rien d'autre. Le fait se lit sur le champ, jamais
+ * sur la nullité de la note ou du niveau — une évaluation ancienne les laisse
+ * nuls sans être inexploitable pour autant.
  */
 export function ProductionFeedbackView({
   evaluation,
@@ -112,6 +119,23 @@ export function ProductionFeedbackView({
   actionPlanPending?: boolean;
 }) {
   const fb = parseEeFeedback(evaluation);
+
+  // Rien n'a pu être observé : le rapport entier laisse la place à une carte
+  // qui le DIT, suivie de la production rendue. Tout ce qui suit décrirait une
+  // performance qui n'a pas été mesurée — hero de verdict, bandeaux « ce qui
+  // marche », profil par critère, plan d'action vers le palier visé.
+  if (productionNonEvaluable(evaluation)) {
+    return (
+      <div className={styles.wrap} style={{padding: 0, gap: 14}}>
+        <NotEvaluableCard
+          eyebrow={eyebrow}
+          raisons={fb.confianceRaisons.length > 0 ? fb.confianceRaisons : fb.avertissements}
+        />
+        {productionText && <ProductionTextCard texte={productionText} motsCount={motsCount} />}
+      </div>
+    );
+  }
+
   // Les évaluations les plus anciennes ne portent pas l'avertissement de
   // transcription : on garde le rappel écrit côté front pour ne pas le perdre.
   const avertissements =
@@ -176,5 +200,80 @@ export function ProductionFeedbackView({
           jamais la lecture du reste. */}
       {actionPlanPending && !versionCiblee && !niveauViseAtteint && <ActionPlanPending />}
     </div>
+  );
+}
+
+/**
+ * Production **rendue, mais inexploitable** (`evaluabilite: NON_EVALUABLE`) :
+ * vide ou quasi vide, écrite dans une autre langue, ou recopiant la consigne.
+ * Les contrôles déterministes du serveur l'ont écartée **avant** tout appel au
+ * correcteur — il n'existe donc ni note, ni niveau, ni `scores_criteres`, et
+ * ces trois absences ne sont pas des trous à combler.
+ *
+ * Elle remplace le rapport **en entier** : ni bandeau de niveau, ni pastille de
+ * palier, ni profil par critère. Avant, l'écran affichait « Niveau
+ * indisponible » au-dessus d'un bloc de critères vide, sans jamais dire au
+ * candidat ce qui s'était passé.
+ *
+ * 🛑 **Trois états, pas deux.** Une évaluation absente veut dire « pas encore
+ * évaluée » (l'écran affiche alors son attente) ; celle-ci veut dire « on a
+ * regardé, il n'y avait rien à observer ». Le serveur sert le **fait**
+ * (`evaluabilite`), la phrase appartient aux fronts.
+ *
+ * 🛑 **Ni reproche, ni verdict déguisé.** Une absence de preuve n'est pas la
+ * preuve du niveau le plus faible — c'est exactement le défaut que le backend
+ * vient de retirer de sa base (`0/20` + `A1_NON_ATTEINT` sur une copie vide).
+ * D'où l'ambre (attention) plutôt que le rouge (échec), et un texte qui décrit
+ * la **production**, jamais le candidat. Les raisons viennent du serveur, déjà
+ * rédigées pour être lues par lui : on n'en réécrit aucune.
+ *
+ * ⚠️ **Libellés gelés, miroirs mot pour mot du mobile**
+ * (`kProductionNonEvaluable*`, `screens/tcf_production/production_result_labels.dart`,
+ * rendus par `widgets/production_non_evaluable_card.dart`). Chaque front en
+ * tient une copie écrite à la main : un texte qui bouge, ce sont deux fichiers
+ * à changer dans la même passe.
+ */
+const NON_EVALUABLE_EYEBROW = "Analyse impossible";
+const NON_EVALUABLE_TITLE = "Cette production n'a pas pu être analysée";
+const NON_EVALUABLE_INTRO =
+  "Il n'y avait pas assez de matière pour observer quoi que ce soit. Aucun niveau ne vous est " +
+  "attribué ici : ce n'est pas un jugement sur votre français, simplement une production qui ne " +
+  "peut pas être corrigée.";
+const NON_EVALUABLE_RAISONS_TITLE = "Ce qui a été constaté";
+const NON_EVALUABLE_RASSURANCE =
+  "Elle ne compte pas dans votre niveau estimé. Vous pouvez refaire ce sujet quand vous voulez.";
+
+function NotEvaluableCard({
+  eyebrow,
+  raisons,
+}: {
+  /** Situe la tâche (« Expression écrite · Tâche 1 »), comme sur le hero d'un
+   *  rapport normal. Absent d'un contexte qui ne la connaît pas. */
+  eyebrow?: string | null;
+  /** `feedback.confiance_raisons`, à défaut `feedback.avertissements`. Vide est
+   *  un cas normal : la carte se suffit alors à elle-même. */
+  raisons: string[];
+}) {
+  return (
+    <section className={styles.unusable}>
+      {eyebrow && <p className={styles.unusableTag}>{eyebrow}</p>}
+      <p className={styles.unusableKind}>
+        <CircleAlert size={15} strokeWidth={2.4} aria-hidden />
+        {NON_EVALUABLE_EYEBROW}
+      </p>
+      <h2 className={styles.unusableTitle}>{NON_EVALUABLE_TITLE}</h2>
+      <p className={styles.unusableLead}>{NON_EVALUABLE_INTRO}</p>
+      {raisons.length > 0 && (
+        <>
+          <p className={styles.unusableReasonsHead}>{NON_EVALUABLE_RAISONS_TITLE}</p>
+          <ul className={styles.unusableReasons}>
+            {raisons.map((r, i) => (
+              <li key={i}>{r}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      <p className={styles.unusableFoot}>{NON_EVALUABLE_RASSURANCE}</p>
+    </section>
   );
 }

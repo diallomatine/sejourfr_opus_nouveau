@@ -531,6 +531,28 @@ export type BandeCritere =
     | "FRAGILE"
     | "NON_EVALUABLE";
 
+/**
+ * La production rendue a-t-elle pu être **observée** ? Miroir de
+ * `ProductionEvaluabilite` (backend), **jamais `null`** : toutes les
+ * évaluations antérieures sortent `EVALUABLE`, rien n'a été migré.
+ *
+ * ⚠️ **Trois états, pas deux**, et c'est tout le sens du champ :
+ * - `evaluation` **absente** ⇒ « pas encore évaluée » ;
+ * - présente + `NON_EVALUABLE` ⇒ « rendue, mais il n'y avait rien à
+ *   observer » : ni note, ni niveau, ni `scores_criteres` — le correcteur n'a
+ *   même pas été appelé (production vide, langue non française, recopiage de
+ *   la consigne). *null = inconnu, jamais mauvais* ;
+ * - présente + `EVALUABLE` ⇒ le rapport normal.
+ *
+ * Le serveur n'expose ici qu'un **fait** : la phrase appartient aux fronts
+ * (cf. `ProductionFeedbackView`).
+ *
+ * ⚠️ À ne pas confondre avec la valeur `"NON_EVALUABLE"` de
+ * {@link BandeCritere}, qui qualifie **un critère** d'une évaluation, pas la
+ * production entière.
+ */
+export type ProductionEvaluabilite = "EVALUABLE" | "NON_EVALUABLE";
+
 /** Résultat IA. `feedback` est le JSONB brut (clés snake_case) — utiliser
  *  {@link parseEeFeedback} pour le normaliser avant affichage.
  *
@@ -545,6 +567,11 @@ export type BandeCritere =
  *  `confiance` et `avertissementNiveau` à null (et leur `feedback` n'a ni
  *  `bande`, ni `accomplissement`, ni `preuve`) : cas normal, pas une erreur. */
 export interface EvaluationResultDto {
+    /** **Jamais `null`** côté serveur. Un backend antérieur au champ ne le sert
+     *  pas du tout : on ne traite donc comme inexploitable que la valeur
+     *  `NON_EVALUABLE` **explicite** — jamais son absence, qui reste un
+     *  rapport normal. */
+    evaluabilite: ProductionEvaluabilite;
     noteSurVingt: number | null;
     niveauObserve: NiveauCecrl | null;
     confiance: ConfianceEvaluation | null;
@@ -2362,41 +2389,6 @@ export function productionTaskTitle(epreuve: EpreuveType, tacheNumero: number): 
 /** Sous-titre d'une tâche selon l'épreuve productive (EE / EO). */
 export function productionTaskSubtitle(epreuve: EpreuveType, tacheNumero: number): string {
     return epreuve === "TCF_EO" ? eoTaskSubtitle(tacheNumero) : eeTaskSubtitle(tacheNumero);
-}
-
-/**
- * Intitulé **court** d'une tâche — celui du sélecteur de tâche du parcours, où
- * trois cartes se partagent la largeur d'un téléphone. « Point de vue
- * argumenté » y passe à la ligne ou se tronque ; « Opinion » se lit.
- *
- * ⚠️ **Libellés gelés**, miroir mot pour mot du mobile
- * (`productionTaskShortTitle`, `widgets/production_common.dart`). Les deux
- * fronts en tiennent chacun une copie écrite à la main : un libellé qui bouge,
- * ce sont deux fichiers à changer dans la même passe, et deux tests.
- */
-export function productionTaskShortTitle(epreuve: EpreuveType, tacheNumero: number): string {
-    if (epreuve === "TCF_EO") {
-        switch (tacheNumero) {
-            case 1:
-                return "Entretien dirigé";
-            case 2:
-                return "Jeu de rôle";
-            case 3:
-                return "Opinion";
-            default:
-                return `Tâche ${tacheNumero}`;
-        }
-    }
-    switch (tacheNumero) {
-        case 1:
-            return "Message";
-        case 2:
-            return "Récit";
-        case 3:
-            return "Opinion";
-        default:
-            return `Tâche ${tacheNumero}`;
-    }
 }
 
 /**

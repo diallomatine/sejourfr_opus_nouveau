@@ -370,38 +370,6 @@
   color: var(--color-muted-2);
 }
 
-/* ---------------------------------------------------------- mini-barre */
-
-.mini {
-  display: block;
-  height: 5px;
-  flex: 1;
-  min-width: 60px;
-  background: var(--color-line-2);
-  border-radius: 99px;
-  overflow: hidden;
-}
-
-.miniFill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--skill-accent);
-  transition: width 0.25s ease;
-}
-
-.miniFillDone {
-  background: var(--color-green);
-}
-
-.count {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-muted);
-  white-space: nowrap;
-}
-
 /* ------------------------------------------------------------- badges */
 
 .badge {
@@ -512,86 +480,6 @@
   font-size: 12.5px;
   font-weight: 800;
   white-space: nowrap;
-}
-
-/* ------------------------------------ frise d'une compétence (trajectoire) */
-
-/* Une frise, pas un tableau : le filet vertical relie les points et fait lire
-   une progression. Il descend du premier au dernier repère et s'arrête au
-   dernier — d'où le `::before` sur la ligne plutôt qu'un fond sur la liste. */
-.traj {
-  display: grid;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.trajRow {
-  position: relative;
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
-  align-items: start;
-  padding-bottom: 14px;
-}
-
-.trajRow:last-child {
-  padding-bottom: 0;
-}
-
-.trajRow:not(:last-child)::before {
-  content: "";
-  position: absolute;
-  left: 8px;
-  top: 16px;
-  bottom: 0;
-  width: 2px;
-  border-radius: 2px;
-  background: var(--color-line);
-}
-
-.trajMark {
-  width: 10px;
-  height: 10px;
-  margin-top: 5px;
-  border-radius: 50%;
-  background: var(--skill-accent);
-}
-
-.trajBody {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-}
-
-.trajHead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 7px;
-}
-
-.trajSource {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--color-ink);
-}
-
-.trajDate {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--color-muted-2);
-}
-
-/* Le constat du correcteur, en second plan : la ligne se lit d'abord par sa
-   source et son verdict. */
-.trajWhy {
-  margin: 0;
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--color-muted);
-  overflow-wrap: anywhere;
 }
 
 /* -------------------------------------------------- encart d'information */
@@ -2355,66 +2243,6 @@
   cursor: not-allowed;
 }
 
-/* ------------------------------------------- barre de modes du parcours */
-
-/* Barre segmentée des trois modes, **dans le flux** de la colonne (structure de
-   la maquette client). L'ancienne barre flottante en bas d'écran est supprimée :
-   elle masquait le dernier élément de chaque liste, imposait 118 px de réserve
-   en pied de colonne, et faisait doublon avec la navigation latérale. */
-.modeTabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
-  padding: 5px;
-  margin-bottom: 12px;
-  border: 1px solid var(--color-line);
-  border-radius: 20px;
-  background: white;
-  box-shadow: var(--skill-shadow);
-}
-
-.modeTab {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-width: 0;
-  padding: 11px 6px;
-  border: 0;
-  border-radius: 15px;
-  background: transparent;
-  color: var(--color-muted);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 800;
-  text-align: center;
-  text-decoration: none;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.modeTab svg {
-  flex: none;
-}
-
-.modeTabOn {
-  background: var(--skill-accent);
-  color: white;
-}
-
-/* Sous 380 px, trois libellés + trois icônes ne tiennent plus : l'icône reste,
-   elle suffit à distinguer les trois modes une fois le mode actif nommé. */
-@media (max-width: 380px) {
-  .modeTab {
-    font-size: 11px;
-    gap: 4px;
-    padding: 10px 3px;
-  }
-}
-
 /* ------------------------------------------- en-tête de parcours (maquette) */
 
 .pageHead {
@@ -2634,75 +2462,6 @@
   white-space: nowrap;
 }
 
-/* ------------------------------------------------- sélecteur de tâche */
-
-.taskCards {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.taskCard {
-  display: grid;
-  justify-items: start;
-  gap: 2px;
-  min-width: 0;
-  padding: 11px;
-  border: 1px solid var(--color-line);
-  border-radius: 18px;
-  background: white;
-  text-decoration: none;
-  cursor: pointer;
-  transition: border-color 0.15s ease;
-}
-
-.taskCard:hover {
-  border-color: var(--skill-accent);
-}
-
-.taskCardOn {
-  border: 1.8px solid var(--skill-accent);
-}
-
-.taskCardNum {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  margin-bottom: 6px;
-  border-radius: 8px;
-  background: var(--color-paper-2);
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.taskCardOn .taskCardNum {
-  background: var(--skill-accent);
-  color: white;
-}
-
-.taskCardTitle {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--color-ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-
-.taskCardMeta {
-  font-size: 10.5px;
-  color: var(--color-muted-2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-
 /* --------------------------------------- parcours des examens blancs */
 
 .trail {
@@ -2875,7 +2634,6 @@
    focus clavier, et s'enfonce au clic comme dans la maquette. */
 .back:focus-visible,
 .headLink:focus-visible,
-.taskCard:focus-visible,
 .rowCard:focus-visible,
 .filter:focus-visible,
 .refTab:focus-visible,
@@ -2883,7 +2641,6 @@
 .unlock:focus-visible,
 .previousAction:focus-visible,
 .footLink:focus-visible,
-.modeTab:focus-visible,
 .nextBtn:focus-visible,
 .backDot:focus-visible,
 .primary:focus-visible,
@@ -2895,7 +2652,6 @@
 }
 
 .headLink:active,
-.taskCard:active,
 .filter:active,
 .refTab:active,
 .unlock:active:not(:disabled),
@@ -3316,7 +3072,6 @@
 @media (prefers-reduced-motion: reduce) {
   .rowCard,
   .headLink,
-  .taskCard,
   .filter,
   .refTab,
   .refToggle,
@@ -3334,8 +3089,7 @@
   .rowCard:hover,
   .rowCard:active,
   .headLink:active,
-  .taskCard:active,
-  .filter:active,
+    .filter:active,
   .refTab:active,
   .unlock:active:not(:disabled),
   .previousAction:active:not(:disabled),
@@ -4133,9 +3887,8 @@
    Parcours EE/EO en DEUX NIVEAUX (2026-08-21) — liste des tâches, puis tâche.
 
    Bloc **ajouté**, rien n'est réorganisé : les briques historiques (`.card`,
-   `.rowCard`, `.tile`, `.modeTabs`, `.taskCards`, `.parcoursHero`…) gardent
-   exactement la géométrie qu'elles ont, elles sont lues par une vingtaine
-   d'écrans.
+   `.rowCard`, `.tile`, `.parcoursHero`…) gardent exactement la géométrie
+   qu'elles ont, elles sont lues par une vingtaine d'écrans.
 
    Teintes de tâche : la maquette distingue T1 / T2 / T3 par la teinte. Aucune
    couleur nouvelle n'est introduite — c'est la **rampe entre les deux couleurs
@@ -4477,8 +4230,9 @@
 
 /* ---------------------------------- détail d'une tâche : les deux onglets */
 
-/* Deux colonnes, pas trois : la barre à trois modes (`.modeTabs`) reste en
-   place — elle n'a simplement plus d'appelant dans ce parcours. */
+/* Deux colonnes, pas trois : la barre à trois modes qui vivait ici
+   (`.modeTabs` + `SkillModeTabs`) n'avait plus aucun appelant depuis que les
+   examens blancs ont quitté la tâche — elle a été supprimée, pas neutralisée. */
 .segTabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

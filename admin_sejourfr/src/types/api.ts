@@ -898,12 +898,31 @@ export interface EvaluationFeedback {
 }
 
 /**
+ * La production a-t-elle pu être **observée** ? Miroir de
+ * `ProductionEvaluabilite` (backend), **jamais `null`** : toutes les
+ * évaluations antérieures sortent `EVALUABLE`, rien n'a été migré.
+ *
+ * `NON_EVALUABLE` = production vide, en langue non française ou recopiant la
+ * consigne : les contrôles déterministes l'ont écartée **avant** tout appel au
+ * correcteur. Il n'y a alors ni note, ni niveau, ni `scores_criteres` — et ces
+ * absences sont des faits, pas des trous à combler.
+ *
+ * ⚠️ À ne pas confondre avec la valeur `"NON_EVALUABLE"` de
+ * {@link BandeCritere}, qui qualifie **un critère**, pas la production entière.
+ */
+export type ProductionEvaluabilite = "EVALUABLE" | "NON_EVALUABLE";
+
+/**
  * Vue front d'une évaluation IA (EvaluationResultDto backend). `niveauObserve`,
  * `confiance` et `avertissementNiveau` sont null pour les évaluations
  * antérieures au schéma v2/v3 — absence normale, aucun front ne doit planter
  * dessus.
  */
 export interface EvaluationResultDto {
+  /** **Jamais `null`** côté serveur. Un backend antérieur au champ ne le sert
+   *  pas : seule la valeur `NON_EVALUABLE` **explicite** vaut « rien à
+   *  observer », jamais son absence. */
+  evaluabilite: ProductionEvaluabilite;
   noteSurVingt: number | null;
   niveauObserve: NiveauCecrl | null;
   confiance: ConfianceEvaluation | null;

@@ -49,6 +49,7 @@ import {
 
 function evaluation(feedback: Record<string, unknown> | null): EvaluationResultDto {
     return {
+        evaluabilite: "EVALUABLE",
         noteSurVingt: 4.5,
         niveauObserve: "A2",
         confiance: "HAUTE",
@@ -237,6 +238,7 @@ describe("situation dans le palier — ce qui remplace la note d'une tâche", ()
         label: string | null = null,
         niveau: NiveauCecrl | null = "A2",
     ): EvaluationResultDto => ({
+        evaluabilite: "EVALUABLE",
         noteSurVingt: 4.5,
         niveauObserve: niveau,
         confiance: "HAUTE",
