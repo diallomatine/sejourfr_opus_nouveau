@@ -441,16 +441,27 @@ class ProductionSideLink extends StatelessWidget {
 /// L'eyebrow le dit en toutes lettres : le repo interdit d'afficher un niveau
 /// estimé sans le qualifier.
 class ProductionLevelBadge extends StatelessWidget {
-  const ProductionLevelBadge({super.key, required this.level});
+  const ProductionLevelBadge({
+    super.key,
+    required this.level,
+    this.onDark = false,
+  });
 
   final String level;
+
+  /// Sur un bandeau bleu plein, un fond bleu disparaitrait : la pastille passe
+  /// alors en voile blanc translucide. Ajoute le 2026-08-21 avec l'en-tete
+  /// plein de l'ecran de tache ; les autres appelants gardent le fond bleu.
+  final bool onDark;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
       decoration: BoxDecoration(
-        color: AppColors.blue,
+        color: onDark
+            ? AppColors.white.withValues(alpha: 0.18)
+            : AppColors.blue,
         borderRadius: BorderRadius.circular(AppRadii.md),
       ),
       child: Column(

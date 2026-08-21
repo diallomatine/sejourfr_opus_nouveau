@@ -134,12 +134,16 @@ class _ProductionTaskScreenState extends ConsumerState<ProductionTaskScreen>
             Column(
               children: [
                 ScreenHeader(
-                  title: meta.title,
-                  sub: '${widget.module.title} · Tâche ${widget.tache}',
+                  // Le numero de tache passe en TITRE : c'est ce que le
+                  // candidat cherche en arrivant, le nom editorial du sujet
+                  // ne le situe pas dans le parcours.
+                  solid: true,
+                  title: 'Tâche ${widget.tache}',
+                  sub: '${meta.title} · ${widget.module.title}',
                   onBack: () => Navigator.of(context).maybePop(),
                   right: level == null
                       ? null
-                      : ProductionLevelBadge(level: level.wire),
+                      : ProductionLevelBadge(level: level.wire, onDark: true),
                 ),
                 Expanded(
                   child: IndexedStack(
