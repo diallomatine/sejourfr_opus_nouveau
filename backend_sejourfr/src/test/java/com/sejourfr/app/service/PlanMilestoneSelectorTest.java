@@ -85,7 +85,7 @@ class PlanMilestoneSelectorTest {
         Etat etat = etat();
         etat.add("EE1-C1", SkillMasteryState.CONSOLIDATING);
 
-        selector.select(userId, etat.latest, etat.mastery, etat.all, now);
+        selector.select(userId, etat.latest, etat.mastery, etat.all, false, now);
 
         verifyNoInteractions(attemptManager);
         verifyNoInteractions(productionAccess);
@@ -269,11 +269,62 @@ class PlanMilestoneSelectorTest {
     }
 
     // ------------------------------------------------------------------------
+    // Le gate de palier
+    // ------------------------------------------------------------------------
+
+    /**
+     * Le gate de palier n'a pas besoin de l'echelle des epreuves : quand le
+     * cycle a fini son travail, c'est l'examen complet qui tranche. Il se greffe
+     * sur le meme designateur — meme slot, meme duree, meme verrou reporte — au
+     * lieu d'etre servi a cote, ou deux surfaces auraient annonce deux slots
+     * differents pour un seul examen.
+     */
+    @Test
+    @DisplayName("Le gate de palier ouvre l'examen complet sans attendre les jalons d'epreuve")
+    void leGateDePalierOuvreLexamenComplet() {
+        Etat etat = etat();
+        etat.add("EE1-C1", SkillMasteryState.CONSOLIDATING);
+
+        PlanRecommendedExerciseDto jalon =
+                selector.select(userId, etat.latest, etat.mastery, etat.all, true, now)
+                        .orElseThrow();
+
+        assertThat(jalon.kind()).isEqualTo(PlanExerciseKind.FULL_TCF_MOCK_EXAM);
+        assertThat(jalon.epreuve()).isEqualTo(EpreuveType.TCF_COMPLET);
+        assertThat(jalon.slotNumber()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Le gate reporte le verrou freemium : verrouille, l'examen reste designe")
+    void leGateDePalierReporteLeVerrou() {
+        when(productionAccess.isFullExamProductionLocked(userId)).thenReturn(true);
+        Etat etat = etat();
+
+        PlanRecommendedExerciseDto jalon =
+                selector.select(userId, etat.latest, etat.mastery, etat.all, true, now)
+                        .orElseThrow();
+
+        assertThat(jalon.locked()).isTrue();
+        assertThat(jalon.kind()).isEqualTo(PlanExerciseKind.FULL_TCF_MOCK_EXAM);
+    }
+
+    @Test
+    @DisplayName("Un examen complet recent ferme aussi le gate : une etape, pas une boucle")
+    void unExamenCompletRecentFermeLeGate() {
+        when(attemptManager.findByUserAndEpreuve(eq(userId), eq(EpreuveType.TCF_COMPLET), anyInt()))
+                .thenReturn(List.of(examenComplet(now.minus(Duration.ofDays(5)))));
+        Etat etat = etat();
+
+        assertThat(selector.select(userId, etat.latest, etat.mastery, etat.all, true, now))
+                .isEmpty();
+    }
+
+    // ------------------------------------------------------------------------
     // Fabriques
     // ------------------------------------------------------------------------
 
     private Optional<PlanRecommendedExerciseDto> select(Etat etat) {
-        return selector.select(userId, etat.latest, etat.mastery, etat.all, now);
+        return selector.select(userId, etat.latest, etat.mastery, etat.all, false, now);
     }
 
     private Etat epreuvePrete(SkillSection section) {

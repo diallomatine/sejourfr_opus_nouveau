@@ -11,12 +11,15 @@ import com.sejourfr.app.dto.PlanSkillRefDto;
 import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanState;
 import com.sejourfr.app.enums.ObservationConfidence;
+import com.sejourfr.app.enums.PlanCycleState;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
+import com.sejourfr.app.manager.UserManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -88,17 +91,28 @@ public class LearningPlanService {
     private final SkillProgressCounter progressCounter;
     private final SkillMasteryResolver masteryResolver;
     private final SkillAccessService accessService;
+    private final PlanCycleResolver cycleResolver;
+    private final UserManager userManager;
 
     @Transactional(readOnly = true)
     public LearningPlanDto get(UUID userId) {
+        User user = userManager.findById(userId).orElse(null);
         DiagnosticSession completed = sessionManager.findLatestCompleted(userId).orElse(null);
         if (completed == null) {
             DiagnosticSession inProgress = currentSession(userId);
+            // Le profil et le cycle sont servis MEME SANS DIAGNOSTIC : c'est
+            // exactement l'ecran dont a besoin un candidat qui a fait une serie
+            // de comprehension sans jamais passer le diagnostic (brief §3, §6).
+            // Le diagnostic decide des PRIORITES, pas de la connaissance qu'on a
+            // de ses domaines.
+            PlanCycleResolver.Resolution profil =
+                    cycleResolver.resolve(user, List.of(), List.of());
             return new LearningPlanDto(
                     inProgress == null ? LearningPlanState.NEEDS_DIAGNOSTIC
                             : LearningPlanState.DIAGNOSTIC_IN_PROGRESS,
                     inProgress == null ? null : inProgress.getId(), null,
-                    List.of(), null, List.of(), List.of(), 0, 0, true, null);
+                    List.of(), null, List.of(), List.of(), 0, 0, true, null,
+                    profil.domaines(), profil.cycle());
         }
 
         // L'ordre des priorités vit dans LearningPlanPriorityResolver : c'est le
@@ -215,17 +229,29 @@ public class LearningPlanService {
                 .toList();
         int observedCount = latest.size();
         int activities = Math.toIntExact(observationManager.countSince(userId, startOfWeek()));
+        // Le CYCLE de palier : d'ou part le candidat, quel palier se construit,
+        // et l'etat des quatre domaines. Il recoit les priorites DEJA ordonnees
+        // — leur absence est ce qui ouvre le gate, et la premiere d'entre elles
+        // designe le domaine « Priorite forte ». Deux lectures de l'ordre des
+        // priorites auraient fini par se contredire a l'ecran.
+        PlanCycleResolver.Resolution profil =
+                cycleResolver.resolve(user, allObservations, actionable);
         // Le JALON vit a cote des priorites, il ne les remplace pas : les etapes
         // continuent de porter leur propre exercice. Absent tant qu'aucune
         // epreuve n'a majoritairement transfere — cas normal, pas une erreur.
+        // Le gate de palier lui est passe, jamais servi a cote : c'est le meme
+        // examen blanc complet, et il n'a qu'un seul designateur.
         PlanRecommendedExerciseDto milestone = milestoneSelector.select(
-                userId, latest.values(), mastery, allObservations, Instant.now()).orElse(null);
+                userId, latest.values(), mastery, allObservations,
+                profil.cycle().state() == PlanCycleState.READY_FOR_GATE_MOCK,
+                Instant.now()).orElse(null);
         return new LearningPlanDto(
                 LearningPlanState.ACTIVE, completed.getId(), completed.getCompletedAt(),
                 completedSteps,
                 priorities.isEmpty() ? null : priorities.getFirst(),
                 priorities.size() <= 1 ? List.of() : priorities.subList(1, priorities.size()),
-                observed, observedCount, activities, true, milestone);
+                observed, observedCount, activities, true, milestone,
+                profil.domaines(), profil.cycle());
     }
 
     /**

@@ -44,5 +44,30 @@ public record LearningPlanDto(
          * <b>désigné</b> avec son {@code locked} : le Plan reste intégralement
          * visible, seuls les accès sont fermés.
          */
-        PlanRecommendedExerciseDto milestone
+        PlanRecommendedExerciseDto milestone,
+        /**
+         * Les <b>quatre domaines</b> du TCF — compréhension orale, compréhension
+         * écrite, expression orale, expression écrite — <b>toujours les quatre</b>,
+         * y compris ceux qui n'ont jamais été mesurés ({@code evaluated=false}).
+         *
+         * <p>🛑 <b>L'ordre est décidé par le SERVEUR</b> : par urgence
+         * ({@code PlanDomainPriority}, ordre de déclaration), et à égalité par
+         * l'ordre des épreuves du TCF. Aucun front ne réordonne, aucun front ne
+         * complète les trous — une liste trouée ferait disparaître de l'écran
+         * exactement ce que « Compléter mon profil » doit montrer.
+         *
+         * <p>Le niveau d'un domaine est celui de {@code TcfProfileService}, le
+         * même que publie le dashboard : il n'est jamais recalculé ici.
+         */
+        List<PlanDomainDto> domaines,
+        /**
+         * Le <b>cycle de palier</b> en cours : d'où part le candidat, quel palier
+         * le Plan construit maintenant, son objectif, et son chemin.
+         *
+         * <p>Entièrement <b>dérivé</b>, jamais persisté : aucune table, aucune
+         * migration. {@code state == READY_FOR_GATE_MOCK} est le moment où le Plan
+         * réclame l'examen blanc complet qui confirmera le palier — le jalon
+         * correspondant est servi, comme les autres, sur {@link #milestone()}.
+         */
+        PlanCycleDto cycle
 ) {}

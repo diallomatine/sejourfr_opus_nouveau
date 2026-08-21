@@ -95,6 +95,25 @@ class SkillLabelsTest {
                         Map.entry("EN_CHEMIN", "Encore du chemin vers ton objectif"));
     }
 
+    /**
+     * La pastille de chaque domaine dans « Mon profil TCF ». Son <b>ordre de
+     * declaration est l'ordre d'urgence</b> : c'est lui qui trie les quatre
+     * lignes, donc le reordonner changerait l'ecran sans qu'aucun front ne
+     * bouge. Aucune des cinq ne nomme une faiblesse — « À évaluer » veut dire
+     * « il manque des donnees », pas « ce domaine est mauvais ».
+     */
+    @Test
+    @DisplayName("Priorite d'un domaine : les cinq libelles et l'ORDRE d'urgence sont geles")
+    void prioritesDeDomaine() {
+        assertThat(labels(PlanDomainPriority.class, PlanDomainPriority::getLabel))
+                .containsExactly(
+                        Map.entry("FORTE", "Priorité forte"),
+                        Map.entry("A_TRAVAILLER", "À travailler"),
+                        Map.entry("ENTRETIEN", "Entretien"),
+                        Map.entry("PAS_ENCORE_PRIORITAIRE", "Pas encore prioritaire"),
+                        Map.entry("A_EVALUER", "À évaluer"));
+    }
+
     @Test
     @DisplayName("Difficulte : « Accessible » decrit le sujet, il ne juge pas le candidat")
     void difficulte() {
@@ -185,6 +204,9 @@ class SkillLabelsTest {
                 .doesNotHaveDuplicates()
                 .allSatisfy(l -> assertThat(l).isNotBlank());
         assertThat(labels(SituationNiveauVise.class, SituationNiveauVise::getLabel).values())
+                .doesNotHaveDuplicates()
+                .allSatisfy(l -> assertThat(l).isNotBlank());
+        assertThat(labels(PlanDomainPriority.class, PlanDomainPriority::getLabel).values())
                 .doesNotHaveDuplicates()
                 .allSatisfy(l -> assertThat(l).isNotBlank());
     }

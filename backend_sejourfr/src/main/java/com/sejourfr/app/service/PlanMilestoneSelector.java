@@ -62,7 +62,24 @@ import java.util.UUID;
  *       prouve</b> (un examen blanc de chaque, recent). Ce qui reste a verifier
  *       n'est plus une epreuve, c'est de les tenir <b>ensemble</b> d'une traite
  *       — c'est la seule chose que l'examen complet ajoute.</li>
+ *   <li><b>Gate de palier</b> (brief §49-53, §78) : le cycle a fini son travail —
+ *       profil 4/4, plus aucune priorite actionnable, objectif pas encore
+ *       atteint. Le Plan reclame alors l'examen blanc complet qui <b>confirmera
+ *       ou non le palier</b> sur les quatre domaines : « competences solides
+ *       &ne; niveau superieur confirme ».</li>
  * </ol>
+ *
+ * <h2>Pourquoi le gate se greffe ici et ne vit pas a cote</h2>
+ * Il designe <b>exactement le meme objet</b> que le jalon complet — un
+ * {@code FULL_TCF_MOCK_EXAM}, son slot, sa duree, son verrou — et cette
+ * designation n'existe qu'a un seul endroit. Le servir a cote aurait recree la
+ * paire de copies divergentes que ce selecteur a ete extrait pour supprimer, et
+ * un candidat aurait pu lire deux slots differents pour un seul examen. Ce qui
+ * est neuf, c'est <b>la condition</b>, pas la designation : elle est calculee
+ * par {@link PlanCycleResolver} (qui sait ce qu'est un cycle) et arrive ici sous
+ * la forme d'un simple booleen. Aucun nombre nouveau, <b>aucune cle de
+ * configuration ajoutee</b> : les trois conditions du brief se lisent sur
+ * l'ordre des priorites et le compte de domaines evalues, deja etablis.
  *
  * <p><b>Derive, jamais persiste</b> (philosophie {@link SkillStatusResolver} /
  * {@link SkillMasteryResolver}) : aucune table, aucune colonne, aucune
@@ -102,15 +119,29 @@ public class PlanMilestoneSelector {
      * @param allObservations tout l'historique du candidat : c'est la qu'on lit
      *                        les preuves d'examen blanc deja apportees, sans une
      *                        requete de plus.
+     * @param gateDePalier    le cycle reclame son examen de confirmation
+     *                        ({@code PlanCycleState.READY_FOR_GATE_MOCK}, decide
+     *                        par {@link PlanCycleResolver}). Il l'emporte sur
+     *                        l'echelle des epreuves : quand le palier entier est
+     *                        pret, c'est l'examen complet qui tranche.
      */
     public Optional<PlanRecommendedExerciseDto> select(
             UUID userId,
             Collection<LearningPlanObservation> latestObserved,
             Map<UUID, SkillMasteryEngine.SkillMastery> mastery,
             Collection<LearningPlanObservation> allObservations,
+            boolean gateDePalier,
             Instant now) {
         LearningPlanProperties.Milestone config = properties.getMilestone();
         Instant proofStart = now.minus(Duration.ofDays(config.getProofDays()));
+
+        // Le gate de palier passe AVANT l'echelle : le cycle a fini son travail,
+        // ce qu'il reste a savoir n'est plus « cette epreuve tient-elle ? » mais
+        // « le palier est-il confirme sur les quatre domaines ? ». La designation
+        // reste celle du jalon complet, y compris son garde-fou de fenetre : un
+        // candidat qui vient de passer un examen complet ne se le voit pas
+        // represente.
+        if (gateDePalier) return fullExamMilestone(userId, proofStart);
 
         Map<SkillSection, Tally> tallies = new EnumMap<>(SkillSection.class);
         for (SkillSection section : SkillSection.values()) {

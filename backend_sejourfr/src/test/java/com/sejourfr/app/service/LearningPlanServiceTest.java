@@ -5,18 +5,26 @@ import com.sejourfr.app.config.LearningPlanProperties;
 import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
+import com.sejourfr.app.dto.TcfLevelProfile;
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.LearningPlanState;
+import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.ObservationConfidence;
+import com.sejourfr.app.enums.PlanCycleState;
 import com.sejourfr.app.enums.PlanExerciseKind;
 import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
+import com.sejourfr.app.enums.TargetLevel;
+import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
+import com.sejourfr.app.manager.SkillManager;
+import com.sejourfr.app.manager.UserManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +40,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -52,6 +61,9 @@ class LearningPlanServiceTest {
     private PlanMilestoneSelector milestoneSelector;
     private SkillProgressCounter progressCounter;
     private SkillAccessService accessService;
+    private TcfProfileService profileService;
+    private SkillManager skillManager;
+    private User user;
     private LearningPlanService service;
     private final UUID userId = UUID.randomUUID();
 
@@ -75,15 +87,44 @@ class LearningPlanServiceTest {
         reassessmentSelector = mock(ReassessmentExerciseSelector.class);
         when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of());
         milestoneSelector = mock(PlanMilestoneSelector.class);
-        when(milestoneSelector.select(eq(userId), anyCollection(), anyMap(), anyCollection(), any()))
+        when(milestoneSelector.select(eq(userId), anyCollection(), anyMap(), anyCollection(),
+                anyBoolean(), any()))
                 .thenReturn(Optional.empty());
         SkillMasteryResolver masteryResolver = new SkillMasteryResolver(observationManager,
                 new SkillMasteryEngine(planProperties), planProperties);
+        // Le cycle et les domaines tournent POUR DE VRAI : c'est lui qui decide
+        // du gate, et le Plan ne doit pas pouvoir dire autre chose que lui.
+        profileService = mock(TcfProfileService.class);
+        skillManager = mock(SkillManager.class);
+        when(profileService.levelProfile(userId)).thenReturn(profil(null, null, null, null));
+        when(skillManager.findActiveComprehension()).thenReturn(List.of());
+        when(skillManager.countActiveByTaskCode(anyCollection())).thenReturn(Map.of());
+        UserManager userManager = mock(UserManager.class);
+        user = new User();
+        user.setId(userId);
+        // Naturalisation : l'objectif du Plan vaut B2 parce que la DEMARCHE
+        // l'exige, jamais parce qu'une constante le dit.
+        user.setTargetProcedure(TargetProcedure.NAT);
+        when(userManager.findById(userId)).thenReturn(Optional.of(user));
         service = new LearningPlanService(new DiagnosticProperties(), taskManager,
                 sessionManager, observationManager,
                 new LearningPlanPriorityResolver(observationManager, masteryResolver),
                 exerciseSelector, reassessmentSelector, milestoneSelector, progressCounter,
-                masteryResolver, accessService);
+                masteryResolver, accessService,
+                new PlanCycleResolver(profileService, new ComprehensionLevelResolver(),
+                        masteryResolver, skillManager),
+                userManager);
+    }
+
+    /** Un profil TCF, epreuve par epreuve ; {@code null} = jamais mesuree. */
+    private static TcfLevelProfile profil(
+            NiveauCecrl co, NiveauCecrl ce, NiveauCecrl ee, NiveauCecrl eo) {
+        NiveauCecrl global = null;
+        for (NiveauCecrl niveau : new NiveauCecrl[]{co, ce, ee, eo}) {
+            if (niveau == null) continue;
+            if (global == null || niveau.ordinal() < global.ordinal()) global = niveau;
+        }
+        return new TcfLevelProfile(co, ce, ee, eo, global);
     }
 
     @Test
@@ -826,7 +867,7 @@ class LearningPlanServiceTest {
                 .satisfies(item -> assertThat(item.masteryState())
                         .isNotEqualTo(SkillMasteryState.SOLID));
         verify(milestoneSelector).select(eq(userId), anyCollection(), anyMap(), anyCollection(),
-                any());
+                anyBoolean(), any());
     }
 
     // ------------------------------------------------------------------------
@@ -839,7 +880,8 @@ class LearningPlanServiceTest {
         stubPlanPretAVerifier(skill);
         PlanRecommendedExerciseDto jalon = PlanRecommendedExerciseDto.epreuveMockExam(
                 EpreuveType.TCF_EE, 1, 30, false);
-        when(milestoneSelector.select(eq(userId), anyCollection(), anyMap(), anyCollection(), any()))
+        when(milestoneSelector.select(eq(userId), anyCollection(), anyMap(), anyCollection(),
+                anyBoolean(), any()))
                 .thenReturn(Optional.of(jalon));
 
         var result = service.get(userId);
@@ -854,6 +896,112 @@ class LearningPlanServiceTest {
         stubPlanPretAVerifier(skill("EE3-C2"));
 
         assertThat(service.get(userId).milestone()).isNull();
+    }
+
+    // ------------------------------------------------------------------------
+    // Le cycle de palier et les quatre domaines
+    // ------------------------------------------------------------------------
+
+    /**
+     * Le gate n'est pas servi a cote du jalon : il est <b>passe</b> au meme
+     * selecteur, qui reste l'unique designateur d'un examen blanc. Deux surfaces
+     * auraient fini par annoncer deux slots differents pour un seul examen.
+     */
+    @Test
+    void leGateDePalierEstPasseAuSelecteurDeJalon() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        // Profil complet, plus aucune priorite : les trois conditions du brief.
+        when(profileService.levelProfile(userId)).thenReturn(profil(
+                NiveauCecrl.A2, NiveauCecrl.A2, NiveauCecrl.A2, NiveauCecrl.A2));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of());
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+
+        var result = service.get(userId);
+
+        assertThat(result.cycle().state()).isEqualTo(PlanCycleState.READY_FOR_GATE_MOCK);
+        assertThat(result.cycle().targetLevel()).isEqualTo(TargetLevel.B1);
+        verify(milestoneSelector).select(eq(userId), anyCollection(), anyMap(), anyCollection(),
+                eq(true), any());
+    }
+
+    @Test
+    void unePrioriteRestanteFermeLeGateDePalier() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(profileService.levelProfile(userId)).thenReturn(profil(
+                NiveauCecrl.A2, NiveauCecrl.A2, NiveauCecrl.A2, NiveauCecrl.A2));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
+                observation("EE2-C5", LearningPlanSkillStatus.TO_REINFORCE, Instant.now())));
+        when(observationManager.countSince(any(), any())).thenReturn(1L);
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        assertThat(result.cycle().state()).isEqualTo(PlanCycleState.TRAINING);
+        verify(milestoneSelector).select(eq(userId), anyCollection(), anyMap(), anyCollection(),
+                eq(false), any());
+    }
+
+    /**
+     * ARBITRAGE PRODUIT : la verification de progression est premium. Un compte
+     * gratuit plafonne a 2 des 5 sujets d'une etape, donc aucune de ses
+     * competences n'atteint {@code SOLID}, sa priorite ne sort jamais du Plan et
+     * le gate reste ferme. C'est VOULU — ne pas le « reparer » en comptant les
+     * sujets ouverts.
+     */
+    @Test
+    void unCompteGratuitNeVoitJamaisLeGateDePalier() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Skill skill = skill("EE2-C5");
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(profileService.levelProfile(userId)).thenReturn(profil(
+                NiveauCecrl.A2, NiveauCecrl.A2, NiveauCecrl.A2, NiveauCecrl.A2));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
+                observation(skill, LearningPlanSkillStatus.TO_REINFORCE, Instant.now())));
+        when(observationManager.countSince(any(), any())).thenReturn(1L);
+        // Le plafond du freemium : 2 sujets sur 5, l'etape n'est jamais terminee.
+        stubStep(skill, etape(5, 2, 2));
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        assertThat(result.currentPriority()).isNotNull();
+        assertThat(result.currentPriority().readyForReassessment()).isFalse();
+        assertThat(result.cycle().state()).isNotEqualTo(PlanCycleState.READY_FOR_GATE_MOCK);
+        verify(milestoneSelector).select(eq(userId), anyCollection(), anyMap(), anyCollection(),
+                eq(false), any());
+    }
+
+    /**
+     * Le profil des quatre domaines ne depend pas du diagnostic : un candidat
+     * qui a fait une serie de comprehension sans jamais passer le diagnostic
+     * doit voir ce qu'il a mesure, et ce qui lui manque (brief §3, §6).
+     */
+    @Test
+    void lesQuatreDomainesSontServisMemeSansDiagnostic() {
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
+        when(taskManager.findLatestActiveDiagnosticVersion("INITIAL_TCF"))
+                .thenReturn(Optional.of(1));
+        when(sessionManager.findByUserAndVersionWithContent(userId, "INITIAL_TCF", 1))
+                .thenReturn(Optional.empty());
+        when(profileService.levelProfile(userId))
+                .thenReturn(profil(NiveauCecrl.B1, null, null, null));
+
+        var result = service.get(userId);
+
+        assertThat(result.state()).isEqualTo(LearningPlanState.NEEDS_DIAGNOSTIC);
+        assertThat(result.domaines()).hasSize(4);
+        assertThat(result.cycle().domainsEvaluated()).isEqualTo(1);
+        assertThat(result.cycle().state()).isEqualTo(PlanCycleState.BUILDING_BASELINE);
+        // L'objectif suit la demarche (NAT), il n'est pas une constante.
+        assertThat(result.cycle().objectiveLevel()).isEqualTo(TargetLevel.B2);
     }
 
     // ------------------------------------------------------------------------
