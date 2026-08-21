@@ -651,6 +651,8 @@ class DiagnosticResult {
     this.mainPriorityExplanation,
     this.nextAction,
     this.exempleCible,
+    this.fragileSkillCount = 0,
+    this.solidSkillCount = 0,
   });
 
   final DiagnosticProductionResult? written;
@@ -663,6 +665,23 @@ class DiagnosticResult {
   /// Écrit seulement, best-effort : `null` est un cas normal, le bloc
   /// avant/après n'est simplement pas rendu.
   final DiagnosticExempleCible? exempleCible;
+
+  /// Combien de compétences **distinctes** les deux productions ont réellement
+  /// montrées fragiles (observées, `PRIORITY` ou `TO_REINFORCE`).
+  ///
+  /// 🛑 **Seule source du « + N autres » de l'écran de résultat.** [priorities]
+  /// est plafonné à 3 par règle produit : un compteur calculé dessus ne dirait
+  /// jamais mieux que « + 2 », un chiffre de plafond et non une réalité. Le
+  /// serveur fait foi — aucun front ne recompte, deux dérivations finiraient
+  /// par afficher deux nombres différents pour la même chose.
+  ///
+  /// `0` est un état normal : aucun bloc « + N autres » n'est rendu.
+  final int fragileSkillCount;
+
+  /// Le compte réel des points forts : compétences distinctes observées
+  /// `SOLID`. ⚠️ [strengths] ne peut pas rendre ce service — la liste est
+  /// plafonnée à 3 **à l'écriture** du résumé côté serveur.
+  final int solidSkillCount;
 
   factory DiagnosticResult.fromJson(Map<String, dynamic> json) =>
       DiagnosticResult(
@@ -690,6 +709,8 @@ class DiagnosticResult {
               ),
         exempleCible:
             DiagnosticExempleCible.fromJsonNullable(json['exempleCible']),
+        fragileSkillCount: _count(json['fragileSkillCount']),
+        solidSkillCount: _count(json['solidSkillCount']),
       );
 }
 
@@ -1802,6 +1823,14 @@ class LearningPlan {
         seance: PlanSeance.fromJsonOrEmpty(json['seance']),
         recentChanges: PlanRecentChanges.fromJsonOrNull(json['recentChanges']),
       );
+}
+
+/// Un compteur servi par le serveur. Absent ou aberrant ⇒ `0`, c'est-à-dire
+/// « rien à annoncer » : un front n'invente jamais un reste à vendre.
+int _count(Object? raw) {
+  if (raw is int) return raw < 0 ? 0 : raw;
+  if (raw is num) return raw < 0 ? 0 : raw.toInt();
+  return 0;
 }
 
 String? _trimmedOrNull(Object? raw) {

@@ -931,6 +931,25 @@ export interface DiagnosticResultDto {
     nextAction: PlanSkillExerciseDto | null;
     /** Second appel best-effort : `null` (ou absent) est un cas normal. */
     exempleCible: DiagnosticExempleCibleDto | null;
+    /**
+     * Combien de compétences **distinctes** les deux productions ont réellement
+     * montrées fragiles (observées, `PRIORITY` ou `TO_REINFORCE`).
+     *
+     * 🛑 **C'est la seule source du « + N autres » de l'écran de résultat.**
+     * `priorities` est plafonné à 3 par règle produit : un compteur calculé
+     * dessus ne dirait jamais mieux que « + 2 », un chiffre de plafond et non
+     * une réalité. Le serveur fait foi — aucun front ne recompte, deux
+     * dérivations finiraient par afficher deux nombres différents.
+     *
+     * `0` est un état normal : aucun bloc « + N autres » n'est rendu.
+     */
+    fragileSkillCount: number;
+    /**
+     * Le compte réel des points forts : compétences distinctes observées
+     * `SOLID`. ⚠️ `strengths` ne peut pas rendre ce service — la liste est
+     * plafonnée à 3 **à l'écriture** du résumé côté serveur.
+     */
+    solidSkillCount: number;
 }
 
 export interface DiagnosticResponse {

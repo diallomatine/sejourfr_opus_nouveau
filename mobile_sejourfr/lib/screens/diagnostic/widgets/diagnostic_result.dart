@@ -103,15 +103,37 @@ class DiagnosticResultView extends ConsumerWidget {
     // ⇒ `hidden == 0` ⇒ **le bloc verrouillé n'existe pas** et tout est en
     // clair — un compte gratuit avec deux priorités n'a rien de masqué à lui
     // vendre.
+    final focusTotal = _focusTotal(result, focus);
     final visibleFocus =
         hasTcfAccess ? focus : focus.take(_kFreeFocusVisible).toList();
-    final hiddenFocus = focus.length - visibleFocus.length;
+    final hiddenFocus = hasTcfAccess
+        ? 0
+        : _hiddenCount(total: focusTotal, visible: visibleFocus.length);
+
+    // Les points forts, c'est ce que les deux productions ont montré SOLIDE.
+    // Les phrases `strengths` ne sont qu'un **repli** : plafonnées à 3 à
+    // l'écriture du résumé, elles ne peuvent porter aucun compteur.
+    final strengthTexts = solid.isEmpty ? result.strengths : const <String>[];
     final visibleSolid =
         hasTcfAccess ? solid : solid.take(_kFreeSolidVisible).toList();
-    final hiddenSolid = solid.length - visibleSolid.length;
+    final visibleTexts = hasTcfAccess
+        ? strengthTexts
+        : strengthTexts.take(_kFreeSolidVisible).toList();
+    final hiddenSolid = hasTcfAccess
+        ? 0
+        : _hiddenCount(
+            total: _strengthTotal(
+              result,
+              solid.isEmpty ? strengthTexts.length : solid.length,
+            ),
+            visible: solid.isEmpty ? visibleTexts.length : visibleSolid.length,
+          );
+
     final visibleSteps =
         hasTcfAccess ? steps : steps.take(_kFreeStepsVisible).toList();
-    final hiddenSteps = steps.length - visibleSteps.length;
+    // Ce que l'abonnement ouvre vraiment : le compte des priorités restantes,
+    // jamais la longueur de l'aperçu (borné à 3 étapes).
+    final hiddenSteps = hasTcfAccess ? 0 : hiddenFocus;
 
     return Stack(
       children: [
@@ -130,7 +152,7 @@ class DiagnosticResultView extends ConsumerWidget {
             const _ResultTitle(),
             const SizedBox(height: 10),
             Text(
-              _intro(focus.length),
+              _intro(focusTotal),
               style: AppFonts.ui(
                 size: 14.5,
                 color: AppColors.inkSoft,
@@ -166,22 +188,6 @@ class DiagnosticResultView extends ConsumerWidget {
             ],
             const SizedBox(height: 10),
             const _EstimationNote(),
-            // **Diagnostic complet** : la compréhension se mesure maintenant.
-            // Le bloc est hissé juste sous le profil, avant même les priorités
-            // — c'est ce que le candidat est venu chercher en le choisissant.
-            if (variant.isComplet && pending.isNotEmpty) ...[
-              const SizedBox(height: 22),
-              const _SectionHead(
-                kicker: 'IL RESTE DEUX ÉPREUVES À MESURER',
-                title: 'Complétez votre profil TCF.',
-                description:
-                    'Vos deux productions sont analysées. La compréhension se '
-                    'mesure par un examen blanc — elle n’était pas jouable '
-                    'avant que votre compte existe.',
-              ),
-              const SizedBox(height: 13),
-              PlanCompleteProfileSection(assessments: pending),
-            ],
             if (visibleFocus.isNotEmpty) ...[
               const SizedBox(height: 14),
               _FocusCard(focus: visibleFocus),
@@ -191,7 +197,9 @@ class DiagnosticResultView extends ConsumerWidget {
                   lines: [
                     for (final item in focus
                         .skip(visibleFocus.length)
-                        .take(_kBlurredSample))
+                        .take(hiddenFocus < _kBlurredSample
+                            ? hiddenFocus
+                            : _kBlurredSample))
                       _LockedLine(
                         title: item.title,
                         subtitle: item.section?.label,
@@ -234,19 +242,23 @@ class DiagnosticResultView extends ConsumerWidget {
                 onSubscribe: onSubscribe,
               ),
             ],
-            if (visibleSolid.isNotEmpty || result.strengths.isNotEmpty) ...[
+            // **Points forts** — une seule liste, celle des compétences
+            // observées SOLIDE. La carte de phrases `strengths` ne sert plus
+            // que de repli : l'afficher à côté aurait dit deux fois la même
+            // chose, et en clair ce que le rideau prétend cacher.
+            if (visibleSolid.isNotEmpty || visibleTexts.isNotEmpty) ...[
               const SizedBox(height: 26),
               const _SectionHead(
                 kicker: 'VOS ACQUIS',
-                title: 'Vous avez déjà de bonnes bases.',
+                title: 'Vos points forts',
                 description:
-                    'Le détail reste disponible, mais il ne prend plus toute '
-                    'la place dans le bilan.',
+                    'Ce que vos deux productions ont déjà montré de solide.',
               ),
               const SizedBox(height: 13),
-              if (result.strengths.isNotEmpty) ...[
-                _StrengthsCard(strengths: result.strengths.take(3).toList()),
-                if (visibleSolid.isNotEmpty) const SizedBox(height: 9),
+              if (visibleTexts.isNotEmpty) ...[
+                _StrengthsCard(strengths: visibleTexts),
+                if (visibleSolid.isNotEmpty || hiddenSolid > 0)
+                  const SizedBox(height: 9),
               ],
               for (final skill in visibleSolid)
                 Padding(
@@ -256,13 +268,13 @@ class DiagnosticResultView extends ConsumerWidget {
               if (hiddenSolid > 0)
                 _LockedPreview(
                   lines: [
-                    for (final skill in solid
-                        .skip(visibleSolid.length)
-                        .take(_kBlurredSample))
-                      _LockedLine(
-                        title: skill.skillTitle,
-                        subtitle: skill.section.label,
-                      ),
+                    for (final line in _strengthTeaseLines(
+                      solid: solid,
+                      texts: strengthTexts,
+                      from: _kFreeSolidVisible,
+                      hidden: hiddenSolid,
+                    ))
+                      line,
                   ],
                   label: '+ $hiddenSolid autre${_plural(hiddenSolid)} '
                       'compétence${_plural(hiddenSolid)} déjà '
@@ -270,18 +282,28 @@ class DiagnosticResultView extends ConsumerWidget {
                   onSubscribe: onSubscribe,
                 ),
             ],
-            // **Diagnostic rapide** : la même proposition, mais à sa place —
-            // en bas, comme une suite possible. Un domaine non mesuré n'est
-            // jamais présenté comme une faiblesse : il manque des données.
-            if (!variant.isComplet && pending.isNotEmpty) ...[
+            // **Compléter mon profil** — un seul emplacement, celui de l'ordre
+            // demandé : priorités → points forts → compléter mon profil →
+            // carte d'abonnement. Le bloc n'existe que s'il reste un domaine à
+            // mesurer (`domainesAEvaluer` vide = profil complet, l'état visé) ;
+            // la variante ne change que la phrase, jamais la place. **Le Plan
+            // continue de le servir chez lui** : ce rapport ne se lit qu'une
+            // fois, sans le rappel du Plan un candidat qui passe outre
+            // garderait un profil incomplet sans le savoir.
+            if (pending.isNotEmpty) ...[
               const SizedBox(height: 26),
-              const _SectionHead(
-                kicker: 'QUAND VOUS VOULEZ',
+              _SectionHead(
+                kicker: variant.isComplet
+                    ? 'IL RESTE DEUX ÉPREUVES À MESURER'
+                    : 'QUAND VOUS VOULEZ',
                 title: 'Complétez votre profil TCF.',
-                description:
-                    'La compréhension orale et écrite n’a pas encore été '
-                    'mesurée. Ce n’est pas une faiblesse : il manque des '
-                    'données, et un examen blanc suffit à les produire.',
+                description: variant.isComplet
+                    ? 'Vos deux productions sont analysées. La compréhension '
+                        'se mesure par un examen blanc — elle n’était pas '
+                        'jouable avant que votre compte existe.'
+                    : 'La compréhension orale et écrite n’a pas encore été '
+                        'mesurée. Ce n’est pas une faiblesse : il manque des '
+                        'données, et un examen blanc suffit à les produire.',
               ),
               const SizedBox(height: 13),
               PlanCompleteProfileSection(assessments: pending),
@@ -301,6 +323,7 @@ class DiagnosticResultView extends ConsumerWidget {
                   accent: AppColors.blue,
                   accentSoft: AppColors.blueLight,
                   production: result.written!,
+                  hasTcfAccess: hasTcfAccess,
                 ),
               if (result.written != null && result.oral != null)
                 const SizedBox(height: 9),
@@ -311,6 +334,7 @@ class DiagnosticResultView extends ConsumerWidget {
                   accent: AppColors.red,
                   accentSoft: AppColors.redLight,
                   production: result.oral!,
+                  hasTcfAccess: hasTcfAccess,
                 ),
             ],
             // L'offre ferme le rapport : le candidat a d'abord lu **ses**
@@ -448,8 +472,16 @@ class _FocusItem {
 /// une troncature à la source aurait fabriqué un compteur faux, et le dépôt
 /// exige qu'il soit vrai. C'est l'appelant qui tranche ce qu'il affiche.
 List<_FocusItem> _focusItems(DiagnosticResult result) {
+  final fragile = _observedSkills(result)
+      .where(
+        (skill) =>
+            skill.status == LearningPlanSkillStatus.priority ||
+            skill.status == LearningPlanSkillStatus.toReinforce,
+      )
+      .toList(growable: false);
+
   if (result.priorities.isNotEmpty) {
-    return result.priorities
+    final ranked = result.priorities
         .indexed
         .map(
           (entry) => _FocusItem(
@@ -465,29 +497,19 @@ List<_FocusItem> _focusItems(DiagnosticResult result) {
             ranked: true,
           ),
         )
-        .toList(growable: false);
+        .toList();
+    // `priorities` est plafonné à **3** côté serveur — règle produit. Sans ce
+    // complément, un abonné n'aurait jamais vu ce que le compteur d'un compte
+    // gratuit lui promet.
+    final seen = result.priorities.map((item) => item.skillId).toSet();
+    for (final skill in fragile) {
+      if (!seen.add(skill.skillId)) continue;
+      ranked.add(_focusOf(skill));
+    }
+    return List.unmodifiable(ranked);
   }
 
-  final observed = <_FocusItem>[];
-  final seen = <String>{};
-  for (final production in [result.written, result.oral]) {
-    for (final skill in production?.skills ?? const <DiagnosticSkillObservation>[]) {
-      if (!skill.observed) continue;
-      if (skill.status == LearningPlanSkillStatus.solid) continue;
-      if (skill.status == LearningPlanSkillStatus.notObserved) continue;
-      if (!seen.add(skill.skillId)) continue;
-      observed.add(
-        _FocusItem(
-          title: skill.skillTitle,
-          detail: skill.explanation,
-          evidence: skill.evidence,
-          status: skill.status,
-          section: skill.section,
-          ranked: false,
-        ),
-      );
-    }
-  }
+  final observed = fragile.map(_focusOf).toList(growable: false);
   if (observed.isNotEmpty) return List.unmodifiable(observed);
 
   final weaknesses = <_FocusItem>[];
@@ -499,22 +521,76 @@ List<_FocusItem> _focusItems(DiagnosticResult result) {
   return List.unmodifiable(weaknesses);
 }
 
-/// Les compétences que les deux productions ont montrées **solides**,
-/// dédoublonnées par `skillId`. Rendue **entière** pour la même raison que
-/// [_focusItems] : c'est elle qui fait le compteur.
-List<DiagnosticSkillObservation> _solidSkills(DiagnosticResult result) {
+/// Les compétences **réellement observées** sur les deux productions,
+/// dédoublonnées par `skillId`. Une observation non effective n'y entre jamais :
+/// « je n'ai pas pu observer » n'est pas « le candidat est faible ».
+List<DiagnosticSkillObservation> _observedSkills(DiagnosticResult result) {
   final seen = <String>{};
-  final solid = <DiagnosticSkillObservation>[];
+  final observed = <DiagnosticSkillObservation>[];
   for (final production in [result.written, result.oral]) {
-    for (final skill in production?.skills ?? const <DiagnosticSkillObservation>[]) {
+    for (final skill
+        in production?.skills ?? const <DiagnosticSkillObservation>[]) {
       if (!skill.observed) continue;
-      if (skill.status != LearningPlanSkillStatus.solid) continue;
       if (!seen.add(skill.skillId)) continue;
-      solid.add(skill);
+      observed.add(skill);
     }
   }
-  return List.unmodifiable(solid);
+  return List.unmodifiable(observed);
 }
+
+_FocusItem _focusOf(DiagnosticSkillObservation skill) => _FocusItem(
+      title: skill.skillTitle,
+      detail: skill.explanation,
+      evidence: skill.evidence,
+      status: skill.status,
+      section: skill.section,
+      ranked: false,
+    );
+
+/// Les compétences que les deux productions ont montrées **solides**,
+/// dédoublonnées par `skillId`. Rendue **entière** pour la même raison que
+/// [_focusItems] : c'est l'appelant qui tranche ce qu'il affiche.
+List<DiagnosticSkillObservation> _solidSkills(DiagnosticResult result) =>
+    List.unmodifiable(
+      _observedSkills(result)
+          .where((skill) => skill.status == LearningPlanSkillStatus.solid),
+    );
+
+/// Les lignes **réelles** que le rideau des points forts laisse deviner : les
+/// compétences solides, ou les phrases de repli quand il n'y en a aucune.
+/// Bornées par ce qui reste vraiment — on ne floute jamais plus que ce qu'on
+/// annonce.
+List<_LockedLine> _strengthTeaseLines({
+  required List<DiagnosticSkillObservation> solid,
+  required List<String> texts,
+  required int from,
+  required int hidden,
+}) {
+  final sample = hidden < _kBlurredSample ? hidden : _kBlurredSample;
+  if (solid.isNotEmpty) {
+    return [
+      for (final skill in solid.skip(from).take(sample))
+        _LockedLine(title: skill.skillTitle, subtitle: skill.section.label),
+    ];
+  }
+  return [
+    for (final text in texts.skip(from).take(sample)) _LockedLine(title: text),
+  ];
+}
+
+/// Le **total** annoncé par le compteur des priorités. 🛑 Il vient du serveur
+/// (`fragileSkillCount`) : `priorities` est plafonné à 3, et deux dérivations
+/// front finiraient par afficher deux nombres différents. Le `max` n'est qu'un
+/// garde-fou — on n'annonce jamais moins que ce qu'on affiche.
+int _focusTotal(DiagnosticResult result, List<_FocusItem> focus) =>
+    result.fragileSkillCount > focus.length
+        ? result.fragileSkillCount
+        : focus.length;
+
+/// Idem pour les points forts. ⚠️ `strengths` ne peut pas rendre ce service :
+/// la liste est plafonnée à 3 **à l'écriture** du résumé côté serveur.
+int _strengthTotal(DiagnosticResult result, int shown) =>
+    result.solidSkillCount > shown ? result.solidSkillCount : shown;
 
 /// Une étape de l'aperçu du plan.
 class _PlanStep {
@@ -1845,6 +1921,7 @@ class _ProductionCard extends StatefulWidget {
     required this.accent,
     required this.accentSoft,
     required this.production,
+    required this.hasTcfAccess,
   });
 
   final String title;
@@ -1852,6 +1929,13 @@ class _ProductionCard extends StatefulWidget {
   final Color accent;
   final Color accentSoft;
   final DiagnosticProductionResult production;
+
+  /// 🛑 **Sans accès, la liste « À travailler » n'est pas rendue.** Elle nomme
+  /// en clair les fragilités que le rideau des priorités vient de flouter :
+  /// l'afficher ici démentirait le compteur, trois sections plus haut. Ce n'est
+  /// pas un retrait d'information — la priorité n°1 reste lisible en entier,
+  /// avec son extrait, et le compteur dit combien il en reste.
+  final bool hasTcfAccess;
 
   @override
   State<_ProductionCard> createState() => _ProductionCardState();
@@ -1864,7 +1948,9 @@ class _ProductionCardState extends State<_ProductionCard> {
   Widget build(BuildContext context) {
     final production = widget.production;
     final accent = widget.accent;
-    final weaknesses = production.weaknesses.take(2).toList(growable: false);
+    final weaknesses = widget.hasTcfAccess
+        ? production.weaknesses.take(2).toList(growable: false)
+        : const <String>[];
     return AppCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Column(
@@ -2099,14 +2185,22 @@ Color _communicationTone(DiagnosticCommunicationStatus status) =>
 /// estimés, l'objectif, le rail, le résumé, le « avant / après », le détail des
 /// deux productions et la bande des quatre domaines. Ce sont **ses**
 /// productions et **ses** mesures — on ne les lui vend pas.
-const int _kFreeFocusVisible = 2;
-const int _kFreeSolidVisible = 2;
+const int _kFreeFocusVisible = 1;
+const int _kFreeSolidVisible = 1;
 const int _kFreeStepsVisible = 1;
 
 /// Combien de lignes **réelles** le bloc flouté laisse deviner. C'est un
 /// échantillon, jamais le compte : le compte, lui, est exact et porte sur
-/// **tout** ce qui est masqué.
+/// **tout** ce qui est masqué. Miroir web : `TEASE_SAMPLE`.
 const int _kBlurredSample = 2;
+
+/// Ce qu'il reste à annoncer, à partir d'un total **servi par le serveur** et de
+/// ce qui est affiché en clair.
+///
+/// 🛑 `0` ⇒ **aucun bloc** : une liste plus courte que le seuil s'affiche
+/// entièrement en clair, on ne fabrique jamais de reste à vendre.
+int _hiddenCount({required int total, required int visible}) =>
+    total - visible < 0 ? 0 : total - visible;
 
 String _plural(int count) => count > 1 ? 's' : '';
 

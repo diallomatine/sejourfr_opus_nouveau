@@ -572,6 +572,36 @@ de rubriques et files de calibration doivent garder le filtre
   fiable. La relance agrégée réserve `FAILED → ANALYZING` sous verrou pessimiste
   puis déclenche l'async après commit ; une session `COMPLETED` n'est jamais
   rétrogradée par un recorder tardif.
+- **Écran de RÉSULTAT — le « + N autres » est un VRAI nombre** (2026-08-21).
+  L'ordre des blocs est figé et identique sur les deux fronts : **Mes priorités**
+  (1 en clair, 2 lignes réelles floutées, « + N autres ») → **Points forts**
+  (même traitement) → **Compléter mon profil** (si `domainesAEvaluer` n'est pas
+  vide) → **carte d'abonnement**. Seuils d'**affichage** déclarés une fois par
+  front : `FREE_PRIORITIES`/`FREE_STRENGTHS` = 1 et `TEASE_SAMPLE` = 2 (web) ⇄
+  `_kFreeFocusVisible`/`_kFreeSolidVisible` = 1 et `_kBlurredSample` = 2 (mobile).
+  🛑 **`DiagnosticResultDto.fragileSkillCount` / `.solidSkillCount` sont
+  l'autorité du compteur, et ils sont SERVEUR** (`DiagnosticService`,
+  compétences **distinctes** de `written.skills` + `oral.skills`, `observed`,
+  statut `PRIORITY|TO_REINFORCE` / `SOLID`, dédoublonnées par code) : le calculer
+  dans chaque front aurait produit deux nombres pour la même chose. Il **ne se
+  lit pas sur `priorities`**, plafonné à 3 par règle produit — le plafond n'est
+  pas touché, et un « + 2 » de plafond n'est pas une réalité. Il ne se lit pas
+  non plus sur `strengths`, plafonné à 3 **à l'écriture** du résumé par
+  `DiagnosticSessionCoordinator`. `0` ⇒ **aucun bloc flouté**, et une liste plus
+  courte que le seuil s'affiche en clair. Contenu flouté = le **vrai**, hors
+  arbre d'accessibilité et hors parcours clavier (`aria-hidden` + `inert` ⇄
+  `BlurredContent`), l'information nette (compteur, CTA) vivant hors du rideau ;
+  un seul chemin vers l'offre, **aucun événement d'audience ajouté**.
+  ⚠️ **Trois surfaces démentaient le flou et ont été fermées** : la section web
+  « Le détail reste disponible » listait en clair **toutes** les observations —
+  elle est **remplacée** par « Vos points forts » (les seules compétences
+  `SOLID`) ; les phrases `strengths` deviennent un **repli** affiché seulement
+  quand aucune compétence solide n'existe (deux listes disaient la même chose) ;
+  et la liste « À travailler » de chaque production (web `ProductionSummary`,
+  mobile `_ProductionCard`) n'est servie qu'à un compte **avec** accès. En
+  contrepartie, la liste des priorités est **complétée** par les autres
+  fragilités observées au-delà des 3 servies : un abonné doit voir exactement ce
+  que le compteur d'un compte gratuit lui a promis.
 - ⚠️ **Corollaire de cette bifurcation : le diagnostic ne traverse AUCUN filet de
   `AiEvaluationService`.** Il rendait donc des reproches bâtis sur un artefact de
   transcription — cas réel : `EO2-C3` reprochait « « horreurs » pour « horaires »

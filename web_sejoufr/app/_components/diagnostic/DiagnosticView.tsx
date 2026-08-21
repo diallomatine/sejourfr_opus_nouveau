@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {useCallback, useEffect, useMemo, useRef, useState, type ReactNode} from "react";
+import {useCallback, useEffect, useRef, useState, type ReactNode} from "react";
 import {
   AlertCircle,
   ArrowLeft,
@@ -1278,6 +1278,21 @@ function AnalysisWaiting({
 }
 
 /**
+ * Les compétences **réellement observées** sur les deux productions, dédoublonnées
+ * par identifiant. Une observation non effective n'y entre jamais : « je n'ai pas
+ * pu observer » n'est pas « le candidat est faible ».
+ */
+function observedSkills(result: DiagnosticResultDto): DiagnosticSkillObservationDto[] {
+  const unique = new Map<string, DiagnosticSkillObservationDto>();
+  for (const skill of [...(result.written?.skills ?? []), ...(result.oral?.skills ?? [])]) {
+    if (skill.observed) unique.set(skill.skillId, skill);
+  }
+  return [...unique.values()];
+}
+
+const FRAGILE_STATUSES: LearningPlanSkillStatus[] = ["PRIORITY", "TO_REINFORCE"];
+
+/**
  * Ce que l'écran met en tête : les priorités mesurées par l'analyse, ou — quand
  * le serveur n'en a désigné aucune — les points à travailler relevés sur chaque
  * production.
@@ -1286,12 +1301,14 @@ function AnalysisWaiting({
  * repli ne prétend jamais que ces points sont des priorités classées, et le
  * drapeau `measured` est ce qui fait changer les libellés de l'écran.
  *
- * 🛑 **Cette fonction ne tronque RIEN — elle rend tout ce que le serveur a
- * envoyé, et c'est l'appelant qui décide de l'affichage.** Elle coupait à 3 des
- * deux côtés : un compteur « + N autres » calculé là-dessus aurait été **faux
- * par construction**, et un abonné perdait en silence ce qui dépassait. Le
- * plafond d'affichage d'un compte gratuit vit désormais au seul endroit qui le
- * regarde (`FREE_PRIORITIES`), et il est le seul.
+ * 🛑 **Cette fonction ne tronque RIEN.** `priorities` est plafonné à **3** côté
+ * serveur — règle produit — donc la liste est complétée par les autres
+ * fragilités réellement observées : sans ça, un abonné n'aurait jamais vu ce que
+ * le teaser d'un compte gratuit lui promet.
+ *
+ * 🛑 **`total` vient du SERVEUR** (`fragileSkillCount`), jamais d'un comptage
+ * local : c'est lui qui fait le « + N autres ». Le `Math.max` n'est qu'un
+ * garde-fou — on n'annonce jamais moins que ce qu'on affiche.
  */
 interface ResultLever {
   key: string;
@@ -1305,23 +1322,37 @@ interface ResultLever {
 function resultLevers(result: DiagnosticResultDto): {
   levers: ResultLever[];
   measured: boolean;
+  total: number;
 } {
+  const fragile = observedSkills(result).filter((skill) =>
+    FRAGILE_STATUSES.includes(skill.status),
+  );
+  const toLever = (skill: DiagnosticSkillObservationDto, rank: number): ResultLever => ({
+    key: skill.skillId,
+    title: skill.skillTitle,
+    detail: (rank === 0 ? result.mainPriorityExplanation : null) ?? skill.explanation,
+    evidence: skill.evidence,
+    status: skill.status,
+    section: skill.section,
+  });
+
   if (result.priorities.length > 0) {
-    return {
-      measured: true,
-      levers: result.priorities.map((priority, index) => ({
-        key: priority.skillId,
-        title: priority.skillTitle,
-        detail: (index === 0 ? result.mainPriorityExplanation : null) ?? priority.explanation,
-        evidence: priority.evidence,
-        status: priority.status,
-        section: priority.section,
-      })),
-    };
+    const ranked = result.priorities.map(toLever);
+    const seen = new Set(ranked.map((lever) => lever.key));
+    const rest = fragile
+      .filter((skill) => !seen.has(skill.skillId))
+      .map((skill) => toLever(skill, -1));
+    const levers = [...ranked, ...rest];
+    return {measured: true, levers, total: Math.max(result.fragileSkillCount, levers.length)};
   }
 
-  // Repli : on alterne écrit et oral pour ne pas servir trois points d'une
-  // seule production quand les deux en portent.
+  if (fragile.length > 0) {
+    const levers = fragile.map((skill) => toLever(skill, -1));
+    return {measured: false, levers, total: Math.max(result.fragileSkillCount, levers.length)};
+  }
+
+  // Dernier repli : on alterne écrit et oral pour ne pas servir trois points
+  // d'une seule production quand les deux en portent.
   const written = result.written?.weaknesses ?? [];
   const oral = result.oral?.weaknesses ?? [];
   const fallback: ResultLever[] = [];
@@ -1347,7 +1378,31 @@ function resultLevers(result: DiagnosticResultDto): {
       });
     }
   }
-  return {measured: false, levers: fallback};
+  return {measured: false, levers: fallback, total: fallback.length};
+}
+
+/**
+ * Les **points forts** : les compétences que les deux productions ont montrées
+ * solides, et rien d'autre.
+ *
+ * ⚠️ Les phrases `strengths` du résumé ne sont qu'un **repli** : elles sont
+ * plafonnées à 3 **à l'écriture** côté serveur, donc leur longueur ne dit rien du
+ * nombre réel et elles ne peuvent porter aucun compteur. Dès qu'une compétence
+ * solide existe, ce sont les compétences qui font foi — elles portent en plus
+ * leur explication et leur extrait.
+ */
+function resultStrengths(result: DiagnosticResultDto): {
+  skills: DiagnosticSkillObservationDto[];
+  texts: string[];
+  total: number;
+} {
+  const skills = observedSkills(result).filter((skill) => skill.status === "SOLID");
+  const texts = skills.length > 0 ? [] : result.strengths;
+  return {
+    skills,
+    texts,
+    total: Math.max(result.solidSkillCount, skills.length || texts.length),
+  };
 }
 
 /** Lien vers l'offre, avec sa mesure de conversion. Deux emplacements l'ouvrent
@@ -1377,14 +1432,39 @@ function PremiumLink({
 /* --------------------------------------------------- rapport et abonnement */
 
 /**
- * Combien de lignes un compte SANS accès TCF voit en clair avant le teaser.
+ * Combien de lignes un compte SANS accès TCF voit en clair avant le rideau :
+ * **une seule**, de chaque côté. Deux lignes réelles sont ensuite floutées, puis
+ * le compteur annonce **tout** ce qui reste.
  *
- * 🛑 **Ces deux nombres bornent l'AFFICHAGE, jamais la donnée.** Le serveur
- * envoie tout, l'écran en montre une partie, et le teaser révèle exactement le
- * reste — cf. `LockedTease`.
+ * 🛑 **Ces deux nombres bornent l'AFFICHAGE, jamais la donnée.** Le compte
+ * annoncé, lui, vient du serveur (`fragileSkillCount` / `solidSkillCount`) — cf.
+ * `LockedTease`. Miroirs mobile : `_kFreeFocusVisible` / `_kFreeSolidVisible`.
  */
-const FREE_PRIORITIES = 2;
-const FREE_STRENGTHS = 2;
+const FREE_PRIORITIES = 1;
+const FREE_STRENGTHS = 1;
+
+/**
+ * Combien de lignes **réelles** le rideau laisse deviner. C'est un échantillon,
+ * jamais le compte : le compte, lui, est exact et porte sur tout ce qui reste.
+ * Miroir mobile : `_kBlurredSample`.
+ */
+const TEASE_SAMPLE = 2;
+
+/**
+ * Les lignes à flouter et le nombre à annoncer, à partir d'une liste affichée en
+ * partie et d'un **total servi par le serveur**.
+ *
+ * 🛑 `hidden === 0` ⇒ **aucun bloc** : une liste plus courte que le seuil
+ * s'affiche entièrement en clair, on ne fabrique jamais de reste à vendre.
+ */
+function teaseFrom<T>(
+  rows: T[],
+  visible: number,
+  total: number,
+): {hidden: number; sample: T[]} {
+  const hidden = Math.max(0, total - Math.min(visible, rows.length));
+  return {hidden, sample: rows.slice(visible, visible + Math.min(TEASE_SAMPLE, hidden))};
+}
 
 /**
  * Le chapeau du rapport, qui dit d'emblée si le candidat lit tout ou une partie.
@@ -1508,13 +1588,6 @@ function DiagnosticResult({
   notice?: ReactNode;
 }) {
   const result = diagnostic.result;
-  const observations = useMemo(() => {
-    const unique = new Map<string, DiagnosticSkillObservationDto>();
-    for (const skill of [...(result?.written?.skills ?? []), ...(result?.oral?.skills ?? [])]) {
-      if (skill.observed) unique.set(skill.skillId, skill);
-    }
-    return [...unique.values()];
-  }, [result]);
 
   if (!result) {
     return (
@@ -1525,10 +1598,13 @@ function DiagnosticResult({
     );
   }
 
-  const {levers, measured} = resultLevers(result);
+  const {levers, measured, total: leverTotal} = resultLevers(result);
+  const strengths = resultStrengths(result);
   const nextAction = result.nextAction;
   const exemple = result.exempleCible;
-  const nextSteps = measured ? levers.slice(1) : [];
+  // Aperçu du plan : deux étapes à venir au plus, comme avant. Le compteur d'un
+  // compte gratuit, lui, porte sur le total réel — pas sur cet aperçu.
+  const nextSteps = measured ? levers.slice(1, 3) : [];
   // Parcours complet : la compréhension est la suite immédiate, elle se lit
   // juste sous le niveau estimé. Parcours rapide : le rapport mène d'abord au
   // plan, et le profil reste à compléter plus bas, sans pression.
@@ -1551,12 +1627,26 @@ function DiagnosticResult({
   // liste plus courte que le seuil ne produit aucun teaser (`slice` rend un
   // tableau vide, l'appelant ne rend rien).
   const visibleLevers = hasTcf ? levers : levers.slice(0, FREE_PRIORITIES);
-  const hiddenLevers = levers.slice(visibleLevers.length);
+  const leverTease = hasTcf
+    ? {hidden: 0, sample: [] as ResultLever[]}
+    : teaseFrom(levers, FREE_PRIORITIES, leverTotal);
   // ⚠️ Un abonné voit **tous** ses points forts : le teaser annonce « + N
-  // autres », il faut donc que le déverrouillage en montre réellement N de
-  // plus. L'ancien plafond d'affichage à 3 aurait rendu ce compteur faux.
-  const visibleStrengths = hasTcf ? result.strengths : result.strengths.slice(0, FREE_STRENGTHS);
-  const hiddenStrengths = result.strengths.slice(visibleStrengths.length);
+  // autres », il faut donc que le déverrouillage en montre réellement N de plus.
+  const visibleSolid = hasTcf ? strengths.skills : strengths.skills.slice(0, FREE_STRENGTHS);
+  const visibleTexts = hasTcf ? strengths.texts : strengths.texts.slice(0, FREE_STRENGTHS);
+  const strengthTease = hasTcf
+    ? {hidden: 0, sample: [] as {key: string; title: string; meta: string | null}[]}
+    : teaseFrom<{key: string; title: string; meta: string | null}>(
+        strengths.skills.length > 0
+          ? strengths.skills.map((skill) => ({
+              key: skill.skillId,
+              title: skill.skillTitle,
+              meta: productionSectionLabel(skill.section),
+            }))
+          : strengths.texts.map((item) => ({key: item, title: item, meta: null})),
+        FREE_STRENGTHS,
+        strengths.total,
+      );
 
   return (
     <DiagnosticShell>
@@ -1652,8 +1742,6 @@ function DiagnosticResult({
           Cette estimation est pédagogique : elle ne remplace pas un résultat officiel du TCF.
         </p>
 
-        {complete && <DiagnosticProfileCard emphasis="next" />}
-
         {/* ------------------------------------------------ avant / après */}
         {exemple && (
           <section id="exemple" aria-labelledby="exemple-title">
@@ -1709,9 +1797,9 @@ function DiagnosticResult({
                 </article>
               ))}
             </div>
-            {hiddenLevers.length > 0 && (
+            {leverTease.hidden > 0 && (
               <LockedTease
-                rows={hiddenLevers.map((lever) => ({
+                rows={leverTease.sample.map((lever) => ({
                   key: lever.key,
                   title: lever.title,
                   meta: lever.section ? productionSectionLabel(lever.section) : null,
@@ -1722,12 +1810,12 @@ function DiagnosticResult({
                 label={
                   measured
                     ? moreLabel(
-                        hiddenLevers.length,
+                        leverTease.hidden,
                         "autre priorité détectée",
                         "autres priorités détectées",
                       )
                     : moreLabel(
-                        hiddenLevers.length,
+                        leverTease.hidden,
                         "autre point à travailler",
                         "autres points à travailler",
                       )
@@ -1776,12 +1864,12 @@ function DiagnosticResult({
                   suivants se comptent au lieu de s'afficher en double. Leurs
                   compétences sont déjà nommées plus haut, dans les priorités —
                   ce qui est fermé ici, c'est l'exercice, pas le diagnostic. */}
-              {!hasTcf && nextSteps.length > 0 && (
+              {!hasTcf && leverTease.hidden > 0 && (
                 <PremiumLink className={styles.planMore}>
                   <Lock size={15} aria-hidden />
                   <span className={styles.planMoreCount}>
                     {moreLabel(
-                      nextSteps.length,
+                      leverTease.hidden,
                       "autre entraînement personnalisé",
                       "autres entraînements personnalisés",
                     )}
@@ -1793,45 +1881,54 @@ function DiagnosticResult({
           </section>
         )}
 
-        {/* ---------------------------------------------- le détail observé */}
-        <section aria-labelledby="reveal-title">
-          <ResultBlockHead
-            id="reveal-title"
-            title="Le détail reste disponible"
-            text="Ce qui est déjà solide est replié : ouvrez seulement ce qui vous intéresse."
-          />
-          <div className={styles.snapshot}>
-            {result.strengths.length > 0 && (
-              <div className={styles.snapshotStrengths}>
-                <b>Ce qui fonctionne déjà</b>
-                <ul>
-                  {visibleStrengths.map((item) => <li key={item}>{item}</li>)}
-                </ul>
-                {hiddenStrengths.length > 0 && (
-                  <LockedTease
-                    rows={hiddenStrengths.map((item) => ({
-                      key: item,
-                      title: item,
-                      meta: null,
-                    }))}
-                    label={moreLabel(
-                      hiddenStrengths.length,
-                      "autre compétence déjà solide",
-                      "autres compétences déjà solides",
-                    )}
-                  />
-                )}
-              </div>
-            )}
-            {observations.length === 0 ? (
-              <p className={styles.emptyText}>
-                Aucune compétence n&apos;a été observée avec assez de confiance sur ces deux productions.
-              </p>
-            ) : (
-              observations.map((skill) => <SkillDisclosure key={skill.skillId} skill={skill} />)
-            )}
-          </div>
-        </section>
+        {/* ------------------------------------------------- vos points forts */}
+        {/* 🛑 **Cette section a REMPLACÉ « Le détail reste disponible »**, qui
+            listait en clair *toutes* les compétences observées — donc, dix
+            lignes plus bas, exactement ce que les deux rideaux prétendaient
+            cacher. Ce qui est fragile se lit dans « Vos priorités », ce qui est
+            solide se lit ici, et rien n'est affiché deux fois. */}
+        {(visibleSolid.length > 0 || visibleTexts.length > 0) && (
+          <section aria-labelledby="strengths-title">
+            <ResultBlockHead
+              id="strengths-title"
+              title="Vos points forts"
+              text="Ce que vos deux productions ont déjà montré de solide. Ouvrez seulement ce qui vous intéresse."
+            />
+            <div className={styles.snapshot}>
+              {visibleTexts.length > 0 && (
+                <div className={styles.snapshotStrengths}>
+                  <b>Ce qui fonctionne déjà</b>
+                  <ul>
+                    {visibleTexts.map((item) => <li key={item}>{item}</li>)}
+                  </ul>
+                </div>
+              )}
+              {visibleSolid.map((skill) => (
+                <SkillDisclosure key={skill.skillId} skill={skill} />
+              ))}
+              {strengthTease.hidden > 0 && (
+                <LockedTease
+                  rows={strengthTease.sample}
+                  label={moreLabel(
+                    strengthTease.hidden,
+                    "autre compétence déjà solide",
+                    "autres compétences déjà solides",
+                  )}
+                />
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ------------------------------------------ compléter mon profil */}
+        {/* ⚠️ **Un seul emplacement, celui de l'ordre demandé** : priorités →
+            points forts → compléter mon profil → carte d'abonnement. Le bloc
+            n'existe que s'il reste un domaine à mesurer (`domainesAEvaluer`
+            vide = profil complet, l'état visé) ; `emphasis` ne change que la
+            phrase, jamais la place. **Le Plan continue de le servir chez lui** :
+            ce rapport ne se lit qu'une fois, sans le rappel du Plan un candidat
+            qui passe outre garderait un profil incomplet sans le savoir. */}
+        <DiagnosticProfileCard emphasis={complete ? "next" : "later"} />
 
         {/* ---------------------------------------------- vos 2 productions */}
         <section aria-labelledby="productions-title">
@@ -1841,12 +1938,10 @@ function DiagnosticResult({
             text="Ce que chacune a montré, dans le détail."
           />
           <div className={styles.productions}>
-            <ProductionSummary kind="written" production={result.written} />
-            <ProductionSummary kind="oral" production={result.oral} />
+            <ProductionSummary kind="written" production={result.written} hasTcf={hasTcf} />
+            <ProductionSummary kind="oral" production={result.oral} hasTcf={hasTcf} />
           </div>
         </section>
-
-        {!complete && <DiagnosticProfileCard emphasis="later" />}
 
         {/* ------------------------------------------------------ CTA final */}
         {/* Un seul bloc de fin, jamais deux empilés : l'abonné est renvoyé vers
@@ -2025,9 +2120,16 @@ function ToneIcon({tone}: {tone: DiagnosticSignalTone}) {
 function ProductionSummary({
   kind,
   production,
+  hasTcf,
 }: {
   kind: "written" | "oral";
   production: DiagnosticProductionResultDto | null;
+  /** 🛑 **Sans accès, la liste « À travailler » n'est pas rendue.** Elle nomme
+   *  en clair les fragilités que le rideau des priorités vient de flouter :
+   *  l'afficher ici démentirait le teaser trois sections plus haut. Ce n'est pas
+   *  un retrait d'information — la priorité n°1 reste lisible en entier, avec
+   *  son extrait, et le compteur dit combien il en reste. */
+  hasTcf: boolean;
 }) {
   const label = kind === "written" ? "Expression écrite" : "Expression orale";
   const icon = kind === "written" ? <FilePenLine size={17} /> : <Mic size={17} />;
@@ -2071,7 +2173,7 @@ function ProductionSummary({
           </li>
         </ul>
 
-        {production.weaknesses.length > 0 && (
+        {hasTcf && production.weaknesses.length > 0 && (
           <div className={styles.productionWeak}>
             <b>À travailler</b>
             <ul>
