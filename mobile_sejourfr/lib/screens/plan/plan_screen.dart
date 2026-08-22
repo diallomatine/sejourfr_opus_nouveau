@@ -29,7 +29,6 @@ import 'plan_milestone_labels.dart';
 import 'plan_seance_state.dart';
 import 'widgets/plan_banner.dart';
 import 'widgets/plan_changes_section.dart';
-import 'widgets/plan_observed_skills_section.dart';
 import 'widgets/plan_path_section.dart';
 import 'widgets/plan_paywall_card.dart';
 import 'widgets/plan_priorities_section.dart';
@@ -45,10 +44,15 @@ import 'widgets/plan_tokens.dart';
 /// quatre domaines sont **déjà triés par urgence**, la séance est composée
 /// serveur, et les verrous viennent d'un `locked` par élément.
 ///
-/// Ordre des blocs, du plus immédiat au plus lointain : contexte → bandeau →
-/// **priorité actuelle** → **aujourd'hui** → **mes priorités** → jalon → ce qui
-/// a changé → **mon profil TCF** → compléter mon profil → **mon chemin** →
-/// liens secondaires.
+/// Ordre des blocs, du plus immédiat au plus lointain, **identique au web** :
+/// contexte → bandeau → **priorité actuelle** → **aujourd'hui** → **mes
+/// priorités** → offre → jalon → ce qui a changé → **mon profil TCF** →
+/// compléter mon profil → **mon chemin** → liens secondaires.
+///
+/// 🛑 **Il n'y a plus de section « Mes compétences observées ».** Ce qui a été
+/// constaté vit désormais **dans** les encarts de « Mes priorités », sur la
+/// tâche concernée : une seconde liste plus bas répétait les mêmes compétences
+/// dans un autre ordre. Ne pas la recréer.
 class PlanScreen extends ConsumerStatefulWidget {
   const PlanScreen({super.key});
 
@@ -334,12 +338,6 @@ class _ActivePlan extends ConsumerWidget {
     final current = plan.currentPriority;
     final cycle = plan.cycle;
     final milestone = plan.milestone;
-    // 🛑 **Uniquement ce qui a été observé.** Une compétence `NOT_OBSERVED`
-    // n'est pas une compétence faible : l'inscrire dans « Mes compétences
-    // observées » la ferait lire comme telle. Même filtre que le web.
-    final observed = plan.observedSkills
-        .where((skill) => skill.status != LearningPlanSkillStatus.notObserved)
-        .toList(growable: false);
     // Un jalon déjà présent dans la séance ne se répète pas en carte : ce
     // serait le même examen blanc annoncé deux fois sur le même écran.
     final milestoneInSeance = milestone != null &&
@@ -461,16 +459,6 @@ class _ActivePlan extends ConsumerWidget {
           const SizedBox(height: 22),
           PlanPathSection(cycle: cycle),
         ],
-        // Ce que les productions ont réellement montré. Le mobile décodait ces
-        // compétences sans jamais les afficher : le même compte lisait sur le
-        // web un historique que son téléphone lui cachait.
-        if (observed.isNotEmpty) ...[
-          const SizedBox(height: 22),
-          PlanObservedSkillsSection(
-            skills: observed,
-            total: plan.observedSkillCount,
-          ),
-        ],
         const SizedBox(height: 22),
         // Les mêmes quatre accès que le web, dans le même ordre. « Toutes mes
         // compétences » et « Mes examens blancs » n'existaient pas ici.
@@ -482,24 +470,23 @@ class _ActivePlan extends ConsumerWidget {
               iconColor: AppColors.inkSoft,
               title: kPlanAllSkillsTitle,
               sub: '6 tâches · 3 paliers par domaine',
-              // ⚠️ **Verrou de NAVIGATION**, comme depuis « Mes priorités » :
-              // le Plan reste entier, seul le catalogue complet est un accès.
-              right: hasTcf ? null : const PremiumLockPill(size: 22),
-              onTap: () => hasTcf
-                  ? context.push(AppRoutes.planSkills)
-                  : unawaited(showTcfLockPaywall(
-                      context,
-                      ref: ref,
-                      ctaLocation: AnalyticsCtaLocation.lockedPlan,
-                    )),
+              // 🛑 **Aucun cadenas** (2026-08-22) : le référentiel est le
+              // catalogue et les mesures du candidat, pas une action premium.
+              // Le verrou reste là où le serveur le pose — sur chaque
+              // compétence et chaque sujet. Même règle que « Tout voir ».
+              onTap: () => context.push(AppRoutes.planSkills),
             ),
             ListRow(
               icon: LucideIcons.trendingUp,
               iconBg: AppColors.surface2,
               iconColor: AppColors.inkSoft,
-              title: 'Ma progression',
-              sub: 'Domaine par domaine, niveau par niveau',
-              onTap: () => context.push(AppRoutes.progress),
+              title: planProgressTitle(objective),
+              sub: kPlanProgressSub,
+              // 🛑 **Pas `AppRoutes.progress`** : celui-là est l'écran de
+              // progression **générique** (3 anneaux, parcours civique et TCF),
+              // ouvert depuis le Profil, et il reste. Celui du Plan détaille
+              // les quatre domaines du TCF vers l'objectif.
+              onTap: () => context.push(AppRoutes.planProgress),
             ),
             ListRow(
               icon: LucideIcons.graduationCap,

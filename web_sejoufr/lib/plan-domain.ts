@@ -17,14 +17,25 @@
  * 2. `domaines` est **déjà trié** par le serveur — on ne retrie pas.
  */
 
-import {competenceHref, productionSectionLabel, skillTaskNumber} from "@/lib/diagnostic";
+import {
+    competenceHref,
+    PLAN_MILESTONE_PILL,
+    productionSectionLabel,
+    skillTaskNumber,
+} from "@/lib/diagnostic";
 import {
     type LearningPlanDto,
+    type LearningPlanPriorityDto,
+    type LearningPlanSkillStatus,
     type NiveauCecrl,
     niveauCecrlLabel,
+    PLAN_ACTION_NATURE_LABEL,
+    type PlanActionNature,
     type PlanCycleDto,
     type PlanDomainAssessmentDto,
     type PlanDomainDto,
+    type PlanDomainLevelDto,
+    type PlanDomainTaskDto,
     type PlanPathStepDto,
     type PlanRecentChangesDto,
     type PlanSeanceItemDto,
@@ -33,6 +44,7 @@ import {
     SKILL_SECTION_LABEL,
     type SkillMasteryState,
     type SkillSection,
+    type SkillTaskCode,
     type TargetLevel,
 } from "@/lib/types";
 
@@ -189,6 +201,86 @@ export const PLAN_GATE_RULE = "Ce palier se confirme par un examen blanc complet
 export const PLAN_GATE_READY =
     "Vous y êtes : un examen blanc complet peut maintenant confirmer ce palier.";
 
+/* ------------------------------------------------------- ma progression */
+
+/**
+ * **« Ma progression »** — l'écran de suivi adossé au Plan.
+ *
+ * ⚠️ **À ne pas confondre avec `/statistiques`**, qui reste et garde sa propre
+ * entrée : celui-là répond à « quels thèmes ai-je révisés, combien de séries
+ * ai-je jouées ? », celui-ci à « où j'en suis sur les quatre domaines du TCF,
+ * et à quelle distance de mon objectif ? ».
+ */
+export const PLAN_PROGRESS_HREF = "/plan/progression";
+
+/** Le libellé de l'action qui ouvre l'écran, et son titre quand l'objectif
+ *  n'est pas connu. */
+export const PLAN_PROGRESS_TITLE_SHORT = "Ma progression";
+
+/**
+ * Le titre de l'écran.
+ *
+ * 🛑 **`objectiveLevel` est NULLABLE et aucun front n'invente « B2 »** : sans
+ * démarche déclarée, le titre se lit simplement « Ma progression ». La maquette
+ * l'écrit en dur, ce qui retirerait son A2 à un dossier CSP.
+ */
+export function planProgressTitle(cycle: PlanCycleDto): string {
+    return cycle.objectiveLevel
+        ? `${PLAN_PROGRESS_TITLE_SHORT} vers le ${cycle.objectiveLevel}`
+        : PLAN_PROGRESS_TITLE_SHORT;
+}
+
+export const PLAN_PROGRESS_TEXT =
+    "Ce que vos passages ont mesuré, domaine par domaine, et ce que votre plan en construit.";
+
+/* Les deux étiquettes de la carte de tête. */
+export const PLAN_PROGRESS_LEVEL_LABEL = "Niveau estimé";
+export const PLAN_PROGRESS_OBJECTIVE_LABEL = "Objectif";
+
+/** Ce que porte la carte de tête quand rien n'a encore été mesuré. *null =
+ *  inconnu, jamais mauvais* : on ne pose pas « A1 » à la place. */
+export const PLAN_PROGRESS_LEVEL_UNKNOWN = "Pas encore mesuré";
+
+/** La phrase d'un domaine jamais mesuré, sur cet écran. Elle dit une **absence
+ *  de mesure**, jamais une faiblesse. */
+export const PLAN_PROGRESS_DOMAIN_EMPTY =
+    "Aucun passage réel sur ce domaine pour l'instant : son niveau reste inconnu tant qu'il n'a pas été mesuré.";
+
+/**
+ * La note de pied de l'écran.
+ *
+ * ⚠️ Elle ne parle **pas** de pourcentages, contrairement à la maquette : le
+ * score interne du moteur de maîtrise n'est exposé à aucun front, et l'écran
+ * affiche des **états**, pas des chiffres. Écrire « les pourcentages sont une
+ * maîtrise interne » sous un écran qui n'en montre aucun serait faux.
+ */
+export const PLAN_PROGRESS_NOTE =
+    "Estimation d'entraînement SejourFR, non officielle : elle situe votre travail, elle ne remplace pas le résultat du TCF.";
+
+/** La ligne sous le nom d'un domaine : son niveau estimé, et le palier qu'il
+ *  travaille quand le serveur en désigne un. */
+export function planDomainProgressLine(domain: PlanDomainDto): string {
+    const base = planDomainLevelLine(domain);
+    return domain.evaluated && domain.blockingLevel
+        ? `${base} · travaille le ${domain.blockingLevel}`
+        : base;
+}
+
+/** « 3 / 8 compétences observées ». **Ce n'est pas une note** : une compétence
+ *  non observée est une compétence que le candidat n'a pas encore eu
+ *  l'occasion de montrer, et le dénominateur vient de la base. */
+export function planTaskObservedLabel(tache: PlanDomainTaskDto): string {
+    return `${tache.observedSkills} / ${tache.totalSkills} compétences observées`;
+}
+
+/** Le repère d'un palier de compréhension hors de sa fiche : ce qu'il est, et
+ *  s'il bloque la suite. */
+export const PLAN_PROGRESS_BLOCKING_LEVEL = "Palier bloquant";
+
+export function planLevelRowMeta(palier: PlanDomainLevelDto): string {
+    return palier.blocking ? PLAN_PROGRESS_BLOCKING_LEVEL : `Palier ${palier.niveau}`;
+}
+
 /* ------------------------------------------------------ compléter le profil */
 
 export const PLAN_COMPLETE_PROFILE_TITLE = "Compléter mon profil";
@@ -253,12 +345,15 @@ export const PLAN_SEANCE_WHY_CLOSE = "J'ai compris";
 export const PLAN_SEANCE_META_HINT =
     "Votre séance reprend, dans l'ordre, les actions que votre plan a déjà désignées : rien n'est tiré au hasard, et rien ne disparaît d'un jour à l'autre.";
 export const PLAN_SEANCE_EMPTY =
-    "Rien à faire pour le moment : votre plan se réordonnera à votre prochaine production.";
+    "Rien à faire pour le moment : votre prochaine étape se décide à votre prochaine production.";
 /** Les deux états du bouton principal — **miroirs mot pour mot du mobile**
  *  (`kPlanSeanceStart`, `kPlanSeanceRestart`). « Refaire » ne remet rien à
  *  zéro : il relance la première ligne de la séance. */
 export const PLAN_SEANCE_START = "Commencer ma séance";
 export const PLAN_SEANCE_RESTART = "Refaire ma séance";
+/** Ce que dit un bouton pendant qu'un parcours s'ouvre. Déclaré une fois : il
+ *  était recopié sur les quatre surfaces qui démarrent une action du Plan. */
+export const PLAN_STARTING = "Démarrage…";
 
 /** La ligne de tête de la séance : combien d'entraînements, combien de temps. */
 export function planSeanceMeta(items: number, minutes: number): string {
@@ -318,7 +413,7 @@ export function planItemNature(item: PlanSeanceItemDto): string {
         case "REASSESSMENT":
             return "Vérification en situation";
         case "TARGETED_QCM_SERIES":
-            return `Série ciblée de ${item.exercise.questionCount} questions`;
+            return planSeriesLabel(item.exercise.questionCount);
         case "EPREUVE_MOCK_EXAM":
             return "Examen blanc d'épreuve";
         case "FULL_TCF_MOCK_EXAM":
@@ -339,13 +434,6 @@ export function planItemMeta(item: PlanSeanceItemDto): string {
 export function planItemMinutes(item: PlanSeanceItemDto): number | null {
     if (item.exercise !== null) return item.exercise.estimatedMinutes;
     return item.assessment.estimatedMinutes;
-}
-
-/** L'eyebrow d'une ligne de séance : le domaine, et le palier travaillé quand
- *  il y en a un (compréhension seulement — l'expression n'en porte pas). */
-export function planItemEyebrow(item: PlanSeanceItemDto): string {
-    const domaine = item.section ? item.section : planDomainShort(itemEpreuve(item));
-    return item.level ? `${domaine} · ${item.level}` : domaine;
 }
 
 /** Le titre d'une ligne de séance. Ni un jalon ni une mesure n'ont de titre
@@ -528,11 +616,6 @@ export const PLAN_SKILLS_TITLE = "Toutes mes compétences";
 export const PLAN_SKILLS_TEXT =
     "Expression : 6 tâches, 8 compétences chacune, observées à partir de vos productions. "
     + "Compréhension : trois paliers par domaine, mesurés sur vos séries de questions.";
-/** Ce que le lien annonce quand l'accès n'est pas ouvert — un **verrou de
- *  navigation**, pas un contenu masqué : le Plan lui-même reste entier. */
-export const PLAN_SKILLS_LOCKED_LABEL =
-    "Référentiel réservé à l'abonnement. Ouvrir l'offre pour le débloquer.";
-
 /** Le repère d'une compétence : son code et son domaine, plus le numéro de
  *  tâche quand elle en a un. */
 export function planSkillMeta(skill: {skillCode: string; section: SkillSection}): string {
@@ -663,4 +746,607 @@ export function planSeanceItemDone(item: PlanSeanceItemDto, now: Date = new Date
     const activity = new Date(item.lastActivityAt);
     if (Number.isNaN(activity.getTime())) return false;
     return parisDay(activity) === parisDay(now);
+}
+
+/* ------------------------------------------------ épreuve → tâche → lignes
+ *
+ * L'écran Plan ne présente plus « Aujourd'hui » ni « Mes priorités » comme deux
+ * listes plates : les lignes sont **groupées par épreuve puis par tâche**, dans
+ * des encarts rétractables. Fermé, un encart dit **où** le candidat travaille ;
+ * ouvert, il déroule **ce qu'il y a à y faire**.
+ *
+ * 🛑 **Aucune règle métier n'est ajoutée ici** : l'ordre des lignes reste celui
+ * du serveur, le regroupement ne fait que rassembler des lignes **consécutives
+ * ou non** sous la tâche qu'elles portent déjà, et il ne réordonne jamais les
+ * groupes — le premier groupe est celui de la première ligne servie.
+ */
+
+/**
+ * **Le titre éditorial des 6 tâches d'expression.**
+ *
+ * ⚠️ **Miroir manuel de l'enum serveur `SkillTaskCode`** : le référentiel des
+ * 6 tâches est **officiel et figé**, il vit dans le code Java (jamais en base)
+ * — et le serveur n'expose **pas** ce titre dans les DTO du Plan. Chaque front
+ * en tient donc sa copie, comme pour les libellés d'états ; un titre qui bouge,
+ * ce sont autant de fichiers à changer dans la même passe.
+ *
+ * 🛑 **Identiques au mot près à ceux du mobile.** Ne jamais recopier une de ces
+ * chaînes dans un composant.
+ */
+export const SKILL_TASK_TITLE: Record<SkillTaskCode, string> = {
+    EE1: "Écrire un message court",
+    EE2: "Raconter une expérience",
+    EE3: "Donner son opinion",
+    EO1: "Entretien dirigé : parler de soi",
+    EO2: "Jeu de rôle : demander et obtenir des informations",
+    EO3: "Exprimer et développer un point de vue",
+};
+
+/** La tâche que porte un code de compétence (`EE2-C3` → `EE2`). `null` sur une
+ *  compétence de compréhension (`CO-B1`), qui n'appartient à aucune tâche, et
+ *  sur un jalon ou une mesure, qui n'ont pas de compétence. */
+export function skillTaskCode(skillCode: string | null | undefined): SkillTaskCode | null {
+    if (!skillCode) return null;
+    const match = skillCode.match(/^(EE|EO)([1-3])/);
+    return match ? (`${match[1]}${match[2]}` as SkillTaskCode) : null;
+}
+
+/** Le titre éditorial de la tâche d'un code de compétence, `null` en
+ *  compréhension. */
+export function skillTaskTitle(skillCode: string | null | undefined): string | null {
+    const code = skillTaskCode(skillCode);
+    return code ? SKILL_TASK_TITLE[code] : null;
+}
+
+/** La pastille d'une tâche, telle qu'elle s'affiche fermée. */
+export function planTaskBadge(tacheNumero: number): string {
+    return `Tâche ${tacheNumero}`;
+}
+
+/** « Tâche 2 — Raconter une expérience » : le repère complet d'une compétence
+ *  d'expression. `null` en compréhension, qui se repère par son palier. */
+export function planTaskLabel(skillCode: string | null | undefined): string | null {
+    const code = skillTaskCode(skillCode);
+    if (!code) return null;
+    return `${planTaskBadge(Number(code.charAt(2)))} — ${SKILL_TASK_TITLE[code]}`;
+}
+
+/** Le repère d'un encart **sans tâche** : la compréhension travaille un niveau,
+ *  une mesure ouvre un parcours (`planAssessmentNature`), un jalon est un jalon.
+ *  `null` quand aucun de ces trois faits n'est servi — **on n'invente alors
+ *  aucun repère**, et la pastille ne s'affiche pas. */
+export function planGroupLevelContext(level: string): string {
+    return `Niveau ${level}`;
+}
+
+/** L'en-tête d'un encart : de quelle épreuve il relève, et sur quoi il porte. */
+export interface PlanGroupHead {
+    key: string;
+    epreuve: PlanDomainEpreuve;
+    /** Nom complet de l'épreuve — « Expression écrite ». */
+    label: string;
+    /** 1, 2 ou 3 en expression ; `null` en compréhension, sur une mesure et sur
+     *  un jalon. C'est lui qui décide de la teinte de la pastille. */
+    taskNumber: number | null;
+    /** Titre éditorial de la tâche, `null` quand il n'y a pas de tâche. */
+    taskTitle: string | null;
+    /** Ce que porte la pastille quand il n'y a pas de tâche. `null` quand rien
+     *  ne le dit : la pastille ne s'affiche alors pas. */
+    context: string | null;
+}
+
+function planGroupHead(item: {
+    key: string;
+    epreuve: PlanDomainEpreuve;
+    skillCode: string | null;
+    context: string | null;
+}): PlanGroupHead {
+    const code = skillTaskCode(item.skillCode);
+    return {
+        key: item.key,
+        epreuve: item.epreuve,
+        label: planDomainLabel(item.epreuve),
+        taskNumber: code ? Number(code.charAt(2)) : null,
+        taskTitle: code ? SKILL_TASK_TITLE[code] : null,
+        context: item.context,
+    };
+}
+
+/* -------------------------------------------------------- séance groupée */
+
+export interface PlanSeanceGroupRow {
+    key: string;
+    item: PlanSeanceItemDto;
+    /** Lu sur des **faits servis** (`planSeanceItemDone`), jamais un marqueur local. */
+    done: boolean;
+    /** Lu sur le `locked` du serveur (`planSeanceItemLocked`), **jamais** déduit
+     *  du rang de la ligne. */
+    locked: boolean;
+}
+
+export interface PlanSeanceGroup extends PlanGroupHead {
+    rows: PlanSeanceGroupRow[];
+    /** Somme des durées **servies** des lignes du groupe. */
+    minutes: number;
+    /** Toutes les lignes sont faites : l'encart s'estompe et se coche. */
+    done: boolean;
+    /** Toutes les lignes sont fermées par le serveur : l'encart porte un cadenas
+     *  **à la place du chevron** et ne se déplie pas. */
+    locked: boolean;
+}
+
+/**
+ * La séance, groupée par épreuve puis par tâche.
+ *
+ * L'expression se groupe par **tâche** (les 8 compétences d'une tâche s'y
+ * retrouvent ensemble), la compréhension par **(domaine, palier)** — elle n'a
+ * aucune tâche. Une **mesure** et un **jalon** font chacun leur propre groupe :
+ * ni l'un ni l'autre ne porte de compétence.
+ */
+export function planSeanceGroups(
+    items: PlanSeanceItemDto[],
+    now: Date = new Date(),
+): PlanSeanceGroup[] {
+    const groups: PlanSeanceGroup[] = [];
+    for (const item of items) {
+        const epreuve = itemEpreuve(item);
+        const task = skillTaskCode(item.skillCode);
+        let key: string;
+        let context: string | null;
+        if (task) {
+            key = `task:${task}`;
+            context = null;
+        } else if (item.exercise === null) {
+            key = `assess:${epreuve}`;
+            context = planAssessmentNature(item.assessment);
+        } else if (
+            item.exercise.kind === "EPREUVE_MOCK_EXAM"
+            || item.exercise.kind === "FULL_TCF_MOCK_EXAM"
+        ) {
+            key = `exam:${epreuve}`;
+            context = PLAN_MILESTONE_PILL;
+        } else {
+            key = `level:${epreuve}:${item.level ?? "-"}`;
+            context = item.level ? planGroupLevelContext(item.level) : null;
+        }
+
+        let group = groups.find((candidate) => candidate.key === key);
+        if (!group) {
+            group = {
+                ...planGroupHead({key, epreuve, skillCode: item.skillCode, context}),
+                rows: [],
+                minutes: 0,
+                done: true,
+                locked: true,
+            };
+            groups.push(group);
+        }
+        const row: PlanSeanceGroupRow = {
+            key: planSeanceItemKey(item),
+            item,
+            done: planSeanceItemDone(item, now),
+            locked: planSeanceItemLocked(item),
+        };
+        group.rows.push(row);
+        group.minutes += planItemMinutes(item) ?? 0;
+        group.done = group.done && row.done;
+        group.locked = group.locked && row.locked;
+    }
+    return groups;
+}
+
+/** Le résumé d'un encart de séance, fermé : la tâche, combien d'entraînements,
+ *  combien de temps. */
+export function planSeanceGroupSummary(group: PlanSeanceGroup): string {
+    const count = `${group.rows.length} entraînement${group.rows.length > 1 ? "s" : ""}`;
+    /* ⚠️ Une mesure n'a pas de durée (diagnostic, production : rien n'y est
+       chronométré par épreuve) : un encart qui n'en contient que des mesures
+       totalise 0 et n'affiche alors **aucune** minute — jamais « 0 min ».
+       Miroir du mobile (`planSeanceGroupSummary`). */
+    const minutes = group.minutes > 0 ? `${group.minutes} min` : null;
+    return [group.taskTitle, count, minutes].filter(Boolean).join(" · ");
+}
+
+/** La ligne de tête de « Aujourd'hui » pour un compte dont **tout** est ouvert :
+ *  combien d'épreuves, combien d'entraînements, combien de temps.
+ *
+ *  ⚠️ `epreuves` compte des **épreuves distinctes**, jamais des encarts : deux
+ *  tâches d'une même épreuve font deux encarts et une seule épreuve. Miroir du
+ *  mobile (`planSeanceHeaderMeta`). */
+export function planSeanceGroupedMeta(epreuves: number, items: number, minutes: number): string {
+    return `${epreuves} épreuve${epreuves > 1 ? "s" : ""} · ${items} entraînement${items > 1 ? "s" : ""} `
+        + `· environ ${minutes} min`;
+}
+
+/**
+ * La même ligne quand une partie de la séance est fermée.
+ *
+ * 🛑 **Le compte est VRAI** : il se lit sur les lignes que le serveur a
+ * réellement laissées ouvertes, jamais sur une constante de maquette — une
+ * compétence de rang 2 peut être ouverte (celle de la première place du Plan
+ * l'est toujours).
+ */
+export function planSeanceFreeMeta(open: number, items: number, minutes: number): string {
+    return `${open} entraînement${open > 1 ? "s" : ""} gratuit${open > 1 ? "s" : ""} sur ${items} `
+        + `· environ ${minutes} min`;
+}
+
+/** Ce que dit le bouton d'une ligne ouverte de la séance, et ce que lit un
+ *  lecteur d'écran sur une ligne déjà faite. */
+export const PLAN_SEANCE_ROW_START = "Commencer";
+export const PLAN_SEANCE_ROW_DONE_LABEL = "Déjà travaillé";
+
+/** La ligne de contexte d'un encart ouvert : la tâche en toutes lettres, ou ce
+ *  sur quoi porte le groupe quand il n'y a pas de tâche. */
+export function planGroupContextLine(head: PlanGroupHead): string {
+    if (head.taskNumber === null || head.taskTitle === null) {
+        return head.context ?? planDomainLabel(head.epreuve);
+    }
+    return `${planTaskBadge(head.taskNumber)} — ${head.taskTitle}`;
+}
+
+/* ----------------------------------------------------- priorités groupées */
+
+/**
+ * Une ligne d'un encart de « Mes priorités ».
+ *
+ * ⚠️ **Elle ne vient plus forcément d'une priorité.** Un encart porte
+ * **toutes** les compétences de sa tâche (ou de son palier) : celles que le
+ * Plan demande de travailler **et** celles qui ont seulement été observées,
+ * *solides comprises*. C'est ce qui permet à son résumé de dire « 1 priorité ·
+ * 2 à renforcer · 3 solides » — et au candidat de voir qu'il a de quoi
+ * travailler sans qu'une seconde section vienne redire la même chose ailleurs.
+ *
+ * 🛑 **Une compétence jamais observée et sans nature n'est PAS une ligne** :
+ * elle n'est ni un acquis ni une action, et la compter gonflerait le résumé
+ * d'un travail que le Plan ne demande pas.
+ */
+export interface PlanPriorityGroupRow {
+    skillId: string;
+    skillCode: string;
+    title: string;
+    section: SkillSection;
+    /** La priorité servie quand cette ligne en est une — **elle seule** porte
+     *  `recommendedExercise` et les compteurs d'étape. `null` sur une
+     *  compétence seulement observée : rien n'y est demandé. */
+    priority: LearningPlanPriorityDto | null;
+    /** Ce que la pastille annonce, et ce que le résumé de l'encart compte. */
+    status: PlanRowStatus;
+    /** Palier porté par le référentiel — celui qu'annonce « À acquérir · B1 ».
+     *  `null` quand il n'est pas publié : on n'en invente pas. */
+    level: TargetLevel | null;
+    /** Le `locked` du serveur, jamais le rang de la ligne. 🛑 Une compétence
+     *  **solide** n'est jamais verrouillée à l'affichage : c'est une mesure du
+     *  candidat, pas une action fermée. */
+    locked: boolean;
+}
+
+export interface PlanPriorityGroup extends PlanGroupHead {
+    /** **Toutes** les lignes du groupe, jamais tronquées ici : le plafond
+     *  d'affichage vit au point d'appel, à côté du compteur qu'il alimente —
+     *  sinon le « + N autres » serait faux par construction. */
+    rows: PlanPriorityGroupRow[];
+    /** Toutes les lignes sont fermées : l'encart porte un cadenas et mène à
+     *  l'offre au lieu de se déplier. */
+    locked: boolean;
+}
+
+/** La clé d'un encart : une **tâche** en expression, un couple (domaine,
+ *  palier) en compréhension. Une seule règle, partagée par les deux passes de
+ *  `planPriorityGroups` — deux copies rangeraient la même compétence dans deux
+ *  encarts différents. */
+function planPriorityGroupKey(
+    epreuve: PlanDomainEpreuve,
+    skillCode: string,
+    level: TargetLevel | null,
+): string {
+    const task = skillTaskCode(skillCode);
+    return task ? `task:${task}` : `level:${epreuve}:${level ?? "-"}`;
+}
+
+/** Le verrou d'affichage d'une ligne : celui du serveur, sauf sur une
+ *  compétence **solide** — on floute l'action pas encore accessible, jamais le
+ *  résultat mesuré. */
+function planRowLocked(locked: boolean, status: PlanRowStatus): boolean {
+    return locked && status !== "SOLIDE";
+}
+
+/**
+ * Les priorités, groupées par épreuve puis par tâche — même règle que la
+ * séance, mêmes en-têtes. L'ordre des priorités reste **celui du serveur**.
+ *
+ * **Deux passes, et une seule ouvre des encarts.** La première pose un encart
+ * par tâche (ou par palier) réellement priorisée, dans l'ordre servi ; la
+ * seconde y verse les autres compétences du même groupe, lues sur
+ * `domaines[].skills` — la liste **complète** du référentiel, à ne pas
+ * confondre avec `observedSkills`, plafonné à huit toutes épreuves confondues
+ * et donc incapable de garnir un encart. Aucun encart n'est ouvert par la
+ * seconde passe : « Mes priorités » listerait alors les six tâches.
+ */
+export function planPriorityGroups(
+    plan: LearningPlanDto,
+    priorities: LearningPlanPriorityDto[],
+): PlanPriorityGroup[] {
+    const groups: PlanPriorityGroup[] = [];
+    const placed = new Set<string>();
+
+    for (const priority of priorities) {
+        const epreuve = planSectionEpreuve(priority.section);
+        const task = skillTaskCode(priority.skillCode);
+        const level = planSkillTargetLevel(plan, priority.skillId);
+        const key = planPriorityGroupKey(epreuve, priority.skillCode, level);
+        const context = task || !level ? null : planGroupLevelContext(level);
+
+        let group = groups.find((candidate) => candidate.key === key);
+        if (!group) {
+            group = {
+                ...planGroupHead({key, epreuve, skillCode: priority.skillCode, context}),
+                rows: [],
+                locked: true,
+            };
+            groups.push(group);
+        }
+        const status = planRowStatus(priority);
+        group.rows.push({
+            skillId: priority.skillId,
+            skillCode: priority.skillCode,
+            title: priority.title,
+            section: priority.section,
+            priority,
+            status,
+            level,
+            locked: planRowLocked(priority.locked, status),
+        });
+        placed.add(priority.skillId);
+    }
+
+    /* L'ordre du référentiel, tel que le serveur l'a servi : `domaines` est
+       déjà trié par urgence, et `skills` par tâche puis rang d'affichage. On ne
+       retrie rien. */
+    for (const domain of plan.domaines) {
+        for (const skill of domain.skills ?? []) {
+            if (placed.has(skill.skillId)) continue;
+            /* Ni observée, ni demandée : ce n'est ni un acquis ni une action. */
+            if (skill.observedAt === null && skill.nature === null) continue;
+            const key = planPriorityGroupKey(domain.epreuve, skill.skillCode, skill.targetLevel);
+            const group = groups.find((candidate) => candidate.key === key);
+            if (!group) continue;
+            const status = planRowStatus(skill);
+            group.rows.push({
+                skillId: skill.skillId,
+                skillCode: skill.skillCode,
+                title: skill.title,
+                section: skill.section,
+                priority: null,
+                status,
+                level: skill.targetLevel,
+                locked: planRowLocked(skill.locked, status),
+            });
+            placed.add(skill.skillId);
+        }
+    }
+
+    for (const group of groups) {
+        group.locked = group.rows.every((row) => row.locked);
+    }
+    return groups;
+}
+
+/** Combien de lignes un encart déroule avant de renvoyer vers la fiche de son
+ *  domaine. **C'est un plafond d'AFFICHAGE**, pas une troncature des données :
+ *  le groupe garde toutes ses lignes, et le « + N autres » se calcule dessus. */
+export const PLAN_PRIORITY_ROWS_VISIBLE = 6;
+
+/** « + 3 autres compétences ». 🛑 Le nombre est **vrai**, calculé sur le
+ *  contenu réel du groupe ; `0` ⇒ l'appelant n'affiche rien du tout. */
+export function planGroupMoreLabel(count: number): string {
+    return `+ ${count} autre${count > 1 ? "s" : ""} compétence${count > 1 ? "s" : ""}`;
+}
+
+/** L'épreuve d'un domaine de compétence — le pendant de `PLAN_DOMAIN_SECTION`. */
+export function planSectionEpreuve(section: SkillSection): PlanDomainEpreuve {
+    switch (section) {
+        case "CO": return "TCF_CO";
+        case "CE": return "TCF_CE";
+        case "EO": return "TCF_EO";
+        default: return "TCF_EE";
+    }
+}
+
+/**
+ * Le palier que le référentiel porte sur une compétence.
+ *
+ * Lu sur `domaines[].skills[]` — la liste **uniforme** des quatre domaines —,
+ * avec repli sur les paliers de compréhension. `null` quand rien ne le publie :
+ * *null = inconnu, jamais mauvais*, et aucun palier n'est fabriqué.
+ */
+export function planSkillTargetLevel(plan: LearningPlanDto, skillId: string): TargetLevel | null {
+    for (const domain of plan.domaines) {
+        for (const skill of domain.skills ?? []) {
+            if (skill.skillId === skillId) return skill.targetLevel;
+        }
+    }
+    return planSkillLevel(plan, skillId);
+}
+
+/**
+ * **Le statut d'affichage d'une ligne de priorité** — une vue de deux faits
+ * servis, jamais un jugement neuf.
+ *
+ * La **nature** dit ce qu'il y a à faire ; l'**état agrégé** dit où en est la
+ * compétence. Une fragilité que le moteur tient déjà pour `SOLID` se dit
+ * « solide », celle qu'il tient pour la plus bloquante se dit « priorité » :
+ * c'est ce qui permet à un encart fermé de résumer ses lignes — « 1 priorité ·
+ * 2 à renforcer » — sans les déplier.
+ *
+ * 🛑 **Aucune des deux sources n'est réinterprétée** : une acquisition n'a rien
+ * d'observé et reste « à acquérir » quoi qu'il arrive, une vérification reste
+ * « à vérifier », une mesure reste « à évaluer ».
+ *
+ * ⚠️ **Miroir du mobile** (`PlanRowStatus`, `planRowStatus`) : l'ordre de
+ * déclaration EST l'ordre du résumé — ce qui bloque, ce qui se répare, ce qui
+ * s'apprend, ce qui se prouve, ce qui tient, ce qui manque d'être mesuré.
+ */
+export type PlanRowStatus =
+    | "PRIORITE"
+    | "A_RENFORCER"
+    | "A_ACQUERIR"
+    | "A_VERIFIER"
+    | "SOLIDE"
+    | "A_EVALUER";
+
+const PLAN_ROW_STATUS_ORDER: readonly PlanRowStatus[] = [
+    "PRIORITE",
+    "A_RENFORCER",
+    "A_ACQUERIR",
+    "A_VERIFIER",
+    "SOLIDE",
+    "A_EVALUER",
+];
+
+/** Les libellés sont **empruntés**, jamais recopiés : « Priorité » et
+ *  « Solide » viennent de `SKILL_MASTERY_STATE_LABEL`, les quatre autres de
+ *  `PLAN_ACTION_NATURE_LABEL`. Un libellé qui bouge côté serveur bouge ici sans
+ *  que personne y touche. */
+export const PLAN_ROW_STATUS_LABEL: Record<PlanRowStatus, string> = {
+    PRIORITE: SKILL_MASTERY_STATE_LABEL.PRIORITY,
+    A_RENFORCER: PLAN_ACTION_NATURE_LABEL.A_RENFORCER,
+    A_ACQUERIR: PLAN_ACTION_NATURE_LABEL.A_ACQUERIR,
+    A_VERIFIER: PLAN_ACTION_NATURE_LABEL.A_VERIFIER,
+    SOLIDE: SKILL_MASTERY_STATE_LABEL.SOLID,
+    A_EVALUER: PLAN_ACTION_NATURE_LABEL.A_EVALUER,
+};
+
+export function planRowStatus(skill: {
+    nature: PlanActionNature | null;
+    status: LearningPlanSkillStatus | null;
+    masteryState: SkillMasteryState | null;
+}): PlanRowStatus {
+    switch (skill.nature) {
+        case "A_EVALUER": return "A_EVALUER";
+        case "A_ACQUERIR": return "A_ACQUERIR";
+        case "A_VERIFIER": return "A_VERIFIER";
+        case "A_RENFORCER":
+            if (skill.masteryState === "SOLID") return "SOLIDE";
+            if (skill.masteryState === "PRIORITY") return "PRIORITE";
+            return skill.status === "PRIORITY" ? "PRIORITE" : "A_RENFORCER";
+        default:
+            /* Aucune action demandée : la ligne dit alors ce qui a été
+               **mesuré**. L'état agrégé prime sur le verdict d'une seule
+               production — c'est lui que la fiche de la compétence affiche. */
+            if (skill.masteryState === "SOLID") return "SOLIDE";
+            if (skill.masteryState === "PRIORITY") return "PRIORITE";
+            if (skill.status === "SOLID") return "SOLIDE";
+            return skill.status === "PRIORITY" ? "PRIORITE" : "A_RENFORCER";
+    }
+}
+
+/** Le libellé complet d'une pastille. « À acquérir » y **ajoute son palier
+ *  cible** — c'est le seul statut qui désigne un palier à venir plutôt qu'un
+ *  constat, et sans lui le candidat ne sait pas ce qu'il apprend. Sans palier
+ *  servi, on ne le nomme pas. */
+export function planRowStatusLabel(status: PlanRowStatus, level: TargetLevel | null): string {
+    return status === "A_ACQUERIR" && level
+        ? `${PLAN_ROW_STATUS_LABEL[status]} · ${level}`
+        : PLAN_ROW_STATUS_LABEL[status];
+}
+
+/* Les formes comptées du résumé : « 1 priorité · 2 priorités ». Les quatre
+   natures s'écrivent déjà avec « à » et ne varient pas — leur forme comptée est
+   donc leur libellé en bas de casse, comme sur mobile. */
+function plannedStatusWord(status: PlanRowStatus, count: number): string {
+    if (status === "PRIORITE") return count > 1 ? "priorités" : "priorité";
+    if (status === "SOLIDE") return count > 1 ? "solides" : "solide";
+    return PLAN_ROW_STATUS_LABEL[status].toLowerCase();
+}
+
+/** « 1 priorité · 2 à renforcer ». **Ordre figé** par `PLAN_ROW_STATUS_ORDER` ;
+ *  un statut absent ne s'écrit pas. */
+export function planRowStatusSummary(statuses: PlanRowStatus[]): string {
+    return PLAN_ROW_STATUS_ORDER
+        .map((status) => {
+            const count = statuses.filter((candidate) => candidate === status).length;
+            return count === 0 ? null : `${count} ${plannedStatusWord(status, count)}`;
+        })
+        .filter(Boolean)
+        .join(" · ");
+}
+
+/** Le résumé d'un encart de priorités, fermé : la tâche, puis ce qu'elle
+ *  contient. */
+export function planPriorityGroupSummary(group: PlanPriorityGroup): string {
+    const statuses = group.rows.map((row) => row.status);
+    return [group.taskTitle, planRowStatusSummary(statuses)].filter(Boolean).join(" · ");
+}
+
+/* Les deux intertitres d'un encart de priorités ouvert. */
+export const PLAN_GROUP_ASIDE_TITLE = "Où je travaille";
+export const PLAN_GROUP_ROWS_TITLE = "Ce que je dois améliorer";
+
+/* Ce que dit une ligne de priorité sous son titre. Aucune ne nomme une faute :
+   une compétence **à acquérir** dit ce qu'elle est, une compétence de
+   compréhension dit par quoi elle se travaille. */
+export const PLAN_PRIORITY_ROW_NEW = "Nouvelle compétence de votre palier";
+export const PLAN_PRIORITY_ROW_PROMPTS = "Petits sujets ciblés";
+
+export function planPriorityRowMeta(row: PlanPriorityGroupRow): string {
+    const {priority, level} = row;
+    if (row.status === "A_ACQUERIR") {
+        return level ? `Nouvelle compétence du palier ${level}` : PLAN_PRIORITY_ROW_NEW;
+    }
+    /* 🛑 La branche se décide sur la **famille** de la compétence, jamais sur la
+       présence d'un exercice : une compétence CO/CE n'a **aucun** `skill_prompt`
+       (le contrat l'interdit), donc retomber sur les compteurs de sujets lui
+       ferait afficher « Petits sujets ciblés » — un parcours qui n'existe pas
+       pour elle. Miroir du mobile (`_PriorityRow.sub`). */
+    if (isComprehension(row.section)) {
+        const exercise = priority?.recommendedExercise ?? null;
+        return planSeriesLabel(
+            exercise && exercise.kind === "TARGETED_QCM_SERIES" ? exercise.questionCount : null,
+        );
+    }
+    /* Une compétence seulement observée n'a **aucun** compteur d'étape servi :
+       on dit par quoi elle se travaille, on n'invente pas de « 0 / 5 ». */
+    if (priority && priority.stepPromptCount > 0) {
+        return `${priority.stepAttemptedCount} / ${priority.stepPromptCount} petits sujets`;
+    }
+    return PLAN_PRIORITY_ROW_PROMPTS;
+}
+
+/** « Série ciblée de 20 questions » — la taille est **décidée serveur**. Sans
+ *  elle, on ne l'invente pas. Miroir mot pour mot du mobile
+ *  (`planSeriesLabel`). */
+export function planSeriesLabel(questionCount: number | null): string {
+    return questionCount === null
+        ? "Série ciblée de compréhension"
+        : `Série ciblée de ${questionCount} questions`;
+}
+
+/* Le bouton d'un encart de priorités ouvert — il vise la **première ligne non
+   solide** du groupe. Trois libellés, parce que trois actions différentes :
+   lancer une série, découvrir ce qu'on n'a jamais travaillé, ou reprendre une
+   compétence déjà observée. */
+export const PLAN_PRIORITY_CTA_SERIES = "Faire une série ciblée";
+export const PLAN_PRIORITY_CTA_DISCOVER = "Découvrir cette compétence";
+export const PLAN_PRIORITY_CTA_WORK = "Travailler cette compétence";
+export const PLAN_PRIORITY_CTA_UNLOCK = "Débloquer cette compétence";
+
+export function planPriorityGroupCta(row: PlanPriorityGroupRow): string {
+    if (row.locked) return PLAN_PRIORITY_CTA_UNLOCK;
+    if (isComprehension(row.section)) return PLAN_PRIORITY_CTA_SERIES;
+    return row.status === "A_ACQUERIR" ? PLAN_PRIORITY_CTA_DISCOVER : PLAN_PRIORITY_CTA_WORK;
+}
+
+/**
+ * La ligne que vise le bouton d'un encart : la **première non solide**.
+ *
+ * 🛑 **Un groupe entièrement solide n'a pas de bouton** (`null`) : tout y est
+ * acquis, il n'y a rien à y faire — proposer « Travailler cette compétence »
+ * sur une compétence solide renverrait le candidat sur du travail déjà prouvé.
+ * Les priorités venant en tête du groupe, la ligne visée en est presque
+ * toujours une ; une compétence seulement observée peut la porter, et elle
+ * ouvre alors simplement sa fiche.
+ */
+export function planPriorityGroupAction(group: PlanPriorityGroup): PlanPriorityGroupRow | null {
+    return group.rows.find((row) => row.status !== "SOLIDE") ?? null;
 }

@@ -41,7 +41,7 @@ export const PLAN_PREMIUM_SECONDARY_CTA = "Voir les formules";
  *
  * **Elle ne s'affiche qu'à un compte sans accès TCF**, et c'est elle-même qui
  * le décide : l'autorité est `canAccessModule(user, "TCF")`, la même que
- * partout ailleurs sur le web (`useAllSkillsTarget`, `SkillAccess` côté
+ * partout ailleurs sur le web (`PlanFreeBar`, `SkillAccess` côté
  * serveur). Un abonné ne peut donc pas la voir par un oubli d'appelant.
  *
  * 🛑 **Elle ne masque rien et ne compte rien.** Le Plan reste intégralement

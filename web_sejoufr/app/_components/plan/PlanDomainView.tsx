@@ -14,6 +14,7 @@ import {
   PLAN_DOMAIN_SECTION,
   PLAN_DOMAIN_NOT_EVALUATED,
   PLAN_LOCKED_PRIORITY_LABEL,
+  PLAN_PROGRESS_BLOCKING_LEVEL,
   planActivePriorities,
   planAssessmentCta,
   planAssessmentMeta,
@@ -356,7 +357,9 @@ function LevelRow({palier}: {palier: PlanDomainLevelDto}) {
         <span className={styles.panelBody}>
           <span className={styles.panelTitle}>
             {palier.skillCode}
-            {palier.blocking && <span className={styles.levelFlag}>Palier bloquant</span>}
+            {palier.blocking && (
+              <span className={styles.levelFlag}>{PLAN_PROGRESS_BLOCKING_LEVEL}</span>
+            )}
           </span>
           <span className={styles.panelMeta}>
             {starting ? "Démarrage…" : "Série ciblée de questions"}

@@ -62,6 +62,73 @@ enum SkillSection {
   String taskCode(int tacheNumero) => '$wire$tacheNumero';
 }
 
+/// **Les 6 tâches officielles du TCF IRN**, avec leur titre éditorial.
+///
+/// Miroir manuel de l'enum `SkillTaskCode` (backend) — section, numéro, titre
+/// et palier visé. Le serveur ne sert **pas** ce titre : il vit dans l'enum
+/// Java, gelé par `SkillLabelsTest`, et chaque front en tient sa copie, comme
+/// pour `SkillSection`, `SkillMasteryState` ou `PlanActionNature`. Un titre qui
+/// bouge, ce sont **quatre** fichiers à changer dans la même passe.
+///
+/// 🛑 **Expression seulement, et ce n'est pas un manque.** Une compétence de
+/// compréhension n'appartient à aucune tâche : son palier se lit sur
+/// `targetLevel`, jamais sur un code de tâche. Ne jamais ajouter de valeur
+/// CO/CE ici.
+///
+/// Le [targetLevel] est le palier **principalement visé** par la tâche — la
+/// borne haute de la fourchette de la spec. Il ne se confond pas avec le
+/// `targetLevel` d'une compétence, qui affine tâche par tâche.
+enum SkillTaskCode {
+  ee1(SkillSection.ee, 1, 'Écrire un message court', TargetLevel.a2),
+  ee2(SkillSection.ee, 2, 'Raconter une expérience', TargetLevel.b1),
+  ee3(SkillSection.ee, 3, 'Donner son opinion', TargetLevel.b2),
+  eo1(SkillSection.eo, 1, 'Entretien dirigé : parler de soi', TargetLevel.a2),
+  eo2(
+    SkillSection.eo,
+    2,
+    'Jeu de rôle : demander et obtenir des informations',
+    TargetLevel.b1,
+  ),
+  eo3(SkillSection.eo, 3, 'Exprimer et développer un point de vue',
+      TargetLevel.b2);
+
+  const SkillTaskCode(
+    this.section,
+    this.tacheNumero,
+    this.title,
+    this.targetLevel,
+  );
+
+  final SkillSection section;
+
+  /// 1, 2 ou 3 — le numéro de tâche au sein de l'épreuve.
+  final int tacheNumero;
+
+  /// Le titre éditorial de la tâche. Miroir mot pour mot du backend.
+  final String title;
+
+  final TargetLevel targetLevel;
+
+  /// `EE1`, `EO3`… le code tel qu'il apparaît en tête d'un `skillCode`.
+  String get wire => '${section.wire}$tacheNumero';
+
+  /// **La tâche que porte un code de compétence** (`EE2-C3` ⇒ [ee2]).
+  ///
+  /// `null` sur un code de compréhension, un code vide ou une forme inattendue
+  /// — on ne devine jamais une tâche : l'encart retombe alors sur le repère de
+  /// son domaine.
+  static SkillTaskCode? fromSkillCode(String? skillCode) {
+    if (skillCode == null) return null;
+    final raw = skillCode.trim().toUpperCase();
+    if (raw.isEmpty) return null;
+    final head = raw.split('-').first;
+    for (final task in SkillTaskCode.values) {
+      if (task.wire == head) return task;
+    }
+    return null;
+  }
+}
+
 /// Palier de difficulté d'un petit sujet (backend `Difficulty`).
 enum SkillDifficulty {
   easy('EASY', 'Accessible'),

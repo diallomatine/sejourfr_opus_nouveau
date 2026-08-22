@@ -1793,6 +1793,98 @@ thrown ». Les 3 autres `Row + stretch` de l'app en sont déjà enveloppées —
 `visitChildrenForSemantics`, donc l'action `onTap` de l'`InkWell` disparaît du nœud et
 VoiceOver annonce « bouton » sans pouvoir l'activer.
 
+### L'écran Plan se lit PAR ÉPREUVE → TÂCHE (2026-08-22)
+
+Chantier d'après les maquettes `docs/plan/SejourFR - {Mobile,Web} Autonome.html` **mises à jour**
+(fichier neuf « encarts rétractables épreuve → tâche » ; l'écran Plan y **maigrit** des deux
+côtés). « Aujourd'hui » et « Mes priorités » ne sont plus des listes plates : ce sont des
+**encarts rétractables groupés par épreuve puis par tâche**. Fermé, un encart dit *où* je
+travaille ; ouvert, il déroule ses lignes.
+
+- **Clé de groupe** : la **tâche** en expression, le couple **(domaine, niveau)** en
+  compréhension. Une mesure et un jalon font chacun leur groupe. Dérivé **front**, à partir de
+  ce que `GET /api/me/plan` sert déjà — aucun champ ajouté au serveur.
+- **Résumé d'un encart** : « {titre de tâche} · 1 priorité · 2 à renforcer · 3 solides »,
+  **ordre figé** (priorité, à renforcer, à acquérir, à vérifier, solide, à évaluer). Il compte
+  **tout le groupe**, jamais les seules lignes visibles.
+- **6 statuts de ligne**, dérivés de `nature` → `masteryState` → `status` dans cet ordre. 🛑 Les
+  libellés sont **empruntés** à `PlanActionNature` et `SkillMasteryState`, jamais réécrits : ce
+  sont des enums gelées par `SkillLabelsTest`.
+- **Le titre des 6 tâches est un MIROIR de l'enum `SkillTaskCode`** (« Raconter une
+  expérience »), déclaré une fois par front et dérivé du `skillCode` servi (`EE2-C3` ⇒ `EE2`).
+  L'API ne le sert pas et **n'a pas à le servir** : c'est un référentiel officiel figé, patron
+  habituel des libellés d'enum. Il s'affiche aussi sur la fiche de domaine et « Toutes mes
+  compétences ».
+- **Pastille de tâche : bleu clair · ambre clair · bleu plein.** 🛑 **Jamais de rouge** — la
+  charte le réserve aux CTA critiques, et sur une épreuve d'expression `PlanDomainTile` **et**
+  le statut « Priorité » sont déjà rouges dans la même carte. La maquette utilise un violet qui
+  n'existe pas dans nos tokens : **ne pas le fabriquer**. La 3ᵉ teinte se distingue par le
+  **remplissage**, pas par la couleur.
+
+**« Compétences observées » n'existe plus — elle est FONDUE dans « Mes priorités »**
+(arbitrage du propriétaire, 2026-08-22 : *« il faut les combiner dans mes priorités, même si on
+n'affiche pas toute la liste, mais qu'il sache qu'il a de quoi travailler »*).
+- **Construction en deux passes** : les priorités servies **créent** les encarts (ordre serveur
+  intact) ; les compétences de **`domaines[].skills[]`** les **complètent sans en créer**. Une
+  tâche sur laquelle le Plan ne demande rien n'ouvre donc pas de carte — son contenu se relit
+  par le « + N autres » et la fiche de domaine.
+- 🛑 **La source est `domaines[].skills[]`, PAS `observedSkills`**, qui est **plafonné à 8
+  toutes épreuves confondues** (`LearningPlanService`) : construire les groupes dessus ferait
+  sortir une épreuve **vide** alors qu'elle a des compétences.
+- **Éligibilité d'une ligne** : `observedAt != null` **ou** `nature != null`. Une compétence
+  jamais observée et sans action n'est **ni une ligne ni un compté** — elle n'est ni un acquis
+  ni quelque chose à faire.
+- **6 lignes visibles au plus**, puis « + N autre(s) compétence(s) ». 🛑 **Le compteur est
+  VRAI**, dérivé du contenu réel du groupe ; `N == 0` ⇒ pas de lien.
+- Le bouton d'encart vise la première ligne **non solide** ; groupe entièrement solide ⇒ **pas
+  de bouton** (aucun repli sur la première ligne).
+- L'intertitre est **« Mes compétences »** : « Ce que je dois améliorer » est devenu faux dès
+  lors que la liste porte aussi des acquis.
+
+**Freemium — le verrou se lit, il ne se déduit pas.**
+- 🛑 **Jamais « à partir du 2ᵉ »** : la maquette le dessine ainsi parce que son bouchon n'a pas
+  de serveur. Le `locked` **servi** fait foi, et `PlanFocusResolver` ouvre réellement la
+  première place du Plan quelle que soit sa nature.
+- **Un encart est verrouillé ⇔ TOUTES ses lignes le sont** ⇒ cadenas **à la place du chevron**,
+  pas de dépliage, tap → offre. `group.locked` se recalcule **après** enrichissement.
+- **Une ligne `SOLID` n'est jamais verrouillée à l'affichage** : c'est un résultat mesuré, et
+  *on floute l'action pas encore accessible, jamais la mesure*.
+- Sur une ligne floutée, **seul le titre** passe derrière le rideau — **statut, nature et durée
+  restent nets**, sinon « à acquérir » se lirait « à renforcer ».
+- Le compteur « K entraînement(s) gratuit(s) sur M » est **compté sur les `locked` servis**,
+  **jamais posé à 1** : un compte gratuit a réellement plusieurs compétences ouvertes.
+- Rideau hors de l'arbre d'accessibilité des deux côtés, un seul chemin vers l'offre, **aucun
+  événement d'audience ajouté**.
+
+**« Toutes mes compétences » s'ouvre à TOUT LE MONDE** (arbitrage du propriétaire,
+2026-08-22). ⚠️ **Révoque** le garde web `if (!canAccessModule(user, "TCF"))` qui fermait la
+page entière. Il y avait **trois** verrous, tous retirés : la page, le lien du Plan côté web, la
+ligne du Plan côté mobile. Motif : la page n'affiche que de la **mesure** (compteurs par tâche,
+paliers, niveau du domaine) — aucun de ces DTO ne porte de `locked`, parce qu'aucun n'est une
+action. Les **destinations** gardent leur verrou servi, opposable en 403 par
+`SkillAccessService`.
+
+**Nouvel écran « Ma progression vers le {objectif} »** (`/plan/progression` des deux côtés),
+adossé au Plan. ⚠️ **À ne pas confondre avec l'écran de progression générique** (`/progress`
+mobile, `/statistiques` web) : celui-là montre les anneaux et les parcours civique/TCF, il reste
+en place avec son entrée depuis le Profil. Le nouveau détaille les **4 domaines du Plan**.
+- **Titre** : `cycle.objectiveLevel`. 🛑 **Nullable, et aucun front n'invente « B2 »** — absent
+  ⇒ « Ma progression » tout court. Un dossier CSP vise A2, une carte de résident B1.
+- Contenu : niveau estimé → objectif + rail + couverture du profil · une carte par domaine
+  (3 paliers avec leur état en compréhension, 3 tâches avec titre éditorial et compteurs en
+  expression, phrase + CTA de mesure si non évalué) · « ce qui a changé » · note.
+- 🛑 **Trois éléments de la maquette sont IMPOSSIBLES et ne se fabriquent pas** : les **barres
+  de pourcentage par palier** (le score interne du moteur n'est exposé à aucun front — règle
+  déjà écrite sur `PlanDomainLevelDto`), **« Voir mon bilan »** (l'écran n'existe ni dans l'app
+  ni au serveur) et le **compte de jours** (aucune source). Les paliers portent leur
+  `masteryState`, ce qui dit la même chose sans chiffre interdit.
+- **Aucun verrou** : l'écran n'affiche que de la mesure.
+
+⚠️ **Ce que les maquettes du Plan demandent et qu'on ne comblera PAS** : les **sous-compétences
+de compréhension** (« Informations implicites », « Documents longs »…) **n'existent pas** — le
+référentiel n'a qu'une compétence par palier (`CO-A2/B1/B2`, `CE-A2/B1/B2`). Trois blocs de
+maquette reposent dessus ; le pendant réel légitime, ce sont les **3 paliers**.
+
 ### Écrans — ce qui n'a PAS été créé, et pourquoi
 La maquette appelle plusieurs écrans secondaires. **Créés** : fiche d'un domaine, « votre
 programme évolue », bilan d'une série ciblée (mobile). **Non créés, l'existant suffisait** :

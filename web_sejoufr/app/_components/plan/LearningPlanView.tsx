@@ -6,7 +6,6 @@ import {
   ArrowRight,
   BarChart3,
   Check,
-  ChevronDown,
   ChevronRight,
   Clock3,
   FilePenLine,
@@ -38,15 +37,12 @@ import {
   PLAN_CYCLE_STATE_TEXT,
   PLAN_DOMAIN_NOT_EVALUATED,
   PLAN_RECENT_NEW_PRIORITY,
-  PLAN_SEANCE_EMPTY,
   PLAN_SEANCE_RESTART,
   PLAN_SEANCE_START,
-  PLAN_SEANCE_TITLE,
+  PLAN_STARTING,
   PLAN_SEANCE_WHY_CLOSE,
-  PLAN_SEANCE_WHY_CTA,
   PLAN_SEANCE_WHY_TITLE,
   PLAN_SKILLS_HREF,
-  PLAN_SKILLS_LOCKED_LABEL,
   PLAN_SKILLS_TITLE,
   planActivePriorities,
   planAssessmentCta,
@@ -59,12 +55,12 @@ import {
   PLAN_REASON_A_VERIFIER,
   planDomainLabel,
   planDomainLevelLine,
-  planItemEyebrow,
-  planItemMeta,
   planItemMinutes,
   planItemReason,
   planItemTitle,
   planPathTitle,
+  PLAN_PROGRESS_HREF,
+  PLAN_PROGRESS_TITLE_SHORT,
   planProfileCountLabel,
   planSeanceItemDone,
   planSeanceItemKey,
@@ -74,6 +70,7 @@ import {
   planSkillHref,
   planSkillLevel,
   planSkillMeta,
+  planTaskLabel,
   planTitle,
   planTransitionLine,
   itemEpreuve,
@@ -81,69 +78,37 @@ import {
 import {PlanMilestoneCard} from "./PlanMilestoneCard";
 import {PlanPaywallCard} from "./PlanPaywallCard";
 import {
+  AllSkillsLink,
   PlanBlur,
   PlanDomainIcon,
   PlanDomainPriorityPill,
-  PlanDots,
   PlanFreeBar,
   PlanLevelRail,
   PlanNaturePill,
   PlanPathList,
   PlanUpdatedBanner,
+  trackPremiumClick,
+  usePremiumHref,
 } from "./PlanBits";
+import {PlanPriorityGroups, PlanSeanceCard} from "./PlanGroups";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 import {
   planDoneSectionCta,
   PLAN_STEP_BADGE_DONE,
   PLAN_STEP_DONE_MARK_LABEL,
 } from "@/lib/plan-step";
-import {competenceProgressLabel} from "@/lib/skill-progress";
 import {
-  canAccessModule,
   type LearningPlanCompletedStepDto,
   type LearningPlanDto,
   type LearningPlanPriorityDto,
-  type LearningPlanSkillDto,
   type PlanDomainAssessmentDto,
   type PlanDomainDto,
-  type PlanSeanceAssessmentItemDto,
-  type PlanSeanceExerciseItemDto,
-  type PlanSeanceItemDto,
   PLAN_RECENT_CHANGES_WINDOW_LABEL,
 } from "@/lib/types";
-import {useTrafficSource, useTrafficSourceHref} from "@/lib/use-traffic-source";
+import {useTrafficSource} from "@/lib/use-traffic-source";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
-import {
-  LearningPlanStatusPill,
-  RowChevron,
-  SKILL_PREMIUM_HREF,
-  SkillAccent,
-  SkillLockBadge,
-  SkillMasteryPill,
-  SkillRing,
-} from "@/app/_components/skill-ui/SkillLayout";
-import s from "@/app/_components/skill-ui/skill.module.css";
+import {RowChevron, SkillLockBadge} from "@/app/_components/skill-ui/SkillLayout";
 import styles from "./plan.module.css";
-
-/** Nombre de compétences observées affichées avant le repli — le brief §20
- *  interdit de dérouler les 48 d'un coup. */
-const VISIBLE_SKILLS = 6;
-
-/**
- * Un cadenas du Plan qui renvoie au paiement, c'est LA mesure de conversion du
- * verrou freemium — et c'est ce que la table « Quel écran déclenche l'achat ? »
- * lit sous l'emplacement « Plan verrouillé ».
- *
- * 🛑 **Ne jamais inventer d'autre événement ici** : l'allowlist est doublée
- * côté serveur, tout le reste est rejeté.
- */
-function trackPremiumClick() {
-  track("PREMIUM_CTA_CLICKED", {ctaLocation: "LOCKED_PLAN", screen: "plan"});
-}
-
-function usePremiumHref(): string {
-  return useTrafficSourceHref(SKILL_PREMIUM_HREF);
-}
 
 function plural(count: number): string {
   return count > 1 ? "s" : "";
@@ -276,10 +241,6 @@ export function LearningPlanView() {
 function ActivePlan({plan}: {plan: LearningPlanDto}) {
   const [whyOpen, setWhyOpen] = useState(false);
 
-  const observed = useMemo(
-    () => plan.observedSkills.filter((skill) => skill.status !== "NOT_OBSERVED"),
-    [plan.observedSkills],
-  );
   const priorities = useMemo(() => planActivePriorities(plan), [plan]);
   const completedSteps = plan.completedSteps ?? [];
   const changes = plan.recentChanges;
@@ -309,8 +270,8 @@ function ActivePlan({plan}: {plan: LearningPlanDto}) {
         <p className={styles.eyebrow}><ListChecks size={15} aria-hidden /> Mon plan</p>
         <div className={styles.headerRow}>
           <h1>{planTitle(plan.cycle)}</h1>
-          <Link className={styles.headerAction} href="/statistiques">
-            <BarChart3 size={16} aria-hidden /> Ma progression
+          <Link className={styles.headerAction} href={PLAN_PROGRESS_HREF}>
+            <BarChart3 size={16} aria-hidden /> {PLAN_PROGRESS_TITLE_SHORT}
           </Link>
         </div>
         <p>
@@ -341,7 +302,7 @@ function ActivePlan({plan}: {plan: LearningPlanDto}) {
         <div className={styles.main}>
           <PriorityCard plan={plan} onWhy={() => setWhyOpen(true)} />
 
-          <SeanceCard plan={plan} onWhy={() => setWhyOpen(true)} />
+          <PlanSeanceCard plan={plan} onWhy={() => setWhyOpen(true)} />
 
           <PrioritiesSection priorities={priorities} completedSteps={completedSteps} plan={plan} />
 
@@ -349,16 +310,15 @@ function ActivePlan({plan}: {plan: LearningPlanDto}) {
               retire d'elle-même dès que l'accès TCF est là. */}
           <PlanPaywallCard onPremiumClick={trackPremiumClick} />
 
-          <RecentChanges plan={plan} />
+          {/* Le jalon est un cran AU-DESSUS des étapes : il suit les priorités,
+              il ne remplace jamais l'une d'elles. `milestone === null` est le
+              cas NORMAL — rien ne s'affiche, et un jalon déjà servi dans la
+              séance n'est pas répété ici.
 
-          <ObservedSkills skills={observed} total={plan.observedSkillCount} />
-        </div>
-
-        <aside className={styles.aside}>
-          {/* Le jalon est un cran AU-DESSUS des étapes : il ouvre la colonne
-              latérale, il ne remplace jamais une priorité.
-              `milestone === null` est le cas NORMAL — rien ne s'affiche, et
-              un jalon déjà servi dans la séance n'est pas répété ici. */}
+              ⚠️ Il vit dans la colonne PRINCIPALE, pas dans l'aside : rangé à
+              côté, il tombait tout en bas une fois les deux colonnes empilées
+              sur petit écran, très loin des priorités qu'il couronne. C'est
+              aussi l'ordre du mobile (`plan_screen.dart`). */}
           {milestone && !milestoneInSeance && (
             <section aria-labelledby="milestone-section">
               <BlockHead
@@ -370,6 +330,10 @@ function ActivePlan({plan}: {plan: LearningPlanDto}) {
             </section>
           )}
 
+          <PlanRecentChanges plan={plan} />
+        </div>
+
+        <aside className={styles.aside}>
           <ProfileCard plan={plan} />
 
           <CompleteProfileCard plan={plan} />
@@ -447,9 +411,14 @@ function PriorityCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void})
     ? planItemMinutes(next)
     : exercise?.estimatedMinutes ?? null;
   const level = planSkillLevel(plan, priority.skillId);
+  /* Le repère de la priorité : son épreuve, puis sa tâche **en toutes lettres**
+     — « Tâche 2 — Raconter une expérience ». Le titre vient du miroir de
+     `SkillTaskCode` (le serveur ne le sert pas) ; un code inattendu retombe sur
+     le code lui-même plutôt que sur une tâche inventée. La compréhension, elle,
+     n'a aucune tâche : elle se repère par son palier. */
   const taskLabel = isComprehension(priority.section)
     ? level ? `palier ${level}` : productionSectionLabel(priority.section)
-    : priority.skillCode;
+    : planTaskLabel(priority.skillCode) ?? priority.skillCode;
 
   const cta = actionLocked
     ? "Débloquer cet entraînement"
@@ -482,7 +451,7 @@ function PriorityCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void})
       <div className={styles.priorityTitleRow}>
         <h2>{priority.title}</h2>
         <span className={styles.priorityTag}>
-          {priority.section} · {taskLabel}
+          {productionSectionLabel(priority.section)} · {taskLabel}
         </span>
       </div>
       {priorityLines(priority).map((line) => (
@@ -539,7 +508,7 @@ function PriorityCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void})
             disabled={starting || assessments.starting !== null}
             onClick={startNext}
           >
-            {starting || assessments.starting !== null ? "Démarrage…" : cta}{" "}
+            {starting || assessments.starting !== null ? PLAN_STARTING : cta}{" "}
             <ArrowRight size={17} aria-hidden />
           </button>
         ) : (
@@ -615,194 +584,16 @@ function priorityLines(priority: LearningPlanPriorityDto): string[] {
   return lines;
 }
 
-/* ------------------------------------------------------------- la séance */
-
-/**
- * « Aujourd'hui » : la séance servie par le serveur, dans **son** ordre.
- *
- * ⚠️ **Ce qui est coché ne repose que sur des faits SERVIS** — l'étape bouclée
- * (`stepCompleted`) ou une dernière activité datée d'aujourd'hui
- * (`lastActivityAt`, comparé en Europe/Paris par `planSeanceItemDone`). Le
- * marqueur local d'avant disparaissait au rechargement et ne traversait pas
- * l'appareil : deux candidats — le même — voyaient deux séances différentes.
- * La séance, elle, continue de ne dépendre d'aucune date : c'est le front qui
- * compare, jamais le serveur.
- */
-function SeanceCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void}) {
-  const items = plan.seance.items;
-  const done = items.filter((item) => planSeanceItemDone(item)).length;
-  const percent = items.length ? Math.round((done / items.length) * 100) : 0;
-
-  return (
-    <section className={styles.seance} aria-labelledby="seance-title">
-      <div className={styles.seanceHead}>
-        <div>
-          <h2 id="seance-title">{PLAN_SEANCE_TITLE}</h2>
-          <p>{planSeanceMeta(items.length, plan.seance.estimatedMinutes)}</p>
-        </div>
-        {items.length > 0 && (
-          <span className={styles.seanceCount} data-done={done === items.length ? "1" : "0"}>
-            {done}/{items.length}
-          </span>
-        )}
-      </div>
-
-      {items.length > 0 && (
-        <div className={styles.seanceBar} role="presentation">
-          <span style={{width: `${percent}%`}} />
-        </div>
-      )}
-
-      {items.length === 0 ? (
-        <p className={styles.seanceEmpty}>{PLAN_SEANCE_EMPTY}</p>
-      ) : (
-        <ul className={styles.seanceList}>
-          {items.map((item) => (
-            <SeanceRow key={planSeanceItemKey(item)} item={item} />
-          ))}
-        </ul>
-      )}
-
-      <button type="button" className={styles.seanceWhy} onClick={onWhy}>
-        <Sparkles size={16} aria-hidden />
-        <span>{PLAN_SEANCE_WHY_CTA}</span>
-        <ChevronRight size={16} aria-hidden />
-      </button>
-    </section>
-  );
-}
-
-/**
- * Une ligne de la séance. **Deux natures d'action, deux lanceurs** : un
- * entraînement part chez `usePlanExercise`, une **mesure de domaine** chez
- * `usePlanAssessment` — celui qui sert déjà « Compléter mon profil ». On lit
- * `item.nature`, jamais la nullité d'un champ.
- */
-function SeanceRow({item}: {item: PlanSeanceItemDto}) {
-  if (item.exercise === null) return <SeanceAssessmentRow item={item} />;
-  return <SeanceExerciseRow item={item} />;
-}
-
-/**
- * **Ce qui reste vrai pour tout le monde**, verrou ou pas : de quelle épreuve
- * relève la ligne (et quel palier elle travaille en compréhension), et **quelle
- * sorte d'action** le Plan demande — mesurer, réparer, vérifier, apprendre.
- *
- * 🛑 **Hors du bloc floutable, comme sur mobile** (`_SeanceRow`). Ni l'un ni
- * l'autre ne dit *ce qu'il y a à faire* : le domaine est déjà lisible sur
- * l'icône restée nette juste à côté, et la nature est précisément ce qui
- * empêche « à acquérir » de se lire « à renforcer » — la retirer sous le flou
- * rendait les lignes fermées indistinctes entre elles.
- */
-function SeanceEyebrow({item}: {item: PlanSeanceItemDto}) {
-  return (
-    <span className={styles.seanceEyebrow}>
-      {planItemEyebrow(item)}
-      <PlanNaturePill nature={item.nature} />
-    </span>
-  );
-}
-
-/**
- * **Ce que le verrou ferme** : le titre de l'action et son détail. Le contenu
- * **RÉEL**, qu'il soit servi net ou flouté — rien n'est fabriqué pour remplir
- * le flou, et l'abonnement le révèle tel quel.
- */
-function SeanceText({item, done}: {item: PlanSeanceItemDto; done: boolean}) {
-  return (
-    <>
-      <span className={styles.seanceTitle} data-done={done ? "1" : "0"}>
-        {planItemTitle(item)}
-      </span>
-      <span className={styles.seanceMeta}>{planItemMeta(item)}</span>
-    </>
-  );
-}
-
-function SeanceExerciseRow({item}: {item: PlanSeanceExerciseItemDto}) {
-  const premiumHref = usePremiumHref();
-  const {startItem, starting, error, paywallOpen, closePaywall} = usePlanExercise();
-  const done = planSeanceItemDone(item);
-  const locked = planSeanceItemLocked(item);
-  const epreuve = itemEpreuve(item);
-
-  /* L'icône de domaine reste NETTE même verrouillée, comme dans la maquette :
-     elle dit de quelle épreuve relève la ligne, pas ce qu'il y a à y faire. */
-  const icon = <PlanDomainIcon epreuve={epreuve} active={!done && !locked} />;
-
-  return (
-    <li className={styles.seanceItem} data-done={done ? "1" : "0"}>
-      {locked ? (
-        <Link className={styles.seanceRow} href={premiumHref} onClick={trackPremiumClick}>
-          {icon}
-          <span className={styles.seanceBody}>
-            <SeanceEyebrow item={item} />
-            <span className={styles.srOnly}>{PLAN_LOCKED_SEANCE_LABEL}</span>
-            <PlanBlur><SeanceText item={item} done={done} /></PlanBlur>
-          </span>
-          <SkillLockBadge />
-        </Link>
-      ) : (
-        <button
-          type="button"
-          className={styles.seanceRow}
-          disabled={starting}
-          onClick={() => void startItem(item)}
-        >
-          {icon}
-          <span className={styles.seanceBody}>
-            <SeanceEyebrow item={item} />
-            <SeanceText item={item} done={done} />
-          </span>
-          {done ? (
-            <span className={styles.seanceDone} aria-label="Étape terminée"><Check size={15} strokeWidth={3} aria-hidden /></span>
-          ) : (
-            <RowChevron />
-          )}
-        </button>
-      )}
-      {error && <p className={styles.milestoneError} role="alert">{error}</p>}
-      <PaywallSheet ctaLocation="LOCKED_PLAN" screen="plan" open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
-    </li>
-  );
-}
-
-/**
- * **Une mesure de domaine, pas un entraînement.** Le candidat a produit sur ce
- * domaine et le correcteur n'a rien pu y observer : lui empiler un exercice de
- * plus le ferait avancer à l'aveugle, donc la séance commence par le mesurer.
- *
- * ⚠️ **Elle n'est jamais verrouillée** — c'est la porte de sortie d'un profil
- * incomplet, et le serveur ne pose aucun cadenas dessus. Pas de `PlanBlur` ici,
- * donc, et ce n'est pas un oubli.
- */
-function SeanceAssessmentRow({item}: {item: PlanSeanceAssessmentItemDto}) {
-  const {start, starting, error, paywallOpen, closePaywall} = usePlanAssessment();
-  const busy = starting === item.assessment.epreuve;
-
-  return (
-    <li className={styles.seanceItem} data-done="0">
-      <button
-        type="button"
-        className={styles.seanceRow}
-        disabled={busy}
-        onClick={() => void start(item.assessment)}
-      >
-        <PlanDomainIcon epreuve={itemEpreuve(item)} active />
-        <span className={styles.seanceBody}>
-          <SeanceEyebrow item={item} />
-          <SeanceText item={item} done={false} />
-        </span>
-        {busy ? <span className={styles.seanceMeta}>Démarrage…</span> : <RowChevron />}
-      </button>
-      {error && <p className={styles.milestoneError} role="alert">{error}</p>}
-      <PaywallSheet ctaLocation="LOCKED_PLAN" screen="plan" open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
-    </li>
-  );
-}
-
 /* ---------------------------------------------------------- mes priorités */
 
+/**
+ * « Mes priorités », **groupées par épreuve puis par tâche** — la liste plate
+ * numérotée d'avant ne disait pas *où* le candidat travaillait, alors que c'est
+ * la première question qu'il se pose devant son plan.
+ *
+ * L'ordre reste **celui du serveur** : le premier encart est celui de la
+ * première priorité servie, et les lignes ne sont jamais retriées à l'intérieur.
+ */
 function PrioritiesSection({
   priorities,
   completedSteps,
@@ -817,93 +608,13 @@ function PrioritiesSection({
     <section aria-labelledby="priorities-title">
       <BlockHead
         title="Mes priorités"
-        text="Dans l'ordre décidé par votre plan : la première d'abord."
+        text="Toutes vos compétences par épreuve, dans l'ordre décidé par votre plan."
         titleId="priorities-title"
         action={<AllSkillsLink />}
       />
-      {priorities.length > 0 && (
-        <ol className={styles.priorityList}>
-          {priorities.map((priority, index) => (
-            <PriorityRow key={priority.skillId} priority={priority} rank={index + 1} plan={plan} />
-          ))}
-        </ol>
-      )}
+      <PlanPriorityGroups plan={plan} priorities={priorities} />
       <CompletedStepsBlock steps={completedSteps} />
     </section>
-  );
-}
-
-function PriorityRow({
-  priority,
-  rank,
-  plan,
-}: {
-  priority: LearningPlanPriorityDto;
-  rank: number;
-  plan: LearningPlanDto;
-}) {
-  const premiumHref = usePremiumHref();
-  const level = planSkillLevel(plan, priority.skillId);
-  const locked = priority.locked;
-
-  /** Le titre et la meta — le contenu RÉEL, net ou flouté selon l'accès.
-   *
-   *  ⚠️ Là où une fragilité affiche ses points d'étape, une compétence **à
-   *  acquérir** dit ce qu'elle est : rien n'a été observé, donc rien n'a
-   *  échoué. Miroir du mobile (`_PriorityRow`). */
-  const text = (
-    <>
-      <span className={styles.priorityRowTitle}>{priority.title}</span>
-      <span className={styles.priorityRowMeta}>
-        {planSkillMeta(priority)}
-        {level ? ` · palier ${level}` : ""}
-      </span>
-      {priority.nature === "A_ACQUERIR" && (
-        <span className={styles.priorityRowNote}>{PLAN_REASON_A_ACQUERIR}</span>
-      )}
-    </>
-  );
-
-  return (
-    <li className={styles.priorityItem}>
-      <Link
-        className={styles.priorityRow}
-        href={locked ? premiumHref : planSkillHref(priority, {planStep: true})}
-        onClick={locked ? trackPremiumClick : undefined}
-      >
-        {/* Verrouillée, la pastille perd sa teinte d'urgence : la première
-            priorité est celle qu'on peut commencer, la mettre en avant sous un
-            cadenas serait une invitation à un mur. */}
-        <span className={styles.priorityRank} data-first={!locked && rank === 1 ? "1" : "0"}>{rank}</span>
-        <span className={styles.priorityBody}>
-          {locked ? (
-            <>
-              <span className={styles.srOnly}>{PLAN_LOCKED_PRIORITY_LABEL}</span>
-              <PlanBlur>{text}</PlanBlur>
-            </>
-          ) : (
-            text
-          )}
-        </span>
-        {/* Les points d'avancement disparaissent sous le verrou : ils
-            compteraient un travail qu'on ne peut pas faire. */}
-        {!locked && priority.stepPromptCount > 0 && (
-          <span className={styles.priorityProgress}>
-            <PlanDots done={priority.stepAttemptedCount} total={priority.stepPromptCount} />
-            <span>{priority.stepAttemptedCount} / {priority.stepPromptCount}</span>
-          </span>
-        )}
-        {/* 🛑 **La nature, pas l'état agrégé.** Une ligne de « Mes priorités »
-            annonce une ACTION : `A_VERIFIER` dit « à vérifier » là où l'état
-            dirait « en consolidation », et une compétence **à acquérir** n'a
-            aucun état (`masteryState` nul) — elle n'affichait donc rien du
-            tout, ce qui la rendait indistinguable d'une fragilité. L'état
-            agrégé reste sur la fiche de la compétence, où il décrit son
-            historique. */}
-        {locked ? <SkillLockBadge /> : <PlanNaturePill nature={priority.nature} />}
-        <RowChevron />
-      </Link>
-    </li>
   );
 }
 
@@ -958,8 +669,12 @@ function CompletedStepsBlock({steps}: {steps: LearningPlanCompletedStepDto[]}) {
 
 /** 🛑 `recentChanges === null` est le cas **NORMAL** : rien n'a bougé, on
  *  n'affiche rien. Aucune ligne n'est fabriquée pour remplir le bloc, aucun
- *  message générique. */
-function RecentChanges({plan}: {plan: LearningPlanDto}) {
+ *  message générique.
+ *
+ *  Exportée parce que « Ma progression » sert **exactement la même** section :
+ *  deux copies auraient fini par raconter deux histoires différentes du même
+ *  `recentChanges`. */
+export function PlanRecentChanges({plan}: {plan: LearningPlanDto}) {
   const changes = plan.recentChanges;
   if (!changes) return null;
   /* 🛑 **Pas de transition réelle ⇒ pas de section du tout.** Le serveur sert
@@ -1098,7 +813,7 @@ function AssessmentRow({
           <span className={styles.panelMeta}>{PLAN_DOMAIN_NOT_EVALUATED} · {planAssessmentMeta(assessment)}</span>
         </span>
         <span className={styles.panelCta}>
-          {busy ? "Démarrage…" : planAssessmentCta(assessment)} <ChevronRight size={15} aria-hidden />
+          {busy ? PLAN_STARTING : planAssessmentCta(assessment)} <ChevronRight size={15} aria-hidden />
         </span>
       </button>
     </li>
@@ -1124,22 +839,30 @@ function PathCard({plan}: {plan: LearningPlanDto}) {
 /* -------------------------------------------------------- accès secondaires */
 
 function SecondaryLinks() {
-  const {href: skillsHref, locked: skillsLocked} = useAllSkillsTarget();
   const rows: Array<{
     icon: ReactNode;
     title: string;
     text: string;
     href: string;
-    locked?: boolean;
   }> = [
     {
+      /* 🛑 Aucun cadenas : le référentiel est ouvert à tout le monde
+         (2026-08-22) — cf. `AllSkillsLink`. */
       icon: <LayoutGrid size={18} />,
       title: PLAN_SKILLS_TITLE,
       text: "6 tâches · 3 paliers par domaine",
-      href: skillsHref,
-      locked: skillsLocked,
+      href: PLAN_SKILLS_HREF,
     },
-    {icon: <BarChart3 size={18} />, title: "Ma progression", text: "Domaine par domaine", href: "/statistiques"},
+    {
+      /* 🛑 L'écran adossé au PLAN, pas `/statistiques` — qui reste, avec sa
+         propre entrée de barre latérale, et répond à une autre question
+         (thèmes révisés, séries jouées) que « où j'en suis sur les quatre
+         domaines du TCF ». */
+      icon: <BarChart3 size={18} />,
+      title: PLAN_PROGRESS_TITLE_SHORT,
+      text: "Domaine par domaine",
+      href: PLAN_PROGRESS_HREF,
+    },
     {icon: <GraduationCap size={18} />, title: "Mes examens blancs", text: "TCF et civique", href: "/examens-blancs"},
     {icon: <Sparkles size={18} />, title: "Mon diagnostic", text: "Résultat de départ", href: "/diagnostic"},
   ];
@@ -1148,17 +871,13 @@ function SecondaryLinks() {
       <ul className={styles.panelList}>
         {rows.map((row) => (
           <li key={row.title}>
-            <Link
-              className={styles.panelRow}
-              href={row.href}
-              onClick={row.locked ? trackPremiumClick : undefined}
-            >
+            <Link className={styles.panelRow} href={row.href}>
               <span className={styles.panelIcon} aria-hidden>{row.icon}</span>
               <span className={styles.panelBody}>
                 <span className={styles.panelTitle}>{row.title}</span>
                 <span className={styles.panelMeta}>{row.text}</span>
               </span>
-              {row.locked ? <SkillLockBadge /> : <RowChevron />}
+              <RowChevron />
             </Link>
           </li>
         ))}
@@ -1177,29 +896,6 @@ function SecondaryLinks() {
  * ailleurs sur le web ; le serveur, lui, retranche déjà ce qu'il faut sur
  * chaque ligne.
  */
-function useAllSkillsTarget(): {href: string; locked: boolean} {
-  const {user} = useAuth();
-  const premiumHref = usePremiumHref();
-  const locked = !canAccessModule(user, "TCF");
-  return {href: locked ? premiumHref : PLAN_SKILLS_HREF, locked};
-}
-
-/** Le « tout voir » de « Mes priorités » — même destination, même verrou. */
-function AllSkillsLink() {
-  const {href, locked} = useAllSkillsTarget();
-  return (
-    <Link
-      className={styles.blockAction}
-      href={href}
-      onClick={locked ? trackPremiumClick : undefined}
-      aria-label={locked ? PLAN_SKILLS_LOCKED_LABEL : undefined}
-    >
-      {locked && <Lock size={14} aria-hidden />}
-      {PLAN_SKILLS_TITLE} <ChevronRight size={15} aria-hidden />
-    </Link>
-  );
-}
-
 /* ---------------------------------------------------- pourquoi cette séance */
 
 /** Le « pourquoi » est composé de **faits servis** — état de maîtrise,
@@ -1284,64 +980,6 @@ function WhyModal({plan, onClose}: {plan: LearningPlanDto; onClose: () => void})
   );
 }
 
-/* ------------------------------------------------- mes compétences observées */
-
-function ObservedSkills({skills, total}: {skills: LearningPlanSkillDto[]; total: number}) {
-  if (skills.length === 0) return null;
-  return (
-    <section aria-labelledby="skills-title">
-      <BlockHead
-        title="Mes compétences observées"
-        text="Uniquement ce qui a été réellement observé dans vos productions."
-        titleId="skills-title"
-        aside={`${total} observée${plural(total)}`}
-      />
-      <SkillAccent>
-        <div className={styles.skillGrid}>
-          {skills.slice(0, VISIBLE_SKILLS).map((skill) => <SkillCard key={skill.skillId} skill={skill} />)}
-        </div>
-        {skills.length > VISIBLE_SKILLS && (
-          <details className={styles.moreSkills}>
-            <summary>Voir toutes mes compétences observées <ChevronDown size={15} aria-hidden /></summary>
-            <div className={styles.skillGrid}>
-              {skills.slice(VISIBLE_SKILLS).map((skill) => <SkillCard key={skill.skillId} skill={skill} />)}
-            </div>
-          </details>
-        )}
-      </SkillAccent>
-    </section>
-  );
-}
-
-function SkillCard({skill}: {skill: LearningPlanSkillDto}) {
-  const premiumHref = usePremiumHref();
-  const done = skill.promptCount > 0 && skill.attemptedCount >= skill.promptCount;
-  const locked = skill.locked;
-  return (
-    <Link
-      href={locked ? premiumHref : planSkillHref(skill, {planStep: true})}
-      onClick={locked ? trackPremiumClick : undefined}
-      className={`${s.card} ${s.rowCard} ${s.ringRow}`}
-    >
-      <SkillRing attempted={skill.attemptedCount} total={skill.promptCount} done={done} />
-      <span className={s.rowBody}>
-        <span className={s.rowTitle}>{skill.title}</span>
-        <span className={s.rowText}>{productionSectionLabel(skill.section)}</span>
-        <span className={s.rowState}>{competenceProgressLabel(skill)}</span>
-      </span>
-      <span className={styles.skillAside}>
-        {locked && <SkillLockBadge />}
-        {skill.masteryState ? (
-          <SkillMasteryPill state={skill.masteryState} />
-        ) : (
-          <LearningPlanStatusPill status={skill.status} />
-        )}
-        <RowChevron />
-      </span>
-    </Link>
-  );
-}
-
 /* --------------------------------------------------------------- structures */
 
 function PlanHeader({title, text}: {title: string; text: string}) {
@@ -1358,13 +996,11 @@ export function BlockHead({
   title,
   text,
   titleId,
-  aside,
   action,
 }: {
   title: string;
   text?: string;
   titleId?: string;
-  aside?: string;
   action?: ReactNode;
 }) {
   return (
@@ -1373,7 +1009,6 @@ export function BlockHead({
         <h2 id={titleId}>{title}</h2>
         {text && <p>{text}</p>}
       </div>
-      {aside && <span>{aside}</span>}
       {action}
     </div>
   );

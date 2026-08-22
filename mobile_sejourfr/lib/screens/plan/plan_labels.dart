@@ -141,13 +141,21 @@ String planDomainSummary(PlanDomain domain) {
   return 'Ce domaine est mesuré ; son détail arrive à votre prochaine session.';
 }
 
-/// « 3 / 8 compétences observées » — **pas une note** : une compétence non
-/// observée n'est pas une compétence ratée. Le dénominateur vient du serveur.
+/// « Tâche 1 · 3 / 8 compétences observées » — **pas une note** : une
+/// compétence non observée n'est pas une compétence ratée. Le dénominateur
+/// vient du serveur.
 String planTaskObservedLabel(PlanDomainTask task) =>
-    '${task.observedSkills} / ${task.totalSkills} compétences observées';
+    'Tâche ${task.tacheNumero} · ${task.observedSkills} / ${task.totalSkills} '
+    'compétences observées';
 
-/// Titre d'une tâche d'expression sur la fiche d'un domaine.
-String planTaskTitle(PlanDomainTask task) => 'Tâche ${task.tacheNumero}';
+/// Le titre d'une tâche d'expression : son **titre éditorial** quand son code
+/// le désigne (miroir [SkillTaskCode], gelé côté backend), « Tâche N » sinon.
+///
+/// ⚠️ On ne devine jamais une tâche : un code inattendu retombe sur son numéro,
+/// et le numéro reste par ailleurs lisible dans [planTaskObservedLabel].
+String planTaskTitle(PlanDomainTask task) =>
+    SkillTaskCode.fromSkillCode(task.taskCode)?.title ??
+    'Tâche ${task.tacheNumero}';
 
 /// « EE1 · Expression écrite » — le repère factuel sous le titre d'une
 /// compétence. Le code peut manquer : on n'affiche alors que le domaine.
@@ -199,6 +207,9 @@ const String kPlanSeanceWhy = 'Pourquoi cette séance ?';
 const String kPlanSeanceEmpty =
     'Rien à faire pour le moment : votre prochaine étape se décide à votre '
     'prochaine production.';
+/// L'en-tête de la carte quand le Plan n'a rien à proposer aujourd'hui.
+const String kPlanSeanceNothingToDo =
+    'Aucun entraînement à faire pour l\'instant';
 const String kPlanSeanceRestart = 'Refaire ma séance';
 const String kPlanSeanceStart = 'Commencer ma séance';
 
@@ -248,9 +259,10 @@ String planItemKindLabel(PlanSeanceItem item) {
     PlanExerciseKind.targetedQcmSeries => planSeriesLabel(
         item.exercise?.questionCount,
       ),
-    PlanExerciseKind.epreuveMockExam ||
-    PlanExerciseKind.fullTcfMockExam =>
-      'Examen blanc',
+    // Deux jalons, deux périmètres : une épreuve (3 tâches) n'est pas un TCF
+    // complet (4 épreuves). Miroir mot pour mot du web (`planItemNature`).
+    PlanExerciseKind.epreuveMockExam => 'Examen blanc d\'épreuve',
+    PlanExerciseKind.fullTcfMockExam => 'Examen blanc TCF complet',
     // Une ligne sans exercice ni mesure n'existe pas (elle est écartée au
     // parsing) : ce repli n'est là que pour garder le `switch` total.
     null => item.nature.label,
@@ -348,7 +360,7 @@ List<String> planPriorityLines(LearningPlanPriority priority) {
 /// ne l'invente pas.
 String planSeriesLabel(int? questionCount) => questionCount == null
     ? 'Série ciblée de compréhension'
-    : 'Série ciblée · $questionCount questions';
+    : 'Série ciblée de $questionCount questions';
 
 /// Le repère de ligne d'un item : « CO · B1 », « EE ».
 ///
@@ -464,6 +476,243 @@ List<String> planSeanceRationale(LearningPlan plan) {
   return lines;
 }
 
+/* ------------------------------------------- les encarts « épreuve → tâche » */
+
+/// **La pastille d'un encart de tâche** : « Tâche 2 ». Le titre de la tâche,
+/// lui, vit dans [SkillTaskCode.title] — miroir du backend, jamais réécrit ici.
+String planTaskBadgeLabel(SkillTaskCode task) => 'Tâche ${task.tacheNumero}';
+
+/// Le repère d'un encart **sans tâche** : la compréhension travaille un palier,
+/// une mesure ouvre un parcours, un jalon est un jalon. `null` quand aucun de
+/// ces trois faits n'est servi — on n'invente alors aucun repère.
+String? planGroupContextLabel({
+  String? level,
+  PlanDomainAssessment? assessment,
+  PlanMilestone? milestone,
+}) {
+  if (level != null && level.isNotEmpty) return 'Niveau $level';
+  if (assessment != null) return planAssessmentNature(assessment);
+  if (milestone != null) return kPlanMilestonePill;
+  return null;
+}
+
+/// Le résumé d'un encart de **séance**, fermé : « Raconter une expérience ·
+/// 2 entraînements · 12 min ». Le titre de tâche saute quand il n'y en a pas.
+String planSeanceGroupSummary({
+  String? taskTitle,
+  required int count,
+  required int minutes,
+}) {
+  final parts = <String>[
+    if (taskTitle != null && taskTitle.isNotEmpty) taskTitle,
+    '$count entraînement${count > 1 ? 's' : ''}',
+    if (minutes > 0) '$minutes min',
+  ];
+  return parts.join(' · ');
+}
+
+/// Le résumé d'un encart de **priorités**, fermé : « Raconter une expérience ·
+/// 1 priorité · 2 à renforcer ».
+String planPrioritiesGroupSummary({
+  String? taskTitle,
+  required String statuses,
+}) {
+  final parts = <String>[
+    if (taskTitle != null && taskTitle.isNotEmpty) taskTitle,
+    if (statuses.isNotEmpty) statuses,
+  ];
+  return parts.join(' · ');
+}
+
+/// **Le statut d'une ligne de priorité**, tel qu'il s'affiche.
+///
+/// 🛑 **Rien de neuf n'est jugé ici.** C'est une **vue** de deux faits déjà
+/// servis — la nature de l'action ([PlanActionNature]) et l'état agrégé de la
+/// compétence ([SkillMasteryState]) — assemblés pour que l'encart fermé puisse
+/// dire « 1 priorité · 2 à renforcer » d'un seul coup d'œil. Aucun libellé
+/// n'est écrit ici : ils sont **repris** des deux enums, gelés côté serveur.
+///
+/// **L'ordre de déclaration EST l'ordre du résumé** : ce qui bloque d'abord, ce
+/// qui se répare, ce qui s'apprend, ce qui se prouve, ce qui tient, ce qui
+/// manque encore d'être mesuré.
+enum PlanRowStatus {
+  priorite,
+  aRenforcer,
+  aAcquerir,
+  aVerifier,
+  solide,
+  aEvaluer;
+
+  /// Le libellé de la pastille. **Emprunté**, jamais recopié : « Priorité » et
+  /// « Solide » viennent de [SkillMasteryState], les quatre autres de
+  /// [PlanActionNature]. Un libellé qui bouge côté serveur bouge ici sans que
+  /// personne y touche.
+  String get label => switch (this) {
+        PlanRowStatus.priorite => SkillMasteryState.priority.label,
+        PlanRowStatus.aRenforcer => PlanActionNature.aRenforcer.label,
+        PlanRowStatus.aAcquerir => PlanActionNature.aAcquerir.label,
+        PlanRowStatus.aVerifier => PlanActionNature.aVerifier.label,
+        PlanRowStatus.solide => SkillMasteryState.solid.label,
+        PlanRowStatus.aEvaluer => PlanActionNature.aEvaluer.label,
+      };
+
+  /// La forme **au singulier** dans le résumé d'un encart (« 1 priorité »).
+  String get countedSingular => switch (this) {
+        PlanRowStatus.priorite => 'priorité',
+        PlanRowStatus.solide => 'solide',
+        _ => label.toLowerCase(),
+      };
+
+  /// La forme **au pluriel** (« 2 priorités »). Les quatre natures s'écrivent
+  /// déjà avec « à » : elles ne varient pas.
+  String get countedPlural => switch (this) {
+        PlanRowStatus.priorite => 'priorités',
+        PlanRowStatus.solide => 'solides',
+        _ => label.toLowerCase(),
+      };
+
+  /// Une compétence **solide** n'appelle plus d'action : c'est elle qu'on
+  /// écarte quand l'encart cherche quoi proposer.
+  bool get isActionable => this != PlanRowStatus.solide;
+}
+
+/// Le libellé complet d'une pastille de statut. « À acquérir » y **ajoute son
+/// palier cible** — c'est le seul statut qui désigne un palier à venir plutôt
+/// qu'un constat, et sans lui le candidat ne sait pas ce qu'il apprend. Sans
+/// palier servi, on ne le nomme pas.
+String planRowStatusLabel(PlanRowStatus status, TargetLevel? level) =>
+    status == PlanRowStatus.aAcquerir && level != null
+        ? '${status.label} · ${level.wire}'
+        : status.label;
+
+/// « 1 priorité · 2 à renforcer ». **Ordre figé** par l'ordre de déclaration de
+/// [PlanRowStatus] ; un statut absent ne s'écrit pas.
+String planStatusSummary(Iterable<PlanRowStatus> statuses) {
+  final parts = <String>[];
+  for (final status in PlanRowStatus.values) {
+    final n = statuses.where((s) => s == status).length;
+    if (n == 0) continue;
+    parts.add('$n ${n > 1 ? status.countedPlural : status.countedSingular}');
+  }
+  return parts.join(' · ');
+}
+
+/// L'en-tête de la carte « Aujourd'hui » pour un compte **abonné** :
+/// « 2 épreuves · 3 entraînements · environ 24 min ».
+String planSeanceHeaderMeta({
+  required int epreuves,
+  required int items,
+  required int minutes,
+}) =>
+    '$epreuves épreuve${epreuves > 1 ? 's' : ''} · $items '
+    'entraînement${items > 1 ? 's' : ''} · environ $minutes min';
+
+/// Le même en-tête pour un compte **sans accès** : ce qui est réellement
+/// ouvert, sur le total.
+///
+/// 🛑 **Le nombre d'entraînements gratuits est COMPTÉ sur les `locked` servis**,
+/// jamais posé à 1 par principe : c'est le serveur qui décide de ce qu'il
+/// ouvre, et écrire « 1 » en dur mentirait le jour où il en ouvre deux.
+String planSeanceFreeHeaderMeta({
+  required int free,
+  required int items,
+  required int minutes,
+}) =>
+    '$free entraînement${free > 1 ? 's' : ''} gratuit${free > 1 ? 's' : ''} '
+    'sur $items · environ $minutes min';
+
+/// L'affordance de fin de ligne d'un entraînement à faire.
+const String kPlanSeanceRowStart = 'Commencer';
+
+/// Le sous-titre d'une ligne de séance : sa nature et sa durée.
+String planSeanceRowSub(PlanSeanceItem item, int minutes) {
+  final kind = planItemKindLabel(item);
+  return minutes > 0 ? '$kind · $minutes min' : kind;
+}
+
+/// Le sous-titre d'une ligne de priorité **à acquérir** : le palier auquel elle
+/// appartient. Sans palier servi, on ne le nomme pas.
+String planAcquisitionRowSub(TargetLevel? level) => level == null
+    ? 'Nouvelle compétence de votre palier'
+    : 'Nouvelle compétence du palier ${level.wire}';
+
+/// Le sous-titre d'une ligne de priorité d'**expression** : l'avancement de son
+/// étape. Sans périmètre servi, on n'invente aucun dénominateur.
+String planPromptCountSub(int done, int total) => total > 0
+    ? '$done / $total petits sujets'
+    : 'Petits sujets ciblés';
+
+/// Le sous-titre d'une ligne **seulement observée** : d'où vient sa mesure.
+///
+/// 🛑 Aucun compteur d'étape n'est servi sur ces lignes — elles ne sont pas des
+/// priorités. Y écrire « 0 / 5 petits sujets » se lirait comme un retard, alors
+/// que la compétence a justement été mesurée.
+const String kPlanObservedRowSub = 'Observée dans vos productions';
+
+/// « + 3 autres compétences » — le reste d'un encart, **compté pour de vrai**
+/// sur ce que le groupe contient. Jamais une constante recopiée d'une maquette.
+String planGroupMoreLabel(int count) =>
+    '+ $count autre${count > 1 ? 's' : ''} '
+    'compétence${count > 1 ? 's' : ''}';
+
+/// Le bouton de bas d'encart : ce qu'il propose de faire sur la **première
+/// ligne qui appelle une action**.
+const String kPlanGroupWorkCta = 'Travailler cette compétence';
+const String kPlanGroupDiscoverCta = 'Découvrir cette compétence';
+const String kPlanGroupUnlockCta = 'Débloquer cette compétence';
+
+/// Ce que dit le bouton d'un encart de priorités.
+String planGroupCta({
+  required bool locked,
+  required bool comprehension,
+  required bool acquisition,
+}) {
+  if (locked) return kPlanGroupUnlockCta;
+  if (comprehension) return kPlanSeriesCta;
+  return acquisition ? kPlanGroupDiscoverCta : kPlanGroupWorkCta;
+}
+
+/* ------------------------------------------- ma progression (écran) ------- */
+
+/// Le titre de l'écran de progression du Plan.
+///
+/// 🛑 **L'objectif est NULLABLE et on n'invente jamais « B2 »** : sans démarche
+/// déclarée, l'écran s'appelle « Ma progression », sans palier. La maquette,
+/// elle, l'écrit en dur — la suivre retirerait son A2 à un dossier CSP.
+String planProgressTitle(TargetLevel? objective) => objective == null
+    ? 'Ma progression'
+    : 'Ma progression vers le ${objective.wire}';
+
+const String kPlanProgressSub = 'Domaine par domaine, niveau par niveau';
+const String kPlanProgressLevelLabel = 'NIVEAU ESTIMÉ';
+const String kPlanProgressObjectiveLabel = 'OBJECTIF';
+
+/// Ce qui s'affiche à la place du niveau global tant que rien n'est mesuré.
+/// *null = inconnu, jamais mauvais* : on n'écrit pas « A1 » par défaut.
+const String kPlanProgressNoLevel = '—';
+
+/// La ligne sous le nom d'un domaine sur cet écran : son niveau estimé et, en
+/// compréhension, le palier qu'il travaille. Uniquement des faits servis.
+String planDomainProgressSubtitle(PlanDomain domain) {
+  if (!domain.evaluated || domain.niveau == null) {
+    return kPlanDomainNotEvaluatedShort;
+  }
+  final blocking = domain.blockingLevel;
+  final niveau = 'Niveau estimé ${domain.niveau!.displayName}';
+  return blocking == null ? niveau : '$niveau · travaille le ${blocking.wire}';
+}
+
+/// 🛑 **Aucun pourcentage nulle part sur cet écran.** La maquette affiche une
+/// barre de maîtrise par palier ; le score interne du moteur n'est exposé à
+/// aucun front, et cette note remplace donc celle qui l'expliquait.
+const String kPlanProgressNote =
+    'Chaque domaine avance à son rythme : un palier se construit compétence par '
+    'compétence, et rien n\'est déduit d\'un domaine que vous n\'avez pas encore '
+    'mesuré.';
+
+const String kPlanProgressLevelsTitle = 'Vos paliers';
+const String kPlanProgressTasksTitle = 'Vos tâches';
+
 /* -------------------------------------------------------------- le cycle    */
 
 /// Titre de la section « chemin ». Le palier visé est **nullable** : sans lui,
@@ -572,15 +821,14 @@ const String kPlanCompleteProfileText =
     'par quoi les mesurer.';
 const String kPlanPrioritiesTitle = 'Mes priorités';
 
-/* ------------------------------------------- mes compétences observées ---- */
-
-/// Le bloc qui dit **ce qui a été constaté**, là où tout le reste du Plan dit ce
-/// qu'il reste à faire. Miroirs mot pour mot du web (`ObservedSkills`).
-const String kPlanObservedTitle = 'Mes compétences observées';
-const String kPlanObservedText =
-    'Uniquement ce qui a été réellement observé dans vos productions.';
-const String kPlanObservedMore = 'Voir toutes mes compétences observées';
-const String kPlanObservedLess = 'Replier mes compétences observées';
+/// 🛑 **La section « Mes compétences observées » n'existe plus** : ses cartes
+/// répétaient, dans un autre ordre et plus bas dans la page, les compétences
+/// déjà nommées ici. Chaque encart porte désormais **toutes** les compétences
+/// de sa tâche — priorités en tête, acquis compris — et son résumé les compte
+/// (« 1 priorité · 2 à renforcer · 3 solides »). Ne pas recréer un second bloc.
+const String kPlanPrioritiesText =
+    'Chaque tâche, avec ce qu\'il reste à y travailler et ce qui est déjà '
+    'acquis.';
 
 /// ⚠️ **Divergence VOULUE avec le web, arbitrée le 2026-08-21 : ne pas
 /// « aligner ».** L'action s'appelle « Tout voir » ici et « Toutes mes

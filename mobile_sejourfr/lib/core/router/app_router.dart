@@ -42,6 +42,7 @@ import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/plan/plan_domain_screen.dart';
 import '../../screens/plan/plan_evolution_screen.dart';
+import '../../screens/plan/plan_progress_screen.dart';
 import '../../screens/plan/plan_screen.dart';
 import '../../screens/plan/plan_serie_result_screen.dart';
 import '../../screens/plan/plan_skills_screen.dart';
@@ -168,6 +169,12 @@ class AppRoutes {
   /// Bilan d'une **série ciblée de compréhension**, poussé par le runner quand
   /// la route porte `from=planSerie` (même montage que `tcfLotResult`).
   static const planSerieResult = '/plan/serie/:attemptId';
+
+  /// « Ma progression vers le … » — les quatre domaines du TCF sur le chemin de
+  /// l'objectif. 🛑 **À ne pas confondre avec [progress]**, l'écran de
+  /// progression **générique** (civique + TCF) ouvert depuis le Profil, qui
+  /// reste. Aucun identifiant n'y voyage : l'écran relit le Plan déjà chargé.
+  static const planProgress = '/plan/progression';
 
   static const progress = '/progress';
 
@@ -553,6 +560,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.planSkills,
         builder: (_, __) => const PlanSkillsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.planProgress,
+        builder: (_, __) => const PlanProgressScreen(),
       ),
       GoRoute(
         path: AppRoutes.planSerieResult,

@@ -25,6 +25,7 @@
   --plan-blue-tint: color-mix(in srgb, var(--color-blue) 10%, transparent);
   --plan-red-tint: color-mix(in srgb, var(--color-red) 9%, transparent);
   --plan-green-tint: color-mix(in srgb, var(--color-green) 12%, transparent);
+  --plan-amber-tint: color-mix(in srgb, var(--color-amber) 20%, transparent);
   --plan-shadow: 0 12px 30px color-mix(in srgb, var(--color-ink) 7%, transparent);
   --plan-shadow-soft: 0 6px 18px color-mix(in srgb, var(--color-ink) 5%, transparent);
 
@@ -252,16 +253,6 @@
   text-wrap: pretty;
 }
 
-.blockHead > span {
-  flex: none;
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
 .blockAction {
   display: inline-flex;
   align-items: center;
@@ -375,7 +366,9 @@
   background: color-mix(in srgb, var(--color-paper) 20%, transparent);
   font-size: 13px;
   font-weight: 700;
-  white-space: nowrap;
+  /* Le repère porte désormais la tâche en toutes lettres : il se replie sur
+     deux lignes sous 360 px plutôt que de déborder de la carte. */
+  text-wrap: pretty;
 }
 
 .priorityText {
@@ -495,103 +488,6 @@
   transition: width 0.3s ease;
 }
 
-.seanceList {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.seanceItem + .seanceItem .seanceRow {
-  border-top: 1px solid var(--plan-line-soft);
-}
-
-.seanceItem[data-done="1"] {
-  opacity: 0.62;
-}
-
-.seanceRow {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  width: 100%;
-  padding: 15px 22px;
-  border: none;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.seanceRow:hover {
-  background: var(--plan-surface-2);
-}
-
-.seanceRow:disabled {
-  cursor: default;
-  opacity: 0.7;
-}
-
-.seanceBody {
-  display: grid;
-  flex: 1;
-  min-width: 0;
-}
-
-.seanceEyebrow {
-  /* Le repère de domaine et la nature de l'action sur la même ligne ; elles
-     passent l'une sous l'autre sous 360 px plutôt que de rogner le titre. */
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-/* La pastille de nature garde la fonte d'interface : elle porte un libellé
-   gelé, pas un repère technique. */
-.seanceEyebrow .naturePill {
-  font-family: var(--font-sans);
-  letter-spacing: -0.005em;
-  text-transform: none;
-}
-
-.seanceTitle {
-  margin-top: 2px;
-  color: var(--color-ink);
-  font-size: 15.5px;
-  font-weight: 600;
-  text-wrap: pretty;
-}
-
-.seanceTitle[data-done="1"] {
-  text-decoration: line-through;
-  text-decoration-color: var(--color-muted-2);
-}
-
-.seanceMeta {
-  margin-top: 1px;
-  color: var(--color-muted);
-  font-size: 13px;
-}
-
-.seanceDone {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  flex: none;
-  border-radius: 999px;
-  background: var(--plan-green-tint);
-  color: var(--color-green);
-}
-
 .seanceEmpty {
   margin: 0;
   padding: 4px 22px 18px;
@@ -620,6 +516,392 @@
 
 .seanceWhy > span {
   flex: 1;
+}
+
+/* ------------------------------------ encarts « épreuve → tâche → lignes »
+
+   La brique commune de « Aujourd'hui » et de « Mes priorités ». Fermé, un
+   encart tient sur une ligne : icône du domaine, nom de l'épreuve, pastille de
+   tâche, résumé. Ouvert, il déroule ses lignes — et, sur les priorités, un
+   contexte à gauche et les lignes à droite.
+
+   🛑 L'en-tête est un vrai `<button>` : tout le style d'un `div` cliquable, la
+   tabulation et `aria-expanded` en plus. */
+
+.seanceGroup {
+  border-top: 1px solid var(--plan-line-soft);
+}
+
+.encart {
+  min-width: 0;
+}
+
+.encart[data-done="1"] {
+  opacity: 0.72;
+}
+
+.encartHead {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  width: 100%;
+  padding: 15px 22px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.encartHead:hover {
+  background: var(--plan-surface-2);
+}
+
+.encartHeadBody {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.encartTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.encartTitle {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 17.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Trois teintes qui tournent avec le numéro de tâche — elles ne disent aucune
+   urgence, seulement « ce n'est pas la même tâche ».
+
+   🛑 **La 3ᵉ n'est PAS rouge**, et ne doit jamais le redevenir : le Rouge
+   France est réservé aux CTA critiques, et une carte d'expression porte déjà
+   deux rouges de sens différents (l'icône du domaine, la pastille de statut
+   « Priorité »). La maquette prend un violet — nos tokens n'en ont pas, et on
+   n'en fabrique pas. Elle se distingue donc par le **remplissage** : les deux
+   autres familles claires du même en-tête sont déjà prises (le vert est la
+   coche « fait », le gris la pastille de contexte). Miroir exact du mobile
+   (`PlanTaskBadge`). */
+.encartTaskPill,
+.encartContextPill {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.encartTaskPill[data-tone="0"] {
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
+}
+
+.encartTaskPill[data-tone="1"] {
+  background: var(--plan-amber-tint);
+  color: var(--color-amber-dark);
+}
+
+.encartTaskPill[data-tone="2"] {
+  background: var(--color-blue);
+  /* Le blanc du module, déclaré une seule fois en tête de fichier — jamais un
+     `#fff` écrit ici. */
+  color: var(--plan-surface);
+}
+
+/* Pas de tâche : le groupe porte son palier, sa mesure ou son examen — un
+   repère, jamais une couleur d'état. */
+.encartContextPill {
+  background: var(--plan-surface-3);
+  color: var(--color-muted);
+}
+
+.encartSummary {
+  margin-top: 3px;
+  color: var(--color-muted);
+  font-size: 13.5px;
+  text-wrap: pretty;
+}
+
+.encartChevron {
+  display: inline-flex;
+  flex: none;
+  color: var(--color-muted);
+  transition: transform 0.22s ease;
+}
+
+.encartChevron[data-open="1"] {
+  transform: rotate(180deg);
+}
+
+.encartDone {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+}
+
+.encartPanel {
+  padding: 0 22px 16px;
+  animation: encartOpen 0.18s ease;
+}
+
+@keyframes encartOpen {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .encartPanel {
+    animation: none;
+  }
+
+  .encartChevron {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------- lignes d'un encart */
+
+.encartRows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.encartRowItem + .encartRowItem .encartRow {
+  border-top: 1px solid var(--plan-line-soft);
+}
+
+.encartRowItem[data-done="1"] {
+  opacity: 0.62;
+}
+
+.encartRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: calc(100% + 20px);
+  margin: 0 -10px;
+  padding: 12px 10px;
+  border: none;
+  border-radius: 12px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+a.encartRow,
+button.encartRow {
+  cursor: pointer;
+}
+
+a.encartRow:hover,
+button.encartRow:hover {
+  background: var(--plan-surface-2);
+}
+
+button.encartRow:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.encartRowBody {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.encartRowTitle {
+  color: var(--color-ink);
+  font-size: 15.5px;
+  font-weight: 600;
+  text-wrap: pretty;
+}
+
+.encartRowTitle[data-done="1"] {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-muted-2);
+}
+
+.encartRowMeta {
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.encartRowAside {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: none;
+}
+
+.encartRowDone {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+}
+
+.encartStart {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  color: var(--color-blue);
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* --------------------------------------- encarts de « Mes priorités » */
+
+.encartStack {
+  display: grid;
+  gap: 12px;
+}
+
+.encartCard {
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--plan-surface);
+  box-shadow: var(--plan-shadow-soft);
+  transition: border-color 0.15s ease;
+}
+
+.encartCard[data-open="1"] {
+  border-color: var(--color-blue);
+}
+
+/* Ouvert : le contexte à gauche, les lignes à droite — une seule colonne dès
+   que la place manque, sans point de rupture à tenir à la main. */
+.encartSplit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(258px, 1fr));
+  gap: 22px;
+  align-items: start;
+  padding-top: 4px;
+}
+
+.encartAside {
+  min-width: 0;
+  padding-top: 6px;
+}
+
+.encartRowsBlock {
+  min-width: 0;
+}
+
+.encartEyebrow {
+  margin: 0 0 6px;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.encartAsideTitle {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 15.5px;
+  font-weight: 700;
+  text-wrap: pretty;
+}
+
+.encartAsideText {
+  margin: 3px 0 0;
+  color: var(--color-ink-2);
+  font-size: 13.5px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.encartCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 9px 15px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: var(--plan-surface);
+  color: var(--color-blue);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.encartCta:hover {
+  border-color: var(--color-blue);
+  background: var(--plan-surface-2);
+}
+
+.encartCta:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+/* Le renvoi vers la fiche du domaine, quand un encart porte plus de lignes
+   qu'il n'en déroule. Le compteur qui l'accompagne est calculé sur le contenu
+   réel du groupe. */
+.encartMore {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  color: var(--color-blue);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.encartMore:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 560px) {
+  .encartHead {
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .encartTitle {
+    font-size: 16px;
+  }
+
+  .encartPanel {
+    padding: 0 16px 14px;
+  }
 }
 
 /* ----------------------------------------------------------- mes priorités */
@@ -664,11 +946,6 @@
   font-weight: 700;
 }
 
-.priorityRank[data-first="1"] {
-  background: var(--plan-red-tint);
-  color: var(--color-red-dark);
-}
-
 .priorityRankDone {
   background: var(--plan-green-tint);
   color: var(--color-green);
@@ -693,32 +970,6 @@
   font-size: 13px;
 }
 
-/* Ce qu'est une compétence **à acquérir**, là où une fragilité afficherait ses
-   points d'étape. Une nuance, jamais une alerte. */
-.priorityRowNote {
-  margin-top: 4px;
-  color: var(--color-ink-2);
-  font-size: 12.5px;
-  line-height: 1.4;
-  text-wrap: pretty;
-}
-
-.priorityProgress {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 132px;
-  flex: none;
-}
-
-.priorityProgress > span:last-child {
-  flex: none;
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 700;
-}
-
 .doneBadge {
   flex: none;
   padding: 4px 10px;
@@ -727,12 +978,6 @@
   color: var(--color-green);
   font-size: 11.5px;
   font-weight: 700;
-}
-
-@media (max-width: 720px) {
-  .priorityProgress {
-    display: none;
-  }
 }
 
 /* Les étapes franchies, repliées : consultables, jamais encombrantes. */
@@ -1253,6 +1498,36 @@
   color: var(--color-blue);
 }
 
+.naturePill[data-status="PRIORITE"] {
+  background: var(--plan-red-tint);
+  color: var(--color-red-dark);
+}
+
+.naturePill[data-status="A_RENFORCER"] {
+  background: var(--plan-red-tint);
+  color: var(--color-red-dark);
+}
+
+.naturePill[data-status="A_VERIFIER"] {
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+}
+
+.naturePill[data-status="A_ACQUERIR"] {
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
+}
+
+.naturePill[data-status="SOLIDE"] {
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+}
+
+.naturePill[data-status="A_EVALUER"] {
+  background: var(--plan-surface-3);
+  color: var(--color-ink-2);
+}
+
 .domainPillDot {
   width: 5px;
   height: 5px;
@@ -1357,25 +1632,6 @@
 .railDark .railLink[data-state="done"] {
   background: var(--color-paper);
 }
-
-.dots {
-  display: flex;
-  gap: 4px;
-  flex: 1;
-}
-
-.dots > span {
-  flex: 1;
-  height: 5px;
-  border-radius: 999px;
-  background: var(--plan-surface-3);
-}
-
-.dots > span[data-on="1"] {
-  background: var(--color-blue);
-}
-
-/* ------------------------------------------------------------------ modale */
 
 .modalScrim {
   position: fixed;
@@ -1631,38 +1887,6 @@
   }
 }
 
-/* ------------------------------------------------- compétences observées */
-
-.skillGrid {
-  display: grid;
-  gap: 11px;
-}
-
-.skillAside {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  flex: none;
-}
-
-.moreSkills {
-  margin-top: 12px;
-}
-
-.moreSkills summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-  color: var(--color-blue);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.moreSkills[open] summary {
-  margin-bottom: 11px;
-}
-
 /* --------------------------------------------------------- cartes d'appoint */
 
 .emptyCard,
@@ -1746,11 +1970,12 @@
 
 .primaryButton:focus-visible,
 .linkButton:focus-visible,
-.seanceRow:focus-visible,
+.encartHead:focus-visible,
+.encartRow:focus-visible,
+.encartCta:focus-visible,
 .panelRow:focus-visible,
 .page a:focus-visible,
-.page button:focus-visible,
-.moreSkills summary:focus-visible {
+.page button:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
   outline-offset: 3px;
 }
@@ -2043,6 +2268,7 @@
   --plan-blue-tint: color-mix(in srgb, var(--color-blue) 10%, transparent);
   --plan-red-tint: color-mix(in srgb, var(--color-red) 9%, transparent);
   --plan-green-tint: color-mix(in srgb, var(--color-green) 12%, transparent);
+  --plan-amber-tint: color-mix(in srgb, var(--color-amber) 20%, transparent);
 
   margin-bottom: 22px;
 }
@@ -2171,5 +2397,147 @@
 
   .paywallActions .primaryButton {
     width: 100%;
+  }
+}
+
+/* ============================================================================
+   « Ma progression » (`/plan/progression`) — le suivi adossé au Plan.
+
+   🛑 Aucune barre de pourcentage : le score interne du moteur de maîtrise n'est
+   exposé à aucun front. Les paliers portent leur ÉTAT, pas un chiffre.
+   ============================================================================ */
+
+.progressHero {
+  padding: 22px clamp(18px, 3vw, 24px);
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--plan-surface);
+  box-shadow: var(--plan-shadow-soft);
+}
+
+.progressHeroRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.progressHeroBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+}
+
+.progressHeroLabel {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.progressHeroValue {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: clamp(28px, 6vw, 34px);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+/* Rien de mesuré : la phrase remplace le palier, et se lit comme une phrase —
+   jamais comme un niveau. */
+.progressHeroValue[data-unknown="1"] {
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.progressHeroGoal .progressHeroLabel,
+.progressHeroGoal .progressHeroValue {
+  color: var(--color-blue);
+}
+
+.progressHeroArrow {
+  flex: none;
+  margin-bottom: 8px;
+  color: var(--color-muted-2);
+}
+
+.progressHeroRail {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--plan-line-soft);
+}
+
+.progressHeroCount {
+  margin: 14px 0 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+/* Deux colonnes dès qu'il y a la place, une seule sinon — sans point de rupture
+   à tenir à la main. */
+.progressGrid {
+  display: grid;
+  /* `min(…, 100%)` : sous 344 px de large, la colonne se rabat au lieu de
+     déborder — pas de scroll horizontal à 360 px. */
+  grid-template-columns: repeat(auto-fit, minmax(min(288px, 100%), 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.progressCardHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--plan-line-soft);
+  transition: background 0.15s ease;
+}
+
+.progressCardHead:hover {
+  background: var(--plan-surface-2);
+}
+
+.progressEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.progressEmpty .primaryButton {
+  min-height: 42px;
+  font-size: 13.5px;
+}
+
+/* Le repère factuel du passage à faire (sa nature, sa durée quand il en a une)
+   — sous le bouton, jamais à sa place. */
+.progressEmptyMeta {
+  margin: -4px 0 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* Un palier jamais mesuré n'emprunte l'état de personne : il le dit. */
+.progressUnknown {
+  flex: none;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 460px) {
+  .progressCardHead {
+    flex-wrap: wrap;
+    row-gap: 8px;
   }
 }

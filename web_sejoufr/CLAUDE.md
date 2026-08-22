@@ -96,11 +96,18 @@ app/
 │   │                              #   bandeaux reprendre/onboarding
 │   ├── plan/page.tsx             # ★ Plan ADAPTATIF : priorité actuelle, séance du jour,
 │   │                              #   mes priorités, ce qui a changé, profil TCF (4 domaines),
-│   │                              #   compléter mon profil, chemin vers l'objectif
+│   │                              #   compléter mon profil, chemin vers l'objectif.
+│   │                              #   ⚠️ Plus de section « Compétences observées » : elle est
+│   │                              #   FONDUE dans les encarts de « Mes priorités », qui portent
+│   │                              #   toutes les compétences de leur tâche, solides comprises
 │   ├── plan/competences/page.tsx # ★ « Toutes mes compétences » : les 4 domaines, leurs
 │   │                              #   tâches (expression) et leurs paliers (compréhension)
 │   ├── plan/domaine/[domaine]/   # ★ fiche d'un domaine (co|ce|ee|eo) : paliers ou tâches
 │   ├── plan/evolution/page.tsx   # ★ « Votre programme évolue » (transitions + chemin)
+│   ├── plan/progression/page.tsx # ★ « Ma progression vers le {objectif} » : niveau estimé →
+│   │                              #   objectif + rail, une carte par domaine (paliers CO/CE,
+│   │                              #   tâches EE/EO), mesure d'un domaine manquant, ce qui a
+│   │                              #   changé. ⚠️ N'EST PAS /statistiques, qui reste.
 │   ├── recommandations/page.tsx  # ★ liste complète des catégories triées faibles d'abord
 │   │                              #   (tag module, CTA Réviser) + raccourcis erreurs/favoris
 │   │                              #   vers /revision (qui n'a plus d'entrée sidebar)

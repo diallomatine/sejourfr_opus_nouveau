@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import {useEffect, useState} from "react";
-import {ArrowLeft, LayoutGrid, Lock, RotateCcw} from "lucide-react";
+import {ArrowLeft, LayoutGrid, RotateCcw} from "lucide-react";
 import {ApiException, learningPlanApi} from "@/lib/api";
-import {track} from "@/lib/analytics";
 import {useAuth} from "@/lib/auth-context";
 import {
   PLAN_COMPLETE_PROFILE_NOTE,
@@ -14,17 +13,13 @@ import {
   planDomainHref,
   planDomainLabel,
   planDomainLevelLine,
+  planLevelRowMeta,
   planProfileCountLabel,
 } from "@/lib/plan-domain";
-import {canAccessModule, type LearningPlanDto, type PlanDomainDto} from "@/lib/types";
+import type {LearningPlanDto, PlanDomainDto} from "@/lib/types";
 import {PlanDomainIcon, PlanDomainPriorityPill, PlanTaskRow} from "./PlanBits";
 import {EmptyCard, PlanShell} from "./LearningPlanView";
-import {
-  RowChevron,
-  SKILL_PREMIUM_HREF,
-  SkillMasteryPill,
-} from "@/app/_components/skill-ui/SkillLayout";
-import {useTrafficSourceHref} from "@/lib/use-traffic-source";
+import {RowChevron, SkillMasteryPill} from "@/app/_components/skill-ui/SkillLayout";
 import styles from "./plan.module.css";
 
 /**
@@ -43,16 +38,22 @@ import styles from "./plan.module.css";
  * épreuves du TCF) : on ne regroupe pas par famille, on ne retrie pas — même
  * doctrine que « Mon profil TCF ».
  *
- * ⚠️ **Verrou de navigation, pas contenu masqué** : un compte sans accès TCF
- * n'ouvre pas le référentiel complet, mais son Plan reste entier — priorités,
- * compteurs et exercice désigné compris.
+ * 🛑 **La page est OUVERTE à tout le monde** (arbitrage du 2026-08-22, aligné
+ * sur le mobile et sur la maquette). Elle **révoque** le verrou de navigation
+ * qui la fermait entièrement : *on floute l'action pas encore accessible,
+ * jamais la mesure ni le catalogue*. Rien de ce qu'elle affiche n'est une
+ * action — ce sont des **compteurs d'observation** (« 3 / 8 compétences
+ * observées »), des **paliers mesurés** et l'état agrégé qui en découle, c'est-
+ * à-dire le résultat du travail du candidat. Le verrou reste **là où le serveur
+ * le pose** : sur chaque compétence et sur chaque sujet des écrans d'arrivée
+ * (`SkillDto.locked` / `SkillPromptDto.locked`, opposables en 403). Ne pas
+ * refermer la page « par symétrie ».
  */
 export function PlanSkillsView() {
   const {status: authStatus, user} = useAuth();
   const [plan, setPlan] = useState<LearningPlanDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const premiumHref = useTrafficSourceHref(SKILL_PREMIUM_HREF);
 
   useEffect(() => {
     if (authStatus === "loading" || !user) return;
@@ -74,34 +75,6 @@ export function PlanSkillsView() {
         <div className={styles.skeletonHead} />
         <div className={styles.skeletonHero} />
       </main>
-    );
-  }
-
-  /* Accès direct par l'URL : le lien du Plan mène déjà à l'offre, mais rien
-     n'empêche d'arriver ici autrement. On le dit franchement plutôt que de
-     rendre une page vide. */
-  if (!canAccessModule(user, "TCF")) {
-    return (
-      <PlanShell>
-        <div className={styles.narrow}>
-          <BackToPlan />
-          <EmptyCard
-            icon={<Lock size={28} />}
-            title={PLAN_SKILLS_TITLE}
-            text="Le référentiel complet fait partie de l'abonnement Intégral. Votre plan, lui, reste entier."
-          >
-            <Link
-              className={styles.primaryButton}
-              href={premiumHref}
-              onClick={() =>
-                track("PREMIUM_CTA_CLICKED", {ctaLocation: "LOCKED_PLAN", screen: "plan_skills"})
-              }
-            >
-              Débloquer mes compétences
-            </Link>
-          </EmptyCard>
-        </div>
-      </PlanShell>
     );
   }
 
@@ -194,9 +167,7 @@ function DomainBlock({domain}: {domain: PlanDomainDto}) {
               </span>
               <span className={styles.panelBody}>
                 <span className={styles.panelTitle}>{palier.skillCode}</span>
-                <span className={styles.panelMeta}>
-                  {palier.blocking ? "Palier bloquant" : `Palier ${palier.niveau}`}
-                </span>
+                <span className={styles.panelMeta}>{planLevelRowMeta(palier)}</span>
               </span>
               <SkillMasteryPill state={palier.masteryState} />
               <RowChevron />

@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/enums.dart';
+import '../../../core/models/skill_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_tag.dart';
 import '../plan_labels.dart';
@@ -174,6 +175,114 @@ class PlanActionNatureTag extends StatelessWidget {
       );
 }
 
+/// **La pastille d'une tâche** : « Tâche 2 », teintée par son numéro.
+///
+/// Trois teintes qui **tournent** (tâche 1 bleue claire, 2 ambrée, 3 **bleu
+/// plein**) : à l'intérieur d'une même épreuve, deux encarts voisins ne se
+/// confondent pas. Ce n'est **pas** une sémantique — une tâche 3 n'est ni plus
+/// urgente ni plus grave qu'une tâche 1, elle est juste plus loin dans
+/// l'épreuve.
+///
+/// 🛑 **La 3ᵉ teinte n'est PAS rouge**, et ne doit jamais le redevenir. Deux
+/// raisons : le Rouge France est réservé aux CTA critiques (charte), et une
+/// carte d'expression porte **déjà** deux rouges de sens différents — la
+/// pastille de domaine ([PlanDomainTile]) et le statut « Priorité »
+/// ([PlanRowStatusStyle]). Trois rouges pour trois choses, l'œil ne distingue
+/// plus rien. La maquette, elle, prend un violet : nos tokens n'en ont pas, et
+/// on n'en fabrique pas.
+///
+/// La 3ᵉ se distingue donc par le **remplissage**, pas par la teinte — les deux
+/// autres familles claires disponibles sont déjà prises ailleurs dans le même
+/// en-tête (le vert est la coche « fait », le gris la pastille de contexte
+/// « Niveau B1 »).
+///
+/// ⚠️ **Aucune teinte nouvelle** : les trois paires viennent d'`AppColors`.
+class PlanTaskBadge extends StatelessWidget {
+  const PlanTaskBadge({super.key, required this.task});
+
+  final SkillTaskCode task;
+
+  @override
+  Widget build(BuildContext context) {
+    final (Color bg, Color fg) = switch ((task.tacheNumero - 1) % 3) {
+      0 => (AppColors.blueLight, AppColors.blueDark),
+      1 => (AppColors.amberLight, AppColors.amberDark),
+      _ => (AppColors.blue, AppColors.white),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+      ),
+      child: Text(
+        planTaskBadgeLabel(task),
+        style: AppFonts.ui(size: 10.5, weight: FontWeight.w800, color: fg),
+      ),
+    );
+  }
+}
+
+/// Le repère d'un encart **sans tâche** : « Niveau B1 », « Jalon ». Neutre —
+/// il situe, il ne qualifie pas.
+class PlanContextBadge extends StatelessWidget {
+  const PlanContextBadge({super.key, required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: AppColors.surface3,
+          borderRadius: BorderRadius.circular(AppRadii.pill),
+        ),
+        child: Text(
+          label,
+          style: AppFonts.ui(
+            size: 10.5,
+            weight: FontWeight.w800,
+            color: AppColors.inkSoft,
+          ),
+        ),
+      );
+}
+
+/// Teinte du statut d'une ligne de priorité.
+///
+/// ⚠️ **Aucune teinte nouvelle** : les quatre natures reprennent
+/// [PlanActionNatureStyle.tone] à l'identique — un même mot ne peut pas changer
+/// de couleur d'un écran à l'autre —, « Priorité » prend le rouge des statuts
+/// bloquants et « Solide » le vert des acquis, exactement comme
+/// [LearningPlanSkillStatusColor].
+extension PlanRowStatusStyle on PlanRowStatus {
+  TagTone get tone => switch (this) {
+        PlanRowStatus.priorite => TagTone.red,
+        PlanRowStatus.solide => TagTone.success,
+        PlanRowStatus.aRenforcer => PlanActionNature.aRenforcer.tone,
+        PlanRowStatus.aAcquerir => PlanActionNature.aAcquerir.tone,
+        PlanRowStatus.aVerifier => PlanActionNature.aVerifier.tone,
+        PlanRowStatus.aEvaluer => PlanActionNature.aEvaluer.tone,
+      };
+}
+
+/// La pastille de statut d'une ligne de priorité. « À acquérir » y porte son
+/// palier cible (« À acquérir · B1 ») : c'est le seul statut qui désigne un
+/// palier à venir plutôt qu'un constat.
+class PlanRowStatusTag extends StatelessWidget {
+  const PlanRowStatusTag({super.key, required this.status, this.level});
+
+  final PlanRowStatus status;
+  final TargetLevel? level;
+
+  @override
+  Widget build(BuildContext context) => AppTag(
+        label: planRowStatusLabel(status, level),
+        tone: status.tone,
+        compact: true,
+      );
+}
+
 /// Le rail des paliers `A2 → B1 → B2`, avec le palier courant en évidence.
 ///
 /// [current] est **nullable** : tant que rien n'est mesuré, aucun point n'est
@@ -281,38 +390,6 @@ class _RailDot extends StatelessWidget {
             color: textColor,
           ),
         ),
-      ],
-    );
-  }
-}
-
-/// Les points d'une étape : un par sujet du périmètre servi, remplis pour ceux
-/// qui ont été **traités**. Le total vient du serveur — une compétence qui
-/// publie moins de sujets a une étape plus courte.
-class PlanStepDots extends StatelessWidget {
-  const PlanStepDots({super.key, required this.done, required this.total});
-
-  final int done;
-  final int total;
-
-  @override
-  Widget build(BuildContext context) {
-    if (total <= 0) return const SizedBox.shrink();
-    final filled = done.clamp(0, total);
-    return Row(
-      children: [
-        for (var i = 0; i < total; i++) ...[
-          if (i > 0) const SizedBox(width: 4),
-          Expanded(
-            child: Container(
-              height: 5,
-              decoration: BoxDecoration(
-                color: i < filled ? AppColors.blue : AppColors.surface3,
-                borderRadius: BorderRadius.circular(AppRadii.pill),
-              ),
-            ),
-          ),
-        ],
       ],
     );
   }

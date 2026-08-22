@@ -14,8 +14,10 @@ import {
     RefreshCw,
     ShieldCheck,
     Wrench,
+    Zap,
 } from "lucide-react";
 import type {ReactNode} from "react";
+import {track} from "@/lib/analytics";
 import {useAuth} from "@/lib/auth-context";
 import {useTrafficSourceHref} from "@/lib/use-traffic-source";
 import {
@@ -32,6 +34,8 @@ import {
 import {
     isComprehension,
     PLAN_BANNER_LABEL,
+    PLAN_SKILLS_HREF,
+    PLAN_SKILLS_TITLE,
     PLAN_DOMAIN_SECTION,
     PLAN_PATH_CURRENT_BADGE,
     type PlanDomainEpreuve,
@@ -40,10 +44,50 @@ import {
     planPathStepMeta,
     planPathStepNote,
     planPathStepTitle,
+    planRowStatusLabel,
+    planTaskBadge,
+    planTaskObservedLabel,
+    type PlanRowStatus,
 } from "@/lib/plan-domain";
 import {withPlanStep} from "@/lib/plan-step";
 import {RowChevron, SKILL_PREMIUM_HREF} from "@/app/_components/skill-ui/SkillLayout";
 import styles from "./plan.module.css";
+
+/**
+ * Un cadenas du Plan qui renvoie au paiement, c'est LA mesure de conversion du
+ * verrou freemium — et c'est ce que la table « Quel écran déclenche l'achat ? »
+ * lit sous l'emplacement « Plan verrouillé ».
+ *
+ * 🛑 **Ne jamais inventer d'autre événement ici** : l'allowlist est doublée
+ * côté serveur, tout le reste est rejeté. Déclarée ici plutôt que dans un
+ * écran : les trois surfaces du Plan (priorité, séance, priorités groupées) la
+ * posent, et trois copies auraient fini par mesurer trois choses.
+ */
+export function trackPremiumClick() {
+    track("PREMIUM_CTA_CLICKED", {ctaLocation: "LOCKED_PLAN", screen: "plan"});
+}
+
+/** L'unique destination d'un cadenas du Plan, provenance suivie. */
+export function usePremiumHref(): string {
+    return useTrafficSourceHref(SKILL_PREMIUM_HREF);
+}
+
+/**
+ * Le « tout voir » de « Mes priorités ».
+ *
+ * 🛑 **Aucun cadenas** (arbitrage du 2026-08-22, aligné sur le mobile et sur la
+ * maquette) : le référentiel n'est ni une action ni un contenu premium, c'est
+ * le **catalogue** et les **mesures** du candidat. Le verrou reste là où le
+ * serveur le pose — sur chaque compétence et sur chaque sujet des écrans
+ * d'arrivée. Ne pas réintroduire de verrou de navigation ici.
+ */
+export function AllSkillsLink() {
+    return (
+        <Link className={styles.blockAction} href={PLAN_SKILLS_HREF}>
+            {PLAN_SKILLS_TITLE} <ChevronRight size={15} aria-hidden />
+        </Link>
+    );
+}
 
 /**
  * Les briques visuelles propres au Plan adaptatif : icône de domaine, pastille
@@ -229,6 +273,43 @@ export function PlanNaturePill({nature}: {nature: PlanActionNature}) {
     );
 }
 
+/**
+ * **Le statut d'affichage d'une ligne de « Mes priorités »** — la nature de
+ * l'action, sauf quand l'état agrégé de la compétence dit quelque chose de plus
+ * précis (« Priorité », « Solide »). La règle vit dans `planRowStatus`, cette
+ * pastille ne fait que la rendre.
+ *
+ * 🛑 **Deux teintes empruntées, pas inventées** : « Priorité » prend la teinte
+ * de fragilité, « Solide » celle de la réussite — les mêmes que sur la fiche de
+ * la compétence. Les quatre natures gardent les leurs, dont celle qui empêche
+ * « à acquérir » de se lire « à renforcer ».
+ *
+ * ⚠️ **Miroir du mobile** (`planRowStatusLabel`, `PlanRowStatus.tone`).
+ */
+export function PlanRowStatusPill({status, level}: {
+    status: PlanRowStatus;
+    /** Le palier que porte le référentiel — « À acquérir · B1 ». **Un fait
+     *  servi**, jamais déduit d'un code, et `null` quand il n'est pas publié :
+     *  la pastille se lit alors sans lui plutôt qu'avec un palier inventé. */
+    level: TargetLevel | null;
+}) {
+    return (
+        <span className={styles.naturePill} data-status={status}>
+            <span className={styles.naturePillIcon} aria-hidden>{ROW_STATUS_ICONS[status]}</span>
+            {planRowStatusLabel(status, level)}
+        </span>
+    );
+}
+
+const ROW_STATUS_ICONS: Record<PlanRowStatus, ReactNode> = {
+    PRIORITE: <Zap size={12} strokeWidth={2.4} />,
+    A_RENFORCER: NATURE_ICONS.A_RENFORCER,
+    A_ACQUERIR: NATURE_ICONS.A_ACQUERIR,
+    A_VERIFIER: NATURE_ICONS.A_VERIFIER,
+    SOLIDE: <Check size={12} strokeWidth={3} />,
+    A_EVALUER: NATURE_ICONS.A_EVALUER,
+};
+
 const RAIL_LEVELS: readonly TargetLevel[] = ["A2", "B1", "B2"];
 
 /**
@@ -252,20 +333,6 @@ export function PlanLevelRail({current, dark}: {current: TargetLevel; dark?: boo
                 </div>
             ))}
         </div>
-    );
-}
-
-/** Les points d'avancement d'une étape : **les compteurs servis**, jamais
- *  recomptés. `total === 0` (compréhension, qui n'a pas d'étape à cinq sujets)
- *  ⇒ rien du tout, plutôt qu'une rangée vide qui se lirait « 0 fait ». */
-export function PlanDots({done, total}: {done: number; total: number}) {
-    if (total <= 0) return null;
-    return (
-        <span className={styles.dots} aria-hidden>
-            {Array.from({length: total}).map((_, i) => (
-                <span key={i} data-on={i < done ? "1" : "0"} />
-            ))}
-        </span>
     );
 }
 
@@ -352,9 +419,15 @@ export function PlanPathList({cycle, titleId}: {cycle: PlanCycleDto; titleId?: s
 export function PlanTaskRow({
     tache,
     epreuve,
+    title,
 }: {
     tache: PlanDomainTaskDto;
     epreuve: PlanDomainEpreuve;
+    /** Le **titre éditorial** de la tâche, quand l'écran a la place de le dire
+     *  (« Ma progression »). Par défaut la ligne se contente de son rang :
+     *  dans une colonne latérale, le titre pousserait le compteur hors du
+     *  cadre. Le numéro reste porté par la pastille dans les deux cas. */
+    title?: string;
 }) {
     const section = epreuve === "TCF_EO" ? "eo" : "ee";
     /* Le même marqueur que les étapes : sa seule présence dit « on arrive du
@@ -371,10 +444,10 @@ export function PlanTaskRow({
             >
                 <span className={styles.levelBadge}>{tache.tacheNumero}</span>
                 <span className={styles.panelBody}>
-                    <span className={styles.panelTitle}>Tâche {tache.tacheNumero}</span>
-                    <span className={styles.panelMeta}>
-                        {tache.observedSkills} / {tache.totalSkills} compétences observées
+                    <span className={styles.panelTitle}>
+                        {title ?? planTaskBadge(tache.tacheNumero)}
                     </span>
+                    <span className={styles.panelMeta}>{planTaskObservedLabel(tache)}</span>
                 </span>
                 <span className={styles.taskCount}>{tache.taskCode}</span>
                 <RowChevron />
